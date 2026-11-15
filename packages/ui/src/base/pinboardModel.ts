@@ -11,12 +11,17 @@ import { trimEndChars } from "@plainva/core";
  *   ON TOP, newest first by ctime (E5 — ctime, not mtime, so checking a box
  *   or editing a label never reorders the board under the user's finger),
  *   followed by the listed cards.
- * - A drag SPLICES into the full unfiltered sequence (D3): the first drag
- *   materializes the whole current unpinned order once; chip-filtered views
- *   never lose the positions of filtered-out cards because the splice operates
- *   on the full sequence, not the visible subset.
- * - Self-heal: entries whose file no longer exists / left the source set are
- *   dropped whenever a mutator writes.
+ * - What is written is the stored list with the one card that moved: a pin,
+ *   an unpin or a drag never drops an entry the board does not show (fourth
+ *   review of 11.11.). The board shows what the head's search, a label chip
+ *   or an index that is still being built let through — the stored lists
+ *   hold every card. They used to be "healed" to the cards on screen: one pin
+ *   while searching took the place of every other card out of the .base file,
+ *   and the sync carried that on (since 0.8.4). A move in the app follows an
+ *   entry (`sweepPinboardRefs`), a delete in the app takes it out
+ *   (`dropPinboardRefs`) — a dead entry left behind would be taken over by the
+ *   next note of that name; an entry whose file went otherwise is not drawn
+ *   (`orderCards` draws present cards only).
  */
 
 export interface PinboardRowLike {
@@ -59,42 +64,86 @@ export function orderCards(
 /** Drop slot of a card drag: before a specific card, or at the section end. */
 export type PinboardDropSlot = { kind: "before"; path: string } | { kind: "end" };
 
-/**
- * Splice `moved` into the FULL section sequence (D3). `sequence` is the
- * complete unfiltered section order as currently rendered (orderCards output);
- * the return value is the new persisted list for that section. Also the
- * first-drag materialization: the result always lists every card of the
- * sequence explicitly.
- */
-export function spliceIntoSequence(sequence: string[], moved: string[], slot: PinboardDropSlot): string[] {
-  const movedSet = new Set(moved);
-  const rest = sequence.filter((p) => !movedSet.has(p));
-  if (slot.kind === "end") return [...rest, ...moved];
-  const at = rest.indexOf(slot.path);
-  if (at < 0) return [...rest, ...moved];
-  return [...rest.slice(0, at), ...moved, ...rest.slice(at)];
+/** `list` with each entry once, at its first place. */
+function once(list: readonly string[] | undefined): string[] {
+  return [...new Set(list ?? [])];
 }
 
-/** Pin a card: it enters the pinned section on top (Keep) and leaves the order list. */
+/**
+ * A drag (D3): the stored list of the section with `moved` taken out and put
+ * before the slot's card — or after the last card shown, the end of what the
+ * person saw. `shown` is the section as drawn: its cards that the list does
+ * not hold yet (unarranged, drawn on top) are written in front, in the order
+ * drawn, so the first drag materializes what the person saw. Every entry of
+ * the stored list stays, shown or not; a card dropped onto itself stays where
+ * it is.
+ */
+export function spliceIntoSequence(stored: string[] | undefined, shown: string[], moved: string[], slot: PinboardDropSlot): string[] {
+  const kept = once(stored);
+  const listed = new Set(kept);
+  const movedSet = new Set(moved);
+  const all = once([...shown.filter((p) => !listed.has(p)), ...kept]);
+  if (slot.kind === "before" && movedSet.has(slot.path)) return all;
+  const rest = all.filter((p) => !movedSet.has(p));
+  const insertAt = (at: number) => [...rest.slice(0, at), ...moved, ...rest.slice(at)];
+  if (slot.kind === "before") {
+    const at = rest.indexOf(slot.path);
+    if (at >= 0) return insertAt(at);
+  }
+  // The end of the section as shown: after its last card that does not move.
+  const lastShown = [...shown].reverse().find((p) => !movedSet.has(p));
+  const after = lastShown === undefined ? -1 : rest.indexOf(lastShown);
+  return after < 0 ? [...rest, ...moved] : insertAt(after + 1);
+}
+
+/** Pin a card: it enters the pinned section on top (Keep) and leaves the order list; every other entry stays. */
 export function applyPin(
   order: string[] | undefined,
   pinned: string[] | undefined,
   path: string,
-  presentPaths: ReadonlySet<string>,
 ): { order: string[]; pinned: string[] } {
-  const heal = (list: string[] | undefined) => (list ?? []).filter((p) => presentPaths.has(p) && p !== path);
-  return { order: heal(order), pinned: [path, ...heal(pinned)] };
+  const without = (list: string[] | undefined) => once(list).filter((p) => p !== path);
+  return { order: without(order), pinned: [path, ...without(pinned)] };
 }
 
-/** Unpin a card: it returns to the TOP of the unpinned section (visible, predictable). */
+/** Unpin a card: it returns to the TOP of the unpinned section (visible, predictable); every other entry stays. */
 export function applyUnpin(
   order: string[] | undefined,
   pinned: string[] | undefined,
   path: string,
-  presentPaths: ReadonlySet<string>,
 ): { order: string[]; pinned: string[] } {
-  const heal = (list: string[] | undefined) => (list ?? []).filter((p) => presentPaths.has(p) && p !== path);
-  return { order: [path, ...heal(order)], pinned: heal(pinned) };
+  const without = (list: string[] | undefined) => once(list).filter((p) => p !== path);
+  return { order: [path, ...without(order)], pinned: without(pinned) };
+}
+
+/**
+ * A new order of the shown keys (a board's columns) written into the stored
+ * order: the shown keys take the places shown keys held, in their new order;
+ * every key not shown — a group whose cards the search has not let through —
+ * keeps its place. A key the stored order does not hold yet (a value that
+ * turned up after the board was first arranged) goes where it was dropped:
+ * before the shown key that follows it, or after the one before it.
+ */
+export function reorderShown(stored: readonly string[], shownInNewOrder: readonly string[]): string[] {
+  const kept = once(stored);
+  const keptSet = new Set(kept);
+  const order = once(shownInNewOrder);
+  const shown = new Set(order);
+  const next = order.filter((k) => keptSet.has(k));
+  let i = 0;
+  const out = kept.map((k) => (shown.has(k) ? next[i++]! : k));
+  order.forEach((k, at) => {
+    if (keptSet.has(k)) return;
+    const following = order.slice(at + 1).find((f) => out.includes(f));
+    if (following !== undefined) {
+      out.splice(out.indexOf(following), 0, k);
+      return;
+    }
+    const before = order.slice(0, at).reverse().find((b) => out.includes(b));
+    if (before !== undefined) out.splice(out.indexOf(before) + 1, 0, k);
+    else out.push(k);
+  });
+  return out;
 }
 
 /** Rewrite vault paths in order/pinned after a rename/move (P5 sweep helper). */

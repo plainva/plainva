@@ -13,7 +13,9 @@ import "../../../mobile/src/mobile.css";
 import "../../../../packages/ui/src/i18n";
 
 let app: Root | null = null;
-let current: { shell: "mobile" | "desktop"; count: number; embedded?: boolean };
+let current: { shell: "mobile" | "desktop"; count: number; embedded?: boolean; order?: string[]; pinned?: string[] };
+/** What the board asked to save (`onPatchView`). */
+const patches: Record<string, unknown>[] = [];
 let rows: Record<string, unknown>[] = [];
 const requests: string[][] = [];
 let imageReads = 0;
@@ -42,10 +44,10 @@ const source = {
 };
 const files = { async readBinaryFile(path: string) { imageReads++; imageRequests.push(path); if (externalImage) return externalImage(path); return Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="), c => c.charCodeAt(0)); } };
 const vault = { vaultId: "pinboard-probe", queryService: source, files, adapter: files } as unknown as MobileVault;
-const view = { type: "pinboard", name: "Notes" };
+const view: { type: string; name: string; pinboardOrder?: string[]; pinboardPinned?: string[] } = { type: "pinboard", name: "Notes" };
 const config = { views: [view], filters: {} };
 function render() {
-  const props = { viewKey: "fixture#Notes", onOpenNote() { app?.unmount(); app = null; }, onPatchView() {} };
+  const props = { viewKey: "fixture#Notes", onOpenNote() { app?.unmount(); app = null; }, onPatchView(patch: Record<string, unknown>) { patches.push(patch); } };
   const child = current.shell === "mobile"
     ? <PinboardView {...props} vault={vault} rows={rows} view={view} config={config} onMutated={() => {}} askStorageFolder={async () => null} />
     : <VaultContext.Provider value={{ vaultAdapter: files, queryService: source, triggerFileTreeUpdate() {} } as unknown as React.ContextType<typeof VaultContext>}>
@@ -55,11 +57,14 @@ function render() {
   app.render(child);
 }
 export const pinboardProbe = {
-  requests, imageRequests, versions,
+  requests, imageRequests, versions, patches,
   mount(options: typeof current) {
     app?.unmount(); app = null; current = options;
     document.documentElement.dataset.density = options.shell === "mobile" ? "touch" : "compact";
     rows = externalRows?.slice(0, options.count) ?? Array.from({ length: options.count }, (_, n) => ({ "file.path": `Inbox/Note-${n}.md`, "file.name": `Note ${n}`, "file.mtime": 1, "file.ctime": 1, "file.size": 500, "file.revision": `rev-${versions.get(`Inbox/Note-${n}.md`) ?? 0}`, "file.tags": ["#fixture", "#group" + n % 2] }));
+    view.pinboardOrder = options.order;
+    view.pinboardPinned = options.pinned;
+    patches.length = 0;
     render();
   },
   unmount() { app?.unmount(); app = null; },

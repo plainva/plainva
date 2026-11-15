@@ -118,3 +118,20 @@ for (const shell of ["desktop"] as const) {
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 }
+
+test("desktop: a board that shows some of its cards saves a pin and keeps every entry it does not show", async ({ page }) => {
+  // The board shows what the head's search or a label chip let through. A pin
+  // used to write the lists healed to the cards on screen: every other card's
+  // place left the .base file, and the sync carried it on (since 0.8.4).
+  await page.setViewportSize({ width: 900, height: 812 });
+  await loadPinboardProbe(page);
+  const order = ["Inbox/Not-shown.md", "Inbox/Note-1.md", "Inbox/Also-not-shown.md"];
+  const pinned = ["Inbox/Pinned-not-shown.md"];
+  await page.evaluate(({ order, pinned }) => (window as PinboardProbeWindow).pinboardProbe.mount({ shell: "desktop", count: 4, order, pinned }), { order, pinned });
+  const card = page.locator('[data-pinboard-path="Inbox/Note-0.md"]');
+  await card.hover();
+  await card.locator(".pv-pinboard-pin").click();
+  await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.patches)).toEqual([
+    { pinboardOrder: order, pinboardPinned: ["Inbox/Note-0.md", ...pinned] },
+  ]);
+});

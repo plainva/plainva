@@ -351,7 +351,6 @@ export function PinboardView({
     if (next.pinned) patch.pinboardPinned = next.pinned.length > 0 ? next.pinned : undefined;
     onPatchView(patch);
   }, [onPatchView]);
-  const presentSet = useMemo(() => new Set(paths), [paths]);
 
   const pickColor = useCallback(async (path: string) => {
     const options = [
@@ -453,7 +452,8 @@ export function PinboardView({
       ],
     });
     if (picked === "pin") {
-      const next = isPinned ? applyUnpin(order, pinnedList, path, presentSet) : applyPin(order, pinnedList, path, presentSet);
+      // The stored lists with the one card that moved, never healed from the cards shown (as on the desktop).
+      const next = isPinned ? applyUnpin(order, pinnedList, path) : applyPin(order, pinnedList, path);
       persistSections(next);
     } else if (picked === "labels") {
       await editLabels(path);
@@ -470,7 +470,7 @@ export function PinboardView({
       );
       if (done) onMutated();
     }
-  }, [sections, order, pinnedList, presentSet, persistSections, editLabels, pickColor, vault, t, onMutated]);
+  }, [sections, order, pinnedList, persistSections, editLabels, pickColor, vault, t, onMutated]);
 
   // ── Long-press: no movement = action sheet, movement = drag reorder ──
   const [drag, setDrag] = useState<{ path: string; x: number; y: number; moved: boolean } | null>(null);
@@ -570,7 +570,8 @@ export function PinboardView({
       // "tap": the card's click opens the note. "move" without a slot: nothing.
       if (!hit || hit.section !== section) return;
       haptics.light();
-      const next = spliceIntoSequence(sections[section], [path], hit.slot);
+      // Spliced into the stored list: the cards the board does not show keep their places.
+      const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, sections[section], [path], hit.slot);
       persistSections(section === "pinned" ? { pinned: next } : { order: next });
     };
     el.addEventListener("pointerdown", onDown);
@@ -586,7 +587,7 @@ export function PinboardView({
       el.removeEventListener("touchmove", onTouchMove);
       clear();
     };
-  }, [sections, canDrag, slotAt, openActions, persistSections]);
+  }, [sections, canDrag, slotAt, openActions, persistSections, order, pinnedList]);
 
   const cardLabels = useMemo(
     () => ({

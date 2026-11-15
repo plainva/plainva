@@ -1,5 +1,6 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { sweepPinboardRefs } from "@plainva/ui";
+import { createIndexAutoUpdater, dropPinboardRefs, notifyFileOps, sweepPinboardRefs } from "@plainva/ui";
 
 // Plan Pinboard P5: path retargeting of pinboard arrangements after renames
 // and moves — wired into both shells; these tests pin the core sweep.
@@ -82,5 +83,53 @@ describe("sweepPinboardRefs", () => {
     await expect(sweepPinboardRefs({ ...v.deps, queryService: null }, [{ from: "a", to: "b" }])).resolves.toEqual([]);
     await expect(sweepPinboardRefs(v.deps, [])).resolves.toEqual([]);
     expect(v.writes).toEqual([]);
+  });
+});
+
+describe("dropPinboardRefs: a delete in the app takes the note out of every pinboard", () => {
+  // A pin, an unpin or a drag keeps every entry it does not show; a deleted
+  // note's entry left behind was taken over by the next note of that name — a
+  // quick capture came back pinned at the place of a deleted one.
+  it("drops deleted files from order and pinned, and every entry below a deleted folder", async () => {
+    const v = fakeVault({ "Pinnwand.base": pinboardBase, "Andere.base": plainBase });
+    expect(await dropPinboardRefs(v.deps, ["Zettel/C.md"])).toEqual(["Pinnwand.base"]);
+    expect(v.files["Pinnwand.base"]).not.toContain("Zettel/C.md");
+    expect(v.files["Pinnwand.base"]).toContain("Zettel/A.md");
+    expect(v.writes).toEqual(["Pinnwand.base"]);
+    await dropPinboardRefs(v.deps, [], ["Zettel"]);
+    expect(v.files["Pinnwand.base"]).not.toContain("Zettel/");
+    expect(v.files["Andere.base"]).toBe(plainBase);
+  });
+
+  it("a name taken again after a delete starts unarranged, not at the deleted note's place", async () => {
+    const v = fakeVault({ "Pinnwand.base": pinboardBase });
+    await dropPinboardRefs(v.deps, ["Zettel/C.md"]);
+    // A new "Zettel/C.md" is not listed: it is drawn among the unarranged cards on top.
+    expect(v.files["Pinnwand.base"]).not.toContain("pinboardPinned");
+  });
+
+  it("runs for every delete either shell announces (`notifyFileOps`), through the shared updater", async () => {
+    const v = fakeVault({ "Pinnwand.base": pinboardBase });
+    const written: string[] = [];
+    const updater = createIndexAutoUpdater({
+      adapter: v.deps.adapter as never,
+      queryService: v.deps.queryService as never,
+      vaultName: () => "V",
+      subfoldersHeading: () => "Folders",
+      onWritten: (p) => void written.push(p),
+      debounceMs: 1,
+    });
+    const onOps = (e: Event) => updater.notify((e as CustomEvent).detail.ops);
+    window.addEventListener("plainva-file-ops", onOps);
+    try {
+      notifyFileOps([{ type: "delete", path: "Zettel/A.md" }]);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(v.files["Pinnwand.base"]).not.toContain("Zettel/A.md");
+      expect(v.files["Pinnwand.base"]).toContain("Zettel/B.md");
+      expect(written).toContain("Pinnwand.base");
+    } finally {
+      window.removeEventListener("plainva-file-ops", onOps);
+      updater.dispose();
+    }
   });
 });

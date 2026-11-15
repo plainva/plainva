@@ -96,3 +96,66 @@ export async function sweepPinboardRefs(
   }
   return changed;
 }
+
+/**
+ * A delete in the app takes the deleted notes out of every pinboard's lists,
+ * as a move retargets them (`sweepPinboardRefs`): since a pin, an unpin or a
+ * drag keeps every entry it does not show, a dead path left behind was taken
+ * over by the next note of the same name — a quick capture "Einkauf" came back
+ * pinned at the place of a deleted one. `paths` are files, `folders` folders
+ * whose every entry below goes. Returns the rewritten `.base` paths; a base
+ * that cannot be read or written is skipped, never the delete.
+ */
+export async function dropPinboardRefs(
+  deps: PinboardSweepDeps,
+  paths: ReadonlyArray<string>,
+  folders: ReadonlyArray<string> = [],
+): Promise<string[]> {
+  if (!deps.queryService || (paths.length === 0 && folders.length === 0)) return [];
+  const exact = new Set(paths);
+  const gone = (p: string) => exact.has(p) || folders.some((f) => p.startsWith(f + "/"));
+  let basePaths: string[];
+  try {
+    basePaths = await deps.queryService.listBaseFilePaths();
+  } catch {
+    return [];
+  }
+  const dropped = (text: string): string | null => {
+    if (!text.includes("pinboardOrder") && !text.includes("pinboardPinned")) return null;
+    let cfg: any;
+    try {
+      cfg = parseBaseConfig(text);
+    } catch {
+      return null;
+    }
+    let any = false;
+    for (const v of Array.isArray(cfg.views) ? cfg.views : []) {
+      for (const key of ["pinboardOrder", "pinboardPinned"] as const) {
+        if (!Array.isArray(v?.[key])) continue;
+        const kept = (v[key] as unknown[]).filter((p) => !gone(String(p)));
+        if (kept.length === v[key].length) continue;
+        v[key] = kept.length > 0 ? kept : undefined;
+        if (v[key] === undefined) delete v[key];
+        any = true;
+      }
+    }
+    return any ? serializeBaseConfig(cfg) : null;
+  };
+  const changed: string[] = [];
+  for (const basePath of basePaths) {
+    let text: string;
+    try {
+      text = await deps.adapter.readTextFile(basePath);
+    } catch {
+      continue;
+    }
+    if (dropped(text) === null) continue;
+    try {
+      if ((await updateVaultText(deps.adapter, basePath, dropped)).changed) changed.push(basePath);
+    } catch (e) {
+      // One unwritable base must never break the delete itself.
+      console.warn("[pinboardSweep] dropping deleted paths from", basePath, "failed", e);
+    }
+  }
+  return changed;
+}

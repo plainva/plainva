@@ -10,6 +10,7 @@ import {
 import { generateIndexForFolder } from "./indexMdGenerate";
 import { followFreshNoteMove } from "./freshNote";
 import { type IndexMdAdapter } from "./indexMd";
+import { dropPinboardRefs } from "../base/pinboardSweep";
 
 /**
  * Automatic refresh of Plainva-managed index.md files (plan UI-UX-Paket P11).
@@ -173,6 +174,19 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
   return {
     notify(ops: FileOp[]) {
       if (disposed) return;
+      // A delete in the app takes the deleted notes out of every pinboard's
+      // lists (`dropPinboardRefs`): every delete of both shells passes here,
+      // and a dead path left in a list was taken over by the next note of the
+      // same name.
+      const deleted = ops.filter((op): op is Extract<FileOp, { type: "create" | "delete" }> => op.type === "delete");
+      if (deleted.length > 0) {
+        // Each path as a file and as a folder: not every call site says which.
+        const paths = deleted.map((op) => normalize(op.path));
+        void dropPinboardRefs({ adapter: deps.adapter, queryService: deps.queryService }, paths, paths).then(
+          (changed) => { for (const basePath of changed) deps.onWritten?.(basePath); },
+          (e: unknown) => reportBackground("pinboard:drop-deleted", e),
+        );
+      }
       for (const folder of affectedFolders(ops)) pendingFolders.add(folder);
       if (pendingFolders.size === 0) return;
       if (timer) clearTimeout(timer);

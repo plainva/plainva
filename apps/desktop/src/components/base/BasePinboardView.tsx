@@ -399,7 +399,6 @@ export function BasePinboardView({
     }
   }, [vaultAdapter, afterCardWrite, t]);
 
-  const presentSet = useMemo(() => new Set(paths), [paths]);
   const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
     const patch: Record<string, unknown> = {};
     if (next.order) patch.pinboardOrder = next.order.length > 0 ? next.order : undefined;
@@ -408,9 +407,12 @@ export function BasePinboardView({
   }, [onPatchView]);
 
   const handlePinToggle = useCallback((path: string, pin: boolean) => {
-    const next = pin ? applyPin(order, pinnedList, path, presentSet) : applyUnpin(order, pinnedList, path, presentSet);
+    // The stored lists with the one card that moved: never healed from the
+    // cards the search or a chip lets through (since 0.8.4 a pin while
+    // searching took every other card's place out of the .base).
+    const next = pin ? applyPin(order, pinnedList, path) : applyUnpin(order, pinnedList, path);
     persistSections(next);
-  }, [order, pinnedList, presentSet, persistSections]);
+  }, [order, pinnedList, persistSections]);
 
   const handleDelete = useCallback(async (path: string) => {
     if (!vaultAdapter || !indexer) return;
@@ -530,8 +532,8 @@ export function BasePinboardView({
         window.addEventListener("click", suppress, { capture: true, once: true });
         window.setTimeout(() => window.removeEventListener("click", suppress, { capture: true }), 0);
         if (!hit || hit.section !== section) return;
-        const seq = sections[section];
-        const next = spliceIntoSequence(seq, [d.path], hit.slot);
+        // Spliced into the stored list: the cards the board does not show keep their places.
+        const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, sections[section], [d.path], hit.slot);
         persistSections(section === "pinned" ? { pinned: next } : { order: next });
       };
       const onCancel = (ev: PointerEvent) => { if (ev.pointerId === d.pointerId) cleanup(); };
