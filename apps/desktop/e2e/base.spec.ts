@@ -370,6 +370,7 @@ test.beforeEach(async ({ page }) => {
       { source_path: 'Projekte/Alpha.md', source_title: 'Alpha', target_path: 'ACME', property_key: 'kunde' },
       { source_path: 'Projekte/Beta.md', source_title: 'Beta', target_path: 'Alpha', property_key: 'parent' },
     ];
+    (window as any).__dbLinks = dbLinks;
 
     (window as any).__TAURI_INTERNALS__ = {
       plugins: { path: { sep: '/' } },
@@ -1135,6 +1136,42 @@ test('Base board: dragging a column header reorders the group options (report 20
       return y.indexOf('value: paused') < y.indexOf('value: active');
     })
     .toBe(true);
+});
+
+test('Base board: a column dragged while the head search hides another keeps the hidden column in its place (0.8.4 to 0.8.7)', async ({ page }) => {
+  // A text board remembers its columns under boardColumnOrder; the board
+  // wrote the shown columns only, and the order of a column the search hid
+  // was gone. The shown ones take the places shown ones held now.
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Textboard.base'] = [
+      'filters:', '  and:', '    - file.folder == "Projekte"',
+      'views:', '  - type: table', '    name: Textboard', '    order:', '      - file.name', '      - note.status',
+      '    plainva:', '      render: board', '      groupBy: status',
+      '      boardColumnOrder:', '        - active', '        - done', '        - paused', '',
+    ].join('\n');
+    fs['/test-vault/Projekte/Alpha.md'] = '---\nstatus: active\n---\n# Alpha\n\nSonderfall.\n';
+    fs['/test-vault/Projekte/Beta.md'] = '---\nstatus: paused\n---\n# Beta\n\nSonderfall.\n';
+    fs['/test-vault/Projekte/Gamma.md'] = '---\nstatus: done\n---\n# Gamma\n';
+    (window as any).__dbProps['3'][0] = { key: 'status', value: 'done', type: 'text' };
+  });
+  await page.goto('/');
+  await openBase(page, 'Textboard');
+  const header = (name: string) => page.getByText(name, { exact: true }).first();
+  await expect(header('done')).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('base-search-toggle').click();
+  await page.getByTestId('base-search').locator('input').fill('Sonderfall');
+  await expect(header('done')).toHaveCount(0);
+  const from = (await header('paused').boundingBox())!;
+  const to = (await header('active').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 8, { steps: 3 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  const columns = async () => orderOf(String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base'])), 'boardColumnOrder');
+  // "No value" closes every board, as at main.
+  await expect.poll(columns).toEqual(['paused', 'done', 'active', '__UNGROUPED__']);
 });
 
 test('Base board: color mode "column" tints the whole column and persists (WP3)', async ({ page }) => {
@@ -2676,6 +2713,97 @@ test('Template DB excludes the source folder index.md from the view', async ({ p
   // only a plain folder source.
   await expect(table.getByText('index', { exact: true })).toHaveCount(0);
   await expect(table.locator('tbody tr')).toHaveCount(2);
+});
+
+test('pinboard: a pin while the head search narrows the board keeps every card of the view in its lists (0.8.4 to 0.8.7)', async ({ page }) => {
+  // The board drew what the search let through, and a pin wrote its lists
+  // healed to those cards: every other card's place left the .base, and the
+  // sync carried it on. It heals against every card of the view now.
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      pinboardOrder:\n        - "Zettel/Notiz.md"\n        - "Zettel/Einkauf.md"\n        - "Zettel/Weg.md"');
+  });
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await page.getByTestId('base-search-toggle').click();
+  await page.getByTestId('base-search').locator('input').fill('Solaranlage');
+  await expect(cards).toHaveCount(1);
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('pinboardPinned');
+  const written = String(await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']));
+  expect(written).toContain('Zettel/Idee.md');
+  // The cards the search hid keep their places; the path whose file is gone goes, as before.
+  expect(written).toContain('Zettel/Notiz.md');
+  expect(written).toContain('Zettel/Einkauf.md');
+  expect(written).not.toContain('Zettel/Weg.md');
+});
+
+const pinboardFile = (page: Page) => page.evaluate(() => String((window as any).mockFs['/test-vault/Pinnwand.base']));
+const orderOf = (yaml: string, list: string) => {
+  // The entries of one YAML list of the view, in their order.
+  const at = yaml.indexOf(`${list}:`);
+  if (at < 0) return [] as string[];
+  const out: string[] = [];
+  for (const line of yaml.slice(at).split('\n').slice(1)) {
+    const m = line.match(/^\s+- "?([^"]+)"?$/);
+    if (!m) break;
+    out.push(m[1]);
+  }
+  return out;
+};
+
+test('pinboard: a drag while the head search narrows the board keeps the hidden cards in their places (0.8.4 to 0.8.7)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Zettel/Notiz.md'] = 'Nur Text zur Solaranlage\n';
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      pinboardOrder:\n        - "Zettel/Idee.md"\n        - "Zettel/Einkauf.md"\n        - "Zettel/Notiz.md"');
+  });
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await page.getByTestId('base-search-toggle').click();
+  await page.getByTestId('base-search').locator('input').fill('Solaranlage');
+  await expect(cards).toHaveCount(2);
+  // Notiz is dragged onto the upper half of Idee: it goes before it.
+  const from = (await cards.filter({ hasText: 'Nur Text' }).boundingBox())!;
+  const to = (await cards.filter({ hasText: 'Dach' }).boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2 + 10, { steps: 3 });
+  await page.mouse.move(to.x + to.width / 2, to.y + 4, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(async () => orderOf(await pinboardFile(page), 'pinboardOrder')).toEqual(['Zettel/Notiz.md', 'Zettel/Idee.md', 'Zettel/Einkauf.md']);
+});
+
+test('pinboard: a pin in a board embedded with "This note" keeps the cards outside the scope in their lists (0.8.7)', async ({ page }) => {
+  // An embedded board shows the cards that link to its host note; a pin
+  // healed its lists to those and took every other card's place out of the
+  // .base. It heals against every card of the view now.
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Hosts'] = { isDir: true };
+    fs['/test-vault/Hosts/Haus.md'] = '# Haus\n\n![[Pinnwand.base]]\n';
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      contextFilters:\n        - projekt\n      pinboardOrder:\n        - "Zettel/Notiz.md"\n        - "Zettel/Einkauf.md"\n        - "Zettel/Idee.md"');
+    (window as any).__dbFiles.push({ id: 'h1', path: 'Hosts/Haus.md', title: 'Haus', mtime_local: 1750000030000, size_bytes: 10 });
+    (window as any).__dbLinks.push({ source_path: 'Zettel/Idee.md', source_title: 'Idee', target_path: 'Haus', property_key: 'projekt' });
+  });
+  await page.goto('/');
+  await openTreeNote(page, 'Hosts', 'Haus');
+  const embed = page.locator('main .cm-note-embed').first();
+  const cards = embed.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(1, { timeout: 15000 });
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect.poll(async () => orderOf(await pinboardFile(page), 'pinboardPinned')).toEqual(['Zettel/Idee.md']);
+  expect(orderOf(await pinboardFile(page), 'pinboardOrder')).toEqual(['Zettel/Notiz.md', 'Zettel/Einkauf.md']);
 });
 
 test('pinboard: cards render note bodies; checkbox and pin write back to the files', async ({ page }) => {

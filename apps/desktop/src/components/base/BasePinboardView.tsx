@@ -140,6 +140,7 @@ function CardImage({ target, alt, notePath }: { target: string; alt: string; not
 
 export function BasePinboardView({
   dbData,
+  viewRows,
   dbConfig,
   activeView,
   visibleColumns,
@@ -151,6 +152,12 @@ export function BasePinboardView({
   viewKey = "default",
 }: {
   dbData: any[];
+  /**
+   * Every row of the view — its saved filters only, before the search in its
+   * head or the "This note" scope of an embedded board narrows it (`dbData`):
+   * what the arrangement heals against.
+   */
+  viewRows?: any[];
   /** Full config (sources for the source-tag exclusion, columns for label options). */
   dbConfig: any;
   /** The active view object (pinboardOrder/pinboardPinned/sort live here). */
@@ -399,7 +406,11 @@ export function BasePinboardView({
     }
   }, [vaultAdapter, afterCardWrite, t]);
 
-  const presentSet = useMemo(() => new Set(paths), [paths]);
+  // Every card of the view before the search in the database's head or the
+  // scope of an embedded board narrows it: what a pin, an unpin or a drag heals its lists against — never the
+  // cards on screen (since 0.8.4 one pin while searching took every other
+  // card's place out of the .base, and the sync carried it on).
+  const presentSet = useMemo(() => new Set((viewRows ?? dbData).map((r) => String(r["file.path"] ?? "")).filter(Boolean)), [viewRows, dbData]);
   const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
     const patch: Record<string, unknown> = {};
     if (next.order) patch.pinboardOrder = next.order.length > 0 ? next.order : undefined;
@@ -530,8 +541,7 @@ export function BasePinboardView({
         window.addEventListener("click", suppress, { capture: true, once: true });
         window.setTimeout(() => window.removeEventListener("click", suppress, { capture: true }), 0);
         if (!hit || hit.section !== section) return;
-        const seq = sections[section];
-        const next = spliceIntoSequence(seq, [d.path], hit.slot);
+        const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, sections[section], [d.path], hit.slot, presentSet);
         persistSections(section === "pinned" ? { pinned: next } : { order: next });
       };
       const onCancel = (ev: PointerEvent) => { if (ev.pointerId === d.pointerId) cleanup(); };
