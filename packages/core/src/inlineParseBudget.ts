@@ -358,7 +358,7 @@ export function interruptsParagraph(content: string, containers = true): boolean
   if (/^(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(text)) return true;
   if (/^(?:-[ \t]*){3,}$/.test(text) && !/^-+[ \t]*$/.test(text)) return true;
   // A footnote definition is a container of its own, and it may interrupt a paragraph (micromark's GFM footnotes).
-  return containers && (text[0] === ">" || /^(?:[-+*]|1[.)])[ \t]+[^ \t]/.test(text) || /^\[\^[^\] \t]+\]:/.test(text));
+  return containers && (text[0] === ">" || /^(?:[-+*]|1[.)])[ \t]+[^ \t]/.test(text) || /^\[\^(?:\\[^]|[^\]\\ \t])+\]:/.test(text));
 }
 
 /**
@@ -383,7 +383,7 @@ function endsTable(row: string, indent = indentOf(row), containers = true): bool
   if (isAtxHeading(text) || fenceOpening(text)) return true;
   if (/^(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(text)) return true;
   // Where the parser opens no blocks within blocks (`opensNoContainers`), a quote, a list item and a footnote are text, and rows.
-  if (containers && (text[0] === ">" || /^(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/.test(text) || /^\[\^[^\] \t]+\]:/.test(text))) return true;
+  if (containers && (text[0] === ">" || /^(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/.test(text) || /^\[\^(?:\\[^]|[^\]\\ \t])+\]:/.test(text))) return true;
   return opensHtmlBlock(text);
 }
 
@@ -437,7 +437,7 @@ export function tableLineStart(line: string, first: boolean, containers = true):
         at += item[0].length;
         continue;
       }
-      const footnote = /^\[\^[^\] \t]+\]:[ \t]*/.exec(line.slice(at));
+      const footnote = /^\[\^(?:\\[^]|[^\]\\ \t])+\]:[ \t]*/.exec(line.slice(at));
       if (footnote) {
         // A footnote's later lines are indented by four.
         prefix.push(at - lead + 4);
@@ -548,16 +548,25 @@ export const TABLE_CELL_WEIGHT = 204;
 export const TABLE_SYNTAX_WEIGHT = 122;
 
 /** What each autolink literal a row may hold weighs (`tableRowParts`): a link node of its own, without a character of syntax. */
-export const TABLE_LITERAL_WEIGHT = 181;
+export const TABLE_LITERAL_WEIGHT = 160;
 
 /** What each start of a run of address characters weighs (`tableRowParts`): the parser tries an address there and holds the cell's text in pieces. */
-export const TABLE_WORD_WEIGHT = 180;
+export const TABLE_WORD_WEIGHT = 171;
 
-/** What each `[^` weighs: a footnote reference where a definition exists. */
-export const TABLE_REFERENCE_WEIGHT = 1391;
+/**
+ * What each `[^` weighs: a footnote reference where a definition exists.
+ * Low since 2026-11-15: the calibration lifts each shape by the part that
+ * lifts it most for what it costs a word and a link, and the measured
+ * reference shapes reach the budget / 0.9 mostly by their syntax and words.
+ */
+export const TABLE_REFERENCE_WEIGHT = 63;
 
-/** What each `](` weighs: the destination of a Markdown link or image, a node with a child and many events (151 rows of 80 such links fill 128 MB). */
-export const TABLE_LINK_WEIGHT = 487;
+/**
+ * What each `](` (and each `[[`, which the reading view shows as a Markdown
+ * link) weighs: the destination of a link or image, a node with a child and
+ * many events (151 rows of 80 such links fill 128 MB).
+ */
+export const TABLE_LINK_WEIGHT = 316;
 
 /**
  * What the reading view's own plugins make of a row: a tag pill and a
@@ -567,11 +576,14 @@ export const TABLE_LINK_WEIGHT = 487;
  * fill 128 MB).
  */
 export const TABLE_TAG_WEIGHT = 0;
-export const TABLE_MATH_WEIGHT = 1329;
+export const TABLE_MATH_WEIGHT = 38;
 export const TABLE_MARK_WEIGHT = 0;
 
+/** What each character between a formula's `$` weighs: a long formula (`\\int`, `\\frac`, a matrix) costs KaTeX in its length. */
+export const TABLE_MATH_CONTENT_WEIGHT = 526;
+
 /** What each block marker in front of a table line weighs: a quote's `>`, a list item's or a footnote's indent; each is events of its own on every line. */
-export const TABLE_MARKER_WEIGHT = 0;
+export const TABLE_MARKER_WEIGHT = 72;
 
 /**
  * What the markers in front of a table line weigh (`prefix`, the line up to
@@ -579,10 +591,31 @@ export const TABLE_MARKER_WEIGHT = 0;
  * marker and once for a list item's or a footnote's marker or indent.
  */
 export function tableMarkerCost(prefix: string): number {
-  let quotes = 0;
-  for (let i = 0; i < prefix.length; i++) if (prefix[i] === ">") quotes++;
-  const other = prefix.replace(/>[ \t]?/g, "").length > 0 ? 1 : 0;
-  return prefix.length + TABLE_MARKER_WEIGHT * (quotes + other);
+  return prefix.length + TABLE_MARKER_WEIGHT * tableMarkerCount(prefix);
+}
+
+/**
+ * The blocks a table line's prefix opens or continues, one per level: each
+ * `>`, each list marker, and for the indent of a list item's later lines one
+ * per two blanks (a quote twelve deep is twelve, an item twelve deep, whose
+ * rows are indented by 24, twelve as well). Each level is events of its own
+ * on every line: a table twelve quotes deep ran the parse out of memory at
+ * the budget while its markers weighed nothing.
+ */
+export function tableMarkerCount(prefix: string): number {
+  let levels = 0;
+  let blanks = 0;
+  for (let i = 0; i < prefix.length; i++) {
+    const ch = prefix[i];
+    if (ch === ">" || ch === "-" || ch === "+" || ch === "*" || ch === ")" || ch === ".") {
+      // A quote marker or a list marker (`-`, `+`, `*`, or the `.`/`)` behind an item's number): the blank behind it belongs to it.
+      if (ch === ">" || ch === "-" || ch === "+" || ch === "*" || /\d/.test(prefix[i - 1] ?? "")) levels++;
+      if (prefix[i + 1] === " " || prefix[i + 1] === "\t") i++;
+    } else if (ch === " " || ch === "\t") {
+      blanks += ch === "\t" ? 4 : 1;
+    }
+  }
+  return levels + Math.floor(blanks / 2);
 }
 
 /**
@@ -618,6 +651,8 @@ export function tableRowParts(text: string, from: number, to: number): TableRowP
   let links = 0;
   let tags = 0;
   let maths = 0;
+  let mathChars = 0;
+  let inMath = false;
   let marks = 0;
   let inWord = false;
   let backslashes = 0;
@@ -639,12 +674,22 @@ export function tableRowParts(text: string, from: number, to: number): TableRowP
       else if ((ch === "x" || ch === "X") && lowerIs(text, i + 1, "mpp:")) literals++;
       if (ch !== " " && ch !== "\t") held = true;
       if (ch === "]" && text[i + 1] === "(") links++;
+      // The reading view makes `[[x]]` a Markdown link to `wiki://x` (`prepareReaderSource`): it weighs as one here, so that the index decides with the heavier reading.
+      else if (ch === "[" && text[i + 1] === "[" && text[i - 1] !== "[") {
+        links++;
+        literals++;
+      }
       if (ch === "[" && text[i + 1] === "^") references++;
-      else if (ch === "$") maths++;
+      else if (ch === "$" && backslashes % 2 === 0) {
+        maths++;
+        inMath = !inMath;
+      }
       else if (ch === "=" && text[i + 1] === "=") marks++;
       else if (ch === "#" && (i === from || text[i - 1] === " " || text[i - 1] === "\t" || text[i - 1] === "|") && i + 1 < to && text[i + 1] !== " " && text[i + 1] !== "#") tags++;
     }
     // A word: a run of characters other than blanks and cell boundaries, in any script.
+    // The characters of a formula: KaTeX lays out what stands between its `$`.
+    if (inMath && ch !== "$") mathChars++;
     const word = ch !== " " && ch !== "\t" && !(ch === "|" && backslashes % 2 === 0);
     if (word && !inWord) words++;
     inWord = word;
@@ -653,7 +698,7 @@ export function tableRowParts(text: string, from: number, to: number): TableRowP
   if (held) cells++;
   // A row is at least one cell: `|` alone is one, empty.
   if (cells === 0 && boundaries > 0) cells = 1;
-  return { chars: to - from, boundaries, cells, syntax, literals, words, references, links, tags, maths, marks };
+  return { chars: to - from, boundaries, cells, syntax, literals, words, references, links, tags, maths, mathChars, marks };
 }
 
 /** The parts of a table row's weight (`tableRowParts`). */
@@ -668,6 +713,7 @@ export interface TableRowParts {
   links: number;
   tags: number;
   maths: number;
+  mathChars: number;
   marks: number;
 }
 
@@ -705,6 +751,7 @@ export function tableReadCost(text: string, from: number, to: number, columns = 
     TABLE_LINK_WEIGHT * parts.links +
     TABLE_TAG_WEIGHT * parts.tags +
     TABLE_MATH_WEIGHT * parts.maths +
+    TABLE_MATH_CONTENT_WEIGHT * parts.mathChars +
     TABLE_MARK_WEIGHT * parts.marks
   );
 }
@@ -717,21 +764,26 @@ export function tableReadCost(text: string, from: number, to: number, columns = 
  * an otherwise empty note, is read by the index parse and by the note-source
  * parse each under `node --max-old-space-size=128`, and every measured
  * shape's largest such table weighs at least the budget / 0.9. It holds one
- * table, not a note: the memory of a parse adds up over the tables of a note,
+ * table, not a note, and the reading view as the core can run it (the note
+ * prepared, GFM, remark-math with KaTeX) — not React and the DOM, not a note
+ * embedded in a cell, code blocks or Mermaid in cells
+ * (Performance_Notes.md, "What the criterion covers"): the memory of a parse adds up over the tables of a note,
  * and two tables at the budget in one note do not fit that heap
  * (Performance_Notes.md, "One note, many tables"); nothing bounds a whole
  * note. That is the parse alone; the heap a WebView gives the app is not
  * known here, so raising the budget needs a measurement in the phone's
- * WebView first. In rows (2026-11-13): about
- * 3 000 rows of a word and a link, 2 400 rows of four short cells and a link,
- * 1 450 rows of four cells of words, 990 rows of sixteen one-character cells,
- * 5 700 rows of one short cell or of a line without a pipe, 3 300 rows of a
- * word and a link in a quote or a list item, 180 rows of a hundred e-mail
- * addresses, 245 rows of 150 one-letter words, 360 rows of a hundred numbers,
- * 38 rows of a hundred footnote references, 93 rows of 80 Markdown links, 22
- * rows of a hundred formulas. The budget is the calibration's 8 160 000 set
+ * WebView first. In rows (2026-11-15): about
+ * 2 540 rows of a word and a link, 2 100 rows of four short cells and a link,
+ * 1 370 rows of four cells of words, 1 010 rows of sixteen one-character
+ * cells, 5 760 rows of one short cell, 2 640 rows of a word and a link in a
+ * quote or a list item, 2 590 rows of one short cell twenty quotes deep, 200
+ * rows of a hundred e-mail addresses, 258 rows of 150 one-letter words, 377
+ * rows of a hundred numbers, 141 rows of a hundred footnote references, 115
+ * rows of 80 Markdown links, 67 rows of a hundred formulas, 80 rows of a
+ * matrix of sixty cells.
+ * The budget is the calibration's 8 160 000 set
  * lower so that the lightest measured shape sits about 30 % above it (decided
- * 2026-11-13, for the maintainer to revisit): 128 MB is an assumption
+ * 2026-11-13, kept by the maintainer 2026-11-15): 128 MB is an assumption
  * measured on Node's heap and the WebView carries the DOM and React besides;
  * four reviews found shapes the weight lacked. L14 calibrates the whole note
  * with a measurement in the phone's WebView, where it may rise.
@@ -794,6 +846,22 @@ function endsInRuleCharacter(line: string): boolean {
   while (at >= 0 && (line[at] === " " || line[at] === "\t")) at--;
   const ch = line[at];
   return ch === "-" || ch === "*" || ch === "_" || ch === "=";
+}
+
+/** Ranges of two readings as one: in order, overlapping ones joined, a table's flag kept. */
+export function unitedRanges(...lists: BoundedRange[][]): BoundedRange[] {
+  const all = lists.flat().sort((x, y) => x.from - y.from);
+  const merged: BoundedRange[] = [];
+  for (const range of all) {
+    const previous = merged[merged.length - 1];
+    if (previous && range.from < previous.to) {
+      previous.to = Math.max(previous.to, range.to);
+      if (range.table) previous.table = true;
+    } else {
+      merged.push({ ...range });
+    }
+  }
+  return merged;
 }
 
 /** What `overBudgetInlineRanges` can report about its scan, by line (counted from 0): the tests hold it against the parser. */
@@ -962,7 +1030,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     const head = tableLineStart(line, true);
     if (head.at !== marks.length || head.prefix.some((need) => need >= 0)) return -1;
     const content = line.slice(marks.length);
-    if (itemStart(content) || /^\[\^[^\] \t]+\]:/.test(content)) return -1;
+    if (itemStart(content) || /^\[\^(?:\\[^]|[^\]\\ \t])+\]:/.test(content)) return -1;
     return head.depth;
   };
   /**
@@ -1147,7 +1215,11 @@ export interface BoundedMarkdown {
  * stretches nothing changes; a note a person writes comes back as it is.
  */
 export function boundMarkdownForParse(text: string, reading: MarkdownReading = NOTE_READING): BoundedMarkdown {
-  const ranges = overBudgetInlineRanges(text, undefined, reading);
+  return boundMarkdownInRanges(text, overBudgetInlineRanges(text, undefined, reading));
+}
+
+/** `text` with `ranges` read as written (`boundMarkdownForParse`), for a caller that unites the ranges of more than one reading. */
+export function boundMarkdownInRanges(text: string, ranges: BoundedRange[]): BoundedMarkdown {
   if (ranges.length === 0) return { text, ranges };
   let out = "";
   let at = 0;

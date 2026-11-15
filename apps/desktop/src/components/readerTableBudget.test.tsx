@@ -3,7 +3,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { overBudgetInlineRanges, READER_READING } from "@plainva/core";
+import { overBudgetInlineRanges, prepareReaderSource, READER_READING } from "@plainva/core";
+import { boundReaderMarkdown } from "@plainva/ui";
 import { SHAPES, shapeTable } from "../../../../packages/core/scripts/perf/table-budget";
 import { loadReaderMath, READER_REMARK_PLUGINS } from "./markdownReaderModel";
 
@@ -77,4 +78,32 @@ describe("the table budget against the reading view's own plugins", () => {
     for (const name of Object.keys(SHAPES)) hold(name, shapeTable(name, 20));
     expect(failures).toEqual([]);
   }, 300_000);
+
+  it("decides as the index decides: a table the note's parsers read as written the reading view reads as written, and the other way round", () => {
+    // The reading view shows `[[x]]` as `[x](wiki://x)` (`prepareReaderSource`):
+    // a link and a literal more, so that it read a table of a word and a wiki
+    // link as text from 2 390 rows on while the index read it as a table up to
+    // 2 815. A wiki link weighs as its link, and the reading view takes the
+    // ranges the note's parsers set in the original as well.
+    const row = (i: number) => `| word ${i} | [[note ${i}]] |`;
+    const note = (rows: number) => `| a | b |\n|---|---|\n${Array.from({ length: rows }, (_, i) => row(i)).join("\n")}\n`;
+    let lo = 1;
+    let hi = 2;
+    const indexBounds = (rows: number) => overBudgetInlineRanges(note(rows)).length > 0;
+    while (!indexBounds(hi)) {
+      lo = hi;
+      hi *= 2;
+    }
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (indexBounds(mid)) hi = mid;
+      else lo = mid;
+    }
+    for (const rows of [lo - 50, lo, hi, hi + 50]) {
+      const original = note(rows);
+      const source = prepareReaderSource(original);
+      const reader = boundReaderMarkdown(source.text, { original, source }).ranges.length > 0;
+      expect(reader, `${rows} rows`).toBe(indexBounds(rows));
+    }
+  });
 });

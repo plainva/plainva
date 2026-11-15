@@ -10,8 +10,10 @@ import {
   restoreBoundedTree,
   restoreBoundedValue,
   TABLE_CELL_WEIGHT,
+  TABLE_LINK_WEIGHT,
   TABLE_LITERAL_WEIGHT,
   TABLE_MARKER_WEIGHT,
+  tableMarkerCount,
   TABLE_WORD_WEIGHT,
   opensNoContainers,
   tableMarkerCost,
@@ -108,9 +110,11 @@ describe("the inline parse budget", () => {
 
   it("weighs a table by its characters, its cells and its inline syntax", () => {
     const row = "| [[a]] | *b* |";
-    // One row, 15 characters, 2 cells, 4 brackets and 2 stars.
-    // One row, 15 characters, 2 cells, 4 brackets and 2 stars, 2 words.
-    expect(tableReadCost(row, 0, row.length)).toBe(TABLE_ROW_WEIGHT + 15 + 2 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT + 2 * TABLE_WORD_WEIGHT);
+    // One row, 15 characters, 2 cells, 4 brackets and 2 stars, 2 words, and a
+    // wiki link, which the reading view shows as a Markdown link (a link and a literal).
+    expect(tableReadCost(row, 0, row.length)).toBe(
+      TABLE_ROW_WEIGHT + 15 + 2 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT + 2 * TABLE_WORD_WEIGHT + TABLE_LINK_WEIGHT + TABLE_LITERAL_WEIGHT,
+    );
     // A row costs on its own: one short cell is still a row (the review's `|a|`, 18 000 of them).
     expect(tableReadCost("|a|", 0, 3)).toBe(TABLE_ROW_WEIGHT + 3 + TABLE_CELL_WEIGHT + TABLE_WORD_WEIGHT);
     expect(TABLE_ROW_WEIGHT).toBeGreaterThan(0);
@@ -187,7 +191,7 @@ describe("the inline parse budget", () => {
   const noteOf = (rows: string[]) => `# Data\n\n${[HEADER, "|---|---|", ...rows].join("\n")}\n\nbelow [[Link]]\n`;
 
   it("reads a table at its budget as a table, with the link of every cell", () => {
-    expect(atBudget.rows.length).toBeGreaterThan(2_800);
+    expect(atBudget.rows.length).toBeGreaterThan(2_400);
     const note = noteOf(atBudget.rows);
     expect(overBudgetInlineRanges(note)).toEqual([]);
     const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });
@@ -766,13 +770,34 @@ describe("where a table ends", () => {
     }
   });
 
+  it("weighs each level of the blocks a table stands in, and the length of its formulas", () => {
+    // A table twelve quotes deep ran the parse out of memory at the budget
+    // while its markers weighed nothing; a formula weighs its characters as
+    // well as its `$` (KaTeX lays out what stands between them).
+    expect(tableMarkerCount("> ".repeat(12))).toBe(12);
+    expect(tableMarkerCount("  ".repeat(12))).toBe(12);
+    expect(tableMarkerCount("- - ")).toBe(2);
+    expect(tableMarkerCount("> - > ")).toBe(3);
+    expect(tableMarkerCount("10. ")).toBe(1);
+    expect(tableMarkerCost("> ".repeat(12))).toBe(24 + 12 * TABLE_MARKER_WEIGHT);
+    const formula = "| $\\int_0^1 x\\,dx$ | a$ |";
+    expect(tableRowParts(formula, 0, formula.length).maths).toBe(3);
+    expect(tableRowParts(formula, 0, formula.length).mathChars).toBe("\\int_0^1 x\\,dx".length + " |".length);
+    for (const [prefix, rest] of [["> ".repeat(12), "> ".repeat(12)], ["- ".repeat(12), "  ".repeat(12)]]) {
+      const row = `${rest}|a|`;
+      const cost = tableReadCost(row, rest.length, row.length) + tableMarkerCost(rest);
+      const text = `${prefix}| h |\n${rest}|---|\n${Array.from({ length: Math.ceil((1.05 * TABLE_READ_BUDGET) / cost) }, () => row).join("\n")}\n`;
+      expect(overBudgetInlineRanges(text), prefix.slice(0, 4)).toHaveLength(1);
+    }
+  });
+
   it("ends a paragraph where the parser ends it, line by line", () => {
     // Behind a table read as written, a line that ends the paragraph stays
     // its own block, and every other line is read as written with the table.
     // A footnote definition ends a paragraph (micromark's GFM footnotes): the
     // scan read it as text of the table, and the reference above the table
     // lost its note.
-    const lines = ["[^1]: n", "[^1]:", "  [^1]: n", "    [^1]: n", "[^ 1]: n", "[x]: u", "<div>", "<b>", "</div>", "<!-- c", "<?x", "<!X", "<![CDATA[", "    c", "\tc", "1. a", "1) a", "2. a", "01. a", "- a", "+ a", "* a", "-", "1.", "***", "---", "- - -", "___", "===", "# h", "#h", "```", "~~~", "> q", "| a |", "$$", "\\- a", "*a*", "a", "", " ", "-a", "<script>", "<pre", "<style>"];
+    const lines = ["[^1]: n", "[^a\\]b]: x", "[^a\\\\]: x", "[^1]:", "  [^1]: n", "    [^1]: n", "[^ 1]: n", "[x]: u", "<div>", "<b>", "</div>", "<!-- c", "<?x", "<!X", "<![CDATA[", "    c", "\tc", "1. a", "1) a", "2. a", "01. a", "- a", "+ a", "* a", "-", "1.", "***", "---", "- - -", "___", "===", "# h", "#h", "```", "~~~", "> q", "| a |", "$$", "\\- a", "*a*", "a", "", " ", "-a", "<script>", "<pre", "<style>"];
     const parserEnds = (line: string): boolean | null => {
       const first = rawTree(`x\n${line}\n`).children![0] as { type: string; position: { end: { line: number } } };
       // A heading's underline or a delimiter row makes something else of the line before: no paragraph to end.

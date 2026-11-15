@@ -13,10 +13,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Daily on main: the search for tables the budget misses runs through
+  # without a push cancelling it (`tables` below).
+  schedule:
+    - cron: "17 3 * * *"
 
 concurrency:
-  group: perf-${{ github.ref }}
-  cancel-in-progress: true
+  # A scheduled run is never cancelled by a push.
+  group: perf-${{ github.ref }}-${{ github.event_name == 'schedule' && github.run_id || 'push' }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
   core:
@@ -118,5 +123,9 @@ jobs:
       # measures the heap. A table that does not pass names its seed and
       # shape: it goes into `--check` as a fixed shape, and the weights are
       # calibrated anew (Performance_Notes.md, "Many tables in one note").
+      # The reading view is run as the core can run it: the note prepared
+      # (`prepareReaderSource`), GFM, and remark-math with KaTeX; the desktop
+      # app's tag pills and highlights are held by a unit test of their own
+      # (`readerTableBudget.test.tsx`), React and the DOM not at all.
       - name: Tables at the budget under a capped heap
         run: pnpm --filter @plainva/core perf:tables -- --hunt 200 --minutes 20

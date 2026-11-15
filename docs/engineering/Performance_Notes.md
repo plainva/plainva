@@ -421,11 +421,11 @@ fills every row to the header's columns), each in a process of its own under
 it holds: the budget is per table, and the memory of a parse is per note (below, "One note, many
 tables"). `pnpm --filter @plainva/core perf:tables -- --calibrate` finds the
 largest such table of each fixed shape and chooses the weights of `tableReadCost` as an upper
-bound, not as a fit: over the shapes without block markers, for every set of row, cell and syntax
-weights the budget is nine tenths of the lightest limit, so every limit weighs at least the
-budget / 0.9, and of those sets the one that leaves a word and a link the most rows wins — the
-costliest shape of each part decides its weight; then the marker weight is the least that lifts
-every shape behind quotes, list items and footnotes to the budget / 0.9 as well. The limit search
+bound, not as a fit: over the plain shapes, for every set of row, cell and syntax weights the
+budget is nine tenths of the lightest limit, and of those sets the one that leaves a word and a
+link the most rows wins; then every shape still short of the budget / 0.9 lifts the weight of one
+of its other parts (references, links, formulas, literals, words, block markers — below), so that
+every limit weighs at least the budget / 0.9. The limit search
 takes about a minute a shape; `-- --calibrate --limits <log>` takes the limits an earlier log holds
 and searches only the new shapes. `-- --check` (about four minutes) holds the constants against the
 54 fixed shapes at the budget and at the budget / 0.9 and against 36 generated shapes at the budget:
@@ -506,55 +506,109 @@ measure can hide lines from the other. `inline-parse-budget.test.ts` holds this 
 over 3 000 generated notes (block markers and lines drawn at random); a scratch run of 160 000
 found no table the scan missed and no paragraph a table split.
 
-Calibrated 2026-11-13 over 119 shapes (89 fixed, 30 from a search) and three parses (index, note
+Calibrated 2026-11-15 over 141 shapes (99 fixed, 42 from searches) and three parses (index, note
 source, reading view with its HTML tree, and with `remark-math` and KaTeX for a note with math): one
-per character, 832 per row, 204 per cell, 122 per character of inline syntax, 1 391 per footnote
-reference, 487 per link or image destination, 1 329 per `$` of a formula, 181 per autolink literal,
-180 per word; block markers 0 (the other parts lift every such shape). The weights are chosen in
-that order — the base over shapes without markers, literals, references, links, formulas and with
-few words, then references, links, formulas and literals (a word and a link has none), then
-words, then block markers — each the least that lifts every shape to the budget / 0.9, so that a
-word and a link keeps the most rows and a table in a quote or a callout is not made small for what
-its words cost (with markers before words: 1 430 rows in a quote instead of 3 305). The
-calibration proposed 8 160 000; the budget is **6 970 000**, so that the lightest measured shape
-sits about 30 % above it (decided with the coordination 2026-11-13, for the maintainer to
-revisit; the reasons for the margin stand above). A word and a link is read as a table up to
-about 3 000 rows, a fifth more than before L13 — and this time with the shapes the reviews found
-inside the criterion.
+per character, 832 per row, 204 per cell, 122 per character of inline syntax, 63 per footnote
+reference, 316 per link or image destination (a wiki link counts as one, and as an autolink
+literal: the reading view shows it as a Markdown link), 38 per `$` of a formula and 526 per
+character between two `$`, 160 per autolink literal, 171 per word, 72 per level of a block a table
+stands in (each `>`, each list marker, each two blanks of indent). The base — rows, cells,
+syntax — is chosen over the shapes without markers, literals, references and formulas, with at most
+two links and ten words a row, so that a word and a link keeps the most rows. Then every shape still
+short of the budget / 0.9 is lifted by the part that lifts it most for what it costs a word and a
+link (its count of the part per row against a word and a link's): a footnote reference, a formula
+or a block marker costs a word and a link nothing, a row of eighty Markdown links is lifted by its
+links, a row of numbers by its words, a table twenty quotes deep by its markers. Weights only rise,
+so the passes end. (Lifted in a fixed order, as until 2026-11-15, a shape counted only by the
+first part it had: once a wiki link counted as a link, a link weighed 3 370 396 for a shape with a
+link in eight rows.) The calibration proposed 8 160 000; the budget is **6 970 000**, so that the
+lightest measured shape sits about 30 % above it (decided with the coordination 2026-11-13, kept by
+the maintainer 2026-11-15; the reasons for the margin stand above). A word and a link is read as a
+table up to about 2 540 rows — fewer than the 3 040 of 2026-11-13, because the index now weighs a
+wiki link as the reading view shows it, so that both decide the same.
 
 | Shape | Limit under 128 MB | Limit weighs | At the budget |
 |---|---|---|---|
-| a word and a link | 7 859 rows | 2.58 × the budget | 3 041 rows |
-| four short cells and a link | 4 573 | 1.89 × | 2 418 |
-| four cells of words | 4 178 | 2.84 × | 1 472 |
-| links and emphasis in every cell | 1 527 | 2.60 × | 588 |
-| one long cell of prose | 2 435 | 4.31 × | 565 |
-| sixteen one-character cells, no blanks | 1 413 | 1.42 × | 993 |
-| 150 `~a` per row | 462 | 1.32 × | 351 |
-| 400 unclosed `[` and `*` per row | 296 | 2.18 × | 136 |
-| one short cell between two pipes | 17 940 | 3.14 × | 5 716 |
-| a line without a pipe | 20 256 | 3.54 × | 5 726 |
-| a word and a link in a quote or a list item | 7 718 | 2.34 × | 3 302 |
-| sixteen one-character cells in a quote | 1 315 | 1.32 × | 993 |
-| one short cell in two quotes | 12 999 | 2.28 × | 5 698 |
-| a hundred `a@b.cc` per row | 515 | 2.80 × | 184 |
-| a hundred `WWW.a.b` per row | 485 | 2.65 × | 183 |
-| a hundred `a@b.cc,` without blanks | 509 | 1.46 × | 348 |
-| `- a` and `> b` behind an unclosed `---` | 8 700 | 1.75 × | 4 967 |
-| rows of `\|` under a header of 100 columns | 5 292 | 16.23 × | 326 |
-| 150 words `a` per row | 999 | 4.08 × | 245 |
-| a hundred numbers per row | 1 498 | 4.16 × | 360 |
-| a row of English | 1 633 | 4.16 × | 393 |
-| a row of German | 3 422 | 4.36 × | 785 |
-| a hundred `中文` per row | 1 443 | 4.01 × | 360 |
-| a row of Russian | 2 394 | 4.16 × | 576 |
-| a hundred `[^1]` with the definition below | 184 | 4.84 × | 38 |
-| 80 `[l](u)` per row | 151 | 1.62 × | 93 |
-| a hundred `$a$` per row (reading view with KaTeX) | 88 | 4.00 × | 22 |
-| 40 `$\frac{a}{b}$` per row (reading view with KaTeX) | 74 | 1.40 × | 53 |
+| a word and a link | 7 859 rows | 3.09 × the budget | 2 543 rows |
+| four short cells and a link | 4 573 | 2.18 × | 2 098 |
+| four cells of words | 4 178 | 3.04 × | 1 371 |
+| links and emphasis in every cell | 1 527 | 2.29 × | 666 |
+| one long cell of prose | 2 435 | 4.11 × | 591 |
+| sixteen one-character cells, no blanks | 1 413 | 1.39 × | 1 014 |
+| 150 `~a` per row | 462 | 1.31 × | 351 |
+| 400 unclosed `[` and `*` per row | 296 | 2.19 × | 135 |
+| one short cell between two pipes | 17 940 | 3.11 × | 5 759 |
+| a word and a link in a quote or a list item | 7 718 | 2.93 × | 2 639 |
+| sixteen one-character cells in a quote | 1 315 | 1.31 × | 1 003 |
+| one short cell in two quotes | 12 999 | 2.53 × | 5 131 |
+| one short cell twelve quotes deep | 5 078 | 1.53 × | 3 321 |
+| one short cell twenty quotes deep | 3 458 | 1.33 × | 2 590 |
+| one short cell twenty list items deep | 7 782 | 3.01 × | 2 590 |
+| one short cell in twelve quotes and lists | 7 005 | 2.11 × | 3 321 |
+| a hundred `a@b.cc` per row | 515 | 2.58 × | 200 |
+| a hundred `WWW.a.b` per row | 485 | 2.44 × | 199 |
+| a hundred `a@b.cc,` without blanks | 509 | 1.31 × | 389 |
+| `- a` and `> b` behind an unclosed `---` | 8 700 | 1.73 × | 5 032 |
+| rows of `\|` under a header of 100 columns | 5 292 | 16.12 × | 326 |
+| 150 words `a` per row | 999 | 3.86 × | 258 |
+| a hundred numbers per row | 1 498 | 3.97 × | 377 |
+| a row of English | 1 633 | 3.96 × | 412 |
+| a row of German | 3 422 | 4.17 × | 820 |
+| a hundred `中文` per row | 1 443 | 3.82 × | 377 |
+| a row of Russian | 2 394 | 3.97 × | 603 |
+| a hundred `[^1]` with the definition below | 184 | 1.30 × | 141 |
+| 80 `[l](u)` per row | 151 | 1.30 × | 115 |
+| a hundred `$a$` per row (reading view with KaTeX) | 88 | 1.30 × | 67 |
+| 40 `$\frac{a}{b}$` per row (reading view with KaTeX) | 74 | 2.74 × | 27 |
+| one integral per row (reading view with KaTeX) | 730 | 3.32 × | 219 |
+| forty fractions in one formula (reading view with KaTeX) | 97 | 3.31 × | 29 |
+| a matrix of sixty cells (reading view with KaTeX) | 105 | 1.30 × | 80 |
+| thirty `\overbrace` in one formula (reading view with KaTeX) | 53 | 2.08 × | 25 |
 
-The lightest limits — `~` runs, sixteen one-character cells, KaTeX fractions — sit 30 % above the
-budget (the limit search is exact to 4 %).
+The lightest limits — sixteen one-character cells in a quote in a list item, forty one-character cells,
+footnote references, Markdown links, `$a$`, a matrix in KaTeX — sit 30 % above the budget (the limit
+search is exact to 4 %).
+
+**What the criterion covers, and what not.** Covered: one table alone in an otherwise empty
+note, read by the index parse, the note-source parse and the reading view as the core can run it
+— the note prepared for it (`prepareReaderSource`), GFM, `remark-math` and KaTeX for a note with
+math, its HTML tree — each under a heap of 128 MB, for the shapes measured and the shapes the
+search draws (words, numbers, every literal, references with their definition, links, tags,
+formulas of some length, highlights, CJK, emoji, CRLF, a byte order mark, quotes, lists, callouts,
+blocks twelve deep). The desktop app's own remark plugins (tag pills, highlights) are held by
+nodes in `readerTableBudget.test.tsx`, not by heap. Not covered: what React and the DOM hold
+beyond the page, a note embedded in a cell (`![[…]]` expands in the reading view), code blocks
+and Mermaid diagrams in cells, and the memory of a note of many tables (L14). The gauge tests
+against events and nodes catch shapes dense in structure; they do not see memory — the heap
+search does, in `--calibrate --search` and in the performance workflow's `--hunt`, which runs on
+every push and daily on `main`, never cancelled by a push.
+
+**What the budget costs against `origin/main`** (the fourth review, `review-tables-5/cap.mts`;
+the maintainer decided on 2026-11-15 to keep the margin of about 30 %). The table gives the most
+rows of a form that each scan still reads as a table, for the note's parsers (the raw text) and
+the reading view (the note prepared by `prepareReaderSource`), on `origin/main` (`d44a9d57d`) and
+on this branch; the last column is the branch's lower limit over main's.
+
+| Form | main, note | main, reader | branch, note | branch, reader | branch / main |
+|---|---:|---:|---:|---:|---:|
+| 3 columns of a word | 4 493 | 4 493 | 3 517 | 3 517 | 0.78 |
+| 5 columns of a word | 3 741 | 3 741 | 2 541 | 2 541 | 0.68 |
+| 8 columns of a letter | 3 640 | 3 640 | 1 800 | 1 800 | 0.49 |
+| 2 columns, a word and a wiki link | 4 189 | 3 296 | 2 390 | 2 390 | 0.73 |
+| a task list of 5 columns, a wiki link and a sentence | 2 368 | 2 224 | 1 405 | 1 405 | 0.63 |
+| a cell of a hundred wiki links | 909 | 596 | 60 | 60 | 0.10 |
+
+A table eight quotes deep is not in the table: on main its search did not end within 15 minutes,
+since main weighs no quote level. A column of integrals was not measured against main.
+
+Main and the branch weigh differently, so the loss is not the margin alone. The margin of about
+30 % costs every form the same; beyond it, the branch weighs a cell and a row at what the reading
+view's heap takes for them (8 columns: 0.49), and a wiki link as the Markdown link and the literal
+the reading view makes of it (a hundred wiki links in a cell: 0.10). Main stays under 128 MB at its
+limits for the forms of a few columns, but a parse takes 3 to 23 s there; at 8 and 12 columns and
+in the measured series it runs out of memory. Whether main's 596 rows of a hundred wiki links stay
+under 128 MB in the reading view was not measured, nor the branch's 60: the calibration fits the
+link weight on shapes of one to three wiki links a row, and the search draws cells of mixed units.
 
 The scan runs on every open and every index pass, for every note. For an ordinary note it costs
 what it cost on `origin/main`: 1 MB of prose 4 to 8 ms (main 9 to 14 ms), a note of 2 000 small
@@ -562,7 +616,10 @@ tables 11 to 25 ms (main 4 to 7 ms); a table line is weighed only where the line
 delimiter row, and a line that starts with a letter or a pipe is asked nothing more. Shapes made to
 cost it stay linear but cost more than on main: 100 000 two-line tables 0.2 to 0.3 s (main 0.04 s),
 40 000 tables in quotes behind an unclosed `---` 0.1 to 0.3 s (main 0.02 s), a header of 1 000
-columns over 100 000 rows of `|` 0.1 s (`review-tables-4/lin4.mts`, timings on a shared machine). That is the parse alone: the heap a WebView gives the app is
+columns over 100 000 rows of `|` 0.1 s (`review-tables-4/lin4.mts`, timings on a shared machine).
+A large table costs the scan about 7 times what it costs on main, a table of CJK text 9.7 times
+(124 to 160 ms per MB, `review-tables-5/lin.mts`): it weighs every row, where main measured the
+table's rows and length. That is the parse alone: the heap a WebView gives the app is
 not known here, so raising the budget needs a measurement in the phone's WebView first. A table
 over the budget is read as written, as before: in the index it has no links, and the reading view
 shows its lines as one paragraph of text with the pipes in it, no table, its quote or list around
@@ -592,7 +649,7 @@ is a package of its own with its own corpus check, not part of this one. Lists a
 class as tables for memory (20 000 list items with a link: 409 MB at the peak), with no budget of
 their own.
 
-`inline-parse-budget.test.ts` reads a table at the budget (about 3 000 rows) as a table with every
+`inline-parse-budget.test.ts` reads a table at the budget (about 2 540 rows) as a table with every
 link, the same table one row longer as written — one paragraph, every other block of the note as
 before — within 5 s on the reference core, and times a table of 4 000 rows apart from those (3 s on
 the reference core, about half a second here).

@@ -37,7 +37,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
 import { readFileSync } from "node:fs";
-import { boundMarkdownForParse, READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_MATH_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_MATH_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, overBudgetInlineRanges, boundMarkdownInRanges, unitedRanges, TABLE_MATH_CONTENT_WEIGHT, tableLineStart, tableMarkerCost, tableMarkerCount, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { prepareReaderSource } from "../../src/noteSource.js";
 import { toHast } from "mdast-util-to-hast";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
@@ -171,6 +172,18 @@ export const SHAPES: Record<string, Shape> = {
   fnref: { header: "| h |\n|---|", row: () => `| ${"[^1] ".repeat(100)}|`, after: "\n[^1]: x" },
   fnmany: { header: "| h |\n|---|", row: (i) => `| ${Array.from({ length: 50 }, (_, k) => `[^${i * 50 + k}]`).join(" ")} |`, after: "\n[^1]: x" },
   refs: { header: "| h |\n|---|", row: () => `| ${"[a] ".repeat(100)}|`, after: "\n[a]: u" },
+  // Deep blocks: a quote, a list, quotes and lists in each other, 12 and 20 levels.
+  q12one: { header: `${"> ".repeat(12)}| h |\n${"> ".repeat(12)}|---|`, row: () => `${"> ".repeat(12)}|a|` },
+  q20one: { header: `${"> ".repeat(20)}| h |\n${"> ".repeat(20)}|---|`, row: () => `${"> ".repeat(20)}|a|` },
+  l12one: { header: `${"- ".repeat(12)}| h |\n${"  ".repeat(12)}|---|`, row: () => `${"  ".repeat(12)}|a|` },
+  l20one: { header: `${"- ".repeat(20)}| h |\n${"  ".repeat(20)}|---|`, row: () => `${"  ".repeat(20)}|a|` },
+  mix12one: { header: `${"> - ".repeat(6)}| h |\n${">   ".repeat(6)}|---|`, row: () => `${">   ".repeat(6)}|a|` },
+  // Formulas of some length, laid out by KaTeX in the reading view.
+  mathint: { header: "| h | h |\n|---|---|", row: (i) => `| ${i} | $\\int_0^\\infty \\frac{x^3}{e^x-1}\\,dx = \\frac{\\pi^4}{15}$ |` },
+  mathlong: { header: "| h |\n|---|", row: () => `| $${"\\frac{a}{b}".repeat(40)}$ |` },
+  mathsqrt: { header: "| h |\n|---|", row: () => `| $${"\\sqrt{".repeat(30)}x${"}".repeat(30)}$ |` },
+  mathmatrix: { header: "| h |\n|---|", row: () => `| $\\begin{matrix}${"a&".repeat(60)}b\\end{matrix}$ |` },
+  mathbig: { header: "| h |\n|---|", row: () => `| $${"\\overbrace{x}^{y}".repeat(30)}$ |` },
   // Addresses and `www.` without blanks between: one word a row, a literal each.
   emailc: { header: "| h |\n|---|", row: () => `| ${"a@b.cc,".repeat(100)}|` },
   wwwshort: { header: "| h |\n|---|", row: () => `| ${"www.a,".repeat(100)}|` },
@@ -222,7 +235,7 @@ function random(...keys: number[]): () => number {
 }
 
 /** Where a generated table stands. */
-const WRAPS = ["none", "quote", "quote2", "quote3", "list", "callout"] as const;
+const WRAPS = ["none", "quote", "quote2", "quote3", "list", "callout", "quote12", "list12", "mixed12"] as const;
 
 interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number]; units: string | null; crlf: boolean; bom: boolean }
 
@@ -292,7 +305,8 @@ function generatedShape(seed: number, k: number): Shape {
     return c === 0 ? `c${text}` : text;
   };
   // The markers of the block the table stands in: on the header line, and on every line after it.
-  const [first, rest] = { none: ["", ""], quote: ["> ", "> "], quote2: ["> > ", "> > "], quote3: ["> > > ", "> > > "], list: ["- ", "  "], callout: ["> ", "> "] }[s.wrap];
+  const deep = (unit: string, continued: string, levels: number) => [unit.repeat(levels), continued.repeat(levels)];
+  const [first, rest] = { none: ["", ""], quote: ["> ", "> "], quote2: ["> > ", "> > "], quote3: ["> > > ", "> > > "], list: ["- ", "  "], callout: ["> ", "> "], quote12: deep("> ", "> ", 12), list12: deep("- ", "  ", 12), mixed12: deep("> - ", ">   ", 6) }[s.wrap];
   return {
     crlf: s.crlf,
     bom: s.bom,
@@ -332,15 +346,15 @@ function columnsOf(shape: Shape): number {
 }
 
 /** The parts of a table's weight, summed; `markers` is what the markers weigh beyond their characters at a marker weight of one. */
-export type Parts = { rows: number; chars: number; cells: number; syntax: number; markers: number; literals: number; words: number; references: number; links: number; maths: number };
+export type Parts = { rows: number; chars: number; cells: number; syntax: number; markers: number; literals: number; words: number; references: number; links: number; maths: number; mathChars: number };
 
 /** What the markers of `prefix` count, beyond their characters (`tableMarkerCost` at a marker weight of one). */
-const markersOf = (prefix: string): number => (prefix.match(/>/g)?.length ?? 0) + (prefix.replace(/>[ \t]?/g, "").length > 0 ? 1 : 0);
+const markersOf = (prefix: string): number => tableMarkerCount(prefix);
 
 /** The parts of a shape's header and first `rows` rows, summed: what its table's weight is made of, under any weights. */
 export function tableParts(name: string, rows: number): Parts {
   const shape = shapeOf(name);
-  const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0, literals: 0, words: 0, references: 0, links: 0, maths: 0 };
+  const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0, literals: 0, words: 0, references: 0, links: 0, maths: 0, mathChars: 0 };
   const header = shape.header.split("\n")[0];
   const containers = !opensNoContainers(shapeTable(name, 0));
   const columns = columnsOf(shape);
@@ -357,13 +371,14 @@ export function tableParts(name: string, rows: number): Parts {
     sum.references += parts.references;
     sum.links += parts.links;
     sum.maths += parts.maths;
+    sum.mathChars += parts.mathChars;
   }
   return sum;
 }
 
 /** The weight of `parts` under a set of weights; what the reading view's own plugins weigh (tags, formulas, highlights) is calibrated in the desktop app and left out here. */
-const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker = 0, literal = 0, word = 0, reference = 0, link = 0, math = 0) =>
-  row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers + literal * parts.literals + word * parts.words + reference * parts.references + link * parts.links + math * parts.maths;
+const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker = 0, literal = 0, word = 0, reference = 0, link = 0, math = 0, mathContent = 0) =>
+  row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers + literal * parts.literals + word * parts.words + reference * parts.references + link * parts.links + math * parts.maths + mathContent * parts.mathChars;
 
 /** The rows of a shape whose table weighs `target` by the constants as they stand. */
 function rowsAt(name: string, target: number): number {
@@ -451,12 +466,11 @@ function calibrate(args: string[]): void {
   }
   const short = tableParts("short", 1000);
   // For each set of weights the budget is nine tenths of the lightest limit
-  // among the shapes without block markers; keep the set that leaves a word
-  // and a link the most rows. Then the marker weight: the least that lifts
-  // every shape behind markers to the budget / 0.9 as well.
+  // among the plain shapes (below); keep the set that leaves a word and a
+  // link the most rows. The other parts' weights follow.
   let best = { row: 0, cell: 0, syntax: 0, budget: 0, shortRows: 0 };
   // The base set: no block markers, no literals, no references, and few starts of words (a word and a link has three a row; a row of a hundred numbers a hundred).
-  const plain = Object.values(limits).filter((parts) => parts.markers === 0 && parts.literals === 0 && parts.references === 0 && parts.links === 0 && parts.maths === 0 && parts.words <= 10 * parts.rows);
+  const plain = Object.values(limits).filter((parts) => parts.markers === 0 && parts.literals === 0 && parts.references === 0 && parts.links <= 2 * parts.rows && parts.maths === 0 && parts.words <= 10 * parts.rows);
   // Wide enough that the best set lies inside it: the weights are relative to one per character.
   for (let row = 0; row <= 1_000; row += 8) {
     for (let cell = 0; cell <= 300; cell += 3) {
@@ -469,24 +483,43 @@ function calibrate(args: string[]): void {
       }
     }
   }
-  // Then the weights of the other parts, each the least that lifts every
-  // shape still short of the budget / 0.9: first those a word and a link has
-  // none of — references, links, formulas, literals —, then words (a row of
-  // numbers is short by its words), block markers last, so that a table in a
-  // quote or a callout is not made small for what its words cost
-  // (2026-11-13: in the other order 1 430 rows of a word and a link in a
-  // quote at the budget, in this one 3 305).
-  const extra = { reference: 0, link: 0, math: 0, word: 0, marker: 0, literal: 0 };
-  const current = (parts: Parts) => weigh(parts, best.row, best.cell, best.syntax, extra.marker, extra.literal, extra.word, extra.reference, extra.link, extra.math);
-  for (const [key, count] of [["reference", (parts: Parts) => parts.references], ["link", (parts: Parts) => parts.links], ["math", (parts: Parts) => parts.maths], ["literal", (parts: Parts) => parts.literals], ["word", (parts: Parts) => parts.words], ["marker", (parts: Parts) => parts.markers]] as const) {
-    let need = 0;
-    for (const parts of Object.values(limits)) if (count(parts) > 0) need = Math.max(need, Math.ceil((best.budget / 0.9 - current(parts)) / count(parts)));
-    extra[key] = need;
+  // Then the weights of the other parts: each shape still short of the
+  // budget / 0.9 is lifted by the part that lifts it most for what it costs a
+  // word and a link — per row, its count of the part against the count a word
+  // and a link has. A footnote reference, a formula, a block marker cost a
+  // word and a link nothing; a row of eighty Markdown links is lifted by its
+  // links, a row of numbers by its words, a table twenty quotes deep by its
+  // markers. Weights only rise, so the passes end (2026-11-15: lifted in a
+  // fixed order, the parts after the first a shape has never counted, and a
+  // link weighed 3 370 396 for a shape with a link in eight rows).
+  const extra = { reference: 0, link: 0, math: 0, mathContent: 0, word: 0, marker: 0, literal: 0 };
+  const current = (parts: Parts) => weigh(parts, best.row, best.cell, best.syntax, extra.marker, extra.literal, extra.word, extra.reference, extra.link, extra.math, extra.mathContent);
+  const counts = { reference: (parts: Parts) => parts.references, link: (parts: Parts) => parts.links, math: (parts: Parts) => parts.maths, mathContent: (parts: Parts) => parts.mathChars, literal: (parts: Parts) => parts.literals, word: (parts: Parts) => parts.words, marker: (parts: Parts) => parts.markers } as const;
+  const keys = Object.keys(counts) as (keyof typeof counts)[];
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const [name, parts] of Object.entries(limits)) {
+      const deficit = best.budget / 0.9 - current(parts);
+      if (deficit <= 0) continue;
+      let pick: (typeof keys)[number] | null = null;
+      let score = 0;
+      for (const key of keys) {
+        const count = counts[key](parts);
+        if (count === 0) continue;
+        const value = count / parts.rows / (counts[key](short) / short.rows + 0.05);
+        if (value > score) [pick, score] = [key, value];
+      }
+      if (!pick) continue;
+      const lift = Math.ceil(deficit / counts[pick](parts));
+      extra[pick] += lift;
+      console.log(`lift     ${pick} +${lift} for ${name}`);
+      changed = true;
+    }
   }
-  const { reference, link, math, word, marker, literal } = extra;
-  const final = (parts: Parts) => weigh(parts, best.row, best.cell, best.syntax, marker, literal, word, reference, link, math);
+  const { reference, link, math, mathContent, word, marker, literal } = extra;
+  const final = (parts: Parts) => weigh(parts, best.row, best.cell, best.syntax, marker, literal, word, reference, link, math, mathContent);
   const budget = Math.floor(best.budget / 10_000) * 10_000;
-  console.log(`weights  row ${best.row}, cell ${best.cell}, syntax ${best.syntax}, marker ${marker}, literal ${literal}, word ${word}, reference ${reference}, link ${link}, math ${math}: proposed budget ${budget} (a word and a link: about ${Math.round((best.budget / final(short)) * 1000)} rows)`);
+  console.log(`weights  row ${best.row}, cell ${best.cell}, syntax ${best.syntax}, marker ${marker}, literal ${literal}, word ${word}, reference ${reference}, link ${link}, math ${math}, math content ${mathContent}: proposed budget ${budget} (a word and a link: about ${Math.round((best.budget / final(short)) * 1000)} rows)`);
   for (const [name, parts] of Object.entries(limits)) console.log(`         ${name.padEnd(10)} limit weighs ${(final(parts) / budget).toFixed(2)} x the budget`);
 }
 
@@ -533,7 +566,7 @@ async function check(args: string[]): Promise<boolean> {
   const generated = at("--generated", 36);
   const started = performance.now();
   let all = true;
-  console.log(`check    budget ${TABLE_READ_BUDGET}, row ${TABLE_ROW_WEIGHT}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, marker ${TABLE_MARKER_WEIGHT}, literal ${TABLE_LITERAL_WEIGHT}, word ${TABLE_WORD_WEIGHT}, reference ${TABLE_REFERENCE_WEIGHT}, link ${TABLE_LINK_WEIGHT}, math ${TABLE_MATH_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
+  console.log(`check    budget ${TABLE_READ_BUDGET}, row ${TABLE_ROW_WEIGHT}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, marker ${TABLE_MARKER_WEIGHT}, literal ${TABLE_LITERAL_WEIGHT}, word ${TABLE_WORD_WEIGHT}, reference ${TABLE_REFERENCE_WEIGHT}, link ${TABLE_LINK_WEIGHT}, math ${TABLE_MATH_WEIGHT}, math content ${TABLE_MATH_CONTENT_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
   // What the generated shapes cover, axis by axis.
   const covered = new Map<string, Set<string>>();
   for (let k = 0; k < generated; k++) {
@@ -595,7 +628,9 @@ const unbounded = {
   },
   tree: (text: string) => unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks).parse(text),
   // The reading view's parser (GFM without the properties block, MarkdownReader.tsx) and its HTML tree, which fills every row to the header's columns.
-  reader: (text: string) => {
+  reader: (input: string, prepared = false) => {
+    // The note as the reading view gets it (`prepareReaderSource`), unless it is so already.
+    const text = prepared ? input : prepareReaderSource(input).text;
     // With math, as the reading view runs it: remark-math in the parse, KaTeX for the page.
     if (HAS_MATH.test(text)) {
       const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use(rehypeKatex as never);
@@ -609,9 +644,19 @@ const unbounded = {
   },
 };
 
-/** The reading view as the app runs it: weighed for its own parser, then the same two steps. */
+/**
+ * The reading view as the app runs it: the note prepared for it
+ * (`prepareReaderSource`: wiki links become Markdown links, the properties
+ * block goes), weighed for its own parser and with the ranges the note's
+ * parsers set in the original (`boundReaderMarkdown` in packages/ui), then the
+ * same two steps. What the desktop app's own remark plugins add (tag pills,
+ * highlights) is not run here; `readerTableBudget.test.tsx` holds it.
+ */
 function boundedReader(text: string) {
-  return unbounded.reader(boundMarkdownForParse(text, READER_READING).text);
+  const source = prepareReaderSource(text);
+  const own = overBudgetInlineRanges(source.text, undefined, READER_READING);
+  const theirs = overBudgetInlineRanges(text).map((range) => ({ ...range, from: source.toRendered(range.from), to: source.toRendered(range.to, "end") }));
+  return unbounded.reader(boundMarkdownInRanges(source.text, unitedRanges(own, theirs.filter((range) => range.to > range.from))).text, true);
 }
 
 function child(name: string, rows: number, parse: string, bounded: boolean): void {

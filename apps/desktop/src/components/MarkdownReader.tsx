@@ -410,7 +410,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   // A stretch over the parse budget is read as written (open-items plan 3.133
   // no. 4): the parser gets it as plain text, the first remark plugin gives
   // the values back their characters. Every place stays where it was.
-  const bounded = useMemo(() => boundReaderMarkdown(source.text), [source]);
+  const bounded = useMemo(() => boundReaderMarkdown(source.text, { original: content, source }), [source, content]);
   const processedContent = bounded.text;
 
   // The reading view's heading ids are the outline's slugs, looked up by the
