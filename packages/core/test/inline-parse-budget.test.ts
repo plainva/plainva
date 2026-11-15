@@ -784,11 +784,16 @@ describe("where a table ends", () => {
     const formula = "| $\\int_0^1 x\\,dx$ | a$ |";
     expect(tableRowParts(formula, 0, formula.length).maths).toBe(3);
     expect(tableRowParts(formula, 0, formula.length).mathChars).toBe("\\int_0^1 x\\,dx".length + " |".length);
-    for (const [prefix, rest] of [["> ".repeat(12), "> ".repeat(12)], ["- ".repeat(12), "  ".repeat(12)]]) {
-      const row = `${rest}|a|`;
+    // Quotes and lists in each other as well (the hunt of 2026-11-15 drew `> - > - … |h|`): the scan is sure of their
+    // blocks and reads the table exactly — under the budget as a table, over it as written.
+    for (const [prefix, rest] of [["> ".repeat(12), "> ".repeat(12)], ["- ".repeat(12), "  ".repeat(12)], ["> - ".repeat(6), ">   ".repeat(6)]]) {
+      const row = `${rest}|a \\| b \`c\`|`;
       const cost = tableReadCost(row, rest.length, row.length) + tableMarkerCost(rest);
-      const text = `${prefix}| h |\n${rest}|---|\n${Array.from({ length: Math.ceil((1.05 * TABLE_READ_BUDGET) / cost) }, () => row).join("\n")}\n`;
-      expect(overBudgetInlineRanges(text), prefix.slice(0, 4)).toHaveLength(1);
+      const table = (rows: number) => `${prefix}| h |\n${rest}|---|\n${Array.from({ length: rows }, () => row).join("\n")}\n`;
+      const exact: boolean[] = [];
+      expect(overBudgetInlineRanges(table(Math.floor((0.95 * TABLE_READ_BUDGET) / cost)), { table: (_first, _last, isExact) => exact.push(isExact) }), prefix.slice(0, 4)).toEqual([]);
+      expect(exact, prefix.slice(0, 4)).toEqual([true]);
+      expect(overBudgetInlineRanges(table(Math.ceil((1.05 * TABLE_READ_BUDGET) / cost))), prefix.slice(0, 4)).toHaveLength(1);
     }
   });
 

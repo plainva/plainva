@@ -1126,21 +1126,23 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   };
   /**
    * The quote depth of a line that opens a list item (or items, one in the
-   * other) behind quote markers only, without a tab among its markers, its
-   * first marker behind at most three blanks — or -1. Such a line opens the
-   * item wherever it stands, unless it is an ordered item other than 1 under
-   * a paragraph, which is text of the paragraph.
+   * other, and quotes in them: `> - > - |h|`), without a tab or a footnote
+   * among its markers, its first marker behind at most three blanks and none
+   * behind more than four, so that nothing among them is indented code — or
+   * -1. Such a line opens the item wherever it stands, unless it is an
+   * ordered item other than 1 under a paragraph, which is text of the
+   * paragraph. Its later lines are held to its markers by `exactRow`.
    */
   const itemDepth = (line: string): number => {
     if (!containers) return -1;
     const marks = PLAIN_START.exec(line)![0];
     const content = line.slice(marks.length);
     const head = tableLineStart(line, true);
-    const items = head.prefix.slice(head.depth);
-    if (items.length === 0 || items.some((need) => need < 0) || head.prefix.slice(0, head.depth).some((need) => need >= 0)) return -1;
-    if (/\t/.test(line.slice(0, head.at)) || /^[ \t]*\[\^/.test(content) || indentOf(content) > 3) return -1;
-    // More than four blanks behind a marker make the item's content indented code.
-    if (/^ *(?:[-+*]|\d{1,9}[.)]) {5,}/.test(content.replace(/^(?:>[ \t]?)*/, ""))) return -1;
+    if (!head.prefix.some((need) => need >= 0)) return -1;
+    const markers = line.slice(0, head.at);
+    if (/\t/.test(markers) || /\[\^/.test(markers) || /^[ \t]*\[\^/.test(content) || indentOf(content) > 3) return -1;
+    // More than four blanks behind a marker make the item's content indented code, and so do more than three in front of a quote's.
+    if (/(?:^|[ >])(?:[-+*]|\d{1,9}[.)]) {5,}/.test(markers) || /> {5,}/.test(markers)) return -1;
     const first = /^ *(\d+)[.)]/.exec(content);
     if (first && run && Number(first[1]) !== 1) return -1;
     return head.depth;
