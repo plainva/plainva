@@ -398,10 +398,30 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     cursor = edit.to;
   }
   add(cursor, clean.text.length, clean.text.slice(cursor), true);
-  const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => list.find((span) => {
-    const a = original ? span.from : span.start, b = original ? span.to : span.end;
-    return edge === "start" ? a <= offset && offset < b : a < offset && offset <= b;
-  });
+  // The spans lie in order and do not overlap, in the original and in the
+  // rendered text alike: the one an offset falls in is found by halving, not
+  // by walking all of them — the reading view asks for every character of
+  // every text (`rehypeReaderSource`), and a walk made that the square of the
+  // note (2 000 lines: 2.5 s).
+  const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => {
+    const startOf = (span: ReaderSpan) => (original ? span.from : span.start);
+    let lo = 0;
+    let hi = list.length;
+    // The last span that starts at or before the offset (strictly before, for an end edge).
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (edge === "start" ? startOf(list[mid]) <= offset : startOf(list[mid]) < offset) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let k = lo - 1; k >= 0; k--) {
+      const span = list[k];
+      const a = startOf(span), b = original ? span.to : span.end;
+      if (edge === "start" ? a <= offset && offset < b : a < offset && offset <= b) return span;
+      // An empty span before it cannot hold the offset either; a span that ends before it ends the search.
+      if (b < offset) return undefined;
+    }
+    return undefined;
+  };
   return {
     text: parts.join(""),
     embeds,
