@@ -524,21 +524,22 @@ first part it had: once a wiki link counted as a link, a link weighed 3 370 396 
 link in eight rows.) The calibration proposed 8 160 000; the budget is **6 970 000**, so that the
 lightest measured shape sits about 30 % above it (decided with the coordination 2026-11-13, kept by
 the maintainer 2026-11-15; the reasons for the margin stand above). A word and a link is read as a
-table up to about 2 540 rows — fewer than the 3 040 of 2026-11-13, because the index now weighs a
-wiki link as the reading view shows it, so that both decide the same.
+table up to about 2 530 rows — fewer than the 3 040 of 2026-11-13, because the index now weighs a
+row with a wiki link, part by part, at least as the reading view writes it (`readerWikiLink`: the
+label spelled out, the target encoded), so that both decide the same.
 
 | Shape | Limit under 128 MB | Limit weighs | At the budget |
 |---|---|---|---|
-| a word and a link | 7 859 rows | 3.09 × the budget | 2 543 rows |
-| four short cells and a link | 4 573 | 2.18 × | 2 098 |
-| four cells of words | 4 178 | 3.04 × | 1 371 |
+| a word and a link | 7 859 rows | 3.10 × the budget | 2 532 rows |
+| four short cells and a link | 4 573 | 2.19 × | 2 091 |
+| four cells of words | 4 178 | 3.06 × | 1 366 |
 | links and emphasis in every cell | 1 527 | 2.29 × | 666 |
 | one long cell of prose | 2 435 | 4.11 × | 591 |
 | sixteen one-character cells, no blanks | 1 413 | 1.39 × | 1 014 |
 | 150 `~a` per row | 462 | 1.31 × | 351 |
 | 400 unclosed `[` and `*` per row | 296 | 2.19 × | 135 |
 | one short cell between two pipes | 17 940 | 3.11 × | 5 759 |
-| a word and a link in a quote or a list item | 7 718 | 2.93 × | 2 639 |
+| a word and a link in a quote or a list item | 7 718 | 2.94 × | 2 627 |
 | sixteen one-character cells in a quote | 1 315 | 1.31 × | 1 003 |
 | one short cell in two quotes | 12 999 | 2.53 × | 5 131 |
 | one short cell twelve quotes deep | 5 078 | 1.53 × | 3 321 |
@@ -594,8 +595,8 @@ on this branch; the last column is the branch's lower limit over main's.
 | 3 columns of a word | 4 493 | 4 493 | 3 517 | 3 517 | 0.78 |
 | 5 columns of a word | 3 741 | 3 741 | 2 541 | 2 541 | 0.68 |
 | 8 columns of a letter | 3 640 | 3 640 | 1 800 | 1 800 | 0.49 |
-| 2 columns, a word and a wiki link | 4 189 | 3 296 | 2 390 | 2 390 | 0.73 |
-| a task list of 5 columns, a wiki link and a sentence | 2 368 | 2 224 | 1 405 | 1 405 | 0.63 |
+| 2 columns, a word and a wiki link | 4 189 | 3 296 | 2 376 | 2 376 | 0.72 |
+| a task list of 5 columns, a wiki link and a sentence | 2 368 | 2 224 | 1 402 | 1 402 | 0.63 |
 | a cell of a hundred wiki links | 909 | 596 | 60 | 60 | 0.10 |
 
 A table eight quotes deep is not in the table: on main its search did not end within 15 minutes,
@@ -649,7 +650,7 @@ is a package of its own with its own corpus check, not part of this one. Lists a
 class as tables for memory (20 000 list items with a link: 409 MB at the peak), with no budget of
 their own.
 
-`inline-parse-budget.test.ts` reads a table at the budget (about 2 540 rows) as a table with every
+`inline-parse-budget.test.ts` reads a table at the budget (about 2 530 rows) as a table with every
 link, the same table one row longer as written — one paragraph, every other block of the note as
 before — within 5 s on the reference core, and times a table of 4 000 rows apart from those (3 s on
 the reference core, about half a second here).

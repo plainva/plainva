@@ -49,6 +49,7 @@
  */
 
 import { opensUnclosedProperties } from "./frontmatter-block.js";
+import { readerWikiLink } from "./readerWikiLink.js";
 
 /** The most `inlineParseCost` a stretch may have and still be parsed as Markdown. */
 export const INLINE_PARSE_BUDGET = 15_000_000;
@@ -630,7 +631,10 @@ export function tableMarkerCount(prefix: string): number {
  * alone is one). `literals` counts what may start a link without any
  * syntax around it (GFM's autolink literals): each `@`, `www.`, `://`,
  * `mailto:` and `xmpp:`. `links` counts each `](`, a Markdown link's or
- * image's destination. `words` counts the words of a row — runs of
+ * image's destination. A row with a wiki link weighs, part by part, the more
+ * of the row as written and the row as the reading view writes it
+ * (`shownRow`), so that the index never decides with the lighter reading;
+ * `asRead: false` weighs it as written only. `words` counts the words of a row — runs of
  * characters other than blanks and cell boundaries, in any script: the text
  * of a cell is held in a piece for each until the cell is read (at an ASCII
  * one the parser also tries an e-mail address), and `| a a a … |`, a row of
@@ -641,7 +645,99 @@ export function tableMarkerCount(prefix: string): number {
  * start a tag, a `$`, a `==`. `text[from, to)` is the row behind its
  * container markers (`tableLineStart`).
  */
-export function tableRowParts(text: string, from: number, to: number): TableRowParts {
+export function tableRowParts(text: string, from: number, to: number, asRead = true): TableRowParts {
+  const written = rowParts(text, from, to);
+  if (!asRead) return written;
+  const shown = shownRow(text, from, to);
+  if (shown === undefined) return written;
+  // The reading view reads the row as it writes it: each part weighs the more of the two.
+  const read = rowParts(shown, 0, shown.length);
+  return Object.fromEntries(Object.entries(written).map(([key, value]) => [key, Math.max(value, read[key as keyof TableRowParts])])) as unknown as TableRowParts;
+}
+
+/**
+ * The row `text[from, to)` as the reading view writes it: each wiki link the
+ * Markdown link `readerWikiLink` makes of it, its label spelled out and its
+ * target encoded (`[[中文]]` is `[中文](wiki://%E4%B8%AD%E6%96%87)`).
+ * `undefined` for a row without one. The links are found as the parser finds
+ * them in a table: the row is split into cells at each bar no backslash stands
+ * in front of, before anything else is read; in a cell, an escaped character
+ * and a code span come first, and a link runs from a `[[` (a `![[`) to the
+ * first `]]` of its cell (`wikiLinkSyntax.ts`).
+ */
+function shownRow(text: string, from: number, to: number): string | undefined {
+  // The row on its own, so that no search runs past its end (a table of many rows stays linear).
+  const row = text.slice(from, to);
+  if (!row.includes("[[")) return undefined;
+  let shown = "";
+  let copied = 0;
+  // The cell's end: the next bar without a backslash in front of it.
+  let cellEnd = -1;
+  const endOfCell = (at: number) => {
+    let i = at;
+    while (i < row.length && !(row[i] === "|" && !escaped(row, i))) i++;
+    return i;
+  };
+  // A run of backticks closes at the next run as long in the cell: where each run of a length stands, found once.
+  let ticksCell = -1;
+  let ticks = new Map<number, number[]>();
+  const closingRun = (at: number, length: number) => {
+    if (ticksCell !== cellEnd) {
+      ticksCell = cellEnd;
+      ticks = new Map();
+      for (let i = at; i < cellEnd; i++) {
+        if (row[i] !== "`" || row[i - 1] === "`") continue;
+        let run = 1;
+        while (row[i + run] === "`") run++;
+        const list = ticks.get(run) ?? [];
+        list.push(i);
+        ticks.set(run, list);
+      }
+    }
+    return ticks.get(length)?.find((start) => start > at) ?? -1;
+  };
+  // Where the first `]]` of the cell stands, from a place on.
+  let closeCell = -1;
+  let close = -1;
+  for (let i = 0; i < row.length; i++) {
+    if (i > cellEnd) cellEnd = endOfCell(i);
+    const ch = row[i];
+    if (ch === "\\") i++;
+    else if (ch === "`") {
+      let run = 1;
+      while (row[i + run] === "`") run++;
+      const end = closingRun(i, run);
+      i = end < 0 ? i + run - 1 : end + run - 1;
+    } else if (ch === "[" && row[i + 1] === "[") {
+      if (closeCell !== cellEnd || close < i + 2) {
+        closeCell = cellEnd;
+        close = row.indexOf("]]", i + 2);
+        if (close + 2 > cellEnd) close = -1;
+      }
+      if (close < 0) {
+        // No `]]` in the cell: no `[[` of it opens a link.
+        i = cellEnd;
+        continue;
+      }
+      if (close > i + 2) {
+        const embed = i > 0 && row[i - 1] === "!" && !escaped(row, i - 1);
+        shown += row.slice(copied, embed ? i - 1 : i) + readerWikiLink(row.slice(i + 2, close), embed).text;
+        copied = close + 2;
+      }
+      i = close + 1;
+    }
+  }
+  return copied === 0 ? undefined : shown + row.slice(copied);
+}
+
+/** Whether a backslash stands in front of `text[at]` that is not itself escaped. */
+function escaped(text: string, at: number): boolean {
+  let backslashes = 0;
+  while (at - backslashes - 1 >= 0 && text[at - backslashes - 1] === "\\") backslashes++;
+  return backslashes % 2 === 1;
+}
+
+function rowParts(text: string, from: number, to: number): TableRowParts {
   let boundaries = 0;
   let cells = 0;
   let syntax = 0;
@@ -674,11 +770,6 @@ export function tableRowParts(text: string, from: number, to: number): TableRowP
       else if ((ch === "x" || ch === "X") && lowerIs(text, i + 1, "mpp:")) literals++;
       if (ch !== " " && ch !== "\t") held = true;
       if (ch === "]" && text[i + 1] === "(") links++;
-      // The reading view makes `[[x]]` a Markdown link to `wiki://x` (`prepareReaderSource`): it weighs as one here, so that the index decides with the heavier reading.
-      else if (ch === "[" && text[i + 1] === "[" && text[i - 1] !== "[") {
-        links++;
-        literals++;
-      }
       if (ch === "[" && text[i + 1] === "^") references++;
       else if (ch === "$" && backslashes % 2 === 0) {
         maths++;
@@ -773,9 +864,9 @@ export function tableReadCost(text: string, from: number, to: number, columns = 
  * note. That is the parse alone; the heap a WebView gives the app is not
  * known here, so raising the budget needs a measurement in the phone's
  * WebView first. In rows (2026-11-15): about
- * 2 540 rows of a word and a link, 2 100 rows of four short cells and a link,
+ * 2 530 rows of a word and a link, 2 090 rows of four short cells and a link,
  * 1 370 rows of four cells of words, 1 010 rows of sixteen one-character
- * cells, 5 760 rows of one short cell, 2 640 rows of a word and a link in a
+ * cells, 5 760 rows of one short cell, 2 630 rows of a word and a link in a
  * quote or a list item, 2 590 rows of one short cell twenty quotes deep, 200
  * rows of a hundred e-mail addresses, 258 rows of 150 one-letter words, 377
  * rows of a hundred numbers, 141 rows of a hundred footnote references, 115

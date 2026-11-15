@@ -1,3 +1,4 @@
+import { prepareReaderSource } from "../src/noteSource.js";
 import { describe, expect, it } from "vitest";
 import { within } from "./helpers/timeBudget.js";
 import {
@@ -110,10 +111,10 @@ describe("the inline parse budget", () => {
 
   it("weighs a table by its characters, its cells and its inline syntax", () => {
     const row = "| [[a]] | *b* |";
-    // One row, 15 characters, 2 cells, 4 brackets and 2 stars, 2 words, and a
-    // wiki link, which the reading view shows as a Markdown link (a link and a literal).
+    // One row, 2 cells, 4 brackets and 2 stars, 2 words, and a wiki link, which
+    // the reading view writes as `[a](wiki://a)`: 23 characters, a link and a literal.
     expect(tableReadCost(row, 0, row.length)).toBe(
-      TABLE_ROW_WEIGHT + 15 + 2 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT + 2 * TABLE_WORD_WEIGHT + TABLE_LINK_WEIGHT + TABLE_LITERAL_WEIGHT,
+      TABLE_ROW_WEIGHT + 23 + 2 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT + 2 * TABLE_WORD_WEIGHT + TABLE_LINK_WEIGHT + TABLE_LITERAL_WEIGHT,
     );
     // A row costs on its own: one short cell is still a row (the review's `|a|`, 18 000 of them).
     expect(tableReadCost("|a|", 0, 3)).toBe(TABLE_ROW_WEIGHT + 3 + TABLE_CELL_WEIGHT + TABLE_WORD_WEIGHT);
@@ -790,6 +791,45 @@ describe("where a table ends", () => {
       expect(overBudgetInlineRanges(text), prefix.slice(0, 4)).toHaveLength(1);
     }
   });
+
+  it("weighs a row with wiki links at least as the reading view writes it, part by part", () => {
+    // The hunt of 2026-11-15 drew `[[`$_~t*[`<!*…]]`: the reading view spells
+    // its label out and encodes its target, and read the table as text below
+    // the rows the index read as a table. A row weighs the more of the two
+    // readings, each part on its own.
+    for (const row of ["| [[中文 笔记]] | b |", "| [[a$b\\|c_d*e]] | ![[x y.png]] |", "| u][[`$_~t*[`<!* n_pd]]krn[ | x |", "| $x [[a$b]] y$ | [[n]] |", "| [[a]]b [[c]] |"]) {
+      const shown = prepareReaderSource(row).text;
+      const written = tableRowParts(row, 0, row.length, false);
+      const read = tableRowParts(shown, 0, shown.length);
+      const both = tableRowParts(row, 0, row.length);
+      for (const key of Object.keys(both) as Array<keyof typeof both>) expect(both[key], `${row}: ${key}`).toBe(Math.max(written[key], read[key]));
+      expect(tableReadCost(row, 0, row.length), row).toBeGreaterThanOrEqual(tableReadCost(shown, 0, shown.length));
+    }
+    // `[[中文]]` is `[中文](wiki://%E4%B8%AD%E6%96%87)`: 35 characters in the row, not 10.
+    expect(tableRowParts("| [[中文]] |", 0, 10).chars).toBe(35);
+    // As the parser finds them: per cell, behind code spans and escapes, from a `[[` to the first `]]` of its cell.
+    expect(tableRowParts("| [[a | b]] |", 0, 13).links).toBe(0);
+    expect(tableRowParts("| `[[a]]` |", 0, 11).links).toBe(0);
+    expect(tableRowParts("| \\[[a]] |", 0, 10).links).toBe(0);
+    expect(tableRowParts("| [[a [[b]] |", 0, 13).chars).toBe(prepareReaderSource("| [[a [[b]] |").text.length);
+  });
+
+  it("weighs every drawn table at least as the reading view does (the hunt's two of 2026-11-15 and forty more)", () => {
+    const weight = (text: string, reading?: typeof READER_READING) => {
+      let sum = 0;
+      overBudgetInlineRanges(text, { table: (_first, _last, _exact, cost) => (sum += cost) }, reading);
+      return sum;
+    };
+    const names = ["gen:895992:80", "gen:895992:162", ...Array.from({ length: 40 }, (_, k) => `gen:20261115:${k}`)];
+    const lighter: string[] = [];
+    for (const name of names) {
+      const text = shapeTable(name, 20);
+      const index = weight(text);
+      const reader = weight(prepareReaderSource(text).text, READER_READING);
+      if (index < reader) lighter.push(`${name}: index ${index} < reader ${reader}`);
+    }
+    expect(lighter).toEqual([]);
+  }, 120 * SECONDS);
 
   it("ends a paragraph where the parser ends it, line by line", () => {
     // Behind a table read as written, a line that ends the paragraph stays

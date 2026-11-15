@@ -83,8 +83,9 @@ describe("the table budget against the reading view's own plugins", () => {
     // The reading view shows `[[x]]` as `[x](wiki://x)` (`prepareReaderSource`):
     // a link and a literal more, so that it read a table of a word and a wiki
     // link as text from 2 390 rows on while the index read it as a table up to
-    // 2 815. A wiki link weighs as its link, and the reading view takes the
-    // ranges the note's parsers set in the original as well.
+    // 2 815. A row with a wiki link weighs, part by part, at least what the
+    // reading view writes for it (`readerWikiLink`), and the reading view takes
+    // the ranges the note's parsers set in the original as well.
     const row = (i: number) => `| word ${i} | [[note ${i}]] |`;
     const note = (rows: number) => `| a | b |\n|---|---|\n${Array.from({ length: rows }, (_, i) => row(i)).join("\n")}\n`;
     let lo = 1;
