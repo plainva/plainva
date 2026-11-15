@@ -276,6 +276,12 @@ export interface ContextPolicyHost {
    * without it is asked for the one note its resolver finds.
    */
   linkCandidates?(target: string, fromPath: string): Promise<readonly string[]>;
+  /**
+   * What the rules `policyOf` applies besides a note's own text say now — the vault's folder rules, the encrypted
+   * workspace — as one text that changes whenever they do. What a decision kept over many messages rests on
+   * (`PackageGists.verdicts`); absent, no such decision is kept.
+   */
+  rulesStamp?(): Promise<string>;
 }
 
 /** What tells which notes a link could mean: a policy host, or anything that carries its two ways of asking. */

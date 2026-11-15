@@ -265,6 +265,13 @@ function carriesPlaceholder(value: unknown, depth = 0): boolean {
 /** The arguments that point into a note rather than write to it. */
 const LOCATORS: ReadonlySet<string> = new Set(["find", "section"]);
 
+/**
+ * The argument of a memory tool that names an entry already there rather than writing one: read on the view of the
+ * memory, so it names a placeholder where the reader sees one, and the draft takes the entry as it stands in the file
+ * (`WriteToolContext.memoryRaw`, review of R19, wave 2). What the entry is reworded to is written, and is checked.
+ */
+const MEMORY_POINTERS: Readonly<Record<string, string>> = { forget: "entry", remember: "replaces" };
+
 /** The executor's own view of the vault: the same gate every read passes. */
 export interface WriteToolContext {
   /** A note this run may read, read: counted among what the run read, like every read. */
@@ -1040,7 +1047,8 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
   // A placeholder of a view stands for what a reader is not shown: it never reaches a file, a draft or a plan. The
   // edits of a note are the exception, taken back to the raw text change by change (`rawChangeOf`): a placeholder
   // that stays where it stood is the part it stands for, kept; one brought in or moved is refused there.
-  if (ctx.viewOf && carriesPlaceholder(tool.name === "propose_edit" ? { ...a, edits: undefined } : a)) return refuse("withheld-part");
+  const pointer = MEMORY_POINTERS[tool.name];
+  if (ctx.viewOf && carriesPlaceholder(tool.name === "propose_edit" ? { ...a, edits: undefined } : pointer ? { ...a, [pointer]: undefined } : a)) return refuse("withheld-part");
   try {
     switch (tool.name) {
       case "propose_edit":

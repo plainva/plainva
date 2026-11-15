@@ -1,5 +1,5 @@
 import { CST, Scalar, YAMLMap, isAlias, isMap, isScalar, isSeq, type Document, type Pair } from "yaml";
-import { frontmatterSpan, splitDocument, type SplitDocument } from "./frontmatter-block.js";
+import { foldedLines, frontmatterSpan, splitDocument, type SplitDocument } from "./frontmatter-block.js";
 import { changeScalars, removeEntry, renameEntryKey, setEntries, setEntry } from "./frontmatter-entry.js";
 
 /**
@@ -173,6 +173,64 @@ export function readFrontmatterPath(content: string, path: readonly string[]): u
 /** A yaml AST node (list/map) as opposed to an already-plain scalar value. */
 function isNode(value: unknown): value is { toJSON: () => unknown } {
   return !!value && typeof value === "object" && typeof (value as { toJSON?: unknown }).toJSON === "function";
+}
+
+/**
+ * The top-level properties of a note, each value with its wiki links as they are WRITTEN (review of R19, wave 2).
+ * Obsidian reads a link that stands without quotes — `related: [[Note]]`, `- [[Meier, Kowalski]]`,
+ * `up: [[Plan: Kowalski]]`, one spread over two lines — as a link; YAML reads the same text as a list in a list, a
+ * list of two names, a map. No reading of the parsed value can tell such a link from a list again, so each flow
+ * collection is looked at in the text it is written with: one that is a single `[[…]]` (its line breaks folded, as
+ * YAML folds them) is that text, a link the views read like one in quotes; every other value is what the index holds
+ * of it, scalars as scalars, lists and maps item by item. In document order, by the names the index gives the keys
+ * (`indexNameOf`); null where the note has no block or its YAML cannot be read.
+ */
+export function propertiesAsWritten(content: string): Map<string, unknown> | null {
+  let split: SplitDocument;
+  try {
+    split = splitDocument(content);
+  } catch {
+    return null;
+  }
+  if (!split.hadFrontmatter || !split.span || !isMap(split.doc.contents)) return null;
+  const { doc } = split;
+  const source = split.span.yaml;
+  const out = new Map<string, unknown>();
+  for (const pair of split.doc.contents.items) {
+    const name = indexNameOf(pair, doc);
+    if (!name || name === "__proto__") continue;
+    out.set(name, valueAsWritten(pair.value, doc, source, 0));
+  }
+  return out;
+}
+
+/** A flow collection written as one wiki link: `[[` and `]]` around a target that holds no bracket. */
+const WRITTEN_WIKI_LINK = /^\[\[[^[\]]+\]\]$/;
+
+function valueAsWritten(node: unknown, doc: Document, source: string, depth: number): unknown {
+  if (node === null || node === undefined) return null;
+  if (depth > 64) return null;
+  if (isAlias(node)) return valueAsWritten(node.resolve(doc), doc, source, depth + 1);
+  if (isScalar(node)) return node.value;
+  if (isSeq(node) || isMap(node)) {
+    const range = (node as { range?: [number, number, number] | null }).range;
+    if ((node as { flow?: boolean }).flow && range) {
+      const written = foldedLines(source.slice(range[0], range[1]));
+      if (WRITTEN_WIKI_LINK.test(written)) return written;
+    }
+    if (isSeq(node)) return node.items.map((item) => valueAsWritten(item, doc, source, depth + 1));
+    const map: Record<string, unknown> = {};
+    for (const pair of node.items) {
+      const name = indexNameOf(pair, doc);
+      if (name && name !== "__proto__") map[name] = valueAsWritten(pair.value, doc, source, depth + 1);
+    }
+    return map;
+  }
+  try {
+    return isNode(node) ? node.toJSON() : node;
+  } catch {
+    return null;
+  }
 }
 
 /**

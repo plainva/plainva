@@ -122,6 +122,10 @@ export function createVaultPolicy(opts: {
   };
   return {
     rules,
+    // The rules besides a note's own, as one text: what a verdict kept over messages rests on (`ContextPolicyHost`).
+    async rulesStamp(): Promise<string> {
+      return JSON.stringify([(await rules()).rules, opts.encrypted()]);
+    },
     invalidate() {
       cached = null;
       names = null;

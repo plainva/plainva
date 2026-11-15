@@ -15,7 +15,7 @@
 import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { aiVisibleSql } from "../hiddenPaths.js";
 import { fullTextRowOf } from "../../db/fullTextRows.js";
-import { checkGist, gistInstruction, gistOfGists, gistSections, GIST_MIN_SOURCE, sectionGistKey, type GistLevel } from "./gists.js";
+import { checkGist, gistInstruction, gistKey, gistOfGists, gistSections, GIST_MIN_SOURCE, sectionGistKey, type GistLevel } from "./gists.js";
 import { GistStore, type StoredGist } from "./gistStore.js";
 
 export interface GistModel {
@@ -187,6 +187,9 @@ function epochMs(value: unknown): number {
  * changed after they were written — until the next pass writes them again,
  * they are left out rather than trusted.
  */
+/** The verdicts on areas' gists, per vault index (`GistReader.verdicts`): readers come and go, the index stays. */
+const AREA_VERDICTS = new WeakMap<IDatabaseAdapter, Map<string, { stamp: string; allowed: boolean }>>();
+
 export class GistReader {
   private readonly store: GistStore;
 
@@ -195,6 +198,27 @@ export class GistReader {
     private readonly model: string,
   ) {
     this.store = new GistStore(db);
+  }
+
+  /** Whether an area's gist may go to a reader, kept with this vault's index over messages (`PackageGists.verdicts`). */
+  get verdicts(): Map<string, { stamp: string; allowed: boolean }> {
+    let kept = AREA_VERDICTS.get(this.db);
+    if (!kept) {
+      kept = new Map();
+      AREA_VERDICTS.set(this.db, kept);
+    }
+    return kept;
+  }
+
+  /** Every file's path, title and revision as one key: what changes whenever the index does (`PackageGists.state`). */
+  async state(): Promise<string | null> {
+    const row = await this.db.queryOne<{ files: number; state: string | null }>(
+      `SELECT COUNT(*) AS files, group_concat(path || char(1) || coalesce(title, '') || char(1) || coalesce(sha256, '') || char(1) || coalesce(is_deleted, 0), char(2)) AS state
+       FROM (SELECT path, title, sha256, is_deleted FROM files ORDER BY path)`,
+      [],
+    );
+    if (!row) return null;
+    return `${row.files}:${gistKey(row.state ?? "")}`;
   }
 
   /** The gist of a section's exact text. */

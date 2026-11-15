@@ -6676,6 +6676,8 @@ export class AiSession {
           resolveLink: vault.policy.resolveLink,
           // Which notes a link could mean: asked by the gate before a note's text goes into the package.
           ...(vault.policy.linkCandidates ? { linkCandidates: vault.policy.linkCandidates } : {}),
+          // What the rules say now, so a verdict on an area's gist is kept over messages while they and the index stay.
+          ...(vault.policy.rulesStamp ? { rulesStamp: () => vault.policy.rulesStamp!() } : {}),
           readNote: (path) => vault.readNote(path),
           ...(vault.noteSizes ? { noteSizes: (paths: readonly string[]) => vault.noteSizes!(paths) } : {}),
           ...(gists ? { gists } : {}),

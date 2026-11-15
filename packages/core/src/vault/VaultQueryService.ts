@@ -33,7 +33,7 @@ import { redactDeniedLinksIn } from "../ai/egressGate.js";
 import type { LinkRule } from "../ai/chat.js";
 import { ReaderView } from "../ai/readerView.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
-import { wikiLinksAsWritten } from "../wikiLink.js";
+import { propertiesAsWritten } from "../frontmatter-surgical.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
 import { decodeIndexedProperty } from "./indexedProperty.js";
@@ -1325,15 +1325,14 @@ export class VaultQueryService {
    * keys set to nothing. Computed columns (reverse, rollup) are left as they
    * are: they are made of notes in reach already.
    */
-  private async _withholdRowValues(result: any[], reach: Reach, withhold: { rule: LinkRule; hiddenKeys?: readonly string[] }): Promise<void> {
+  private async _withholdRowValues(result: any[], reach: Reach, withhold: { rule: LinkRule; hiddenKeys?: readonly string[] }, only?: ReadonlySet<string>): Promise<void> {
     const hidden = new Set((withhold.hiddenKeys ?? []).map((key) => key.toLowerCase()));
     // A note's own values: its properties, and its name — which is the title of its properties where it has one, and
     // holds a link like any of them (review of R19, wave 2). The other `file.` fields are its path, made by nobody.
-    const own = (key: string) => key === "file.name" || (!key.startsWith("file.") && !key.startsWith("formula."));
-    // 0. A link written without quotes is a link here as well (`wikiLinksAsWritten`): its value is the text again.
-    for (const row of result) {
-      for (const key of Object.keys(row)) if (own(key) && !hidden.has(key.toLowerCase())) row[key] = wikiLinksAsWritten(row[key]);
-    }
+    // `only`: the keys (lower case) anyone reads of these rows — a rollup reads one key of the notes it reaches.
+    const own = (key: string) => (key === "file.name" || (!key.startsWith("file.") && !key.startsWith("formula."))) && (!only || only.has(key.toLowerCase()));
+    // 0. A link written without quotes is a link here as well: its value is read from the note's text as written.
+    await this._valuesAsWritten(result, (key) => own(key) && key !== "file.name" && !hidden.has(key.toLowerCase()));
     // 1. Every link target of every value, by row.
     const asked: { from: string; target: string }[] = [];
     for (const row of result) {
@@ -1376,6 +1375,53 @@ export class VaultQueryService {
           continue;
         }
         row[key] = shownValue(row[key], shown);
+      }
+    }
+  }
+
+  /**
+   * A row's own values as they are written in its note (`propertiesAsWritten`, review of R19, wave 2): YAML reads a
+   * wiki link without quotes as a list in a list, a list of two names (`[[Meier, Kowalski]]`) or a map
+   * (`[[Plan: Kowalski]]`) — and the index holds what YAML read. Such a value is always a collection inside a
+   * collection, or a map, which the index holds as its JSON text; only for a row that holds one is its note's text read
+   * (from the search table, one query per few hundred rows), and only those values are taken from it — a map as the
+   * JSON text of its values as written. A row whose note has no text in the index keeps its values.
+   */
+  private async _valuesAsWritten(rows: any[], own: (key: string) => boolean): Promise<void> {
+    const nested = (value: unknown): boolean =>
+      typeof value === "string"
+        ? value.startsWith("{") && value.includes("[")
+        : value !== null && typeof value === "object" && (Array.isArray(value) ? value : Object.values(value)).some((item) => item !== null && typeof item === "object");
+    const asHeld = (before: unknown, written: unknown): unknown =>
+      typeof before === "string" && written !== null && typeof written === "object" && !Array.isArray(written) ? JSON.stringify(written) : written;
+    const reread = rows.filter((row) => Object.keys(row).some((key) => own(key) && nested(row[key])));
+    if (reread.length === 0) return;
+    const byPath = new Map<string, any[]>();
+    for (const row of reread) {
+      const path = String(row["file.path"] ?? "");
+      if (!path) continue;
+      const bucket = byPath.get(path) ?? [];
+      bucket.push(row);
+      byPath.set(path, bucket);
+    }
+    const paths = [...byPath.keys()];
+    for (let i = 0; i < paths.length; i += 400) {
+      const slice = paths.slice(i, i + 400);
+      const texts = await this.db.query<{ path: string; content: string }>(
+        `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${slice.map(() => "?").join(",")})`,
+        slice,
+      );
+      for (const { path, content } of texts) {
+        const written = typeof content === "string" ? propertiesAsWritten(content) : null;
+        if (!written) continue;
+        const lower = new Map([...written].map(([key, value]) => [key.toLowerCase(), value]));
+        for (const row of byPath.get(path) ?? []) {
+          for (const key of Object.keys(row)) {
+            if (!own(key) || !nested(row[key])) continue;
+            if (written.has(key)) row[key] = asHeld(row[key], written.get(key));
+            else if (lower.has(key.toLowerCase())) row[key] = asHeld(row[key], lower.get(key.toLowerCase()));
+          }
+        }
       }
     }
   }
@@ -1481,7 +1527,11 @@ export class VaultQueryService {
     }
     // The linked notes' values as this reader sees them: a condition, a count or a list over them runs on what the
     // reader is shown, never on a withheld link's words (review of R19, wave 2: `countWhere` counted the raw value).
-    if (reach && withhold) await this._withholdRowValues([...byPath.values()], reach, withhold);
+    // Only the keys the rollups read: the other values of those notes are shown to nobody (review of R19, wave 2).
+    if (reach && withhold) {
+      const read = new Set(specs.flatMap(([, spec]) => (spec.of ? [spec.of.toLowerCase()] : [])));
+      if (read.size) await this._withholdRowValues([...byPath.values()], reach, withhold, read);
+    }
 
     for (const row of result) {
       const byThrough = perRow.get(row)!;

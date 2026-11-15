@@ -1,4 +1,4 @@
-import { frontmatterKeys, gateDecision, isAiHiddenPath, isCloudRecipient, readFrontmatterPath, type EffectivePolicy, type GateRun, type SituationInput } from "@plainva/core";
+import { gateDecision, isAiHiddenPath, isCloudRecipient, propertiesAsWritten, type EffectivePolicy, type GateRun, type SituationInput } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveTaskCompletionModel, taskDbRows } from "../lib/taskDatabase";
 import { addDaysToKey, type PlannerRow } from "../lib/taskPlanner";
@@ -123,11 +123,13 @@ export const SITUATION_TASK_DAYS = 7;
 /** Appointments shown: from two hours ago to the end of tomorrow. */
 const EVENT_PAST_MS = 2 * 3_600_000;
 
-/** A note's frontmatter properties, the first `max` of them, empty values left out. */
+/**
+ * A note's frontmatter properties, the first `max` of them, empty values left out — read as they are written
+ * (`propertiesAsWritten`): a wiki link without quotes is its text, whatever its name holds (review of R19, wave 2).
+ */
 export function notePropertiesOf(text: string, max = 16): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const key of frontmatterKeys(text).slice(0, max)) {
-    const value = readFrontmatterPath(text, [key]);
+  for (const [key, value] of [...(propertiesAsWritten(text) ?? [])].slice(0, max)) {
     if (value !== undefined && value !== null && value !== "") out[key] = value;
   }
   return out;

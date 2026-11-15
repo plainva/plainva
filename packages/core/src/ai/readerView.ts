@@ -146,6 +146,20 @@ export class ReaderView {
   }
 
   /**
+   * Where a position of the raw text stands in the view: where it stands in a part the view shows, the start of the
+   * placeholder for one inside a withheld part. What a place in the raw text — the line a link stands on — is in the
+   * view, so a tool can cut its line out of the view of the whole note (review of R19, wave 2).
+   */
+  toView(position: number): number {
+    for (const span of this.spans()) {
+      if (position < span.piece.rawFrom || position > span.piece.rawTo) continue;
+      if (span.piece.kept) return span.start + (position - span.piece.rawFrom);
+      return position === span.piece.rawTo && position > span.piece.rawFrom ? span.end : span.start;
+    }
+    return this.text.length;
+  }
+
+  /**
    * Where a range of the view lies in the raw text, or null where it touches a withheld piece (an empty range at a
    * piece's edge touches nothing). The one way a change made on the view reaches the raw text.
    */

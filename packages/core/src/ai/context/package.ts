@@ -1,7 +1,6 @@
 import type { TextPart } from "../conversation.js";
 import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkVerdicts } from "../chat.js";
 import { frontmatterKeys } from "../../frontmatter-surgical.js";
-import { wikiLinksAsWritten } from "../../wikiLink.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
 import { fenceUntrusted, payload } from "../trust.js";
 import { isAiHiddenPath } from "../hiddenPaths.js";
@@ -125,6 +124,17 @@ export interface PackageGists {
    * go to a reader with a narrower view (review of R19, wave 2). Absent: no area's gist goes to such a reader.
    */
   notes?(area: string | null, max: number): Promise<{ path: string; text: string | null }[] | null>;
+  /**
+   * The state of the index an area's verdict rests on — every file's path, title and revision — as one text that
+   * changes whenever any of them does; null where the index cannot say.
+   */
+  state?(): Promise<string | null>;
+  /**
+   * Whether an area's gist may go to a reader, kept over messages (review of R19, wave 2: every package looked through
+   * every note of the area again, seconds a message): by area and reader, with the state it was decided in
+   * (`state`, the host's `rulesStamp`). One that was decided in another state is decided anew.
+   */
+  verdicts?: Map<string, { stamp: string; allowed: boolean }>;
 }
 
 /** The most notes an area is looked through for whether its gist may go to a reader with a narrower view. */
@@ -358,10 +368,12 @@ function clip(text: string, max: number): { text: string; clipped: boolean } {
   return { text: text.slice(0, cut > max * 0.6 ? cut : max), clipped: true };
 }
 
-/** A property of the open note as a line, its wiki links as they were written (`wikiLinksAsWritten`) — whole, never cut. */
+/**
+ * A property of the open note as a line — whole, never cut. The shells read the values as they are written
+ * (`propertiesAsWritten`): a link without quotes is the text `[[…]]` here, as in quotes.
+ */
 function propertyLine(key: string, value: unknown): string {
-  const written = wikiLinksAsWritten(value);
-  const text = Array.isArray(written) ? written.map((v) => (typeof v === "object" && v !== null ? JSON.stringify(v) : String(v))).join(", ") : typeof written === "object" && written !== null ? JSON.stringify(written) : String(written);
+  const text = Array.isArray(value) ? value.map((v) => (typeof v === "object" && v !== null ? JSON.stringify(v) : String(v))).join(", ") : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
   return `${key}: ${text}`;
 }
 
@@ -510,6 +522,19 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
    */
   const areaGistMayGo = async (area: string | null): Promise<boolean> => {
     if (!cloud && !run.webTools) return true;
+    const memo = host.gists?.verdicts;
+    const stamp = memo ? await verdictStamp() : null;
+    const key = `${area === null ? "\u0000vault" : area}`;
+    if (memo && stamp !== null) {
+      const known = memo.get(key);
+      if (known && known.stamp === stamp) return known.allowed;
+    }
+    const allowed = await areaGistMayGoNow(area);
+    // Kept only where nothing changed while it was decided: a verdict of a state between two is no verdict.
+    if (memo && stamp !== null && (await verdictStampNow()) === stamp) memo.set(key, { stamp, allowed });
+    return allowed;
+  };
+  const areaGistMayGoNow = async (area: string | null): Promise<boolean> => {
     const notes = host.gists?.notes ? await host.gists.notes(area, GIST_AREA_CHECK_MAX).catch(() => null) : null;
     if (!notes) return false;
     for (const note of notes) {
@@ -518,6 +543,19 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
     return true;
   };
+  /**
+   * What a kept verdict rests on: the index (every file's path, title and revision — a note's text, its own rules,
+   * what a link can mean), the rules besides (`rulesStamp`), and the reader — whom it goes to, its mood key, the notes
+   * it redacts. Null where either the index or the rules cannot say: then nothing is kept.
+   */
+  const verdictStampNow = async (): Promise<string | null> => {
+    if (!host.gists?.state || !host.rulesStamp) return null;
+    const [index, rules] = await Promise.all([host.gists.state().catch(() => null), host.rulesStamp().catch(() => null)]);
+    if (index === null || rules === null) return null;
+    return JSON.stringify([index, rules, run, situation.moodKey ?? null, [...(input.redact ?? [])].sort()]);
+  };
+  let stampOnce: Promise<string | null> | null = null;
+  const verdictStamp = (): Promise<string | null> => (stampOnce ??= verdictStampNow());
   /** Whether one note of an area may stand behind its gist for this reader: one it may see that holds nothing back. */
   const mayStand = new Map<string, Promise<boolean>>();
   const noteMayStand = (path: string, text: string): Promise<boolean> => {

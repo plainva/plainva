@@ -15,6 +15,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { eventHandle } from "../../../../packages/ui/src/ai/eventDetails";
+import { notePropertiesOf } from "../../../../packages/ui/src/ai/aiSituation";
 import { buildContextPackage } from "../../../../packages/core/src/ai/context/package";
 import { protectedTokens } from "../../../../packages/core/src/ai/context/gists";
 import { resetGistStores } from "../../../../packages/core/src/ai/context/gistStore";
@@ -38,12 +39,15 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 const LONG = "a".repeat(395);
 const AGENDA = `## Agenda\n\n${"Each round starts with the open points from last time, then the numbers of the quarter. ".repeat(20)}\n`;
 const readable = (name: string): Record<string, string> => ({
-  "Projects/Pay.md": `---\nrelated: "[[Private/${name}]]"\nowner: "[[${name}|the owner]]"\nunquoted: [[Private/${name}]]\nlist:\n  - [[${name}]]\nlong: "${LONG} [[Private/${name}]]"\n---\n# Pay\n\nThe rates of this year.\n\n## Talk with [[${name}]]\n\nSee [[Private/${name}|${name}]] for the numbers.\n\n| who | note |\n| --- | --- |\n| a | [[${name}\\|x]] |\n\nAlso [t](../Private/${encodeURIComponent(name)}.md), ![[${name}]] and [r][1].\n\n[1]: ../Private/${encodeURIComponent(name)}.md\n`,
+  "Projects/Pay.md": `---\nrelated: "[[Private/${name}]]"\nowner: "[[${name}|the owner]]"\nunquoted: [[Private/${name}]]\nlist:\n  - [[${name}]]\nlong: "${LONG} [[Private/${name}]]"\ncomma: [[${name}, Meier]]\nlabelled: [[${name}, Meier|Pay, ${name}]]\ncolon: [[Brief: ${name}]]\nspread: [[${name},\n  Meier]]\ninside:\n  rel: [[${name}, Meier]]\nitems:\n  - [[${name}, Meier]]\n  - plain\n---\n# Pay\n\nThe rates of this year.\n\n## Talk with [[${name}]]\n\nSee [[Private/${name}|${name}]] for the numbers.\n\n| who | note |\n| --- | --- |\n| a | [[${name}\\|x]] |\n\nAlso [t](../Private/${encodeURIComponent(name)}.md), ![[${name}]] and [r][1].\n\n[1]: ../Private/${encodeURIComponent(name)}.md\n`,
   "Projects/Second.md": `---\nup: [[${name}]]\n---\n# Second\n\nThe rates again, with [[${name}]] and [[Projects/Pay]].\n`,
   "Projects/Plan.md": "---\nowner: \"[[Projects/Mia]]\"\nrel: \"[[Projects/Pay]]\"\n---\n# Plan\n\nSee [[Projects/Pay]] for the rates.\n",
   "Projects/Mia.md": "# Mia\n",
   "Projects/Talk.md": `---\ntitle: "Talk with [[${name}]]"\n---\n# Talk\n\nSee [[Projects/Pay]] and [[Projects/Mia]].\n`,
   "Projects/Weekly.md": `# Weekly\n\n${AGENDA}`,
+  // A reference link whose definition stands on another line than its use, in a heading and in a line that links on.
+  "Projects/Ref.md": `# Ref\n\n## Talk [${name} pay][2]\n\nSee [[Projects/Mia]] and [${name} raise][2].\n\n[2]: ../Private/${encodeURIComponent(name)}.md\n`,
+  "Projects/Comma.base": "filters:\n  and:\n    - file.folder == \"Projects\"\nviews:\n  - type: table\n    name: T\n    order: [comma, labelled, colon, spread, inside, items]\n",
   "Projects/Board.base": "filters:\n  and:\n    - file.folder == \"Projects\"\nviews:\n  - type: table\n    name: T\n    order: [owner, related, unquoted, up]\n    sort:\n      - property: owner\n        direction: ASC\n",
   "Projects/Filtered.base": "filters:\n  and:\n    - 'contains(owner, \"Z\")'\nviews:\n  - type: table\n    name: T\n    order: [owner]\n",
   "Projects/Unquoted.base": "filters:\n  and:\n    - file.folder == \"Projects\"\nviews:\n  - type: table\n    name: T\n    order: [unquoted, up]\n    sort:\n      - property: up\n        direction: ASC\n      - property: unquoted\n        direction: DESC\n",
@@ -51,6 +55,9 @@ const readable = (name: string): Record<string, string> => ({
     "filters:\n  and:\n    - file.folder == \"Projects\"\ncolumns:\n  rel:\n    input: link\n  k:\n    rollup:\n      through: rel\n      of: owner\n      fn: countWhere\n      where:\n        op: contains\n        value: Aaron\n  names:\n    rollup:\n      through: rel\n      of: owner\n      fn: list\nviews:\n  - type: table\n    name: T\n    order: [rel, k, names]\n",
   // The note kept back: it links to readable notes, and shares a section with one of them.
   [`Private/${name}.md`]: `# ${name}\n\n${name} earns more. See [[Projects/Pay]].\n\n${AGENDA}`,
+  // Two more kept back, named by a link with a comma in it and by the title of their properties, with a colon.
+  [`Private/${name}, Meier.md`]: `# ${name}, Meier\n`,
+  "Private/Brief.md": `---\ntitle: "Brief: ${name}"\n---\n# Brief\n`,
 });
 
 /** The same in both vaults: what the mail account holds names no note. */
@@ -184,6 +191,9 @@ const questions = (handle: string): [string, Record<string, unknown>][] => [
   ["query_base", { base: "Projects/Filtered.base", limit: 20 }],
   ["query_base", { base: "Projects/Unquoted.base", limit: 20 }],
   ["query_base", { base: "Projects/Roll.base", limit: 20 }],
+  ["query_base", { base: "Projects/Comma.base", limit: 20 }],
+  ["read_note", { path: "Projects/Ref.md" }],
+  ["get_outline", { path: "Projects/Ref.md" }],
   ["get_tasks", { range: "all" }],
   ["get_backlinks", { path: "Projects/Pay.md", limit: 20 }],
   ["get_backlinks", { path: "Projects/Mia.md", limit: 20 }],
@@ -288,6 +298,42 @@ describe("the reader-view guard on the real search path", () => {
     });
   }
 
+  it("get_backlinks cuts the linking line and the headings above it from the view of the whole note (review of R19, wave 2)", async () => {
+    for (const [who, web, scope] of readers) {
+      const v = await vaultOf(HIDDEN[0]);
+      const args = { path: "Projects/Mia.md", limit: 20 };
+      const out = await createVaultToolExecutor(v.deps, { recipient: cloud, webTools: web }, scope).execute(toolByName("get_backlinks")!, args, { type: "tool_call", id: "c", name: "get_backlinks", args });
+      expect(JSON.stringify(out), who).not.toMatch(SECRETS);
+      // A reference link whose definition stands on another line: withheld in its line and in the heading over it.
+      const ref = (out.data as { notes: { path: string; places: unknown[] }[] }).notes.find((note) => note.path === "Projects/Ref.md");
+      expect(ref?.places, who).toEqual([{ line: 5, under: "Ref › Talk ⟦withheld note⟧", text: "See [[Projects/Mia]] and ⟦withheld note⟧." }]);
+      expect(out.content, who).toContain("  - line 5 (Ref › Talk ⟦withheld note⟧): See [[Projects/Mia]] and ⟦withheld note⟧.");
+      await v.done();
+    }
+  });
+
+  it("an entry of the memory that holds a withheld link is taken out or reworded by its placeholder: the draft names it as it stands in the file, the answer does not (review of R19, wave 2)", async () => {
+    for (const [who, web, scope] of readers) {
+      const v = await vaultOf(HIDDEN[0]);
+      const drafted: { title: string; body: unknown }[] = [];
+      const run: WriteRun = { ...writer(), draft: async (draft) => (drafted.push(draft), { ok: true, id: `d-${drafted.length}` }) };
+      const ask = (name: string, args: Record<string, unknown>) =>
+        createVaultToolExecutor(v.deps, { recipient: cloud, webTools: web }, scope, undefined, { more: furtherToolNames(v.deps) }, run).execute(toolByName(name)!, args, { type: "tool_call", id: "c", name, args });
+      const forgot = await ask("forget", { entry: "Ask ⟦withheld note⟧ about the pay" });
+      const reworded = await ask("remember", { text: "Ask about the pay on Monday", replaces: "Ask ⟦withheld note⟧ about the pay" });
+      expect(forgot.isError, who).toBeFalsy();
+      expect(reworded.isError, who).toBeFalsy();
+      expect(JSON.stringify([forgot, reworded, drafted.map((d) => d.title)]), who).not.toMatch(SECRETS);
+      // The entry as it stands in the file, for the user who says yes to the draft.
+      const raw = `Ask [[Private/${HIDDEN[0]}]] about the pay`;
+      expect(drafted.map((d) => d.body), who).toMatchObject([{ kind: "forget", entry: raw }, { kind: "memory", text: "Ask about the pay on Monday", replaces: raw }]);
+      // A placeholder is never written: not as the new words of an entry.
+      expect((await ask("remember", { text: "Ask ⟦withheld note⟧ on Monday" })).isError, who).toBe(true);
+      expect(drafted, who).toHaveLength(2);
+      await v.done();
+    }
+  });
+
   it("a cloud model: the context package with its short summaries is the same in both vaults, and names the hidden note nowhere", async () => {
     const [a, z] = [await vaultOf(HIDDEN[0]), await vaultOf(HIDDEN[1])];
     const situation = {
@@ -295,15 +341,15 @@ describe("the reader-view guard on the real search path", () => {
       weekday: "Friday",
       calendarDay: "2026-11-13",
       journalDay: "2026-11-13",
-      active: { path: "Projects/Pay.md", title: "Pay", kind: "note" as const, properties: { unquoted: [["Private/X"]], long: "" } },
+      active: { path: "Projects/Pay.md", title: "Pay", kind: "note" as const, properties: {} as Record<string, unknown> },
       tabs: [{ path: "Projects/Talk.md", title: "Talk" }],
       tasks: [],
       events: [],
       dailyNote: null,
     };
-    const pack = async (v: Awaited<ReturnType<typeof vaultOf>>, hidden: string) => {
-      const text = await v.read("Projects/Pay.md");
-      const properties = { unquoted: [[`Private/${hidden}`]], long: `${LONG.slice(0, 190)} [[Private/${hidden}]]` };
+    const pack = async (v: Awaited<ReturnType<typeof vaultOf>>) => {
+      // The open note's properties as both shells read them (`situationFrom`): as they are written.
+      const properties = notePropertiesOf((await v.read("Projects/Pay.md"))!);
       const host = {
         policyOf: (path: string, content?: string) => v.policy.policyOf(path, content),
         resolveLink: (target: string, from: string) => v.query.resolveNotePath(target, from),
@@ -314,14 +360,13 @@ describe("the reader-view guard on the real search path", () => {
         },
         gists: v.gists,
       };
-      void text;
       const found = ["Projects/Weekly.md", "Projects/Second.md", "Projects/Plan.md", "Projects/Pay.md"].map((path, i) => ({ path, title: path.replace(/^.*\//, "").replace(/\.md$/, ""), signals: { lexical: i === 0 ? 0.4 : 0.1 } }));
       const out = await buildContextPackage({ question: "How do the rounds go?", recipient: cloud, situation: { ...situation, active: { ...situation.active, properties } }, candidates: [found], pins: [], budget: { evidence: 0, cards: 2, map: 6 } }, host);
       return out.part.text;
     };
     // The summaries are there: written for the notes, among them one that shares its section with the hidden note.
     expect(await a.gists.note("Projects/Weekly.md")).toBeTruthy();
-    const [fromA, fromZ] = [await pack(a, HIDDEN[0]), await pack(z, HIDDEN[1])];
+    const [fromA, fromZ] = [await pack(a), await pack(z)];
     expect(fromA).not.toMatch(SECRETS);
     expect(fromA).toEqual(fromZ);
     await a.done();

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildContextPackage, type ContextBuildHost, type SituationInput } from "../src/ai/context/package.js";
 import { protectedTokens } from "../src/ai/context/gists.js";
 import { resetGistStores } from "../src/ai/context/gistStore.js";
-import { GistReader, GistWriter, type GistModel } from "../src/ai/context/gistWriter.js";
+import { GistReader, GistWriter, areaGistKey, VAULT_GIST_KEY, type GistModel } from "../src/ai/context/gistWriter.js";
+import { GistStore } from "../src/ai/context/gistStore.js";
+import { withinAsync } from "./helpers/timeBudget.js";
 import { gateDecision, type EgressRecipient } from "../src/ai/egressGate.js";
 import { buildLinkNameIndex, filesALinkCouldMean } from "../src/ai/linkNames.js";
 import { DEFAULT_AI_POLICY, effectivePolicy, notePolicyFrom } from "../src/ai/policy.js";
@@ -156,5 +158,72 @@ describe("a short summary and a reader with a narrower view", () => {
     expect(text).toContain("Where these notes sit");
     expect(text).toContain("Kowalski asked");
     await v.done();
+  });
+
+  it("keeps its verdict on an area over messages while the index and the rules stay, and decides anew when either changes (review of R19, wave 2)", async () => {
+    resetGistStores();
+    const db = await realSqlite();
+    const files = new MemoryVaultAdapter(1_000);
+    const N = 400;
+    for (let i = 0; i < N; i++) await files.writeTextFile(`Projects/n${i}.md`, `---\nowner: "[[Projects/n${(i * 7) % N}]]"\n---\n# n${i}\nOffer ${i}, see [[Projects/n${(i * 13) % N}]].\n`);
+    await files.writeTextFile(PRIVATE, NOTES[PRIVATE]!);
+    const indexer = new VaultIndexer(files, db);
+    await indexer.indexVaultFull();
+    const query = new VaultQueryService(db as never);
+    // Stored gists of the area and of the vault, as the writer leaves them once it ran.
+    const store = new GistStore(db);
+    const later = Date.now() + 365 * 864e5;
+    await store.put({ key: areaGistKey("Projects"), level: "folder", source: areaGistKey("Projects"), text: "Offers of the studio.", ok: true, createdAt: later }, "local/m");
+    await store.put({ key: VAULT_GIST_KEY, level: "vault", source: VAULT_GIST_KEY, text: "Notes of a small studio.", ok: true, createdAt: later }, "local/m");
+    // The rules besides the notes' own: a folder kept from the cloud. Each lookup counted.
+    let keptFolders = ["Private/"];
+    let lookups = 0;
+    const host: ContextBuildHost = {
+      policyOf: async (path, text) => {
+        lookups++;
+        const own = notePolicyFrom(keptFolders.some((folder) => path.startsWith(folder)) ? { plainva: { ai: { cloud: "deny" } } } : {});
+        void text;
+        return effectivePolicy(path, own, [], DEFAULT_AI_POLICY);
+      },
+      rulesStamp: async () => JSON.stringify(keptFolders),
+      resolveLink: (target, from) => query.resolveNotePath(target, from),
+      linkCandidates: async (target, from) => filesALinkCouldMean(buildLinkNameIndex(await query.linkTargets()), target, from),
+      readNote: async (path) => {
+        const text = await files.readTextFile(path).catch(() => null);
+        return text === null ? null : { title: path.replace(/^.*\//, "").replace(/\.md$/, ""), text };
+      },
+    };
+    const ask = async () => {
+      lookups = 0;
+      // A reader for each message, as the shells make one.
+      const pack = await buildContextPackage(
+        { question: "What is the offer?", recipient: cloud, situation, candidates: [[{ path: "Projects/n1.md", title: "n1", signals: { lexical: 1 } }]], pins: [], budget: { evidence: 1, cards: 0, map: 4 } },
+        { ...host, gists: new GistReader(db, "local/m") },
+      );
+      return { text: pack.part.text, lookups };
+    };
+    const first = await ask();
+    expect(first.text).toContain("Offers of the studio.");
+    expect(first.lookups).toBeGreaterThan(N);
+    // The same state: the verdict is kept, not one note of the area is looked through again.
+    const again = await withinAsync(200, () => ask());
+    expect(again.text).toEqual(first.text);
+    expect(again.lookups).toBeLessThan(20);
+    // A note of the area that links to the kept note since: decided anew, and its gist stays back.
+    await files.writeTextFile("Projects/n3.md", "# n3\nSee [[Private/Salary Kowalski]].\n");
+    await indexer.indexVaultFull();
+    const linked = await ask();
+    expect(linked.text).not.toContain("Offers of the studio.");
+    expect(linked.text).not.toContain("Notes of a small studio.");
+    await files.writeTextFile("Projects/n3.md", "# n3\nOffer 3.\n");
+    await indexer.indexVaultFull();
+    expect((await ask()).text).toContain("Offers of the studio.");
+    // The rules keep a note of the area from the cloud since: decided anew.
+    keptFolders = ["Private/", "Projects/n9"];
+    const ruled = await ask();
+    // Looked through again, as far as the first note the rules keep back.
+    expect(ruled.lookups).toBeGreaterThan(again.lookups + 20);
+    expect(ruled.text).not.toContain("Offers of the studio.");
+    await db.close();
   });
 });

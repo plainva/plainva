@@ -48,7 +48,6 @@ import {
   VaultQueryService,
   MOOD_PROPERTY_NAMES,
   type LinkRule,
-  wikiLinksAsWritten,
   type LinkVerdicts,
   viewMatchesSearch,
   viewSearchSnippet,
@@ -414,13 +413,14 @@ const CALENDAR_MAX_DAYS = 31;
 
 const VALUE_MAX = 400;
 
-/** A property value as one line of text. */
-/** A property's value as text, its wiki links as they were written (`wikiLinksAsWritten`) — whole, never cut. */
+/**
+ * A property's value as text — whole, never cut. Read as written (`notePropertiesOf`, `propertiesAsWritten`): a link
+ * without quotes is the text `[[…]]`, whatever its name holds — a comma, a colon, a line break.
+ */
 function valueText(value: unknown): string {
-  const written = wikiLinksAsWritten(value);
-  if (written === null || written === undefined) return "";
-  if (Array.isArray(written)) return written.map(valueText).filter(Boolean).join(", ");
-  return typeof written === "object" ? JSON.stringify(written) : String(written);
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map(valueText).filter(Boolean).join(", ");
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
 /**
@@ -528,6 +528,25 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     const linked = (await withholdDeniedLinksIn(places, fromPath, deps, (path) => allowed(path), scope?.linksInReach ? "in-reach" : "any-kept-back", linkVerdicts)).view;
     if (!cloud || !redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
     return redactSensitiveIn(linked, sensitiveFindings(linked.text)).view;
+  };
+  /**
+   * The outline context of lines of a note (`backlinkContexts`), cut from what this run may see of the WHOLE note:
+   * each raw line is found in the view (`ReaderView.toView`) and its context read there; the line numbers stay the
+   * note's own. A text withheld line by line would keep what only the whole note shows to be a link — a reference
+   * link whose definition stands elsewhere.
+   */
+  const viewContexts = async (text: string, fromPath: string, rawLines: readonly number[]): Promise<ReturnType<typeof backlinkContexts>> => {
+    const view = await viewOf(text, fromPath);
+    if (!view.withholds) return backlinkContexts(text, rawLines);
+    const starts = [0];
+    for (let at = text.indexOf("\n"); at >= 0; at = text.indexOf("\n", at + 1)) starts.push(at + 1);
+    const seen = view.text;
+    const lineAt = (position: number) => {
+      let line = 1;
+      for (let at = seen.indexOf("\n"); at >= 0 && at < position; at = seen.indexOf("\n", at + 1)) line += 1;
+      return line;
+    };
+    return rawLines.map((raw) => ({ ...backlinkContexts(seen, [lineAt(view.toView(starts[Math.min(raw, starts.length) - 1] ?? 0))])[0]!, line: raw }));
   };
   /**
    * Whether this run reads through a narrower view than the vault's own: a cloud, a run with the internet, an app
@@ -852,17 +871,18 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             passed += 1;
             if (passed <= offset) continue;
             if (lines.length === limit) break;
-            const contexts = backlinkContexts(source.text, group.lines.slice(0, 3));
+            // The line and the headings above it are cut from the view of the whole note, as read_note and get_outline
+            // read it: a reference link whose definition stands on another line is withheld there too (review of R19).
+            const contexts = await viewContexts(source.text, source.path, group.lines.slice(0, 3));
             const places = contexts.map((ctx) => {
               const chain = contextChain(ctx);
               return `  - line ${ctx.line}${chain ? ` (${chain})` : ""}: ${ctx.lineText}`;
             });
             const title = group.title ?? titleOf(group.source_path);
             const head = `- [[${title}]] (${group.source_path})${group.count > 1 ? `, ${group.count} links` : ""}`;
-            lines.push(await withhold([head, ...places].join("\n"), source.path));
-            // As values: the line that links and the headings above it are the other note's text — each through the same gate.
-            const found: { line: number; under: string; text: string }[] = [];
-            for (const ctx of contexts) found.push({ line: ctx.line, under: await withhold(contextChain(ctx), source.path), text: await withhold(ctx.lineText, source.path) });
+            lines.push([await withhold(head, source.path), ...places].join("\n"));
+            // As values: the line that links and the headings above it, from the same view.
+            const found = contexts.map((ctx) => ({ line: ctx.line, under: contextChain(ctx), text: ctx.lineText }));
             linking.push({ title, path: group.source_path, links: group.count, places: found });
           }
           const next = lines.length === limit ? String(offset + limit) : null;

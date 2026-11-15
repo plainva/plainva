@@ -282,3 +282,12 @@ export function splitDocument(content: string, options: { sourceTokens?: boolean
   const hadEntries = isMap(doc.contents) && doc.contents.items.length > 0;
   return { doc, span, body: content.slice(span.end), hadFrontmatter: true, hadEntries, eol, byteOrderMark, content };
 }
+
+/** Lines folded into one, as YAML folds a flow collection's line breaks: each line trimmed, joined by a blank. */
+export function foldedLines(text: string): string {
+  return text
+    .split(/\r\n|\r|\n/)
+    .map((line) => line.trim())
+    .join(" ")
+    .trim();
+}

@@ -1,3 +1,4 @@
+import { foldedLines, frontmatterSpan } from "../frontmatter-block.js";
 import { wikiLinkParts } from "../wikiLink.js";
 import { ReaderView } from "./readerView.js";
 import type { AiPolicyDimension, EffectivePolicy, PolicySource } from "./policy.js";
@@ -102,6 +103,12 @@ export const WITHHELD_LINK = "⟦withheld note⟧";
  */
 const WIKI_LINK = /!?\[\[([^[\]\n]+)\]\]/g;
 /**
+ * A wiki link spread over lines, in the properties block only: `up: [[Meier,\n  Kowalski]]` is one link to YAML and
+ * to whoever reads the value — its line breaks folded into blanks, as YAML folds them (review of R19, wave 2). In the
+ * text of a note no reader takes such a thing for a link, and neither does this one.
+ */
+const SPREAD_WIKI_LINK = /\[\[((?:[^[\]\n]*\n)+[^[\]\n]*)\]\]/g;
+/**
  * A Markdown link: its destination in angle brackets — where it may hold
  * blanks — or as a run without blanks, with one level of round brackets; then
  * an optional title in any of its three forms.
@@ -160,6 +167,14 @@ export function redactDeniedLinksIn(view: ReaderView, isDenied: (target: string)
     const target = wikiLinkParts(inner).target;
     return target && isDenied(target) ? withheld() : match;
   });
+  const block = out.text.startsWith("---") || out.text.startsWith("\uFEFF---") ? (frontmatterSpan(out.text)?.end ?? 0) : 0;
+  if (block > 0) {
+    out = out.replace(SPREAD_WIKI_LINK, (match, inner: string, at: number) => {
+      if (at >= block) return match;
+      const target = wikiLinkParts(foldedLines(inner)).target;
+      return target && isDenied(target) ? withheld() : match;
+    });
+  }
   out = out.replace(INLINE_LINK, (match, _label: string, angled: string | undefined, bare: string | undefined) => {
     const target = vaultTarget(angled ?? bare ?? "");
     return target && isDenied(target) ? withheld() : match;

@@ -184,6 +184,63 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
     }
   });
 
+  it("reads a link without quotes as it is written, whatever its name holds — a comma, a colon, a line break, a place in a list or a map (review of R19, wave 2)", async () => {
+    for (const rule of ["in-reach", "any-kept-back"] as const) {
+      const rows = async (hidden: string) => {
+        let out: unknown[] = [];
+        await withVault(
+          async (query) => {
+            const config = { filters: { and: ['file.folder == "Board"'] }, views: [{ type: "table", name: "T" }] } as any;
+            out = (await query.queryDatabaseFiles(config, { reach: visible, withhold: { rule } })).map((r: any) => [r.comma, r.labelled, r.colon, r.spread, r.inside, r.items, r.pair]);
+          },
+          {
+            [`Private/${hidden}, Meier.md`]: note("", hidden),
+            "Private/Brief.md": note(`title: "Brief: ${hidden}"\n`, "Brief"),
+            "Board/A.md": note(
+              `comma: [[${hidden}, Meier]]\nlabelled: [[${hidden}, Meier|Pay, ${hidden}]]\ncolon: [[Brief: ${hidden}]]\nspread: [[${hidden},\n  Meier]]\ninside:\n  rel: [[Brief: ${hidden}]]\nitems:\n  - [[${hidden}, Meier]]\n  - plain\npair: [[a], [b]]\n`,
+              "A",
+            ),
+          },
+        );
+        return out;
+      };
+      const [aaron, zora] = [await rows("Aaron"), await rows("Zora")];
+      expect(JSON.stringify(aaron), rule).not.toMatch(/Aaron|Zora/);
+      expect(aaron, rule).toEqual(zora);
+      // Each a link, withheld as one — a map as the JSON text the index holds of it —; a list of lists stays what it is.
+      expect(aaron, rule).toEqual([["⟦withheld note⟧", "⟦withheld note⟧", "⟦withheld note⟧", "⟦withheld note⟧", '{"rel":"⟦withheld note⟧"}', ["⟦withheld note⟧", "plain"], [["a"], ["b"]]]]);
+    }
+  });
+
+  it("a rollup reads one key of the notes it reaches, and withholds no other (review of R19, wave 2)", async () => {
+    await withVault(
+      async (query) => {
+        const asked: string[] = [];
+        const config = {
+          filters: { and: ['file.folder == "Board"'] },
+          columns: { rel: { input: "link" }, n: { rollup: { through: "rel", of: "state", fn: "countWhere", where: { op: "contains", value: "open" } } } },
+          views: [{ type: "table", name: "T" }],
+        } as any;
+        const rows = await query.queryDatabaseFiles(config, {
+          reach: async (paths) => {
+            asked.push(...paths);
+            return visible(paths);
+          },
+          withhold: { rule: "any-kept-back" },
+        });
+        expect(rows.find((r: any) => r["file.path"] === "Board/P.md")?.n).toBe(1);
+        // A link in another key of the linked note is shown to nobody here: nobody asks what it means.
+        expect(asked).not.toContain("Private/Other.md");
+      },
+      {
+        "Private/Other.md": note("", "Other"),
+        // The linked note stands outside the database: only the rollup reads it.
+        "Linked/T.md": note('state: open\nother: "[[Private/Other]]"\n', "T"),
+        "Board/P.md": note('rel: "[[Linked/T]]"\n', "P"),
+      },
+    );
+  });
+
   it("asks once per note, in one question for many, and a reach that cannot answer fails the query", async () => {
     await withVault(async (query) => {
       const questions: string[][] = [];
