@@ -5271,6 +5271,8 @@
     "useAnyway": "Użyj mimo to"
   },
   "errors": {
+    "baseViewGone": "Tego widoku nie ma już w pliku bazy danych: zmieniono jego nazwę lub usunięto go gdzie indziej. Nic nie zostało zmienione.",
+    "baseFileNotConfig": "Plik bazy danych nie zawiera konfiguracji, którą Plainva mogłaby zmienić. Nic nie zostało zmienione.",
     "somethingWentWrong": "Coś poszło nie tak.",
     "reload": "Załaduj ponownie",
     "areaTitle": "Nie można wyświetlić tego obszaru",

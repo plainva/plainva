@@ -5057,6 +5057,8 @@
     "useAnyway": "Trotzdem verwenden"
   },
   "errors": {
+    "baseViewGone": "Diese Ansicht steht nicht mehr in der Datenbank-Datei: Sie wurde anderswo umbenannt oder entfernt. Es wurde nichts geändert.",
+    "baseFileNotConfig": "Die Datenbank-Datei enthält keine Konfiguration, die Plainva ändern kann. Es wurde nichts geändert.",
     "somethingWentWrong": "Etwas ist schiefgelaufen.",
     "reload": "Neu laden",
     "areaTitle": "Dieser Bereich kann nicht angezeigt werden",

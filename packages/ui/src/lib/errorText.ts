@@ -127,6 +127,10 @@ export function errorText(err: unknown): string {
   // A deletion, rename or move refused while the index database is closed
   // (stability plan R5): one sentence that says why and what to do, wherever it surfaces.
   if (isStructureNeedsIndexError(err)) return i18n.t("errors.structureNeedsIndex");
+  // A view's change refused on the file as it is (`baseViewPatch.ts`): what happened, and that nothing changed.
+  const code = (err as { code?: unknown } | null)?.code;
+  if (code === "BASE_VIEW_GONE") return i18n.t("errors.baseViewGone");
+  if (code === "BASE_FILE_NOT_CONFIG") return i18n.t("errors.baseFileNotConfig");
   const connection = connectionErrorText(err);
   if (connection) return connection;
   if (typeof err === "string") return inputErrorText(err.trim() || "unknown error");

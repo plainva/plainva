@@ -5057,6 +5057,8 @@
     "useAnyway": "Toch gebruiken"
   },
   "errors": {
+    "baseViewGone": "Deze weergave staat niet meer in het databasebestand: ze is elders hernoemd of verwijderd. Er is niets gewijzigd.",
+    "baseFileNotConfig": "Het databasebestand bevat geen configuratie die Plainva kan wijzigen. Er is niets gewijzigd.",
     "somethingWentWrong": "Er is iets misgegaan.",
     "reload": "Opnieuw laden",
     "areaTitle": "Dit gedeelte kan niet worden weergegeven",

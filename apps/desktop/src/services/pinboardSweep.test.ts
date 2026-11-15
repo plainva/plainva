@@ -132,4 +132,25 @@ describe("dropPinboardRefs: a delete in the app takes the note out of every pinb
       updater.dispose();
     }
   });
+
+  it("reads the board again before the index follows, and also where the index cannot", async () => {
+    const v = fakeVault({ "Pinnwand.base": pinboardBase });
+    const order: string[] = [];
+    const updater = createIndexAutoUpdater({
+      adapter: v.deps.adapter as never,
+      queryService: v.deps.queryService as never,
+      vaultName: () => "V",
+      subfoldersHeading: () => "Folders",
+      onWritten: (p) => void order.push(`read ${p}`),
+      reindex: async (paths) => { order.push(`index ${paths.join(",")}`); throw new Error("index closed"); },
+      debounceMs: 1,
+    });
+    try {
+      updater.notify([{ type: "delete", path: "Zettel/A.md" }]);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(order).toEqual(["read Pinnwand.base", "index Pinnwand.base"]);
+    } finally {
+      updater.dispose();
+    }
+  });
 });

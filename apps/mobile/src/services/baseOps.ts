@@ -30,6 +30,7 @@ import {
   resolveNewItemTarget,
   serializeBaseConfig,
   baseConfigChange,
+  readBaseConfig,
   parkTemplateCaret,
   templateCaretInNote,
   viewPrefill,
@@ -111,12 +112,13 @@ export async function queryView(v: MobileVault, config: any, viewIndex: number):
  */
 export async function updateBaseConfig(v: MobileVault, path: string, update: (config: any) => any | null): Promise<any | null> {
   await assertFileStillThere(v.files, path);
-  let written: any = null;
-  await vaultOps.update(v, path, baseConfigChange(update, (next) => { written = next; }));
-  if (!written) return null;
+  const result = await vaultOps.update(v, path, baseConfigChange(update));
+  if (!result.changed) return null;
   if (v.indexer) await v.reindexPaths([path]);
   syncSoon();
-  return written;
+  // What the file holds now — on an open conflict too (not the working copy),
+  // read the way the database opens.
+  return readBaseConfig(result.text);
 }
 
 export async function saveBaseConfig(v: MobileVault, path: string, config: any, { recreate = false }: { recreate?: boolean } = {}): Promise<void> {

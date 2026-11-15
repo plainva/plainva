@@ -4950,6 +4950,8 @@
     "useAnyway": "仍要使用"
   },
   "errors": {
+    "baseViewGone": "此视图已不在数据库文件中：它已在别处被重命名或删除。没有任何更改。",
+    "baseFileNotConfig": "数据库文件中没有 Plainva 可以更改的配置。没有任何更改。",
     "somethingWentWrong": "出了点问题。",
     "reload": "重新加载",
     "areaTitle": "无法显示此区域",

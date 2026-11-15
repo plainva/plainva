@@ -5057,6 +5057,8 @@
     "useAnyway": "Use anyway"
   },
   "errors": {
+    "baseViewGone": "This view is no longer in the database file: it was renamed or removed elsewhere. Nothing was changed.",
+    "baseFileNotConfig": "The database file holds no configuration Plainva can change. Nothing was changed.",
     "somethingWentWrong": "Something went wrong.",
     "reload": "Reload",
     "areaTitle": "This area could not be shown",

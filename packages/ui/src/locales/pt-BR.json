@@ -5164,6 +5164,8 @@
     "useAnyway": "Usar mesmo assim"
   },
   "errors": {
+    "baseViewGone": "Esta visualização não está mais no arquivo do banco de dados: foi renomeada ou removida em outro lugar. Nada foi alterado.",
+    "baseFileNotConfig": "O arquivo do banco de dados não contém nenhuma configuração que o Plainva possa alterar. Nada foi alterado.",
     "somethingWentWrong": "Algo deu errado.",
     "reload": "Recarregar",
     "areaTitle": "Não foi possível mostrar esta área",

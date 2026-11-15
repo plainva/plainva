@@ -185,10 +185,11 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
         // Each path as a file and as a folder: not every call site says which.
         const paths = deleted.map((op) => normalize(op.path));
         void dropPinboardRefs({ adapter: deps.adapter, queryService: deps.queryService }, paths, paths).then(
-          async (changed) => {
+          (changed) => {
             if (changed.length === 0) return;
-            await deps.reindex?.(changed);
+            // Read again first: what the screens show never waits for the index.
             for (const basePath of changed) deps.onWritten?.(basePath);
+            deps.reindex?.(changed).catch((e: unknown) => reportBackground("pinboard:drop-deleted-reindex", e));
           },
         ).catch((e: unknown) => reportBackground("pinboard:drop-deleted", e));
       }

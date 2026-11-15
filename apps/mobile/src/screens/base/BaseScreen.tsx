@@ -41,7 +41,7 @@ import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
-import { applyBaseViewPatch, errorText, isFileNotFound, pinboardLabelProperty, useStableHandler, type BaseViewPatch } from "@plainva/ui";
+import { applyBaseViewPatch, errorText, isFileNotFound, ParkedBaseChanges, pinboardLabelProperty, useStableHandler, type BaseViewPatch } from "@plainva/ui";
 import {
   commitBulkValue,
   commitCellValue,
@@ -197,13 +197,19 @@ export function BaseScreen({
   // lookup: the file is there but could not be read — the screen used to
   // show an empty database then, whose next change would have overwritten it.
   const [pendingConfig, setPendingConfig] = useState<any | null>(null);
+  // A view's change that found its file gone waits as what it is, and is
+  // applied to the file once it is found (review of the pinboard fix, 15.11.).
+  const parkedChanges = useRef(new ParkedBaseChanges());
   const [loadFailed, setLoadFailed] = useState(false);
   const missing = useOpenFileLookup(vault, path, {
     onRenamed,
     carry: async (to) => {
       if (pendingConfig === null) return true;
       try {
-        await saveBaseConfig(vault, to, pendingConfig);
+        if (parkedChanges.current.waiting) {
+          await updateBaseConfig(vault, to, parkedChanges.current.composed());
+          parkedChanges.current.clear();
+        } else await saveBaseConfig(vault, to, pendingConfig);
         return true;
       } catch (e) {
         console.error("[BaseScreen] carrying the database change to the moved file failed", e);
@@ -448,11 +454,21 @@ export function BaseScreen({
   // The file changed outside this screen — a delete or a move took its notes
   // out of the pinboard lists, another device wrote it: read again, as the
   // desktop does (review of the pinboard fix, 15.11.).
+  // The name of the view on screen, for a read that comes later (the listener below).
+  const shownViewName = useRef<string | null>(null);
+  useEffect(() => {
+    shownViewName.current = loaded?.config?.views?.[viewIndex]?.name ?? null;
+  }, [loaded, viewIndex]);
   useEffect(() => {
     const onExternal = (e: Event) => {
       const changed = (e as CustomEvent<{ path?: string }>).detail?.path;
       if (changed !== path) return;
-      void loadBase(vault, path).then((l) => setLoaded(l), () => {
+      void loadBase(vault, path).then((l) => {
+        // The view on screen stays on screen, by its name (another device may have moved it).
+        const name = shownViewName.current;
+        setLoaded(l);
+        if (typeof name === "string") setViewIndex(resolveViewIndex(l.config?.views, name));
+      }, () => {
         // silent: the file went or cannot be read now; the screen keeps what it shows and looks for it on the next change.
       });
     };
@@ -1208,16 +1224,28 @@ export function BaseScreen({
   const patchActiveView = useCallback(
     (patch: BaseViewPatch) => {
       if (!loaded) return;
-      const stem = loaded.stem;
-      const index = viewIndex;
-      void updateBaseConfig(vault, path, (fresh) => applyBaseViewPatch(fresh, index, patch))
-        .then((written) => {
-          if (!written) return;
-          setLoaded({ config: written, stem });
+      const shown = loaded;
+      // The view on screen, by what it is (its name), not by its place.
+      const target = { index: viewIndex, name: shown.config?.views?.[viewIndex]?.name ?? null };
+      const update = (fresh: any) => applyBaseViewPatch(fresh, target, patch);
+      // Shown at once, applied to what the screen shows; then what the file holds.
+      let optimistic: any = null;
+      try { optimistic = update(shown.config); } catch { optimistic = null; }
+      if (optimistic) setLoaded({ config: optimistic, stem: shown.stem });
+      void updateBaseConfig(vault, path, update)
+        .then((after) => {
+          if (after) setLoaded({ config: after, stem: shown.stem });
           rememberFile();
         })
         .catch((e: unknown) => {
-          if (isFileNotFound(e)) lookForFile();
+          if (isFileNotFound(e)) {
+            // The change waits as what it is, and goes with the file once it is found.
+            parkedChanges.current.park(update);
+            setPendingConfig(optimistic ?? shown.config);
+            lookForFile();
+            return;
+          }
+          setLoaded((now) => (now && optimistic && now.config === optimistic ? shown : now));
           toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
         });
     },

@@ -5164,6 +5164,8 @@
     "useAnyway": "Utiliser quand même"
   },
   "errors": {
+    "baseViewGone": "Cette vue n’est plus dans le fichier de la base de données : elle a été renommée ou supprimée ailleurs. Rien n’a été modifié.",
+    "baseFileNotConfig": "Le fichier de la base de données ne contient aucune configuration que Plainva puisse modifier. Rien n’a été modifié.",
     "somethingWentWrong": "Une erreur est survenue.",
     "reload": "Recharger",
     "areaTitle": "Cette zone ne peut pas être affichée",

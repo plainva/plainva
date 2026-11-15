@@ -12,7 +12,7 @@ import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
 import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
-import { applyBaseViewPatch, baseConfigChange, buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler, type BaseViewPatch } from "@plainva/ui";
+import { applyBaseViewPatch, baseConfigChange, readBaseConfig, ParkedBaseChanges, buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler, type BaseViewPatch } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
@@ -162,6 +162,9 @@ export function BaseViewer({
   // here (`pendingConfig`, serialized) and goes with the file once it is found;
   // it never recreates the file at its old place unless the reader says so.
   const [pendingConfig, setPendingConfig] = useState<string | null>(null);
+  // A view's change that found its file gone waits as what it is, and is
+  // applied to the file once it is found (review of the pinboard fix, 15.11.).
+  const parkedChanges = useRef(new ParkedBaseChanges());
   const missing = useOpenFileLookup(activePath, {
     enabled: !embedded,
     onRenamed,
@@ -170,7 +173,12 @@ export function BaseViewer({
       if (pendingConfig === null || !vaultAdapter) return true;
       try {
         await assertFileStillThere(vaultAdapter, to);
-        await vaultAdapter.writeTextFile(to, pendingConfig);
+        if (parkedChanges.current.waiting) {
+          await updateVaultText(vaultAdapter, to, baseConfigChange(parkedChanges.current.composed()));
+          parkedChanges.current.clear();
+        } else {
+          await vaultAdapter.writeTextFile(to, pendingConfig);
+        }
         if (indexer) await applyIndexChanges(indexer, { added: [to] }).catch(() => {});
         return true;
       } catch (e) {
@@ -1682,24 +1690,55 @@ export function BaseViewer({
    * Writes `update` of the configuration as the file holds it now — read,
    * changed and written in one step through the vault's chain
    * (`updateVaultText`). For a change that is a function of the stored
-   * configuration (a view's lists, a board's column order).
+   * configuration (a view's lists, a board's column order). The screen shows
+   * it at once (applied to what it shows), then what the file holds after,
+   * read the way the database opens (`readBaseConfig`), and queries again. A
+   * file that went: the change waits as what it is (`parkedChanges`) and goes
+   * with the file once it is found. Refused or failed: the screen goes back.
    */
   const saveConfigFrom = async (update: (fresh: any) => any | null): Promise<boolean> => {
     if (!vaultAdapter) return false;
-    let written: any = null;
+    const shownConfig = dbConfig;
+    const shownText = content;
+    const save = ++saveTurn.current;
+    let optimistic: any = null;
+    try { optimistic = shownConfig ? update(shownConfig) : null; } catch { optimistic = null; }
+    if (optimistic) {
+      setDbConfig(optimistic);
+      setContent(serializeBaseConfig(optimistic));
+    }
+    let after: any;
     try {
       await assertFileStillThere(vaultAdapter, activePath);
-      await updateVaultText(vaultAdapter, activePath, baseConfigChange(update, (next) => { written = next; }));
+      const result = await updateVaultText(vaultAdapter, activePath, baseConfigChange(update));
+      // What the file holds now — on an open conflict too (not the working copy).
+      after = readBaseConfig(result.text);
+      setContent(result.text);
+      setDbConfig(after);
     } catch (e: any) {
-      if (isFileNotFound(e) && !embedded) lookForFile();
+      const moved = isFileNotFound(e) && !embedded;
+      if (moved) {
+        parkedChanges.current.park(update);
+        // "Save here again" recreates it from what the screen shows, with the change.
+        setPendingConfig(serializeBaseConfig(optimistic ?? shownConfig ?? {}));
+        lookForFile();
+        return false;
+      }
+      setDbConfig((shown: any) => (shown === optimistic ? shownConfig : shown));
+      setContent((shown) => (optimistic && shown === serializeBaseConfig(optimistic) ? shownText : shown));
+      if (save === saveTurn.current && shownConfig) showViewLayout(shownConfig, activeViewIndex);
       console.error("Failed to save database config", e);
       toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
       return false;
     }
-    if (!written) return false;
-    setContent(serializeBaseConfig(written));
-    setDbConfig(written);
     if (indexer) void applyIndexChanges(indexer, { added: [activePath] }).then(rememberFile, () => {});
+    if (queryService) {
+      try {
+        setDbData(await queryForActiveView(after, activeViewIndex));
+      } catch (e) {
+        console.error("Failed to query the database after saving its config", e);
+      }
+    }
     return true;
   };
 
@@ -1722,7 +1761,9 @@ export function BaseViewer({
     } catch (e: any) {
       const moved = isFileNotFound(e) && !embedded;
       if (moved && park) {
-        // The change stays here and goes with the file once it is found.
+        // The change stays here and goes with the file once it is found —
+        // the whole config, which holds the view's changes parked before.
+        parkedChanges.current.clear();
         setPendingConfig(newText);
         lookForFile();
         return false;
@@ -1769,6 +1810,7 @@ export function BaseViewer({
       toast.error(t("editor.saveFailed"));
       return;
     }
+    parkedChanges.current.clear();
     setPendingConfig(null);
     missing.clear();
     triggerFileTreeUpdate();
@@ -2325,8 +2367,7 @@ export function BaseViewer({
   const handleReorderBoardColumns = (orderedKeys: string[]) => {
     if (!boardGroupBy) return;
     const groupBy = boardGroupBy;
-    const vi0 = activeViewIndex;
-    const type = currentViewType;
+    const target = { index: activeViewIndex, name: dbConfig?.views?.[activeViewIndex]?.name ?? null, fallbackType: currentViewType };
     // On the file as it is (review of the pinboard fix, 15.11.): never the copy read when the database opened.
     void saveConfigFrom((fresh) => {
       const nc = JSON.parse(JSON.stringify(fresh ?? {}));
@@ -2342,10 +2383,10 @@ export function BaseViewer({
         const keys = reorderShown(col.options.map(optKey), orderedKeys.filter((k) => byKey.has(k)));
         nc.columns[groupBy] = { ...col, options: keys.map((k) => byKey.get(k)) };
       } else {
-        if (!Array.isArray(nc.views) || nc.views.length === 0) nc.views = [{ type }];
-        const vi = Math.min(vi0, nc.views.length - 1);
-        const stored = Array.isArray(nc.views[vi]?.boardColumnOrder) ? (nc.views[vi].boardColumnOrder as unknown[]).map(String) : [];
-        nc.views[vi] = { ...nc.views[vi], boardColumnOrder: reorderShown(stored, orderedKeys) };
+        // The board's own view, found by what it is (refused where it is gone).
+        return applyBaseViewPatch(nc, target, (view) => ({
+          boardColumnOrder: reorderShown(Array.isArray(view.boardColumnOrder) ? (view.boardColumnOrder as unknown[]).map(String) : [], orderedKeys),
+        }));
       }
       return nc;
     });
@@ -2605,9 +2646,9 @@ export function BaseViewer({
   // 15.11.): a delete or a move that rewrote the pinboard lists meanwhile, or
   // another device, is never written over.
   const patchActiveView = (patch: BaseViewPatch) => {
-    const vi = activeViewIndex;
-    const type = currentViewType;
-    void saveConfigFrom((fresh) => applyBaseViewPatch(fresh, vi, patch, type));
+    // The view on screen, by what it is (its name), not by its place.
+    const target = { index: activeViewIndex, name: dbConfig?.views?.[activeViewIndex]?.name ?? null, fallbackType: currentViewType };
+    void saveConfigFrom((fresh) => applyBaseViewPatch(fresh, target, patch));
   };
 
   // Collapsed swimlanes (issue #83, P6): per file, app-side like the active view.

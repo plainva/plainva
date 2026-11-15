@@ -317,7 +317,7 @@ function saveConfig(text: string, scope: Record<string, unknown> = {}, options?:
 
 /** What a view shows, held the way React holds it: a value, or an update of the one before. */
 function viewState(config: string, text: string) {
-  const state = { config, text, pending: null as string | null, lookedFor: 0 };
+  const state = { config, text, pending: null as string | null, lookedFor: 0, parkedCleared: false };
   const apply = <T>(was: T, next: T | ((was: T) => T)) => (typeof next === "function" ? (next as (was: T) => T)(was) : next);
   return {
     state,
@@ -327,6 +327,8 @@ function viewState(config: string, text: string) {
       setDbConfig: (next: string | ((was: string) => string)) => { state.config = apply(state.config, next); },
       setContent: (next: string | ((was: string) => string)) => { state.text = apply(state.text, next); },
       setPendingConfig: (next: string | null) => { state.pending = next; },
+      // A view's change that waited is carried in the whole config parked here (`ParkedBaseChanges`).
+      parkedChanges: { current: { clear: () => { state.parkedCleared = true; } } },
       lookForFile: () => { state.lookedFor += 1; },
     },
   };
