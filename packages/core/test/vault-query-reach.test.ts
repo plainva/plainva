@@ -151,6 +151,39 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
     }
   });
 
+  it("reads a link written without quotes as a link, and counts a rollup's condition on what the reader sees (review of R19, wave 2)", async () => {
+    for (const rule of ["in-reach", "any-kept-back"] as const) {
+      const rows = async (hidden: string) => {
+        let out: string[] = [];
+        await withVault(
+          async (query) => {
+            const withhold = { rule };
+            const config = {
+              filters: { and: ['file.folder == "Board"'] },
+              columns: { rel: { input: "link" }, k: { rollup: { through: "rel", of: "owner", fn: "countWhere", where: { op: "contains", value: "Aaron" } } }, names: { rollup: { through: "rel", of: "owner", fn: "list" } } },
+              views: [{ type: "table", name: "T", sort: [{ property: "up", direction: "ASC" }, { property: "file.path", direction: "ASC" }] }],
+            } as any;
+            const sorted = await query.queryDatabaseFiles(config, { reach: visible, withhold });
+            config.filters = { and: ['file.folder == "Board"', 'contains(up, "Zora")'] };
+            const filtered = await query.queryDatabaseFiles(config, { reach: visible, withhold });
+            out = [...sorted, ...filtered].map((r: any) => JSON.stringify([r["file.path"], r.up ?? null, r.k ?? null, r.names ?? null]));
+          },
+          {
+            [`Private/${hidden}.md`]: note("", hidden),
+            "Board/A.md": note(`up: [[${hidden}]]\n`, "A"),
+            "Board/B.md": note("up:\n  - [[Projects/Idle]]\n", "B"),
+            "Board/T.md": note(`owner: "[[${hidden}]]"\n`, "T"),
+            "Board/P.md": note('rel: "[[Board/T]]"\n', "P"),
+          },
+        );
+        return out;
+      };
+      const [aaron, zora] = [await rows("Aaron"), await rows("Zora")];
+      expect(JSON.stringify(aaron), rule).not.toMatch(/Aaron|Zora/);
+      expect(aaron, rule).toEqual(zora);
+    }
+  });
+
   it("asks once per note, in one question for many, and a reach that cannot answer fails the query", async () => {
     await withVault(async (query) => {
       const questions: string[][] = [];

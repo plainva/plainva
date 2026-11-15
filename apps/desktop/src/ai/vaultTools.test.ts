@@ -695,8 +695,9 @@ describe("the situation's reach", () => {
   it("is the gate of the run: a note kept from the cloud is out of reach, a model on this device reaches it", async () => {
     const policyOf = async (path: string) => effectivePolicy(path, notePolicyFrom({}), rules);
     const paths = ["Private/Client.md", "Projects/Offer.md", ".agent/skills/x/SKILL.md"];
-    expect([...(await situationReach(policyOf, { recipient: cloud, webTools: false }).reach(paths))]).toEqual(["Projects/Offer.md"]);
-    expect([...(await situationReach(policyOf, { recipient: { kind: "local", provider: "ollama", model: "m" }, webTools: false }).reach(paths))]).toEqual(["Private/Client.md", "Projects/Offer.md"]);
+    expect([...(await situationReach(policyOf, { recipient: cloud, webTools: false }).reach!(paths))]).toEqual(["Projects/Offer.md"]);
+    // A model on this device without the internet: no reach at all — the tasks are computed as they always were.
+    expect(situationReach(policyOf, { recipient: { kind: "local", provider: "ollama", model: "m" }, webTools: false }).reach).toBeUndefined();
   });
 
   it("gathers every due task, so the package cuts after the gate (review of R19, wave 2)", () => {

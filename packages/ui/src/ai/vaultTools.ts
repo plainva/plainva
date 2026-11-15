@@ -48,6 +48,7 @@ import {
   VaultQueryService,
   MOOD_PROPERTY_NAMES,
   type LinkRule,
+  wikiLinksAsWritten,
   type LinkVerdicts,
   viewMatchesSearch,
   viewSearchSnippet,
@@ -114,7 +115,7 @@ export interface VaultToolDeps {
    * `content`: the text the index holds of the note, where the shell hands it along — a search read through a view
    * tests each hit on it without reading the note again.
    */
-  search(query: string, limit: number, offset: number, within?: readonly string[]): Promise<{ path: string; title: string; snippet?: string | null; content?: string | null }[]>;
+  search(query: string, limit: number, offset: number, within?: readonly string[], withContent?: boolean): Promise<{ path: string; title: string; snippet?: string | null; content?: string | null }[]>;
   /** The note's text as the adapter chain reads it; null when there is none. */
   readNote(path: string): Promise<string | null>;
   /** Where a tap on a link leads in this shell: the one note a command opens. */
@@ -414,11 +415,19 @@ const CALENDAR_MAX_DAYS = 31;
 const VALUE_MAX = 400;
 
 /** A property value as one line of text. */
+/** A property's value as text, its wiki links as they were written (`wikiLinksAsWritten`) — whole, never cut. */
 function valueText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (Array.isArray(value)) return value.map(valueText).filter(Boolean).join(", ");
-  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
-  // A property is a value, not a document: long ones are cut (read_note has the note).
+  const written = wikiLinksAsWritten(value);
+  if (written === null || written === undefined) return "";
+  if (Array.isArray(written)) return written.map(valueText).filter(Boolean).join(", ");
+  return typeof written === "object" ? JSON.stringify(written) : String(written);
+}
+
+/**
+ * A property is a value, not a document: a long one is cut (read_note has the note) — and only once what the reader
+ * may not see is withheld from it, so no link is cut into a piece that no reading of links knows (review of R19).
+ */
+function cutValue(text: string): string {
   return text.length > VALUE_MAX ? `${text.slice(0, VALUE_MAX)}…` : text;
 }
 
@@ -527,6 +536,11 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    */
   const restricted = cloud || run.webTools || Boolean(scope?.linksInReach);
   /**
+   * The reach a query is computed with — only for a reader with a narrower view: for any other the gate lets every
+   * note through, and the query takes the way it always took, without asking about each note (review of R19, wave 2).
+   */
+  const readerReach = restricted ? { reach: allowedOf } : {};
+  /**
    * Rows of the index with their titles as this run may see them (review of R19, wave 2): the index takes a note's
    * title from its properties, and a title holds a link like any text — withheld the same way, before a search tests
    * a hit on it and before any list names a note by it.
@@ -579,11 +593,14 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const propertyLines = async (props: Record<string, unknown>, fromPath: string): Promise<string[]> => {
     mood ??= deps.moodKey ? deps.moodKey().catch(() => null) : Promise.resolve(null);
     const kept = withoutSensitiveProperties(props, await mood).properties;
-    const lines = Object.entries(kept)
-      .map(([key, value]) => [key, valueText(value)] as const)
-      .filter(([, value]) => value !== "")
-      .map(([key, value]) => `- ${key}: ${value}`);
-    return lines.length ? (await withhold(lines.join("\n"), fromPath)).split("\n") : [];
+    // Each value withheld whole, then cut.
+    const lines: string[] = [];
+    for (const [key, value] of Object.entries(kept)) {
+      const text = valueText(value);
+      if (text === "") continue;
+      lines.push(...`- ${await withhold(key, fromPath)}: ${cutValue(await withhold(text, fromPath))}`.split("\n"));
+    }
+    return lines;
   };
   /**
    * The same properties as values, for a caller that is a program (plan
@@ -623,10 +640,22 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
       const effective = await deps.policyOf(memoryFileOf(place), text).catch(() => null);
       if (!effective || !gateDecision(effective, run).allowed) continue;
       for (const dimension of AI_POLICY_DIMENSIONS) if (effective.policy[dimension] === "deny") fileDenies.add(dimension);
-      entries.push(...(place === "active" ? memory.active : memory.long));
+      for (const entry of place === "active" ? memory.active : memory.long) {
+        // An entry as this run may see it (review of R19, wave 2): a link in it, or in the heading it stands under, is
+        // withheld like one in a note — before it is searched, named or quoted. What it was is kept for a draft.
+        if (!restricted) {
+          entries.push(entry);
+          continue;
+        }
+        const seen = { ...entry, text: await withhold(entry.text, memoryFileOf(place)), section: entry.section === null ? null : await withhold(entry.section, memoryFileOf(place)) };
+        memoryRaw.set(seen, entry.text);
+        entries.push(seen);
+      }
     }
     return { entries, fileDenies };
   };
+  /** The text of a memory entry as it stands in the file, for an entry this run sees through its view. */
+  const memoryRaw = new WeakMap<MemoryEntry, string>();
   /** `data`: the same result as values (plan P5.5) — every piece of it one the text is written from. */
   const result = (tool: string, content: string, data?: unknown): ToolOutcome => ({ content, origin: { kind: "tool", tool }, ...(data !== undefined ? { data } : {}) });
   const unavailable = (tool: ToolManifest): ToolOutcome => ({ content: `The tool ${tool.name} is not available here.`, isError: true });
@@ -658,18 +687,23 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           // by a number that says nothing of what is withheld.
           const scanMax = restricted ? SEARCH_SCAN_MAX_VIEWED : SEARCH_SCAN_MAX;
           for (let read = 0; passedHits.length < wanted && read < scanMax; ) {
-            const hits = await titled(await deps.search(query, batch, read, within), "path", "title");
+            const hits = await titled(await deps.search(query, batch, read, within, restricted), "path", "title");
             await ready(hits.map((hit) => hit.path));
-            for (const hit of hits) {
-              if (passedHits.length >= wanted) break;
-              // The gate reads the note's own rules from the note itself: the index's text may be older than a rule
-              // just written into it.
-              if (!(await allowed(hit.path))) continue;
-              if (restricted) {
-                const shown = await searchedView(hit, asked);
-                if (!shown) continue;
-                passedHits.push(shown);
-              } else passedHits.push(hit);
+            // The gate reads the note's own rules from the note itself: the index's text may be older than a rule
+            // just written into it.
+            if (!restricted) {
+              for (const hit of hits) {
+                if (passedHits.length >= wanted) break;
+                if (await allowed(hit.path)) passedHits.push(hit);
+              }
+            } else {
+              // Through a view, a batch is judged together — its questions about links share one read of the vault's
+              // names — and taken in the index's order.
+              const judged = await Promise.all(hits.map(async (hit) => ((await allowed(hit.path)) ? searchedView(hit, asked) : null)));
+              for (const shown of judged) {
+                if (passedHits.length >= wanted) break;
+                if (shown) passedHits.push(shown);
+              }
             }
             read += hits.length;
             if (hits.length < batch) break;
@@ -742,7 +776,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           mood ??= deps.moodKey ? deps.moodKey().catch(() => null) : Promise.resolve(null);
           const moodKey = await mood;
           const withheldValues = restricted ? { withhold: { rule: (scope?.linksInReach ? "in-reach" : "any-kept-back") as LinkRule, hiddenKeys: [...MOOD_PROPERTY_NAMES, ...(moodKey ? [moodKey] : []), "plainva"] } } : {};
-          const rows = (await deps.queryDatabase(merged, { reach: allowedOf, ...withheldValues })) as Record<string, unknown>[];
+          const rows = (await deps.queryDatabase(merged, restricted ? { reach: allowedOf, ...withheldValues } : {})) as Record<string, unknown>[];
           const columns = (view?.order ?? []).filter((c) => !c.startsWith("file.") && !c.startsWith("formula.")).map((c) => c.replace(/^note\./, ""));
           const limit = Number(a.limit) || 20;
           const offset = offsetOf(a.cursor);
@@ -776,7 +810,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const offset = offsetOf(a.cursor);
           const today = deps.todayKey();
           const rows: PlannerRow[] = [];
-          const all = await deps.taskRows({ reach: allowedOf });
+          const all = await deps.taskRows(readerReach);
           await ready(all.map((row) => row.path));
           for (const row of all) if (await allowed(row.path)) rows.push(row);
           const planner = buildPlanner(rows, today);
@@ -811,7 +845,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const linking: { title: string; path: string; links: number; places: { line: number; under: string; text: string }[] }[] = [];
           let passed = 0;
           // Resolved among the notes this run may reach: a note of the same name outside takes no backlink away.
-          for (const group of groupBacklinks(await titled(await deps.backlinks(note.path, { reach: allowedOf }), "source_path", "source_title"))) {
+          for (const group of groupBacklinks(await titled(await deps.backlinks(note.path, readerReach), "source_path", "source_title"))) {
             if (group.source_path === note.path) continue;
             const source = await readAllowed(group.source_path);
             if (!source) continue;
@@ -847,7 +881,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           // Every neighbour, resolved among the notes this run may reach; then the gate, page by page, and the cut
           // once enough passed: a cut before the gate would say how many lie outside, a gate over all of them would
           // read every note of a busy one (review of R19, wave 2).
-          const around = await titled(await deps.neighbors(note.path, NEIGHBOURS_ALL, { reach: allowedOf }), "path", "title");
+          const around = await titled(await deps.neighbors(note.path, NEIGHBOURS_ALL, readerReach), "path", "title");
           for (const [at, n] of around.entries()) {
             if (at % GATE_PAGE === 0) await ready(around.slice(at, at + GATE_PAGE).map((m) => m.path));
             if (seen.has(n.path) || !(await allowed(n.path))) continue;
@@ -861,7 +895,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           if (Number(a.depth) === 2) {
             for (const via of first.slice(0, 8)) {
               if (lines.length >= limit) break;
-              const further = await titled(await deps.neighbors(via.path, NEIGHBOURS_ALL, { reach: allowedOf }), "path", "title");
+              const further = await titled(await deps.neighbors(via.path, NEIGHBOURS_ALL, readerReach), "path", "title");
               let taken = 0;
               for (const [at, n] of further.entries()) {
                 if (lines.length >= limit || taken >= 10) break;
@@ -1194,6 +1228,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
                     const pool = await memoryPool();
                     return pool ? pool.entries.filter((entry) => memoryEntryAllowed(entry, memoryGate)) : null;
                   },
+                  memoryRaw: (entry: MemoryEntry) => memoryRaw.get(entry) ?? entry.text,
                 }
               : {}),
             ...(call ? { callId: call.id } : {}),

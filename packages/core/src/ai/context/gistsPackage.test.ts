@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EgressRecipient } from "../egressGate.js";
 import { DEFAULT_AI_POLICY, effectivePolicy } from "../policy.js";
-import { gistSections } from "./gists.js";
+import { gistSections, sectionGistKey } from "./gists.js";
 import { buildContextPackage, type ContextBuildHost, type PackageGists, type SituationInput } from "./package.js";
 import type { Candidate } from "./ranking.js";
 
@@ -14,7 +14,7 @@ const files: Record<string, string> = {
   "Projects/Plan.md": "# Plan\n\nShoot in spring.",
   "Areas/Garden.md": "# Garden\n\nWater the tomatoes.",
 };
-const costsKey = gistSections(files["Projects/Offer.md"]!).find((s) => s.chain === "Offer > Costs")!.key;
+const costsKey = sectionGistKey("Projects/Offer.md", gistSections(files["Projects/Offer.md"]!).find((s) => s.chain === "Offer > Costs")!.text);
 
 function gistsWith(sections: Record<string, string>, notes: Record<string, string> = {}, areas: Record<string, string> = {}, vault: string | null = null): PackageGists {
   return {
@@ -94,6 +94,17 @@ describe("gists in the package", () => {
     // More notes than are looked through, or an index that cannot say: it does not go.
     expect((await ask(cloud)).part.text).not.toMatch(/Film projects|small film studio/);
     expect((await ask({ kind: "local", provider: "ollama", model: "m" })).part.text).toContain("Film projects of the studio.");
+  });
+
+  it("looks through an area's notes only where there is a gist for it (review of R19, wave 2)", async () => {
+    let looked = 0;
+    const none = { ...gistsWith({}, {}, {}, null), notes: async () => (looked++, []) };
+    await buildContextPackage({ question: "what is the rate", recipient: cloud, situation, candidates, pins: [], budget: { cards: 0, evidence: 0 } }, host(none));
+    expect(looked).toBe(0);
+    const some = { ...gistsWith({}, {}, { Projects: "Film projects of the studio." }, "Notes of a small film studio."), notes: async () => (looked++, []) };
+    const pack = await buildContextPackage({ question: "what is the rate", recipient: cloud, situation, candidates, pins: [], budget: { cards: 0, evidence: 0 } }, host(some));
+    expect(looked).toBe(2);
+    expect(pack.part.text).toContain("Film projects of the studio.");
   });
 
   it("sends no gist at all without a model on this computer", async () => {

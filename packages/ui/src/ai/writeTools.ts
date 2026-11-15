@@ -288,6 +288,8 @@ export interface WriteToolContext {
    * read; absent where the shell has none.
    */
   memory?(): Promise<readonly MemoryEntry[] | null>;
+  /** An entry's text as it stands in the file, where `memory` gives it as the run's view: what a draft names. */
+  memoryRaw?(entry: MemoryEntry): string;
   /** The id of the call that runs, where the run has one: a question about it is asked under it. */
   callId?: string;
   /**
@@ -826,7 +828,7 @@ async function remember(run: WriteRun, a: Record<string, unknown>, ctx: WriteToo
   // A reworded entry stays where it is; a new one is proposed for "always included" while there is room for it.
   const used = known.filter((entry) => entry.place === "active").reduce((sum, entry) => sum + entry.text.length, 0);
   const place = replaces ? replaces.place : used + text.length <= MEMORY_LIMITS.activeChars ? "active" : "long";
-  const left = await run.draft({ title, body: { kind: "memory", text, place, replaces: replaces ? replaces.text : null }, defused: linted.defused });
+  const left = await run.draft({ title, body: { kind: "memory", text, place, replaces: replaces ? (ctx.memoryRaw?.(replaces) ?? replaces.text) : null }, defused: linted.defused });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "memory", title });
   return said(WRITE_RESULTS.remembered(Boolean(replaces), linted.defused), { drafted: true, kind: "memory" });
@@ -839,7 +841,7 @@ async function forget(run: WriteRun, a: Record<string, unknown>, ctx: WriteToolC
   const entry = typeof a.entry === "string" ? findMemoryEntry(known, a.entry) : null;
   if (!entry) return refuse("no-memory-entry");
   const title = oneLine(entry.text, 200);
-  const left = await run.draft({ title, body: { kind: "forget", entry: entry.text }, defused: 0 });
+  const left = await run.draft({ title, body: { kind: "forget", entry: ctx.memoryRaw?.(entry) ?? entry.text }, defused: 0 });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "forget", title });
   return said(WRITE_RESULTS.forgotten, { drafted: true, kind: "forget" });

@@ -33,6 +33,7 @@ import { redactDeniedLinksIn } from "../ai/egressGate.js";
 import type { LinkRule } from "../ai/chat.js";
 import { ReaderView } from "../ai/readerView.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
+import { wikiLinksAsWritten } from "../wikiLink.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
 import { decodeIndexedProperty } from "./indexedProperty.js";
@@ -242,10 +243,19 @@ function withinFoldersSql(column: string, folders: readonly string[]): { sql: st
 }
 
 /** The texts a row's value holds: a string, or the strings of a list. */
-function stringsOf(value: unknown): string[] {
+/** A value with each of its strings as `shown` makes it, at any depth of lists and maps. */
+function shownValue(value: unknown, shown: (text: string) => string, depth = 0): unknown {
+  if (typeof value === "string") return shown(value);
+  if (depth > 8 || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((item) => shownValue(item, shown, depth + 1));
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, shownValue(item, shown, depth + 1)]));
+}
+
+/** Every string of a value, at any depth of lists and maps. */
+function stringsOf(value: unknown, depth = 0): string[] {
   if (typeof value === "string") return [value];
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
-  return [];
+  if (depth > 8 || value === null || typeof value !== "object") return [];
+  return (Array.isArray(value) ? value : Object.values(value)).flatMap((item) => stringsOf(item, depth + 1));
 }
 
 /**
@@ -1320,6 +1330,10 @@ export class VaultQueryService {
     // A note's own values: its properties, and its name — which is the title of its properties where it has one, and
     // holds a link like any of them (review of R19, wave 2). The other `file.` fields are its path, made by nobody.
     const own = (key: string) => key === "file.name" || (!key.startsWith("file.") && !key.startsWith("formula."));
+    // 0. A link written without quotes is a link here as well (`wikiLinksAsWritten`): its value is the text again.
+    for (const row of result) {
+      for (const key of Object.keys(row)) if (own(key) && !hidden.has(key.toLowerCase())) row[key] = wikiLinksAsWritten(row[key]);
+    }
     // 1. Every link target of every value, by row.
     const asked: { from: string; target: string }[] = [];
     for (const row of result) {
@@ -1361,9 +1375,7 @@ export class VaultQueryService {
           row[key] = null;
           continue;
         }
-        const value = row[key];
-        if (typeof value === "string") row[key] = shown(value);
-        else if (Array.isArray(value)) row[key] = value.map((item) => (typeof item === "string" ? shown(item) : item));
+        row[key] = shownValue(row[key], shown);
       }
     }
   }
@@ -1380,7 +1392,7 @@ export class VaultQueryService {
    * format, and a cycle would be a hang rather than a wrong number. Such a
    * column simply stays empty.
    */
-  private async _enrichRollups(config: any, result: any[], reach: Reach | null = null): Promise<void> {
+  private async _enrichRollups(config: any, result: any[], reach: Reach | null = null, withhold?: { rule: LinkRule; hiddenKeys?: readonly string[] }): Promise<void> {
     const columns = (config?.columns ?? {}) as Record<string, any>;
     const specs: Array<[string, RollupSpec]> = [];
     for (const [name, col] of Object.entries(columns)) {
@@ -1467,6 +1479,9 @@ export class VaultQueryService {
         bucket[r.key] = decodeIndexedProperty(r.type, r.value);
       }
     }
+    // The linked notes' values as this reader sees them: a condition, a count or a list over them runs on what the
+    // reader is shown, never on a withheld link's words (review of R19, wave 2: `countWhere` counted the raw value).
+    if (reach && withhold) await this._withholdRowValues([...byPath.values()], reach, withhold);
 
     for (const row of result) {
       const byThrough = perRow.get(row)!;
@@ -2081,7 +2096,7 @@ export class VaultQueryService {
     // columns, because a rollup almost always runs over one — "how many of the
     // tasks that point at me are still open". Like the reverse column the value
     // is computed here and stored in no note.
-    await this._enrichRollups(config, result, reach);
+    await this._enrichRollups(config, result, reach, options.withhold);
 
     if (reach && options.withhold) await this._withholdRowValues(result, reach, options.withhold);
 

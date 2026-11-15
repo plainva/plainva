@@ -176,23 +176,26 @@ export const VIEW_PLACEHOLDER = /⟦(?:withheld [^⟧\n]*|place withheld)⟧/u;
 /** What `rawChangeOf` makes of a change on the view. */
 export type RawChange = { ok: true; raw: string } | { ok: false; problem: "withheld-part" | "too-long" };
 
-/** How many cells the comparison of the changed middle of two views may take at most (lines × lines). */
-export const VIEW_DIFF_CELLS_MAX = 1_000_000;
+/**
+ * How many lines a change may add and remove together at most for `rawChangeOf` to compare it (the edit distance of
+ * the Myers comparison): an edit of passages, however long the note; beyond it a change rewrites the note.
+ */
+export const VIEW_DIFF_EDITS_MAX = 2_000;
 
 /**
  * Applies a change made on the view's text to the raw text: the changed ranges (from a diff of the two view texts)
- * go back through `toRaw`. Refused where a change touches a withheld piece, or where the new text carries a
- * placeholder — what is withheld is never changed, and never written, from a view. A view that withholds nothing is
- * the raw text: the change is taken as it is, without a comparison. The comparison runs over the lines between the
- * common start and the common end of the two texts, bounded (`VIEW_DIFF_CELLS_MAX`, review of R19, wave 2: a whole
- * note's lines compared with each other took a second and 200 MB at 6 000 lines).
+ * go back through `toRaw`. Refused where a change touches a withheld piece, or where the text that would be written
+ * holds more placeholders than the raw text did — what is withheld is never changed, and a placeholder is never
+ * written, also not one completed from a piece the reader sees ("note⟧" made "⟦withheld note⟧", review of R19,
+ * wave 2). A view that withholds nothing is the raw text: the change is taken as it is, without a comparison. The
+ * comparison costs what the change costs, not what the note does (Myers, bounded by `VIEW_DIFF_EDITS_MAX`).
  */
 export function rawChangeOf(view: ReaderView, changed: string): RawChange {
   const before = view.text;
   if (changed === before) return { ok: true, raw: view.raw };
   if (!view.withholds) {
     // Nothing withheld: only a placeholder brought in is refused.
-    return placeholders(changed) > placeholders(before) ? { ok: false, problem: "withheld-part" } : { ok: true, raw: changed };
+    return placeholders(changed) > placeholders(view.raw) ? { ok: false, problem: "withheld-part" } : { ok: true, raw: changed };
   }
   const hunks = diffHunks(before, changed);
   if (!hunks) return { ok: false, problem: "too-long" };
@@ -205,7 +208,10 @@ export function rawChangeOf(view: ReaderView, changed: string): RawChange {
     out += view.raw.slice(at, raw.from) + hunk.with;
     at = raw.to;
   }
-  return { ok: true, raw: out + view.raw.slice(at) };
+  const raw = out + view.raw.slice(at);
+  // A placeholder put together from what stood beside a change (the check above sees each change alone).
+  if (placeholders(raw) > placeholders(view.raw)) return { ok: false, problem: "withheld-part" };
+  return { ok: true, raw };
 }
 
 /** How many placeholders a text carries. */
@@ -214,10 +220,63 @@ function placeholders(text: string): number {
 }
 
 /**
+ * The lines both texts keep, as pairs of line numbers in order (Myers' O(ND) comparison): null where more than
+ * `maxEdits` lines would have to be added or removed. The memory it takes grows with the square of that number, never
+ * with the length of the texts.
+ */
+function keptLines(a: readonly string[], b: readonly string[], maxEdits: number): [number, number][] | null {
+  const n = a.length;
+  const m = b.length;
+  const most = Math.min(n + m, maxEdits);
+  // v[k] for the diagonals k = x - y, kept for every step so the path can be walked back.
+  const width = 2 * (n + m) + 4;
+  const centre = n + m + 1;
+  const v = new Int32Array(width);
+  const trace: Int32Array[] = [];
+  let found = -1;
+  for (let d = 0; d <= most && found < 0; d++) {
+    trace.push(v.slice(centre - d - 1, centre + d + 2));
+    for (let k = -d; k <= d; k += 2) {
+      let x = k === -d || (k !== d && v[centre + k - 1]! < v[centre + k + 1]!) ? v[centre + k + 1]! : v[centre + k - 1]! + 1;
+      let y = x - k;
+      while (x < n && y < m && a[x] === b[y]) {
+        x++;
+        y++;
+      }
+      v[centre + k] = x;
+      if (x >= n && y >= m) {
+        found = d;
+        break;
+      }
+    }
+  }
+  if (found < 0) return null;
+  const pairs: [number, number][] = [];
+  let x = n;
+  let y = m;
+  for (let d = found; d >= 0; d--) {
+    const prev = trace[d]!;
+    const at = (k: number) => prev[k + d + 1]!;
+    const k = x - y;
+    const prevK = k === -d || (k !== d && at(k - 1) < at(k + 1)) ? k + 1 : k - 1;
+    const prevX = d === 0 ? 0 : at(prevK);
+    const prevY = d === 0 ? 0 : prevX - prevK;
+    while (x > prevX && y > prevY) {
+      pairs.push([x - 1, y - 1]);
+      x--;
+      y--;
+    }
+    x = prevX;
+    y = prevY;
+  }
+  return pairs.reverse();
+}
+
+/**
  * The changes from `before` to `after` as ranges of `before` and their new text, line by line: the common start
- * and end lines aside, an LCS over the lines between, then the common start and end of each changed block — so that
- * changes far apart stay apart and a withheld piece between them is not taken for touched. Null where the middle is
- * larger than `VIEW_DIFF_CELLS_MAX` cells.
+ * and end lines aside, the lines both keep (`keptLines`), then the common start and end of each changed block — so
+ * that changes far apart stay apart and a withheld piece between them is not taken for touched. Null where the
+ * change is larger than `VIEW_DIFF_EDITS_MAX` lines.
  */
 export function diffHunks(before: string, after: string): ViewReplacement[] | null {
   const all = splitKeep(before);
@@ -228,47 +287,32 @@ export function diffHunks(before: string, after: string): ViewReplacement[] | nu
   while (tail < all.length - head && tail < bAll.length - head && all[all.length - 1 - tail] === bAll[bAll.length - 1 - tail]) tail++;
   const a = all.slice(head, all.length - tail);
   const b = bAll.slice(head, bAll.length - tail);
-  const n = a.length;
-  const m = b.length;
-  if ((n + 1) * (m + 1) > VIEW_DIFF_CELLS_MAX) return null;
-  const width = m + 1;
-  const lcs = new Uint32Array((n + 1) * width);
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) lcs[i * width + j] = a[i] === b[j] ? lcs[(i + 1) * width + j + 1]! + 1 : Math.max(lcs[(i + 1) * width + j]!, lcs[i * width + j + 1]!);
+  const kept = keptLines(a, b, VIEW_DIFF_EDITS_MAX);
+  if (!kept) return null;
   const hunks: ViewReplacement[] = [];
-  let i = 0;
-  let j = 0;
-  let offA = all.slice(0, head).reduce((sum, line) => sum + line.length, 0);
-  let pending: { from: number; to: number; with: string } | null = null;
-  const close = () => {
-    if (!pending) return;
+  const startOf = [all.slice(0, head).reduce((sum, line) => sum + line.length, 0)];
+  for (const line of a) startOf.push(startOf[startOf.length - 1]! + line.length);
+  const block = (fromA: number, toA: number, fromB: number, toB: number) => {
+    if (fromA === toA && fromB === toB) return;
+    const from = startOf[fromA]!;
+    const to = startOf[toA]!;
+    const neu = b.slice(fromB, toB).join("");
     // Narrow the block to what really differs inside it.
-    const old = before.slice(pending.from, pending.to);
-    const neu = pending.with;
+    const old = before.slice(from, to);
     let s = 0;
     while (s < old.length && s < neu.length && old[s] === neu[s]) s++;
     let e = 0;
     while (e < old.length - s && e < neu.length - s && old[old.length - 1 - e] === neu[neu.length - 1 - e]) e++;
-    hunks.push({ from: pending.from + s, to: pending.to - e, with: neu.slice(s, neu.length - e) });
-    pending = null;
+    hunks.push({ from: from + s, to: to - e, with: neu.slice(s, neu.length - e) });
   };
-  while (i < n || j < m) {
-    if (i < n && j < m && a[i] === b[j]) {
-      close();
-      offA += a[i]!.length;
-      i++;
-      j++;
-    } else if (j < m && (i >= n || lcs[i * width + j + 1]! >= lcs[(i + 1) * width + j]!)) {
-      pending ??= { from: offA, to: offA, with: "" };
-      pending.with += b[j]!;
-      j++;
-    } else {
-      pending ??= { from: offA, to: offA, with: "" };
-      offA += a[i]!.length;
-      pending.to = offA;
-      i++;
-    }
+  let i = 0;
+  let j = 0;
+  for (const [ka, kb] of kept) {
+    block(i, ka, j, kb);
+    i = ka + 1;
+    j = kb + 1;
   }
-  close();
+  block(i, a.length, j, b.length);
   return hunks;
 }
 

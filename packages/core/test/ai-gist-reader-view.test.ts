@@ -128,6 +128,26 @@ describe("a short summary and a reader with a narrower view", () => {
     await w.done();
   });
 
+  it("belongs to the note it was written from: the same section in a note kept back gives another note's gist nothing of it (review of R19, wave 2)", async () => {
+    const agenda = `## Agenda\n\n${"Each round starts with the open points from last time, then the numbers of the quarter. ".repeat(20)}\n`;
+    // A model that names where the section stands, as the instruction gives it.
+    const naming: GistModel = { id: "local/m", complete: async (_instruction, text) => `${text.split("\n")[0]}: open points, numbers, decisions.` };
+    for (const order of [["Private/Salary Kowalski.md", "Projects/Weekly.md"], ["Projects/Weekly.md", "Private/Salary Kowalski.md"]]) {
+      resetGistStores();
+      const db = await realSqlite();
+      const files = new MemoryVaultAdapter(1_000);
+      const notes: Record<string, string> = { "Private/Salary Kowalski.md": `# Salary talk\n\n${agenda}`, "Projects/Weekly.md": `# Weekly\n\n${agenda}` };
+      for (const path of order) await files.writeTextFile(path, notes[path]!);
+      await new VaultIndexer(files, db).indexVaultFull();
+      await new GistWriter({ db, readText: (path) => files.readTextFile(path).catch(() => null), cloudAllowed: async (path) => !path.startsWith("Private/"), now: () => 10_000_000 }, naming).run(new AbortController().signal);
+      const reader = new GistReader(db, "local/m");
+      expect(String(await reader.note("Projects/Weekly.md"))).toContain("Weekly");
+      expect(String(await reader.note("Projects/Weekly.md"))).not.toMatch(/Salary|Kowalski/);
+      expect(String(await reader.area("Projects"))).not.toMatch(/Salary|Kowalski/);
+      await db.close();
+    }
+  });
+
   it("holds back links, not names: a name that stands in the text of a note that may go is that note's, and goes with it", async () => {
     const v = await vaultOf({ [PRIVATE]: NOTES[PRIVATE]!, "Projects/Offer.md": long("Offer for the quarter."), "Projects/Talk.md": long("Kowalski asked about the pay.") }, new Set([PRIVATE]));
     await v.writeGists();

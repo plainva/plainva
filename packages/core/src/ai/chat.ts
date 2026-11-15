@@ -396,19 +396,22 @@ export async function withholdDeniedLinksIn(
   // A link is withheld where any note it could mean is kept back — not only
   // the one a tap would open in this shell (`linkNamesDeniedNote`).
   const denied = new Map<string, boolean>();
-  for (const target of targets) {
-    if (!verdicts) {
-      denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed, rule));
-      continue;
-    }
-    const key = verdictKey(rule, fromPath, target);
-    let verdict = verdicts.get(key);
-    if (!verdict) {
-      verdict = linkNamesDeniedNote(host, target, fromPath, isAllowed, rule);
-      verdicts.set(key, verdict);
-    }
-    denied.set(target, await verdict);
-  }
+  // Asked together: questions in one turn share the vault's one read of its link names.
+  await Promise.all(
+    [...targets].map(async (target) => {
+      if (!verdicts) {
+        denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed, rule));
+        return;
+      }
+      const key = verdictKey(rule, fromPath, target);
+      let verdict = verdicts.get(key);
+      if (!verdict) {
+        verdict = linkNamesDeniedNote(host, target, fromPath, isAllowed, rule);
+        verdicts.set(key, verdict);
+      }
+      denied.set(target, await verdict);
+    }),
+  );
   return redactDeniedLinksIn(view, (target) => denied.get(target.trim()) ?? false);
 }
 

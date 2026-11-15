@@ -125,7 +125,7 @@ describe("the reader-view guard: no tool gives a reader with a narrower view wha
     });
   }
 
-  it("a search through a view costs the same whatever its hits hold back: no note read again, a link decided once per folder, a bound per call (review of R19, wave 2)", async () => {
+  it("NAMED LIMIT (decided 2026-11-13): a search through a view looks at no more than 500 hits per call, reads no note again and decides a link once per folder — how long it takes still follows what its hits hold back, within that bound", async () => {
     const many: Record<string, string> = { "Private/Salary 2026.md": "# Salary\n" };
     for (let i = 0; i < 2_000; i++) many[`Projects/n${i}.md`] = `# n${i}\n\nbudget line ${i} with [[Private/Salary 2026]] and words.\n`;
     const counted = { reads: 0, candidates: 0, scanned: 0 };
@@ -158,6 +158,72 @@ describe("the reader-view guard: no tool gives a reader with a narrower view wha
         // Hits that the view does not answer are looked at up to a fixed number per call, not through the whole vault.
         expect(counted.scanned, `${who} ${query}`).toBeLessThanOrEqual(500 + 25);
       }
+    }
+  });
+
+  it("NAMED LIMIT (decided 2026-11-13): the order of the hits follows the index of the whole note — the order only; which notes, their snippets and how many are the view's", async () => {
+    // Two notes the reader sees alike; which one's withheld link says the word decides the index's order.
+    const two = (inA: string, inB: string): Record<string, string> => ({
+      "Projects/A.md": `# Round\n\nKowalski asked about the budget, see [[Private/${inA}]].\n`,
+      "Projects/B.md": `# Round\n\nKowalski asked about the budget, see [[Private/${inB}]].\n`,
+      "Private/Salary Kowalski.md": "# s\n",
+      "Private/Salary Nowak.md": "# s\n",
+    });
+    const answer = async (notes: Record<string, string>, recipient: EgressRecipient, web: boolean, scope?: ToolScope) => {
+      // An index that ranks by how often the word stands in the raw text.
+      const d = deps({
+        readNote: async (path) => notes[path] ?? null,
+        resolveLink: async (target) => (notes[`${target}.md`] !== undefined ? `${target}.md` : null),
+        search: async (query, limit, offset) => {
+          const word = query.split(/\s+/)[0]!.toLowerCase();
+          const count = (text: string) => text.toLowerCase().split(word).length - 1;
+          return Object.entries(notes)
+            .filter(([, text]) => count(text) > 0)
+            .sort((x, y) => count(y[1]) - count(x[1]) || (x[0] < y[0] ? -1 : 1))
+            .slice(offset, offset + limit)
+            .map(([path, text]) => ({ path, title: path, snippet: null, content: text }));
+        },
+      });
+      const out = await run("search_vault", { query: "Kowalski", limit: 10 }, recipient, web, scope, d);
+      return (out.data as { results: { path: string; snippet: string }[] }).results;
+    };
+    for (const [who, recipient, web, scope] of readers) {
+      const first = await answer(two("Salary Kowalski", "Salary Nowak"), recipient, web, scope);
+      const second = await answer(two("Salary Nowak", "Salary Kowalski"), recipient, web, scope);
+      const bySet = (results: { path: string; snippet: string }[]) => [...results].sort((x, y) => (x.path < y.path ? -1 : 1));
+      expect(bySet(first), who).toEqual(bySet(second));
+      expect(JSON.stringify(first), who).not.toMatch(/Salary|Nowak|Private\//);
+    }
+  });
+
+  it("a reader without a narrower view takes the way it always took: no reach asked, no index text fetched (review of R19, wave 2)", async () => {
+    const seen: string[] = [];
+    const d = deps({
+      search: async (query, limit, offset, _within, withContent) => {
+        seen.push(`search content=${withContent === true}`);
+        return rawSearch(query).slice(offset, offset + limit);
+      },
+      backlinks: async (_path, options) => (seen.push(`backlinks reach=${Boolean(options?.reach)}`), []),
+      neighbors: async (_path, _limit, options) => (seen.push(`neighbors reach=${Boolean(options?.reach)}`), []),
+      taskRows: async (options) => (seen.push(`tasks reach=${Boolean(options?.reach)}`), []),
+      queryDatabase: async (_config, options) => (seen.push(`base reach=${Boolean(options?.reach)} withhold=${Boolean(options?.withhold)}`), []),
+      readNote: async (path) => (path === "Projects/Board.base" ? "views:\n  - type: table\n    name: T\n" : (files[path] ?? null)),
+    });
+    const ask = async (recipient: EgressRecipient, web: boolean, scope?: ToolScope) => {
+      seen.length = 0;
+      for (const [name, args] of [
+        ["search_vault", { query: "numbers", limit: 10 }],
+        ["get_backlinks", { path: "Projects/Pay.md", limit: 20 }],
+        ["graph_neighborhood", { path: "Projects/Pay.md", limit: 20 }],
+        ["get_tasks", { range: "all" }],
+        ["query_base", { base: "Projects/Board.base", limit: 20 }],
+      ] as const)
+        await run(name, args, recipient, web, scope, d);
+      return [...seen];
+    };
+    expect(await ask(local, false)).toEqual(["search content=false", "backlinks reach=false", "neighbors reach=false", "tasks reach=false", "base reach=false withhold=false"]);
+    for (const [who, recipient, web, scope] of readers) {
+      expect(await ask(recipient, web, scope), who).toEqual(["search content=true", "backlinks reach=true", "neighbors reach=true", "tasks reach=true", "base reach=true withhold=true"]);
     }
   });
 

@@ -92,6 +92,27 @@ describe("a reader's view of a note", () => {
     });
   });
 
+  it("never writes a placeholder put together from what stood beside a change (review of R19, wave 2)", () => {
+    const view = redactDeniedLinksIn(ReaderView.of("abc note⟧ def [[Private/X]]"), denied).view;
+    expect(view.text).toBe("abc note⟧ def ⟦withheld note⟧");
+    expect(rawChangeOf(view, view.text.replace("abc note⟧", "abc ⟦withheld note⟧"))).toEqual({ ok: false, problem: "withheld-part" });
+    expect(rawChangeOf(view, view.text.replace("abc note⟧", "abc, note⟧"))).toEqual({ ok: true, raw: "abc, note⟧ def [[Private/X]]" });
+    // Nothing withheld: a placeholder completed the same way is refused too.
+    const plain = ReaderView.of("abc note⟧ def");
+    expect(rawChangeOf(plain, "abc ⟦withheld note⟧ def")).toEqual({ ok: false, problem: "withheld-part" });
+  });
+
+  it("compares a long note by the size of the change, not of the note: an edit far from a place stamp is laid on the raw text (review of R19, wave 2)", () => {
+    // A journal of 30 000 lines with a place stamp every hundred lines: a view of a model on this device.
+    const raw = Array.from({ length: 30_000 }, (_, i) => (i % 100 === 0 ? "📍 52.5200, 13.4050\n" : `- 09:${String(i % 60).padStart(2, "0")} entry ${i}\n`)).join("");
+    const view = withholdPlacesIn(ReaderView.of(raw)).view;
+    expect(view.withholds).toBe(true);
+    within(2_000, () => {
+      const changed = view.text.replace("entry 15001\n", "entry 15001, edited\n").replace("entry 29999\n", "entry 29999!\n");
+      expect(rawChangeOf(view, changed)).toEqual({ ok: true, raw: raw.replace("entry 15001\n", "entry 15001, edited\n").replace("entry 29999\n", "entry 29999!\n") });
+    });
+  });
+
   it("widens a replacement that reaches into a placeholder to the whole of it, and never cuts one", () => {
     const view = withholdPlacesIn(ReaderView.of("x\n📍 52.5, 13.4\ny\n")).view;
     const at = view.text.indexOf("place");

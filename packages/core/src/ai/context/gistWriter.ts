@@ -15,7 +15,7 @@
 import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { aiVisibleSql } from "../hiddenPaths.js";
 import { fullTextRowOf } from "../../db/fullTextRows.js";
-import { checkGist, gistInstruction, gistOfGists, gistSections, GIST_MIN_SOURCE, type GistLevel } from "./gists.js";
+import { checkGist, gistInstruction, gistOfGists, gistSections, GIST_MIN_SOURCE, sectionGistKey, type GistLevel } from "./gists.js";
 import { GistStore, type StoredGist } from "./gistStore.js";
 
 export interface GistModel {
@@ -103,14 +103,17 @@ export class GistWriter {
       if (text === null) continue;
       const sections = gistSections(text).filter((section) => section.text.trim().length >= GIST_MIN_SOURCE);
       pass.sections += sections.length;
-      const stored = await this.store.getMany(sections.map((s) => s.key), this.model.id);
+      // A section's gist is its note's (`sectionGistKey`): the same text in another note is written again from there.
+      const keyOf = (section: { text: string }) => sectionGistKey(note.path, section.text);
+      const stored = await this.store.getMany(sections.map(keyOf), this.model.id);
       const parts: { label: string; key: string; gist: string }[] = [];
       for (const section of sections) {
-        live.add(section.key);
-        let gist = stored.get(section.key) ?? null;
+        const key = keyOf(section);
+        live.add(key);
+        let gist = stored.get(key) ?? null;
         if (!gist) {
           const label = [note.title, section.chain].filter(Boolean).join(" › ");
-          gist = await this.write("section", section.key, section.key, `${label}\n\n${section.text}`, signal, pass);
+          gist = await this.write("section", key, section.key, `${label}\n\n${section.text}`, signal, pass);
           onProgress?.(pass);
         }
         if (gist.ok) {

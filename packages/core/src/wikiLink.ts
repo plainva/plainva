@@ -71,3 +71,16 @@ export function plainWikiLinkInner(inner: string): string {
   const parts = wikiLinkParts(inner);
   return parts.alias === undefined ? inner : `${inner.slice(0, parts.headEnd)}|${parts.alias}`;
 }
+
+/**
+ * A property's value with its wiki links as they were written. YAML reads a link that stands without quotes —
+ * `related: [[Note]]`, a list item `- [[Note]]` — as a list in a list (`[["Note"]]`); Obsidian means a link there,
+ * and so does everyone who reads a note through a view (review of R19, wave 2): such a value is the text `[[Note]]`
+ * again, so the same reading of links finds it as in quotes. The index keeps no link for it; a view must not depend
+ * on that. Any other value is returned as it is.
+ */
+export function wikiLinksAsWritten(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  if (value.length === 1 && Array.isArray(value[0]) && value[0].length === 1 && (typeof value[0][0] === "string" || typeof value[0][0] === "number")) return `[[${value[0][0]}]]`;
+  return value.map(wikiLinksAsWritten);
+}

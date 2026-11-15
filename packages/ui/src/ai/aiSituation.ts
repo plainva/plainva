@@ -1,4 +1,4 @@
-import { frontmatterKeys, gateDecision, isAiHiddenPath, readFrontmatterPath, type EffectivePolicy, type GateRun, type SituationInput } from "@plainva/core";
+import { frontmatterKeys, gateDecision, isAiHiddenPath, isCloudRecipient, readFrontmatterPath, type EffectivePolicy, type GateRun, type SituationInput } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveTaskCompletionModel, taskDbRows } from "../lib/taskDatabase";
 import { addDaysToKey, type PlannerRow } from "../lib/taskPlanner";
@@ -196,7 +196,10 @@ export async function databaseTaskRows(baseText: string | null, query: (config: 
  * for that recipient. A value the database computes from other notes — and so its filters and its sort — is made of
  * those alone (`VaultQueryService.queryDatabaseFiles`).
  */
-export function situationReach(policyOf: (path: string) => Promise<EffectivePolicy>, run: GateRun): { reach: (paths: readonly string[]) => Promise<ReadonlySet<string>> } {
+export function situationReach(policyOf: (path: string) => Promise<EffectivePolicy>, run: GateRun): { reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>> } {
+  // A model on this device without the internet: the gate lets every note through, and the tasks are computed as
+  // they always were, without asking about each note (review of R19, wave 2).
+  if (!isCloudRecipient(run.recipient) && !run.webTools) return {};
   return {
     async reach(paths) {
       const yes = new Set<string>();

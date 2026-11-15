@@ -549,9 +549,9 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         notesContaining: (needles) => query.notesContaining(needles),
       },
       toolDeps: {
-        async search(q, limit, offset, within) {
-          // With the text the index holds: a search read through a view tests each hit on it.
-          const hits = await query.searchFullText(q, limit, offset, true, null, within);
+        async search(q, limit, offset, within, withContent) {
+          // With the text the index holds where the search is read through a view, which tests each hit on it.
+          const hits = await query.searchFullText(q, limit, offset, withContent === true, null, within);
           return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null, content: hit.sourceContent ?? null }));
         },
         readNote: read,

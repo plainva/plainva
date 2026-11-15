@@ -1,6 +1,7 @@
 import type { TextPart } from "../conversation.js";
 import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkVerdicts } from "../chat.js";
 import { frontmatterKeys } from "../../frontmatter-surgical.js";
+import { wikiLinksAsWritten } from "../../wikiLink.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
 import { fenceUntrusted, payload } from "../trust.js";
 import { isAiHiddenPath } from "../hiddenPaths.js";
@@ -8,10 +9,10 @@ import { chunkNote } from "../embeddings/chunks.js";
 import { noteHash } from "../runSnapshot.js";
 import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type CandidateSignal, type RankedCandidate } from "./ranking.js";
 import { cardText, contextCard } from "./cards.js";
-import { checkGist, gistKey } from "./gists.js";
+import { checkGist, sectionGistKey } from "./gists.js";
 import { areaOf } from "./gistWriter.js";
 import { atxHeading, firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
-import { findSearchOccurrences } from "../../vault/searchOccurrences.js";
+import { hasSearchOccurrence } from "../../vault/searchOccurrences.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
 import { goingKinds, redactSensitive, SENSITIVE_KINDS, sensitiveFindings, sensitiveKinds, SITUATION_SOURCE, type SensitiveKind } from "./sensitiveHints.js";
 import { questionTerms } from "./terms.js";
@@ -113,7 +114,7 @@ export interface ContextBuildHost extends ContextPolicyHost {
 }
 
 export interface PackageGists {
-  /** The gist of a section's exact text (`gistKey`). */
+  /** The gist of a section's exact text (`sectionGistKey`: its text in its own note). */
   section(key: string): Promise<string | null>;
   note(path: string): Promise<string | null>;
   area(area: string): Promise<string | null>;
@@ -128,6 +129,12 @@ export interface PackageGists {
 
 /** The most notes an area is looked through for whether its gist may go to a reader with a narrower view. */
 export const GIST_AREA_CHECK_MAX = 2_000;
+
+/**
+ * What every link the views withhold is written with (`redactDeniedLinksIn`): `[[` for a wiki link, `](` for a
+ * Markdown link, `]:` for the definition every reference link needs. A text without any of them holds no link.
+ */
+const MAY_HOLD_A_LINK = /\[\[|\]\(|\]:/;
 
 /** Map handles that may carry their note's gist, and areas that may be named with theirs. */
 const MAP_GISTS = 4;
@@ -351,9 +358,18 @@ function clip(text: string, max: number): { text: string; clipped: boolean } {
   return { text: text.slice(0, cut > max * 0.6 ? cut : max), clipped: true };
 }
 
+/** A property of the open note as a line, its wiki links as they were written (`wikiLinksAsWritten`) — whole, never cut. */
 function propertyLine(key: string, value: unknown): string {
-  const text = Array.isArray(value) ? value.map((v) => String(v)).join(", ") : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
-  return `${key}: ${text.length > 200 ? `${text.slice(0, 200)}…` : text}`;
+  const written = wikiLinksAsWritten(value);
+  const text = Array.isArray(written) ? written.map((v) => (typeof v === "object" && v !== null ? JSON.stringify(v) : String(v))).join(", ") : typeof written === "object" && written !== null ? JSON.stringify(written) : String(written);
+  return `${key}: ${text}`;
+}
+
+/** A property line is cut — once what the reader may not see is withheld from it, so no link is cut in two (review of R19). */
+function cutPropertyLine(line: string): string {
+  const at = line.indexOf(": ");
+  const value = at < 0 ? line : line.slice(at + 2);
+  return value.length > 200 ? `${at < 0 ? "" : line.slice(0, at + 2)}${value.slice(0, 200)}…` : line;
 }
 
 /** The section a card is cut from: where the question's words are, else where its meaning was, else the note's start. */
@@ -464,10 +480,21 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
    * with a narrower view a gist goes only where its note holds back nothing (decision of 2026-11-13, review of R19,
    * wave 2) — decided now, with the note and the rules as they are now, whenever the gist was written.
    */
-  const holdsBack = async (path: string, text: string): Promise<boolean> => {
+  const heldBack = new Map<string, Promise<boolean>>();
+  const holdsBack = (path: string, text: string): Promise<boolean> => {
+    let answer = heldBack.get(path);
+    if (!answer) {
+      answer = holdsBackNow(path, text);
+      heldBack.set(path, answer);
+    }
+    return answer;
+  };
+  const holdsBackNow = async (path: string, text: string): Promise<boolean> => {
     if (withholdPlaces(text).withheld > 0) return true;
     if (withoutSensitiveProperties(Object.fromEntries(frontmatterKeys(text).map((key) => [key, true])), situation.moodKey).withheld > 0) return true;
     if (input.redact?.has(path) && sensitiveFindings(text).length > 0) return true;
+    // No link syntax at all: no link to withhold — nothing to resolve.
+    if (!MAY_HOLD_A_LINK.test(text)) return false;
     return (await withholdDeniedLinks(text, path, host, (target) => allowed(target), "any-kept-back", linkVerdicts)).redacted > 0;
   };
   /** Whether a note's gist may go to this reader: always to a model on this device; else only where its note holds nothing back. */
@@ -487,10 +514,19 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (!notes) return false;
     for (const note of notes) {
       if (note.text === null) return false;
-      if (!gateDecision(await host.policyOf(note.path, note.text), run).allowed) return false;
-      if (await holdsBack(note.path, note.text)) return false;
+      if (!(await noteMayStand(note.path, note.text))) return false;
     }
     return true;
+  };
+  /** Whether one note of an area may stand behind its gist for this reader: one it may see that holds nothing back. */
+  const mayStand = new Map<string, Promise<boolean>>();
+  const noteMayStand = (path: string, text: string): Promise<boolean> => {
+    let answer = mayStand.get(path);
+    if (!answer) {
+      answer = (async () => gateDecision(await host.policyOf(path, text), run).allowed && !(await holdsBack(path, text)))();
+      mayStand.set(path, answer);
+    }
+    return answer;
   };
   const clean = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text);
@@ -575,7 +611,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // Words compared as the full-text index compares them — letter case, diacritics and scripts without spaces
     // alike (`findSearchOccurrences`): a spelling the index folds must not find the note around the check.
     const seen = `${await seenOf(c.title, c.path)}\n${c.path}\n${view.text}`;
-    const has = (where: string, term: string) => findSearchOccurrences(where, term, { limit: 1 }).length > 0;
+    const has = (where: string, term: string) => hasSearchOccurrence(where, term);
     return terms.some((term) => has(text, term) && !has(seen, term));
   };
   const strong = (c: RankedCandidate) =>
@@ -762,7 +798,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // A checked gist of exactly this section goes instead when it is shorter, unless the reader asked for the original (P2b-3).
     let gisted = false;
     if (host.gists && !input.originals?.has(candidate.path) && (await gistMayGo(candidate.path, read.text))) {
-      const raw = await host.gists.section(gistKey(found.text)).catch(() => null);
+      const raw = await host.gists.section(sectionGistKey(candidate.path, found.text)).catch(() => null);
       if (raw && checkGist("section", found.text, raw).ok) {
         const gist = (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim();
         if (gist && gist.length < text.length) {
@@ -840,11 +876,13 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       if (area) counts.set(area, (counts.get(area) ?? 0) + 1);
     }
     for (const [area] of [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, AREA_GISTS)) {
-      if (!(await areaGistMayGo(area))) continue;
+      // Asked first whether there is a gist at all: the notes behind it are looked through only for one that exists.
       const gist = await host.gists.area(area).catch(() => null);
+      if (gist && !(await areaGistMayGo(area))) continue;
       if (gist && quiet(gist)) areaLines.push(`- ${area}/ — ${gist.replace(/\s+/g, " ").trim()}`);
     }
-    const vault = (await areaGistMayGo(null)) ? await host.gists.vault().catch(() => null) : null;
+    const stored = await host.gists.vault().catch(() => null);
+    const vault = stored && (await areaGistMayGo(null)) ? stored : null;
     if (vault && quiet(vault)) areaLines.unshift(`- The vault — ${vault.replace(/\s+/g, " ").trim()}`);
   }
 
@@ -880,8 +918,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (active.properties && Object.keys(active.properties).length) {
       const { properties, withheld } = withoutSensitiveProperties(active.properties, situation.moodKey);
       redactions.moodProperties += withheld;
-      const shown = Object.entries(properties).slice(0, 12).map(([k, v]) => propertyLine(k, v));
-      if (shown.length) lines.push(`Properties of the open note:\n${situationText(await clean(shown.join("\n"), active.path), active.path)}`);
+      const shown: string[] = [];
+      for (const [k, v] of Object.entries(properties).slice(0, 12)) shown.push(cutPropertyLine(await clean(propertyLine(k, v), active.path)));
+      if (shown.length) lines.push(`Properties of the open note:\n${situationText(shown.join("\n"), active.path)}`);
     }
   }
   const tabs: string[] = [];

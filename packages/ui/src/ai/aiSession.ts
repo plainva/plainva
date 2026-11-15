@@ -4166,7 +4166,15 @@ export class AiSession {
     const active = activeFile.allowed ? activeMemoryFor(read.active, gate) : { entries: [], withheld: read.active.length, left: 0, chars: 0 };
     const lookup = longFile.allowed && read.long.some((entry) => memoryEntryAllowed(entry, gate));
     if (active.entries.length === 0 && active.withheld === 0 && !lookup) return null;
-    const text = memoryText(active.entries);
+    // To a cloud, and with the internet, an entry goes as such a reader sees it: a link in it to a note kept back is
+    // withheld like one in a note (review of R19, wave 2).
+    const seen = async (text: string) => {
+      const places = withholdPlaces(text).text;
+      if (!isCloudRecipient(recipient) && !web) return places;
+      return (await withholdDeniedLinks(places, memoryFileOf("active"), vault.policy, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)).text;
+    };
+    const shown = await Promise.all(active.entries.map(async (entry) => ({ ...entry, text: await seen(entry.text), section: entry.section === null ? null : await seen(entry.section) })));
+    const text = memoryText(shown);
     // What went although a rule restricts it elsewhere: a conversation without the internet may carry an entry kept from it.
     const restricted = AI_POLICY_DIMENSIONS.filter((dimension) => active.entries.length > 0 && (activeFile.denies.includes(dimension) || active.entries.some((entry) => entry.deny.includes(dimension))));
     return { text, lookup, record: { entries: active.entries.length, withheld: active.withheld, left: active.left, tokens: estimateTokens(text), restricted } };

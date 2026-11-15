@@ -204,11 +204,13 @@ describe("a change to a note is a suggestion round", () => {
     // Changing the stamp, or taking the placeholder along anywhere else, is refused — never written into a file.
     expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "⟦place withheld⟧", replace: "Berlin" }] }, local)).toEqual(refused("withheld-part"));
     expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "End.", replace: "End. 📍 ⟦place withheld⟧" }] }, local)).toEqual(refused("withheld-part"));
-    expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "- 09:12 Walk\n📍 ⟦place withheld⟧", replace: "📍 ⟦place withheld⟧\n- 09:12 Walk" }] }, local)).toEqual(refused("withheld-part"));
+    // A visible line moved past the stamp moves in the raw text; the stamp stays as it is.
+    expect((await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "- 09:12 Walk\n📍 ⟦place withheld⟧", replace: "📍 ⟦place withheld⟧\n- 09:12 Walk" }] }, local)).content).toContain("Proposed on Daily/Monday.md");
+    expect(accepted(v.proposed[1]!)).toBe(DAY.replace("- 09:12 Walk\n📍 52.5200, 13.4050\n", "📍 52.5200, 13.4050\n- 09:12 Walk\n"));
     expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", append: "Copied: ⟦place withheld⟧" }, local)).toEqual(refused("withheld-part"));
     expect(await call(v, w.run, "create_note", { title: "Walks", content: "- 09:12 Walk\n⟦place withheld⟧\n" }, local)).toEqual(refused("withheld-part"));
     expect(w.drafts).toHaveLength(0);
-    expect(v.proposed).toHaveLength(1);
+    expect(v.proposed).toHaveLength(2);
   });
 
   it("lays the change on the note and changes nothing — the answer names the count, never the words", async () => {

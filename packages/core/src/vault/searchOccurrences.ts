@@ -87,6 +87,23 @@ export function findSearchOccurrences(raw: string, query: string, options: { fro
   });
 }
 
+/**
+ * Where a query is found in a text, as ranges of the text — the same words, folding and order as
+ * `findSearchOccurrences`, without the headings around each place, which take a Markdown parse: for a test that only
+ * asks whether, and where first (review of R19, wave 2: a search through a view parsed every hit twice).
+ */
+function occurrenceRanges(raw: string, query: string, limit: number): { from: number; to: number }[] {
+  const terms = searchTerms(query);
+  if (!terms.length) return [];
+  const clean = stripAnchorMarkers(raw);
+  return matchRanges(clean.text, terms, limit, () => true).map((position) => ({ from: clean.toRaw(position.from), to: clean.toRaw(position.to, "before") }));
+}
+
+/** Whether a query is found in a text, as the full-text search finds it (`findSearchOccurrences`). */
+export function hasSearchOccurrence(text: string, query: string): boolean {
+  return occurrenceRanges(text, query, 1).length > 0;
+}
+
 /** One term of a query as a query of its own. */
 const termQuery = (term: { text: string; prefix: boolean }) => (term.prefix ? term.text : `"${term.text}"`);
 
@@ -97,8 +114,8 @@ const termQuery = (term: { text: string; prefix: boolean }) => (term.prefix ? te
  * wave 2). `text` is what the reader may see of the note: its title, its path and its view.
  */
 export function viewMatchesSearch(text: string, input: string): boolean {
-  for (const term of searchTermSpecs(input)) if (findSearchOccurrences(text, termQuery(term), { limit: 1 }).length === 0) return false;
-  for (const term of excludedSearchTermSpecs(input)) if (findSearchOccurrences(text, termQuery(term), { limit: 1 }).length > 0) return false;
+  for (const term of searchTermSpecs(input)) if (!hasSearchOccurrence(text, termQuery(term))) return false;
+  for (const term of excludedSearchTermSpecs(input)) if (hasSearchOccurrence(text, termQuery(term))) return false;
   return true;
 }
 
@@ -107,9 +124,9 @@ export function viewMatchesSearch(text: string, input: string): boolean {
  * most 60 characters before and 100 after the match. Null where the text answers nowhere.
  */
 export function viewSearchSnippet(text: string, input: string): string | null {
-  const first = findSearchOccurrences(text, searchTermSpecs(input).map(termQuery).join(" "), { limit: 1 })[0];
+  const first = occurrenceRanges(text, searchTermSpecs(input).map(termQuery).join(" "), 1)[0];
   if (!first) return null;
-  const { from, to } = first.occurrence;
+  const { from, to } = first;
   const lineStart = text.lastIndexOf("\n", from - 1) + 1;
   const lineEnd = text.indexOf("\n", to) < 0 ? text.length : text.indexOf("\n", to);
   const start = Math.max(lineStart, from - 60);
