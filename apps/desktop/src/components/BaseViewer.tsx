@@ -1,6 +1,6 @@
 import { trimEndChars, trimChars, checkedContentPath } from "@plainva/core";
 import { reportVisible, reportingTo } from "@plainva/ui";
-import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
+import { BaseSearchField, IconButton, PinboardCache, reorderShown, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive } from "../services/templateInteractive";
@@ -2303,19 +2303,19 @@ export function BaseViewer({
     const col = nc.columns && !Array.isArray(nc.columns) ? nc.columns[boardGroupBy] : undefined;
     const optKey = (o: any) => o?.label || o?.value || String(o);
     const isOptionCol = col && ["select", "status", "multiselect"].includes(col.input) && Array.isArray(col.options) && col.options.length > 0;
+    // `orderedKeys` are the columns the board shows: the search in the head of
+    // a database or a chip hides groups without matching cards, and those keep
+    // their places (`reorderShown`) — the board used to write the shown ones
+    // only, and the hidden groups' order was gone (since 0.8.4).
     if (isOptionCol) {
-      const remaining = new Map<string, any>(col.options.map((o: any) => [optKey(o), o]));
-      const reordered: any[] = [];
-      for (const k of orderedKeys) {
-        const o = remaining.get(k);
-        if (o) { reordered.push(o); remaining.delete(k); }
-      }
-      for (const o of col.options) if (remaining.has(optKey(o))) { reordered.push(o); remaining.delete(optKey(o)); }
-      nc.columns[boardGroupBy] = { ...col, options: reordered };
+      const byKey = new Map<string, any>(col.options.map((o: any) => [optKey(o), o]));
+      const keys = reorderShown(col.options.map(optKey), orderedKeys.filter((k) => byKey.has(k)));
+      nc.columns[boardGroupBy] = { ...col, options: keys.map((k) => byKey.get(k)) };
     } else {
       if (!Array.isArray(nc.views) || nc.views.length === 0) nc.views = [{ type: currentViewType }];
       const vi = Math.min(activeViewIndex, nc.views.length - 1);
-      nc.views[vi] = { ...nc.views[vi], boardColumnOrder: orderedKeys };
+      const stored = Array.isArray(nc.views[vi]?.boardColumnOrder) ? (nc.views[vi].boardColumnOrder as unknown[]).map(String) : [];
+      nc.views[vi] = { ...nc.views[vi], boardColumnOrder: reorderShown(stored, orderedKeys) };
     }
     void saveConfig(nc);
   };
@@ -2646,6 +2646,7 @@ export function BaseViewer({
           key={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
           viewKey={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
           dbData={shownData}
+          viewRows={dbData}
           dbConfig={dbConfig}
           activeView={dbConfig?.views?.[activeViewIndex] ?? {}}
           visibleColumns={visibleColumns}

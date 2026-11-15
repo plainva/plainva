@@ -115,6 +115,7 @@ export function PinboardView({
   config,
   view,
   rows,
+  viewRows,
   propCols,
   columnLabel,
   displayCell,
@@ -130,6 +131,8 @@ export function PinboardView({
   config: any;
   view: any;
   rows: Record<string, any>[];
+  /** Every row of the view before the search in its head narrows it (`rows`): what the arrangement heals against. */
+  viewRows?: Record<string, any>[] | null;
   /** Enabled view properties (bare keys) — rendered on the cards (2026-07-17). */
   propCols?: string[];
   columnLabel?: (col: string) => string;
@@ -351,7 +354,11 @@ export function PinboardView({
     if (next.pinned) patch.pinboardPinned = next.pinned.length > 0 ? next.pinned : undefined;
     onPatchView(patch);
   }, [onPatchView]);
-  const presentSet = useMemo(() => new Set(paths), [paths]);
+  // Every card of the view before the search in the database's head narrows
+  // it: what a pin, an unpin or a drag heals its lists against — never the
+  // cards on screen (since 0.8.4 one pin while searching took every other
+  // card's place out of the .base, and the sync carried it on).
+  const presentSet = useMemo(() => new Set((viewRows ?? rows).map((r) => String(r["file.path"] ?? "")).filter(Boolean)), [viewRows, rows]);
 
   const pickColor = useCallback(async (path: string) => {
     const options = [
@@ -570,7 +577,7 @@ export function PinboardView({
       // "tap": the card's click opens the note. "move" without a slot: nothing.
       if (!hit || hit.section !== section) return;
       haptics.light();
-      const next = spliceIntoSequence(sections[section], [path], hit.slot);
+      const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, sections[section], [path], hit.slot, presentSet);
       persistSections(section === "pinned" ? { pinned: next } : { order: next });
     };
     el.addEventListener("pointerdown", onDown);
@@ -586,7 +593,7 @@ export function PinboardView({
       el.removeEventListener("touchmove", onTouchMove);
       clear();
     };
-  }, [sections, canDrag, slotAt, openActions, persistSections]);
+  }, [sections, canDrag, slotAt, openActions, persistSections, order, pinnedList, presentSet]);
 
   const cardLabels = useMemo(
     () => ({
