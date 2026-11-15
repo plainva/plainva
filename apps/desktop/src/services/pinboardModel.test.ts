@@ -74,6 +74,12 @@ describe("spliceIntoSequence (D3 splice semantics)", () => {
   it("writes each entry once, also where the stored list held one twice", () => {
     expect(spliceIntoSequence(["a.md", "b.md", "a.md"], ["a.md", "b.md"], ["b.md"], { kind: "before", path: "a.md" })).toEqual(["b.md", "a.md"]);
   });
+  it("drops at the end after the last card shown, also where a list holds a card twice and so draws it twice", () => {
+    const pinned = ["n0.md", "n3.md", "n9.md", "n0.md"];
+    const drawn = orderCards(["n0.md", "n3.md", "n9.md"].map((p) => row(p, 1)), [], pinned).pinned;
+    expect(drawn).toEqual(pinned);
+    expect(spliceIntoSequence(pinned, drawn, ["n3.md"], { kind: "end" })).toEqual(["n0.md", "n9.md", "n3.md"]);
+  });
 });
 
 describe("pin/unpin mutators", () => {
@@ -219,5 +225,17 @@ describe("the search in a database's head narrows what is shown, never what the 
     const out = reorderShown(["A", "B", "A"], ["B", "A"]);
     expect(out).toEqual(["B", "A"]);
     expect(out.every((k) => typeof k === "string")).toBe(true);
+  });
+
+  it("orders thousands of new columns in one pass (a first drag on a board with many groups)", () => {
+    const keys = Array.from({ length: 5000 }, (_, i) => `g${i}`);
+    const started = performance.now();
+    const fresh = reorderShown([], keys);
+    const half = reorderShown(keys.filter((_, i) => i % 2 === 1), [...keys].reverse());
+    // One pass takes a few milliseconds; searching the order again for every new key took tens of seconds.
+    expect(performance.now() - started).toBeLessThan(2000);
+    expect(fresh).toEqual(keys);
+    expect(half).toHaveLength(5000);
+    expect(new Set(half).size).toBe(5000);
   });
 });

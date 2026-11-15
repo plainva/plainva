@@ -2646,7 +2646,7 @@ export function BaseViewer({
           key={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
           viewKey={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
           dbData={shownData}
-          viewRows={scopeRows}
+          viewRows={dbData}
           dbConfig={dbConfig}
           activeView={dbConfig?.views?.[activeViewIndex] ?? {}}
           visibleColumns={visibleColumns}

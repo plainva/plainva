@@ -84,6 +84,8 @@ export function spliceIntoSequence(
   slot: PinboardDropSlot,
   present?: ReadonlySet<string>,
 ): string[] {
+  // A list that holds a card twice draws it twice; the card stands at its first place.
+  shown = once(shown);
   const kept = once(stored).filter((p) => !present || present.has(p));
   const listed = new Set(kept);
   const movedSet = new Set(moved);
@@ -142,18 +144,30 @@ export function reorderShown(stored: readonly string[], shownInNewOrder: readonl
   const shown = new Set(order);
   const next = order.filter((k) => keptSet.has(k));
   let i = 0;
-  const out = kept.map((k) => (shown.has(k) ? next[i++]! : k));
-  order.forEach((k, at) => {
-    if (keptSet.has(k)) return;
-    const following = order.slice(at + 1).find((f) => out.includes(f));
-    if (following !== undefined) {
-      out.splice(out.indexOf(following), 0, k);
-      return;
+  const placed = kept.map((k) => (shown.has(k) ? next[i++]! : k));
+  // One pass (a board can carry thousands of groups): every run of new keys
+  // goes right before the stored key that follows it in the new order; a run
+  // at the end right after the last stored one; with no stored key shown,
+  // the new keys go to the end.
+  const before = new Map<string, string[]>();
+  let run: string[] = [];
+  let lastKept: string | undefined;
+  for (const k of order) {
+    if (!keptSet.has(k)) run.push(k);
+    else {
+      if (run.length > 0) before.set(k, run);
+      run = [];
+      lastKept = k;
     }
-    const before = order.slice(0, at).reverse().find((b) => out.includes(b));
-    if (before !== undefined) out.splice(out.indexOf(before) + 1, 0, k);
-    else out.push(k);
-  });
+  }
+  const out: string[] = [];
+  for (const k of placed) {
+    const ahead = before.get(k);
+    if (ahead) out.push(...ahead);
+    out.push(k);
+    if (k === lastKept) out.push(...run);
+  }
+  if (lastKept === undefined) out.push(...run);
   return out;
 }
 

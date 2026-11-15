@@ -152,7 +152,11 @@ export function BasePinboardView({
   viewKey = "default",
 }: {
   dbData: any[];
-  /** Every row of the view before the search in its head narrows it (`dbData`): what the arrangement heals against. */
+  /**
+   * Every row of the view — its saved filters only, before the search in its
+   * head or the "This note" scope of an embedded board narrows it (`dbData`):
+   * what the arrangement heals against.
+   */
   viewRows?: any[];
   /** Full config (sources for the source-tag exclusion, columns for label options). */
   dbConfig: any;
@@ -402,8 +406,8 @@ export function BasePinboardView({
     }
   }, [vaultAdapter, afterCardWrite, t]);
 
-  // Every card of the view before the search in the database's head narrows
-  // it: what a pin, an unpin or a drag heals its lists against — never the
+  // Every card of the view before the search in the database's head or the
+  // scope of an embedded board narrows it: what a pin, an unpin or a drag heals its lists against — never the
   // cards on screen (since 0.8.4 one pin while searching took every other
   // card's place out of the .base, and the sync carried it on).
   const presentSet = useMemo(() => new Set((viewRows ?? dbData).map((r) => String(r["file.path"] ?? "")).filter(Boolean)), [viewRows, dbData]);
