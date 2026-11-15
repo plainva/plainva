@@ -742,6 +742,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     const updater = createIndexAutoUpdater({
       adapter: vaultAdapter,
       queryService,
+      reindex: async (paths) => { if (indexer) await applyIndexChanges(indexer, { added: paths }); },
       vaultName: () => vaultPath?.split(/[/\\]/).pop() ?? "Vault",
       subfoldersHeading: () => t("indexMd.subfoldersHeading"),
       onWritten: (indexPath) => {

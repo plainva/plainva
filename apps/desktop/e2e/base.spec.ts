@@ -2678,6 +2678,35 @@ test('Template DB excludes the source folder index.md from the view', async ({ p
   await expect(table.locator('tbody tr')).toHaveCount(2);
 });
 
+test('pinboard: a pin after the lists were cleaned on disk behind the open board keeps them clean (review of the pinboard fix, 15.11.)', async ({ page }) => {
+  // A delete in the app takes the deleted note out of every board's lists on
+  // disk; the open board wrote its old copy back on the next pin, and the
+  // deleted path came back — a new note of that name took its place.
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      pinboardOrder:\n        - "Zettel/Weg.md"\n        - "Zettel/Notiz.md"');
+  });
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  // The delete's clean-up, as it lands on disk; nothing tells the board.
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('        - "Zettel/Weg.md"\n', '');
+  });
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('pinboardPinned');
+  const written = String(await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']));
+  expect(written).toContain('Zettel/Idee.md');
+  expect(written).toContain('Zettel/Notiz.md');
+  expect(written).not.toContain('Zettel/Weg.md');
+});
+
 test('pinboard: cards render note bodies; checkbox and pin write back to the files', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Pinnwand');

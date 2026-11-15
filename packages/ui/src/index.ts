@@ -297,6 +297,7 @@ export * from "./base/baseFilterCatalog";
 export * from "./base/MetadataFilterValue";
 export * from "./base/baseSelectorTypes";
 export * from "./base/baseFormat";
+export * from "./base/baseViewPatch";
 export * from "./base/baseExport";
 export * from "./components/BaseExportDialog";
 export * from "./base/baseRelations";

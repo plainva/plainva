@@ -27,6 +27,7 @@ export function useIndexAutoUpdate(vault: MobileVault | null, vaultName: string)
     const updater = createIndexAutoUpdater({
       adapter: vault.files,
       queryService: vault.queryService,
+      reindex: (paths) => vault.reindexPaths(paths),
       vaultName: () => vaultName,
       subfoldersHeading: () => i18n.t("indexMd.subfoldersHeading"),
       onWritten: (indexPath) => {

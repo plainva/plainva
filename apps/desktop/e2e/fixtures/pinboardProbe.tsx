@@ -47,7 +47,7 @@ const vault = { vaultId: "pinboard-probe", queryService: source, files, adapter:
 const view: { type: string; name: string; pinboardOrder?: string[]; pinboardPinned?: string[] } = { type: "pinboard", name: "Notes" };
 const config = { views: [view], filters: {} };
 function render() {
-  const props = { viewKey: "fixture#Notes", onOpenNote() { app?.unmount(); app = null; }, onPatchView(patch: Record<string, unknown>) { patches.push(patch); } };
+  const props = { viewKey: "fixture#Notes", onOpenNote() { app?.unmount(); app = null; }, onPatchView(patch: Record<string, unknown> | ((view: Record<string, unknown>) => Record<string, unknown> | null)) { const p = typeof patch === "function" ? patch({ ...view }) : patch; if (p) patches.push(p); } };
   const child = current.shell === "mobile"
     ? <PinboardView {...props} vault={vault} rows={rows} view={view} config={config} onMutated={() => {}} askStorageFolder={async () => null} />
     : <VaultContext.Provider value={{ vaultAdapter: files, queryService: source, triggerFileTreeUpdate() {} } as unknown as React.ContextType<typeof VaultContext>}>

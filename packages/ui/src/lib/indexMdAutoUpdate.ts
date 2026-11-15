@@ -81,6 +81,8 @@ export interface IndexAutoUpdaterDeps {
   subfoldersHeading: () => string;
   /** Called per rewritten index.md (tree refresh + editor reload). */
   onWritten?: (indexPath: string) => void;
+  /** The index follows a `.base` this updater rewrote (the pinboard lists of a delete), as after a move's sweep. */
+  reindex?: (paths: string[]) => Promise<void>;
   debounceMs?: number;
 }
 
@@ -183,9 +185,12 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
         // Each path as a file and as a folder: not every call site says which.
         const paths = deleted.map((op) => normalize(op.path));
         void dropPinboardRefs({ adapter: deps.adapter, queryService: deps.queryService }, paths, paths).then(
-          (changed) => { for (const basePath of changed) deps.onWritten?.(basePath); },
-          (e: unknown) => reportBackground("pinboard:drop-deleted", e),
-        );
+          async (changed) => {
+            if (changed.length === 0) return;
+            await deps.reindex?.(changed);
+            for (const basePath of changed) deps.onWritten?.(basePath);
+          },
+        ).catch((e: unknown) => reportBackground("pinboard:drop-deleted", e));
       }
       for (const folder of affectedFolders(ops)) pendingFolders.add(folder);
       if (pendingFolders.size === 0) return;

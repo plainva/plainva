@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData, VaultQueryService } from "@plainva/core";
-import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, errorText, toast, noteTaskTick, type PlannerTaskLine, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, errorText, toast, noteTaskTick, type PlannerTaskLine, type ParsedNoteCard, type PinboardDropSlot, type BaseViewPatch } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, resolveTaskOrdinal, updateVaultText } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
@@ -159,7 +159,7 @@ export function BasePinboardView({
   visibleColumns?: string[];
   /** Shared cell helpers (typed display + labels) for the property lines. */
   cells?: BaseCells;
-  onPatchView: (patch: Record<string, unknown>) => void;
+  onPatchView: (patch: BaseViewPatch) => void;
   onOpenNote: (path: string, ev?: { ctrlKey?: boolean; metaKey?: boolean }) => void;
   onOpenInSplit?: (path: string) => void;
   /**
@@ -399,20 +399,29 @@ export function BasePinboardView({
     }
   }, [vaultAdapter, afterCardWrite, t]);
 
-  const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
-    const patch: Record<string, unknown> = {};
-    if (next.order) patch.pinboardOrder = next.order.length > 0 ? next.order : undefined;
-    if (next.pinned) patch.pinboardPinned = next.pinned.length > 0 ? next.pinned : undefined;
-    onPatchView(patch);
+  // The lists a pin, an unpin or a drag writes are computed from the view as
+  // the file holds them when the change is written (`BaseViewPatch`): a delete
+  // or a move that rewrote the file meanwhile is never written over with the
+  // copy on screen (review of the pinboard fix, 15.11.).
+  const persistSections = useCallback((next: (stored: { order: string[] | undefined; pinned: string[] | undefined }) => { order?: string[]; pinned?: string[] }) => {
+    onPatchView((view) => {
+      const lists = next({
+        order: Array.isArray(view.pinboardOrder) ? (view.pinboardOrder as unknown[]).map(String) : undefined,
+        pinned: Array.isArray(view.pinboardPinned) ? (view.pinboardPinned as unknown[]).map(String) : undefined,
+      });
+      const patch: Record<string, unknown> = {};
+      if (lists.order) patch.pinboardOrder = lists.order.length > 0 ? lists.order : undefined;
+      if (lists.pinned) patch.pinboardPinned = lists.pinned.length > 0 ? lists.pinned : undefined;
+      return patch;
+    });
   }, [onPatchView]);
 
   const handlePinToggle = useCallback((path: string, pin: boolean) => {
     // The stored lists with the one card that moved: never healed from the
     // cards the search or a chip lets through (since 0.8.4 a pin while
     // searching took every other card's place out of the .base).
-    const next = pin ? applyPin(order, pinnedList, path) : applyUnpin(order, pinnedList, path);
-    persistSections(next);
-  }, [order, pinnedList, persistSections]);
+    persistSections((stored) => (pin ? applyPin(stored.order, stored.pinned, path) : applyUnpin(stored.order, stored.pinned, path)));
+  }, [persistSections]);
 
   const handleDelete = useCallback(async (path: string) => {
     if (!vaultAdapter || !indexer) return;
@@ -533,8 +542,10 @@ export function BasePinboardView({
         window.setTimeout(() => window.removeEventListener("click", suppress, { capture: true }), 0);
         if (!hit || hit.section !== section) return;
         // Spliced into the stored list: the cards the board does not show keep their places.
-        const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, sections[section], [d.path], hit.slot);
-        persistSections(section === "pinned" ? { pinned: next } : { order: next });
+        const shown = sections[section];
+        persistSections((stored) => section === "pinned"
+          ? { pinned: spliceIntoSequence(stored.pinned, shown, [d.path], hit.slot) }
+          : { order: spliceIntoSequence(stored.order, shown, [d.path], hit.slot) });
       };
       const onCancel = (ev: PointerEvent) => { if (ev.pointerId === d.pointerId) cleanup(); };
       window.addEventListener("pointermove", onMove);

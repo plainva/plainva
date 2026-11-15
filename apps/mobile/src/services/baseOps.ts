@@ -29,6 +29,7 @@ import {
   renamePropertyInConfig,
   resolveNewItemTarget,
   serializeBaseConfig,
+  baseConfigChange,
   parkTemplateCaret,
   templateCaretInNote,
   viewPrefill,
@@ -100,6 +101,24 @@ export async function queryView(v: MobileVault, config: any, viewIndex: number):
  * would carry on. The write throws `VaultFileNotFoundError` then, and the
  * screen looks for the file. `recreate` is the reader's own "Save here again".
  */
+/**
+ * Writes `update` of the configuration as the file holds it now — read,
+ * changed and written in one step through the vault's chain — and answers
+ * what was written, or null where nothing changed (review of the pinboard
+ * fix, 15.11.): a view's lists, a board's column order are never written from
+ * the copy the screen read when it opened. The index and the sync follow as
+ * after `saveBaseConfig`.
+ */
+export async function updateBaseConfig(v: MobileVault, path: string, update: (config: any) => any | null): Promise<any | null> {
+  await assertFileStillThere(v.files, path);
+  let written: any = null;
+  await vaultOps.update(v, path, baseConfigChange(update, (next) => { written = next; }));
+  if (!written) return null;
+  if (v.indexer) await v.reindexPaths([path]);
+  syncSoon();
+  return written;
+}
+
 export async function saveBaseConfig(v: MobileVault, path: string, config: any, { recreate = false }: { recreate?: boolean } = {}): Promise<void> {
   const text = serializeBaseConfig(config);
   if (!recreate) await assertFileStillThere(v.files, path);

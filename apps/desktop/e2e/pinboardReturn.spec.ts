@@ -135,3 +135,20 @@ test("desktop: a board that shows some of its cards saves a pin and keeps every 
     { pinboardOrder: order, pinboardPinned: ["Inbox/Note-0.md", ...pinned] },
   ]);
 });
+
+test("desktop: a pin while a search typed into the board narrows it keeps every entry it does not show", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 812 });
+  await loadPinboardProbe(page);
+  const order = ["Inbox/Note-0.md", "Inbox/Note-1.md", "Inbox/Not-shown.md"];
+  const pinned = ["Inbox/Pinned-not-shown.md"];
+  await page.evaluate(({ order, pinned }) => (window as PinboardProbeWindow).pinboardProbe.mount({ shell: "desktop", count: 4, embedded: true, order, pinned }), { order, pinned });
+  await page.locator(".pv-basesearch input").fill("Note-2");
+  const card = page.locator('[data-pinboard-path="Inbox/Note-2.md"]');
+  await expect(card).toBeVisible();
+  await expect(page.locator('[data-pinboard-path="Inbox/Note-0.md"]')).toHaveCount(0);
+  await card.hover();
+  await card.locator(".pv-pinboard-pin").click();
+  await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.patches)).toEqual([
+    { pinboardOrder: order, pinboardPinned: ["Inbox/Note-2.md", ...pinned] },
+  ]);
+});

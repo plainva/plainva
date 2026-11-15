@@ -12,7 +12,7 @@ import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
 import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
-import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
+import { applyBaseViewPatch, baseConfigChange, buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler, type BaseViewPatch } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
@@ -1678,6 +1678,31 @@ export function BaseViewer({
   // it since. `park: false` is for a change other files follow (a property
   // renamed or removed across the notes, a relation's other database): it is
   // not kept for a file that has moved, because what follows it would not wait.
+  /**
+   * Writes `update` of the configuration as the file holds it now — read,
+   * changed and written in one step through the vault's chain
+   * (`updateVaultText`). For a change that is a function of the stored
+   * configuration (a view's lists, a board's column order).
+   */
+  const saveConfigFrom = async (update: (fresh: any) => any | null): Promise<boolean> => {
+    if (!vaultAdapter) return false;
+    let written: any = null;
+    try {
+      await assertFileStillThere(vaultAdapter, activePath);
+      await updateVaultText(vaultAdapter, activePath, baseConfigChange(update, (next) => { written = next; }));
+    } catch (e: any) {
+      if (isFileNotFound(e) && !embedded) lookForFile();
+      console.error("Failed to save database config", e);
+      toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
+      return false;
+    }
+    if (!written) return false;
+    setContent(serializeBaseConfig(written));
+    setDbConfig(written);
+    if (indexer) void applyIndexChanges(indexer, { added: [activePath] }).then(rememberFile, () => {});
+    return true;
+  };
+
   const saveConfig = async (newConfig: any, { park = true }: { park?: boolean } = {}): Promise<boolean> => {
     if (!vaultAdapter) return false;
     const newText = serializeBaseConfig(newConfig);
@@ -2298,26 +2323,32 @@ export function BaseViewer({
   // maintainer choice); relation/text boards remember a per-view layout under
   // views[i].plainva.boardColumnOrder instead.
   const handleReorderBoardColumns = (orderedKeys: string[]) => {
-    if (!boardGroupBy || !dbConfig) return;
-    const nc = JSON.parse(JSON.stringify(dbConfig));
-    const col = nc.columns && !Array.isArray(nc.columns) ? nc.columns[boardGroupBy] : undefined;
-    const optKey = (o: any) => o?.label || o?.value || String(o);
-    const isOptionCol = col && ["select", "status", "multiselect"].includes(col.input) && Array.isArray(col.options) && col.options.length > 0;
-    // `orderedKeys` are the columns the board shows: the search in the head of
-    // a database or a chip hides groups without matching cards, and those keep
-    // their places (`reorderShown`) — the board used to write the shown ones
-    // only, and the hidden groups' order was gone (since 0.8.4).
-    if (isOptionCol) {
-      const byKey = new Map<string, any>(col.options.map((o: any) => [optKey(o), o]));
-      const keys = reorderShown(col.options.map(optKey), orderedKeys.filter((k) => byKey.has(k)));
-      nc.columns[boardGroupBy] = { ...col, options: keys.map((k) => byKey.get(k)) };
-    } else {
-      if (!Array.isArray(nc.views) || nc.views.length === 0) nc.views = [{ type: currentViewType }];
-      const vi = Math.min(activeViewIndex, nc.views.length - 1);
-      const stored = Array.isArray(nc.views[vi]?.boardColumnOrder) ? (nc.views[vi].boardColumnOrder as unknown[]).map(String) : [];
-      nc.views[vi] = { ...nc.views[vi], boardColumnOrder: reorderShown(stored, orderedKeys) };
-    }
-    void saveConfig(nc);
+    if (!boardGroupBy) return;
+    const groupBy = boardGroupBy;
+    const vi0 = activeViewIndex;
+    const type = currentViewType;
+    // On the file as it is (review of the pinboard fix, 15.11.): never the copy read when the database opened.
+    void saveConfigFrom((fresh) => {
+      const nc = JSON.parse(JSON.stringify(fresh ?? {}));
+      const col = nc.columns && !Array.isArray(nc.columns) ? nc.columns[groupBy] : undefined;
+      const optKey = (o: any) => o?.label || o?.value || String(o);
+      const isOptionCol = col && ["select", "status", "multiselect"].includes(col.input) && Array.isArray(col.options) && col.options.length > 0;
+      // `orderedKeys` are the columns the board shows: the search in the head of
+      // a database or a chip hides groups without matching cards, and those keep
+      // their places (`reorderShown`) — the board used to write the shown ones
+      // only, and the hidden groups' order was gone (since 0.8.4).
+      if (isOptionCol) {
+        const byKey = new Map<string, any>(col.options.map((o: any) => [optKey(o), o]));
+        const keys = reorderShown(col.options.map(optKey), orderedKeys.filter((k) => byKey.has(k)));
+        nc.columns[groupBy] = { ...col, options: keys.map((k) => byKey.get(k)) };
+      } else {
+        if (!Array.isArray(nc.views) || nc.views.length === 0) nc.views = [{ type }];
+        const vi = Math.min(vi0, nc.views.length - 1);
+        const stored = Array.isArray(nc.views[vi]?.boardColumnOrder) ? (nc.views[vi].boardColumnOrder as unknown[]).map(String) : [];
+        nc.views[vi] = { ...nc.views[vi], boardColumnOrder: reorderShown(stored, orderedKeys) };
+      }
+      return nc;
+    });
   };
 
   // ── Putting an entry in the calendar (S19, plan P9b) ─────────────────────
@@ -2569,16 +2600,14 @@ export function BaseViewer({
   // Per-view options (graph P8, board color mode WP3): keys live on the active
   // view's plainva namespace; a patch clones the config and persists through
   // saveConfig. `undefined` deletes a key so defaults stay unwritten.
-  const patchActiveView = (patch: Record<string, unknown>) => {
-    if (!dbConfig) return;
-    const newConfig = JSON.parse(JSON.stringify(dbConfig));
-    if (!Array.isArray(newConfig.views) || newConfig.views.length === 0) newConfig.views = [{ type: currentViewType }];
-    const vi = Math.min(activeViewIndex, newConfig.views.length - 1);
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === undefined) delete newConfig.views[vi][key];
-      else newConfig.views[vi][key] = value;
-    }
-    void saveConfig(newConfig);
+  // A view's change is applied to the file as it is when it is written, not to
+  // the copy this database read when it opened (review of the pinboard fix,
+  // 15.11.): a delete or a move that rewrote the pinboard lists meanwhile, or
+  // another device, is never written over.
+  const patchActiveView = (patch: BaseViewPatch) => {
+    const vi = activeViewIndex;
+    const type = currentViewType;
+    void saveConfigFrom((fresh) => applyBaseViewPatch(fresh, vi, patch, type));
   };
 
   // Collapsed swimlanes (issue #83, P6): per file, app-side like the active view.

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { mimeTypeForPath, readFrontmatterPath, resolveTaskOrdinal, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, noteTaskTick, type PlannerTaskLine, errorText, toast, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
+import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, noteTaskTick, type PlannerTaskLine, errorText, toast, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, type BaseViewPatch, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { confirmDeleteFile } from "../../lib/deleteFile";
@@ -145,7 +145,7 @@ export function PinboardView({
   /** Re-query after a card write (toggle/label/color/delete). */
   onMutated: () => void;
   /** Patch the active view (pinboardOrder/pinboardPinned) and persist. */
-  onPatchView: (patch: Record<string, unknown>) => void;
+  onPatchView: (patch: BaseViewPatch) => void;
   viewKey?: string;
 }) {
   const { t } = useTranslation();
@@ -345,11 +345,21 @@ export function PinboardView({
     }
   }, [vault, onMutated, t]);
 
-  const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
-    const patch: Record<string, unknown> = {};
-    if (next.order) patch.pinboardOrder = next.order.length > 0 ? next.order : undefined;
-    if (next.pinned) patch.pinboardPinned = next.pinned.length > 0 ? next.pinned : undefined;
-    onPatchView(patch);
+  // The lists a pin, an unpin or a drag writes are computed from the view as
+  // the file holds them when the change is written (`BaseViewPatch`): a delete
+  // or a move that rewrote the file meanwhile is never written over with the
+  // copy on screen (review of the pinboard fix, 15.11.).
+  const persistSections = useCallback((next: (stored: { order: string[] | undefined; pinned: string[] | undefined }) => { order?: string[]; pinned?: string[] }) => {
+    onPatchView((view) => {
+      const lists = next({
+        order: Array.isArray(view.pinboardOrder) ? (view.pinboardOrder as unknown[]).map(String) : undefined,
+        pinned: Array.isArray(view.pinboardPinned) ? (view.pinboardPinned as unknown[]).map(String) : undefined,
+      });
+      const patch: Record<string, unknown> = {};
+      if (lists.order) patch.pinboardOrder = lists.order.length > 0 ? lists.order : undefined;
+      if (lists.pinned) patch.pinboardPinned = lists.pinned.length > 0 ? lists.pinned : undefined;
+      return patch;
+    });
   }, [onPatchView]);
 
   const pickColor = useCallback(async (path: string) => {
@@ -453,8 +463,7 @@ export function PinboardView({
     });
     if (picked === "pin") {
       // The stored lists with the one card that moved, never healed from the cards shown (as on the desktop).
-      const next = isPinned ? applyUnpin(order, pinnedList, path) : applyPin(order, pinnedList, path);
-      persistSections(next);
+      persistSections((stored) => (isPinned ? applyUnpin(stored.order, stored.pinned, path) : applyPin(stored.order, stored.pinned, path)));
     } else if (picked === "labels") {
       await editLabels(path);
     } else if (picked === "color") {
@@ -470,7 +479,7 @@ export function PinboardView({
       );
       if (done) onMutated();
     }
-  }, [sections, order, pinnedList, persistSections, editLabels, pickColor, vault, t, onMutated]);
+  }, [sections, persistSections, editLabels, pickColor, vault, t, onMutated]);
 
   // ── Long-press: no movement = action sheet, movement = drag reorder ──
   const [drag, setDrag] = useState<{ path: string; x: number; y: number; moved: boolean } | null>(null);
@@ -571,8 +580,10 @@ export function PinboardView({
       if (!hit || hit.section !== section) return;
       haptics.light();
       // Spliced into the stored list: the cards the board does not show keep their places.
-      const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, sections[section], [path], hit.slot);
-      persistSections(section === "pinned" ? { pinned: next } : { order: next });
+      const shown = sections[section];
+      persistSections((stored) => section === "pinned"
+        ? { pinned: spliceIntoSequence(stored.pinned, shown, [path], hit.slot) }
+        : { order: spliceIntoSequence(stored.order, shown, [path], hit.slot) });
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
@@ -587,7 +598,7 @@ export function PinboardView({
       el.removeEventListener("touchmove", onTouchMove);
       clear();
     };
-  }, [sections, canDrag, slotAt, openActions, persistSections, order, pinnedList]);
+  }, [sections, canDrag, slotAt, openActions, persistSections]);
 
   const cardLabels = useMemo(
     () => ({

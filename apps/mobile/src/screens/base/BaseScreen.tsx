@@ -41,7 +41,7 @@ import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
-import { errorText, isFileNotFound, pinboardLabelProperty, useStableHandler } from "@plainva/ui";
+import { applyBaseViewPatch, errorText, isFileNotFound, pinboardLabelProperty, useStableHandler, type BaseViewPatch } from "@plainva/ui";
 import {
   commitBulkValue,
   commitCellValue,
@@ -52,6 +52,7 @@ import {
   planMobilePinboardEntry,
   queryView,
   saveBaseConfig,
+  updateBaseConfig,
   type LoadedBase,
 } from "../../services/baseOps";
 import { reloadActiveMobileVault, reportMoveFailure, vaultOps, type MobileVault } from "../../services/vaultService";
@@ -443,6 +444,21 @@ export function BaseScreen({
     window.addEventListener("m-vault-changed", onChanged);
     return () => window.removeEventListener("m-vault-changed", onChanged);
   }, [config, viewIndex, requery]);
+
+  // The file changed outside this screen — a delete or a move took its notes
+  // out of the pinboard lists, another device wrote it: read again, as the
+  // desktop does (review of the pinboard fix, 15.11.).
+  useEffect(() => {
+    const onExternal = (e: Event) => {
+      const changed = (e as CustomEvent<{ path?: string }>).detail?.path;
+      if (changed !== path) return;
+      void loadBase(vault, path).then((l) => setLoaded(l), () => {
+        // silent: the file went or cannot be read now; the screen keeps what it shows and looks for it on the next change.
+      });
+    };
+    window.addEventListener("m-external-update", onExternal);
+    return () => window.removeEventListener("m-external-update", onExternal);
+  }, [vault, path]);
 
   /**
    * Writes the config of this database — never to a place its file has left
@@ -1184,20 +1200,28 @@ export function BaseScreen({
   // Pinboard view options (plan Pinboard P6): patch the active view
   // (pinboardOrder/pinboardPinned), keep the in-memory config in sync and
   // persist through the shared serialize contract. `undefined` deletes a key.
+  // Applied to the file as it is when it is written, not to the copy this
+  // screen read when it opened (review of the pinboard fix, 15.11.): a delete
+  // or a move that rewrote the pinboard lists meanwhile is never written over
+  // — the phone wrote its old copy back on the next pin, and a deleted note's
+  // place went to the next note of that name. As on the desktop.
   const patchActiveView = useCallback(
-    (patch: Record<string, unknown>) => {
-      if (!config || !loaded) return;
-      const next = JSON.parse(JSON.stringify(config));
-      const v = Array.isArray(next.views) ? next.views[viewIndex] : null;
-      if (!v) return;
-      for (const [k, val] of Object.entries(patch)) {
-        if (val === undefined) delete v[k];
-        else v[k] = val;
-      }
-      setLoaded({ config: next, stem: loaded.stem });
-      void persistConfig(next, config);
+    (patch: BaseViewPatch) => {
+      if (!loaded) return;
+      const stem = loaded.stem;
+      const index = viewIndex;
+      void updateBaseConfig(vault, path, (fresh) => applyBaseViewPatch(fresh, index, patch))
+        .then((written) => {
+          if (!written) return;
+          setLoaded({ config: written, stem });
+          rememberFile();
+        })
+        .catch((e: unknown) => {
+          if (isFileNotFound(e)) lookForFile();
+          toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
+        });
     },
-    [config, loaded, viewIndex, persistConfig],
+    [loaded, viewIndex, vault, path, rememberFile, lookForFile, t],
   );
 
   /**
