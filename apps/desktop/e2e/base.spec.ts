@@ -2678,6 +2678,35 @@ test('Template DB excludes the source folder index.md from the view', async ({ p
   await expect(table.locator('tbody tr')).toHaveCount(2);
 });
 
+test('pinboard: a pin while the head search narrows the board keeps every card of the view in its lists (0.8.4 to 0.8.7)', async ({ page }) => {
+  // The board drew what the search let through, and a pin wrote its lists
+  // healed to those cards: every other card's place left the .base, and the
+  // sync carried it on. It heals against every card of the view now.
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      pinboardOrder:\n        - "Zettel/Notiz.md"\n        - "Zettel/Einkauf.md"\n        - "Zettel/Weg.md"');
+  });
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await page.getByTestId('base-search-toggle').click();
+  await page.getByTestId('base-search').locator('input').fill('Solaranlage');
+  await expect(cards).toHaveCount(1);
+  const idee = cards.filter({ hasText: 'Solaranlage' });
+  await idee.hover();
+  await idee.getByRole('button', { name: /Anpinnen|Pin/ }).click();
+  await expect
+    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']))
+    .toContain('pinboardPinned');
+  const written = String(await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand.base']));
+  expect(written).toContain('Zettel/Idee.md');
+  // The cards the search hid keep their places; the path whose file is gone goes, as before.
+  expect(written).toContain('Zettel/Notiz.md');
+  expect(written).toContain('Zettel/Einkauf.md');
+  expect(written).not.toContain('Zettel/Weg.md');
+});
+
 test('pinboard: cards render note bodies; checkbox and pin write back to the files', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Pinnwand');

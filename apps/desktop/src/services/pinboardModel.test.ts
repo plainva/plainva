@@ -12,6 +12,7 @@ import {
   orderCards,
   pinboardColumnCount,
   retargetPinboardPaths,
+  reorderShown,
   spliceIntoSequence,
 } from "@plainva/ui";
 
@@ -23,7 +24,7 @@ it("composes text and label filters without losing the hidden order during a dra
   expect(filterCardPathsByText(filterCardPaths(sequence, labels, ["topic"]), new Set(["b", "c"]))).toEqual(["c"]);
   expect(filterCardPathsByText(sequence, null)).toBe(sequence);
   expect(pinboardTextMatches(["Status: Offen", "#MÜLLER"], "müller")).toBe(true);
-  expect(spliceIntoSequence(sequence, ["d"], { kind: "before", path: "a" })).toEqual(["d", "a", "b", "c"]);
+  expect(spliceIntoSequence(sequence, sequence, ["d"], { kind: "before", path: "a" })).toEqual(["d", "a", "b", "c"]);
 });
 
 describe("orderCards (§3 order semantics)", () => {
@@ -57,16 +58,21 @@ describe("orderCards (§3 order semantics)", () => {
 describe("spliceIntoSequence (D3 splice semantics)", () => {
   const seq = ["a.md", "b.md", "c.md", "d.md"];
   it("moves the dragged card before the target and keeps everything else stable", () => {
-    expect(spliceIntoSequence(seq, ["d.md"], { kind: "before", path: "b.md" })).toEqual(["a.md", "d.md", "b.md", "c.md"]);
+    expect(spliceIntoSequence(seq, seq, ["d.md"], { kind: "before", path: "b.md" })).toEqual(["a.md", "d.md", "b.md", "c.md"]);
   });
   it("moves to the end for the end slot and for unknown targets", () => {
-    expect(spliceIntoSequence(seq, ["a.md"], { kind: "end" })).toEqual(["b.md", "c.md", "d.md", "a.md"]);
-    expect(spliceIntoSequence(seq, ["a.md"], { kind: "before", path: "zz.md" })).toEqual(["b.md", "c.md", "d.md", "a.md"]);
+    expect(spliceIntoSequence(seq, seq, ["a.md"], { kind: "end" })).toEqual(["b.md", "c.md", "d.md", "a.md"]);
+    expect(spliceIntoSequence(seq, seq, ["a.md"], { kind: "before", path: "zz.md" })).toEqual(["b.md", "c.md", "d.md", "a.md"]);
   });
-  it("materializes the full sequence — a chip-filtered view never loses hidden positions", () => {
-    // The caller always passes the FULL unfiltered sequence; the result lists it completely.
-    const out = spliceIntoSequence(["u1.md", "u2.md", "a.md"], ["a.md"], { kind: "before", path: "u1.md" });
+  it("materializes the unarranged cards it shows on the first drag, in the order drawn", () => {
+    const out = spliceIntoSequence(undefined, ["u1.md", "u2.md", "a.md"], ["a.md"], { kind: "before", path: "u1.md" });
     expect(out).toEqual(["a.md", "u1.md", "u2.md"]);
+  });
+  it("leaves a card dropped onto itself where it is", () => {
+    expect(spliceIntoSequence(seq, seq, ["b.md"], { kind: "before", path: "b.md" })).toEqual(seq);
+  });
+  it("writes each entry once, also where the stored list held one twice", () => {
+    expect(spliceIntoSequence(["a.md", "b.md", "a.md"], ["a.md", "b.md"], ["b.md"], { kind: "before", path: "a.md" })).toEqual(["b.md", "a.md"]);
   });
 });
 
@@ -164,5 +170,54 @@ describe("captureFileName (P4 naming)", () => {
   it("returns null when nothing usable remains", () => {
     expect(captureFileName("   \n\n")).toBeNull();
     expect(captureFileName("###")).toBeNull();
+  });
+});
+
+describe("the search in a database's head narrows what is shown, never what the arrangement heals against (0.8.4 to 0.8.7)", () => {
+  // The board draws what the search lets through; the .base holds every
+  // card. A pin, an unpin and a drag healed their lists against the cards on
+  // screen: one pin while searching took every other card's place out of the
+  // file, and the sync carried it on. They heal against every card of the
+  // VIEW now, before the search narrows it — a path whose file is gone still goes.
+  const storedOrder = ["B/a.md", "B/b.md", "B/c.md", "B/d.md", "B/gone.md"];
+  const storedPinned = ["B/p1.md", "B/p2.md"];
+  const view = new Set(["B/a.md", "B/b.md", "B/c.md", "B/d.md", "B/p1.md", "B/p2.md", "B/x.md"]);
+  const shown = ["B/a.md", "B/p1.md", "B/x.md"]; // "groceries" typed into the head's search
+
+  it("a pin while searching keeps every card of the view, and drops a dead path as before", () => {
+    const r = applyPin(storedOrder, storedPinned, "B/x.md", view);
+    expect(r.order).toEqual(["B/a.md", "B/b.md", "B/c.md", "B/d.md"]);
+    expect(r.pinned).toEqual(["B/x.md", "B/p1.md", "B/p2.md"]);
+  });
+
+  it("an unpin while searching", () => {
+    const r = applyUnpin(storedOrder, storedPinned, "B/p1.md", view);
+    expect(r.order).toEqual(["B/p1.md", "B/a.md", "B/b.md", "B/c.md", "B/d.md"]);
+    expect(r.pinned).toEqual(["B/p2.md"]);
+  });
+
+  it("a drag while searching moves the card among the shown ones; the hidden ones keep their places", () => {
+    const drawn = orderCards(shown.map((p, i) => row(p, 100 - i)), storedOrder, storedPinned).unpinned;
+    expect(drawn).toEqual(["B/x.md", "B/a.md"]);
+    // Dragged to the end of what the person saw: right after the last card shown.
+    expect(spliceIntoSequence(storedOrder, drawn, ["B/x.md"], { kind: "end" }, view)).toEqual(["B/a.md", "B/x.md", "B/b.md", "B/c.md", "B/d.md"]);
+  });
+
+  it("a board's columns reordered while searching keep the place of every column not shown", () => {
+    // Shown: Doing and Done (Todo has no card that matches); Done is dragged before Doing.
+    expect(reorderShown(["Todo", "Doing", "Done", "Later"], ["Done", "Doing"])).toEqual(["Todo", "Done", "Doing", "Later"]);
+  });
+
+  it("a column new to the stored order goes where it was dropped", () => {
+    expect(reorderShown(["Alpha", "Beta"], ["Gamma", "Alpha", "Beta"])).toEqual(["Gamma", "Alpha", "Beta"]);
+    expect(reorderShown(["Alpha", "Beta"], ["Alpha", "Gamma", "Beta"])).toEqual(["Alpha", "Gamma", "Beta"]);
+    expect(reorderShown(["Alpha", "Beta"], ["Alpha", "Beta", "Gamma"])).toEqual(["Alpha", "Beta", "Gamma"]);
+    expect(reorderShown(["Todo", "Doing", "Done"], ["N1", "N2", "Done", "Todo"])).toEqual(["N1", "N2", "Done", "Doing", "Todo"]);
+  });
+
+  it("a stored order that holds a key twice writes each key once, never an empty place", () => {
+    const out = reorderShown(["A", "B", "A"], ["B", "A"]);
+    expect(out).toEqual(["B", "A"]);
+    expect(out.every((k) => typeof k === "string")).toBe(true);
   });
 });

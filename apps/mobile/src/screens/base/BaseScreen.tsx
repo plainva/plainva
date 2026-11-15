@@ -2555,6 +2555,7 @@ export function BaseScreen({
           config={config}
           view={view}
           rows={rows}
+          viewRows={allRows}
           propCols={orderedColumns}
           columnLabel={columnLabel}
           displayCell={displayCell}
