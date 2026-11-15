@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import {
   applyPin,
   applyUnpin,
@@ -229,11 +230,9 @@ describe("the search in a database's head narrows what is shown, never what the 
 
   it("orders thousands of new columns in one pass (a first drag on a board with many groups)", () => {
     const keys = Array.from({ length: 5000 }, (_, i) => `g${i}`);
-    const started = performance.now();
-    const fresh = reorderShown([], keys);
-    const half = reorderShown(keys.filter((_, i) => i % 2 === 1), [...keys].reverse());
     // One pass takes a few milliseconds; searching the order again for every new key took tens of seconds.
-    expect(performance.now() - started).toBeLessThan(2000);
+    const fresh = within(1_000, () => reorderShown([], keys));
+    const half = within(1_000, () => reorderShown(keys.filter((_, i) => i % 2 === 1), [...keys].reverse()));
     expect(fresh).toEqual(keys);
     expect(half).toHaveLength(5000);
     expect(new Set(half).size).toBe(5000);
