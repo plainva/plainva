@@ -282,6 +282,7 @@ export * from "./lib/dragAutoScroll";
 export * from "./lib/typography";
 export * from "./lib/useDebouncedValue";
 export * from "./lib/useStableHandler";
+export * from "./lib/useSingleFlightHandler";
 export * from "./lib/discardQuestion";
 export * from "./lib/deletionNet";
 export * from "./lib/wordCount";

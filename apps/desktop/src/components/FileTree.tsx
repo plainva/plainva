@@ -17,7 +17,7 @@ import { buildNewNoteFromTemplate } from "../services/newNoteTemplate";
 import { parkTemplateCaret } from "@plainva/ui";
 import { hasSnippetMark, renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
-import { useStableHandler } from "@plainva/ui";
+import { useSingleFlightHandler, useStableHandler } from "@plainva/ui";
 import { sameTreeFiles } from "@plainva/ui";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
@@ -752,7 +752,10 @@ export const FileTree: React.FC<{
     if (parked !== null) revealPath(parked);
   }, [files, revealPath]);
 
-  const handleNewItemSubmit = useStableHandler(async (e?: React.FormEvent) => {
+  // Enter submits the form and losing the focus submits once more; a template
+  // dialog takes the focus while the first run awaits it (issue 170). One
+  // create at a time, or the second dialog writes over the new note.
+  const handleNewItemSubmit = useSingleFlightHandler(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!newItemParams || !newItemName.trim() || !vaultAdapter || !indexer) {
       setNewItemParams(null);
@@ -833,7 +836,9 @@ export const FileTree: React.FC<{
     toast.error(t("dialogs.moveBlockedUnsaved", { name: moveItemName(err.path), error: errorText(err.reason) }));
   };
 
-  const handleRenameSubmit = useStableHandler(async (e?: React.FormEvent) => {
+  // The same Enter-and-blur pair as the new-item field (issue 170): one rename
+  // at a time, or a blur during the flush or link rewrite renames again.
+  const handleRenameSubmit = useSingleFlightHandler(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!renamingItemParams || !renamingName.trim() || !vaultAdapter || !indexer) {
       setRenamingItemParams(null);
