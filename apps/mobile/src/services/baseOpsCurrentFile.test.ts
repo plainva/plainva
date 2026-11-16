@@ -1,0 +1,91 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { migrateFiltersToPerView, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
+
+const loadBaseConfigText = (text: string) => migrateFiltersToPerView(parseBaseConfig(text));
+
+/**
+ * Finding B20 (0.9.0 defect list): a change to a database's views on the
+ * phone wrote the config loaded when the database was opened — and undid
+ * whatever another device or the desktop wrote to the file since. The change
+ * lands on the file as it lies there now.
+ */
+
+vi.mock("./vaultService", () => ({ vaultOps: {}, noteSaver: {} }));
+vi.mock("./mobileSettings", () => ({ getMobileSettings: () => ({}) }));
+vi.mock("./syncService", () => ({ syncSoon: () => {} }));
+vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ name: "Vault" }) }));
+vi.mock("./templateInteractive", () => ({ answerTemplateFile: vi.fn(), buildNewNoteFromTemplate: vi.fn() }));
+
+import { deleteBaseProperty, saveBaseConfig } from "./baseOps";
+
+const PATH = "Projects/Tasks.base";
+const files = new Map<string, string>();
+const vault = {
+  files: {
+    exists: async (p: string) => files.has(p),
+    readTextFile: async (p: string) => {
+      const text = files.get(p);
+      if (text === undefined) throw new Error("not found: " + p);
+      return text;
+    },
+    writeTextFile: vi.fn(async (p: string, text: string) => { files.set(p, text); }),
+  },
+  indexer: null,
+} as any;
+
+const TEXT = [
+  "properties:",
+  "  note.prio:",
+  "    plainva:",
+  "      input: number",
+  "views:",
+  "  - type: table",
+  "    name: Table",
+  "    order:",
+  "      - file.name",
+  "  - type: cards",
+  "    name: Cards",
+  "",
+].join("\n");
+
+beforeEach(() => {
+  files.clear();
+  vault.files.writeTextFile.mockClear();
+});
+
+const view = (name: string) => loadBaseConfigText(files.get(PATH)!).views.find((v: any) => v.name === name);
+
+describe("a database change on the phone lands on the file as it lies there (B20)", () => {
+  it("keeps what another device changed in another view meanwhile", async () => {
+    const shown = loadBaseConfigText(TEXT);
+    const elsewhere = JSON.parse(JSON.stringify(shown));
+    elsewhere.views[1].sort = [{ property: "file.name", direction: "DESC" }];
+    files.set(PATH, serializeBaseConfig(elsewhere));
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views[0].order = ["file.name", "note.prio"];
+    await saveBaseConfig(vault, PATH, next, { shown });
+    expect(view("Table").order).toEqual(["file.name", "note.prio"]);
+    expect(view("Cards").sort).toEqual([{ property: "file.name", direction: "DESC" }]);
+  });
+
+  it("writes nothing when the view it changes was deleted meanwhile", async () => {
+    const shown = loadBaseConfigText(TEXT);
+    const elsewhere = serializeBaseConfig({ ...shown, views: [shown.views[0]] });
+    files.set(PATH, elsewhere);
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views[1].coverImage = "note.cover";
+    await expect(saveBaseConfig(vault, PATH, next, { shown })).rejects.toThrow(/Cards/);
+    expect(vault.files.writeTextFile).not.toHaveBeenCalled();
+    expect(files.get(PATH)).toBe(elsewhere);
+  });
+
+  it("removes a property without undoing a view change made elsewhere", async () => {
+    const shown = loadBaseConfigText(TEXT);
+    const elsewhere = JSON.parse(JSON.stringify(shown));
+    elsewhere.views[0].coverImage = "note.cover";
+    files.set(PATH, serializeBaseConfig(elsewhere));
+    await deleteBaseProperty(vault, PATH, shown, "prio", [], false);
+    expect(view("Table").coverImage).toBe("note.cover");
+    expect(loadBaseConfigText(files.get(PATH)!).columns?.prio).toBeUndefined();
+  });
+});

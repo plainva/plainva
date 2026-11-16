@@ -993,7 +993,8 @@ describe("a property write through the surgical helpers is never silent", () => 
     const desktop = shipped().find((file) => file.rel === "apps/desktop/src/components/BaseViewer.tsx")!.text;
     const save = desktop.slice(desktop.indexOf("const saveConfig = async ("), desktop.indexOf("const restoreHere = async ("));
     expect(save).toMatch(/console\.error\("Failed to save database config", e\);\s*toast\.error\(t\("writeFailed\.databaseSave", \{ reason: errorText\(e\) \}\)\);\s*return false;/);
-    expect(save, "a query that fails behind a save that landed is no failed save").toMatch(/await vaultAdapter\.writeTextFile\(activePath, newText\);\s*\} catch \(e: any\) \{/);
+    // The change goes onto the file as it lies there (B20 of the 0.9.0 defect list), and nothing else stands in the try after it.
+    expect(save, "a query that fails behind a save that landed is no failed save").toMatch(/await writeBaseConfigChange\(vaultAdapter, activePath, shownConfig, newConfig\);\s*if \(written\.config !== newConfig\) \{[^{}]*\}\s*\} catch \(e: any\) \{/);
     // The view goes back to the database it showed, and a change other files
     // follow is not kept for a file that has moved (finding 2026-10-21).
     expect(save).toMatch(/setDbConfig\(\(shown: any\) => \(shown === newConfig \? shownConfig : shown\)\);\s*setContent\(\(shown\) => \(shown === newText \? shownText : shown\)\);/);

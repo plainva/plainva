@@ -12,7 +12,7 @@ import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
 import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
-import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
+import { BaseConfigChangeRefusedError, buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler, writeBaseConfigChange } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
@@ -1684,6 +1684,7 @@ export function BaseViewer({
     const shownConfig = dbConfig;
     const shownText = content;
     const save = ++saveTurn.current;
+    let saved = newConfig;
     try {
       // Optimistic UI update to prevent stuck screens
       setContent(newText);
@@ -1693,7 +1694,15 @@ export function BaseViewer({
       // or deleted outside Plainva would come back here as a duplicate or a
       // deletion undone.
       await assertFileStillThere(vaultAdapter, activePath);
-      await vaultAdapter.writeTextFile(activePath, newText);
+      // Onto the file as it lies there (finding B20): what this view changed
+      // against the config it showed is set on the file's current config, so a
+      // change another device or window made meanwhile stays.
+      const written = await writeBaseConfigChange(vaultAdapter, activePath, shownConfig, newConfig);
+      if (written.config !== newConfig) {
+        setDbConfig((shown: any) => (shown === newConfig ? written.config : shown));
+        setContent((shown) => (shown === newText ? written.update.text : shown));
+        saved = written.config;
+      }
     } catch (e: any) {
       const moved = isFileNotFound(e) && !embedded;
       if (moved && park) {
@@ -1710,6 +1719,8 @@ export function BaseViewer({
       // the next save that landed wrote it along.
       if (save === saveTurn.current && shownConfig) showViewLayout(shownConfig, activeViewIndex);
       if (moved) lookForFile();
+      // The view it changed is gone from the file: what the file holds now is shown.
+      if (e instanceof BaseConfigChangeRefusedError) setReloadTick((n) => n + 1);
       console.error("Failed to save database config", e);
       // With its reason (Sammelplan 3.87 no. 1): an open conflict is named as one.
       toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
@@ -1722,7 +1733,7 @@ export function BaseViewer({
     // fails is no failed save.
     if (queryService) {
       try {
-        const data = await queryForActiveView(newConfig, activeViewIndex);
+        const data = await queryForActiveView(saved, activeViewIndex);
         setDbData(data);
       } catch (e) {
         console.error("Failed to query the database after saving its config", e);

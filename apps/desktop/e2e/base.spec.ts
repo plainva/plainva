@@ -1174,6 +1174,45 @@ test('Base board: a column dragged while the head search hides another keeps the
   await expect.poll(columns).toEqual(['paused', 'done', 'active', '__UNGROUPED__']);
 });
 
+test('Base board: a column drag keeps what another device changed in another view of the file meanwhile (B20)', async ({ page }) => {
+  // The database wrote the copy of the whole .base it loaded on opening: a
+  // view another device changed after that came back as it was.
+  const lines = (sortLines: string[]) => [
+    'filters:', '  and:', '    - file.folder == "Projekte"',
+    'views:', '  - type: table', '    name: Textboard', '    order:', '      - file.name', '      - note.status',
+    '    plainva:', '      render: board', '      groupBy: status',
+    '      boardColumnOrder:', '        - active', '        - done', '        - paused',
+    '  - type: table', '    name: Liste', '    order:', '      - file.name', ...sortLines, '',
+  ].join('\n');
+  await page.addInitScript((text) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Textboard.base'] = text;
+    fs['/test-vault/Projekte/Alpha.md'] = '---\nstatus: active\n---\n# Alpha\n';
+    fs['/test-vault/Projekte/Beta.md'] = '---\nstatus: paused\n---\n# Beta\n';
+    fs['/test-vault/Projekte/Gamma.md'] = '---\nstatus: done\n---\n# Gamma\n';
+    (window as any).__dbProps['3'][0] = { key: 'status', value: 'done', type: 'text' };
+  }, lines([]));
+  await page.goto('/');
+  await openBase(page, 'Textboard');
+  const header = (name: string) => page.getByText(name, { exact: true }).first();
+  await expect(header('done')).toBeVisible({ timeout: 10000 });
+  // Another device sorts "Liste"; the file changes under the open database.
+  const sorted = lines(['    sort:', '      - property: file.name', '        direction: DESC']);
+  await page.evaluate((text) => { (window as any).mockFs['/test-vault/Textboard.base'] = text; }, sorted);
+  const from = (await header('paused').boundingBox())!;
+  const to = (await header('active').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 8, { steps: 3 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  const file = async () => String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base']));
+  // The board's list only: the next view follows it in this file.
+  const saved = async () => orderOf((await file()).split('  - type: table\n    name: Liste')[0], 'boardColumnOrder');
+  await expect.poll(saved).toEqual(['paused', 'active', 'done', '__UNGROUPED__']);
+  expect(await file()).toContain('direction: DESC');
+});
+
 test('Base board: color mode "column" tints the whole column and persists (WP3)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');

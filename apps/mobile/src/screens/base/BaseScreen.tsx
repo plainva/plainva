@@ -1,4 +1,4 @@
-import { readContentBinary, reportingTo } from "@plainva/ui";
+import { BaseConfigChangeRefusedError, readContentBinary, reportingTo } from "@plainva/ui";
 import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
@@ -452,7 +452,11 @@ export function BaseScreen({
    */
   const persistConfig = useStableHandler(async (next: any, shown?: any): Promise<boolean> => {
     try {
-      await saveBaseConfig(vault, path, next);
+      // Onto the file as it lies there (finding B20): only what changed against
+      // the config shown is set, a change made elsewhere meanwhile stays — and
+      // is shown from now on.
+      const saved = await saveBaseConfig(vault, path, next, { shown });
+      if (saved !== next) setLoaded((now) => (now && now.config === next ? { ...now, config: saved } : now));
       setPendingConfig(null);
       rememberFile();
       return true;
@@ -469,6 +473,8 @@ export function BaseScreen({
       // does (finding 2026-10-21): it went on showing a config no file held,
       // and the next change made here wrote it along.
       if (shown !== undefined) setLoaded((now) => (now && now.config === next ? { ...now, config: shown } : now));
+      // The view it changed is gone from the file: what the file holds now is shown.
+      if (e instanceof BaseConfigChangeRefusedError) void loadBase(vault, path).then(setLoaded, () => {});
       // With its reason, as the desktop says it (Sammelplan § 3.87 no. 1): an open conflict is named as one.
       toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
       return false;

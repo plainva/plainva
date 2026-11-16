@@ -33,6 +33,7 @@ import {
   templateCaretInNote,
   viewPrefill,
   writeNoteProperty,
+  writeBaseConfigChange,
   bulkSetProperty,
   convertDateColumns,
   editReverseRelation,
@@ -100,14 +101,28 @@ export async function queryView(v: MobileVault, config: any, viewIndex: number):
  * would carry on. The write throws `VaultFileNotFoundError` then, and the
  * screen looks for the file. `recreate` is the reader's own "Save here again".
  */
-export async function saveBaseConfig(v: MobileVault, path: string, config: any, { recreate = false }: { recreate?: boolean } = {}): Promise<void> {
-  const text = serializeBaseConfig(config);
-  if (!recreate) await assertFileStillThere(v.files, path);
-  await v.files.writeTextFile(path, text);
+export async function saveBaseConfig(
+  v: MobileVault,
+  path: string,
+  config: any,
+  { recreate = false, shown }: { recreate?: boolean; shown?: any } = {},
+): Promise<any> {
+  let saved = config;
+  if (recreate || shown === undefined) {
+    if (!recreate) await assertFileStillThere(v.files, path);
+    await v.files.writeTextFile(path, serializeBaseConfig(config));
+  } else {
+    await assertFileStillThere(v.files, path);
+    // Onto the file as it lies there (finding B20): what changed against the
+    // config the screen showed is set on the file's current config, so a
+    // change another device or window made meanwhile stays.
+    saved = (await writeBaseConfigChange(v.files, path, shown, config)).config;
+  }
   // The index hears of a database like of a note (finding 2026-10-09): the
   // call that stood here took notes only and never did anything for a `.base`.
   if (v.indexer) await v.reindexPaths([path]);
   syncSoon();
+  return saved;
 }
 
 /**
@@ -307,7 +322,7 @@ export async function writeRelationSchema(
       else delete col.relationLimit;
       next.columns[column] = col;
       if (foldIntoOwn) next = foldIntoOwn(next);
-      await saveBaseConfig(v, basePath, next);
+      await saveBaseConfig(v, basePath, next, { shown: config });
     },
   );
 }
@@ -418,7 +433,7 @@ export async function renameBaseProperty(
     paths: rowPaths,
     oldName,
     newName,
-    saveConfig: () => saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName)),
+    saveConfig: () => saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName), { shown: config }),
   });
   if (outcome.status === "renamed" && outcome.result.written.length > 0) syncSoon();
   return outcome;
@@ -440,7 +455,7 @@ export async function deleteBaseProperty(
   cleanNotes: boolean,
 ): Promise<NoteRewriteResult> {
   const nc = deletePropertyFromConfig(config, name);
-  await saveBaseConfig(v, basePath, nc);
+  await saveBaseConfig(v, basePath, nc, { shown: config });
   const result = cleanNotes ? await removePropertyAcrossNotes(noteFiles(v), rowPaths, name) : { written: [], unchanged: [], failed: [], skipped: [] };
   syncSoon();
   return result;

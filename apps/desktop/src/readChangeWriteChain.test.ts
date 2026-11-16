@@ -9,7 +9,7 @@ import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository,
   VaultIndexer, VersionHistoryService, isOpenTaskState, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type SqlStatements, type TaskRecord,
 } from "@plainva/core";
-import { TaskMutationGate, bulkSetProperty, errorText, toggleTaskAtIndex, writeNoteProperty, type BulkSetResult } from "@plainva/ui";
+import { BaseConfigChangeRefusedError, TaskMutationGate, bulkSetProperty, errorText, loadBaseConfigText, serializeBaseConfig, toggleTaskAtIndex, writeBaseConfigChange, writeNoteProperty, type BulkSetResult } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../packages/core/test/helpers/realSqlite";
 import { sourceFile } from "./test-sourceTree";
@@ -291,98 +291,142 @@ describe("a note with an open conflict: what was typed at this desk stays in its
 });
 
 /**
- * A database view holds its configuration and saves it whole, without saying
- * which text it started from — a writer the chain cannot hand the file as it
- * lies there. At a database with an open conflict such a write used to go in
- * place of the user's own version of the configuration, like a cell's did. It
- * is refused now, unless the working copy is what such a write left there
- * itself (decision E2).
+ * A database view saves a change of its configuration — since B20 of the
+ * 0.9.0 defect list as a change: what it changed against the configuration it
+ * showed is set on the file as it lies there, through the chain's entry for a
+ * change. Before, it saved the whole configuration it held, a writer the
+ * chain could not hand the file as it lies there; at a database with an open
+ * conflict that write was refused (decision E2), and a database changed below
+ * the chain was refused as a conflict. Now the change is a writer like a
+ * cell's (decision E2 = K3): at an open conflict it lands in the file and in
+ * the user's own version, each as it lies there; where one of them no longer
+ * has the view it changes, nothing is written and the save is said.
  */
 const BASE = "Projects/Projects.base";
-const baseText = (extra: string) => `filters:\n  and:\n    - file.folder == "Projects"\nviews:\n  - type: table\n    name: ${extra}\n`;
+const baseText = (name: string, extra: string[] = []) =>
+  [`filters:`, `  and:`, `    - file.folder == "Projects"`, `views:`, `  - type: table`, `    name: ${name}`, ...extra, ``].join("\n");
+const sortLines = (direction: string) => [`    sort:`, `      - property: file.name`, `        direction: ${direction}`];
+const loaded = (text: string) => loadBaseConfigText(text);
+/** A change of the first view as the view makes it: a copy of the configuration with that view replaced. */
+const withFirstView = (config: any, patch: Record<string, unknown>) => ({ ...config, views: config.views.map((v: any, i: number) => (i === 0 ? { ...v, ...patch } : v)) });
 
 // Every change of a database's configuration: the function the view saves it with.
 const saveSource = declared(viewer, "saveConfig");
 if (!saveSource || !ts.isArrowFunction(saveSource)) throw new Error("the database view's config save moved — re-point this harness");
 const saveCode = `const saveConfig = ${saveSource.getText(viewer)};`;
-/** The view's save of a configuration, with what it names there; the configuration is handed over as its text. */
-function saveConfig(text: string, scope: Record<string, unknown> = {}, options?: { park?: boolean }): Promise<boolean> {
+/** The view's save of a configuration, with what it names there. */
+function saveConfig(config: unknown, scope: Record<string, unknown> = {}, options?: { park?: boolean }): Promise<boolean> {
   return run<(config: unknown, options?: { park?: boolean }) => Promise<boolean>>(saveCode, "saveConfig", {
     vaultAdapter, activePath: BASE, embedded: false, indexer: null, queryService: null, activeViewIndex: 0, dbConfig: null, content: "",
-    serializeBaseConfig: (config: string) => config, setContent: () => {}, setDbConfig: () => {}, setPendingConfig: () => {}, setDbData: () => {},
+    serializeBaseConfig, writeBaseConfigChange, BaseConfigChangeRefusedError, setReloadTick: () => {},
+    setContent: () => {}, setDbConfig: () => {}, setPendingConfig: () => {}, setDbData: () => {},
     assertFileStillThere: async () => {}, isFileNotFound: () => false, lookForFile: () => {}, applyIndexChanges: async () => ({ leftBehind: [] }), rememberFile: () => {},
     queryForActiveView: async () => [], errorText, saveTurn: { current: 0 }, showViewLayout: () => true, ...surface, ...scope,
-  })(text, options);
+  })(config, options);
 }
 
 /** What a view shows, held the way React holds it: a value, or an update of the one before. */
-function viewState(config: string, text: string) {
-  const state = { config, text, pending: null as string | null, lookedFor: 0 };
+function viewState(config: unknown, text: string) {
+  const state = { config, text, pending: null as string | null, lookedFor: 0, reloaded: 0 };
   const apply = <T>(was: T, next: T | ((was: T) => T)) => (typeof next === "function" ? (next as (was: T) => T)(was) : next);
   return {
     state,
     scope: {
       dbConfig: config,
       content: text,
-      setDbConfig: (next: string | ((was: string) => string)) => { state.config = apply(state.config, next); },
+      setDbConfig: (next: unknown) => { state.config = apply(state.config, next as any); },
       setContent: (next: string | ((was: string) => string)) => { state.text = apply(state.text, next); },
       setPendingConfig: (next: string | null) => { state.pending = next; },
       lookForFile: () => { state.lookedFor += 1; },
+      setReloadTick: () => { state.reloaded += 1; },
     },
   };
 }
 
-describe("a database with an open conflict: its view's save does not go in place of the user's own version", () => {
-  it("the configuration as it was changed here stays in the working copy; the save is refused", async () => {
+describe("a database view's change lands on the file as it lies there, at an open conflict in both versions (B20)", () => {
+  /** An open conflict: the file has the other side's sort, the user's own version their own. */
+  async function conflictOverSort(): Promise<string> {
+    await openVault({ [BASE]: baseText("Table") });
+    await landedFromOutside(BASE, baseText("Table", sortLines("DESC")));
+    const saved = await vaultAdapter.writeEditorText(BASE, baseText("Table", sortLines("ASC")), baseText("Table"));
+    return saved.session!.workingCopyPath;
+  }
+
+  it("at an open conflict the change lands in the file and in the user's own version, each keeping its own sort", async () => {
+    const copy = await conflictOverSort();
+    // The view shows the database as the file reads — the other side's — and changes its columns.
+    const shownConfig = loaded(baseText("Table", sortLines("DESC")));
+    const view = viewState(shownConfig, baseText("Table", sortLines("DESC")));
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["file.name", "note.status"] }), view.scope)).toBe(true);
+    for (const text of [await raw.readTextFile(BASE), await raw.readTextFile(copy)]) {
+      expect(loaded(text).views[0].order).toEqual(["file.name", "note.status"]);
+    }
+    expect(loaded(await raw.readTextFile(BASE)).views[0].sort).toEqual([{ property: "file.name", direction: "DESC" }]);
+    // The user's own version: their sort stayed.
+    expect(loaded(await raw.readTextFile(copy)).views[0].sort).toEqual([{ property: "file.name", direction: "ASC" }]);
+    expect(shown).toEqual([]);
+  });
+
+  it("at an open conflict a change the user's own version has no place for lands in the file alone; that version stays as it is", async () => {
     await openVault({ [BASE]: baseText("Table") });
     await landedFromOutside(BASE, baseText("Their table"));
     const saved = await vaultAdapter.writeEditorText(BASE, baseText("My table"), baseText("Table"));
     const copy = saved.session!.workingCopyPath;
-    // The view shows the database as the file reads — the other side's — and saves a change of that.
-    await saveConfig(baseText("Their table, sorted"));
-    // It used to be written in place of the working copy: "My table" was gone.
+    const shownConfig = loaded(baseText("Their table"));
+    const view = viewState(shownConfig, baseText("Their table"));
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), view.scope)).toBe(true);
+    expect(loaded(await raw.readTextFile(BASE)).views[0].order).toEqual(["note.status"]);
     expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
-    expect(await raw.readTextFile(BASE)).toBe(baseText("Their table"));
-    // Said, not only logged (finding 2026-10-12): the view went on as if the database had been saved.
-    // With its reason (Sammelplan § 3.87 no. 1): "Save failed!" did not say that the conflict is what stands in the way.
-    expect(shown).toEqual([
-      "console: Failed to save database config The file has an open conflict; nothing was written. Resolve the conflict first",
-      `error: writeFailed.databaseSave ${JSON.stringify({ reason: "The file has an open conflict. Resolve the conflict first, then try again." })}`,
-    ]);
   });
 
-  it("a save that is refused puts the view back on the database it showed", async () => {
-    // The view showed the new configuration before the write and kept it when
-    // the write was refused: a renamed column stood there, under which no note
-    // carried a value, and the next save of any setting wrote it (finding
-    // 2026-10-21) — half a rename after all.
+  it("a change to a view deleted or renamed elsewhere meanwhile writes nothing, is said, and the view goes back to what it showed", async () => {
     await openVault({ [BASE]: baseText("Table") });
-    await landedFromOutside(BASE, baseText("Their table"));
-    await vaultAdapter.writeEditorText(BASE, baseText("My table"), baseText("Table"));
-    const view = viewState("the database as shown", baseText("Their table"));
-    expect(await saveConfig(baseText("Their table, renamed"), view.scope)).toBe(false);
-    expect(view.state.config).toBe("the database as shown");
-    expect(view.state.text).toBe(baseText("Their table"));
-    expect(view.state.pending).toBeNull();
-  });
-
-  it("a refused save puts back what the caller set ahead of it — unless a later save changed the view since", async () => {
-    // The columns shown, the view type, the grouping, the cover are set by the
-    // caller before it saves; a refused save left them standing, and the next
-    // save that landed wrote them along (Sammelplan § 3.71 no. 5).
-    await openVault({ [BASE]: baseText("Table") });
-    await landedFromOutside(BASE, baseText("Their table"));
-    await vaultAdapter.writeEditorText(BASE, baseText("My table"), baseText("Table"));
+    const shownConfig = loaded(baseText("Table"));
+    // Renamed by another device after the view loaded it.
+    await landedFromOutside(BASE, baseText("Renamed"));
     const shownAgain: unknown[] = [];
-    const view = viewState("the database as shown", baseText("Their table"));
+    const view = viewState(shownConfig, baseText("Table"));
     const layout = { showViewLayout: (config: unknown) => { shownAgain.push(config); return true; }, saveTurn: { current: 0 } };
-    expect(await saveConfig(baseText("Their table, columns"), { ...view.scope, ...layout })).toBe(false);
-    expect(shownAgain).toEqual(["the database as shown"]);
-    // A save that started after this one owns the view: the refused one leaves it alone.
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), { ...view.scope, ...layout })).toBe(false);
+    expect(await raw.readTextFile(BASE)).toBe(baseText("Renamed"));
+    expect(await vaultAdapter.getConflictSession(BASE)).toBeNull();
+    expect(view.state.config).toBe(shownConfig);
+    expect(view.state.text).toBe(baseText("Table"));
+    expect(view.state.pending).toBeNull();
+    // What the file holds now is loaded.
+    expect(view.state.reloaded).toBe(1);
+    expect(shownAgain).toEqual([shownConfig]);
+    expect(shown).toHaveLength(2);
+    expect(shown[1]).toMatch(/^error: writeFailed\.databaseSave .*Table/);
+    // A save that started after this one owns the view: the refused one leaves its layout alone.
     shownAgain.length = 0;
     const later = { ...layout, saveTurn: { get current() { return 7; }, set current(_value: number) { /* a later save took the turn */ } } };
-    expect(await saveConfig(baseText("Their table, columns"), { ...view.scope, ...later })).toBe(false);
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), { ...view.scope, ...later })).toBe(false);
     expect(shownAgain).toEqual([]);
+  });
+
+  it("a database changed below the chain takes the change as it lies there: no conflict, nothing undone", async () => {
+    await openVault({ [BASE]: baseText("Table") });
+    const shownConfig = loaded(baseText("Table"));
+    // Another program sorted it meanwhile.
+    await landedFromOutside(BASE, baseText("Table", sortLines("DESC")));
+    const view = viewState(shownConfig, baseText("Table"));
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["file.name", "note.status"] }), view.scope)).toBe(true);
+    expect(await vaultAdapter.getConflictSession(BASE)).toBeNull();
+    const now = loaded(await raw.readTextFile(BASE)).views[0];
+    expect(now.order).toEqual(["file.name", "note.status"]);
+    expect(now.sort).toEqual([{ property: "file.name", direction: "DESC" }]);
+    // The view shows what the file holds now.
+    expect((view.state.config as any).views[0].sort).toEqual([{ property: "file.name", direction: "DESC" }]);
+    expect(view.state.text).toBe(await raw.readTextFile(BASE));
+  });
+
+  it("where nobody else changed the file, the text written is the whole configuration's", async () => {
+    await openVault({ [BASE]: baseText("Table") });
+    const shownConfig = loaded(baseText("Table"));
+    const next = withFirstView(shownConfig, { order: ["file.name", "note.status"] });
+    expect(await saveConfig(next, viewState(shownConfig, baseText("Table")).scope)).toBe(true);
+    expect(await raw.readTextFile(BASE)).toBe(serializeBaseConfig(next));
   });
 
   it("a change other files follow is not kept for a database that has moved", async () => {
@@ -390,26 +434,15 @@ describe("a database with an open conflict: its view's save does not go in place
     // found; a rename does not, since its notes would not wait with it.
     await openVault({ [BASE]: baseText("Table") });
     const gone = { assertFileStillThere: async () => { throw Object.assign(new Error("gone"), { code: "FILE_NOT_FOUND" }); }, isFileNotFound: (e: unknown) => (e as { code?: string }).code === "FILE_NOT_FOUND" };
-    const setting = viewState("as shown", baseText("Table"));
-    expect(await saveConfig(baseText("Table, sorted"), { ...setting.scope, ...gone })).toBe(false);
-    expect(setting.state).toMatchObject({ config: baseText("Table, sorted"), pending: baseText("Table, sorted"), lookedFor: 1 });
-    const rename = viewState("as shown", baseText("Table"));
-    expect(await saveConfig(baseText("Table, renamed"), { ...rename.scope, ...gone }, { park: false })).toBe(false);
-    expect(rename.state).toMatchObject({ config: "as shown", text: baseText("Table"), pending: null, lookedFor: 1 });
+    const shownConfig = loaded(baseText("Table"));
+    const sorted = withFirstView(shownConfig, { order: ["note.status"] });
+    const setting = viewState(shownConfig, baseText("Table"));
+    expect(await saveConfig(sorted, { ...setting.scope, ...gone })).toBe(false);
+    expect(setting.state).toMatchObject({ config: sorted, pending: serializeBaseConfig(sorted), lookedFor: 1 });
+    const rename = viewState(shownConfig, baseText("Table"));
+    expect(await saveConfig(withFirstView(shownConfig, { name: "Renamed" }), { ...rename.scope, ...gone }, { park: false })).toBe(false);
+    expect(rename.state).toMatchObject({ config: shownConfig, text: baseText("Table"), pending: null, lookedFor: 1 });
     expect(await raw.readTextFile(BASE)).toBe(baseText("Table"));
-  });
-
-  it("a working copy that such a save left there itself takes the next one", async () => {
-    await openVault({ [BASE]: baseText("Table") });
-    // Changed below the chain, on the line the view changes next: the view's save cannot be merged and is kept as a working copy.
-    await landedFromOutside(BASE, baseText("Their table"));
-    await saveConfig(baseText("My table"));
-    const copy = (await vaultAdapter.getConflictSession(BASE))!.workingCopyPath;
-    expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
-    // The view saves on: its newer configuration replaces its own older one, nobody else's.
-    await saveConfig(baseText("My table, sorted"));
-    expect(await raw.readTextFile(copy)).toBe(baseText("My table, sorted"));
-    expect(await raw.readTextFile(BASE)).toBe(baseText("Their table"));
   });
 });
 

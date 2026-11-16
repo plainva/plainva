@@ -14,7 +14,7 @@ import {
 } from "@plainva/core";
 import {
   TaskMutationGate, assertFileStillThere, bulkSetProperty, combineFilters, createEntryEvent, createInlineBase, createTaskDatabase, createTemplateIn,
-  errorText, importAttachment, keepTextBeside, saveNoteAsTemplateIn, serializeBaseConfig, toggleTaskAtIndex, writeNoteProperty, type BulkSetResult,
+  errorText, importAttachment, keepTextBeside, loadBaseConfigText, saveNoteAsTemplateIn, serializeBaseConfig, toggleTaskAtIndex, writeBaseConfigChange, writeNoteProperty, type BulkSetResult,
 } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
@@ -130,7 +130,7 @@ interface PhoneServices {
 interface PhoneWriters {
   commitCellValue(v: MobileVault, path: string, col: string, value: unknown): Promise<void>;
   queryView(v: MobileVault, config: unknown, viewIndex: number): Promise<Record<string, unknown>[]>;
-  saveBaseConfig(v: MobileVault, path: string, config: unknown): Promise<void>;
+  saveBaseConfig(v: MobileVault, path: string, config: unknown, options?: { shown?: unknown }): Promise<unknown>;
   /** The phone's writer for a selection, where its service has one. */
   commitBulkValue: unknown;
 }
@@ -201,7 +201,7 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   writers = run<PhoneWriters>(
     baseOpsCode,
     "{ commitCellValue, queryView, saveBaseConfig, commitBulkValue: typeof commitBulkValue === 'function' ? commitBulkValue : undefined }",
-    { ...services, writeNoteProperty, bulkSetProperty, combineFilters, syncSoon, serializeBaseConfig, assertFileStillThere },
+    { ...services, writeNoteProperty, bulkSetProperty, combineFilters, syncSoon, serializeBaseConfig, assertFileStillThere, writeBaseConfigChange },
   );
 }
 
@@ -469,12 +469,13 @@ describe("a note with an open conflict: what was typed on this phone stays in it
 });
 
 /**
- * A database screen holds its configuration and saves it whole, without saying
- * which text it started from — a writer the chain cannot hand the file as it
- * lies there. At a database with an open conflict such a write used to go in
- * place of the user's own version of the configuration, like a cell's did. It
- * is refused now, unless the working copy is what such a write left there
- * itself (decision E2).
+ * A whole configuration written without saying which text it started from —
+ * since B20 only what goes with a database found elsewhere (a change carried
+ * to a moved file): a writer the chain cannot hand the file as it lies there.
+ * At a database with an open conflict such a write used to go in place of the
+ * user's own version of the configuration, like a cell's did. It is refused
+ * now, unless the working copy is what such a write left there itself
+ * (decision E2). The screen's own changes say what they started from; below.
  */
 const BASE = "Projects/Projects.base";
 const database = (name: string) => ({ filters: { and: ['file.folder == "Projects"'] }, views: [{ type: "table", name }] });
@@ -504,6 +505,65 @@ describe("a database with an open conflict: its screen's save does not go in pla
     await expect(writers.saveBaseConfig(vault, BASE, database("My table, sorted"))).rejects.toThrow();
     expect(await raw.readTextFile(copy)).toBe(baseText("My table, sorted"));
     expect(await raw.readTextFile(BASE)).toBe(baseText("Their table"));
+  });
+});
+
+/**
+ * A change the database screen makes says which configuration it started from
+ * (B20 of the 0.9.0 defect list): only what it changed is set on the file as
+ * it lies there, through the chain's entry for a change — at an open conflict
+ * in the file and in the user's own version, each as it lies there (decision
+ * E2 = K3, as a cell's). Where one of them no longer has the view it changes,
+ * nothing is written.
+ */
+const sorted = (name: string, direction: string) => serializeBaseConfig({ ...database(name), views: [{ type: "table", name, sort: [{ property: "file.name", direction }] }] });
+const withOrder = (config: any) => ({ ...config, views: config.views.map((v: any, i: number) => (i === 0 ? { ...v, order: ["file.name", "status"] } : v)) });
+
+describe("a database screen's change lands on the file as it lies there, at an open conflict in both versions (B20)", () => {
+  it("at an open conflict the change lands in the file and in the user's own version, each keeping its own sort", async () => {
+    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
+    await landedFromOutside(BASE, sorted("Table", "DESC"));
+    const saved = await chain.writeEditorText(BASE, sorted("Table", "ASC"), baseText("Table"));
+    const copy = saved.session!.workingCopyPath;
+    const shownConfig = loadBaseConfigText(sorted("Table", "DESC"));
+    await writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig });
+    const file = loadBaseConfigText(await raw.readTextFile(BASE)).views[0];
+    const own = loadBaseConfigText(await raw.readTextFile(copy)).views[0];
+    expect(file.order).toEqual(["file.name", "status"]);
+    expect(own.order).toEqual(["file.name", "status"]);
+    expect(file.sort[0].direction).toBe("DESC");
+    expect(own.sort[0].direction).toBe("ASC");
+  });
+
+  it("at an open conflict a change the user's own version has no place for lands in the file alone", async () => {
+    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
+    await landedFromOutside(BASE, baseText("Their table"));
+    const saved = await chain.writeEditorText(BASE, baseText("My table"), baseText("Table"));
+    const copy = saved.session!.workingCopyPath;
+    const shownConfig = loadBaseConfigText(baseText("Their table"));
+    await writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig });
+    expect(loadBaseConfigText(await raw.readTextFile(BASE)).views[0].order).toEqual(["file.name", "status"]);
+    expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
+  });
+
+  it("a change to a view renamed elsewhere meanwhile writes nothing", async () => {
+    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
+    const shownConfig = loadBaseConfigText(baseText("Table"));
+    await landedFromOutside(BASE, baseText("Renamed"));
+    await expect(writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig })).rejects.toThrow(/Table/);
+    expect(await raw.readTextFile(BASE)).toBe(baseText("Renamed"));
+    expect(await chain.getConflictSession(BASE)).toBeNull();
+  });
+
+  it("a database changed below the chain takes the change as it lies there: no conflict, nothing undone", async () => {
+    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
+    const shownConfig = loadBaseConfigText(baseText("Table"));
+    await landedFromOutside(BASE, sorted("Table", "DESC"));
+    await writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig });
+    expect(await chain.getConflictSession(BASE)).toBeNull();
+    const now = loadBaseConfigText(await raw.readTextFile(BASE)).views[0];
+    expect(now.order).toEqual(["file.name", "status"]);
+    expect(now.sort[0].direction).toBe("DESC");
   });
 });
 
