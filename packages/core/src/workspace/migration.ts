@@ -186,6 +186,8 @@ export async function initializePersonalWorkspaceMigration(input: {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     if (pendingPaths.has(object.path)) { queued += 1; continue; }
     if (!(await mayQueue(object.path, false, null))) { completed += 1; continue; }
+    // Unconfirmed: nobody deleted these in the app. Many of them at once are
+    // held by the worker's mass-deletion guard until the person answers (A4).
     await input.state.enqueue("delete", object.path);
     queued += 1;
   }

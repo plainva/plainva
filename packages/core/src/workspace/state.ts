@@ -256,6 +256,15 @@ export interface PreparedWorkspaceMutation {
   revision: WorkspaceRevisionRecord | null;
 }
 
+/** How an entry comes into the workspace's queue. */
+export interface WorkspaceEnqueueOptions {
+  /**
+   * The person confirmed this deletion in the app: the mass-deletion guard
+   * never holds it. Given for an entry already queued, the entry takes it.
+   */
+  confirmed?: boolean;
+}
+
 export interface WorkspaceQueuedMutation {
   id: number;
   operation: WorkspaceQueueOperation;
@@ -265,6 +274,12 @@ export interface WorkspaceQueuedMutation {
   retryCount: number;
   lastError: string | null;
   prepared: PreparedWorkspaceMutation | null;
+  /**
+   * A deletion the person confirmed in the app (`DeletionConfirmation.confirmed`):
+   * when. Null for everything else — a deletion the index or the start-up
+   * reconcile found, which the mass-deletion guard may hold (release 0.9.0 A4).
+   */
+  confirmedAt: number | null;
 }
 
 export interface WorkspacePendingPublication {
@@ -433,7 +448,7 @@ export interface WorkspaceStateStore {
    * repeats after something else touched its paths (a write, a deletion, a
    * write again) is queued anew: the worker pushes them in order.
    */
-  enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null): Promise<number>;
+  enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null, options?: WorkspaceEnqueueOptions): Promise<number>;
   /**
    * Lets the store answer for entries owed to its queue for changes already on
    * disk (`WorkspaceQueueingVaultAdapter`, D4): `hasPendingForPath` and
@@ -629,12 +644,16 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
       ...[...this.owedEntries].flatMap((owed) => owed.owedPaths()),
     ];
   }
-  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
+  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null, options: WorkspaceEnqueueOptions = {}): Promise<number> {
     const target = newPath ?? null;
+    const confirmedAt = options.confirmed ? Date.now() : null;
     const touches = (entry: WorkspaceQueuedMutation) => [entry.path, entry.newPath].some((a) => !!a && [path, target].some((b) => !!b && pathsOverlap(a, b)));
     const newest = [...this.queue].reverse().find(touches);
-    if (newest && !newest.prepared && newest.operation === operation && newest.path === path && (newest.newPath ?? null) === target) return newest.id;
-    const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath: target, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null };
+    if (newest && !newest.prepared && newest.operation === operation && newest.path === path && (newest.newPath ?? null) === target) {
+      if (confirmedAt != null && newest.confirmedAt == null) newest.confirmedAt = confirmedAt;
+      return newest.id;
+    }
+    const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath: target, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null, confirmedAt };
     this.queue.push(item);
     return item.id;
   }
@@ -718,6 +737,8 @@ interface QueueRow {
   retry_count: number;
   last_error: string | null;
   prepared_json: string | null;
+  /** Absent on a row a store before release 0.9.0 read (the column is added on open). */
+  confirmed_at?: number | null;
 }
 
 /** A stored anchor, or null. A row written before anchors existed has none. */
@@ -1118,23 +1139,26 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
    * yet (`WorkspaceStateStore.enqueue`). The id is the one of that entry,
    * asked by its fields — never "the newest row", which may be another flow's.
    */
-  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
+  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null, options: WorkspaceEnqueueOptions = {}): Promise<number> {
     const target = newPath ?? null;
+    const confirmedAt = options.confirmed ? Date.now() : null;
     const later = laterTouches([path, target]);
     await this.db.execute(
-      `INSERT INTO workspace_queue (operation,path,new_path,queued_at)
-       SELECT ?,?,?,? WHERE NOT EXISTS (
+      `INSERT INTO workspace_queue (operation,path,new_path,queued_at,confirmed_at)
+       SELECT ?,?,?,?,? WHERE NOT EXISTS (
          SELECT 1 FROM workspace_queue same
           WHERE same.operation = ? AND same.path = ? AND same.new_path IS ? AND same.prepared_json IS NULL
             AND NOT EXISTS (SELECT 1 FROM workspace_queue later WHERE later.id > same.id AND (${later.sql}))
        )`,
-      [operation, path, target, Date.now(), operation, path, target, ...later.params],
+      [operation, path, target, Date.now(), confirmedAt, operation, path, target, ...later.params],
     );
     const row = await this.db.queryOne<{ id: number }>(
       `SELECT id FROM workspace_queue WHERE operation = ? AND path = ? AND new_path IS ? AND prepared_json IS NULL ORDER BY id DESC LIMIT 1`,
       [operation, path, target],
     );
     if (!row) throw new Error("workspace queue insert did not return an id");
+    // The same entry asked for again, now confirmed: it takes the mark.
+    if (confirmedAt != null) await this.db.execute(`UPDATE workspace_queue SET confirmed_at = ? WHERE id = ? AND confirmed_at IS NULL`, [confirmedAt, row.id]);
     // A deletion queued: the index's mark that it was owed goes (R22). After
     // the entry, in its own statement: an app that ends between the two leaves
     // a mark the next sweep finds queued and drops.
@@ -1153,6 +1177,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
       retryCount: row.retry_count,
       lastError: row.last_error,
       prepared: row.prepared_json ? JSON.parse(row.prepared_json) as PreparedWorkspaceMutation : null,
+      confirmedAt: row.confirmed_at ?? null,
     }));
   }
   async reservePrepared(queueId: number, prepared: PreparedWorkspaceMutation, meta: WorkspaceRuntimeMeta): Promise<void> {

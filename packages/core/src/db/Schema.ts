@@ -181,7 +181,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       queued_at     INTEGER NOT NULL,
       retry_count   INTEGER NOT NULL DEFAULT 0,
       last_error    TEXT,
-      prepared_json TEXT
+      prepared_json TEXT,
+      confirmed_at  INTEGER
     );`,
     `CREATE TABLE IF NOT EXISTS workspace_checkpoint (
       checkpoint_hash TEXT PRIMARY KEY,
@@ -663,6 +664,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   }
   if (!queueColumns.has("delete_journaled")) {
     await db.execute(`ALTER TABLE offline_queue ADD COLUMN delete_journaled INTEGER NOT NULL DEFAULT 0`);
+  }
+  // The encrypted workspace's queue the same (release 0.9.0 A4): a deletion
+  // the person confirmed in the app carries when. A row from before has none
+  // and counts as unconfirmed — the guard may ask about it, never the reverse.
+  // An older build ignores the column; what it queues is unconfirmed.
+  const workspaceQueueColumns = new Set((await db.query<{ name: string }>(`PRAGMA table_info(workspace_queue)`)).map((row) => row.name));
+  if (!workspaceQueueColumns.has("confirmed_at")) {
+    await db.execute(`ALTER TABLE workspace_queue ADD COLUMN confirmed_at INTEGER`);
   }
 
   // Must run after the ALTER above: on pre-existing databases the links table

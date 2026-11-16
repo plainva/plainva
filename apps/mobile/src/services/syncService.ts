@@ -34,6 +34,16 @@ import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } 
 import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
+import { askMassDeletion as askMassDeletionWith, type MassDeletionAnswers } from "@plainva/ui";
+
+/**
+ * The mass-deletion question for either worker (plain sync, encrypted
+ * workspace — release 0.9.0 A4), on the app's own sheet: the safe branch
+ * has a name and carries the emphasis, dismissing it takes that branch.
+ */
+function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: number; syncedTotal: number }): void {
+  void askMassDeletionWith(worker, info, (question) => mConfirm({ ...question, danger: true }));
+}
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
@@ -1337,6 +1347,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       errorKind: failureKind === "integrity" ? "workspace-integrity" : failureKind === "authentication" ? "authentication" : undefined,
     });
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
+    // The plain sync's question, word for word (release 0.9.0 A4).
+    encrypted.onMassDeletionPending = (info) => askMassDeletion(encrypted, info);
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     // The first cycle has looked: a file the index finds as new from now on
     // goes into the workspace queue at once, as with the plain worker (3.119).
@@ -1458,35 +1470,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // cannot do this (S45).
     notifyPulledFiles(paths);
   };
-  w.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
-    // The app's own sheet since 2026-09-20 (it was the native two-button
-    // dialog): the safe branch has a NAME and carries the emphasis, the
-    // destructive one is styled as such. Dismissing the sheet takes the safe
-    // restore branch. Localized with the shared sync.massDelete* strings (P5).
-    void (async () => {
-      const value = await mConfirm({
-        title: i18n.t("sync.massDeleteTitle"),
-        message: i18n.t("sync.massDeleteBody", { n: pendingDeletes, total: syncedTotal }),
-        danger: true,
-        confirmLabel: i18n.t("sync.massDeleteConfirm"),
-        cancelLabel: i18n.t("sync.massDeleteRestore"),
-      });
-      if (value) {
-        w.approveMassDeletion();
-        return;
-      }
-      // The user chose "restore", so they must learn whether it worked
-      // (desktop rule, carried over 2026-08-19). Going quiet here means
-      // believing the files are back while the deletions still stand.
-      try {
-        const discarded = await w.discardMassDeletion();
-        toast.info(i18n.t("sync.massDeleteRestored", { n: discarded }));
-      } catch (e) {
-        console.error("[syncService] discardMassDeletion failed", e);
-        toast.error(i18n.t("sync.massDeleteRestoreFailed"));
-      }
-    })();
-  };
+  w.onMassDeletionPending = (info) => askMassDeletion(w, info);
   w.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
     // Pull-side guard with an exit (P1): the journal does not explain these
     // absences, so a person decides. Since 2026-09-20 the worker has asked the

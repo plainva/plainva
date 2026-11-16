@@ -28,6 +28,16 @@ import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
+import { askMassDeletion as askMassDeletionWith, type MassDeletionAnswers } from "@plainva/ui";
+
+/**
+ * The mass-deletion question for either worker (plain sync, encrypted
+ * workspace — release 0.9.0 A4). Cancel/Escape takes the safe branch: the
+ * deletions are discarded and the files restored.
+ */
+function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: number; syncedTotal: number }): void {
+  void askMassDeletionWith(worker, info, (question) => appConfirm({ ...question, kind: "danger" }));
+}
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
@@ -1553,6 +1563,8 @@ export const VaultProvider: React.FC<{
                   });
                 };
                 worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
+                // The plain sync's question, word for word (release 0.9.0 A4).
+                worker.onMassDeletionPending = (info) => askMassDeletion(worker, info);
                 // The first cycle has looked: what the index found and an ended
                 // app never queued goes into the workspace's queue (R22).
                 worker.onFirstCycleComplete = () => sweepOwedToRemote("workspace");
@@ -1716,34 +1728,7 @@ export const VaultProvider: React.FC<{
               }
             };
             const guardedWorker = fileWorker;
-            fileWorker.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
-              // The push-side mass-deletion guard tripped: a large share of the
-              // synced files is queued for REMOTE deletion (typically the local
-              // vault folder was emptied or moved while Plainva knew the vault).
-              // Never execute that silently — ask. Cancel/Escape takes the safe
-              // branch: the deletes are discarded and the files restored from the
-              // remote on the next cycle.
-              void (async () => {
-                const confirmed = await appConfirm({
-                  title: i18n.t("sync.massDeleteTitle"),
-                  message: i18n.t("sync.massDeleteBody", { n: pendingDeletes, total: syncedTotal }),
-                  kind: "danger",
-                  confirmLabel: i18n.t("sync.massDeleteConfirm"),
-                  cancelLabel: i18n.t("sync.massDeleteRestore"),
-                });
-                if (confirmed) {
-                  guardedWorker.approveMassDeletion();
-                } else {
-                  try {
-                    const discarded = await guardedWorker.discardMassDeletion();
-                    toast.info(i18n.t("sync.massDeleteRestored", { n: discarded }));
-                  } catch (e) {
-                    console.error("[VaultContext] discardMassDeletion failed", e);
-                    toast.error(i18n.t("sync.massDeleteRestoreFailed"));
-                  }
-                }
-              })();
-            };
+            fileWorker.onMassDeletionPending = (info) => askMassDeletion(guardedWorker, info);
             fileWorker.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
               // The pull-side guard tripped and the journal does not explain the
               // absences. Since 2026-09-20 the worker has ASKED the remote about a

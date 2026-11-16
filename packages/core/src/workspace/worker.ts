@@ -58,7 +58,8 @@ import { resolveWorkspacePolicyChain } from "./policy.js";
 import { workspaceRecipientGroupIds, workspaceSliceIdsForObject, type WorkspaceSliceObject } from "./slices.js";
 import { quarantineReasonCode } from "./quarantineReasons.js";
 import { splitDeviceChains } from "./deviceChains.js";
-import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord } from "./collaboration.js";
+import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord, WorkspaceRevisionHistoryService } from "./collaboration.js";
+import { isMassDeletion } from "../sync/massDeletion.js";
 import { recoverWorkspaceCommentDecisions } from "./commentDecisionRecovery.js";
 import { reconcileWorkspaceCommentRetractions } from "./commentRetractions.js";
 import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
@@ -208,6 +209,23 @@ export class EncryptedWorkspaceWorker {
    */
   public onCommentsChanged?: (paths: string[]) => void;
   private readonly commentPathsChanged = new Set<string>();
+  /**
+   * Fired once when the mass-deletion guard trips (release 0.9.0 A4), with the
+   * plain sync's arguments, so both shells ask the same question
+   * (`SyncWorker.onMassDeletionPending`): more than `MASS_DELETE_MIN` queued
+   * deletions nobody confirmed, and more than `MASS_DELETE_SHARE` of the live
+   * objects — the vault folder emptied, moved or its drive unmounted, found by
+   * the index or by the start-up reconcile. They are held, everything else
+   * goes on, until `approveMassDeletion()` or `discardMassDeletion()`. Until
+   * then the workspace had no guard, and every such deletion went out signed,
+   * to every device.
+   */
+  public onMassDeletionPending?: (info: { pendingDeletes: number; syncedTotal: number }) => void;
+  /** Queue ids the person let go in this session (`approveMassDeletion`); like the plain sync's, gone with a restart. */
+  private readonly massDeletionApprovedIds = new Set<number>();
+  /** The held deletions the open question is about: what the two answers act on. */
+  private massDeletionPromptIds: number[] = [];
+  private massDeletionSignaled = false;
   private activePolicy: WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>;
 
   constructor(
@@ -358,6 +376,56 @@ export class EncryptedWorkspaceWorker {
       this.scheduleNext();
     });
     await this.syncing;
+  }
+
+  /**
+   * Answer to `onMassDeletionPending`: the files really are meant to go. The
+   * next cycle pushes the held deletions. Session-scoped, as in the plain
+   * sync: still pending after a restart, they are asked about again.
+   */
+  approveMassDeletion(): void {
+    for (const id of this.massDeletionPromptIds) this.massDeletionApprovedIds.add(id);
+    this.massDeletionPromptIds = [];
+    this.massDeletionSignaled = false;
+    this.scheduleImmediate();
+  }
+
+  /**
+   * Answer to `onMassDeletionPending`: keep them. The held deletions leave
+   * the queue, and every file of them that is still missing here comes back
+   * from the workspace — its current revision, decrypted, written where it
+   * was (the plain sync restores from the remote the same way). Under the
+   * path's lock, the one the worker records under: an object a pull changed
+   * meanwhile is written as it is now, one deleted meanwhile is not written.
+   * Returns how many deletions were discarded.
+   */
+  async discardMassDeletion(): Promise<number> {
+    const ids = new Set(this.massDeletionPromptIds);
+    this.massDeletionPromptIds = [];
+    this.massDeletionSignaled = false;
+    if (ids.size === 0) return 0;
+    const held = (await this.state.listQueue(100_000)).filter((item) => ids.has(item.id) && item.operation === "delete" && !item.prepared);
+    const history = new WorkspaceRevisionHistoryService(this.objectStore, this.state, this.runtime.groupKeys);
+    const restored: string[] = [];
+    // Folders first, so a file finds its folder.
+    const objects = new Map<string, WorkspaceObjectRecord>();
+    for (const item of held) {
+      await this.state.discardQueue(item.id);
+      const object = await this.state.getObjectByPath(item.path);
+      if (object && !object.deleted && object.currentRevisionId) objects.set(object.path, object);
+    }
+    const order = [...objects.values()].sort((left, right) => left.path.split("/").length - right.path.split("/").length);
+    for (const candidate of order) {
+      await withPathMutation(this.state, [candidate.path], async () => {
+        const object = await this.state.getObjectByPath(candidate.path);
+        if (!object || object.deleted || !object.currentRevisionId || await this.vault.exists(object.path)) return;
+        if (object.contentKind === "directory") await this.vault.createDir(object.path);
+        else await this.vault.writeBinaryFile(object.path, await history.read(object.currentRevisionId));
+        restored.push(object.path);
+      });
+    }
+    if (restored.length) this.onFilesChanged?.(restored);
+    return held.length;
   }
 
   async listPendingOperations(limit = 20): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }> {
@@ -1005,6 +1073,14 @@ export class EncryptedWorkspaceWorker {
 
   private async push(signal?: AbortSignal): Promise<void> {
     let queue = await this.state.listQueue(100_000);
+    const held = await this.heldDeletions(queue);
+    // What stands behind a held deletion waits with it: pushed first, a file
+    // that came back under the same name would be deleted by the deletion
+    // once it is let go.
+    const heldEntries = queue.filter((item) => held.has(item.id));
+    const behindHeld = (item: WorkspaceQueuedMutation) => !item.prepared && heldEntries.some((entry) => entry.id < item.id &&
+      [item.path, item.newPath].some((own) => !!own && (own === entry.path || own.startsWith(`${entry.path}/`) || entry.path.startsWith(`${own}/`))));
+    queue = queue.filter((item) => !held.has(item.id) && !(held.size > 0 && behindHeld(item)));
     const absorbed = new Set<number>();
     let current = 0;
     for (const item of queue) {
@@ -1025,6 +1101,35 @@ export class EncryptedWorkspaceWorker {
     }
     queue = await this.state.listQueue(1);
     if (queue.length === 0) this.onProgress?.(null);
+  }
+
+  /**
+   * The queue ids of the deletions the mass-deletion guard holds back in this
+   * cycle (A4), signalling the question once. A prepared deletion has taken
+   * its sequence already and is finished, never held; a confirmed one
+   * (`confirmedAt`) or one let go in this session is not counted.
+   */
+  private async heldDeletions(queue: WorkspaceQueuedMutation[]): Promise<Set<number>> {
+    const pendingIds = new Set(queue.map((item) => item.id));
+    for (const id of [...this.massDeletionApprovedIds]) if (!pendingIds.has(id)) this.massDeletionApprovedIds.delete(id);
+    const unconfirmed = queue.filter((item) => item.operation === "delete" && !item.prepared && item.confirmedAt == null && !this.massDeletionApprovedIds.has(item.id));
+    const liveTotal = unconfirmed.length > 0 ? (await this.state.listObjects(false)).filter((object) => !object.deleted).length : 0;
+    if (!isMassDeletion(unconfirmed.map((item) => item.path), liveTotal)) {
+      this.massDeletionSignaled = false;
+      this.massDeletionPromptIds = [];
+      return new Set();
+    }
+    console.warn(`[EncryptedWorkspaceWorker] ${unconfirmed.length} of ${liveTotal} objects are queued for deletion; deletions are paused until confirmed`);
+    if (!this.massDeletionSignaled) {
+      this.massDeletionSignaled = true;
+      this.massDeletionPromptIds = unconfirmed.map((item) => item.id);
+      try {
+        this.onMassDeletionPending?.({ pendingDeletes: unconfirmed.length, syncedTotal: liveTotal });
+      } catch (error) {
+        console.error("[EncryptedWorkspaceWorker] onMassDeletionPending consumer failed:", error);
+      }
+    }
+    return new Set(unconfirmed.map((item) => item.id));
   }
 
   private async resumePreparedMutations(signal?: AbortSignal): Promise<void> {

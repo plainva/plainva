@@ -28,6 +28,7 @@ import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js"
 import { localNameRefusal } from "./localNameRefusal.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
+import { isMassDeletion as isMassDeletionOf, MASS_DELETE_MIN, MASS_DELETE_SHARE } from "./massDeletion.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
 import { isAppleDoubleCompanion, isSystemJunkPath } from "../vault/systemJunk.js";
 import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
@@ -171,25 +172,7 @@ export function isLocalOnlyPath(path: string): boolean {
   return path.startsWith(".plainva") || isWorkspaceNamespacePath(path) || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
-/**
- * Drops paths that are covered by another path in the list acting as their
- * folder ancestor (and exact duplicates). A folder deletion enqueues the folder
- * AND one op per contained file; counting the children again inflated the
- * mass-deletion guard's share and tripped it on ordinary folder deletions.
- * O(n · depth) via ancestor-prefix probes against a set.
- */
-export function dropCoveredDeletePaths(paths: string[]): string[] {
-  const unique = [...new Set(paths)];
-  const set = new Set(unique);
-  return unique.filter((p) => {
-    let idx = p.lastIndexOf("/");
-    while (idx > 0) {
-      if (set.has(p.substring(0, idx))) return false;
-      idx = p.lastIndexOf("/", idx - 1);
-    }
-    return true;
-  });
-}
+export { dropCoveredDeletePaths } from "./massDeletion.js";
 
 /**
  * `retrying` is a temporary failure the worker expects to survive: it is NOT
@@ -267,17 +250,8 @@ const CHANGED_PATHS_CHUNK = 25;
  */
 const MAX_CONSECUTIVE_PULL_FAILURES = 3;
 
-/**
- * Push-side mass-deletion guard thresholds (mirror of the pull side's
- * missing-from-listing sanity guard). A local mass deletion — the vault folder
- * emptied, moved or its drive unmounted while the app knows the vault — floods
- * the queue with remote DELETEs; executing them would wipe the remote copy.
- * When more than MIN queued deletes ALSO exceed SHARE of the synced baseline,
- * the worker holds all deletes until the user explicitly confirms (or discards)
- * them. Small, plausible deletions are never held.
- */
-const MASS_DELETE_MIN = 10;
-const MASS_DELETE_SHARE = 0.2;
+// Push-side mass-deletion guard: the rule and its thresholds live in
+// `massDeletion.ts`, shared with the encrypted workspace (release 0.9.0 A4).
 
 /**
  * How many of the files a listing does not carry are asked for directly before
@@ -2923,10 +2897,7 @@ export class SyncWorker {
       const syncedTotal = [...stateMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
       const unconfirmed = pendingDeletes.filter((op) =>
         op.delete_confirmed_at == null && !this.massDeletionApprovedIds.has(op.id));
-      const unexplainedDeletes = dropCoveredDeletePaths(unconfirmed.map((op) => op.file_path));
-      const isMassDeletion =
-        unexplainedDeletes.length > MASS_DELETE_MIN &&
-        unexplainedDeletes.length > syncedTotal * MASS_DELETE_SHARE;
+      const isMassDeletion = isMassDeletionOf(unconfirmed.map((op) => op.file_path), syncedTotal);
       if (isMassDeletion) {
         deletionsHeld = `${unconfirmed.length} of ${syncedTotal} synced files are queued for remote deletion; deletions are paused until confirmed`;
         console.warn(`[SyncWorker] ${deletionsHeld}`);
