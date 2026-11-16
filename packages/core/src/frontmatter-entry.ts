@@ -980,6 +980,11 @@ function removal(place: Place, map: YAMLMap, pair: Pair): Edit[] | null {
  */
 function commentsBehind(text: string, at: PairPlace): number {
   let end = at.to;
+  // An empty line sets a comment apart from the entry in front of it — also
+  // where it is the entry's own, the empty lines a text keeps (`|+`): such a
+  // comment is no more the entry's than behind any other empty line (Sammelplan
+  // § 3.173 Nr. 5).
+  if (onlyBlanks(text.slice(lineStart(text, at.lastBreak), at.lastBreak))) return end;
   while (end < text.length) {
     const lineBreak = lineEnd(text, end);
     const line = text.slice(end, lineBreak);

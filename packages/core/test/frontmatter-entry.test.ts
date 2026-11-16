@@ -788,3 +788,27 @@ describe("a date under its own tag", () => {
   });
 });
 
+/**
+ * An entry whose text keeps its empty lines (`|+`) goes without a comment
+ * behind those empty lines (Sammelplan § 3.173 Nr. 5): the empty lines are
+ * the text's, and the comment behind them was taken along as if it stood
+ * right under the entry. Behind a text that does not keep them (`|`), it
+ * always stayed.
+ */
+describe("removing an entry whose text keeps its empty lines", () => {
+  it("leaves a comment behind them standing, and every other line", () => {
+    expect(remove(lf(["note: |+", "    zeile", "", "  # c", "x: 1"]), ["note"])).toBe(lf(["  # c", "x: 1"]));
+    expect(remove(lf(["y: 0", "note: |+", "    zeile", "", "  # c", "", "x: 1"]), ["note"])).toBe(lf(["y: 0", "  # c", "", "x: 1"]));
+    expect(remove(lf(["m:", "  note: |+", "      zeile", "", "    # c", "  x: 1"]), ["m", "note"])).toBe(lf(["m:", "    # c", "  x: 1"]));
+  });
+
+  it("still takes a comment right under it along, like any entry's", () => {
+    expect(remove(lf(["note: |+", "    zeile", "  # c", "x: 1"]), ["note"])).toBe(lf(["x: 1"]));
+    expect(remove(lf(["note: a", "  # c", "x: 1"]), ["note"])).toBe(lf(["x: 1"]));
+  });
+
+  it("keeps the note's line ends", () => {
+    const crlf = lf(["note: |+", "    zeile", "", "  # c", "x: 1"]).replace(/\n/g, "\r\n");
+    expect(remove(crlf, ["note"])).toBe(lf(["  # c", "x: 1"]).replace(/\n/g, "\r\n"));
+  });
+});
