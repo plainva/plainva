@@ -559,6 +559,10 @@ export const TABLE_WORD_WEIGHT = 171;
  * Low since 2026-11-15: the calibration lifts each shape by the part that
  * lifts it most for what it costs a word and a link, and the measured
  * reference shapes reach the budget / 0.9 mostly by their syntax and words.
+ * A reference glued to the word before it (`[^1][^1]…`) counts as a word of
+ * its own, and so does a link or image (`tableRowParts`): without that, 120
+ * of them in a cell were one word and ran the parse out of memory at the
+ * budget (review, 2026-11-16).
  */
 export const TABLE_REFERENCE_WEIGHT = 63;
 
@@ -572,7 +576,7 @@ export const TABLE_LINK_WEIGHT = 316;
 /**
  * What the reading view's own plugins make of a row: a tag pill and a
  * highlight are covered by the word weight (`readerTableBudget.test.tsx`
- * holds them), each `$` of a formula weighs on its own — KaTeX holds far more
+ * holds them), each `$` of a formula weighs on its own (`$$x$$` is a formula as `$x$` is) — KaTeX holds far more
  * while it lays a formula out than its elements (88 rows of a hundred `$a$`
  * fill 128 MB).
  */
@@ -642,7 +646,11 @@ export function tableMarkerCount(prefix: string): number {
  * (measured 2026-11-13: 999, 1 498 and 1 443 rows under 128 MB). `references` counts `[^`, a
  * footnote reference where a definition exists. `tags`, `maths` and `marks`
  * count what the reading view's own plugins make nodes of: a `#` that may
- * start a tag, a `$`, a `==`. `text[from, to)` is the row behind its
+ * start a tag, a `$`, a `==`; `mathChars` the characters of a formula,
+ * from a run of `$` to the next run as long in the same cell (`$x$`,
+ * `$$x$$`). A reference, link or image glued to the word before it counts as
+ * a word as well, and an `@date` the reading view writes anew as what it may
+ * write (`RELATIVE_DATE_SHOWN_CHARS`). `text[from, to)` is the row behind its
  * container markers (`tableLineStart`).
  */
 export function tableRowParts(text: string, from: number, to: number, asRead = true): TableRowParts {
@@ -679,12 +687,15 @@ function shownRow(text: string, from: number, to: number): string | undefined {
     return i;
   };
   // A run of backticks closes at the next run as long in the cell: where each run of a length stands, found once.
+  // Each list is walked once per cell by its cursor, as the places asked for only move right (a row of many spans stays linear).
   let ticksCell = -1;
   let ticks = new Map<number, number[]>();
+  let cursors = new Map<number, number>();
   const closingRun = (at: number, length: number) => {
     if (ticksCell !== cellEnd) {
       ticksCell = cellEnd;
       ticks = new Map();
+      cursors = new Map();
       for (let i = at; i < cellEnd; i++) {
         if (row[i] !== "`" || row[i - 1] === "`") continue;
         let run = 1;
@@ -694,9 +705,17 @@ function shownRow(text: string, from: number, to: number): string | undefined {
         ticks.set(run, list);
       }
     }
-    return ticks.get(length)?.find((start) => start > at) ?? -1;
+    const list = ticks.get(length);
+    if (!list) return -1;
+    let next = cursors.get(length) ?? 0;
+    while (next < list.length && list[next] <= at) next++;
+    cursors.set(length, next);
+    return next < list.length ? list[next] : -1;
   };
-  // Where the first `]]` of the cell stands, from a place on.
+  // Where each `]]` of the row stands, found once; a cursor walks them to the right.
+  const closes: number[] = [];
+  for (let at = row.indexOf("]]"); at >= 0; at = row.indexOf("]]", at + 1)) closes.push(at);
+  let nextClose = 0;
   let closeCell = -1;
   let close = -1;
   for (let i = 0; i < row.length; i++) {
@@ -711,7 +730,8 @@ function shownRow(text: string, from: number, to: number): string | undefined {
     } else if (ch === "[" && row[i + 1] === "[") {
       if (closeCell !== cellEnd || close < i + 2) {
         closeCell = cellEnd;
-        close = row.indexOf("]]", i + 2);
+        while (nextClose < closes.length && closes[nextClose] < i + 2) nextClose++;
+        close = nextClose < closes.length ? closes[nextClose] : -1;
         if (close + 2 > cellEnd) close = -1;
       }
       if (close < 0) {
@@ -748,9 +768,16 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   let tags = 0;
   let maths = 0;
   let mathChars = 0;
+  // A formula opens at a run of `$` and closes at the next run as long in its cell (`$x$`, `$$x$$`), as remark-math reads it.
   let inMath = false;
+  let mathRun = 0;
   let marks = 0;
   let inWord = false;
+  let wordStart = -1;
+  // Whether the latest `[` stands glued to a word before it: a link there splits that word's text in pieces of its own.
+  let bracketGlued = false;
+  // What the reading view writes for an `@date` beyond the characters it stands in.
+  let shownChars = 0;
   let backslashes = 0;
   // Whether the stretch since the last boundary (or the row's start) holds anything.
   let held = false;
@@ -761,6 +788,8 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
       if (boundaries > 0 || held) cells++;
       boundaries++;
       held = false;
+      // The table parser splits the row before anything else is read: no formula runs past a cell.
+      inMath = false;
     } else {
       if (TABLE_SYNTAX.includes(ch)) syntax++;
       if (ch === "@" || (ch === ":" && text.charCodeAt(i + 1) === 0x2f && text.charCodeAt(i + 2) === 0x2f)) literals++;
@@ -769,11 +798,29 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
       else if ((ch === "m" || ch === "M") && lowerIs(text, i + 1, "ailto:")) literals++;
       else if ((ch === "x" || ch === "X") && lowerIs(text, i + 1, "mpp:")) literals++;
       if (ch !== " " && ch !== "\t") held = true;
-      if (ch === "]" && text[i + 1] === "(") links++;
-      if (ch === "[" && text[i + 1] === "^") references++;
-      else if (ch === "$" && backslashes % 2 === 0) {
+      // A reference or a link glued to the word before it starts a piece of the cell's text as a word does: `[^1][^1]…` is one word but as many pieces.
+      if (ch === "[") bracketGlued = inWord && !(wordStart === i - 1 && text[i - 1] === "!");
+      if (ch === "]" && text[i + 1] === "(") {
+        links++;
+        if (bracketGlued) words++;
+      }
+      if (ch === "@" && isRelativeDate(text, i, to)) {
+        shownChars += RELATIVE_DATE_SHOWN_CHARS;
+        words += RELATIVE_DATE_SHOWN_WORDS;
+      }
+      if (ch === "[" && text[i + 1] === "^") {
+        references++;
+        if (inWord) words++;
+      } else if (ch === "$" && backslashes % 2 === 0) {
         maths++;
-        inMath = !inMath;
+        if (text[i - 1] !== "$") {
+          let run = 1;
+          while (i + run < to && text[i + run] === "$") run++;
+          if (!inMath) {
+            inMath = true;
+            mathRun = run;
+          } else if (run === mathRun) inMath = false;
+        }
       }
       else if (ch === "=" && text[i + 1] === "=") marks++;
       else if (ch === "#" && (i === from || text[i - 1] === " " || text[i - 1] === "\t" || text[i - 1] === "|") && i + 1 < to && text[i + 1] !== " " && text[i + 1] !== "#") tags++;
@@ -782,14 +829,33 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
     // The characters of a formula: KaTeX lays out what stands between its `$`.
     if (inMath && ch !== "$") mathChars++;
     const word = ch !== " " && ch !== "\t" && !(ch === "|" && backslashes % 2 === 0);
-    if (word && !inWord) words++;
+    if (word && !inWord) {
+      words++;
+      wordStart = i;
+    }
     inWord = word;
     backslashes = ch === "\\" ? backslashes + 1 : 0;
   }
   if (held) cells++;
   // A row is at least one cell: `|` alone is one, empty.
   if (cells === 0 && boundaries > 0) cells = 1;
-  return { chars: to - from, boundaries, cells, syntax, literals, words, references, links, tags, maths, mathChars, marks };
+  return { chars: to - from + shownChars, boundaries, cells, syntax, literals, words, references, links, tags, maths, mathChars, marks };
+}
+
+/**
+ * What the reading view writes for an `@2026-03-04` beyond the eleven
+ * characters and one word it stands in: a date in the app's language
+ * ("depois de amanhã", "2026. 03. 04."), or one written out with its weekday
+ * in any of the ten ("segunda-feira, 16 de fevereiro de 2026") — at most 39
+ * characters and six words.
+ */
+const RELATIVE_DATE_SHOWN_CHARS = 28;
+const RELATIVE_DATE_SHOWN_WORDS = 5;
+
+/** Whether `text[at]` is the `@` of a date the reading view writes anew (`relativeDates` in noteSource.ts): not glued to a word or an escape. */
+function isRelativeDate(text: string, at: number, to: number): boolean {
+  if (at + 11 > to || /[\w\\]/.test(text[at - 1] ?? "")) return false;
+  return /^\d{4}-\d{2}-\d{2}(?!\w)/.test(text.slice(at + 1, at + 12));
 }
 
 /** The parts of a table row's weight (`tableRowParts`). */
@@ -871,7 +937,10 @@ export function tableReadCost(text: string, from: number, to: number, columns = 
  * rows of a hundred e-mail addresses, 258 rows of 150 one-letter words, 377
  * rows of a hundred numbers, 141 rows of a hundred footnote references, 115
  * rows of 80 Markdown links, 67 rows of a hundred formulas, 80 rows of a
- * matrix of sixty cells.
+ * matrix of sixty cells. The shapes the fifth review found the weight
+ * short of (2026-11-16: formulas between two `$` on each side, 120 `[^1]` or
+ * 80 `[l](u)` without blanks) are weighed since and pass at 1.3 × the budget
+ * (`--margin 1.3`), as their neighbours with blanks and with one `$` do.
  * The budget is the calibration's 8 160 000 set
  * lower so that the lightest measured shape sits about 30 % above it (decided
  * 2026-11-13, kept by the maintainer 2026-11-15): 128 MB is an assumption
@@ -1143,8 +1212,8 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     if (/\t/.test(markers) || /\[\^/.test(markers) || /^[ \t]*\[\^/.test(content) || indentOf(content) > 3) return -1;
     // More than four blanks behind a marker make the item's content indented code, and so do more than three in front of a quote's.
     if (/(?:^|[ >])(?:[-+*]|\d{1,9}[.)]) {5,}/.test(markers) || /> {5,}/.test(markers)) return -1;
-    const first = /^ *(\d+)[.)]/.exec(content);
-    if (first && run && Number(first[1]) !== 1) return -1;
+    // Under a paragraph every item the line opens interrupts it, the inner ones as well: an ordered one opens only as `1` (not `01`, not `2`), or the line is text of the paragraph.
+    if (run && /(?:^|[^\d])(?!1[.)])\d{1,9}[.)]/.test(markers)) return -1;
     return head.depth;
   };
   /**

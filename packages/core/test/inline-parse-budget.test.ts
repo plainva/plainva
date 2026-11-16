@@ -783,7 +783,8 @@ describe("where a table ends", () => {
     expect(tableMarkerCost("> ".repeat(12))).toBe(24 + 12 * TABLE_MARKER_WEIGHT);
     const formula = "| $\\int_0^1 x\\,dx$ | a$ |";
     expect(tableRowParts(formula, 0, formula.length).maths).toBe(3);
-    expect(tableRowParts(formula, 0, formula.length).mathChars).toBe("\\int_0^1 x\\,dx".length + " |".length);
+    // The open `$` of the second cell runs to its end, not past its bar: the table parser splits the row first.
+    expect(tableRowParts(formula, 0, formula.length).mathChars).toBe("\\int_0^1 x\\,dx".length + " ".length);
     // Quotes and lists in each other as well (the hunt of 2026-11-15 drew `> - > - … |h|`): the scan is sure of their
     // blocks and reads the table exactly — under the budget as a table, over it as written.
     for (const [prefix, rest] of [["> ".repeat(12), "> ".repeat(12)], ["- ".repeat(12), "  ".repeat(12)], ["> - ".repeat(6), ">   ".repeat(6)]]) {
@@ -796,6 +797,77 @@ describe("where a table ends", () => {
       expect(overBudgetInlineRanges(table(Math.ceil((1.05 * TABLE_READ_BUDGET) / cost))), prefix.slice(0, 4)).toHaveLength(1);
     }
   });
+
+  it("weighs a formula between two `$`, references and links without blanks, and dates as the reading view writes them", () => {
+    // The review of 2026-11-16: `$$x$$` in a cell is a formula to remark-math
+    // as `$x$` is, but the scan turned at every `$` and counted none of it
+    // (the reading view ran out of memory at 150 rows the scan read as a
+    // table); a formula closes at a run of `$` as long as the one it opened
+    // with, and runs no further than its cell.
+    const dd = "| $$\\frac{a}{b}$$ | $x$ |";
+    expect(tableRowParts(dd, 0, dd.length).mathChars).toBe("\\frac{a}{b}".length + 1);
+    expect(tableRowParts("| $a$$b$ |", 0, 10).mathChars).toBe(2);
+    expect(tableRowParts("| $a | b$ |", 0, 11).mathChars).toBe(3);
+    // `[^1][^1]…` is one word but as many pieces of the cell's text: each
+    // reference and link glued to the word before it counts as a word.
+    expect(tableRowParts("| [^1][^1][^1] |", 0, 16).words).toBe(3);
+    expect(tableRowParts("| [l](u)[l](u) |", 0, 16).words).toBe(2);
+    expect(tableRowParts("| ![i](p)![i](p) |", 0, 18).words).toBe(2);
+    expect(tableRowParts("| [^1] [^1] [site](https://a.b) |", 0, 33).words).toBe(3);
+    // `@2026-03-04` is a date in the app's language, or written out with its weekday: up to 39 characters and six words.
+    const dated = "| @2026-03-04 | a@2026-03-04 |";
+    expect(tableRowParts(dated, 0, dated.length).chars).toBe(dated.length + 28);
+    expect(tableRowParts(dated, 0, dated.length).words).toBe(2 + 5);
+    const formats = [
+      (iso: string) => new Date(iso).toLocaleDateString("de-DE", { dateStyle: "full" }),
+      (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "full" }),
+      (iso: string) => new Date(iso).toLocaleDateString("es", { dateStyle: "full" }),
+      () => "depois de amanhã",
+      () => "2026. 03. 04.",
+    ];
+    for (const formatDate of formats) {
+      const row = "| @2026-02-16 @2026-12-30 | x |";
+      const shown = prepareReaderSource(row, { formatDate }).text;
+      const index = tableRowParts(row, 0, row.length);
+      const read = tableRowParts(shown, 0, shown.length);
+      expect(index.chars, shown).toBeGreaterThanOrEqual(read.chars);
+      expect(index.words, shown).toBeGreaterThanOrEqual(read.words);
+    }
+  });
+
+  it("reads no table where an item from 2 in an item under a paragraph makes the header text of the paragraph", () => {
+    // Under a paragraph every item a line opens interrupts it, the inner ones
+    // as well: an ordered one opens only as `1`. The scan held the outer
+    // number alone to that, read `- 2. > h|h` as a table, took its rows out
+    // of the paragraph's measure, and the parser read the paragraph's
+    // brackets for 17 s (review, 2026-11-16).
+    const cases: Array<[string, string, boolean]> = [
+      ["text\n- 2. > h|h\n     > -|-", "     > ", false],
+      ["> text\n> - 2. > h|h\n>      > -|-", ">      > ", false],
+      ["text\n1. 10. h|h\n       -|-", "       ", false],
+      ["text\n01. h|h\n    -|-", "    ", false],
+      ["text\n- 1. h|h\n     -|-", "     ", true],
+    ];
+    for (const [head, rest, table] of cases) {
+      const note = `# T\n\n${head}\n${Array.from({ length: 30 }, () => `${rest}a|b`).join("\n")}\n\nbelow\n`;
+      const exact: boolean[] = [];
+      overBudgetInlineRanges(note, { table: (_first, _last, isExact) => exact.push(isExact) });
+      expect(tablesOf(rawTree(note)).length > 0, head).toBe(table);
+      if (!table) expect(exact.includes(true), head).toBe(false);
+    }
+    const brackets = `# T\n\ntext\n- 2. > h|h\n     > -|-\n${Array.from({ length: 550 }, () => `     > ${"]".repeat(80)}`).join("\n")}\n\nbelow\n`;
+    within(2 * SECONDS, () => parseMarkdownTree(brackets));
+  }, 60 * SECONDS);
+
+  it("finds the wiki links of a long row in time linear in its length", () => {
+    // `closingRun` searched each run of backticks from the cell's start, and
+    // a cell without `]]` searched the rest of the row for one: a row with a
+    // wiki link and 160 000 code spans took the scan 16 s (review, 2026-11-16).
+    const spans = `# Note\n\n[[x]] ${"`a` ".repeat(160_000)}|\n|---|\n\nbelow\n`;
+    within(1_500, () => overBudgetInlineRanges(spans));
+    const open = `| h |\n|---|\n|${" [[a |".repeat(40_000)}\n`;
+    within(1_500, () => overBudgetInlineRanges(open));
+  }, 60 * SECONDS);
 
   it("weighs a row with wiki links at least as the reading view writes it, part by part", () => {
     // The hunt of 2026-11-15 drew `[[`$_~t*[`<!*…]]`: the reading view spells
@@ -883,7 +955,7 @@ describe("where a table ends", () => {
     // one line inside one run the scan measures, unless the scan was unsure
     // and weighed the table generously (then it measures the run as well).
     const contents = ["| a | b |", "|---|---|", "a | b", "--|--", "|-", "-|", "a", "bar", "*a* | b", "_x_ | y", "<b>q</b> | z", "<div>", "<divx>", "<x-y> | b", "# h", "#a | x", "- x | y", "-", "- ", "1. a", "2. a", "1)", "10.", "***", "---", "===", "```", "~~~", "``", "[^1]: a", "[^ x]: a", "[x]: http://a", "", "    a | b", "  a | b", "\t| a |", "<!-- c", "<!-- a -->", "<?x", "<!X", "<!", "* * *", "+a", "| `a\\|b` |", "\\| a |", "> [!note] t", "h|h", "-|-", "|:-:|", "| x |", "x |", "<p/>", "</td>", "[^a b]: x", " | a |", "   |-|", "+", "1.", "    x", "\tx", "x\\", "- [ ] |", ":-", "-:", ":-:", " :- ", ":-\u00a0", "-|-\u00a0", "|-|\u00a0", "\u00a0| a |", "|", "||", "==", "--", "\u3000:-"];
-    const prefixes = ["", "", "", "> ", "- ", "  ", "> > ", ">", "   ", "1. ", "    ", "\t", "- > ", "> - ", ">   "];
+    const prefixes = ["", "", "", "> ", "- ", "  ", "> > ", ">", "   ", "1. ", "    ", "\t", "- > ", "> - ", ">   ", "- 2. ", "- 2. > ", "1. 10. ", "01. ", "> - 2. > ", "- 1. "];
     let seed = 20261113;
     const random = () => {
       seed = (seed + 0x6d2b79f5) >>> 0;

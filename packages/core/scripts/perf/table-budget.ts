@@ -80,6 +80,8 @@ interface Shape {
   /** The note's line ends are `\r\n`; it starts with a byte order mark. */
   crlf?: boolean;
   bom?: boolean;
+  /** The parser may read it as a paragraph (a nested item from 2 under a paragraph): then it must do so in time, as plain text. */
+  mayBeText?: boolean;
 }
 
 const BS = "\\";
@@ -184,6 +186,15 @@ export const SHAPES: Record<string, Shape> = {
   mathsqrt: { header: "| h |\n|---|", row: () => `| $${"\\sqrt{".repeat(30)}x${"}".repeat(30)}$ |` },
   mathmatrix: { header: "| h |\n|---|", row: () => `| $\\begin{matrix}${"a&".repeat(60)}b\\end{matrix}$ |` },
   mathbig: { header: "| h |\n|---|", row: () => `| $${"\\overbrace{x}^{y}".repeat(30)}$ |` },
+  // The same formulas between two `$` on each side: remark-math reads `$$x$$` in a cell as a formula too (review, 2026-11-16).
+  mathdd: { header: "| h |\n|---|", row: () => `| $$${"\\frac{a}{b}".repeat(40)}$$ |` },
+  mathddmatrix: { header: "| h |\n|---|", row: () => `| $$\\begin{matrix}${"a&".repeat(60)}b\\end{matrix}$$ |` },
+  mathddsqrt: { header: "| h |\n|---|", row: () => `| $$${"\\sqrt{".repeat(30)}x${"}".repeat(30)}$$ |` },
+  mathddbig: { header: "| h |\n|---|", row: () => `| $$${"\\overbrace{x}^{y}".repeat(30)}$$ |` },
+  // References and links without a blank between them: one word, but as many pieces of the cell's text (review, 2026-11-16).
+  refstight: { header: "| h |\n|---|", row: () => `| ${"[^1]".repeat(120)} |`, after: "\n[^1]: x" },
+  mdtight: { header: "| h |\n|---|", row: () => `| ${"[l](u)".repeat(80)} |` },
+  imgtight: { header: "| h |\n|---|", row: () => `| ${"![i](p)".repeat(80)} |` },
   // Addresses and `www.` without blanks between: one word a row, a literal each.
   emailc: { header: "| h |\n|---|", row: () => `| ${"a@b.cc,".repeat(100)}|` },
   wwwshort: { header: "| h |\n|---|", row: () => `| ${"www.a,".repeat(100)}|` },
@@ -237,7 +248,24 @@ function random(...keys: number[]): () => number {
 /** Where a generated table stands. */
 const WRAPS = ["none", "quote", "quote2", "quote3", "list", "callout", "quote12", "list12", "mixed12"] as const;
 
-interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number]; units: string | null; crlf: boolean; bom: boolean }
+interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number]; units: string | null; crlf: boolean; bom: boolean; tight: string | null; lead: (typeof LEADS)[number]; long: boolean }
+
+/**
+ * Units a cell may be made of without a blank between them (`tight`): a run
+ * of references, links, images or wiki links is one word but as many pieces
+ * of the cell's text, and `$$x$$` is a formula as `$x$` is (review,
+ * 2026-11-16: neither was drawn, and both ran out of memory at the budget).
+ */
+const TIGHT_UNITS = ["[^1]", "[l](u)", "![i](p)", "[[n]]", "$$x$$", "$$\\frac{a}{b}$$", "$$\\sqrt{\\sqrt{x}}$$", "[^1][[n]]", "`a`", "]]"] as const;
+
+/**
+ * A paragraph line right above the table and items in items on its header
+ * (`lead`): under a paragraph an ordered item opens only at `1`, the inner
+ * ones as well, or the header is text of the paragraph — which the scan must
+ * then not read as a table (review, 2026-11-16: it did, and the parser took
+ * 17 s over the paragraph's brackets).
+ */
+const LEADS = ["none", "item2", "item2q", "item10", "item01", "item1"] as const;
 
 /**
  * What a cell may be made of besides letters: words and numbers between
@@ -275,10 +303,15 @@ function settingsOf(seed: number, k: number): GeneratedSettings {
     units: k >= 12 && r() < 0.5 ? (r() < 0.4 ? "mix" : pick(UNITS)) : null,
     crlf: r() < 0.1,
     bom: r() < 0.1,
+    // Drawn after the others, so that a seed's earlier settings stay as they were.
+    tight: k >= 12 && r() < 0.25 ? pick(TIGHT_UNITS) : null,
+    lead: k >= 12 && r() < 0.15 ? pick(LEADS.slice(1)) : "none",
+    // A few rows that are long on their own: a wiki link and thousands of code spans after it, the scan's search for a span's end in each.
+    long: k >= 12 && r() < 0.06,
   };
 }
 
-function generatedShape(seed: number, k: number): Shape {
+function generatedShape(seed: number, k: number, scale = 1): Shape {
   const s = settingsOf(seed, k);
   const join = (cells: string[]) => {
     const inner = cells.join(s.blanks ? " | " : "|");
@@ -287,6 +320,12 @@ function generatedShape(seed: number, k: number): Shape {
   const cell = (i: number, c: number) => {
     const r = random(seed, k, i, c);
     if (c > 0 && r() < s.empty) return "";
+    // A long row (`scale` makes it longer, for the scan's time against its length): in its first cell.
+    if (s.long && c === 0) return `c [[x]] ${"`a` ".repeat(2000 * scale)}`;
+    if (s.tight) {
+      const count = 1 + Math.floor(r() * (s.length + 1));
+      return `c ${s.tight.repeat(count)}`;
+    }
     if (s.units) {
       const count = 1 + Math.floor(r() * (s.length + 1));
       const one = () => (s.units === "mix" ? UNITS[Math.floor(r() * UNITS.length)] : s.units!);
@@ -306,29 +345,34 @@ function generatedShape(seed: number, k: number): Shape {
   };
   // The markers of the block the table stands in: on the header line, and on every line after it.
   const deep = (unit: string, continued: string, levels: number) => [unit.repeat(levels), continued.repeat(levels)];
-  const [first, rest] = { none: ["", ""], quote: ["> ", "> "], quote2: ["> > ", "> > "], quote3: ["> > > ", "> > > "], list: ["- ", "  "], callout: ["> ", "> "], quote12: deep("> ", "> ", 12), list12: deep("- ", "  ", 12), mixed12: deep("> - ", ">   ", 6) }[s.wrap];
+  const [wrapFirst, wrapRest] = { none: ["", ""], quote: ["> ", "> "], quote2: ["> > ", "> > "], quote3: ["> > > ", "> > > "], list: ["- ", "  "], callout: ["> ", "> "], quote12: deep("> ", "> ", 12), list12: deep("- ", "  ", 12), mixed12: deep("> - ", ">   ", 6) }[s.wrap];
+  // Under a paragraph line: items in items on the header, the table in the innermost.
+  const leads = { none: ["", "", ""], item2: ["text", "- 2. > ", "     > "], item2q: ["> text", "> - 2. > ", ">      > "], item10: ["text", "1. 10. ", "       "], item01: ["text", "01. ", "    "], item1: ["text", "- 1. ", "     "] } as const;
+  const [para, leadFirst, leadRest] = leads[s.lead];
+  const [first, rest] = s.lead === "none" ? [wrapFirst, wrapRest] : [leadFirst, leadRest];
   return {
+    mayBeText: s.lead !== "none",
     crlf: s.crlf,
     bom: s.bom,
     // The references of a table's cells have their definition below it.
     after: s.units === "[^1]" || s.units === "mix" ? `${rest}\n${rest}[^1]: x` : undefined,
-    before: s.wrap === "callout" ? "> [!info] Generated" : undefined,
+    before: s.lead !== "none" ? para : s.wrap === "callout" ? "> [!info] Generated" : undefined,
     header: `${first}${join(Array.from({ length: s.columns }, () => "h"))}\n${rest}${join(Array.from({ length: s.columns }, () => "---"))}`,
     row: (i) => rest + join(Array.from({ length: s.columns }, (_, c) => cell(i, c))),
   };
 }
 
 /** A fixed shape by its name, a generated one as `gen:<seed>:<k>`. */
-function shapeOf(name: string): Shape {
+function shapeOf(name: string, scale = 1): Shape {
   if (name.startsWith("gen:")) {
     const [, seed, k] = name.split(":");
-    return generatedShape(Number(seed), Number(k));
+    return generatedShape(Number(seed), Number(k), scale);
   }
   return SHAPES[name];
 }
 
-export function shapeTable(name: string, rows: number): string {
-  const shape = shapeOf(name);
+export function shapeTable(name: string, rows: number, scale = 1): string {
+  const shape = shapeOf(name, scale);
   const text = `${shape.start ?? ""}# Table\n\n${shape.before ? `${shape.before}\n` : ""}${shape.header}\n${Array.from({ length: rows }, (_, i) => shape.row(i)).join("\n")}\n${shape.after ? `${shape.after}\n` : ""}\nbelow [[Link]]\n`;
   return `${shape.bom ? "\uFEFF" : ""}${shape.crlf ? text.replace(/\n/g, "\r\n") : text}`;
 }
@@ -401,18 +445,20 @@ const HERE = fileURLToPath(import.meta.url);
 const CORE = path.resolve(path.dirname(HERE), "../..");
 
 /** Whether both parses read `rows` rows of `name` under the cap, each in a process of its own. */
-function passes(name: string, rows: number, bounded: boolean): { ok: boolean; ms: number; why: string } {
+function passes(name: string, rows: number, bounded: boolean): { ok: boolean; ms: number; slowest: number; why: string } {
   let ms = 0;
+  let slowest = 0;
   for (const parse of ["index", "tree", "reader"]) {
     const run = spawnSync(process.execPath, [`--max-old-space-size=${HEAP_MB}`, "--import", "tsx", HERE, bounded ? "--child" : "--child-unbounded", name, String(rows), parse], { cwd: CORE, encoding: "utf8", timeout: 300_000 });
     const out = /^ok (\d+)/m.exec(run.stdout ?? "");
     if (run.status !== 0 || !out) {
       const why = /not read as a table[^\n]*/.exec(run.stderr ?? "")?.[0] ?? (/heap out of memory|Allocation failed/i.test(run.stderr ?? "") ? "out of memory" : `exit ${run.status}`);
-      return { ok: false, ms, why: `${parse}: ${why}` };
+      return { ok: false, ms, slowest, why: `${parse}: ${why}` };
     }
     ms += Number(out[1]);
+    slowest = Math.max(slowest, Number(out[1]));
   }
-  return { ok: true, ms, why: "" };
+  return { ok: true, ms, slowest, why: "" };
 }
 
 /** The most rows of `name` both parses read under the cap, to within 4 %. */
@@ -668,18 +714,61 @@ function child(name: string, rows: number, parse: string, bounded: boolean): voi
   // A table the budget reads as written costs what plain text costs: only a table read as a table counts, in whatever block it stands.
   const hasTable = (node: { type: string; children?: unknown[] } | undefined): boolean =>
     !!node && (node.type === "table" || (node.children ?? []).some((child) => hasTable(child as { type: string; children?: unknown[] })));
-  if (!hasTable(tree as { type: string; children?: unknown[] })) throw new Error(`not read as a table: ${tree.children?.map((node) => node.type).join(", ")}`);
+  if (!shapeOf(name).mayBeText && !hasTable(tree as { type: string; children?: unknown[] })) throw new Error(`not read as a table: ${tree.children?.map((node) => node.type).join(", ")}`);
   console.log(`ok ${Math.round(performance.now() - started)}`);
 }
 
 /** `perf:tables -- --calibrate` and `--check` (`many-tables.ts` hands them here). */
+/** The longest a parse of a generated table at the budget may take: a paragraph's brackets read in the square of their count took 17 s (review, 2026-11-16). */
+const HUNT_PARSE_MS = 20_000;
+
+/**
+ * Whether the scan reads the table of `name` as the parser does where it is
+ * sure: a table the scan reads exactly must be one the parser reads too —
+ * else its rows are taken out of the paragraph's measure while the parser
+ * reads them as that paragraph (review, 2026-11-16: an item from 2 inside an
+ * item under a paragraph). `null` where they agree, else what differs.
+ */
+function scanAgrees(name: string, rows: number): string | null {
+  const text = shapeTable(name, rows);
+  const exact: boolean[] = [];
+  overBudgetInlineRanges(text, { table: (_first, _last, isExact) => exact.push(isExact) });
+  if (!exact.includes(true)) return null;
+  const hasTable = (node: { type: string; children?: unknown[] }): boolean => node.type === "table" || (node.children ?? []).some((child) => hasTable(child as { type: string; children?: unknown[] }));
+  return hasTable(parseMarkdownTree(text) as { type: string; children?: unknown[] }) ? null : "the scan reads a table exactly where the parser reads a paragraph";
+}
+
+/**
+ * Whether the scan's time grows with the note and not faster: the table of
+ * `name` at its rows and at eight times as many (a long row eight times as
+ * long), the faster of two runs each. `null` where it does, else the times.
+ */
+function scanIsLinear(name: string, rows: number): string | null {
+  const time = (text: string) => {
+    let best = Infinity;
+    for (let run = 0; run < 2; run++) {
+      const started = performance.now();
+      overBudgetInlineRanges(text);
+      best = Math.min(best, performance.now() - started);
+    }
+    return best;
+  };
+  const long = name.startsWith("gen:") && settingsOf(Number(name.split(":")[1]), Number(name.split(":")[2])).long;
+  const small = time(shapeTable(name, rows));
+  const large = time(long ? shapeTable(name, rows, 8) : shapeTable(name, rows * 8));
+  return large <= 16 * small + 200 ? null : `the scan took ${Math.round(small)} ms and ${Math.round(large)} ms at eight times the size`;
+}
+
 /**
  * `--hunt <n> [--minutes <m>] [--seed <s>]`: n generated tables of a seed
  * drawn anew (or given), each at the budget, read by every parser under the
  * capped heap — what the performance workflow runs on every push, so that the
- * next shape the weight misses is found by a run, not by a review. Stops
- * after m minutes; a table that does not pass is printed with its seed, its
- * number and its settings, and the run fails.
+ * next shape the weight misses is found by a run, not by a review. Each must
+ * also be read in time (`HUNT_PARSE_MS`), be read by the scan as the parser
+ * reads it where the scan is sure (`scanAgrees`), and cost the scan time in
+ * its size, not more (`scanIsLinear`). Stops after m minutes; a table that
+ * does not pass is printed with its seed, its number and its settings, and
+ * the run fails.
  */
 function hunt(args: string[]): boolean {
   const at = (flag: string, fallback: number) => (args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : fallback);
@@ -692,19 +781,41 @@ function hunt(args: string[]): boolean {
   console.log(`hunt     ${count} generated tables, seed ${seed}, at most ${minutes} min; budget ${TABLE_READ_BUDGET}`);
   for (let k = 0; k < count && performance.now() - started < minutes * 60_000; k++) {
     const name = `gen:${seed}:${k}`;
-    const rows = rowsAt(name, TABLE_READ_BUDGET);
+    const rows = Math.max(1, rowsAt(name, TABLE_READ_BUDGET));
     const run = passes(name, rows, true);
     tried++;
-    if (!run.ok) {
+    const why = !run.ok ? run.why : run.slowest > HUNT_PARSE_MS ? `a parse took ${run.slowest} ms` : (scanAgrees(name, Math.min(rows, 20)) ?? scanIsLinear(name, rows));
+    if (why) {
       failed.push(name);
-      console.log(`FAIL     ${name} at ${rows} rows: ${run.why}; ${JSON.stringify(settingsOf(seed, k))}; first row ${JSON.stringify(shapeOf(name).row(0).slice(0, 200))}`);
+      console.log(`FAIL     ${name} at ${rows} rows: ${why}; ${JSON.stringify(settingsOf(seed, k))}; first row ${JSON.stringify(shapeOf(name).row(0).slice(0, 200))}`);
     }
   }
   console.log(`hunt     ${tried} tables in ${Math.round((performance.now() - started) / 1000)} s: ${failed.length ? `${failed.length} FAILED (${failed.join(", ")}) — take each into SHAPES and calibrate anew` : "every table passes"}`);
   return failed.length === 0;
 }
 
+/**
+ * `--margin <factor> <shape…>`: each shape's table at `factor` times the
+ * budget, read by every parser without the budget under the capped heap —
+ * the room a shape has beyond the budget (`--margin 1.3 refstight mdtight`).
+ */
+function margin(args: string[]): boolean {
+  const factor = Number(args[args.indexOf("--margin") + 1]);
+  let all = true;
+  for (const name of args.slice(args.indexOf("--margin") + 2)) {
+    const rows = rowsAt(name, TABLE_READ_BUDGET * factor);
+    const run = passes(name, rows, false);
+    all &&= run.ok;
+    console.log(`margin   ${name.padEnd(12)} at ${factor} x the budget ${String(rows).padStart(6)} rows ${run.ok ? "pass" : `FAIL (${run.why})`} (${run.ms} ms)`);
+  }
+  return all;
+}
+
 export async function runTableBudget(args: string[]): Promise<void> {
+  if (args.includes("--margin")) {
+    if (!margin(args)) process.exitCode = 1;
+    return;
+  }
   if (args.includes("--hunt")) {
     if (!hunt(args)) process.exitCode = 1;
     return;

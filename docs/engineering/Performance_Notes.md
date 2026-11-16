@@ -570,19 +570,51 @@ The lightest limits — sixteen one-character cells in a quote in a list item, f
 footnote references, Markdown links, `$a$`, a matrix in KaTeX — sit 30 % above the budget (the limit
 search is exact to 4 %).
 
+The fifth review (2026-11-16) found shapes the weight undercounted; they are weighed since and are
+held by `--margin 1.3` (each table at 1.3 × the budget, without the budget, under 128 MB), not by
+a limit search. The new shapes are formulas between two `$` on each side (`$$…$$`, which remark-math
+reads in a cell as `$…$`, and the scan turned at every `$` and counted none of its content), 120
+`[^1]` and 80 `[l](u)` or `![i](p)` without blanks between them (one word, but as many pieces
+of the cell's text: each one glued to the word before it now counts as a word as well). All of
+them pass at 1.3 ×, and so do the shapes nearest to them:
+
+| Shape | At 1.3 × the budget | At the budget |
+|---|---|---|
+| 40 `\frac{a}{b}` in one `$$…$$` | 37 rows, pass | 29 |
+| a matrix of sixty cells in `$$…$$` | 104, pass | 80 |
+| thirty nested `\sqrt` in `$$…$$` | 77, pass | 59 |
+| thirty `\overbrace` in `$$…$$` | 33, pass | 25 |
+| 120 `[^1]` without blanks | 153, pass | 118 |
+| 80 `[l](u)` without blanks | 150, pass | 116 |
+| 80 `![i](p)` without blanks | 129, pass | 99 |
+| a hundred `[^1]`, 80 `[l](u)`, 80 `![i](p)` with blanks | 183, 150, 129, pass | 141, 116, 99 |
+| the same four with `$…$`, and a hundred `$a$` | 38, 104, 77, 33, 87, pass | — |
+
+An `@2026-03-04` weighs what the reading view writes for it beyond its eleven characters: at most
+28 characters and five words more, the longest date of the ten app languages written out with its
+weekday ("segunda-feira, 16 de fevereiro de 2026"); the reading view writes a shorter one
+("übermorgen", "04.03.2026").
+
 **What the criterion covers, and what not.** Covered: one table alone in an otherwise empty
 note, read by the index parse, the note-source parse and the reading view as the core can run it
 — the note prepared for it (`prepareReaderSource`), GFM, `remark-math` and KaTeX for a note with
 math, its HTML tree — each under a heap of 128 MB, for the shapes measured and the shapes the
 search draws (words, numbers, every literal, references with their definition, links, tags,
-formulas of some length, highlights, CJK, emoji, CRLF, a byte order mark, quotes, lists, callouts,
-blocks twelve deep). The desktop app's own remark plugins (tag pills, highlights) are held by
+formulas of any length between one or two `$`, references, links, images and wiki links without
+blanks between them, highlights, CJK, emoji, CRLF, a byte order mark, quotes, lists, callouts,
+blocks twelve deep, items in items under a paragraph line). The desktop app's own remark plugins (tag pills, highlights) are held by
 nodes in `readerTableBudget.test.tsx`, not by heap. Not covered: what React and the DOM hold
 beyond the page, a note embedded in a cell (`![[…]]` expands in the reading view), code blocks
 and Mermaid diagrams in cells, and the memory of a note of many tables (L14). The gauge tests
 against events and nodes catch shapes dense in structure; they do not see memory — the heap
 search does, in `--calibrate --search` and in the performance workflow's `--hunt`, which runs on
-every push and daily on `main`, never cancelled by a push.
+every push and daily on `main`, never cancelled by a push. The hunt holds three more things of each
+drawn table (since 2026-11-16): every parse ends within 20 s; where the scan reads a table exactly,
+the parser reads one too (an item from 2 inside an item under a paragraph makes the header text
+of the paragraph, and the scan read it as a table, took its rows out of the paragraph's measure,
+and the parser spent 17 s on the paragraph's brackets); and the scan's time grows with the note,
+not faster (at eight times the rows, or a long row eight times as long, at most sixteen times the
+time: a row with a wiki link and 160 000 code spans took the scan 16 s, now 0.15 s).
 
 **What the budget costs against `origin/main`** (the fourth review, `review-tables-5/cap.mts`;
 the maintainer decided on 2026-11-15 to keep the margin of about 30 %). The table gives the most
@@ -601,6 +633,11 @@ on this branch; the last column is the branch's lower limit over main's.
 
 A table eight quotes deep is not in the table: on main its search did not end within 15 minutes,
 since main weighs no quote level. A column of integrals was not measured against main.
+
+Against the state reviewed fifth (`c2e832bf7`) the rework of 2026-11-16 leaves every form above
+as it was (3 517, 2 541, 1 800, 2 376, 1 402 and 60 rows, in the note and in the reading view), and
+so for 80 Markdown links and a formula a row; a table with an `@date` in a cell of each row loses
+(3 005 rows before, 2 176 now), for what the reading view may write for the date.
 
 Main and the branch weigh differently, so the loss is not the margin alone. The margin of about
 30 % costs every form the same; beyond it, the branch weighs a cell and a row at what the reading
