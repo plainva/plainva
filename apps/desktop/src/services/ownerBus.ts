@@ -22,6 +22,7 @@ import {
 } from "./windowManager";
 import { holdersOf, setHolderVault } from "./vaultRuntimes";
 import { clearDraft, recordDraft, relocateDrafts } from "./draftJournal";
+import { noteDraftWindow, noteDraftsFlushed } from "./windowDraftFlush";
 import { syncStatusStore } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { withPendingWrite } from "./pendingWrites";
@@ -774,10 +775,19 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision, sessionId }) => {
+    await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision, sessionId }, from) => {
       // The journal lives on disk next to the owner's own drafts; an auxiliary
       // window has no write access to it (aux capability) and needs none.
+      // The sender is remembered: before it (or the app) goes, it is asked to
+      // write what it still buffers (A7, `windowDraftFlush.ts`).
+      noteDraftWindow(from);
       await recordDraft(vaultPath, notePath, text, revision, sessionId);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("drafts-flushed", ({ id }, from) => {
+      noteDraftsFlushed(id, from);
     }),
   );
 

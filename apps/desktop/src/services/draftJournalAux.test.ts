@@ -9,9 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const requests: Array<[string, Record<string, unknown>]> = [];
 vi.mock("./windowContext", () => ({ isOwnerWindow: () => false }));
+const broadcasts = new Map<string, (payload: { id: string; labels: string[] | null }) => void>();
 vi.mock("./windowBus", () => ({
   getWindowBus: async () => ({
+    label: "aux-1",
     request: async (command: string, args: Record<string, unknown>) => { requests.push([command, args]); },
+    onBroadcast: async (channel: string, handler: (payload: { id: string; labels: string[] | null }) => void) => { broadcasts.set(channel, handler); return () => {}; },
   }),
 }));
 // An auxiliary window never writes the journal itself: any write command here is a failure.
@@ -66,5 +69,20 @@ describe("the draft journal of an auxiliary window", () => {
     dropDraft(V, "M.md", "aux-editor");
     await vi.advanceTimersByTimeAsync(450);
     expect(requests.map(([command, args]) => `${command}:${String(args.notePath)}:${String(args.text)}`)).toEqual(["draft-record:N.md:closing text"]);
+  });
+
+  it("writes what it buffers when the owner asks before the window goes, then says so (A7)", async () => {
+    writeDraft(V, "N4.md", () => "Hel", 1, "aux-editor");
+    await vi.advanceTimersByTimeAsync(0);
+    writeDraft(V, "N4.md", () => "Hello", 2, "aux-editor");
+    const flush = broadcasts.get("drafts-flush");
+    expect(flush, "listening once it buffered a snapshot").toBeDefined();
+    flush!({ id: "f1", labels: ["other-window"] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(requests.map(([command]) => command), "not asked: nothing happens").toEqual(["draft-record"]);
+    flush!({ id: "f2", labels: ["aux-1"] });
+    await vi.advanceTimersByTimeAsync(0);
+    // Long before the 400-ms interval would have written it.
+    expect(requests.map(([command, args]) => `${command}:${String(args.text ?? args.id)}`)).toEqual(["draft-record:Hel", "draft-record:Hello", "drafts-flushed:f2"]);
   });
 });

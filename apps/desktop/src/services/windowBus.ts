@@ -135,6 +135,13 @@ export interface BroadcastMap {
    * person. The owner does not send this to a window that never reported any.
    */
   "close-requested": { label: string };
+  /**
+   * Owner to the windows named (`null`: every one): write the draft snapshots
+   * you have buffered now — this window, or the app, is about to go (A7). Each
+   * named window answers with `drafts-flushed` once its snapshots reached the
+   * owner; the owner waits for that, never longer than a moment.
+   */
+  "drafts-flush": { id: string; labels: string[] | null };
 }
 
 export type BroadcastChannel = keyof BroadcastMap;
@@ -239,6 +246,8 @@ export interface RpcMap {
   "draft-clear": { args: { vaultPath: string; notePath: string; upToRevision: number | null; sessionId?: string }; result: void };
   /** Journal entries follow a move or rename made in the app (issue 113). */
   "draft-relocate": { args: { vaultPath: string; moves: Array<{ from: string; to: string }> }; result: void };
+  /** The answer to `drafts-flush`: what this window had buffered has reached the owner. */
+  "drafts-flushed": { args: { id: string }; result: void };
   /**
    * Open this content wherever it belongs: the owner focuses the window that
    * already has it, otherwise it tells the caller to show it itself. `where`
@@ -464,6 +473,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "set-content": "app",
   "reveal-path": "app",
   "close-requested": "app",
+  "drafts-flush": "app",
 };
 
 /**
@@ -550,6 +560,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "draft-record": "app",
   "draft-clear": "app",
   "draft-relocate": "app",
+  "drafts-flushed": "app",
   "flush-pending": "app",
 };
 

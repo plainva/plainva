@@ -1,6 +1,7 @@
 import { buildWindowQuery, windowStatePrefix, type VaultWindowRole, type WindowPreset } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
 import { getWindowBus } from "./windowBus";
+import { flushWindowDrafts, forgetDraftWindow } from "./windowDraftFlush";
 import { setPendingSearchJump } from "@plainva/ui";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
@@ -398,6 +399,11 @@ export async function openAuxWindow(params: {
       await win.setFocus().catch(() => {});
       return;
     }
+    // What its editors typed in the last moments is still in the window's
+    // buffer, not yet in the journal (A7): written first, then the window goes.
+    // Bounded, and only for a window that ever buffered a draft.
+    await flushWindowDrafts([label]);
+    forgetDraftWindow(label);
     holdsWork.delete(label);
     // Its CURRENT vault, not the one it opened with: since stage D a window can
     // switch, and persisting the old list would leave the record it just lost

@@ -252,6 +252,7 @@ export async function recordDraft(
  * revision takes it out of the buffer (`clearDraft`).
  */
 export function writeDraft(vaultPath: string, notePath: string, text: string | (() => string | null), revision: number, sessionId: string): void {
+  if (!isOwnerWindow()) void answerDraftFlushes();
   writer().write(vaultPath, notePath, text, revision, sessionId);
 }
 
@@ -293,6 +294,36 @@ export function flushDraftsOnLeave(page: LeaveEvents, document?: LeaveEvents & {
 }
 
 if (typeof window !== "undefined" && typeof document !== "undefined") flushDraftsOnLeave(window, document);
+
+/**
+ * An auxiliary window answers the owner's `drafts-flush` (A7): the owner asks
+ * before this window, or the app, goes, and destroys it only after the answer
+ * (or a moment). Installed with the first snapshot this window buffers — the
+ * owner only asks windows that sent one — and never while the module loads.
+ */
+let flushAnswer: Promise<void> | null = null;
+export function answerDraftFlushes(): Promise<void> {
+  flushAnswer ??= (async () => {
+    try {
+      const bus = await getWindowBus();
+      await bus.onBroadcast("drafts-flush", ({ id, labels }) => {
+        if (labels !== null && !labels.includes(bus.label)) return;
+        void flushDrafts()
+          .catch(() => {
+            // silent: the window is about to go; the answer below still lets the owner close it.
+          })
+          .then(() => bus.request("drafts-flushed", { id }))
+          .catch(() => {
+            // silent: without the answer the owner closes the window after its deadline (`windowDraftFlush.ts`).
+          });
+      });
+    } catch {
+      // No bus (browser, test): nobody will ask.
+      flushAnswer = null;
+    }
+  })();
+  return flushAnswer;
+}
 
 /** What an editor buffered for the note is let go unwritten (its text went to another window). */
 export function dropDraft(vaultPath: string, notePath: string, sessionId: string): void {

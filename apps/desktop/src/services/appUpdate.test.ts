@@ -18,11 +18,13 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/app", () => ({ getIdentifier }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
+const flushes = vi.hoisted(() => [] as string[]);
+vi.mock("./leaveFlush", () => ({ flushAllDraftsBeforeLeaving: async () => { flushes.push("flush"); } }));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn() }));
 vi.mock("@plainva/ui", () => ({ logDiagnostic: vi.fn(), toast: { info: vi.fn(), progress: vi.fn(), dismiss: vi.fn(), error: vi.fn() } }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
-import { checkForAppUpdate, classifyUpdateFailure, describeUpdateFailure, getUpdatesManagedBy, resetStartupUpdateCheckForTests, scheduleStartupUpdateCheck } from "./appUpdate";
+import { checkForAppUpdate, classifyUpdateFailure, downloadAndInstallUpdate, describeUpdateFailure, getUpdatesManagedBy, resetStartupUpdateCheckForTests, scheduleStartupUpdateCheck } from "./appUpdate";
 import { logDiagnostic, toast } from "@plainva/ui";
 
 const release = { version: "9.9.9" };
@@ -139,8 +141,9 @@ describe("the start-up prompt, refused", () => {
     try {
       resetStartupUpdateCheckForTests();
       invoke.mockResolvedValue(null);
-      const downloadAndInstall = vi.fn().mockRejectedValue("The signature verification failed");
-      check.mockResolvedValue({ version: "9.9.9", downloadAndInstall });
+      const download = vi.fn().mockRejectedValue("The signature verification failed");
+      const install = vi.fn();
+      check.mockResolvedValue({ version: "9.9.9", download, install });
       scheduleStartupUpdateCheck();
       await vi.advanceTimersByTimeAsync(10_000);
       const info = vi.mocked(toast.info);
@@ -148,12 +151,26 @@ describe("the start-up prompt, refused", () => {
       const action = info.mock.calls[0][1] as { run: () => void };
       action.run();
       await vi.advanceTimersByTimeAsync(0);
-      expect(downloadAndInstall).toHaveBeenCalledTimes(1);
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(install).not.toHaveBeenCalled();
       expect(toast.error).toHaveBeenCalledWith("settings.updateRefused");
       expect(logDiagnostic).toHaveBeenCalledWith("update.install", "The signature verification failed");
     } finally {
       vi.unstubAllGlobals();
       vi.useRealTimers();
     }
+  });
+});
+
+describe("installing an update (A7)", () => {
+  it("writes what the windows still buffer after the download and before the install ends the process", async () => {
+    flushes.length = 0;
+    const steps: string[] = [];
+    const update = {
+      download: vi.fn(async () => { steps.push("download"); }),
+      install: vi.fn(async () => { steps.push(`install after ${flushes.length} flush`); }),
+    };
+    await downloadAndInstallUpdate(update as never);
+    expect(steps).toEqual(["download", "install after 1 flush"]);
   });
 });

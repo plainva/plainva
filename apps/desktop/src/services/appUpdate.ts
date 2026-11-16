@@ -140,9 +140,18 @@ export function describeUpdateFailure(error: unknown, step: "check" | "install",
   }
 }
 
-/** Downloads, installs and relaunches. Rejects on failure — caller shows it. */
+/**
+ * Downloads, installs and relaunches. Rejects on failure — caller shows it.
+ *
+ * Between download and install the drafts every window still buffers are
+ * written (A7): installing ends the process on Windows, and a restart is the
+ * one way out the native side cannot hold (`src-tauri/src/leave.rs`).
+ */
 export async function downloadAndInstallUpdate(update: Update): Promise<void> {
-  await update.downloadAndInstall();
+  await update.download();
+  const { flushAllDraftsBeforeLeaving } = await import("./leaveFlush");
+  await flushAllDraftsBeforeLeaving();
+  await update.install();
   await relaunch();
 }
 
