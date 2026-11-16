@@ -7709,6 +7709,8 @@
     "newTemplate": "无法创建模板：{{reason}}",
     "newDatabase": "无法创建数据库：{{reason}}",
     "databaseSave": "无法保存数据库：{{reason}}",
+    "databaseViewGone": "视图“{{name}}”已不在此数据库中：它已在别处被删除或重命名。",
+    "databaseViewUnclear": "视图“{{name}}”在别处被更改后，已无法在此数据库中确定地找到。",
     "overview": "无法写入概览：{{reason}}",
     "adopt": "无法将“{{file}}”设为概览：{{reason}}",
     "promote": "无法移动任务：{{reason}}",

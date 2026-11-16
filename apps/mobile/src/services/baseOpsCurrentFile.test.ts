@@ -79,6 +79,31 @@ describe("a database change on the phone lands on the file as it lies there (B20
     expect(files.get(PATH)).toBe(elsewhere);
   });
 
+  it("answers where the screen's views stand now, so its active view follows its view", async () => {
+    const shown = loadBaseConfigText(TEXT);
+    files.set(PATH, serializeBaseConfig({ ...shown, views: [shown.views[1], shown.views[0]] }));
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views[0].coverImage = "note.cover";
+    const saved = await saveBaseConfig(vault, PATH, next, { shown });
+    expect(saved.config.views.map((v: any) => v.name)).toEqual(["Cards", "Table"]);
+    expect(saved.placeOf).toEqual([1, 0]);
+  });
+
+  it("\"Save here again\" sets the waiting change on a file that stands there again, and writes it whole where none does", async () => {
+    const shown = loadBaseConfigText(TEXT);
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views[0].order = ["note.prio"];
+    const elsewhere = JSON.parse(JSON.stringify(shown));
+    elsewhere.views[1].coverImage = "note.cover";
+    files.set(PATH, serializeBaseConfig(elsewhere));
+    await saveBaseConfig(vault, PATH, next, { recreate: true, shown });
+    expect(view("Table").order).toEqual(["note.prio"]);
+    expect(view("Cards").coverImage).toBe("note.cover");
+    files.clear();
+    await saveBaseConfig(vault, PATH, next, { recreate: true, shown });
+    expect(files.get(PATH)).toBe(serializeBaseConfig(next));
+  });
+
   it("removes a property without undoing a view change made elsewhere", async () => {
     const shown = loadBaseConfigText(TEXT);
     const elsewhere = JSON.parse(JSON.stringify(shown));

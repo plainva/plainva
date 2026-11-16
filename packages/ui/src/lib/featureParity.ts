@@ -470,6 +470,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "base-board-column-drag",
+    title: "Reordering the columns of a board by dragging",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop drags a board column by its header: a select or status board " +
+      "reorders the property's options, any other board writes the view's " +
+      "boardColumnOrder. The phone shows the board in that saved order (both " +
+      "shells order it with orderBoardGroups) but has no way to change it; a " +
+      "held drag on a column header, as its pinboard has for cards, is not " +
+      "built. Found with B17 of the 0.9.0 defect list; in the maintainer's " +
+      "open-items plan since 2026-11-16.",
+    verified: "2026-11-16",
+  },
+  {
     id: "base-bulk-range-select",
     title: "Selecting a RANGE of database rows in one gesture",
     area: "database",

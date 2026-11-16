@@ -538,20 +538,22 @@ describe("a database screen's change lands on the file as it lies there, at an o
   it("at an open conflict a change the user's own version has no place for lands in the file alone", async () => {
     await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
     await landedFromOutside(BASE, baseText("Their table"));
-    const saved = await chain.writeEditorText(BASE, baseText("My table"), baseText("Table"));
+    // The user's own version renamed AND sorted the view: no certain match for "Their table" there.
+    const saved = await chain.writeEditorText(BASE, sorted("My table", "ASC"), baseText("Table"));
     const copy = saved.session!.workingCopyPath;
     const shownConfig = loadBaseConfigText(baseText("Their table"));
     await writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig });
     expect(loadBaseConfigText(await raw.readTextFile(BASE)).views[0].order).toEqual(["file.name", "status"]);
-    expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
+    expect(await raw.readTextFile(copy)).toBe(sorted("My table", "ASC"));
   });
 
-  it("a change to a view renamed elsewhere meanwhile writes nothing", async () => {
+  it("a change to a view renamed and changed elsewhere meanwhile writes nothing", async () => {
     await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
     const shownConfig = loadBaseConfigText(baseText("Table"));
-    await landedFromOutside(BASE, baseText("Renamed"));
+    // Renamed and sorted elsewhere: no certain match.
+    await landedFromOutside(BASE, sorted("Renamed", "DESC"));
     await expect(writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig })).rejects.toThrow(/Table/);
-    expect(await raw.readTextFile(BASE)).toBe(baseText("Renamed"));
+    expect(await raw.readTextFile(BASE)).toBe(sorted("Renamed", "DESC"));
     expect(await chain.getConflictSession(BASE)).toBeNull();
   });
 

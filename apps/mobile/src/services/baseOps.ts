@@ -22,7 +22,6 @@ import {
   planPinboardEntry,
   sweepPinboardDrafts,
   deletePropertyFromConfig,
-  migrateFiltersToPerView,
   nextItemName,
   parseBaseConfig,
   type ReverseIntent,
@@ -34,6 +33,7 @@ import {
   viewPrefill,
   writeNoteProperty,
   writeBaseConfigChange,
+  loadBaseConfigText,
   bulkSetProperty,
   convertDateColumns,
   editReverseRelation,
@@ -79,7 +79,7 @@ export async function loadBase(v: MobileVault, path: string): Promise<LoadedBase
   const raw = await vaultOps.read(v, path);
   // Same load-time migration the desktop runs: global property filters move
   // into every view (idempotent), persisted on the next save.
-  const config = migrateFiltersToPerView(parseBaseConfig(raw));
+  const config = loadBaseConfigText(raw);
   return { config, stem: baseStemOf(path) };
 }
 
@@ -106,17 +106,19 @@ export async function saveBaseConfig(
   path: string,
   config: any,
   { recreate = false, shown }: { recreate?: boolean; shown?: any } = {},
-): Promise<any> {
-  let saved = config;
-  if (recreate || shown === undefined) {
+): Promise<{ config: any; placeOf: number[] }> {
+  let saved = { config, placeOf: (Array.isArray(config?.views) ? config.views : []).map((_: unknown, i: number) => i) };
+  // Onto the file as it lies there (finding B20): what changed against the
+  // config the screen showed is set on the file's current config, so a
+  // change another device or window made meanwhile stays. "Save here again"
+  // writes the whole config only where no file stands there any more.
+  if (shown !== undefined && (!recreate || (await v.files.exists(path)))) {
+    await assertFileStillThere(v.files, path);
+    const written = await writeBaseConfigChange(v.files, path, shown, config);
+    saved = { config: written.config, placeOf: written.placeOf };
+  } else {
     if (!recreate) await assertFileStillThere(v.files, path);
     await v.files.writeTextFile(path, serializeBaseConfig(config));
-  } else {
-    await assertFileStillThere(v.files, path);
-    // Onto the file as it lies there (finding B20): what changed against the
-    // config the screen showed is set on the file's current config, so a
-    // change another device or window made meanwhile stays.
-    saved = (await writeBaseConfigChange(v.files, path, shown, config)).config;
   }
   // The index hears of a database like of a note (finding 2026-10-09): the
   // call that stood here took notes only and never did anything for a `.base`.
@@ -433,7 +435,9 @@ export async function renameBaseProperty(
     paths: rowPaths,
     oldName,
     newName,
-    saveConfig: () => saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName), { shown: config }),
+    saveConfig: async () => {
+      await saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName), { shown: config });
+    },
   });
   if (outcome.status === "renamed" && outcome.result.written.length > 0) syncSoon();
   return outcome;

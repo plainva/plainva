@@ -101,17 +101,26 @@ describe("a database view change lands on the file as it lies there (B20)", () =
     f.files["Tasks.base"] = elsewhere;
     const next = withView(shown, "Cards", { sort: sortBy("file.name") });
     await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, next)).rejects.toBeInstanceOf(BaseConfigChangeRefusedError);
+    await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, next)).rejects.toMatchObject({ reason: "viewGone", viewName: "Cards" });
     expect(f.writes).toEqual([]);
     expect(f.files["Tasks.base"]).toBe(elsewhere);
   });
 
-  it("refuses a change to a view renamed meanwhile, and writes nothing", async () => {
+  it("finds a view only renamed meanwhile, and refuses one renamed and changed: nothing is guessed", async () => {
     const f = fakeFiles(BASE);
     const shown = loadBaseConfigText(BASE);
     f.files["Tasks.base"] = serializeBaseConfig(withView(shown, "Cards", { name: "Gallery" }));
-    const next = withView(shown, "Cards", { sort: sortBy("file.name") });
-    await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, next)).rejects.toThrow(/Cards/);
-    expect(f.writes).toEqual([]);
+    await writeBaseConfigChange(f.adapter, "Tasks.base", shown, withView(shown, "Cards", { sort: sortBy("file.name") }));
+    expect(viewOf(f.files["Tasks.base"], "Gallery").sort).toEqual(sortBy("file.name"));
+    expect(viewOf(f.files["Tasks.base"], "Cards")).toBeUndefined();
+    // Renamed and changed: it might be "Gallery", it might not.
+    const g = fakeFiles(BASE);
+    const elsewhere = serializeBaseConfig(withView(shown, "Cards", { name: "Gallery", coverImage: "note.cover" }));
+    g.files["Tasks.base"] = elsewhere;
+    const refused = writeBaseConfigChange(g.adapter, "Tasks.base", shown, withView(shown, "Cards", { sort: sortBy("file.name") }));
+    await expect(refused).rejects.toMatchObject({ name: "BaseConfigChangeRefusedError", reason: "viewUnclear", viewName: "Cards" });
+    expect(g.writes).toEqual([]);
+    expect(g.files["Tasks.base"]).toBe(elsewhere);
   });
 
   it("leaves a view deleted or renamed meanwhile as it is when this change is to another view", async () => {
@@ -190,6 +199,176 @@ describe("a database view change lands on the file as it lies there (B20)", () =
     await Promise.all([a, b]);
     expect(viewOf(f.files["Tasks.base"], "Table").coverImage).toBe("note.one");
     expect(viewOf(f.files["Tasks.base"], "Cards").coverImage).toBe("note.two");
+  });
+});
+
+const TWINS = [
+  "views:",
+  "  - type: table",
+  "    name: Tabelle",
+  "    order:",
+  "      - note.a",
+  "  - type: table",
+  "    name: Tabelle",
+  "    order:",
+  "      - note.z",
+  "",
+].join("\n");
+const orders = (text: string) => loadBaseConfigText(text).views.map((v: any) => v.order);
+
+describe("views with the same name, or none: found by what they are, never by their place (B20)", () => {
+  it("two views called alike, swapped elsewhere: the change lands on its own view, the other stays whole", async () => {
+    const f = fakeFiles(TWINS);
+    const shown = loadBaseConfigText(TWINS);
+    f.files["Tasks.base"] = serializeBaseConfig({ ...shown, views: [shown.views[1], shown.views[0]] });
+    const next = { ...shown, views: [{ ...shown.views[0], order: ["note.a", "note.b"], sort: sortBy("note.a") }, shown.views[1]] };
+    const { placeOf } = await writeBaseConfigChange(f.adapter, "Tasks.base", shown, next);
+    expect(orders(f.files["Tasks.base"])).toEqual([shown.views[1].order, ["note.a", "note.b"]]);
+    // The changed view stands second now: the screen's active view follows it.
+    expect(placeOf).toEqual([1, 0]);
+  });
+
+  it("two views called alike, the changed one deleted elsewhere: refused as gone, nothing written", async () => {
+    const f = fakeFiles(TWINS);
+    const shown = loadBaseConfigText(TWINS);
+    const elsewhere = serializeBaseConfig({ ...shown, views: [shown.views[1]] });
+    f.files["Tasks.base"] = elsewhere;
+    const next = { ...shown, views: [{ ...shown.views[0], order: ["note.a", "note.b"] }, shown.views[1]] };
+    await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, next)).rejects.toMatchObject({ reason: "viewGone" });
+    expect(f.files["Tasks.base"]).toBe(elsewhere);
+  });
+
+  it("two views called alike, both changed elsewhere: refused as unclear, nothing written", async () => {
+    const f = fakeFiles(TWINS);
+    const shown = loadBaseConfigText(TWINS);
+    const elsewhere = serializeBaseConfig({ ...shown, views: shown.views.map((v: any) => ({ ...v, coverImage: "note.cover" })) });
+    f.files["Tasks.base"] = elsewhere;
+    const next = { ...shown, views: [{ ...shown.views[0], order: ["note.b"] }, shown.views[1]] };
+    await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, next)).rejects.toMatchObject({ reason: "viewUnclear", viewName: "Tabelle" });
+    expect(f.files["Tasks.base"]).toBe(elsewhere);
+  });
+
+  it("a handwritten file without view names, changed elsewhere: the change lands, the other change stays", async () => {
+    const text = ["views:", "  - type: table", "    order:", "      - file.name", "  - type: cards", ""].join("\n");
+    const f = fakeFiles(text);
+    const shown = loadBaseConfigText(text);
+    // Another program gave the cards a limit — a key Plainva does not edit.
+    f.files["Tasks.base"] = text.replace("  - type: cards\n", "  - type: cards\n    limit: 5\n");
+    const next = { ...shown, views: [{ ...shown.views[0], order: ["file.name", "note.status"] }, shown.views[1]] };
+    await writeBaseConfigChange(f.adapter, "Tasks.base", shown, next);
+    expect(orders(f.files["Tasks.base"])[0]).toEqual(["file.name", "note.status"]);
+    expect(f.files["Tasks.base"]).toContain("limit: 5");
+  });
+
+  it("a view removed here that the file only renamed is removed; one the file renamed and changed refuses", () => {
+    const shown = loadBaseConfigText(BASE);
+    const removed = { ...shown, views: shown.views.filter((v: any) => v.name !== "Cards") };
+    let made = rebaseBaseConfigText(shown, removed, serializeBaseConfig(withView(shown, "Cards", { name: "Gallery" })));
+    expect(made.config.views.map((v: any) => String(v.name))).toEqual(["Table", "2024", "true"]);
+    expect(() => rebaseBaseConfigText(shown, removed, serializeBaseConfig(withView(shown, "Cards", { name: "Gallery", coverImage: "note.c" }))))
+      .toThrow(BaseConfigChangeRefusedError);
+    // Moved here while the file renamed and changed a view: nothing guessed either.
+    const moved = { ...shown, views: [shown.views[1], shown.views[0], shown.views[2], shown.views[3]] };
+    expect(() => rebaseBaseConfigText(shown, moved, serializeBaseConfig(withView(shown, "Cards", { name: "Gallery", coverImage: "note.c" }))))
+      .toThrow(BaseConfigChangeRefusedError);
+    made = rebaseBaseConfigText(shown, moved, serializeBaseConfig(withView(shown, "Table", { coverImage: "note.c" })));
+    expect(made.config.views.map((v: any) => String(v.name))).toEqual(["Cards", "Table", "2024", "true"]);
+    expect(made.config.views[1].coverImage).toBe("note.c");
+  });
+});
+
+describe("which view of the screen is which (B20)", () => {
+  it("a view renamed here while another is added is no edit of the added one", () => {
+    const shown = loadBaseConfigText(BASE);
+    const next = { ...shown, views: [...shown.views.map((v: any) => (v.name === "Cards" ? { ...v, name: "Gallery" } : v)), { type: "table", name: "New" }] };
+    const theirs = withView(shown, "Cards", { coverImage: "note.cover" });
+    const made = rebaseBaseConfigText(shown, next, serializeBaseConfig(theirs));
+    expect(made.config.views.map((v: any) => String(v.name))).toEqual(["Table", "Gallery", "2024", "true", "New"]);
+    expect(made.config.views[1].coverImage).toBe("note.cover");
+    expect(made.config.views[4].coverImage).toBeUndefined();
+  });
+
+  it("where both sides removed views until none would be left, the user's own stays", () => {
+    const text = ["views:", "  - type: table", "    name: A", "  - type: cards", "    name: B", ""].join("\n");
+    const shown = loadBaseConfigText(text);
+    const made = rebaseBaseConfigText(shown, { ...shown, views: [shown.views[1]] }, serializeBaseConfig({ ...shown, views: [shown.views[0]] }));
+    expect(made.config.views.map((v: any) => v.name)).toEqual(["B"]);
+    expect(made.placeOf).toEqual([0]);
+  });
+
+  it("a move of a view the file moved too follows the screen; one of a view the file removed moves nothing", () => {
+    const shown = loadBaseConfigText(BASE);
+    // The screen moves "Cards" to the front; the file removed "Cards".
+    const moved = { ...shown, views: [shown.views[1], shown.views[0], shown.views[2], shown.views[3]] };
+    const file = { ...shown, views: [shown.views[0], shown.views[3], shown.views[2]] };
+    const made = rebaseBaseConfigText(shown, moved, serializeBaseConfig(file));
+    expect(made.config.views.map((v: any) => String(v.name))).toEqual(["Table", "true", "2024"]);
+  });
+});
+
+describe("lists both sides changed: entry by entry, the order the screen's (B20)", () => {
+  it("a column the file added stays when the screen reorders the columns", () => {
+    const shown = loadBaseConfigText(BASE);
+    const theirs = withView(shown, "Table", { order: ["file.name", "note.status", "note.c"] });
+    const mine = withView(shown, "Table", { order: ["note.status", "file.name"] });
+    const made = rebaseBaseConfigText(shown, mine, serializeBaseConfig(theirs));
+    // It stands after the column it follows in the file.
+    expect(made.config.views[0].order).toEqual(["note.status", "note.c", "file.name"]);
+  });
+
+  it("a column the file removed stays removed; one the screen removed too", () => {
+    const shown = loadBaseConfigText(BASE);
+    const start = withView(shown, "Table", { order: ["note.a", "note.b", "note.c", "note.d"] });
+    const startText = serializeBaseConfig(start);
+    const base = loadBaseConfigText(startText);
+    const theirs = withView(base, "Table", { order: ["note.a", "note.c", "note.d"] });
+    const mine = withView(base, "Table", { order: ["note.d", "note.c", "note.b"] });
+    const made = rebaseBaseConfigText(base, mine, serializeBaseConfig(theirs));
+    expect(made.config.views[0].order).toEqual(["note.d", "note.c"]);
+  });
+
+  it("a board group another device added stays when this one drags the columns", () => {
+    const text = [
+      "properties:", "  note.status:", "    plainva:", "      input: select", "      options:",
+      "        - value: Open", "        - value: Doing", "        - value: Done",
+      "views:", "  - type: table", "    name: Board", "",
+    ].join("\n");
+    const shown = loadBaseConfigText(text);
+    const theirs = JSON.parse(JSON.stringify(shown));
+    theirs.columns.status.options.push({ value: "Waiting" });
+    const mine = JSON.parse(JSON.stringify(shown));
+    mine.columns.status.options = [mine.columns.status.options[2], mine.columns.status.options[0], mine.columns.status.options[1]];
+    const made = rebaseBaseConfigText(shown, mine, serializeBaseConfig(theirs));
+    expect(made.config.columns.status.options.map((o: any) => o.value)).toEqual(["Done", "Waiting", "Open", "Doing"]);
+  });
+
+  it("a card the file pinned stays pinned when the screen reorders the pinboard", () => {
+    const shown = loadBaseConfigText(BASE);
+    const start = loadBaseConfigText(serializeBaseConfig(withView(shown, "Cards", { pinboardOrder: ["A.md", "B.md"], pinboardPinned: [] })));
+    const theirs = withView(start, "Cards", { pinboardOrder: ["A.md", "B.md", "C.md"], pinboardPinned: ["D.md"] });
+    const mine = withView(start, "Cards", { pinboardOrder: ["B.md", "A.md"] });
+    const made = rebaseBaseConfigText(start, mine, serializeBaseConfig(theirs));
+    const cards = made.config.views.find((v: any) => v.name === "Cards");
+    expect(cards.pinboardOrder).toEqual(["B.md", "C.md", "A.md"]);
+    expect(cards.pinboardPinned).toEqual(["D.md"]);
+  });
+
+  it("a single value both changed is the screen's; a view the screen removed goes though the file changed it", () => {
+    const shown = loadBaseConfigText(BASE);
+    const theirs = withView(shown, "Table", { sort: sortBy("note.status"), coverImage: "note.c" });
+    let made = rebaseBaseConfigText(shown, withView(shown, "Table", { sort: sortBy("file.name") }), serializeBaseConfig(theirs));
+    expect(made.config.views[0].sort).toEqual(sortBy("file.name"));
+    expect(made.config.views[0].coverImage).toBe("note.c");
+    made = rebaseBaseConfigText(shown, { ...shown, views: shown.views.filter((v: any) => v.name !== "Table") }, serializeBaseConfig(theirs));
+    expect(made.config.views.map((v: any) => String(v.name))).toEqual(["Cards", "2024", "true"]);
+  });
+
+  it("the active view follows its view where the file moved views", () => {
+    const shown = loadBaseConfigText(BASE);
+    const theirs = { ...shown, views: [shown.views[2], shown.views[0], shown.views[1], shown.views[3]] };
+    const made = rebaseBaseConfigText(shown, withView(shown, "Cards", { coverImage: "note.c" }), serializeBaseConfig(theirs));
+    expect(made.config.views.map((v: any) => String(v.name))).toEqual(["2024", "Table", "Cards", "true"]);
+    expect(made.placeOf).toEqual([1, 2, 0, 3]);
   });
 });
 

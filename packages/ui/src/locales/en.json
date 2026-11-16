@@ -7871,6 +7871,8 @@
     "newTemplate": "The template could not be created: {{reason}}",
     "newDatabase": "The database could not be created: {{reason}}",
     "databaseSave": "The database could not be saved: {{reason}}",
+    "databaseViewGone": "The view “{{name}}” is no longer in this database: it was removed or renamed elsewhere.",
+    "databaseViewUnclear": "The view “{{name}}” can no longer be told apart for certain in this database since it was changed elsewhere.",
     "overview": "The overview could not be written: {{reason}}",
     "adopt": "“{{file}}” could not become the overview: {{reason}}",
     "promote": "The task could not be moved: {{reason}}",

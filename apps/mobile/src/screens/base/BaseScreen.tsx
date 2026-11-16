@@ -195,14 +195,15 @@ export function BaseScreen({
   // file at its old place unless the reader says so. `loadFailed` without a
   // lookup: the file is there but could not be read — the screen used to
   // show an empty database then, whose next change would have overwritten it.
-  const [pendingConfig, setPendingConfig] = useState<any | null>(null);
+  // What waits: the config shown before the first change that waits, and the config now (B20).
+  const [pendingConfig, setPendingConfig] = useState<{ shown: any; next: any } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const missing = useOpenFileLookup(vault, path, {
     onRenamed,
     carry: async (to) => {
       if (pendingConfig === null) return true;
       try {
-        await saveBaseConfig(vault, to, pendingConfig);
+        await saveBaseConfig(vault, to, pendingConfig.next, { shown: pendingConfig.shown });
         return true;
       } catch (e) {
         console.error("[BaseScreen] carrying the database change to the moved file failed", e);
@@ -456,13 +457,18 @@ export function BaseScreen({
       // the config shown is set, a change made elsewhere meanwhile stays — and
       // is shown from now on.
       const saved = await saveBaseConfig(vault, path, next, { shown });
-      if (saved !== next) setLoaded((now) => (now && now.config === next ? { ...now, config: saved } : now));
+      if (saved.config !== next) {
+        setLoaded((now) => (now && now.config === next ? { ...now, config: saved.config } : now));
+        // The active view follows its view, not its place: the file may have moved, added or removed views.
+        setViewIndex((i) => (saved.placeOf[i] >= 0 ? saved.placeOf[i] : i));
+      }
       setPendingConfig(null);
       rememberFile();
       return true;
     } catch (e) {
       if (isFileNotFound(e)) {
-        setPendingConfig(next);
+        // Measured from what was shown before the first change that waits.
+        setPendingConfig((waiting) => ({ shown: waiting ? waiting.shown : shown, next }));
         lookForFile();
         return false;
       }
@@ -483,14 +489,15 @@ export function BaseScreen({
   /** "Save here again": the reader brings the database back where it was, with the waiting change. */
   const restoreHere = useStableHandler(async (): Promise<void> => {
     if (pendingConfig === null) return;
+    let saved: { config: any };
     try {
-      await saveBaseConfig(vault, path, pendingConfig, { recreate: true });
+      saved = await saveBaseConfig(vault, path, pendingConfig.next, { recreate: true, shown: pendingConfig.shown });
     } catch (e) {
       console.error("[BaseScreen] saving the database back failed", e);
       toast.error(t("editor.saveFailed"));
       return;
     }
-    setLoaded({ config: pendingConfig, stem: title });
+    setLoaded({ config: saved.config, stem: title });
     setPendingConfig(null);
     setLoadFailed(false);
     missing.clear();

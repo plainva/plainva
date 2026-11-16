@@ -318,7 +318,7 @@ const saveCode = `const saveConfig = ${saveSource.getText(viewer)};`;
 function saveConfig(config: unknown, scope: Record<string, unknown> = {}, options?: { park?: boolean }): Promise<boolean> {
   return run<(config: unknown, options?: { park?: boolean }) => Promise<boolean>>(saveCode, "saveConfig", {
     vaultAdapter, activePath: BASE, embedded: false, indexer: null, queryService: null, activeViewIndex: 0, dbConfig: null, content: "",
-    serializeBaseConfig, writeBaseConfigChange, BaseConfigChangeRefusedError, setReloadTick: () => {},
+    serializeBaseConfig, writeBaseConfigChange, BaseConfigChangeRefusedError, setReloadTick: () => {}, setActiveViewIndex: () => {},
     setContent: () => {}, setDbConfig: () => {}, setPendingConfig: () => {}, setDbData: () => {},
     assertFileStillThere: async () => {}, isFileNotFound: () => false, lookForFile: () => {}, applyIndexChanges: async () => ({ leftBehind: [] }), rememberFile: () => {},
     queryForActiveView: async () => [], errorText, saveTurn: { current: 0 }, showViewLayout: () => true, ...surface, ...scope,
@@ -327,7 +327,7 @@ function saveConfig(config: unknown, scope: Record<string, unknown> = {}, option
 
 /** What a view shows, held the way React holds it: a value, or an update of the one before. */
 function viewState(config: unknown, text: string) {
-  const state = { config, text, pending: null as string | null, lookedFor: 0, reloaded: 0 };
+  const state = { config, text, pending: null as { shown: unknown; next: unknown } | null, lookedFor: 0, reloaded: 0, activeView: 0 };
   const apply = <T>(was: T, next: T | ((was: T) => T)) => (typeof next === "function" ? (next as (was: T) => T)(was) : next);
   return {
     state,
@@ -336,7 +336,8 @@ function viewState(config: unknown, text: string) {
       content: text,
       setDbConfig: (next: unknown) => { state.config = apply(state.config, next as any); },
       setContent: (next: string | ((was: string) => string)) => { state.text = apply(state.text, next); },
-      setPendingConfig: (next: string | null) => { state.pending = next; },
+      setPendingConfig: (next: any) => { state.pending = apply(state.pending, next); },
+      setActiveViewIndex: (next: number | ((was: number) => number)) => { state.activeView = apply(state.activeView, next); },
       lookForFile: () => { state.lookedFor += 1; },
       setReloadTick: () => { state.reloaded += 1; },
     },
@@ -367,28 +368,69 @@ describe("a database view's change lands on the file as it lies there, at an ope
     expect(shown).toEqual([]);
   });
 
+  it("at an open conflict the view goes on with the file's version, not the user's own", async () => {
+    // Loaded before either side changed it.
+    await openVault({ [BASE]: baseText("Table") });
+    const shownConfig = loaded(baseText("Table"));
+    await landedFromOutside(BASE, baseText("Table", sortLines("DESC")));
+    const saved = await vaultAdapter.writeEditorText(BASE, baseText("Table", sortLines("ASC")), baseText("Table"));
+    const copy = saved.session!.workingCopyPath;
+    const view = viewState(shownConfig, baseText("Table"));
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["file.name", "note.status"] }), view.scope)).toBe(true);
+    expect(loaded(await raw.readTextFile(copy)).views[0].sort).toEqual([{ property: "file.name", direction: "ASC" }]);
+    // The view shows what the file holds — its text and its config agree.
+    expect((view.state.config as any).views[0].sort).toEqual([{ property: "file.name", direction: "DESC" }]);
+    expect((view.state.config as any).views[0].order).toEqual(["file.name", "note.status"]);
+    expect(view.state.text).toBe(await raw.readTextFile(BASE));
+  });
+
+  it("the active view follows its view where the file moved the views meanwhile", async () => {
+    const two = (first: string, second: string) => [`views:`, `  - type: table`, `    name: ${first}`, `  - type: table`, `    name: ${second}`, ``].join("\n");
+    await openVault({ [BASE]: two("A", "B") });
+    const shownConfig = loaded(two("A", "B"));
+    await landedFromOutside(BASE, two("B", "A"));
+    const view = viewState(shownConfig, two("A", "B"));
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), view.scope)).toBe(true);
+    expect(loaded(await raw.readTextFile(BASE)).views.map((v: any) => v.name)).toEqual(["B", "A"]);
+    expect(view.state.activeView).toBe(1);
+  });
+
+  it("a database with a byte order mark and CRLF line ends keeps its shape", async () => {
+    const shaped = (text: string) => "\uFEFF" + text.replace(/\n/g, "\r\n");
+    await openVault({ [BASE]: shaped(baseText("Table")) });
+    const shownConfig = loaded(shaped(baseText("Table")));
+    // Changed elsewhere too, so the change is merged, not written whole.
+    await landedFromOutside(BASE, shaped(baseText("Table", sortLines("DESC"))));
+    expect(await saveConfig(withFirstView(shownConfig, { order: ["file.name", "note.status"] }), viewState(shownConfig, shaped(baseText("Table"))).scope)).toBe(true);
+    const now = await raw.readTextFile(BASE);
+    expect(now.startsWith("\uFEFF")).toBe(true);
+    expect(now.replace(/\r\n/g, "")).not.toContain("\n");
+    expect(loaded(now).views[0].sort).toEqual([{ property: "file.name", direction: "DESC" }]);
+  });
+
   it("at an open conflict a change the user's own version has no place for lands in the file alone; that version stays as it is", async () => {
     await openVault({ [BASE]: baseText("Table") });
     await landedFromOutside(BASE, baseText("Their table"));
-    const saved = await vaultAdapter.writeEditorText(BASE, baseText("My table"), baseText("Table"));
+    // The user's own version renamed AND sorted the view: no certain match for "Their table" there.
+    const saved = await vaultAdapter.writeEditorText(BASE, baseText("My table", sortLines("ASC")), baseText("Table"));
     const copy = saved.session!.workingCopyPath;
     const shownConfig = loaded(baseText("Their table"));
     const view = viewState(shownConfig, baseText("Their table"));
     expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), view.scope)).toBe(true);
     expect(loaded(await raw.readTextFile(BASE)).views[0].order).toEqual(["note.status"]);
-    expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
+    expect(await raw.readTextFile(copy)).toBe(baseText("My table", sortLines("ASC")));
   });
 
   it("a change to a view deleted or renamed elsewhere meanwhile writes nothing, is said, and the view goes back to what it showed", async () => {
     await openVault({ [BASE]: baseText("Table") });
     const shownConfig = loaded(baseText("Table"));
-    // Renamed by another device after the view loaded it.
-    await landedFromOutside(BASE, baseText("Renamed"));
+    // Renamed and sorted by another device after the view loaded it: no certain match.
+    await landedFromOutside(BASE, baseText("Renamed", sortLines("DESC")));
     const shownAgain: unknown[] = [];
     const view = viewState(shownConfig, baseText("Table"));
     const layout = { showViewLayout: (config: unknown) => { shownAgain.push(config); return true; }, saveTurn: { current: 0 } };
     expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), { ...view.scope, ...layout })).toBe(false);
-    expect(await raw.readTextFile(BASE)).toBe(baseText("Renamed"));
+    expect(await raw.readTextFile(BASE)).toBe(baseText("Renamed", sortLines("DESC")));
     expect(await vaultAdapter.getConflictSession(BASE)).toBeNull();
     expect(view.state.config).toBe(shownConfig);
     expect(view.state.text).toBe(baseText("Table"));
@@ -438,7 +480,8 @@ describe("a database view's change lands on the file as it lies there, at an ope
     const sorted = withFirstView(shownConfig, { order: ["note.status"] });
     const setting = viewState(shownConfig, baseText("Table"));
     expect(await saveConfig(sorted, { ...setting.scope, ...gone })).toBe(false);
-    expect(setting.state).toMatchObject({ config: sorted, pending: serializeBaseConfig(sorted), lookedFor: 1 });
+    // What waits is the change: the config shown before it, and the config now (B20).
+    expect(setting.state).toMatchObject({ config: sorted, pending: { shown: shownConfig, next: sorted }, lookedFor: 1 });
     const rename = viewState(shownConfig, baseText("Table"));
     expect(await saveConfig(withFirstView(shownConfig, { name: "Renamed" }), { ...rename.scope, ...gone }, { park: false })).toBe(false);
     expect(rename.state).toMatchObject({ config: shownConfig, text: baseText("Table"), pending: null, lookedFor: 1 });
