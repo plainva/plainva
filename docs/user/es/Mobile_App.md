@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-11-10
+Última actualización: 2026-11-16
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -184,6 +184,10 @@ Primero eliges dónde escribe: en una **subcarpeta** del vault abierto o en un *
 Las fuentes que necesitan acceso —Notion a través de su API— piden un token en el asistente. Vale para esa única ejecución y no se guarda.
 
 Los detalles de cada fuente están en [Importar de otra aplicación](Import.md).
+
+## Primer arranque
+
+En el primer arranque la app pregunta cómo quieres empezar: **Empezar en local**, **Conectar una bóveda en la nube** o **Ya tengo un vault**. Tras **Empezar en local** eliges la estructura inicial; el tour de Plainva aparece primero y lleva **Recomendado para empezar**. **Ya tengo un vault** explica para tu teléfono dónde puede estar un vault y luego continúa: **Una carpeta en este dispositivo** abre una carpeta a la que llega el teléfono (en iOS en la app Archivos, en Android por ejemplo la de Obsidian o una que mantiene Syncthing), **Conectar un vault existente** lo trae desde la nube. Si tu vault solo está en tu ordenador, configura allí primero la sincronización con una nube. Si cancelas, la elección sigue en pantalla. Un vault que aún está vacío muestra en **Inicio** una única invitación: **Escribe tu primera nota**, con el botón **Nueva nota**.
 
 ## Sincronización
 

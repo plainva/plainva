@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-11-05
+Last updated: 2026-11-16
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -26,7 +26,7 @@ A vault is an ordinary folder on your computer that holds your Markdown notes. P
 
 ## Opening or creating a vault
 
-On the **very first** launch — before you have ever opened a vault — Plainva shows a short welcome, once. It says in three lines what Plainva is built on, shows a small preview of the interface next to it, and offers the three ways in right away: **Open Vault**, **New Vault** and **Import from another app**. **Later** skips it and leaves you on the ordinary welcome screen; it does not come back — unless you ask for it again under **Settings → Startup & behavior → Welcome screen**.
+On the **very first** launch — before you have ever opened a vault — Plainva shows **Welcome to Plainva**, once. The main action is **Try it with the tour**: one click creates the Plainva tour vault in a new folder in your Documents and opens it; the card **Tour vault** names that folder beforehand. Next to it, **Open an existing folder** opens a folder that already holds notes, such as an Obsidian vault. Below, **New empty vault** and **Import from Notion, Evernote, Obsidian …** lead to the other two ways in. The ✕ closes the welcome and leaves you on the ordinary welcome screen; it does not come back — unless you ask for it again under **Settings → Startup & behavior → Welcome screen**. While a vault is still empty, the empty editor area shows exactly one prompt: **Write your first note**, with the button **New note**.
 
 After an update the same spot shows what changed: the biggest change of that release with a headline of its own, the rest as one line each. It appears once per version — you can call it up again anytime under **Settings → Startup & behavior → Show release highlights again**.
 

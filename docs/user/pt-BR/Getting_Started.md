@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-11-05
+Última revisão: 2026-11-16
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -26,7 +26,7 @@ Um vault é uma pasta comum no seu computador que guarda suas notas em Markdown.
 
 ## Abrir ou criar um vault
 
-Na **primeiríssima** inicialização — antes de você ter aberto um vault alguma vez — o Plainva mostra, uma única vez, uma breve mensagem de boas-vindas. Em três linhas, ela explica em que o Plainva se baseia, mostra ao lado uma pequena prévia da interface e já oferece as três formas de entrar: **Abrir vault**, **Novo vault** e **Importar de outro aplicativo**. **Depois** ignora a mensagem e deixa você na tela de boas-vindas normal; ela não volta a aparecer — a menos que você a chame novamente em **Configurações → Inicialização e comportamento → Tela de boas-vindas**.
+Na **primeiríssima** inicialização — antes de você ter aberto um vault alguma vez — o Plainva mostra uma única vez **Bem-vindo ao Plainva**. A ação principal é **Experimentar com o tour**: um clique cria o vault do tour do Plainva numa pasta nova dos seus Documentos e o abre; o cartão **Vault do tour** informa antes qual pasta será. Ao lado, **Abrir uma pasta existente** abre uma pasta que já contém notas, por exemplo um vault do Obsidian. Abaixo, **Novo vault vazio** e **Importar do Notion, Evernote, Obsidian …** levam aos outros dois caminhos. O ✕ fecha as boas-vindas e deixa você na tela de boas-vindas normal; ela não volta, a menos que você a peça de novo em **Configurações → Inicialização e comportamento → Tela de boas-vindas**. Enquanto um vault estiver vazio, a área vazia do editor mostra um único convite: **Escreva sua primeira nota**, com o botão **Nova nota**.
 
 Depois de uma atualização, o mesmo lugar mostra o que mudou: a maior novidade dessa versão com um título próprio, e o restante em uma linha cada. Isso aparece uma vez por versão — você pode chamá-lo novamente a qualquer momento em **Configurações → Inicialização e comportamento → Mostrar destaques da versão novamente**.
 

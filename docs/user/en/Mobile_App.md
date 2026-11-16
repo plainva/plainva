@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-11-10
+Last updated: 2026-11-16
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -184,6 +184,10 @@ You first choose where it writes: into a **subfolder** of the open vault, or int
 Sources that need an account — Notion through its API — ask for a token in the wizard. It is used for that one run and is not stored.
 
 The details of every source are in [Importing from another app](Import.md).
+
+## First start
+
+On the first start the app asks how you want to begin: **Start locally**, **Connect a cloud vault** or **I already have a vault**. After **Start locally** you pick the starting structure; the Plainva tour comes first and carries **Recommended to start**. **I already have a vault** says for your phone where a vault can live and then leads on: **A folder on this device** opens a folder the phone can reach (on iOS in the Files app, on Android Obsidian's or one Syncthing keeps, for example), **Connect an existing vault** brings it in from the cloud. If your vault only lives on your computer, set up sync with a cloud there first. If you cancel, the choice stays on screen. A vault that is still empty shows exactly one prompt on **Home**: **Write your first note**, with the button **New note**.
 
 ## Sync
 
