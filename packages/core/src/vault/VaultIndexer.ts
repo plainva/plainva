@@ -241,6 +241,23 @@ type FileReading =
   | { kind: "text"; read: LocalText }
   | { kind: "bytes"; sha256: string };
 
+/** A file the full scan read before the transaction that writes it, and where its read began (`claimWrite`). */
+interface ScanReading {
+  file: VaultFileInfo;
+  attachment: boolean;
+  /** Null where the file was gone or could not be read (`readOrLeaveOut`). */
+  reading: FileReading | null;
+  from: number;
+}
+
+/**
+ * The text one transaction of the full scan writes at most, in characters
+ * read before it opens (M1): the readings wait in memory for their
+ * transaction, and a vault of large notes does not hold them all at once.
+ * A larger file goes alone.
+ */
+const SCAN_TRANSACTION_TEXT = 16 * 1024 * 1024;
+
 /**
  * What ONE pass over the index has to say, and where it stood when it began.
  *
@@ -354,6 +371,24 @@ export class VaultIndexer {
       if (before === undefined) this.writtenFrom.delete(path);
       else this.writtenFrom.set(path, before);
     };
+  }
+
+  /**
+   * A change of a path's row that writes no reading of the file — a removal
+   * of a file that went, a move the app made — takes the newest place among
+   * this indexer's reads: a reading begun before it is older than the change
+   * and is not written over it (`claimWrite`). The full scan reads its files
+   * before its transactions (M1), so a removal or a move can land between a
+   * read and its write; without a place, the older reading brought the row
+   * back. Called inside the transaction that makes the change; returns what
+   * undoes it where that rolls back. Taken only while a pass is under way:
+   * nobody else holds a reading (`inPass` clears the places).
+   */
+  private claimChange(paths: Iterable<string>): () => void {
+    if (this.openPasses === 0) return () => {};
+    const from = this.readBegins();
+    const undos = [...new Set(paths)].map((path) => this.claimWrite(path, from)).filter((undo): undo is () => void => undo !== null);
+    return () => { for (const undo of undos) undo(); };
   }
 
   /** A single path was asked about `path` and found a file there, a row was written for it, or it was reported gone. */
@@ -550,6 +585,28 @@ export class VaultIndexer {
     if (renames.length === 0) return [];
     const from = renames.map((r) => r.file_path);
     return paths.filter((path) => from.some((old) => path === old || path.startsWith(`${old}/`)));
+  }
+
+  /** The newest entry of the sync queue now: what `renamedAwaySince` counts from. */
+  private async queueMark(): Promise<number> {
+    const row = await this.dbAdapter.queryOne<{ id: number | null }>(`SELECT MAX(id) AS id FROM offline_queue`);
+    return Number(row?.id ?? 0);
+  }
+
+  /**
+   * The paths the app renamed away — a file, or a folder they lie in — since
+   * the queue stood at `mark` (`queueMark`; the queue's ids only grow). The
+   * full scan reads a file before the transaction that writes it (M1): a
+   * rename in between moves the row in the queue's own transaction
+   * (`SyncQueue.queueRename`) — for a file not indexed yet there is no row,
+   * and the reading at the old path would come back as a ghost the sync
+   * uploads.
+   */
+  private async renamedAwaySince(mark: number, tx: SqlStatements): Promise<(path: string) => boolean> {
+    const renames = await tx.query<{ file_path: string }>(`SELECT file_path FROM offline_queue WHERE operation = 'rename' AND id > ?`, [mark]);
+    if (renames.length === 0) return () => false;
+    const from = renames.map((r) => r.file_path);
+    return (path) => from.some((old) => path === old || path.startsWith(`${old}/`));
   }
 
   /** Where every row of the index sits, by SQLite's rowid (`movedAway`). */
@@ -1140,7 +1197,13 @@ export class VaultIndexer {
       // so this pass waits its turn.
       // The row that goes, for whoever asks whose deletion this was.
       let gone: IndexedRowStamp | undefined;
+      // The look found nothing: a reading of the file begun before it is
+      // older, and a full scan that read the file ahead of its transaction
+      // does not bring the row back (`claimChange`) — also where no row was
+      // written yet, a new file that went again.
+      let undoGone: (() => void) | null = null;
       const outcome = await this.dbAdapter.transaction(async (tx): Promise<"reported" | "removed" | "unchanged" | "folder-gone"> => {
+        undoGone = this.claimChange([path]);
         // Only fire the deletion flow if it was actually indexed.
         const known = await tx.queryOne<{ mtime_local: number | null }>(
           `SELECT mtime_local FROM files WHERE path = ?`,
@@ -1182,6 +1245,9 @@ export class VaultIndexer {
         await this.markRemoved([path], tx);
         gone = indexedRowStamp(known.mtime_local);
         return "reported";
+      }).catch((error: unknown) => {
+        (undoGone as (() => void) | null)?.();
+        throw error;
       });
       if (outcome !== "reported") return outcome;
       this.reportRemoved([path], pass.since, () => gone);
@@ -1366,9 +1432,15 @@ export class VaultIndexer {
     // OLD path is the id a row now sitting at the NEW path still carries, so
     // de-indexing the old path deleted a note that exists.
     // The row and the mark that it was reported go in one transaction (R22).
+    // A reading of the file begun before this does not bring the row back (`claimChange`).
+    let undo: (() => void) | null = null;
     await this.dbAdapter.transaction(async (tx) => {
+      undo = this.claimChange([path]);
       await this.deleteIndexRows([path], tx);
       if (!isInternalPath(path)) await this.markRemoved([path], tx);
+    }).catch((error: unknown) => {
+      (undo as (() => void) | null)?.();
+      throw error;
     });
     // Same contract as the full scan: sync_state stays (the remote delete must
     // be pushed first); the host reacts via onLocalFileDeleted. Measured from
@@ -1400,6 +1472,7 @@ export class VaultIndexer {
     const toPrefix = to + "/";
     const move = (p: string): string => (p === from ? to : to + p.substring(from.length));
     const back = (p: string): string => (p === to ? from : from + p.substring(to.length));
+    let undo: (() => void) | null = null;
     await this.dbAdapter.transaction(async (tx) => {
       // Literal, case-sensitive prefix match — the same rule as queueRename.
       const rows = await tx.query<{ path: string }>(
@@ -1433,6 +1506,14 @@ export class VaultIndexer {
           this.touch(path);
         }
       }
+      // Both ends of every moved row, and of what was asked to move: a
+      // reading of either begun before the move is older than it
+      // (`claimChange`) — the source is not written back, the destination's
+      // row stays the moved one until a later read.
+      undo = this.claimChange([from, to, ...arrived.flatMap(({ path }) => [back(path), path])]);
+    }).catch((error: unknown) => {
+      (undo as (() => void) | null)?.();
+      throw error;
     });
   }
 
@@ -2061,12 +2142,22 @@ export class VaultIndexer {
     // its first read to its last write: on the phone's single connection a
     // save, the sync worker and every write from elsewhere waited behind it,
     // up to a minute on a large vault; the desktop's transactions take turns
-    // the same way. Each transaction now reads and writes for about
+    // the same way. Each transaction now writes what was read for about
     // `scanTransactionMs` and lets the others have their turn.
     //
-    // What a transaction does stays whole: a file is read, looked up and
-    // written inside one, so nothing between two of them sees half a file,
-    // and a save that comes in between is read again, not overwritten (the
+    // No file is read inside a transaction (stability plan R1, review M1 of
+    // the tx strand): the files of a transaction are read one after the
+    // other BEFORE it opens, as the single-path routes do (`indexOne`). A
+    // read used to happen inside: a file on a share that hangs, a placeholder
+    // whose provider fetches it first held the write lock for as long — every
+    // other writer gave up after ten seconds on the desktop, and the
+    // transaction that sent nothing for two minutes was rolled back under the
+    // scan. Between a read and its write the file may change, go or move; the
+    // order of the reads decides whose state stands (`claimWrite`), and a row
+    // that left its path since the scan began is not written back.
+    //
+    // What a transaction does stays whole: a file is looked up and written
+    // inside one, so nothing between two of them sees half a file (the
     // lookups are read anew in every transaction). An interrupted scan leaves
     // the files it wrote with their timestamps: the next scan skips them and
     // does the rest; an index that began empty stays marked as owed one
@@ -2093,8 +2184,48 @@ export class VaultIndexer {
     let next = 0;
     let mdDone = 0;
     let attachmentsDone = 0;
+    // The queue as the first read begins: a rename the app queues after it may land between a read and its write.
+    const queuedBefore = await this.queueMark();
     try {
       for (let first = true, done = false; !done; first = false) {
+        // The readings this transaction writes, read before it opens: up to
+        // `scanTransactionMs` of reading, `LOOKUP_SLICE` files and
+        // `SCAN_TRANSACTION_TEXT` characters of text, at least one file.
+        const readings: ScanReading[] = [];
+        const began = Date.now();
+        let text = 0;
+        while (next < work.length && readings.length < LOOKUP_SLICE) {
+          const { file, attachment } = work[next];
+          if (!attachment) {
+            if (this.options?.onProgress) {
+              this.options.onProgress(mdDone + 1, mdToIndex.length, file.path);
+            }
+            if (mdDone % 10 === 0) {
+              // Yield to event loop to allow UI updates
+              await new Promise(r => setTimeout(r, 0));
+              // A vault that is being left is not written any further (3.120):
+              // the loop used to run to its end for a vault nobody had open, and
+              // the open that was called off went on behind it.
+              signal?.throwIfAborted();
+            }
+            mdDone++;
+          } else {
+            // Attachment registration (lightweight, no parsing/FTS)
+            if (attachmentsDone % 20 === 0) {
+              await new Promise(r => setTimeout(r, 0));
+              signal?.throwIfAborted();
+            }
+            attachmentsDone++;
+          }
+          next++;
+          // The read's place among this indexer's reads, taken as it begins (`claimWrite`).
+          const from = this.readBegins();
+          const reading = await this.readOrLeaveOut(file, unreadable);
+          readings.push({ file, attachment, reading, from });
+          if (reading?.kind === "text") text += reading.read.text.length;
+          if (Date.now() - began >= TRANSACTION_MS || text >= SCAN_TRANSACTION_TEXT) break;
+        }
+        signal?.throwIfAborted();
         const claims: Array<() => void> = [];
         await this.dbAdapter.transaction(async (tx) => {
           // The scan's writes (file/fts/links/tags/properties rows + the
@@ -2128,8 +2259,7 @@ export class VaultIndexer {
           // the writes below and no older (loadBulkLookups): in the first
           // transaction of the whole index, before the scan has written, in
           // every later one of the files it is about to read.
-          const slice = work.slice(next, next + LOOKUP_SLICE);
-          const lookups = first ? await this.loadBulkLookups(tx) : await this.loadBulkLookups(tx, slice.map((w) => w.file.path));
+          const lookups = first ? await this.loadBulkLookups(tx) : await this.loadBulkLookups(tx, readings.map((r) => r.file.path));
           if (first) {
             rowsBefore = lookups.pathByRow;
             // Whether an earlier scan left the index owed one (indexComplete).
@@ -2147,42 +2277,27 @@ export class VaultIndexer {
             scannedCount += 1;
             if (!lookups.fileStateByPath.has(file.path)) addedCount += 1;
           };
-          const began = Date.now();
-          for (const { file, attachment } of slice) {
-            if (!attachment) {
-              if (this.options?.onProgress) {
-                this.options.onProgress(mdDone + 1, mdToIndex.length, file.path);
-              }
-              if (mdDone % 10 === 0) {
-                // Yield to event loop to allow UI updates
-                await new Promise(r => setTimeout(r, 0));
-                // A vault that is being left is not written any further (3.120):
-                // the loop used to run to its end for a vault nobody had open, and
-                // the open that was called off went on behind it.
-                signal?.throwIfAborted();
-              }
-              mdDone++;
-            } else {
-              // Attachment registration (lightweight, no parsing/FTS)
-              if (attachmentsDone % 20 === 0) {
-                await new Promise(r => setTimeout(r, 0));
-                signal?.throwIfAborted();
-              }
-              attachmentsDone++;
-            }
-            next++;
-            const from = this.readBegins();
-            const reading = await this.readOrLeaveOut(file, unreadable);
+          const renamedByTheApp = await this.renamedAwaySince(queuedBefore, tx);
+          for (const { file, attachment, reading, from } of readings) {
+            if (!reading) continue;
+            // Renamed away by the app since the scan began reading: the file is elsewhere now.
+            if (renamedByTheApp(file.path)) continue;
+            // The row this file had when the scan began has left its path
+            // since: the app moved it (`SyncQueue.queueRename`,
+            // `relocatePathInIndex`) or a pass removed it. The reading may be
+            // older than that; written, it would bring back a row for a file
+            // that is elsewhere or gone — a ghost the sync uploads. Whoever
+            // moved or removed it follows the path; a file that is there anew
+            // has a pass of its own, or the next scan.
+            if (dbFileMap.has(file.path) && !lookups.fileStateByPath.has(file.path)) continue;
             // A reading begun later by another pass and written already stands (`claimWrite`).
-            const undo = reading ? this.claimWrite(file.path, from) : null;
-            if (undo) claims.push(undo);
-            if (reading && undo) {
-              if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
-              else await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
-              counted(file);
-              if (batch.length >= FLUSH_AT) await flush();
-            }
-            if (Date.now() - began >= TRANSACTION_MS) break;
+            const undo = this.claimWrite(file.path, from);
+            if (!undo) continue;
+            claims.push(undo);
+            if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
+            else await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
+            counted(file);
+            if (batch.length >= FLUSH_AT) await flush();
           }
 
           if (next >= work.length) {

@@ -198,6 +198,8 @@ describe("VaultIndexer", () => {
     // never re-index it and the stale content would stick in search/links.
     await vaultAdapter.writeTextFile("restored.md", "old content restored");
     db.mockedResults.push([{ path: "restored.md", mtime_local: 9_000_000_000_000_000 }]);
+    // The row as the scan's transaction reads it: still at its path.
+    db.mockedResults.push([{ path: "restored.md", sync_state: "synced", ctime: null }]);
 
     await indexer.indexVaultFull();
 
