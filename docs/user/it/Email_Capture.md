@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-11-06
+Ultimo aggiornamento: 2026-11-16
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -35,7 +35,7 @@ Apri la scheda e-mail dalla barra delle azioni all'estrema sinistra (icona e-mai
 - **Selezionare più messaggi** — Ctrl+clic (macOS: ⌘+clic) sceglie singoli messaggi, Maiusc+clic un intervallo; nella vista conversazioni un Ctrl+clic sulla conversazione sceglie l'intero scambio, e ogni messaggio conserva la propria cartella.
 - **Con la tastiera nell'elenco** — Freccia su/giù seleziona il messaggio precedente/successivo e lo mostra nel lettore — se la freccia arriva su una conversazione compressa, la espande e seleziona il suo primo messaggio (verso il basso) o l'ultimo (verso l'alto); in una conversazione espansa le frecce percorrono i messaggi uno per uno —, Maiusc+freccia estende la selezione, Home/Fine saltano al primo/ultimo messaggio, freccia sinistra/destra comprime/espande una conversazione, Invio apre il messaggio nel lettore, Canc lo sposta nel cestino (con la stessa conferma del pulsante). Tutte le scorciatoie sono elencate nella finestra delle scorciatoie (F1) sotto **E-mail**.
 
-Gli allegati sono elencati sotto il messaggio con nome e dimensione. Un clic su un allegato (un tocco sul telefono) salva il file nel tuo vault — nella cartella `Attachments` dentro la **Cartella e-mail** (predefinita `Mail/Attachments`); se lì c'è già un file con quel nome, il nuovo riceve un numero. L'originale `.eml` (sotto) contiene tutti gli allegati per intero.
+Gli allegati sono elencati sotto il messaggio con nome e dimensione. Ne fa parte anche un'immagine che il messaggio incorpora nel testo — una foto che qualcuno ha inserito nel testo o il logo di una firma: Plainva non mostra queste immagini al loro posto nel testo, perciò compaiono qui come file, sul desktop come sul telefono, e vengono inoltrate insieme al messaggio. Un clic su un allegato (un tocco sul telefono) salva il file nel tuo vault — nella cartella `Attachments` dentro la **Cartella e-mail** (predefinita `Mail/Attachments`); se lì c'è già un file con quel nome, il nuovo riceve un numero. L'originale `.eml` (sotto) contiene tutti gli allegati per intero.
 
 Quando apri una cartella che hai già aperto, l'elenco compare **subito** dalla cache locale mentre l'aggiornamento gira in background; finché non arriva, un avviso dice “aggiornamento” — è confermato solo ciò che ha inviato il server. Lo stesso vale per un messaggio che hai già letto. Sul telefono il messaggio **più recente** di una cartella viene precaricato in background: si apre quindi senza attesa, anche se non lo avevi mai aperto.
 

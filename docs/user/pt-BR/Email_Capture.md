@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-16
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -35,7 +35,7 @@ Abra a aba de e-mail pela barra de ações à esquerda (ícone de e-mail) ou pel
 - **Selecionar vários** — Ctrl+clique (macOS: ⌘+clique) escolhe mensagens isoladas, Shift+clique um intervalo; na visão de conversas, um Ctrl+clique na conversa escolhe a troca inteira, e cada mensagem mantém a própria pasta.
 - **Pelo teclado na lista** — Seta para cima/baixo seleciona a mensagem anterior/seguinte e a mostra no leitor — se a seta chegar a uma conversa recolhida, ela a expande e seleciona a primeira (para baixo) ou a última (para cima) mensagem; dentro de uma conversa expandida, as setas percorrem mensagem por mensagem —, Shift+seta estende a seleção, Home/End saltam para a primeira/última mensagem, seta esquerda/direita recolhe/expande uma conversa, Enter abre a mensagem no leitor, Delete a move para a lixeira (com a mesma confirmação do botão). Todos estão na janela de atalhos (F1) em **E-mail**.
 
-Os anexos são listados abaixo da mensagem com nome e tamanho. Um clique em um anexo (no celular, um toque) salva o arquivo no seu vault — na pasta `Attachments` dentro da **Pasta de e-mail** (padrão `Mail/Attachments`); se já houver ali um arquivo com esse nome, o novo recebe um número. O `.eml` original (abaixo) contém todos os anexos por completo.
+Os anexos são listados abaixo da mensagem com nome e tamanho. Isso inclui uma imagem que a mensagem incorpora no texto — uma foto que alguém colocou no texto ou o logotipo de uma assinatura: o Plainva não mostra essas imagens no lugar delas no texto, por isso elas aparecem aqui como arquivos, no computador e no celular, e vão junto ao encaminhar. Um clique em um anexo (no celular, um toque) salva o arquivo no seu vault — na pasta `Attachments` dentro da **Pasta de e-mail** (padrão `Mail/Attachments`); se já houver ali um arquivo com esse nome, o novo recebe um número. O `.eml` original (abaixo) contém todos os anexos por completo.
 
 Quando você abre uma pasta que já abriu antes, a lista aparece **imediatamente** a partir do cache local enquanto a atualização roda em segundo plano; até ela chegar, um aviso diz “atualizando” — só o que o servidor enviou conta como confirmado. O mesmo vale para uma mensagem que você já leu. No telefone, a mensagem **mais recente** de uma pasta é pré-carregada em segundo plano — ela abre sem espera, mesmo que você nunca a tenha aberto.
 

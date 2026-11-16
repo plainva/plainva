@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -35,7 +35,7 @@ Otwórz kartę e-mail przez lewy pasek akcji (ikona koperty) lub paletę polece�
 - **Zaznaczanie wielu** — Ctrl+kliknięcie (macOS: ⌘+kliknięcie) wybiera pojedyncze wiadomości, Shift+kliknięcie zakres; w widoku konwersacji Ctrl+kliknięcie na konwersacji wybiera całą wymianę, a każda wiadomość zachowuje przy tym własny folder.
 - **Klawiaturą po liście** — Strzałka w górę/w dół wybiera poprzednią/następną wiadomość i pokazuje ją w czytniku — jeśli strzałka trafi na zwiniętą konwersację, rozwija ją i wybiera jej pierwszą (w dół) lub ostatnią (w górę) wiadomość; w rozwiniętej konwersacji strzałki przechodzą od wiadomości do wiadomości —, Shift+strzałka rozszerza zaznaczenie, Home/End skaczą do pierwszej/ostatniej wiadomości, strzałka w lewo/w prawo zwija/rozwija konwersację, Enter otwiera wiadomość w czytniku, Delete przenosi ją do kosza (z takim samym potwierdzeniem jak przycisk). Wszystkie skróty są w oknie skrótów (F1) w sekcji **E-mail**.
 
-Załączniki są wyświetlane pod wiadomością z nazwą i rozmiarem. Kliknięcie załącznika (na telefonie dotknięcie) zapisuje plik w vaulcie — w folderze `Attachments` wewnątrz folderu z ustawienia **Folder e-mail** (domyślnie `Mail/Attachments`); jeśli plik o tej nazwie już tam jest, nowy dostaje numer. Oryginalny plik `.eml` (poniżej) zawiera wszystkie załączniki w całości.
+Załączniki są wyświetlane pod wiadomością z nazwą i rozmiarem. Należy do nich także obraz, który wiadomość osadza w swoim tekście — zdjęcie wstawione do tekstu albo logo w podpisie: Plainva nie pokazuje takich obrazów w ich miejscu w tekście, dlatego są tu wymienione jako pliki, na komputerze tak samo jak na telefonie, i są dołączane przy przekazywaniu. Kliknięcie załącznika (na telefonie dotknięcie) zapisuje plik w vaulcie — w folderze `Attachments` wewnątrz folderu z ustawienia **Folder e-mail** (domyślnie `Mail/Attachments`); jeśli plik o tej nazwie już tam jest, nowy dostaje numer. Oryginalny plik `.eml` (poniżej) zawiera wszystkie załączniki w całości.
 
 Gdy otwierasz folder, który już kiedyś otwierałeś, lista pojawia się **natychmiast** z lokalnej pamięci, a odświeżanie działa w tle; dopóki trwa, wskazówka mówi „aktualizowanie” — potwierdzone jest tylko to, co przysłał serwer. To samo dotyczy wiadomości, którą już przeczytałeś. Na telefonie **najnowsza** wiadomość w folderze jest wczytywana z wyprzedzeniem w tle — otwiera się wtedy bez czekania, nawet jeśli nigdy jej nie otwierałeś.
 

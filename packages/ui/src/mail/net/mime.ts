@@ -21,8 +21,9 @@ export interface ParsedPart {
   mime: string;
   name: string | null;
   disposition: string | null;
-  /** Decoded text for text/*; raw bytes otherwise. */
+  /** Decoded text for a text/* part that is not attached as a file. */
   text: string | null;
+  /** The bytes of a file of the message (`isMessageFile`): with the transfer encoding taken off, nothing else. */
   bytes: Uint8Array | null;
   /** 1-based index among the parts a user would call an attachment. */
   index: number;
@@ -328,9 +329,40 @@ function dispositionOf(headers: HeaderMap): string | null {
   return (headers.get("content-disposition") ?? "").split(";")[0].trim().toLowerCase() || null;
 }
 
-/** What a reader shows as the words of a message: its plain text or its HTML, unless that is attached as a file. */
+/** Where a list row looks for a message's opening words: a plain text or an HTML part not attached as a file. */
 function showsAsText(mime: string, disposition: string | null): boolean {
   return (mime === "text/plain" || mime === "text/html") && disposition !== "attachment";
+}
+
+/**
+ * Whether a part is words of the message's own text — a plain text or an
+ * HTML part its body is made of — rather than a file (RFC 8621, 4.1.4, the
+ * rule mail-parser follows on the desktop): it is not attached as a file, and
+ * it is the first part where it stands, or it carries no file name and does
+ * not stand in a multipart/related behind the first part. A named text further
+ * down a message — the note Apple Mail attaches inline — is a file.
+ */
+function partOfTheText(mime: string, disposition: string | null, name: string | null, position: number, parent: string): boolean {
+  if ((mime !== "text/plain" && mime !== "text/html") || disposition === "attachment") return false;
+  return position === 0 || (parent !== "multipart/related" && name === null);
+}
+
+/**
+ * THE rule of what is a file of a message, on both shells (Fehlerliste 0.9.0
+ * C6; `attachment_parts` in `mail_imap.rs` follows it, and one set of example
+ * messages holds both, `imapAttachments.test.ts` and `mail_imap.rs`):
+ *
+ * Every part of the message that is not divided into others is a file of it —
+ * whatever its type, named or not, attached or inline, an image the HTML shows
+ * by `cid:` included — except the words of its text: a plain text or an HTML
+ * part that is part of the text (`partOfTheText`), and the one part of a
+ * message of one part that is read as its words (`wordsOfAWholeMessage`). An
+ * enclosed message is one file; the parts inside it are its own. So a picture
+ * the reader does not show in place is never invisible: it is in the list,
+ * can be opened and saved, and goes along with a forward.
+ */
+function isMessageFile(wholeWords: boolean, ofTheText: boolean): boolean {
+  return !wholeWords && !ofTheText;
 }
 
 /** A type and a subtype as the rule spells them (RFC 2045, 5.1: two tokens). */
@@ -352,8 +384,7 @@ const DATA_TEXT = new Set(["calendar", "x-vcalendar", "vcard", "x-vcard", "direc
  * `text/plain charset=us-ascii` without its semicolon (RFC 2045, 5.2). Such a
  * message used to open empty, and was in no list of files either. Not one
  * attached as a file, and not one that is data (`DATA_TEXT`). Inside a
- * multipart such a part is the attachment question of the parity catalog's
- * `mail-attachment-list`, and stays as it is. The desktop reads the same
+ * multipart such a part is a file (`isMessageFile`). The desktop reads the same
  * messages alike (`whole_message_text_part` in `mail_imap.rs`).
  */
 function wordsOfAWholeMessage(headers: HeaderMap): boolean {
@@ -372,8 +403,6 @@ function inDigest(parent: string, headers: HeaderMap): string | null {
   return parent === "multipart/digest" && namedType(headers) === "" ? "message/rfc822" : null;
 }
 
-/** An enclosed message: a file of the message whether it has a name or not, on both shells. */
-const ENCLOSED_MESSAGE = new Set(["message/rfc822", "message/global"]);
 
 /**
  * The delimiter line between the parts of a multipart, in `wireOf` form; null
@@ -482,7 +511,9 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
   /** The message's one part, where it is words of another type than text/plain (`wordsOfAWholeMessage`). */
   let whole: ParsedPart | null = null;
 
-  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, branches: ReadonlyArray<AlternativeBranch>, parent = ""): void => {
+  /** Per part, in the order of `parts`: whether it is words of the message's text (`partOfTheText`). */
+  const ofTheText: boolean[] = [];
+  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, branches: ReadonlyArray<AlternativeBranch>, parent = "", position = 0): void => {
     if (depth > 12) return; // pathological nesting guard
     const type = inDigest(parent, partHeaders) ?? contentType(partHeaders);
     if (type.startsWith("multipart/")) {
@@ -492,7 +523,7 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       const alternative = type === "multipart/alternative" ? ++alternatives : 0;
       splitMultipart(partBody, delimiter).forEach((chunk, child) => {
         const sub = splitHeaders(chunk);
-        walk(headersOf(sub.head), sub.body, depth + 1, alternative ? [...branches, { alternative, child }] : branches, type);
+        walk(headersOf(sub.head), sub.body, depth + 1, alternative ? [...branches, { alternative, child }] : branches, type, child);
       });
       return;
     }
@@ -503,24 +534,26 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       null;
     const wholeWords = depth === 0 && wordsOfAWholeMessage(partHeaders);
     const isText = wholeWords || (type.startsWith("text/") && disposition !== "attachment");
+    const text = partOfTheText(type, disposition, name, position, parent);
     const part: ParsedPart = {
       mime: type,
       name,
       disposition,
       text: isText ? decodeText(partHeaders, partBody) : null,
-      bytes: isText ? null : decodeBody(partHeaders, partBody),
+      bytes: isMessageFile(wholeWords, text) ? decodeBody(partHeaders, partBody) : null,
       index: ++index,
     };
     if (wholeWords) whole = part;
     parts.push(part);
     branchesOf.push(branches);
+    ofTheText.push(text);
   };
 
   walk(headers, body, 0, []);
   // Set inside `walk`, which the narrowing of `let` does not follow.
   const wholePart = whole as ParsedPart | null;
 
-  const first = parts.findIndex((part) => showsAsText(part.mime, part.disposition));
+  const first = parts.findIndex((_, at) => ofTheText[at]);
   let text: string | null = null;
   if (first < 0 && wholePart) {
     text = wholePart.text;
@@ -530,12 +563,14 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
     const own = branchesOf[first];
     const otherVersion = (at: number): boolean =>
       branchesOf[at].some((branch) => own.some((mine) => mine.alternative === branch.alternative && mine.child !== branch.child));
-    text = parts.find((part, at) => part.mime === "text/plain" && part.text !== null && otherVersion(at))?.text ?? null;
+    text = parts.find((part, at) => part.mime === "text/plain" && ofTheText[at] && part.text !== null && otherVersion(at))?.text ?? null;
   }
-  const html = parts.find((p) => p.mime === "text/html" && p.text !== null)?.text ?? null;
+  const html = parts.find((p, at) => p.mime === "text/html" && ofTheText[at] && p.text !== null)?.text ?? null;
+  // A file without a name of its own is listed as the desktop lists it; a
+  // forward names it after its type (`carriedFiles.ts`).
   const attachments: MailAttachmentInfo[] = parts
-    .filter((p) => p.bytes !== null && (p.disposition === "attachment" || p.name !== null || ENCLOSED_MESSAGE.has(p.mime)))
-    .map((p) => ({ index: p.index, name: p.name ?? `part-${p.index}`, mime: p.mime, size: p.bytes?.length ?? 0 }));
+    .filter((p) => p.bytes !== null)
+    .map((p) => ({ index: p.index, name: p.name ?? "attachment", mime: p.mime, size: p.bytes?.length ?? 0 }));
 
   return { headers, text, html, attachments, parts };
 }

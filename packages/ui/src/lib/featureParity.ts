@@ -814,37 +814,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
-    id: "mail-attachment-list",
-    title: "Which parts of an IMAP message count as its attachments",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The reader's list of attachments is what a forward carries and what can be " +
-      "saved, and for an IMAP mailbox the two shells build it with two parsers. The " +
-      "desktop's rule is its own (attachment_parts in mail_imap.rs, on top of " +
-      "mail-parser 1.0, whose RFC 8621 list would leave out a picture the body " +
-      "shows): every part that is not text is a file, and a text or HTML part that " +
-      "is in neither body - an embedded image without a name, a named text part, " +
-      "the calendar alternative of an invitation, an attached message. The phone's " +
-      "(net/mime.ts) lists a part only when it carries a file name, is marked as " +
-      "an attachment or is an enclosed message, and never a text part that is not " +
-      "marked so. Both list a named picture of a multipart/mixed with or without a " +
-      "disposition, and an enclosed message with or without a name - the parts of " +
-      "a digest that name no type among them (held by the same messages in " +
-      "imapClient.test.ts and mail_imap.rs, open-items plan 3.78 no. 13). A " +
-      "message of one part in another text type is its text on both (3.78 no. " +
-      "12), not a file. The same message " +
-      "can still show more files on the desktop - one for every unnamed part, the " +
-      "logo of a signature included -, and a forward then carries them from there, " +
-      "each counted against what a forward loads on its own. A Microsoft mailbox " +
-      "is not affected: both shells read Graph's list. " +
-      "Closing this means one rule for what counts, held by the same example " +
-      "messages against both parsers (finding 2026-10-11).",
-    verified: "2026-11-02",
-  },
-  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

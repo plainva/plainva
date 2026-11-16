@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-11-06
+Stand: 2026-11-16
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -35,7 +35,7 @@ Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; 
 - **Mehrere auswählen** — Strg-Klick (macOS: ⌘-Klick) wählt einzelne Nachrichten, Umschalt-Klick einen Bereich; in der Konversations-Ansicht wählt ein Strg-Klick auf die Konversation gleich das ganze Gespräch, und jede Nachricht darin behält dabei ihren eigenen Ordner.
 - **Mit der Tastatur durch die Liste** — Pfeil hoch/runter wählt die vorherige/nächste Nachricht und zeigt sie im Leser — trifft die Taste auf eine zugeklappte Konversation, klappt sie diese auf und wählt ihre erste (abwärts) bzw. letzte (aufwärts) Nachricht; durch eine offene Konversation laufen die Pfeiltasten von Nachricht zu Nachricht —, Umschalt+Pfeil erweitert die Auswahl, Pos1/Ende springen an den Anfang/das Ende, Pfeil links/rechts klappt eine Konversation zu/auf, Enter öffnet die Nachricht im Leser, Entf verschiebt sie in den Papierkorb (mit derselben Nachfrage wie der Knopf). Alle Kürzel stehen auch im Tastenkürzel-Fenster (F1) unter **E-Mail**.
 
-Anhänge stehen mit Name und Größe unter der Nachricht. Ein Klick auf einen Anhang (am Telefon ein Tippen) speichert die Datei in Deinen Vault — in den Ordner `Attachments` unter dem **E-Mail-Ordner** (Standard `Mail/Attachments`); liegt dort schon eine Datei dieses Namens, bekommt die neue eine Nummer. Die Original-`.eml` (siehe unten) enthält alle Anhänge vollständig.
+Anhänge stehen mit Name und Größe unter der Nachricht. Dazu gehört auch ein Bild, das die Nachricht in ihrem Text einbettet — ein Foto, das jemand in den Text gesetzt hat, oder das Logo einer Signatur: Plainva zeigt solche Bilder nicht an ihrer Stelle im Text, deshalb stehen sie hier als Datei, am Desktop wie am Telefon, und gehen beim Weiterleiten mit. Ein Klick auf einen Anhang (am Telefon ein Tippen) speichert die Datei in Deinen Vault — in den Ordner `Attachments` unter dem **E-Mail-Ordner** (Standard `Mail/Attachments`); liegt dort schon eine Datei dieses Namens, bekommt die neue eine Nummer. Die Original-`.eml` (siehe unten) enthält alle Anhänge vollständig.
 
 Beim Öffnen eines Ordners, den Du schon einmal geöffnet hast, erscheint die Liste **sofort** aus dem lokalen Zwischenspeicher, während im Hintergrund aktualisiert wird; solange das läuft, sagt ein Hinweis „wird aktualisiert“ — bestätigt ist erst, was der Server geliefert hat. Dasselbe gilt für eine Nachricht, die Du schon gelesen hast. Auf dem Telefon wird die **neueste** Nachricht eines Ordners im Hintergrund vorgeladen — sie öffnet sich dann ohne Wartezeit, auch wenn Du sie noch nie geöffnet hattest.
 

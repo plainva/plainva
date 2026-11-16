@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-11-06
+Última actualización: 2026-11-16
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -35,7 +35,7 @@ Abre la pestaña de correo desde la barra de acciones de la izquierda (icono de 
 - **Seleccionar varios** — Ctrl+clic (macOS: ⌘+clic) selecciona mensajes sueltos, Mayús+clic un rango; en la vista de conversaciones, un Ctrl+clic sobre la conversación selecciona todo el intercambio, y cada mensaje conserva su propia carpeta.
 - **Con el teclado por la lista** — Flecha arriba/abajo selecciona el mensaje anterior/siguiente y lo muestra en el lector — si la flecha llega a una conversación plegada, la despliega y selecciona su primer mensaje (al bajar) o el último (al subir); dentro de una conversación desplegada, las flechas recorren mensaje por mensaje —, Mayús+flecha amplía la selección, Inicio/Fin saltan al primer/último mensaje, flecha izquierda/derecha pliega/despliega una conversación, Intro abre el mensaje en el lector, Supr lo mueve a la papelera (con la misma confirmación que el botón). Todos aparecen en la ventana de atajos (F1) bajo **Correo**.
 
-Los adjuntos aparecen bajo el mensaje con nombre y tamaño. Un clic en un adjunto (en el teléfono, un toque) guarda el archivo en tu vault — en la carpeta `Attachments` dentro de la **Carpeta de correo** (por defecto `Mail/Attachments`); si ya hay allí un archivo con ese nombre, el nuevo recibe un número. El `.eml` original (más abajo) incluye todos los adjuntos completos.
+Los adjuntos aparecen bajo el mensaje con nombre y tamaño. También una imagen que el mensaje incrusta en su texto — una foto que alguien puso en el texto o el logotipo de una firma: Plainva no muestra esas imágenes en su lugar dentro del texto, por eso aparecen aquí como archivos, en el escritorio igual que en el teléfono, y van incluidas al reenviar. Un clic en un adjunto (en el teléfono, un toque) guarda el archivo en tu vault — en la carpeta `Attachments` dentro de la **Carpeta de correo** (por defecto `Mail/Attachments`); si ya hay allí un archivo con ese nombre, el nuevo recibe un número. El `.eml` original (más abajo) incluye todos los adjuntos completos.
 
 Cuando abres una carpeta que ya habías abierto, la lista aparece **de inmediato** desde la caché local mientras la actualización corre en segundo plano; hasta que llega, un aviso dice «actualizando»: solo lo que envió el servidor cuenta como confirmado. Lo mismo vale para un mensaje que ya has leído. En el teléfono, el mensaje **más reciente** de una carpeta se precarga en segundo plano: luego se abre sin espera, incluso si nunca lo habías abierto.
 

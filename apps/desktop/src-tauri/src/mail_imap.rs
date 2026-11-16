@@ -704,6 +704,16 @@ fn parse_message(raw: &[u8]) -> Result<mail_parser::Message<'_>, String> {
 /// of the message itself that is not a text it shows, an attached message
 /// included (the parts inside that message are its own).
 ///
+/// This is THE rule of what is a file, on both shells (Fehlerliste 0.9.0 C6,
+/// written out at `isMessageFile` in `packages/ui/src/mail/net/mime.ts`, which
+/// the phone's parser follows): every part not divided into others is a file
+/// — whatever its type, named or not, attached or inline, a picture the HTML
+/// shows by `cid:` included — except the words of the text (a plain or HTML
+/// part in a body, by RFC 8621) and the one part of a message of one part read
+/// as its words. The reader does not show a `cid:` picture in place, so no
+/// file may disappear from the list. One file of example messages holds both
+/// parsers (`one_rule_of_what_is_a_file`, `imapAttachmentRule.test.ts`).
+///
 /// mail-parser 1.0 lists attachments by RFC 8621, which leaves out a picture
 /// or a sound the message shows in its body: an image in a multipart/mixed
 /// with a file name and no Content-Disposition — how many programs attach a
@@ -805,8 +815,8 @@ fn is_media_token(value: &str) -> bool {
 /// with no text and one file named "attachment"; on the phone it opened empty.
 /// By the rule it is plain text (RFC 2046, 4.1.4; RFC 2045, 5.2), on both
 /// shells now: not one attached as a file, and not one that is data
-/// (`DATA_TEXT_SUBTYPES`). Inside a multipart such a part stays what it was —
-/// the attachment question of the parity catalog's `mail-attachment-list`.
+/// (`DATA_TEXT_SUBTYPES`). Inside a multipart such a part is a file
+/// (`attachment_parts`).
 fn whole_message_text_part<'m>(parsed: &'m mail_parser::Message<'_>) -> Option<mail_parser::MessagePart<'m>> {
     if parsed.text_body().len() > 0 || parsed.html_body().len() > 0 {
         return None;
@@ -861,8 +871,10 @@ fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<M
                     None => c.ctype().to_string(),
                 })
                 // A part of a digest that names no type is an enclosed message.
-                .unwrap_or_else(|| if part.is_message() { "message/rfc822" } else { "application/octet-stream" }.to_string()),
-            size: part_contents(&part).len(),
+                .unwrap_or_else(|| if part.is_message() { "message/rfc822" } else { "application/octet-stream" }.to_string())
+                .to_ascii_lowercase(),
+            // The size of the file that is saved or forwarded: its own bytes.
+            size: attachment_bytes(&part).len(),
         })
         .collect();
     Ok(MailMessage {
@@ -1128,6 +1140,7 @@ fn attachment_bytes(part: &mail_parser::MessagePart) -> Vec<u8> {
 
 /// What the parser hands out as a part's content: the text of a text part,
 /// in UTF-8, and the decoded bytes of any other.
+#[cfg(test)]
 fn part_contents(part: &mail_parser::MessagePart) -> Vec<u8> {
     match part.text() {
         Some(text) => text.into_owned().into_bytes(),
@@ -1973,6 +1986,31 @@ mod tests {
     fn what_the_parser_gives_up_in_base64() {
         assert_eq!(subject_of("=?utf-8?B?R3LDvMOf*ZQ==?="), "=?utf-8?B?R3LDvMOf*ZQ==?=");
         assert_eq!(subject_of("=?utf-8?B?R3LD-vMOfZQ==?="), "=?utf-8?B?R3LD-vMOfZQ==?=");
+    }
+
+    /// ONE rule of what is a file of a message (Fehlerliste 0.9.0 C6): the
+    /// example messages the phone's parser is held to as well
+    /// (`imapAttachmentRule.test.ts`), out of the same file.
+    #[test]
+    fn one_rule_of_what_is_a_file() {
+        let fixtures: serde_json::Value = serde_json::from_str(include_str!("../../../../packages/ui/src/mail/net/attachmentRule.fixtures.json")).expect("fixtures");
+        let cases = fixtures["cases"].as_array().expect("cases");
+        assert!(cases.len() > 8);
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let raw = case["raw"].as_str().unwrap().as_bytes();
+            let message = message_from_raw(raw, 1, None).expect(name);
+            let listed: Vec<(String, String)> = message.attachments.iter().map(|file| (file.name.clone(), file.mime.clone())).collect();
+            let expected: Vec<(String, String)> = case["files"].as_array().unwrap().iter().map(|file| (file["name"].as_str().unwrap().to_string(), file["mime"].as_str().unwrap().to_string())).collect();
+            assert_eq!(listed, expected, "{name}");
+            // Each listed file has its bytes, as many as the list says.
+            let indexes: Vec<usize> = (0..listed.len()).collect();
+            let fetched = attachment_contents(raw, &indexes).expect(name);
+            assert_eq!(fetched.len(), listed.len(), "{name}");
+            for (file, found) in message.attachments.iter().zip(&fetched) {
+                assert_eq!(fetched_bytes(found).len(), file.size, "{name}: {}", file.name);
+            }
+        }
     }
 
     /// What the shared side reads a head from (Fehlerliste 0.9.0 C7): the

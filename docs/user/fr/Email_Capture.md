@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-16
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -35,7 +35,7 @@ Ouvrez l'onglet e-mail depuis la barre d'actions à gauche (icône enveloppe) ou
 - **Sélectionner plusieurs messages** — Ctrl+clic (macOS : ⌘+clic) sélectionne des messages isolés, Maj+clic une plage ; dans la vue conversations, un Ctrl+clic sur la conversation sélectionne tout l'échange, et chaque message y conserve son propre dossier.
 - **Au clavier dans la liste** — Flèche haut/bas sélectionne le message précédent/suivant et l'affiche dans le lecteur — si la flèche arrive sur une conversation repliée, elle la déplie et sélectionne son premier message (vers le bas) ou son dernier (vers le haut) ; dans une conversation dépliée, les flèches parcourent message par message —, Maj+flèche étend la sélection, Début/Fin sautent au premier/dernier message, flèche gauche/droite replie/déplie une conversation, Entrée ouvre le message dans le lecteur, Suppr le met à la corbeille (avec la même confirmation que le bouton). Tous figurent dans la fenêtre des raccourcis (F1) sous **E-mail**.
 
-Les pièces jointes sont listées sous le message avec leur nom et leur taille. Un clic sur une pièce jointe (un appui sur le téléphone) enregistre le fichier dans votre vault — dans le dossier `Attachments` sous le **Dossier e-mail** (par défaut `Mail/Attachments`) ; si un fichier de ce nom s'y trouve déjà, le nouveau reçoit un numéro. L'original `.eml` (voir plus bas) contient toutes les pièces jointes en entier.
+Les pièces jointes sont listées sous le message avec leur nom et leur taille. Cela inclut une image que le message intègre dans son texte — une photo que quelqu'un a placée dans le texte, ou le logo d'une signature : Plainva n'affiche pas ces images à leur place dans le texte, elles sont donc listées ici comme fichiers, sur l'ordinateur comme sur le téléphone, et partent avec un transfert. Un clic sur une pièce jointe (un appui sur le téléphone) enregistre le fichier dans votre vault — dans le dossier `Attachments` sous le **Dossier e-mail** (par défaut `Mail/Attachments`) ; si un fichier de ce nom s'y trouve déjà, le nouveau reçoit un numéro. L'original `.eml` (voir plus bas) contient toutes les pièces jointes en entier.
 
 Lorsque tu ouvres un dossier déjà ouvert auparavant, la liste apparaît **immédiatement** depuis le cache local pendant que l'actualisation se fait en arrière-plan ; un indice dit « mise à jour » jusqu'à ce qu'elle arrive — seul ce que le serveur a envoyé est confirmé. Il en va de même pour un message déjà lu. Sur le téléphone, le message **le plus récent** d'un dossier est préchargé en arrière-plan : il s'ouvre alors sans attente, même si tu ne l'avais jamais ouvert.
 

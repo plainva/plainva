@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-16
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -35,7 +35,7 @@ Open the mail tab from the left action rail (mail icon) or the command palette (
 - **Selecting several** — Ctrl-click (macOS: ⌘-click) picks individual messages, Shift-click a range; in the conversation view a Ctrl-click on the conversation picks the whole exchange, and every message in it keeps its own folder.
 - **Keyboard through the list** — Arrow up/down selects the previous/next message and shows it in the reader — landing on a folded conversation unfolds it and picks its first (down) or last (up) message; through an unfolded conversation the arrow keys walk from message to message —, Shift+arrow extends the selection, Home/End jump to the first/last message, arrow left/right collapses/expands a conversation, Enter opens the message in the reader, Delete moves it to the trash (with the same confirmation as the button). All of them are listed in the shortcuts window (F1) under **Email**.
 
-Attachments are listed under the message with name and size. A click on one (a tap on the phone) saves the file into your vault — into the `Attachments` folder under the **Mail folder** (default `Mail/Attachments`); if a file of that name is already there, the new one gets a number. The original `.eml` (below) carries all attachments in full.
+Attachments are listed under the message with name and size. This includes a picture the message embeds in its text — a photo someone put into the text, or the logo of a signature: Plainva does not show such pictures in their place in the text, so they are listed here as files, on the desktop and on the phone alike, and go along with a forward. A click on one (a tap on the phone) saves the file into your vault — into the `Attachments` folder under the **Mail folder** (default `Mail/Attachments`); if a file of that name is already there, the new one gets a number. The original `.eml` (below) carries all attachments in full.
 
 When you open a folder you have opened before, the list appears **immediately** from the local cache while the refresh runs in the background; a hint says “updating” until it lands — only what the server sent counts as confirmed. The same goes for a message you have already read. On the phone the **newest** message in a folder is preloaded in the background — it then opens with no wait, even if you had never opened it before.
 
