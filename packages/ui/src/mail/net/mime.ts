@@ -128,19 +128,63 @@ export function parseHeaders(head: string): Map<string, string> {
   return out;
 }
 
-/** RFC 2047 encoded words in a header value ("=?utf-8?B?…?="). */
+/** One encoded word: its charset (an RFC 2231 language cut off), its encoding, its data. */
+const ENCODED_WORD = /=\?([^?*]+)(?:\*[^?]*)?\?([bBqQ])\?([^?]*)\?=/g;
+
+/**
+ * RFC 2047 encoded words in a header value ("=?utf-8?B?…?="), read as the
+ * desktop's parser reads them (Fehlerliste 0.9.0 C7, review of 2026-11-16).
+ *
+ * Space between two encoded words is no part of the text (6.2): a long subject
+ * folded between two words, or a Japanese one written as a word per phrase,
+ * reads as one. Neighbouring words of one charset are joined as bytes before
+ * they become text, so a character a generator split between two words — a
+ * UTF-8 "é" — is one character again; ISO-2022-JP returns to ASCII at the end
+ * of each word, so its words are read one by one and joined. Words read one
+ * by one with the space between left a space and a replacement mark.
+ */
 export function decodeWords(value: string): string {
-  return value.replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g, (_all, charset: string, enc: string, data: string) => {
-    try {
-      const bytes =
-        enc.toLowerCase() === "b"
-          ? base64Bytes(data)
-          : qpBytes(data.replace(/_/g, " "));
-      return dec(charset).decode(bytes);
-    } catch {
-      return data;
+  let out = "";
+  let at = 0;
+  /** The bytes of the run of encoded words not yet written, and their charset. */
+  let run: Uint8Array[] = [];
+  let runCharset = "";
+  const flush = (): void => {
+    if (run.length === 0) return;
+    if (/^iso-2022-/.test(runCharset)) {
+      // A stateful charset: each word returns to ASCII at its end and opens
+      // its own escape, so the words are decoded one by one and joined — two
+      // escapes in a row would read as an error (WHATWG encoding).
+      out += run.map((b) => dec(runCharset).decode(b)).join("");
+      run = [];
+      return;
     }
-  });
+    const length = run.reduce((n, b) => n + b.length, 0);
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const b of run) {
+      bytes.set(b, offset);
+      offset += b.length;
+    }
+    out += dec(runCharset).decode(bytes);
+    run = [];
+  };
+  for (const m of value.matchAll(ENCODED_WORD)) {
+    const between = value.slice(at, m.index);
+    const charset = m[1].toLowerCase();
+    if (run.length > 0 && /^[ \t\r\n]*$/.test(between)) {
+      // Space between two encoded words is dropped; a change of charset ends the run.
+      if (charset !== runCharset) flush();
+    } else {
+      flush();
+      out += between;
+    }
+    runCharset = charset;
+    run.push(m[2].toLowerCase() === "b" ? base64Bytes(m[3]) : qpBytes(m[3].replace(/_/g, " ")));
+    at = m.index + m[0].length;
+  }
+  flush();
+  return out + value.slice(at);
 }
 
 /** In `BASE64_VALUE`: the "=" that ends a group. */
