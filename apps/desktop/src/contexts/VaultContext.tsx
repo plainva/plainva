@@ -487,10 +487,15 @@ export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${bt
  * stamp (plan Rückmeldungen 2026-11-05, § 3.177 Nr. 2).
  */
 export async function readDailyDayOfPath(vaultPath: string): Promise<((path: string) => string | null) | null> {
+  return dailyDayResolver(await readDailyNaming(vaultPath));
+}
+
+/** The two settings that name a daily note in this vault. */
+export async function readDailyNaming(vaultPath: string): Promise<{ folder: string; format: string }> {
   const store = await getSettingsStore();
   const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) ?? "";
   const format = (await store.get<string>(dailyNotesFormatKey(vaultPath))) ?? "YYYY-MM-DD";
-  return dailyDayResolver({ folder, format });
+  return { folder, format };
 }
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Folder → template mapping (plan Vorlagen-Engine P4), a `FolderTemplateRule[]`. */
