@@ -580,6 +580,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "code-block-copy",
+    title: "Copy a code block with one button",
+    area: "editor",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's read mode draws a fenced code block as a card with its language " +
+      "and a copy button (CodeBlock.tsx). The phone shows a note in the editor's live " +
+      "preview only, where the same block is a card too (since 77958a0d3, issue 175) " +
+      "but carries no button: copying it means selecting the lines and Copy in the " +
+      "selection bar. A button on the live-preview card, shared by both editors, " +
+      "closes this; recorded on 2026-11-16 as an open item of the issues of 14 November.",
+    verified: "2026-11-16",
+  },
+  {
     id: "image-editor",
     title: "Crop, rotate and draw on an attached image",
     area: "editor",

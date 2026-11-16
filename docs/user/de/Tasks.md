@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-11-05
+Stand: 2026-11-16
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -217,6 +217,11 @@ Eine Aufgabe, die Plainva aus einer Aufgabenliste Deines Anbieters spiegelt, hei
 Welche Aufgabe in welcher Datei steht, verrät nicht der Name, sondern die Frontmatter-Markierung (`plainva.pim`, siehe [Dateiformat-Referenz](File_Format_Reference.md)). Deshalb nimmt Plainva einen vorhandenen Namen nur, wenn die Datei dort dieselbe Aufgabe trägt, und legt neue Aufgaben auf jedem Gerät in derselben Reihenfolge an — zwei Geräte vergeben so dieselben Nummern. Ändert sich der Titel beim Anbieter, zieht Plainva die Überschrift der Notiz nach, benennt die Datei aber nicht um: Links auf die Notiz bleiben gültig. Umbenennen und verschieben darfst Du sie jederzeit selbst; die Markierung hält die Verbindung.
 
 **Namen mit Kennung bereinigen.** Zwischen dem 12. und dem 24.09.2026 hängte Plainva an die Namen neuer Aufgaben-Notizen eine Kennung an (`Zahnarzt anrufen — 3f9a1c0b7d2e4a61.md`). Trägt Dein Vault noch solche Namen, zeigt die Aufgabenansicht — am Desktop wie am Telefon — einmal einen Hinweis mit der Liste alt → neu und der Zahl der Links, die mit angepasst werden. **Namen bereinigen …** fragt noch einmal nach und benennt die Notizen dann nach ihrem Titel um, gleichnamige wie oben mit Nummer; Links auf sie werden mit angepasst. **Ausblenden** legt den Hinweis beiseite, bis weitere solche Namen auftauchen. Plainva erkennt nur Namen, die es selbst vergeben hat: die Kennung muss zur Markierung in derselben Datei passen. Von allein wird nichts umbenannt. Deine anderen Geräte erhalten die Umbenennungen als Verschiebung, sobald sie auf demselben Stand sind; eine ältere Fassung sieht dort gelöschte und neue Notizen, fragt womöglich, ob sie löschen soll, oder behält den alten Namen neben dem neuen — aktualisiere diese Geräte am besten vorher. Am Desktop erscheint der Hinweis im Hauptfenster.
+
+<!-- task-lists-silent-2026-11-16 -->
+## Wenn Aufgaben vom Anbieter nicht erscheinen
+
+Aufgaben aus einer Aufgabenliste Deines Anbieters werden Notizen in Deiner **Standard-Aufgabendatenbank**. Ist keine gesetzt, sagt das eine ruhige Zeile einmal — über den Aufgaben und auf der Seite des Kontos unter **Aufgabenlisten**, am Desktop und am Telefon — mit **Neue Datenbank anlegen…**, das eine anlegt und setzt; die Listen kommen dann mit der nächsten Synchronisation. **Ausblenden** nimmt die Zeile für diesen Vault auf diesem Gerät weg; sie kommt nur wieder, wenn eine Aufgabendatenbank gesetzt und später wieder entfernt wird. Während ein Gerät seine erste Synchronisation läuft, erscheint nichts: die Datenbank oder die Einstellung ist dann vielleicht schlicht noch nicht da. Ein echter Fehler erscheint dagegen als Warnung mit **Erneut versuchen**: die Aufgabendatenbank lässt sich nicht lesen oder nennt keinen Ordner für neue Notizen, für eine neue Aufgabe ließ sich keine Notiz anlegen, oder am Telefon ist der Index des Vaults nicht geöffnet. Die Warnung verschwindet, sobald die Aufgaben durchkommen.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Tasks-Metadaten und Wiederholungen

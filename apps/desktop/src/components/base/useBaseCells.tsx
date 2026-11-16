@@ -766,7 +766,9 @@ export function useBaseCells({
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
           onBlur={() => handleCellSave(path, col, editValue)}
-          onKeyDown={e => { if (e.key === 'Enter') void handleCellSave(path, col, editValue); if (e.key === 'Escape') setEditingCell(null); }}
+          // Enter commits through the blur, so the save runs once (issue 170:
+          // Enter and the focus loss after it both started the same write).
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditingCell(null); }}
           onClick={e => e.stopPropagation()}
           onDoubleClick={e => e.stopPropagation()}
         />
