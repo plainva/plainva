@@ -299,16 +299,43 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
    * copy of it is kept (`onDeniedExternalFork`).
    */
   async authorizeExternalChange(path: string, exists: boolean): Promise<boolean> {
-    if (await workspaceHoldsPath(this.held, this.inner, path)) return false;
-    const request: WorkspaceMutationAuthorizationRequest = {
-      action: "external",
-      path,
-      capability: exists ? "content.write" : "content.delete",
-    };
-    const decision = await this.authorize(request);
-    if (allowed(decision)) return true;
-    await this.onDeniedExternalFork?.(request);
+    const verdict = await this.judgeExternalChange(path, exists);
+    if (verdict === "allowed") return true;
+    if (verdict === "denied") await this.keepDeniedExternalChange(path, exists);
     return false;
+  }
+
+  /**
+   * What `authorizeExternalChange` decides, without its side effect: `held`
+   * when the workspace already holds what lies at `path`, `allowed` when the
+   * change goes into the queue, `denied` when the member may not make it.
+   * The start-up reconcile asks this first, so that a refusal it already
+   * recorded at an earlier start is not recorded again, and a change allowed
+   * meanwhile is queued (release 0.9.0 A3).
+   *
+   * The capability is the one the worker asks before it signs
+   * (`operationCapability`): a file or folder the workspace has no live
+   * object for is a creation (`content.create`), one it has is a write, a
+   * missing one a deletion. Until 0.9.0 every change that exists was asked as
+   * a write, and a Contributor — who may create, not write — had every new
+   * file made outside the app refused here while the worker would have
+   * accepted it.
+   */
+  async judgeExternalChange(path: string, exists: boolean): Promise<"held" | "allowed" | "denied"> {
+    if (await workspaceHoldsPath(this.held, this.inner, path)) return "held";
+    const decision = await this.authorize(await this.externalRequest(path, exists));
+    return allowed(decision) ? "allowed" : "denied";
+  }
+
+  /** Keeps a refused change from outside as a local fork (`onDeniedExternalFork`). */
+  async keepDeniedExternalChange(path: string, exists: boolean): Promise<void> {
+    await this.onDeniedExternalFork?.(await this.externalRequest(path, exists));
+  }
+
+  private async externalRequest(path: string, exists: boolean): Promise<WorkspaceMutationAuthorizationRequest> {
+    if (!exists) return { action: "external", path, capability: "content.delete" };
+    const object = await this.held.getObjectByPath(path);
+    return { action: "external", path, capability: object && !object.deleted ? "content.write" : "content.create" };
   }
 
   private async checkWrite(path: string, action: "write" | "restore"): Promise<void> {

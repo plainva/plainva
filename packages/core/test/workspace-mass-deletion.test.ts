@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { realSqlite } from "./helpers/realSqlite.ts";
 import { initializeSchema } from "../src/db/Schema.js";
 import {
+  EncryptedWorkspaceWorker,
   MemoryWorkspaceStateStore,
   SqlWorkspaceStateStore,
   WorkspaceQueueingVaultAdapter,
@@ -109,6 +110,56 @@ describe("A4: the workspace holds a mass deletion until the person answers", () 
     await worker.runCycle();
     expect(asked).not.toHaveBeenCalled();
     for (const name of names.slice(0, 3)) expect(await live(state, name)).toBe(false);
+  });
+});
+
+describe("A4 after review: folders are counted in their files, and an open question survives a restart", () => {
+  const names = [...Array.from({ length: 30 }, (_, i) => `Notes/n${i}.md`), ...Array.from({ length: 20 }, (_, i) => `Projects/p${i}.md`)];
+
+  it("two folders emptied while closed: the files they took are counted, held and asked about", async () => {
+    const { state, vault, worker, reconcile } = await synced(names);
+    await vault.deleteItem("Notes", true);
+    await vault.deleteItem("Projects", true);
+    await reconcile();
+    expect(await queued(state)).toEqual(expect.arrayContaining(["delete Notes", "delete Projects"]));
+    const asked = vi.fn();
+    worker.onMassDeletionPending = asked;
+    await worker.runCycle();
+    expect(asked).toHaveBeenCalledWith({ pendingDeletes: 50, syncedTotal: 50 });
+    for (const name of names) expect(await live(state, name)).toBe(true);
+  });
+
+  it("held while the app runs, unanswered, restarted: asked again, nothing deleted", async () => {
+    const { runtime, store, state, vault, worker, reconcile } = await synced(names);
+    await vault.deleteItem("Notes", true);
+    await vault.deleteItem("Projects", true);
+    // The index reports each file gone, as while the app runs.
+    for (const name of names) await state.enqueue("delete", name);
+    const asked = vi.fn();
+    worker.onMassDeletionPending = asked;
+    await worker.runCycle();
+    expect(asked).toHaveBeenCalledTimes(1);
+
+    // No answer; the app is restarted — the reconcile adds the two folders.
+    await reconcile();
+    const restarted = new EncryptedWorkspaceWorker(store, state, vault, runtime);
+    const askedAgain = vi.fn();
+    restarted.onMassDeletionPending = askedAgain;
+    await restarted.runCycle();
+    expect(askedAgain).toHaveBeenCalledWith({ pendingDeletes: 50, syncedTotal: 50 });
+    for (const name of names) expect(await live(state, name)).toBe(true);
+  });
+
+  it("an emptied folder of a few files among many is no question", async () => {
+    const many = [...Array.from({ length: 3 }, (_, i) => `Small/s${i}.md`), ...Array.from({ length: 40 }, (_, i) => `k${i}.md`)];
+    const { state, vault, worker, reconcile } = await synced(many);
+    await vault.deleteItem("Small", true);
+    await reconcile();
+    const asked = vi.fn();
+    worker.onMassDeletionPending = asked;
+    await worker.runCycle();
+    expect(asked).not.toHaveBeenCalled();
+    expect(await live(state, "Small/s0.md")).toBe(false);
   });
 });
 

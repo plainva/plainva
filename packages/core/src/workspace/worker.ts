@@ -59,7 +59,8 @@ import { workspaceRecipientGroupIds, workspaceSliceIdsForObject, type WorkspaceS
 import { quarantineReasonCode } from "./quarantineReasons.js";
 import { splitDeviceChains } from "./deviceChains.js";
 import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord, WorkspaceRevisionHistoryService } from "./collaboration.js";
-import { isMassDeletion } from "../sync/massDeletion.js";
+import { isMassFileDeletion, vanishingFiles } from "../sync/massDeletion.js";
+import { workspaceDeniedFork } from "./deniedFork.js";
 import { recoverWorkspaceCommentDecisions } from "./commentDecisionRecovery.js";
 import { reconcileWorkspaceCommentRetractions } from "./commentRetractions.js";
 import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
@@ -84,6 +85,19 @@ function nowIso(): string { return new Date().toISOString(); }
 /** The id of a quarantine entry: one per remote artifact CONTENT. */
 export function quarantineIdFor(kind: string, remoteKey: string, artifactSha256: string): string {
   return sha256Hex(utf8Encode(`${kind}\0${remoteKey}\0${artifactSha256}`));
+}
+
+/**
+ * Takes the newest accepted policy of the remote chain into `runtime` — the
+ * object the app's permission check reads too (`EncryptedWorkspaceWorker.refreshPolicy`).
+ */
+export async function refreshWorkspacePolicy(input: { store: WorkspaceObjectStore; state: WorkspaceStateStore; vault: IVaultAdapter; runtime: PersonalWorkspaceRuntime; signal?: AbortSignal }): Promise<void> {
+  await new EncryptedWorkspaceWorker(input.store, input.state, input.vault, input.runtime).refreshPolicy(input.signal);
+}
+
+/** The policy refused the mutation (an authorization assert while it was prepared), not a fault. */
+function isRefusedByPolicy(error: unknown): boolean {
+  return error instanceof WorkspaceProtocolError && error.code === "authorization";
 }
 
 function quarantineKeyOf(kind: string, remoteKey: string): string {
@@ -426,6 +440,19 @@ export class EncryptedWorkspaceWorker {
     }
     if (restored.length) this.onFilesChanged?.(restored);
     return held.length;
+  }
+
+  /**
+   * Reads the remote policy chain and takes its newest accepted version —
+   * into this worker and into the runtime the app's permission check reads
+   * (`verifyBootstrap`). The start-up reconcile asks this before it judges a
+   * change made while the app was closed (release 0.9.0 A3): the runtime
+   * comes from the key bundle, whose policy is the one of the pairing or of
+   * this device's last own governance change, and a right withdrawn or
+   * granted since would otherwise be judged by the old one.
+   */
+  async refreshPolicy(signal?: AbortSignal): Promise<void> {
+    await this.verifyBootstrap(signal);
   }
 
   async listPendingOperations(limit = 20): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }> {
@@ -1089,7 +1116,17 @@ export class EncryptedWorkspaceWorker {
       this.onProgress?.({ phase: "push", current: ++current, total: queue.length });
       try {
         let prepared = item.prepared;
-        if (!prepared) prepared = await this.prepareMutation(item, queue);
+        if (!prepared) {
+          try {
+            prepared = await this.prepareMutation(item, queue);
+          } catch (error) {
+            // A device the policy no longer counts as active is not refused one
+            // change at a time: that stays the error it is.
+            if (!isRefusedByPolicy(error) || !this.deviceIsActive()) throw error;
+            await this.keepRefusedMutation(item, error);
+            continue;
+          }
+        }
         if (!prepared) { await this.state.discardQueue(item.id); continue; }
         for (const queueId of prepared.absorbedQueueIds) absorbed.add(queueId);
         await this.uploadPrepared(item, prepared, signal);
@@ -1113,23 +1150,52 @@ export class EncryptedWorkspaceWorker {
     const pendingIds = new Set(queue.map((item) => item.id));
     for (const id of [...this.massDeletionApprovedIds]) if (!pendingIds.has(id)) this.massDeletionApprovedIds.delete(id);
     const unconfirmed = queue.filter((item) => item.operation === "delete" && !item.prepared && item.confirmedAt == null && !this.massDeletionApprovedIds.has(item.id));
-    const liveTotal = unconfirmed.length > 0 ? (await this.state.listObjects(false)).filter((object) => !object.deleted).length : 0;
-    if (!isMassDeletion(unconfirmed.map((item) => item.path), liveTotal)) {
+    // Counted in files: a folder is an object of its own here, and its
+    // deletion takes every file in it (`vanishingFiles`).
+    const liveFiles = unconfirmed.length > 0
+      ? (await this.state.listObjects(false)).filter((object) => !object.deleted && object.contentKind !== "directory").map((object) => object.path)
+      : [];
+    const vanishing = vanishingFiles(unconfirmed.map((item) => item.path), liveFiles);
+    const liveTotal = liveFiles.length;
+    if (!isMassFileDeletion(vanishing, liveTotal)) {
       this.massDeletionSignaled = false;
       this.massDeletionPromptIds = [];
       return new Set();
     }
-    console.warn(`[EncryptedWorkspaceWorker] ${unconfirmed.length} of ${liveTotal} objects are queued for deletion; deletions are paused until confirmed`);
+    console.warn(`[EncryptedWorkspaceWorker] ${vanishing} of ${liveTotal} files are queued for deletion; deletions are paused until confirmed`);
     if (!this.massDeletionSignaled) {
       this.massDeletionSignaled = true;
       this.massDeletionPromptIds = unconfirmed.map((item) => item.id);
       try {
-        this.onMassDeletionPending?.({ pendingDeletes: unconfirmed.length, syncedTotal: liveTotal });
+        this.onMassDeletionPending?.({ pendingDeletes: vanishing, syncedTotal: liveTotal });
       } catch (error) {
         console.error("[EncryptedWorkspaceWorker] onMassDeletionPending consumer failed:", error);
       }
     }
     return new Set(unconfirmed.map((item) => item.id));
+  }
+
+  /**
+   * A queued change the policy refuses before it is signed ends as a refused
+   * change from outside does: a local fork, and the queue goes on (release
+   * 0.9.0). Until then the push stopped at the entry and failed every cycle,
+   * and with it everything behind it — the rest of the queue, the checkpoint,
+   * the publications, the settings. The app checks before the disk is
+   * touched, but not always with what the worker sees: a policy changed on
+   * another device since, a slice that matches by tags or properties, an
+   * object no group could read.
+   */
+  private deviceIsActive(): boolean {
+    const deviceId = this.runtime.device.publicIdentity.deviceId;
+    return this.activePolicy.payload.devices.some((device) => device.deviceId === deviceId && device.state === "active");
+  }
+
+  private async keepRefusedMutation(item: WorkspaceQueuedMutation, error: unknown): Promise<void> {
+    const path = item.operation === "rename" && item.newPath ? item.newPath : item.path;
+    const capability = item.operation === "delete" ? "content.delete" : item.operation === "rename" ? "content.rename" : "content.write";
+    console.warn(`[EncryptedWorkspaceWorker] ${item.operation} ${path} is refused by the workspace policy; kept on this device as a local fork`, error);
+    await withPathMutation(this.state, [path], () => workspaceDeniedFork(this.vault, this.state)({ action: "external", path, capability }));
+    await this.state.discardQueue(item.id);
   }
 
   private async resumePreparedMutations(signal?: AbortSignal): Promise<void> {

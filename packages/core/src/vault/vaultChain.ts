@@ -5,13 +5,11 @@ import type { IVaultAdapter, VaultStorageReader } from "./IVaultAdapter.js";
 import { QueueingVaultAdapter } from "./QueueingVaultAdapter.js";
 import { SyncStateRepository } from "./SyncStateRepository.js";
 import { StructureRefusingVaultAdapter } from "./StructureRefusingVaultAdapter.js";
-import { WORKSPACE_FORKS_FOLDER } from "./backupNaming.js";
 import type { QueueEntryReport } from "./owedQueueEntries.js";
 import type { TextFileShape } from "../textFileShape.js";
 import type { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import type { SyncQueue } from "../sync/SyncQueue.js";
-import { PermissionedVaultAdapter, type WorkspaceMutationAuthorizationRequest, type WorkspaceMutationAuthorizer } from "../workspace/authorization.js";
-import { createWorkspaceObjectId } from "../workspace/identity.js";
+import { PermissionedVaultAdapter, type WorkspaceMutationAuthorizer } from "../workspace/authorization.js";
 import { WorkspaceQueueingVaultAdapter } from "../workspace/queueingVaultAdapter.js";
 import type { WorkspaceStateStore } from "../workspace/state.js";
 
@@ -135,26 +133,8 @@ export interface VaultChain {
   links: readonly VaultChainLink[];
 }
 
-/**
- * What a change the workspace refuses leaves behind when it came from outside
- * the app (`PermissionedVaultAdapter.authorizeExternalChange`): a copy of the
- * file under `.plainva/workspace/forks`, recorded as the member's local fork.
- * Written below the permission check — the copy is the member's own and goes
- * nowhere.
- */
-export function workspaceDeniedFork(versions: IVaultAdapter, state: WorkspaceStateStore) {
-  return async (request: WorkspaceMutationAuthorizationRequest): Promise<void> => {
-    const forkId = createWorkspaceObjectId();
-    const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
-    const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
-    // A folder has no bytes to keep: its refusal is the record alone.
-    if (await versions.exists(request.path) && !(await versions.getFileInfo(request.path)).isDirectory) {
-      await versions.createDir(WORKSPACE_FORKS_FOLDER);
-      await versions.writeBinaryFile(forkPath, await versions.readBinaryFile(request.path));
-    }
-    await state.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
-  };
-}
+export { workspaceDeniedFork } from "../workspace/deniedFork.js";
+import { workspaceDeniedFork } from "../workspace/deniedFork.js";
 
 /** Builds a vault's write chain in its one order (see the header). */
 export function buildVaultChain(ports: VaultChainPorts): VaultChain {
