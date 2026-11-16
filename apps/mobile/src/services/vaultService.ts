@@ -44,6 +44,7 @@ import {
   setActiveVault,
   LOCAL_VAULT_ID,
   type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
+import { phoneTemplateVault } from "./templateVault";
 import { getStoredProvider, purgeCredentials, startSyncIfConfigured, stopSyncAndDrain, syncSoon } from "./syncService";
 import { armedLeaveGuards, foreignInputArmed } from "./leaveGuard";
 import { takeScreen } from "./screenStep";
@@ -1780,7 +1781,7 @@ export const vaultOps = {
       const built = await buildNewNoteFromTemplate({
         read: (p) => this.read(v, p),
         exists: (p) => v.files.exists(p),
-        vaultName: (await getActiveVaultEntry()).name || "Plainva",
+        vaultName: (await phoneTemplateVault()).name,
         folder,
         title,
         type,
@@ -1833,7 +1834,7 @@ export const vaultOps = {
     // the same thing, and the share path has no file at all.
     const built = await buildNewNoteFromTemplateText({
       raw: templateRaw,
-      vaultName: (await getActiveVaultEntry()).name || "Plainva",
+      vaultName: (await phoneTemplateVault()).name,
       folder,
       title: name,
       type: configuredNoteType(),
@@ -1892,7 +1893,7 @@ export const vaultOps = {
    */
   async ensureDailyNote(v: MobileVault, date: Date, mode: "interactive" | "headless" = "interactive"): Promise<EnsuredDailyNote | null> {
     const ms = getMobileSettings();
-    const vaultName = (await getActiveVaultEntry()).name || "Plainva";
+    const vaultName = (await phoneTemplateVault()).name;
     const ensured = await ensureSharedDailyNote(
       date,
       { folder: ms.dailyFolder, format: ms.dailyFormat, templateFolder: ms.templateFolder, template: ms.dailyTemplate, noteType: configuredDailyNoteType() },

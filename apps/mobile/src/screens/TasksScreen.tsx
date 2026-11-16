@@ -150,7 +150,7 @@ export function TasksScreen({
     readTextFile: (path) => vaultOps.read(vault, path),
     // The plain note delete: snapshot, index, sync queue. Never the task
     // deletion that makes the provider's task follow — a copy is not the task.
-    deleteNote: (path) => vaultOps.remove(vault, path, { confirmed: true }),
+    deleteNote: (path, ask) => vaultOps.remove(vault, path, { confirmed: true }, ask),
     onRemoved: () => {
       setTick((x) => x + 1);
       syncSoon();
