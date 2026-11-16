@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-11-06
+Last updated: 2026-11-16
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -29,8 +29,9 @@ The diagnostics export also includes recent conflict events: storage type, write
 - **Connecting to a folder that already holds notes**: the starter structure of a new vault — its template notes and generated listings, as long as you have not changed them — stays on this device and does not go into the folder; on the phone, the new vault for the folder is made without it. A note you changed is yours and syncs like any other. A vault connected to a new, empty folder uploads everything, its starter structure included. Where this device and the cloud hold the same file differently, the first sync keeps both versions and says so in one line: **The first sync kept both versions where this device and the cloud differed: …** — **Show** leads to the first copy. A file the provider will not hand out (Google Drive: a file it flagged) is skipped and named in the sync status until it can be downloaded; Plainva asks for it again on its own, and nothing is uploaded over it — a file of yours under that name goes up as `Name (conflict …).md` instead.
 - **Mass-deletion protection**: if an unusually large share of the synced files is about to be deleted in the cloud at once (for example because the local vault folder was emptied or moved), Plainva holds the deletions and asks first: **Delete in the cloud** executes them, **Don't delete (restore)** discards them and restores the files from the cloud on the next sync. Deletions you confirmed in Plainva yourself are not held — for large deletions (more than 10 files or more than 20% of the vault) Plainva instead asks a second time before deleting.
 - **A file deleted in the cloud that has changes here**: if another device deleted a file in the cloud while this device still had changes to it that were not uploaded yet, Plainva does not delete it. It keeps the file, uploads it again as a new file and tells you once which file it was. If you do want it gone, delete it again here. This applies on desktop and mobile.
+- **A file deleted here that another device changed**: if another device changed a file in the cloud after this device deleted it, Plainva does not delete that newer version. The file comes back here with it; if you still want it gone, delete it again. A rename or move never replaces a file another device has just created under the new name: the cloud keeps that file, and your file stays here beside it as a conflict copy. This applies on desktop and mobile.
 - Attachments (images etc.) are synced too.
-- **Empty folders** sync as well: a folder created in Plainva appears in the cloud right away, and empty cloud folders appear on your other devices with the next full listing at the latest.
+- **Empty folders** sync as well: a folder created in Plainva appears in the cloud right away, and empty cloud folders appear on your other devices with the next full listing at the latest. An empty folder you delete — in Plainva or in your file manager — stays deleted and does not come back with the next listing.
 - Credentials and tokens are stored in the operating system's keychain (status: **Settings → App → About & diagnostics → OS keychain**), never in files inside the vault.
 - **Stored access** (**Settings → App → About & diagnostics**, group **Keychain**) shows what Plainva has placed in the keychain — including entries from vaults you stopped opening long ago. Each row names the service and the vault; **Remove** asks first. Plainva never deletes anything here on its own.
 - Keychain entries carry **readable names** — `plainva · <vault> · <service> · <account id> · #<fingerprint>` instead of a base64 string. Plainva renames existing entries once, the first time a vault is opened; if a rename cannot be completed safely the old entry stays where it is and Plainva tries again on the next open.
@@ -196,7 +197,7 @@ Sometimes two files still lie side by side whose names look exactly the same —
 - **Remove duplicates** removes the second file wherever it is the same byte for byte as the synced one — here and in the cloud. Plainva compares once more right before, keeps the content in the synced file's version history and never touches the synced file itself.
 - **Keep both** gives each differing second file a free name such as `Note (2).md`; from then on it syncs like any other file. A name that differs only in capitalization is renamed the same way, and links to it follow.
 
-Once nothing is left to decide, the card disappears by itself.
+Where the second spelling was a folder's name, that folder goes too once it is empty — here and in the cloud. Once nothing is left to decide, the card disappears by itself.
 
 The new sign-in does not cover every service. Your existing sign-ins were kept. Sign in again and allow every listed service. The account binding changed. Open the current account settings and sign in again.
 

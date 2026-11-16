@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -29,8 +29,9 @@ Eksport diagnostyczny zawiera także ostatnie konflikty: typ pamięci, komponent
 - **Łączenie z folderem, który zawiera już notatki**: struktura początkowa nowego vaultu — jego notatki z szablonu i wygenerowane listy, dopóki ich nie zmienisz — zostaje na tym urządzeniu i nie trafia do folderu; na telefonie nowy vault dla folderu powstaje bez niej. Notatka, którą zmieniłeś, jest Twoja i synchronizuje się jak każda inna. Vault połączony z nowym, pustym folderem przesyła wszystko, także swoją strukturę początkową. Tam, gdzie to urządzenie i chmura mają ten sam plik w różnej postaci, pierwsza synchronizacja zachowuje obie wersje i mówi o tym w jednym wierszu: **Pierwsza synchronizacja zachowała obie wersje tam, gdzie to urządzenie i chmura się różniły: …** — **Pokaż** prowadzi do pierwszej kopii. Plik, którego dostawca nie wydaje (Google Drive: plik, który oznaczył), jest pomijany i wymieniany w stanie synchronizacji, dopóki nie da się go pobrać; Plainva sam ponawia prośbę o niego i nic nie jest przesyłane na niego — Twój plik o tej nazwie trafia zamiast tego do chmury jako `Name (conflict …).md`.
 - **Ochrona przed masowym usuwaniem**: jeśli niezwykle duża część synchronizowanych plików ma zostać usunięta w chmurze naraz (np. dlatego, że lokalny folder vaultu został opróżniony lub przeniesiony), Plainva wstrzymuje usunięcia i najpierw pyta: **Usuń w chmurze** wykonuje je, **Nie usuwaj (przywróć)** odrzuca je i przywraca pliki z chmury przy następnej synchronizacji. Usunięcia potwierdzone samodzielnie w Plainva nie są wstrzymywane — przy dużych usunięciach (ponad 10 plików lub ponad 20% vaultu) Plainva zamiast tego prosi o drugie potwierdzenie przed usunięciem.
 - **Usunięty w chmurze, zmieniony tutaj**: jeśli inne urządzenie usunęło plik w chmurze, gdy to urządzenie miało w nim jeszcze niewysłane zmiany, Plainva go nie usuwa. Zachowuje plik, wysyła go ponownie jako nowy i jeden raz informuje, o który plik chodzi. Jeśli jednak ma zniknąć, usuń go tutaj jeszcze raz. Dotyczy to komputera i telefonu.
+- **Usunięty tutaj, zmieniony gdzie indziej**: jeśli inne urządzenie zmieniło plik w chmurze po tym, jak to urządzenie go usunęło, Plainva nie usuwa tej nowszej wersji. Plik wraca tutaj z nią; jeśli mimo to chcesz go usunąć, usuń go ponownie. Zmiana nazwy lub przeniesienie nigdy nie zastępuje pliku, który inne urządzenie właśnie utworzyło pod nową nazwą: chmura zachowuje ten plik, a Twój zostaje tutaj obok jako kopia konfliktu. Dotyczy to komputera i urządzeń mobilnych.
 - Załączniki (obrazy itp.) są synchronizowane razem z notatkami.
-- **Puste foldery** również są synchronizowane: folder utworzony w Plainva pojawia się w chmurze od razu, a puste foldery w chmurze pojawiają się na Twoich innych urządzeniach najpóźniej przy najbliższym pełnym listowaniu.
+- **Puste foldery** również są synchronizowane: folder utworzony w Plainva pojawia się w chmurze od razu, a puste foldery w chmurze pojawiają się na Twoich innych urządzeniach najpóźniej przy najbliższym pełnym listowaniu. Pusty folder, który usuniesz — w Plainva lub w menedżerze plików — pozostaje usunięty i nie wraca przy następnym wykazie.
 - Dane dostępowe i tokeny są przechowywane w pęku kluczy systemu operacyjnego (status: **Ustawienia → Aplikacja → Informacje i diagnostyka → Pęk kluczy systemu**), nigdy w plikach wewnątrz vaultu.
 - **Zapisane dostępy** (**Ustawienia → Aplikacja → Informacje i diagnostyka**, grupa **Pęk kluczy**) pokazują, co Plainva umieściła w pęku kluczy — również wpisy z vaultów, których dawno nie otwierasz. Każdy wiersz podaje usługę i vault; **Usuń** pyta wcześniej. Plainva nigdy nie usuwa tu niczego sama z siebie.
 - Wpisy w pęku kluczy mają **czytelne nazwy** — `plainva · <vault> · <usługa> · <id konta> · #<odcisk>` zamiast ciągu base64. Plainva zmienia nazwy istniejących wpisów jednorazowo, przy pierwszym otwarciu vaultu; jeśli zmiana nazwy nie może zakończyć się bezpiecznie, stary wpis zostaje na miejscu, a Plainva spróbuje ponownie przy następnym otwarciu.
@@ -196,7 +197,7 @@ Czasem jednak obok siebie leżą dwa pliki, których nazwy wyglądają dokładni
 - **Usuń duplikaty** usuwa drugi plik wszędzie tam, gdzie jest bajt po bajcie taki sam jak synchronizowany — tutaj i w chmurze. Plainva porównuje jeszcze raz tuż przedtem, zachowuje treść w historii wersji synchronizowanego pliku i nigdy nie dotyka samego synchronizowanego pliku.
 - **Zachowaj oba** nadaje każdemu różniącemu się drugiemu plikowi wolną nazwę, np. `Notatka (2).md`; od tej chwili jest synchronizowany jak każdy inny plik. Nazwa różniąca się tylko wielkością liter zostaje zmieniona w ten sam sposób, a linki do niej podążają za nią.
 
-Gdy nie ma już nic do zdecydowania, karta znika sama.
+Jeśli druga pisownia była nazwą folderu, ten folder również znika, gdy tylko stanie się pusty — tutaj i w chmurze. Gdy nie ma już nic do zdecydowania, karta znika sama.
 
 Nowe logowanie nie obejmuje wszystkich usług. Zachowano Twój dotychczasowy dostęp. Zaloguj się ponownie i zezwól na wszystkie wymienione usługi. Powiązanie konta uległo zmianie. Otwórz aktualne ustawienia konta i zaloguj się ponownie.
 
