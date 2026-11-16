@@ -2404,20 +2404,66 @@ export class SyncWorker {
       const awaitingDeletion = (folder: string): boolean =>
         deletionPending.some((p) => folder === p || folder.startsWith(p + "/"));
 
-      for (const folder of pullResult.folders ?? []) {
+      // And an empty folder deleted here OUTSIDE the app (Fehlerliste 0.9.0
+      // A2) queued nothing — folders have no sync row — so the listing
+      // brought it back. The worker remembers the folders it saw both here and
+      // on the remote (seenFolders.ts): one of those that is gone here was
+      // deleted here, and its deletion goes up instead. Only while the remote
+      // copy holds no file: a file in it decides on its own (its deletion is
+      // queued by the index, or it comes down), and the folder with it.
+      const listedFolders = pullResult.folders ?? [];
+      const seenRecord = listedFolders.length > 0 && typeof this.stateRepo.listSeenFolders === "function";
+      const seenFolders = seenRecord ? await this.stateRepo.listSeenFolders().catch(() => new Set<string>()) : new Set<string>();
+      const seenNow: string[] = [];
+      const deletedHere: string[] = [];
+      let foldersWithFiles: Set<string> | null = null;
+      const holdsRemoteFile = (folder: string): boolean => {
+        if (!foldersWithFiles) {
+          foldersWithFiles = new Set<string>();
+          for (const p of remotePaths) {
+            for (let i = p.indexOf("/"); i > 0; i = p.indexOf("/", i + 1)) foldersWithFiles.add(p.slice(0, i));
+          }
+        }
+        return foldersWithFiles.has(folder);
+      };
+
+      // Outer folders first: a folder inside one deleted here goes with it,
+      // seen here or not — creating it would bring its parent back, too.
+      for (const folder of [...listedFolders].sort((x, y) => x.length - y.length)) {
         if (!folder || isLocalOnlyPath(folder)) continue;
+        if (deletedHere.some((d) => folder.startsWith(d + "/"))) continue;
         // A twin spelling on the remote (ADR 0016) is reported below, not
         // copied: on this device it would be the composed folder again, or a
         // second one next to it.
         if (isTwinSpelling(folder)) continue;
         if (awaitingDeletion(folder) || awaitingStructure(folder)) continue;
         try {
-          if (!(await this.vault.exists(folder))) {
+          if (await this.vault.exists(folder)) {
+            if (!seenFolders.has(folder)) seenNow.push(folder);
+          } else if (seenFolders.has(folder) && !holdsRemoteFile(folder)) {
+            deletedHere.push(folder);
+          } else {
             await this.vault.createDir(folder);
+            seenNow.push(folder);
             console.log(`[SyncWorker] created remote-only empty folder locally: ${folder}`);
           }
         } catch (e) {
           console.warn(`[SyncWorker] could not create remote folder locally: ${folder}`, e);
+        }
+      }
+      if (seenRecord && alive()) {
+        try {
+          if (deletedHere.length > 0) {
+            // Only the outermost are in the list: a folder's DELETE takes its subfolders along.
+            console.log(`[SyncWorker] ${deletedHere.length} empty folder(s) deleted on this device; deleting them on the remote too`);
+            await this.queue.queueDeletePaths(deletedHere);
+          }
+          const listed = new Set(listedFolders);
+          const gone = [...seenFolders].filter((f) => !listed.has(f) || deletedHere.some((d) => f === d || f.startsWith(d + "/")));
+          await this.stateRepo.forgetSeenFolders(gone);
+          await this.stateRepo.rememberSeenFolders(seenNow);
+        } catch (e) {
+          console.warn("[SyncWorker] could not record the folders seen here", e);
         }
       }
 
