@@ -179,7 +179,20 @@ export interface TaskSyncResult {
    * once the pause lifts (`afterTaskSyncResume`).
    */
   paused?: boolean;
+  /**
+   * Why no list could be carried into notes at all (issue 172): no standard
+   * task database, one that cannot be read, or one that names no folder for
+   * new notes. Every selected list says so on its `tasknotes:` row.
+   */
+  blocked?: TaskListBlock;
 }
+
+/**
+ * What keeps every list of a reconcile out of the notes (issue 172). `no-index`
+ * is the phone's: without its index database it cannot match a task to its
+ * note, and the runtime does not start the reconcile.
+ */
+export type TaskListBlock = "no-task-db" | "task-db-unreadable" | "task-db-no-folder" | "no-index";
 
 interface DbShape {
   folder: string;
@@ -251,12 +264,28 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
     errors: [],
     notApplied: 0,
   };
-  if (!opts.taskDbPath) return result;
+  // Each of these used to return in silence: lists switched on at the
+  // provider, nothing in the notes, and no word why (issue 172). While the
+  // vault is still filling up (`mayCreateNotes` false: a first sync, an
+  // index not built yet) none of them is said: the database or the setting
+  // that names it may simply not have arrived yet, and that is no fault.
+  const filling = opts.mayCreateNotes === false;
+  if (!opts.taskDbPath) {
+    if (!filling) await reportTaskListsBlocked(opts.cache, "no-task-db");
+    return { ...result, blocked: "no-task-db" };
+  }
 
   const db = await readDbShape(opts);
-  if (!db) return result;
+  if (typeof db === "string") {
+    if (!filling) await reportTaskListsBlocked(opts.cache, db);
+    return { ...result, blocked: db };
+  }
 
   const creates: PendingCreate[] = [];
+  // Each list's line is written once its new notes have been tried: a note
+  // that could not be created is a reason too (issue 172), and clearing the
+  // line before the creates ran would have hidden it.
+  const reports: Array<{ accountId: string; listId: string; reasons: NotAppliedReason[]; finished: boolean }> = [];
   const accounts = (await opts.cache.listAccounts()).filter((a) => a.enabled);
   for (const account of accounts) {
     const lists = (await opts.cache.listTaskLists(account.id)).filter((l) => l.selected);
@@ -284,12 +313,19 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
         result.errors.push(`${account.label}/${list.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
       result.notApplied += notApplied.length;
-      // A reconcile that stopped part-way has not looked at every task: it
-      // may add a reason, never clear one.
-      if (finished || notApplied.length > 0) await reportNotApplied(opts.cache, account.id, list.id, notApplied);
+      reports.push({ accountId: account.id, listId: list.id, reasons: notApplied, finished });
     }
   }
-  await createPendingNotes(opts, db, creates, result);
+  const notCreated = await createPendingNotes(opts, db, creates, result);
+  for (const report of reports) {
+    if (notCreated.has(`${report.accountId}\u0000${report.listId}`)) {
+      report.reasons.push("not-created");
+      result.notApplied += 1;
+    }
+    // A reconcile that stopped part-way has not looked at every task: it
+    // may add a reason, never clear one.
+    if (report.finished || report.reasons.length > 0) await reportNotApplied(opts.cache, report.accountId, report.listId, report.reasons);
+  }
   return result;
 }
 
@@ -310,7 +346,9 @@ interface PendingCreate {
  * vault therefore give every task the same name, and neither sync sees two
  * different tasks at one path.
  */
-async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: PendingCreate[], result: TaskSyncResult): Promise<void> {
+/** Creates the new notes; returns the lists (`account\u0000list`) of which a note could not be written. */
+async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: PendingCreate[], result: TaskSyncResult): Promise<Set<string>> {
+  const failed = new Set<string>();
   const keyed = creates.map((c) => ({ ...c, key: taskNoteKey(taskIdentityOf(c.account, c.listId, c.task.uid)) }));
   keyed.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const known = new Set(opts.allNotePaths);
@@ -334,8 +372,10 @@ async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: P
       });
     } catch (e) {
       result.errors.push(`${account.label}/${listName}: ${e instanceof Error ? e.message : String(e)}`);
+      failed.add(`${account.id}\u0000${listId}`);
     }
   }
+  return failed;
 }
 
 /** The identity a task's anchor carries — what names and sorting go by. */
@@ -697,7 +737,37 @@ async function reconcileList(
 // ---- changes that did not reach the note ------------------------------------
 
 /** Why a provider change did not reach its note - the codes the task views translate. */
-export type NotAppliedReason = "no-done-column" | "no-due-column" | "not-written";
+export type NotAppliedReason = "no-done-column" | "no-due-column" | "not-created" | "not-written";
+
+/** Every code a `tasknotes:` row can carry, the most telling first. */
+const TASK_NOTE_REASON_ORDER: readonly (TaskListBlock | NotAppliedReason)[] = [
+  "no-task-db",
+  "task-db-unreadable",
+  "task-db-no-folder",
+  "no-index",
+  "no-done-column",
+  "no-due-column",
+  "not-created",
+  "not-written",
+];
+
+/**
+ * Says on every selected list of every enabled account why none of them
+ * reaches the notes (issue 172). The shells call it too when they skip the
+ * reconcile for want of a task database. The row is cleared by the first
+ * reconcile that gets through a list again.
+ */
+export async function reportTaskListsBlocked(cache: PimCacheRepository, block: TaskListBlock): Promise<void> {
+  try {
+    for (const account of (await cache.listAccounts()).filter((a) => a.enabled)) {
+      for (const list of (await cache.listTaskLists(account.id)).filter((l) => l.selected)) {
+        await reportNotApplied(cache, account.id, list.id, [block]);
+      }
+    }
+  } catch {
+    /* a report must never cost the reconcile */
+  }
+}
 
 /**
  * The fields of `merged` that differ from what the note said before and that
@@ -722,12 +792,12 @@ function notAppliedReason(field: keyof PimTaskFields, db: Pick<DbShape, "dueKey"
 }
 
 /** One row per list: set while changes wait, cleared once they all went through. */
-async function reportNotApplied(cache: PimCacheRepository, accountId: string, listId: string, reasons: readonly NotAppliedReason[]): Promise<void> {
+async function reportNotApplied(cache: PimCacheRepository, accountId: string, listId: string, reasons: readonly (NotAppliedReason | TaskListBlock)[]): Promise<void> {
   const scope = `tasknotes:${listId}`;
   try {
     if (reasons.length > 0) {
       // The most telling reason first: a missing column is the person's to fix.
-      const reason = (["no-done-column", "no-due-column", "not-written"] as const).find((r) => reasons.includes(r))!;
+      const reason = TASK_NOTE_REASON_ORDER.find((r) => reasons.includes(r))!;
       await cache.recordScopeFailure(accountId, scope, { lastError: `${TASK_NOTE_PROBLEM_PREFIX}${reason}` });
       return;
     }
@@ -741,16 +811,16 @@ async function reportNotApplied(cache: PimCacheRepository, accountId: string, li
 
 // ---- note IO ---------------------------------------------------------------
 
-async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | null> {
-  if (!opts.taskDbPath) return null;
+async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | TaskListBlock> {
+  if (!opts.taskDbPath) return "no-task-db";
   let config: any;
   try {
     config = parseBaseConfig(await opts.adapter.readTextFile(opts.taskDbPath));
   } catch {
-    return null;
+    return "task-db-unreadable";
   }
   const target = resolveNewItemTarget(config);
-  if (!target.folder) return null;
+  if (!target.folder) return "task-db-no-folder";
   const dueKey = findColumnKey(config, (c) => c.input === "date" || c.input === "datetime");
   return {
     folder: trimEndChars(target.folder, "/"),
@@ -816,14 +886,13 @@ async function createTaskNote(opts: TaskSyncOptions, db: DbShape, account: PimAc
       /* stamp best-effort */
     }
   }
-  try {
-    if (db.folder) await adapter.createDir(db.folder).catch(() => undefined);
-    if (await adapter.exists(notePath)) return null;
-    await adapter.writeTextFile(notePath, content);
-    return notePath;
-  } catch {
-    return null;
-  }
+  // A folder that cannot be made, a vault that refuses the write: thrown, so
+  // the run counts it as an error and the list says it (issue 172). Before,
+  // the error was swallowed here and the task simply never arrived.
+  if (db.folder) await adapter.createDir(db.folder).catch(() => undefined);
+  if (await adapter.exists(notePath)) return null;
+  await adapter.writeTextFile(notePath, content);
+  return notePath;
 }
 
 /**

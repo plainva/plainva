@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-11-05
+Laatst bijgewerkt: 2026-11-16
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -217,6 +217,11 @@ Een taak die Plainva uit een takenlijst van je aanbieder spiegelt, heet zoals ha
 Welke taak in welk bestand staat, zegt niet de naam, maar de frontmatter-markering (`plainva.pim`, zie de [Bestandsformaat-referentie](File_Format_Reference.md)). Daarom gebruikt Plainva een bestaande naam alleen opnieuw als het bestand daar dezelfde taak bevat, en maakt het nieuwe taken op elk apparaat in dezelfde volgorde aan — zo geven twee apparaten dezelfde nummers. Verandert de titel bij de aanbieder, dan werkt Plainva de kop van de notitie bij, maar hernoemt het bestand niet: links naar de notitie blijven werken. Je kunt de notitie altijd zelf hernoemen en verplaatsen; de markering houdt de koppeling in stand.
 
 **Namen met een kenmerk opschonen.** Tussen 12 en 24 september 2026 voegde Plainva een kenmerk toe aan de naam van nieuwe taaknotities (`Tandarts bellen — 3f9a1c0b7d2e4a61.md`). Heeft je vault nog zulke namen, dan toont de takenweergave — op de desktop en op de telefoon — eenmalig een melding met de lijst oud → nieuw en het aantal links dat mee wordt aangepast. **Namen opschonen…** vraagt nog één keer om bevestiging en hernoemt de notities daarna naar hun titel, met nummers voor dezelfde titel zoals hierboven; links ernaar worden aangepast. **Verbergen** legt de melding opzij tot er weer zulke namen opduiken. Plainva herkent alleen namen die het zelf heeft gegeven: het kenmerk moet passen bij de markering in hetzelfde bestand. Er wordt nooit iets vanzelf hernoemd. Je andere apparaten ontvangen de hernoemingen als verplaatsing zodra ze dezelfde versie hebben; een oudere versie ziet daar in plaats daarvan verwijderde en nieuwe notities, en vraagt misschien of ze moet verwijderen of houdt de oude naam naast de nieuwe — werk die apparaten het liefst eerst bij. Op de desktop verschijnt de melding in het hoofdvenster.
+
+<!-- task-lists-silent-2026-11-16 -->
+## Als taken van de aanbieder niet verschijnen
+
+Taken uit een takenlijst van je aanbieder worden notities in je **Standaard takendatabase**. Is er geen ingesteld, dan zegt een rustige regel dat één keer — boven de takenweergave en op de pagina van het account onder **Takenlijsten**, op de desktop en op de telefoon — met **Nieuwe database maken…**, dat er een maakt en instelt; de lijsten komen dan met de volgende synchronisatie. **Verbergen** haalt de regel weg voor deze vault op dit apparaat; hij komt alleen terug als er een takendatabase wordt ingesteld en later weer verwijderd. Zolang een apparaat zijn eerste synchronisatie doet, verschijnt er niets: de database of de instelling is dan misschien gewoon nog niet binnen. Een echte fout verschijnt daarentegen als waarschuwing met **Opnieuw proberen**: de takendatabase kan niet worden gelezen of noemt geen map voor nieuwe notities, voor een nieuwe taak kon geen notitie worden gemaakt, of op de telefoon is de index van de vault niet geopend. De waarschuwing verdwijnt zodra de taken doorkomen.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Tasks-metagegevens en herhaling
