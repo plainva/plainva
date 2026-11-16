@@ -1,3 +1,5 @@
+import { holdsTemplatePlaceholder } from "../templatePlaceholder.js";
+
 /**
  * Wiki target text for a vault path: the bare basename when it is unique
  * vault-wide, else the path without `.md` so the link stays unambiguous.
@@ -213,6 +215,9 @@ export function buildLinkTargetIndex(files: readonly (string | LinkCorpusFile)[]
     if (typeof title !== "string" || !NOTE_EXTENSION.test(name)) continue;
     // Where a note's properties give no title, the index holds its file's
     // name instead. That is step 3's, not a second way in.
+    // A template's placeholder (`title: {{title}}`) is no title of the
+    // template: `[[{{title}}]]` names no note (Sammelplan § 3.144 Nr. 11).
+    if (holdsTemplatePlaceholder(title)) continue;
     const titleKey = nameKey(title.trim());
     if (titleKey && titleKey !== nameKey(name.replace(NOTE_EXTENSION, ""))) put(byTitle, titleKey, entry);
   }

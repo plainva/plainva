@@ -6,6 +6,7 @@ import { isReservedOkfName } from "../okf-conversion.js";
 import { ftsExactTerm } from "./ftsQuery.js";
 import { fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
 import { isSpacelessChar, wordBoundedPattern } from "./spacelessText.js";
+import { holdsTemplatePlaceholder } from "../templatePlaceholder.js";
 
 /**
  * Read-model for the graph views (context graph, vault map, base graph view).
@@ -160,14 +161,6 @@ const MENTION_MIN_TERM_LENGTH = 3;
 function mentionTermLongEnough(term: string): boolean {
   return term.length >= MENTION_MIN_TERM_LENGTH || (term.length >= 2 && Array.from(term).every(isSpacelessChar));
 }
-
-/**
- * A template's placeholder (`{{title}}`) is no name a note is mentioned by.
- * The index reads a template's `- {{title}}` under `aliases` since 2026-10-22
- * (ADR 0009), and as a phrase for the full-text index it is the word inside:
- * every note with `title` in it would mention the template.
- */
-const PLACEHOLDER = /\{\{[^{}]*\}\}/;
 
 function folderOf(path: string): string {
   const idx = path.lastIndexOf("/");
@@ -664,10 +657,10 @@ export class GraphService {
     const termsFor = (node: GraphNodeInfo): string[] => {
       const terms: string[] = [];
       const title = node.title.trim();
-      if (mentionTermLongEnough(title) && /[\p{L}\p{N}]/u.test(title) && !/^\d+$/.test(title) && !PLACEHOLDER.test(title)) {
+      if (mentionTermLongEnough(title) && /[\p{L}\p{N}]/u.test(title) && !/^\d+$/.test(title) && !holdsTemplatePlaceholder(title)) {
         terms.push(title);
       }
-      for (const alias of aliasesByPath.get(node.path) ?? []) if (!PLACEHOLDER.test(alias)) terms.push(alias);
+      for (const alias of aliasesByPath.get(node.path) ?? []) if (!holdsTemplatePlaceholder(alias)) terms.push(alias);
       return terms;
     };
 

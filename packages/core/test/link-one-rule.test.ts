@@ -157,3 +157,27 @@ describe("what the rule costs", () => {
     expect(await after).toBe("Neu.md");
   });
 });
+
+/**
+ * A template's placeholder is no title (Sammelplan § 3.144 Nr. 11): the index
+ * reads `title: {{title}}` of a template as its title, and step 5 of the rule
+ * found the template through `[[{{title}}]]`.
+ */
+describe("a placeholder as the title of a template", () => {
+  const files = [
+    { path: "Templates/Meeting.md", title: "{{title}}" },
+    { path: "Templates/Daily.md", title: "Daily {{date:YYYY-MM-DD}}" },
+    { path: "Notes/Plan.md", title: "Der Plan" },
+  ];
+  const index = buildLinkTargetIndex(files);
+
+  it("names no note", () => {
+    expect(resolveLinkTargetIndexed("Notes/A.md", "{{title}}", index)).toBeNull();
+    expect(resolveLinkTargetIndexed("Notes/A.md", "Daily {{date:YYYY-MM-DD}}", index)).toBeNull();
+  });
+
+  it("leaves the template's file name and every other title as they were", () => {
+    expect(resolveLinkTargetIndexed("Notes/A.md", "Meeting", index)).toBe("Templates/Meeting.md");
+    expect(resolveLinkTargetIndexed("Notes/A.md", "Der Plan", index)).toBe("Notes/Plan.md");
+  });
+});
