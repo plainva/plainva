@@ -232,6 +232,21 @@ export class PimCacheRepository {
     );
   }
 
+  /**
+   * Sets one key of an account's config and nothing else, so a worker that
+   * learned a fact about the account does not write back a row it read
+   * earlier. A missing row stays missing.
+   */
+  async setAccountConfigValue(accountId: string, key: string, value: unknown): Promise<void> {
+    const rows = await this.db.query<{ config: string | null }>(`SELECT config FROM pim_accounts WHERE id = ?`, [accountId]);
+    if (rows.length === 0) return;
+    const parsed = safeJson(rows[0].config);
+    const config = parsed && !Array.isArray(parsed) ? { ...parsed } : {};
+    if (config[key] === value) return;
+    config[key] = value;
+    await this.db.execute(`UPDATE pim_accounts SET config = ? WHERE id = ?`, [JSON.stringify(config), accountId]);
+  }
+
   /** Removes the account and every cached object belonging to it. The
    * calendars/tasklists rows cascade; events/tasks/state are keyed loosely and
    * are swept explicitly. */

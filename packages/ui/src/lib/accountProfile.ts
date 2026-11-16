@@ -1,11 +1,11 @@
 import { reportingTo } from "../services/backgroundErrors.js";
-import { sameStoredValue } from "@plainva/core";
+import { CONFIRMED_PRINCIPAL_KEY, sameStoredValue } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
 import { mergeMailAccountRows } from "../mail/mailAccountRows.js";
 import { getPlatformServices } from "../platform/services.js";
-import { passwordRowToAdoptInto, pimPasswordIdentity } from "./passwordAccounts.js";
+import { passwordRowToAdoptInto, pimPasswordIdentity, samePimPasswordAccount } from "./passwordAccounts.js";
 
 /** Provider-owned account key proven by a successful authenticated API call. */
 export interface VerifiedProviderIdentity {
@@ -467,7 +467,7 @@ export function accountToAdoptInto<T extends { id: string; provider: string; con
     return own ? verifiedProviderIdentityKey(own) === key : false;
   });
   if (matches.length === 0) return null;
-  return [...matches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
+  return matches.find((a) => a.id === prefer) ?? [...matches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
 }
 
 /**
@@ -559,15 +559,21 @@ export function pimIdentity(a: Pick<PimAccountRow, "provider" | "label" | "confi
   return password ? `caldav|${password}` : `${a.provider}|unverified`;
 }
 
-function pimMergeIdentity(a: Pick<PimAccountRow, "provider" | "config">): string | null {
-  const verified = verifiedProviderIdentityOf(a);
-  if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
-  // The same identity a connect adopts by (GitHub issue 174): the import used to compare
-  // the address lower-cased with the slash cut off and nothing else, so a
-  // second device that spelled the DAV endpoint or the port differently got a
-  // row of its own without a sign-in.
-  const password = pimPasswordIdentity(a);
-  return password ? `caldav|${password}` : null;
+/**
+ * Whether an imported row and a row here are the same account: the same
+ * verified provider identity, or the same password account
+ * (`samePimPasswordAccount`, GitHub issue 174). The import used to compare the
+ * address lower-cased with the slash cut off and the user in any case — so a
+ * second device that spelled the endpoint differently got a row of its own, and
+ * "Anna" and "anna" on a server that tells them apart were folded into one.
+ */
+function sameMergeAccount(a: Pick<PimAccountRow, "provider" | "config">, b: Pick<PimAccountRow, "provider" | "config">): boolean {
+  const verifiedA = verifiedProviderIdentityOf(a);
+  const verifiedB = verifiedProviderIdentityOf(b);
+  if (verifiedA || verifiedB) {
+    return !!verifiedA && !!verifiedB && verifiedProviderIdentityKey(verifiedA) === verifiedProviderIdentityKey(verifiedB);
+  }
+  return samePimPasswordAccount(a, b);
 }
 
 export function mailIdentity(a: MailAccountConfig): string {
@@ -799,16 +805,12 @@ export async function importAccountMetadata(
       const imported = { ...importedValue, config: sharedPimConfig(importedValue.config) };
       const mapped = localByLogical.get(imported.id);
       const mappedAccount = mapped ? existing.find((account) => account.id === mapped) : undefined;
-      const mergeIdentity = pimMergeIdentity(imported);
-      const same = mappedAccount
-        ?? (mergeIdentity
-          ? existing.find((account) => pimMergeIdentity(account) === mergeIdentity)
-          : undefined);
+      const same = mappedAccount ?? existing.find((account) => sameMergeAccount(account, imported));
       const idCollision = existing.find((a) => a.id === imported.id);
       // Same account → keep OUR id (keychain slots hang off it). A foreign
       // account that happens to share an id gets a fresh one instead of
       // overwriting a local account that is not it.
-      const collisionMatches = mergeIdentity !== null && pimMergeIdentity(idCollision ?? imported) === mergeIdentity;
+      const collisionMatches = !!idCollision && sameMergeAccount(idCollision, imported);
       const localId = same?.id
         ?? (idCollision && !collisionMatches ? nextLocalId(imported.id, used, newId) : imported.id);
       used.add(localId);
@@ -852,9 +854,15 @@ export async function importAccountMetadata(
       // other's made two devices write each other's spelling back on every
       // import, and the document never settled. A different server under the
       // same logical id (the other device moved the account) is taken over.
-      const keptAddress = same && mergeIdentity !== null && pimMergeIdentity(same) === mergeIdentity
+      // The principal the server confirmed here is kept as well: it is only
+      // ever gained, like the verified identity above.
+      const keptAddress = same && imported.provider === "caldav" && sameMergeAccount(same, imported)
         && typeof same.config.url === "string" && typeof same.config.user === "string"
-        ? { url: same.config.url, user: same.config.user }
+        ? {
+          url: same.config.url,
+          user: same.config.user,
+          ...(typeof same.config[CONFIRMED_PRINCIPAL_KEY] === "string" ? { [CONFIRMED_PRINCIPAL_KEY]: same.config[CONFIRMED_PRINCIPAL_KEY] } : {}),
+        }
         : null;
       await ports.upsertPimAccount({
         ...imported,

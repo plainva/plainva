@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PimAccountRow } from "@plainva/core";
+import { canonicalSecretId, type PimAccountRow } from "@plainva/core";
 import {
   accountToAdoptInto,
   emptyAccountMap,
@@ -9,6 +9,7 @@ import {
   planEmptyPasswordDuplicates,
   reconcileCloudAccounts,
   removeEmptyPasswordDuplicates,
+  samePasswordAccount,
   type AccountImportPorts,
   type CloudAccountRecord,
   type ObservedCloudState,
@@ -31,7 +32,7 @@ const CASES: Array<[string, string, string, string, boolean, string]> = [
   [BASE, "anna", `${BASE}/`, "anna", true, "a slash at the end"],
   [BASE, "anna", `${BASE}///`, "anna", true, "several slashes at the end"],
   [BASE, "anna", "HTTPS://CLOUD.EXAMPLE.COM/remote.php/dav", "anna", true, "scheme and host in capitals"],
-  [BASE, "anna", BASE, "Anna", true, "the user in capitals"],
+  [BASE, "anna", BASE, "Anna", false, "the user in capitals (Radicale, Baïkal and DAViCal tell them apart)"],
   [BASE, "anna", BASE, "  anna ", true, "spaces around the user"],
   [BASE, "anna", "https://cloud.example.com:443/remote.php/dav", "anna", true, "port 443 written out"],
   ["http://cloud.example.com/remote.php/dav", "anna", "http://cloud.example.com:80/remote.php/dav", "anna", true, "port 80 written out for http"],
@@ -71,6 +72,49 @@ describe("passwordAccountIdentity", () => {
   });
 });
 
+describe("the principal the server confirmed", () => {
+  const P = "https://cloud.example.com/remote.php/dav/principals/users/anna/";
+  it("decides when both accesses carry one, whatever the user typed", () => {
+    expect(samePasswordAccount({ url: BASE, user: "Anna", principal: P }, { url: BASE, user: "anna", principal: `${P}` })).toBe(true);
+    expect(samePasswordAccount({ url: BASE, user: "anna", principal: P }, { url: BASE, user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna2/" })).toBe(false);
+  });
+  it("normalizes only scheme, host, default port and the slash at the end", () => {
+    expect(samePasswordAccount({ url: BASE, user: "a", principal: P }, { url: BASE, user: "b", principal: "HTTPS://Cloud.Example.com:443/remote.php/dav/principals/users/anna" })).toBe(true);
+    expect(samePasswordAccount({ url: BASE, user: "a", principal: P }, { url: BASE, user: "b", principal: P.replace("anna", "Anna") })).toBe(false);
+    expect(samePasswordAccount({ url: BASE, user: "a", principal: P }, { url: BASE, user: "b", principal: P.replace("https:", "http:") })).toBe(false);
+  });
+  it("falls back to the address and the exact user when one side has none", () => {
+    expect(samePasswordAccount({ url: BASE, user: "anna", principal: P }, { url: `${BASE}/`, user: "anna" })).toBe(true);
+    expect(samePasswordAccount({ url: BASE, user: "Anna", principal: P }, { url: BASE, user: "anna" })).toBe(false);
+    expect(samePasswordAccount({ url: BASE, user: "anna", principal: "not a url" }, { url: BASE, user: "anna", principal: P })).toBe(true);
+  });
+});
+
+/**
+ * The settings sync names a password by `canonicalSecretId`, a rule of its own.
+ * Where the two differ is pinned here: the identity may keep apart what the
+ * secret name joins only in the user's case (renaming those secrets would
+ * retire their old names, and a device still on 0.8.7 applies a retirement by
+ * deleting a working password); every other pair the secret name joins, the
+ * identity joins too.
+ */
+describe("the identity and the settings sync's name for a password", () => {
+  const secretName = (url: string, user: string) => canonicalSecretId({ service: "calendar", secretType: "caldav-password", user, endpoint: url });
+  it("disagree only on the user's case where the secret name joins", () => {
+    const joinedOnlyBySecret = CASES
+      .filter(([urlA, userA, urlB, userB]) => secretName(urlA, userA) === secretName(urlB, userB))
+      .filter(([urlA, userA, urlB, userB]) => passwordAccountIdentity(urlA, userA) !== passwordAccountIdentity(urlB, userB))
+      .map(([, , , , , name]) => name);
+    expect(joinedOnlyBySecret).toEqual(["the user in capitals (Radicale, Baïkal and DAViCal tell them apart)"]);
+  });
+  it("never join two servers the identity keeps apart", () => {
+    for (const [urlA, userA, urlB, userB, same] of CASES) {
+      if (same || userA.trim().toLowerCase() === userB.trim().toLowerCase() && urlA === urlB) continue;
+      expect(secretName(urlA, userA) === secretName(urlB, userB)).toBe(false);
+    }
+  });
+});
+
 const caldav = (id: string, url = BASE, user = "anna"): PimAccountRow => ({
   id, provider: "caldav", label: `${user}@cloud.example.com`, config: { url, user }, enabled: true,
 });
@@ -78,7 +122,7 @@ const caldav = (id: string, url = BASE, user = "anna"): PimAccountRow => ({
 describe("a further connect of the same Nextcloud", () => {
   it("is adopted into the row that is already here (red before: always null)", () => {
     const rows = [caldav("p1")];
-    expect(accountToAdoptInto(rows, { id: "p2", provider: "caldav", identity: null, config: { url: `${BASE}/`, user: "Anna" } })?.id).toBe("p1");
+    expect(accountToAdoptInto(rows, { id: "p2", provider: "caldav", identity: null, config: { url: `${BASE}/`, user: " anna " } })?.id).toBe("p1");
   });
 
   it("prefers the row a card already binds for this connect", () => {
@@ -286,5 +330,60 @@ describe("empty duplicates", () => {
     const b = device([caldav("pB", "https://cloud.example.com:443/remote.php/dav")], [nextcloudCard("cB", "pB")]);
     await importAccountMetadata(b.publish(), a.ports);
     expect(a.state.pim.map((row) => row.id)).toEqual(["pA"]);
+  });
+});
+
+/**
+ * Two devices, one written by a phone before this fix (its CalDAV rows carry
+ * `config: {}`), exchanging their settings round after round. Nothing may
+ * wander: the documents settle, and the account is one row once the phone
+ * writes the address.
+ */
+describe("two devices exchanging their settings", () => {
+  const P = "https://cloud.example.com/remote.php/dav/principals/users/anna/";
+  const fold = (d: ReturnType<typeof device>, signedIn: Set<string>) => removeEmptyPasswordDuplicates({
+    listAccounts: async () => d.state.pim,
+    listCalendars: async () => [],
+    listTaskLists: async () => [],
+    deleteAccount: async (id) => { d.state.pim = d.state.pim.filter((row) => row.id !== id); },
+    listCards: async () => d.state.cards,
+    hasCredentials: async (id) => signedIn.has(id),
+  });
+  const round = async (a: ReturnType<typeof device>, b: ReturnType<typeof device>) => {
+    await importAccountMetadata(b.publish(), a.ports); await fold(a, new Set(["pA"]));
+    await importAccountMetadata(a.publish(), b.ports); await fold(b, new Set(["pB"]));
+  };
+  const snapshot = (d: ReturnType<typeof device>) => JSON.stringify([...d.state.pim].sort((x, y) => x.id.localeCompare(y.id)));
+
+  it("settle, and become one row once the phone writes the address", async () => {
+    const a = device([{ ...caldav("pA"), config: { url: BASE, user: "anna", confirmedPrincipal: P } }], []);
+    const b = device([{ ...caldav("pB"), config: {} }], []);
+    await round(a, b);
+    await round(a, b);
+    const settledA = snapshot(a);
+    const settledB = snapshot(b);
+    await round(a, b);
+    expect(snapshot(a)).toBe(settledA);
+    expect(snapshot(b)).toBe(settledB);
+    // The phone's row has no address: nothing can say it is the same account,
+    // so it stays beside (Fehlerliste F36 A2) — untidy, never wrong.
+    expect(a.state.pim).toHaveLength(2);
+
+    // The updated phone fills the address in from its sign-in at start: from
+    // then on its row and the desktop's are one account in both directions.
+    b.state.pim = b.state.pim.map((row) => (row.id === "pB" ? { ...row, config: { url: `${BASE}/`, user: "anna" } } : row));
+    await round(a, b);
+    await round(a, b);
+    expect(b.state.map.pimLocalToLogical.pB).toBe("pA");
+    expect(a.state.pim.find((row) => row.id === "pA")!.config).toMatchObject({ url: BASE, confirmedPrincipal: P });
+    const doneA = snapshot(a);
+    const doneB = snapshot(b);
+    await round(a, b);
+    expect(snapshot(a)).toBe(doneA);
+    expect(snapshot(b)).toBe(doneB);
+    // What the old row left on both devices stays: an entry without an
+    // address, without a sign-in, that nothing can prove to be the account
+    // (reported, not removed: it would come back with every import).
+    expect(a.state.pim.filter((row) => !row.config.url).map((row) => row.id)).toEqual(["pB"]);
   });
 });

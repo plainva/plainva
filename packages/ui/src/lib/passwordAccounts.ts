@@ -1,29 +1,36 @@
 import { trimEndChars } from "@plainva/core";
-import type { PimAccountRow } from "@plainva/core";
+import { CONFIRMED_PRINCIPAL_KEY, type PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 
 /**
  * What makes two accesses with a password (WebDAV, CalDAV, Nextcloud) the same
- * account: the server and the user, normalized (GitHub issue 174, Fehlerliste C13,
- * C14; decided 2026-11-16).
+ * account (GitHub issue 174, Fehlerliste C13, C14; decided 2026-11-16, the user rule
+ * after review the same day).
  *
- * A sign-in with a password carries no identity the provider vouches for, so
+ * A sign-in with a password carries no identity a provider vouches for, so
  * nothing ever matched one: every successful connect added a second calendar
  * row beside the first, and a second device that spelled the address a little
- * differently got a row of its own without a password. The address and the
- * user are what decide where a password is sent, so they are what names the
- * account.
+ * differently got a row of its own without a password.
  *
- * Folded together, because they cannot name two servers:
+ * Merged is only what is PROVEN to be one account — untidy is acceptable, wrong
+ * is not, because a merge moves a password onto the other row:
+ *
+ * 1. Both rows carry the principal the server confirmed (`confirmedPrincipal`,
+ *    recorded on connect and on every successful fetch): the same principal is
+ *    the same account, another is another. The server decides, so "Anna" and
+ *    "anna" are one account on a Nextcloud, which signs in without regard to
+ *    case, and two on Radicale or Baïkal, which do not.
+ * 2. Otherwise the address and the user: the user exactly as typed (only
+ *    trimmed), the address normalized as below.
+ *
+ * Folded together in the address, because they cannot name two servers:
  * - scheme and host in any case, a default port written out (443 for https,
  *   80 for http), slashes at the end;
  * - the DAV endpoint of Nextcloud and ownCloud, `/remote.php/…` in any of its
  *   spellings (`dav`, `dav/`, `dav/files/<user>/…`, `dav/calendars/<user>/`,
  *   `caldav`, `webdav`): the account is the installation, not the endpoint a
  *   service of it was connected to — the files and the calendar of one
- *   Nextcloud are one account;
- * - the user in any case (Nextcloud signs in without regard to it, and the
- *   settings sync has always compared it so).
+ *   Nextcloud are one account.
  *
  * Kept apart, because they may be two servers: another scheme (`http` and
  * `https` can be served by different hosts behind one name), another port, and
@@ -31,11 +38,29 @@ import type { CloudAccountRecord } from "./cloudAccounts.js";
  * its case. An address that cannot be read — no scheme, not http(s), a user or
  * password inside it, a query — has no identity: such an access is never
  * merged, which is the old behaviour, untidy but never wrong.
+ *
+ * The settings sync names a password by its own rule (`canonicalSecretId`),
+ * which compares the user without regard to case and the path in full. That is
+ * deliberately not changed here: renaming the secrets of a user with capitals
+ * would retire their old names, and a device still on 0.8.7 applies the
+ * retirement by deleting a working password (`passwordAccounts.test.ts` pins
+ * where the two rules differ).
  */
 export function passwordAccountIdentity(url: unknown, user: unknown): string | null {
-  if (typeof url !== "string" || typeof user !== "string") return null;
-  const name = user.trim().toLowerCase();
+  if (typeof user !== "string") return null;
+  const name = user.trim();
   if (!name) return null;
+  const address = normalizedAddress(url, true);
+  return address === null ? null : `${address}\u0000${name}`;
+}
+
+/** The principal the server confirmed, normalized like an address but with its path intact; null when unusable. */
+export function confirmedPrincipalKey(principal: unknown): string | null {
+  return normalizedAddress(principal, false);
+}
+
+function normalizedAddress(url: unknown, foldEndpoint: boolean): string | null {
+  if (typeof url !== "string") return null;
   let parsed: URL;
   try {
     parsed = new URL(url.trim());
@@ -45,20 +70,63 @@ export function passwordAccountIdentity(url: unknown, user: unknown): string | n
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
   if (parsed.username || parsed.password || parsed.search) return null;
   // `URL` lower-cases scheme and host and drops a default port already.
-  const path = trimEndChars(parsed.pathname.replace(/\/remote\.php(\/.*)?$/i, ""), "/");
-  return `${parsed.protocol}//${parsed.host}${path}\u0000${name}`;
+  const pathname = foldEndpoint ? parsed.pathname.replace(/\/remote\.php(\/.*)?$/i, "") : parsed.pathname;
+  return `${parsed.protocol}//${parsed.host}${trimEndChars(pathname, "/")}`;
 }
 
-/** The password identity of a calendar row, or null when it has none (OAuth, device, an unreadable address). */
-export function pimPasswordIdentity(row: Pick<PimAccountRow, "provider" | "config">): string | null {
+/** What the rule reads of a calendar row. */
+export interface PasswordRowLike {
+  provider: string;
+  config?: Record<string, unknown>;
+}
+
+/** One password access as the rule reads it. */
+export interface PasswordAccess {
+  url: unknown;
+  user: unknown;
+  principal?: unknown;
+}
+
+/** Whether two password accesses are proven to be the same account (the rule above). */
+export function samePasswordAccount(a: PasswordAccess, b: PasswordAccess): boolean {
+  const principalA = confirmedPrincipalKey(a.principal);
+  const principalB = confirmedPrincipalKey(b.principal);
+  if (principalA && principalB) return principalA === principalB;
+  const identity = passwordAccountIdentity(a.url, a.user);
+  return identity !== null && identity === passwordAccountIdentity(b.url, b.user);
+}
+
+/** The password access of a calendar row, or null when it has none (OAuth, device). */
+export function pimPasswordAccess(row: PasswordRowLike): PasswordAccess | null {
+  if (row.provider !== "caldav") return null;
+  return { url: row.config?.url, user: row.config?.user, principal: row.config?.[CONFIRMED_PRINCIPAL_KEY] };
+}
+
+/** Whether two calendar rows are proven to be the same password account. */
+export function samePimPasswordAccount(
+  a: PasswordRowLike,
+  b: PasswordRowLike,
+): boolean {
+  const accessA = pimPasswordAccess(a);
+  const accessB = pimPasswordAccess(b);
+  return !!accessA && !!accessB && samePasswordAccount(accessA, accessB);
+}
+
+/**
+ * The address-and-user key of a calendar row (rule 2 alone), or null. A key for
+ * sorting and for a comparison with a file access, which has no principal;
+ * whether two ROWS are one account is `samePimPasswordAccount`.
+ */
+export function pimPasswordIdentity(row: PasswordRowLike): string | null {
   if (row.provider !== "caldav") return null;
   return passwordAccountIdentity(row.config?.url, row.config?.user);
 }
 
 /**
- * Among calendar rows of one password identity, the one a fresh connect is
- * ADOPTED INTO (`accountToAdoptInto`): the row a card already binds for this
- * connect when it is one of them, else the lowest id — deterministic, so two
+ * Among calendar rows of one password account, the one a fresh connect is
+ * ADOPTED INTO (`accountToAdoptInto`): the row the card being connected
+ * already binds, when it is one of them (`prefer`; both shells pass it, see
+ * `adoptPreferenceForCard`), else the lowest id — deterministic, so two
  * devices reading the same list reach the same answer.
  */
 export function passwordRowToAdoptInto<T extends { id: string; provider: string; config?: Record<string, unknown> }>(
@@ -67,13 +135,35 @@ export function passwordRowToAdoptInto<T extends { id: string; provider: string;
   prefer?: string,
 ): T | null {
   if (fresh.provider !== "caldav") return null;
-  const identity = passwordAccountIdentity(fresh.config?.url, fresh.config?.user);
-  if (!identity) return null;
-  const matches = rows.filter((row) => row.id !== fresh.id && row.provider === "caldav"
-    && passwordAccountIdentity(row.config?.url, row.config?.user) === identity);
+  const matches = rows.filter((row) => row.id !== fresh.id && samePimPasswordAccount(row, fresh));
   if (matches.length === 0) return null;
   return matches.find((row) => row.id === prefer)
     ?? [...matches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
+}
+
+/**
+ * The row a connect started from a card should prefer to adopt into: the
+ * calendar row that card binds. One answer for both shells, so a reconnect at
+ * a card lands in that card's row on the desktop and on the phone alike.
+ */
+export function adoptPreferenceForCard(cards: readonly CloudAccountRecord[], cardId: string | null | undefined): string | undefined {
+  if (!cardId) return undefined;
+  return cards.find((card) => card.id === cardId)?.services.calendar?.pimAccountId;
+}
+
+/** Groups calendar rows into password accounts (`samePimPasswordAccount`), keeping rows without one out. */
+export function passwordAccountGroups<T extends PasswordRowLike & { id: string }>(rows: readonly T[]): T[][] {
+  const access = rows.filter((row) => pimPasswordAccess(row) && (pimPasswordIdentity(row) || confirmedPrincipalKey(row.config?.[CONFIRMED_PRINCIPAL_KEY])));
+  const parent = access.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < access.length; i++) {
+    for (let j = i + 1; j < access.length; j++) {
+      if (samePimPasswordAccount(access[i], access[j])) parent[find(j)] = find(i);
+    }
+  }
+  const groups = new Map<number, T[]>();
+  access.forEach((row, i) => groups.set(find(i), [...(groups.get(find(i)) ?? []), row]));
+  return [...groups.values()];
 }
 
 /** What the plan needs to know about a calendar row beyond the row itself. */
@@ -107,12 +197,6 @@ export function planEmptyPasswordDuplicates(
   cards: readonly CloudAccountRecord[],
   facts: (rowId: string) => PasswordRowFacts,
 ): string[] {
-  const groups = new Map<string, string[]>();
-  for (const row of rows) {
-    const identity = pimPasswordIdentity(row);
-    if (!identity) continue;
-    groups.set(identity, [...(groups.get(identity) ?? []), row.id]);
-  }
   const cardsOf = (rowId: string) => cards.filter((card) => card.services.calendar?.pimAccountId === rowId);
   const servicesOf = (card: CloudAccountRecord) =>
     (card.services.files ? 1 : 0) + (card.services.calendar ? 1 : 0) + (card.services.mail ? 1 : 0);
@@ -122,7 +206,8 @@ export function planEmptyPasswordDuplicates(
     return cardsOf(rowId).every((card) => !card.services.files && !card.services.mail);
   };
   const removed: string[] = [];
-  for (const ids of groups.values()) {
+  for (const group of passwordAccountGroups(rows)) {
+    const ids = group.map((row) => row.id);
     if (ids.length < 2) continue;
     const sorted = [...ids].sort();
     const removable = sorted.filter(empty);
@@ -159,7 +244,7 @@ export interface EmptyPasswordDuplicatePorts {
  */
 export async function removeEmptyPasswordDuplicates(ports: EmptyPasswordDuplicatePorts): Promise<string[]> {
   const rows = await ports.listAccounts();
-  const candidates = rows.filter((row) => pimPasswordIdentity(row));
+  const candidates = rows.filter((row) => pimPasswordAccess(row));
   if (candidates.length < 2) return [];
   const facts = new Map<string, PasswordRowFacts>();
   for (const row of candidates) facts.set(row.id, await rowFacts(ports, row.id));

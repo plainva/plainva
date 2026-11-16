@@ -1,7 +1,7 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
 import { classifySyncError, isSignInFailure, type SyncErrorKind } from "../sync/errorKind.js";
 import type { IPimTarget, PimCalendar, PimEvent, PimProviderId, PimTask, PimTaskList } from "./types.js";
-import { eventCalendarsOf } from "./types.js";
+import { CONFIRMED_PRINCIPAL_KEY, eventCalendarsOf } from "./types.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
 import { decodeEventCursor, encodeEventCursor, needsFullRefresh } from "./eventCursor.js";
 
@@ -459,6 +459,14 @@ export class PimWorker {
     const collections = await target.listCalendars();
     if (gen !== this.generation) return stoppedHere();
     await this.store(() => cache.replaceCalendars(account.id, eventCalendarsOf(collections)));
+    // The account's own address, as the server confirmed it (GitHub issue 174): a row
+    // connected before it was recorded gets it on its first successful fetch,
+    // and from then on it decides which rows are one account. Best effort —
+    // a row without it is only compared more strictly.
+    const principal = target.confirmedPrincipal?.();
+    if (principal && account.config?.[CONFIRMED_PRINCIPAL_KEY] !== principal) {
+      await Promise.resolve().then(() => cache.setAccountConfigValue(account.id, CONFIRMED_PRINCIPAL_KEY, principal)).catch(() => {});
+    }
     wrote = true;
 
     // Pull the selected calendars CONCURRENTLY (network-bound), in small batches,

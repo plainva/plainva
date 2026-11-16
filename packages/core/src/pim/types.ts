@@ -383,11 +383,22 @@ export class PimConflictError extends Error {
  * per-provider delta cursors (personal calendars are small; deltas are a
  * later optimization, the cache schema already carries a cursor slot).
  */
+/** The account config key that holds `IPimTarget.confirmedPrincipal` (a server fact; it travels with the settings). */
+export const CONFIRMED_PRINCIPAL_KEY = "confirmedPrincipal";
+
 export interface IPimTarget {
   readonly provider: PimProviderId;
   /** Every collection of the account — event calendars AND (CalDAV) reminder
    * lists, told apart by `supportsEvents` / `supportsTasks`. */
   listCalendars(): Promise<PimCalendar[]>;
+  /**
+   * The account's own address as the server stated it during the last
+   * `listCalendars` (CalDAV: the `current-user-principal`, resolved to an
+   * absolute URL), or undefined when it stated none. It names the account the
+   * credentials signed in to — what the user typed is only a way there, and
+   * whether "Anna" and "anna" are one account is the server's to say.
+   */
+  confirmedPrincipal?(): string | undefined;
   /** All event instances of the calendar overlapping [rangeStart, rangeEnd)
    * (UTC ms). Recurring series arrive EXPANDED (server-side for Google/Graph,
    * ical.js for CalDAV) plus one master row carrying `recurrence`. */

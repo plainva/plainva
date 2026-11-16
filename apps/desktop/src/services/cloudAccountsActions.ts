@@ -4,6 +4,7 @@ import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
   accountOAuthServices,
+  adoptPreferenceForCard,
   tokenCoversService,
   identityKey,
   withBoundCard,
@@ -201,7 +202,9 @@ async function connectCalendar(
     case "mailboxorg":
     case "webdav": {
       const w = req.webdav!;
-      const row = await connectCalDavAccount(runtime, vaultPath, { url: w.caldavUrl, user: w.user, pass: w.pass });
+      // A reconnect at a card lands in that card's calendar row, as on the phone.
+      const prefer = adoptPreferenceForCard(await loadCloudAccounts(vaultPath), req.context?.cloudAccountId);
+      const row = await connectCalDavAccount(runtime, vaultPath, { url: w.caldavUrl, user: w.user, pass: w.pass, prefer });
       // Suites sign in with the mail address — prefer it over the subsystem's
       // user@host label so the registry card carries a mergeable identity.
       return { id: row.id, label: identityKey(w.user) ? w.user : row.label };

@@ -196,6 +196,15 @@ describe("CalDavPimTarget discovery", () => {
     expect(cals[1]).toMatchObject({ name: "Arbeit", supportsTasks: false });
     // Auth went out as Basic on every hop.
     expect(calls.length).toBe(3);
+    // Whose account this is, as the server said it (GitHub issue 174), without a further request.
+    expect(t.confirmedPrincipal()).toBe("https://cloud.example.org/remote.php/dav/principals/users/marco/");
+  });
+
+  it("names no principal before a discovery, or when the server states none", async () => {
+    const t = new CalDavPimTarget(CREDS, vi.fn(async () => new Response("nope", { status: 404 })));
+    expect(t.confirmedPrincipal()).toBeUndefined();
+    await t.listCalendars().catch(() => undefined);
+    expect(t.confirmedPrincipal()).toBeUndefined();
   });
 
   it("task lists are the VTODO-capable calendars", async () => {

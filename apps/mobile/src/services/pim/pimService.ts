@@ -1,4 +1,4 @@
-import { sameStoredValue } from "@plainva/core";
+import { CONFIRMED_PRINCIPAL_KEY, sameStoredValue } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { TaskListRuntime } from "@plainva/ui";
 import {
@@ -25,7 +25,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptPreferenceForCard, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -458,14 +458,16 @@ async function addPimAccountInVault(
     // The address and the user are the account of a CalDAV row, as on the
     // desktop: without them in the row the settings of another device never
     // found it, and a further connect never found it either (GitHub issue 174).
-    config = { url: creds.url, user: creds.user };
+    // The principal the server confirmed decides once both rows carry one.
+    const principal = target.confirmedPrincipal?.();
+    config = { url: creds.url, user: creds.user, ...(principal ? { [CONFIRMED_PRINCIPAL_KEY]: principal } : {}) };
   }
   assertCurrent();
   const known = await owner.cache.listAccounts();
   assertCurrent();
   let adoptInto = accountToAdoptInto(known, {
     id, provider, identity: verifiedProviderIdentityOf({ config }), config,
-  }, source?.services.calendar?.pimAccountId);
+  }, adoptPreferenceForCard(source ? [source] : [], source?.id));
   // The account's calendar row arrived with the settings of another device and
   // was never signed in here. "Add the calendar" for that account IS the
   // sign-in of that row: a second row beside it was refused below as "the
@@ -591,6 +593,7 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
   // nobody could act on.
   if (existing.provider !== creds.kind) throw new Error(`provider mismatch: ${existing.provider} account, ${creds.kind} credentials`);
   let profile: VerifiedProviderProfile | null = null;
+  let caldavAccess: Record<string, unknown> | null = null;
   if (creds.kind === "google" || creds.kind === "microsoft") {
     const auth = buildPimAuthProvider(target.vaultId, accountId, creds, { onRotation: async (_previous, next) => { assertCurrent(); creds = next; } });
     profile = await fetchVerifiedProfile(auth, creds.kind);
@@ -601,12 +604,21 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
     await providerTarget.listTaskLists();
   } else {
     await allowHttpOrigin(creds.url);
-    if (!(await new CalDavPimTarget(creds, webdavFetch).listCalendars()).length) throw new Error("No calendars found on this server.");
+    const caldav = new CalDavPimTarget(creds, webdavFetch);
+    if (!(await caldav.listCalendars()).length) throw new Error("No calendars found on this server.");
+    // The repair form can change the server and the user: the row names what
+    // it now signs in to, or a later connect of the old access would adopt
+    // into it and overwrite this password (GitHub issue 174). The desktop has no such
+    // form; a reconnect there is a fresh connect that writes the same fields.
+    const principal = caldav.confirmedPrincipal?.();
+    caldavAccess = { url: creds.url, user: creds.user, [CONFIRMED_PRINCIPAL_KEY]: principal };
   }
   assertCurrent();
   await savePimCredentials(target.vaultId, accountId, creds);
   assertCurrent();
-  await target.cache.upsertAccount({ ...existing, label: profile?.label ?? existing.label, config: { ...existing.config, ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}) }, enabled: true });
+  const config: Record<string, unknown> = { ...existing.config, ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}), ...(caldavAccess ?? {}) };
+  if (caldavAccess && !caldavAccess[CONFIRMED_PRINCIPAL_KEY]) delete config[CONFIRMED_PRINCIPAL_KEY];
+  await target.cache.upsertAccount({ ...existing, label: profile?.label ?? existing.label, config, enabled: true });
   assertCurrent();
   await restartPimAccountAfterLogin(target.vaultId, accountId);
 }

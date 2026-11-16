@@ -1,6 +1,6 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { reportingTo } from "@plainva/ui";
-import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow, type IPimTarget } from "@plainva/core";
+import { CONFIRMED_PRINCIPAL_KEY, CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow, type IPimTarget } from "@plainva/core";
 import { calendarGrantProbe } from "../accountBroker";
 import { restartPimAccountAfterLogin, type PimRuntime } from "./pimRuntime";
 import { authorizeGooglePim, authorizeMicrosoftPim, buildPimAuthProvider } from "./pimAuth";
@@ -65,6 +65,7 @@ async function adoptIfKnown(
   vaultPath: string,
   fresh: PimAccountRow,
   creds: PimStoredCredentials,
+  prefer: string | undefined,
 ): Promise<PimAccountRow | null> {
   assertPimRuntime(runtime);
   const existing = await runtime.cache.listAccounts();
@@ -75,7 +76,7 @@ async function adoptIfKnown(
     identity: verifiedProviderIdentityOf(fresh),
     // A CalDAV row is the same account when server and user are (GitHub issue 174).
     config: fresh.config,
-  });
+  }, prefer);
   if (!target) return null;
 
   await adoptAccountInto(
@@ -126,13 +127,16 @@ async function finishConnect(
   vaultPath: string,
   account: PimAccountRow,
   creds: PimStoredCredentials,
-  options: { validationTarget?: IPimTarget; deferStart?: boolean } = {},
+  options: { validationTarget?: IPimTarget; deferStart?: boolean; prefer?: string } = {},
 ): Promise<PimAccountRow> {
   assertPimRuntime(runtime);
   const target = options.validationTarget ?? await runtime.buildTarget(account);
   if (!target) throw new Error("Calendar validation is unavailable");
   const calendars = await target.listCalendars();
   const lists = await target.listTaskLists();
+  // Whose account the server says this is (GitHub issue 174): it decides which rows are one.
+  const principal = target.confirmedPrincipal?.();
+  if (principal) account = { ...account, config: { ...account.config, [CONFIRMED_PRINCIPAL_KEY]: principal } };
   assertPimRuntime(runtime);
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   // One lane with the removal of empty duplicate rows (`foldEmptyCalendarDuplicates`):
@@ -142,7 +146,7 @@ async function finishConnect(
     // normal fix for an expired sign-in, and every connect mints a new id — so
     // without this the vault ends up with two rows for one account while the
     // task anchors and cursors stay with the old one (C22).
-    const adopted = await adoptIfKnown(runtime, vaultPath, account, creds);
+    const adopted = await adoptIfKnown(runtime, vaultPath, account, creds, options.prefer);
     let row = adopted ?? account;
 
     // Persist secret + account only after listCalendars proved the connection.
@@ -165,7 +169,8 @@ async function finishConnect(
 export async function connectCalDavAccount(
   runtime: PimRuntime,
   vaultPath: string,
-  opts: { url: string; user: string; pass: string }
+  /** `prefer`: the row the card being connected binds (`adoptPreferenceForCard`). */
+  opts: { url: string; user: string; pass: string; prefer?: string }
 ): Promise<PimAccountRow> {
   const target = new CalDavPimTarget({ url: opts.url, user: opts.user, pass: opts.pass }, httpFetch);
   const calendars = await target.listCalendars();
@@ -178,7 +183,7 @@ export async function connectCalDavAccount(
     config: { url: opts.url, user: opts.user },
     enabled: true,
   };
-  return finishConnect(runtime, vaultPath, account, { kind: "caldav", url: opts.url, user: opts.user, pass: opts.pass }, { validationTarget: target });
+  return finishConnect(runtime, vaultPath, account, { kind: "caldav", url: opts.url, user: opts.user, pass: opts.pass }, { validationTarget: target, prefer: opts.prefer });
 }
 
 export async function connectGoogleAccount(
@@ -191,7 +196,7 @@ export async function connectGoogleAccount(
    * so this slot must NOT keep a copy — copies were what drifted apart and left
    * a calendar dead while the file sync kept working (finding 2026-07-28).
    */
-  opts: { clientId: string; clientSecret: string; refreshToken?: string; viaBroker?: boolean; brokerAccountId?: string; expectedIdentity?: VerifiedProviderIdentity }
+  opts: { clientId: string; clientSecret: string; refreshToken?: string; viaBroker?: boolean; brokerAccountId?: string; expectedIdentity?: VerifiedProviderIdentity; prefer?: string }
 ): Promise<PimAccountRow> {
   const { refreshToken } = opts.viaBroker
     ? { refreshToken: "" }
@@ -229,7 +234,7 @@ export async function connectGoogleAccount(
     },
     enabled: true,
   };
-  return finishConnect(runtime, vaultPath, account, creds, { validationTarget: target, deferStart: opts.viaBroker });
+  return finishConnect(runtime, vaultPath, account, creds, { validationTarget: target, deferStart: opts.viaBroker, prefer: opts.prefer });
 }
 
 export async function connectMicrosoftAccount(
@@ -241,7 +246,7 @@ export async function connectMicrosoftAccount(
    * per-service slot deliberately stores an empty token because every read
    * goes through the broker.
    */
-  opts: { clientId: string; viaBroker?: boolean; brokerAccountId?: string; expectedIdentity?: VerifiedProviderIdentity }
+  opts: { clientId: string; viaBroker?: boolean; brokerAccountId?: string; expectedIdentity?: VerifiedProviderIdentity; prefer?: string }
 ): Promise<PimAccountRow> {
   const { refreshToken } = opts.viaBroker ? { refreshToken: "" } : await authorizeMicrosoftPim(opts);
   const id = newAccountId();
@@ -281,7 +286,7 @@ export async function connectMicrosoftAccount(
     },
     enabled: true,
   };
-  return finishConnect(runtime, vaultPath, account, creds, { validationTarget: target, deferStart: opts.viaBroker });
+  return finishConnect(runtime, vaultPath, account, creds, { validationTarget: target, deferStart: opts.viaBroker, prefer: opts.prefer });
 }
 
 export async function removePimAccount(runtime: PimRuntime, vaultPath: string, accountId: string): Promise<void> {

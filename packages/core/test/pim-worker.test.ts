@@ -114,6 +114,18 @@ describe("PimWorker", () => {
     expect((await cache.listTaskLists("a1")).map((l) => l.selected)).toEqual([false]);
   });
 
+  // GitHub issue 174: the principal a server confirmed decides which rows are one
+  // account, so a row connected before it was recorded gets it on its fetch.
+  it("writes the principal the server confirmed into the row, and only that key", async () => {
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "NC", config: { url: "https://cloud.example.com", user: "anna" }, enabled: true });
+    const target = { ...fakeTarget([]), confirmedPrincipal: () => "https://cloud.example.com/remote.php/dav/principals/users/anna/" };
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    const [row] = await cache.listAccounts();
+    expect(row.config).toEqual({ url: "https://cloud.example.com", user: "anna", confirmedPrincipal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" });
+    expect(row.label).toBe("NC");
+  });
+
   // S8: the choke point every provider's rows pass through. A series occurrence
   // arrives without a title of its own — which means "same as the series", not
   // "an event with no name" — and must reach the cache carrying the series'.
