@@ -320,6 +320,10 @@ describe("locale parity", () => {
 const VERBATIM_THRESHOLD = 6;
 
 const VERBATIM_ALLOWED = new Set<string>([
+  // "+n" after the notes an answer rests on (plan Oberfläche O7): a sign and a number, the same in every script.
+  "ai.groundsMore",
+  // The setup's second answer (plan Oberfläche O7, M7) is a list of provider names, which are names in every language.
+  "ai.setup.kind.cloud",
   // Who an AI notice comes from (plan KI-Oberflächen K10): "Plainva" is the product's name in every language.
   "ai.error.sender.plainva",
   // The internet chip of a conversation (plan KI-Oberflächen K7): "Internet" is the word in most languages.

@@ -1,12 +1,12 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma czternaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
 ## Korzystanie z umiejętności
 
-Umiejętność uruchamia się jednym kliknięciem: spośród wyróżnionych umiejętności nad polem wpisywania rozmowy (z **Wszystkie umiejętności…** dla pozostałych; lewa kolumna karty AI już ich nie wymienia), w sekcji **Umiejętności** na karcie AI, na telefonie w segmencie **Umiejętności** ekranu **AI** albo z palety poleceń. Segment **Umiejętności** to warsztat: jeden przycisk **Nowa…** otwiera menu z umiejętnością, skryptem i importem (dawniej trzy przyciski), a jedno zdanie wyjaśnia, czym są umiejętności. Kolejność: to, co czeka na zatwierdzenie, **Dołączone do Plainva**, **Własne**, skrypty, te z serwerów, **Instrukcje dla tego vaulta** (z `AGENTS.md` jako drugim wierszem), **Test** i to, czego się nauczono. Wycofanie zatwierdzenia najpierw prosi o potwierdzenie. Rozmowa działa wtedy z umiejętnością: jej instrukcje idą razem z nią, a ona używa tylko narzędzi i folderów, które wymienia.
+Umiejętność uruchamia się jednym kliknięciem: z **Umiejętności** pod polem wpisywania pustej rozmowy (wyróżnione na początku), w sekcji **Umiejętności** na karcie AI, na telefonie w segmencie **Umiejętności** ekranu **AI** albo z palety poleceń. Segment **Umiejętności** to warsztat: jeden przycisk **Nowa…** otwiera menu z umiejętnością, skryptem i importem (dawniej trzy przyciski), a jedno zdanie wyjaśnia, czym są umiejętności. Kolejność: to, co czeka na zatwierdzenie, **Dołączone do Plainva**, **Własne**, skrypty, te z serwerów, **Instrukcje dla tego vaulta** (z `AGENTS.md` jako drugim wierszem), **Test** i to, czego się nauczono. Wycofanie zatwierdzenia najpierw prosi o potwierdzenie. Rozmowa działa wtedy z umiejętnością: jej instrukcje idą razem z nią, a ona używa tylko narzędzi i folderów, które wymienia.
 
 Można też po prostu zapytać. W każdej rozmowie AI zna nazwy i opisy aktywnych umiejętności i wczytuje jedną, gdy pytanie pasuje — wystarczy „przygotuj moje następne spotkanie”.
 

@@ -69,6 +69,7 @@ export * from "./lib/accountRepair";
 export * from "./lib/accountRepairCleanup";
 export * from "./lib/profileNotice";
 export * from "./lib/eventVisualState";
+export * from "./lib/eventInk";
 export * from "./lib/iconPickerModel";
 export * from "./lib/authErrors";
 export * from "./lib/pimAccountFailure";

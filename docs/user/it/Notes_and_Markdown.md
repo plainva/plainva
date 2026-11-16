@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-11-10
+Ultimo aggiornamento: 2026-11-16
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -109,7 +109,7 @@ Cinque proprietà opzionali di OKF 0.2 permettono a una nota di dichiarare da do
 
 - **Badge di stato:** se una nota porta `status: draft` o `status: deprecated`, l'intestazione del documento mostra il badge **Bozza** o **Dismessa**. `stable` resta silenzioso. Una tua colonna `status` con altri valori (ad esempio `Open`) non viene toccata — è una proprietà ordinaria e non riceve alcun badge.
 - **Avviso di obsolescenza:** una volta superato `stale_after`, sopra la nota compare **Segnata come obsoleta (dal …)** con **Apri le proprietà**. L'avviso non cambia nulla nella nota; ricorda soltanto.
-- **Fiducia e provenienza:** una sezione a sé nel pannello delle proprietà riassume `generated` (Generata), `verified` (Verificata), `sources` (Fonti, cliccabili), `status` e `stale_after` (Obsoleta dopo) e ne ricava un livello: **Non verificata**, **Confermata dalla macchina** o **Rivista da una persona**.
+- **Fiducia e provenienza:** una sezione a sé nel pannello delle proprietà riassume `generated` (Generata), `verified` (Verificata), `sources` (Fonti, cliccabili), `status` e `stale_after` (Obsoleta dopo) e ne ricava un livello: **Non verificata**, **Confermata dalla macchina** o **Rivista da una persona**. Compare finché l'IA è attiva su questo dispositivo, o quando la nota porta tali campi.
 - **Segna come revisionata:** il pulsante in quella sezione aggiunge il tuo nome con l'istante corrente all'elenco `verified` (`human:<nome>`); Plainva chiede il nome una volta per vault e lo tiene solo su questo dispositivo (modificabile in **Impostazioni → Vault → Note e archiviazione → Annotazioni → Il tuo nome (annotazioni e revisioni)**). Sul telefono la stessa azione si trova nel pannello di contesto della nota.
 
 Plainva imposta `generated` e `sources` solo dove crea le note lui stesso — nell'importatore, nella cattura e-mail e nella sincronizzazione delle attività; l'editor non timbra mai da solo, e le note esistenti non vengono timbrate a posteriori. Il contratto dei campi è nella [File Format Reference](File_Format_Reference.md), l'approfondimento sotto [OKF](OKF.md).

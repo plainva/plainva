@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-10
+Última actualización: 2026-11-16
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -109,7 +109,7 @@ Cinco propiedades opcionales de OKF 0.2 dejan que una nota diga de dónde viene 
 
 - **Insignia de estado:** si una nota lleva `status: draft` o `status: deprecated`, la cabecera del documento muestra la insignia **Borrador** u **Obsoleta**. `stable` se mantiene en silencio. Una columna `status` propia con otros valores (por ejemplo `Open`) no se ve afectada — es una propiedad ordinaria y no recibe ninguna insignia.
 - **Aviso de caducidad:** en cuanto pasa `stale_after`, aparece **Marcada como caducada (desde …)** encima de la nota junto con **Abrir propiedades**. El aviso no cambia nada en la nota; solo recuerda.
-- **Confianza y procedencia:** una sección propia en el panel de propiedades resume `generated` (Generada), `verified` (Verificada), `sources` (Fuentes, con enlaces), `status` y `stale_after` (Caduca después de) y deriva de ellos un nivel — **Sin verificar**, **Confirmada por la máquina** o **Revisada por una persona**.
+- **Confianza y procedencia:** una sección propia en el panel de propiedades resume `generated` (Generada), `verified` (Verificada), `sources` (Fuentes, con enlaces), `status` y `stale_after` (Caduca después de) y deriva de ellos un nivel — **Sin verificar**, **Confirmada por la máquina** o **Revisada por una persona**. Aparece mientras la IA está activada en este dispositivo o cuando la nota lleva esos campos.
 - **Marcar como revisada:** el botón de esa sección añade tu nombre con el instante actual al final de la lista verified (`human:<nombre>`); Plainva pide el nombre una vez por vault y lo guarda solo en este dispositivo (se puede cambiar en **Configuración → Vault → Notas y organización → Anotaciones → Tu nombre (anotaciones y revisiones)**). En el teléfono, la misma acción vive en la hoja de contexto de la nota.
 
 Plainva fija `generated` y `sources` solo donde ella misma crea notas — en el importador, en la captura de correo y en la sincronización de tareas; el editor nunca sella, y las notas existentes no se sellan después de creadas. El contrato de campos está en la [Referencia del formato de archivo](File_Format_Reference.md), el contexto en [OKF](OKF.md).

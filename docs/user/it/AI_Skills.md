@@ -1,12 +1,12 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-11-06
+Ultimo aggiornamento: 2026-11-16
 
 Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include quattordici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
 ## Usare una competenza
 
-Avvia una competenza con un clic: tra le competenze in evidenza sopra il campo di testo di una conversazione (con **Tutte le competenze…** per le altre; la colonna sinistra della scheda IA non le elenca più), sotto **Competenze** nella scheda IA, sul telefono nel segmento **Competenze** dello schermo **IA**, oppure dalla palette dei comandi. Il segmento **Competenze** è l'officina: un pulsante **Nuovo…** apre un menu con competenza, script e importazione (prima erano tre pulsanti), e una frase spiega le competenze. L'ordine è: ciò che attende la tua approvazione, **Incluse in Plainva**, **Tue**, gli script, quelle dai server, **Istruzioni per questo vault** (con `AGENTS.md` come seconda riga), le **Verifica** e ciò che è stato imparato. Ritirare un'approvazione chiede prima una conferma. La conversazione procede allora con la competenza: le sue istruzioni vanno insieme, e usa solo gli strumenti e le cartelle che la competenza nomina.
+Avvia una competenza con un clic: da **Competenze** sotto il campo di testo di una conversazione vuota (prima quelle in evidenza), sotto **Competenze** nella scheda IA, sul telefono nel segmento **Competenze** dello schermo **IA**, oppure dalla palette dei comandi. Il segmento **Competenze** è l'officina: un pulsante **Nuovo…** apre un menu con competenza, script e importazione (prima erano tre pulsanti), e una frase spiega le competenze. L'ordine è: ciò che attende la tua approvazione, **Incluse in Plainva**, **Tue**, gli script, quelle dai server, **Istruzioni per questo vault** (con `AGENTS.md` come seconda riga), le **Verifica** e ciò che è stato imparato. Ritirare un'approvazione chiede prima una conferma. La conversazione procede allora con la competenza: le sue istruzioni vanno insieme, e usa solo gli strumenti e le cartelle che la competenza nomina.
 
 Puoi anche semplicemente chiedere. In ogni conversazione l'IA conosce i nomi e le descrizioni delle tue competenze attive e ne carica una quando la tua domanda corrisponde: basta «prepara la mia prossima riunione».
 

@@ -15,6 +15,7 @@ export * from "./aiVaultHost";
 export * from "./aiSettingsModel";
 export * from "./localMode";
 export * from "./aiSetup";
+export * from "./answerGrounds";
 export * from "./aiStart";
 export * from "./aiPolicyEditor";
 export * from "./aiSituation";

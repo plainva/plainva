@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-10
+Stand: 2026-11-16
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -109,7 +109,7 @@ Fünf optionale Eigenschaften aus OKF 0.2 lassen eine Notiz sagen, woher sie sta
 
 - **Status-Abzeichen:** Trägt eine Notiz `status: draft` oder `status: deprecated`, steht im Dokumentkopf das Abzeichen **Entwurf** bzw. **Eingestellt**. `stable` bleibt still. Eine eigene `status`-Spalte mit anderen Werten (etwa `Offen`) ist davon unberührt — sie ist eine gewöhnliche Eigenschaft und bekommt kein Abzeichen.
 - **Veraltet-Hinweis:** Ist `stale_after` überschritten, erscheint über der Notiz **Als veraltet markiert (seit …)** mit **Eigenschaften öffnen**. Der Hinweis ändert nichts an der Notiz; er erinnert nur.
-- **Vertrauen & Herkunft:** Ein eigener Abschnitt im Eigenschaften-Bereich fasst `generated` (Erzeugt), `verified` (Geprüft), `sources` (Quellen, anklickbar), `status` und `stale_after` (Veraltet ab) zusammen und leitet daraus eine Stufe ab — **Nicht geprüft**, **Maschinell bestätigt** oder **Von einer Person geprüft**.
+- **Vertrauen & Herkunft:** Ein eigener Abschnitt im Eigenschaften-Bereich fasst `generated` (Erzeugt), `verified` (Geprüft), `sources` (Quellen, anklickbar), `status` und `stale_after` (Veraltet ab) zusammen und leitet daraus eine Stufe ab — **Nicht geprüft**, **Maschinell bestätigt** oder **Von einer Person geprüft**. Er erscheint, solange die KI auf diesem Gerät an ist oder die Notiz solche Felder trägt.
 - **Als geprüft markieren:** Der Knopf in diesem Abschnitt hängt Deinen Namen mit dem aktuellen Zeitpunkt an die Geprüft-Liste an (`human:<Name>`); Plainva fragt den Namen einmal pro Vault ab und merkt ihn sich nur auf diesem Gerät (änderbar unter **Einstellungen → Vault → Notizen & Ablage → Anmerkungen → Dein Name (Anmerkungen und Prüfungen)**). Am Telefon findest Du dieselbe Aktion im Kontext-Blatt der Notiz.
 
 `generated` und `sources` setzt Plainva nur dort, wo es selbst Notizen erzeugt — beim Import, bei der E-Mail-Erfassung und beim Aufgaben-Abgleich; der Editor stempelt nie, und bestehende Notizen werden nicht nachträglich bestempelt. Den Feldvertrag findest Du in der [Dateiformat-Referenz](File_Format_Reference.md), die Hintergründe unter [OKF](OKF.md).

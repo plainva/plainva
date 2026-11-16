@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-11-10
+Stan na: 2026-11-16
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama zmienia notatkę tylko tam, gdzie na to pozwolisz (**Zastosuj od razu**). Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -21,7 +21,7 @@ Plainva nie ma własnej usługi AI: korzysta się z wybranego dostawcy, z własn
 
 1. W **Ustawienia → AI**, na karcie **Modele**, wybierz **Dodaj dostawcę** i wskaż jednego z nich (dopóki nie ma żadnego dostawcy, karta mówi **Brak modelu**). Każdy wpis niesie krótką uwagę o swoich warunkach — na przykład, że w bezpłatnym dostępie Google dane wejściowe mogą czytać ludzie.
 2. Wpisz klucz przyciskiem **Wpisz klucz**. Klucz trafia do bezpiecznego magazynu tego urządzenia; Plainva nigdy nie pokazuje go ponownie — ani AI, ani na ekranie.
-3. Zaraz po pierwszym dostawcy otwiera się sam wybór modelu dla profilu, od którego zaczynają się nowe rozmowy; dopóki ten profil jest pusty, karta mówi **Brak modelu dla nowych rozmów** z przyciskiem **Wybierz model**.
+3. Zaraz po pierwszym dostawcy otwiera się sam wybór modelu dla profilu, od którego zaczynają się nowe rozmowy; dopóki ten profil jest pusty, karta mówi **Brak modelu dla nowych rozmów** z przyciskiem **Wybierz model**. Na telefonie **Skonfiguruj** w rozmowie otwiera konfigurację w trzech krokach — **Dostawca** (**Na tym urządzeniu**, **Anthropic, OpenAI, Google …** z własnym kluczem lub **Własny serwer**), **Dostęp** (klucz, własny model telefonu lub adres serwera) i **Próba** — która kończy się w rozmowie przyciskiem **Przywitaj się**. Profile pojawiają się, gdy jest już dostawca.
 4. **Przetestuj połączenie** wczytuje własną listę modeli dostawcy. W wierszu dostawcy na desktopie przycisk jest tylko wtedy, gdy czegoś brakuje (**Wpisz klucz** lub **Spróbuj ponownie**); **Przetestuj połączenie**, wymiana lub usunięcie klucza i usunięcie dostawcy są w menu „…” wiersza. Jeśli próba się nie powiedzie, komunikat mówi, od kogo pochodzi błąd (to urządzenie, sieć, dostawca lub Plainva) i podaje dokładne rozwiązanie — **Wpisz nowy klucz**, **Zmień model**; własny tekst błędu dostawcy jest za przyciskiem **Szczegóły**.
 
 Taki **serwer kompatybilny z OpenAI** dodaje się, podając jego adres. Plainva pyta jeszcze raz przed dodaniem, w oknie systemu operacyjnego, i wysyła tylko na potwierdzony adres. Zwykłe `http` działa tylko dla serwera na tym urządzeniu; wszystko inne wymaga `https`.
@@ -52,9 +52,9 @@ Na karcie **Prywatność** **W pełni lokalnie** to jedyny przełącznik tego ro
 
 ## Zadawanie pytań
 
-- **Desktop:** przycisk AI na pasku akcji, **Ctrl+J** (⌘J w macOS) lub **Zapytaj AI** w palecie poleceń otwiera okno AI — małe okno nad bieżącą pracą. **Otwórz jako kartę** przenosi tę samą rozmowę do karty AI, gdzie wyświetlana jest lista rozmów. **W karcie AI na desktopie** segmenty są w tej kolejności: **Rozmowy**, **Do decyzji**, **Umiejętności**, **Pamięć** i **Agent**; lista rozmów pojawia się tylko przy rozmowach. Gdy coś czeka, przycisk AI na pasku akcji ma kropkę i mówi, ile rzeczy czeka (na przykład „3 do decyzji”).
+- **Desktop:** przycisk AI na pasku akcji, **Ctrl+J** (⌘J w macOS) lub **Zapytaj AI** w palecie poleceń otwiera rozmowę w prawym pasku bocznym, obok notatki: zajmuje całą wysokość paska, a kalendarz nad nią zwija się do bieżącego tygodnia. **Zamknij** przywraca sekcje paska bocznego. **Odłącz** zamienia ją w małe okno nad Twoją pracą — od tej pory otwiera się tam na tym urządzeniu — a **Zadokuj w kolumnie** w tym oknie przywraca ją z powrotem. **Otwórz jako kartę** przenosi tę samą rozmowę do karty AI, gdzie wyświetlana jest lista rozmów. **W karcie AI na desktopie** segmenty są w tej kolejności: **Rozmowy**, **Do decyzji**, **Umiejętności**, **Pamięć** i **Agent**; lista rozmów pojawia się tylko przy rozmowach. Gdy coś czeka, przycisk AI na pasku akcji ma kropkę i mówi, ile rzeczy czeka (na przykład „3 do decyzji”).
 - **Telefon:** **Zapytaj AI** w menu ⋮ notatki otwiera arkusz AI nad tą notatką. Obszar **AI** (w arkuszu obszarów albo na pasku nawigacji, jeśli zostanie tam umieszczony) pokazuje rozmowę na pełnym ekranie; bez otwartej rozmowy pokazuje stronę startową z **Do decyzji** (i liczbą rzeczy, które czekają), **Ostatnie** (trzy ostatnie rozmowy) z **Wszystkie rozmowy** oraz **Umiejętności i pamięć**. Drugi ekran AI, za ikoną historii, nazywa się **AI** i ma segmenty Rozmowy, Do decyzji, Umiejętności i Pamięć. Gdy coś czeka na decyzję, arkusz obszarów pokazuje liczbę, a pasek kropkę.
-- **Obok notatki:** na komputerze ta sama rozmowa jest ostatnią sekcją prawego paska bocznego, **AI**. Na telefonie lub tablecie to karta **AI** w kontekście notatki — obok **Właściwości** i **Linki zwrotne** — który tablet pokazuje obok notatki.
+- **Obok notatki:** na komputerze sekcja **AI** prawego paska bocznego otwiera tam tę samą rozmowę, na całą wysokość paska. Na telefonie lub tablecie jest to karta **AI** w kontekście notatki — obok **Właściwości** i **Linki zwrotne** — którą tablet pokazuje obok notatki.
 
 Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu jej ✕, jeśli trzeba. **Przypnij notatkę…** dodaje kolejne notatki. Asystent potrafi też sam czegoś poszukać: przeszukuje vault, czyta notatki i ich sekcje, bazy danych, linki zwrotne i powiązane notatki, wyświetla listę zadań, spotkań oraz notatek niedawno otwartych lub zmienionych, a także otwiera notatki i widoki. Przy spojrzeniu wstecz — co zmieniło się w danym okresie, jak rozwijała się notatka — czyta historię wersji na tym urządzeniu; usunięty wiersz może policzyć, ale nigdy go nie przeczyta. Sam nie potrafi niczego zmienić, utworzyć ani usunąć; to, co może zamiast tego zaproponować, opisano niżej, w części „Proponowanie zmian”.
 
@@ -64,7 +64,7 @@ Każda rozmowa zaczyna się od wiersza „Odpowiedzi pisze AI — ⟨model⟩ pr
 
 Pod każdą odpowiedzią są **Kopiuj**, **Zachowaj jako notatkę** i menu „…” z **Naucz się z tej rozmowy** oraz **To samo pytanie do innego modelu…**. Obok stoi krótki wiersz mówiący, dokąd poszła wiadomość, ile notatek i — tam, gdzie dostawca publikuje ceny — przybliżony koszt („Do ⟨dostawca⟩ · n notatek · ≈ koszt”). **Szczegóły** otwierają pełny przegląd uruchomienia: tokeny, pamięć podręczna tam, gdzie dostawca ją zgłasza, pamięć, styl, strony. Pokrycie pojawia się tylko, gdy jest częściowe lub niskie. **Zatrzymaj** kończy odpowiedź w każdej chwili.
 
-Pytanie, które czeka — przegląd przed wysłaniem, strona, wyszukiwanie, narzędzie zewnętrzne, pytanie serwera — stoi nad polem wpisywania, a nie w przewijanej rozmowie, a pole mówi **Najpierw odpowiedz na pytanie powyżej**. W panelu bocznym desktopu pytanie pojawia się w skrócie („Pytanie czeka na Twoją odpowiedź.”) z **Otwórz w oknie**.
+Pytanie, które czeka na Twoją odpowiedź — przegląd przed wysłaniem, strona, wyszukiwanie, narzędzie, pytanie serwera — stoi nad polem wprowadzania, a nie w przewijanej rozmowie; pole mówi wtedy „Najpierw odpowiedz na pytanie powyżej”. Bez względu na długość pytania jego przyciski pozostają widoczne u dołu — także w pasku bocznym.
 
 Gdy coś pójdzie źle, komunikat nazywa źródło (to urządzenie, sieć, dostawca lub Plainva) i podaje dokładne rozwiązanie; bez połączenia na urządzeniu też to mówi.
 
@@ -85,7 +85,7 @@ Pierwsze zapytanie w sesji pokazuje przegląd zatytułowany „Wysłać do ⟨do
 
 Aby widzieć przegląd przed każdym zapytaniem, włącz **Pytaj przed każdym zapytaniem** — we własnym wierszu nad przyciskami przeglądu albo na karcie **Prywatność** w **Ustawienia → AI**.
 
-**Szczegóły** pod każdą odpowiedzią otwierają przegląd tego, co z nią poszło. Jeśli odpowiedź nie cytuje żadnej z wysłanych notatek, mówi o tym komunikat nad tym wierszem; wtedy sprawdź odpowiedź w notatkach. Jeśli wysłano notatki, wiersz podaje też pokrycie: **pokrycie wysokie**, gdy prawie każde stwierdzenie odpowiedzi wskazuje notatkę, **pokrycie częściowe** lub **pokrycie niskie**, gdy jest ich mniej.
+Pod każdą odpowiedzią jeden spokojny wiersz mówi, na czym się opiera — notatki, które z nią poszły, z nazwy — i do kogo poszła; **Szczegóły** otwiera przegląd tego, co z nią poszło, wraz z pokryciem odpowiedzi. Ostrzeżenie pojawia się tylko wtedy, gdy odpowiedź podaje jako źródło notatkę — link do niej — która nie została ani wysłana, ani odczytana: sprawdź wtedy to stwierdzenie w swoich notatkach.
 
 **Z czego powstała odpowiedź.** Po otwarciu **Szczegóły** zachowują też to, na czym opiera się odpowiedź: czas zadania pytania; każdą notatkę z wersją, która poszła — jest to krótki kod — oraz to, czy jest **bez zmian**, czy **zmieniona od tego czasu**, czy **już nie istnieje**; notatki odczytane przez narzędzia asystenta; użyte narzędzia; wersję umiejętności, z którą działał; i to, co zostawił Tobie do decyzji. Plainva zachowuje ścieżki i wersje, nigdy tekst; czy notatka się zmieniła, sprawdza to urządzenie, gdy otworzysz **Szczegóły**. **To samo pytanie do innego modelu…** (w menu „…” pod odpowiedzią) zadaje to samo pytanie z tymi samymi notatkami w nowej rozmowie: nic, co znalazłoby wyszukiwanie, nie jest dodawane, notatka, którą masz teraz otwartą, zostaje pominięta, tak samo jak to, co Twoje zasady prywatności zatrzymują dziś przed tym modelem. Przegląd przed wysłaniem pokazuje, co idzie, jak przy każdym zapytaniu, a nowa rozmowa podaje tę, z której pochodzi. Działa to w przypadku pierwszego pytania w rozmowie — późniejsze opiera się na tym, co powiedziano wcześniej — oraz pytań, które zabrały ze sobą tylko notatki.
 
@@ -127,7 +127,7 @@ Wątek trafia do modelu tak jak pytanie: jego komentarze, fragment, do którego 
 
 ## Umiejętności
 
-Umiejętności to instrukcje do powtarzalnej pracy. Trzynaście jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
+Umiejętności to instrukcje do powtarzalnej pracy. Trzynaście jest dołączonych do Plainva — wśród nich **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu**, które **Umiejętności** pod polem wprowadzania pustej rozmowy wymienia jako pierwsze — a własne możesz napisać lub zaimportować. Uruchom jedną kliknięciem albo po prostu zapytaj: AI sama wczyta pasującą umiejętność. Własne umiejętności działają dopiero po zatwierdzeniu ich na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
 
 Skrypty to małe programy, które piszesz do tego, co model robi słabo — liczenia, sortowania, sumowania. Działają w zamkniętej piaskownicy, czytają Twój vault przez te same narzędzia co AI i uruchamiają się dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Skrypty](AI_Scripts.md).
 

@@ -68,3 +68,62 @@ export function answerCoverage(answer: string): AnswerCoverage {
   const share = cited / statements.length;
   return { statements: statements.length, cited, level: share >= HIGH ? "high" : share >= PARTIAL ? "partial" : "low" };
 }
+
+/** What a run had of the vault: the notes its context carried, and the ones its tools read (`RunMeta`). */
+export interface AnswerGrounding {
+  /** Paths of the notes the context carried. */
+  sent: readonly string[];
+  /** Paths of the notes the run's tools read. */
+  read?: readonly string[];
+  /** The tools read more than `read` lists: then nothing is known about what was not read. */
+  readMore?: boolean;
+  /** Titles the sent notes go by (a `title` property), beside their file names — a link may name either (ADR 0027). */
+  titles?: readonly string[];
+}
+
+const LINK = /(!?)\[\[([^[\]\n]+)\]\]/g;
+const INLINE_CODE = /`[^`\n]*`/g;
+
+/** A link target or a path as one comparable name: no heading or alias, no `.md`, case-insensitive. */
+function linkKey(target: string): string {
+  return target.split("|")[0]!.split("#")[0]!.trim().replace(/\.md$/i, "").normalize("NFC").toLowerCase();
+}
+
+/**
+ * The notes an answer names as its source although the run never had them
+ * (plan Oberfläche O7, E2): a `[[link]]` to a note that neither went with the
+ * request nor was read by a tool. That is the one claim about notes the app
+ * can check without a second model — the answer says "this note says so",
+ * and the app knows the model never saw that note. It is what earns a
+ * warning under an answer; an answer that cites less than it could gets the
+ * calm line, and its coverage stays in the details.
+ *
+ * Embeds (`![[…]]`) and links inside code are no citations. When the tools
+ * read more than the run kept a list of, nothing is said: an unknown is no
+ * finding. Each note is named once, as the answer spelled it first.
+ */
+export function unfoundedNoteCitations(answer: string, grounding: AnswerGrounding): string[] {
+  if (grounding.readMore) return [];
+  const known = new Set<string>();
+  for (const path of [...grounding.sent, ...(grounding.read ?? [])]) {
+    known.add(linkKey(path));
+    known.add(linkKey(path.replace(/^.*\//, "")));
+  }
+  for (const title of grounding.titles ?? []) known.add(linkKey(title));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const fence = createFenceTracker();
+  for (const line of answer.split("\n")) {
+    if (fence.step(line) !== null) continue;
+    for (const match of line.replace(INLINE_CODE, "").matchAll(LINK)) {
+      if (match[1]) continue;
+      const target = match[2]!.split("|")[0]!.split("#")[0]!.trim();
+      const key = linkKey(target);
+      // `[[#Heading]]` points into the open note's own text: no other note is named.
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      if (!known.has(key) && !known.has(key.replace(/^.*\//, ""))) out.push(target);
+    }
+  }
+  return out;
+}

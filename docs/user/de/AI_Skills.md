@@ -1,12 +1,12 @@
 # Skills (Beta)
 
-Stand: 2026-11-06
+Stand: 2026-11-16
 
 Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt vierzehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
 ## Einen Skill benutzen
 
-Starte einen Skill mit einem Klick: als einer der hervorgehobenen Skills direkt über dem Eingabefeld (**Alle Skills …** zeigt jeden anderen), unter **Skills** im KI-Tab, am Telefon auf dem KI-Bildschirm bei den Skills oder aus der Befehlspalette. Das Gespräch läuft dann mit dem Skill: seine Anweisungen gehen mit, und er benutzt nur die Werkzeuge und Ordner, die er nennt.
+Starte einen Skill mit einem Klick: unter **Skills** unter dem Eingabefeld eines leeren Gesprächs (die hervorgehobenen zuerst), unter **Skills** im KI-Tab, am Telefon auf dem KI-Bildschirm bei den Skills oder aus der Befehlspalette. Das Gespräch läuft dann mit dem Skill: seine Anweisungen gehen mit, und er benutzt nur die Werkzeuge und Ordner, die er nennt.
 
 Du kannst auch einfach fragen. In jedem Gespräch kennt die KI Namen und Beschreibungen Deiner aktiven Skills und lädt einen, wenn Deine Frage passt — „Bereite mein nächstes Meeting vor“ genügt.
 

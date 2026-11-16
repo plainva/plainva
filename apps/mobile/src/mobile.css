@@ -486,7 +486,7 @@ textarea {
    treatment, dimmed: it happens, just not for you. */
 .m-evt {
   background: var(--evt-color, var(--accent-color));
-  color: var(--accent-on);
+  color: var(--evt-ink, var(--accent-on));
 }
 .m-evt--tentative {
   background-image: repeating-linear-gradient(
@@ -5259,3 +5259,8 @@ textarea {
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+
+/* The AI setup in three steps (plan Oberfläche O7, T9; mockup M7): the way back or out on the left, the one way on to
+   the right, as in the mockup; a failure stands above them in the warning tone, with its sender in the sentence. */
+.m-ai-setup-foot { display: flex; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-2); }
+.m-ai-setup-problem { color: var(--warning-text); }

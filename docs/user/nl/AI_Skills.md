@@ -1,12 +1,12 @@
 # Vaardigheden (Beta)
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-16
 
 Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er veertien mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
 ## Een vaardigheid gebruiken
 
-Start een vaardigheid met één klik: uit de uitgelichte vaardigheden boven het invoerveld van een gesprek (met **Alle vaardigheden…** voor de rest; de linkerkolom van het AI-tabblad toont ze niet meer), onder **Vaardigheden** in het AI-tabblad, op de telefoon in het segment **Vaardigheden** van het scherm **AI**, of vanuit het opdrachtenpalet. Het segment **Vaardigheden** is de werkplaats: één knop **Nieuw…** opent een menu met vaardigheid, script en importeren (eerder drie knoppen), en een zin legt uit wat vaardigheden zijn. De volgorde is: wat op je goedkeuring wacht, **Meegeleverd met Plainva**, **Eigen**, scripts, die van servers, **Instructies voor deze vault** (met `AGENTS.md` als tweede regel), **Testrun** en wat is geleerd. Een goedkeuring intrekken vraagt eerst om bevestiging. Het gesprek loopt dan met de vaardigheid: haar instructies gaan mee, en ze gebruikt alleen de hulpmiddelen en mappen die ze noemt.
+Start een vaardigheid met één klik: via **Vaardigheden** onder het invoerveld van een leeg gesprek (de uitgelichte eerst), onder **Vaardigheden** in het AI-tabblad, op de telefoon in het segment **Vaardigheden** van het scherm **AI**, of vanuit het opdrachtenpalet. Het segment **Vaardigheden** is de werkplaats: één knop **Nieuw…** opent een menu met vaardigheid, script en importeren (eerder drie knoppen), en een zin legt uit wat vaardigheden zijn. De volgorde is: wat op je goedkeuring wacht, **Meegeleverd met Plainva**, **Eigen**, scripts, die van servers, **Instructies voor deze vault** (met `AGENTS.md` als tweede regel), **Testrun** en wat is geleerd. Een goedkeuring intrekken vraagt eerst om bevestiging. Het gesprek loopt dan met de vaardigheid: haar instructies gaan mee, en ze gebruikt alleen de hulpmiddelen en mappen die ze noemt.
 
 Je kunt ook gewoon vragen. In elk gesprek kent de AI de namen en beschrijvingen van je actieve vaardigheden en laadt er een wanneer je vraag past — ‘bereid mijn volgende vergadering voor’ is genoeg.
 

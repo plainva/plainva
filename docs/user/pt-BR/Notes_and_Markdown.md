@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-11-10
+Última revisão: 2026-11-16
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -109,7 +109,7 @@ Cinco propriedades opcionais do OKF 0.2 permitem que uma nota diga de onde veio 
 
 - **Selo de status:** se uma nota carrega `status: draft` ou `status: deprecated`, o cabeçalho do documento mostra o selo **Rascunho** ou **Descontinuada**. `stable` permanece silencioso. Uma coluna `status` própria, com outros valores (digamos, `Open`), não é afetada — é uma propriedade comum e não recebe nenhum selo.
 - **Aviso de desatualização:** depois que `stale_after` passa, **Marcada como desatualizada (desde …)** aparece acima da nota com **Abrir propriedades**. O aviso não altera nada na nota; ele só lembra.
-- **Confiança e origem:** uma seção própria no painel de propriedades resume `generated` (Gerada), `verified` (Verificada), `sources` (Fontes, clicável), `status` e `stale_after` (Desatualizada após) e deriva um nível a partir deles — **Não verificada**, **Confirmada pela máquina** ou **Revisada por uma pessoa**.
+- **Confiança e origem:** uma seção própria no painel de propriedades resume `generated` (Gerada), `verified` (Verificada), `sources` (Fontes, clicável), `status` e `stale_after` (Desatualizada após) e deriva um nível a partir deles — **Não verificada**, **Confirmada pela máquina** ou **Revisada por uma pessoa**. Ela aparece enquanto a IA está ligada neste dispositivo, ou quando a nota traz esses campos.
 - **Marcar como revisada:** o botão dessa seção acrescenta seu nome com o instante atual à lista verified (`human:<nome>`); o Plainva pergunta o nome uma vez por vault e o mantém apenas neste dispositivo (pode ser alterado em **Configurações → Vault → Notas e organização → Anotações → Seu nome (anotações e revisões)**). No celular, a mesma ação fica no painel de contexto da nota.
 
 O Plainva define `generated` e `sources` somente onde ele mesmo cria notas — no importador, na captura de e-mail e na sincronização de tarefas; o editor nunca sela, e notas existentes não são seladas retroativamente. O contrato dos campos está na [Referência do Formato de Arquivo](File_Format_Reference.md), o contexto em [OKF](OKF.md).

@@ -104,7 +104,9 @@ describe("under an answer", () => {
     expect(q("ai-run-actions")).not.toBeNull();
     await click(q("ai-copy"));
     expect(writeText).toHaveBeenCalledWith("The offer stands in [[Offer]].");
-    expect(text(q("ai-run-actions"))).toContain("To Anthropic");
+    // One calm line of what it rests on and where it went, above the actions (plan Oberfläche O7, M6).
+    expect(text(q("ai-grounds"))).toContain("To Anthropic");
+    expect(text(q("ai-run-actions"))).not.toContain("To Anthropic");
     expect(q("ai-run-full")).toBeNull();
     await click(q("ai-run-details"));
     expect(text(q("ai-run-full"))).toContain("sent to Anthropic");

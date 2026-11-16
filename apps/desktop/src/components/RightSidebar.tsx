@@ -1,6 +1,6 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { settingNotSaved } from "../services/settingNotSaved";
-import { ChevronDown, Database, CalendarDays, Lightbulb, Link as LinkIcon, NotebookPen, Pen, Search, SlidersHorizontal, List, Sparkles, SquarePen, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { ChevronDown, Database, CalendarDays, Lightbulb, Link as LinkIcon, NotebookPen, Pen, Search, SlidersHorizontal, List, Sparkles, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
 import { CalendarWidget } from "./CalendarWidget";
@@ -44,6 +44,7 @@ import {
   type AreaOrder,
   type NoteDatabaseContext,
   AreaBoundary,
+  useAiOn,
 } from "@plainva/ui";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
@@ -67,13 +68,13 @@ import {
  * adds. `present` answers a different question — is there anything of the
  * user's in the frontmatter at all — and decides whether the section appears.
  */
-export function propertySectionCounts(content: string): { present: number; shown: number } {
+export function propertySectionCounts(content: string, aiOn = false): { present: number; shown: number } {
   const block = frontmatterBlockOf(content);
   if (!block) return { present: 0, shown: 0 };
   try {
     const o = yaml.parse(block);
     if (!o || typeof o !== "object" || Array.isArray(o)) return { present: 0, shown: 0 };
-    const model = propertyPanelModel(o as Record<string, unknown>);
+    const model = propertyPanelModel(o as Record<string, unknown>, { aiOn });
     return { present: model.userKeys.length, shown: model.shownCount };
   } catch {
     return { present: 0, shown: 0 };
@@ -290,9 +291,12 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   // Header badges stay accurate even while a section is collapsed: compute the
   // counts here (cheaply) instead of relying on the body components, which only
   // mount when their section is expanded.
+  // The lifecycle rows count only where the panel shows them (plan Oberfläche O7, D11): while the AI is on, or the
+  // note carries trust fields.
+  const aiOn = useAiOn(hintSession);
   useEffect(() => {
     const update = (d: ActiveDoc) => setCounts((c) => {
-      const props = d.kind === "markdown" ? propertySectionCounts(d.content) : { present: 0, shown: 0 };
+      const props = d.kind === "markdown" ? propertySectionCounts(d.content, aiOn) : { present: 0, shown: 0 };
       const outline = d.kind === "markdown" ? parseHeadings(d.content).length : 0;
       return c.properties === props.shown && c.propertiesPresent === props.present && c.outline === outline
         ? c
@@ -300,7 +304,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     });
     update(activeDocument.get());
     return activeDocument.subscribe(update);
-  }, []);
+  }, [aiOn]);
 
   useEffect(() => {
     let alive = true;
@@ -355,16 +359,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
       action: hintDoc && hintSession && <NoteHintsMenu session={hintSession} path={hintDoc.path} answer={hints} />,
     },
     properties: { title: t("rightPanel.properties", { defaultValue: "Eigenschaften" }), icon: <SlidersHorizontal size={ICON.ui} />, count: counts.properties, pad: true },
-    ai: {
-      title: t("ai.title"),
-      icon: <Sparkles size={ICON.ui} />,
-      pad: false,
-      action: ai && (
-        <IconButton label={t("ai.newConversation")} onClick={ai.onNewConversation} data-testid="right-ai-new">
-          <SquarePen size={ICON.ui} />
-        </IconButton>
-      ),
-    },
+    // The head is the way in: it opens the conversation in the column's full height (plan Oberfläche O7), it does not
+    // unfold a bounded copy of it among the sections.
+    ai: { title: t("ai.title"), icon: <Sparkles size={ICON.ui} />, pad: false },
   };
 
   const renderBody = (id: SectionId) => {
@@ -381,7 +378,6 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     if (id === "backlinks") return <BacklinksPanel activePath={activePath} onOpenPath={onOpenPath} embedded />;
     if (id === "related") return activePath ? <RelatedNotesList path={activePath} answer={related} onOpenNote={(path) => onOpenPath(path)} onJump={jumpTo} /> : null;
     if (id === "hints") return hintDoc && hintSession ? <NoteHintsList session={hintSession} path={hintDoc.path} answer={hints} onOpenNote={(path) => onOpenPath(path)} onJump={jumpTo} /> : null;
-    if (id === "ai") return ai ? <AiDockSection {...ai} /> : null;
     return <PropertiesSection onOpenPath={onOpenPath} />;
   };
 
@@ -406,6 +402,27 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     || (id === "properties" && counts.propertiesPresent > 0)
     // The dock exists only while the AI is on, and only where its session runs.
     || (id === "ai" && Boolean(ai));
+
+  // The conversation holds the column (plan Oberfläche O7, M6): the calendar above it as one week, the conversation in
+  // the rest of the height; the other sections come back as they were when it closes. The week row is the calendar's
+  // own narrow form — the same days, marks and actions as the month.
+  if (ai?.open) {
+    const week = shown.includes("calendar");
+    return (
+      <div ref={rootRef} className="pv-side-right pv-side-right--ai" data-side-step={step} data-testid="right-ai-column">
+        {week && (
+          <div className="pv-side-week" data-testid="right-week-strip">
+            <AreaBoundary area="section:calendar" resetKey={activePath ?? ""} size="section">
+              {() => <CalendarWidget weekRow onOpenDaily={onSelectDate} onOpenCalendarDay={onOpenCalendarDay} onOpenNote={(p) => onOpenPath(p)} loadMarkedDates={loadMarkedDates} activeDate={activeDailyDate} refreshToken={refreshToken} />}
+            </AreaBoundary>
+          </div>
+        )}
+        <AreaBoundary area="section:ai" resetKey="" size="section">
+          {() => <AiDockSection {...ai} />}
+        </AreaBoundary>
+      </div>
+    );
+  }
 
   return (
     // The panel ALWAYS reserves its scrollbar's room (`.pv-side-right`), and
@@ -432,21 +449,25 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
             <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
               <button
                 {...drag}
-                onClick={() => { if (consumeDragClick()) return; toggle(id); }}
+                onClick={() => {
+                  if (consumeDragClick()) return;
+                  if (id === "ai") ai?.onOpen();
+                  else toggle(id);
+                }}
                 onContextMenu={(e) => {
                   // A right-click means "menu", so the pending hold is dropped.
                   drag.onContextMenu();
                   e.preventDefault();
                   setMenuAt({ id, x: e.clientX, y: e.clientY });
                 }}
-                aria-expanded={isOpen}
+                aria-expanded={id === "ai" ? false : isOpen}
                 className="pv-side-section-header"
                 style={{ cursor: dragId === id ? "grabbing" : undefined }}
               >
                 {/* A fixed grid — chevron, icon, title, count slot. The slot is
                     there whether or not a number is: the head is the same box
                     at the same place, collapsed and expanded (R1). */}
-                <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)" }} />
+                <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen && id !== "ai" ? "none" : "rotate(-90deg)" }} />
                 <span className="pv-side-section-glyph">{m.icon}</span>
                 <span className="pv-side-section-title">{m.title}</span>
                 <span className="pv-side-section-count">
@@ -459,7 +480,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
             </div>
             {/* One boundary per section (stability plan R3): a section that
                 fails stays a section; the editor beside it is not touched. */}
-            {isOpen && <div className={m.pad ? "pv-side-section-body" : "pv-side-section-body pv-side-section-body--flush"}><AreaBoundary area={`section:${id}`} resetKey={activePath ?? ""} size="section">{() => renderBody(id)}</AreaBoundary></div>}
+            {isOpen && id !== "ai" && <div className={m.pad ? "pv-side-section-body" : "pv-side-section-body pv-side-section-body--flush"}><AreaBoundary area={`section:${id}`} resetKey={activePath ?? ""} size="section">{() => renderBody(id)}</AreaBoundary></div>}
           </section>
         );
       })}

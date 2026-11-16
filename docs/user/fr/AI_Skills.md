@@ -1,12 +1,12 @@
 # Compétences (Bêta)
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-16
 
 Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit quatorze, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
 ## Utiliser une compétence
 
-Lancez une compétence en un clic : comme l'une des compétences mises en avant juste au-dessus du champ de saisie (**Toutes les compétences…** montre toutes les autres), sous **Compétences** dans l'onglet IA, sur le téléphone sur l'écran IA dans les compétences, ou depuis la palette de commandes. La conversation se déroule alors avec la compétence : ses instructions l'accompagnent, et elle n'utilise que les outils et les dossiers qu'elle nomme.
+Lancez une compétence en un clic : sous **Compétences**, sous le champ de saisie d'une conversation vide (celles mises en avant d'abord), sous **Compétences** dans l'onglet IA, sur le téléphone sur l'écran IA dans les compétences, ou depuis la palette de commandes. La conversation se déroule alors avec la compétence : ses instructions l'accompagnent, et elle n'utilise que les outils et les dossiers qu'elle nomme.
 
 Vous pouvez aussi simplement demander. Dans chaque conversation, l'IA connaît les noms et les descriptions de vos compétences actives et en charge une quand votre question s'y prête — « prépare ma prochaine réunion » suffit.
 

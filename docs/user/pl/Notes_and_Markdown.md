@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-10
+Stan na: 2026-11-16
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -109,7 +109,7 @@ Pięć opcjonalnych właściwości z OKF 0.2 pozwala notatce powiedzieć, skąd 
 
 - **Odznaka statusu:** jeśli notatka niesie `status: draft` lub `status: deprecated`, nagłówek dokumentu pokazuje odznakę **Szkic** lub **Wycofana**. `stable` pozostaje ciche. Własna kolumna `status` z innymi wartościami (powiedzmy `Open`) nie jest tym dotknięta — to zwykła właściwość i nie otrzymuje odznaki.
 - **Powiadomienie o nieaktualności:** gdy minie `stale_after`, nad notatką pojawia się **Oznaczona jako nieaktualna (od …)** z przyciskiem **Otwórz właściwości**. Powiadomienie niczego w notatce nie zmienia; tylko przypomina.
-- **Zaufanie i pochodzenie:** własna sekcja w panelu właściwości podsumowuje `generated` (**Wygenerowana**), `verified` (**Zweryfikowana**), `sources` (**Źródła**, klikalne), `status` (**Status**) i `stale_after` (**Nieaktualna po**) i wyprowadza z nich poziom: **Niezweryfikowana**, **Potwierdzona maszynowo** lub **Sprawdzona przez osobę**.
+- **Zaufanie i pochodzenie:** własna sekcja w panelu właściwości podsumowuje `generated` (**Wygenerowana**), `verified` (**Zweryfikowana**), `sources` (**Źródła**, klikalne), `status` (**Status**) i `stale_after` (**Nieaktualna po**) i wyprowadza z nich poziom: **Niezweryfikowana**, **Potwierdzona maszynowo** lub **Sprawdzona przez osobę**. Pojawia się, gdy AI jest włączona na tym urządzeniu lub gdy notatka ma takie pola.
 - **Oznacz jako sprawdzoną:** przycisk w tej sekcji dopisuje Twoje imię wraz z bieżącym momentem do listy sprawdzeń (`human:<imię>`); Plainva pyta o imię raz na vault i zostawia je tylko na tym urządzeniu (do zmiany pod **Ustawienia → Vault → Notatki i archiwizacja → Uwagi → Twoje imię (uwagi i przeglądy)**). Na telefonie ta sama akcja znajduje się w karcie kontekstowej notatki.
 
 Plainva ustawia `generated` i `sources` tylko tam, gdzie sama tworzy notatki — w importerze, w przechwytywaniu e-maili i w synchronizacji zadań; edytor nigdy nie stempluje, a istniejące notatki nie są oznaczane z mocą wsteczną. Kontrakt pola znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md), tło w [OKF](OKF.md).

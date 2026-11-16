@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-10
+Last updated: 2026-11-16
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -109,7 +109,7 @@ Five optional properties from OKF 0.2 let a note say where it came from and whet
 
 - **Status badge:** if a note carries `status: draft` or `status: deprecated`, the document header shows the badge **Draft** or **Deprecated**. `stable` stays silent. A `status` column of your own with other values (say `Open`) is unaffected — it is an ordinary property and gets no badge.
 - **Stale notice:** once `stale_after` has passed, **Marked as stale (since …)** appears above the note with **Open properties**. The notice changes nothing in the note; it only reminds.
-- **Trust & provenance:** a section of its own in the properties panel summarises `generated` (Generated), `verified` (Verified), `sources` (Sources, clickable), `status` and `stale_after` (Stale after) and derives a level from them — **Not verified**, **Machine-confirmed** or **Reviewed by a person**.
+- **Trust & provenance:** a section of its own in the properties panel summarises `generated` (Generated), `verified` (Verified), `sources` (Sources, clickable), `status` and `stale_after` (Stale after) and derives a level from them — **Not verified**, **Machine-confirmed** or **Reviewed by a person**. It shows while the AI is on on this device, or when the note carries such fields.
 - **Mark as reviewed:** the button in that section appends your name with the current instant to the verified list (`human:<name>`); Plainva asks for the name once per vault and keeps it on this device only (changeable under **Settings → Vault → Notes & filing → Annotations → Your name (remarks and reviews)**). On the phone the same action lives in the note's context sheet.
 
 Plainva sets `generated` and `sources` only where it creates notes itself — in the importer, in mail capture and in the task sync; the editor never stamps, and existing notes are not stamped after the fact. The field contract is in the [File Format Reference](File_Format_Reference.md), the background under [OKF](OKF.md).
