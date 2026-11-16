@@ -15,7 +15,10 @@ import {
   VERIFIED_PROVIDER_IDENTITY_KEY,
   assertConnectionIdentity,
   type VerifiedProviderIdentity,
+  removeEmptyPasswordDuplicates,
+  withAccountCredentialLock,
 } from "@plainva/ui";
+import { loadCloudAccounts } from "../cloudAccounts";
 
 /**
  * Account management used by the settings section: connect flows (validate by
@@ -70,6 +73,8 @@ async function adoptIfKnown(
     id: fresh.id,
     provider: fresh.provider,
     identity: verifiedProviderIdentityOf(fresh),
+    // A CalDAV row is the same account when server and user are (GitHub issue 174).
+    config: fresh.config,
   });
   if (!target) return null;
 
@@ -87,6 +92,29 @@ async function adoptIfKnown(
   // Keep the target's identity, take the fresh label and config: a re-connect
   // is also how a renamed account gets its new name.
   return { ...target, label: fresh.label, config: { ...target.config, ...fresh.config }, enabled: true };
+}
+
+/** The lane a calendar connect and the removal of empty duplicates share. */
+const pimConnectLane = (vaultPath: string) => `pim-connect:${vaultPath}`;
+
+/**
+ * Removes calendar rows that only duplicate another row of the same password
+ * access and carry nothing — no sign-in here, nothing fetched, no card with
+ * another service (GitHub issue 174, decided 2026-11-16; the rule is the shared
+ * `planEmptyPasswordDuplicates`). They came with the settings of another
+ * device that spelled the address differently. Local only: no deletion mark,
+ * the other device keeps its row. Runs after a settings import and when a
+ * vault opens; returns the removed ids.
+ */
+export function foldEmptyCalendarDuplicates(runtime: PimRuntime, vaultPath: string): Promise<string[]> {
+  return withAccountCredentialLock(pimConnectLane(vaultPath), () => removeEmptyPasswordDuplicates({
+    listAccounts: () => { assertPimRuntime(runtime); return runtime.cache.listAccounts(); },
+    listCalendars: (id) => runtime.cache.listCalendars(id),
+    listTaskLists: (id) => runtime.cache.listTaskLists(id),
+    deleteAccount: (id) => { assertPimRuntime(runtime); return runtime.cache.deleteAccount(id); },
+    listCards: () => loadCloudAccounts(vaultPath),
+    hasCredentials: async (id) => (await getPimCredentials(vaultPath, id)) !== null,
+  }));
 }
 
 function assertPimRuntime(runtime: PimRuntime): void {
@@ -107,19 +135,24 @@ async function finishConnect(
   const lists = await target.listTaskLists();
   assertPimRuntime(runtime);
   creds = { ...creds, loginRevision: crypto.randomUUID() };
-  // Is this a repair of an account we already have? Connecting again is the
-  // normal fix for an expired sign-in, and every connect mints a new id — so
-  // without this the vault ends up with two rows for one account while the
-  // task anchors and cursors stay with the old one (C22).
-  const adopted = await adoptIfKnown(runtime, vaultPath, account, creds);
-  if (adopted) account = adopted;
+  // One lane with the removal of empty duplicate rows (`foldEmptyCalendarDuplicates`):
+  // a row this connect signs in is never taken away between the two steps.
+  account = await withAccountCredentialLock(pimConnectLane(vaultPath), async () => {
+    // Is this a repair of an account we already have? Connecting again is the
+    // normal fix for an expired sign-in, and every connect mints a new id — so
+    // without this the vault ends up with two rows for one account while the
+    // task anchors and cursors stay with the old one (C22).
+    const adopted = await adoptIfKnown(runtime, vaultPath, account, creds);
+    let row = adopted ?? account;
 
-  // Persist secret + account only after listCalendars proved the connection.
-  assertPimRuntime(runtime);
-  if (!adopted) await savePimCredentials(vaultPath, account.id, creds);
-  assertPimRuntime(runtime);
-  if (options.deferStart) account = { ...account, enabled: false };
-  await runtime.cache.upsertAccount(account);
+    // Persist secret + account only after listCalendars proved the connection.
+    assertPimRuntime(runtime);
+    if (!adopted) await savePimCredentials(vaultPath, row.id, creds);
+    assertPimRuntime(runtime);
+    if (options.deferStart) row = { ...row, enabled: false };
+    await runtime.cache.upsertAccount(row);
+    return row;
+  });
   assertPimRuntime(runtime);
   await runtime.cache.replaceCalendars(account.id, calendars);
   assertPimRuntime(runtime);

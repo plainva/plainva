@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   started: vi.fn(), triggered: vi.fn(),
   probe: async () => {}, afterWrite: async () => {}, afterRead: async () => {}, failProbe: false,
   settings: new Map<string, unknown>(), failSettingsSave: false, subject: "verified-subject", refreshes: [] as string[],
+  cached: [] as string[],
 }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => "android" }, registerPlugin: () => ({
   get: async ({key}: {key: string}) => ({ value: state.secrets.get(key) ?? null }),
@@ -39,6 +40,10 @@ vi.mock("@plainva/core", async (original) => {
       async listCalendars() { await state.probe(); if (state.failProbe) throw Error("calendar unavailable"); return []; }
       async listTaskLists() { return []; }
     },
+    CalDavPimTarget: class {
+      async listCalendars() { await state.probe(); return [{ id: "personal", name: "Personal" }]; }
+      async listTaskLists() { return []; }
+    },
     PimCacheRepository: class {
       constructor(private db: { name: string }) {}
       async listAccounts() { const rows = state.rows.get(this.db.name) ?? []; await state.afterRead(); return rows; }
@@ -47,7 +52,9 @@ vi.mock("@plainva/core", async (original) => {
       async replaceCalendars() {}
       async replaceTaskLists() {}
       async reassignAccountRows() {}
-      async deleteAccount() {}
+      async deleteAccount(id: string) { state.rows.set(this.db.name, (state.rows.get(this.db.name) ?? []).filter(r => r.id !== id)); }
+      async listCalendars(id?: string) { return state.cached.filter(c => c === id); }
+      async listTaskLists() { return []; }
     },
     PimWorker: class { start() { state.started(); } stop() {} async triggerImmediate() { state.triggered(); } },
   };
@@ -64,7 +71,7 @@ let previousPlatform: ReturnType<typeof getPlatformServices> | undefined;
 beforeEach(async () => {
   try { previousPlatform = getPlatformServices(); } catch { previousPlatform = undefined; }
   state.secrets.clear(); state.rows.clear(); state.failProbe = false;
-  state.settings.clear(); state.failSettingsSave = false; state.subject = "verified-subject"; state.refreshes = [];
+  state.settings.clear(); state.failSettingsSave = false; state.subject = "verified-subject"; state.refreshes = []; state.cached = [];
   for (const id of ["selected", "other"]) forgetAccountBroker("original", id);
   state.probe = async () => {}; state.afterWrite = async () => {}; state.afterRead = async () => {};
   state.started.mockClear(); state.triggered.mockClear();
@@ -209,5 +216,55 @@ describe("a refused event write on the phone (issue 119, R2)", () => {
     state.triggered.mockClear();
     await expect(pim.updatePimEvent(event, { title: "Planning", start: { ts: 1 }, end: { ts: 2 }, allDay: false })).rejects.toThrow();
     expect(state.triggered).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * GitHub #174 (Fehlerliste C13, C14) on the phone. A CalDAV row was written
+ * with `config: {}`: neither a further connect nor the settings of another
+ * device could ever find it by its server and user, so each added a row.
+ */
+describe("a CalDAV account that is already here", () => {
+  const nextcloud = { kind: "caldav" as const, url: "https://cloud.example.com/remote.php/dav", user: "anna", pass: "first" };
+
+  it("keeps one row on a further connect and stores its address in the row", async () => {
+    const first = await pim.addPimAccount("caldav", "Nextcloud", nextcloud);
+    const again = await pim.addPimAccount("caldav", "Nextcloud", { ...nextcloud, url: "https://cloud.example.com:443/remote.php/dav/", user: "Anna", pass: "second" });
+    expect(again).toBe(first);
+    const rows = state.rows.get("original")!;
+    expect(rows.map(r => r.id)).toEqual([first]);
+    expect(rows[0].config).toMatchObject({ user: "Anna" });
+    expect(JSON.parse(state.secrets.get(pimSecretKey("original", first))!)).toMatchObject({ pass: "second" });
+  });
+
+  it("adds a row for another server", async () => {
+    await pim.addPimAccount("caldav", "Nextcloud", nextcloud);
+    await pim.addPimAccount("caldav", "Nextcloud", { ...nextcloud, url: "https://cloud.example.com/nextcloud/remote.php/dav" });
+    expect(state.rows.get("original")).toHaveLength(2);
+  });
+
+  it("gives a row of an older build its address from its sign-in when the calendar starts", async () => {
+    pim.stopPim();
+    state.rows.set("original", [{ id: "old", provider: "caldav", label: "Nextcloud", config: {}, enabled: true }]);
+    state.secrets.set(pimSecretKey("original", "old"), JSON.stringify(nextcloud));
+    await pim.startPim(vault("original"));
+    expect(state.rows.get("original")![0].config).toEqual({ url: nextcloud.url, user: "anna" });
+  });
+
+  it("leaves a row without a readable sign-in as it is", async () => {
+    pim.stopPim();
+    state.rows.set("original", [{ id: "old", provider: "caldav", label: "Nextcloud", config: {}, enabled: true }]);
+    await pim.startPim(vault("original"));
+    expect(state.rows.get("original")![0].config).toEqual({});
+  });
+
+  it("removes an empty duplicate when the calendar starts, and only that", async () => {
+    pim.stopPim();
+    const row = (id: string, url = nextcloud.url): PimAccountRow => ({ id, provider: "caldav", label: "anna@cloud.example.com", config: { url, user: "anna" }, enabled: true });
+    state.rows.set("original", [row("signed-in"), row("empty", "https://cloud.example.com/remote.php/dav/calendars/anna/"), row("fetched"), row("other-server", "http://cloud.example.com/remote.php/dav")]);
+    state.secrets.set(pimSecretKey("original", "signed-in"), JSON.stringify(nextcloud));
+    state.cached = ["fetched"];
+    await pim.startPim(vault("original"));
+    expect(state.rows.get("original")!.map(r => r.id).sort()).toEqual(["fetched", "other-server", "signed-in"]);
   });
 });

@@ -1,11 +1,11 @@
 import { reportingTo } from "../services/backgroundErrors.js";
 import { sameStoredValue } from "@plainva/core";
-import { trimEndChars } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
 import { mergeMailAccountRows } from "../mail/mailAccountRows.js";
 import { getPlatformServices } from "../platform/services.js";
+import { passwordRowToAdoptInto, pimPasswordIdentity } from "./passwordAccounts.js";
 
 /** Provider-owned account key proven by a successful authenticated API call. */
 export interface VerifiedProviderIdentity {
@@ -439,20 +439,27 @@ export function verifiedProviderIdentityKey(identity: VerifiedProviderIdentity):
  * new one starts from nothing, so every mirrored task is imported a second
  * time (finding 2026-08-19, C22).
  *
- * Only a VERIFIED provider identity may adopt. A label is not an identity —
- * two people at one company share a display name, and the settings sync
- * already refuses to merge on a label alone for exactly that reason. An
- * account without one (CalDAV, a Graph profile that could not be read) is
- * added beside, which is the old behaviour: untidy, never wrong.
+ * Only a VERIFIED provider identity may adopt, or for an access with a
+ * password (CalDAV) its normalized server and user (decided 2026-11-16, issue 174).
+ * A label is not an identity — two people at one company share a display
+ * name, and the settings sync already refuses to merge on a label alone for
+ * exactly that reason. An account without either (a Graph profile that could
+ * not be read) is added beside, which is the old behaviour: untidy, never
+ * wrong.
  *
  * Deterministic on purpose: with more than one candidate the lowest id wins,
  * so two devices reading the same list reach the same answer.
  */
 export function accountToAdoptInto<T extends { id: string; provider: string; config?: Record<string, unknown> }>(
   accounts: readonly T[],
-  fresh: { id: string; provider: string; identity: VerifiedProviderIdentity | null },
+  fresh: { id: string; provider: string; identity: VerifiedProviderIdentity | null; config?: Record<string, unknown> },
+  /** A row a card already binds for this connect: taken when it is one of the matches. */
+  prefer?: string,
 ): T | null {
-  if (!fresh.identity) return null;
+  // An access with a password has no verified identity; its server and user
+  // are its identity (GitHub issue 174, `passwordAccountIdentity`). Without this every
+  // further connect of one Nextcloud added a calendar row beside the first.
+  if (!fresh.identity) return passwordRowToAdoptInto(accounts, fresh, prefer);
   const key = verifiedProviderIdentityKey(fresh.identity);
   const matches = accounts.filter((a) => {
     if (a.id === fresh.id || a.provider !== fresh.provider) return false;
@@ -548,20 +555,19 @@ export function parseMicrosoftMe(value: unknown): VerifiedProviderProfile | null
 export function pimIdentity(a: Pick<PimAccountRow, "provider" | "label" | "config">): string {
   const verified = verifiedProviderIdentityOf(a);
   if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
-  const url = typeof a.config.url === "string" ? trimEndChars(a.config.url.trim(), "/").toLowerCase() : "";
-  const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
-  return a.provider === "caldav" && url && user
-    ? ["caldav", url, user].join("|")
-    : `${a.provider}|unverified`;
+  const password = pimPasswordIdentity(a);
+  return password ? `caldav|${password}` : `${a.provider}|unverified`;
 }
 
 function pimMergeIdentity(a: Pick<PimAccountRow, "provider" | "config">): string | null {
   const verified = verifiedProviderIdentityOf(a);
   if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
-  if (a.provider !== "caldav") return null;
-  const url = typeof a.config.url === "string" ? trimEndChars(a.config.url.trim(), "/").toLowerCase() : "";
-  const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
-  return url && user ? ["caldav", url, user].join("|") : null;
+  // The same identity a connect adopts by (GitHub issue 174): the import used to compare
+  // the address lower-cased with the slash cut off and nothing else, so a
+  // second device that spelled the DAV endpoint or the port differently got a
+  // row of its own without a sign-in.
+  const password = pimPasswordIdentity(a);
+  return password ? `caldav|${password}` : null;
 }
 
 export function mailIdentity(a: MailAccountConfig): string {
@@ -841,12 +847,22 @@ export async function importAccountMetadata(
       const keptIdentity = !imported.config[VERIFIED_PROVIDER_IDENTITY_KEY]
         ? verifiedProviderIdentityOf(same ?? { config: {} })
         : null;
+      // The same password access spelled another way on the other device
+      // (GitHub issue 174): this device keeps the spelling it connected with. Taking the
+      // other's made two devices write each other's spelling back on every
+      // import, and the document never settled. A different server under the
+      // same logical id (the other device moved the account) is taken over.
+      const keptAddress = same && mergeIdentity !== null && pimMergeIdentity(same) === mergeIdentity
+        && typeof same.config.url === "string" && typeof same.config.user === "string"
+        ? { url: same.config.url, user: same.config.user }
+        : null;
       await ports.upsertPimAccount({
         ...imported,
         id: localId,
         config: {
           ...imported.config,
           ...(keptIdentity ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: keptIdentity } : {}),
+          ...(keptAddress ?? {}),
           ...deviceLocalPimConfig(same?.config ?? {}),
           ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
           ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),

@@ -564,6 +564,12 @@ export async function applyProfileValues(
     );
 
     await importAccountMetadata(store, vaultPath, values, context.pimRuntime ?? null);
+    // A calendar row the import added beside one of the same Nextcloud, empty,
+    // goes before the cards are reconciled (GitHub issue 174).
+    if (context.pimRuntime) {
+      const { foldEmptyCalendarDuplicates } = await import("./pim/pimAccounts");
+      await foldEmptyCalendarDuplicates(context.pimRuntime, vaultPath).catch(reportingTo("pim:empty-duplicates"));
+    }
     await repairDesktopAccounts(store, vaultPath, profileAccountMapKey(vaultPath));
     if (context.rawVault) {
       setBookmarksLaneScope(context.rawVault, `desktop:${vaultPath}`);

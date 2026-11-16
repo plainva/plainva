@@ -26,7 +26,9 @@ const runtime = {
   isActive: () => state.active,
   cache: {
     listAccounts: async () => { await state.afterRead(); return state.rows; },
-    upsertAccount: async (row: PimAccountRow) => { state.rows.push(row); },
+    upsertAccount: async (row: PimAccountRow) => { state.rows = [...state.rows.filter((r) => r.id !== row.id), row]; },
+    reassignAccountRows: async () => {},
+    deleteAccount: async (id: string) => { state.rows = state.rows.filter((r) => r.id !== id); },
     setScopeState: async () => {},
     replaceCalendars: async () => {},
     replaceTaskLists: async () => {},
@@ -63,5 +65,33 @@ describe("desktop calendar connection lifetime", () => {
     expect(state.slots.get(account.id)).toMatchObject({ ...opts, kind: "caldav", loginRevision: expect.any(String) });
     expect(state.rows).toEqual([account]); expect(state.started).toHaveBeenCalledTimes(1);
     expect(state.triggered).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * GitHub #174 (Fehlerliste C13): every further successful connect of one
+ * Nextcloud added a calendar row beside the first, because a sign-in with a
+ * password was never matched to a row — and each such row became a card of
+ * its own. Server and user are the account (decided 2026-11-16).
+ */
+describe("connecting a CalDAV account that is already here", () => {
+  const nextcloud = { url: "https://cloud.example.com/remote.php/dav", user: "anna", pass: "first" };
+
+  it("keeps one row and gives it the new password", async () => {
+    const first = await connectCalDavAccount(runtime, "/original", nextcloud);
+    const again = await connectCalDavAccount(runtime, "/original", { url: "https://Cloud.Example.com:443/remote.php/dav/", user: "Anna", pass: "second" });
+    expect(again.id).toBe(first.id);
+    expect(state.rows.map((row) => row.id)).toEqual([first.id]);
+    expect(state.slots.get(first.id)).toMatchObject({ kind: "caldav", pass: "second" });
+    expect(state.slots.size).toBe(1);
+  });
+
+  it("adds a row for another user or another server", async () => {
+    const first = await connectCalDavAccount(runtime, "/original", nextcloud);
+    const otherUser = await connectCalDavAccount(runtime, "/original", { ...nextcloud, user: "bert" });
+    const otherScheme = await connectCalDavAccount(runtime, "/original", { ...nextcloud, url: "http://cloud.example.com/remote.php/dav" });
+    const otherPath = await connectCalDavAccount(runtime, "/original", { ...nextcloud, url: "https://cloud.example.com/nextcloud/remote.php/dav" });
+    expect(new Set([first.id, otherUser.id, otherScheme.id, otherPath.id]).size).toBe(4);
+    expect(state.rows).toHaveLength(4);
   });
 });

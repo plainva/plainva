@@ -226,8 +226,10 @@ export function identityKey(label: string | undefined): string | null {
  * recognized a catalog provider from the entry's URL/host (providerCatalog
  * helpers) — the observation stays the single place that knows URLs. */
 export interface ObservedCloudState {
-  sync?: { provider: SyncProviderId; identity?: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily };
-  pim: { id: string; provider: "caldav" | "google" | "microsoft" | "device"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
+  /** `passwordIdentity`: server and user of a password access (`passwordAccountIdentity`), for WebDAV files. */
+  sync?: { provider: SyncProviderId; identity?: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily; passwordIdentity?: string };
+  /** `passwordIdentity`: the same for a CalDAV row. */
+  pim: { id: string; provider: "caldav" | "google" | "microsoft" | "device"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily; passwordIdentity?: string }[];
   mail: { id: string; kind: "imap" | "microsoft" | "gmail"; label: string; user: string; host: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
 }
 
@@ -309,11 +311,30 @@ export function reconcileCloudAccounts(
     });
   };
 
+  /**
+   * The card of the same password access (GitHub issue 174, decided 2026-11-16): an
+   * access with a password has no verified identity, but its server and user
+   * name it as surely. A calendar row of the Nextcloud whose files a card
+   * already carries joins that card instead of becoming a card of its own.
+   * Only for a service the card does not carry yet — a second row of one
+   * account stays a card of its own and goes through the guided repair.
+   */
+  const passwordTarget = (family: CloudProviderFamily, identity: string | undefined, lacking: "calendar" | "files"): CloudAccountRecord | undefined => {
+    if (!identity) return undefined;
+    return records.find((record) => {
+      if (record.family !== family || record.services[lacking]) return false;
+      const calendar = record.services.calendar ? pimById.get(record.services.calendar.pimAccountId) : undefined;
+      if (calendar?.passwordIdentity === identity) return true;
+      return !!record.services.files && observed.sync?.passwordIdentity === identity;
+    });
+  };
+
   // 2) Unbound calendar accounts.
   for (const pim of observed.pim) {
     if (boundPim.has(pim.id)) continue;
     const family = pim.family ?? familyOfPimProvider(pim.provider);
-    const target = attachTarget(family, pim.verifiedProviderIdentity);
+    const target = attachTarget(family, pim.verifiedProviderIdentity)
+      ?? (pim.verifiedProviderIdentity ? undefined : passwordTarget(family, pim.passwordIdentity, "calendar"));
     if (target && !target.services.calendar) {
       target.services.calendar = { pimAccountId: pim.id };
       target.label = betterLabel(target.label, pim.label);
@@ -361,7 +382,8 @@ export function reconcileCloudAccounts(
   // 4) Unbound file sync of this vault.
   if (observed.sync && !filesBound) {
     const family = observed.sync.family ?? familyOfSyncProvider(observed.sync.provider);
-    const target = attachTarget(family, observed.sync.verifiedProviderIdentity);
+    const target = attachTarget(family, observed.sync.verifiedProviderIdentity)
+      ?? (observed.sync.verifiedProviderIdentity ? undefined : passwordTarget(family, observed.sync.passwordIdentity, "files"));
     if (target && !target.services.files) {
       target.services.files = { provider: observed.sync.provider };
       target.label = betterLabel(target.label, observed.sync.identity);

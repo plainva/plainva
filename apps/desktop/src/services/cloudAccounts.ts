@@ -23,6 +23,8 @@ import {
   familyOfCalDavUrl,
   familyOfImapHost,
   verifiedProviderIdentityOf,
+  passwordAccountIdentity,
+  pimPasswordIdentity,
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
   type CloudAccountRecord,
@@ -100,11 +102,13 @@ export async function observeSyncSlot(vaultPath: string): Promise<ObservedCloudS
         identity = webdav.user || undefined;
       }
     }
+    const passwordIdentity = passwordAccountIdentity(webdav.url, webdav.user);
     return {
       provider: "webdav",
       identity,
       flavor: looksLikeNextcloud(webdav.url) ? "nextcloud" : undefined,
       family: catalogFamily,
+      ...(passwordIdentity ? { passwordIdentity } : {}),
     };
   }
   return undefined;
@@ -128,6 +132,7 @@ async function observeState(vaultPath: string, pimRuntime: PimRuntime | null): P
         r.provider === "caldav" && typeof r.config?.url === "string"
           ? (familyOfCalDavUrl(r.config.url) ?? undefined)
           : undefined,
+      passwordIdentity: pimPasswordIdentity(r) ?? undefined,
     }));
   }
   const mailAccounts = await listMailAccounts(vaultPath);
