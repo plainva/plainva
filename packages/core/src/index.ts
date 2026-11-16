@@ -4,6 +4,7 @@ export * from "./markdown-ast.js";
 export * from "./markdown-parser.js";
 export * from "./inlineParseBudget.js";
 export * from "./noteSource.js";
+export * from "./mathSyntax.js";
 export * from "./noteLinkUrl.js";
 export * from "./journal.js";
 export * from "./ai/index.js";

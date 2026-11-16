@@ -322,6 +322,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   const source = useMemo(() => prepareReaderSource(content, {
     formatDate: (date) => formatRelativeDate(date, new Date(), (i18n.language || "de").slice(0, 2)),
     embedKind: (target) => embedKindOf(parseWikiImageTarget(target).target) ?? "note",
+    // This renderer reads formulas: a `$` is read by the editor's rule.
+    formulas: true,
   }), [content, i18n.language]);
   const anchorPlugin = useMemo(() => {
     if (!anchors?.length) return null;

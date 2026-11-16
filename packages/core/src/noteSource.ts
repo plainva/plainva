@@ -2,6 +2,7 @@ import { parseMarkdownTree } from "./markdown-parser.js";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
 import { plainWikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 import { SOURCE_LINE_END } from "./sourceLines.js";
+import { closesMathBlock, inlineMathPattern, opensMathBlock } from "./mathSyntax.js";
 
 interface SourceNode {
   type: string;
@@ -303,21 +304,38 @@ function* labelSpellings(label: string): Generator<{ at: number; text: string }>
  */
 export type ReaderEmbedKind = "image" | "audio" | "note";
 
-export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind } = {}): ReaderSource {
+export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind; formulas?: boolean } = {}): ReaderSource {
   const clean = stripAnchorMarkers(raw);
   const edits: ReaderEdit[] = [];
+  const tree = treeFor(clean.text);
+  const math = options.formulas ? formulasOf(clean.text, tree) : null;
+  const paragraphs: SourceNode[] = [];
   const walk = (node: SourceNode, inLink = false) => {
     if (node.position && node.type === "yaml") edits.push({ from: node.position.start.offset, to: node.position.end.offset, text: "" });
+    if (node.type === "paragraph") paragraphs.push(node);
     if (node.position && node.type === "text" && !inLink && options.formatDate) {
       const start = node.position.start.offset;
       const source = clean.text.slice(start, node.position.end.offset);
-      for (const m of relativeDates(source)) edits.push({ from: start + m.index, to: start + m.index + m.raw.length, text: options.formatDate(m.date) });
+      for (const m of relativeDates(source)) if (!math?.inside(start + m.index, start + m.index + m.raw.length)) edits.push({ from: start + m.index, to: start + m.index + m.raw.length, text: options.formatDate(m.date) });
+    }
+    // A `$` that opens or closes no formula by the editor's rule is shown as
+    // the `$` it is: the renderer's own rule would pair it with the next one,
+    // and the formula took what stands between — a link, a word — along
+    // (Sammelplan § 3.133 Nr. 5).
+    if (math && node.position && node.type === "text") {
+      for (let at = node.position.start.offset; at < node.position.end.offset; at++) {
+        if (clean.text[at] !== "$" || math.keeps(at)) continue;
+        let slashes = 0;
+        while (at - slashes - 1 >= 0 && clean.text[at - slashes - 1] === "\\") slashes++;
+        if (slashes % 2 === 0) edits.push({ from: at, to: at + 1, text: "\\$" });
+      }
     }
     // A wiki link is the parser's node (`wikiLinkSyntax.ts`): what Markdown
     // would read into its name or alias does not unmake it (finding
     // 2026-10-11). Inside the text of another link it stays as it is written —
     // a link cannot hold a link.
-    if (node.position && node.type === "wikiLink" && !inLink) {
+    // Inside a formula a link is part of the formula, as in the editor.
+    if (node.position && node.type === "wikiLink" && !inLink && !math?.inside(node.position.start.offset, node.position.end.offset)) {
       const from = node.position.start.offset, to = node.position.end.offset;
       const innerFrom = from + (node.embed ? 3 : 2);
       const inner = clean.text.slice(innerFrom, to - 2);
@@ -350,7 +368,11 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
         // target before an alias) stands for the whole link; a place in the
         // label, wherever it is not spelled out, is a place in the rendered
         // label.
-        let text = "[";
+        // Behind a `]` the link's text would read as the label of a reference
+        // (`[x][[a]]` with `[a]: …` became `[x][a]` and a `(wiki://a)`, Sammelplan
+        // § 3.133 Nr. 3): an empty comment, which the renderer drops, stands
+        // between them.
+        let text = clean.text[from - 1] === "]" ? "<!---->[" : "[";
         const visible: NonNullable<ReaderEdit["visible"]> = [];
         let at = 0;
         for (const spelled of [...spellings, { at: label.length, text: "" }]) {
@@ -369,7 +391,23 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
       for (const child of node.children ?? []) walk(child, linked);
     }
   };
-  walk(treeFor(clean.text));
+  walk(tree);
+  // A line under a line of a paragraph that a table would read as its
+  // delimiter row stays a line of the paragraph: a link that hides the bar of
+  // its alias (`[[a|b]] | c` over `|---|---|`) takes one cell from the line
+  // above, and the renderer, counting again, found a table where the note has
+  // none (Sammelplan § 3.133 Nr. 5). The first `-` of the line is escaped.
+  for (const paragraph of paragraphs) {
+    if (!paragraph.position) continue;
+    const end = paragraph.position.end.offset;
+    for (let brk = clean.text.indexOf("\n", paragraph.position.start.offset); brk !== -1 && brk < end; ) {
+      const next = clean.text.indexOf("\n", brk + 1);
+      const line = clean.text.slice(brk + 1, Math.min(end, next === -1 ? clean.text.length : next)).replace(/\r$/, "");
+      const dash = delimiterRowDash(line);
+      if (dash >= 0) edits.push({ from: brk + 1 + dash, to: brk + 1 + dash, text: "\\" });
+      brk = next;
+    }
+  }
   // What is read is the text: a byte order mark is the file's, like its `\r`.
   // None is left at the start, however many stand there: the renderer parses
   // this text with a parser of its own, which would skip one and count from
@@ -417,6 +455,98 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
       return clean.toRaw(span.exact ? span.from + offset - span.start : edge === "start" ? span.from : span.to, edge === "start" ? "after" : "before");
     },
   };
+}
+
+/**
+ * Where the first `-` of a table's delimiter row stands in `line` — behind the
+ * marks of a quote and the blanks of a list: `|---|:-:|`, `-- | --` —, or -1
+ * where the line is none.
+ */
+function delimiterRowDash(line: string): number {
+  let at = 0;
+  for (;;) {
+    while (line[at] === " " || line[at] === "\t") at++;
+    if (line[at] !== ">") break;
+    at++;
+  }
+  const cells = line.slice(at).split("|");
+  if (cells.length > 1 && cells[0].trim() === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
+  if (cells.length === 0 || !cells.every((cell) => /^:?-+:?$/.test(cell.trim()))) return -1;
+  return line.indexOf("-", at);
+}
+
+/**
+ * The formulas of a note by the editor's rule (`mathSyntax.ts`): what `$` of
+ * it open or close one, and where they stand. Code and HTML hold none.
+ */
+function formulasOf(text: string, tree: SourceNode): { keeps(at: number): boolean; inside(from: number, to: number): boolean } {
+  const literal: Array<[number, number]> = [];
+  const collect = (node: SourceNode) => {
+    if (node.position && (node.type === "code" || node.type === "inlineCode" || node.type === "html")) {
+      literal.push([node.position.start.offset, node.position.end.offset]);
+      return;
+    }
+    for (const child of node.children ?? []) collect(child);
+  };
+  collect(tree);
+  const inLiteral = (from: number, to: number) => {
+    const at = lastStartingBefore(literal, to);
+    return at >= 0 && literal[at][1] > from;
+  };
+  const signs = new Set<number>();
+  const spans: Array<[number, number]> = [];
+  const lines: Array<[number, number]> = [];
+  for (let start = 0; start <= text.length; ) {
+    const brk = text.indexOf("\n", start);
+    const end = brk === -1 ? text.length : brk;
+    lines.push([start, text[end - 1] === "\r" ? end - 1 : end]);
+    if (brk === -1) break;
+    start = brk + 1;
+  }
+  const pattern = inlineMathPattern();
+  for (let n = 0; n < lines.length; n++) {
+    const [from, to] = lines[n];
+    const line = text.slice(from, to);
+    if (opensMathBlock(line) && !inLiteral(from, to)) {
+      let close = n + 1;
+      while (close < lines.length && !closesMathBlock(text.slice(lines[close][0], lines[close][1]))) close++;
+      // An opening line without a closing one ends the search, as in the editor.
+      if (close >= lines.length) break;
+      for (let at = from; at < lines[close][1]; at++) if (text[at] === "$") signs.add(at);
+      spans.push([from, lines[close][1]]);
+      n = close;
+      continue;
+    }
+    pattern.lastIndex = 0;
+    for (let match = pattern.exec(line); match; match = pattern.exec(line)) {
+      const start = from + match.index, stop = start + match[0].length;
+      if (!(match[1] ?? match[2]).trim() || inLiteral(start, stop)) continue;
+      const width = match[1] !== undefined ? 2 : 1;
+      for (let k = 0; k < width; k++) { signs.add(start + k); signs.add(stop - 1 - k); }
+      spans.push([start, stop]);
+    }
+  }
+  return {
+    keeps: (at) => signs.has(at),
+    inside: (from, to) => {
+      const at = lastStartingBefore(spans, from + 1);
+      return at >= 0 && to <= spans[at][1];
+    },
+  };
+}
+
+/** In stretches that follow each other without overlap: the last one that starts before `at`, or -1. */
+function lastStartingBefore(stretches: ReadonlyArray<readonly [number, number]>, at: number): number {
+  let low = 0, high = stretches.length - 1, found = -1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (stretches[mid][0] < at) {
+      found = mid;
+      low = mid + 1;
+    } else high = mid - 1;
+  }
+  return found;
 }
 
 /**

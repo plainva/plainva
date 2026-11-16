@@ -115,3 +115,42 @@ describe("one original source for anchors and transclusion", () => {
     expect(result).toContain("wiki-embed://real%23Heading");
   });
 });
+
+/**
+ * Three edges of the prepared text (Sammelplan § 3.133 Nr. 3 and Nr. 5): what
+ * the renderer reads in it has to be what the note says.
+ */
+describe("the prepared text reads as the note", () => {
+  it("keeps a wiki link behind a `]` from becoming the label of a reference", () => {
+    const note = "[x][[a]]\n\n[a]: https://e.com";
+    const prepared = prepareReaderSource(note).text;
+    expect(prepared).toBe("[x]<!---->[a](wiki://a)\n\n[a]: https://e.com");
+    // Without one in between, nothing changes.
+    expect(prepareReaderSource("[x] [[a]]").text).toBe("[x] [a](wiki://a)");
+  });
+
+  it("keeps the place of the label behind the comment", () => {
+    const source = prepareReaderSource("[x][[a|Alias]]");
+    const at = source.text.indexOf("Alias");
+    expect(source.toOriginal(at)).toBe("[x][[a|".length);
+    expect(source.toRendered("[x][[a|".length)).toBe(at);
+  });
+
+  it("keeps a line under an alias link that a table would read as its delimiter row a line of the paragraph", () => {
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n").text).toBe("[b](wiki://a) | c\n|\\---|---|\n");
+    expect(prepareReaderSource("> [[a|b]] | c\n> :--|--\n").text).toBe("> [b](wiki://a) | c\n> :\\--|--\n");
+    // A table the note has stays one.
+    expect(prepareReaderSource("| [[a\\|b]] | c |\n|---|---|\n").text).toBe("| [b](wiki://a) | c |\n|---|---|\n");
+  });
+
+  it("reads a `$` by the editor's rule where the renderer reads formulas", () => {
+    expect(prepareReaderSource("Preis $3 [[Notiz]] und $4", { formulas: true }).text).toBe("Preis \\$3 [Notiz](wiki://Notiz) und \\$4");
+    // A formula stays one, and a link in it is part of it.
+    expect(prepareReaderSource("Sei $a [[b]] c$ und $$x$$", { formulas: true }).text).toBe("Sei $a [[b]] c$ und $$x$$");
+    expect(prepareReaderSource("$$\nx = [[b]]\n$$\n", { formulas: true }).text).toBe("$$\nx = [[b]]\n$$\n");
+    // Code holds none, and an escaped `$` stays as it is.
+    expect(prepareReaderSource("`$a$` und \\$ und $ x $", { formulas: true }).text).toBe("`$a$` und \\$ und \\$ x \\$");
+    // Without formulas, nothing changes.
+    expect(prepareReaderSource("Preis $3 [[Notiz]] und $4").text).toBe("Preis $3 [Notiz](wiki://Notiz) und $4");
+  });
+});
