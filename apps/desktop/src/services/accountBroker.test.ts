@@ -418,6 +418,20 @@ describe("the broker answers for the account that is asking", () => {
         expect(first).toMatch(/RT-M(?!2)/);
         expect(first).not.toContain("RT-M2");
       });
+
+      it("lets two connects of the same card run side by side (red before: the second replaced the first)", async () => {
+        setPendingBrokerAccount(null);
+        const releaseFirst = holdPendingBrokerAccount({ vaultPath: V, accountId: "m1", family: "microsoft" });
+        claimPendingMailbox(V, "m1", "mail-first");
+        const releaseAgain = holdPendingBrokerAccount({ vaultPath: V, accountId: "m1", family: "microsoft" });
+        claimPendingMailbox(V, "m1", "mail-again");
+        expect(await brokerTokenProvider(V, "mail", "mail-first")).toBeDefined();
+        releaseFirst();
+        releaseFirst();
+        expect(await brokerTokenProvider(V, "mail", "mail-again")).toBeDefined();
+        releaseAgain();
+        expect(await brokerTokenProvider(V, "mail", "mail-again")).toBeUndefined();
+      });
     });
   });
 });

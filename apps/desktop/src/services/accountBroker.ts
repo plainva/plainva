@@ -357,7 +357,8 @@ interface PendingBrokerAccount {
 }
 
 /**
- * One marker per connect, keyed by vault and card (Fehlerliste C3).
+ * One marker per card, keyed by vault and card (Fehlerliste C3), held by every
+ * connect running at that card (Fehlerliste F36 A3).
  *
  * A single module-wide marker let a second connect replace the first one's,
  * and the first one's end then cleared the second's: whichever validation ran
@@ -365,28 +366,54 @@ interface PendingBrokerAccount {
  * two connects from binding at the same time — the settings area can be left
  * and opened again while a consent waits in the browser, and the account
  * page's own sign-in runs beside the wizard's.
+ *
+ * Two connects at the SAME card share its marker: both draw the card's own
+ * sign-in, so the mailboxes and calendar rows either of them named are
+ * answered, and the marker goes when the last of them ends. Replacing it, as
+ * before, dropped what the first connect had named while it was still running.
  */
-const pendingAccounts = new Map<string, PendingBrokerAccount>();
+interface PendingCard {
+  vaultPath: string;
+  accountId: string;
+  family: "microsoft" | "google";
+  mailAccountIds: Set<string>;
+  pimAccountIds: Set<string>;
+  holders: number;
+}
+const pendingAccounts = new Map<string, PendingCard>();
 const pendingKey = (vaultPath: string, accountId: string) => `${vaultPath}\u0000${accountId}`;
 
 /**
  * Marks a connect as running and returns the call that ends it. Ending only
- * removes this connect's own marker: a later connect at the same card that
- * replaced it keeps running.
+ * ends this connect: another connect at the same card keeps the marker and
+ * everything it named.
  */
 export function holdPendingBrokerAccount(next: PendingBrokerAccount): () => void {
   const key = pendingKey(next.vaultPath, next.accountId);
-  const entry: PendingBrokerAccount = { ...next };
+  const entry: PendingCard = pendingAccounts.get(key)
+    ?? { vaultPath: next.vaultPath, accountId: next.accountId, family: next.family, mailAccountIds: new Set(), pimAccountIds: new Set(), holders: 0 };
+  entry.family = next.family;
+  entry.holders += 1;
+  if (next.mailAccountId) entry.mailAccountIds.add(next.mailAccountId);
+  if (next.pimAccountId) entry.pimAccountIds.add(next.pimAccountId);
   pendingAccounts.set(key, entry);
+  let ended = false;
   return () => {
-    if (pendingAccounts.get(key) === entry) pendingAccounts.delete(key);
+    if (ended) return;
+    ended = true;
+    entry.holders -= 1;
+    if (entry.holders <= 0 && pendingAccounts.get(key) === entry) pendingAccounts.delete(key);
   };
 }
 
-/** Sets one connect's marker, as `holdPendingBrokerAccount`; `null` ends every connect. */
+/** Starts the card's marker afresh (what it named is dropped), as `holdPendingBrokerAccount`; `null` ends every connect. */
 export function setPendingBrokerAccount(next: PendingBrokerAccount | null): void {
-  if (next) holdPendingBrokerAccount(next);
-  else pendingAccounts.clear();
+  if (!next) {
+    pendingAccounts.clear();
+    return;
+  }
+  pendingAccounts.delete(pendingKey(next.vaultPath, next.accountId));
+  holdPendingBrokerAccount(next);
 }
 
 /**
@@ -403,8 +430,7 @@ export function setPendingBrokerAccount(next: PendingBrokerAccount | null): void
  * other.
  */
 export function claimPendingMailbox(vaultPath: string, accountId: string, mailAccountId: string): void {
-  const entry = pendingAccounts.get(pendingKey(vaultPath, accountId));
-  if (entry) entry.mailAccountId = mailAccountId;
+  pendingAccounts.get(pendingKey(vaultPath, accountId))?.mailAccountIds.add(mailAccountId);
 }
 
 /**
@@ -419,16 +445,15 @@ export function claimPendingMailbox(vaultPath: string, accountId: string, mailAc
  * new row starts only after its card is written.
  */
 export function claimPendingCalendar(vaultPath: string, accountId: string, pimAccountId: string): void {
-  const entry = pendingAccounts.get(pendingKey(vaultPath, accountId));
-  if (entry) entry.pimAccountId = pimAccountId;
+  pendingAccounts.get(pendingKey(vaultPath, accountId))?.pimAccountIds.add(pimAccountId);
 }
 
 /** The connect running in this vault that named this subsystem, if any. */
-function pendingFor(vaultPath: string, service: CloudServiceId, subsystemId: string): PendingBrokerAccount | undefined {
+function pendingFor(vaultPath: string, service: CloudServiceId, subsystemId: string): PendingCard | undefined {
   for (const pending of pendingAccounts.values()) {
     if (pending.vaultPath !== vaultPath) continue;
-    if (service === "mail" && pending.mailAccountId === subsystemId) return pending;
-    if (service === "calendar" && pending.pimAccountId === subsystemId) return pending;
+    if (service === "mail" && pending.mailAccountIds.has(subsystemId)) return pending;
+    if (service === "calendar" && pending.pimAccountIds.has(subsystemId)) return pending;
   }
   return undefined;
 }
