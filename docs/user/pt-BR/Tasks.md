@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-11-05
+Última revisão: 2026-11-16
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -217,6 +217,11 @@ Uma tarefa que o Plainva espelha de uma lista de tarefas do seu provedor recebe 
 Qual tarefa está em qual arquivo não é dito pelo nome, e sim pela marcação no frontmatter (`plainva.pim`, veja a [Referência do Formato de Arquivo](File_Format_Reference.md)). Por isso o Plainva só reaproveita um nome existente se o arquivo contiver a mesma tarefa, e cria as tarefas novas na mesma ordem em todos os dispositivos — assim dois dispositivos atribuem os mesmos números. Se o título mudar no provedor, o Plainva atualiza o título da nota, mas não renomeia o arquivo: os links para a nota continuam funcionando. Você pode renomear e mover a nota quando quiser; a marcação mantém o vínculo.
 
 **Limpar nomes com identificador.** Entre 12 e 24 de setembro de 2026, o Plainva acrescentava um identificador ao nome das novas notas de tarefa (`Ligar para o dentista — 3f9a1c0b7d2e4a61.md`). Se o seu vault ainda tiver nomes assim, a visualização de tarefas — no desktop e no telefone — mostra uma vez um aviso com a lista antigo → novo e o número de links atualizados junto. **Limpar nomes…** pergunta mais uma vez e depois renomeia as notas pelo título, numerando as de mesmo título como acima; os links para elas são atualizados. **Ocultar** deixa o aviso de lado até surgirem outros nomes assim. O Plainva só reconhece nomes que ele mesmo atribuiu: o identificador precisa corresponder à marcação no mesmo arquivo. Nada é renomeado sozinho. Seus outros dispositivos recebem as renomeações como uma movimentação quando estão na mesma versão; uma versão anterior vê ali, em vez disso, notas excluídas e notas novas, e às vezes pergunta se deve excluí-las, às vezes mantém o nome antigo ao lado do novo — de preferência, atualize esses dispositivos antes. No desktop, o aviso aparece na janela principal.
+
+<!-- task-lists-silent-2026-11-16 -->
+## Quando as tarefas do provedor não aparecem
+
+As tarefas de uma lista de tarefas do seu provedor viram notas no seu **Banco de tarefas padrão**. Se nenhum estiver definido, uma linha discreta diz isso uma única vez — acima da visão de tarefas e na página da conta em **Listas de tarefas**, no desktop e no celular — com **Criar banco de dados…**, que cria um e o define; as listas chegam na próxima sincronização. **Ocultar** tira a linha para este vault neste aparelho; ela só volta se um banco de tarefas for definido e depois removido de novo. Enquanto um aparelho faz sua primeira sincronização, nada aparece: o banco ou a configuração talvez apenas ainda não tenham chegado. Um erro de verdade aparece como aviso, com **Tentar novamente**: o banco de tarefas não pode ser lido ou não indica nenhuma pasta para notas novas, não foi possível criar a nota de uma tarefa nova ou, no celular, o índice do vault não está aberto. O aviso some assim que as tarefas chegam.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Metadados Tasks e repetição
