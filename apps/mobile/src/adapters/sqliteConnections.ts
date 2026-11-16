@@ -1,5 +1,6 @@
 import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from "@capacitor-community/sqlite";
 import { TransactionTurns } from "@plainva/ui";
+import { databaseFolderRefusal, resetDatabaseFolderForTests } from "./iosDatabaseFolder";
 
 /**
  * Every database the phone opens goes through ONE `SQLiteConnection`
@@ -63,6 +64,10 @@ export function acquireDatabase(name: string): Promise<DatabaseHandle> {
       known.users += 1;
       return { connection: known.connection, turns: known.turns };
     }
+    // iOS: the files are where the plugin looks before anything opens, and a
+    // database whose files could not move does not open (iosDatabaseFolder.ts).
+    const refusal = await databaseFolderRefusal(name);
+    if (refusal) throw refusal;
     const conn = plugin();
     if (!checked) {
       // Nothing of this lifetime is open yet: the native side closes what a
@@ -180,6 +185,10 @@ export function deleteDatabaseFile(name: string): Promise<void> {
     let connection = known?.connection ?? null;
     let opened = false;
     if (!connection) {
+      // A database still in Documents is not reached at the plugin's location;
+      // deleting there would leave it - and make a new, empty one first.
+      const refusal = await databaseFolderRefusal(name);
+      if (refusal) throw refusal;
       const conn = plugin();
       if (!checked) {
         await conn.checkConnectionsConsistency();
@@ -206,4 +215,5 @@ export function resetDatabasesForTests(): void {
   checked = false;
   open.clear();
   queue = Promise.resolve();
+  resetDatabaseFolderForTests();
 }
