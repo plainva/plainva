@@ -68,6 +68,17 @@ export function createNavActions(
 }
 
 /**
+ * True while the boot's navigation is as the boot made it: no tab stack and
+ * no overlay holds anything. The restore runs asynchronously, and what a
+ * person opens meanwhile — a `plainva://open` link, a widget, a reminder —
+ * wins over every branch of it: the restore only ever replaces an untouched
+ * start (review of issue 173).
+ */
+function untouchedStart(s: NavState): boolean {
+  return s.overlay.length === 0 && Object.values(s.stacks).every((stack) => stack.length === 0);
+}
+
+/**
  * Pick up where you stopped (feedback round 2026-09-01, T6): the note that
  * was open when the app was left comes back on top of the home tab at the
  * next cold start — provided it still exists. A vault switch deliberately
@@ -84,7 +95,7 @@ export async function restoreLastOpenNote(
   try {
     // A database is remembered too since P6 — it opens as what it is.
     const kind = /\.base$/i.test(last) ? "base" : "note";
-    if (await vault.files.exists(last)) setNav((st) => pushEntry(st, { kind, path: last }));
+    if (await vault.files.exists(last)) setNav((st) => (untouchedStart(st) ? pushEntry(st, { kind, path: last }) : st));
     else rememberLastOpen(vault.vaultId, null);
   } catch {
     /* the note stays where it is; nothing to restore */
@@ -113,21 +124,17 @@ export async function restoreSession(
   // and "As you left it" finds what was open when the app was last left.
   if (getMobileSettings().startView === "fresh") {
     const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
-    if (visible.includes("notes")) setNav(initialNavState("notes"));
+    if (visible.includes("notes")) setNav((s) => (untouchedStart(s) ? initialNavState("notes") : s));
     return;
   }
   if (stored) {
     const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
     const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => /* silent: a reading; the start screen is the default below */ null);
-    if (next) {
-      setNav(next);
-      return;
-    }
     // A stored session is what was left, even when nothing of it needs
-    // restoring: left on Home, or the note left open is gone. It starts on
-    // this vault's Home — never on the note opened last (issue 173) — and
-    // leaves alone what a link, widget or reminder opened meanwhile.
-    setNav((s) => (s.overlay.length === 0 && Object.values(s.stacks).every((stack) => stack.length === 0) ? initialNavState(visible[0] ?? "notes") : s));
+    // restoring: left on Home, or the note left open is gone. It then starts
+    // on this vault's Home — never on the note opened last (issue 173).
+    const restored = next ?? initialNavState(visible[0] ?? "notes");
+    setNav((s) => (untouchedStart(s) ? restored : s));
     return;
   }
   // No session stored at all (a first start, or a build before P6): the

@@ -98,5 +98,36 @@ describe("on start (P10)", () => {
     await restoring;
     expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
   });
+
+  // Review of issue 173: what a person opens while the start is restored wins in every branch.
+  async function openDuringRestore(vaultId: string): Promise<NavState> {
+    let nav: NavState = initialNavState("notes");
+    const setNav = (next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    };
+    const restoring = restoreSession(vaultOf(vaultId), setNav as never);
+    setNav((s) => pushEntry(s, { kind: "note", path: "From/link.md" }));
+    await restoring;
+    return nav;
+  }
+
+  it("as you left it, with a note to restore: a note a link opens meanwhile stays", async () => {
+    settings.startView = "restore";
+    const nav = await openDuringRestore("v-left");
+    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+  });
+
+  it("Home: a note a link opens meanwhile stays", async () => {
+    settings.startView = "fresh";
+    const nav = await openDuringRestore("v-home");
+    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+  });
+
+  it("a first start: the note opened last does not cover a note a link opened meanwhile", async () => {
+    settings.startView = "restore";
+    rememberLastOpen("v-first-link", "Last/opened.md");
+    const nav = await openDuringRestore("v-first-link");
+    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+  });
 });
 
