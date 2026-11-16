@@ -811,8 +811,9 @@ describe("8-bit mail over the socket (finding 2026-10-09)", () => {
  * one makes of the first two is held in `mail_imap.rs`, by the same messages
  * and the same expectations, so both shells hand out the same text and the
  * same files. Where that parser gives something up that this reader reads (an
- * encoded word with a character that is no base64), a test here says so, one
- * there holds it, and the parity catalog has the entry (`mail-base64-reading`).
+ * encoded word with a character that is no base64), a test here says so and
+ * one there holds it; the desktop's head is read with this reader since
+ * (`imapHeadLines.test.ts`, Fehlerliste 0.9.0 C7).
  */
 describe("mail as it is really built (finding 2026-10-12)", () => {
   // A pooled session belongs to the scripted server it was opened against.
@@ -913,7 +914,7 @@ describe("mail as it is really built (finding 2026-10-12)", () => {
     expect(decodeWords("=?utf-8?B?R3LDvMOfZQ?=")).toBe("Grüße");
   });
 
-  it("reads on where the desktop's parser gives up (parity catalog: mail-base64-reading)", () => {
+  it("reads on where the desktop's parser gives up (the desktop's head is read here too)", () => {
     // A character that is no base64 in an encoded word of a header is passed
     // over (RFC 2045, 6.8). mail-parser shows such a word as it was written -
     // at a hyphen too, which it passes over in a body.

@@ -845,30 +845,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-11-02",
   },
   {
-    id: "mail-base64-reading",
-    title: "Reading base64 in an IMAP message that is not written as the rule says",
-    area: "pim",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "For an IMAP mailbox the two shells read a message with two parsers. In a " +
-      "body both read base64 alike since mail-parser 1.0 (one table of examples " +
-      "is held against both, in imapClient.test.ts and in mail_imap.rs): a \"=\" " +
-      "ends a group wherever it stands, a last group without its padding is read, " +
-      "a single character of a group is no byte, and whatever is no base64 is " +
-      "passed over. One thing is left where the desktop's parser reads less than " +
-      "the phone's reader (net/mime.ts): in an encoded word of a header, a " +
-      "character that is no base64 other than a blank, a tab or a line break - a " +
-      "hyphen too - leaves the word as it was written, though RFC 2045 says to " +
-      "pass it over; the subject or a name then shows its encoded form. A " +
-      "Microsoft mailbox is not affected: Graph delivers the message decoded. " +
-      "Closing this means decoding encoded words in mail_imap.rs itself, or a " +
-      "parser that reads them (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
-      "fails on the day the difference is gone).",
-    mobile: "yes",
-    verified: "2026-10-30",
-  },
-  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

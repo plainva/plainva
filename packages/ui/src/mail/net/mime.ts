@@ -168,8 +168,9 @@ const BASE64_VALUE = (() => {
  * passed over, as RFC 2045 (6.8) asks and as it always was here. That is how
  * the desktop's parser reads a body too (mail-parser 1.0; `mail_imap.rs` holds
  * the table `imapClient.test.ts` holds). In an encoded word of a header it
- * still gives up at a character that is no base64: parity catalog,
- * `mail-base64-reading`.
+ * still gives up at a character that is no base64; the desktop therefore
+ * hands its head lines on as sent and they are read here (`readHead` in
+ * `mailClient.ts`, Fehlerliste 0.9.0 C7).
  */
 export function base64Bytes(s: string): Uint8Array {
   const out = new Uint8Array(Math.ceil((s.length * 3) / 4));
