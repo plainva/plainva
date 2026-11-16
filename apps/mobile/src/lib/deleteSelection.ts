@@ -12,7 +12,7 @@ export async function deleteSelectedFiles(
   run: { confirm: () => Promise<string[]>; refresh: () => void; onDeleted: (deleted: string[]) => void; onError: (error: unknown) => void },
 ): Promise<void> {
   if (paths.length === 0) return;
-  let deleted: string[] = [];
+  let deleted: string[];
   try {
     deleted = await run.confirm();
   } catch (error) {
