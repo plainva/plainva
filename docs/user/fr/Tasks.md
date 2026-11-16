@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-11-05
+Dernière mise à jour : 2026-11-16
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -217,6 +217,11 @@ Une tâche que Plainva reflète depuis une liste de tâches de votre fournisseur
 Ce n'est pas le nom qui dit quelle tâche se trouve dans quel fichier, mais le marqueur du frontmatter (`plainva.pim`, voir la [Référence du format de fichier](File_Format_Reference.md)). Plainva ne reprend donc un nom existant que si le fichier contient la même tâche, et crée les nouvelles tâches dans le même ordre sur chaque appareil : deux appareils attribuent ainsi les mêmes numéros. Si le titre change chez le fournisseur, Plainva met à jour le titre de la note sans renommer le fichier : les liens vers la note restent valides. Vous pouvez la renommer ou la déplacer vous-même à tout moment ; le marqueur conserve le lien.
 
 **Nettoyer les noms avec identifiant.** Entre le 12 et le 24 septembre 2026, Plainva ajoutait un identifiant au nom des nouvelles notes de tâche (`Appeler le dentiste — 3f9a1c0b7d2e4a61.md`). Si votre vault contient encore de tels noms, la vue des tâches — sur l'ordinateur comme sur le téléphone — affiche une fois un avis avec la liste ancien → nouveau et le nombre de liens mis à jour avec elles. **Nettoyer les noms…** redemande confirmation, puis renomme les notes d'après leur titre, en numérotant celles de même titre comme ci-dessus ; les liens vers elles sont mis à jour. **Masquer** met l'avis de côté jusqu'à ce que d'autres noms de ce type apparaissent. Plainva ne reconnaît que les noms qu'il a attribués lui-même : l'identifiant doit correspondre au marqueur du même fichier. Rien n'est jamais renommé de lui-même. Vos autres appareils reçoivent les changements de nom comme un déplacement dès qu'ils ont la même version ; une version plus ancienne y voit à la place des notes supprimées et de nouvelles notes, et soit demande s'il faut les supprimer, soit garde l'ancien nom à côté du nouveau — mettez de préférence ces appareils à jour avant. Sur l'ordinateur, l'avis apparaît dans la fenêtre principale.
+
+<!-- task-lists-silent-2026-11-16 -->
+## Quand les tâches du fournisseur n’apparaissent pas
+
+Les tâches d’une liste de tâches de votre fournisseur deviennent des notes de votre **Base de tâches par défaut**. S’il n’y en a pas, une ligne discrète le dit une seule fois — au-dessus de la vue des tâches et sur la page du compte sous **Listes de tâches**, sur le bureau et sur le téléphone — avec **Créer une base…**, qui en crée une et la définit ; les listes arrivent alors à la synchronisation suivante. **Masquer** retire la ligne pour ce vault sur cet appareil ; elle ne revient que si une base de tâches est définie puis retirée plus tard. Pendant la première synchronisation d’un appareil, rien n’apparaît : la base ou le réglage n’est peut-être simplement pas encore arrivé. Une vraie erreur apparaît en revanche comme avertissement, avec **Réessayer** : la base de tâches ne peut pas être lue ou n’indique aucun dossier pour les nouvelles notes, la note d’une nouvelle tâche n’a pas pu être créée, ou, sur le téléphone, l’index du vault n’est pas ouvert. L’avertissement disparaît dès que les tâches passent.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Métadonnées Tasks et répétition

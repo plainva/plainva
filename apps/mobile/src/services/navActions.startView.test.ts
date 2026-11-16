@@ -18,6 +18,7 @@ vi.mock("./windowClass", () => ({ getWindowClass: () => "compact", isRailClass: 
 
 const { restoreSession } = await import("./navActions");
 const { flushNavSave, readNavState, scheduleNavSave, writeNavState } = await import("./sessionState");
+const { rememberLastOpen } = await import("@plainva/ui");
 
 const vaultOf = (vaultId: string) => ({ vaultId, files: { exists: async () => true } }) as unknown as Parameters<typeof restoreSession>[0];
 
@@ -52,4 +53,50 @@ describe("on start (P10)", () => {
     flushNavSave();
     expect(readNavState("v-home")?.stacks.notes).toEqual([{ kind: "note", path: "Later.md" }]);
   });
+
+  // Issue #173: a session left on Home is a session, not "nothing stored" —
+  // the last-note memory is for a start without any saved session.
+  it("as you left it, left on Home: starts on Home, not on the note opened last", async () => {
+    settings.startView = "restore";
+    writeNavState("v-on-home", initialNavState("notes"));
+    rememberLastOpen("v-on-home", "Last/opened.md");
+    const nav = await boot("v-on-home");
+    expect(nav.activeTab).toBe("notes");
+    expect(Object.values(nav.stacks).flat()).toEqual([]);
+  });
+
+  it("as you left it, the note left open is gone: starts on Home, not on another note", async () => {
+    settings.startView = "restore";
+    writeNavState("v-gone", pushEntry(initialNavState("notes"), { kind: "note", path: "Gone.md" }));
+    rememberLastOpen("v-gone", "Other.md");
+    let nav: NavState = initialNavState("notes");
+    const vault = { vaultId: "v-gone", files: { exists: async (p: string) => p !== "Gone.md" } } as unknown as Parameters<typeof restoreSession>[0];
+    await restoreSession(vault, ((next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    }) as never);
+    expect(Object.values(nav.stacks).flat()).toEqual([]);
+  });
+
+  it("no session stored at all (a first start): the note opened last still comes back", async () => {
+    settings.startView = "restore";
+    rememberLastOpen("v-first", "Last/opened.md");
+    const nav = await boot("v-first");
+    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "Last/opened.md" }]);
+  });
+
+  it("left on Home: a note a link opens while the session is restored stays open", async () => {
+    settings.startView = "restore";
+    writeNavState("v-link", initialNavState("notes"));
+    rememberLastOpen("v-link", "Last/opened.md");
+    let nav: NavState = initialNavState("notes");
+    const setNav = (next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    };
+    const restoring = restoreSession(vaultOf("v-link"), setNav as never);
+    // plainva://open, a widget or a reminder, while the restore still awaits the bar.
+    setNav((s) => pushEntry(s, { kind: "note", path: "From/link.md" }));
+    await restoring;
+    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+  });
 });
+
