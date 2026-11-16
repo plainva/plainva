@@ -31,7 +31,7 @@ import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
 import { currentWindowParams } from "./windowContext";
-import { SnapshotBeforeDeleteError, isSnapshotBeforeDeleteError } from "@plainva/core";
+import { SnapshotBeforeDeleteError, isSnapshotBeforeDeleteError, utf8Encode, workspaceSha256Hex } from "@plainva/core";
 import type { CommentOperation, CommentOperationInput, CommentOperationPhase, CommentPostInput } from "@plainva/core";
 
 /** Label of the window that owns the services. Tauri's own default label. */
@@ -603,6 +603,36 @@ export const RPC_WRITE_KINDS: ReadonlySet<RpcKind> = new Set<RpcKind>([
   "conflict-resolve-bytes",
   "journal-capture",
   "pim-write",
+  // What a person sends, files or toggles from another window (A15): until
+  // 2026-11-16 these failed after 15 s while the owner was still at them.
+  "comment-post",
+  "mail-send",
+  "mail-draft",
+  "toggle-bookmark",
+]);
+
+/**
+ * The writes a second run would do a second time (A15): a line appended to
+ * the journal, an event created, a comment posted, a mail sent or filed as a
+ * draft, a bookmark toggled. The others can be repeated — a whole text, a
+ * merge against its base, a rename, a deletion land the same way twice.
+ *
+ * A request of these kinds carries a key (`RpcEnvelope.key`). The caller
+ * keeps it for as long as the request has not succeeded: the same request
+ * sent again after a failure — the person pressing "Add" once more after
+ * "may still land" — carries the same key, and the owner does not run it a
+ * second time. It joins the run still going, or answers with the outcome of
+ * the one that landed. A request that succeeded gives its key up, so the
+ * same change asked for again later is a new one; a run that failed on the
+ * owner's side is forgotten there, so its repetition runs.
+ */
+export const RPC_ONCE_KINDS: ReadonlySet<RpcKind> = new Set<RpcKind>([
+  "journal-capture",
+  "pim-write",
+  "comment-post",
+  "mail-send",
+  "mail-draft",
+  "toggle-bookmark",
 ]);
 
 /** The longest a caller waits for a write the owner keeps saying it is at — a write that hangs for good. */
@@ -635,6 +665,8 @@ interface RpcEnvelope {
   args: unknown;
   /** A write (`RPC_WRITE_KINDS`): how often the owner says it is still at it. */
   aliveMs?: number;
+  /** `RPC_ONCE_KINDS`: the same for every attempt at the same request, until one succeeded. */
+  key?: string;
 }
 
 interface RpcReply {
@@ -717,6 +749,12 @@ export function createWindowBus(
     ceiling?: ReturnType<typeof setTimeout>;
   }
   const pending = new Map<string, Waiting>();
+  /**
+   * Caller side, `RPC_ONCE_KINDS`: the key of each request that has not
+   * succeeded yet, by what it asks for. Kept as long as the owner keeps an
+   * answer, so a repetition after a failure is known for that long.
+   */
+  const unsettledKeys = new Map<string, { key: string; expiry?: ReturnType<typeof setTimeout> }>();
   /** Writes the caller gave up on — a late answer is said, not swallowed. */
   const givenUp = new Map<string, string>();
   let replyListener: Promise<void> | null = null;
@@ -768,6 +806,12 @@ export function createWindowBus(
   // Owner side: the writes being run and the answers given (for a caller that asks again).
   const running = new Map<string, string>();
   const answered = new Map<string, RpcReply>();
+  /**
+   * Owner side, `RPC_ONCE_KINDS`: by caller, kind and key, the run of a request
+   * still going, or the value it succeeded with (kept like `answered`).
+   */
+  const onceRuns = new Map<string, Promise<unknown>>();
+  const onceDone = new Map<string, { value: unknown }>();
   let askListener: Promise<void> | null = null;
   const ensureAskListener = () => {
     if (askListener) return askListener;
@@ -787,6 +831,31 @@ export function createWindowBus(
         unlisteners.push(un);
       });
     return askListener;
+  };
+
+  /**
+   * Runs a request's handler — once per key for `RPC_ONCE_KINDS` (A15): a
+   * repetition joins the run still going, or gets the value the one that
+   * landed succeeded with. A run that failed leaves nothing behind.
+   */
+  const runOnce = (env: RpcEnvelope, run: () => unknown): Promise<unknown> => {
+    if (typeof env.key !== "string" || !RPC_ONCE_KINDS.has(env.kind as RpcKind)) return Promise.resolve(run());
+    const at = JSON.stringify([env.from, env.kind, env.key]);
+    const done = onceDone.get(at);
+    if (done) return Promise.resolve(done.value);
+    const going = onceRuns.get(at);
+    if (going) return going;
+    const started = Promise.resolve().then(run);
+    onceRuns.set(at, started);
+    started.then(
+      (value) => {
+        onceRuns.delete(at);
+        onceDone.set(at, { value });
+        setTimeout(() => onceDone.delete(at), RPC_ANSWER_KEEP_MS);
+      },
+      () => onceRuns.delete(at),
+    );
+    return started;
   };
 
   return {
@@ -825,6 +894,17 @@ export function createWindowBus(
       const write = RPC_WRITE_KINDS.has(kind);
       const envelope: RpcEnvelope = { from: transport.label, id, kind, vaultPath, args };
       if (write) envelope.aliveMs = Math.max(1, Math.floor(timeoutMs / 3));
+      // The same request asked for again carries the key of the attempt that
+      // did not succeed (A15); the owner then does not run it twice.
+      let asked: string | null = null;
+      if (RPC_ONCE_KINDS.has(kind)) {
+        asked = workspaceSha256Hex(utf8Encode(JSON.stringify([kind, vaultPath, args])));
+        const earlier = unsettledKeys.get(asked);
+        if (earlier?.expiry !== undefined) clearTimeout(earlier.expiry);
+        const key = earlier?.key ?? `${id}-once`;
+        unsettledKeys.set(asked, { key });
+        envelope.key = key;
+      }
       const result = new Promise((resolve, reject) => {
         const waiting: Waiting = { resolve, reject, taken: false, timer: undefined as unknown as ReturnType<typeof setTimeout> };
         const timedOut = () => {
@@ -858,8 +938,31 @@ export function createWindowBus(
         }
         pending.set(id, waiting);
       });
-      await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
-      return (await result) as never;
+      if (asked === null) {
+        await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
+        return (await result) as never;
+      }
+      const sentKey = envelope.key;
+      const keep = (failed: boolean) => {
+        const entry = unsettledKeys.get(asked!);
+        if (!entry || entry.key !== sentKey) return;
+        if (!failed) {
+          unsettledKeys.delete(asked!);
+          return;
+        }
+        entry.expiry = setTimeout(() => {
+          if (unsettledKeys.get(asked!) === entry) unsettledKeys.delete(asked!);
+        }, RPC_ANSWER_KEEP_MS);
+      };
+      try {
+        await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
+        const value = await result;
+        keep(false);
+        return value as never;
+      } catch (e) {
+        keep(true);
+        throw e;
+      }
     },
 
     async handle(kind, handler, opts) {
@@ -885,7 +988,7 @@ export function createWindowBus(
         void (async () => {
           let reply: RpcReply;
           try {
-            const value = await handler(env.args as never, env.from, env.vaultPath ?? null);
+            const value = await runOnce(env, () => handler(env.args as never, env.from, env.vaultPath ?? null));
             reply = { id: env.id, ok: true, value };
           } catch (e) {
             // The caller gets the message, not a silent no-op: an aux window
@@ -918,6 +1021,8 @@ export function createWindowBus(
           /* a listener that is already gone is not a problem */
         }
       }
+      for (const entry of unsettledKeys.values()) if (entry.expiry !== undefined) clearTimeout(entry.expiry);
+      unsettledKeys.clear();
       for (const waiting of pending.values()) {
         clearTimeout(waiting.timer);
         if (waiting.ceiling !== undefined) clearTimeout(waiting.ceiling);

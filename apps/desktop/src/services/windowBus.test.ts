@@ -373,3 +373,157 @@ describe("a write that takes longer than the deadline", () => {
     }
   });
 });
+
+describe("a request asked for again after it failed (A15)", () => {
+  /**
+   * An owner that takes the first request, says so once, and then falls
+   * silent on it while it is still at it — its thread was busy for longer
+   * than the deadline. Later requests are heard as usual.
+   */
+  function silentOwner(wire: ReturnType<typeof createWire>) {
+    const transport = wire.make(OWNER_LABEL);
+    let first: string | null = null;
+    let said = false;
+    return createWindowBus({
+      ...transport,
+      async emitTo(target, event, payload) {
+        if (event === "pv:rpc-alive") {
+          const id = (payload as { id: string }).id;
+          first ??= id;
+          if (id === first) {
+            if (said) return;
+            said = true;
+          }
+        }
+        return transport.emitTo(target, event, payload);
+      },
+    });
+  }
+
+  it("does not append the journal line a second time when the first attempt landed late", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const owner = silentOwner(wire);
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      const lines: string[] = [];
+      await owner.handle("journal-capture", async ({ text }) => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        lines.push(text);
+        return { ok: true as const };
+      });
+      const first = aux.request("journal-capture", { text: "Call Anna", task: false });
+      const failed = expect(first).rejects.toThrow(/may still land/);
+      await vi.advanceTimersByTimeAsync(200);
+      await failed;
+      // The person presses "Add" once more; the first attempt is still running.
+      const second = aux.request("journal-capture", { text: "Call Anna", task: false });
+      await vi.advanceTimersByTimeAsync(400);
+      await expect(second).resolves.toEqual({ ok: true });
+      expect(lines).toEqual(["Call Anna"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("answers an attempt made after the first one landed with its outcome", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const owner = silentOwner(wire);
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      const lines: string[] = [];
+      await owner.handle("journal-capture", async ({ text }) => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        lines.push(text);
+        return { ok: true as const };
+      });
+      const first = aux.request("journal-capture", { text: "Call Anna", task: true });
+      const failed = expect(first).rejects.toThrow(/may still land/);
+      await vi.advanceTimersByTimeAsync(200);
+      await failed;
+      await vi.advanceTimersByTimeAsync(400);
+      expect(lines).toEqual(["Call Anna"]);
+      const again = aux.request("journal-capture", { text: "Call Anna", task: true });
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(again).resolves.toEqual({ ok: true });
+      expect(lines).toEqual(["Call Anna"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs the same request again once it succeeded: a second line on purpose", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire.make(OWNER_LABEL));
+    const aux = createWindowBus(wire.make("aux-1"));
+    const lines: string[] = [];
+    await owner.handle("journal-capture", ({ text }) => {
+      lines.push(text);
+      return { ok: true as const };
+    });
+    await aux.request("journal-capture", { text: "Water", task: false });
+    await aux.request("journal-capture", { text: "Water", task: false });
+    expect(lines).toEqual(["Water", "Water"]);
+  });
+
+  it("runs it again when the owner's run failed", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire.make(OWNER_LABEL));
+    const aux = createWindowBus(wire.make("aux-1"));
+    let runs = 0;
+    await owner.handle("mail-draft", () => {
+      runs += 1;
+      if (runs === 1) throw new Error("the server refused");
+    });
+    const req = { vaultPath: "/v", accountId: "a", mailbox: "Drafts", to: "x@example.org", subject: "S", body: "B", attachments: [] };
+    await expect(aux.request("mail-draft", req)).rejects.toThrow(/refused/);
+    await aux.request("mail-draft", req);
+    expect(runs).toBe(2);
+  });
+
+  it("runs a changed request as a new one", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const owner = silentOwner(wire);
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      const lines: string[] = [];
+      await owner.handle("journal-capture", async ({ text }) => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        lines.push(text);
+        return { ok: true as const };
+      });
+      const first = aux.request("journal-capture", { text: "Call Ana", task: false });
+      const failed = expect(first).rejects.toThrow(/may still land/);
+      await vi.advanceTimersByTimeAsync(200);
+      await failed;
+      const corrected = aux.request("journal-capture", { text: "Call Anna", task: false });
+      await vi.advanceTimersByTimeAsync(500);
+      await corrected;
+      expect(lines).toEqual(["Call Ana", "Call Anna"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not call a slow comment failed while the owner is still at it", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const owner = createWindowBus(wire.make(OWNER_LABEL));
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      let posts = 0;
+      await owner.handle("comment-post", async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        posts += 1;
+      });
+      const post = aux.request("comment-post", { path: "N.md", body: "Looks good" } as never);
+      await vi.advanceTimersByTimeAsync(450);
+      await expect(post).resolves.toBeUndefined();
+      expect(posts).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
