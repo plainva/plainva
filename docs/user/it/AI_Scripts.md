@@ -2,7 +2,7 @@
 
 Ultimo aggiornamento: 2026-11-16
 
-Uno script è un piccolo programma per ciò che un modello fa male e che un programma fa ogni volta allo stesso modo: contare, ordinare, confrontare, sommare. Lo scrivi in JavaScript. Gira in un ambiente chiuso dentro Plainva: non può aprire un file, raggiungere la rete né rimandare qualcosa a più tardi. Chiama solo gli strumenti che hai spuntato per lui: questi leggono il tuo vault come fanno gli strumenti dell'IA, oppure lasciano una proposta su cui decidi tu. Da solo, uno script non cambia nulla.
+Uno script è un piccolo programma per ciò che un modello fa male e che un programma fa ogni volta allo stesso modo: contare, ordinare, confrontare, sommare. Lo scrivi in JavaScript. Gira in un ambiente chiuso dentro Plainva: non può aprire un file, raggiungere la rete né rimandare qualcosa a più tardi. Chiama solo gli strumenti che hai spuntato per lui: questi leggono il tuo vault come fanno gli strumenti dell'IA, oppure lasciano una proposta su cui decidi tu. Uno script che avvii da qui non cambia nulla da solo; uno che l'IA avvia in una conversazione può scrivere direttamente dove lo consenti (vedi «In una conversazione» più sotto).
 
 ## Eseguire uno script
 
@@ -12,13 +12,13 @@ Un'esecuzione che avvii da qui resta su questo dispositivo: nulla di ciò va a u
 
 ## In una conversazione
 
-In una conversazione normale l'IA può trovare i tuoi script attivi ed eseguirne uno quando serve; il passaggio dice allora **Esegue lo script «word-count»**. Lo script legge solo ciò che quella conversazione può leggere: una nota che tieni lontana dal cloud resta lontana, e ogni nota che lo script legge rientra tra quelle che l'esecuzione ha letto. Ciò che restituisce va al modello come dati, mai come istruzioni. A una conversazione avviata con una competenza non vengono offerti script, e nemmeno a un'app di IA collegata tramite il server MCP.
+In una conversazione normale l'IA può trovare i tuoi script attivi ed eseguirne uno quando serve; il passaggio dice allora **Esegue lo script «word-count»**. Lo script legge solo ciò che quella conversazione può leggere: una nota che tieni lontana dal cloud resta lontana, e ogni nota che lo script legge rientra tra quelle che l'esecuzione ha letto. Ciò che restituisce va al modello come dati, mai come istruzioni. Una routine, l'esecuzione di prova di una competenza e i punti d'ingresso **Spiega immagine** e **Ricavane una nota** non eseguono alcuno script, a una conversazione avviata con una competenza non ne vengono offerti, e nemmeno a un'app di IA collegata tramite il server MCP.
 
 ## Proporre modifiche
 
-Uno script può ricevere anche strumenti che propongono. Gli strumenti **Sta proponendo modifiche a una nota** e **Sta proponendo un valore di proprietà** lasciano una proposta a margine di una nota; gli strumenti **Sta preparando la bozza di una nota**, **Sta preparando la bozza di una voce di database**, **Sta preparando la bozza di un'attività** e **Sta preparando la bozza di una voce di diario** lasciano una bozza. Entrambe sono firmate con il nome dello script, e nel tuo vault non cambia nulla prima che tu accetti una proposta o crei una bozza — esattamente come con una proposta dell'IA. Dopo un'esecuzione la finestra le elenca sotto **Proposte e bozze**; un'esecuzione avviata con **Esecuzione di prova** non lascia nulla.
+Uno script può ricevere anche strumenti che propongono. Gli strumenti **Sta proponendo modifiche a una nota** e **Sta proponendo un valore di proprietà** lasciano una proposta a margine di una nota; gli strumenti **Sta preparando la bozza di una nota**, **Sta preparando la bozza di una voce di database**, **Sta preparando la bozza di un'attività** e **Sta preparando la bozza di una voce di diario** lasciano una bozza. Entrambe sono firmate con il nome dello script. Uno script che avvii da qui con **Esegui** non scrive nulla direttamente: nel tuo vault non cambia nulla prima che tu accetti una proposta o crei una bozza — esattamente come con una proposta dell'IA. Dopo un'esecuzione la finestra le elenca sotto **Proposte e bozze**; un'esecuzione avviata con **Esecuzione di prova** non lascia nulla.
 
-Ciò che uno script ha letto decide dove può scrivere: una proposta o una bozza che si basa su una nota che tieni lontana dal cloud viene accolta solo da un luogo in cui vale la stessa regola. In una conversazione all'IA viene offerto uno script che propone solo dove può proporre la conversazione stessa, e ciò che lo script lascia lì porta il nome del modello della conversazione.
+Ciò che uno script ha letto decide dove può scrivere: una proposta o una bozza che si basa su una nota che tieni lontana dal cloud viene accolta solo da un luogo in cui vale la stessa regola. In una conversazione all'IA viene offerto uno script che propone solo dove può proporre la conversazione stessa, e ciò che lo script lascia lì porta il nome del modello della conversazione. Dove la conversazione applica le modifiche direttamente — con il chip **Applica direttamente** o per una destinazione in una cartella che consente **Modifica senza chiedere** —, viene applicato direttamente anche ciò che un tale script scrive: una modifica a una nota e alle sue proprietà, una nota nuova, una voce di database, un'attività o una voce di diario, con la stessa rete di sicurezza delle modifiche dirette dell'assistente (vedi «Applica direttamente» in [Assistente IA](AI_Assistant.md)). Senza questo consenso lo script lascia proposte e bozze, come sopra.
 
 ## Scrivere uno script
 
@@ -82,7 +82,7 @@ Uno script porta i suoi limiti nel proprio manifesto. Il modulo ne imposta tre:
 | **Chiamate a strumenti** | 20 | da 0 a 50 |
 | **Memoria in MB** | 32 | da 8 a 128 |
 
-Conta solo il tempo in cui uno script calcola, non quello che impiega uno strumento. Uno script che supera un limite — tempo, memoria, passaggi, numero di chiamate, dimensione degli argomenti di una chiamata o del suo risultato — viene terminato, la finestra dice di quale limite si trattava, e uno script terminato non restituisce nulla. La risposta di uno strumento più grande del limite per una chiamata non è una fine: lo script riceve un errore per quella chiamata e prosegue. Di serie gli argomenti di una chiamata, ciò che una chiamata restituisce e il risultato possono essere grandi al massimo 64 KB ciascuno; un manifesto può consentire fino a 256 KB.
+Conta solo il tempo in cui uno script calcola, non quello che impiega uno strumento. Uno script che supera un limite — tempo, memoria, passaggi, numero di chiamate, dimensione degli argomenti di una chiamata o dimensione del risultato dello script stesso — viene terminato, la finestra dice di quale limite si trattava, e uno script terminato non restituisce nulla. La risposta di uno strumento più grande del limite per una chiamata non è una fine: lo script riceve un errore per quella chiamata e prosegue. Di serie gli argomenti di una chiamata, ciò che una chiamata restituisce e il risultato possono essere grandi al massimo 64 KB ciascuno; un manifesto può consentire fino a 256 KB.
 
 ## Nulla si esegue prima che tu lo approvi
 
@@ -92,4 +92,4 @@ Con **Approva**, questo dispositivo firma esattamente questi file. La chiave per
 
 ## Limiti della beta
 
-Uno script propone e lascia bozze; non rinomina, non sposta e non elimina mai una nota, e non scrive né e-mail né appuntamenti. Una competenza non può avviare uno script, e la cartella `scripts/` di una competenza non viene eseguita. E-mail, Internet e gli strumenti dei server esterni non sono a disposizione degli script.
+Uno script propone e lascia bozze, e scrive direttamente solo in una conversazione in cui lasci che l'assistente applichi le modifiche direttamente; non rinomina, non sposta e non elimina mai una nota, e non scrive né e-mail né appuntamenti. Una competenza non può avviare uno script, e la cartella `scripts/` di una competenza non viene eseguita. E-mail, Internet e gli strumenti dei server esterni non sono a disposizione degli script.

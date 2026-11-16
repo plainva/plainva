@@ -36,7 +36,7 @@ Neben den Werkzeugen bietet Plainva fünf seiner Skills als Prompts an, in Plain
 
 ## Eine App Änderungen vorschlagen lassen
 
-Lesen ist nie eine Erlaubnis zu schreiben. Ob eine App auch Änderungen vorschlagen darf, ist eine eigene Antwort: **Darf Änderungen vorschlagen** in der Frage beim ersten Verbinden oder später der Schalter **… darf Änderungen vorschlagen** in den Einstellungen — je App und je Vault, und aus, bis Du ihn setzt. Er gilt ab der nächsten Anfrage der App; Plainva sagt einer verbundenen App sofort, dass sich ihre Werkzeuge geändert haben, wenn die App darum gebeten hat — ob sie sie dann ohne neues Verbinden zeigt, liegt an der App.
+Lesen ist nie eine Erlaubnis zu schreiben. Ob eine App auch Änderungen vorschlagen darf, ist eine eigene Antwort: **Darf Änderungen vorschlagen** in der Frage beim ersten Verbinden oder später der Schalter **… darf Änderungen vorschlagen** in den Einstellungen — je App und je Vault, und aus, bis Du ihn setzt. Er gilt ab der nächsten Anfrage der App; Plainva sagt einer verbundenen App sofort, dass sich ihre Werkzeuge geändert haben (eine App, die die neueste Protokollrevision nutzt, erfährt es nur, wenn sie darum gebeten hat) — ob sie sie dann ohne neues Verbinden zeigt, liegt an der App.
 
 Eine App, der Du es erlaubt hast, bekommt sechs weitere Werkzeuge, und keines davon ändert den Vault:
 

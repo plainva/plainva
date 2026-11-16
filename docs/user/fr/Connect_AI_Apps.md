@@ -36,7 +36,7 @@ En plus des outils, Plainva propose cinq de ses compétences comme prompts, dans
 
 ## Laisser une app proposer des modifications
 
-Lire n'est jamais une autorisation d'écrire. Qu'une app puisse aussi proposer des modifications est une réponse à part : **Peut proposer des modifications** dans la question posée à sa première connexion, ou plus tard l'interrupteur **… peut proposer des modifications** dans les paramètres — par app et par vault, et désactivé tant que vous ne l'activez pas. Il vaut dès la prochaine requête de l'app ; Plainva signale aussitôt à une app connectée que ses outils ont changé, si l'app a demandé à en être informée — qu'elle les affiche alors sans se reconnecter dépend de l'app.
+Lire n'est jamais une autorisation d'écrire. Qu'une app puisse aussi proposer des modifications est une réponse à part : **Peut proposer des modifications** dans la question posée à sa première connexion, ou plus tard l'interrupteur **… peut proposer des modifications** dans les paramètres — par app et par vault, et désactivé tant que vous ne l'activez pas. Il vaut dès la prochaine requête de l'app ; Plainva signale aussitôt à une app connectée que ses outils ont changé (une app qui utilise la révision la plus récente du protocole ne l'apprend que si elle a demandé à en être informée) — qu'elle les affiche alors sans se reconnecter dépend de l'app.
 
 Une app que vous y avez autorisée reçoit six outils de plus, et aucun ne modifie le vault :
 

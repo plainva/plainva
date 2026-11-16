@@ -36,7 +36,7 @@ Oprócz narzędzi Plainva udostępnia pięć swoich umiejętności jako prompty,
 
 ## Pozwalanie aplikacji na proponowanie zmian
 
-Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; Plainva od razu informuje połączoną aplikację, że jej narzędzia się zmieniły, jeśli aplikacja o to poprosiła — czy wtedy pokaże je bez ponownego połączenia, zależy od niej.
+Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; Plainva od razu informuje połączoną aplikację, że jej narzędzia się zmieniły (aplikacja, która używa najnowszej rewizji protokołu, dowie się o tym tylko wtedy, gdy o to poprosiła) — czy wtedy pokaże je bez ponownego połączenia, zależy od niej.
 
 Aplikacja, której na to pozwolono, dostaje sześć dodatkowych narzędzi i żadne z nich nie zmienia vaultu:
 

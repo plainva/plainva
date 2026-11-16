@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-11-16
 
-A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it: they read your vault the way the AI's tools do, or leave a suggestion that you decide about. A script changes nothing by itself.
+A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it: they read your vault the way the AI's tools do, or leave a suggestion that you decide about. A script that you start here changes nothing by itself; one that the AI starts in a conversation can write directly where you let it (see “In a conversation” below).
 
 ## Running a script
 
@@ -12,13 +12,13 @@ A run you start here stays on this device: nothing of it goes to a model, so it 
 
 ## In a conversation
 
-In an ordinary conversation the AI can find your active scripts and run one when it fits; the step then reads **Running the script “word-count”**. The script reads only what that conversation may read: a note you keep from the cloud stays kept, and every note the script reads counts among what the run read. What it returns goes to the model as data, never as instructions. A conversation started with a skill is offered no scripts, and neither is an AI app connected through the MCP server.
+In an ordinary conversation the AI can find your active scripts and run one when it fits; the step then reads **Running the script “word-count”**. The script reads only what that conversation may read: a note you keep from the cloud stays kept, and every note the script reads counts among what the run read. What it returns goes to the model as data, never as instructions. A routine, a skill's test run and the doors **Explain image** and **Make a note of it** run no script, a conversation started with a skill is offered none, and neither is an AI app connected through the MCP server.
 
 ## Suggesting changes
 
-A script can also be given tools that suggest. The tools **Suggesting changes to a note** and **Suggesting a property value** leave a suggestion in the margin of a note; **Drafting a note**, **Drafting a database entry**, **Drafting a task** and **Drafting a journal entry** leave a draft. Both carry the script's name, and nothing in your vault changes before you accept a suggestion or create a draft — exactly as with a suggestion of the AI. After a run the dialog lists them under **Suggestions and drafts**; a run started with **Dry run** leaves nothing.
+A script can also be given tools that suggest. The tools **Suggesting changes to a note** and **Suggesting a property value** leave a suggestion in the margin of a note; **Drafting a note**, **Drafting a database entry**, **Drafting a task** and **Drafting a journal entry** leave a draft. Both carry the script's name. A script you start here with **Run** writes nothing directly: nothing in your vault changes before you accept a suggestion or create a draft — exactly as with a suggestion of the AI. After a run the dialog lists them under **Suggestions and drafts**; a run started with **Dry run** leaves nothing.
 
-What a script read decides where it may write: a suggestion or a draft that rests on a note you keep from the cloud is taken only by a place under the same rule. In a conversation the AI is offered a script that suggests only where the conversation can suggest itself, and what the script leaves there carries the name of the conversation's model.
+What a script read decides where it may write: a suggestion or a draft that rests on a note you keep from the cloud is taken only by a place under the same rule. In a conversation the AI is offered a script that suggests only where the conversation can suggest itself, and what the script leaves there carries the name of the conversation's model. Where the conversation applies changes directly — with the chip **Apply directly**, or for a target in a folder that allows **Change without asking** —, what such a script writes goes in directly too: a change to a note and to its properties, a new note, a database entry, a task or a journal entry, with the same net as the assistant's own direct changes (see “Apply directly” in [AI Assistant](AI_Assistant.md)). Without that leave the script leaves suggestions and drafts, as above.
 
 ## Writing a script
 
@@ -82,7 +82,7 @@ A script carries its limits in its manifest. The form sets three of them:
 | **Tool calls** | 20 | 0 to 50 |
 | **Memory in MB** | 32 | 8 to 128 |
 
-Only the time a script computes counts, not the time a tool takes. A script that goes over a limit — time, memory, steps, the number of calls, the size of a call's arguments or of its result — is ended, the dialog says which limit it was, and an ended script returns nothing. A tool's answer that is larger than the limit for one call is no end: the script gets an error for that call and runs on. By default the arguments of one call, what one call hands back and the result may each be 64 KB at most; a manifest may allow up to 256 KB.
+Only the time a script computes counts, not the time a tool takes. A script that goes over a limit — time, memory, steps, the number of calls, the size of the arguments of one call or the size of its own result — is ended, the dialog says which limit it was, and an ended script returns nothing. A tool's answer that is larger than the limit for one call is no end: the script gets an error for that call and runs on. By default the arguments of one call, what one call hands back and the result may each be 64 KB at most; a manifest may allow up to 256 KB.
 
 ## Nothing runs before you approve it
 
@@ -92,4 +92,4 @@ With **Approve**, this device signs exactly these files. The key for that is mad
 
 ## Limits of the beta
 
-A script suggests and drafts; it never renames, moves or deletes a note, and it writes no e-mail and no appointment. A skill cannot start a script, and a skill's own `scripts/` folder is not run. Mail, the internet and the tools of external servers are not available to scripts.
+A script suggests and drafts, and writes directly only in a conversation where you let the assistant apply changes directly; it never renames, moves or deletes a note, and it writes no e-mail and no appointment. A skill cannot start a script, and a skill's own `scripts/` folder is not run. Mail, the internet and the tools of external servers are not available to scripts.

@@ -36,7 +36,7 @@ Naast de tools biedt Plainva vijf van zijn vaardigheden aan als prompts, in Plai
 
 ## Een app wijzigingen laten voorstellen
 
-Lezen is nooit een toestemming om te schrijven. Of een app ook wijzigingen mag voorstellen, is een apart antwoord: **Mag wijzigingen voorstellen** in de vraag bij de eerste verbinding, of later de schakelaar **… mag wijzigingen voorstellen** in de instellingen — per app en per vault, en uit totdat je hem aanzet. Hij geldt vanaf het volgende verzoek van de app; Plainva laat een verbonden app meteen weten dat haar hulpmiddelen zijn veranderd, als de app erom heeft gevraagd — of de app ze dan zonder opnieuw verbinden toont, ligt aan de app.
+Lezen is nooit een toestemming om te schrijven. Of een app ook wijzigingen mag voorstellen, is een apart antwoord: **Mag wijzigingen voorstellen** in de vraag bij de eerste verbinding, of later de schakelaar **… mag wijzigingen voorstellen** in de instellingen — per app en per vault, en uit totdat je hem aanzet. Hij geldt vanaf het volgende verzoek van de app; Plainva laat een verbonden app meteen weten dat haar hulpmiddelen zijn veranderd (een app die de nieuwste protocolrevisie gebruikt, hoort het alleen als ze erom heeft gevraagd) — of de app ze dan zonder opnieuw verbinden toont, ligt aan de app.
 
 Een app die je het hebt toegestaan krijgt zes extra hulpmiddelen, en geen daarvan wijzigt de vault:
 

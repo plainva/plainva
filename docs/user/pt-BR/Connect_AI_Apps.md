@@ -36,7 +36,7 @@ Além das ferramentas, o Plainva oferece cinco de suas habilidades como prompts,
 
 ## Deixar um app sugerir alterações
 
-Ler nunca é uma permissão para escrever. Se um app também pode sugerir alterações é uma resposta à parte: **Pode sugerir alterações** na pergunta da primeira conexão, ou depois o interruptor **… pode sugerir alterações** nas configurações — por app e por vault, e desativado até você ativar. Vale a partir da próxima solicitação do app; o Plainva avisa na hora a um app conectado que as ferramentas dele mudaram, se o app pediu para ser avisado — se ele então as mostra sem se reconectar depende do app.
+Ler nunca é uma permissão para escrever. Se um app também pode sugerir alterações é uma resposta à parte: **Pode sugerir alterações** na pergunta da primeira conexão, ou depois o interruptor **… pode sugerir alterações** nas configurações — por app e por vault, e desativado até você ativar. Vale a partir da próxima solicitação do app; o Plainva avisa na hora a um app conectado que as ferramentas dele mudaram (um app que usa a revisão mais recente do protocolo só recebe o aviso se pediu para ser avisado) — se ele então as mostra sem se reconectar depende do app.
 
 Um app a que você permitiu recebe mais seis ferramentas, e nenhuma delas muda o vault:
 

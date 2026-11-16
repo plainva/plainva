@@ -36,7 +36,7 @@ Oltre agli strumenti, Plainva offre cinque delle sue competenze come prompt, nel
 
 ## Lasciare che un'app proponga modifiche
 
-Leggere non è mai un permesso di scrivere. Che un'app possa anche proporre modifiche è una risposta a sé: **Può proporre modifiche** nella domanda alla sua prima connessione, o più tardi l'interruttore **… può proporre modifiche** nelle impostazioni — per app e per vault, e disattivato finché non lo attivi. Vale dalla successiva richiesta dell'app; Plainva dice subito a un'app connessa che i suoi strumenti sono cambiati, se l'app ha chiesto di saperlo — se poi li mostra senza riconnettersi dipende dall'app.
+Leggere non è mai un permesso di scrivere. Che un'app possa anche proporre modifiche è una risposta a sé: **Può proporre modifiche** nella domanda alla sua prima connessione, o più tardi l'interruttore **… può proporre modifiche** nelle impostazioni — per app e per vault, e disattivato finché non lo attivi. Vale dalla successiva richiesta dell'app; Plainva dice subito a un'app connessa che i suoi strumenti sono cambiati (un'app che usa la revisione più recente del protocollo lo viene a sapere solo se ha chiesto di essere avvisata) — se poi li mostra senza riconnettersi dipende dall'app.
 
 Un'app a cui lo hai consentito riceve altri sei strumenti, e nessuno modifica il vault:
 

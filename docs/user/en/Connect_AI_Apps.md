@@ -36,7 +36,7 @@ Besides the tools, Plainva offers five of its skills as prompts, in Plainva's ow
 
 ## Letting an app propose changes
 
-Reading is never a leave to write. Whether an app may also propose changes is an answer of its own: **May suggest changes** in the question at its first connection, or later the switch **… may suggest changes** in the settings — per app and per vault, and off until you set it. It holds from the app's next request; Plainva tells a connected app at once that its tools changed, if the app asked to be told — whether it then shows them without reconnecting is up to the app.
+Reading is never a leave to write. Whether an app may also propose changes is an answer of its own: **May suggest changes** in the question at its first connection, or later the switch **… may suggest changes** in the settings — per app and per vault, and off until you set it. It holds from the app's next request; Plainva tells a connected app at once that its tools changed (an app that uses the newest protocol revision hears it only if it asked to be told) — whether it then shows them without reconnecting is up to the app.
 
 An app you allowed gets six more tools, and none of them changes the vault:
 
