@@ -282,6 +282,15 @@ export interface ContextPolicyHost {
    * (`PackageGists.verdicts`); absent, no such decision is kept.
    */
   rulesStamp?(): Promise<string>;
+  /**
+   * The names of the vault's files read NOW, once, and every question about a link answered from that one read — what
+   * a link could mean and where a tap leads, by the one rule (ADR 0027). What a verdict kept over messages decides its
+   * links by (`PackageGists.verdicts`, review of R19, wave 2): the names `linkCandidates` keeps for a few seconds may
+   * lag behind the index the verdict's stamp is read from, and a "may go" decided on names older than its stamp
+   * stayed. One read for all of a verdict's links also keeps its cost linear in the notes it looks through. Absent,
+   * no such verdict is kept.
+   */
+  linkSnapshot?(): Promise<LinkHost>;
 }
 
 /** What tells which notes a link could mean: a policy host, or anything that carries its two ways of asking. */

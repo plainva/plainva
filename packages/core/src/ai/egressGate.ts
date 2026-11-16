@@ -109,6 +109,21 @@ const WIKI_LINK = /!?\[\[([^[\]\n]+)\]\]/g;
  */
 const SPREAD_WIKI_LINK = /\[\[((?:[^[\]\n]*\n)+[^[\]\n]*)\]\]/g;
 /**
+ * How YAML reads the text between a link's brackets where the link stands in the properties block without quotes: a
+ * comment (` # …`) to the end of its line is no part of it, and blanks, tabs and line breaks are one blank, a comma
+ * followed by one. `[[Meier,\tKowalski]]` and `[[Meier,  # c\n  Kowalski]]` are the names `Meier` and `Kowalski` to
+ * YAML — the note `Meier, Kowalski` to whoever reads the value (review of R19, wave 2).
+ */
+function asYamlReadsIt(inner: string): string {
+  return inner
+    .split(/\r\n|\r|\n/)
+    .map((line) => line.replace(/(?:^|[ \t])#.*$/, ""))
+    .join(" ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ ?, ?/g, ", ")
+    .trim();
+}
+/**
  * A Markdown link: its destination in angle brackets — where it may hold
  * blanks — or as a run without blanks, with one level of round brackets; then
  * an optional title in any of its three forms.
@@ -162,18 +177,21 @@ export function redactDeniedLinksIn(view: ReaderView, isDenied: (target: string)
     redacted++;
     return WITHHELD_LINK;
   };
+  // A link in the properties block is read the way YAML reads it as well (`asYamlReadsIt`): denied where either
+  // reading is.
+  const blockOf = (text: string) => (text.startsWith("---") || text.startsWith("\uFEFF---") ? (frontmatterSpan(text)?.end ?? 0) : 0);
+  const deniedIn = (inner: string, inBlock: boolean, spread = false): boolean => {
+    const written = wikiLinkParts(spread ? foldedLines(inner) : inner).target;
+    if (!inBlock) return Boolean(written) && isDenied(written);
+    const read = wikiLinkParts(asYamlReadsIt(inner)).target;
+    return Boolean(written && isDenied(written)) || Boolean(read && read !== written && isDenied(read));
+  };
   // A link to a place in the note itself (`[[#Heading]]`) names no other note.
-  let out = view.replace(WIKI_LINK, (match, inner: string) => {
-    const target = wikiLinkParts(inner).target;
-    return target && isDenied(target) ? withheld() : match;
-  });
-  const block = out.text.startsWith("---") || out.text.startsWith("\uFEFF---") ? (frontmatterSpan(out.text)?.end ?? 0) : 0;
+  const first = blockOf(view.text);
+  let out = view.replace(WIKI_LINK, (match, inner: string, at: number) => (deniedIn(inner, at < first) ? withheld() : match));
+  const block = blockOf(out.text);
   if (block > 0) {
-    out = out.replace(SPREAD_WIKI_LINK, (match, inner: string, at: number) => {
-      if (at >= block) return match;
-      const target = wikiLinkParts(foldedLines(inner)).target;
-      return target && isDenied(target) ? withheld() : match;
-    });
+    out = out.replace(SPREAD_WIKI_LINK, (match, inner: string, at: number) => (at < block && deniedIn(inner, true, true) ? withheld() : match));
   }
   out = out.replace(INLINE_LINK, (match, _label: string, angled: string | undefined, bare: string | undefined) => {
     const target = vaultTarget(angled ?? bare ?? "");

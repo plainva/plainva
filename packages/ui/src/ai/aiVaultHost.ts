@@ -1,5 +1,6 @@
 import {
   buildLinkNameIndex,
+  buildLinkTargetIndex,
   DEFAULT_AI_POLICY,
   deleteFrontmatterPath,
   EDITED_HALF_LIFE_MS,
@@ -8,12 +9,14 @@ import {
   isCloudRecipient,
   ENCRYPTED_WORKSPACE_AI_POLICY,
   isAiHiddenPath,
+  linkTargetName,
   notePolicyFrom,
   OPENED_HALF_LIFE_MS,
   parsePolicyFile,
   questionTerms,
   readFrontmatterPath,
   readInstructionFile,
+  resolveLinkTargetIndexed,
   scanInstruction,
   scanVaultInstructions,
   recencySignal,
@@ -144,6 +147,30 @@ export function createVaultPolicy(opts: {
       return effectivePolicy(path, own, (await rules()).rules, opts.encrypted() ? ENCRYPTED_WORKSPACE_AI_POLICY : DEFAULT_AI_POLICY);
     },
     resolveLink: opts.resolveLink,
+    // One read of the names for every question of a verdict (`ContextPolicyHost.linkSnapshot`): what a link could
+    // mean, and where a tap leads by the one rule from the note and from nowhere — so a file the names hold is
+    // among the answers whichever of the two a shell's own resolver reads from.
+    ...(opts.fileNames
+      ? {
+          async linkSnapshot() {
+            const files = await opts.fileNames!();
+            const index = buildLinkNameIndex(files);
+            const targets = buildLinkTargetIndex(files);
+            const opened = (target: string, from: string): string | null => {
+              const name = linkTargetName(target);
+              return name ? resolveLinkTargetIndexed(from, name, targets) : null;
+            };
+            return {
+              resolveLink: async (target: string, from: string) => opened(target, from),
+              async linkCandidates(target: string, from: string): Promise<readonly string[]> {
+                const found = filesALinkCouldMean(index, target, from);
+                const taps = [opened(target, from), opened(target, "")].filter((path): path is string => path !== null && !found.includes(path));
+                return taps.length ? [...new Set(taps), ...found] : found;
+              },
+            };
+          },
+        }
+      : {}),
     async linkCandidates(target: string, fromPath: string): Promise<readonly string[]> {
       // What a tap opens here is always among them — a file the names do not list yet, an attachment found by
       // the shell's own rule —, then everything the spelling could mean under any rule. Where the names cannot

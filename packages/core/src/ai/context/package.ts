@@ -1,6 +1,7 @@
 import type { TextPart } from "../conversation.js";
-import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkVerdicts } from "../chat.js";
-import { frontmatterKeys } from "../../frontmatter-surgical.js";
+import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkHost, type LinkVerdicts } from "../chat.js";
+import { frontmatterKeys, notePropertiesAsWritten } from "../../frontmatter-surgical.js";
+import { frontmatterSpan } from "../../frontmatter-block.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
 import { fenceUntrusted, payload } from "../trust.js";
 import { isAiHiddenPath } from "../hiddenPaths.js";
@@ -492,23 +493,27 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
    * with a narrower view a gist goes only where its note holds back nothing (decision of 2026-11-13, review of R19,
    * wave 2) — decided now, with the note and the rules as they are now, whenever the gist was written.
    */
-  const heldBack = new Map<string, Promise<boolean>>();
-  const holdsBack = (path: string, text: string): Promise<boolean> => {
-    let answer = heldBack.get(path);
-    if (!answer) {
-      answer = holdsBackNow(path, text);
-      heldBack.set(path, answer);
-    }
-    return answer;
+  /** `holdsBack` with the links read by `links`: each way of reading them keeps its own answers. */
+  const holdsBackBy = (links: LinkHost, verdicts: LinkVerdicts) => {
+    const heldBack = new Map<string, Promise<boolean>>();
+    const now = async (path: string, text: string): Promise<boolean> => {
+      if (withholdPlaces(text).withheld > 0) return true;
+      if (withoutSensitiveProperties(Object.fromEntries(frontmatterKeys(text).map((key) => [key, true])), situation.moodKey).withheld > 0) return true;
+      if (input.redact?.has(path) && sensitiveFindings(text).length > 0) return true;
+      // No link syntax at all: no link to withhold — nothing to resolve.
+      if (!MAY_HOLD_A_LINK.test(text)) return false;
+      return (await withholdDeniedLinks(text, path, links, (target) => allowed(target), "any-kept-back", verdicts)).redacted > 0;
+    };
+    return (path: string, text: string): Promise<boolean> => {
+      let answer = heldBack.get(path);
+      if (!answer) {
+        answer = now(path, text);
+        heldBack.set(path, answer);
+      }
+      return answer;
+    };
   };
-  const holdsBackNow = async (path: string, text: string): Promise<boolean> => {
-    if (withholdPlaces(text).withheld > 0) return true;
-    if (withoutSensitiveProperties(Object.fromEntries(frontmatterKeys(text).map((key) => [key, true])), situation.moodKey).withheld > 0) return true;
-    if (input.redact?.has(path) && sensitiveFindings(text).length > 0) return true;
-    // No link syntax at all: no link to withhold — nothing to resolve.
-    if (!MAY_HOLD_A_LINK.test(text)) return false;
-    return (await withholdDeniedLinks(text, path, host, (target) => allowed(target), "any-kept-back", linkVerdicts)).redacted > 0;
-  };
+  const holdsBack = holdsBackBy(host, linkVerdicts);
   /** Whether a note's gist may go to this reader: always to a model on this device; else only where its note holds nothing back. */
   const gistMayGo = async (path: string, text: string | null | undefined): Promise<boolean> => {
     if (!cloud && !run.webTools) return true;
@@ -523,23 +528,25 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const areaGistMayGo = async (area: string | null): Promise<boolean> => {
     if (!cloud && !run.webTools) return true;
     const memo = host.gists?.verdicts;
-    const stamp = memo ? await verdictStamp() : null;
+    // Kept only where the links can be read as fresh as the stamp (`linkSnapshot`, review of R19, wave 2).
+    const stamp = memo && host.linkSnapshot ? await verdictStamp() : null;
     const key = `${area === null ? "\u0000vault" : area}`;
     if (memo && stamp !== null) {
       const known = memo.get(key);
       if (known && known.stamp === stamp) return known.allowed;
     }
-    const allowed = await areaGistMayGoNow(area);
-    // Kept only where nothing changed while it was decided: a verdict of a state between two is no verdict.
+    const allowed = await areaGistMayGoNow(area, stamp !== null ? await freshStand() : noteMayStand);
+    // Kept only where nothing changed while it was decided: a verdict of a state between two is no verdict. The names
+    // were read after the stamp and before it was read again: equal stamps, and they are the names of that state.
     if (memo && stamp !== null && (await verdictStampNow()) === stamp) memo.set(key, { stamp, allowed });
     return allowed;
   };
-  const areaGistMayGoNow = async (area: string | null): Promise<boolean> => {
+  const areaGistMayGoNow = async (area: string | null, mayStandHere: (path: string, text: string) => Promise<boolean>): Promise<boolean> => {
     const notes = host.gists?.notes ? await host.gists.notes(area, GIST_AREA_CHECK_MAX).catch(() => null) : null;
     if (!notes) return false;
     for (const note of notes) {
       if (note.text === null) return false;
-      if (!(await noteMayStand(note.path, note.text))) return false;
+      if (!(await mayStandHere(note.path, note.text))) return false;
     }
     return true;
   };
@@ -557,15 +564,31 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   let stampOnce: Promise<string | null> | null = null;
   const verdictStamp = (): Promise<string | null> => (stampOnce ??= verdictStampNow());
   /** Whether one note of an area may stand behind its gist for this reader: one it may see that holds nothing back. */
-  const mayStand = new Map<string, Promise<boolean>>();
-  const noteMayStand = (path: string, text: string): Promise<boolean> => {
-    let answer = mayStand.get(path);
-    if (!answer) {
-      answer = (async () => gateDecision(await host.policyOf(path, text), run).allowed && !(await holdsBack(path, text)))();
-      mayStand.set(path, answer);
-    }
-    return answer;
+  const mayStandBy = (heldBackHere: (path: string, text: string) => Promise<boolean>) => {
+    const mayStand = new Map<string, Promise<boolean>>();
+    return (path: string, text: string): Promise<boolean> => {
+      let answer = mayStand.get(path);
+      if (!answer) {
+        answer = (async () => gateDecision(await host.policyOf(path, text), run).allowed && !(await heldBackHere(path, text)))();
+        mayStand.set(path, answer);
+      }
+      return answer;
+    };
   };
+  const noteMayStand = mayStandBy(holdsBack);
+  /**
+   * `noteMayStand` with the links read from the names as they are now, once for this package (`linkSnapshot`): what
+   * a verdict that is kept is decided by. Where the names cannot be read, every link is one that cannot be told.
+   */
+  let fresh: Promise<(path: string, text: string) => Promise<boolean>> | null = null;
+  const freshStand = () =>
+    (fresh ??= (async () => {
+      const links: LinkHost = await host.linkSnapshot!().catch(() => ({
+        resolveLink: () => Promise.reject(new Error("the names cannot be read")),
+        linkCandidates: () => Promise.reject(new Error("the names cannot be read")),
+      }));
+      return mayStandBy(holdsBackBy(links, new Map()));
+    })());
   const clean = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text);
     redactions.places += places.withheld;
@@ -953,8 +976,17 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
         dataClasses.add("selection");
       }
     }
-    if (active.properties && Object.keys(active.properties).length) {
-      const { properties, withheld } = withoutSensitiveProperties(active.properties, situation.moodKey);
+    // To a reader with a narrower view the properties are those of the note's block as it sees it — its links
+    // withheld in the text, then read (review of R19, wave 2): no reading of a value stands between a link and its
+    // being withheld. A note that cannot be read again shows none.
+    let seenProperties = active.properties;
+    if ((cloud || run.webTools) && seenProperties && Object.keys(seenProperties).length) {
+      const read = await host.readNote(active.path);
+      const span = read ? frontmatterSpan(read.text) : null;
+      seenProperties = read && span ? notePropertiesAsWritten(await clean(read.text.slice(0, span.end), active.path)) : undefined;
+    }
+    if (seenProperties && Object.keys(seenProperties).length) {
+      const { properties, withheld } = withoutSensitiveProperties(seenProperties, situation.moodKey);
       redactions.moodProperties += withheld;
       const shown: string[] = [];
       for (const [k, v] of Object.entries(properties).slice(0, 12)) shown.push(cutPropertyLine(await clean(propertyLine(k, v), active.path)));

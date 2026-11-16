@@ -185,6 +185,55 @@ function isNode(value: unknown): value is { toJSON: () => unknown } {
  * of it, scalars as scalars, lists and maps item by item. In document order, by the names the index gives the keys
  * (`indexNameOf`); null where the note has no block or its YAML cannot be read.
  */
+/** Whether a node, or one inside it, takes its value from another (an alias, and so a merge). */
+function borrowsAValue(node: unknown, depth = 0): boolean {
+  if (depth > 64) return true;
+  if (isAlias(node)) return true;
+  if (isMap(node)) return node.items.some((pair) => borrowsAValue(pair.key, depth + 1) || borrowsAValue(pair.value, depth + 1));
+  if (isSeq(node)) return node.items.some((item) => borrowsAValue(item, depth + 1));
+  return false;
+}
+
+/**
+ * A note's properties block cut to the entries the index names by one of `keys` (lower case), each as it is written,
+ * in document order: what a reader of those keys alone is shown of the block. Null where the block cannot be cut so —
+ * none, YAML that cannot be read, or an entry that takes its value from another (an alias, a merge): then only the
+ * whole block says what such an entry holds.
+ */
+export function propertiesBlockOfKeys(content: string, keys: ReadonlySet<string>): string | null {
+  let split: SplitDocument;
+  try {
+    split = splitDocument(content);
+  } catch {
+    return null;
+  }
+  if (!split.hadFrontmatter || !split.span || !isMap(split.doc.contents)) return null;
+  if (borrowsAValue(split.doc.contents)) return null;
+  const source = split.span.yaml;
+  const parts: string[] = [];
+  for (const pair of split.doc.contents.items) {
+    const name = indexNameOf(pair, split.doc);
+    if (name === undefined || !keys.has(name.toLowerCase())) continue;
+    const start = (pair.key as { range?: [number, number, number] } | null)?.range?.[0];
+    const end = (pair.value as { range?: [number, number, number] } | null)?.range?.[1] ?? (pair.key as { range?: [number, number, number] } | null)?.range?.[1];
+    if (start === undefined || end === undefined) return null;
+    parts.push(source.slice(start, end));
+  }
+  return `---\n${parts.join("\n")}\n---\n`;
+}
+
+/**
+ * A note's properties as written (`propertiesAsWritten`), the first `max` of them, empty values left out: what the
+ * assistant is told of the properties of a note — of the view of its block, for a reader with a narrower view.
+ */
+export function notePropertiesAsWritten(text: string, max = 16): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of [...(propertiesAsWritten(text) ?? [])].slice(0, max)) {
+    if (value !== undefined && value !== null && value !== "") out[key] = value;
+  }
+  return out;
+}
+
 export function propertiesAsWritten(content: string): Map<string, unknown> | null {
   let split: SplitDocument;
   try {

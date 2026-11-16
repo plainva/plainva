@@ -188,6 +188,11 @@ describe("a short summary and a reader with a narrower view", () => {
       rulesStamp: async () => JSON.stringify(keptFolders),
       resolveLink: (target, from) => query.resolveNotePath(target, from),
       linkCandidates: async (target, from) => filesALinkCouldMean(buildLinkNameIndex(await query.linkTargets()), target, from),
+      // The names read once for a verdict that is kept (`linkSnapshot`).
+      linkSnapshot: async () => {
+        const names = buildLinkNameIndex(await query.linkTargets());
+        return { resolveLink: async () => null, linkCandidates: async (target, from) => filesALinkCouldMean(names, target, from) };
+      },
       readNote: async (path) => {
         const text = await files.readTextFile(path).catch(() => null);
         return text === null ? null : { title: path.replace(/^.*\//, "").replace(/\.md$/, ""), text };
@@ -224,6 +229,19 @@ describe("a short summary and a reader with a narrower view", () => {
     // Looked through again, as far as the first note the rules keep back.
     expect(ruled.lookups).toBeGreaterThan(again.lookups + 20);
     expect(ruled.text).not.toContain("Offers of the studio.");
+    // A host that cannot read the names as fresh as the stamp keeps no verdict: every message looks through the area.
+    keptFolders = ["Private/"];
+    const { linkSnapshot: _snapshot, ...stale } = host;
+    const without = async () => {
+      lookups = 0;
+      await buildContextPackage(
+        { question: "What is the offer?", recipient: cloud, situation, candidates: [[{ path: "Projects/n1.md", title: "n1", signals: { lexical: 1 } }]], pins: [], budget: { evidence: 1, cards: 0, map: 4 } },
+        { ...stale, gists: new GistReader(db, "local/m") },
+      );
+      return lookups;
+    };
+    expect(await without()).toBeGreaterThan(N);
+    expect(await without()).toBeGreaterThan(N);
     await db.close();
   });
 });

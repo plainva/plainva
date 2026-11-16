@@ -193,7 +193,8 @@ describe("the context package", () => {
   it("sends the open note's section, the situation and handles — and a local model may see the denied note", async () => {
     const pack = await buildContextPackage(
       { question: "What is the hourly rate?", recipient: cloud, situation: situation(), candidates: [[{ path: "Notes/Draft.md", title: "Draft", signals: { edited: 0.9 } }]], pins: [] },
-      host(),
+      // The properties the situation names stand in the note: to a cloud they are read from its block as it sees it.
+      host({ "Projects/Offer.md": `---\nstatus: draft\nmood: 4\nplainva:\n  ai: {}\n---\n${files["Projects/Offer.md"]!}` }),
     );
     expect(pack.part.text).toContain("Now: Monday, 2026-09-28 16:40");
     expect(pack.part.text).toContain('The cursor is in the section "Offer > Costs".');

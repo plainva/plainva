@@ -6678,6 +6678,8 @@ export class AiSession {
           ...(vault.policy.linkCandidates ? { linkCandidates: vault.policy.linkCandidates } : {}),
           // What the rules say now, so a verdict on an area's gist is kept over messages while they and the index stay.
           ...(vault.policy.rulesStamp ? { rulesStamp: () => vault.policy.rulesStamp!() } : {}),
+          // The names read once for a verdict kept over messages, as fresh as the index its stamp is read from.
+          ...(vault.policy.linkSnapshot ? { linkSnapshot: () => vault.policy.linkSnapshot!() } : {}),
           readNote: (path) => vault.readNote(path),
           ...(vault.noteSizes ? { noteSizes: (paths: readonly string[]) => vault.noteSizes!(paths) } : {}),
           ...(gists ? { gists } : {}),

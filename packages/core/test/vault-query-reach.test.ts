@@ -212,6 +212,56 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
     }
   });
 
+  it("reads a note's values, its tags and its title from its properties block as the reader sees it: no value, filter, tag source or count tells a withheld link (review of R19, wave 2)", async () => {
+    for (const rule of ["in-reach", "any-kept-back"] as const) {
+      const answer = async (hidden: string) => {
+        const out: Record<string, unknown> = {};
+        await withVault(
+          async (query) => {
+            const ask = (config: any) => query.queryDatabaseFiles({ views: [{ type: "table", name: "T" }], ...config }, { reach: visible, withhold: { rule } });
+            out.values = (await ask({ filters: { and: ['file.folder == "Board"'] } }))
+              .filter((r: any) => r["file.path"] === "Board/A.md")
+              .map((r: any) => [r["file.name"], r.tags, r.aliases, r.keyed, r.block, r.commented, r.tabbed, Object.keys(r).filter((k) => !k.startsWith("file.") && !k.startsWith("formula.")).sort()]);
+            // A condition on such a value, a tag source, a count over it, the tags a row shows: as the reader sees them.
+            out.filtered = (await ask({ filters: { and: ['file.folder == "Board"', 'contains(tags, "Aaron")'] } })).map((r: any) => r["file.path"]);
+            out.sourced = (await ask({ filters: { and: ['file.hasTag("[Aaron, Meier]")'] } })).map((r: any) => r["file.path"]);
+            out.either = (await ask({ filters: { or: ['file.hasTag("[Aaron, Meier]")', 'file.folder == "Nowhere"'] } })).map((r: any) => r["file.path"]);
+            out.tagged = (await ask({ filters: { and: ['file.folder == "Board"', 'file.hasTag("[Aaron, Meier]")'] } })).map((r: any) => r["file.path"]);
+            out.counted = (
+              await ask({
+                filters: { and: ['file.folder == "Hub"'] },
+                columns: { kids: { input: "link" }, k: { rollup: { through: "kids", of: "tags", fn: "countWhere", where: { op: "contains", value: "Aaron" } } } },
+              })
+            ).map((r: any) => r.k);
+            out.shownTags = (await ask({ filters: { and: ['file.folder == "Board"'] }, views: [{ type: "table", name: "T", order: ["file.tags"] }] })).map((r: any) => r["file.tags"]);
+            // A block longer than what is read of a note first.
+            out.long = (await ask({ filters: { and: ['file.folder == "Long"'] } })).map((r: any) => [r.up, r.tags]);
+          },
+          {
+            [`Private/${hidden}, Meier.md`]: note("", hidden),
+            [`Private/${hidden}.md`]: note("", hidden),
+            "Board/A.md": `---\ntitle: [[${hidden}, Meier]]\ntags: [[${hidden}, Meier]]\naliases: [[${hidden}]]\n[[${hidden}]]: v\nkeyed:\n  [[Private/${hidden}]]: w\nblock: |\n  [[${hidden},\n  Meier]]\ncommented: [[${hidden},  # c\n  Meier]]\ntabbed: [[${hidden},\tMeier]]\n---\n\n# A\n`,
+            "Hub/H.md": `---\nkids: ["[[Board/A]]"]\n---\n\n# H\n`,
+            "Long/L.md": `---\nfirst: "${"a".repeat(9_000)}"\nup: [[${hidden}, Meier]]\ntags: [[${hidden}]]\n---\n\n# L #own\n`,
+          },
+        );
+        return out;
+      };
+      const [aaron, zora] = [await answer("Aaron"), await answer("Zora")];
+      expect(JSON.stringify(aaron), rule).not.toMatch(/Aaron|Zora/);
+      expect(aaron, rule).toEqual(zora);
+      const W = "⟦withheld note⟧";
+      expect(aaron.values, rule).toEqual([[W, [W], [W], { [W]: "w" }, `${W}\n`, W, W, [W, "aliases", "block", "commented", "keyed", "tabbed", "tags", "title"].sort()]].map((row) => [row[0], row[1], row[2], JSON.stringify(row[3]), ...row.slice(4)]));
+      expect(aaron.filtered, rule).toEqual([]);
+      expect(aaron.sourced, rule).toEqual([]);
+      expect(aaron.either, rule).toEqual([]);
+      expect(aaron.tagged, rule).toEqual([]);
+      expect(aaron.counted, rule).toEqual([0]);
+      expect(aaron.shownTags, rule).toEqual([[`#${W}`]]);
+      expect(aaron.long, rule).toEqual([[W, [W]]]);
+    }
+  });
+
   it("a rollup reads one key of the notes it reaches, and withholds no other (review of R19, wave 2)", async () => {
     await withVault(
       async (query) => {

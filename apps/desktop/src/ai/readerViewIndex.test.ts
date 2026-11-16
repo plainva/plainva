@@ -18,8 +18,8 @@ import { eventHandle } from "../../../../packages/ui/src/ai/eventDetails";
 import { notePropertiesOf } from "../../../../packages/ui/src/ai/aiSituation";
 import { buildContextPackage } from "../../../../packages/core/src/ai/context/package";
 import { protectedTokens } from "../../../../packages/core/src/ai/context/gists";
-import { resetGistStores } from "../../../../packages/core/src/ai/context/gistStore";
-import { GistReader, GistWriter } from "../../../../packages/core/src/ai/context/gistWriter";
+import { GistStore, resetGistStores } from "../../../../packages/core/src/ai/context/gistStore";
+import { areaGistKey, GistReader, GistWriter, VAULT_GIST_KEY } from "../../../../packages/core/src/ai/context/gistWriter";
 import { MemoryVaultAdapter } from "../../../../packages/core/test/helpers/memoryVault";
 import { VaultIndexer } from "../../../../packages/core/src/vault/VaultIndexer";
 import { VaultQueryService } from "../../../../packages/core/src/vault/VaultQueryService";
@@ -47,6 +47,16 @@ const readable = (name: string): Record<string, string> => ({
   "Projects/Weekly.md": `# Weekly\n\n${AGENDA}`,
   // A reference link whose definition stands on another line than its use, in a heading and in a line that links on.
   "Projects/Ref.md": `# Ref\n\n## Talk [${name} pay][2]\n\nSee [[Projects/Mia]] and [${name} raise][2].\n\n[2]: ../Private/${encodeURIComponent(name)}.md\n`,
+  // The forms whose value no reading of YAML keeps a link (review of R19, wave 2): `tags` and `aliases`, which the
+  // index reads as text, a link as a key, a link in a block of text, a comment and a tab between its names.
+  "Projects/Forms.md": `---\ntags: [[${name}, Meier]]\naliases: [[${name}]]\n[[${name}]]: v\nkeyed:\n  [[Private/${name}]]: w\nblock: |\n  [[${name},\n  Meier]]\ncommented: [[${name},  # c\n  Meier]]\ntabbed: [[${name},\tMeier]]\n---\n# Forms\n\nThe forms of the year.\n`,
+  "Projects/Forms.base": "filters:\n  and:\n    - file.folder == \"Projects\"\nviews:\n  - type: table\n    name: T\n    order: [tags, aliases, keyed, block, commented, tabbed]\n",
+  // Rows chosen and counted by what such a value holds: by a condition, by a tag source, by a rollup's count.
+  "Projects/Tagged.base": "filters:\n  and:\n    - file.folder == \"Projects\"\n    - 'contains(tags, \"Kowalski\")'\nviews:\n  - type: table\n    name: T\n    order: [tags]\n",
+  "Projects/TagSource.base": `filters:\n  and:\n    - 'file.hasTag("[${HIDDEN[0]}, Meier]")'\nviews:\n  - type: table\n    name: T\n    order: [aliases]\n`,
+  "Projects/Hub.md": "---\nkids: [\"[[Projects/Forms]]\"]\n---\n# Hub\n",
+  "Projects/Count.base":
+    "filters:\n  and:\n    - file.folder == \"Projects\"\ncolumns:\n  kids:\n    input: link\n  k:\n    rollup:\n      through: kids\n      of: tags\n      fn: countWhere\n      where:\n        op: contains\n        value: Kowalski\n  a:\n    rollup:\n      through: kids\n      of: aliases\n      fn: list\nviews:\n  - type: table\n    name: T\n    order: [kids, k, a]\n",
   "Projects/Comma.base": "filters:\n  and:\n    - file.folder == \"Projects\"\nviews:\n  - type: table\n    name: T\n    order: [comma, labelled, colon, spread, inside, items]\n",
   "Projects/Board.base": "filters:\n  and:\n    - file.folder == \"Projects\"\nviews:\n  - type: table\n    name: T\n    order: [owner, related, unquoted, up]\n    sort:\n      - property: owner\n        direction: ASC\n",
   "Projects/Filtered.base": "filters:\n  and:\n    - 'contains(owner, \"Z\")'\nviews:\n  - type: table\n    name: T\n    order: [owner]\n",
@@ -137,6 +147,10 @@ async function vaultOf(name: string) {
     { db, readText: read, cloudAllowed: async (path, text) => (await policy.policyOf(path, text)).policy.cloud !== "deny", now: () => 10_000_000 },
     { id: "local/m", complete: async (_instruction, text) => `${text.split("\n")[0]}: about the plan. ${protectedTokens(text).join(" ")}`.slice(0, 300) },
   ).run(new AbortController().signal);
+  // The short summaries of the folder and of the vault, as the writer leaves them: the verdict on them is kept.
+  const store = new GistStore(db);
+  await store.put({ key: areaGistKey("Projects"), level: "folder", source: areaGistKey("Projects"), text: "Rounds and rates of the studio.", ok: true, createdAt: 20_000_000 }, "local/m");
+  await store.put({ key: VAULT_GIST_KEY, level: "vault", source: VAULT_GIST_KEY, text: "Notes of a small studio.", ok: true, createdAt: 20_000_000 }, "local/m");
   const gists = new GistReader(db, "local/m");
   return { deps, proposed, policy, query, gists, read, event, done: () => db.close() };
 }
@@ -194,6 +208,14 @@ const questions = (handle: string): [string, Record<string, unknown>][] => [
   ["query_base", { base: "Projects/Comma.base", limit: 20 }],
   ["read_note", { path: "Projects/Ref.md" }],
   ["get_outline", { path: "Projects/Ref.md" }],
+  ["read_note", { path: "Projects/Forms.md" }],
+  ["get_outline", { path: "Projects/Forms.md" }],
+  ["search_vault", { query: "forms", limit: 10 }],
+  ["search_vault", { query: "Meier", limit: 10 }],
+  ["query_base", { base: "Projects/Forms.base", limit: 30 }],
+  ["query_base", { base: "Projects/Tagged.base", limit: 20 }],
+  ["query_base", { base: "Projects/TagSource.base", limit: 20 }],
+  ["query_base", { base: "Projects/Count.base", limit: 30 }],
   ["get_tasks", { range: "all" }],
   ["get_backlinks", { path: "Projects/Pay.md", limit: 20 }],
   ["get_backlinks", { path: "Projects/Mia.md", limit: 20 }],
@@ -334,7 +356,7 @@ describe("the reader-view guard on the real search path", () => {
     }
   });
 
-  it("a cloud model: the context package with its short summaries is the same in both vaults, and names the hidden note nowhere", async () => {
+  it("a cloud model: the context package with its short summaries is the same in both vaults, and names the hidden note nowhere — kept over messages too", async () => {
     const [a, z] = [await vaultOf(HIDDEN[0]), await vaultOf(HIDDEN[1])];
     const situation = {
       now: "2026-11-13 10:00",
@@ -347,13 +369,17 @@ describe("the reader-view guard on the real search path", () => {
       events: [],
       dailyNote: null,
     };
-    const pack = async (v: Awaited<ReturnType<typeof vaultOf>>) => {
+    const pack = async (v: Awaited<ReturnType<typeof vaultOf>>, open = "Projects/Pay.md") => {
       // The open note's properties as both shells read them (`situationFrom`): as they are written.
-      const properties = notePropertiesOf((await v.read("Projects/Pay.md"))!);
+      const properties = notePropertiesOf((await v.read(open))!);
+      // The host as the shells hand it to the package (`aiSession`): the vault policy with its stamp of the rules and
+      // its one read of the names, so a verdict on an area's summary is kept over messages.
       const host = {
         policyOf: (path: string, content?: string) => v.policy.policyOf(path, content),
         resolveLink: (target: string, from: string) => v.query.resolveNotePath(target, from),
         linkCandidates: async (target: string, from: string) => filesALinkCouldMean(buildLinkNameIndex(await v.query.linkTargets()), target, from),
+        rulesStamp: () => v.policy.rulesStamp!(),
+        ...(v.policy.linkSnapshot ? { linkSnapshot: () => v.policy.linkSnapshot!() } : {}),
         readNote: async (path: string) => {
           const t = await v.read(path);
           return t === null ? null : { title: path.replace(/^.*\//, "").replace(/\.md$/, ""), text: t };
@@ -361,14 +387,22 @@ describe("the reader-view guard on the real search path", () => {
         gists: v.gists,
       };
       const found = ["Projects/Weekly.md", "Projects/Second.md", "Projects/Plan.md", "Projects/Pay.md"].map((path, i) => ({ path, title: path.replace(/^.*\//, "").replace(/\.md$/, ""), signals: { lexical: i === 0 ? 0.4 : 0.1 } }));
-      const out = await buildContextPackage({ question: "How do the rounds go?", recipient: cloud, situation: { ...situation, active: { ...situation.active, properties } }, candidates: [found], pins: [], budget: { evidence: 0, cards: 2, map: 6 } }, host);
+      const active = { ...situation.active, path: open, title: open.replace(/^.*\//, "").replace(/\.md$/, ""), properties };
+      const out = await buildContextPackage({ question: "How do the rounds go?", recipient: cloud, situation: { ...situation, active }, candidates: [found], pins: [], budget: { evidence: 0, cards: 2, map: 6 } }, host);
       return out.part.text;
     };
     // The summaries are there: written for the notes, among them one that shares its section with the hidden note.
     expect(await a.gists.note("Projects/Weekly.md")).toBeTruthy();
-    const [fromA, fromZ] = [await pack(a), await pack(z)];
-    expect(fromA).not.toMatch(SECRETS);
-    expect(fromA).toEqual(fromZ);
+    for (const open of ["Projects/Pay.md", "Projects/Forms.md"]) {
+      const [fromA, fromZ] = [await pack(a, open), await pack(z, open)];
+      expect(fromA, open).not.toMatch(SECRETS);
+      expect(fromA, open).toEqual(fromZ);
+      // The next message decides from the verdicts it kept, and says the same.
+      const [againA, againZ] = [await pack(a, open), await pack(z, open)];
+      expect(againA, open).toEqual(fromA);
+      expect(againZ, open).toEqual(fromZ);
+    }
+    expect(a.gists.verdicts.size).toBeGreaterThan(0);
     await a.done();
     await z.done();
   });

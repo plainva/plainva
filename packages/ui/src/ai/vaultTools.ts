@@ -600,8 +600,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     // properties too, and a link in one of them is withheld like one in the text (review of R19, wave 2). What the
     // run sees: the title, the path, the properties as `propertyLines` gives them (the mood and Plainva's own left
     // out, links withheld) and the view of the text.
-    const body = stripFrontmatter((await viewOf(text, hit.path)).text);
-    const properties = (await propertyLines(notePropertiesOf(text, 64), hit.path)).join("\n");
+    const view = (await viewOf(text, hit.path)).text;
+    const body = stripFrontmatter(view);
+    // The properties of the view's block: a link is withheld in the text before any reading of YAML stands between.
+    const properties = (await propertyLines(notePropertiesOf(view, 64), hit.path)).join("\n");
     const seen = `${hit.title}\n${hit.path}\n${properties}\n${body}`;
     if (!viewMatchesSearch(seen, input)) return null;
     const { content: _content, ...rest } = hit;
@@ -763,9 +765,13 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           if (!note) return { content: NOT_FOUND, isError: true };
           // The outline of the view: a heading can link too ("## See [[Salaries]]"), and its section is named as
           // read_note finds it — with the placeholder where the link was (review of R19, wave 2).
-          const outline = outlineOf((await viewOf(stripFrontmatter(note.text), note.path)).text);
+          // The properties too are those of the view's block (review of R19, wave 2): each link withheld in the text
+          // as read_note withholds it, then read — a link as a key, in `tags`, in a block of text, with a comment
+          // between its names is never a value first.
+          const view = (await viewOf(note.text, note.path)).text;
+          const outline = outlineOf(stripFrontmatter(view));
           const headings = outline.map((h) => `${"  ".repeat(h.level - 1)}- ${h.text}  (section: "${h.chain}")`);
-          const props = await propertyLines(notePropertiesOf(note.text, 64), note.path);
+          const props = await propertyLines(notePropertiesOf(view, 64), note.path);
           const properties = props.length ? `Properties:\n${props.join("\n")}\n\n` : "";
           const sections = headings.length ? `Sections:\n${headings.join("\n")}` : "No headings.";
           const listed: { level: number; text: string; section: string }[] = outline.map((h) => ({ level: h.level, text: h.text, section: h.chain }));
