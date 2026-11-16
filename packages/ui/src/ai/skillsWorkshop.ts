@@ -1,5 +1,6 @@
 import {
   approvalSeen,
+  DIRECT_TOOL_NAMES,
   MCP_SKILL_LIMITS,
   serverSkillKey,
   stripInvisible,
@@ -257,7 +258,12 @@ export function skillMayLines(t: Translate, skill: SkillDefinition, language: st
   // A tool that reads or shows changes nothing; a request to the internet is the one thing that leaves.
   // A skill that names writing tools (plan P5) gets them, and the approval says what that means: proposals, drafts and plans — never a change the user did not take.
   const risks = grant.tools.map((name) => toolByName(name)?.risk);
-  if (risks.some((risk) => risk === "write" || risk === "critical")) may.push(t("ai.workshop.mayPropose"));
+  // Proposals wait for the user — except where "Apply directly" or a folder's "Change without asking" lets a change go at
+  // once; the approval says both, so it holds in every state the conversation can be in (review O7, F32).
+  if (risks.some((risk) => risk === "write" || risk === "critical")) {
+    may.push(t("ai.workshop.mayPropose"));
+    if (grant.tools.some((name) => DIRECT_TOOL_NAMES.includes(name))) may.push(t("ai.workshop.mayProposeDirect"));
+  }
   else if (risks.every((risk) => risk === "read" || risk === "ui")) may.push(t(reachesWeb ? "ai.workshop.mayNoChange" : "ai.workshop.mayReadOnly"));
   return may;
 }
