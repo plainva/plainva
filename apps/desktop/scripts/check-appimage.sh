@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Measures a freshly built AppImage (issue #85, tauri-apps/tauri#15665).
 #
-# Two things are asserted, the rest is measured:
+# Three things are asserted, the rest is measured:
 #   - the AppImage extracts and carries the application binary and an AppRun;
+#   - spell checking travels along (Sammelplan § 3.183 Nr. 1): the bundled
+#     libenchant is the relocatable build of build-appimage-enchant.sh, not the
+#     build machine's, and the Hunspell provider with libhunspell sits in
+#     usr/lib/enchant-2 where that library looks;
 #   - the inventory of "infrastructure" libraries the bundler swept in
 #     (libwayland-*, the GLib family, GStreamer) is written to the job summary.
 #
@@ -29,6 +33,15 @@ root="$work/squashfs-root"
 [ -x "$root/AppRun" ] || { echo "::error::AppRun missing or not executable"; exit 1; }
 binary="$(find "$root/usr/bin" -maxdepth 1 -type f -perm -u+x | head -n 1 || true)"
 [ -n "$binary" ] || { echo "::error::no executable under usr/bin"; exit 1; }
+
+enchant="$root/usr/lib/libenchant-2.so.2"
+[ -f "$enchant" ] || { echo "::error::no bundled libenchant-2.so.2"; exit 1; }
+grep -q '/proc/self/maps' "$enchant" \
+  || { echo "::error::the bundled libenchant is not the relocatable build — linuxdeploy took the build machine's"; exit 1; }
+[ -f "$root/usr/lib/enchant-2/enchant_hunspell.so" ] \
+  || { echo "::error::the Hunspell provider is missing from usr/lib/enchant-2"; exit 1; }
+missing="$(LD_LIBRARY_PATH="$root/usr/lib" ldd "$root/usr/lib/enchant-2/enchant_hunspell.so" | grep 'not found' || true)"
+[ -z "$missing" ] || { echo "::error::the Hunspell provider cannot resolve: $missing"; exit 1; }
 
 summary="${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 {
@@ -57,6 +70,9 @@ summary="${GITHUB_STEP_SUMMARY:-/dev/stdout}"
   if [ "$found" -eq 0 ]; then
     echo "- (none — the start-up preload in linux_appimage.rs is a no-op for this build)"
   fi
+  echo
+  echo "Spell checking: relocatable \`usr/lib/libenchant-2.so.2\` with"
+  for f in "$root"/usr/lib/enchant-2/*; do echo "- \`${f#"$root/"}\`"; done
   echo
   if [ -f "$root/usr/lib/libwayland-client.so.0" ]; then
     echo "\`usr/lib/libwayland-client.so.0\` is bundled → the start-up preload of the host copy is ACTIVE on AppImage launches."
