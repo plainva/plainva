@@ -60,7 +60,7 @@ jobs:
   # same rule for its tag. Read-only token.
   release-gate:
     name: Release gate
-    if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+    if: (github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag) && !inputs.rehearsal
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -84,7 +84,7 @@ jobs:
         run: node apps/desktop/scripts/release-gate.mjs
 
   prepare:
-    if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+    if: (github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag) && !inputs.rehearsal
     needs: release-gate
     runs-on: ubuntu-latest
     permissions:
@@ -446,6 +446,29 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
+
+      # What "Load the versioned release notes" of the tag path demands, for
+      # the tag this commit would get: the three versions agree, and
+      # docs/releases/v<version>.md exists and is not empty. The tag is the
+      # version of apps/desktop/package.json, so a branch without a version
+      # bump checks the notes of the release it already carries (they exist),
+      # and a release branch whose notes are missing turns red here, before
+      # anything is built. Nothing is written anywhere.
+      - name: The versioned release notes exist
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, existsSync } from 'node:fs';
+          const tag = `v${JSON.parse(readFileSync('apps/desktop/package.json', 'utf8')).version}`;
+          if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error(`Not a coordinated desktop release version: ${tag}`);
+          for (const path of ['apps/desktop/package.json', 'apps/mobile/package.json', 'apps/desktop/src-tauri/tauri.conf.json']) {
+            if (JSON.parse(readFileSync(path, 'utf8')).version !== tag.slice(1)) throw new Error(`Version mismatch: ${path}`);
+          }
+          const notes = `docs/releases/${tag}.md`;
+          if (!existsSync(notes)) throw new Error(`The release notes ${notes} are missing: the tag ${tag} would fail at "Load the versioned release notes"`);
+          if (!readFileSync(notes, 'utf8').trim()) throw new Error(`The release notes ${notes} are empty`);
+          console.log(`${notes} is there for the tag ${tag}`);
+          NODE
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
