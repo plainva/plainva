@@ -83,4 +83,20 @@ describe("on start (P10)", () => {
     const nav = await boot("v-first");
     expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "Last/opened.md" }]);
   });
+
+  it("left on Home: a note a link opens while the session is restored stays open", async () => {
+    settings.startView = "restore";
+    writeNavState("v-link", initialNavState("notes"));
+    rememberLastOpen("v-link", "Last/opened.md");
+    let nav: NavState = initialNavState("notes");
+    const setNav = (next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    };
+    const restoring = restoreSession(vaultOf("v-link"), setNav as never);
+    // plainva://open, a widget or a reminder, while the restore still awaits the bar.
+    setNav((s) => pushEntry(s, { kind: "note", path: "From/link.md" }));
+    await restoring;
+    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+  });
 });
+

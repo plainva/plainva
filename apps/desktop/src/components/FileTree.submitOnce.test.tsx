@@ -33,17 +33,26 @@ vi.mock("../services/newNoteTemplate", () => ({
   buildNewNoteFromTemplate: () => buildNewNote(),
 }));
 
-const renames: Deferred<{ ok: false; reason: "unchanged" }>[] = [];
-const renameToName = vi.fn(() => {
-  const d = deferred<{ ok: false; reason: "unchanged" }>();
+type RenameAnswer = { ok: false; reason: "unchanged" } | { ok: true; newPath: string; changedPaths: string[]; changedFiles: number; renamedLinks: number };
+const renames: Deferred<RenameAnswer>[] = [];
+const renameToName = vi.fn((_req: { oldPath: string; newName: string }) => {
+  const d = deferred<RenameAnswer>();
   renames.push(d);
   return d.promise;
 });
+/** The follow-up of a rename (re-index); held open by a test that needs it slow. */
+const reindexes: Deferred<void>[] = [];
+let holdReindex = false;
 vi.mock("../services/fileActions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../services/fileActions")>()),
   applyIndexChanges: async () => {},
-  reindexAfterRename: async () => {},
-  renameToName: () => renameToName(),
+  reindexAfterRename: () => {
+    if (!holdReindex) return Promise.resolve();
+    const d = deferred<void>();
+    reindexes.push(d);
+    return d.promise;
+  },
+  renameToName: (req: { oldPath: string; newName: string }) => renameToName(req),
 }));
 vi.mock("../services/moveFlush", () => ({ flushUnsavedBeforeMove: async () => {} }));
 
@@ -90,11 +99,14 @@ beforeEach(async () => {
   await i18n.changeLanguage("en");
   builds.length = 0;
   renames.length = 0;
+  reindexes.length = 0;
+  holdReindex = false;
   writes.length = 0;
   buildNewNote.mockClear();
   renameToName.mockClear();
   disk.clear();
   disk.set("a.md", "# a\n");
+  disk.set("b.md", "# b\n");
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -156,6 +168,58 @@ describe("the file tree's name fields run their action once (issue 170)", () => 
     await act(async () => typeInto(input, "Free"));
     await act(async () => submit(input));
     expect(buildNewNote).toHaveBeenCalledTimes(1);
+  });
+
+  async function startRename(path: string): Promise<HTMLInputElement> {
+    const row = await vi.waitFor(() => {
+      const el = container.querySelector<HTMLElement>(`[data-tree-path="${path}"]`);
+      if (!el) throw new Error("row not rendered");
+      return el;
+    });
+    await act(async () => {
+      row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
+    });
+    const renameItem = [...document.querySelectorAll<HTMLElement>("button, [role=menuitem]")].find((b) => b.textContent?.trim() === "Rename");
+    await act(async () => renameItem!.click());
+    return container.querySelector<HTMLInputElement>("form input")!;
+  }
+
+  it("a second item can be renamed while the first rename's follow-up work still runs", async () => {
+    holdReindex = true;
+    const first = await startRename("a.md");
+    await act(async () => typeInto(first, "a2"));
+    await act(async () => submit(first));
+    await act(async () => renames[0].resolve({ ok: true, newPath: "a2.md", changedPaths: [], changedFiles: 0, renamedLinks: 0 }));
+    // The field of the first is closed; its re-index is still running.
+    expect(reindexes).toHaveLength(1);
+    const second = await startRename("b.md");
+    await act(async () => typeInto(second, "b2"));
+    await act(async () => submit(second));
+    expect(renameToName).toHaveBeenCalledTimes(2);
+    expect(renameToName.mock.calls[1][0].oldPath).toBe("b.md");
+    await act(async () => renames[1].resolve({ ok: false, reason: "unchanged" }));
+    for (const r of reindexes) await act(async () => r.resolve());
+  });
+
+  it("a template dialog cancelled, then a new try: the second create runs", async () => {
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } }));
+    });
+    let input = container.querySelector<HTMLInputElement>("form input")!;
+    await act(async () => typeInto(input, "Meeting"));
+    await act(async () => submit(input));
+    await act(async () => builds[0].resolve(null));
+    expect(container.querySelector("form input")).toBeNull();
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } }));
+    });
+    input = container.querySelector<HTMLInputElement>("form input")!;
+    await act(async () => typeInto(input, "Meeting"));
+    await act(async () => submit(input));
+    expect(buildNewNote).toHaveBeenCalledTimes(2);
+    await act(async () => builds[1].resolve({ content: "# Meeting\n", caret: null, templatePath: "T.md" }));
+    expect(writes).toEqual(["Meeting.md"]);
   });
 
   it("rename: Enter, then focus loss while the rename runs, renames once", async () => {

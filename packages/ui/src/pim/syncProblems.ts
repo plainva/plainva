@@ -121,10 +121,12 @@ export function describeSyncProblems(
 /**
  * The task-list lines of one account, for its card in the settings (issue
  * 172): a list switched on there that does not reach the notes says why right
- * under the switch, not only in the tasks area.
+ * under the switch, not only in the tasks area. Only the `tasknotes:` lines:
+ * a listing or pull that failed already has the card's own banner, and one
+ * cause gets one notice.
  */
 export function taskListProblemsOf(problems: readonly PimSyncProblem[], accountId: string): PimSyncProblem[] {
-  return problems.filter((p) => p.accountId === accountId && p.taskListId !== undefined);
+  return problems.filter((p) => p.accountId === accountId && p.taskListId !== undefined && p.error.startsWith(TASK_NOTE_PROBLEM_PREFIX));
 }
 
 /** True when a line asks for a standard task database: the card then offers to create one. */

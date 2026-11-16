@@ -119,10 +119,15 @@ export async function restoreSession(
   if (stored) {
     const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
     const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => /* silent: a reading; the start screen is the default below */ null);
+    if (next) {
+      setNav(next);
+      return;
+    }
     // A stored session is what was left, even when nothing of it needs
     // restoring: left on Home, or the note left open is gone. It starts on
-    // Home — never on the note opened last (issue 173).
-    setNav(next ?? initialNavState(visible[0] ?? "notes"));
+    // this vault's Home — never on the note opened last (issue 173) — and
+    // leaves alone what a link, widget or reminder opened meanwhile.
+    setNav((s) => (s.overlay.length === 0 && Object.values(s.stacks).every((stack) => stack.length === 0) ? initialNavState(visible[0] ?? "notes") : s));
     return;
   }
   // No session stored at all (a first start, or a build before P6): the

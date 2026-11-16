@@ -753,8 +753,8 @@ export const FileTree: React.FC<{
   }, [files, revealPath]);
 
   // Enter submits the form and losing the focus submits once more; a template
-  // dialog takes the focus while the first run awaits it (issue 170). One
-  // create at a time, or the second dialog writes over the new note.
+  // dialog takes the focus while the first run awaits it (issue 170). One run
+  // per folder and name, or the second dialog writes over the new note.
   const handleNewItemSubmit = useSingleFlightHandler(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!newItemParams || !newItemName.trim() || !vaultAdapter || !indexer) {
@@ -817,7 +817,7 @@ export const FileTree: React.FC<{
       console.error("Fehler beim Erstellen", err);
       toast.error(t("dialogs.createErrorMsg", { error: errorText(err) }));
     }
-  });
+  }, () => `new\u0000${newItemParams?.parentPath ?? ""}\u0000${newItemName.trim()}`);
 
   const startRenaming = (path: string, isFolder: boolean) => {
     if (!path) return;
@@ -836,8 +836,9 @@ export const FileTree: React.FC<{
     toast.error(t("dialogs.moveBlockedUnsaved", { name: moveItemName(err.path), error: errorText(err.reason) }));
   };
 
-  // The same Enter-and-blur pair as the new-item field (issue 170): one rename
-  // at a time, or a blur during the flush or link rewrite renames again.
+  // The same Enter-and-blur pair as the new-item field (issue 170): one run per
+  // renamed path, or a blur during the flush or link rewrite renames again; a
+  // second item can be renamed while the first one's follow-up work runs.
   const handleRenameSubmit = useSingleFlightHandler(async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!renamingItemParams || !renamingName.trim() || !vaultAdapter || !indexer) {
@@ -896,7 +897,7 @@ export const FileTree: React.FC<{
       else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
       setRenamingItemParams(null);
     }
-  });
+  }, () => `rename\u0000${renamingItemParams?.path ?? ""}`);
 
   const handleDelete = async (path: string, isFolder: boolean) => {
     setContextMenu(null);
