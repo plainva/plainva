@@ -96,9 +96,10 @@ export async function restoreLastOpenNote(
  * stacks, minus surfaces that carry unfinished input and entries whose file
  * is gone, with the active tab kept inside the bar — the bar is read here,
  * from the vault's own record, so the restore neither closes over the shell's
- * state nor races the bar adoption that runs beside it. Without a stored
- * session — first start, or nothing survived — the last-note memory (T6) is
- * the fallback. Marks the session ready first, so the boot's initial state
+ * state nor races the bar adoption that runs beside it. A stored session
+ * from which nothing survives (left on Home, the note is gone) starts on
+ * Home; only without any stored session — a first start — is the last-note
+ * memory (T6) the fallback (issue 173). Marks the session ready first, so the boot's initial state
  * never overwrites what is about to be restored.
  */
 export async function restoreSession(
@@ -118,10 +119,13 @@ export async function restoreSession(
   if (stored) {
     const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
     const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => /* silent: a reading; the start screen is the default below */ null);
-    if (next) {
-      setNav(next);
-      return;
-    }
+    // A stored session is what was left, even when nothing of it needs
+    // restoring: left on Home, or the note left open is gone. It starts on
+    // Home — never on the note opened last (issue 173).
+    setNav(next ?? initialNavState(visible[0] ?? "notes"));
+    return;
   }
+  // No session stored at all (a first start, or a build before P6): the
+  // last-note memory (T6) is the only trace of where the app was left.
   await restoreLastOpenNote(vault, setNav);
 }
