@@ -194,7 +194,10 @@ describe("coordinated desktop release allocation", () => {
 
   // Every gap in the Windows signature check fails the step: an installer that
   // cannot be unpacked, or that lacks the app or the MCP helper, cannot be
-  // shown to be signed (review of the rehearsal, 2026-11-16).
+  // shown to be signed (review of the rehearsal, 2026-11-16). This test only
+  // reads the script for the lines that make it so: it does not run it (no
+  // PowerShell here), so it cannot show that the script works. The evidence
+  // that it does is its run in the rehearsal's Windows leg.
   it("measures the app and the helper inside both Windows installers, with no gap left as a warning", () => {
     const script = readFileSync(new URL("../scripts/verify-windows-signatures.ps1", import.meta.url), "utf8");
     expect(script).not.toContain("::warning::");

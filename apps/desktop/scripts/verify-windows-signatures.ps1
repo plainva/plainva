@@ -46,7 +46,11 @@ if ($msi) {
 # NSIS: 7-Zip reads the installer's archive (preinstalled on the GitHub
 # Windows images). Measured on the published 0.8.7 setup with 7-Zip 23.01:
 # it lists and extracts plainva-desktop.exe byte for byte, signature block
-# included.
+# included, and `7z x` ends with exit code 0 ("Everything is Ok") on that
+# signed setup — the Authenticode data behind the archive raises no warning.
+# Only 0 counts: 7-Zip ends with 1 on a warning, and a warning here is a
+# finding to look at, not a pass. Whether a setup of another Tauri CLI (and
+# so another NSIS) also ends with 0 is what the rehearsal shows first.
 $nsis = Get-ChildItem -Path "$root/bundle/nsis/*.exe" -ErrorAction SilentlyContinue |
   Select-Object -First 1
 if ($nsis) {

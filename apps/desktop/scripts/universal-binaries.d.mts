@@ -8,3 +8,4 @@ export declare function universalPlan(context: {
   targetDir: string;
   binaries: string[];
 }): { name: string; output: string; inputs: string[] }[] | null;
+export declare function main(env?: NodeJS.ProcessEnv): void;

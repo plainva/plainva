@@ -253,6 +253,16 @@ jobs:
       - name: Fetch ONNX Runtime
         run: node apps/desktop/scripts/fetch-onnxruntime.mjs
 
+      # The Tauri CLI that builds the release is the one in pnpm-lock.yaml, the
+      # same that CI builds with every day. Until 0.9.0 tauri-action found no
+      # @tauri-apps/cli at the repository root and installed the newest 2.x
+      # globally ("Could not detect valid `@tauri-apps/cli` installation", log
+      # of the 0.8.7 cut) — a version nobody had chosen and no rehearsal could
+      # match. `tauriScript` below points the action at the locked one.
+      - name: Tauri CLI version
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+        run: node apps/desktop/node_modules/@tauri-apps/cli/tauri.js --version
+
       - name: Build Tauri App
         # Tag pushes allocate a draft; explicit Windows recovery only reuses
         # the draft and exact source validated by the prepare job.
@@ -307,6 +317,13 @@ jobs:
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
+          # The locked CLI (see "Tauri CLI version"). With `tauriScript` the
+          # action skips its own CLI detection and runs exactly
+          # `<tauriScript> build <args>` from projectPath, the repository root
+          # (tauri-action v1, src/runner.ts getRunner and src/build.ts
+          # buildProject); nothing else of this step changes. The rehearsal
+          # runs the same command from the same directory.
+          tauriScript: node apps/desktop/node_modules/@tauri-apps/cli/tauri.js
           # The signing config is a separate file loaded only on the Windows leg, so
           # local builds and outside contributors never trip over a signCommand they
           # cannot run. The path is relative to the REPOSITORY ROOT, not to the app
@@ -404,9 +421,13 @@ jobs:
   # What it can never do, by construction rather than by care:
   # - its token is read-only (`contents: read`), so it cannot create a release,
   #   a draft, a tag or an asset even if a step tried;
-  # - it calls the Tauri CLI directly instead of tauri-action, and no step gets
-  #   GITHUB_TOKEN: nothing here talks to the releases API, and no
+  # - it runs the very command tauri-action runs on a tag — the locked Tauri
+  #   CLI, `build` with the same arguments, from the repository root, with
+  #   the environment the action adds (FORCE_COLOR=0; on macOS
+  #   TAURI_BUNDLER_DMG_IGNORE_CI=true) — but not the action itself, and no
+  #   step gets GITHUB_TOKEN: nothing here talks to the releases API, and no
   #   latest.json is written (only tauri-action writes one);
+  #   src/releaseCli.test.ts holds the two commands together;
   # - `release-gate` and `prepare` stay skipped for a manual run, so no draft
   #   is allocated, and the `release` job is skipped for a rehearsal;
   # - the installers are NOT uploaded as workflow artifacts: on a public
@@ -415,6 +436,17 @@ jobs:
   #   The run leaves only its log and the step summary (names, sizes, SHA-256,
   #   signature results).
   # Apple keeps a record of the notarization, as for every signed build.
+  #
+  # What a green rehearsal therefore does NOT show, and only the tag can:
+  # - the action's own part around the build: finding the artifacts it
+  #   uploads by name, renaming them, uploading them to the draft
+  #   (`releaseId`), and the release name and body it sets;
+  # - latest.json: its contents, its platform entries and the asset URLs in
+  #   it (the updater reads it);
+  # - the draft itself, prepare's allocation and the Windows recovery path;
+  # - the secrets and permissions of a tag run (`contents: write`), the
+  #   release-gate check against CI of the exact commit, and anything that
+  #   differs between the commit rehearsed and the commit tagged.
   rehearsal:
     name: Release rehearsal
     if: github.event_name == 'workflow_dispatch' && inputs.rehearsal
@@ -503,11 +535,29 @@ jobs:
       - name: Fetch ONNX Runtime
         run: node apps/desktop/scripts/fetch-onnxruntime.mjs
 
-      # The same configuration overlays and secrets as the release legs above,
-      # given to the Tauri CLI from apps/desktop (hence `src-tauri/…`).
+      - name: Tauri CLI version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node apps/desktop/node_modules/@tauri-apps/cli/tauri.js --version)"
+          echo "$version"
+          echo "TAURI_CLI_VERSION=$version" >> "$GITHUB_ENV"
+
+      # The command "Build Tauri App" of the release legs runs, from the same
+      # directory (the repository root, so `pnpm build` is the same turbo run
+      # and the configs are `apps/desktop/src-tauri/…`), with the same
+      # secrets. TAURI_ARGS is the `args` input of that step, character for
+      # character; tauri-action splits it with string-argv, bash splits it on
+      # spaces, and it holds no quotes, so both give the same words.
       - name: Build, sign and notarize (nothing is uploaded)
         shell: bash
         env:
+          TAURI_ARGS: >-
+            ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
+            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json') }}
+          # What tauri-action adds to the environment of the CLI (execCommand
+          # in src/utils.ts; TAURI_BUNDLER_DMG_IGNORE_CI on macOS only, below).
+          FORCE_COLOR: '0'
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -524,11 +574,11 @@ jobs:
           VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET }}
         run: |
           set -euo pipefail
-          case "${{ matrix.platform }}" in
-            macos-latest) pnpm --filter desktop tauri build --target universal-apple-darwin --config src-tauri/tauri.onnxruntime.macos.conf.json ;;
-            windows-latest) pnpm --filter desktop tauri build --config src-tauri/tauri.signing.conf.json --config src-tauri/tauri.onnxruntime.conf.json ;;
-            *) pnpm --filter desktop tauri build --config src-tauri/tauri.onnxruntime.conf.json ;;
-          esac
+          if [ "${{ matrix.platform }}" = macos-latest ]; then
+            export TAURI_BUNDLER_DMG_IGNORE_CI="${TAURI_BUNDLER_DMG_IGNORE_CI:-true}"
+          fi
+          # shellcheck disable=SC2086 # TAURI_ARGS is split into words on purpose
+          node apps/desktop/node_modules/@tauri-apps/cli/tauri.js build $TAURI_ARGS
 
       - name: No embedded WebDriver server in the release binary
         shell: bash
@@ -582,6 +632,8 @@ jobs:
           root=apps/desktop/src-tauri/target
           {
             echo "### Release rehearsal on ${{ matrix.platform }} at ${GITHUB_SHA}"
+            echo
+            echo "Built with ${TAURI_CLI_VERSION}, the CLI a tag build uses."
             echo
             echo '| File | Bytes | SHA-256 |'
             echo '|---|---:|---|'

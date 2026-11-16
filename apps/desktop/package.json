@@ -14,7 +14,7 @@
     "typecheck": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:before-bundle": "node scripts/universal-binaries.mjs",
+    "tauri:before-bundle": "node scripts/universal-binaries-run.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

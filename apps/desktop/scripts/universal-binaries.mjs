@@ -48,38 +48,44 @@ export function universalPlan({ triple, debug, targetDir, binaries }) {
   }));
 }
 
-function cargoTargetDir(tauriDir) {
-  if (process.env.CARGO_TARGET_DIR) return resolve(process.env.CARGO_TARGET_DIR);
+function cargoTargetDir(tauriDir, env) {
+  if (env.CARGO_TARGET_DIR) return resolve(env.CARGO_TARGET_DIR);
   const metadata = execFileSync(
     'cargo',
     ['metadata', '--format-version', '1', '--no-deps', '--manifest-path', join(tauriDir, 'Cargo.toml')],
-    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env },
   );
   return JSON.parse(metadata).target_directory;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const triple = process.env.TAURI_ENV_TARGET_TRIPLE;
+/**
+ * The hook itself. `scripts/universal-binaries-run.mjs` is its entry point, so
+ * nothing here depends on how the file was started (a "was I started
+ * directly" check against argv misses behind a symlink, and the hook would
+ * silently do nothing).
+ */
+export function main(env = process.env) {
+  const triple = env.TAURI_ENV_TARGET_TRIPLE;
   if (triple !== UNIVERSAL_TRIPLE) {
     console.log(`universal-binaries: target ${triple ?? '(none)'} is not universal, nothing to join`);
-  } else {
-    const tauriDir = fileURLToPath(new URL('../src-tauri/', import.meta.url));
-    const plan = universalPlan({
-      triple,
-      debug: process.env.TAURI_ENV_DEBUG === 'true',
-      targetDir: cargoTargetDir(tauriDir),
-      binaries: extraBinaries(readdirSync(join(tauriDir, 'src', 'bin'))),
-    });
-    for (const { name, output, inputs } of plan) {
-      const missing = inputs.filter((input) => !existsSync(input));
-      if (missing.length) throw new Error(`universal-binaries: ${name} was not built for ${missing.join(', ')}`);
-      mkdirSync(join(output, '..'), { recursive: true });
-      execFileSync('lipo', ['-create', '-output', output, ...inputs], { stdio: 'inherit' });
-      const archs = execFileSync('lipo', ['-archs', output], { encoding: 'utf8' }).trim().split(/\s+/);
-      if (!archs.includes('arm64') || !archs.includes('x86_64')) {
-        throw new Error(`universal-binaries: ${name} carries ${archs.join(' ')}, expected arm64 and x86_64`);
-      }
-      console.log(`universal-binaries: ${name} joined (${archs.join(' ')}) at ${output}`);
+    return;
+  }
+  const tauriDir = fileURLToPath(new URL('../src-tauri/', import.meta.url));
+  const plan = universalPlan({
+    triple,
+    debug: env.TAURI_ENV_DEBUG === 'true',
+    targetDir: cargoTargetDir(tauriDir, env),
+    binaries: extraBinaries(readdirSync(join(tauriDir, 'src', 'bin'))),
+  });
+  for (const { name, output, inputs } of plan) {
+    const missing = inputs.filter((input) => !existsSync(input));
+    if (missing.length) throw new Error(`universal-binaries: ${name} was not built for ${missing.join(', ')}`);
+    mkdirSync(join(output, '..'), { recursive: true });
+    execFileSync('lipo', ['-create', '-output', output, ...inputs], { stdio: 'inherit', env });
+    const archs = execFileSync('lipo', ['-archs', output], { encoding: 'utf8', env }).trim().split(/\s+/);
+    if (!archs.includes('arm64') || !archs.includes('x86_64')) {
+      throw new Error(`universal-binaries: ${name} carries ${archs.join(' ')}, expected arm64 and x86_64`);
     }
+    console.log(`universal-binaries: ${name} joined (${archs.join(' ')}) at ${output}`);
   }
 }
