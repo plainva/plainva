@@ -45,7 +45,7 @@ vi.mock("@capacitor/filesystem", () => ({
   },
 }));
 vi.mock("@capacitor/core", () => ({
-  Capacitor: { isNativePlatform: () => false },
+  Capacitor: { getPlatform: () => "web", isNativePlatform: () => false },
   registerPlugin: () => ({}),
 }));
 vi.mock("./services/pim/pimCredentials", () => ({

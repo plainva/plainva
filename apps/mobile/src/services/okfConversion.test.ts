@@ -20,7 +20,7 @@ vi.mock("@capacitor/filesystem", () => ({
 }));
 // Routes atomicWriteText through the mocked Filesystem instead of the plugin.
 vi.mock("@capacitor/core", () => ({
-  Capacitor: { isNativePlatform: () => false },
+  Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" },
   registerPlugin: () => ({}),
 }));
 vi.mock("./mobileSettings", () => ({
