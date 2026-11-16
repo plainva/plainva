@@ -9,6 +9,7 @@ import {
   planEmptyPasswordDuplicates,
   reconcileCloudAccounts,
   removeEmptyPasswordDuplicates,
+  reviewDuplicatePimRows,
   samePasswordAccount,
   type AccountImportPorts,
   type CloudAccountRecord,
@@ -312,6 +313,16 @@ describe("empty duplicates", () => {
     expect(deleted).toEqual([]);
   });
 
+  it("leave a row the brought card binds to files as well; the guided repair offers it", () => {
+    // A leftover of an older import: the card of the other device's files and
+    // calendar binds pB, and the profile map keeps pointing there. Removing pB
+    // would leave that card's calendar on nothing, so it stays, and is shown.
+    const rows = [caldav("pA"), caldav("pB", "https://cloud.example.com:443/remote.php/dav/")];
+    const facts = (id: string) => ({ hasCredentials: id === "pA", hasCachedData: id === "pA" });
+    expect(planEmptyPasswordDuplicates(rows, [calendarCard("cA", "pA"), nextcloudCard("cB", "pB")], facts)).toEqual([]);
+    expect(reviewDuplicatePimRows(rows)).toEqual([{ reason: "same-identity", provider: "caldav", label: rows[0].label, accountIds: ["pA", "pB"] }]);
+  });
+
   it("after the import of a second device's settings, one card is left (both ways of #174 together)", async () => {
     // Device A spelled the address with port 443 before this fix; its import
     // of device B's settings had added pB without a sign-in and a card for it.
@@ -330,6 +341,13 @@ describe("empty duplicates", () => {
     const b = device([caldav("pB", "https://cloud.example.com:443/remote.php/dav")], [nextcloudCard("cB", "pB")]);
     await importAccountMetadata(b.publish(), a.ports);
     expect(a.state.pim.map((row) => row.id)).toEqual(["pA"]);
+  });
+});
+
+describe("the guided repair", () => {
+  it("offers two rows of one password access whatever their labels (red before: grouped by label only)", () => {
+    const rows = [{ ...caldav("p1"), label: "Nextcloud" }, { ...caldav("p2", `${BASE}/calendars/anna/`), label: "anna@cloud.example.com" }, caldav("p3", BASE, "Anna")];
+    expect(reviewDuplicatePimRows(rows)).toEqual([{ reason: "same-identity", provider: "caldav", label: "Nextcloud", accountIds: ["p1", "p2"] }]);
   });
 });
 
