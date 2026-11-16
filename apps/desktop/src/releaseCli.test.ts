@@ -47,9 +47,11 @@ describe("one Tauri CLI for the tag and the rehearsal", () => {
     // TAURI_BUNDLER_DMG_IGNORE_CI unless it is set already.
     expect(rehearsal.env!.FORCE_COLOR).toBe("0");
     expect(rehearsal.run).toContain('export TAURI_BUNDLER_DMG_IGNORE_CI="${TAURI_BUNDLER_DMG_IGNORE_CI:-true}"');
-    // The secrets of the tag build, minus the token the rehearsal never gets.
-    const secrets = (env: Record<string, string>) => Object.keys(env).filter((key) => !["GITHUB_TOKEN", "TAURI_ARGS", "FORCE_COLOR"].includes(key)).sort();
-    expect(secrets(rehearsal.env!)).toEqual(secrets(tag.env!));
+    // The environment of the tag build, key and expression, minus the token
+    // the rehearsal never gets and the two it adds for the action's part.
+    const own = (env: Record<string, string>) => Object.fromEntries(Object.entries(env).filter(([key]) => !["GITHUB_TOKEN", "TAURI_ARGS", "FORCE_COLOR"].includes(key)));
+    expect(own(rehearsal.env!)).toEqual(own(tag.env!));
+    expect(Object.keys(own(tag.env!)).length).toBeGreaterThan(10);
   });
 
   it("logs the CLI version on both paths and names it in the rehearsal record", () => {
@@ -62,15 +64,21 @@ describe("one Tauri CLI for the tag and the rehearsal", () => {
     expect(step("rehearsal", "List what a release would have uploaded").run).toContain("${TAURI_CLI_VERSION}");
   });
 
-  it("takes the CLI from the lockfile, in exactly one version", () => {
-    const lock = readFileSync(new URL("pnpm-lock.yaml", root), "utf8");
-    const versions = [...new Set([...lock.matchAll(/^ {2}'@tauri-apps\/cli@(\d+\.\d+\.\d+)':$/gm)].map((m) => m[1]))];
-    expect(versions, "one locked @tauri-apps/cli").toHaveLength(1);
+  // The CLI that bundles the release is pinned exactly, in three places
+  // that move together: the package, the lockfile and the line in
+  // Dependency_Updates.md that says it is raised only through a rehearsal.
+  // Raising it in one place alone turns this red.
+  it("pins the CLI exactly, the same in the package, the lockfile and the update guide", () => {
     const pkg = JSON.parse(readFileSync(new URL("apps/desktop/package.json", root), "utf8")) as { devDependencies?: Record<string, string>; dependencies?: Record<string, string> };
-    expect(pkg.devDependencies?.["@tauri-apps/cli"] ?? pkg.dependencies?.["@tauri-apps/cli"]).toBeDefined();
-    // The CLI the path names is the one installed from that lockfile.
-    const installed = JSON.parse(readFileSync(new URL("apps/desktop/node_modules/@tauri-apps/cli/package.json", root), "utf8")) as { version: string; bin: Record<string, string> };
-    expect(installed.version).toBe(versions[0]);
-    expect(installed.bin.tauri).toBe("./tauri.js");
+    const pinned = pkg.devDependencies?.["@tauri-apps/cli"] ?? pkg.dependencies?.["@tauri-apps/cli"];
+    expect(pinned, "an exact version, no range").toMatch(/^\d+\.\d+\.\d+$/);
+    const lock = readFileSync(new URL("pnpm-lock.yaml", root), "utf8");
+    const importer = /\n {6}'@tauri-apps\/cli':\n {8}specifier: (\S+)\n {8}version: (\S+)\n/.exec(lock);
+    expect(importer, "apps/desktop's entry for the CLI in pnpm-lock.yaml").not.toBeNull();
+    expect([importer![1], importer![2]]).toEqual([pinned, pinned]);
+    const versions = [...new Set([...lock.matchAll(/^ {2}'@tauri-apps\/cli@(\d+\.\d+\.\d+)':$/gm)].map((m) => m[1]))];
+    expect(versions, "one locked @tauri-apps/cli").toEqual([pinned]);
+    const guide = readFileSync(new URL("docs/engineering/Dependency_Updates.md", root), "utf8");
+    expect(guide).toContain(`Pinned CLI: \`${pinned}\``);
   });
 });

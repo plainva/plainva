@@ -253,12 +253,18 @@ jobs:
       - name: Fetch ONNX Runtime
         run: node apps/desktop/scripts/fetch-onnxruntime.mjs
 
-      # The Tauri CLI that builds the release is the one in pnpm-lock.yaml, the
-      # same that CI builds with every day. Until 0.9.0 tauri-action found no
-      # @tauri-apps/cli at the repository root and installed the newest 2.x
-      # globally ("Could not detect valid `@tauri-apps/cli` installation", log
-      # of the 0.8.7 cut) — a version nobody had chosen and no rehearsal could
-      # match. `tauriScript` below points the action at the locked one.
+      # The Tauri CLI that builds the release is pinned exactly in
+      # apps/desktop/package.json and pnpm-lock.yaml: 2.12.4, the version the
+      # last public release (0.8.7) was bundled with. CI compiles with it every
+      # day, but its smokes build with --no-bundle — the installers, the DMG,
+      # the AppImage and the updater signatures of a CLI are shown only by the
+      # release rehearsal, so raising the CLI goes: raise, rehearse, then tag
+      # (docs/engineering/Dependency_Updates.md). Until 0.9.0 tauri-action
+      # found no @tauri-apps/cli at the repository root and installed the
+      # newest 2.x globally ("Could not detect valid `@tauri-apps/cli`
+      # installation", log of the 0.8.7 cut) — a version nobody had chosen and
+      # no rehearsal could match. `tauriScript` below points the action at the
+      # pinned one.
       - name: Tauri CLI version
         if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
         run: node apps/desktop/node_modules/@tauri-apps/cli/tauri.js --version
@@ -278,9 +284,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS code-signing (Developer ID Application, team M3FGXPBLFZ): tauri-action
-          # imports the base64 .p12 from APPLE_CERTIFICATE and signs the app. Only runs on
-          # a tag push; manual Windows recovery never runs the macOS leg.
+          # macOS code-signing (Developer ID Application, team M3FGXPBLFZ): the Tauri
+          # CLI itself imports the base64 .p12 from APPLE_CERTIFICATE into a temporary
+          # keychain and signs the app (tauri-bundler, macos/sign.rs `keychain`);
+          # tauri-action does not touch the APPLE_* variables, so the rehearsal covers
+          # the import too. Only runs on a tag push; manual Windows recovery never runs
+          # the macOS leg.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -334,6 +343,15 @@ jobs:
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
             || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json') }}
+
+      # Every file this leg uploads is there and not empty
+      # (apps/desktop/scripts/expected-bundles.mjs, the assets of 0.8.7).
+      # tauri-action v1.0.0 counts a build that a signal ended as a success
+      # and uploads what is already there; this fails the run before it ends
+      # green, and the draft stays unpublished. The rehearsal runs the same.
+      - name: Every release file was built
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+        run: node apps/desktop/scripts/expected-bundles-check.mjs ${{ matrix.platform }}
 
       # The embedded WebDriver server of the native smoke (a full remote control
       # of the app on a local port) is compiled in only by the smoke build's
@@ -446,7 +464,12 @@ jobs:
   # - the draft itself, prepare's allocation and the Windows recovery path;
   # - the secrets and permissions of a tag run (`contents: write`), the
   #   release-gate check against CI of the exact commit, and anything that
-  #   differs between the commit rehearsed and the commit tagged.
+  #   differs between the commit rehearsed and the commit tagged;
+  # - that tauri-action with `tauriScript` starts node on all three runners
+  #   and finds the artifacts under the names it expects — read in its
+  #   source (v1.0.0, src/runner.ts and src/build.ts), never run.
+  # The certificate import of the macOS signing is not on this list: the
+  # Tauri CLI does it, not the action, so the rehearsal runs it.
   rehearsal:
     name: Release rehearsal
     if: github.event_name == 'workflow_dispatch' && inputs.rehearsal
@@ -580,6 +603,9 @@ jobs:
           # shellcheck disable=SC2086 # TAURI_ARGS is split into words on purpose
           node apps/desktop/node_modules/@tauri-apps/cli/tauri.js build $TAURI_ARGS
 
+      - name: Every release file was built
+        run: node apps/desktop/scripts/expected-bundles-check.mjs ${{ matrix.platform }}
+
       - name: No embedded WebDriver server in the release binary
         shell: bash
         run: |
@@ -637,11 +663,10 @@ jobs:
             echo
             echo '| File | Bytes | SHA-256 |'
             echo '|---|---:|---|'
-            find "$root" -path '*/release/bundle/*' -type f \
-              \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.tar.gz' -o -name '*.sig' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) \
-              -not -path '*/bundle/macos/*.app/*' | sort | while read -r f; do
+            node apps/desktop/scripts/expected-bundles-check.mjs "${{ matrix.platform }}" --list | while read -r rel; do
+              f="$root/$rel"
               if command -v sha256sum >/dev/null; then sum="$(sha256sum "$f" | cut -d' ' -f1)"; else sum="$(shasum -a 256 "$f" | cut -d' ' -f1)"; fi
               size="$(wc -c < "$f" | tr -d ' ')"
-              echo "| ${f#"$root"/} | $size | \`$sum\` |"
+              echo "| $rel | $size | \`$sum\` |"
             done
           } >> "$GITHUB_STEP_SUMMARY"
