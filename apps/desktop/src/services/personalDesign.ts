@@ -1,11 +1,12 @@
 import { PersonalDesignSync, personalDesignScope, type ISettingsStore } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
+import { vaultAppName } from "./vaultNames";
 import { getStoredCustomThemeDesign, setStoredCustomTheme } from "./theme";
 import { readWorkspaceRuntime } from "./workspaceSecurity/workspaceKeychain";
 
 export async function desktopPersonalDesign(vaultPath: string, memberId: string | null = null, store?: ISettingsStore): Promise<PersonalDesignSync> {
   return new PersonalDesignSync(store ?? await getSettingsStore(), personalDesignScope(vaultPath, memberId),
-    vaultPath.split(/[\\/]/).filter(Boolean).pop() ?? vaultPath, getStoredCustomThemeDesign, setStoredCustomTheme);
+    await vaultAppName(vaultPath), getStoredCustomThemeDesign, setStoredCustomTheme);
 }
 
 /** A locked workspace cannot be treated as a single-person plain vault. */

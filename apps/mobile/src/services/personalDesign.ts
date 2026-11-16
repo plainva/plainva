@@ -1,4 +1,5 @@
-import { getPlatformServices, PersonalDesignSync, personalDesignScope, type ISettingsStore } from "@plainva/ui";
+import { getPlatformServices, PersonalDesignSync, personalDesignScope, templateVaultName, type ISettingsStore } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
 import { getActiveVaultEntry } from "./vaultRegistry";
 
@@ -12,5 +13,6 @@ export async function mobilePersonalDesignForEditor(): Promise<PersonalDesignSyn
   const { loadMobileWorkspaceRuntime, getMobileWorkspaceStatus } = await import("./mobileWorkspaceSecurity");
   const runtime = await loadMobileWorkspaceRuntime(vault.id);
   if (!runtime && await getMobileWorkspaceStatus(vault.id)) throw new Error("workspace-locked");
-  return mobilePersonalDesign(vault.id, runtime?.memberId ?? null, vault.name || "Plainva");
+  // Named as the app shows the vault, the same rule as the desktop's.
+  return mobilePersonalDesign(vault.id, runtime?.memberId ?? null, templateVaultName(vault.name, i18n.t("mobile.vaultLocal")));
 }
