@@ -1,4 +1,5 @@
-import { checkWebUrl, extractPage, webAddressesIn } from "@plainva/core";
+import { checkWebUrl, webAddressesIn } from "@plainva/core";
+import { mailHtmlDocument } from "../mail/messageText";
 
 /**
  * A stranger's text as a reader in quarantine takes it (plan KI-Harness
@@ -28,6 +29,25 @@ function linksIn(text: string): { text: string; url: string }[] {
   return links;
 }
 
+/** The links of a shown body that a report may name: public https ones, each once. A relative
+ * link leads nowhere in a mail (the base is no place), and the address check drops it. */
+function checkedLinks(shown: readonly { text: string; href: string }[]): { text: string; url: string }[] {
+  const links: { text: string; url: string }[] = [];
+  for (const link of shown) {
+    if (links.length >= LINKS_MAX) break;
+    if (link.href.startsWith("#")) continue;
+    let absolute: string;
+    try {
+      absolute = new URL(link.href, "https://mail.invalid/").href;
+    } catch {
+      continue;
+    }
+    const checked = checkWebUrl(absolute);
+    if (checked.ok && !links.some((known) => known.url === checked.target.url)) links.push({ text: link.text, url: checked.target.url });
+  }
+  return links;
+}
+
 function cut(text: string, max: number): { text: string; truncated: boolean } {
   if (text.length <= max) return { text, truncated: false };
   // End at a paragraph where one is near, so the reader does not take half a sentence for a whole one.
@@ -43,10 +63,12 @@ export function looksLikeHtml(text: string): boolean {
 export function readableBody(input: { html?: string | null; text?: string | null }, max: number): ReadableBody {
   const html = input.html?.trim();
   if (html) {
-    // The base is no place: a relative link in a mail leads nowhere, and the address check drops it.
-    const page = extractPage(html, "https://mail.invalid/");
-    const body = cut(page.text, max);
-    return { text: body.text, links: page.links.slice(0, LINKS_MAX), truncated: body.truncated || page.truncated };
+    // Read as the mail reader shows it — the same way as a quote or a filed
+    // note, from the sanitized markup (finding 2026-11-16) —, never on a way
+    // of its own from the raw markup.
+    const shown = mailHtmlDocument(html);
+    const body = cut(shown.text.trim(), max);
+    return { text: body.text, links: checkedLinks(shown.links), truncated: body.truncated };
   }
   const body = cut((input.text ?? "").replace(/\r\n?/g, "\n").trim(), max);
   return { text: body.text, links: linksIn(body.text), truncated: body.truncated };

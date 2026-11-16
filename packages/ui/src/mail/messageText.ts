@@ -1,13 +1,13 @@
-import { htmlToVisibleText, type MarkupNode } from "@plainva/core";
+import { htmlToVisibleDocument, type MarkupNode, type VisibleLink } from "@plainva/core";
 import { sanitizeEmailHtml } from "./mailSanitize";
 import type { MailMessage } from "./types";
 
 /** The two parts of a message its text can come from. */
 export type MailBodyParts = Pick<MailMessage, "text" | "html">;
 
-/** The attributes `htmlToVisibleText` reads off an element — every one it
+/** The attributes `htmlToVisibleDocument` reads off an element — every one it
  * asks for: a copy without `popover` showed what the reader hides (§ 3.84). */
-const READ_ATTRIBUTES = ["style", "hidden", "popover", "open", "start"];
+const READ_ATTRIBUTES = ["style", "hidden", "popover", "open", "start", "href"];
 
 /** A node of the copied tree — plain data, in the shape `htmlToVisibleText` walks. */
 interface CopiedNode {
@@ -125,7 +125,19 @@ function readerMarkup(html: string): string {
   }
 }
 
-function htmlPartText(html: string): string {
+/**
+ * The text and the links of an HTML part as the reader shows them: read from
+ * the markup the reader's frame is given (see `readerMarkup`), without what
+ * that markup hides from the reader.
+ *
+ * Everything that turns a mail's HTML into words reads it here — the quote,
+ * the filed note, and what the assistant reads of a message (finding
+ * 2026-11-16: the assistant took the raw markup down on a way of its own, and
+ * read words the reader never showed: a form the sanitizer removes, a folded
+ * `<details>`, a popover, a box clipped to no size). One way, so that what a
+ * person reads and what the assistant reads cannot drift apart.
+ */
+export function mailHtmlDocument(html: string): { text: string; links: VisibleLink[] } {
   const shown = readerMarkup(html);
   let tree: MarkupNode | null = null;
   try {
@@ -134,7 +146,11 @@ function htmlPartText(html: string): string {
     /* a platform that refuses the parse: the portable parser reads the same markup */
   }
   const copied = tree;
-  return copied ? htmlToVisibleText(shown, () => copied) : htmlToVisibleText(shown);
+  return copied ? htmlToVisibleDocument(shown, () => copied) : htmlToVisibleDocument(shown);
+}
+
+function htmlPartText(html: string): string {
+  return mailHtmlDocument(html).text;
 }
 
 /**

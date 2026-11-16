@@ -211,6 +211,31 @@ class Closing {
  * the input, not faster: the markup is a stranger's.
  */
 export function htmlToVisibleText(html: string, parse: (html: string) => MarkupNode = markup => parseFragment(markup)): string {
+  return htmlToVisibleDocument(html, parse).text;
+}
+
+/** A link as the reader shows it: its visible words and its target as the markup wrote it. */
+export interface VisibleLink {
+  text: string;
+  href: string;
+}
+
+/** Links read at most, and the words of one kept: a stranger's markup decides how many there are. */
+const VISIBLE_LINKS_MAX = 500;
+const VISIBLE_LINK_TEXT_MAX = 160;
+
+/**
+ * The text of an HTML body as `htmlToVisibleText` reads it, together with the
+ * links that stand on screen in it, in their order: an `<a href>` whose element
+ * is shown and that shows something — a visible word or an image. A link the
+ * markup hides, or one inside what is hidden, is not one the reader can see or
+ * follow, and is not in the list (finding 2026-11-16: the assistant read a
+ * mail's text and links on a way of its own, from the raw markup).
+ */
+export function htmlToVisibleDocument(html: string, parse: (html: string) => MarkupNode = markup => parseFragment(markup)): { text: string; links: VisibleLink[] } {
+  const links: VisibleLink[] = [];
+  /** The links being read, innermost last, each with whether it shows anything yet. */
+  const anchors: Array<{ href: string; text: string; shows: boolean }> = [];
   const lines: Line[] = [];
   let line = "";
   /** Whether `line` ends in a blank. Kept beside it: asking the line itself
@@ -253,6 +278,8 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
     if (piece === "") return;
     line += piece;
     lineEndsBlank = piece.endsWith(" ");
+    const anchor = anchors[anchors.length - 1];
+    if (anchor && anchor.text.length < VISIBLE_LINK_TEXT_MAX) anchor.text += piece;
   };
   /** Running text: a run of the blanks HTML folds — blank, tab, line break — is
    * one blank, and none opens a line or follows another. Other spaces are
@@ -321,6 +348,13 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
   while (stack.length > 0) {
     const step = stack.pop()!;
     if (step instanceof Closing) {
+      if (step.name === "a") {
+        const anchor = anchors.pop();
+        const text = anchor ? anchor.text.replace(/\s+/g, " ").trim() : "";
+        if (anchor && anchor.href && (anchor.shows || !isBlank(text)) && links.length < VISIBLE_LINKS_MAX) {
+          links.push({ text: text.slice(0, VISIBLE_LINK_TEXT_MAX), href: anchor.href });
+        }
+      }
       close(step.name);
       tiny = step.tiny;
       unseen = step.unseen;
@@ -341,6 +375,10 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
       endLine(true);
       continue;
     }
+    if (name === "img" && !unseen) {
+      const anchor = anchors[anchors.length - 1];
+      if (anchor) anchor.shows = true;
+    }
     stack.push(new Closing(name, tiny, unseen, pre));
     const size = declared.get("font-size");
     if (size !== undefined) tiny = unreadableSize(size) ?? tiny;
@@ -348,6 +386,10 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
     if (visibility === "hidden" || visibility === "collapse") unseen = true;
     else if (visibility === "visible") unseen = false;
     open(name, step);
+    if (name === "a") {
+      const href = attributeOf(step, "href")?.trim() ?? "";
+      anchors.push({ href, text: "", shows: false });
+    }
     const space = declared.get("white-space");
     if (name === "pre" || (space !== undefined && KEEPS_LINES.has(space))) pre++;
     else if (space === "normal" || space === "nowrap") pre = 0;
@@ -362,10 +404,11 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
   endLine();
 
   while (lines.length > 0 && lines[lines.length - 1].text === "") lines.pop();
-  return lines
+  const text = lines
     .map(({ depth, text }) => {
       const marks = "> ".repeat(Math.min(depth, QUOTE_LEVELS));
       return text ? marks + text : marks.trimEnd();
     })
     .join("\n");
+  return { text, links };
 }

@@ -24,11 +24,11 @@ vi.mock("@plainva/core", async (importOriginal) => {
     ...actual,
     refreshOneDriveAccessToken: vi.fn(async () => ({ accessToken: "ACCESS", expiresIn: 3600 })),
     // The real one, watched: a test below asks which parser read a message.
-    htmlToVisibleText: vi.fn(actual.htmlToVisibleText),
+    htmlToVisibleDocument: vi.fn(actual.htmlToVisibleDocument),
   };
 });
 
-import { htmlToVisibleText, readFrontmatterPath } from "@plainva/core";
+import { htmlToVisibleDocument, htmlToVisibleText, readFrontmatterPath } from "@plainva/core";
 import { setPlatformServices } from "@plainva/ui";
 import {
   buildEmailNoteContent,
@@ -165,7 +165,7 @@ describe("a message cannot rename what its own tree answers", () => {
       }
     }
     vi.stubGlobal("DOMParser", Renamed);
-    const reads = vi.mocked(htmlToVisibleText);
+    const reads = vi.mocked(htmlToVisibleDocument);
     reads.mockClear();
     const html = '<p>A</p><div style="display:none">Versteckt</div><div><ol start="3"><li>Mitte</li></ol></div><p>B</p>';
     expect(mailMessageText({ text: null, html })).toBe("A\n\n3. Mitte\n\nB");
