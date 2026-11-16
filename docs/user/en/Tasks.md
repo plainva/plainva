@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-11-05
+Last updated: 2026-11-16
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -217,6 +217,11 @@ A task Plainva mirrors from one of your provider's task lists is named after its
 Which task lives in which file is not told by the name but by the frontmatter marker (`plainva.pim`, see the [File Format Reference](File_Format_Reference.md)). So Plainva only reuses an existing name when the file there carries the same task, and it creates new tasks in the same order on every device — two devices hand out the same numbers. If the title changes at the provider, Plainva updates the note's heading but does not rename the file, so links to the note keep working. You can rename and move the note yourself at any time; the marker keeps the link.
 
 **Cleaning up names with an id.** Between 12 and 24 September 2026, Plainva appended an id to the names of new task notes (`Call the dentist — 3f9a1c0b7d2e4a61.md`). If your vault still has such names, the tasks view — on the desktop and on the phone — shows a notice once, listing old → new and the number of links that are updated along with them. **Clean up names…** asks once more and then renames the notes after their titles, numbering same-titled ones as above; links to them are updated. **Hide** puts the notice away until further such names turn up. Plainva only recognises names it gave itself: the id must match the marker in the same file. Nothing is ever renamed on its own. Your other devices receive the renames as a move once they run the same version; an older version sees deleted and new notes there instead, and either asks whether to delete them or keeps the old name next to the new one — best update those devices first. On the desktop the notice appears in the main window.
+
+<!-- task-lists-silent-2026-11-16 -->
+## When provider tasks do not appear
+
+Tasks from a provider's task list become notes in your **Standard task database**. If none is set, a quiet line says so once — above the tasks view and on the account's page under **Task lists**, on the desktop and on the phone — with **Create new database…**, which creates one and sets it; the lists then arrive with the next sync. **Hide** puts the line away for this vault on this device; it comes back only if a task database is set and later removed again. While a device runs its first sync, nothing is said: the database or the setting may simply not have arrived yet. A real fault is shown as a warning instead, with **Try again**: the task database cannot be read or names no folder for new notes, a note for a new task could not be created, or, on the phone, the vault's index is not open. The warning goes away as soon as the tasks get through.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Tasks metadata and recurrence
