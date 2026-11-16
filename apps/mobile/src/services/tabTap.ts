@@ -1,4 +1,3 @@
-import { claimStart } from "./startClaim";
 import { requestNew, type NewItemId } from "@plainva/ui";
 import { tapTab, type NavState, type TabScreenId } from "../navigation";
 import { askBeforeLeaving } from "./leaveQuestion";
@@ -25,9 +24,6 @@ export async function tabTapped(
   setNav: (fn: (state: NavState) => NavState) => void,
   agreed?: () => void,
 ): Promise<boolean> {
-  // A tap on the bar (or a shortcut that opens an area) is the person's: a
-  // session still being restored does not take it back (review of issue 173).
-  claimStart();
   if (!(await askBeforeLeaving())) return false;
   agreed?.();
   haptics.light();

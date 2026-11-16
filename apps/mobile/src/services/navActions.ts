@@ -1,8 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { initialNavState, navTop, popTop, pushEntry, replaceTop, type NavEntry, type NavState, type TabScreenId } from "../navigation";
 import { askBeforeLeaving } from "./leaveQuestion";
-import { startClaimed } from "./startClaim";
-export { claimStart } from "./startClaim";
 import { recallLastOpen, rememberLastOpen } from "@plainva/ui";
 import { getMobileSettings } from "./mobileSettings";
 import type { MobileVault } from "./vaultService";
@@ -69,10 +67,32 @@ export function createNavActions(
   };
 }
 
-/** The restored state, with what the app itself put on top meanwhile kept on top. */
-function restoredUnder(current: NavState, restored: NavState): NavState {
-  if (startClaimed()) return current;
-  return current.overlay.length === 0 ? restored : { ...restored, overlay: [...restored.overlay, ...current.overlay] };
+/**
+ * The restored session, with what was opened while it was read laid over it
+ * (review of issue 173). The restore runs asynchronously at a cold start, and
+ * whoever opened something meanwhile — a `plainva://open` link, a widget, a
+ * reminder, a share, Siri, a comment notification, a tap in a list or on the
+ * bar — keeps it where it was opened, on top of what comes back beneath it.
+ * What the app laid on top by itself (an overlay, such as the next step of a
+ * connect run the system interrupted) stays on top. One rule at the root, so
+ * no entry point has to remember anything, and a new one cannot forget it.
+ *
+ * `start` is the navigation when the restore began, `visible` the bar's tabs.
+ * A tab switched to meanwhile stays the active tab, as it was left. The bar
+ * adoption beside the restore may move the tab off one the bar no longer
+ * shows; that move is the app's, not a choice, and the restored tab wins.
+ */
+export function withOpenedMeanwhile(restored: NavState, current: NavState, start: NavState, visible: readonly TabScreenId[]): NavState {
+  const forced = !visible.includes(start.activeTab) && current.activeTab === visible[0];
+  const switched = current.activeTab !== start.activeTab && !forced;
+  const openedIn = (tab: TabScreenId) => current.stacks[tab].filter((entry) => !start.stacks[tab].includes(entry));
+  const stacks = { ...restored.stacks };
+  for (const tab of Object.keys(current.stacks) as TabScreenId[]) {
+    if (switched && tab === current.activeTab) stacks[tab] = current.stacks[tab];
+    else if (openedIn(tab).length > 0) stacks[tab] = [...restored.stacks[tab], ...openedIn(tab)];
+  }
+  const activeTab = switched || openedIn(current.activeTab).length > 0 ? current.activeTab : restored.activeTab;
+  return { activeTab, stacks, overlay: [...restored.overlay, ...current.overlay] };
 }
 
 /**
@@ -85,14 +105,19 @@ function restoredUnder(current: NavState, restored: NavState): NavState {
  */
 export async function restoreLastOpenNote(
   vault: MobileVault,
-  setNav: Dispatch<SetStateAction<NavState>>
+  setNav: Dispatch<SetStateAction<NavState>>,
+  start: NavState,
+  visible: readonly TabScreenId[],
 ): Promise<void> {
   const last = recallLastOpen(vault.vaultId);
   if (!last) return;
   try {
     // A database is remembered too since P6 — it opens as what it is.
     const kind = /\.base$/i.test(last) ? "base" : "note";
-    if (await vault.files.exists(last)) setNav((st) => (startClaimed() ? st : pushEntry(st, { kind, path: last })));
+    if (await vault.files.exists(last)) {
+      const restored = pushEntry(initialNavState(start.activeTab), { kind, path: last });
+      setNav((st) => withOpenedMeanwhile(restored, st, start, visible));
+    }
     else rememberLastOpen(vault.vaultId, null);
   } catch {
     /* the note stays where it is; nothing to restore */
@@ -113,28 +138,28 @@ export async function restoreLastOpenNote(
 export async function restoreSession(
   vault: MobileVault,
   setNav: Dispatch<SetStateAction<NavState>>,
+  start: NavState,
 ): Promise<void> {
   const stored = readNavState(vault.vaultId);
   markSessionReady(vault.vaultId);
+  const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
   // "On start: Home" (plan 2026-11-05, P10): nothing comes back, the app opens
   // on Home. The session is still marked ready above, so it keeps being saved
   // and "As you left it" finds what was open when the app was last left.
   if (getMobileSettings().startView === "fresh") {
-    const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
-    if (visible.includes("notes")) setNav((s) => restoredUnder(s, initialNavState("notes")));
+    if (visible.includes("notes")) setNav((s) => withOpenedMeanwhile(initialNavState("notes"), s, start, visible));
     return;
   }
   if (stored) {
-    const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
     const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => /* silent: a reading; the start screen is the default below */ null);
     // A stored session is what was left, even when nothing of it needs
     // restoring: left on Home, or the note left open is gone. It then starts
     // on this vault's Home — never on the note opened last (issue 173).
     const restored = next ?? initialNavState(visible[0] ?? "notes");
-    setNav((s) => restoredUnder(s, restored));
+    setNav((s) => withOpenedMeanwhile(restored, s, start, visible));
     return;
   }
   // No session stored at all (a first start, or a build before P6): the
   // last-note memory (T6) is the only trace of where the app was left.
-  await restoreLastOpenNote(vault, setNav);
+  await restoreLastOpenNote(vault, setNav, start, visible);
 }

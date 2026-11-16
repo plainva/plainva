@@ -17,7 +17,6 @@ vi.mock("./mobileBar", () => ({
 vi.mock("./windowClass", () => ({ getWindowClass: () => "compact", isRailClass: () => false }));
 
 const { restoreSession } = await import("./navActions");
-const { claimStart, __resetStartClaimForTest } = await import("./startClaim");
 const { flushNavSave, readNavState, scheduleNavSave, writeNavState } = await import("./sessionState");
 const { rememberLastOpen } = await import("@plainva/ui");
 
@@ -28,11 +27,10 @@ function boot(vaultId: string): Promise<NavState> {
   const setNav = (next: NavState | ((s: NavState) => NavState)) => {
     nav = typeof next === "function" ? next(nav) : next;
   };
-  return restoreSession(vaultOf(vaultId), setNav as never).then(() => nav);
+  return restoreSession(vaultOf(vaultId), setNav as never, nav).then(() => nav);
 }
 
 beforeEach(() => {
-  __resetStartClaimForTest();
   localStorage.clear();
   for (const id of ["v-left", "v-home"]) writeNavState(id, pushEntry(initialNavState("tasks"), { kind: "note", path: "Left/open.md" }));
 });
@@ -75,7 +73,7 @@ describe("on start (P10)", () => {
     const vault = { vaultId: "v-gone", files: { exists: async (p: string) => p !== "Gone.md" } } as unknown as Parameters<typeof restoreSession>[0];
     await restoreSession(vault, ((next: NavState | ((s: NavState) => NavState)) => {
       nav = typeof next === "function" ? next(nav) : next;
-    }) as never);
+    }) as never, nav);
     expect(Object.values(nav.stacks).flat()).toEqual([]);
   });
 
@@ -94,9 +92,8 @@ describe("on start (P10)", () => {
     const setNav = (next: NavState | ((s: NavState) => NavState)) => {
       nav = typeof next === "function" ? next(nav) : next;
     };
-    const restoring = restoreSession(vaultOf("v-link"), setNav as never);
+    const restoring = restoreSession(vaultOf("v-link"), setNav as never, nav);
     // plainva://open, a widget or a reminder, while the restore still awaits the bar.
-    claimStart(); // what receiveNoteLinks does before it opens the note
     setNav((s) => pushEntry(s, { kind: "note", path: "From/link.md" }));
     await restoring;
     expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
@@ -108,17 +105,18 @@ describe("on start (P10)", () => {
     const setNav = (next: NavState | ((s: NavState) => NavState)) => {
       nav = typeof next === "function" ? next(nav) : next;
     };
-    const restoring = restoreSession(vaultOf(vaultId), setNav as never);
-    claimStart(); // what receiveNoteLinks does before it opens the note
+    const restoring = restoreSession(vaultOf(vaultId), setNav as never, nav);
     setNav((s) => pushEntry(s, { kind: "note", path: "From/link.md" }));
     await restoring;
     return nav;
   }
 
-  it("as you left it, with a note to restore: a note a link opens meanwhile stays", async () => {
+  it("as you left it, with a note to restore: a note a link opens meanwhile stays, the session comes back beside it", async () => {
     settings.startView = "restore";
     const nav = await openDuringRestore("v-left");
-    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+    expect(nav.activeTab).toBe("notes");
+    expect(nav.stacks.notes).toEqual([{ kind: "note", path: "From/link.md" }]);
+    expect(nav.stacks.tasks).toEqual([{ kind: "note", path: "Left/open.md" }]);
   });
 
   it("Home: a note a link opens meanwhile stays", async () => {
@@ -131,7 +129,7 @@ describe("on start (P10)", () => {
     settings.startView = "restore";
     rememberLastOpen("v-first-link", "Last/opened.md");
     const nav = await openDuringRestore("v-first-link");
-    expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+    expect(nav.stacks.notes).toEqual([{ kind: "note", path: "Last/opened.md" }, { kind: "note", path: "From/link.md" }]);
   });
 
   // Review of issue 173, second round: a screen the app opens itself at a cold
@@ -143,7 +141,7 @@ describe("on start (P10)", () => {
     const setNav = (next: NavState | ((s: NavState) => NavState)) => {
       nav = typeof next === "function" ? next(nav) : next;
     };
-    const restoring = restoreSession(vaultOf("v-left"), setNav as never);
+    const restoring = restoreSession(vaultOf("v-left"), setNav as never, nav);
     setNav((s) => ({ ...s, overlay: [...s.overlay, { kind: "sync", path: "" }] }));
     await restoring;
     expect(nav.activeTab).toBe("tasks");
@@ -157,13 +155,43 @@ describe("on start (P10)", () => {
     const setNav = (next: NavState | ((s: NavState) => NavState)) => {
       nav = typeof next === "function" ? next(nav) : next;
     };
-    const restoring = restoreSession(vaultOf("v-left"), setNav as never);
-    // newInTab -> tabTapped: claims the start, then switches the tab; the stacks stay empty.
-    claimStart();
+    const restoring = restoreSession(vaultOf("v-left"), setNav as never, nav);
+    // newInTab -> tabTapped switches the tab; the stacks stay empty.
     setNav((s) => ({ ...s, activeTab: "today" }));
     await restoring;
     expect(nav.activeTab).toBe("today");
-    expect(Object.values(nav.stacks).flat()).toEqual([]);
+    expect(nav.stacks.today).toEqual([]);
+    // The session comes back where it was, beside the area chosen.
+    expect(nav.stacks.tasks).toEqual([{ kind: "note", path: "Left/open.md" }]);
+  });
+
+  // Review of issue 173, third round: no entry point has to claim anything.
+  // Siri's "open note", a tapped comment notification or a tap in a list push
+  // a note the way every other opener does, and it stays.
+  it("a note opened meanwhile by any opener stays on top, without a word from that opener", async () => {
+    settings.startView = "restore";
+    let nav: NavState = initialNavState("notes");
+    const setNav = (next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    };
+    const restoring = restoreSession(vaultOf("v-left"), setNav as never, nav);
+    setNav((s) => pushEntry(s, { kind: "note", path: "From/siri.md" }));
+    await restoring;
+    expect(nav.activeTab).toBe("notes");
+    expect(nav.stacks.notes).toEqual([{ kind: "note", path: "From/siri.md" }]);
+    expect(nav.stacks.tasks).toEqual([{ kind: "note", path: "Left/open.md" }]);
+  });
+
+  it("a tab the bar adoption moves the start off is no choice: the restored tab wins", async () => {
+    settings.startView = "restore";
+    let nav: NavState = initialNavState("journal"); // not in the bar any more
+    const setNav = (next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    };
+    const restoring = restoreSession(vaultOf("v-left"), setNav as never, nav);
+    setNav((s) => ({ ...s, activeTab: "notes" })); // ensureVisibleTab in adoptBar
+    await restoring;
+    expect(nav.activeTab).toBe("tasks");
+    expect(nav.stacks.tasks).toEqual([{ kind: "note", path: "Left/open.md" }]);
   });
 });
-

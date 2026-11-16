@@ -4,7 +4,6 @@ import type { CalendarFocus } from "./services/calendarFocus";
 import { runReminderIntent } from "./services/reminderActions";
 import { useStableHandler } from "@plainva/ui";
 import { receiveNoteLinks } from "./services/noteLinkRoute";
-import { claimStart } from "./services/startClaim";
 import type { MobileVault } from "./services/vaultService";
 
 /**
@@ -44,12 +43,7 @@ export function PendingIntentRunner({
   // A note link (`plainva://open?…`, F2) — from the system, or clicked in the
   // app. It can be what started the app, so it waits in the shared inbox
   // until this vault says how it opens a note; a vault switch registers anew.
-  // Every intent from outside claims the start: a session still being
-  // restored does not take back what it opened (review of issue 173).
-  const openLinkedNote = useStableHandler((path: string) => {
-    claimStart();
-    onOpenNote(path);
-  });
+  const openLinkedNote = useStableHandler(onOpenNote);
   useEffect(() => receiveNoteLinks(vault, openLinkedNote), [vault, openLinkedNote]);
   // A tapped reminder can arrive on a COLD start: the OS wakes the process and
   // the vault is not open yet. The scheduler therefore parks the intent and
@@ -58,10 +52,7 @@ export function PendingIntentRunner({
   useEffect(() => {
     const run = () => {
       const intent = consumeReminderIntent();
-      if (intent) {
-        claimStart();
-        void runReminderIntent(intent, { openNote: onOpenNote, openCalendar: onOpenCalendar });
-      }
+      if (intent) void runReminderIntent(intent, { openNote: onOpenNote, openCalendar: onOpenCalendar });
     };
     window.addEventListener("m-reminder-intent", run);
     run();
@@ -76,10 +67,7 @@ export function PendingIntentRunner({
       void import("./services/widgetService")
         .then(({ consumeWidgetOpen }) => {
           const target = consumeWidgetOpen();
-          if (target) {
-            claimStart();
-            onOpenNote(target.path);
-          }
+          if (target) onOpenNote(target.path);
         })
         .catch(() => {});
     };
@@ -91,7 +79,6 @@ export function PendingIntentRunner({
   useEffect(() => {
     if (!pendingShortcut) return;
     setPendingShortcut(null);
-    claimStart();
     if (pendingShortcut === "new-note") onCapture();
     else if (pendingShortcut === "new-task") onNewTask();
     else if (pendingShortcut === "journal") onJournal();
