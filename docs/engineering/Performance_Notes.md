@@ -559,41 +559,56 @@ label spelled out, the target encoded), so that both decide the same.
 | a row of Russian | 2 394 | 3.97 × | 603 |
 | a hundred `[^1]` with the definition below | 184 | 1.30 × | 141 |
 | 80 `[l](u)` per row | 151 | 1.30 × | 115 |
-| a hundred `$a$` per row (reading view with KaTeX) | 88 | 1.30 × | 67 |
-| 40 `$\frac{a}{b}$` per row (reading view with KaTeX) | 74 | 2.74 × | 27 |
-| one integral per row (reading view with KaTeX) | 730 | 3.32 × | 219 |
-| forty fractions in one formula (reading view with KaTeX) | 97 | 3.31 × | 29 |
-| a matrix of sixty cells (reading view with KaTeX) | 105 | 1.30 × | 80 |
-| thirty `\overbrace` in one formula (reading view with KaTeX) | 53 | 2.08 × | 25 |
+| a hundred `$a$` per row (reading view with KaTeX) | 88 | 1.40 × | 63 |
+| 40 `$\frac{a}{b}$` per row (reading view with KaTeX) | 74 | 3.08 × | 24 |
+| one integral per row (reading view with KaTeX) | 730 | 3.74 × | 195 |
+| forty fractions in one formula (reading view with KaTeX) | 97 | 3.88 × | 25 |
+| a matrix of sixty cells (reading view with KaTeX) | 105 | 1.48 × | 71 |
+| thirty `\overbrace` in one formula (reading view with KaTeX) | 53 | 2.41 × | 22 |
 
 The lightest limits — sixteen one-character cells in a quote in a list item, forty one-character cells,
 footnote references, Markdown links, `$a$`, a matrix in KaTeX — sit 30 % above the budget (the limit
 search is exact to 4 %).
 
-The fifth review (2026-11-16) found shapes the weight undercounted; they are weighed since and are
-held by `--margin 1.3` (each table at 1.3 × the budget, without the budget, under 128 MB), not by
-a limit search. The new shapes are formulas between two `$` on each side (`$$…$$`, which remark-math
-reads in a cell as `$…$`, and the scan turned at every `$` and counted none of its content), 120
-`[^1]` and 80 `[l](u)` or `![i](p)` without blanks between them (one word, but as many pieces
-of the cell's text: each one glued to the word before it now counts as a word as well). All of
-them pass at 1.3 ×, and so do the shapes nearest to them:
+The fifth and sixth reviews (2026-11-16) found shapes the weight undercounted; they are weighed
+since and are held by `--margin` (each table at 1.3 or 1.4 × the budget, without the budget, under
+128 MB), not by a limit search:
 
-| Shape | At 1.3 × the budget | At the budget |
-|---|---|---|
-| 40 `\frac{a}{b}` in one `$$…$$` | 37 rows, pass | 29 |
-| a matrix of sixty cells in `$$…$$` | 104, pass | 80 |
-| thirty nested `\sqrt` in `$$…$$` | 77, pass | 59 |
-| thirty `\overbrace` in `$$…$$` | 33, pass | 25 |
-| 120 `[^1]` without blanks | 153, pass | 118 |
-| 80 `[l](u)` without blanks | 150, pass | 116 |
-| 80 `![i](p)` without blanks | 129, pass | 99 |
-| a hundred `[^1]`, 80 `[l](u)`, 80 `![i](p)` with blanks | 183, 150, 129, pass | 141, 116, 99 |
-| the same four with `$…$`, and a hundred `$a$` | 38, 104, 77, 33, 87, pass | — |
+- formulas between two `$` on each side (`$$…$$`, which remark-math reads in a cell as `$…$`; the
+  scan turned at every `$` and counted none of its content). A formula opens at a run of `$` no
+  backslash escapes and outside a code span, and closes at the next run as long in its cell
+  (`\$$x$` is an escaped `$` and a formula, `` `$` $x$ `` code and a formula);
+- 120 `[^1]`, 80 `[l](u)` or `![i](p)`, 80 `[l][r]` or `[r][]`, 120 `[r]` with their definition,
+  all without blanks between them: one word, but as many pieces of the cell's text. Each `[`
+  glued to the word before it now counts as a word as well (not the second `[` of a wiki link,
+  nor the `[` of an image that opens its word);
+- a matrix of sixty cells, which kept 30 % and no more at the calibration's weight of a formula's
+  character (526): the weight is 600 since, and every formula shape passes at 1.4 ×.
 
-An `@2026-03-04` weighs what the reading view writes for it beyond its eleven characters: at most
-28 characters and five words more, the longest date of the ten app languages written out with its
-weekday ("segunda-feira, 16 de fevereiro de 2026"); the reading view writes a shorter one
-("übermorgen", "04.03.2026").
+| Shape | At 1.3 × the budget | At 1.4 × | At the budget |
+|---|---|---|---|
+| 40 `\frac{a}{b}` in one `$$…$$`, behind `\$`, behind `` `$` `` | 33 rows, pass | 35, pass | 25 |
+| a matrix of sixty cells in `$…$`, in `$$…$$`, behind `\$` | 92, pass | 99–100, pass | 71 |
+| thirty nested `\sqrt` in `$$…$$` | 68, pass | 73, pass | 52 |
+| thirty `\overbrace` in `$$…$$` | 29, pass | 31, pass | 22 |
+| a hundred `$a$` | 81, pass | 88, pass | 63 |
+| 120 `[^1]` without blanks | 153, pass | | 118 |
+| 80 `[l](u)` without blanks | 150, pass | | 116 |
+| 80 `![i](p)` without blanks | 129, pass | | 99 |
+| 80 `[l][r]` or `[r][]` without blanks | 133, pass | 143, pass | 102 |
+| 120 `[r]` without blanks | 176, pass | 190, pass | 136 |
+| a hundred `[^1]`, 80 `[l](u)`, 80 `![i](p)` with blanks | 183, 150, 129, pass | | 141, 116, 99 |
+
+An `@2026-03-04` weighs what the reading view writes for it (`formatRelativeDate` in packages/ui:
+a word for a day up to two away, else the date, in the app's language) beyond its eleven
+characters: at most 5 characters and two words more ("depois de amanhã", "2026. 03. 04.").
+
+A row heavier than the whole budget as written is not written out as the reading view would write
+it: its table is over the budget either way. The scan built that writing for every row with a wiki
+link, and a row of 1.5 MB whose link holds `[[x` over and over ran it out of memory under 128 MB
+(main: 36 ms, 25 MB; now 72 ms, 27 MB). The writing itself (`readerWikiLink`) is built from its
+pieces in one join and walks a label's spellings one by one; a stretch read as written is made
+safe by one replace, not a string grown by a character.
 
 **What the criterion covers, and what not.** Covered: one table alone in an otherwise empty
 note, read by the index parse, the note-source parse and the reading view as the core can run it
@@ -614,7 +629,11 @@ the parser reads one too (an item from 2 inside an item under a paragraph makes 
 of the paragraph, and the scan read it as a table, took its rows out of the paragraph's measure,
 and the parser spent 17 s on the paragraph's brackets); and the scan's time grows with the note,
 not faster (at eight times the rows, or a long row eight times as long, at most sixteen times the
-time: a row with a wiki link and 160 000 code spans took the scan 16 s, now 0.15 s).
+time: a row with a wiki link and 160 000 code spans took the scan 16 s, now 0.15 s). It draws long
+rows of three kinds — a wiki link and thousands of code spans, one wiki link of 200 KB whose label
+is `[[x` over and over or brackets alone — and runs the scan alone over such a row eight times as
+long under 128 MB; and cells of units without blanks between them, among them `$$…$$`, `\$$…$`,
+`` `$` $…$ ``, `[l][r]`, `[r][]` and `[r]` with their definitions.
 
 **What the budget costs against `origin/main`** (the fourth review, `review-tables-5/cap.mts`;
 the maintainer decided on 2026-11-15 to keep the margin of about 30 %). The table gives the most
@@ -634,10 +653,23 @@ on this branch; the last column is the branch's lower limit over main's.
 A table eight quotes deep is not in the table: on main its search did not end within 15 minutes,
 since main weighs no quote level. A column of integrals was not measured against main.
 
-Against the state reviewed fifth (`c2e832bf7`) the rework of 2026-11-16 leaves every form above
-as it was (3 517, 2 541, 1 800, 2 376, 1 402 and 60 rows, in the note and in the reading view), and
-so for 80 Markdown links and a formula a row; a table with an `@date` in a cell of each row loses
-(3 005 rows before, 2 176 now), for what the reading view may write for the date.
+Against the state reviewed sixth (`f5dfc5bbf`) the rework of the same day leaves the forms above as
+they were (3 517, 2 541, 1 800, 2 376, 1 402 and 60 rows, 2 556 rows of three columns with a
+Markdown link, 115 rows of 80 Markdown links); a column of a short formula loses (1 172 rows, now
+1 078; main 4 905), for the formula weight of 600; a table with an `@date` in each row gains (one
+date and a cell: 2 631 rows, now 3 299; five dates in a cell: 972, now 1 552; main 4 586 and
+2 794), since the date weighs what the reading view writes for it.
+
+**Open, the same on main: a stretch read as written costs the note parse a piece per word.** GFM
+tries an e-mail address at every start of a run of letters and digits, and holds the text in a
+piece for each: a paragraph of 1.5 MB of `x x …` or `x]x]…` runs `parseMarkdownTree` out of 128 MB
+on main and on this branch alike. A table read as written is such a stretch. The one form where
+this branch is worse than main is a table row of 1.5 MB with one wiki link whose label is `[[x`
+over and over: main reads it as a table, where the wiki-link syntax takes the whole cell as one
+link (about 0.3 s and 40 MB); here its million `[` weigh as inline syntax, the row alone is over
+the budget, and read as written it costs the pieces (about 300 MB). Up to
+about 300 KB such a row stays under 128 MB. The memory of a whole note (L14) is where this
+belongs.
 
 Main and the branch weigh differently, so the loss is not the margin alone. The margin of about
 30 % costs every form the same; beyond it, the branch weighs a cell and a row at what the reading

@@ -80,7 +80,7 @@ interface Shape {
   /** The note's line ends are `\r\n`; it starts with a byte order mark. */
   crlf?: boolean;
   bom?: boolean;
-  /** The parser may read it as a paragraph (a nested item from 2 under a paragraph): then it must do so in time, as plain text. */
+  /** The parser may read it as a paragraph (a nested item from 2 under a paragraph), or read it as written (a row over the budget alone): then it must do so in time and memory. */
   mayBeText?: boolean;
 }
 
@@ -195,6 +195,13 @@ export const SHAPES: Record<string, Shape> = {
   refstight: { header: "| h |\n|---|", row: () => `| ${"[^1]".repeat(120)} |`, after: "\n[^1]: x" },
   mdtight: { header: "| h |\n|---|", row: () => `| ${"[l](u)".repeat(80)} |` },
   imgtight: { header: "| h |\n|---|", row: () => `| ${"![i](p)".repeat(80)} |` },
+  // An escaped `$` before a formula, a `$` in a code span before one, reference links without blanks (review, 2026-11-16).
+  escdd: { header: "| h |\n|---|", row: () => `| ${BS}$$${"\\frac{a}{b}".repeat(40)}$ |` },
+  escmatrix: { header: "| h |\n|---|", row: () => `| ${BS}$$\\begin{matrix}${"a&".repeat(60)}b\\end{matrix}$ |` },
+  codedollar: { header: "| h |\n|---|", row: () => `| \`$\` $${"\\frac{a}{b}".repeat(40)}$ |` },
+  reflinks: { header: "| h |\n|---|", row: () => `| ${"[l][r]".repeat(80)} |`, after: "\n[r]: u" },
+  refcollapsed: { header: "| h |\n|---|", row: () => `| ${"[r][]".repeat(80)} |`, after: "\n[r]: u" },
+  refshortcut: { header: "| h |\n|---|", row: () => `| ${"[r]".repeat(120)} |`, after: "\n[r]: u" },
   // Addresses and `www.` without blanks between: one word a row, a literal each.
   emailc: { header: "| h |\n|---|", row: () => `| ${"a@b.cc,".repeat(100)}|` },
   wwwshort: { header: "| h |\n|---|", row: () => `| ${"www.a,".repeat(100)}|` },
@@ -248,7 +255,16 @@ function random(...keys: number[]): () => number {
 /** Where a generated table stands. */
 const WRAPS = ["none", "quote", "quote2", "quote3", "list", "callout", "quote12", "list12", "mixed12"] as const;
 
-interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number]; units: string | null; crlf: boolean; bom: boolean; tight: string | null; lead: (typeof LEADS)[number]; long: boolean }
+interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number]; units: string | null; crlf: boolean; bom: boolean; tight: string | null; lead: (typeof LEADS)[number]; long: boolean; longKind: (typeof LONG_KINDS)[number] }
+
+/**
+ * What a long row holds (`long`): a wiki link and thousands of code spans
+ * after it (the scan's search for a span's end), or one wiki link of 200 KB
+ * whose label is `[[x` over and over or brackets alone — the reading view
+ * spells each of them out, and the scan wrote that out for a row far over the
+ * budget and ran out of memory (review, 2026-11-16).
+ */
+const LONG_KINDS = ["spans", "opens", "brackets"] as const;
 
 /**
  * Units a cell may be made of without a blank between them (`tight`): a run
@@ -256,7 +272,7 @@ interface GeneratedSettings { columns: number; length: number; outer: boolean; b
  * of the cell's text, and `$$x$$` is a formula as `$x$` is (review,
  * 2026-11-16: neither was drawn, and both ran out of memory at the budget).
  */
-const TIGHT_UNITS = ["[^1]", "[l](u)", "![i](p)", "[[n]]", "$$x$$", "$$\\frac{a}{b}$$", "$$\\sqrt{\\sqrt{x}}$$", "[^1][[n]]", "`a`", "]]"] as const;
+const TIGHT_UNITS = ["[^1]", "[l](u)", "![i](p)", "[[n]]", "$$x$$", "$$\\frac{a}{b}$$", "$$\\sqrt{\\sqrt{x}}$$", "[^1][[n]]", "`a`", "]]", "[l][r]", "[r]", "[r][]", "\\$$\\frac{a}{b}$", "`$` $\\frac{a}{b}$", "`$$` $$x$$"] as const;
 
 /**
  * A paragraph line right above the table and items in items on its header
@@ -308,6 +324,7 @@ function settingsOf(seed: number, k: number): GeneratedSettings {
     lead: k >= 12 && r() < 0.15 ? pick(LEADS.slice(1)) : "none",
     // A few rows that are long on their own: a wiki link and thousands of code spans after it, the scan's search for a span's end in each.
     long: k >= 12 && r() < 0.06,
+    longKind: pick(LONG_KINDS),
   };
 }
 
@@ -321,7 +338,11 @@ function generatedShape(seed: number, k: number, scale = 1): Shape {
     const r = random(seed, k, i, c);
     if (c > 0 && r() < s.empty) return "";
     // A long row (`scale` makes it longer, for the scan's time against its length): in its first cell.
-    if (s.long && c === 0) return `c [[x]] ${"`a` ".repeat(2000 * scale)}`;
+    if (s.long && c === 0) {
+      if (s.longKind === "opens") return `c [[${"x[[".repeat(66_000 * scale)}x]]`;
+      if (s.longKind === "brackets") return `c [[${"[".repeat(200_000 * scale)}]]`;
+      return `c [[x]] ${"`a` ".repeat(2000 * scale)}`;
+    }
     if (s.tight) {
       const count = 1 + Math.floor(r() * (s.length + 1));
       return `c ${s.tight.repeat(count)}`;
@@ -351,11 +372,12 @@ function generatedShape(seed: number, k: number, scale = 1): Shape {
   const [para, leadFirst, leadRest] = leads[s.lead];
   const [first, rest] = s.lead === "none" ? [wrapFirst, wrapRest] : [leadFirst, leadRest];
   return {
-    mayBeText: s.lead !== "none",
+    // Under a paragraph line the header may be text; a long row may weigh more than the budget alone, and its table is read as written.
+    mayBeText: s.lead !== "none" || s.long,
     crlf: s.crlf,
     bom: s.bom,
     // The references of a table's cells have their definition below it.
-    after: s.units === "[^1]" || s.units === "mix" ? `${rest}\n${rest}[^1]: x` : undefined,
+    after: s.tight ? `${rest}\n${rest}[^1]: x\n${rest}[r]: u` : s.units === "[^1]" || s.units === "mix" ? `${rest}\n${rest}[^1]: x` : undefined,
     before: s.lead !== "none" ? para : s.wrap === "callout" ? "> [!info] Generated" : undefined,
     header: `${first}${join(Array.from({ length: s.columns }, () => "h"))}\n${rest}${join(Array.from({ length: s.columns }, () => "---"))}`,
     row: (i) => rest + join(Array.from({ length: s.columns }, (_, c) => cell(i, c))),
@@ -425,7 +447,7 @@ const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker =
   row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers + literal * parts.literals + word * parts.words + reference * parts.references + link * parts.links + math * parts.maths + mathContent * parts.mathChars;
 
 /** The rows of a shape whose table weighs `target` by the constants as they stand. */
-function rowsAt(name: string, target: number): number {
+export function rowsAt(name: string, target: number): number {
   const shape = shapeOf(name);
   const header = shape.header.split("\n")[0];
   const containers = !opensNoContainers(shapeTable(name, 0));
@@ -732,7 +754,8 @@ const HUNT_PARSE_MS = 20_000;
 function scanAgrees(name: string, rows: number): string | null {
   const text = shapeTable(name, rows);
   const exact: boolean[] = [];
-  overBudgetInlineRanges(text, { table: (_first, _last, isExact) => exact.push(isExact) });
+  // A table over the budget is read as written on purpose: only the tables the scan reads as tables are asked.
+  overBudgetInlineRanges(text, { table: (_first, _last, isExact, cost) => exact.push(isExact && cost <= TABLE_READ_BUDGET) });
   if (!exact.includes(true)) return null;
   const hasTable = (node: { type: string; children?: unknown[] }): boolean => node.type === "table" || (node.children ?? []).some((child) => hasTable(child as { type: string; children?: unknown[] }));
   return hasTable(parseMarkdownTree(text) as { type: string; children?: unknown[] }) ? null : "the scan reads a table exactly where the parser reads a paragraph";
@@ -760,6 +783,17 @@ function scanIsLinear(name: string, rows: number): string | null {
 }
 
 /**
+ * Whether the scan alone reads the table of `name` with its long row eight
+ * times as long under the capped heap, in a process of its own: a row of
+ * 1.5 MB ran the scan out of memory where main took 36 ms (review,
+ * 2026-11-16). `null` where it does.
+ */
+function scanFits(name: string, rows: number): string | null {
+  const run = spawnSync(process.execPath, [`--max-old-space-size=${HEAP_MB}`, "--import", "tsx", HERE, "--child-scan", name, String(rows), "8"], { cwd: CORE, encoding: "utf8", timeout: 300_000 });
+  return run.status === 0 && /^ok/m.test(run.stdout ?? "") ? null : `the scan of a row eight times as long ${/heap out of memory|Allocation failed/i.test(run.stderr ?? "") ? "ran out of memory" : `failed (exit ${run.status})`}`;
+}
+
+/**
  * `--hunt <n> [--minutes <m>] [--seed <s>]`: n generated tables of a seed
  * drawn anew (or given), each at the budget, read by every parser under the
  * capped heap — what the performance workflow runs on every push, so that the
@@ -784,7 +818,8 @@ function hunt(args: string[]): boolean {
     const rows = Math.max(1, rowsAt(name, TABLE_READ_BUDGET));
     const run = passes(name, rows, true);
     tried++;
-    const why = !run.ok ? run.why : run.slowest > HUNT_PARSE_MS ? `a parse took ${run.slowest} ms` : (scanAgrees(name, Math.min(rows, 20)) ?? scanIsLinear(name, rows));
+    const long = settingsOf(seed, k).long;
+    const why = !run.ok ? run.why : run.slowest > HUNT_PARSE_MS ? `a parse took ${run.slowest} ms` : (scanAgrees(name, Math.min(rows, 20)) ?? scanIsLinear(name, rows) ?? (long ? scanFits(name, rows) : null));
     if (why) {
       failed.push(name);
       console.log(`FAIL     ${name} at ${rows} rows: ${why}; ${JSON.stringify(settingsOf(seed, k))}; first row ${JSON.stringify(shapeOf(name).row(0).slice(0, 200))}`);
@@ -829,5 +864,9 @@ export async function runTableBudget(args: string[]): Promise<void> {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   if (args[0] === "--child" || args[0] === "--child-unbounded") child(args[1], Number(args[2]), args[3], args[0] === "--child");
+  else if (args[0] === "--child-scan") {
+    overBudgetInlineRanges(shapeTable(args[1], Number(args[2]), Number(args[3])));
+    console.log("ok");
+  }
   else runTableBudget(args);
 }

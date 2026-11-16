@@ -123,8 +123,15 @@ export interface ReaderWikiLink {
   embed?: string;
 }
 
-/** The reading view's text for the wiki link `[[inner]]` (`embed`: `![[inner]]`); `inner` is not empty. */
-export function readerWikiLink(inner: string, embed: boolean, embedKind?: (target: string) => ReaderEmbedKind): ReaderWikiLink {
+/**
+ * The reading view's text for the wiki link `[[inner]]` (`embed`:
+ * `![[inner]]`); `inner` is not empty. `places: false` leaves `visible`
+ * empty, for a reader of the text alone (the table budget). The text is built
+ * from its pieces in one join, and a label's spellings are walked one by one:
+ * a label of a million `[` is a million spellings, held at once they ran the
+ * scan out of memory (review, 2026-11-16).
+ */
+export function readerWikiLink(inner: string, embed: boolean, embedKind?: (target: string) => ReaderEmbedKind, places = true): ReaderWikiLink {
   if (embed) {
     // The renderer cuts the target at `|` itself.
     const target = plainWikiLinkInner(inner);
@@ -146,19 +153,25 @@ export function readerWikiLink(inner: string, embed: boolean, embedKind?: (targe
   // the link opens: what Markdown would read something into is spelled
   // out. An alias is the text the link shows, shown as the text around
   // it is where it keeps to itself.
-  const spellings = parts.aliasStart < 0 || !labelKeepsToItself(label) ? [...labelSpellings(label)] : [];
+  const spellings = parts.aliasStart < 0 || !labelKeepsToItself(label) ? labelSpellings(label) : [];
   // One edit for the link, so that a place in what it hides (`[[`, a
   // target before an alias) stands for the whole link.
-  let text = "[";
+  const pieces = ["["];
+  let length = 1;
   const visible: ReaderWikiLink["visible"] = [];
   let at = 0;
-  for (const spelled of [...spellings, { at: label.length, text: "" }]) {
+  const take = (spelled: { at: number; text: string }) => {
     if (spelled.at > at) {
-      visible.push({ from: at, to: spelled.at, start: text.length, end: text.length + spelled.at - at });
-      text += label.slice(at, spelled.at);
+      if (places) visible.push({ from: at, to: spelled.at, start: length, end: length + spelled.at - at });
+      pieces.push(label.slice(at, spelled.at));
+      length += spelled.at - at;
     }
-    text += spelled.text;
+    if (spelled.text) pieces.push(spelled.text);
+    length += spelled.text.length;
     at = spelled.at + 1;
-  }
-  return { text: `${text}](wiki://${encodeTarget(target)})`, labelStart, visible };
+  };
+  for (const spelled of spellings) take(spelled);
+  take({ at: label.length, text: "" });
+  pieces.push(`](wiki://${encodeTarget(target)})`);
+  return { text: pieces.join(""), labelStart, visible };
 }

@@ -808,21 +808,29 @@ describe("where a table ends", () => {
     expect(tableRowParts(dd, 0, dd.length).mathChars).toBe("\\frac{a}{b}".length + 1);
     expect(tableRowParts("| $a$$b$ |", 0, 10).mathChars).toBe(2);
     expect(tableRowParts("| $a | b$ |", 0, 11).mathChars).toBe(3);
+    // An escaped `$` is none, so the `$` behind it opens the formula; a `$` in a code span is code (review, 2026-11-16).
+    const escapedOpen = "| \\$$\\frac{a}{b}$ | \\$$$x$$ |";
+    expect(tableRowParts(escapedOpen, 0, escapedOpen.length).mathChars).toBe("\\frac{a}{b}".length + 1);
+    const coded = "| `$` $x$ `` $ `` $y$ | \\`x` $z$ |";
+    expect(tableRowParts(coded, 0, coded.length).mathChars).toBe(3);
     // `[^1][^1]…` is one word but as many pieces of the cell's text: each
     // reference and link glued to the word before it counts as a word.
     expect(tableRowParts("| [^1][^1][^1] |", 0, 16).words).toBe(3);
     expect(tableRowParts("| [l](u)[l](u) |", 0, 16).words).toBe(2);
     expect(tableRowParts("| ![i](p)![i](p) |", 0, 18).words).toBe(2);
     expect(tableRowParts("| [^1] [^1] [site](https://a.b) |", 0, 33).words).toBe(3);
-    // `@2026-03-04` is a date in the app's language, or written out with its weekday: up to 39 characters and six words.
+    // Reference links as well: `[l][r]`, `[r][]`, `[r]` with a definition; not the second `[` of a wiki link.
+    expect(tableRowParts("| [l][r][l][r] |", 0, 16).words).toBe(4);
+    expect(tableRowParts("| [r][r][r] |", 0, 13).words).toBe(3);
+    expect(tableRowParts("| [[a]] ![[b]] |", 0, 16, false).words).toBe(2);
+    // `@2026-03-04` is what `formatRelativeDate` writes for it in the app's language: up to 16 characters and three words.
     const dated = "| @2026-03-04 | a@2026-03-04 |";
-    expect(tableRowParts(dated, 0, dated.length).chars).toBe(dated.length + 28);
-    expect(tableRowParts(dated, 0, dated.length).words).toBe(2 + 5);
+    expect(tableRowParts(dated, 0, dated.length).chars).toBe(dated.length + 5);
+    expect(tableRowParts(dated, 0, dated.length).words).toBe(2 + 2);
     const formats = [
-      (iso: string) => new Date(iso).toLocaleDateString("de-DE", { dateStyle: "full" }),
-      (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { dateStyle: "full" }),
-      (iso: string) => new Date(iso).toLocaleDateString("es", { dateStyle: "full" }),
       () => "depois de amanhã",
+      () => "pasado mañana",
+      () => "in 2 days",
       () => "2026. 03. 04.",
     ];
     for (const formatDate of formats) {
@@ -857,6 +865,20 @@ describe("where a table ends", () => {
     }
     const brackets = `# T\n\ntext\n- 2. > h|h\n     > -|-\n${Array.from({ length: 550 }, () => `     > ${"]".repeat(80)}`).join("\n")}\n\nbelow\n`;
     within(2 * SECONDS, () => parseMarkdownTree(brackets));
+  }, 60 * SECONDS);
+
+  it("weighs a row longer than the budget without writing it as the reading view would", () => {
+    // `[[x` a million times over and a `]]`: one wiki link whose label the
+    // reading view spells out character by character. The scan built that
+    // writing for a row already far over the budget and ran out of memory
+    // under 128 MB, where main took 36 ms (review, 2026-11-16).
+    for (const row of [`| ${"[[x".repeat(500_000)}]] |`, `| [[${"[".repeat(1_500_000)}]] |`]) {
+      const text = `# N\n\n| h |\n|---|\n${row}\n\nbelow\n`;
+      const before = process.memoryUsage().heapUsed;
+      const ranges = within(1_000, () => overBudgetInlineRanges(text));
+      expect(ranges).toHaveLength(1);
+      expect(process.memoryUsage().heapUsed - before).toBeLessThan(200_000_000);
+    }
   }, 60 * SECONDS);
 
   it("finds the wiki links of a long row in time linear in its length", () => {

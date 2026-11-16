@@ -584,8 +584,14 @@ export const TABLE_TAG_WEIGHT = 0;
 export const TABLE_MATH_WEIGHT = 38;
 export const TABLE_MARK_WEIGHT = 0;
 
-/** What each character between a formula's `$` weighs: a long formula (`\\int`, `\\frac`, a matrix) costs KaTeX in its length. */
-export const TABLE_MATH_CONTENT_WEIGHT = 526;
+/**
+ * What each character between a formula's `$` weighs: a long formula
+ * (`\\int`, `\\frac`, a matrix) costs KaTeX in its length. 600 since
+ * 2026-11-16 (the calibration's 526 left a matrix of sixty cells 30 % and no
+ * more: it ran out of memory at 1.4 × the budget, and once at 1.3 × beside
+ * a second run).
+ */
+export const TABLE_MATH_CONTENT_WEIGHT = 600;
 
 /** What each block marker in front of a table line weighs: a quote's `>`, a list item's or a footnote's indent; each is events of its own on every line. */
 export const TABLE_MARKER_WEIGHT = 72;
@@ -648,14 +654,22 @@ export function tableMarkerCount(prefix: string): number {
  * count what the reading view's own plugins make nodes of: a `#` that may
  * start a tag, a `$`, a `==`; `mathChars` the characters of a formula,
  * from a run of `$` to the next run as long in the same cell (`$x$`,
- * `$$x$$`). A reference, link or image glued to the word before it counts as
- * a word as well, and an `@date` the reading view writes anew as what it may
- * write (`RELATIVE_DATE_SHOWN_CHARS`). `text[from, to)` is the row behind its
+ * `$$x$$`) — a run starts at a `$` no backslash escapes and that stands in
+ * no code span, behind any other character (`\$$x$` is an escaped `$` and a
+ * formula, `` `$` $x$ `` code and a formula). Each `[` glued to the word
+ * before it — a reference, a link, a reference link, an image not at the
+ * word's start, not a wiki link's second — counts as a word as well, and an
+ * `@date` the reading view writes anew as what it writes
+ * (`RELATIVE_DATE_SHOWN_CHARS`). `text[from, to)` is the row behind its
  * container markers (`tableLineStart`).
  */
 export function tableRowParts(text: string, from: number, to: number, asRead = true): TableRowParts {
   const written = rowParts(text, from, to);
   if (!asRead) return written;
+  // A row heavier than the whole budget as written puts its table over the budget either way: the reading view's
+  // writing of it, as long as the row or longer, is not built (review, 2026-11-16: a row of 1.5 MB of `[[x` ran the
+  // scan out of memory there, where main took 36 ms).
+  if (partsCost(written, 0) > TABLE_READ_BUDGET) return written;
   const shown = shownRow(text, from, to);
   if (shown === undefined) return written;
   // The reading view reads the row as it writes it: each part weighs the more of the two.
@@ -741,7 +755,7 @@ function shownRow(text: string, from: number, to: number): string | undefined {
       }
       if (close > i + 2) {
         const embed = i > 0 && row[i - 1] === "!" && !escaped(row, i - 1);
-        shown += row.slice(copied, embed ? i - 1 : i) + readerWikiLink(row.slice(i + 2, close), embed).text;
+        shown += row.slice(copied, embed ? i - 1 : i) + readerWikiLink(row.slice(i + 2, close), embed, undefined, false).text;
         copied = close + 2;
       }
       i = close + 1;
@@ -774,8 +788,12 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   let marks = 0;
   let inWord = false;
   let wordStart = -1;
-  // Whether the latest `[` stands glued to a word before it: a link there splits that word's text in pieces of its own.
-  let bracketGlued = false;
+  // The latest `$` read as a delimiter: a run of them starts where the one before is none (`\$$x$` is an escaped `$` and a formula).
+  let lastDollar = -2;
+  // Code spans: a `$` in one is no delimiter (`` `$` $x$ `` is code and one formula).
+  const spans = text.indexOf("`", from) >= 0 && text.indexOf("`", from) < to ? codeSpansOf(text, from, to) : [];
+  let nextSpan = 0;
+  let codeUntil = -1;
   // What the reading view writes for an `@date` beyond the characters it stands in.
   let shownChars = 0;
   let backslashes = 0;
@@ -783,6 +801,11 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   let held = false;
   for (let i = from; i < to; i++) {
     const ch = text[i];
+    if (nextSpan < spans.length && i === spans[nextSpan]) {
+      // A code span that opens inside a formula is none: the formula read first.
+      if (!inMath) codeUntil = spans[nextSpan + 1];
+      nextSpan += 2;
+    }
     if (ch === "|" && backslashes % 2 === 0) {
       // A stretch between two boundaries is a cell; the one before the first only when it holds something.
       if (boundaries > 0 || held) cells++;
@@ -798,22 +821,22 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
       else if ((ch === "m" || ch === "M") && lowerIs(text, i + 1, "ailto:")) literals++;
       else if ((ch === "x" || ch === "X") && lowerIs(text, i + 1, "mpp:")) literals++;
       if (ch !== " " && ch !== "\t") held = true;
-      // A reference or a link glued to the word before it starts a piece of the cell's text as a word does: `[^1][^1]…` is one word but as many pieces.
-      if (ch === "[") bracketGlued = inWord && !(wordStart === i - 1 && text[i - 1] === "!");
-      if (ch === "]" && text[i + 1] === "(") {
-        links++;
-        if (bracketGlued) words++;
-      }
+      // A reference or a link glued to the word before it starts a piece of the cell's text as a word does: `[^1][^1]…`,
+      // `[l](u)[l](u)…` and `[r][r]…` are one word but as many pieces. Not the second `[` of a wiki link, nor the `[` of
+      // an image that opens the word.
+      if (ch === "[" && inWord && text[i - 1] !== "[" && !(wordStart === i - 1 && text[i - 1] === "!")) words++;
+      if (ch === "]" && text[i + 1] === "(") links++;
       if (ch === "@" && isRelativeDate(text, i, to)) {
         shownChars += RELATIVE_DATE_SHOWN_CHARS;
         words += RELATIVE_DATE_SHOWN_WORDS;
       }
       if (ch === "[" && text[i + 1] === "^") {
         references++;
-        if (inWord) words++;
-      } else if (ch === "$" && backslashes % 2 === 0) {
+      } else if (ch === "$" && backslashes % 2 === 0 && i >= codeUntil) {
         maths++;
-        if (text[i - 1] !== "$") {
+        const starts = lastDollar !== i - 1;
+        lastDollar = i;
+        if (starts) {
           let run = 1;
           while (i + run < to && text[i + run] === "$") run++;
           if (!inMath) {
@@ -844,13 +867,64 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
 
 /**
  * What the reading view writes for an `@2026-03-04` beyond the eleven
- * characters and one word it stands in: a date in the app's language
- * ("depois de amanhã", "2026. 03. 04."), or one written out with its weekday
- * in any of the ten ("segunda-feira, 16 de fevereiro de 2026") — at most 39
- * characters and six words.
+ * characters and one word it stands in (`formatRelativeDate` in
+ * packages/ui): a word for a day up to two away or the date, in the app's
+ * language — at most "depois de amanhã" (16 characters, three words) and
+ * "2026. 03. 04." (three words).
  */
-const RELATIVE_DATE_SHOWN_CHARS = 28;
-const RELATIVE_DATE_SHOWN_WORDS = 5;
+const RELATIVE_DATE_SHOWN_CHARS = 5;
+const RELATIVE_DATE_SHOWN_WORDS = 2;
+
+/**
+ * The code spans of the row `text[from, to)`, as `[start, end, …]` (from the
+ * opening run to past the closing one): in each cell, a run of backticks no
+ * backslash escapes opens a span that closes at the next run as long in the
+ * cell; one without such a run is text. Each run of a length is found once,
+ * a cursor walks them to the right: linear in the row.
+ */
+function codeSpansOf(text: string, from: number, to: number): number[] {
+  const spans: number[] = [];
+  let starts: number[] = [];
+  let lengths: number[] = [];
+  const match = () => {
+    const byLength = new Map<number, number[]>();
+    lengths.forEach((length, k) => {
+      const list = byLength.get(length) ?? [];
+      list.push(k);
+      byLength.set(length, list);
+    });
+    const cursors = new Map<number, number>();
+    for (let k = 0; k < starts.length; ) {
+      const list = byLength.get(lengths[k])!;
+      let next = cursors.get(lengths[k]) ?? 0;
+      while (next < list.length && list[next] <= k) next++;
+      cursors.set(lengths[k], next);
+      if (next < list.length) {
+        const close = list[next];
+        spans.push(starts[k], starts[close] + lengths[close]);
+        k = close + 1;
+      } else k++;
+    }
+    starts = [];
+    lengths = [];
+  };
+  for (let i = from; i < to; i++) {
+    if (text[i] === "|" && !escaped(text, i)) match();
+    else if (text[i] === "`") {
+      let run = 1;
+      while (i + run < to && text[i + run] === "`") run++;
+      // An escaped backtick is text: the run starts behind it.
+      const skip = escaped(text, i) ? 1 : 0;
+      if (run > skip) {
+        starts.push(i + skip);
+        lengths.push(run - skip);
+      }
+      i += run - 1;
+    }
+  }
+  match();
+  return spans;
+}
 
 /** Whether `text[at]` is the `@` of a date the reading view writes anew (`relativeDates` in noteSource.ts): not glued to a word or an escape. */
 function isRelativeDate(text: string, at: number, to: number): boolean {
@@ -895,7 +969,11 @@ function lowerIs(text: string, at: number, lower: string): boolean {
  * measured shape — the costliest shape of each part decides its weight.
  */
 export function tableReadCost(text: string, from: number, to: number, columns = 0): number {
-  const parts = tableRowParts(text, from, to);
+  return partsCost(tableRowParts(text, from, to), columns);
+}
+
+/** What a row of `parts` weighs (`tableReadCost`). */
+function partsCost(parts: TableRowParts, columns: number): number {
   // The reading view fills every row up to the header's columns (`mdast-util-to-hast`): a row weighs at least that many cells.
   return (
     TABLE_ROW_WEIGHT +
@@ -936,11 +1014,12 @@ export function tableReadCost(text: string, from: number, to: number, columns = 
  * quote or a list item, 2 590 rows of one short cell twenty quotes deep, 200
  * rows of a hundred e-mail addresses, 258 rows of 150 one-letter words, 377
  * rows of a hundred numbers, 141 rows of a hundred footnote references, 115
- * rows of 80 Markdown links, 67 rows of a hundred formulas, 80 rows of a
- * matrix of sixty cells. The shapes the fifth review found the weight
- * short of (2026-11-16: formulas between two `$` on each side, 120 `[^1]` or
- * 80 `[l](u)` without blanks) are weighed since and pass at 1.3 × the budget
- * (`--margin 1.3`), as their neighbours with blanks and with one `$` do.
+ * rows of 80 Markdown links, 63 rows of a hundred formulas, 71 rows of a
+ * matrix of sixty cells. The shapes the fifth and sixth reviews found the
+ * weight short of (2026-11-16: formulas between two `$` on each side or
+ * behind an escaped `$` or a code span with one, references and links of
+ * every kind without blanks) are weighed since and pass at 1.3 × the budget,
+ * the formula shapes at 1.4 × (`--margin`), as their neighbours do.
  * The budget is the calibration's 8 160 000 set
  * lower so that the lightest measured shape sits about 30 % above it (decided
  * 2026-11-13, kept by the maintainer 2026-11-15): 128 MB is an assumption
@@ -1357,7 +1436,6 @@ const MARKUP = "\\[]*_~`<&!$|";
 /** The stand-ins in order: `MARKUP`, then what only a table read as written stands in for (`BoundedRange.table`). */
 const STAND_INS = `${MARKUP}=-`;
 const STAND_IN_BASE = 0xfdd0;
-const STAND_IN_LAST = 0xfdef;
 const REPLACEMENT = String.fromCharCode(0xfffd);
 
 /** A text made safe to parse, and how to give a parsed value back its characters. */
@@ -1383,38 +1461,33 @@ export function boundMarkdownForParse(text: string, reading: MarkdownReading = N
 /** `text` with `ranges` read as written (`boundMarkdownForParse`), for a caller that unites the ranges of more than one reading. */
 export function boundMarkdownInRanges(text: string, ranges: BoundedRange[]): BoundedMarkdown {
   if (ranges.length === 0) return { text, ranges };
-  let out = "";
+  // One replace a range, not a string grown by a character: a range of a million `[` held a million pieces (review, 2026-11-16).
+  const pieces: string[] = [];
   let at = 0;
   for (const range of ranges) {
-    out += text.slice(at, range.from);
-    for (let i = range.from; i < range.to; i++) {
-      const ch = text[i];
-      const code = ch.charCodeAt(0);
-      const markup = range.table ? STAND_INS.indexOf(ch) : MARKUP.indexOf(ch);
-      if (markup >= 0) out += String.fromCharCode(STAND_IN_BASE + markup);
-      else if (code >= STAND_IN_BASE && code <= STAND_IN_LAST) out += REPLACEMENT;
-      else out += ch;
-    }
+    pieces.push(text.slice(at, range.from), text.slice(range.from, range.to).replace(range.table ? STANDS_IN_TABLE : STANDS_IN, standIn));
     at = range.to;
   }
-  out += text.slice(at);
-  return { text: out, ranges };
+  pieces.push(text.slice(at));
+  return { text: pieces.join(""), ranges };
 }
+
+/** What a range read as written replaces: its markup (`MARKUP`; in a table `STAND_INS`), and the stand-ins themselves, which a note may hold. */
+const STANDS_IN = new RegExp(`[${MARKUP.replace(/[\\\]^-]/g, "\\$&")}\ufdd0-\ufdef]`, "g");
+const STANDS_IN_TABLE = new RegExp(`[${STAND_INS.replace(/[\\\]^-]/g, "\\$&")}\ufdd0-\ufdef]`, "g");
+const standIn = (ch: string): string => {
+  const markup = STAND_INS.indexOf(ch);
+  return markup >= 0 ? String.fromCharCode(STAND_IN_BASE + markup) : REPLACEMENT;
+};
+/** A stand-in, to give back. */
+const STAND_IN = /[\ufdd0-\ufdef]/g;
 
 /** A value read from a bounded text, with its stand-ins turned back into the characters they stood for. */
 export function restoreBoundedValue(value: string): string {
-  let out = "";
-  let changed = false;
-  for (let i = 0; i < value.length; i++) {
-    const code = value.charCodeAt(i);
-    if (code >= STAND_IN_BASE && code < STAND_IN_BASE + STAND_INS.length) {
-      out += STAND_INS[code - STAND_IN_BASE];
-      changed = true;
-    } else {
-      out += value[i];
-    }
-  }
-  return changed ? out : value;
+  return value.replace(STAND_IN, (ch) => {
+    const code = ch.charCodeAt(0);
+    return code < STAND_IN_BASE + STAND_INS.length ? STAND_INS[code - STAND_IN_BASE] : ch;
+  });
 }
 
 interface PlacedTreeNode {
