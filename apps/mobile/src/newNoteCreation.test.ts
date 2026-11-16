@@ -110,6 +110,8 @@ function creationOps(): CreationOps {
     configuredNoteType,
     ensureSharedDailyNote,
     getActiveVaultEntry: async () => ({ name: "Vault" }),
+    // The name a template gets, from the phone's one source (B25).
+    phoneTemplateVault: async () => ({ name: "Vault", dailyFolder: "", dailyFormat: "" }),
     getMobileSettings: () => settings,
     reportCreated: (path: string) => void reported.push(path),
     // The one way to park a caret since 2026-10-09: with the note it counts in.
