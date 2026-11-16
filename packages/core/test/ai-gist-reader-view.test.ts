@@ -177,10 +177,15 @@ describe("a short summary and a reader with a narrower view", () => {
     await store.put({ key: VAULT_GIST_KEY, level: "vault", source: VAULT_GIST_KEY, text: "Notes of a small studio.", ok: true, createdAt: later }, "local/m");
     // The rules besides the notes' own: a folder kept from the cloud. Each lookup counted.
     let keptFolders = ["Private/"];
+    // `lookups` counts every question about a note's rules; `looked`, those about a note of the area, asked with its
+    // text — what looking through the area costs. A kept "may go" asks again only about the notes its links could
+    // mean, whose own rules stand in their files (review of R19, wave 2).
     let lookups = 0;
+    let looked = 0;
     const host: ContextBuildHost = {
       policyOf: async (path, text) => {
         lookups++;
+        if (text !== undefined) looked++;
         const own = notePolicyFrom(keptFolders.some((folder) => path.startsWith(folder)) ? { plainva: { ai: { cloud: "deny" } } } : {});
         void text;
         return effectivePolicy(path, own, [], DEFAULT_AI_POLICY);
@@ -200,20 +205,24 @@ describe("a short summary and a reader with a narrower view", () => {
     };
     const ask = async () => {
       lookups = 0;
+      looked = 0;
       // A reader for each message, as the shells make one.
       const pack = await buildContextPackage(
         { question: "What is the offer?", recipient: cloud, situation, candidates: [[{ path: "Projects/n1.md", title: "n1", signals: { lexical: 1 } }]], pins: [], budget: { evidence: 1, cards: 0, map: 4 } },
         { ...host, gists: new GistReader(db, "local/m") },
       );
-      return { text: pack.part.text, lookups };
+      return { text: pack.part.text, lookups, looked };
     };
     const first = await ask();
     expect(first.text).toContain("Offers of the studio.");
     expect(first.lookups).toBeGreaterThan(N);
-    // The same state: the verdict is kept, not one note of the area is looked through again.
+    expect(first.looked).toBeGreaterThan(N);
+    // The same state: the verdict is kept, not one note of the area is looked through again — only the rules of the
+    // notes its links could mean are read again from their files.
     const again = await withinAsync(200, () => ask());
     expect(again.text).toEqual(first.text);
-    expect(again.lookups).toBeLessThan(20);
+    expect(again.looked).toBeLessThan(20);
+    expect(again.lookups - again.looked).toBeGreaterThan(0);
     // A note of the area that links to the kept note since: decided anew, and its gist stays back.
     await files.writeTextFile("Projects/n3.md", "# n3\nSee [[Private/Salary Kowalski]].\n");
     await indexer.indexVaultFull();
@@ -227,7 +236,7 @@ describe("a short summary and a reader with a narrower view", () => {
     keptFolders = ["Private/", "Projects/n9"];
     const ruled = await ask();
     // Looked through again, as far as the first note the rules keep back.
-    expect(ruled.lookups).toBeGreaterThan(again.lookups + 20);
+    expect(ruled.looked).toBeGreaterThan(again.looked + 20);
     expect(ruled.text).not.toContain("Offers of the studio.");
     // A host that cannot read the names as fresh as the stamp keeps no verdict: every message looks through the area.
     keptFolders = ["Private/"];

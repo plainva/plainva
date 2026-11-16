@@ -15,6 +15,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { eventHandle } from "../../../../packages/ui/src/ai/eventDetails";
+import { plannerRowsFromTasks } from "../../../../packages/ui/src/lib/taskPlannerRows";
 import { notePropertiesOf } from "../../../../packages/ui/src/ai/aiSituation";
 import { buildContextPackage } from "../../../../packages/core/src/ai/context/package";
 import { protectedTokens } from "../../../../packages/core/src/ai/context/gists";
@@ -37,6 +38,16 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
  * summaries.
  */
 const LONG = "a".repeat(395);
+/** A name with its last letter written as a YAML escape: YAML reads the name, the text does not spell it. */
+const escaped = (name: string) => `${name.slice(0, -1)}\\x${name.charCodeAt(name.length - 1).toString(16)}`;
+/** A title that holds a link in each way YAML reads one: quoted, a tab, a comment, over two lines, an escape. */
+const TITLES = (name: string): Record<string, string> => ({
+  quoted: `"[[${name}]]"`,
+  tabbed: `[[${name},\tMeier]]`,
+  commented: `[[${name},  # c\n  Meier]]`,
+  spread: `"[[${name},\n  Meier]]"`,
+  escaped: `"[[${escaped(name)}]]"`,
+});
 const AGENDA = `## Agenda\n\n${"Each round starts with the open points from last time, then the numbers of the quarter. ".repeat(20)}\n`;
 const readable = (name: string): Record<string, string> => ({
   "Projects/Pay.md": `---\nrelated: "[[Private/${name}]]"\nowner: "[[${name}|the owner]]"\nunquoted: [[Private/${name}]]\nlist:\n  - [[${name}]]\nlong: "${LONG} [[Private/${name}]]"\ncomma: [[${name}, Meier]]\nlabelled: [[${name}, Meier|Pay, ${name}]]\ncolon: [[Brief: ${name}]]\nspread: [[${name},\n  Meier]]\ninside:\n  rel: [[${name}, Meier]]\nitems:\n  - [[${name}, Meier]]\n  - plain\n---\n# Pay\n\nThe rates of this year.\n\n## Talk with [[${name}]]\n\nSee [[Private/${name}|${name}]] for the numbers.\n\n| who | note |\n| --- | --- |\n| a | [[${name}\\|x]] |\n\nAlso [t](../Private/${encodeURIComponent(name)}.md), ![[${name}]] and [r][1].\n\n[1]: ../Private/${encodeURIComponent(name)}.md\n`,
@@ -55,6 +66,11 @@ const readable = (name: string): Record<string, string> => ({
   "Projects/Tagged.base": "filters:\n  and:\n    - file.folder == \"Projects\"\n    - 'contains(tags, \"Kowalski\")'\nviews:\n  - type: table\n    name: T\n    order: [tags]\n",
   "Projects/TagSource.base": `filters:\n  and:\n    - 'file.hasTag("[${HIDDEN[0]}, Meier]")'\nviews:\n  - type: table\n    name: T\n    order: [aliases]\n`,
   "Projects/Hub.md": "---\nkids: [\"[[Projects/Forms]]\"]\n---\n# Hub\n",
+  // Notes named by such a title: each links to the hub and holds a task, so every list that names a note names them.
+  ...Object.fromEntries(Object.entries(TITLES(name)).map(([form, title]) => [`Projects/Titled ${form}.md`, `---\ntitle: ${title}\n---\n# ${form}\n\nThe titled ${form}, see [[Projects/Hub]].\n\n- [ ] call about ${form} 📅 2026-11-13\n`])),
+  // A tag YAML builds from an escape, and a source that chooses rows by that tag (review of R19, wave 2).
+  "Projects/Escaped.md": `---\ntags: ["[[${escaped(name)}]]", "kept"]\nnote: "[[${escaped(name)}]]"\n---\n# Escaped\n`,
+  "Projects/EscapedSource.base": `filters:\n  and:\n    - 'file.hasTag("[[${HIDDEN[0]}]]")'\nviews:\n  - type: table\n    name: T\n    order: [tags]\n`,
   "Projects/Count.base":
     "filters:\n  and:\n    - file.folder == \"Projects\"\ncolumns:\n  kids:\n    input: link\n  k:\n    rollup:\n      through: kids\n      of: tags\n      fn: countWhere\n      where:\n        op: contains\n        value: Kowalski\n  a:\n    rollup:\n      through: kids\n      of: aliases\n      fn: list\nviews:\n  - type: table\n    name: T\n    order: [kids, k, a]\n",
   "Projects/Comma.base": "filters:\n  and:\n    - file.folder == \"Projects\"\nviews:\n  - type: table\n    name: T\n    order: [comma, labelled, colon, spread, inside, items]\n",
@@ -102,7 +118,8 @@ async function vaultOf(name: string) {
     resolveLink: (target, from) => query.resolveNotePath(target, from),
     linkCandidates: async (target, from) => filesALinkCouldMean(buildLinkNameIndex(await query.linkTargets()), target, from),
     policyOf: (path, text) => policy.policyOf(path, text),
-    taskRows: async () => [],
+    // The tasks as both shells list them: the note a task stands in is named by its title.
+    taskRows: async () => plannerRowsFromTasks((await query.listTasks()).filter((task) => !task.excluded)),
     todayKey: () => "2026-11-13",
     commands: () => [],
     backlinks: (path, options) => query.getBacklinks(path, options),
@@ -110,6 +127,7 @@ async function vaultOf(name: string) {
     recentlyOpened: async () => [{ path: "Projects/Pay.md", openedAt: 1 }],
     recentlyChanged: (limit, offset, within) => query.getRecentlyChangedNotes(limit, offset, within),
     queryDatabase: (config, options) => query.queryDatabaseFiles(config, options),
+    notesAsSeen: (paths, reach, rule) => query.notesAsSeen(paths, reach, rule),
     events: async () => [event],
     mail: {
       accounts: async () => [MAIL],
@@ -216,6 +234,14 @@ const questions = (handle: string): [string, Record<string, unknown>][] => [
   ["query_base", { base: "Projects/Tagged.base", limit: 20 }],
   ["query_base", { base: "Projects/TagSource.base", limit: 20 }],
   ["query_base", { base: "Projects/Count.base", limit: 30 }],
+  ["query_base", { base: "Projects/EscapedSource.base", limit: 20 }],
+  ["read_note", { path: "Projects/Escaped.md" }],
+  ["search_vault", { query: "titled", limit: 20 }],
+  ["search_vault", { query: "escaped", limit: 20 }],
+  ["get_backlinks", { path: "Projects/Hub.md", limit: 20 }],
+  ["graph_neighborhood", { path: "Projects/Hub.md", limit: 20, depth: 1 }],
+  ["get_recent", { kind: "edited", limit: 40 }],
+  ["get_changes", { since: "2000-01-01", limit: 40 }],
   ["get_tasks", { range: "all" }],
   ["get_backlinks", { path: "Projects/Pay.md", limit: 20 }],
   ["get_backlinks", { path: "Projects/Mia.md", limit: 20 }],
@@ -302,6 +328,39 @@ describe("the reader-view guard on the real search path", () => {
       }
       await a.done();
       await z.done();
+    });
+
+    /**
+     * Every tool on the list names a note by the title its view gives (`notesAsSeen`), never by the one the index
+     * holds (review of R19, wave 2): every title the index's lists hand the tools is poisoned here, and the building
+     * block answers for every note. A tool that took a title past it — a sixth place, a new tool — names a note by
+     * the poison.
+     */
+    it(`${who}: no tool names a note by a title the index holds past the reader's view of it`, async () => {
+      const v = await vaultOf(HIDDEN[0]);
+      const POISON = "☠";
+      const poisoned = <T extends string | null | undefined>(title: T, path: string): T => (typeof title === "string" && title ? (`${POISON}${path}` as T) : title);
+      const real = v.deps;
+      const deps: VaultToolDeps = {
+        ...real,
+        search: async (...args) => (await real.search(...args)).map((hit) => ({ ...hit, title: poisoned(hit.title, hit.path) })),
+        backlinks: async (...args) => (await real.backlinks!(...args)).map((row) => ({ ...row, source_title: poisoned(row.source_title, row.source_path) })),
+        neighbors: async (...args) => (await real.neighbors!(...args)).map((row) => ({ ...row, title: poisoned(row.title, row.path) })),
+        recentlyChanged: async (...args) => (await real.recentlyChanged!(...args)).map((row) => ({ ...row, title: poisoned(row.title, row.path) })),
+        history: { ...real.history!, changedIn: async (...args) => (await real.history!.changedIn(...args)).map((row) => ({ ...row, title: poisoned(row.title, row.path) })) },
+        taskRows: async (...args) => (await real.taskRows(...args)).map((row) => ({ ...row, noteTitle: poisoned(row.noteTitle, row.path) })),
+        // The building block answers for every note: by the name of its file where its view withholds nothing.
+        notesAsSeen: async (paths, reach, rule) => {
+          const seen = new Map(await real.notesAsSeen!(paths, reach, rule));
+          for (const path of paths) if (!seen.has(path)) seen.set(path, { title: path.replace(/^.*\//, "").replace(/\.md$/, ""), tags: [] });
+          return seen;
+        },
+      };
+      for (const [name, args] of questions(eventHandle(v.event)!)) {
+        const out = await createVaultToolExecutor(deps, { recipient: cloud, webTools: web }, scope, undefined, { more: furtherToolNames(deps) }).execute(toolByName(name)!, args, { type: "tool_call", id: "c", name, args });
+        expect(JSON.stringify(out), `${name} ${JSON.stringify(args)}`).not.toContain(POISON);
+      }
+      await v.done();
     });
 
     it(`${who}: a change that names the hidden note is answered alike in both vaults`, async () => {

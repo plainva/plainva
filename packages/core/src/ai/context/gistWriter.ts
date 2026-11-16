@@ -17,6 +17,7 @@ import { aiVisibleSql } from "../hiddenPaths.js";
 import { fullTextRowOf } from "../../db/fullTextRows.js";
 import { checkGist, gistInstruction, gistKey, gistOfGists, gistSections, GIST_MIN_SOURCE, sectionGistKey, type GistLevel } from "./gists.js";
 import { GistStore, type StoredGist } from "./gistStore.js";
+import type { KeptAreaVerdict } from "./package.js";
 
 export interface GistModel {
   /** `provider/model`: whose gists these are. */
@@ -188,7 +189,7 @@ function epochMs(value: unknown): number {
  * they are left out rather than trusted.
  */
 /** The verdicts on areas' gists, per vault index (`GistReader.verdicts`): readers come and go, the index stays. */
-const AREA_VERDICTS = new WeakMap<IDatabaseAdapter, Map<string, { stamp: string; allowed: boolean }>>();
+const AREA_VERDICTS = new WeakMap<IDatabaseAdapter, Map<string, KeptAreaVerdict>>();
 
 export class GistReader {
   private readonly store: GistStore;
@@ -201,7 +202,7 @@ export class GistReader {
   }
 
   /** Whether an area's gist may go to a reader, kept with this vault's index over messages (`PackageGists.verdicts`). */
-  get verdicts(): Map<string, { stamp: string; allowed: boolean }> {
+  get verdicts(): Map<string, KeptAreaVerdict> {
     let kept = AREA_VERDICTS.get(this.db);
     if (!kept) {
       kept = new Map();

@@ -10,6 +10,7 @@ import {
   ENCRYPTED_WORKSPACE_AI_POLICY,
   isAiHiddenPath,
   linkTargetName,
+  markdownLinkTarget,
   notePolicyFrom,
   OPENED_HALF_LIFE_MS,
   parsePolicyFile,
@@ -17,12 +18,14 @@ import {
   readFrontmatterPath,
   readInstructionFile,
   resolveLinkTargetIndexed,
+  resolveMarkdownLinkIndexed,
   scanInstruction,
   scanVaultInstructions,
   recencySignal,
   setFrontmatterPath,
   updateVaultText,
   VersionHistoryService,
+  wikiLinkParts,
   type AiPolicyDimension,
   type Candidate,
   type ContextNote,
@@ -156,17 +159,41 @@ export function createVaultPolicy(opts: {
             const files = await opts.fileNames!();
             const index = buildLinkNameIndex(files);
             const targets = buildLinkTargetIndex(files);
+            // The names every other question asks from now on, too: a gate without a kept verdict and one with it
+            // read the same names in the same moment (review of R19, wave 2).
+            names = { at: now(), index: Promise.resolve(index) };
             const opened = (target: string, from: string): string | null => {
               const name = linkTargetName(target);
               return name ? resolveLinkTargetIndexed(from, name, targets) : null;
             };
+            // Where the names place no file, the shell's own resolver may know more: the phone's looks at the files on
+            // disk the index has not read yet — for a link written as a path where the Markdown rule finds nothing in
+            // the index, and for any link the wiki rule finds nothing for (`vaultService.resolveWikiTarget`). It is
+            // asked there, and what it answered is named, so a verdict kept over messages asks it again
+            // (`LinkSnapshot.shellAnswers`). Everywhere else its answer is the index's, which the names hold.
+            const asked = new Map<string, { target: string; from: string; path: string | null }>();
+            const shell = async (target: string, from: string): Promise<string | null> => {
+              const key = `${from}\u0000${target}`;
+              const known = asked.get(key);
+              if (known) return known.path;
+              const path = await opts.resolveLink(target, from).catch(() => null);
+              asked.set(key, { target, from, path });
+              return path;
+            };
+            const unplacedAsPath = (target: string, from: string): boolean => {
+              const named = markdownLinkTarget(target.slice(0, wikiLinkParts(target).headEnd)).target;
+              return (named.includes("/") || /\.(md|base)$/i.test(named)) && resolveMarkdownLinkIndexed(from, named, targets) === null;
+            };
             return {
-              resolveLink: async (target: string, from: string) => opened(target, from),
+              resolveLink: async (target: string, from: string) => opened(target, from) ?? (await shell(target, from)),
               async linkCandidates(target: string, from: string): Promise<readonly string[]> {
                 const found = filesALinkCouldMean(index, target, from);
-                const taps = [opened(target, from), opened(target, "")].filter((path): path is string => path !== null && !found.includes(path));
+                const here = opened(target, from);
+                const fromShell = here === null || unplacedAsPath(target, from) ? await shell(target, from) : null;
+                const taps = [here, opened(target, ""), fromShell].filter((path): path is string => path !== null && !found.includes(path));
                 return taps.length ? [...new Set(taps), ...found] : found;
               },
+              shellAnswers: () => [...asked.values()],
             };
           },
         }

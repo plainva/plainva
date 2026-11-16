@@ -32,6 +32,10 @@ function deps(overrides: Partial<VaultToolDeps> = {}): VaultToolDeps {
         { id: "3", source: "database", path: "Tasks/Plan.md", title: "Plan week", state: "open", due: null, dueMinutes: null, priority: 0, tags: [] },
       ];
     },
+    // No note's properties block here gives a title or a tag the reader may not see: the index's titles stand.
+    async notesAsSeen() {
+      return new Map();
+    },
     todayKey: () => "2026-09-24",
     commands: () => [{ id: "open-graph", label: "Open graph", run: () => true }],
     ...overrides,

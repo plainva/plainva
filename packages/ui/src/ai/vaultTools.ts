@@ -151,6 +151,13 @@ export interface VaultToolDeps {
   events?(from: Date, to: Date): Promise<SituationEventInput[]>;
   /** Rows of a database query (`queryDatabaseFiles`); `reach` as there: the notes a computed column may be made of. */
   queryDatabase?(config: unknown, options?: DatabaseReach): Promise<unknown[]>;
+  /**
+   * Notes as a reader with a narrower view sees them (`VaultQueryService.notesAsSeen`, review of R19, wave 2): the
+   * title and the tags of each note whose properties block withholds a link from it, read from the block as the
+   * reader is shown it. The one place every tool takes a note's title from for such a reader; without it, such a
+   * reader is told each note by the name of its file.
+   */
+  notesAsSeen?(paths: readonly string[], reach: (paths: readonly string[]) => Promise<ReadonlySet<string>>, rule: LinkRule): Promise<ReadonlyMap<string, { title: string; tags: readonly string[] }>>;
   /** The property the vault rates its days in; it stays behind like the usual mood names. */
   moodKey?(): Promise<string | null>;
   /** The vault's mail accounts (plan KI-Harness P4-4); absent in a shell without mail. */
@@ -566,13 +573,30 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    */
   const titled = async <R extends object>(rows: R[], pathKey: keyof R & string, titleKey: keyof R & string): Promise<R[]> => {
     if (!restricted) return rows;
+    const seen = await notesSeen(rows.map((row) => String(row[pathKey] ?? "")));
     return Promise.all(
       rows.map(async (row) => {
         const title = row[titleKey];
         if (typeof title !== "string" || !title) return row;
-        return { ...row, [titleKey]: await withhold(title, String(row[pathKey] ?? "")) };
+        const path = String(row[pathKey] ?? "");
+        return { ...row, [titleKey]: await withhold(titleSeen(path, title, seen), path) };
       }),
     );
+  };
+  /**
+   * The titles and tags of notes as this run may see them (`VaultToolDeps.notesAsSeen`): read from each note's
+   * properties block with the links withheld it may not follow — the one place a note's title comes from for a
+   * reader with a narrower view, whichever tool names the note (review of R19, wave 2). Null for any other reader.
+   */
+  const notesSeen = async (paths: readonly string[]): Promise<ReadonlyMap<string, { title: string; tags: readonly string[] }> | null> => {
+    if (!restricted || !deps.notesAsSeen) return null;
+    return deps.notesAsSeen(paths.filter(Boolean), allowedOf, scope?.linksInReach ? "in-reach" : "any-kept-back");
+  };
+  /** A note's title as this run may see it: the index's where its block withholds nothing, else the view's; a reader with a narrower view and no `notesAsSeen` gets the file's name. */
+  const titleSeen = (path: string, title: string, seen: ReadonlyMap<string, { title: string }> | null): string => {
+    if (!restricted) return title;
+    if (!deps.notesAsSeen) return titleOf(path);
+    return seen?.get(path)?.title ?? title;
   };
   const readAllowed = async (raw: unknown): Promise<{ path: string; text: string } | null> => {
     const path = typeof raw === "string" ? safeRelPath(raw) : null;
@@ -838,6 +862,15 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const all = await deps.taskRows(readerReach);
           await ready(all.map((row) => row.path));
           for (const row of all) if (await allowed(row.path)) rows.push(row);
+          // The note a task stands in is named by its title as this run may see it — before the planner orders by it.
+          if (restricted) {
+            const seen = await notesSeen(rows.filter((row) => row.source === "note").map((row) => row.path));
+            for (let i = 0; i < rows.length; i++) {
+              const row = rows[i]!;
+              if (row.source !== "note") continue;
+              rows[i] = { ...row, noteTitle: await withhold(titleSeen(row.path, row.noteTitle ?? titleOf(row.path), seen), row.path) };
+            }
+          }
           const planner = buildPlanner(rows, today);
           const listed =
             range === "all"

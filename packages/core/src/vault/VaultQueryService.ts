@@ -33,7 +33,7 @@ import { redactDeniedLinksIn } from "../ai/egressGate.js";
 import type { LinkRule } from "../ai/chat.js";
 import { ReaderView } from "../ai/readerView.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
-import { linkTargetsOfBlock, propertiesAsSeen, propertiesBlockOf, propertiesInView, tagsInView, withValuesAsWritten, type PropertiesView } from "./propertiesInView.js";
+import { linkTargetsOfBlock, propertiesBlockOf, propertiesInView, tagsInView, tagsNeedTheText, withValuesAsWritten, type PropertiesView } from "./propertiesInView.js";
 import { frontmatterSpan } from "../frontmatter-block.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -1424,9 +1424,13 @@ export class VaultQueryService {
   /**
    * The properties of notes as a reader with a narrower view sees them (`propertiesInView`, review of R19, wave 2):
    * each note's block read from the search table, its links withheld by the reader's rule, its values, title and tags
-   * read from that text as the index reads a note. Only notes whose block holds link syntax are answered for.
+   * read from that text as the index reads a note. Only notes whose block could hold a link and of which the index
+   * holds values are answered for: of a note it holds none of (a line too long to read, a block YAML cannot read) the
+   * reader sees none either. The text behind a block is read only where it is longer than the head, and for the tags
+   * only where a tag the view takes away could stand in it too (`tagsInView`); a view is formed once per block and
+   * withheld links (`propertiesInView`). `tags`: whether the caller reads the notes' tags.
    */
-  private async _viewsOfProperties(paths: readonly string[], reach: Reach, rule: LinkRule, keys?: ReadonlySet<string>): Promise<Map<string, PropertiesView>> {
+  private async _viewsOfProperties(paths: readonly string[], reach: Reach, rule: LinkRule, keys?: ReadonlySet<string>, tags = false): Promise<Map<string, PropertiesView>> {
     // Only some keys read (a rollup reads one of the notes it reaches): the block cut to those, so a link in another
     // key is asked about by nobody (review of R19, wave 2). A note's name is its title.
     const cut = keys && keys.has("file.name") ? new Set([...keys, "title"]) : keys;
@@ -1440,7 +1444,7 @@ export class VaultQueryService {
     for (let i = 0; i < paths.length; i += 400) {
       const slice = paths.slice(i, i + 400);
       const heads = await this.db.query<{ path: string; head: string; whole: number }>(
-        `SELECT n.path AS path, substr(n.content, 1, ${PROPERTIES_HEAD}) AS head, length(n.content) <= ${PROPERTIES_HEAD} AS whole FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${slice.map(() => "?").join(",")})`,
+        `SELECT n.path AS path, substr(n.content, 1, ${PROPERTIES_HEAD}) AS head, length(n.content) <= ${PROPERTIES_HEAD} AS whole FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${slice.map(() => "?").join(",")}) AND EXISTS (SELECT 1 FROM properties p WHERE p.file_id = f.id)`,
         slice,
       );
       for (const { path, head, whole: all } of heads) {
@@ -1455,28 +1459,60 @@ export class VaultQueryService {
     const views = new Map<string, PropertiesView>();
     if (blocks.size === 0) return views;
     const asked: { from: string; target: string }[] = [];
-    const targetsOf = new Map<string, string[]>();
-    for (const [from, block] of blocks) {
-      const targets = linkTargetsOfBlock(block);
-      targetsOf.set(from, targets);
-      for (const target of targets) asked.push({ from, target });
-    }
+    for (const [from, block] of blocks) for (const target of linkTargetsOfBlock(block)) asked.push({ from, target });
     const denied = await this._linksDeniedInReach(asked, reach, rule);
-    for (const [from, block] of blocks) {
-      // A block none of whose links is withheld is seen as it is: no second pass over it.
-      const withheld = targetsOf.get(from)!.some((target) => denied(from, target));
-      views.set(from, withheld ? propertiesInView(block, (target) => denied(from, target)) : propertiesAsSeen(block));
-    }
-    // The tags of a note whose view withholds a link: read from all of its text, only for those.
-    if (!cut) {
+    // A block none of whose links is withheld is seen as it is (`propertiesInView` asks no second pass of it).
+    for (const [from, block] of blocks) views.set(from, propertiesInView(block, (target) => denied(from, target)));
+    // The tags of a note whose view withholds a link: those the index holds of it, less what only its block gave, and
+    // the view's — the text behind the block read only where a tag taken away could stand in it as well.
+    if (!cut && tags) {
       const seen = [...views].filter(([, view]) => view.seen !== null).map(([path]) => path);
-      for (const [path, content] of await this._noteTexts(seen)) {
-        const view = views.get(path)!;
-        const span = frontmatterSpan(content);
-        tagsInView(view, span ? content.slice(span.end) : "");
+      const held = await this._tagsOf(seen);
+      const texts = await this._noteTexts(seen.filter((path) => tagsNeedTheText(views.get(path)!)));
+      for (const path of seen) {
+        const content = texts.get(path);
+        const span = content === undefined ? null : frontmatterSpan(content);
+        tagsInView(views.get(path)!, held.get(path) ?? [], content === undefined ? undefined : span ? content.slice(span.end) : content);
       }
     }
     return views;
+  }
+
+  /** The tags the index holds of notes, by path, as it holds them. */
+  private async _tagsOf(paths: readonly string[]): Promise<Map<string, string[]>> {
+    const tags = new Map<string, string[]>();
+    for (let i = 0; i < paths.length; i += 400) {
+      const slice = paths.slice(i, i + 400);
+      const rows = await this.db.query<{ path: string; tag: string }>(
+        `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE f.path IN (${slice.map(() => "?").join(",")})`,
+        slice,
+      );
+      for (const { path, tag } of rows) {
+        if (typeof tag !== "string") continue;
+        const list = tags.get(path) ?? [];
+        list.push(tag);
+        tags.set(path, list);
+      }
+    }
+    return tags;
+  }
+
+  /**
+   * Notes as a reader with a narrower view sees them (review of R19, wave 2): its title and its tags, read from the
+   * view of the note's properties block (`propertiesInView`) — the one place a tool that names a note by its title or
+   * tells its tags takes them from for such a reader. Only notes whose view withholds a link are answered for; any
+   * other the reader sees as the index holds it. `reach` and `rule` as for `queryDatabaseFiles` (`withhold`).
+   */
+  async notesAsSeen(paths: readonly string[], reach: (paths: readonly string[]) => ReadonlySet<string> | Promise<ReadonlySet<string>>, rule: LinkRule): Promise<Map<string, { title: string; tags: readonly string[] }>> {
+    const seen = new Map<string, { title: string; tags: readonly string[] }>();
+    const asked = [...new Set(paths.filter((path) => typeof path === "string" && path))];
+    if (asked.length === 0) return seen;
+    for (const [path, view] of await this._viewsOfProperties(asked, reachOf(reach), rule, undefined, true)) {
+      if (view.seen === null) continue;
+      const name = path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") ?? path;
+      seen.set(path, { title: view.title || name, tags: [...(view.tags ?? [])] });
+    }
+    return seen;
   }
 
   /** Notes' texts as the search table holds them, by path. */
@@ -2182,14 +2218,23 @@ export class VaultQueryService {
     const viewTags = new Map<string, ReadonlySet<string>>();
     let rowsSeen = rows;
     if (reach && options.withhold) {
-      const views = await this._viewsOfProperties(rows.filter((row) => mayHoldALink(row.title) || mayHoldALink(propsByFileId[row.id] ?? {})).map((row) => String(row.path ?? "")), reach, options.withhold.rule);
+      // The tags of a view are formed only where something reads them: a tag source, a filter, the pickers, a
+      // pinboard, a view that shows or sorts by them (as `file.tags` below).
+      const tagSources = [...andList, ...sqlOr].some((filter) => typeof filter === "string" && parseDatabaseSourceFilter(filter)?.kind === "tag");
+      const readsTags =
+        tagSources ||
+        filterNeedsTags({ and: [...residualAnd, ...(residualOr.length > 0 ? [{ or: residualOr }] : [])] }) ||
+        Boolean(options.includeFilterMetadata) ||
+        pinboard ||
+        viewReadsTags(config);
+      const views = await this._viewsOfProperties(rows.filter((row) => mayHoldALink(row.title) || mayHoldALink(propsByFileId[row.id] ?? {})).map((row) => String(row.path ?? "")), reach, options.withhold.rule, undefined, readsTags);
       for (const row of rows) {
         const view = views.get(String(row.path ?? ""));
         if (!view) continue;
         propsByFileId[row.id] = VaultQueryService._valuesInView(propsByFileId[row.id] ?? {}, view);
         if (!view.data) continue;
         row.title = view.title;
-        viewTags.set(String(row.path ?? ""), view.tags ?? new Set());
+        if (view.tags) viewTags.set(String(row.path ?? ""), view.tags);
       }
       if (viewTags.size) rowsSeen = rows.filter((row) => !viewTags.has(String(row.path ?? "")) || sourcesHold(String(row.path ?? ""), viewTags.get(String(row.path ?? ""))!));
     }

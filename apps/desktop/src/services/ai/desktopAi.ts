@@ -712,6 +712,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       commands: input.commands,
       backlinks: (path, options) => input.query.getBacklinks(path, options),
       queryDatabase: (config, options) => input.query.queryDatabaseFiles(config, options),
+      // A note's title and tags as a reader with a narrower view sees them: the one place every tool names a note from.
+      notesAsSeen: (paths, reach, rule) => input.query.notesAsSeen(paths, reach, rule),
       events: (from, to) => input.events(from, to),
       moodKey,
       // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.

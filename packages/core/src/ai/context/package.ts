@@ -1,5 +1,5 @@
 import type { TextPart } from "../conversation.js";
-import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkHost, type LinkVerdicts } from "../chat.js";
+import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkHost, type LinkSnapshot, type LinkVerdicts } from "../chat.js";
 import { frontmatterKeys, notePropertiesAsWritten } from "../../frontmatter-surgical.js";
 import { frontmatterSpan } from "../../frontmatter-block.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
@@ -135,7 +135,21 @@ export interface PackageGists {
    * every note of the area again, seconds a message): by area and reader, with the state it was decided in
    * (`state`, the host's `rulesStamp`). One that was decided in another state is decided anew.
    */
-  verdicts?: Map<string, { stamp: string; allowed: boolean }>;
+  verdicts?: Map<string, KeptAreaVerdict>;
+}
+
+/**
+ * An area's verdict kept over messages (`PackageGists.verdicts`): the state it was decided in, and for a "may go" what
+ * it read besides the index — the notes its links could mean, whose own rules are read from their files, and what the
+ * shell's resolver answered for links the names could not place (`LinkSnapshot.shellAnswers`). Both are asked again
+ * before a kept "may go" is taken: it never lets through what a verdict decided in the same moment holds back (review
+ * of R19, wave 2).
+ */
+export interface KeptAreaVerdict {
+  stamp: string;
+  allowed: boolean;
+  targets?: readonly string[];
+  shell?: readonly { target: string; from: string; path: string | null }[];
 }
 
 /** The most notes an area is looked through for whether its gist may go to a reader with a narrower view. */
@@ -493,8 +507,8 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
    * with a narrower view a gist goes only where its note holds back nothing (decision of 2026-11-13, review of R19,
    * wave 2) — decided now, with the note and the rules as they are now, whenever the gist was written.
    */
-  /** `holdsBack` with the links read by `links`: each way of reading them keeps its own answers. */
-  const holdsBackBy = (links: LinkHost, verdicts: LinkVerdicts) => {
+  /** `holdsBack` with the links read by `links` and the notes they mean gated by `gate`: each way keeps its own answers. */
+  const holdsBackBy = (links: LinkHost, verdicts: LinkVerdicts, gate: (path: string) => Promise<boolean> = allowed) => {
     const heldBack = new Map<string, Promise<boolean>>();
     const now = async (path: string, text: string): Promise<boolean> => {
       if (withholdPlaces(text).withheld > 0) return true;
@@ -502,7 +516,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       if (input.redact?.has(path) && sensitiveFindings(text).length > 0) return true;
       // No link syntax at all: no link to withhold — nothing to resolve.
       if (!MAY_HOLD_A_LINK.test(text)) return false;
-      return (await withholdDeniedLinks(text, path, links, (target) => allowed(target), "any-kept-back", verdicts)).redacted > 0;
+      return (await withholdDeniedLinks(text, path, links, (target) => gate(target), "any-kept-back", verdicts)).redacted > 0;
     };
     return (path: string, text: string): Promise<boolean> => {
       let answer = heldBack.get(path);
@@ -533,13 +547,29 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     const key = `${area === null ? "\u0000vault" : area}`;
     if (memo && stamp !== null) {
       const known = memo.get(key);
-      if (known && known.stamp === stamp) return known.allowed;
+      // A kept "may not go" holds back no more than one decided now would. A kept "may go" is taken only where what it
+      // read besides the index says the same now: no note its links could mean denies itself, and the shell's resolver
+      // places no link elsewhere (a file on disk the index has not read yet).
+      if (known && known.stamp === stamp && (!known.allowed || (await stillSo(known)))) return known.allowed;
     }
-    const allowed = await areaGistMayGoNow(area, stamp !== null ? await freshStand() : noteMayStand);
+    if (stamp === null) return areaGistMayGoNow(area, noteMayStand);
+    const standing = await freshStand();
+    const allowed = await areaGistMayGoNow(area, standing.mayStand);
     // Kept only where nothing changed while it was decided: a verdict of a state between two is no verdict. The names
     // were read after the stamp and before it was read again: equal stamps, and they are the names of that state.
-    if (memo && stamp !== null && (await verdictStampNow()) === stamp) memo.set(key, { stamp, allowed });
+    if (memo && (await verdictStampNow()) === stamp) {
+      memo.set(key, allowed ? { stamp, allowed, targets: [...standing.targets], shell: standing.shell() } : { stamp, allowed });
+    }
     return allowed;
+  };
+  /** Whether what a kept "may go" read besides the index says the same now (`KeptAreaVerdict`). */
+  const stillSo = async (known: KeptAreaVerdict): Promise<boolean> => {
+    if (!known.targets || !known.shell) return false;
+    const [gated, placed] = await Promise.all([
+      Promise.all(known.targets.map((path) => allowed(path).catch(() => false))),
+      Promise.all(known.shell.map(async (link) => (await host.resolveLink(link.target, link.from).catch(() => null)) === link.path)),
+    ]);
+    return gated.every(Boolean) && placed.every(Boolean);
   };
   const areaGistMayGoNow = async (area: string | null, mayStandHere: (path: string, text: string) => Promise<boolean>): Promise<boolean> => {
     const notes = host.gists?.notes ? await host.gists.notes(area, GIST_AREA_CHECK_MAX).catch(() => null) : null;
@@ -580,14 +610,20 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
    * `noteMayStand` with the links read from the names as they are now, once for this package (`linkSnapshot`): what
    * a verdict that is kept is decided by. Where the names cannot be read, every link is one that cannot be told.
    */
-  let fresh: Promise<(path: string, text: string) => Promise<boolean>> | null = null;
+  let fresh: Promise<{ mayStand: (path: string, text: string) => Promise<boolean>; targets: Set<string>; shell: () => NonNullable<KeptAreaVerdict["shell"]> }> | null = null;
   const freshStand = () =>
     (fresh ??= (async () => {
-      const links: LinkHost = await host.linkSnapshot!().catch(() => ({
+      const links: LinkSnapshot = await host.linkSnapshot!().catch(() => ({
         resolveLink: () => Promise.reject(new Error("the names cannot be read")),
         linkCandidates: () => Promise.reject(new Error("the names cannot be read")),
       }));
-      return mayStandBy(holdsBackBy(links, new Map()));
+      // Every note a link could mean is gated by its own rules, read from its file: named, so a kept verdict asks again.
+      const targets = new Set<string>();
+      const gate = (path: string) => {
+        targets.add(path);
+        return allowed(path);
+      };
+      return { mayStand: mayStandBy(holdsBackBy(links, new Map(), gate)), targets, shell: () => [...(links.shellAnswers?.() ?? [])] };
     })());
   const clean = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text);

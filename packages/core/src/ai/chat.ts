@@ -287,14 +287,22 @@ export interface ContextPolicyHost {
    * a link could mean and where a tap leads, by the one rule (ADR 0027). What a verdict kept over messages decides its
    * links by (`PackageGists.verdicts`, review of R19, wave 2): the names `linkCandidates` keeps for a few seconds may
    * lag behind the index the verdict's stamp is read from, and a "may go" decided on names older than its stamp
-   * stayed. One read for all of a verdict's links also keeps its cost linear in the notes it looks through. Absent,
-   * no such verdict is kept.
+   * stayed. One read for all of a verdict's links also keeps its cost linear in the notes it looks through. Where the
+   * names cannot say where a link leads, the shell's own resolver is asked too (`resolveLink`: the phone's looks at the
+   * files on disk the index has not read yet), and the snapshot names what it answered (`LinkSnapshot.shellAnswers`):
+   * a verdict kept over messages asks it again before it is taken. Absent, no such verdict is kept.
    */
-  linkSnapshot?(): Promise<LinkHost>;
+  linkSnapshot?(): Promise<LinkSnapshot>;
 }
 
 /** What tells which notes a link could mean: a policy host, or anything that carries its two ways of asking. */
 export type LinkHost = Pick<ContextPolicyHost, "resolveLink" | "linkCandidates">;
+
+/** One read of the names (`ContextPolicyHost.linkSnapshot`), and what the shell's own resolver answered while it was asked. */
+export interface LinkSnapshot extends LinkHost {
+  /** Each link the names could not place and the shell's resolver was asked about, with its answer (null: no file). */
+  shellAnswers?(): readonly { target: string; from: string; path: string | null }[];
+}
 
 /** The notes a link could mean, as this host can tell: its candidates, or the one note its resolver finds. */
 export async function linkCandidatesOf(host: LinkHost, target: string, fromPath: string): Promise<readonly string[]> {

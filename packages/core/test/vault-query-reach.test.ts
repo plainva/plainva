@@ -7,6 +7,7 @@ import { VaultIndexer } from "../src/vault/VaultIndexer.ts";
 import { VaultQueryService } from "../src/vault/VaultQueryService.ts";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.ts";
 import { initializeSchema } from "../src/db/Schema.ts";
+import { withinAsync } from "./helpers/timeBudget.ts";
 
 /**
  * A database read by someone who may not see the whole vault — an assistant run that keeps a folder from the cloud,
@@ -38,7 +39,7 @@ class NodeSqliteAdapter implements IDatabaseAdapter {
 
 const note = (front: string, title: string) => `---\ntype: Note\n${front}---\n\n# ${title}\n`;
 
-async function withVault(run: (query: VaultQueryService) => Promise<void>, extra: Record<string, string> = {}) {
+async function withVault(run: (query: VaultQueryService, db: NodeSqliteAdapter) => Promise<void>, extra: Record<string, string> = {}) {
   const { DatabaseSync } = (await import("node:sqlite")) as any;
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-reach-"));
   const vault = new LocalVaultAdapter(tmpDir);
@@ -54,7 +55,7 @@ async function withVault(run: (query: VaultQueryService) => Promise<void>, extra
     await vault.writeTextFile("Private/Client.md", note("revenue: 50000\n", "Client"));
     for (const [path, text] of Object.entries(extra)) await vault.writeTextFile(path, text);
     await new VaultIndexer(vault, db).indexVaultFull();
-    await run(new VaultQueryService(db as never));
+    await run(new VaultQueryService(db as never), db);
   } finally {
     await db.close();
     await fs.rm(tmpDir, { recursive: true, force: true });
@@ -73,6 +74,9 @@ const BASE = (extra: Record<string, unknown> = {}) => ({
   },
   views: [{ type: "table", name: "T" }],
 });
+
+/** A name with its last letter written as a YAML escape (`Aa\\x72on`): YAML reads the name, the text does not hold it. */
+const escaped = (name: string) => `${name.slice(0, -1)}\\x${name.charCodeAt(name.length - 1).toString(16)}`;
 
 /** The reach of a reader who may not see `Private/`, asked for many notes at once as the query asks. */
 const visible = (paths: readonly string[]) => new Set(paths.filter((path) => !path.startsWith("Private/")));
@@ -236,6 +240,9 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
             out.shownTags = (await ask({ filters: { and: ['file.folder == "Board"'] }, views: [{ type: "table", name: "T", order: ["file.tags"] }] })).map((r: any) => r["file.tags"]);
             // A block longer than what is read of a note first.
             out.long = (await ask({ filters: { and: ['file.folder == "Long"'] } })).map((r: any) => [r.up, r.tags]);
+            // A link YAML builds from an escape is a link: as a tag source, a value, a title (review of R19, wave 2).
+            out.escaped = (await ask({ filters: { and: [`file.hasTag("[[${hidden}]]")`] } })).map((r: any) => r["file.path"]);
+            out.escapedValues = (await ask({ filters: { and: ['file.folder == "Escaped"'] }, views: [{ type: "table", name: "T", order: ["file.tags"] }] })).map((r: any) => [r["file.name"], r.tags, [...r["file.tags"]].sort()]);
           },
           {
             [`Private/${hidden}, Meier.md`]: note("", hidden),
@@ -243,6 +250,8 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
             "Board/A.md": `---\ntitle: [[${hidden}, Meier]]\ntags: [[${hidden}, Meier]]\naliases: [[${hidden}]]\n[[${hidden}]]: v\nkeyed:\n  [[Private/${hidden}]]: w\nblock: |\n  [[${hidden},\n  Meier]]\ncommented: [[${hidden},  # c\n  Meier]]\ntabbed: [[${hidden},\tMeier]]\n---\n\n# A\n`,
             "Hub/H.md": `---\nkids: ["[[Board/A]]"]\n---\n\n# H\n`,
             "Long/L.md": `---\nfirst: "${"a".repeat(9_000)}"\nup: [[${hidden}, Meier]]\ntags: [[${hidden}]]\n---\n\n# L #own\n`,
+            // `\\x` and the code of the name's last letter: YAML reads the name, the text does not show it.
+            "Escaped/E.md": `---\ntitle: "[[${escaped(hidden)}]]"\ntags: ["[[${escaped(hidden)}]]", "kept"]\n---\n\n# E #own\n`,
           },
         );
         return out;
@@ -259,7 +268,34 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
       expect(aaron.counted, rule).toEqual([0]);
       expect(aaron.shownTags, rule).toEqual([[`#${W}`]]);
       expect(aaron.long, rule).toEqual([[W, [W]]]);
+      expect(aaron.escaped, rule).toEqual([]);
+      expect(aaron.escapedValues, rule).toEqual([[W, [W, "kept"], ["#kept", "#own", `#${W}`]]]);
     }
+  });
+
+  it("a database where every note holds a withheld link in its properties: no note's text is read, and a query stays within its budget (review of R19, wave 2)", async () => {
+    const notes: Record<string, string> = { "Private/Meier, Kowalski.md": note("", "Meier") };
+    const para = "The plan of the quarter and the budget review, line by line. ".repeat(50);
+    for (let i = 0; i < 400; i++) notes[`Board/n${i}.md`] = `---\nowner: "[[Board/n${(i * 7) % 400}]]"\nstate: open\nup: [[Meier, Kowalski]]\n---\n\n# n${i}\n\n${para}\n`;
+    await withVault(async (query, db) => {
+      const read: string[] = [];
+      const plain = db.query.bind(db);
+      db.query = (async (sql: string, params?: unknown[]) => {
+        read.push(sql);
+        return plain(sql, params);
+      }) as typeof db.query;
+      const config = { filters: { and: ['file.folder == "Board"'] }, views: [{ type: "table", name: "T", sort: [{ property: "owner", direction: "ASC" }] }] } as any;
+      const ask = () => query.queryDatabaseFiles(config, { reach: visible, withhold: { rule: "any-kept-back" } });
+      const first = await ask();
+      expect(first).toHaveLength(400);
+      expect(first.every((row: any) => row.up === "⟦withheld note⟧")).toBe(true);
+      // Neither the first query nor any after it reads a note's whole text: its view is read from its block.
+      expect(read.filter((sql) => /n\.content AS content/.test(sql))).toEqual([]);
+      // The view of a block is formed once per text and reader: a query after the first only looks it up.
+      const again = await withinAsync(150, ask);
+      expect(again).toEqual(first);
+      expect(read.filter((sql) => /n\.content AS content/.test(sql))).toEqual([]);
+    }, notes);
   });
 
   it("a rollup reads one key of the notes it reaches, and withholds no other (review of R19, wave 2)", async () => {

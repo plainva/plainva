@@ -124,6 +124,27 @@ function asYamlReadsIt(inner: string): string {
     .trim();
 }
 /**
+ * A quoted text in the properties block (review of R19, wave 2): YAML reads `"\x5b\x5bMeier\x5d\x5d"` and
+ * `"[[Mei\x65r]]"` as `[[Meier]]`, `'[[O''Brien]]'` as `[[O'Brien]]`. One that holds an escape or a doubled quote is
+ * read once more as YAML reads it, and withheld whole where that reading holds a link the reader may not follow.
+ */
+const QUOTED = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\n]|'')*'/g;
+/** The escapes of a double-quoted YAML text, as YAML reads them (YAML 1.2, 5.7). */
+const ESCAPES: Record<string, string> = { "0": "\0", a: "\x07", b: "\b", t: "\t", "\t": "\t", n: "\n", v: "\v", f: "\f", r: "\r", e: "\x1b", " ": " ", '"': '"', "/": "/", "\\": "\\", N: "\x85", _: "\xa0", L: "\u2028", P: "\u2029" };
+/** A quoted text of the properties block as YAML reads it; null where it reads as it is written. */
+function asYamlDecodes(quoted: string): string | null {
+  const inner = quoted.slice(1, -1);
+  if (quoted.startsWith("'")) return inner.includes("''") ? inner.replace(/''/g, "'") : null;
+  if (!inner.includes("\\")) return null;
+  return inner.replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)/g, (all, code: string) => {
+    if (code.length > 1) {
+      const point = Number.parseInt(code.slice(1), 16);
+      return point <= 0x10ffff ? String.fromCodePoint(point) : all;
+    }
+    return ESCAPES[code] ?? all;
+  });
+}
+/**
  * A Markdown link: its destination in angle brackets — where it may hold
  * blanks — or as a run without blanks, with one level of round brackets; then
  * an optional title in any of its three forms.
@@ -192,6 +213,21 @@ export function redactDeniedLinksIn(view: ReaderView, isDenied: (target: string)
   const block = blockOf(out.text);
   if (block > 0) {
     out = out.replace(SPREAD_WIKI_LINK, (match, inner: string, at: number) => (at < block && deniedIn(inner, true, true) ? withheld() : match));
+    // A quoted text whose escapes YAML reads into a link: withheld whole, its quotes kept.
+    out = out.replace(QUOTED, (match, at: number) => {
+      if (at >= block) return match;
+      const decoded = asYamlDecodes(match);
+      if (decoded === null) return match;
+      let denied = false;
+      for (const link of decoded.matchAll(WIKI_LINK)) if (deniedIn(link[1]!, true)) denied = true;
+      for (const link of decoded.matchAll(INLINE_LINK)) {
+        const target = vaultTarget(link[2] ?? link[3] ?? "");
+        if (target && isDenied(target)) denied = true;
+      }
+      if (!denied) return match;
+      redacted++;
+      return `${match[0]}${WITHHELD_LINK}${match[0]}`;
+    });
   }
   out = out.replace(INLINE_LINK, (match, _label: string, angled: string | undefined, bare: string | undefined) => {
     const target = vaultTarget(angled ?? bare ?? "");

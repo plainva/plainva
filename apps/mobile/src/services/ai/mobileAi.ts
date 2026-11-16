@@ -560,6 +560,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         commands,
         backlinks: (path, options) => query.getBacklinks(path, options),
         queryDatabase: (config, options) => query.queryDatabaseFiles(config, options),
+        // A note's title and tags as a reader with a narrower view sees them: the one place every tool names a note from.
+        notesAsSeen: (paths, reach, rule) => query.notesAsSeen(paths, reach, rule),
         events,
         moodKey,
         // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
