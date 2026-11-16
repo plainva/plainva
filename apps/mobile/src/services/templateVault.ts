@@ -1,4 +1,5 @@
-import type { TemplateVault } from "@plainva/ui";
+import { templateVaultName, type TemplateVault } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import { getMobileSettings } from "./mobileSettings";
 import { getActiveVaultEntry } from "./vaultRegistry";
 
@@ -16,7 +17,9 @@ export async function phoneTemplateVault(vaultName?: string): Promise<TemplateVa
   let name = vaultName;
   if (name === undefined) {
     try {
-      name = (await getActiveVaultEntry())?.name || "Plainva";
+      // The name the vault goes by in the app, as on the desktop (B25): the
+      // vault list's own, or what the list shows for an entry without one.
+      name = templateVaultName((await getActiveVaultEntry())?.name, i18n.t("mobile.vaultLocal"));
     } catch {
       name = "Plainva";
     }
