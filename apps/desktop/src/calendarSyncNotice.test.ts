@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PimCycleInfo, PimSyncProblem } from "@plainva/core";
-import { describeSyncProblems, syncProblemsFor, TASK_NOTE_PROBLEM_PREFIX, formatPimCycle, planAllDayRows, hiddenBeyondDots, syncProblemReason, syncProblemSince, withoutUrlPaths, SYNC_PROBLEM_LINES } from "@plainva/ui";
+import { describeSyncProblems, needsTaskDatabase, taskListProblemsOf, withoutTaskDatabaseLines, syncProblemsFor, TASK_NOTE_PROBLEM_PREFIX, formatPimCycle, planAllDayRows, hiddenBeyondDots, syncProblemReason, syncProblemSince, withoutUrlPaths, SYNC_PROBLEM_LINES } from "@plainva/ui";
 import en from "../../../packages/ui/src/locales/en.json";
 
 /**
@@ -187,3 +187,46 @@ describe("the all-day row", () => {
     expect(hiddenBeyondDots(0, 3)).toBe(0);
   });
 });
+
+describe("a task list that cannot reach the notes (issue 172)", () => {
+  const list = (code: string, over: Partial<PimSyncProblem> = {}) =>
+    problem({ accountLabel: "Nextcloud", taskListId: "l1", taskListName: "Inbox", error: `${TASK_NOTE_PROBLEM_PREFIX}${code}`, ...over });
+
+  it("says each silence in a sentence of its own", () => {
+    const text = (code: string) => describeSyncProblems([list(code)], t, "en", NOW)!.lines[0]!.text;
+    expect(text("no-task-db")).toBe(
+      "Changes to “Inbox (Nextcloud)” at the provider do not reach their notes: No “Standard task database” is set, and tasks from a provider become notes in it. Choose one in the settings or create one."
+    );
+    expect(text("task-db-unreadable")).toContain(": The standard task database could not be read.");
+    expect(text("task-db-no-folder")).toContain(": The standard task database names no folder for new notes.");
+    expect(text("not-created")).toContain(": A note for a new task could not be created in the folder of the standard task database.");
+    expect(text("no-index")).toContain(": The vault's index is not open on this device, so tasks from a provider cannot be matched to their notes.");
+  });
+
+  it("the yellow notice leaves the missing database to the quiet hint, and keeps the real faults", () => {
+    const missing = [list("no-task-db"), list("no-task-db", { taskListId: "l2", taskListName: "Work" })];
+    const faults = [list("task-db-unreadable", { taskListId: "l3" }), list("not-created", { taskListId: "l4" }), list("no-index", { taskListId: "l5" })];
+    const listing = problem({ taskListId: "", error: "caldav propfind 503" });
+    expect(withoutTaskDatabaseLines([...missing, ...faults, listing])).toEqual([...faults, listing]);
+  });
+
+  it("offers to create a database only where one is missing", () => {
+    expect(needsTaskDatabase([list("no-task-db")])).toBe(true);
+    expect(needsTaskDatabase([list("task-db-unreadable"), list("no-done-column")])).toBe(false);
+  });
+
+  it("the account card reads its own lists only, not the account line or other accounts", () => {
+    const mine = list("no-task-db");
+    const other = list("no-task-db", { accountId: "a2" });
+    const accountLine = problem();
+    expect(taskListProblemsOf([mine, other, accountLine], "a1")).toEqual([mine]);
+  });
+
+  it("the account card leaves a failed listing or pull to its own banner: one cause, one notice", () => {
+    const mine = list("no-task-db");
+    const listing = problem({ taskListId: "", error: "caldav propfind 503" });
+    const pull = problem({ taskListId: "l2", taskListName: "Work", error: "caldav report 500" });
+    expect(taskListProblemsOf([mine, listing, pull], "a1")).toEqual([mine]);
+  });
+});
+
