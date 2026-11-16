@@ -23,10 +23,12 @@ const prompt = vi.fn(async () => {
 });
 vi.mock("./appDialogs", () => ({ appPrompt: () => prompt() }));
 const created: string[] = [];
+let onCreate: () => void = () => {};
 vi.mock("./taskDatabase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./taskDatabase")>()),
   createTaskDatabase: async (_adapter: unknown, name: string) => {
     created.push(name);
+    onCreate();
     return `${name}.base`;
   },
 }));
@@ -48,6 +50,7 @@ beforeEach(() => {
   created.length = 0;
   prompt.mockClear();
   onPrompt = () => {};
+  onCreate = () => {};
 });
 
 describe("creating the standard task database from a hint", () => {
@@ -69,6 +72,12 @@ describe("creating the standard task database from a hint", () => {
     onPrompt = () => store.set(taskDatabaseKey("/vault"), "Picked.base");
     expect(await createStandardTaskDatabase(deps())).toBe("Picked.base");
     expect(created).toEqual([]);
+    expect(store.get(taskDatabaseKey("/vault"))).toBe("Picked.base");
+  });
+
+  it("does not write over a database picked while the file was written", async () => {
+    onCreate = () => store.set(taskDatabaseKey("/vault"), "Picked.base");
+    expect(await createStandardTaskDatabase(deps())).toBe("Picked.base");
     expect(store.get(taskDatabaseKey("/vault"))).toBe("Picked.base");
   });
 });

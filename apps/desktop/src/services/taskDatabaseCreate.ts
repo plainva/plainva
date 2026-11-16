@@ -16,8 +16,9 @@ import { createTaskDatabase, getTaskDatabasePath } from "./taskDatabase";
  *
  * A database set meanwhile — picked in the settings, on another window, by
  * the settings sync — wins: then nothing is created and nothing overwritten,
- * and its path is returned (review of issue 172). Asked before the name and
- * again after it, since the prompt can stay open for as long as it likes.
+ * and its path is returned (review of issue 172). Asked before the name, again
+ * after it, since the prompt can stay open for as long as it likes, and once
+ * more after the file is written, right before the setting is.
  */
 export async function createStandardTaskDatabase(deps: {
   vaultAdapter: IVaultAdapter;
@@ -40,11 +41,15 @@ export async function createStandardTaskDatabase(deps: {
   try {
     const path = await createTaskDatabase(vaultAdapter, name, taskDatabaseLabels((key) => t(key)));
     if (!path) return null;
+    if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+    triggerFileTreeUpdate([path]);
+    // Set while the file was written: that one stays the standard, and the new
+    // file is an ordinary database in the vault, never deleted again.
+    const during = await getTaskDatabasePath(vaultPath);
+    if (during) return during;
     const store = await getSettingsStore();
     await store.set(taskDatabaseKey(vaultPath), path);
     await store.save();
-    if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
-    triggerFileTreeUpdate([path]);
     // Every view that shows the setting reads it again (useTaskDatabaseSetting).
     window.dispatchEvent(new CustomEvent("plainva-features-saved"));
     return path;

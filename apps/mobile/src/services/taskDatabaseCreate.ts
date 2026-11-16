@@ -13,8 +13,9 @@ import type { MobileVault } from "./vaultService";
  *
  * A database set meanwhile — picked in the settings, by the settings sync —
  * wins: then nothing is created and nothing overwritten, and its path is
- * returned (review of issue 172). Asked before the name and again after it,
- * since the prompt can stay open for as long as it likes.
+ * returned (review of issue 172). Asked before the name, again after it,
+ * since the prompt can stay open for as long as it likes, and once more after
+ * the file is written, right before the setting is.
  */
 export async function createStandardTaskDatabase(vault: MobileVault, t: TFunction): Promise<string | null> {
   const already = getMobileSettings().taskDatabase.trim();
@@ -32,8 +33,12 @@ export async function createStandardTaskDatabase(vault: MobileVault, t: TFunctio
     return null;
   });
   if (!path) return null;
-  await updateMobileSettings({ taskDatabase: path });
   // No watcher on the phone: the index is told, so the tab lists the database now.
   void vault.reindexPaths([path]);
+  // Set while the file was written: that one stays the standard, and the new
+  // file is an ordinary database in the vault, never deleted again.
+  const during = getMobileSettings().taskDatabase.trim();
+  if (during) return during;
+  await updateMobileSettings({ taskDatabase: path });
   return path;
 }
