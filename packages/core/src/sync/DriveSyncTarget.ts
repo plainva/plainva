@@ -1,6 +1,6 @@
 import { fetchWithTransferTimeout, TransferCancelledError, discardResponse } from "./transferTimeout.js";
 import { folderIdentity } from "./folderIdentity.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, ListingMetrics } from "./ISyncTarget.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, ListingMetrics, RemoteChangedError } from "./ISyncTarget.js";
 import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
@@ -8,6 +8,7 @@ import { fetchWithRetry, parseRetryAfterMs } from "./httpRetry.js";
 import { SyncProviderError, SyncRootMissingError, UnsyncableFileError } from "./errorKind.js";
 import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
+import { foldsToSameName } from "./conditionalWrite.js";
 import { trimChars } from "../textScan.js";
 
 /** Quote one Drive query value; escaping quotes alone leaves backslashes active. */
@@ -766,6 +767,20 @@ export class DriveSyncTarget implements ISyncTarget {
     if (op.operation === "delete") {
       const id = await this.findFileId(op.file_path);
       if (!id) return;
+      // A deletion removes only the version this device saw last
+      // (Fehlerliste 0.9.0 A1). Drive has no conditional delete: the file is
+      // asked right before — the window of one request, as for its uploads.
+      const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      if (expected) {
+        const meta = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,md5Checksum,modifiedTime`);
+        if (meta.status === 404) {
+          this.uncachePath(op.file_path);
+          return;
+        }
+        if (!meta.ok) throw await driveResponseError("metadata lookup", meta);
+        const f = (await meta.json()) as DriveFile;
+        if ((f.md5Checksum || f.modifiedTime || f.id) !== expected.marker) throw new RemoteChangedError(op.file_path, "found before the deletion");
+      }
       const res = await this.authedFetch("DELETE", `${DRIVE_API}/files/${id}`);
       if (!res.ok && res.status !== 404)
         throw await driveResponseError("file deletion", res);
@@ -779,6 +794,14 @@ export class DriveSyncTarget implements ISyncTarget {
       // Source gone remotely: NOT a success — the engine re-uploads at the new
       // path, otherwise the file would exist under no remote path at all.
       if (!id) return { renameSourceMissing: true };
+      // A move never replaces what lies at its destination (A1) — on Drive it
+      // would put a second file of the same name beside it, which Plainva
+      // cannot tell apart. Asked right before; not for a change of letter
+      // case only, where Drive's case-blind lookup finds the file itself.
+      if (!foldsToSameName(op.file_path, op.new_path)) {
+        const taken = await this.findFileId(op.new_path);
+        if (taken && taken !== id) throw new RemoteChangedError(op.new_path, "the destination exists");
+      }
       const from = this.splitPath(op.file_path);
       const to = this.splitPath(op.new_path);
       const params = new URLSearchParams({ fields: "id,md5Checksum,modifiedTime" });

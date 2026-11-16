@@ -2,7 +2,7 @@ import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { folderIdentity } from "./folderIdentity.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
-import { ConditionalWrites } from "./conditionalWrite.js";
+import { ConditionalWrites, foldsToSameName } from "./conditionalWrite.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -538,7 +538,23 @@ export class OneDriveSyncTarget implements ISyncTarget {
     }
 
     if (op.operation === "delete") {
-      const res = await this.authedFetch("DELETE", this.itemUrl(op.file_path));
+      // A deletion removes only the version this device saw last
+      // (Fehlerliste 0.9.0 A1): asked for the item first, then deleted on its
+      // `eTag` — Graph answers 412 when it changed in between.
+      const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      let ifMatch: string | undefined;
+      if (expected) {
+        const item = await this.statItem(op.file_path);
+        if (!item) return;
+        if (!this.holds(expected, item)) throw new RemoteChangedError(op.file_path, "found before the deletion");
+        if (this.conditions.conditionsHold) ifMatch = item.eTag;
+      }
+      let res = await this.authedFetch("DELETE", this.itemUrl(op.file_path), ifMatch ? { headers: { "if-match": ifMatch } } : undefined);
+      if (expected && ifMatch && res.status === 412) {
+        discardResponse(res);
+        if (!(await this.conditions.refusedDelete(op.file_path, expected, () => this.statFor(op.file_path, expected), "412"))) return;
+        res = await this.authedFetch("DELETE", this.itemUrl(op.file_path));
+      }
       if (!res.ok && res.status !== 404) {
         throw syncHttpError(`OneDrive delete failed: ${res.status} ${res.statusText}`, res);
       }
@@ -551,7 +567,11 @@ export class OneDriveSyncTarget implements ISyncTarget {
       const newParent = this.parentFolderOf(op.new_path);
       const newName = op.new_path.substring(op.new_path.lastIndexOf("/") + 1);
 
-      const body: Record<string, unknown> = { name: newName };
+      // A move never replaces what lies at its destination (A1): Graph
+      // refuses an existing name with 409 `nameAlreadyExists`. Not for a
+      // change of letter case only, where that name is the item itself.
+      const caseOnly = foldsToSameName(op.file_path, op.new_path);
+      const body: Record<string, unknown> = { name: newName, ...(caseOnly ? {} : { "@microsoft.graph.conflictBehavior": "fail" }) };
       if (oldParent !== newParent) {
         await this.ensureFolder(newParent);
         body.parentReference = { path: `/drive/root:/${this.drivePath(newParent)}` };
@@ -563,6 +583,11 @@ export class OneDriveSyncTarget implements ISyncTarget {
       // Source gone remotely: NOT a success — the engine re-uploads at the new
       // path, otherwise the file would exist under no remote path at all.
       if (res.status === 404) return { renameSourceMissing: true };
+      if (res.status === 409 && !caseOnly) {
+        const code = await res.json().then((j: { error?: { code?: string } }) => j?.error?.code, () => undefined);
+        if (code === "nameAlreadyExists") throw new RemoteChangedError(op.new_path, "409 nameAlreadyExists: the destination exists");
+        throw new Error(`OneDrive rename failed: 409 ${code ?? ""}`.trim());
+      }
       if (!res.ok) throw syncHttpError(`OneDrive rename failed: ${res.status} ${res.statusText}`, res);
       const item = (await res.json()) as GraphItem;
       return { etag: this.itemEtag(item), remoteId: item.id };

@@ -284,7 +284,8 @@ describe("OneDriveSyncTarget", () => {
     expect(call.method).toBe("PATCH");
     expect(call.url).toBe(`${GRAPH}/me/drive/root:/Plainva/notes/old.md:`);
     const body = JSON.parse(call.init.body);
-    expect(body).toEqual({ name: "new.md" });
+    // A move never replaces what lies at its destination (A1): Graph refuses an existing name.
+    expect(body).toEqual({ name: "new.md", "@microsoft.graph.conflictBehavior": "fail" });
   });
 
   it("reports renameSourceMissing instead of silent success when the source 404s (P1.2)", async () => {

@@ -52,6 +52,17 @@ export function expectedRemoteOf(state: { base_sha256: string | null; base_etag:
   return undefined;
 }
 
+/**
+ * What a DELETE of a file with this sync row expects on the remote
+ * (Fehlerliste 0.9.0 A1): the version of its merge base — the one this device
+ * saw last. Another device's change since then is not deleted with it. A row
+ * without a marker, and a path without a row (a folder, a file never synced),
+ * delete unconditionally, as before.
+ */
+export function expectedDeletionOf(state: { base_etag: string | null } | null): ExpectedRemote | undefined {
+  return state?.base_etag ? { kind: "marker", marker: state.base_etag } : undefined;
+}
+
 function isRemoteChanged(err: unknown): boolean {
   return err instanceof RemoteChangedError || (err instanceof Error && err.name === "RemoteChangedError");
 }
@@ -686,10 +697,39 @@ export class SyncEngine {
               throw err;
             }
          }
+        if (op.operation === "delete" && this.stateRepo) {
+          op.expectedRemote = expectedDeletionOf(await this.stateRepo.getSyncState(op.file_path));
+        }
         let result;
         try {
           result = await this.target.push(op);
         } catch (err) {
+          // The remote holds another version than the one this device saw
+          // last: another device changed the file after this one deleted it
+          // (Fehlerliste 0.9.0 A1). Nothing was deleted, and the deletion does
+          // not wait for another try — it would only meet the same version.
+          // It retires, and so does the row: the next listing brings that
+          // version back here, as any new file of the remote, and nothing of
+          // it is lost.
+          if (op.operation === "delete" && isRemoteChanged(err)) {
+            console.warn(`[SyncEngine] not deleting ${op.file_path}: ${(err as Error).message}; it comes back here instead`);
+            if (this.stateRepo) await this.stateRepo.deleteSyncState(op.file_path);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            this.reconcileAgain.add(op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          // A move whose destination the remote already holds (A1): another
+          // device created a file of that name. The move goes as a deletion
+          // of the old name and an upload of the new one, which the
+          // reconcile compares with that file (`replaceRefusedRename`).
+          if (op.operation === "rename" && op.new_path && isRemoteChanged(err)) {
+            console.warn(`[SyncEngine] not moving ${op.file_path} onto ${op.new_path}: ${(err as Error).message}; the old name is deleted and the new one compared instead`);
+            await this.queue.replaceRefusedRename(op);
+            this.reconcileAgain.add(op.new_path);
+            consecutiveFailures = 0;
+            continue;
+          }
           // The remote no longer holds what the upload expected, and nothing
           // was written. Not a failure: the upload stays queued, due at once,
           // and spends no retry — the next cycle's reconcile, which runs

@@ -271,6 +271,56 @@ export class SyncQueue {
   }
 
   /**
+   * A MOVE the remote refused because its destination exists — another
+   * device created a file of that name meanwhile (Fehlerliste 0.9.0 A1). The
+   * move cannot happen there without replacing that file, so it is carried
+   * out as what it is for the remote: the old name goes, the new name gets
+   * this device's content.
+   *
+   * In one transaction: the sync rows that moved with the rename
+   * (`queueRename`) go back to their old paths — the version this device saw
+   * there is what each deletion expects, so an old copy the other device
+   * changed meanwhile comes back instead of going. Each old file gets a
+   * DELETE (confirmed: the person moved the file away), each new one a write
+   * without a row, which expects no file at its name and is refused there; the
+   * reconcile then compares the two new files as two devices' new files. A
+   * folder's DELETE follows its files'. The MOVE itself retires.
+   */
+  async replaceRefusedRename(op: SyncOperation): Promise<void> {
+    if (op.operation !== "rename" || !op.new_path) return;
+    const from = op.file_path, to = op.new_path;
+    const at = Date.now();
+    await this.db.transaction(async (tx) => {
+      const moved = await tx.query<{ path: string }>(
+        `SELECT path FROM sync_state WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
+        [to, to + "/", to + "/"]
+      );
+      const pairs = moved.map(({ path }) => ({ newPath: path, oldPath: path === to ? from : from + path.substring(to.length) }));
+      for (const { newPath, oldPath } of pairs) {
+        const taken = await tx.queryOne<{ path: string }>(`SELECT path FROM sync_state WHERE path = ? COLLATE BINARY`, [oldPath]);
+        if (taken) await tx.execute(`DELETE FROM sync_state WHERE path = ? COLLATE BINARY`, [newPath]);
+        else await tx.execute(`UPDATE sync_state SET path = ? WHERE path = ? COLLATE BINARY`, [oldPath, newPath]);
+      }
+      const folder = !pairs.some((p) => p.newPath === to);
+      const deletions = [...pairs.map((p) => p.oldPath).sort(), ...(folder ? [from] : [])];
+      for (const path of deletions) {
+        await tx.execute(
+          `INSERT INTO offline_queue (file_path, operation, queued_at, delete_confirmed_at) VALUES (?, 'delete', ?, ?)`,
+          [path, at, at]
+        );
+      }
+      for (const { newPath } of pairs) {
+        const queued = await tx.queryOne<{ id: number }>(
+          `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'write' AND id > ? LIMIT 1`,
+          [newPath, op.id]
+        );
+        if (!queued) await tx.execute(`INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, 'write', ?)`, [newPath, at]);
+      }
+      await tx.execute(`DELETE FROM offline_queue WHERE id = ?`, [op.id]);
+    });
+  }
+
+  /**
    * Enqueues write operations for all local files that aren't already queued.
    */
   async enqueueAllLocalFiles(): Promise<void> {

@@ -535,6 +535,32 @@ export class S3SyncTarget implements ISyncTarget {
       for (const child of children) {
         await this.deleteObject(encodeS3Key(child.key));
       }
+      // A file's deletion removes only the version this device saw last
+      // (Fehlerliste 0.9.0 A1): asked right before, and `If-Match` on its
+      // ETag where the store keeps one (AWS since 2024; a store without
+      // conditional deletes answers 501 and has had the question).
+      const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      if (!expected) {
+        await this.deleteObject(encodeS3Key(key));
+        return;
+      }
+      const stat = () => this.statLikeListing(op.file_path, expected);
+      if (!(await this.conditions.askBeforeDelete(op.file_path, expected, stat))) return;
+      const condition = this.conditions.conditionsHold ? S3SyncTarget.conditionFor(expected) : null;
+      if (condition) {
+        const res = await this.signedFetch("DELETE", encodeS3Key(key), { signedHeaders: condition });
+        if (res.ok || res.status === 404) return;
+        discardResponse(res);
+        if (res.status === 412) {
+          if (!(await this.conditions.refusedDelete(op.file_path, expected, stat, "412"))) return;
+        } else if (res.status === 501) {
+          this.conditions.notSupported("501");
+        } else if (res.status === 409) {
+          throw new RemoteChangedError(op.file_path, "409");
+        } else {
+          throw syncHttpError(`S3 DELETE failed: ${res.status} ${res.statusText}`, res);
+        }
+      }
       await this.deleteObject(encodeS3Key(key));
       return;
     }
@@ -543,6 +569,11 @@ export class S3SyncTarget implements ISyncTarget {
       if (op.new_path.includes(".CONFLICT")) return;
       const fromKey = this.keyFor(op.file_path);
       const toKey = this.keyFor(op.new_path);
+      // A move never replaces what lies at its destination (A1): a copy
+      // writes over any object, so the store is asked right before.
+      if (fromKey !== toKey && (await this.headExists(encodeS3Key(toKey)) || (await this.listAll(`${toKey}/`)).length > 0)) {
+        throw new RemoteChangedError(op.new_path, "the destination exists");
+      }
 
       if (await this.headExists(encodeS3Key(fromKey))) {
         // Single file: copy + delete.

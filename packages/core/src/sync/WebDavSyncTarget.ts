@@ -1,8 +1,8 @@
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { parseDavListing } from "./xmlListing.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence, type ExpectedRemote } from "./ISyncTarget.js";
-import { ConditionalWrites } from "./conditionalWrite.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
+import { ConditionalWrites, foldsToSameName } from "./conditionalWrite.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { trimChars, trimEndChars } from "../textScan.js";
@@ -291,9 +291,25 @@ export class WebDavSyncTarget implements ISyncTarget {
       return { etag: etag?.replace(/"/g, "") };
     } else if (op.operation === "delete") {
       const url = this.urlForPath(op.file_path);
-      const res = await this.request("DELETE", url, {
-        headers: this.headers
-      });
+      // A deletion removes only the version this device saw last
+      // (Fehlerliste 0.9.0 A1): `If-Match` on it, or a question right before
+      // where the tag is weak or the server ignores the condition.
+      const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      const stat = () => this.stat(op.file_path);
+      const condition = expected && this.conditions.conditionsHold ? WebDavSyncTarget.conditionFor(expected) : null;
+      if (expected && !condition && !(await this.conditions.askBeforeDelete(op.file_path, expected, stat))) return;
+      const remove = (headers: Record<string, string>) => this.request("DELETE", url, { headers: { ...this.headers, ...headers } });
+      let res = await remove(condition ?? {});
+      if (expected && condition && (res.status === 412 || res.status === 501)) {
+        discardResponse(res);
+        if (res.status === 412) {
+          if (!(await this.conditions.refusedDelete(op.file_path, expected, stat, "412"))) return;
+        } else {
+          this.conditions.notSupported("501");
+          if (!(await this.conditions.askBeforeDelete(op.file_path, expected, stat))) return;
+        }
+        res = await remove({});
+      }
       if (!res.ok && res.status !== 404) {
         throw syncHttpError(`WebDAV DELETE failed: ${res.status} ${res.statusText}`, res);
       }
@@ -302,13 +318,23 @@ export class WebDavSyncTarget implements ISyncTarget {
 
       const url = this.urlForPath(op.file_path);
       const destUrl = this.urlForPath(op.new_path);
+      // A move never replaces what lies at its destination (A1): another
+      // device may have just created a file of that name. `Overwrite: F` makes
+      // the server refuse (412) instead. Not for a change of letter case
+      // only: on a server that folds case the destination IS the source.
+      const caseOnly = foldsToSameName(op.file_path, op.new_path);
       const res = await this.request("MOVE", url, {
         headers: {
           ...this.headers,
-          "Destination": destUrl
+          "Destination": destUrl,
+          ...(caseOnly ? {} : { "Overwrite": "F" }),
         }
       });
       if (res.status === 404) return { renameSourceMissing: true };
+      if (res.status === 412 && !caseOnly) {
+        discardResponse(res);
+        throw new RemoteChangedError(op.new_path, "412 on MOVE: the destination exists");
+      }
       if (!res.ok && res.status !== 404) {
         throw syncHttpError(`WebDAV MOVE failed: ${res.status} ${res.statusText}`, res);
       } else if (res.ok) {

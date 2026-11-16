@@ -1,7 +1,7 @@
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
-import { ConditionalWrites } from "./conditionalWrite.js";
+import { ConditionalWrites, foldsToSameName } from "./conditionalWrite.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
@@ -696,10 +696,28 @@ export class DropboxSyncTarget implements ISyncTarget {
     }
 
     if (op.operation === "delete") {
-      const res = await this.rpc("files/delete_v2", { path: this.dropboxPath(op.file_path) });
+      // A deletion removes only the version this device saw last
+      // (Fehlerliste 0.9.0 A1): the file is asked first, its `content_hash`
+      // compared with the merge base, and deleted on the `rev` of that very
+      // answer (`parent_rev`) — Dropbox refuses it when the file changed after.
+      const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      let parentRev: string | undefined;
+      if (expected) {
+        const entry = await this.statEntry(op.file_path);
+        if (!entry) return;
+        if (!ConditionalWrites.holds(expected, this.statOf(entry))) throw new RemoteChangedError(op.file_path, "found before the deletion");
+        parentRev = entry.rev;
+      }
+      const res = await this.rpc("files/delete_v2", { path: this.dropboxPath(op.file_path), ...(parentRev ? { parent_rev: parentRev } : {}) });
       if (res.status === 409) {
         const summary = await this.errorSummary(res);
         if (summary.includes("not_found")) return;
+        if (expected && parentRev) {
+          // Refused on the revision: asked again, a moved file is no failure but a comparison.
+          const entry = await this.statEntry(op.file_path);
+          if (!entry) return;
+          if (!ConditionalWrites.holds(expected, this.statOf(entry))) throw new RemoteChangedError(op.file_path, summary || "409");
+        }
         throw new Error(`Dropbox delete failed: ${summary || "409"}`);
       }
       if (!res.ok) throw syncHttpError(`Dropbox delete failed: ${res.status} ${res.statusText}`, res);
@@ -716,6 +734,11 @@ export class DropboxSyncTarget implements ISyncTarget {
       if (res.status === 409) {
         const summary = await this.errorSummary(res);
         if (summary.includes("not_found")) return;
+        // A move never replaces what lies at its destination (A1): with
+        // `autorename: false` Dropbox refuses an existing name.
+        if (summary.includes("to/conflict") && !foldsToSameName(op.file_path, op.new_path)) {
+          throw new RemoteChangedError(op.new_path, `${summary}: the destination exists`);
+        }
         throw new Error(`Dropbox move failed: ${summary || "409"}`);
       }
       if (!res.ok) throw syncHttpError(`Dropbox move failed: ${res.status} ${res.statusText}`, res);
