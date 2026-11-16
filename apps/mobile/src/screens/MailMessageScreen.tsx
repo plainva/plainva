@@ -38,6 +38,7 @@ import {
   mailFolderLabel,
   listEnvelopes,
   moveMessage,
+  mailBodyHtml,
   sanitizeEmailHtml,
   setMessageFlagged,
   setMessageSeen,
@@ -194,7 +195,10 @@ export function MailMessageScreen({
   const mailCanvas = useMailCanvas();
   const frame = useMemo(() => {
     if (!message) return null;
-    if (message.html) {
+    // The part the reader shows as the body (`mailBodyHtml`): an HTML part
+    // that shows nothing leaves the text part, as the assistant reads it.
+    const html = mailBodyHtml(message);
+    if (html) {
       const allowRemote = remoteImages.allow;
       const clean = sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote });
       // The theme's canvas for a mail that sets no colours of its own (finding X3).

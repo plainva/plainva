@@ -1,4 +1,5 @@
 import createDOMPurify from "dompurify";
+import { keptMailStyle } from "@plainva/core";
 
 // The package's default export is a FACTORY in module environments — bind it
 // lazily to the window (desktop + jsdom tests both have one at call time).
@@ -21,7 +22,11 @@ function purifier(): ReturnType<typeof createDOMPurify> {
  *      a click to the SYSTEM browser (MailView.handleFrameLoad) — a bare
  *      target=_blank never opens inside a Tauri WebView. No scripts and no
  *      remote content run, so a link can only navigate on an explicit click.
- *   3. The caller renders the result into an allow-same-origin sandboxed
+ *   3. Inline styles keep only the declarations `MAIL_STYLE` (core) knows and
+ *      reads — no positions, transforms, clipping or overflow, no escapes —
+ *      so nothing can take words off the screen that the visible-text walk
+ *      does not see taken off.
+ *   4. The caller renders the result into an allow-same-origin sandboxed
  *      <iframe> that has NO allow-scripts (so the mail HTML cannot execute any
  *      code) plus a default-src 'none' CSP meta — belt and braces should 1+2
  *      miss.
@@ -83,10 +88,19 @@ export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): 
     // data: and other unsafe schemes, leaving safe http/https/mailto/tel links.
     // Opening is handled by the reader (MailView.handleFrameLoad routes a click
     // to the system browser) — no target/rel rewriting needed here.
-    if (name === "style" && /url\s*\(/i.test(value)) {
-      // css url() is a fetch too (background-image tracking pixels et al.).
-      blockedRemote++;
-      data.keepAttr = false;
+    if (name === "style") {
+      if (/url\s*\(/i.test(value)) {
+        // css url() is a fetch too (background-image tracking pixels et al.).
+        blockedRemote++;
+        data.keepAttr = false;
+        return;
+      }
+      // Only what the walk that reads the reader's text judges stays
+      // (`MAIL_STYLE`, review of 2026-11-16): the reader and the assistant
+      // read the same words by construction, not by a list of tricks.
+      const kept = keptMailStyle(value);
+      if (kept) data.attrValue = kept;
+      else data.keepAttr = false;
     }
   };
 

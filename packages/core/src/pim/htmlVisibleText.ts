@@ -1,4 +1,5 @@
 import { parseFragment } from "parse5";
+import { mailStyleDeclarations, namedFontSize, PX_PER_UNIT, readLength, readOpacity } from "./mailStyle.js";
 
 /**
  * What the walk reads of a node: the shape of parse5's tree. A caller with a
@@ -67,72 +68,58 @@ function textOf(node: MarkupNode): string {
   return typeof node.value === "string" ? node.value : "";
 }
 
-/** A CSS length of nothing, or of a single pixel or point at most. */
-function noSize(value: string): boolean {
-  const amount = parseFloat(value);
-  if (Number.isNaN(amount) || amount < 0) return false;
-  if (amount === 0) return true;
-  const unit = value.replace(/^[+\d.]+/, "").trim();
-  return amount <= 1 && (unit === "px" || unit === "pt");
-}
-
-/** Font sizes that say "as the parent's". */
-const SIZE_OF_PARENT = new Set(["inherit", "unset", "revert", "revert-layer", "larger", "smaller"]);
-/** Font sizes named by a word: each one a size to read. */
-const NAMED_SIZE = new Set(["xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large", "xxx-large", "math", "initial"]);
-/** Units measured against the parent's font: of a parent of no size, nothing. */
-const UNITS_OF_PARENT = new Set(["%", "em", "ex", "ch", "cap", "ic", "lh"]);
-/** Every other unit a length can have. */
-const UNITS = new Set([
-  "px", "pt", "pc", "cm", "mm", "in", "q", "rem", "rex", "rch", "rcap", "ric", "rlh",
-  "vw", "vh", "vi", "vb", "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh", "cqw", "cqh", "cqi", "cqb", "cqmin", "cqmax",
-]);
-
 /**
- * Whether a font size leaves nothing to read — `undefined` where the parent's
- * answer stands: the size is measured against the parent's, or the value is no
- * font size at all (a number without a unit, a negative length, a word that
- * names no size), which a browser drops like any declaration it cannot read
- * (Sammelplan § 3.84: such a value under a font of no size read as readable).
- * A function (`calc(`, `var(`) is not worked out: it reads as a size to read.
+ * The properties of a style the walk judges — what can take words off the
+ * screen. The sanitizer keeps no other property that could (`MAIL_STYLE` in
+ * `mailStyle.ts`; `mailStyleCoupling.test.ts` holds the two lists together).
  */
-function unreadableSize(value: string): boolean | undefined {
-  if (SIZE_OF_PARENT.has(value)) return undefined;
-  if (NAMED_SIZE.has(value)) return false;
-  if (/^[a-z-]+\(/.test(value)) return false;
-  const length = /^\+?(\d+(?:\.\d*)?|\.\d+)([a-z%]*)$/.exec(value);
-  if (!length) return undefined;
-  const amount = parseFloat(length[1]);
-  const unit = length[2];
-  if (amount === 0 && (unit === "" || UNITS_OF_PARENT.has(unit) || UNITS.has(unit))) return true;
-  if (UNITS.has(unit)) return noSize(value);
-  return undefined;
+export const JUDGED_BY_THE_WALK = ["display", "visibility", "opacity", "font-size", "white-space"] as const;
+
+/** The reader's text size (its frame's body) and the root size `rem` is measured by. */
+const READER_PX = 14;
+const ROOT_PX = 16;
+/** Below this size in pixels a text is not one a person reads; below this opacity, not one a person sees. */
+export const MIN_TEXT_PX = 4;
+export const MIN_OPACITY = 0.1;
+
+/**
+ * The size in pixels a declared font size gives, from the parent's: absolute
+ * lengths and the named sizes stand on their own, `em` and `%` are measured
+ * against the parent (of a parent of no size, nothing), `rem` against the root.
+ */
+function fontPx(value: string, parent: number): number {
+  const named = namedFontSize(value);
+  if (named !== null) return named;
+  if (value === "larger") return parent * 1.2;
+  if (value === "smaller") return parent / 1.2;
+  const length = readLength(value);
+  if (!length) return parent;
+  if (length.unit in PX_PER_UNIT) return length.amount * PX_PER_UNIT[length.unit];
+  switch (length.unit) {
+    case "em":
+      return length.amount * parent;
+    case "rem":
+      return length.amount * ROOT_PX;
+    case "%":
+      return (length.amount / 100) * parent;
+    default:
+      return parent;
+  }
 }
 
 /**
- * The declarations of an element's own `style`, in lower case. As in a
- * browser, a later one replaces an earlier one unless the earlier is
- * `!important` and the later is not. Plain declarations only — this is not a
- * style engine. A style that names a `url(` is one the mail reader removes
- * whole (`sanitizeEmailHtml`): the element then stands there unstyled, so it is
- * read as having none.
+ * The declarations of an element's own `style` that the mail sanitizer keeps
+ * (`mailStyleDeclarations`), read the way a browser resolves them: a later one
+ * replaces an earlier one unless the earlier is `!important` and the later is
+ * not. A style that names a `url(` is one the sanitizer removes whole: the
+ * element then stands there unstyled, so it is read as having none.
  */
 function inlineStyle(node: MarkupNode): Map<string, string> {
   const declared = new Map<string, string>();
   const written = attributeOf(node, "style") ?? "";
   if (!written || /url\s*\(/i.test(written)) return declared;
-  // A comment is nothing to a browser, wherever it stands — `display:/**/none`
-  // is `display: none` (Sammelplan § 3.84). One left open runs to the end.
-  const style = written.replace(/\/\*[\s\S]*?(?:\*\/|$)/g, " ");
   const weighty = new Set<string>();
-  for (const declaration of style.split(";")) {
-    const colon = declaration.indexOf(":");
-    if (colon < 0) continue;
-    const name = declaration.slice(0, colon).trim().toLowerCase();
-    let value = declaration.slice(colon + 1).trim().toLowerCase();
-    const bang = value.lastIndexOf("!");
-    const important = bang >= 0 && value.slice(bang + 1).trim() === "important";
-    if (important) value = value.slice(0, bang).trimEnd();
+  for (const { name, value, important } of mailStyleDeclarations(written)) {
     if (weighty.has(name) && !important) continue;
     declared.set(name, value);
     if (important) weighty.add(name);
@@ -142,29 +129,39 @@ function inlineStyle(node: MarkupNode): Map<string, string> {
 
 /**
  * Whether the element is off the screen with everything inside it, whatever
- * that may declare for itself: `display: none` (the `hidden` attribute is that,
- * and so is a dialog nobody opened or a popover — unless the element's own
- * style gives another display; of a closed `details` the walk reads the
- * summary only), `opacity: 0`, or a box of no size that clips what
- * overflows. That is how a sender hides a preview line or a tracking text from
- * the reader, and what is hidden from the reader is not part of what the
- * reader can quote.
- *
- * A font of no size and `visibility: hidden` hide text, too — but a child can
- * set both again, and layouts do (a table cell of size 0 around a column of
- * size 13): those two are carried along the walk instead, see below.
+ * that may declare for itself: `display: none` — the `hidden` attribute is
+ * that, and so is a dialog nobody opened or a popover, unless the element's
+ * own style gives another display; of a closed `details` the walk reads the
+ * summary only. A font too small to read, a text too faint to see and
+ * `visibility: hidden` are carried along the walk instead, see below: a child
+ * can set the first and the last again, and layouts do (a table cell of size 0
+ * around a column of size 13).
  *
  * A style sheet is not consulted (the mail reader drops `<style>` altogether),
- * nor are colours or positions.
+ * nor are colours; positions, transforms, clipping and overflow never reach
+ * the reader (`MAIL_STYLE`).
  */
 function takenOffScreen(name: string, node: MarkupNode, declared: Map<string, string>): boolean {
   const display = declared.get("display");
   // A popover is shown only on request, like a dialog nobody opened (§ 3.84).
   const hiddenAsItStands = attributeOf(node, "hidden") !== null || attributeOf(node, "popover") !== null || (name === "dialog" && attributeOf(node, "open") === null);
-  if (display === undefined ? hiddenAsItStands : display === "none") return true;
-  if (parseFloat(declared.get("opacity") ?? "1") === 0) return true;
-  const clips = ["overflow", "overflow-x", "overflow-y"].some(name => declared.get(name) === "hidden" || declared.get(name) === "clip");
-  return clips && ["height", "max-height", "width", "max-width"].some(name => noSize(declared.get(name) ?? ""));
+  return display === undefined ? hiddenAsItStands : display === "none";
+}
+
+/** Whether an image shows: it has something to show and is not drawn at a size of nothing. */
+function imageShows(node: MarkupNode, declared: Map<string, string>, faint: boolean, small: boolean): boolean {
+  if (faint) return false;
+  const src = attributeOf(node, "src")?.trim() ?? "";
+  const alt = attributeOf(node, "alt")?.trim() ?? "";
+  if (!src && (alt === "" || small)) return false;
+  for (const side of ["width", "height"]) {
+    const attribute = attributeOf(node, side);
+    if (attribute !== null && /^[01](?:\.0*)?(?:px)?$/i.test(attribute.trim())) return false;
+    const length = readLength(declared.get(side) ?? "");
+    if (length && length.unit in PX_PER_UNIT && length.amount * PX_PER_UNIT[length.unit] <= 1) return false;
+    if (length && length.amount === 0) return false;
+  }
+  return true;
 }
 
 interface Line {
@@ -179,12 +176,14 @@ interface Line {
  * of its own, so that no node of anybody's tree can be mistaken for one. */
 class Closing {
   readonly name: string;
-  readonly tiny: boolean;
+  readonly px: number;
+  readonly opacity: number;
   readonly unseen: boolean;
   readonly pre: number;
-  constructor(name: string, tiny: boolean, unseen: boolean, pre: number) {
+  constructor(name: string, px: number, opacity: number, unseen: boolean, pre: number) {
     this.name = name;
-    this.tiny = tiny;
+    this.px = px;
+    this.opacity = opacity;
     this.unseen = unseen;
     this.pre = pre;
   }
@@ -220,6 +219,13 @@ export interface VisibleLink {
   href: string;
 }
 
+/** What the reader shows of an HTML body: its text, its links, and whether it shows anything at all — a word or an image. */
+export interface VisibleDocument {
+  text: string;
+  links: VisibleLink[];
+  shows: boolean;
+}
+
 /** Links read at most, and the words of one kept: a stranger's markup decides how many there are. */
 const VISIBLE_LINKS_MAX = 500;
 const VISIBLE_LINK_TEXT_MAX = 160;
@@ -232,7 +238,7 @@ const VISIBLE_LINK_TEXT_MAX = 160;
  * follow, and is not in the list (finding 2026-11-16: the assistant read a
  * mail's text and links on a way of its own, from the raw markup).
  */
-export function htmlToVisibleDocument(html: string, parse: (html: string) => MarkupNode = markup => parseFragment(markup)): { text: string; links: VisibleLink[] } {
+export function htmlToVisibleDocument(html: string, parse: (html: string) => MarkupNode = markup => parseFragment(markup)): VisibleDocument {
   const links: VisibleLink[] = [];
   /** The links being read, innermost last, each with whether it shows anything yet. */
   const anchors: Array<{ href: string; text: string; shows: boolean }> = [];
@@ -244,9 +250,15 @@ export function htmlToVisibleDocument(html: string, parse: (html: string) => Mar
   let lineEndsBlank = false;
   let marker = "";
   let quote = 0;
-  /** Handed down from an element to its content, until one inside says otherwise. */
-  let tiny = false;
+  /** Handed down from an element to its content: the font size in pixels and
+   * the opacity (an element's multiplies its parent's), whether it is
+   * `visibility: hidden` (until one inside says otherwise). */
+  let px = READER_PX;
+  let opacity = 1;
   let unseen = false;
+  /** Whether an image the reader shows stands anywhere in the body. */
+  let picture = false;
+  const hidden = (): boolean => unseen || px < MIN_TEXT_PX || opacity < MIN_OPACITY;
   let pre = 0;
   /** One entry per open list: the next number of an ordered one, 0 for bullets. */
   const lists: number[] = [];
@@ -356,13 +368,14 @@ export function htmlToVisibleDocument(html: string, parse: (html: string) => Mar
         }
       }
       close(step.name);
-      tiny = step.tiny;
+      px = step.px;
+      opacity = step.opacity;
       unseen = step.unseen;
       pre = step.pre;
       continue;
     }
     if (step.nodeName === "#text") {
-      if (tiny || unseen) continue;
+      if (hidden()) continue;
       if (pre > 0) addKept(textOf(step));
       else addText(textOf(step));
       continue;
@@ -375,13 +388,19 @@ export function htmlToVisibleDocument(html: string, parse: (html: string) => Mar
       endLine(true);
       continue;
     }
-    if (name === "img" && !unseen) {
+    if (name === "img") {
       const anchor = anchors[anchors.length - 1];
-      if (anchor) anchor.shows = true;
+      const ownOpacity = readOpacity(declared.get("opacity") ?? "1") ?? 1;
+      const ownUnseen = declared.get("visibility") === "hidden" || declared.get("visibility") === "collapse" ? true : declared.get("visibility") === "visible" ? false : unseen;
+      if (!ownUnseen && imageShows(step, declared, opacity * ownOpacity < MIN_OPACITY, px < MIN_TEXT_PX)) {
+        picture = true;
+        if (anchor) anchor.shows = true;
+      }
     }
-    stack.push(new Closing(name, tiny, unseen, pre));
+    stack.push(new Closing(name, px, opacity, unseen, pre));
     const size = declared.get("font-size");
-    if (size !== undefined) tiny = unreadableSize(size) ?? tiny;
+    if (size !== undefined && size !== "inherit" && size !== "unset") px = fontPx(size, px);
+    opacity *= readOpacity(declared.get("opacity") ?? "1") ?? 1;
     const visibility = declared.get("visibility");
     if (visibility === "hidden" || visibility === "collapse") unseen = true;
     else if (visibility === "visible") unseen = false;
@@ -410,5 +429,5 @@ export function htmlToVisibleDocument(html: string, parse: (html: string) => Mar
       return text ? marks + text : marks.trimEnd();
     })
     .join("\n");
-  return { text, links };
+  return { text, links, shows: text.trim() !== "" || picture };
 }

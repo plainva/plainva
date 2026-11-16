@@ -36,7 +36,7 @@ import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccount
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
-import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, useMailCanvas } from "@plainva/ui/mail";
+import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, mailBodyHtml, useMailCanvas } from "@plainva/ui/mail";
 import { formatClockTime, formatDateAndTime } from "@plainva/ui";
 import { attachMailLinks, LinkTargetText, MailPlainText, mailtoDraft, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
 import { addEmlToMailNote, captureMailAsNote, loadMailAccountAliases, mailCaptureNotice, mailDayKey, writeReplyNote } from "@plainva/ui/mail";
@@ -1040,7 +1040,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // The theme's canvas for a mail that sets no colours of its own (finding X3).
   const mailCanvas = useMailCanvas();
   const sanitized = useMemo(
-    () => (message?.html ? sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote }) : null),
+    () => {
+      // The part the reader shows as the body (`mailBodyHtml`): an HTML part
+      // that shows nothing leaves the text part, as the assistant reads it.
+      const html = message ? mailBodyHtml(message) : null;
+      return html ? sanitizeEmailHtml(html, { allowRemoteImages: allowRemote }) : null;
+    },
     [message, allowRemote]
   );
 

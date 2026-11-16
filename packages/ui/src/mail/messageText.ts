@@ -1,4 +1,4 @@
-import { htmlToVisibleDocument, type MarkupNode, type VisibleLink } from "@plainva/core";
+import { htmlToVisibleDocument, type MarkupNode, type VisibleDocument } from "@plainva/core";
 import { sanitizeEmailHtml } from "./mailSanitize";
 import type { MailMessage } from "./types";
 
@@ -7,7 +7,7 @@ export type MailBodyParts = Pick<MailMessage, "text" | "html">;
 
 /** The attributes `htmlToVisibleDocument` reads off an element — every one it
  * asks for: a copy without `popover` showed what the reader hides (§ 3.84). */
-const READ_ATTRIBUTES = ["style", "hidden", "popover", "open", "start", "href"];
+const READ_ATTRIBUTES = ["style", "hidden", "popover", "open", "start", "href", "src", "alt", "width", "height"];
 
 /** A node of the copied tree — plain data, in the shape `htmlToVisibleText` walks. */
 interface CopiedNode {
@@ -137,7 +137,7 @@ function readerMarkup(html: string): string {
  * `<details>`, a popover, a box clipped to no size). One way, so that what a
  * person reads and what the assistant reads cannot drift apart.
  */
-export function mailHtmlDocument(html: string): { text: string; links: VisibleLink[] } {
+export function mailHtmlDocument(html: string): VisibleDocument {
   const shown = readerMarkup(html);
   let tree: MarkupNode | null = null;
   try {
@@ -147,6 +147,21 @@ export function mailHtmlDocument(html: string): { text: string; links: VisibleLi
   }
   const copied = tree;
   return copied ? htmlToVisibleDocument(shown, () => copied) : htmlToVisibleDocument(shown);
+}
+
+/**
+ * The HTML part the reader shows as the body of a message, or `null` where it
+ * shows the text part — one rule for both shells' readers and the assistant
+ * (review of 2026-11-16). An HTML part that shows nothing — blanks, or only
+ * what it hides — is not the body when there is a text part: the reader used
+ * to give it its frame, an empty one, while the assistant read the text part
+ * nobody saw. Now the reader shows the text part, and the assistant reads it.
+ */
+export function mailBodyHtml(message: MailBodyParts): string | null {
+  const html = message.html;
+  if (!html) return null;
+  if (!(message.text ?? "").trim()) return html;
+  return mailHtmlDocument(html).shows ? html : null;
 }
 
 function htmlPartText(html: string): string {

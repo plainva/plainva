@@ -1,5 +1,5 @@
 import { checkWebUrl, webAddressesIn } from "@plainva/core";
-import { mailHtmlDocument } from "../mail/messageText";
+import { mailBodyHtml, mailHtmlDocument } from "../mail/messageText";
 
 /**
  * A stranger's text as a reader in quarantine takes it (plan KI-Harness
@@ -61,7 +61,8 @@ export function looksLikeHtml(text: string): boolean {
 }
 
 export function readableBody(input: { html?: string | null; text?: string | null }, max: number): ReadableBody {
-  const html = input.html?.trim();
+  // The part the reader shows: an HTML part that shows nothing leaves the text part (`mailBodyHtml`).
+  const html = mailBodyHtml({ html: input.html ?? null, text: input.text ?? null });
   if (html) {
     // Read as the mail reader shows it — the same way as a quote or a filed
     // note, from the sanitized markup (finding 2026-11-16) —, never on a way

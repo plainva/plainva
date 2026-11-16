@@ -152,4 +152,5 @@ export * from "./mailText.js";
 export * from "./vault/filterComparison.js";
 export * from "./linkScan.js";
 export { htmlToPlainText } from "./pim/htmlToMarkdown.js";
-export { htmlToVisibleDocument, htmlToVisibleText, type MarkupNode, type VisibleLink } from "./pim/htmlVisibleText.js";
+export { htmlToVisibleDocument, htmlToVisibleText, JUDGED_BY_THE_WALK, MIN_OPACITY, MIN_TEXT_PX, type MarkupNode, type VisibleDocument, type VisibleLink } from "./pim/htmlVisibleText.js";
+export { keptMailStyle, MAIL_STYLE, mailStyleDeclarations, type MailDeclaration, type MailStyleKind } from "./pim/mailStyle.js";

@@ -56,8 +56,6 @@ describe("htmlToVisibleText", () => {
     ["opacity: 0", '<span style="opacity:0">X</span>'],
     ["a font of no size", '<span style="font-size:0">X</span>'],
     ["a font of one pixel", '<span style="color:#ffffff;font-size:1px">X</span>'],
-    ["a box of no height that clips", '<div style="max-height:0;overflow:hidden">X</div>'],
-    ["a one-pixel box that clips", '<span style="position:absolute;width:1px;height:1px;overflow:hidden">X</span>'],
     ["a hidden table row", '<table><tr style="display:none"><td>X</td></tr></table>'],
   ])("leaves out an element taken off the screen by %s", (_what, hidden) => {
     expect(htmlToVisibleText(`<p>Davor</p>${hidden}<p>Danach</p>`)).toBe("Davor\n\nDanach");
@@ -69,6 +67,10 @@ describe("htmlToVisibleText", () => {
     ["half an opacity", '<span style="opacity:0.5">X</span>'],
     ["a readable font size", '<span style="font-size:12px">X</span>'],
     ["no height, but nothing clips", '<div style="max-height:0">X</div>'],
+    // The mail reader keeps no overflow and no position (MAIL_STYLE), so a
+    // clipping box is not one on its screen: the words stand below it.
+    ["a box of no height that would clip", '<div style="max-height:0;overflow:hidden">X</div>'],
+    ["a one-pixel box that would clip", '<span style="position:absolute;width:1px;height:1px;overflow:hidden">X</span>'],
     ["a clipping box of real size", '<div style="height:40px;overflow:hidden">X</div>'],
     ["aria-hidden, which a screen still shows", '<span aria-hidden="true">X</span>'],
     ["a class, whose style sheet no mail reader keeps", '<div class="preheader">X</div>'],
