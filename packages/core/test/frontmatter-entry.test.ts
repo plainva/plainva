@@ -514,8 +514,8 @@ describe("values", () => {
     expect(updateFrontmatterString(note, { when, status: "open" })).toBe(note);
     expect(updateFrontmatterString(note, { when, status: "done" })).toBe(lf(["when: !!timestamp 2026-01-01", "status: done"]));
     expect(set(note, ["when"], when)).toBe(note);
-    // Another day is another value, written as its text.
-    expect(set(note, ["when"], new Date("2026-02-01T00:00:00.000Z"))).toBe(lf(["when: 2026-02-01T00:00:00.000Z", "status: open"]));
+    // Another day is another value, written as its text behind the tag (Sammelplan § 3.173 Nr. 5).
+    expect(set(note, ["when"], new Date("2026-02-01T00:00:00.000Z"))).toBe(lf(["when: !!timestamp 2026-02-01T00:00:00.000Z", "status: open"]));
   });
 
   it("a key written the long way is found, and its value stands where it stood", () => {
@@ -757,3 +757,34 @@ describe("generated blocks", () => {
     }
   });
 });
+
+/**
+ * A date under `!!timestamp` keeps its tag when a property changes it
+ * (Sammelplan § 3.173 Nr. 5): the field hands a date as a text, and written
+ * anew without the tag it became a text.
+ */
+describe("a date under its own tag", () => {
+  it("takes the new date behind the tag, every other character staying", () => {
+    const note = lf(["# head", "when: !!timestamp 2024-01-02   # due", "x: 1"]);
+    expect(set(note, ["when"], "2024-02-03")).toBe(lf(["# head", "when: !!timestamp 2024-02-03   # due", "x: 1"]));
+    expect(set(note, ["when"], "2024-02-03T10:30:00Z")).toBe(lf(["# head", "when: !!timestamp 2024-02-03T10:30:00Z   # due", "x: 1"]));
+  });
+
+  it("does so in a nested map and in a note with Windows line ends", () => {
+    const note = lf(["plan:", "  due: !!timestamp 2024-01-02", "  by: me"]);
+    expect(set(note, ["plan", "due"], "2025-05-06")).toBe(lf(["plan:", "  due: !!timestamp 2025-05-06", "  by: me"]));
+    const crlf = note.replace(/\n/g, "\r\n");
+    expect(set(crlf, ["plan", "due"], "2025-05-06")).toBe(lf(["plan:", "  due: !!timestamp 2025-05-06", "  by: me"]).replace(/\n/g, "\r\n"));
+  });
+
+  it("leaves the note as it is for the date that stands there", () => {
+    const note = lf(["when: !!timestamp 2024-01-02", "x: 1"]);
+    expect(set(note, ["when"], "2024-01-02")).toBe(note);
+  });
+
+  it("writes a text the tag cannot read as a date as a text, without the tag", () => {
+    const note = lf(["when: !!timestamp 2024-01-02", "x: 1"]);
+    expect(set(note, ["when"], "next week")).toBe(lf(["when: next week", "x: 1"]));
+  });
+});
+

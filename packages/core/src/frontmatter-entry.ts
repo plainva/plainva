@@ -1182,6 +1182,8 @@ export function setEntry(content: string, path: readonly string[], value: unknow
   // word for and YAML has — a date under `!!timestamp`, which would be written
   // as its text.
   if (sameData(value, dataAt(before, path))) return content;
+  const dated = underTimestampTag(place, before, path, value, data);
+  if (dated !== null) return dated;
   const after = withPath(before, path, data);
   if (sameData(before, after)) return content;
   return firstMade(place, after, path[0], [
@@ -1200,6 +1202,39 @@ export function setEntry(content: string, path: readonly string[], value: unknow
     () => topAnew(place, path[0], after[path[0]]),
     () => topQuoted(place, path[0], after[path[0]]),
   ]);
+}
+
+/**
+ * A text for a value that stands under a tag of its own that reads a date
+ * (`when: !!timestamp 2024-01-02`): the new text goes behind the tag, where
+ * the tag reads it as a date again (Sammelplan § 3.173 Nr. 5). A date is
+ * handed as a text — the field of a property has no other way — or as a
+ * date, which is written as its text; written anew without the tag, it became
+ * a text, and the note lost the type it gave the value. Null where the value stands under no such tag, or where
+ * the tag does not read the new text as a date: then it is written as a text.
+ */
+function underTimestampTag(place: Place, before: Data, path: readonly string[], value: unknown, data: unknown): string | null {
+  if (!(typeof value === "string" || value instanceof Date) || typeof data !== "string" || !(dataAt(before, path) instanceof Date)) return null;
+  let node: unknown = place.doc.contents;
+  for (const key of path) {
+    if (!isMap(node)) return null;
+    const pair = pairOf(node, key, place.doc);
+    if (!pair) return null;
+    node = pair.value;
+  }
+  if (!isScalar(node) || !node.tag) return null;
+  const edits = setEdits(place, path, data);
+  const text = edits && withEdits(place.text, edits);
+  if (text === null) return null;
+  let read: unknown;
+  try {
+    read = dataAt(dataOfBlock(splitDocument(place.content.slice(0, place.at) + text + place.content.slice(place.at + place.text.length)).doc), path);
+  } catch {
+    return null;
+  }
+  if (!(read instanceof Date)) return null;
+  const after = withPath(before, path, read);
+  return sameData(before, after) ? place.content : made(place, edits, after);
 }
 
 /**
