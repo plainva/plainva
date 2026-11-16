@@ -82,7 +82,7 @@ Ein Skript trägt seine Grenzen in seinem Manifest. Drei davon setzt das Formula
 | **Aufrufe von Werkzeugen** | 20 | 0 bis 50 |
 | **Speicher in MB** | 32 | 8 bis 128 |
 
-Es zählt nur die Zeit, in der ein Skript rechnet, nicht die Zeit, die ein Werkzeug braucht. Ein Skript, das eine Grenze überschreitet, wird beendet, der Dialog sagt, welche Grenze es war, und ein beendetes Skript gibt nichts zurück. Standardmäßig dürfen die Argumente eines Aufrufs, was ein Aufruf zurückgibt, und das Ergebnis je höchstens 64 KB groß sein; ein Manifest darf bis zu 256 KB erlauben.
+Es zählt nur die Zeit, in der ein Skript rechnet, nicht die Zeit, die ein Werkzeug braucht. Ein Skript, das eine Grenze überschreitet — Zeit, Speicher, Schritte, die Zahl der Aufrufe, die Größe der Argumente eines Aufrufs oder seines Ergebnisses —, wird beendet, der Dialog sagt, welche Grenze es war, und ein beendetes Skript gibt nichts zurück. Eine Antwort eines Werkzeugs, die größer ist als die Grenze für einen Aufruf, ist kein Ende: Das Skript bekommt für diesen Aufruf einen Fehler und läuft weiter. Standardmäßig dürfen die Argumente eines Aufrufs, was ein Aufruf zurückgibt, und das Ergebnis je höchstens 64 KB groß sein; ein Manifest darf bis zu 256 KB erlauben.
 
 ## Nichts läuft, bevor Du es freigibst
 

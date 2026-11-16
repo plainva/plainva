@@ -57,7 +57,7 @@ The style lies on this device, not in the vault: on another device you choose it
 - Your [privacy rules](AI_Assistant.md) hold for the two files as well: a folder rule for `.agent/` keeps the whole memory from the cloud.
 - The send overview has a row **Memory** — how many entries go along — and counts the entries your rules keep back under **Kept back**. It never names an entry.
 - To the AI an entry is information, not an instruction: a sentence in the memory gives it no rights.
-- A conversation keeps the memory it was started with. An entry you delete goes to no new conversation; conversations that have already begun keep what they were given.
+- A conversation keeps what the memory gave it at its start — the entries under **Always included**. An entry you delete goes to no new conversation; conversations that have already begun keep what they were given, and what they look up later comes from the files as they are then.
 
 ## Switching it off
 
@@ -76,4 +76,4 @@ The style lies on this device, not in the vault: on another device you choose it
 
 `added` and `by` say when the entry was added and whether you wrote it or accepted a draft, `source` names the conversation a draft came from, and `deny` holds its rules (`cloud`, `web`). You can edit the files in any editor. In Plainva, **Open file** opens either of them.
 
-Plainva does not guess. An entry whose comment is damaged is marked **Rules unreadable — goes to no model** until you repair the comment or add the entry again. Text that is hidden in a comment or in invisible characters is never sent; the entry then shows how many hidden parts were left out. A file holds at most 2,000 entries and 256 KB.
+Plainva does not guess. An entry whose comment is damaged is marked **Rules unreadable — goes to no model** until you repair the comment or add the entry again. Text that is hidden in a comment or in invisible characters is never sent; the entry then shows how many hidden parts were left out. Of a file at most 2,000 entries are read, and a file larger than 256 KB is not read at all.

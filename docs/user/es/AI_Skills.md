@@ -37,7 +37,7 @@ Todas solo leen: ninguna cambia una nota ni envía nada. La que prepara borrador
 
 **Correo y calendario** lee el correo mediante la misma pregunta que cualquier conversación: **¿Leer tu correo?** la primera vez. Nunca lee por sí misma el texto de un mensaje; un segundo lector sin herramientas escribe un informe sobre él. Ambas cosas se describen en [Asistente de IA](AI_Assistant.md).
 
-Una habilidad propia usa Internet solo cuando su línea `allowed-tools` nombra `web_search` o `fetch_url`. **Revisar y aprobar** dice entonces **Usa Internet donde lo permitiste para este vault.** antes de que la apruebes. Una habilidad que no nombra herramientas nunca lleva Internet consigo.
+Una habilidad propia lleva Internet a su conversación solo cuando su línea `allowed-tools` nombra `web_search` o `fetch_url`. **Revisar y aprobar** dice entonces **Usa Internet donde lo permitiste para este vault.** antes de que la apruebes. Una habilidad sin línea `allowed-tools` nunca lleva Internet consigo, pero usa lo que tiene su conversación: en una conversación que ya tiene Internet, puede buscar y leer páginas igual que la propia conversación. Una habilidad cuya línea `allowed-tools` no nombra ninguna de las dos no tiene Internet en su ejecución, tenga lo que tenga la conversación.
 
 Una ejecución de prueba nunca usa Internet y nunca pregunta: el correo que no tenía permiso para leer en esta sesión sigue sin leerse.
 
@@ -53,7 +53,7 @@ El botón **Nuevo…** ofrece una habilidad, un script y una importación. **Nue
 
 ## Nada se ejecuta antes de que lo apruebes
 
-Una habilidad de tu vault que es nueva o cambió —por sincronización, una importación o una edición en este u otro dispositivo— no se ejecuta hasta que la apruebes **en este dispositivo**. Una habilidad que importas aquí se aprueba en el propio diálogo de importación (**Importar y aprobar**). Esas habilidades esperan arriba en **Habilidades**, en **Esperan tu aprobación**, y en **Configuración → IA en este vault**. Una frase en lo alto de la vista explica qué son las habilidades; el orden es: esperan aprobación, **Incluidas en Plainva**, **Propias**, scripts, de servidores, la fila **Instrucciones para este vault** (con `AGENTS.md` como segunda línea), pruebas y lo aprendido. Retirar una aprobación pregunta antes. **Revisar y aprobar** muestra qué puede hacer la habilidad, qué cambió desde tu última aprobación, sus instrucciones, sus archivos y dónde está. La aprobación vale exactamente para esta versión; cualquier cambio la anula. Las aprobaciones se guardan en este dispositivo, nunca en el vault.
+Una habilidad de tu vault que es nueva o cambió —por sincronización, otro programa que la escribió o una edición en este u otro dispositivo— no se ejecuta hasta que la apruebes **en este dispositivo**. Una habilidad que creas aquí (**Nueva habilidad**), copias aquí (**Crear tu propia versión**) o importas aquí (**Importar y aprobar**) es la excepción: se aprueba en este dispositivo de inmediato, porque la viste aquí. Esas habilidades esperan arriba en **Habilidades**, en **Esperan tu aprobación**, y en **Configuración → IA en este vault**. Una frase en lo alto de la vista explica qué son las habilidades; el orden es: esperan aprobación, **Incluidas en Plainva**, **Propias**, scripts, de servidores, la fila **Instrucciones para este vault** (con `AGENTS.md` como segunda línea), pruebas y lo aprendido. Retirar una aprobación pregunta antes. **Revisar y aprobar** muestra qué puede hacer la habilidad, qué cambió desde tu última aprobación, sus instrucciones, sus archivos y dónde está. La aprobación vale exactamente para esta versión; cualquier cambio la anula. Las aprobaciones se guardan en este dispositivo, nunca en el vault.
 
 Lo mismo vale para un `AGENTS.md` en la raíz de tu vault: una vez aprobado, sus instrucciones permanentes van en cada conversación nueva. Ni una habilidad ni `AGENTS.md` pueden levantar tus reglas de privacidad, y una habilidad nunca obtiene más de lo que tiene una conversación: solo puede restringirlo. Una regla que añades en la memoria, o que aceptas de la IA, es una línea más de este archivo; consulta [Memoria](AI_Memory.md).
 
@@ -69,7 +69,7 @@ Una habilidad de un servidor puede usar las herramientas de Plainva que solo lee
 
 ## Pruebas de habilidades
 
-Una habilidad puede traer escenarios de prueba: un mensaje que la inicia y lo que hace una buena ejecución. Las habilidades incluidas los tienen; para las tuyas, escríbelos en `tests/scenarios.json` dentro de la carpeta de la habilidad:
+Una habilidad puede traer escenarios de prueba: un mensaje que la inicia y lo que hace una buena ejecución. Trece de las catorce habilidades incluidas en Plainva los tienen, todas menos **Cuidar la memoria**; para las tuyas, escríbelos en `tests/scenarios.json` dentro de la carpeta de la habilidad:
 
 ```json
 {
@@ -110,7 +110,7 @@ Una conversación que leyó una página web, un correo o una herramienta externa
 
 ### Versiones en observación y el camino de vuelta
 
-Una versión que procede de una sugerencia queda en observación durante tres ejecuciones, y su fila las cuenta. Si una ejecución se queda sin pasos o tokens, da vueltas en círculo, se corta o es rechazada —una ejecución que detuviste, o una a la que el proveedor no respondió, no cuenta—, la pantalla de habilidades nombra la habilidad bajo **Versiones en observación** y ofrece dos opciones: **Volver a la versión anterior** o **Mantener**. Nada vuelve atrás por sí solo.
+Una habilidad que una sugerencia ha reescrito queda en observación durante tres ejecuciones de la nueva versión, y su fila las cuenta. Si una ejecución se queda sin pasos o tokens, da vueltas en círculo, se corta o es rechazada —una ejecución que detuviste, o una a la que el proveedor no respondió, no cuenta—, la pantalla de habilidades nombra la habilidad bajo **Versiones en observación** y ofrece dos opciones: **Volver a la versión anterior** o **Mantener**. Nada vuelve atrás por sí solo.
 
 En el menú de una habilidad, **Versiones anteriores…** enumera lo que el historial de versiones del vault conserva del archivo de la habilidad. El diálogo compara la versión que eliges con la habilidad tal como está ahora —sus líneas y lo que puede hacer— y avisa en qué puede hacer más la versión anterior. **Restaurar esta versión** la vuelve a escribir y la aprueba en este dispositivo. Las versiones se guardan en este dispositivo.
 

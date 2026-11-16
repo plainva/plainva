@@ -82,7 +82,7 @@ A script carries its limits in its manifest. The form sets three of them:
 | **Tool calls** | 20 | 0 to 50 |
 | **Memory in MB** | 32 | 8 to 128 |
 
-Only the time a script computes counts, not the time a tool takes. A script that goes over a limit is ended, the dialog says which limit it was, and an ended script returns nothing. By default the arguments of one call, what one call hands back and the result may each be 64 KB at most; a manifest may allow up to 256 KB.
+Only the time a script computes counts, not the time a tool takes. A script that goes over a limit — time, memory, steps, the number of calls, the size of a call's arguments or of its result — is ended, the dialog says which limit it was, and an ended script returns nothing. A tool's answer that is larger than the limit for one call is no end: the script gets an error for that call and runs on. By default the arguments of one call, what one call hands back and the result may each be 64 KB at most; a manifest may allow up to 256 KB.
 
 ## Nothing runs before you approve it
 

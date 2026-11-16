@@ -37,7 +37,7 @@ Toutes ne font que lire : aucune ne modifie une note ni n'envoie quoi que ce soi
 
 **E-mail et calendrier** lit les e-mails via la même question que n'importe quelle conversation : **Lire vos e-mails ?** la première fois. Elle ne lit jamais elle-même le texte d'un message ; un second lecteur sans outils en rédige un rapport. Les deux sont décrits dans [Assistant IA](AI_Assistant.md).
 
-Une de vos propres compétences n'utilise Internet que lorsque sa ligne `allowed-tools` nomme `web_search` ou `fetch_url`. **Vérifier et approuver** indique alors **Utilise Internet là où vous l'avez autorisé pour ce vault.** avant que vous ne l'approuviez. Une compétence qui ne nomme aucun outil n'amène jamais Internet avec elle.
+Une de vos propres compétences n'amène Internet dans sa conversation que lorsque sa ligne `allowed-tools` nomme `web_search` ou `fetch_url`. **Vérifier et approuver** indique alors **Utilise Internet là où vous l'avez autorisé pour ce vault.** avant que vous ne l'approuviez. Une compétence sans ligne `allowed-tools` n'amène jamais Internet avec elle, mais elle utilise ce que sa conversation a : dans une conversation qui a déjà Internet, elle peut chercher et lire des pages comme la conversation elle-même. Une compétence dont la ligne `allowed-tools` ne nomme ni l'un ni l'autre n'a pas Internet dans son exécution, quoi que la conversation ait.
 
 Une exécution de test n'utilise jamais Internet et ne demande jamais : les e-mails qu'elle n'avait pas le droit de lire dans cette session restent non lus.
 
@@ -53,7 +53,7 @@ Le bouton **Nouveau…** propose une compétence, un script et une importation. 
 
 ## Rien ne s'exécute avant votre approbation
 
-Une compétence de votre vault qui est nouvelle ou modifiée — par la synchronisation, une importation ou une modification sur cet appareil ou un autre — ne s'exécute pas tant que vous ne l'avez pas approuvée **sur cet appareil**. Une compétence que vous importez ici est approuvée dans la boîte de dialogue d'importation elle-même (**Importer et approuver**). Ces compétences attendent en haut de **Compétences**, sous **En attente de votre approbation**, et dans **Paramètres → IA dans ce vault**. Une phrase en haut de la vue explique ce que sont les compétences ; l'ordre est : en attente d'approbation, **Fournies avec Plainva**, **Les vôtres**, scripts, des serveurs, la ligne **Instructions pour ce vault** (avec `AGENTS.md` en seconde ligne), essais et ce qui a été appris. Retirer une approbation demande d'abord confirmation. **Vérifier et approuver** montre ce que la compétence peut faire, ce qui a changé depuis votre dernière approbation, ses instructions, ses fichiers et où elle se trouve. L'approbation vaut exactement pour cette version ; toute modification l'annule. Les approbations sont enregistrées sur cet appareil, jamais dans le vault.
+Une compétence de votre vault qui est nouvelle ou modifiée — par la synchronisation, un autre programme qui l'a écrite ou une modification sur cet appareil ou un autre — ne s'exécute pas tant que vous ne l'avez pas approuvée **sur cet appareil**. Une compétence que vous créez ici (**Nouvelle compétence**), copiez ici (**Créer votre propre version**) ou importez ici (**Importer et approuver**) fait exception : elle est approuvée sur cet appareil tout de suite, parce que vous l'avez vue ici. Ces compétences attendent en haut de **Compétences**, sous **En attente de votre approbation**, et dans **Paramètres → IA dans ce vault**. Une phrase en haut de la vue explique ce que sont les compétences ; l'ordre est : en attente d'approbation, **Fournies avec Plainva**, **Les vôtres**, scripts, des serveurs, la ligne **Instructions pour ce vault** (avec `AGENTS.md` en seconde ligne), essais et ce qui a été appris. Retirer une approbation demande d'abord confirmation. **Vérifier et approuver** montre ce que la compétence peut faire, ce qui a changé depuis votre dernière approbation, ses instructions, ses fichiers et où elle se trouve. L'approbation vaut exactement pour cette version ; toute modification l'annule. Les approbations sont enregistrées sur cet appareil, jamais dans le vault.
 
 Il en va de même pour un `AGENTS.md` à la racine de votre vault : une fois approuvé, ses instructions permanentes accompagnent chaque nouvelle conversation. Ni une compétence ni `AGENTS.md` ne peuvent lever vos règles de confidentialité, et une compétence n'obtient jamais plus que ce dont dispose une conversation — elle ne peut que le restreindre. Une règle que vous ajoutez dans la mémoire, ou que vous acceptez de la part de l'IA, est une ligne de plus dans ce fichier ; voir [Mémoire](AI_Memory.md).
 
@@ -69,7 +69,7 @@ Une compétence d'un serveur peut utiliser les outils de Plainva qui ne font que
 
 ## Essais des compétences
 
-Une compétence peut apporter des scénarios de test : un message qui la lance, et ce que fait une bonne exécution. Les compétences fournies en ont ; pour les vôtres, écrivez-les dans `tests/scenarios.json`, dans le dossier de la compétence :
+Une compétence peut apporter des scénarios de test : un message qui la lance, et ce que fait une bonne exécution. Treize des quatorze compétences fournies en ont — toutes sauf **Entretenir la mémoire** ; pour les vôtres, écrivez-les dans `tests/scenarios.json`, dans le dossier de la compétence :
 
 ```json
 {
@@ -110,7 +110,7 @@ Une conversation qui a lu une page web, un e-mail ou ce qu'un outil externe a re
 
 ### Versions surveillées et retour en arrière
 
-Une version issue d'une suggestion est surveillée pendant trois exécutions, et sa ligne les compte. Si une exécution manque d'étapes ou de jetons, tourne en rond, est interrompue ou refusée — une exécution que vous avez arrêtée, ou une à laquelle le fournisseur n'a pas répondu, ne compte pas —, l'écran des compétences nomme la compétence sous **Versions surveillées** et propose deux choix : **Revenir à la version précédente** ou **Conserver**. Rien ne revient en arrière tout seul.
+Une compétence qu'une suggestion a réécrite est surveillée pendant trois exécutions de la nouvelle version, et sa ligne les compte. Si une exécution manque d'étapes ou de jetons, tourne en rond, est interrompue ou refusée — une exécution que vous avez arrêtée, ou une à laquelle le fournisseur n'a pas répondu, ne compte pas —, l'écran des compétences nomme la compétence sous **Versions surveillées** et propose deux choix : **Revenir à la version précédente** ou **Conserver**. Rien ne revient en arrière tout seul.
 
 Dans le menu d'une compétence, **Versions antérieures…** liste ce que l'historique des versions du vault conserve du fichier de la compétence. La boîte de dialogue compare la version choisie à la compétence telle qu'elle est maintenant — ses lignes, et ce qu'elle peut faire — et avertit lorsque la version antérieure peut faire plus. **Restaurer cette version** réécrit la version choisie et l'approuve sur cet appareil. Les versions sont conservées sur cet appareil.
 

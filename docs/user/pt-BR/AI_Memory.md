@@ -57,7 +57,7 @@ O estilo fica neste dispositivo, não no vault: em outro dispositivo, você esco
 - Suas [regras de privacidade](AI_Assistant.md) valem também para os dois arquivos: uma regra de pasta para `.agent/` mantém toda a memória fora da nuvem.
 - A visão de envio tem uma linha **Memória** — quantas entradas vão junto — e conta em **Retido** as entradas que suas regras retêm. Ela nunca nomeia uma entrada.
 - Para a IA, uma entrada é informação, não instrução: uma frase na memória não lhe dá nenhum direito.
-- Uma conversa mantém a memória com a qual foi iniciada. Uma entrada que você exclui não vai para nenhuma conversa nova; as conversas que já começaram mantêm o que receberam.
+- Uma conversa mantém o que a memória lhe deu no início — as entradas em **Sempre incluído**. Uma entrada que você exclui não vai para nenhuma conversa nova; as conversas que já começaram mantêm o que receberam, e o que elas consultam depois vem dos arquivos como estiverem nesse momento.
 
 ## Desligar a memória
 
@@ -76,4 +76,4 @@ O estilo fica neste dispositivo, não no vault: em outro dispositivo, você esco
 
 `added` e `by` dizem quando a entrada foi adicionada e se você mesmo a escreveu ou aceitou um rascunho, `source` nomeia a conversa de onde veio um rascunho, e `deny` guarda as regras dela (`cloud`, `web`). Você pode editar os arquivos em qualquer editor. No Plainva, **Abrir arquivo** abre qualquer um dos dois.
 
-O Plainva não adivinha. Uma entrada cujo comentário está danificado é marcada como **Regras ilegíveis — não vai para nenhum modelo** até você corrigir o comentário ou adicionar a entrada de novo. Texto oculto em um comentário ou em caracteres invisíveis nunca é enviado; a entrada mostra então quantas partes ocultas ficaram de fora. Um arquivo comporta no máximo 2.000 entradas e 256 KB.
+O Plainva não adivinha. Uma entrada cujo comentário está danificado é marcada como **Regras ilegíveis — não vai para nenhum modelo** até você corrigir o comentário ou adicionar a entrada de novo. Texto oculto em um comentário ou em caracteres invisíveis nunca é enviado; a entrada mostra então quantas partes ocultas ficaram de fora. De um arquivo são lidas no máximo 2.000 entradas, e um arquivo maior que 256 KB não é lido de jeito nenhum.

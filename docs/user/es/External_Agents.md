@@ -18,7 +18,7 @@ Inicia un agente solo en un vault cuyo contenido pueda llegar al servicio del ag
 ## Lo que Plainva controla
 
 - **Sus propias herramientas.** Donde **Permitir que las apps de IA de este ordenador lean este vault** está activado, las herramientas de Plainva se ofrecen al agente — las mismas que a cualquier app de [Conectar apps de IA](Connect_AI_Apps.md): solo las carpetas que concedes, nunca una nota que se mantiene fuera de la nube o de Internet, y solo lectura, salvo que allí le permitas sugerir cambios.
-- **Lo que el agente pide a Plainva que lea.** Una nota que se mantiene fuera de la nube o de internet y las carpetas propias de Plainva no se entregan. El agente se entera, y tú también.
+- **Lo que el agente pide a Plainva que lea.** Una nota que se mantiene fuera de la nube o de internet y las carpetas propias de Plainva no se entregan. El agente se entera, y tú también. Cualquier otro archivo del vault se entrega: las carpetas que concediste para las herramientas de Plainva no limitan un archivo que el agente pide.
 - **Lo que el agente pide a Plainva que escriba.** No se escribe nada. Un cambio en una nota se convierte en una ronda de sugerencias con el nombre del agente, y una nota nueva espera como borrador hasta que la creas.
 - **Sin terminal.** Plainva no ofrece a un agente una terminal propia.
 
@@ -61,7 +61,7 @@ Plainva no lo acepta todo: solo notas Markdown; ni reglas de IA, ni campos de co
 ## Lo que Plainva conserva
 
 - **En este dispositivo:** el comando que confirmaste, tu nombre para el agente y lo que se vio por última vez de sus cambios — en los datos propios de Plainva, nunca en el vault.
-- **Por vault:** **Últimas sesiones en este vault** indica las últimas 50 sesiones — cuándo hubo una sesión, con qué agente, y cuántos mensajes, cambios a través de Plainva y cambios propios hubo — nunca lo que se dijo. Esta lista también está en los datos propios de Plainva en este dispositivo, no en el vault.
+- **Por vault:** Plainva conserva las últimas 50 sesiones; **Últimas sesiones en este vault** muestra las cinco más recientes — cuándo hubo una sesión, con qué agente, y cuántos mensajes, cambios a través de Plainva y cambios propios hubo — nunca lo que se dijo. Esta lista también está en los datos propios de Plainva en este dispositivo, no en el vault.
 - **No la sesión en sí:** lo que tú y el agente dijisteis desaparece cuando la sesión se cierra. Lo que el agente conserve por su lado es asunto del agente.
 
 Si el programa del agente termina por sí solo, la sesión lo dice, y **Mostrar sus últimas líneas** muestra el final de lo que el programa escribió.

@@ -82,7 +82,7 @@ Limity skryptu są zapisane w jego manifeście. Formularz ustawia trzy z nich:
 | **Wywołania narzędzi** | 20 | od 0 do 50 |
 | **Pamięć w MB** | 32 | od 8 do 128 |
 
-Liczy się tylko czas obliczeń skryptu, a nie czas, który zajmuje narzędzie. Skrypt, który przekroczy limit, zostaje zakończony; okno mówi, o który limit chodziło, a zakończony skrypt niczego nie zwraca. Domyślnie argumenty jednego wywołania, to, co jedno wywołanie zwraca, i wynik mogą mieć najwyżej po 64 KB; manifest może pozwolić na wartości do 256 KB.
+Liczy się tylko czas obliczeń skryptu, a nie czas, który zajmuje narzędzie. Skrypt, który przekroczy limit — czas, pamięć, kroki, liczbę wywołań, rozmiar argumentów wywołania lub jego wyniku —, zostaje zakończony; okno mówi, o który limit chodziło, a zakończony skrypt niczego nie zwraca. Odpowiedź narzędzia większa niż limit dla jednego wywołania nie jest końcem: skrypt dostaje dla tego wywołania błąd i działa dalej. Domyślnie argumenty jednego wywołania, to, co jedno wywołanie zwraca, i wynik mogą mieć najwyżej po 64 KB; manifest może pozwolić na wartości do 256 KB.
 
 ## Nic nie działa przed zatwierdzeniem
 

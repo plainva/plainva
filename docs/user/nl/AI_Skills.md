@@ -37,7 +37,7 @@ Ze lezen allemaal alleen: geen enkele verandert een notitie of verstuurt iets. D
 
 **E-mail en agenda** leest e-mail via dezelfde vraag als elk gesprek: de eerste keer **Je e-mail lezen?** Ze leest nooit zelf de tekst van een bericht; een tweede lezer zonder hulpmiddelen schrijft er een verslag over. Beide staan beschreven in [AI-assistent](AI_Assistant.md).
 
-Een eigen vaardigheid gebruikt internet alleen als haar `allowed-tools`-regel `web_search` of `fetch_url` noemt. **Controleren en goedkeuren** zegt dan **Gebruikt internet waar je dat voor deze vault hebt toegestaan.** voordat je haar goedkeurt. Een vaardigheid die geen hulpmiddelen noemt, brengt internet nooit mee.
+Een eigen vaardigheid brengt internet alleen in haar gesprek mee als haar `allowed-tools`-regel `web_search` of `fetch_url` noemt. **Controleren en goedkeuren** zegt dan **Gebruikt internet waar je dat voor deze vault hebt toegestaan.** voordat je haar goedkeurt. Een vaardigheid zonder `allowed-tools`-regel brengt internet nooit mee, maar gebruikt wat haar gesprek heeft: in een gesprek dat al internet heeft, kan ze pagina's zoeken en lezen zoals het gesprek zelf. Een vaardigheid waarvan de `allowed-tools`-regel geen van beide noemt, heeft geen internet in haar uitvoering, wat het gesprek ook heeft.
 
 Een testuitvoering gebruikt nooit internet en vraagt nooit: e-mail die ze in deze sessie niet mocht lezen, blijft ongelezen.
 
@@ -53,7 +53,7 @@ Een eigen vaardigheid stelt alleen wijzigingen voor als haar `allowed-tools`-reg
 
 ## Niets draait voordat je het goedkeurt
 
-Een vaardigheid in je vault die nieuw is of veranderd — via sync, een import of een bewerking op dit of een ander apparaat — draait pas wanneer je haar **op dit apparaat** goedkeurt. Een vaardigheid die je hier importeert, wordt goedgekeurd in het importdialoogvenster zelf (**Importeren en goedkeuren**). Zulke vaardigheden wachten bovenaan in **Vaardigheden** onder **Wachten op je goedkeuring**, en in **Instellingen → AI in deze vault**. **Controleren en goedkeuren** toont wat de vaardigheid mag, wat er sinds je laatste goedkeuring veranderde, haar instructies, bestanden en waar ze staat. De goedkeuring geldt precies voor deze versie; elke wijziging heft haar weer op. Goedkeuringen worden op dit apparaat bewaard, nooit in de vault.
+Een vaardigheid in je vault die nieuw is of veranderd — via sync, een ander programma dat haar schreef of een bewerking op dit of een ander apparaat — draait pas wanneer je haar **op dit apparaat** goedkeurt. Een vaardigheid die je hier maakt (**Nieuwe vaardigheid**), hier kopieert (**Eigen versie maken**) of hier importeert (**Importeren en goedkeuren**) is de uitzondering: ze wordt meteen op dit apparaat goedgekeurd, omdat je haar hier hebt gezien. Zulke vaardigheden wachten bovenaan in **Vaardigheden** onder **Wachten op je goedkeuring**, en in **Instellingen → AI in deze vault**. **Controleren en goedkeuren** toont wat de vaardigheid mag, wat er sinds je laatste goedkeuring veranderde, haar instructies, bestanden en waar ze staat. De goedkeuring geldt precies voor deze versie; elke wijziging heft haar weer op. Goedkeuringen worden op dit apparaat bewaard, nooit in de vault.
 
 Hetzelfde geldt voor een `AGENTS.md` bovenaan in je vault: eenmaal goedgekeurd gaan de vaste instructies mee in elk nieuw gesprek. Noch een vaardigheid noch `AGENTS.md` kan je privacyregels opheffen, en een vaardigheid krijgt nooit meer dan een gesprek heeft — ze kan het alleen beperken. Een regel die je in het geheugen toevoegt of van de AI accepteert, wordt een extra regel in dit bestand; zie [Geheugen](AI_Memory.md).
 
@@ -69,7 +69,7 @@ Een vaardigheid van een server mag de hulpmiddelen van Plainva gebruiken die all
 
 ## Vaardigheden testen met een model
 
-Een vaardigheid kan testscenario's meebrengen: een bericht dat haar start, en wat een goede uitvoering doet. De meegeleverde vaardigheden hebben ze; voor je eigen schrijf je ze in `tests/scenarios.json` in de map van de vaardigheid:
+Een vaardigheid kan testscenario's meebrengen: een bericht dat haar start, en wat een goede uitvoering doet. Dertien van de veertien vaardigheden die met Plainva worden meegeleverd hebben ze — alle behalve **Geheugen onderhouden**; voor je eigen schrijf je ze in `tests/scenarios.json` in de map van de vaardigheid:
 
 ```json
 {
@@ -110,7 +110,7 @@ Een gesprek dat een webpagina, een e-mail of een extern hulpmiddel heeft gelezen
 
 ### Versies onder observatie en de weg terug
 
-Een versie die uit een voorstel stamt, staat drie uitvoeringen lang onder observatie, en de rij van de vaardigheid telt ze. Raakt een uitvoering zonder stappen of tokens, draait ze rondjes, wordt ze afgebroken of geweigerd — een uitvoering die je zelf stopte, of waarop de provider niet antwoordde, telt niet mee —, dan noemt het vaardighedenscherm de vaardigheid onder **Versies onder observatie** en biedt het twee mogelijkheden aan: **Terug naar de vorige versie** of **Behouden**. Er gaat niets uit zichzelf terug.
+Een vaardigheid die door een voorstel is herschreven, staat drie uitvoeringen van de nieuwe versie lang onder observatie, en haar rij telt ze. Raakt een uitvoering zonder stappen of tokens, draait ze rondjes, wordt ze afgebroken of geweigerd — een uitvoering die je zelf stopte, of waarop de provider niet antwoordde, telt niet mee —, dan noemt het vaardighedenscherm de vaardigheid onder **Versies onder observatie** en biedt het twee mogelijkheden aan: **Terug naar de vorige versie** of **Behouden**. Er gaat niets uit zichzelf terug.
 
 **Eerdere versies…** in het menu van een vaardigheid toont de versies van haar bestand die de versiegeschiedenis van de vault bewaart. Het dialoogvenster vergelijkt de versie die je kiest met de vaardigheid zoals ze nu is — haar tekstregels en wat ze mag — en waarschuwt waar de eerdere versie meer mag. **Deze versie herstellen** schrijft haar terug en keurt haar op dit apparaat goed. De versies worden op dit apparaat bewaard.
 

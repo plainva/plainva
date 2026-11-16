@@ -82,7 +82,7 @@ Un script lleva sus límites en su manifiesto. El formulario fija tres de ellos:
 | **Llamadas a herramientas** | 20 | de 0 a 50 |
 | **Memoria en MB** | 32 | de 8 a 128 |
 
-Solo cuenta el tiempo que un script pasa calculando, no el que tarda una herramienta. Un script que supera un límite se termina, el diálogo dice cuál fue el límite y un script terminado no devuelve nada. Por defecto, los argumentos de una llamada, lo que devuelve una llamada y el resultado pueden ocupar, cada uno, 64 KB como máximo; un manifiesto puede permitir hasta 256 KB.
+Solo cuenta el tiempo que un script pasa calculando, no el que tarda una herramienta. Un script que supera un límite —tiempo, memoria, pasos, el número de llamadas, el tamaño de los argumentos de una llamada o de su resultado— se termina, el diálogo dice cuál fue el límite y un script terminado no devuelve nada. La respuesta de una herramienta que supera el límite de una llamada no es un final: el script recibe un error por esa llamada y sigue ejecutándose. Por defecto, los argumentos de una llamada, lo que devuelve una llamada y el resultado pueden ocupar, cada uno, 64 KB como máximo; un manifiesto puede permitir hasta 256 KB.
 
 ## Nada se ejecuta antes de que lo apruebes
 

@@ -18,7 +18,7 @@ Start een agent alleen in een vault waarvan de inhoud de dienst van de agent mag
 ## Wat Plainva beheerst
 
 - **Zijn eigen hulpmiddelen.** Waar **AI-apps op deze computer deze vault laten lezen** aanstaat, worden de hulpmiddelen van Plainva aan de agent aangeboden — dezelfde als voor elke app in [AI-apps koppelen](Connect_AI_Apps.md): alleen de mappen die je toestaat, nooit een notitie die van de cloud of van internet wordt weggehouden, en alleen lezen — tenzij je hem daar toestaat wijzigingen voor te stellen.
-- **Wat de agent Plainva vraagt te lezen.** Een notitie die van de cloud of van internet wordt weggehouden en de eigen mappen van Plainva worden niet afgegeven. De agent krijgt dat te horen, en jij ook.
+- **Wat de agent Plainva vraagt te lezen.** Een notitie die van de cloud of van internet wordt weggehouden en de eigen mappen van Plainva worden niet afgegeven. De agent krijgt dat te horen, en jij ook. Elk ander bestand van de vault wordt wel afgegeven: de mappen die je voor de hulpmiddelen van Plainva hebt toegekend, beperken een bestand dat de agent opvraagt niet.
 - **Wat de agent Plainva vraagt te schrijven.** Er wordt niets geschreven. Een wijziging in een notitie wordt een ronde voorstellen onder de naam van de agent, en een nieuwe notitie wacht als concept tot je haar aanmaakt.
 - **Geen terminal.** Plainva biedt een agent geen eigen terminal aan.
 
@@ -61,7 +61,7 @@ Plainva neemt niet alles aan: alleen Markdown-notities; geen AI-regels, geen ver
 ## Wat Plainva bewaart
 
 - **Op dit apparaat:** de opdracht die je hebt bevestigd, je naam voor de agent en wat er voor het laatst van zijn wijzigingen is gezien — in de eigen gegevens van Plainva, nooit in de vault.
-- **Per vault:** **Laatste sessies in deze vault** noemt de laatste 50 sessies — wanneer een sessie liep, met welke agent, en hoeveel berichten, wijzigingen via Plainva en eigen wijzigingen er waren — nooit wat er is gezegd. Ook deze lijst staat in Plainva's eigen gegevens op dit apparaat, niet in de vault.
+- **Per vault:** Plainva bewaart de laatste 50 sessies; **Laatste sessies in deze vault** toont de vijf nieuwste — wanneer een sessie liep, met welke agent, en hoeveel berichten, wijzigingen via Plainva en eigen wijzigingen er waren — nooit wat er is gezegd. Ook deze lijst staat in Plainva's eigen gegevens op dit apparaat, niet in de vault.
 - **Niet de sessie zelf:** wat jij en de agent hebben gezegd, is weg zodra de sessie is gesloten. Wat de agent aan zijn kant bewaart, is de zaak van de agent.
 
 Als het programma van de agent vanzelf eindigt, zegt de sessie dat, en **Zijn laatste regels tonen** toont het einde van wat het programma heeft geschreven.

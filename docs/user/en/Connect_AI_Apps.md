@@ -36,7 +36,7 @@ Besides the tools, Plainva offers five of its skills as prompts, in Plainva's ow
 
 ## Letting an app propose changes
 
-Reading is never a leave to write. Whether an app may also propose changes is an answer of its own: **May suggest changes** in the question at its first connection, or later the switch **… may suggest changes** in the settings — per app and per vault, and off until you set it. It holds from the app's next request; Plainva tells a connected app at once that its tools changed — whether the app listens and shows them without reconnecting is up to the app.
+Reading is never a leave to write. Whether an app may also propose changes is an answer of its own: **May suggest changes** in the question at its first connection, or later the switch **… may suggest changes** in the settings — per app and per vault, and off until you set it. It holds from the app's next request; Plainva tells a connected app at once that its tools changed, if the app asked to be told — whether it then shows them without reconnecting is up to the app.
 
 An app you allowed gets six more tools, and none of them changes the vault:
 
@@ -44,7 +44,7 @@ An app you allowed gets six more tools, and none of them changes the vault:
 - **A new note** becomes a draft under **To decide** in the AI tab. It exists once you choose **Create** there.
 - **Renaming, moving and deleting** ask first. Plainva shows in its own window what would happen — for a rename also the notes whose links would follow —, and the app shows a note that Plainva is waiting. Only after **Allow** in Plainva, and once the app continues, Plainva does it the way it does when you do it by hand; the app only learns whether it happened. For a deletion Plainva then opens its own delete dialog, and nothing is gone before you confirm there. An app that cannot show such a note — it needs MCP protocol revision 2026-07-28 or newer and must be able to ask you a question in a form — is not offered these three tools.
 
-A web address an app brings is written so that nothing opens or loads it (`https[://]…`), as with the assistant. A note's own privacy rules (`plainva.ai`) are not an app's to set, and inside an encrypted workspace nothing is proposed, drafted or planned. The list of recent requests in the settings shows the eight newest and says of each whether Plainva asked you, you said no or it was refused.
+A web address an app brings is written so that nothing opens or loads it (`https[://]…`), as with the assistant. A note's own privacy rules (`plainva.ai`) are not an app's to set, and inside an encrypted workspace nothing is proposed, drafted or planned. The list of recent requests in the settings shows the eight newest and marks the ones Plainva asked you about (**asked**), the ones you declined (**declined**) and the ones that did not go through (**refused**); a request that went through carries no word.
 
 ## Limits
 

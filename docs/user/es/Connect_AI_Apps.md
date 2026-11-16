@@ -36,7 +36,7 @@ Además de las herramientas, Plainva ofrece cinco de sus habilidades como prompt
 
 ## Dejar que una app sugiera cambios
 
-Leer nunca es un permiso para escribir. Que una app pueda además sugerir cambios es una respuesta aparte: **Puede sugerir cambios** en la pregunta de su primera conexión, o más tarde el interruptor **… puede sugerir cambios** en la configuración; por app y por vault, y desactivado hasta que lo actives. Vale desde la siguiente solicitud de la app; Plainva avisa al momento a una app conectada de que sus herramientas cambiaron; que la app lo atienda y las muestre sin volver a conectarse depende de ella.
+Leer nunca es un permiso para escribir. Que una app pueda además sugerir cambios es una respuesta aparte: **Puede sugerir cambios** en la pregunta de su primera conexión, o más tarde el interruptor **… puede sugerir cambios** en la configuración; por app y por vault, y desactivado hasta que lo actives. Vale desde la siguiente solicitud de la app; Plainva avisa al momento a una app conectada de que sus herramientas cambiaron, si la app pidió que se le avisara; que entonces las muestre sin volver a conectarse depende de ella.
 
 Una app a la que se lo permitiste recibe seis herramientas más, y ninguna cambia el vault:
 
@@ -44,7 +44,7 @@ Una app a la que se lo permitiste recibe seis herramientas más, y ninguna cambi
 - **Una nota nueva** se convierte en un borrador en **Por decidir**, en la pestaña de IA. Existe cuando eliges allí **Crear**.
 - **Renombrar, mover y eliminar** preguntan primero. Plainva muestra en su propia ventana qué pasaría —al renombrar, también las notas cuyos enlaces seguirían el cambio— y la app muestra un aviso de que Plainva está esperando. Solo después de **Permitir** en Plainva, y cuando la app continúa, Plainva lo hace como cuando lo haces a mano; la app solo sabe si se hizo. Para eliminar, Plainva abre entonces su propio diálogo de eliminación, y nada desaparece antes de que confirmes allí. A una app que no puede mostrar ese aviso — necesita la revisión 2026-07-28 o posterior del protocolo MCP y debe poder hacerte una pregunta en un formulario — no se le ofrecen estas tres herramientas.
 
-Una dirección web que traiga una app se escribe de modo que nada la abra ni la cargue (`https[://]…`), igual que con el asistente. Las reglas de privacidad propias de una nota (`plainva.ai`) no las establece ninguna app, y dentro de un espacio de trabajo cifrado no se sugiere, redacta ni planifica nada. La lista de solicitudes recientes de la configuración muestra las ocho más recientes y dice de cada una si Plainva te preguntó, dijiste que no o fue rechazada.
+Una dirección web que traiga una app se escribe de modo que nada la abra ni la cargue (`https[://]…`), igual que con el asistente. Las reglas de privacidad propias de una nota (`plainva.ai`) no las establece ninguna app, y dentro de un espacio de trabajo cifrado no se sugiere, redacta ni planifica nada. La lista de solicitudes recientes de la configuración muestra las ocho más recientes y marca las que Plainva te preguntó (**consulta**), las que denegaste (**denegada**) y las que no prosperaron (**rechazada**); una solicitud que prosperó no lleva ninguna palabra.
 
 ## Límites
 

@@ -57,7 +57,7 @@ Styl jest zapisany na tym urządzeniu, nie w vaulcie: na innym urządzeniu wybie
 - Twoje [zasady prywatności](AI_Assistant.md) obejmują także oba pliki: reguła folderu dla `.agent/` trzyma całą pamięć z dala od chmury.
 - Przegląd wysyłki ma wiersz **Pamięć** — ile wpisów idzie razem — i liczy w **Zatrzymano** wpisy, które zatrzymują Twoje reguły. Nigdy nie wymienia żadnego wpisu.
 - Dla AI wpis jest informacją, a nie instrukcją: zdanie w pamięci nie daje jej żadnych uprawnień.
-- Rozmowa zachowuje pamięć, z którą została rozpoczęta. Usunięty wpis nie trafia do żadnej nowej rozmowy; rozmowy, które już się rozpoczęły, zachowują to, co dostały.
+- Rozmowa zachowuje to, co pamięć jej dała na początku — wpisy w miejscu **Zawsze dołączane**. Usunięty wpis nie trafia do żadnej nowej rozmowy; rozmowy, które już się rozpoczęły, zachowują to, co dostały, a to, co sprawdzają później, pochodzi z plików w takim stanie, w jakim są wtedy.
 
 ## Wyłączanie
 
@@ -76,4 +76,4 @@ Przełącznik **Używaj pamięci na tym urządzeniu** jest włączony, dopóki g
 
 `added` i `by` mówią, kiedy wpis został dodany i czy pochodzi od Ciebie, czy z zaakceptowanego szkicu, `source` podaje nazwę rozmowy, z której pochodzi szkic, a `deny` zawiera reguły wpisu (`cloud`, `web`). Pliki możesz edytować w dowolnym edytorze. W Plainva każdy z nich otwiera **Otwórz plik**.
 
-Plainva niczego nie zgaduje. Wpis z uszkodzonym komentarzem jest oznaczony jako **Reguły nieczytelne — nie trafia do żadnego modelu**, dopóki nie naprawisz komentarza lub nie dodasz wpisu od nowa. Tekst ukryty w komentarzu lub w niewidocznych znakach nigdy nie jest wysyłany; wpis pokazuje wtedy, ile ukrytych części pominięto. Plik mieści co najwyżej 2000 wpisów i 256 KB.
+Plainva niczego nie zgaduje. Wpis z uszkodzonym komentarzem jest oznaczony jako **Reguły nieczytelne — nie trafia do żadnego modelu**, dopóki nie naprawisz komentarza lub nie dodasz wpisu od nowa. Tekst ukryty w komentarzu lub w niewidocznych znakach nigdy nie jest wysyłany; wpis pokazuje wtedy, ile ukrytych części pominięto. Z pliku czytanych jest co najwyżej 2000 wpisów, a plik większy niż 256 KB nie jest czytany wcale.

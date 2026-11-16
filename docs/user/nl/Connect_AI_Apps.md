@@ -36,7 +36,7 @@ Naast de tools biedt Plainva vijf van zijn vaardigheden aan als prompts, in Plai
 
 ## Een app wijzigingen laten voorstellen
 
-Lezen is nooit een toestemming om te schrijven. Of een app ook wijzigingen mag voorstellen, is een apart antwoord: **Mag wijzigingen voorstellen** in de vraag bij de eerste verbinding, of later de schakelaar **… mag wijzigingen voorstellen** in de instellingen — per app en per vault, en uit totdat je hem aanzet. Hij geldt vanaf het volgende verzoek van de app; Plainva laat een verbonden app meteen weten dat haar hulpmiddelen zijn veranderd — of de app daarnaar luistert en ze zonder opnieuw verbinden toont, ligt aan de app.
+Lezen is nooit een toestemming om te schrijven. Of een app ook wijzigingen mag voorstellen, is een apart antwoord: **Mag wijzigingen voorstellen** in de vraag bij de eerste verbinding, of later de schakelaar **… mag wijzigingen voorstellen** in de instellingen — per app en per vault, en uit totdat je hem aanzet. Hij geldt vanaf het volgende verzoek van de app; Plainva laat een verbonden app meteen weten dat haar hulpmiddelen zijn veranderd, als de app erom heeft gevraagd — of de app ze dan zonder opnieuw verbinden toont, ligt aan de app.
 
 Een app die je het hebt toegestaan krijgt zes extra hulpmiddelen, en geen daarvan wijzigt de vault:
 
@@ -44,7 +44,7 @@ Een app die je het hebt toegestaan krijgt zes extra hulpmiddelen, en geen daarva
 - **Een nieuwe notitie** wordt een concept onder **Te beslissen** in het AI-tabblad. Ze bestaat zodra je daar **Aanmaken** kiest.
 - **Hernoemen, verplaatsen en verwijderen** vragen eerst. Plainva laat in het eigen venster zien wat er zou gebeuren — bij hernoemen ook de notities waarvan de links zouden volgen —, en de app toont een melding dat Plainva wacht. Pas na **Toestaan** in Plainva, en zodra de app verdergaat, doet Plainva het zoals wanneer je het met de hand doet; de app hoort alleen of het is gebeurd. Bij verwijderen opent Plainva dan het eigen verwijdervenster, en er verdwijnt niets voordat je daar bevestigt. Een app die zo'n melding niet kan tonen — ze heeft MCP-protocolrevisie 2026-07-28 of nieuwer nodig en moet je een vraag in een formulier kunnen stellen — krijgt deze drie hulpmiddelen niet aangeboden.
 
-Een webadres dat een app meebrengt, wordt zo geschreven dat niets het opent of laadt (`https[://]…`), net als bij de assistent. De eigen privacyregels van een notitie (`plainva.ai`) stelt geen app in, en in een versleutelde workspace wordt niets voorgesteld, opgesteld of gepland. De lijst met recente verzoeken in de instellingen toont de acht nieuwste en zegt van elk of Plainva het aan jou heeft gevraagd, of je nee hebt gezegd, of dat het is geweigerd.
+Een webadres dat een app meebrengt, wordt zo geschreven dat niets het opent of laadt (`https[://]…`), net als bij de assistent. De eigen privacyregels van een notitie (`plainva.ai`) stelt geen app in, en in een versleutelde workspace wordt niets voorgesteld, opgesteld of gepland. De lijst met recente verzoeken in de instellingen toont de acht nieuwste en markeert de verzoeken waarover Plainva het jou heeft gevraagd (**vraag gesteld**), de verzoeken die je hebt afgewezen (**afgewezen**) en de verzoeken die niet zijn doorgelaten (**geweigerd**); een verzoek dat is doorgelaten, draagt geen woord.
 
 ## Grenzen
 

@@ -57,7 +57,7 @@ Der Stil liegt auf diesem Gerät, nicht im Vault: auf einem anderen Gerät wähl
 - Deine [Datenschutzregeln](AI_Assistant.md) gelten auch für die beiden Dateien: Eine Ordnerregel für `.agent/` hält das ganze Gedächtnis von der Cloud fern.
 - Die Sendeübersicht hat eine Zeile **Gedächtnis** — wie viele Einträge mitgehen — und zählt die Einträge, die Deine Regeln zurückhalten, unter **Zurückgehalten**. Sie nennt nie einen Eintrag.
 - Für die KI ist ein Eintrag eine Auskunft, keine Anweisung: Ein Satz im Gedächtnis gibt ihr keine Rechte.
-- Ein Gespräch behält das Gedächtnis, mit dem es begonnen hat. Ein Eintrag, den Du löschst, geht in kein neues Gespräch mehr; Gespräche, die schon begonnen haben, behalten, was sie bekommen haben.
+- Ein Gespräch behält, was ihm das Gedächtnis bei seinem Beginn gegeben hat — die Einträge unter **Immer dabei**. Ein Eintrag, den Du löschst, geht in kein neues Gespräch mehr; Gespräche, die schon begonnen haben, behalten, was sie bekommen haben, und was sie später nachschlagen, kommt aus den Dateien, wie sie dann sind.
 
 ## Ausschalten
 
@@ -76,4 +76,4 @@ Der Stil liegt auf diesem Gerät, nicht im Vault: auf einem anderen Gerät wähl
 
 `added` und `by` sagen, wann der Eintrag hinzukam und ob Du ihn geschrieben oder einen Entwurf angenommen hast, `source` nennt das Gespräch, aus dem ein Entwurf stammt, und `deny` hält seine Regeln (`cloud`, `web`). Du kannst die Dateien in jedem Editor bearbeiten. In Plainva öffnet **Datei öffnen** jede der beiden.
 
-Plainva rät nicht. Ein Eintrag, dessen Kommentar beschädigt ist, trägt die Marke **Regeln nicht lesbar — geht an kein Modell**, bis Du den Kommentar reparierst oder den Eintrag neu anlegst. Text, der in einem Kommentar oder in unsichtbaren Zeichen versteckt ist, wird nie mitgeschickt; der Eintrag zeigt dann, wie viele versteckte Stellen weggelassen wurden. Eine Datei fasst höchstens 2.000 Einträge und 256 KB.
+Plainva rät nicht. Ein Eintrag, dessen Kommentar beschädigt ist, trägt die Marke **Regeln nicht lesbar — geht an kein Modell**, bis Du den Kommentar reparierst oder den Eintrag neu anlegst. Text, der in einem Kommentar oder in unsichtbaren Zeichen versteckt ist, wird nie mitgeschickt; der Eintrag zeigt dann, wie viele versteckte Stellen weggelassen wurden. Von einer Datei werden höchstens 2.000 Einträge gelesen, und eine Datei, die größer ist als 256 KB, wird gar nicht gelesen.

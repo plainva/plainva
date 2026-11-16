@@ -37,7 +37,7 @@ All of them only read: none changes a note or sends anything. The one that draft
 
 **Mail and calendar** reads mail through the same question as any conversation: **Read your mail?** the first time. It never reads the text of a message itself; a second reader without tools writes a report about it. Both are described in [AI Assistant](AI_Assistant.md).
 
-A skill of your own uses the internet only when its `allowed-tools` line names `web_search` or `fetch_url`. **Review and approve** then says **Uses the internet where you allowed it for this vault.** before you approve it. A skill that names no tools never brings the internet along.
+A skill of your own brings the internet into its conversation only when its `allowed-tools` line names `web_search` or `fetch_url`. **Review and approve** then says **Uses the internet where you allowed it for this vault.** before you approve it. A skill without an `allowed-tools` line never brings the internet along, but it uses what its conversation has: in a conversation that already has the internet, it can search and read pages like the conversation itself. A skill whose `allowed-tools` line names neither has no internet in its run, whatever the conversation has.
 
 A test run never uses the internet, and it never asks: mail it was not allowed to read in this session stays unread.
 
@@ -53,7 +53,7 @@ The button **New…** offers a skill, a script and an import. **New skill** asks
 
 ## Nothing runs before you approve it
 
-A skill in your vault that is new or changed — through sync, an import, or an edit on this or another device — does not run until you approve it **on this device**. A skill you import here is approved in the import dialog itself (**Import and approve**). Such skills wait at the top of **Skills** under **Waiting for your approval**, and in **Settings → AI in this vault**. A sentence at the top of the view explains what skills are; the order is waiting for approval, **Comes with Plainva**, **Your own**, scripts, from servers, the row **Instructions for this vault** (with `AGENTS.md` as its second line), test runs and what was learned. Withdrawing an approval asks first. **Review and approve** shows what the skill may do, what changed since your last approval, its instructions, files and where it lies. The approval holds for exactly this version; any change lifts it again. Approvals are stored on this device, never in the vault.
+A skill in your vault that is new or changed — through sync, another program that wrote it, or an edit on this or another device — does not run until you approve it **on this device**. A skill you create here (**New skill**), copy here (**Make your own version**) or import here (**Import and approve**) is the exception: it is approved on this device at once, because you saw it here. Such skills wait at the top of **Skills** under **Waiting for your approval**, and in **Settings → AI in this vault**. A sentence at the top of the view explains what skills are; the order is waiting for approval, **Comes with Plainva**, **Your own**, scripts, from servers, the row **Instructions for this vault** (with `AGENTS.md` as its second line), test runs and what was learned. Withdrawing an approval asks first. **Review and approve** shows what the skill may do, what changed since your last approval, its instructions, files and where it lies. The approval holds for exactly this version; any change lifts it again. Approvals are stored on this device, never in the vault.
 
 The same holds for an `AGENTS.md` at the top of your vault: once approved, its standing instructions go into every new conversation. Neither a skill nor `AGENTS.md` can lift your privacy rules, and a skill never gets more than a conversation has — it can only narrow it. A rule you add in the memory, or accept from the AI, is one more line of this file; see [Memory](AI_Memory.md).
 
@@ -69,7 +69,7 @@ A server's skill may use Plainva's tools that only read or show, and the tools o
 
 ## Test runs of skills
 
-A skill can bring test scenarios: a message that starts it, and what a good run does. The skills that come with Plainva have them; for your own, write them into `tests/scenarios.json` in the skill's folder:
+A skill can bring test scenarios: a message that starts it, and what a good run does. Thirteen of the fourteen skills that come with Plainva have them — all but **Memory care**; for your own, write them into `tests/scenarios.json` in the skill's folder:
 
 ```json
 {
@@ -110,7 +110,7 @@ A conversation that read a web page, an e-mail or an external tool suggests entr
 
 ### Watched versions and the way back
 
-A version that came from a suggestion is watched for three runs, and its row counts them. If a run runs out of steps or tokens, goes in circles, is cut off or is refused — a run you stopped, or one the provider did not answer, does not count —, the skills view names the skill under **Watched versions** and offers two things: **Back to the version before**, or **Keep**. Nothing goes back by itself.
+A skill that a suggestion has rewritten is watched for three runs of the new version, and its row counts them. If a run runs out of steps or tokens, goes in circles, is cut off or is refused — a run you stopped, or one the provider did not answer, does not count —, the skills view names the skill under **Watched versions** and offers two things: **Back to the version before**, or **Keep**. Nothing goes back by itself.
 
 **Earlier versions…** in a skill's menu lists what the vault's version history keeps of the skill's file. The dialog holds the version you choose against the skill as it is now — its lines, and what it may do — and warns where the earlier version may do more. **Restore this version** writes it back and approves it on this device. The versions are kept on this device.
 

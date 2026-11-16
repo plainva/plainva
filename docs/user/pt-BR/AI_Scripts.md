@@ -82,7 +82,7 @@ Um script traz os limites no manifesto dele. O formulário define três deles:
 | **Chamadas de ferramentas** | 20 | 0 a 50 |
 | **Memória em MB** | 32 | 8 a 128 |
 
-Só conta o tempo em que um script calcula, não o tempo que uma ferramenta leva. Um script que ultrapassa um limite é encerrado, o diálogo diz qual limite foi, e um script encerrado não devolve nada. Por padrão, os argumentos de uma chamada, o que uma chamada devolve e o resultado podem ter, cada um, no máximo 64 KB; um manifesto pode permitir até 256 KB.
+Só conta o tempo em que um script calcula, não o tempo que uma ferramenta leva. Um script que ultrapassa um limite — tempo, memória, passos, número de chamadas, tamanho dos argumentos de uma chamada ou do resultado dela — é encerrado, o diálogo diz qual limite foi, e um script encerrado não devolve nada. A resposta de uma ferramenta maior que o limite de uma chamada não encerra o script: ele recebe um erro nessa chamada e continua rodando. Por padrão, os argumentos de uma chamada, o que uma chamada devolve e o resultado podem ter, cada um, no máximo 64 KB; um manifesto pode permitir até 256 KB.
 
 ## Nada roda antes da sua aprovação
 

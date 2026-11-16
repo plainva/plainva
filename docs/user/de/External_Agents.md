@@ -18,7 +18,7 @@ Starte einen Agenten nur in einem Vault, dessen Inhalt den Dienst des Agenten er
 ## Was Plainva kontrolliert
 
 - **Die eigenen Werkzeuge.** Wo **KI-Apps auf diesem Rechner diesen Vault lesen lassen** eingeschaltet ist, werden Plainvas Werkzeuge dem Agenten angeboten — dieselben wie für jede App in [KI-Apps verbinden](Connect_AI_Apps.md): nur die Ordner, die Du freigibst, nie eine von der Cloud oder vom Internet ferngehaltene Notiz, und nur lesend — es sei denn, Du erlaubst ihm dort, Änderungen vorzuschlagen.
-- **Was der Agent Plainva zu lesen bittet.** Eine von der Cloud oder vom Internet ferngehaltene Notiz und Plainvas eigene Ordner werden nicht herausgegeben. Der Agent erfährt das, und Du auch.
+- **Was der Agent Plainva zu lesen bittet.** Eine von der Cloud oder vom Internet ferngehaltene Notiz und Plainvas eigene Ordner werden nicht herausgegeben. Der Agent erfährt das, und Du auch. Jede andere Datei des Vaults wird herausgegeben: Die Ordner, die Du für Plainvas Werkzeuge freigegeben hast, begrenzen keine Datei, nach der der Agent fragt.
 - **Was der Agent Plainva zu schreiben bittet.** Geschrieben wird nichts. Eine Änderung an einer Notiz wird eine Vorschlagsrunde unter dem Namen des Agenten, und eine neue Notiz wartet als Entwurf, bis Du sie anlegst.
 - **Kein Terminal.** Plainva bietet einem Agenten kein eigenes Terminal an.
 
@@ -61,7 +61,7 @@ Plainva nimmt nicht alles an: nur Markdown-Notizen; keine KI-Regeln, keine Vertr
 ## Was Plainva behält
 
 - **Auf diesem Gerät:** den Befehl, den Du bestätigt hast, Deinen Namen für den Agenten und was zuletzt von seinen Änderungen beobachtet wurde — in Plainvas eigenen Daten, nie im Vault.
-- **Je Vault:** **Letzte Sitzungen in diesem Vault** nennt die letzten 50 Sitzungen — wann eine Sitzung lief, mit welchem Agenten, und wie viele Nachrichten, Änderungen über Plainva und eigene Änderungen es gab — nie, was gesagt wurde. Auch diese Liste liegt in Plainvas eigenen Daten auf diesem Gerät, nicht im Vault.
+- **Je Vault:** Plainva behält die letzten 50 Sitzungen; **Letzte Sitzungen in diesem Vault** zeigt die fünf neuesten — wann eine Sitzung lief, mit welchem Agenten, und wie viele Nachrichten, Änderungen über Plainva und eigene Änderungen es gab — nie, was gesagt wurde. Auch diese Liste liegt in Plainvas eigenen Daten auf diesem Gerät, nicht im Vault.
 - **Nicht die Sitzung selbst:** was Du und der Agent gesagt habt, ist weg, sobald die Sitzung geschlossen ist. Was der Agent auf seiner Seite behält, ist Sache des Agenten.
 
 Endet das Programm des Agenten von selbst, sagt die Sitzung das, und **Seine letzten Zeilen zeigen** zeigt das Ende dessen, was das Programm geschrieben hat.

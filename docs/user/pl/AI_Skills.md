@@ -37,7 +37,7 @@ Wszystkie tylko czytają: żadna nie zmienia notatki ani niczego nie wysyła. Je
 
 **E-mail i kalendarz** czyta e-maile przez to samo pytanie co każda rozmowa: za pierwszym razem **Czytać Twoje e-maile?** Nigdy sama nie czyta tekstu wiadomości; raport o niej pisze drugi czytelnik, bez narzędzi. Jedno i drugie opisuje strona [Asystent AI](AI_Assistant.md).
 
-Własna umiejętność korzysta z internetu tylko wtedy, gdy jej wiersz `allowed-tools` wymienia `web_search` lub `fetch_url`. **Sprawdź i zatwierdź** pokazuje wtedy, zanim ją zatwierdzisz: **Korzysta z internetu tam, gdzie dopuścisz to dla tego vaultu.** Umiejętność, która nie wymienia żadnych narzędzi, nigdy nie przynosi internetu ze sobą.
+Własna umiejętność wnosi internet do swojej rozmowy tylko wtedy, gdy jej wiersz `allowed-tools` wymienia `web_search` lub `fetch_url`. **Sprawdź i zatwierdź** pokazuje wtedy, zanim ją zatwierdzisz: **Korzysta z internetu tam, gdzie dopuścisz to dla tego vaultu.** Umiejętność bez wiersza `allowed-tools` nigdy nie przynosi internetu ze sobą, ale korzysta z tego, co ma jej rozmowa: w rozmowie, która już ma internet, może szukać i czytać strony tak jak sama rozmowa. Umiejętność, której wiersz `allowed-tools` nie wymienia żadnego z nich, nie ma internetu w swoim uruchomieniu, cokolwiek ma rozmowa.
 
 Uruchomienie testowe nigdy nie korzysta z internetu i nigdy nie pyta: e-maile, których nie wolno mu było czytać w tej sesji, pozostają nieprzeczytane.
 
@@ -53,7 +53,7 @@ Własna umiejętność proponuje zmiany tylko wtedy, gdy jej wiersz `allowed-too
 
 ## Nic nie działa przed zatwierdzeniem
 
-Umiejętność w vaulcie, która jest nowa lub zmieniona — przez synchronizację, import albo edycję na tym lub innym urządzeniu — nie działa, dopóki nie zostanie zatwierdzona **na tym urządzeniu**. Umiejętność importowana tutaj jest zatwierdzana w samym oknie importu (**Importuj i zatwierdź**). Takie umiejętności czekają na górze sekcji **Umiejętności** w **Czekają na zatwierdzenie** oraz w **Ustawienia → AI w tym vaulcie**. **Sprawdź i zatwierdź** pokazuje, co umiejętność może robić, co się zmieniło od ostatniego zatwierdzenia, jej instrukcje, pliki i miejsce. Zatwierdzenie obowiązuje dokładnie tę wersję; każda zmiana je znosi. Zatwierdzenia są przechowywane na tym urządzeniu, nigdy w vaulcie.
+Umiejętność w vaulcie, która jest nowa lub zmieniona — przez synchronizację, inny program, który ją zapisał, albo edycję na tym lub innym urządzeniu — nie działa, dopóki nie zostanie zatwierdzona **na tym urządzeniu**. Wyjątkiem jest umiejętność utworzona tutaj (**Nowa umiejętność**), skopiowana tutaj (**Utwórz własną wersję**) albo zaimportowana tutaj (**Importuj i zatwierdź**): jest zatwierdzana na tym urządzeniu od razu, bo została tu zobaczona. Takie umiejętności czekają na górze sekcji **Umiejętności** w **Czekają na zatwierdzenie** oraz w **Ustawienia → AI w tym vaulcie**. **Sprawdź i zatwierdź** pokazuje, co umiejętność może robić, co się zmieniło od ostatniego zatwierdzenia, jej instrukcje, pliki i miejsce. Zatwierdzenie obowiązuje dokładnie tę wersję; każda zmiana je znosi. Zatwierdzenia są przechowywane na tym urządzeniu, nigdy w vaulcie.
 
 To samo dotyczy pliku `AGENTS.md` na najwyższym poziomie vaultu: po zatwierdzeniu jego stałe instrukcje trafiają do każdej nowej rozmowy. Ani umiejętność, ani `AGENTS.md` nie może uchylić reguł prywatności, a umiejętność nigdy nie dostaje więcej, niż ma rozmowa — może to tylko zawęzić. Reguła dodana w pamięci albo zaakceptowana ze szkicu AI to kolejny wiersz tego pliku; zob. [Pamięć](AI_Memory.md).
 
@@ -69,7 +69,7 @@ Umiejętność serwera może korzystać z narzędzi Plainva, które tylko czytaj
 
 ## Sprawdzanie umiejętności z modelem
 
-Umiejętność może mieć scenariusze testowe: wiadomość, która ją uruchamia, i to, co robi dobre uruchomienie. Dołączone umiejętności je mają; dla własnych zapisz je w `tests/scenarios.json` w folderze umiejętności:
+Umiejętność może mieć scenariusze testowe: wiadomość, która ją uruchamia, i to, co robi dobre uruchomienie. Trzynaście z czternastu umiejętności dołączonych do Plainva je ma — wszystkie poza umiejętnością **Dbanie o pamięć**; dla własnych zapisz je w `tests/scenarios.json` w folderze umiejętności:
 
 ```json
 {
@@ -110,7 +110,7 @@ Przycisk **Zaakceptuj** zapisuje nową wersję i zatwierdza ją na tym urządzen
 
 ### Wersje pod obserwacją i droga powrotna
 
-Wersja, która pochodzi z propozycji, jest obserwowana przez trzy uruchomienia, a wiersz umiejętności je zlicza. Jeśli uruchomieniu skończą się kroki lub tokeny, kręci się w kółko, zostaje przerwane lub odrzucone — uruchomienie zatrzymane przez Ciebie albo takie, na które dostawca nie odpowiedział, się nie liczy —, sekcja umiejętności wymienia tę umiejętność pod nagłówkiem **Wersje pod obserwacją** i oferuje dwie możliwości: **Wróć do poprzedniej wersji** albo **Zachowaj**. Nic nie wraca samo.
+Umiejętność, którą przepisała propozycja, jest obserwowana przez trzy uruchomienia nowej wersji, a jej wiersz je zlicza. Jeśli uruchomieniu skończą się kroki lub tokeny, kręci się w kółko, zostaje przerwane lub odrzucone — uruchomienie zatrzymane przez Ciebie albo takie, na które dostawca nie odpowiedział, się nie liczy —, sekcja umiejętności wymienia tę umiejętność pod nagłówkiem **Wersje pod obserwacją** i oferuje dwie możliwości: **Wróć do poprzedniej wersji** albo **Zachowaj**. Nic nie wraca samo.
 
 Polecenie **Wcześniejsze wersje…** w menu umiejętności pokazuje to, co historia wersji vaultu zachowuje z pliku umiejętności. Okno zestawia wybraną przez Ciebie wersję z umiejętnością w obecnej postaci — jej wiersze i to, co może robić — i ostrzega, gdy wcześniejsza wersja może robić więcej. Przycisk **Przywróć tę wersję** zapisuje ją z powrotem i zatwierdza na tym urządzeniu. Wersje są przechowywane na tym urządzeniu.
 

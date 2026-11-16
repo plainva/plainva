@@ -57,7 +57,7 @@ Lo stile resta su questo dispositivo, non nel vault: su un altro dispositivo ne 
 - Anche le tue [regole sulla privacy](AI_Assistant.md) valgono per i due file: una regola per la cartella `.agent/` tiene l'intera memoria lontana dal cloud.
 - Il riepilogo di invio ha una riga **Memoria** — quante voci partono — e sotto **Trattenuto** conta le voci che le tue regole trattengono. Non nomina mai una voce.
 - Per l'IA una voce è un'informazione, non un'istruzione: una frase nella memoria non le concede alcun permesso.
-- Una conversazione conserva la memoria con cui è stata avviata. Una voce che elimini non va a nessuna nuova conversazione; le conversazioni già avviate conservano ciò che hanno ricevuto.
+- Una conversazione conserva ciò che la memoria le ha dato all'avvio — le voci sotto **Sempre incluso**. Una voce che elimini non va a nessuna nuova conversazione; le conversazioni già avviate conservano ciò che hanno ricevuto, e ciò che cercano più tardi proviene dai file così come sono in quel momento.
 
 ## Disattivare la memoria
 
@@ -76,4 +76,4 @@ Lo stile resta su questo dispositivo, non nel vault: su un altro dispositivo ne 
 
 `added` e `by` indicano quando è stata aggiunta la voce e se l'hai scritta tu o hai accettato una bozza, `source` nomina la conversazione da cui proviene una bozza e `deny` contiene le regole della voce (`cloud`, `web`). Puoi modificare i file con qualsiasi editor. In Plainva, **Apri file** apre l'uno o l'altro.
 
-Plainva non tira a indovinare. Una voce con un commento danneggiato è contrassegnata con **Regole illeggibili: non va a nessun modello** finché non ripari il commento o non aggiungi di nuovo la voce. Il testo nascosto in un commento o in caratteri invisibili non viene mai inviato; la voce mostra allora quante parti nascoste sono state tralasciate. Un file contiene al massimo 2.000 voci e 256 KB.
+Plainva non tira a indovinare. Una voce con un commento danneggiato è contrassegnata con **Regole illeggibili: non va a nessun modello** finché non ripari il commento o non aggiungi di nuovo la voce. Il testo nascosto in un commento o in caratteri invisibili non viene mai inviato; la voce mostra allora quante parti nascoste sono state tralasciate. Di un file vengono lette al massimo 2.000 voci, e un file più grande di 256 KB non viene letto affatto.

@@ -18,7 +18,7 @@ Ne démarrez un agent que dans un vault dont le contenu peut atteindre le servic
 ## Ce que Plainva contrôle
 
 - **Ses propres outils.** Là où **Laisser les apps d'IA de cet ordinateur lire ce vault** est activé, les outils de Plainva sont proposés à l'agent — les mêmes que pour toute app de [Connecter des apps d'IA](Connect_AI_Apps.md) : uniquement les dossiers que vous accordez, jamais une note tenue à l'écart du cloud ou d'Internet, et en lecture seule — sauf si vous l'y autorisez à proposer des modifications.
-- **Ce que l'agent demande à Plainva de lire.** Une note tenue à l'écart du cloud ou d'internet et les dossiers propres à Plainva ne sont pas remis. L'agent en est informé, et vous aussi.
+- **Ce que l'agent demande à Plainva de lire.** Une note tenue à l'écart du cloud ou d'internet et les dossiers propres à Plainva ne sont pas remis. L'agent en est informé, et vous aussi. Tout autre fichier du vault est remis : les dossiers que vous avez accordés pour les outils de Plainva ne limitent pas un fichier que l'agent demande.
 - **Ce que l'agent demande à Plainva d'écrire.** Rien n'est écrit. Une modification d'une note devient une série de propositions au nom de l'agent, et une nouvelle note attend, comme brouillon, que vous la créiez.
 - **Pas de terminal.** Plainva ne propose à un agent aucun terminal à lui.
 
@@ -61,7 +61,7 @@ Plainva n'accepte pas tout : uniquement des notes Markdown ; ni règles d'IA, ni
 ## Ce que Plainva conserve
 
 - **Sur cet appareil :** la commande que vous avez confirmée, votre nom pour l'agent et ce qui a été vu pour la dernière fois de ses modifications — dans les données propres à Plainva, jamais dans le vault.
-- **Par vault :** **Dernières sessions dans ce vault** indique les 50 dernières sessions — quand une session a eu lieu, avec quel agent, et combien il y a eu de messages, de modifications par Plainva et de modifications propres — jamais ce qui a été dit. Cette liste aussi se trouve dans les données propres de Plainva sur cet appareil, pas dans le vault.
+- **Par vault :** Plainva garde les 50 dernières sessions ; **Dernières sessions dans ce vault** montre les cinq plus récentes — quand une session a eu lieu, avec quel agent, et combien il y a eu de messages, de modifications par Plainva et de modifications propres — jamais ce qui a été dit. Cette liste aussi se trouve dans les données propres de Plainva sur cet appareil, pas dans le vault.
 - **Pas la session elle-même :** ce que vous et l'agent avez dit disparaît une fois la session fermée. Ce que l'agent conserve de son côté est l'affaire de l'agent.
 
 Si le programme de l'agent se termine de lui-même, la session le dit, et **Afficher ses dernières lignes** affiche la fin de ce que le programme a écrit.

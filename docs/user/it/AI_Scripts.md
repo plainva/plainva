@@ -82,7 +82,7 @@ Uno script porta i suoi limiti nel proprio manifesto. Il modulo ne imposta tre:
 | **Chiamate a strumenti** | 20 | da 0 a 50 |
 | **Memoria in MB** | 32 | da 8 a 128 |
 
-Conta solo il tempo in cui uno script calcola, non quello che impiega uno strumento. Uno script che supera un limite viene terminato, la finestra dice di quale limite si trattava, e uno script terminato non restituisce nulla. Di serie gli argomenti di una chiamata, ciò che una chiamata restituisce e il risultato possono essere grandi al massimo 64 KB ciascuno; un manifesto può consentire fino a 256 KB.
+Conta solo il tempo in cui uno script calcola, non quello che impiega uno strumento. Uno script che supera un limite — tempo, memoria, passaggi, numero di chiamate, dimensione degli argomenti di una chiamata o del suo risultato — viene terminato, la finestra dice di quale limite si trattava, e uno script terminato non restituisce nulla. La risposta di uno strumento più grande del limite per una chiamata non è una fine: lo script riceve un errore per quella chiamata e prosegue. Di serie gli argomenti di una chiamata, ciò che una chiamata restituisce e il risultato possono essere grandi al massimo 64 KB ciascuno; un manifesto può consentire fino a 256 KB.
 
 ## Nulla si esegue prima che tu lo approvi
 

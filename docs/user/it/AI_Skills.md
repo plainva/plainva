@@ -37,7 +37,7 @@ Tutte si limitano a leggere: nessuna cambia una nota o invia qualcosa. La compet
 
 **E-mail e calendario** legge le e-mail con la stessa domanda di qualsiasi conversazione: **Leggere le tue e-mail?** la prima volta. Non legge mai da sola il testo di un messaggio; un secondo lettore senza strumenti ne scrive un rapporto. Entrambe le cose sono descritte in [Assistente IA](AI_Assistant.md).
 
-Una tua competenza usa Internet solo quando la sua riga `allowed-tools` nomina `web_search` o `fetch_url`. **Controlla e approva** dice allora **Usa Internet dove l'hai consentito per questo vault.** prima che tu la approvi. Una competenza che non nomina alcuno strumento non porta mai con sé Internet.
+Una tua competenza porta Internet nella sua conversazione solo quando la sua riga `allowed-tools` nomina `web_search` o `fetch_url`. **Controlla e approva** dice allora **Usa Internet dove l'hai consentito per questo vault.** prima che tu la approvi. Una competenza senza una riga `allowed-tools` non porta mai con sé Internet, ma usa ciò che ha la sua conversazione: in una conversazione che ha già Internet può cercare e leggere pagine come la conversazione stessa. Una competenza la cui riga `allowed-tools` non nomina né l'uno né l'altro non ha Internet nella sua esecuzione, qualunque cosa abbia la conversazione.
 
 Un'esecuzione di prova non usa mai Internet e non chiede mai: le e-mail che in questa sessione non aveva il permesso di leggere restano non lette.
 
@@ -53,7 +53,7 @@ Una tua competenza propone modifiche solo quando la sua riga `allowed-tools` nom
 
 ## Nulla si esegue prima che tu lo approvi
 
-Una competenza del tuo vault che è nuova o modificata — tramite la sincronizzazione, un'importazione o una modifica su questo o un altro dispositivo — non si esegue finché non la approvi **su questo dispositivo**. Una competenza che importi qui viene approvata nella finestra di importazione stessa (**Importa e approva**). Queste competenze aspettano in alto in **Competenze**, sotto **In attesa della tua approvazione**, e in **Impostazioni → IA in questo vault**. **Controlla e approva** mostra cosa può fare la competenza, cosa è cambiato dalla tua ultima approvazione, le sue istruzioni, i suoi file e dove si trova. L'approvazione vale esattamente per questa versione; qualsiasi modifica la annulla. Le approvazioni sono salvate su questo dispositivo, mai nel vault.
+Una competenza del tuo vault che è nuova o modificata — tramite la sincronizzazione, un altro programma che l'ha scritta o una modifica su questo o un altro dispositivo — non si esegue finché non la approvi **su questo dispositivo**. Fa eccezione una competenza che crei qui (**Nuova competenza**), copi qui (**Crea la tua versione**) o importi qui (**Importa e approva**): viene approvata subito su questo dispositivo, perché l'hai vista qui. Queste competenze aspettano in alto in **Competenze**, sotto **In attesa della tua approvazione**, e in **Impostazioni → IA in questo vault**. **Controlla e approva** mostra cosa può fare la competenza, cosa è cambiato dalla tua ultima approvazione, le sue istruzioni, i suoi file e dove si trova. L'approvazione vale esattamente per questa versione; qualsiasi modifica la annulla. Le approvazioni sono salvate su questo dispositivo, mai nel vault.
 
 Lo stesso vale per un `AGENTS.md` in cima al tuo vault: una volta approvato, le sue istruzioni permanenti accompagnano ogni nuova conversazione. Né una competenza né `AGENTS.md` possono annullare le tue regole sulla privacy, e una competenza non ottiene mai più di quanto ha una conversazione: può solo restringerlo. Una regola che aggiungi nella memoria, o che accetti dall'IA, è una riga in più di questo file; vedi [Memoria](AI_Memory.md).
 
@@ -69,7 +69,7 @@ Una competenza di un server può usare gli strumenti di Plainva che si limitano 
 
 ## Verificare le competenze con un modello
 
-Una competenza può portare scenari di prova: un messaggio che la avvia e ciò che fa una buona esecuzione. Le competenze fornite li hanno; per le tue, scrivili in `tests/scenarios.json` nella cartella della competenza:
+Una competenza può portare scenari di prova: un messaggio che la avvia e ciò che fa una buona esecuzione. Tredici delle quattordici competenze fornite con Plainva li hanno — tutte tranne **Curare la memoria**; per le tue, scrivili in `tests/scenarios.json` nella cartella della competenza:
 
 ```json
 {
@@ -110,7 +110,7 @@ Una conversazione che ha letto una pagina web, un'e-mail o uno strumento esterno
 
 ### Versioni sotto osservazione e la via del ritorno
 
-Una versione nata da una proposta resta sotto osservazione per tre esecuzioni, e la sua riga le conta. Se un'esecuzione esaurisce i passaggi o i token, gira in tondo, viene interrotta o rifiutata — un'esecuzione che hai fermato tu, o a cui il provider non ha risposto, non conta —, la sezione delle competenze nomina la competenza sotto **Versioni sotto osservazione** e offre due possibilità: **Torna alla versione precedente** oppure **Mantieni**. Non si torna mai indietro da soli.
+Una competenza che una proposta ha riscritto resta sotto osservazione per tre esecuzioni della nuova versione, e la sua riga le conta. Se un'esecuzione esaurisce i passaggi o i token, gira in tondo, viene interrotta o rifiutata — un'esecuzione che hai fermato tu, o a cui il provider non ha risposto, non conta —, la sezione delle competenze nomina la competenza sotto **Versioni sotto osservazione** e offre due possibilità: **Torna alla versione precedente** oppure **Mantieni**. Non si torna mai indietro da soli.
 
 Nel menu di una competenza, **Versioni precedenti…** elenca ciò che la cronologia delle versioni del vault conserva del file della competenza. La finestra mette a confronto la versione che scegli con la competenza com'è ora — le sue righe e ciò che può fare — e avvisa dove la versione precedente può fare di più. **Ripristina questa versione** la riscrive e la approva su questo dispositivo. Le versioni sono conservate su questo dispositivo.
 

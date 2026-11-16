@@ -57,7 +57,7 @@ De stijl staat op dit apparaat, niet in de vault: op een ander apparaat kies je 
 - Je [privacyregels](AI_Assistant.md) gelden ook voor de twee bestanden: een mapregel voor `.agent/` houdt het hele geheugen van de cloud weg.
 - Het verzendoverzicht heeft een rij **Geheugen** — hoeveel items er meegaan — en telt de items die je regels achterhouden onder **Achtergehouden**. Het noemt nooit een item.
 - Voor de AI is een item informatie, geen instructie: een zin in het geheugen geeft geen rechten.
-- Een gesprek behoudt het geheugen waarmee het is begonnen. Een item dat je verwijdert, gaat naar geen enkel nieuw gesprek; gesprekken die al zijn begonnen, behouden wat ze hebben meegekregen.
+- Een gesprek behoudt wat het geheugen het bij het begin meegaf — de items onder **Altijd erbij**. Een item dat je verwijdert, gaat naar geen enkel nieuw gesprek; gesprekken die al zijn begonnen, behouden wat ze hebben meegekregen, en wat ze later opzoeken komt uit de bestanden zoals die dan zijn.
 
 ## Uitschakelen
 
@@ -76,4 +76,4 @@ De stijl staat op dit apparaat, niet in de vault: op een ander apparaat kies je 
 
 `added` en `by` zeggen wanneer het item is toegevoegd en of je het zelf hebt geschreven of een concept hebt geaccepteerd, `source` noemt het gesprek waaruit een concept afkomstig is, en `deny` bevat de regels ervan (`cloud`, `web`). Je kunt de bestanden in elke editor bewerken. In Plainva opent **Bestand openen** elk van de twee.
 
-Plainva gaat niet raden. Een item waarvan het commentaar beschadigd is, wordt gemarkeerd met **Regels onleesbaar — gaat naar geen enkel model** totdat je het commentaar herstelt of het item opnieuw toevoegt. Tekst die verborgen is in een commentaar of in onzichtbare tekens, wordt nooit verzonden; het item toont dan hoeveel verborgen delen zijn weggelaten. Een bestand bevat hoogstens 2.000 items en 256 KB.
+Plainva gaat niet raden. Een item waarvan het commentaar beschadigd is, wordt gemarkeerd met **Regels onleesbaar — gaat naar geen enkel model** totdat je het commentaar herstelt of het item opnieuw toevoegt. Tekst die verborgen is in een commentaar of in onzichtbare tekens, wordt nooit verzonden; het item toont dan hoeveel verborgen delen zijn weggelaten. Van een bestand worden hoogstens 2.000 items gelezen, en een bestand groter dan 256 KB wordt helemaal niet gelezen.

@@ -37,7 +37,7 @@ Alle lesen nur: keiner ändert eine Notiz oder sendet etwas. Der eine, der entwi
 
 **E-Mail und Kalender** liest E-Mails über dieselbe Frage wie jedes Gespräch: beim ersten Mal **E-Mails lesen?** Den Text einer Nachricht liest er nie selbst; ein zweiter Leser ohne Werkzeuge schreibt einen Bericht darüber. Beides steht in [KI-Assistent](AI_Assistant.md).
 
-Ein eigener Skill benutzt das Internet nur, wenn seine Zeile `allowed-tools` `web_search` oder `fetch_url` nennt. **Prüfen und freigeben** sagt dann **Nutzt das Internet, wo Du es für diesen Vault erlaubt hast.**, bevor Du ihn freigibst. Ein Skill, der keine Werkzeuge nennt, bringt das Internet nie mit.
+Ein eigener Skill bringt das Internet nur dann in sein Gespräch, wenn seine Zeile `allowed-tools` `web_search` oder `fetch_url` nennt. **Prüfen und freigeben** sagt dann **Nutzt das Internet, wo Du es für diesen Vault erlaubt hast.**, bevor Du ihn freigibst. Ein Skill ohne Zeile `allowed-tools` bringt das Internet nie mit, nutzt aber, was sein Gespräch hat: In einem Gespräch, das schon das Internet hat, kann er wie das Gespräch selbst suchen und Seiten lesen. Ein Skill, dessen Zeile `allowed-tools` keines von beiden nennt, hat in seinem Lauf kein Internet, gleich, was das Gespräch hat.
 
 Ein Testlauf benutzt das Internet nie, und er fragt nie: E-Mails, die er in dieser Sitzung nicht lesen durfte, bleiben ungelesen.
 
@@ -53,7 +53,7 @@ Der Knopf **Neu …** bietet Skill, Skript und Import an. **Neuer Skill** fragt 
 
 ## Nichts läuft, bevor Du es freigibst
 
-Ein Skill in Deinem Vault, der neu ist oder sich geändert hat — per Sync, durch einen Import oder eine Bearbeitung auf diesem oder einem anderen Gerät —, läuft erst, wenn Du ihn **auf diesem Gerät** freigibst. Einen Skill, den Du hier importierst, gibst Du im Importdialog selbst frei (**Importieren und freigeben**). Solche Skills warten oben unter **Skills** bei **Warten auf Deine Freigabe** und in **Einstellungen → KI in diesem Vault**. Ein Satz oben in der Ansicht erklärt, was Skills sind; die Reihenfolge ist: warten auf Freigabe, **Mitgeliefert**, **Eigene**, Skripte, von Servern, die Zeile **Anweisungen für diesen Vault** (mit `AGENTS.md` als zweiter Zeile), Testläufe und was gelernt wurde. Eine Freigabe zurückzunehmen fragt vorher nach. **Prüfen und freigeben** zeigt, was der Skill darf, was sich seit Deiner letzten Freigabe geändert hat, seine Anweisungen, Dateien und wo er liegt. Die Freigabe gilt genau dieser Fassung; jede Änderung hebt sie wieder auf. Freigaben liegen auf diesem Gerät, nie im Vault.
+Ein Skill in Deinem Vault, der neu ist oder sich geändert hat — per Sync, durch ein anderes Programm, das ihn geschrieben hat, oder eine Bearbeitung auf diesem oder einem anderen Gerät —, läuft erst, wenn Du ihn **auf diesem Gerät** freigibst. Ein Skill, den Du hier anlegst (**Neuer Skill**), hier kopierst (**Eigene Fassung anlegen**) oder hier importierst (**Importieren und freigeben**), ist die Ausnahme: Er ist auf diesem Gerät sofort freigegeben, weil Du ihn hier gesehen hast. Solche Skills warten oben unter **Skills** bei **Warten auf Deine Freigabe** und in **Einstellungen → KI in diesem Vault**. Ein Satz oben in der Ansicht erklärt, was Skills sind; die Reihenfolge ist: warten auf Freigabe, **Mitgeliefert**, **Eigene**, Skripte, von Servern, die Zeile **Anweisungen für diesen Vault** (mit `AGENTS.md` als zweiter Zeile), Testläufe und was gelernt wurde. Eine Freigabe zurückzunehmen fragt vorher nach. **Prüfen und freigeben** zeigt, was der Skill darf, was sich seit Deiner letzten Freigabe geändert hat, seine Anweisungen, Dateien und wo er liegt. Die Freigabe gilt genau dieser Fassung; jede Änderung hebt sie wieder auf. Freigaben liegen auf diesem Gerät, nie im Vault.
 
 Dasselbe gilt für eine `AGENTS.md` oben in Deinem Vault: freigegeben, gehen ihre stehenden Anweisungen in jedes neue Gespräch. Weder ein Skill noch die `AGENTS.md` kann Deine Datenschutzregeln aufheben, und ein Skill bekommt nie mehr, als ein Gespräch hat — er kann es nur enger machen. Eine Regel, die Du im Gedächtnis hinzufügst oder von der KI annimmst, ist eine weitere Zeile dieser Datei; siehe [Gedächtnis](AI_Memory.md).
 
@@ -69,7 +69,7 @@ Ein Skill eines Servers darf Plainvas Werkzeuge nutzen, die nur lesen oder zeige
 
 ## Testläufe von Skills
 
-Ein Skill kann Testszenarien mitbringen: eine Nachricht, die ihn startet, und was ein guter Lauf tut. Die mitgelieferten Skills haben welche; für eigene schreibst Du sie in `tests/scenarios.json` im Ordner des Skills:
+Ein Skill kann Testszenarien mitbringen: eine Nachricht, die ihn startet, und was ein guter Lauf tut. Dreizehn der vierzehn mitgelieferten Skills haben welche — alle außer **Gedächtnis pflegen**; für eigene schreibst Du sie in `tests/scenarios.json` im Ordner des Skills:
 
 ```json
 {
@@ -110,7 +110,7 @@ Ein Gespräch, das eine Webseite, eine E-Mail oder ein externes Werkzeug gelesen
 
 ### Fassungen unter Beobachtung und der Weg zurück
 
-Eine Fassung, die aus einem Vorschlag stammt, steht drei Läufe lang unter Beobachtung, und ihre Zeile zählt sie. Gehen einem Lauf die Schritte oder Token aus, dreht er sich im Kreis, wird er abgeschnitten oder abgelehnt — ein Lauf, den Du gestoppt hast, oder einer, auf den der Anbieter nicht geantwortet hat, zählt nicht —, nennt die Skills-Ansicht den Skill unter **Fassungen unter Beobachtung** und bietet zweierlei an: **Zurück zur vorigen Fassung** oder **Behalten**. Zurückgegangen wird nie von selbst.
+Ein Skill, den ein Vorschlag umgeschrieben hat, steht drei Läufe der neuen Fassung lang unter Beobachtung, und seine Zeile zählt sie. Gehen einem Lauf die Schritte oder Token aus, dreht er sich im Kreis, wird er abgeschnitten oder abgelehnt — ein Lauf, den Du gestoppt hast, oder einer, auf den der Anbieter nicht geantwortet hat, zählt nicht —, nennt die Skills-Ansicht den Skill unter **Fassungen unter Beobachtung** und bietet zweierlei an: **Zurück zur vorigen Fassung** oder **Behalten**. Zurückgegangen wird nie von selbst.
 
 **Frühere Fassungen …** im Menü eines Skills zeigt, was der Versionsverlauf des Vaults von der Datei des Skills aufbewahrt. Der Dialog hält die gewählte Fassung gegen den Skill, wie er jetzt ist — seine Zeilen und was er darf —, und warnt, wo die frühere Fassung mehr darf. **Diese Fassung wiederherstellen** schreibt sie zurück und gibt sie auf diesem Gerät frei. Die Fassungen liegen auf diesem Gerät.
 

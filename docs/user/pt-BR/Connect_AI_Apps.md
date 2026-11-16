@@ -36,7 +36,7 @@ Além das ferramentas, o Plainva oferece cinco de suas habilidades como prompts,
 
 ## Deixar um app sugerir alterações
 
-Ler nunca é uma permissão para escrever. Se um app também pode sugerir alterações é uma resposta à parte: **Pode sugerir alterações** na pergunta da primeira conexão, ou depois o interruptor **… pode sugerir alterações** nas configurações — por app e por vault, e desativado até você ativar. Vale a partir da próxima solicitação do app; o Plainva avisa na hora a um app conectado que as ferramentas dele mudaram — se o app presta atenção e as mostra sem se reconectar depende do app.
+Ler nunca é uma permissão para escrever. Se um app também pode sugerir alterações é uma resposta à parte: **Pode sugerir alterações** na pergunta da primeira conexão, ou depois o interruptor **… pode sugerir alterações** nas configurações — por app e por vault, e desativado até você ativar. Vale a partir da próxima solicitação do app; o Plainva avisa na hora a um app conectado que as ferramentas dele mudaram, se o app pediu para ser avisado — se ele então as mostra sem se reconectar depende do app.
 
 Um app a que você permitiu recebe mais seis ferramentas, e nenhuma delas muda o vault:
 
@@ -44,7 +44,7 @@ Um app a que você permitiu recebe mais seis ferramentas, e nenhuma delas muda o
 - **Uma nota nova** vira um rascunho em **A decidir**, na aba de IA. Ela existe quando você escolhe **Criar** ali.
 - **Renomear, mover e excluir** perguntam antes. O Plainva mostra na própria janela o que aconteceria — ao renomear, também as notas cujos links acompanhariam — e o app mostra um aviso de que o Plainva está esperando. Só depois de **Permitir** no Plainva, e quando o app continuar, o Plainva faz isso do jeito que faz quando você faz à mão; o app só fica sabendo se aconteceu. Para excluir, o Plainva então abre a própria caixa de diálogo de exclusão, e nada desaparece antes de você confirmar ali. A um app que não consegue mostrar esse aviso — ele precisa da revisão 2026-07-28 do protocolo MCP ou mais nova e precisa poder lhe fazer uma pergunta em um formulário —, essas três ferramentas não são oferecidas.
 
-Um endereço da web que um app traz é escrito de modo que nada o abra nem o carregue (`https[://]…`), como acontece com o assistente. As regras de privacidade da própria nota (`plainva.ai`) não são definidas por nenhum app, e dentro de um workspace criptografado nada é sugerido, rascunhado ou planejado. A lista de solicitações recentes nas configurações mostra as oito mais novas e diz de cada uma se o Plainva perguntou a você, se você disse não ou se ela foi recusada.
+Um endereço da web que um app traz é escrito de modo que nada o abra nem o carregue (`https[://]…`), como acontece com o assistente. As regras de privacidade da própria nota (`plainva.ai`) não são definidas por nenhum app, e dentro de um workspace criptografado nada é sugerido, rascunhado ou planejado. A lista de solicitações recentes nas configurações mostra as oito mais novas e marca as que o Plainva perguntou a você (**pergunta feita**), as que você negou (**negada**) e as que não passaram (**recusada**); uma solicitação que passou não leva nenhuma palavra.
 
 ## Limites
 

@@ -18,7 +18,7 @@ Start an agent only in a vault whose content may reach the agent's service.
 ## What Plainva controls
 
 - **Its own tools.** Where **Let AI apps on this computer read this vault** is switched on, Plainva's tools are offered to the agent — the same as for every app in [Connecting AI apps](Connect_AI_Apps.md): only the folders you grant, never a note kept from the cloud or from the internet, and reading only — unless you allow it there to propose changes.
-- **What the agent asks Plainva to read.** A note kept from the cloud or from the internet and Plainva's own folders are not handed over. The agent is told so, and so are you.
+- **What the agent asks Plainva to read.** A note kept from the cloud or from the internet and Plainva's own folders are not handed over. The agent is told so, and so are you. Any other file of the vault is handed over: the folders you granted for Plainva's tools do not limit a file the agent asks for.
 - **What the agent asks Plainva to write.** Nothing is written. A change to a note becomes a round of suggestions under the agent's name, and a new note waits as a draft until you create it.
 - **No terminal.** Plainva offers an agent no terminal of its own.
 
@@ -61,7 +61,7 @@ Plainva does not take everything: only Markdown notes; no AI rules, no trust fie
 ## What Plainva keeps
 
 - **On this device:** the command you confirmed, your name for the agent and what was last seen of its changes — in Plainva's own data, never in the vault.
-- **Per vault:** **Last sessions in this vault** lists the last 50 sessions — when a session ran, with which agent, and how many messages, changes through Plainva and changes of its own there were — never what was said. This list, too, lies in Plainva's own data on this device, not in the vault.
+- **Per vault:** Plainva keeps the last 50 sessions; **Last sessions in this vault** shows the five newest — when a session ran, with which agent, and how many messages, changes through Plainva and changes of its own there were — never what was said. This list, too, lies in Plainva's own data on this device, not in the vault.
 - **Not the session itself:** what you and the agent said is gone once the session is closed. What the agent keeps on its side is the agent's own matter.
 
 If the agent's program ends by itself, the session says so, and **Show its last lines** shows the end of what the program wrote.

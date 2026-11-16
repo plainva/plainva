@@ -36,7 +36,7 @@ En plus des outils, Plainva propose cinq de ses compétences comme prompts, dans
 
 ## Laisser une app proposer des modifications
 
-Lire n'est jamais une autorisation d'écrire. Qu'une app puisse aussi proposer des modifications est une réponse à part : **Peut proposer des modifications** dans la question posée à sa première connexion, ou plus tard l'interrupteur **… peut proposer des modifications** dans les paramètres — par app et par vault, et désactivé tant que vous ne l'activez pas. Il vaut dès la prochaine requête de l'app ; Plainva signale aussitôt à une app connectée que ses outils ont changé — qu'elle en tienne compte et les affiche sans se reconnecter dépend de l'app.
+Lire n'est jamais une autorisation d'écrire. Qu'une app puisse aussi proposer des modifications est une réponse à part : **Peut proposer des modifications** dans la question posée à sa première connexion, ou plus tard l'interrupteur **… peut proposer des modifications** dans les paramètres — par app et par vault, et désactivé tant que vous ne l'activez pas. Il vaut dès la prochaine requête de l'app ; Plainva signale aussitôt à une app connectée que ses outils ont changé, si l'app a demandé à en être informée — qu'elle les affiche alors sans se reconnecter dépend de l'app.
 
 Une app que vous y avez autorisée reçoit six outils de plus, et aucun ne modifie le vault :
 
@@ -44,7 +44,7 @@ Une app que vous y avez autorisée reçoit six outils de plus, et aucun ne modif
 - **Une nouvelle note** devient un brouillon sous **À décider**, dans l'onglet IA. Elle existe dès que vous y choisissez **Créer**.
 - **Renommer, déplacer et supprimer** demandent d'abord. Plainva montre dans sa propre fenêtre ce qui se passerait — pour un renommage, aussi les notes dont les liens suivraient —, et l'app affiche un message indiquant que Plainva attend. Ce n'est qu'après **Autoriser** dans Plainva, et une fois que l'app continue, que Plainva le fait comme lorsque vous le faites à la main ; l'app apprend seulement si cela a été fait. Pour une suppression, Plainva ouvre alors sa propre boîte de dialogue de suppression, et rien ne disparaît avant que vous n'y confirmiez. Une app qui ne peut pas afficher un tel message — il lui faut la révision 2026-07-28 ou plus récente du protocole MCP, et elle doit pouvoir vous poser une question dans un formulaire — ne se voit pas proposer ces trois outils.
 
-Une adresse web qu'une app apporte est écrite de façon que rien ne l'ouvre ni ne la charge (`https[://]…`), comme pour l'assistant. Les règles de confidentialité propres à une note (`plainva.ai`) ne sont définies par aucune app, et dans un espace de travail chiffré rien n'est proposé, rédigé ni planifié. La liste des demandes récentes dans les paramètres montre les huit plus récentes et indique pour chacune si Plainva vous a posé la question, si vous avez dit non ou si elle a été refusée.
+Une adresse web qu'une app apporte est écrite de façon que rien ne l'ouvre ni ne la charge (`https[://]…`), comme pour l'assistant. Les règles de confidentialité propres à une note (`plainva.ai`) ne sont définies par aucune app, et dans un espace de travail chiffré rien n'est proposé, rédigé ni planifié. La liste des demandes récentes dans les paramètres montre les huit plus récentes et marque celles pour lesquelles Plainva vous a posé la question (**question posée**), celles que vous avez déclinées (**déclinée**) et celles qui n'ont pas abouti (**refusée**) ; une requête qui a abouti ne porte aucun mot.
 
 ## Limites
 

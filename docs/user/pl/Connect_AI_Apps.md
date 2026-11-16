@@ -36,7 +36,7 @@ Oprócz narzędzi Plainva udostępnia pięć swoich umiejętności jako prompty,
 
 ## Pozwalanie aplikacji na proponowanie zmian
 
-Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; Plainva od razu informuje połączoną aplikację, że jej narzędzia się zmieniły — czy aplikacja na to zareaguje i pokaże je bez ponownego połączenia, zależy od niej.
+Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; Plainva od razu informuje połączoną aplikację, że jej narzędzia się zmieniły, jeśli aplikacja o to poprosiła — czy wtedy pokaże je bez ponownego połączenia, zależy od niej.
 
 Aplikacja, której na to pozwolono, dostaje sześć dodatkowych narzędzi i żadne z nich nie zmienia vaultu:
 
@@ -44,7 +44,7 @@ Aplikacja, której na to pozwolono, dostaje sześć dodatkowych narzędzi i żad
 - **Nowa notatka** staje się szkicem w **Do decyzji** na karcie AI. Powstaje, gdy wybierzesz tam **Utwórz**.
 - **Zmiana nazwy, przeniesienie i usunięcie** najpierw pytają. Plainva pokazuje we własnym oknie, co by się stało — przy zmianie nazwy także notatki, których linki poszłyby za nią — a aplikacja pokazuje informację, że Plainva czeka. Dopiero po **Zezwól** w Plainva i gdy aplikacja będzie kontynuować, Plainva robi to tak, jak wtedy, gdy robisz to ręcznie; aplikacja dowiaduje się tylko, czy to nastąpiło. Przy usuwaniu Plainva otwiera wtedy własne okno usuwania i nic nie znika, zanim tam nie potwierdzisz. Aplikacji, która nie potrafi pokazać takiej informacji — potrzebuje rewizji protokołu MCP 2026-07-28 lub nowszej i musi móc zadać Ci pytanie w formularzu —, te trzy narzędzia nie są oferowane.
 
-Adres internetowy, który wnosi aplikacja, jest zapisywany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`), tak jak u asystenta. Własnych zasad prywatności notatki (`plainva.ai`) nie ustawia żadna aplikacja, a w zaszyfrowanym workspace nic nie jest proponowane, szkicowane ani planowane. Lista ostatnich zapytań w ustawieniach pokazuje osiem najnowszych i mówi o każdym, czy Plainva zapytała Ciebie, czy odpowiedź brzmiała „nie”, czy zostało odrzucone.
+Adres internetowy, który wnosi aplikacja, jest zapisywany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`), tak jak u asystenta. Własnych zasad prywatności notatki (`plainva.ai`) nie ustawia żadna aplikacja, a w zaszyfrowanym workspace nic nie jest proponowane, szkicowane ani planowane. Lista ostatnich zapytań w ustawieniach pokazuje osiem najnowszych i oznacza te zapytania, o które Plainva pytała Ciebie (**pytanie**), te, na które odpowiedź brzmiała „nie” (**odmówiono**), i te, które nie zostały przepuszczone (**odrzucone**); zapytanie, które zostało przepuszczone, nie nosi żadnego słowa.
 
 ## Ograniczenia
 

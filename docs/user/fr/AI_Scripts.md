@@ -82,7 +82,7 @@ Un script porte ses limites dans son manifeste. Le formulaire en fixe trois :
 | **Appels d'outils** | 20 | 0 à 50 |
 | **Mémoire en Mo** | 32 | 8 à 128 |
 
-Seul compte le temps pendant lequel un script calcule, pas celui qu'un outil met à répondre. Un script qui dépasse une limite est arrêté, la boîte de dialogue dit laquelle, et un script arrêté ne renvoie rien. Par défaut, les arguments d'un appel, ce qu'un appel renvoie et le résultat ne peuvent chacun dépasser 64 Ko ; un manifeste peut autoriser jusqu'à 256 Ko.
+Seul compte le temps pendant lequel un script calcule, pas celui qu'un outil met à répondre. Un script qui dépasse une limite — temps, mémoire, étapes, nombre d'appels, taille des arguments d'un appel ou de son résultat — est arrêté, la boîte de dialogue dit laquelle, et un script arrêté ne renvoie rien. La réponse d'un outil plus grande que la limite d'un appel n'est pas une fin : le script reçoit une erreur pour cet appel et continue. Par défaut, les arguments d'un appel, ce qu'un appel renvoie et le résultat ne peuvent chacun dépasser 64 Ko ; un manifeste peut autoriser jusqu'à 256 Ko.
 
 ## Rien ne s'exécute avant votre approbation
 

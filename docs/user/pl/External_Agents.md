@@ -18,7 +18,7 @@ Uruchamiaj agenta tylko w vaulcie, którego zawartość może trafić do usługi
 ## Co Plainva kontroluje
 
 - **Własne narzędzia.** Tam, gdzie włączono **Pozwól aplikacjom AI na tym komputerze czytać ten vault**, narzędzia Plainva są oferowane agentowi — te same, co każdej aplikacji z [Łączenie aplikacji AI](Connect_AI_Apps.md): tylko foldery, na które zezwolisz, nigdy notatka trzymana z dala od chmury lub internetu, i tylko do odczytu — chyba że pozwolisz mu tam proponować zmiany.
-- **O czego odczyt agent prosi Plainva.** Notatka trzymana z dala od chmury lub internetu i własne foldery Plainva nie są wydawane. Agent się o tym dowiaduje, i Ty też.
+- **O czego odczyt agent prosi Plainva.** Notatka trzymana z dala od chmury lub internetu i własne foldery Plainva nie są wydawane. Agent się o tym dowiaduje, i Ty też. Każdy inny plik vaultu jest wydawany: foldery, które udostępniono narzędziom Plainva, nie ograniczają pliku, o który prosi agent.
 - **O czego zapis agent prosi Plainva.** Nic nie jest zapisywane. Zmiana w notatce staje się rundą propozycji pod nazwą agenta, a nowa notatka czeka jako szkic, aż ją utworzysz.
 - **Bez terminala.** Plainva nie oferuje agentowi własnego terminala.
 
@@ -61,7 +61,7 @@ Plainva nie przyjmuje wszystkiego: tylko notatki Markdown; żadnych reguł AI, p
 ## Co Plainva zachowuje
 
 - **Na tym urządzeniu:** potwierdzone polecenie, Twoją nazwę agenta i to, co ostatnio zaobserwowano z jego zmian — we własnych danych Plainva, nigdy w vaulcie.
-- **Dla vaultu:** **Ostatnie sesje w tym vaulcie** wymienia ostatnie 50 sesji — kiedy odbyła się sesja, z którym agentem oraz ile było wiadomości, zmian przez Plainva i zmian własnych — nigdy to, co zostało powiedziane. Ta lista też leży we własnych danych Plainva na tym urządzeniu, nie w vaulcie.
+- **Dla vaultu:** Plainva zachowuje ostatnie 50 sesji; **Ostatnie sesje w tym vaulcie** pokazuje pięć najnowszych — kiedy odbyła się sesja, z którym agentem oraz ile było wiadomości, zmian przez Plainva i zmian własnych — nigdy to, co zostało powiedziane. Ta lista też leży we własnych danych Plainva na tym urządzeniu, nie w vaulcie.
 - **Nie samą sesję:** to, co powiedzieliście Ty i agent, znika po zamknięciu sesji. To, co agent zachowuje po swojej stronie, jest sprawą agenta.
 
 Jeśli program agenta zakończy się sam, sesja o tym mówi, a **Pokaż jego ostatnie wiersze** pokazuje koniec tego, co program wypisał.

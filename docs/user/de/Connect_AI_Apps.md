@@ -36,7 +36,7 @@ Neben den Werkzeugen bietet Plainva fünf seiner Skills als Prompts an, in Plain
 
 ## Eine App Änderungen vorschlagen lassen
 
-Lesen ist nie eine Erlaubnis zu schreiben. Ob eine App auch Änderungen vorschlagen darf, ist eine eigene Antwort: **Darf Änderungen vorschlagen** in der Frage beim ersten Verbinden oder später der Schalter **… darf Änderungen vorschlagen** in den Einstellungen — je App und je Vault, und aus, bis Du ihn setzt. Er gilt ab der nächsten Anfrage der App; Plainva sagt einer verbundenen App sofort, dass sich ihre Werkzeuge geändert haben — ob die App darauf hört und sie ohne neues Verbinden zeigt, liegt an der App.
+Lesen ist nie eine Erlaubnis zu schreiben. Ob eine App auch Änderungen vorschlagen darf, ist eine eigene Antwort: **Darf Änderungen vorschlagen** in der Frage beim ersten Verbinden oder später der Schalter **… darf Änderungen vorschlagen** in den Einstellungen — je App und je Vault, und aus, bis Du ihn setzt. Er gilt ab der nächsten Anfrage der App; Plainva sagt einer verbundenen App sofort, dass sich ihre Werkzeuge geändert haben, wenn die App darum gebeten hat — ob sie sie dann ohne neues Verbinden zeigt, liegt an der App.
 
 Eine App, der Du es erlaubt hast, bekommt sechs weitere Werkzeuge, und keines davon ändert den Vault:
 
@@ -44,7 +44,7 @@ Eine App, der Du es erlaubt hast, bekommt sechs weitere Werkzeuge, und keines da
 - **Eine neue Notiz** wird ein Entwurf unter **Zu entscheiden** im KI-Tab. Es gibt sie, sobald Du dort **Anlegen** wählst.
 - **Umbenennen, Verschieben und Löschen** fragen zuerst. Plainva zeigt im eigenen Fenster, was geschähe — beim Umbenennen auch die Notizen, deren Links folgen würden —, und die App zeigt einen Hinweis, dass Plainva wartet. Erst nach **Erlauben** in Plainva, und sobald die App fortfährt, führt Plainva es so aus, wie wenn Du es von Hand tust; die App erfährt nur, ob es geschehen ist. Beim Löschen öffnet Plainva dann den eigenen Löschdialog, und nichts verschwindet, bevor Du dort bestätigst. Einer App, die einen solchen Hinweis nicht zeigen kann — sie braucht MCP-Protokollrevision 2026-07-28 oder neuer und muss Dir in einem Formular eine Frage stellen können —, werden diese drei Werkzeuge nicht angeboten.
 
-Eine Webadresse, die eine App mitbringt, wird so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`), wie beim Assistenten. Die eigenen Datenschutzregeln einer Notiz (`plainva.ai`) setzt keine App, und in einem verschlüsselten Workspace wird nichts vorgeschlagen, entworfen oder geplant. Die Liste der letzten Anfragen in den Einstellungen zeigt die acht neuesten und sagt zu jeder, ob Plainva Dich gefragt hat, Du Nein gesagt hast oder sie abgelehnt wurde.
+Eine Webadresse, die eine App mitbringt, wird so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`), wie beim Assistenten. Die eigenen Datenschutzregeln einer Notiz (`plainva.ai`) setzt keine App, und in einem verschlüsselten Workspace wird nichts vorgeschlagen, entworfen oder geplant. Die Liste der letzten Anfragen in den Einstellungen zeigt die acht neuesten und markiert die, bei denen Plainva Dich gefragt hat (**Rückfrage**), die, die Du abgelehnt hast (**abgelehnt**), und die, die nicht durchgingen (**abgewiesen**); eine Anfrage, die durchging, trägt kein Wort.
 
 ## Grenzen
 

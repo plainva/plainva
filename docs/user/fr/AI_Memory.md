@@ -57,7 +57,7 @@ Le style est conservé sur cet appareil, pas dans le vault : sur un autre appare
 - Vos [règles de confidentialité](AI_Assistant.md) valent aussi pour les deux fichiers : une règle de dossier pour `.agent/` tient toute la mémoire à l'écart du cloud.
 - L'aperçu d'envoi comporte une ligne **Mémoire** — combien d'entrées accompagnent la demande — et compte sous **Retenu** les entrées que vos règles retiennent. Il ne nomme jamais une entrée.
 - Pour l'IA, une entrée est une information, pas une instruction : une phrase dans la mémoire ne lui donne aucun droit.
-- Une conversation garde la mémoire avec laquelle elle a commencé. Une entrée que vous supprimez ne part dans aucune nouvelle conversation ; les conversations déjà commencées gardent ce qu'elles ont reçu.
+- Une conversation garde ce que la mémoire lui a donné au départ — les entrées sous **Toujours inclus**. Une entrée que vous supprimez ne part dans aucune nouvelle conversation ; les conversations déjà commencées gardent ce qu'elles ont reçu, et ce qu'elles consultent ensuite vient des fichiers tels qu'ils sont alors.
 
 ## Désactiver la mémoire
 
@@ -76,4 +76,4 @@ Le style est conservé sur cet appareil, pas dans le vault : sur un autre appare
 
 `added` et `by` indiquent quand l'entrée a été ajoutée et si vous l'avez écrite ou si vous avez accepté un brouillon, `source` nomme la conversation d'où vient un brouillon, et `deny` contient ses règles (`cloud`, `web`). Vous pouvez modifier les fichiers dans n'importe quel éditeur. Dans Plainva, **Ouvrir le fichier** ouvre l'un ou l'autre.
 
-Plainva ne devine pas. Une entrée dont le commentaire est endommagé est marquée **Règles illisibles — ne part vers aucun modèle** jusqu'à ce que vous répariez le commentaire ou ajoutiez de nouveau l'entrée. Un texte caché dans un commentaire ou dans des caractères invisibles n'est jamais envoyé ; l'entrée indique alors combien de parties cachées ont été laissées de côté. Un fichier contient au plus 2 000 entrées et 256 Ko.
+Plainva ne devine pas. Une entrée dont le commentaire est endommagé est marquée **Règles illisibles — ne part vers aucun modèle** jusqu'à ce que vous répariez le commentaire ou ajoutiez de nouveau l'entrée. Un texte caché dans un commentaire ou dans des caractères invisibles n'est jamais envoyé ; l'entrée indique alors combien de parties cachées ont été laissées de côté. D'un fichier, au plus 2 000 entrées sont lues, et un fichier de plus de 256 Ko n'est pas lu du tout.

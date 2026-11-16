@@ -57,7 +57,7 @@ El estilo se guarda en este dispositivo, no en el vault: en otro dispositivo eli
 - Tus [reglas de privacidad](AI_Assistant.md) valen también para los dos archivos: una regla de carpeta para `.agent/` mantiene toda la memoria fuera de la nube.
 - La vista de envío tiene una fila **Memoria** —cuántas entradas van incluidas— y cuenta las entradas que tus reglas retienen en **Retenido**. Nunca nombra una entrada.
 - Para la IA, una entrada es información, no una instrucción: una frase de la memoria no le da ningún permiso.
-- Una conversación conserva la memoria con la que empezó. Una entrada que eliminas no va a ninguna conversación nueva; las conversaciones que ya han empezado conservan lo que recibieron.
+- Una conversación conserva lo que la memoria le dio al empezar: las entradas que están en **Siempre incluido**. Una entrada que eliminas no va a ninguna conversación nueva; las conversaciones que ya han empezado conservan lo que recibieron, y lo que consultan después sale de los archivos tal como estén entonces.
 
 ## Desactivar la memoria
 
@@ -76,4 +76,4 @@ El estilo se guarda en este dispositivo, no en el vault: en otro dispositivo eli
 
 `added` y `by` indican cuándo se añadió la entrada y si la escribiste tú o aceptaste un borrador, `source` nombra la conversación de la que viene un borrador, y `deny` contiene sus reglas (`cloud`, `web`). Puedes editar los archivos en cualquier editor. En Plainva, **Abrir archivo** abre cualquiera de los dos.
 
-Plainva no adivina. Una entrada cuyo comentario está dañado se marca como **Reglas ilegibles: no va a ningún modelo** hasta que repares el comentario o vuelvas a añadir la entrada. El texto oculto en un comentario o en caracteres invisibles nunca se envía; la entrada muestra entonces cuántas partes ocultas se dejaron fuera. Un archivo puede contener como máximo 2.000 entradas y 256 KB.
+Plainva no adivina. Una entrada cuyo comentario está dañado se marca como **Reglas ilegibles: no va a ningún modelo** hasta que repares el comentario o vuelvas a añadir la entrada. El texto oculto en un comentario o en caracteres invisibles nunca se envía; la entrada muestra entonces cuántas partes ocultas se dejaron fuera. De un archivo se leen como máximo 2.000 entradas, y un archivo mayor de 256 KB no se lee en absoluto.

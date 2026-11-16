@@ -82,7 +82,7 @@ Een script legt zijn grenzen vast in zijn manifest. Het formulier stelt er drie 
 | **Aanroepen van hulpmiddelen** | 20 | 0 tot 50 |
 | **Geheugen in MB** | 32 | 8 tot 128 |
 
-Alleen de tijd waarin een script rekent telt mee, niet de tijd die een hulpmiddel nodig heeft. Een script dat een grens overschrijdt, wordt beëindigd; het dialoogvenster zegt welke grens het was, en een beëindigd script geeft niets terug. Standaard mogen de argumenten van één aanroep, wat één aanroep teruggeeft en het resultaat elk hoogstens 64 KB groot zijn; een manifest mag tot 256 KB toestaan.
+Alleen de tijd waarin een script rekent telt mee, niet de tijd die een hulpmiddel nodig heeft. Een script dat een grens overschrijdt — tijd, geheugen, stappen, het aantal aanroepen, de grootte van de argumenten van een aanroep of van het resultaat —, wordt beëindigd; het dialoogvenster zegt welke grens het was, en een beëindigd script geeft niets terug. Een antwoord van een hulpmiddel dat groter is dan de grens voor één aanroep, is geen einde: het script krijgt voor die aanroep een foutmelding en loopt door. Standaard mogen de argumenten van één aanroep, wat één aanroep teruggeeft en het resultaat elk hoogstens 64 KB groot zijn; een manifest mag tot 256 KB toestaan.
 
 ## Niets draait voordat je het goedkeurt
 
