@@ -525,7 +525,8 @@ describe("VaultIndexer", () => {
 
       await indexer.indexPath("50%_off");
 
-      const childQuery = db.queries.filter((q) => q.query !== "COMMIT").at(-1)!;
+      // The child-prefix probe; a new file that went is noted in the change journal after it.
+      const childQuery = db.queries.filter((q) => q.query.includes("LIKE ?")).at(-1)!;
       expect((childQuery.params as any[])[0]).toBe("50\\%\\_off/%");
     });
   });
