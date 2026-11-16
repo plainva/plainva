@@ -1,7 +1,6 @@
 import {
   brokerCardsFor,
   brokerFamily,
-  brokeredSubsystemId,
   describeBrokerLookup as describeSharedBrokerLookup,
   createServiceGrantProbe,
   resolveFileBrokerAccount,
@@ -353,6 +352,8 @@ interface PendingBrokerAccount {
   family: "microsoft" | "google";
   /** The mailbox this connect creates — the one mailbox the marker answers. */
   mailAccountId?: string;
+  /** The calendar row this connect creates or signs in again — the one row it answers. */
+  pimAccountId?: string;
 }
 
 /**
@@ -407,14 +408,29 @@ export function claimPendingMailbox(vaultPath: string, accountId: string, mailAc
 }
 
 /**
- * The connect running in this vault that answers this subsystem, if any. Mail:
- * the connect that named the mailbox. Calendar: a connect whose card is the
- * only one that may claim the row — the newest one, when several run.
+ * The same for the calendar row (Fehlerliste C2, Sammelplan § 3.107 Nr. 3).
+ *
+ * The calendar answered every row no card claimed, for as long as a connect
+ * ran: a calendar with a sign-in of its own and no card — connected before the
+ * account cards, or arrived with the settings of another device — drew the
+ * token minted for the account being connected, and kept it, because the
+ * calendar's auth caches the broker's answer. The connect's own validations
+ * never needed that rule: they run on the probe of the card's grant, and the
+ * new row starts only after its card is written.
  */
-function pendingFor(vaultPath: string, service: CloudServiceId, subsystemId: string, records: CloudAccountRecord[]): PendingBrokerAccount | undefined {
-  const running = [...pendingAccounts.values()].filter((pending) => pending.vaultPath === vaultPath);
-  if (service === "mail") return running.find((pending) => pending.mailAccountId === subsystemId);
-  return running.reverse().find((pending) => !belongsToAnotherAccount(records, service, subsystemId, pending.accountId));
+export function claimPendingCalendar(vaultPath: string, accountId: string, pimAccountId: string): void {
+  const entry = pendingAccounts.get(pendingKey(vaultPath, accountId));
+  if (entry) entry.pimAccountId = pimAccountId;
+}
+
+/** The connect running in this vault that named this subsystem, if any. */
+function pendingFor(vaultPath: string, service: CloudServiceId, subsystemId: string): PendingBrokerAccount | undefined {
+  for (const pending of pendingAccounts.values()) {
+    if (pending.vaultPath !== vaultPath) continue;
+    if (service === "mail" && pending.mailAccountId === subsystemId) return pending;
+    if (service === "calendar" && pending.pimAccountId === subsystemId) return pending;
+  }
+  return undefined;
 }
 
 /** Resolve only a service whose stored grant covers it. Both shells use the
@@ -434,7 +450,7 @@ export async function brokerTokenProvider(
   // Nobody asking is nobody to answer — not even the connect in progress.
   if (!subsystemId) return undefined;
   const records = await loadCloudAccounts(vaultPath);
-  const pending = pendingFor(vaultPath, service, subsystemId, records);
+  const pending = pendingFor(vaultPath, service, subsystemId);
   if (pending) {
     const minted = await getAccountToken(vaultPath, pending.accountId, service, pending.family);
     // The same scope rule as below: a consent that just covered file sync must
@@ -488,23 +504,6 @@ export async function fileBrokerTokenProvider(vaultPath: string, binding: FileBr
     if (force) broker.forget();
     return broker.getAccessToken("files", binding);
   };
-}
-
-/**
- * Whether the asking subsystem already belongs to a card OTHER than the one
- * being connected right now.
- *
- * A subsystem that some card already claims is never part of the connect in
- * progress, so it keeps its own path (finding 2026-07-30). This is the
- * calendar's rule; mail names its mailbox (`claimPendingMailbox`).
- */
-function belongsToAnotherAccount(
-  records: CloudAccountRecord[],
-  service: CloudServiceId,
-  subsystemId: string,
-  pendingId: string
-): boolean {
-  return records.some((r) => r.id !== pendingId && brokeredSubsystemId(r, service) === subsystemId);
 }
 
 /**

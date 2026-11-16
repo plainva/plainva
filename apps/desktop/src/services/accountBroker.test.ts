@@ -47,6 +47,7 @@ import {
   brokerFamily,
   calendarGrantProbe,
   brokerTokenProvider,
+  claimPendingCalendar,
   claimPendingMailbox,
   fileBrokerTokenProvider,
   describeBrokerLookup,
@@ -278,10 +279,28 @@ describe("the broker answers for the account that is asking", () => {
       expect(await provider?.(false)).toBe("AT-GOOGLE");
     });
 
-    it("still serves the connect it belongs to", async () => {
-      // No card claims this subsystem yet — exactly the mid-connect case.
+    it("serves the calendar the connect named", async () => {
+      claimPendingCalendar(V, "m1", "pim-just-created");
       const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
       expect(await provider?.(false)).toBe("AT-MICROSOFT");
+    });
+
+    /**
+     * A calendar row no card claims is not part of the connect: a row with a
+     * sign-in of its own (connected before the account cards, or a second
+     * Microsoft account) drew the token minted for the account being
+     * connected, and kept it, because the calendar's auth caches its broker
+     * answer (Sammelplan § 3.107 Nr. 3, Fehlerliste C2).
+     */
+    it("does not serve a calendar row the connect did not name", async () => {
+      expect(await brokerTokenProvider(V, "calendar", "pim-of-nobody")).toBeUndefined();
+      claimPendingCalendar(V, "m1", "pim-just-created");
+      expect(await brokerTokenProvider(V, "calendar", "pim-of-nobody")).toBeUndefined();
+    });
+
+    it("ignores a calendar named for another vault", async () => {
+      claimPendingCalendar("/another-vault", "m1", "pim-just-created");
+      expect(await brokerTokenProvider(V, "calendar", "pim-just-created")).toBeUndefined();
     });
 
     it("answers nobody when nobody says who is asking", async () => {
@@ -340,10 +359,10 @@ describe("the broker answers for the account that is asking", () => {
         expect(await brokerTokenProvider(V, "mail", "mail-just-created")).toBeUndefined();
       });
 
-      it("leaves the calendar's rule as it was", async () => {
+      it("names the mailbox and the calendar apart", async () => {
         claimPendingMailbox(V, "m1", "mail-just-created");
-        const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
-        expect(await provider?.(false)).toBe("AT-MICROSOFT");
+        expect(await brokerTokenProvider(V, "calendar", "mail-just-created")).toBeUndefined();
+        expect(await brokerTokenProvider(V, "calendar", "pim-just-created")).toBeUndefined();
         const own = await brokerTokenProvider(V, "calendar", "pim-google");
         expect(await own?.(false)).toBe("AT-GOOGLE");
       });
@@ -379,22 +398,22 @@ describe("the broker answers for the account that is asking", () => {
       });
 
       it("ends one connect without ending the other", async () => {
-        claimPendingMailbox(V, "m1", "mail-first");
-        claimPendingMailbox(V, "m2", "mail-second");
+        claimPendingCalendar(V, "m1", "pim-first");
+        claimPendingCalendar(V, "m2", "pim-second");
         releaseSecond();
-        expect(await brokerTokenProvider(V, "mail", "mail-second")).toBeUndefined();
-        expect(await (await brokerTokenProvider(V, "mail", "mail-first"))?.(false)).toBe("AT-MICROSOFT");
+        expect(await brokerTokenProvider(V, "calendar", "pim-second")).toBeUndefined();
+        expect(await (await brokerTokenProvider(V, "calendar", "pim-first"))?.(false)).toBe("AT-MICROSOFT");
       });
 
-      it("hands each named mailbox the sign-in of its own connect", async () => {
-        claimPendingMailbox(V, "m1", "mail-first");
-        claimPendingMailbox(V, "m2", "mail-second");
+      it("hands each named row the sign-in of its own connect", async () => {
+        claimPendingCalendar(V, "m1", "pim-first");
+        claimPendingCalendar(V, "m2", "pim-second");
         vi.mocked(microsoftAuthFetch).mockClear();
-        await (await brokerTokenProvider(V, "mail", "mail-second"))?.(false);
+        await (await brokerTokenProvider(V, "calendar", "pim-second"))?.(false);
         const second = vi.mocked(microsoftAuthFetch).mock.calls.map((call) => JSON.stringify(call)).join("\n");
         expect(second).toContain("RT-M2");
         vi.mocked(microsoftAuthFetch).mockClear();
-        await (await brokerTokenProvider(V, "mail", "mail-first"))?.(false);
+        await (await brokerTokenProvider(V, "calendar", "pim-first"))?.(false);
         const first = vi.mocked(microsoftAuthFetch).mock.calls.map((call) => JSON.stringify(call)).join("\n");
         expect(first).toMatch(/RT-M(?!2)/);
         expect(first).not.toContain("RT-M2");

@@ -45,7 +45,7 @@ import { authorizeDrive } from "./driveAuth";
 import { authorizeOneDrive } from "./oneDriveAuth";
 import { oauthErrorText } from "./oauthLoopback";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
-import { claimPendingMailbox, getAccountBroker, getAccountToken, holdPendingBrokerAccount, saveAccountToken } from "./accountBroker";
+import { claimPendingCalendar, claimPendingMailbox, getAccountBroker, getAccountToken, holdPendingBrokerAccount, saveAccountToken } from "./accountBroker";
 import { announceCredentials, clearOtherSyncSlots, connectMicrosoftMailAccount } from "./cloudAccountsActions";
 import { connectGoogleAccount, connectMicrosoftAccount } from "./pim/pimAccounts";
 import { getPimCredentials } from "./pim/pimCredentials";
@@ -326,7 +326,9 @@ async function bindCalendar(
   const clientId = completed.token.clientId;
   if (existing) {
     // Signing in again: the calendar row stays, its slot loses any token of
-    // its own and names the client of the card's new sign-in.
+    // its own and names the client of the card's new sign-in. The row is
+    // this connect's from here on, and the only one it answers (C2).
+    claimPendingCalendar(vaultPath, cardId, existing);
     const previous = await getPimCredentials(vaultPath, existing);
     if (previous && previous.kind !== family) throw new Error("calendar of another provider");
     await replaceProtectedSlot(accountCredentialStore, [slot.calendar(vaultPath, existing), legacySlot.calendar(vaultPath, existing)], previous ?? null, {
@@ -337,6 +339,10 @@ async function bindCalendar(
   const row = await withLivingPimRuntime(getRuntime, (runtime) => family === "google"
     ? connectGoogleAccount(runtime, vaultPath, { clientId, clientSecret: clientSecret ?? "", viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity })
     : connectMicrosoftAccount(runtime, vaultPath, { clientId, viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity }));
+  // Validated on the probe of the card's grant; the row starts only after the
+  // card is written. Named all the same, so nothing in between draws a
+  // stranger's token for it - and no other row draws this one.
+  claimPendingCalendar(vaultPath, cardId, row.id);
   return { pimAccountId: row.id, label: row.label };
 }
 
