@@ -1582,6 +1582,13 @@ export class AiSession {
   private capturing = false;
   /** What the user approved in this app session (E25); a server on this computer needs none. */
   private scope: ApprovedScope | null = null;
+  /**
+   * The vault `scope` was approved in (review O7, F32): an approval names a
+   * recipient, kinds of data and top folders, and "Inbox" or a note at the
+   * root are called the same in every vault — so it holds for that vault
+   * only. `vaultOf`: a new host for the same vault keeps it.
+   */
+  private scopeVault: unknown = null;
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
   /** The request to the internet that waits for an answer, if one does. */
   private effectAnswer: ((answer: EffectAnswer) => void) | null = null;
@@ -1947,6 +1954,11 @@ export class AiSession {
     this.leaveComposerMessage();
     this.answerConsent(false);
     this.vault = vault;
+    // The send overview's approval, and the kinds of tool data approved with it, belong to the vault they were given
+    // in. The same vault attached again keeps them; another vault — or this one after it was closed — begins asking.
+    const owner = vault ? vaultOf(vault) : null;
+    if (owner === null || owner !== this.scopeVault) this.scope = null;
+    this.scopeVault = owner;
     this.set({
       summaries: [],
       active: null,
