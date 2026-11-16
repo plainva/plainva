@@ -376,7 +376,7 @@ function CalendarPart({ pimAccountId, vault }: { pimAccountId: string; vault: Mo
             </RowList>
           </GroupCard>}
           <CalendarSyncNotice problems={withoutTaskDatabaseLines(listProblems)} onRetry={lookAgain} />
-          <TaskDatabaseHint vault={vault.vaultId} problems={listProblems} onCreate={() => void createTaskDb()} testId="account-task-db-hint" />
+          <TaskDatabaseHint vault={vault.vaultId} problems={listProblems} taskDatabase={getMobileSettings().taskDatabase} onCreate={() => void createTaskDb()} testId="account-task-db-hint" />
         </>
       )}
       <GroupCard>

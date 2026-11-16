@@ -752,7 +752,7 @@ export function TasksScreen({
       />
       {ptrIndicator}
       <CalendarSyncNotice problems={withoutTaskDatabaseLines(syncProblems)} onRetry={pimSyncNow} />
-      <TaskDatabaseHint vault={vault.vaultId} problems={syncProblems} onCreate={() => void createDatabaseFromCapture()} />
+      <TaskDatabaseHint vault={vault.vaultId} problems={syncProblems} taskDatabase={taskDb} onCreate={() => void createDatabaseFromCapture()} />
 
       <TaskPlannerNav variant="segment" value={list} onChange={setList} counts={planner.counts} allCount={openCount} />
 

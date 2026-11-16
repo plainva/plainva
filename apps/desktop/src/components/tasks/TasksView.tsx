@@ -1140,7 +1140,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         </IconButton>
       </div>
       <CalendarSyncNotice problems={withoutTaskDatabaseLines(syncProblems)} onRetry={refreshAll} />
-      <TaskDatabaseHint vault={vaultPath} problems={syncProblems} onCreate={() => void createDatabaseFromCapture()} />
+      {/* Only once this vault's setting has been read: before, a line an earlier run left would offer a second database. */}
+      {taskDbFor === vaultPath && <TaskDatabaseHint vault={vaultPath} problems={syncProblems} taskDatabase={taskDb} onCreate={() => void createDatabaseFromCapture()} />}
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
         {list === "all" && (
