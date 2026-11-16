@@ -1,6 +1,6 @@
 # Connecting AI apps (Beta)
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-16
 
 AI apps on your computer — Claude Code, Claude Desktop, Cursor, VS Code and others that speak the Model Context Protocol (MCP) — can read your vault through Plainva: search it, read notes and their sections, outlines, backlinks, databases, tasks and recent notes, and open a note in Plainva. They change nothing by themselves: where you allow it, an app may propose changes, and those wait until you decide (see below). This is part of the experimental AI features and works on the desktop only.
 
@@ -16,9 +16,9 @@ Plainva ships a small helper program, `plainva-mcp`, next to the app. An AI app 
 
 1. Open **Settings → AI** and switch on **Use AI on this device**; the card **AI apps on this computer** is further down the page.
 2. Switch on **Let AI apps on this computer read this vault**.
-3. Set the app up (see below). The first time it connects, Plainva asks which app it is, which program started it and which folders it may read. Nothing is ticked: choose folders or **The whole vault**, then **Allow**. **Deny** turns the app away, and Plainva does not ask about it again for ten minutes. Below the folders stands **May suggest changes** — off unless you tick it; what it allows is described further down.
+3. Set the app up (see below). The first time it connects, Plainva asks which app it is, which program started it and which folders it may read. Nothing is ticked: choose among the vault's top-level folders or **The whole vault**, then **Allow**. **Deny** turns the app away, and Plainva does not ask about it again for ten minutes. Below the folders stands **May suggest changes** — off unless you tick it; what it allows is described further down.
 
-The app keeps a secret in the system keychain for the next time. Folders are granted per app and per vault: in another vault, the app asks again. When you open another vault, the apps connected to the one before are disconnected; they read the new one only once they connect again.
+The app keeps a secret in the system keychain for the next time. Folders are granted per app and per vault: in another vault, the app asks again. When you open another vault, the apps connected to the one before are disconnected; they read the new one only once they connect again. While **Fully local** is on (see [AI Assistant](AI_Assistant.md)), the server rests: no app can read the vault, and an app that connects is refused.
 
 ## Setting an app up
 
@@ -28,11 +28,11 @@ The app keeps a secret in the system keychain for the next time. Folders are gra
 
 ## What an app can see
 
-Only the folders you allowed, and only what your privacy rules let go to a cloud model that can reach the internet — an app counts as one, because Plainva cannot see what it does with what it reads: notes with `cloud: deny` or `web: deny`, or in a folder with one of these rules, do not exist for an app — neither their text nor their titles —, links to them are withheld, and place stamps from the journal never go. Plainva's own folders (`.plainva`, `.agent`) and the rules themselves can never be read. Every path in a request and in an answer is checked twice: in the app window and in Plainva's native part.
+Only the folders you allowed, and only what your privacy rules let go to a cloud model that can reach the internet — an app counts as one, because Plainva cannot see what it does with what it reads: notes with `cloud: deny` or `web: deny`, or in a folder with one of these rules, do not exist for an app — neither their text nor their titles —, links to them are withheld, and place stamps from the journal never go. A note in an allowed folder whose name cannot be judged as it stands — it ends in a space or a dot, holds a colon or is not in composed Unicode form — is left out as well, and the answer says how many notes were left out. Plainva's own folders (`.plainva`, `.agent`) and the rules themselves can never be read. Every path in a request and in an answer is checked twice: in the app window and in Plainva's native part.
 
-The settings list the allowed apps with their folders and the last requests. **Remove** takes an app's permission back in every vault. That holds at once — also for an app that is connected at that moment.
+The settings list the apps you allowed on this computer with their folders in this vault (**none in this vault** for an app allowed only elsewhere) and the last requests. **Remove** takes an app's permission back in every vault. That holds at once — also for an app that is connected at that moment.
 
-Besides the tools, Plainva offers its three skills as prompts, in the language of the app: `daily-orientation`, `weekly-review` and `project-status`, which asks for the project's name. An app that supports prompts lists them among its commands.
+Besides the tools, Plainva offers five of its skills as prompts, in Plainva's own language, and the file-format reference as a resource (`plainva://format`): the prompts are `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` and `task-triage`; `project-status` asks for the project's name and `meeting-prep` for the meeting. An app that supports prompts lists them among its commands.
 
 ## Letting an app propose changes
 
@@ -42,9 +42,9 @@ An app you allowed gets six more tools, and none of them changes the vault:
 
 - **A change to a note** — to its text or to one of its properties — becomes a suggestion in the note's margin, signed with the app's name and “(AI app)”. You accept or decline each change there, as with every suggestion (see [Comments & Suggestions](Comments_and_Suggestions.md)).
 - **A new note** becomes a draft under **To decide** in the AI tab. It exists once you choose **Create** there.
-- **Renaming, moving and deleting** ask first. Plainva shows in its own window what would happen — for a rename also the notes whose links would follow —, and the app shows a note that Plainva is waiting. Only after **Allow** in Plainva, and once the app continues, Plainva does it the way it does when you do it by hand; the app only learns whether it happened. For a deletion Plainva then opens its own delete dialog, and nothing is gone before you confirm there. An app that cannot show such a note is not offered these three tools.
+- **Renaming, moving and deleting** ask first. Plainva shows in its own window what would happen — for a rename also the notes whose links would follow —, and the app shows a note that Plainva is waiting. Only after **Allow** in Plainva, and once the app continues, Plainva does it the way it does when you do it by hand; the app only learns whether it happened. For a deletion Plainva then opens its own delete dialog, and nothing is gone before you confirm there. An app that cannot show such a note — it needs MCP protocol revision 2026-07-28 or newer and must be able to ask you a question in a form — is not offered these three tools.
 
-A web address an app brings is written so that nothing opens or loads it (`https[://]…`), as with the assistant. A note's own privacy rules (`plainva.ai`) are not an app's to set, and inside an encrypted workspace nothing is proposed, drafted or planned. **Recent requests** in the settings says for every request what became of it — also that Plainva asked you, or that you said no.
+A web address an app brings is written so that nothing opens or loads it (`https[://]…`), as with the assistant. A note's own privacy rules (`plainva.ai`) are not an app's to set, and inside an encrypted workspace nothing is proposed, drafted or planned. The list of recent requests in the settings shows the eight newest and says of each whether Plainva asked you, you said no or it was refused.
 
 ## Limits
 

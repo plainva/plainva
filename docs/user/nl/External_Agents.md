@@ -1,6 +1,6 @@
 # Externe agents (Beta)
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-16
 
 Een externe agent is een AI-programma van een andere maker — een agent die je op je computer hebt geïnstalleerd en waarbij je je zelf hebt aangemeld, met je eigen abonnement of sleutel. Plainva kan zo'n agent in de map van een vault starten en zijn sessie in het AI-tabblad tonen. Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
@@ -9,7 +9,7 @@ Een externe agent is niet de assistent van Plainva. De [AI-assistent](AI_Assista
 ## Wat Plainva niet beheerst
 
 - **Het programma.** Een agent is het programma van iemand anders. Het draait op deze computer met jouw rechten, in de map van de vault, en het is niet afgeschermd: het kan alles lezen en wijzigen wat jij kunt lezen en wijzigen.
-- **Wat hij leest en verzendt.** Hij leest bestanden zelf — ook notities die je van de cloud weghoudt — en verzendt wat hij kiest naar zijn eigen dienst. Je privacyregels en het overzicht vóór het verzenden bereiken hem niet, en niets vraagt je iets voordat hij verzendt.
+- **Wat hij leest en verzendt.** Hij leest bestanden zelf — ook notities die je van de cloud weghoudt — en verzendt wat hij kiest naar zijn eigen dienst. Je privacyregels en het overzicht vóór het verzenden bereiken niet wat hij zelf doet, en niets vraagt je iets voordat hij verzendt. Alleen een bestand dat hij aan Plainva vraagt, wordt aan je regels getoetst: een notitie die je van de cloud of van internet weghoudt, wordt geweigerd.
 - **Wat hij zelf schrijft.** Een wijziging die de agent zelf maakt, staat meteen in de vault, zonder voorstel. De sessie zegt het je wanneer de agent zo'n wijziging meldt; een wijziging die hij niet meldt, ziet Plainva niet.
 - **Zijn aanmelding.** De agent meldt zich zelf aan. Plainva ziet zijn inloggegevens nooit en bewaart er geen.
 
@@ -38,13 +38,13 @@ Er draait één sessie tegelijk, en ze hoort bij de vault waarin ze is gestart: 
 
 ## Aanmelden
 
-Een agent die niet is aangemeld, zegt dat, en de sessie toont **⟨agent⟩ vraagt om aanmelding** met de manieren die de agent noemt. Afhankelijk van de agent opent je keuze een terminalvenster met het eigen programma van de agent, of brengt de agent je zelf naar zijn aanmelding. Plainva wacht en start de agent daarna opnieuw. Waar geen terminal kan worden geopend, toont Plainva de opdracht die je in een eigen terminal uitvoert; kies daarna **Opnieuw proberen**. Van de aanmelding ziet Plainva niets.
+Een agent die niet is aangemeld, zegt dat, en de sessie toont **⟨agent⟩ vraagt om aanmelding** met de manieren die de agent noemt. Afhankelijk van de agent opent je keuze een terminalvenster met het eigen programma van de agent, of brengt de agent je zelf naar zijn aanmelding. Plainva wacht en start de agent, na een aanmelding in een terminal, opnieuw; waar de agent zich zelf aanmeldt, gaat het in dezelfde sessie verder. Waar geen terminal kan worden geopend, toont Plainva de opdracht die je in een eigen terminal uitvoert; kies daarna **Opnieuw proberen**. Van de aanmelding ziet Plainva niets.
 
 ## In een sessie
 
 Typ wat de agent moet doen. De notitie die je open hebt, wordt aan de agent genoemd — haar naam en waar ze staat, niet haar tekst —, tenzij je haar boven het invoerveld weghaalt; een notitie die je van de cloud of van internet weghoudt, wordt nooit genoemd. De sessie toont wat de agent zegt, zijn plan en elk van zijn stappen, met de bestanden van de vault die hij noemt.
 
-Als de agent je toestemming voor een stap wil, toont **⟨agent⟩ vraagt** die. De woorden zijn van de agent, en de keuzes zijn de keuzes die de agent aanbiedt — **Toestaan**, **Altijd toestaan**, **Afwijzen**, **Altijd afwijzen**. Je antwoord gaat alleen naar de agent: wat hij na een ja doet, is zijn eigen zaak, en een 'altijd' is een belofte die de agent houdt, niet Plainva.
+Als de agent je toestemming voor een stap wil, toont **⟨agent⟩ vraagt** die. De woorden zijn van de agent, en de keuzes ook: de knoppen dragen de namen die de agent ze geeft — alleen waar hij er geen noemt, zie je **Toestaan**, **Altijd toestaan**, **Afwijzen** of **Altijd afwijzen**. Je antwoord gaat alleen naar de agent: wat hij na een ja doet, is zijn eigen zaak, en een 'altijd' is een belofte die de agent houdt, niet Plainva.
 
 **Instellingen en opdrachten.** Waar de agent ze aanbiedt, toont de voet van de sessie zijn eigen instellingen: zijn modus en zijn model als knoppen — **⟨instelling⟩: ⟨waarde⟩** —, de rest achter de knop met schuifregelaars **Meer instellingen van ⟨agent⟩**. Elk van hun menu's begint met Plainva's eigen kop — **⟨instelling⟩ van ⟨agent⟩** of **Meer instellingen van ⟨agent⟩** —; daaronder zijn namen, waarden en beschrijvingen die van de agent, in zijn volgorde: de huidige waarde met een vinkje, een schakelaar als een item met of zonder vinkje. Waar de woorden van de agent in een kop of een zin van Plainva staan, zijn ze in onopvallend cursief afgezet, nooit in de hoofdletters van de kop. Elke sessie begint met de standaardwaarden van de agent. Een instelling verandert hoe de agent werkt, niet wat Plainva doorlaat: lezen en schrijven via Plainva volgen in elke modus dezelfde regels, en een modus waarin de agent niets meer vraagt, bespaart geen enkele van Plainva's eigen stappen. Wat de agent met zijn eigen hulpmiddelen doet, valt in elke modus buiten Plainva. Als de agent zelf een instelling wijzigt, zegt de sessie dat: **De agent heeft “⟨instelling⟩” zelf op “⟨waarde⟩” gezet.** Wat hij samen met een wijziging van jou omzet, noemt ze als zodanig — **Daarbij heeft de agent “⟨instelling⟩” op “⟨waarde⟩” gezet.** —, en een wijziging die hij niet heeft gedaan ook: **De agent heeft “⟨instelling⟩” niet gewijzigd.** Zolang een wijziging op de agent wacht, draait er een indicator naast de instellingen, en ze reageren niet tot hij antwoordt. Een **/** aan het begin van een bericht toont onder **Opdrachten van ⟨agent⟩** de eigen opdrachten van de agent met wat ze volgens hem doen: de pijltjestoetsen lopen door de lijst, Enter of Tab neemt een opdracht over en Escape sluit de lijst. Een opdracht is een bericht dat met haar naam begint; waar de agent zegt wat erna komt, staat dat onder het veld tot je verder typt. Wat een opdracht doet, is de zaak van de agent.
 
@@ -61,7 +61,7 @@ Plainva neemt niet alles aan: alleen Markdown-notities; geen AI-regels, geen ver
 ## Wat Plainva bewaart
 
 - **Op dit apparaat:** de opdracht die je hebt bevestigd, je naam voor de agent en wat er voor het laatst van zijn wijzigingen is gezien — in de eigen gegevens van Plainva, nooit in de vault.
-- **Per vault:** **Laatste sessies in deze vault** noemt wanneer een sessie liep, met welke agent, en hoeveel berichten, wijzigingen via Plainva en eigen wijzigingen er waren — nooit wat er is gezegd.
+- **Per vault:** **Laatste sessies in deze vault** noemt de laatste 50 sessies — wanneer een sessie liep, met welke agent, en hoeveel berichten, wijzigingen via Plainva en eigen wijzigingen er waren — nooit wat er is gezegd. Ook deze lijst staat in Plainva's eigen gegevens op dit apparaat, niet in de vault.
 - **Niet de sessie zelf:** wat jij en de agent hebben gezegd, is weg zodra de sessie is gesloten. Wat de agent aan zijn kant bewaart, is de zaak van de agent.
 
 Als het programma van de agent vanzelf eindigt, zegt de sessie dat, en **Zijn laatste regels tonen** toont het einde van wat het programma heeft geschreven.
@@ -70,6 +70,7 @@ Als het programma van de agent vanzelf eindigt, zegt de sessie dat, en **Zijn la
 
 - Alleen op de desktop en alleen in het hoofdvenster. Op de telefoon is er de eigen assistent van Plainva.
 - Niet in een versleutelde workspace.
+- Niet zolang **Volledig lokaal** aan staat: er start geen agent en er loopt geen aanmelding, en een lopende sessie eindigt.
 - Eén sessie tegelijk, en geen geschiedenis: een beëindigde sessie kan niet opnieuw worden geopend.
 - Er kunnen geen afbeeldingen naar een agent worden gestuurd, en een modus of model dat je in een sessie kiest, neemt Plainva niet mee naar de volgende.
 - Tot nu toe is dit alleen met een eigen testagent van Plainva geprobeerd. Welke agents hier werken, en welke hun wijzigingen aan Plainva geven, blijkt als je ze probeert — feedback is welkom.

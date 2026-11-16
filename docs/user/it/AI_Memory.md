@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Ultimo aggiornamento: 2026-11-06
+Ultimo aggiornamento: 2026-11-16
 
 La memoria contiene ciò che l'IA deve sapere su di te e sul tuo lavoro senza che tu glielo ripeta: che cosa fai, come preferisci ricevere le risposte, chi sono i tuoi clienti. Sono due file nel tuo vault. Nulla entra nella memoria senza il tuo sì, e puoi leggere, modificare ed eliminare ogni voce.
 
@@ -52,7 +52,7 @@ Lo stile resta su questo dispositivo, non nel vault: su un altro dispositivo ne 
 
 ## Privacy
 
-- Una voce può avere una regola propria: **Non ai modelli cloud**, **Non nelle conversazioni con Internet**. Un modello su questo dispositivo riceve ogni voce.
+- Una voce può avere una regola propria: **Non ai modelli cloud**, **Non nelle conversazioni con Internet**. Un modello su questo dispositivo riceve ogni voce leggibile e abbastanza breve — tranne in una conversazione con Internet, dove una voce contrassegnata **Non nelle conversazioni con Internet** resta fuori anche qui.
 - Se l'IA ha preparato la bozza di una voce in una conversazione in cui ha letto note soggette a una regola sulla privacy, la voce riceve le stesse regole — la scheda dice **La voce riceve le regole sulla privacy delle note su cui si basava questa conversazione.** Ciò che proviene da una nota che deve restare su questo dispositivo non arriva a un cloud attraverso la memoria.
 - Anche le tue [regole sulla privacy](AI_Assistant.md) valgono per i due file: una regola per la cartella `.agent/` tiene l'intera memoria lontana dal cloud.
 - Il riepilogo di invio ha una riga **Memoria** — quante voci partono — e sotto **Trattenuto** conta le voci che le tue regole trattengono. Non nomina mai una voce.

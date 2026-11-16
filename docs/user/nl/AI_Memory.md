@@ -1,6 +1,6 @@
 # Geheugen (Beta)
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-16
 
 Het geheugen bewaart wat de AI over jou en je werk moet weten zonder dat je het opnieuw hoeft te vertellen: wat je doet, hoe je je antwoorden het liefst wilt hebben, wie je klanten zijn. Het zijn twee bestanden in je vault. Er komt niets in zonder jouw ja, en je kunt elk item lezen, wijzigen en verwijderen.
 
@@ -52,7 +52,7 @@ De stijl staat op dit apparaat, niet in de vault: op een ander apparaat kies je 
 
 ## Privacy
 
-- Een item kan een eigen regel dragen: **Niet naar cloudmodellen**, **Niet in gesprekken met internet**. Een model op dit apparaat krijgt elk item.
+- Een item kan een eigen regel dragen: **Niet naar cloudmodellen**, **Niet in gesprekken met internet**. Een model op dit apparaat krijgt elk item dat leesbaar en kort genoeg is — behalve in een gesprek met internet, waar een item met het label **Niet in gesprekken met internet** ook hier buiten blijft.
 - Een item dat de AI heeft opgesteld in een gesprek waarin notities met een privacyregel zijn gelezen, krijgt dezelfde regels — op de kaart staat **Het item krijgt de privacyregels van de notities waarop dit gesprek berustte.** Wat afkomstig is uit een notitie die op dit apparaat moet blijven, komt via het geheugen niet bij een cloud terecht.
 - Je [privacyregels](AI_Assistant.md) gelden ook voor de twee bestanden: een mapregel voor `.agent/` houdt het hele geheugen van de cloud weg.
 - Het verzendoverzicht heeft een rij **Geheugen** — hoeveel items er meegaan — en telt de items die je regels achterhouden onder **Achtergehouden**. Het noemt nooit een item.

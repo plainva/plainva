@@ -1,6 +1,6 @@
 # Agentes externos (Beta)
 
-Última actualización: 2026-11-06
+Última actualización: 2026-11-16
 
 Un agente externo es un programa de IA de otro fabricante: un agente que instalaste en tu ordenador y en el que iniciaste sesión tú mismo, con tu propia suscripción o clave. Plainva puede iniciar un agente así en la carpeta de un vault y mostrar su sesión en la pestaña de IA. Forma parte de las funciones experimentales de IA y solo funciona en el escritorio.
 
@@ -9,7 +9,7 @@ Un agente externo no es el asistente de Plainva. El [Asistente de IA](AI_Assista
 ## Lo que Plainva no controla
 
 - **El programa.** Un agente es el programa de otro. Se ejecuta en este ordenador con tus permisos, en la carpeta del vault, y no está cercado: puede leer y cambiar todo lo que tú puedes.
-- **Lo que lee y envía.** Lee archivos por su cuenta — también notas que mantienes fuera de la nube — y envía lo que elige a su propio servicio. Tus reglas de privacidad y el resumen previo al envío no lo alcanzan, y nada te pregunta antes de que envíe.
+- **Lo que lee y envía.** Lee archivos por su cuenta — también notas que mantienes fuera de la nube — y envía lo que elige a su propio servicio. Tus reglas de privacidad y el resumen previo al envío no alcanzan lo que hace por sí mismo, y nada te pregunta antes de que envíe. Solo un archivo que pide a Plainva se comprueba con tus reglas: una nota que mantienes fuera de la nube o de Internet se rechaza.
 - **Lo que escribe por su cuenta.** Un cambio que el agente hace por su cuenta está en el vault de inmediato, sin sugerencia. La sesión te lo dice cuando el agente informa de un cambio así; un cambio del que no informa, Plainva no lo ve.
 - **Su inicio de sesión.** El agente inicia sesión por sí mismo. Plainva nunca ve sus credenciales y no guarda ninguna.
 
@@ -38,13 +38,13 @@ Hay una sola sesión a la vez, y pertenece al vault en el que se inició: **Term
 
 ## Iniciar sesión
 
-Un agente que no ha iniciado sesión lo dice, y la sesión muestra **⟨agente⟩ pide iniciar sesión** con las formas que el agente nombra. Según el agente, elegir una abre una ventana de terminal con el propio programa del agente, o el agente te lleva él mismo a su inicio de sesión. Plainva espera y después inicia el agente de nuevo. Donde no se puede abrir una terminal, Plainva muestra el comando que debes ejecutar en una terminal tuya; después elige **Reintentar**. Plainva no ve nada del inicio de sesión.
+Un agente que no ha iniciado sesión lo dice, y la sesión muestra **⟨agente⟩ pide iniciar sesión** con las formas que el agente nombra. Según el agente, elegir una abre una ventana de terminal con el propio programa del agente, o el agente te lleva él mismo a su inicio de sesión. Plainva espera y, tras un inicio de sesión en una terminal, inicia el agente de nuevo; donde el agente inicia sesión él mismo, sigue en la misma sesión. Donde no se puede abrir una terminal, Plainva muestra el comando que debes ejecutar en una terminal tuya; después elige **Reintentar**. Plainva no ve nada del inicio de sesión.
 
 ## En una sesión
 
 Escribe lo que el agente debe hacer. La nota que tienes abierta se le nombra al agente — su nombre y dónde está, no su texto —, salvo que la quites encima del campo de entrada; una nota que mantienes fuera de la nube o de internet nunca se nombra. La sesión muestra lo que dice el agente, su plan y cada uno de sus pasos, con los archivos del vault que nombra.
 
-Cuando el agente quiere tu permiso para un paso, **⟨agente⟩ pregunta** lo muestra. Las palabras son del agente, y las opciones son las que el agente ofrece — **Permitir**, **Permitir siempre**, **Rechazar**, **Rechazar siempre**. Tu respuesta va solo al agente: lo que haga tras un sí es cosa suya, y un «siempre» es una promesa que cumple el agente, no Plainva.
+Cuando el agente quiere tu permiso para un paso, **⟨agente⟩ pregunta** lo muestra. Las palabras son del agente, y las opciones también: los botones llevan los nombres que el agente les da — solo donde no nombra ninguno ves **Permitir**, **Permitir siempre**, **Rechazar** o **Rechazar siempre**. Tu respuesta va solo al agente: lo que haga tras un sí es cosa suya, y un «siempre» es una promesa que cumple el agente, no Plainva.
 
 **Ajustes y comandos.** Donde el agente los ofrece, el pie de la sesión muestra sus propios ajustes: su modo y su modelo como botones — **⟨ajuste⟩: ⟨valor⟩** —, el resto detrás del botón de controles deslizantes **Más ajustes de ⟨agente⟩**. Cada uno de sus menús empieza con el título propio de Plainva — **⟨ajuste⟩ de ⟨agente⟩** o **Más ajustes de ⟨agente⟩** —; debajo, los nombres, valores y descripciones son del agente, en su orden: el valor actual con una marca, un interruptor como una entrada con o sin ella. Donde las palabras del agente aparecen en un título o una frase de Plainva, van aparte en cursiva discreta, nunca en las mayúsculas del título. Cada sesión empieza con los valores por defecto del agente. Un ajuste cambia cómo trabaja el agente, no lo que Plainva deja pasar: leer y escribir a través de Plainva siguen las mismas reglas en cualquier modo, y un modo en el que el agente ya no pregunta nada no ahorra ninguno de los pasos propios de Plainva. Lo que el agente hace con sus propias herramientas queda fuera de Plainva en cualquier modo. Cuando el agente cambia un ajuste por su cuenta, la sesión lo dice: **El agente puso «⟨ajuste⟩» en «⟨valor⟩» por su cuenta.** Lo que cambia junto con un cambio tuyo, lo nombra como tal — **Con ese cambio, el agente puso «⟨ajuste⟩» en «⟨valor⟩».** —, y también un cambio que no hizo: **El agente no cambió «⟨ajuste⟩».** Mientras un cambio espera al agente, un indicador gira junto a los ajustes, y no responden hasta que contesta. Una **/** al principio de un mensaje muestra bajo **Comandos de ⟨agente⟩** los comandos propios del agente con lo que, según él, hacen: las flechas recorren la lista, Intro o Tab toman un comando y Esc cierra la lista. Un comando es un mensaje que empieza con su nombre; donde el agente dice qué va después, eso aparece bajo el campo hasta que sigas escribiendo. Lo que hace un comando es cosa del agente.
 
@@ -61,7 +61,7 @@ Plainva no lo acepta todo: solo notas Markdown; ni reglas de IA, ni campos de co
 ## Lo que Plainva conserva
 
 - **En este dispositivo:** el comando que confirmaste, tu nombre para el agente y lo que se vio por última vez de sus cambios — en los datos propios de Plainva, nunca en el vault.
-- **Por vault:** **Últimas sesiones en este vault** indica cuándo hubo una sesión, con qué agente, y cuántos mensajes, cambios a través de Plainva y cambios propios hubo — nunca lo que se dijo.
+- **Por vault:** **Últimas sesiones en este vault** indica las últimas 50 sesiones — cuándo hubo una sesión, con qué agente, y cuántos mensajes, cambios a través de Plainva y cambios propios hubo — nunca lo que se dijo. Esta lista también está en los datos propios de Plainva en este dispositivo, no en el vault.
 - **No la sesión en sí:** lo que tú y el agente dijisteis desaparece cuando la sesión se cierra. Lo que el agente conserve por su lado es asunto del agente.
 
 Si el programa del agente termina por sí solo, la sesión lo dice, y **Mostrar sus últimas líneas** muestra el final de lo que el programa escribió.
@@ -70,6 +70,7 @@ Si el programa del agente termina por sí solo, la sesión lo dice, y **Mostrar 
 
 - Solo en el escritorio y solo en la ventana principal. En el teléfono está el asistente propio de Plainva.
 - No en un espacio cifrado.
+- No mientras **Totalmente local** esté activado: no se inicia ningún agente ni se ejecuta ningún inicio de sesión, y una sesión en curso termina.
 - Una sesión a la vez, y sin historial: una sesión terminada no se puede volver a abrir.
 - No se pueden enviar imágenes a un agente, y Plainva no traslada a la siguiente sesión un modo o modelo elegido en una sesión.
 - Hasta ahora esto se ha probado solo con un agente de prueba propio de Plainva. Qué agentes funcionan aquí, y cuáles entregan sus cambios a Plainva, se ve al probarlos — los comentarios son bienvenidos.

@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-16
 
 Um script é um pequeno programa para aquilo que um modelo faz mal e um programa faz sempre do mesmo jeito: contar, ordenar, comparar, somar. Você o escreve em JavaScript. Ele roda em uma caixa fechada dentro do Plainva: não consegue abrir um arquivo, alcançar a rede nem esperar até mais tarde. Ele só chama as ferramentas que você marcou para ele: elas leem o seu vault do mesmo jeito que as ferramentas da IA, ou deixam uma sugestão sobre a qual você decide. Um script não altera nada por conta própria.
 
@@ -62,8 +62,8 @@ A linguagem é JavaScript atual — ES2024 e a maior parte do ES2025 —, sem `I
 | `graph_neighborhood` — **Seguindo links** | `path`; opcionais: `depth` (1 ou 2), `limit` (até 50) | `path`; `notes`: uma lista de `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Olhando notas recentes** | opcionais: `kind` (`opened` ou `edited`), `limit` (até 20) | `kind`; `notes`: uma lista de `{ title, path, at }` |
 | `get_changes` — **Olhando o que mudou** | `since` como `YYYY-MM-DD`; opcionais: `until`, `folder`, `limit` (até 20) | `since`, `until`; `notes`: uma lista de `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **Acompanhando a evolução de uma nota** | `path`; opcionais: `since` e `until` como `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: uma lista de `{ day, added, removed, gained }` |
-| `get_calendar` — **Lendo compromissos** | `from` e `to` como `YYYY-MM-DD`; opcionais: `details`, `limit` (até 100) | `events`: uma lista de `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
+| `get_note_history` — **Acompanhando a evolução de uma nota** | `path`; opcionais: `since` e `until` como `YYYY-MM-DD`, com no máximo 31 dias de diferença | `path`, `since`, `until`, `made`; `days`: uma lista de `{ day, added, removed, gained }` |
+| `get_calendar` — **Lendo compromissos** | `from` e `to` como `YYYY-MM-DD`, com no máximo 31 dias de diferença; opcionais: `details`, `limit` (até 100) | `events`: uma lista de `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Usando o aplicativo** | `id`, um comando do app como `open-note`, `show-in-graph` ou `open-calendar`; opcional: `args` com `path`, `section` ou `date` | `done`, `command` |
 | `propose_edit` — **Sugerindo alterações em uma nota** | `path`; `edits`, uma lista de `{ find, replace }`, ou `append`; opcionais: `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Sugerindo um valor de propriedade** | `path`, `key`, `value`; opcional: `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ Um script traz os limites no manifesto dele. O formulário define três deles:
 | **Chamadas de ferramentas** | 20 | 0 a 50 |
 | **Memória em MB** | 32 | 8 a 128 |
 
-Só conta o tempo em que um script calcula, não o tempo que uma ferramenta leva. Um script que ultrapassa um limite é encerrado, o diálogo diz qual limite foi, e um script encerrado não devolve nada. Os argumentos de uma chamada e o resultado podem ter, cada um, no máximo 64 KB.
+Só conta o tempo em que um script calcula, não o tempo que uma ferramenta leva. Um script que ultrapassa um limite é encerrado, o diálogo diz qual limite foi, e um script encerrado não devolve nada. Por padrão, os argumentos de uma chamada, o que uma chamada devolve e o resultado podem ter, cada um, no máximo 64 KB; um manifesto pode permitir até 256 KB.
 
 ## Nada roda antes da sua aprovação
 

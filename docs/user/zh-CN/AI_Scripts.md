@@ -1,6 +1,6 @@
 # 脚本（测试版）
 
-更新日期：2026-11-06
+更新日期：2026-11-16
 
 脚本是一个小程序，用来完成模型不擅长、而程序每次都能做得一模一样的事：计数、排序、比较、求和。你用JavaScript来编写它。它在Plainva内部的一个封闭沙盒中运行：不能打开文件，不能访问网络，也不能等到以后再执行。它只会调用你为它勾选的工具：这些工具要么像AI的工具那样读取你的仓库，要么留下一条由你决定是否采纳的建议。脚本不会自行更改任何内容。
 
@@ -62,8 +62,8 @@ return { tag: input.tag, count: notes.length, notes };
 | `graph_neighborhood` — **正在追踪链接** | `path`；可选：`depth`（1或2）、`limit`（最多50） | `path`；`notes`：由`{ title, path, fromHere, toHere, via }`组成的列表 |
 | `get_recent` — **正在查看最近的笔记** | 可选：`kind`（`opened`或`edited`）、`limit`（最多20） | `kind`；`notes`：由`{ title, path, at }`组成的列表 |
 | `get_changes` — **正在查看有什么变化** | `since`，格式为`YYYY-MM-DD`；可选：`until`、`folder`、`limit`（最多20） | `since`、`until`；`notes`：由`{ path, title, kind, made, last, added, removed, gained }`组成的列表 |
-| `get_note_history` — **正在追溯笔记的演变** | `path`；可选：`since`和`until`，格式为`YYYY-MM-DD` | `path`、`since`、`until`、`made`；`days`：由`{ day, added, removed, gained }`组成的列表 |
-| `get_calendar` — **正在读取日程** | `from`和`to`，格式为`YYYY-MM-DD`；可选：`details`、`limit`（最多100） | `events`：由`{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`组成的列表；`more` |
+| `get_note_history` — **正在追溯笔记的演变** | `path`；可选：`since`和`until`，格式为`YYYY-MM-DD`，相隔最多31天 | `path`、`since`、`until`、`made`；`days`：由`{ day, added, removed, gained }`组成的列表 |
+| `get_calendar` — **正在读取日程** | `from`和`to`，格式为`YYYY-MM-DD`，相隔最多31天；可选：`details`、`limit`（最多100） | `events`：由`{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`组成的列表；`more` |
 | `run_command` — **正在操作应用** | `id`，即应用的某个命令，例如`open-note`、`show-in-graph`或`open-calendar`；可选：`args`，其中可含`path`、`section`或`date` | `done`、`command` |
 | `propose_edit` — **正在为笔记提出修改建议** | `path`；`edits`（由`{ find, replace }`组成的列表）或`append`；可选：`section`、`note` | `proposed`、`path`、`passages` |
 | `set_property` — **正在建议属性值** | `path`、`key`、`value`；可选：`note` | `proposed`、`path`、`property` |
@@ -82,7 +82,7 @@ return { tag: input.tag, count: notes.length, notes };
 | **工具调用次数** | 20 | 0到50 |
 | **内存（MB）** | 32 | 8到128 |
 
-只有脚本自己运算的时间才算数，工具所花的时间不计在内。超出某项限制的脚本会被终止，对话框会说明是哪一项限制，而被终止的脚本不会返回任何内容。一次调用的参数和脚本的结果，各自最大为64 KB。
+只有脚本自己运算的时间才算数，工具所花的时间不计在内。超出某项限制的脚本会被终止，对话框会说明是哪一项限制，而被终止的脚本不会返回任何内容。默认情况下，一次调用的参数、一次调用返回的内容和脚本的结果，各自最大为64 KB；清单可以允许最多256 KB。
 
 ## 未经你批准，什么都不会运行
 

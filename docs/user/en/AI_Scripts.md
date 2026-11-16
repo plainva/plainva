@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-16
 
 A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it: they read your vault the way the AI's tools do, or leave a suggestion that you decide about. A script changes nothing by itself.
 
@@ -62,8 +62,8 @@ The language is current JavaScript — ES2024, with most of ES2025 — without `
 | `graph_neighborhood` — **Following links** | `path`; optional `depth` (1 or 2), `limit` (up to 50) | `path`; `notes`: a list of `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Looking at recent notes** | optional `kind` (`opened` or `edited`), `limit` (up to 20) | `kind`; `notes`: a list of `{ title, path, at }` |
 | `get_changes` — **Looking at what changed** | `since` as `YYYY-MM-DD`; optional `until`, `folder`, `limit` (up to 20) | `since`, `until`; `notes`: a list of `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **Following how a note developed** | `path`; optional `since` and `until` as `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: a list of `{ day, added, removed, gained }` |
-| `get_calendar` — **Reading appointments** | `from` and `to` as `YYYY-MM-DD`; optional `details`, `limit` (up to 100) | `events`: a list of `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
+| `get_note_history` — **Following how a note developed** | `path`; optional `since` and `until` as `YYYY-MM-DD`, at most 31 days apart | `path`, `since`, `until`, `made`; `days`: a list of `{ day, added, removed, gained }` |
+| `get_calendar` — **Reading appointments** | `from` and `to` as `YYYY-MM-DD`, at most 31 days apart; optional `details`, `limit` (up to 100) | `events`: a list of `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Using the app** | `id`, a command of the app such as `open-note`, `show-in-graph` or `open-calendar`; optional `args` with `path`, `section` or `date` | `done`, `command` |
 | `propose_edit` — **Suggesting changes to a note** | `path`; `edits`, a list of `{ find, replace }`, or `append`; optional `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Suggesting a property value** | `path`, `key`, `value`; optional `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ A script carries its limits in its manifest. The form sets three of them:
 | **Tool calls** | 20 | 0 to 50 |
 | **Memory in MB** | 32 | 8 to 128 |
 
-Only the time a script computes counts, not the time a tool takes. A script that goes over a limit is ended, the dialog says which limit it was, and an ended script returns nothing. The arguments of one call and the result may each be 64 KB at most.
+Only the time a script computes counts, not the time a tool takes. A script that goes over a limit is ended, the dialog says which limit it was, and an ended script returns nothing. By default the arguments of one call, what one call hands back and the result may each be 64 KB at most; a manifest may allow up to 256 KB.
 
 ## Nothing runs before you approve it
 

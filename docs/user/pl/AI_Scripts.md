@@ -1,6 +1,6 @@
 # Skrypty (Beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone: czytają one Twój vault tak samo jak narzędzia AI albo zostawiają propozycję, o której decydujesz Ty. Skrypt sam niczego nie zmienia.
 
@@ -62,8 +62,8 @@ Językiem jest aktualny JavaScript — ES2024 i większość ES2025 — bez `Int
 | `graph_neighborhood` — **Podążanie za linkami** | `path`; opcjonalnie `depth` (1 lub 2), `limit` (do 50) | `path`; `notes`: lista obiektów `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Przeglądanie ostatnich notatek** | opcjonalnie `kind` (`opened` lub `edited`), `limit` (do 20) | `kind`; `notes`: lista obiektów `{ title, path, at }` |
 | `get_changes` — **Przeglądanie zmian** | `since` jako `YYYY-MM-DD`; opcjonalnie `until`, `folder`, `limit` (do 20) | `since`, `until`; `notes`: lista obiektów `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **Śledzenie rozwoju notatki** | `path`; opcjonalnie `since` i `until` jako `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: lista obiektów `{ day, added, removed, gained }` |
-| `get_calendar` — **Czytanie spotkań** | `from` i `to` jako `YYYY-MM-DD`; opcjonalnie `details`, `limit` (do 100) | `events`: lista obiektów `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
+| `get_note_history` — **Śledzenie rozwoju notatki** | `path`; opcjonalnie `since` i `until` jako `YYYY-MM-DD`, najwyżej 31 dni od siebie | `path`, `since`, `until`, `made`; `days`: lista obiektów `{ day, added, removed, gained }` |
+| `get_calendar` — **Czytanie spotkań** | `from` i `to` jako `YYYY-MM-DD`, najwyżej 31 dni od siebie; opcjonalnie `details`, `limit` (do 100) | `events`: lista obiektów `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Korzystanie z aplikacji** | `id`, polecenie aplikacji, np. `open-note`, `show-in-graph` lub `open-calendar`; opcjonalnie `args` z `path`, `section` lub `date` | `done`, `command` |
 | `propose_edit` — **Proponowanie zmian w notatce** | `path`; `edits`, czyli lista obiektów `{ find, replace }`, albo `append`; opcjonalnie `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Proponowanie wartości właściwości** | `path`, `key`, `value`; opcjonalnie `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ Limity skryptu są zapisane w jego manifeście. Formularz ustawia trzy z nich:
 | **Wywołania narzędzi** | 20 | od 0 do 50 |
 | **Pamięć w MB** | 32 | od 8 do 128 |
 
-Liczy się tylko czas obliczeń skryptu, a nie czas, który zajmuje narzędzie. Skrypt, który przekroczy limit, zostaje zakończony; okno mówi, o który limit chodziło, a zakończony skrypt niczego nie zwraca. Argumenty jednego wywołania i wynik mogą mieć najwyżej po 64 KB.
+Liczy się tylko czas obliczeń skryptu, a nie czas, który zajmuje narzędzie. Skrypt, który przekroczy limit, zostaje zakończony; okno mówi, o który limit chodziło, a zakończony skrypt niczego nie zwraca. Domyślnie argumenty jednego wywołania, to, co jedno wywołanie zwraca, i wynik mogą mieć najwyżej po 64 KB; manifest może pozwolić na wartości do 256 KB.
 
 ## Nic nie działa przed zatwierdzeniem
 

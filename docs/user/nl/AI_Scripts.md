@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-16
 
 Een script is een klein programma voor wat een model slecht kan en een programma elke keer op dezelfde manier doet: tellen, sorteren, vergelijken, optellen. Je schrijft het in JavaScript. Het draait in een afgesloten ruimte binnen Plainva: het kan geen bestand openen, niet het netwerk op en niet wachten tot later. Het roept alleen de hulpmiddelen aan die je ervoor hebt aangevinkt: ze lezen je vault zoals de hulpmiddelen van de AI dat doen, of leggen een voorstel neer waarover jij beslist. Een script verandert zelf niets.
 
@@ -62,8 +62,8 @@ De taal is actueel JavaScript — ES2024, met het meeste van ES2025 — zonder `
 | `graph_neighborhood` — **Links volgen** | `path`; optioneel `depth` (1 of 2), `limit` (hoogstens 50) | `path`; `notes`: een lijst van `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Recente notities bekijken** | optioneel `kind` (`opened` of `edited`), `limit` (hoogstens 20) | `kind`; `notes`: een lijst van `{ title, path, at }` |
 | `get_changes` — **Wijzigingen bekijken** | `since` als `YYYY-MM-DD`; optioneel `until`, `folder`, `limit` (hoogstens 20) | `since`, `until`; `notes`: een lijst van `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **De ontwikkeling van een notitie volgen** | `path`; optioneel `since` en `until` als `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: een lijst van `{ day, added, removed, gained }` |
-| `get_calendar` — **Afspraken lezen** | `from` en `to` als `YYYY-MM-DD`; optioneel `details`, `limit` (hoogstens 100) | `events`: een lijst van `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
+| `get_note_history` — **De ontwikkeling van een notitie volgen** | `path`; optioneel `since` en `until` als `YYYY-MM-DD`, hoogstens 31 dagen uit elkaar | `path`, `since`, `until`, `made`; `days`: een lijst van `{ day, added, removed, gained }` |
+| `get_calendar` — **Afspraken lezen** | `from` en `to` als `YYYY-MM-DD`, hoogstens 31 dagen uit elkaar; optioneel `details`, `limit` (hoogstens 100) | `events`: een lijst van `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Gebruikt de app** | `id`, een opdracht van de app zoals `open-note`, `show-in-graph` of `open-calendar`; optioneel `args` met `path`, `section` of `date` | `done`, `command` |
 | `propose_edit` — **Stelt wijzigingen in een notitie voor** | `path`; `edits`, een lijst van `{ find, replace }`, of `append`; optioneel `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Stelt een eigenschapswaarde voor** | `path`, `key`, `value`; optioneel `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ Een script legt zijn grenzen vast in zijn manifest. Het formulier stelt er drie 
 | **Aanroepen van hulpmiddelen** | 20 | 0 tot 50 |
 | **Geheugen in MB** | 32 | 8 tot 128 |
 
-Alleen de tijd waarin een script rekent telt mee, niet de tijd die een hulpmiddel nodig heeft. Een script dat een grens overschrijdt, wordt beëindigd; het dialoogvenster zegt welke grens het was, en een beëindigd script geeft niets terug. De argumenten van één aanroep en het resultaat mogen elk hoogstens 64 KB groot zijn.
+Alleen de tijd waarin een script rekent telt mee, niet de tijd die een hulpmiddel nodig heeft. Een script dat een grens overschrijdt, wordt beëindigd; het dialoogvenster zegt welke grens het was, en een beëindigd script geeft niets terug. Standaard mogen de argumenten van één aanroep, wat één aanroep teruggeeft en het resultaat elk hoogstens 64 KB groot zijn; een manifest mag tot 256 KB toestaan.
 
 ## Niets draait voordat je het goedkeurt
 

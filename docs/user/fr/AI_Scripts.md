@@ -1,6 +1,6 @@
 # Scripts (Bêta)
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-16
 
 Un script est un petit programme pour ce qu'un modèle fait mal et qu'un programme exécute chaque fois de la même façon : compter, trier, comparer, additionner. Vous l'écrivez en JavaScript. Il s'exécute dans une boîte fermée à l'intérieur de Plainva : il ne peut ni ouvrir un fichier, ni accéder au réseau, ni remettre quoi que ce soit à plus tard. Il n'appelle que les outils que vous avez cochés pour lui : ils lisent votre vault comme le font les outils de l'IA, ou laissent une proposition dont vous décidez. Un script ne modifie rien de lui-même.
 
@@ -62,8 +62,8 @@ Dans le formulaire, **Ce que renvoie un outil** ouvre cette page. Chaque outil r
 | `graph_neighborhood` — **Suivi des liens** | `path` ; facultatifs : `depth` (1 ou 2), `limit` (jusqu'à 50) | `path` ; `notes` : une liste de `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Consultation des notes récentes** | facultatifs : `kind` (`opened` ou `edited`), `limit` (jusqu'à 20) | `kind` ; `notes` : une liste de `{ title, path, at }` |
 | `get_changes` — **Consultation de ce qui a changé** | `since` au format `YYYY-MM-DD` ; facultatifs : `until`, `folder`, `limit` (jusqu'à 20) | `since`, `until` ; `notes` : une liste de `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **Suivi de l'évolution d'une note** | `path` ; facultatifs : `since` et `until` au format `YYYY-MM-DD` | `path`, `since`, `until`, `made` ; `days` : une liste de `{ day, added, removed, gained }` |
-| `get_calendar` — **Lecture des rendez-vous** | `from` et `to` au format `YYYY-MM-DD` ; facultatifs : `details`, `limit` (jusqu'à 100) | `events` : une liste de `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }` ; `more` |
+| `get_note_history` — **Suivi de l'évolution d'une note** | `path` ; facultatifs : `since` et `until` au format `YYYY-MM-DD`, à 31 jours d'écart au plus | `path`, `since`, `until`, `made` ; `days` : une liste de `{ day, added, removed, gained }` |
+| `get_calendar` — **Lecture des rendez-vous** | `from` et `to` au format `YYYY-MM-DD`, à 31 jours d'écart au plus ; facultatifs : `details`, `limit` (jusqu'à 100) | `events` : une liste de `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }` ; `more` |
 | `run_command` — **Utilisation de l'application** | `id`, une commande de l'app comme `open-note`, `show-in-graph` ou `open-calendar` ; facultatif : `args` avec `path`, `section` ou `date` | `done`, `command` |
 | `propose_edit` — **Proposition de modifications d'une note** | `path` ; `edits`, une liste de `{ find, replace }`, ou `append` ; facultatifs : `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Proposition d'une valeur de propriété** | `path`, `key`, `value` ; facultatif : `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ Un script porte ses limites dans son manifeste. Le formulaire en fixe trois :
 | **Appels d'outils** | 20 | 0 à 50 |
 | **Mémoire en Mo** | 32 | 8 à 128 |
 
-Seul compte le temps pendant lequel un script calcule, pas celui qu'un outil met à répondre. Un script qui dépasse une limite est arrêté, la boîte de dialogue dit laquelle, et un script arrêté ne renvoie rien. Les arguments d'un appel et le résultat ne peuvent chacun dépasser 64 Ko.
+Seul compte le temps pendant lequel un script calcule, pas celui qu'un outil met à répondre. Un script qui dépasse une limite est arrêté, la boîte de dialogue dit laquelle, et un script arrêté ne renvoie rien. Par défaut, les arguments d'un appel, ce qu'un appel renvoie et le résultat ne peuvent chacun dépasser 64 Ko ; un manifeste peut autoriser jusqu'à 256 Ko.
 
 ## Rien ne s'exécute avant votre approbation
 

@@ -1,6 +1,6 @@
 # スクリプト（ベータ版）
 
-最終更新: 2026-11-06
+最終更新: 2026-11-16
 
 スクリプトは小さなプログラムで、数える、並べ替える、比べる、合計するといった、モデルは苦手でもプログラムなら毎回同じようにこなせる作業に向いています。JavaScriptで書きます。Plainvaの中の閉じた環境で動き、ファイルを開くことも、ネットワークに接続することも、時間を置いて待つこともできません。呼び出せるのは、チェックを入れたツールだけです。それらのツールは、AIが使うツールと同じ方法で保管庫を読むか、提案を残します。提案を適用するかどうかは、あなたが決めます。スクリプトが自分で何かを変更することはありません。
 
@@ -62,8 +62,8 @@ return { tag: input.tag, count: notes.length, notes };
 | `graph_neighborhood`——**リンクをたどっています** | `path`、任意で`depth`（1または2）、`limit`（最大50） | `path`、`notes`: `{ title, path, fromHere, toHere, via }`のリスト |
 | `get_recent`——**最近のノートを見ています** | 任意で`kind`（`opened`または`edited`）、`limit`（最大20） | `kind`、`notes`: `{ title, path, at }`のリスト |
 | `get_changes`——**変更点を見ています** | `since`（`YYYY-MM-DD`の形式）、任意で`until`、`folder`、`limit`（最大20） | `since`、`until`、`notes`: `{ path, title, kind, made, last, added, removed, gained }`のリスト |
-| `get_note_history`——**ノートの経過をたどっています** | `path`、任意で`since`と`until`（`YYYY-MM-DD`の形式） | `path`、`since`、`until`、`made`、`days`: `{ day, added, removed, gained }`のリスト |
-| `get_calendar`——**予定を読んでいます** | `from`と`to`（`YYYY-MM-DD`の形式）、任意で`details`、`limit`（最大100） | `events`: `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`のリスト、`more` |
+| `get_note_history`——**ノートの経過をたどっています** | `path`、任意で`since`と`until`（`YYYY-MM-DD`の形式、間隔は最大31日） | `path`、`since`、`until`、`made`、`days`: `{ day, added, removed, gained }`のリスト |
+| `get_calendar`——**予定を読んでいます** | `from`と`to`（`YYYY-MM-DD`の形式、間隔は最大31日）、任意で`details`、`limit`（最大100） | `events`: `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`のリスト、`more` |
 | `run_command`——**アプリの操作** | `id`（`open-note`、`show-in-graph`、`open-calendar`などのアプリのコマンド）、任意で`args`（`path`、`section`、`date`） | `done`、`command` |
 | `propose_edit`——**ノートへの変更を提案** | `path`、`edits`（`{ find, replace }`のリスト）または`append`、任意で`section`、`note` | `proposed`、`path`、`passages` |
 | `set_property`——**プロパティ値を提案** | `path`、`key`、`value`、任意で`note` | `proposed`、`path`、`property` |
@@ -82,7 +82,7 @@ return { tag: input.tag, count: notes.length, notes };
 | **ツールの呼び出し回数** | 20 | 0〜50 |
 | **メモリ(MB)** | 32 | 8〜128 |
 
-数えられるのは、スクリプトが計算している時間だけです。ツールにかかる時間は含まれません。上限を超えたスクリプトは終了され、どの上限だったかがダイアログに表示されます。終了したスクリプトは何も返しません。1回の呼び出しの引数と結果は、それぞれ最大64 KBです。
+数えられるのは、スクリプトが計算している時間だけです。ツールにかかる時間は含まれません。上限を超えたスクリプトは終了され、どの上限だったかがダイアログに表示されます。終了したスクリプトは何も返しません。既定では、1回の呼び出しの引数、呼び出しが返す内容、結果は、それぞれ最大64 KBです。マニフェストで最大256 KBまで許可できます。
 
 ## 承認するまで何も実行されません
 

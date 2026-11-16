@@ -1,6 +1,6 @@
 # KI-Apps verbinden (Beta)
 
-Stand: 2026-11-06
+Stand: 2026-11-16
 
 KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und andere, die das Model Context Protocol (MCP) sprechen — können Deinen Vault über Plainva lesen: ihn durchsuchen, Notizen und ihre Abschnitte lesen, Gliederungen, Backlinks, Datenbanken, Aufgaben und zuletzt benutzte Notizen, und eine Notiz in Plainva öffnen. Von sich aus ändern sie nichts: eine App, der Du es erlaubst, darf Änderungen vorschlagen, und die warten, bis Du entscheidest (siehe unten). Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -16,9 +16,9 @@ Plainva bringt neben der App ein kleines Hilfsprogramm mit, `plainva-mcp`. Eine 
 
 1. Öffne **Einstellungen → KI** und schalte **KI auf diesem Gerät nutzen** ein; die Karte **KI-Apps auf diesem Rechner** steht weiter unten auf der Seite.
 2. Schalte **KI-Apps auf diesem Rechner diesen Vault lesen lassen** ein.
-3. Richte die App ein (siehe unten). Beim ersten Verbinden fragt Plainva, welche App es ist, welches Programm sie gestartet hat und welche Ordner sie lesen darf. Nichts ist vorausgewählt: wähle Ordner oder **Der ganze Vault**, dann **Erlauben**. **Ablehnen** weist die App ab, und Plainva fragt zehn Minuten lang nicht erneut nach ihr. Unter den Ordnern steht **Darf Änderungen vorschlagen** — aus, solange Du den Haken nicht setzt; was er erlaubt, steht weiter unten.
+3. Richte die App ein (siehe unten). Beim ersten Verbinden fragt Plainva, welche App es ist, welches Programm sie gestartet hat und welche Ordner sie lesen darf. Nichts ist vorausgewählt: wähle unter den Ordnern der obersten Ebene des Vaults oder **Der ganze Vault**, dann **Erlauben**. **Ablehnen** weist die App ab, und Plainva fragt zehn Minuten lang nicht erneut nach ihr. Unter den Ordnern steht **Darf Änderungen vorschlagen** — aus, solange Du den Haken nicht setzt; was er erlaubt, steht weiter unten.
 
-Die App bewahrt für das nächste Mal ein Geheimnis im Schlüsselbund des Systems auf. Ordner gelten je App und je Vault: in einem anderen Vault fragt die App erneut. Öffnest Du einen anderen Vault, trennt Plainva die Apps, die mit dem vorigen verbunden waren; den neuen lesen sie erst, wenn sie sich wieder verbinden.
+Die App bewahrt für das nächste Mal ein Geheimnis im Schlüsselbund des Systems auf. Ordner gelten je App und je Vault: in einem anderen Vault fragt die App erneut. Öffnest Du einen anderen Vault, trennt Plainva die Apps, die mit dem vorigen verbunden waren; den neuen lesen sie erst, wenn sie sich wieder verbinden. Solange **Voll-lokal** an ist (siehe [KI-Assistent](AI_Assistant.md)), ruht der Server: keine App kann den Vault lesen, und eine App, die sich verbindet, wird abgewiesen.
 
 ## Eine App einrichten
 
@@ -28,11 +28,11 @@ Die App bewahrt für das nächste Mal ein Geheimnis im Schlüsselbund des System
 
 ## Was eine App sieht
 
-Nur die Ordner, die Du erlaubt hast, und nur, was Deine Datenschutzregeln an ein Cloud-Modell gehen lassen, das ins Internet kann — als ein solches gilt eine App, denn Plainva sieht nicht, was sie mit dem Gelesenen tut: Notizen mit `cloud: deny` oder `web: deny` oder in einem Ordner mit einer dieser Regeln gibt es für eine App nicht — weder ihren Text noch ihre Titel —, Links auf sie werden zurückgehalten, und Ortsangaben aus dem Journal gehen nie mit. Plainvas eigene Ordner (`.plainva`, `.agent`) und die Regeln selbst sind nie lesbar. Jeder Pfad in einer Anfrage und in einer Antwort wird zweimal geprüft: im App-Fenster und im nativen Teil von Plainva.
+Nur die Ordner, die Du erlaubt hast, und nur, was Deine Datenschutzregeln an ein Cloud-Modell gehen lassen, das ins Internet kann — als ein solches gilt eine App, denn Plainva sieht nicht, was sie mit dem Gelesenen tut: Notizen mit `cloud: deny` oder `web: deny` oder in einem Ordner mit einer dieser Regeln gibt es für eine App nicht — weder ihren Text noch ihre Titel —, Links auf sie werden zurückgehalten, und Ortsangaben aus dem Journal gehen nie mit. Eine Notiz in einem erlaubten Ordner, deren Name sich so, wie er dasteht, nicht beurteilen lässt — er endet auf ein Leerzeichen oder einen Punkt, enthält einen Doppelpunkt oder steht nicht in zusammengesetzter Unicode-Form —, bleibt ebenfalls draußen, und die Antwort sagt, wie viele Notizen ausgelassen wurden. Plainvas eigene Ordner (`.plainva`, `.agent`) und die Regeln selbst sind nie lesbar. Jeder Pfad in einer Anfrage und in einer Antwort wird zweimal geprüft: im App-Fenster und im nativen Teil von Plainva.
 
-Die Einstellungen listen die erlaubten Apps mit ihren Ordnern und die letzten Anfragen. **Entfernen** nimmt einer App die Erlaubnis in jedem Vault zurück. Das gilt sofort — auch für eine App, die in dem Moment verbunden ist.
+Die Einstellungen listen die Apps, die Du auf diesem Rechner erlaubt hast, mit ihren Ordnern in diesem Vault (**keiner in diesem Vault** bei einer App, die nur anderswo erlaubt ist) und die letzten Anfragen. **Entfernen** nimmt einer App die Erlaubnis in jedem Vault zurück. Das gilt sofort — auch für eine App, die in dem Moment verbunden ist.
 
-Neben den Werkzeugen bietet Plainva seine drei Skills als Prompts an, in der Sprache der App: `daily-orientation`, `weekly-review` und `project-status`, das nach dem Namen des Projekts fragt. Eine App, die Prompts unterstützt, führt sie unter ihren Befehlen.
+Neben den Werkzeugen bietet Plainva fünf seiner Skills als Prompts an, in Plainvas eigener Sprache, und die Referenz des Dateiformats als Ressource (`plainva://format`): die Prompts sind `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` und `task-triage`; `project-status` fragt nach dem Namen des Projekts und `meeting-prep` nach dem Meeting. Eine App, die Prompts unterstützt, führt sie unter ihren Befehlen.
 
 ## Eine App Änderungen vorschlagen lassen
 
@@ -42,9 +42,9 @@ Eine App, der Du es erlaubt hast, bekommt sechs weitere Werkzeuge, und keines da
 
 - **Eine Änderung an einer Notiz** — an ihrem Text oder an einer ihrer Eigenschaften — wird ein Vorschlag am Rand der Notiz, gezeichnet mit dem Namen der App und „(KI-App)“. Dort übernimmst Du jede Änderung einzeln oder lehnst sie ab, wie bei jedem Vorschlag (siehe [Kommentare & Vorschläge](Comments_and_Suggestions.md)).
 - **Eine neue Notiz** wird ein Entwurf unter **Zu entscheiden** im KI-Tab. Es gibt sie, sobald Du dort **Anlegen** wählst.
-- **Umbenennen, Verschieben und Löschen** fragen zuerst. Plainva zeigt im eigenen Fenster, was geschähe — beim Umbenennen auch die Notizen, deren Links folgen würden —, und die App zeigt einen Hinweis, dass Plainva wartet. Erst nach **Erlauben** in Plainva, und sobald die App fortfährt, führt Plainva es so aus, wie wenn Du es von Hand tust; die App erfährt nur, ob es geschehen ist. Beim Löschen öffnet Plainva dann den eigenen Löschdialog, und nichts verschwindet, bevor Du dort bestätigst. Einer App, die einen solchen Hinweis nicht zeigen kann, werden diese drei Werkzeuge nicht angeboten.
+- **Umbenennen, Verschieben und Löschen** fragen zuerst. Plainva zeigt im eigenen Fenster, was geschähe — beim Umbenennen auch die Notizen, deren Links folgen würden —, und die App zeigt einen Hinweis, dass Plainva wartet. Erst nach **Erlauben** in Plainva, und sobald die App fortfährt, führt Plainva es so aus, wie wenn Du es von Hand tust; die App erfährt nur, ob es geschehen ist. Beim Löschen öffnet Plainva dann den eigenen Löschdialog, und nichts verschwindet, bevor Du dort bestätigst. Einer App, die einen solchen Hinweis nicht zeigen kann — sie braucht MCP-Protokollrevision 2026-07-28 oder neuer und muss Dir in einem Formular eine Frage stellen können —, werden diese drei Werkzeuge nicht angeboten.
 
-Eine Webadresse, die eine App mitbringt, wird so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`), wie beim Assistenten. Die eigenen Datenschutzregeln einer Notiz (`plainva.ai`) setzt keine App, und in einem verschlüsselten Workspace wird nichts vorgeschlagen, entworfen oder geplant. **Letzte Anfragen** in den Einstellungen sagt zu jeder Anfrage, was aus ihr wurde — auch, dass Plainva bei Dir nachgefragt hat oder dass Du Nein gesagt hast.
+Eine Webadresse, die eine App mitbringt, wird so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`), wie beim Assistenten. Die eigenen Datenschutzregeln einer Notiz (`plainva.ai`) setzt keine App, und in einem verschlüsselten Workspace wird nichts vorgeschlagen, entworfen oder geplant. Die Liste der letzten Anfragen in den Einstellungen zeigt die acht neuesten und sagt zu jeder, ob Plainva Dich gefragt hat, Du Nein gesagt hast oder sie abgelehnt wurde.
 
 ## Grenzen
 

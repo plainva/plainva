@@ -1,6 +1,6 @@
 # Pamięć (Beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Pamięć przechowuje to, co AI powinna wiedzieć o Tobie i Twojej pracy bez przypominania: czym się zajmujesz, jakie odpowiedzi lubisz, kim są Twoi klienci. To dwa pliki w Twoim vaulcie. Nic nie trafia do pamięci bez Twojego „tak”, a każdy wpis możesz przeczytać, zmienić i usunąć.
 
@@ -52,7 +52,7 @@ Styl jest zapisany na tym urządzeniu, nie w vaulcie: na innym urządzeniu wybie
 
 ## Prywatność
 
-- Wpis może nieść własną regułę: **Nie do modeli w chmurze**, **Nie w rozmowach z internetem**. Model na tym urządzeniu dostaje każdy wpis.
+- Wpis może nieść własną regułę: **Nie do modeli w chmurze**, **Nie w rozmowach z internetem**. Model na tym urządzeniu dostaje każdy wpis, który jest czytelny i dość krótki — z wyjątkiem rozmowy z internetem, w której wpis z oznaczeniem **Nie w rozmowach z internetem** również tutaj zostaje na zewnątrz.
 - Wpis, który AI przygotowała w rozmowie, w której czytała notatki objęte zasadą prywatności, dostaje te same reguły — karta mówi: **Wpis otrzymuje zasady prywatności notatek, na których opierała się ta rozmowa.** To, co pochodzi z notatki, która musi zostać na tym urządzeniu, nie dociera do chmury przez pamięć.
 - Twoje [zasady prywatności](AI_Assistant.md) obejmują także oba pliki: reguła folderu dla `.agent/` trzyma całą pamięć z dala od chmury.
 - Przegląd wysyłki ma wiersz **Pamięć** — ile wpisów idzie razem — i liczy w **Zatrzymano** wpisy, które zatrzymują Twoje reguły. Nigdy nie wymienia żadnego wpisu.

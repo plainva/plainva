@@ -1,6 +1,6 @@
 # Mémoire (Bêta)
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-16
 
 La mémoire conserve ce que l'IA doit savoir sur vous et votre travail sans qu'on ait à le lui répéter : ce que vous faites, comment vous voulez qu'on vous réponde, qui sont vos clients. Elle se compose de deux fichiers dans votre vault. Rien n'y entre sans votre oui, et vous pouvez lire, modifier et supprimer chaque entrée.
 
@@ -52,7 +52,7 @@ Le style est conservé sur cet appareil, pas dans le vault : sur un autre appare
 
 ## Confidentialité
 
-- Une entrée peut porter sa propre règle : **Pas aux modèles cloud**, **Pas dans les conversations avec Internet**. Un modèle sur cet appareil reçoit toutes les entrées.
+- Une entrée peut porter sa propre règle : **Pas aux modèles cloud**, **Pas dans les conversations avec Internet**. Un modèle sur cet appareil reçoit toutes les entrées lisibles et assez courtes — sauf dans une conversation avec Internet, où une entrée marquée **Pas dans les conversations avec Internet** reste aussi dehors ici.
 - Une entrée que l'IA a rédigée dans une conversation qui a lu des notes soumises à une règle de confidentialité reçoit les mêmes règles — la carte indique **L'entrée reçoit les règles de confidentialité des notes sur lesquelles reposait cette conversation.** Ce qui vient d'une note qui doit rester sur cet appareil n'atteint pas un cloud par le biais de la mémoire.
 - Vos [règles de confidentialité](AI_Assistant.md) valent aussi pour les deux fichiers : une règle de dossier pour `.agent/` tient toute la mémoire à l'écart du cloud.
 - L'aperçu d'envoi comporte une ligne **Mémoire** — combien d'entrées accompagnent la demande — et compte sous **Retenu** les entrées que vos règles retiennent. Il ne nomme jamais une entrée.

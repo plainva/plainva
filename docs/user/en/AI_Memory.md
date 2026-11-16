@@ -1,6 +1,6 @@
 # Memory (Beta)
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-16
 
 The memory holds what the AI should know about you and your work without being told again: what you do, how you like your answers, who your clients are. It is two files in your vault. Nothing gets into it without your yes, and you can read, change and delete every entry.
 
@@ -52,7 +52,7 @@ The style lies on this device, not in the vault: on another device you choose it
 
 ## Privacy
 
-- An entry can carry a rule of its own: **Not to cloud models**, **Not in conversations with the internet**. A model on this device gets every entry.
+- An entry can carry a rule of its own: **Not to cloud models**, **Not in conversations with the internet**. A model on this device gets every entry that is readable and short enough — except in a conversation with the internet, where an entry marked **Not in conversations with the internet** stays out here too.
 - An entry the AI drafted in a conversation that read notes under a privacy rule gets the same rules — the card says **The entry gets the privacy rules of the notes this conversation rested on.** What came from a note that has to stay on this device does not reach a cloud by way of the memory.
 - Your [privacy rules](AI_Assistant.md) hold for the two files as well: a folder rule for `.agent/` keeps the whole memory from the cloud.
 - The send overview has a row **Memory** — how many entries go along — and counts the entries your rules keep back under **Kept back**. It never names an entry.

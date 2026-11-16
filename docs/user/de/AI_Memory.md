@@ -1,6 +1,6 @@
 # Gedächtnis (Beta)
 
-Stand: 2026-11-06
+Stand: 2026-11-16
 
 Das Gedächtnis hält fest, was die KI über Dich und Deine Arbeit wissen soll, ohne dass Du es wieder sagst: was Du machst, wie Du Antworten magst, wer Deine Kunden sind. Es sind zwei Dateien in Deinem Vault. Nichts kommt ohne Dein Ja hinein, und Du kannst jeden Eintrag lesen, ändern und löschen.
 
@@ -52,7 +52,7 @@ Der Stil liegt auf diesem Gerät, nicht im Vault: auf einem anderen Gerät wähl
 
 ## Datenschutz
 
-- Ein Eintrag kann eine eigene Regel tragen: **Nicht an Cloud-Modelle**, **Nicht in Gesprächen mit Internet**. Ein Modell auf diesem Gerät bekommt jeden Eintrag.
+- Ein Eintrag kann eine eigene Regel tragen: **Nicht an Cloud-Modelle**, **Nicht in Gesprächen mit Internet**. Ein Modell auf diesem Gerät bekommt jeden Eintrag, der lesbar und kurz genug ist — außer in einem Gespräch mit Internet, wo auch hier ein Eintrag mit **Nicht in Gesprächen mit Internet** draußen bleibt.
 - Ein Eintrag, den die KI in einem Gespräch entworfen hat, das Notizen unter einer Datenschutzregel gelesen hat, bekommt dieselben Regeln — die Karte sagt **Der Eintrag bekommt die Datenschutzregeln der Notizen, auf denen dieses Gespräch beruhte.** Was aus einer Notiz stammt, die auf diesem Gerät bleiben muss, erreicht über das Gedächtnis keine Cloud.
 - Deine [Datenschutzregeln](AI_Assistant.md) gelten auch für die beiden Dateien: Eine Ordnerregel für `.agent/` hält das ganze Gedächtnis von der Cloud fern.
 - Die Sendeübersicht hat eine Zeile **Gedächtnis** — wie viele Einträge mitgehen — und zählt die Einträge, die Deine Regeln zurückhalten, unter **Zurückgehalten**. Sie nennt nie einen Eintrag.

@@ -1,6 +1,6 @@
 # Memória (Beta)
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-16
 
 A memória guarda o que a IA deve saber sobre você e o seu trabalho sem que você precise repetir: o que você faz, como prefere as respostas, quem são seus clientes. São dois arquivos no seu vault. Nada entra nela sem o seu sim, e você pode ler, alterar e excluir cada entrada.
 
@@ -52,7 +52,7 @@ O estilo fica neste dispositivo, não no vault: em outro dispositivo, você esco
 
 ## Privacidade
 
-- Uma entrada pode ter uma regra própria: **Não para modelos na nuvem**, **Não em conversas com a internet**. Um modelo neste dispositivo recebe todas as entradas.
+- Uma entrada pode ter uma regra própria: **Não para modelos na nuvem**, **Não em conversas com a internet**. Um modelo neste dispositivo recebe toda entrada que seja legível e curta o bastante — exceto em uma conversa com a internet, onde uma entrada marcada como **Não em conversas com a internet** também fica de fora aqui.
 - Uma entrada que a IA rascunhou em uma conversa que leu notas com uma regra de privacidade recebe as mesmas regras — o cartão diz **A entrada recebe as regras de privacidade das notas em que esta conversa se baseou.** O que veio de uma nota que precisa ficar neste dispositivo não chega a uma nuvem pela memória.
 - Suas [regras de privacidade](AI_Assistant.md) valem também para os dois arquivos: uma regra de pasta para `.agent/` mantém toda a memória fora da nuvem.
 - A visão de envio tem uma linha **Memória** — quantas entradas vão junto — e conta em **Retido** as entradas que suas regras retêm. Ela nunca nomeia uma entrada.
