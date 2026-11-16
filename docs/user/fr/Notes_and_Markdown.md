@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-11-10
+Dernière mise à jour : 2026-11-16
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -71,7 +71,7 @@ Chaque note a une adresse qui l'ouvre depuis n'importe où : un événement du c
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Copier le lien** place cette adresse dans le presse-papiers : sur l'ordinateur dans le menu ⋮ de la note, le menu de l'onglet et le menu contextuel de l'arborescence ; sur le téléphone dans le menu de la note et la feuille d'un fichier.
-- **À un titre ou une ligne** : le menu de bloc (la poignée à gauche d'un bloc ; sur le téléphone, la feuille du bloc) et, sur l'ordinateur, le menu du clic droit dans l'éditeur proposent **Copier le lien** — l'adresse de ce titre ou de ce bloc précis — et **Copier le lien du bloc** — un lien pour tes notes comme `[[Plan#Objectifs]]` ou `[[Plan#^k3x9qa]]`. Un bloc sans identifiant en reçoit un : Plainva écrit ` ^k3x9qa` (six lettres et chiffres) à la fin du paragraphe ou de l'élément de liste, pour un tableau sur une ligne à part en dessous — comme si tu l'avais tapé, l'annulation le retire. Le frontmatter, les blocs de code, les formules et les lignes vides n'en reçoivent pas.
+- **À un titre ou une ligne** : le menu de bloc (la poignée à gauche d'un bloc ; sur le téléphone, la feuille du bloc) et, sur l'ordinateur, le menu du clic droit dans l'éditeur proposent **Copier le lien** — l'adresse de ce titre ou de ce bloc précis — et **Copier le lien du bloc** — un lien pour tes notes comme `[[Plan#Objectifs]]` ou `[[Plan#^k3x9qa]]`. Un bloc sans identifiant en reçoit un : Plainva écrit ` ^k3x9qa` (six lettres et chiffres) à la fin du paragraphe ou de l'élément de liste, pour un tableau sur une ligne à part en dessous — comme si tu l'avais tapé, l'annulation le retire. Le frontmatter, les blocs de code, les formules et les lignes vides n'en reçoivent pas. Dans l'éditeur, un identifiant apparaît estompé en fin de ligne, et tel qu'il est écrit tant que le curseur est dans cette ligne ; le mode lecture le masque.
 - **Suggestions** : en tapant `[[Note#^`, les identifiants de bloc que la note possède déjà s'affichent avec le début de leur texte.
 - **Dans un événement** : **Lier une note** dans l'éditeur d'événement ajoute `[Titre](plainva://open?…)` à la description. L'aperçu de l'événement l'affiche comme une puce au nom de la note ; un clic l'ouvre.
 - **Cliqué dans Plainva** : un lien `plainva://` dans une note, un e-mail, un événement ou une tâche ouvre la note dans Plainva, sur l'ordinateur comme sur le téléphone. Il n'est jamais transmis au système.

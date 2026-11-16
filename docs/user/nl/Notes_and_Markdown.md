@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-10
+Laatst bijgewerkt: 2026-11-16
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -71,7 +71,7 @@ Elke notitie heeft een adres dat haar overal vandaan opent: een afspraak in de a
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Link kopiëren** zet dat adres op het klembord: op de desktop in het ⋮-menu van de notitie, het tabmenu en het contextmenu van de bestandsboom; op de telefoon in het menu van de notitie en in het blad van een bestand.
-- **Bij een kop of een regel**: het blokmenu (de greep links naast een blok; op de telefoon het blokblad) en op de desktop het rechtsklikmenu van de editor bieden **Link kopiëren** — het adres van precies die kop of dat blok — en **Bloklink kopiëren** — een link voor je notities zoals `[[Plan#Doelen]]` of `[[Plan#^k3x9qa]]`. Een blok zonder ID krijgt er een: Plainva schrijft ` ^k3x9qa` (zes letters en cijfers) aan het einde van de alinea of het lijstitem, bij een tabel op een eigen regel eronder — alsof je het zelf had getypt, dus ongedaan maken haalt het weg. Frontmatter, codeblokken, formules en lege regels krijgen geen ID.
+- **Bij een kop of een regel**: het blokmenu (de greep links naast een blok; op de telefoon het blokblad) en op de desktop het rechtsklikmenu van de editor bieden **Link kopiëren** — het adres van precies die kop of dat blok — en **Bloklink kopiëren** — een link voor je notities zoals `[[Plan#Doelen]]` of `[[Plan#^k3x9qa]]`. Een blok zonder ID krijgt er een: Plainva schrijft ` ^k3x9qa` (zes letters en cijfers) aan het einde van de alinea of het lijstitem, bij een tabel op een eigen regel eronder — alsof je het zelf had getypt, dus ongedaan maken haalt het weg. Frontmatter, codeblokken, formules en lege regels krijgen geen ID. In de editor staat een ID gedimd aan het eind van zijn regel, en zoals hij geschreven is zolang de cursor in die regel staat; de leesmodus verbergt hem.
 - **Suggesties**: als je `[[Notitie#^` typt, verschijnen de blok-ID's die de notitie al heeft, met het begin van hun tekst.
 - **In een afspraak**: **Notitie koppelen** in de afspraakeditor voegt `[Titel](plainva://open?…)` toe aan de beschrijving. Het voorbeeld van de afspraak toont dat als chip met de naam van de notitie; een klik opent haar.
 - **Aangeklikt in Plainva**: een `plainva://`-link in een notitie, een mail, een afspraak of een taak opent de notitie in Plainva, op de desktop en op de telefoon. Hij gaat nooit naar het systeem.

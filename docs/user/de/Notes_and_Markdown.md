@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-10
+Stand: 2026-11-16
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -71,7 +71,7 @@ Jede Notiz hat eine Adresse, die sie von überall öffnet – aus einem Termin, 
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Link kopieren** legt diese Adresse in die Zwischenablage: am Desktop im ⋮-Menü der Notiz, im Tab-Menü und im Kontextmenü des Dateibaums, am Telefon im Menü der Notiz und im Blatt einer Datei.
-- **An einer Überschrift oder Zeile**: Das Blockmenü (der Griff links neben einem Block, am Telefon das Block-Blatt) und am Desktop das Rechtsklick-Menü im Editor bieten **Link kopieren** – die Adresse genau dieser Überschrift oder dieses Blocks – und **Block-Link kopieren** – einen Link für Deine Notizen wie `[[Plan#Ziele]]` oder `[[Plan#^k3x9qa]]`. Ein Block ohne Kennung bekommt eine: Plainva schreibt ` ^k3x9qa` (sechs Buchstaben und Ziffern) ans Ende des Absatzes oder Listenpunkts, bei einer Tabelle in eine eigene Zeile darunter – als hättest Du es getippt, Rückgängig nimmt es zurück. Frontmatter, Codeblöcke, Formeln und leere Zeilen bekommen keine Kennung.
+- **An einer Überschrift oder Zeile**: Das Blockmenü (der Griff links neben einem Block, am Telefon das Block-Blatt) und am Desktop das Rechtsklick-Menü im Editor bieten **Link kopieren** – die Adresse genau dieser Überschrift oder dieses Blocks – und **Block-Link kopieren** – einen Link für Deine Notizen wie `[[Plan#Ziele]]` oder `[[Plan#^k3x9qa]]`. Ein Block ohne Kennung bekommt eine: Plainva schreibt ` ^k3x9qa` (sechs Buchstaben und Ziffern) ans Ende des Absatzes oder Listenpunkts, bei einer Tabelle in eine eigene Zeile darunter – als hättest Du es getippt, Rückgängig nimmt es zurück. Frontmatter, Codeblöcke, Formeln und leere Zeilen bekommen keine Kennung. Im Editor steht eine Kennung abgeschwächt am Ende ihrer Zeile und so, wie sie geschrieben ist, solange die Schreibmarke in der Zeile steht; der Lesemodus blendet sie aus.
 - **Vorschläge**: Wenn Du `[[Notiz#^` tippst, erscheinen die Block-Kennungen, die die Notiz schon hat, mit dem Anfang ihres Texts.
 - **In einem Termin**: **Notiz verlinken** im Termin-Editor fügt `[Titel](plainva://open?…)` in die Beschreibung ein. Die Termin-Vorschau zeigt den Link als Chip mit dem Namen der Notiz; ein Klick öffnet sie.
 - **In Plainva angeklickt**: Ein `plainva://`-Link in einer Notiz, einer Mail, einem Termin oder einer Aufgabe öffnet die Notiz in Plainva, am Desktop und am Telefon. Er geht nie ans System.

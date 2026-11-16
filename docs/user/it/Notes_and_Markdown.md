@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-11-10
+Ultimo aggiornamento: 2026-11-16
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -71,7 +71,7 @@ Ogni nota ha un indirizzo che la apre da ovunque: un evento del calendario, un'a
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Copia link** mette quell'indirizzo negli appunti: sul desktop nel menu ⋮ della nota, nel menu della scheda e nel menu contestuale dell'albero dei file; sul telefono nel menu della nota e nel foglio di un file.
-- **A un titolo o a una riga**: il menu del blocco (la maniglia a sinistra di un blocco; sul telefono il foglio del blocco) e, sul desktop, il menu del clic destro nell'editor offrono **Copia link** — l'indirizzo esatto di quel titolo o blocco — e **Copia link del blocco** — un link per le tue note come `[[Piano#Obiettivi]]` o `[[Piano#^k3x9qa]]`. Un blocco senza identificativo ne riceve uno: Plainva scrive ` ^k3x9qa` (sei lettere e cifre) alla fine del paragrafo o della voce di elenco, per una tabella su una riga a sé sotto di essa — come se l'avessi digitato, quindi Annulla lo toglie. Frontmatter, blocchi di codice, formule e righe vuote non ricevono identificativi.
+- **A un titolo o a una riga**: il menu del blocco (la maniglia a sinistra di un blocco; sul telefono il foglio del blocco) e, sul desktop, il menu del clic destro nell'editor offrono **Copia link** — l'indirizzo esatto di quel titolo o blocco — e **Copia link del blocco** — un link per le tue note come `[[Piano#Obiettivi]]` o `[[Piano#^k3x9qa]]`. Un blocco senza identificativo ne riceve uno: Plainva scrive ` ^k3x9qa` (sei lettere e cifre) alla fine del paragrafo o della voce di elenco, per una tabella su una riga a sé sotto di essa — come se l'avessi digitato, quindi Annulla lo toglie. Frontmatter, blocchi di codice, formule e righe vuote non ricevono identificativi. Nell'editor un identificativo appare attenuato alla fine della sua riga, e così come è scritto finché il cursore è in quella riga; la modalità lettura lo nasconde.
 - **Suggerimenti**: digitando `[[Nota#^` compaiono gli identificativi di blocco che la nota ha già, con l'inizio del loro testo.
 - **In un evento**: **Collega una nota** nell'editor dell'evento aggiunge `[Titolo](plainva://open?…)` alla descrizione. L'anteprima dell'evento lo mostra come chip con il nome della nota; un clic la apre.
 - **Cliccato in Plainva**: un link `plainva://` in una nota, una mail, un evento o un'attività apre la nota in Plainva, sul desktop e sul telefono. Non viene mai passato al sistema.

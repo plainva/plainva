@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-11-10
+Última revisão: 2026-11-16
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -71,7 +71,7 @@ Toda nota tem um endereço que a abre de qualquer lugar: um evento do calendári
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Copiar link** coloca esse endereço na área de transferência: no desktop, no menu ⋮ da nota, no menu da aba e no menu de contexto da árvore de arquivos; no celular, no menu da nota e na folha de um arquivo.
-- **Em um título ou uma linha**: o menu do bloco (a alça à esquerda de um bloco; no celular, a folha do bloco) e, no desktop, o menu do clique direito do editor oferecem **Copiar link** — o endereço exatamente desse título ou bloco — e **Copiar link do bloco** — um link para suas notas como `[[Plano#Metas]]` ou `[[Plano#^k3x9qa]]`. Um bloco sem identificador recebe um: o Plainva escreve ` ^k3x9qa` (seis letras e dígitos) no fim do parágrafo ou do item de lista; numa tabela, em uma linha própria abaixo dela — como se você tivesse digitado, então desfazer remove. Frontmatter, blocos de código, fórmulas e linhas vazias não recebem identificador.
+- **Em um título ou uma linha**: o menu do bloco (a alça à esquerda de um bloco; no celular, a folha do bloco) e, no desktop, o menu do clique direito do editor oferecem **Copiar link** — o endereço exatamente desse título ou bloco — e **Copiar link do bloco** — um link para suas notas como `[[Plano#Metas]]` ou `[[Plano#^k3x9qa]]`. Um bloco sem identificador recebe um: o Plainva escreve ` ^k3x9qa` (seis letras e dígitos) no fim do parágrafo ou do item de lista; numa tabela, em uma linha própria abaixo dela — como se você tivesse digitado, então desfazer remove. Frontmatter, blocos de código, fórmulas e linhas vazias não recebem identificador. No editor, um identificador aparece esmaecido no fim da sua linha, e como está escrito enquanto o cursor está nessa linha; o modo de leitura o oculta.
 - **Sugestões**: ao digitar `[[Nota#^`, aparecem os identificadores de bloco que a nota já tem, com o começo do texto.
 - **Em um evento**: **Vincular uma nota** no editor de eventos adiciona `[Título](plainva://open?…)` à descrição. A prévia do evento o mostra como um chip com o nome da nota; um clique a abre.
 - **Clicado no Plainva**: um link `plainva://` em uma nota, um e-mail, um evento ou uma tarefa abre a nota no Plainva, no desktop e no celular. Ele nunca é entregue ao sistema.

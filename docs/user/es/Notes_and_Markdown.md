@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-10
+Última actualización: 2026-11-16
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -71,7 +71,7 @@ Cada nota tiene una dirección que la abre desde cualquier sitio: un evento del 
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Copiar enlace** pone esa dirección en el portapapeles: en el escritorio, en el menú ⋮ de la nota, en el menú de la pestaña y en el menú contextual del árbol de archivos; en el teléfono, en el menú de la nota y en la hoja de un archivo.
-- **En un encabezado o una línea**: el menú de bloque (el asa a la izquierda de un bloque; en el teléfono, la hoja del bloque) y, en el escritorio, el menú del clic derecho del editor ofrecen **Copiar enlace** —la dirección de exactamente ese encabezado o bloque— y **Copiar enlace de bloque** —un enlace para tus notas como `[[Plan#Objetivos]]` o `[[Plan#^k3x9qa]]`—. Un bloque sin ID recibe uno: Plainva escribe ` ^k3x9qa` (seis letras y cifras) al final del párrafo o del elemento de lista; en una tabla, en una línea propia debajo. Es como si lo hubieras escrito tú, así que deshacer lo quita. El frontmatter, los bloques de código, las fórmulas y las líneas vacías no reciben ID.
+- **En un encabezado o una línea**: el menú de bloque (el asa a la izquierda de un bloque; en el teléfono, la hoja del bloque) y, en el escritorio, el menú del clic derecho del editor ofrecen **Copiar enlace** —la dirección de exactamente ese encabezado o bloque— y **Copiar enlace de bloque** —un enlace para tus notas como `[[Plan#Objetivos]]` o `[[Plan#^k3x9qa]]`—. Un bloque sin ID recibe uno: Plainva escribe ` ^k3x9qa` (seis letras y cifras) al final del párrafo o del elemento de lista; en una tabla, en una línea propia debajo. Es como si lo hubieras escrito tú, así que deshacer lo quita. El frontmatter, los bloques de código, las fórmulas y las líneas vacías no reciben ID. En el editor, un ID aparece atenuado al final de su línea, y tal como está escrito mientras el cursor está en esa línea; el modo lectura lo oculta.
 - **Sugerencias**: al escribir `[[Nota#^` aparecen los ID de bloque que la nota ya tiene, con el comienzo de su texto.
 - **En un evento**: **Enlazar una nota** en el editor de eventos añade `[Título](plainva://open?…)` a la descripción. La vista previa del evento lo muestra como un chip con el nombre de la nota; un clic la abre.
 - **Pulsado en Plainva**: un enlace `plainva://` en una nota, un correo, un evento o una tarea abre la nota en Plainva, en el escritorio y en el teléfono. Nunca se entrega al sistema.

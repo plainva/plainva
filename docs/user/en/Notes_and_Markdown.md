@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-10
+Last updated: 2026-11-16
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -71,7 +71,7 @@ Every note has an address that opens it from anywhere — a calendar event, a ta
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Copy link** puts that address on the clipboard: on the desktop in the note's ⋮ menu, the tab menu and the context menu of the file tree; on the phone in the note's menu and in a file's sheet.
-- **At a heading or a line**: the block menu (the handle left of a block; on the phone the block sheet) and, on the desktop, the right-click menu of the editor offer **Copy link** — the address of exactly that heading or block — and **Copy block link** — a link for your notes such as `[[Plan#Goals]]` or `[[Plan#^k3x9qa]]`. A block without an ID gets one: Plainva writes ` ^k3x9qa` (six letters and digits) at the end of the paragraph or list item, for a table on a line of its own below it — as if you had typed it, so undo takes it back. Frontmatter, code blocks, formulas and empty lines get no ID.
+- **At a heading or a line**: the block menu (the handle left of a block; on the phone the block sheet) and, on the desktop, the right-click menu of the editor offer **Copy link** — the address of exactly that heading or block — and **Copy block link** — a link for your notes such as `[[Plan#Goals]]` or `[[Plan#^k3x9qa]]`. A block without an ID gets one: Plainva writes ` ^k3x9qa` (six letters and digits) at the end of the paragraph or list item, for a table on a line of its own below it — as if you had typed it, so undo takes it back. Frontmatter, code blocks, formulas and empty lines get no ID. In the editor an ID stands faint at the end of its line, and as written while the cursor is in that line; read mode hides it.
 - **Suggestions**: typing `[[Note#^` lists the block IDs the note already has, with the beginning of their text.
 - **In an event**: **Link a note** in the event editor adds `[Title](plainva://open?…)` to the description. The event preview shows it as a chip with the note's name; a click opens the note.
 - **Clicked in Plainva**: a `plainva://` link in a note, a mail, an event or a task opens the note in Plainva, on the desktop and on the phone. It is never handed to the system.

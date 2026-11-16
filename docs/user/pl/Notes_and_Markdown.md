@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-10
+Stan na: 2026-11-16
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -71,7 +71,7 @@ Każda notatka ma adres, który otwiera ją z dowolnego miejsca: z wydarzenia w 
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Kopiuj link** kopiuje ten adres do schowka: na komputerze w menu ⋮ notatki, w menu karty i w menu kontekstowym drzewa plików; na telefonie w menu notatki i w arkuszu pliku.
-- **Przy nagłówku albo wierszu**: menu bloku (uchwyt po lewej stronie bloku; na telefonie arkusz bloku) i na komputerze menu prawego przycisku w edytorze oferują **Kopiuj link** — adres dokładnie tego nagłówka lub bloku — oraz **Kopiuj link do bloku** — link do Twoich notatek, np. `[[Plan#Cele]]` albo `[[Plan#^k3x9qa]]`. Blok bez identyfikatora dostaje go: Plainva zapisuje ` ^k3x9qa` (sześć liter i cyfr) na końcu akapitu lub punktu listy, przy tabeli w osobnym wierszu pod nią — tak, jakbyś to wpisał(a), więc Cofnij to usuwa. Frontmatter, bloki kodu, wzory i puste wiersze nie dostają identyfikatora.
+- **Przy nagłówku albo wierszu**: menu bloku (uchwyt po lewej stronie bloku; na telefonie arkusz bloku) i na komputerze menu prawego przycisku w edytorze oferują **Kopiuj link** — adres dokładnie tego nagłówka lub bloku — oraz **Kopiuj link do bloku** — link do Twoich notatek, np. `[[Plan#Cele]]` albo `[[Plan#^k3x9qa]]`. Blok bez identyfikatora dostaje go: Plainva zapisuje ` ^k3x9qa` (sześć liter i cyfr) na końcu akapitu lub punktu listy, przy tabeli w osobnym wierszu pod nią — tak, jakbyś to wpisał(a), więc Cofnij to usuwa. Frontmatter, bloki kodu, wzory i puste wiersze nie dostają identyfikatora. W edytorze identyfikator jest przygaszony na końcu swojego wiersza, a gdy kursor stoi w tym wierszu, widać go tak, jak został zapisany; tryb czytania go ukrywa.
 - **Podpowiedzi**: gdy wpiszesz `[[Notatka#^`, pojawią się identyfikatory bloków, które notatka już ma, z początkiem ich tekstu.
 - **W wydarzeniu**: **Połącz notatkę** w edytorze wydarzenia dodaje `[Tytuł](plainva://open?…)` do opisu. Podgląd wydarzenia pokazuje go jako chip z nazwą notatki; kliknięcie ją otwiera.
 - **Kliknięty w Plainva**: link `plainva://` w notatce, mailu, wydarzeniu lub zadaniu otwiera notatkę w Plainva, na komputerze i na telefonie. Nigdy nie trafia do systemu.

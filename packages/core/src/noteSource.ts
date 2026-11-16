@@ -92,6 +92,13 @@ export function analyzeNoteOutline(raw: string): NoteOutlineNode[] {
   return outline;
 }
 
+/**
+ * A block id where it names its block: ` ^id` at the end of a paragraph,
+ * behind a blank or on a line of its own. The id is the first group; the
+ * match begins at the blank in front of the `^`.
+ */
+export const BLOCK_ID_MARKER = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/;
+
 /** All ranges are UTF-16 offsets in the unmodified note, as in CodeMirror. */
 export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; blocks: NoteBlock[] } {
   const clean = stripAnchorMarkers(raw);
@@ -109,7 +116,7 @@ export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; block
       }
       if (node.type === "paragraph" && node.children?.[node.children.length - 1]?.type === "text") {
         const source = clean.text.slice(node.position.start.offset, node.position.end.offset);
-        const marker = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/.exec(source);
+        const marker = BLOCK_ID_MARKER.exec(source);
         if (marker) {
           const own = source.trim() !== `^${marker[1]}`;
           const listItem = [...ancestors, parent].reverse().find((p) => p.type === "listItem");
