@@ -486,6 +486,9 @@ export function useDesktopAi(input: DesktopAiInput) {
     setDockOpen(false);
     window.setTimeout(() => session?.questionLeftUnseen(), 0);
   });
+  // Hiding the column or entering focus mode puts the docked conversation away (review O7, R3): that is no answer to
+  // a question that waits — it stays open, the ribbon's dot carries it, and opening the AI shows it again.
+  const stowDock = useStableHandler(() => setDockOpen(false));
   /** "Pop out": the same conversation in the floating window, from now on on this device. */
   const popOut = useStableHandler(() => {
     writeAiPlacement("window");
@@ -498,6 +501,12 @@ export function useDesktopAi(input: DesktopAiInput) {
   const dock = useStableHandler(() => {
     writeAiPlacement("dock");
     setPlacementState("dock");
+    setCompanionOpen(false);
+    session?.present("dock");
+    setDockOpen(true);
+  });
+  /** The column's "AI" head: the conversation there this once — the device's choice for the AI's own command stays (review O7, O5). */
+  const openInDock = useStableHandler(() => {
     setCompanionOpen(false);
     session?.present("dock");
     setDockOpen(true);
@@ -583,5 +592,5 @@ ${i18n.t("ai.openLinkBuilt")}` : url;
     [activePath],
   );
 
-  return { session, enabled, placement, companionOpen, dockOpen, openCompanion, closeCompanion, toggleCompanion, popOut, dock, runSkill, skills, openAsTab, openNoteTarget, openUrl, activeNote, commandSourceRef };
+  return { session, enabled, placement, companionOpen, dockOpen, openCompanion, closeCompanion, stowDock, openInDock, toggleCompanion, popOut, dock, runSkill, skills, openAsTab, openNoteTarget, openUrl, activeNote, commandSourceRef };
 }

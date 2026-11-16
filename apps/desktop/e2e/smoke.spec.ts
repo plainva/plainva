@@ -9482,7 +9482,7 @@ test('a collapsed column shows while the conversation is open and folds away whe
 
   await page.keyboard.press('Control+j');
   await expect(page.getByTestId('ai-dock')).toBeVisible();
-  // Hiding the column closes the conversation, and the column keeps the user's own choice: collapsed.
+  // Hiding the column puts the conversation away, and the column keeps the user's own choice: collapsed.
   await toggle.click();
   await expect(page.getByTestId('ai-dock')).toHaveCount(0);
   await expect(page.locator('aside[aria-label="Right Sidebar"]')).toHaveCount(0);
@@ -9517,8 +9517,8 @@ test('under an answer one calm line names what it rests on; a warning only for a
   const grounds = dock.getByTestId('ai-grounds').last();
   await expect(grounds).toContainText(/Based on Website relaunch|Grundlage: Website relaunch/);
   await expect(grounds).toContainText(/To Anthropic|An Anthropic/);
-  await expect(dock.getByTestId('ai-unfounded')).toHaveCount(0);
-  await expect(dock.locator('.pv-ai-coverage-warn')).toHaveCount(0);
+  // No warning of any kind: the answer cites only the note that went.
+  await expect(dock.locator('.pv-ai-nocite')).toHaveCount(0);
   // The coverage is in the details.
   await grounds.getByTestId('ai-run-details').click();
   await expect(dock.getByTestId('ai-run-full')).toContainText(/coverage|Abdeckung/i);
@@ -9534,6 +9534,136 @@ test('under an answer one calm line names what it rests on; a warning only for a
   await expect(warning).toContainText('Pricing 2026');
   await expect(warning).not.toContainText('Website relaunch');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-column-warning.png') });
+});
+
+test('a follow-up that cites the note of the first turn earns no warning, although this turn did not send it again (review O7, R1)', async ({ page }) => {
+  await o7WithAi(page, [
+    o7Says('Short summary of [[Website relaunch]]: three feature pages.'),
+    o7Says('As said, the pages follow [[Website relaunch]].'),
+  ]);
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  await dock.getByTestId('ai-consent-send').click();
+  await expect(dock.getByText(/three feature pages/)).toBeVisible();
+  // The second turn leaves the open note out: what the model has of it is the first turn's.
+  await dock.locator('.pv-ai-chips').getByRole('button', { name: /Remove from context|Aus dem Kontext entfernen/ }).first().click();
+  await dock.getByTestId('ai-input').fill('And the pages?');
+  await dock.getByTestId('ai-send').click();
+  const consent = dock.getByTestId('ai-consent-send');
+  if (await consent.isVisible().catch(() => false)) await consent.click();
+  await expect(dock.getByText(/As said, the pages follow/)).toBeVisible();
+  await expect(dock.getByTestId('ai-unfounded')).toHaveCount(0);
+});
+
+test('hiding the column with a question waiting puts the conversation away, and the question is still there (review O7, R3)', async ({ page }) => {
+  await o7WithAi(page, [o7Says('Short summary of [[Website relaunch]].'), o7Says('Second answer.')]);
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  await expect(dock.getByTestId('ai-consent-send')).toBeVisible();
+
+  // Collapse the column: no answer to the question — it waits, and the ribbon's AI button carries the dot.
+  const toggle = page.getByRole('button', { name: /Toggle right sidebar|Rechte Seitenleiste umschalten/ });
+  await toggle.click();
+  await expect(dock).toHaveCount(0);
+  await expect(page.getByTestId('ribbon-ai-dot')).toBeVisible();
+  await page.keyboard.press('Control+j');
+  await expect(dock.getByTestId('ai-consent-send')).toBeVisible();
+
+  // Focus mode is no answer either.
+  await page.keyboard.press('Control+p');
+  await page.locator('.pv-palette-input').fill('Toggle focus mode');
+  await page.keyboard.press('Enter');
+  await expect(dock).toHaveCount(0);
+  await page.keyboard.press('Control+j');
+  await dock.getByTestId('ai-consent-send').click();
+  await expect(dock.getByText('Short summary of')).toBeVisible();
+});
+
+test('"Open properties" in the stale banner shows the properties while the conversation holds the column (review O7, R2)', async ({ page }) => {
+  await o7WithAi(page);
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Stale.md'] = '---\ntype: Note\nstale_after: 2000-01-01\n---\n\n# Stale\n\nOld.\n';
+  });
+  await page.goto('/');
+  await page.getByText('Stale', { exact: true }).click();
+  await expect(page.getByTestId('okf-stale-banner')).toBeVisible();
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await expect(dock).toBeVisible();
+  await page.getByTestId('okf-stale-banner').getByRole('button').click();
+  const beside = page.getByTestId('right-beside-properties');
+  await expect(beside).toBeVisible();
+  await expect(beside.getByTestId('okf-trust-section')).toBeVisible();
+  // The conversation stays where it is, below them.
+  await expect(dock).toBeVisible();
+  await beside.locator('.pv-side-section-header').click();
+  await expect(beside).toHaveCount(0);
+  await expect(dock).toBeVisible();
+});
+
+test('focus goes into the docked conversation and back to where it came from (review O7, R4)', async ({ page }) => {
+  await o7WithAi(page);
+  await o7OpenRelaunch(page);
+  await page.locator('.cm-content').first().click();
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await expect(dock.getByTestId('ai-input')).toBeFocused();
+  await dock.getByTestId('ai-dock-close').click();
+  await expect(page.locator('.cm-content').first()).toBeFocused();
+
+  // From the column's "AI" head, which the conversation takes the place of: back to that head.
+  const head = page.locator('[data-section-head="ai"]');
+  await head.focus();
+  await page.keyboard.press('Enter');
+  await expect(dock.getByTestId('ai-input')).toBeFocused();
+  await dock.getByTestId('ai-dock-close').focus();
+  await page.keyboard.press('Enter');
+  await expect(head).toBeFocused();
+});
+
+test('the column\'s "AI" head opens the conversation there once and leaves the device\'s choice "window" as it is (review O7, O5)', async ({ page }) => {
+  await o7WithAi(page);
+  await page.addInitScript(() => localStorage.setItem('plainva-ai-placement', 'window'));
+  await o7OpenRelaunch(page);
+  await page.locator('[data-section-head="ai"]').click();
+  await expect(page.getByTestId('ai-dock')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('plainva-ai-placement'))).toBe('window');
+  await page.getByTestId('ai-dock').getByTestId('ai-dock-close').click();
+  await page.keyboard.press('Control+j');
+  await expect(page.getByTestId('ai-companion')).toBeVisible();
+});
+
+test('in the narrowest column the week strip shows seven days and a waiting question keeps its buttons on solid ground (review O7)', async ({ page }) => {
+  await o7WithAi(page, [o7Says('Short summary of [[Website relaunch]].')]);
+  await page.addInitScript(() => {
+    localStorage.setItem('plainva-right-sidebar-width', '200');
+    localStorage.setItem('plainva-right-sidebar-width-chosen', '1');
+  });
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const column = page.getByTestId('right-ai-column');
+  const width = (await column.boundingBox())!.width;
+  expect(width).toBeLessThan(240);
+  await expect(column).toHaveAttribute('data-side-step', 'minimal');
+  await expect(column.locator('[data-testid^="sidecal-day-"]')).toHaveCount(7);
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  const send = dock.getByTestId('ai-consent-send');
+  await expect(send).toBeInViewport();
+  const foot = await send.evaluate((el) => {
+    const actions = el.closest('.pv-ai-overview-actions') as HTMLElement;
+    return { position: getComputedStyle(actions).position, bg: getComputedStyle(actions).backgroundColor };
+  });
+  expect(foot.position).toBe('sticky');
+  expect(foot.bg).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-column-narrow.png') });
 });
 
 test('"Trust & provenance" shows while the AI is on, or when the note carries trust fields', async ({ page }) => {

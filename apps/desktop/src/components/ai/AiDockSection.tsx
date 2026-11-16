@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, PanelTop, Sparkles, SquarePen, X } from "lucide-react";
 import { editorSelectionReader } from "../../services/editorSelection";
@@ -35,8 +36,31 @@ export interface AiDockProps {
  */
 export function AiDockSection({ activeNote, onNewConversation, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, onClose, onPopOut, onOpenAsTab }: AiDockProps) {
   const { t } = useTranslation();
+  const root = useRef<HTMLElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  // Focus follows the conversation (review O7, R4): into its field when it takes the column, back to where it came from
+  // when it closes. A press on the column's "AI" head replaced the head itself; then focus goes back to the new head.
+  useLayoutEffect(() => {
+    const before = document.activeElement;
+    const section = root.current;
+    // Kept in a ref: an effect that runs again (StrictMode, a remount) finds focus already in the field and must not
+    // take that for where the conversation came from.
+    if (before instanceof HTMLElement && before !== document.body && before.isConnected && !section?.contains(before)) opener.current = before;
+    const field = section?.querySelector<HTMLElement>("textarea, [contenteditable='true']");
+    (field ?? section)?.focus({ preventScroll: true });
+    return () => {
+      const now = document.activeElement;
+      // Only where focus was the conversation's: a click elsewhere took it on purpose.
+      if (now && now !== document.body && !section?.contains(now)) return;
+      window.requestAnimationFrame(() => {
+        if (document.activeElement && document.activeElement !== document.body) return;
+        if (opener.current?.isConnected) opener.current.focus({ preventScroll: true });
+        else document.querySelector<HTMLElement>('[data-section-head="ai"]')?.focus({ preventScroll: true });
+      });
+    };
+  }, []);
   return (
-    <section className="pv-ai-dock" aria-label={t("ai.title")} data-testid="ai-dock">
+    <section ref={root} tabIndex={-1} className="pv-ai-dock" aria-label={t("ai.title")} data-testid="ai-dock">
       <div className="pv-ai-dock-head">
         <Sparkles size={ICON.ui} className="pv-ai-headicon" aria-hidden="true" />
         <span className="pv-ai-headtitle">{t("ai.title")}</span>

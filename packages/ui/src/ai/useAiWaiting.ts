@@ -12,12 +12,16 @@ const NONE = (): AiState | null => null;
  * an approval on this device. The AI's entry in both shells — the desktop's
  * ribbon button, the phone's area and bar — carries the number, so nobody has
  * to open the AI to learn that something asks of them. Nothing while the AI is
- * off on this device.
+ * off on this device. A question the running conversation asks — its send
+ * overview, a page or a call to allow, a server's question — counts as one
+ * while it waits (review O7, R3): put away with the column, it is still open,
+ * and the entry is where it is found again.
  */
 export function useAiWaitingCount(session: AiSession | null): number {
   const state = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
   // Read again whenever the vault or the switch changes: the entry lives as long as the app.
   const proposals = useOpenProposals(session && state?.settings.enabled ? session : null, `${state?.hasVault}:${state?.summaries.length}`);
   if (!state || !state.loaded || !state.settings.enabled) return 0;
-  return openWritesCount(state.drafts, proposals) + waitingCount(state.skills.entries);
+  const asking = state.consent || state.effect || state.question ? 1 : 0;
+  return openWritesCount(state.drafts, proposals) + waitingCount(state.skills.entries) + asking;
 }

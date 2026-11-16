@@ -27,7 +27,7 @@ import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
 import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
 import { requestAiSettingsIntent } from "./aiSetup";
-import { GROUNDS_NAMED, groundTitles } from "./answerGrounds";
+import { conversationGrounding, GROUNDS_NAMED, groundTitles } from "./answerGrounds";
 import type { AiDress, AiSession } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
 import type { McpPromptReview } from "./mcpSession";
@@ -567,9 +567,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         // A picture is no note an answer could cite (plan P4-5): what counts is the text that went.
         const noteSources = manifest ? manifest.sources.filter((s) => !s.image) : [];
         // A warning only where the answer names a note as its source that the run never had (plan Oberfläche O7, E2).
+        // What counts is what the model had in this conversation by then, not what this run packed — and a cut-off answer is checked too.
         const unfounded =
-          answer !== null && item.run.stop === "answered"
-            ? unfoundedNoteCitations(answer, { sent: item.run.sent, read: item.run.read, readMore: item.run.readMore, titles: noteSources.map((s) => s.title) })
+          answer !== null && active
+            ? unfoundedNoteCitations(answer, conversationGrounding(active.runs, active.runs.indexOf(item.run), activeNote?.path))
             : [];
         // Coverage after the answer (plan P2b-5): only where notes went, so a statement could have named one.
         const coverage = noteSources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;

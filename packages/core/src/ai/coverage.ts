@@ -1,4 +1,6 @@
 import { createFenceTracker } from "../markdownFence.js";
+import { readNoteLinks } from "../linkRewrite.js";
+import { buildLinkTargetIndex, resolveLinkTargetIndexed, type LinkCorpusFile } from "../vault/LinkResolver.js";
 
 /**
  * Coverage of an answer (plan KI-Harness P2b-5, §21 citation duty): how many
@@ -69,7 +71,7 @@ export function answerCoverage(answer: string): AnswerCoverage {
   return { statements: statements.length, cited, level: share >= HIGH ? "high" : share >= PARTIAL ? "partial" : "low" };
 }
 
-/** What a run had of the vault: the notes its context carried, and the ones its tools read (`RunMeta`). */
+/** What a conversation had of the vault: the notes its context carried, and the ones its tools read (`RunMeta`). */
 export interface AnswerGrounding {
   /** Paths of the notes the context carried. */
   sent: readonly string[];
@@ -77,53 +79,55 @@ export interface AnswerGrounding {
   read?: readonly string[];
   /** The tools read more than `read` lists: then nothing is known about what was not read. */
   readMore?: boolean;
-  /** Titles the sent notes go by (a `title` property), beside their file names — a link may name either (ADR 0027). */
-  titles?: readonly string[];
+  /** Sent notes with the `title` they go by — a link may name a note by it (ADR 0027). */
+  titled?: readonly LinkCorpusFile[];
+  /** The note the conversation stands in: where `./Note` and `../Folder/Note` are read from. */
+  from?: string;
 }
 
-const LINK = /(!?)\[\[([^[\]\n]+)\]\]/g;
-const INLINE_CODE = /`[^`\n]*`/g;
-
-/** A link target or a path as one comparable name: no heading or alias, no `.md`, case-insensitive. */
-function linkKey(target: string): string {
-  return target.split("|")[0]!.split("#")[0]!.trim().replace(/\.md$/i, "").normalize("NFC").toLowerCase();
-}
+/** A target with a scheme (`https:`, `mailto:`, `plainva:`) leads out of the vault, not to a note. */
+const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+/** A file that is no note: `plan.pdf`, `Tasks.base`. A name without an extension, or `.md`, is a note. */
+const NOT_A_NOTE = /\.(?!md$)[a-z][a-z0-9]{0,4}$/i;
 
 /**
- * The notes an answer names as its source although the run never had them
- * (plan Oberfläche O7, E2): a `[[link]]` to a note that neither went with the
- * request nor was read by a tool. That is the one claim about notes the app
- * can check without a second model — the answer says "this note says so",
- * and the app knows the model never saw that note. It is what earns a
- * warning under an answer; an answer that cites less than it could gets the
- * calm line, and its coverage stays in the details.
+ * The notes an answer names as its source although the conversation never had
+ * them (plan Oberfläche O7, E2): a wiki link or a Markdown link to a note
+ * that neither went with a request of this conversation nor was read by a
+ * tool. That is the one claim about notes the app can check without a second
+ * model — the answer says "this note says so", and the app knows the model
+ * never saw that note. It is what earns a warning under an answer; an answer
+ * that cites less than it could gets the calm line, and its coverage stays in
+ * the details.
  *
- * Embeds (`![[…]]`) and links inside code are no citations. When the tools
- * read more than the run kept a list of, nothing is said: an unknown is no
- * finding. Each note is named once, as the answer spelled it first.
+ * `grounding` is what the whole conversation had, not one run: the context of
+ * earlier turns goes on as text, and an unchanged note is not sent again.
+ * The links are the parser's (`readNoteLinks`) — code spans of any length,
+ * fences, `\|` in a table cell and embeds read as everywhere else — and a
+ * link leads where the one rule of the app says it does
+ * (`resolveLinkTarget`, ADR 0027): `[[Archive/Plan]]` is not the sent
+ * `Projects/Plan.md`. When the tools read more than the run kept a list of,
+ * nothing is said: an unknown is no finding. Each note is named once, as the
+ * answer spelled it first.
  */
 export function unfoundedNoteCitations(answer: string, grounding: AnswerGrounding): string[] {
   if (grounding.readMore) return [];
-  const known = new Set<string>();
-  for (const path of [...grounding.sent, ...(grounding.read ?? [])]) {
-    known.add(linkKey(path));
-    known.add(linkKey(path.replace(/^.*\//, "")));
-  }
-  for (const title of grounding.titles ?? []) known.add(linkKey(title));
+  // The titled entries go first: the index keeps the first entry per path, and a title must not lose to the bare path.
+  const corpus: LinkCorpusFile[] = [...(grounding.titled ?? []), ...[...grounding.sent, ...(grounding.read ?? [])].map((path) => ({ path }))];
+  const index = buildLinkTargetIndex(corpus);
+  const from = grounding.from ?? "";
+  const { links, unplaced } = readNoteLinks(answer);
   const out: string[] = [];
   const seen = new Set<string>();
-  const fence = createFenceTracker();
-  for (const line of answer.split("\n")) {
-    if (fence.step(line) !== null) continue;
-    for (const match of line.replace(INLINE_CODE, "").matchAll(LINK)) {
-      if (match[1]) continue;
-      const target = match[2]!.split("|")[0]!.split("#")[0]!.trim();
-      const key = linkKey(target);
-      // `[[#Heading]]` points into the open note's own text: no other note is named.
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      if (!known.has(key) && !known.has(key.replace(/^.*\//, ""))) out.push(target);
-    }
+  for (const link of [...links, ...unplaced]) {
+    if (link.type === "embed") continue;
+    const target = link.target.trim();
+    // `[[#Heading]]` points into the open note's own text: no other note is named.
+    if (!target || SCHEME.test(target) || NOT_A_NOTE.test(target)) continue;
+    const key = target.replace(/\.md$/i, "").normalize("NFC").toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (resolveLinkTargetIndexed(from, target, index) === null) out.push(target);
   }
   return out;
 }

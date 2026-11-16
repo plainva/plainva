@@ -112,7 +112,7 @@ Vijf optionele eigenschappen uit OKF 0.2 laten een notitie zeggen waar ze vandaa
 - **Vertrouwen en herkomst:** een eigen sectie in het eigenschappenpaneel vat `generated` (Gegenereerd), `verified` (Geverifieerd), `sources` (Bronnen, klikbaar), `status` en `stale_after` (Verouderd na) samen en leidt daaruit een niveau af — **Niet geverifieerd**, **Door de machine bevestigd** of **Door een persoon beoordeeld**. Ze verschijnt zolang de AI op dit apparaat aan staat, of als de notitie zulke velden draagt.
 - **Markeren als gecontroleerd:** de knop in die sectie voegt je naam met het huidige moment toe aan de verified-lijst (`human:<naam>`); Plainva vraagt de naam eenmaal per vault en bewaart hem alleen op dit apparaat (wijzigbaar onder **Instellingen → Vault → Notities en ordening → Opmerkingen → Je naam (opmerkingen en controles)**). Op de telefoon staat dezelfde actie in de contextkaart van de notitie.
 
-Plainva zet `generated` en `sources` alleen waar het zelf notities aanmaakt — in de import, bij e-mail vastleggen en in de takensynchronisatie; de editor stempelt nooit, en bestaande notities krijgen geen stempel achteraf. Het veldcontract staat in de [Bestandsformaat-referentie](File_Format_Reference.md), de achtergrond onder [OKF](OKF.md).
+Plainva zet `generated` en `sources` alleen waar het zelf notities aanmaakt — in de import, bij e-mail vastleggen, in de takensynchronisatie en wanneer je een antwoord van de AI bewaart met **Bewaren als notitie**; de editor stempelt nooit, en bestaande notities krijgen geen stempel achteraf. Het veldcontract staat in de [Bestandsformaat-referentie](File_Format_Reference.md), de achtergrond onder [OKF](OKF.md).
 
 ## Documenticoon en headerkleur
 

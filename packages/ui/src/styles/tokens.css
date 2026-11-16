@@ -142,6 +142,9 @@
      ink is chosen by contrast in code (`eventInk.ts`) — the same two in every theme and mode. */
   --evt-ink-light: #ffffff;
   --evt-ink-dark: #10201e;
+  /* The tentative hatch's second stripe mixes away from the ink (review O7, A2): darker under light ink, lighter under dark ink. */
+  --evt-hatch-light-ink: #000000;
+  --evt-hatch-dark-ink: #ffffff;
 
   /* Stacking layers (replaces the 50/1000/1200/4000 ad-hoc values). Menus sit
      above modals (dropdowns open from inside dialogs); appDialogs (confirm/

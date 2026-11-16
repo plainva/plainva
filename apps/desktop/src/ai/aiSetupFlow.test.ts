@@ -3,10 +3,10 @@ import { DEFAULT_AI_APP_SETTINGS } from "@plainva/core";
 import { aiSetupOffer, aiSetupStart } from "@plainva/ui";
 
 /** Plan Oberfläche O7, T9 (mockup M7): the setup in three steps — what it offers and where it starts. */
-const state = (over: Partial<typeof DEFAULT_AI_APP_SETTINGS> = {}, keys: Record<string, boolean> = {}) => ({
+const state = (over: Partial<typeof DEFAULT_AI_APP_SETTINGS> = {}, keys: Record<string, boolean> = {}, tests: Record<string, unknown> = {}) => ({
   settings: { ...DEFAULT_AI_APP_SETTINGS, enabled: true, providers: [], custom: [], profiles: {}, ...over },
   keys,
-  tests: {},
+  tests: tests as never,
 });
 
 describe("the AI setup's offer", () => {
@@ -43,5 +43,11 @@ describe("where the AI setup starts", () => {
 
   it("prefers a provider that can answer — one with its key — over one still missing it", () => {
     expect(aiSetupStart(state({ providers: ["anthropic", "openai"] }, { openai: true })).providerId).toBe("openai");
+  });
+
+  it("begins at the way in, with that provider, where the one set up cannot answer — never behind a step to redo (review O7, O2)", () => {
+    const failed = { anthropic: { state: "failed", failure: { kind: "auth" } } };
+    expect(aiSetupStart(state({ providers: ["anthropic"] }, { anthropic: true }, failed))).toEqual({ step: 2, providerId: "anthropic" });
+    expect(aiSetupStart(state({ providers: ["anthropic"] }))).toEqual({ step: 2, providerId: "anthropic" });
   });
 });

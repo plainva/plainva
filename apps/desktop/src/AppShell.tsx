@@ -466,7 +466,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   }, [activeTabKind]);
 
   // The conversation docked in the right column (plan Oberfläche O7) shows the column while it is open, whatever the
-  // column's own state: hiding the column then closes the conversation, and the column keeps the user's own choice.
+  // column's own state: hiding the column then puts the conversation away — a waiting question stays open (review O7,
+  // R3) — and the column keeps the user's own choice.
   const aiDockRef = useRef<{ open: boolean; close: () => void }>({ open: false, close: () => undefined });
   const toggleRightSidebar = useCallback(() => {
     if (aiDockRef.current.open) {
@@ -608,7 +609,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     renameTabPrefix,
   });
   useLayoutEffect(() => {
-    aiDockRef.current = { open: ai.dockOpen, close: ai.closeCompanion };
+    aiDockRef.current = { open: ai.dockOpen, close: ai.stowDock };
   });
   const rightShown = !rightCollapsed || ai.dockOpen;
   // The global key handler binds these two, not the whole (per-render) object.
@@ -2036,7 +2037,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   open: ai.dockOpen,
                   // The head of the column's "AI" section opens the conversation there, whatever this device chose for
                   // the AI's own command: the column is where the person clicked.
-                  onOpen: ai.dock,
+                  onOpen: ai.openInDock,
                   onClose: ai.closeCompanion,
                   onPopOut: ai.popOut,
                   onOpenAsTab: ai.openAsTab,

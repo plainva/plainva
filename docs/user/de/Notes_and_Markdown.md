@@ -112,7 +112,7 @@ Fünf optionale Eigenschaften aus OKF 0.2 lassen eine Notiz sagen, woher sie sta
 - **Vertrauen & Herkunft:** Ein eigener Abschnitt im Eigenschaften-Bereich fasst `generated` (Erzeugt), `verified` (Geprüft), `sources` (Quellen, anklickbar), `status` und `stale_after` (Veraltet ab) zusammen und leitet daraus eine Stufe ab — **Nicht geprüft**, **Maschinell bestätigt** oder **Von einer Person geprüft**. Er erscheint, solange die KI auf diesem Gerät an ist oder die Notiz solche Felder trägt.
 - **Als geprüft markieren:** Der Knopf in diesem Abschnitt hängt Deinen Namen mit dem aktuellen Zeitpunkt an die Geprüft-Liste an (`human:<Name>`); Plainva fragt den Namen einmal pro Vault ab und merkt ihn sich nur auf diesem Gerät (änderbar unter **Einstellungen → Vault → Notizen & Ablage → Anmerkungen → Dein Name (Anmerkungen und Prüfungen)**). Am Telefon findest Du dieselbe Aktion im Kontext-Blatt der Notiz.
 
-`generated` und `sources` setzt Plainva nur dort, wo es selbst Notizen erzeugt — beim Import, bei der E-Mail-Erfassung und beim Aufgaben-Abgleich; der Editor stempelt nie, und bestehende Notizen werden nicht nachträglich bestempelt. Den Feldvertrag findest Du in der [Dateiformat-Referenz](File_Format_Reference.md), die Hintergründe unter [OKF](OKF.md).
+`generated` und `sources` setzt Plainva nur dort, wo es selbst Notizen erzeugt — beim Import, bei der E-Mail-Erfassung, beim Aufgaben-Abgleich und wenn Du eine Antwort der KI mit **Als Notiz festhalten** behältst; der Editor stempelt nie, und bestehende Notizen werden nicht nachträglich bestempelt. Den Feldvertrag findest Du in der [Dateiformat-Referenz](File_Format_Reference.md), die Hintergründe unter [OKF](OKF.md).
 
 ## Dokument-Icon und Header-Farbe
 

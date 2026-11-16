@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { EgressManifest } from "@plainva/core";
-import { groundTitles } from "@plainva/ui";
+import { unfoundedNoteCitations, type EgressManifest, type RunMeta } from "@plainva/core";
+import { conversationGrounding, groundTitles } from "@plainva/ui";
 
 const source = (path: string, title: string, extra: Partial<EgressManifest["sources"][number]> = {}) => ({ path, title, tier: "evidence" as const, chars: 10, reasons: [], ...extra });
 
@@ -17,5 +17,30 @@ describe("groundTitles", () => {
 
   it("is empty for a run that carried no note", () => {
     expect(groundTitles({ sent: [] })).toEqual([]);
+  });
+});
+
+/** Review O7, R1: what the model had is what the whole conversation sent and read by then, not what one run packed. */
+describe("conversationGrounding", () => {
+  const run = (over: Partial<RunMeta>) => ({ sent: [], kept: [], ...over }) as unknown as RunMeta;
+  const runs = [
+    run({ sent: ["Projects/Website relaunch.md"], manifest: { sources: [source("Projects/Website relaunch.md", "Relaunch plan")] } as unknown as EgressManifest }),
+    run({ sent: ["Areas/Roadmap.md"], read: ["Ideas.md"] }),
+    run({ sent: ["Later.md"] }),
+  ];
+
+  it("a follow-up that cites a note of the first turn cites a note the model had", () => {
+    const grounding = conversationGrounding(runs, 1);
+    expect(unfoundedNoteCitations("As said [[Website relaunch]], see [[Relaunch plan]], [[Ideas]] and [[Roadmap]].", grounding)).toEqual([]);
+  });
+
+  it("counts no run after the one asked about, and none whose request reached no model", () => {
+    expect(unfoundedNoteCitations("[[Later]]", conversationGrounding(runs, 1))).toEqual(["Later"]);
+    const unreached = [run({ sent: ["Ghost.md"], unreached: true }), run({ sent: [] })];
+    expect(unfoundedNoteCitations("[[Ghost]]", conversationGrounding(unreached, 1))).toEqual(["Ghost"]);
+  });
+
+  it("one run that read more than it listed makes the rest unknown", () => {
+    expect(conversationGrounding([run({ readMore: true }), run({})], 1).readMore).toBe(true);
   });
 });

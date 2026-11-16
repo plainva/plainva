@@ -59,7 +59,7 @@ describe("unfounded note citations", () => {
 
   it("matches by path, file name, `.md`, case and the title a note goes by", () => {
     const answer = "[[projects/website relaunch.md]] [[ROADMAP]] [[Relaunch plan]]";
-    expect(unfoundedNoteCitations(answer, { ...grounding, titles: ["Relaunch plan"] })).toEqual([]);
+    expect(unfoundedNoteCitations(answer, { ...grounding, titled: [{ path: "Projects/Website relaunch.md", title: "Relaunch plan" }] })).toEqual([]);
   });
 
   it("ignores embeds, links in code and links into the note's own headings", () => {
@@ -73,5 +73,29 @@ describe("unfounded note citations", () => {
 
   it("a run that had no notes and cites one is warned about it", () => {
     expect(unfoundedNoteCitations("Your plan says so [[Plan]].", { sent: [] })).toEqual(["Plan"]);
+  });
+
+  it("reads a wiki link with an escaped bar in a table cell as the note it names", () => {
+    const answer = "| Topic | Source |\n|---|---|\n| Launch 12 May | [[Website relaunch\\|WR]] |";
+    expect(unfoundedNoteCitations(answer, grounding)).toEqual([]);
+  });
+
+  it("a link in a code span of any length is no citation", () => {
+    expect(unfoundedNoteCitations("Write ``[[Some note]]`` or ```[[Other]]``` to link [[Website relaunch]].", grounding)).toEqual([]);
+  });
+
+  it("checks Markdown links to notes too, and leaves addresses and other files alone", () => {
+    const answer = "See [Pricing](Pricing%202026.md), [the plan](<Projects/Website relaunch.md>), [site](https://example.com), [pdf](plan.pdf).";
+    expect(unfoundedNoteCitations(answer, grounding)).toEqual(["Pricing 2026.md"]);
+  });
+
+  it("a link with a folder leads where the app's rule says: a same-named note elsewhere is not the sent one", () => {
+    expect(unfoundedNoteCitations("The old plan said 2025 [[Archive/Website relaunch]].", grounding)).toEqual(["Archive/Website relaunch"]);
+    expect(unfoundedNoteCitations("Three pages [[Projects/Website relaunch]].", grounding)).toEqual([]);
+  });
+
+  it("reads relative links from the note the conversation stands in", () => {
+    expect(unfoundedNoteCitations("Same folder [[./Website relaunch]].", { ...grounding, from: "Projects/Today.md" })).toEqual([]);
+    expect(unfoundedNoteCitations("Same folder [[./Website relaunch]].", { ...grounding, from: "Areas/Today.md" })).toEqual(["./Website relaunch"]);
   });
 });

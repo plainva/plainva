@@ -23,9 +23,10 @@ const says = (text: string) =>
     ["message_stop", { type: "message_stop" }],
   ]);
 
-async function installSeam(context: BrowserContext, script: string[]): Promise<void> {
+/** `lists`: what the provider's model list answers, one per connection test — "denied" is a rejected key; the rest are the list. */
+async function installSeam(context: BrowserContext, script: string[], lists: Array<"ok" | "denied"> = []): Promise<void> {
   await context.addInitScript(
-    ({ script }) => {
+    ({ script, lists }) => {
       localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
       if (!localStorage.getItem("CapacitorStorage.ai")) localStorage.setItem("CapacitorStorage.ai", JSON.stringify({ enabled: true, providers: [], custom: [], profiles: {} }));
       (globalThis as unknown as { __keys: string[] }).__keys = [];
@@ -41,7 +42,8 @@ async function installSeam(context: BrowserContext, script: string[]): Promise<v
         nativeCallback(_plugin: string, _method: string, options: { method: string }, callback: (chunk: unknown) => void) {
           const send = (chunks: unknown[]) => queueMicrotask(() => chunks.forEach((piece) => callback(piece)));
           if (options.method === "GET") {
-            send([{ type: "open", status: 200 }, { type: "data", text: JSON.stringify({ data: [{ id: "m-1", display_name: "Model One" }] }) }, { type: "done" }]);
+            if (lists.shift() === "denied") send([{ type: "httpError", status: 401, body: JSON.stringify({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }) }]);
+            else send([{ type: "open", status: 200 }, { type: "data", text: JSON.stringify({ data: [{ id: "m-1", display_name: "Model One" }] }) }, { type: "done" }]);
             return Promise.resolve("ai");
           }
           const text = script.shift();
@@ -50,7 +52,7 @@ async function installSeam(context: BrowserContext, script: string[]): Promise<v
         },
       };
     },
-    { script },
+    { script, lists },
   );
 }
 
@@ -106,6 +108,49 @@ test("AI setup on the phone: three steps from 'Set up' to the first answer, in o
     await conversation.getByTestId("ai-consent-send").click();
     await expect(conversation.getByText("Hello! How can I help with your notes?")).toBeVisible({ timeout: 20_000 });
     await expect(conversation.getByTestId("ai-grounds")).toContainText("To Anthropic");
+  } finally {
+    sql.close();
+  }
+});
+
+test("AI setup on the phone: a key that was refused is fixed in the sheet the next time — the setup never begins behind it (review O7, O2)", async ({ page, context }) => {
+  test.setTimeout(90_000);
+  const sql = await installSqlBridge(context);
+  await installSeam(context, [], ["denied", "ok"]);
+  await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+  try {
+    await page.goto("/");
+    await waitForVaultDirectory(page);
+    await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+    await page.getByTestId("tab-areas").click();
+    await page.getByTestId("areas-ai").click();
+    const conversation = page.getByTestId("ai-screen");
+    await conversation.getByRole("button", { name: "Set up", exact: true }).click();
+    const sheet = page.getByTestId("ai-setup-sheet");
+    const current = sheet.getByTestId("ai-setup-steps").locator('li[aria-current="step"]');
+    await sheet.getByTestId("ai-setup-kind-cloud").click();
+    await sheet.getByTestId("ai-setup-next").click();
+    await sheet.getByTestId("ai-setup-cloud").filter({ hasText: "Anthropic" }).click();
+    await sheet.getByTestId("ai-setup-key").fill("sk-wrong");
+    await sheet.getByTestId("ai-setup-next").click();
+    // The provider refused the key: said in the sheet, which stays at the way in.
+    await expect(sheet.getByTestId("ai-setup-problem")).toBeVisible();
+    await expect(current).toContainText("Access");
+    // Put away, and begun again: at the way in, with the problem named, a way back to the first step, and a new key.
+    await sheet.getByTestId("ai-setup-back").click();
+    await expect(current).toContainText("Provider");
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 8, y: 8 } });
+    await expect(sheet).toHaveCount(0);
+
+    await conversation.getByRole("button", { name: "Set up", exact: true }).click();
+    await expect(sheet).toBeVisible();
+    await expect(current).toContainText("Access");
+    await expect(sheet.getByTestId("ai-setup-problem")).toBeVisible();
+    await expect(sheet.getByTestId("ai-setup-back")).toBeVisible();
+    await sheet.getByTestId("ai-setup-key").fill("sk-right");
+    await sheet.getByTestId("ai-setup-next").click();
+    await expect(current).toContainText("Try it");
+    await expect(sheet.getByTestId("ai-setup-back")).toBeVisible();
   } finally {
     sql.close();
   }

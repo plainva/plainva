@@ -112,7 +112,7 @@ Cinque proprietà opzionali di OKF 0.2 permettono a una nota di dichiarare da do
 - **Fiducia e provenienza:** una sezione a sé nel pannello delle proprietà riassume `generated` (Generata), `verified` (Verificata), `sources` (Fonti, cliccabili), `status` e `stale_after` (Obsoleta dopo) e ne ricava un livello: **Non verificata**, **Confermata dalla macchina** o **Rivista da una persona**. Compare finché l'IA è attiva su questo dispositivo, o quando la nota porta tali campi.
 - **Segna come revisionata:** il pulsante in quella sezione aggiunge il tuo nome con l'istante corrente all'elenco `verified` (`human:<nome>`); Plainva chiede il nome una volta per vault e lo tiene solo su questo dispositivo (modificabile in **Impostazioni → Vault → Note e archiviazione → Annotazioni → Il tuo nome (annotazioni e revisioni)**). Sul telefono la stessa azione si trova nel pannello di contesto della nota.
 
-Plainva imposta `generated` e `sources` solo dove crea le note lui stesso — nell'importatore, nella cattura e-mail e nella sincronizzazione delle attività; l'editor non timbra mai da solo, e le note esistenti non vengono timbrate a posteriori. Il contratto dei campi è nella [File Format Reference](File_Format_Reference.md), l'approfondimento sotto [OKF](OKF.md).
+Plainva imposta `generated` e `sources` solo dove crea le note lui stesso — nell'importatore, nella cattura e-mail, nella sincronizzazione delle attività e quando conservi una risposta dell'IA con **Conserva come nota**; l'editor non timbra mai da solo, e le note esistenti non vengono timbrate a posteriori. Il contratto dei campi è nella [File Format Reference](File_Format_Reference.md), l'approfondimento sotto [OKF](OKF.md).
 
 ## Icona del documento e colore dell'intestazione
 

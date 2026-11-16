@@ -27,6 +27,8 @@
   --accent-color: #0f766e;
   --accent-color-hover: #115e59;
   --accent-on: #ffffff;
+  /* An appointment in the accent: its tentative hatch mixes away from --accent-on (review O7, A2). */
+  --evt-hatch-accent: #000000;
   --border-color: #d7e5e3;
   --border-color-light: #e4eeed;
   /* A floating window's own surface and edge (plan Oberfläche O7, D15): in light mode the shadow lifts it; see dark. */
@@ -185,6 +187,7 @@
   --accent-color: #2dd4bf;
   --accent-color-hover: #5eead4;
   --accent-on: #06302b;
+  --evt-hatch-accent: #ffffff;
   --border-color: #2a3c3a;
   --border-color-light: #233331;
   /* On a dark ground a shadow hardly shows (D15): the window is lifted the way dark surfaces are — a lighter surface

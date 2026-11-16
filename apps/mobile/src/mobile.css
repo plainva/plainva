@@ -492,7 +492,7 @@ textarea {
   background-image: repeating-linear-gradient(
     135deg,
     color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 5px,
-    color-mix(in srgb, var(--evt-color, var(--accent-color)) 55%, var(--bg-primary)) 5px 10px
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 70%, var(--evt-hatch, var(--evt-hatch-accent))) 5px 10px
   );
 }
 .m-evt--cancelled,

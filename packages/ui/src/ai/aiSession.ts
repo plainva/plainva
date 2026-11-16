@@ -6884,7 +6884,18 @@ export class AiSession {
   }
 
   /** Sends a message; resolves with how the run ended, or null when nothing was sent. */
-  async send(text: string): Promise<RunStop | null> {
+  /**
+   * The first "Hello" of the setup (plan Oberfläche O7, T9; review O7, O7):
+   * the greeting alone — no open note, no note a search would find, no pin.
+   * It only shows that the answer comes back; the conversation it begins is
+   * the user's own from the next message on, with what every new
+   * conversation carries.
+   */
+  async sendGreeting(text: string): Promise<RunStop | null> {
+    return this.send(text, { greeting: true });
+  }
+
+  async send(text: string, how: { greeting?: true } = {}): Promise<RunStop | null> {
     const message = text.trim();
     const vault = this.vault;
     const choice = this.choice();
@@ -6893,7 +6904,7 @@ export class AiSession {
     if (this.state.active && this.gone(this.state.active.id)) return null;
     this.sending = true;
     try {
-      return (await this.runMessage(message, vault, choice))?.stop ?? null;
+      return (await this.runMessage(message, vault, choice, how.greeting ? { greeting: true } : {}))?.stop ?? null;
     } catch (error) {
       // Whatever broke on the way (a vault read, the store) ends the run as a
       // failure the reader sees — never as a spinner that turns forever.
@@ -6911,9 +6922,9 @@ export class AiSession {
     vault: AiVaultHost,
     choice: ModelChoice,
     // `since`: how many Delete alls of the vault were asked for when the action that sends this began (step 8).
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number } = {},
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number; greeting?: true } = {},
   ): Promise<RunOutcome | null> {
-    const { skills, door, detached, routine, replay } = options;
+    const { skills, door, detached, routine, replay, greeting } = options;
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
     // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
@@ -7030,7 +7041,7 @@ export class AiSession {
         ),
         usage: EMPTY_USAGE,
         runs: [],
-        pins: door ? door.pins : replay ? replay.pins : detached || routine ? [] : this.state.draftPins,
+        pins: door ? door.pins : replay ? replay.pins : detached || routine || greeting ? [] : this.state.draftPins,
         ...(instructions ? { instructions } : {}),
         ...(replay ? { replayOf: replay.of } : {}),
         // Made by a run of the app's own (step 9): the title it gave it, by which it knows it is still its own alone.
@@ -7267,6 +7278,8 @@ export class AiSession {
       ...(detached || routine || replay ? { withoutActive: true } : {}),
       // A folder's log brings its own material: nothing of where the user is, and no note a question would find.
       ...(routine?.log ? { bare: true } : {}),
+      // The setup's "Hello" carries no note at all: neither the open one nor one the greeting would find.
+      ...(greeting ? { withoutActive: true, bare: true } : {}),
       // A replay's sources are the original's, pinned: nothing a search would find besides them.
       ...(replay ? { pinsOnly: true } : {}),
       web,

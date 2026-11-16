@@ -1,4 +1,4 @@
-import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type CSSProperties } from "react";
 import { settingNotSaved } from "../services/settingNotSaved";
 import { ChevronDown, Database, CalendarDays, Lightbulb, Link as LinkIcon, NotebookPen, Pen, Search, SlidersHorizontal, List, Sparkles, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -130,6 +130,24 @@ interface RightSidebarProps {
   ai?: AiDockProps | null;
 }
 
+type SectionHeadProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "title"> & { icon: ReactNode; title: ReactNode; count?: ReactNode; chevronStyle?: CSSProperties; "data-section-head"?: string };
+
+/**
+ * The head of a column section — one element for every head, the sections' own and the one shown beside the
+ * conversation (review O7, R2). A fixed grid — chevron, icon, title, count slot. The slot is there whether or not a
+ * number is: the head is the same box at the same place, collapsed and expanded (R1).
+ */
+function SectionHead({ icon, title, count, chevronStyle, ...rest }: SectionHeadProps) {
+  return (
+    <button type="button" {...rest} className="pv-side-section-header">
+      <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={chevronStyle} />
+      <span className="pv-side-section-glyph">{icon}</span>
+      <span className="pv-side-section-title">{title}</span>
+      <span className="pv-side-section-count">{count}</span>
+    </button>
+  );
+}
+
 export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, onOpenJournal, onCaptureJournal, loadMarkedDates, activeDailyDate, refreshToken, sections, ai }: RightSidebarProps) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
@@ -201,8 +219,17 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   // "Open properties" from the stale-note banner (OKF v0.2 plan P3a): App
   // un-collapses the sidebar, this expands the section — and remembers it the
   // way a click would, so the panel does not snap shut on the next note.
+  // While the conversation holds the column, a section asked for by name stands
+  // between the week and the conversation (review O7, R2): every way that opens
+  // a section of the column has to show it, docked or not.
+  const [beside, setBeside] = useState<SectionId | null>(null);
+  const docked = Boolean(ai?.open);
+  useEffect(() => {
+    setBeside(null);
+  }, [docked]);
   useEffect(() => {
     const onReveal = () => {
+      setBeside("properties");
       setOpen((prev) => {
         if (prev.properties) return prev;
         localStorage.setItem(openKey("properties"), "true");
@@ -417,6 +444,14 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
             </AreaBoundary>
           </div>
         )}
+        {beside && (
+          <section className="pv-side-section" data-testid={`right-beside-${beside}`} style={{ borderBottom: "1px solid var(--border-color-light)", flexShrink: 0, maxHeight: "45%", overflow: "auto" }}>
+            <SectionHead aria-expanded onClick={() => setBeside(null)} icon={meta[beside].icon} title={meta[beside].title} />
+            <div className={meta[beside].pad ? "pv-side-section-body" : "pv-side-section-body pv-side-section-body--flush"}>
+              <AreaBoundary area={`section:${beside}`} resetKey={activePath ?? ""} size="section">{() => renderBody(beside)}</AreaBoundary>
+            </div>
+          </section>
+        )}
         <AreaBoundary area="section:ai" resetKey="" size="section">
           {() => <AiDockSection {...ai} />}
         </AreaBoundary>
@@ -447,7 +482,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
             style={{ borderBottom: "1px solid var(--border-color-light)", borderTop: isOver ? "2px solid var(--accent-color)" : "2px solid transparent", opacity: dragId === id ? 0.6 : undefined }}
           >
             <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
-              <button
+              <SectionHead
                 {...drag}
                 onClick={() => {
                   if (consumeDragClick()) return;
@@ -461,19 +496,13 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                   setMenuAt({ id, x: e.clientX, y: e.clientY });
                 }}
                 aria-expanded={id === "ai" ? false : isOpen}
-                className="pv-side-section-header"
+                data-section-head={id}
                 style={{ cursor: dragId === id ? "grabbing" : undefined }}
-              >
-                {/* A fixed grid — chevron, icon, title, count slot. The slot is
-                    there whether or not a number is: the head is the same box
-                    at the same place, collapsed and expanded (R1). */}
-                <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen && id !== "ai" ? "none" : "rotate(-90deg)" }} />
-                <span className="pv-side-section-glyph">{m.icon}</span>
-                <span className="pv-side-section-title">{m.title}</span>
-                <span className="pv-side-section-count">
-                  {m.count !== undefined && m.count > 0 && <span className="pv-badge pv-badge--accent">{m.count}</span>}
-                </span>
-              </button>
+                icon={m.icon}
+                title={m.title}
+                count={m.count !== undefined && m.count > 0 ? <span className="pv-badge pv-badge--accent">{m.count}</span> : null}
+                chevronStyle={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen && id !== "ai" ? "none" : "rotate(-90deg)" }}
+              />
               {/* One action beside the head, outside the collapse button — a
                   button inside a button is invalid and stops working. */}
               {m.action}

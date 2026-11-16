@@ -69,13 +69,17 @@ export function aiSetupOffer(state: Pick<AiState, "settings" | "keys" | "tests">
 
 /**
  * Where the setup begins: at step 1 while no provider is set up; at step 3 —
- * the model and the first "Hello" — once one is there but the profile new
- * conversations start with names no model (`aiSetupStep` "model"), with that
- * provider chosen.
+ * the model and the first "Hello" — once one is there that can answer but the
+ * profile new conversations start with names no model (`aiSetupStep`
+ * "model"), with that provider chosen. A provider that is set up but cannot
+ * answer — its key is missing, its last test failed — begins at step 2 with
+ * that provider, so it can be fixed or replaced there (review O7, O2): the
+ * setup never begins behind a step that has to be done again.
  */
-export function aiSetupStart(state: Pick<AiState, "settings" | "keys" | "tests">): { step: 1 | 3; providerId: string | null } {
+export function aiSetupStart(state: Pick<AiState, "settings" | "keys" | "tests">): { step: 1 | 2 | 3; providerId: string | null } {
   if (aiSetupStep(state) !== "model") return { step: 1, providerId: null };
   const rows = configuredProviders(state as AiState);
-  const ready = rows.find((row) => !row.needsKey || row.hasKey) ?? rows[0];
-  return { step: 3, providerId: ready?.provider.id ?? null };
+  const ready = rows.find((row) => (!row.needsKey || row.hasKey) && state.tests[row.provider.id]?.state !== "failed");
+  if (ready) return { step: 3, providerId: ready.provider.id };
+  return { step: rows.length ? 2 : 1, providerId: rows[0]?.provider.id ?? null };
 }

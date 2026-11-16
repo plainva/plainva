@@ -1555,7 +1555,7 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   background-image: repeating-linear-gradient(
     135deg,
     color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 5px,
-    color-mix(in srgb, var(--evt-color, var(--accent-color)) 55%, var(--bg-primary)) 5px 10px
+    color-mix(in srgb, var(--evt-color, var(--accent-color)) 70%, var(--evt-hatch, var(--evt-hatch-accent))) 5px 10px
   );
 }
 .pv-evt--cancelled,
@@ -5064,7 +5064,11 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    on the accent pair, answers on the low container surface; tool steps and
    the "sent to …" line are quiet meta text. Nothing here loads anything: an
    answer is elements built from Markdown, images are links. */
-.pv-ai { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; }
+/* --ai-ground: the surface the conversation lies on, per dress — what a fixed foot covers the scrolling text with. */
+.pv-ai { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; --ai-ground: var(--bg-primary); }
+.pv-ai--dock { --ai-ground: var(--bg-secondary); }
+.pv-ai--window { --ai-ground: var(--float-surface, var(--bg-primary)); }
+.pv-ai--sheet { --ai-ground: var(--surface, var(--bg-primary)); }
 .pv-ai > .pv-empty { margin: auto; }
 .pv-ai-marking {
   margin: 0;
@@ -5306,8 +5310,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    inside itself when it is long, so the field and the thread keep their room. */
 .pv-ai-pending { flex: none; display: flex; flex-direction: column; gap: var(--space-2); max-height: 60%; overflow-y: auto; padding: var(--space-2) var(--space-3) 0; }
 /* The answer of a waiting question keeps a fixed foot (plan Oberfläche O7, D1): however long the overview above it, the
-   buttons stay in view at the bottom of the scrolling question, never cut off. */
-.pv-ai-pending .pv-ai-overview-actions { position: sticky; bottom: 0; padding-block: var(--space-2); background: inherit; }
+   buttons stay in view at the bottom of the scrolling question, never cut off — on the dress's own ground, so the text
+   scrolling under them never shows through (review O7). */
+.pv-ai-pending .pv-ai-overview-actions { position: sticky; bottom: 0; padding-block: var(--space-2); background: var(--ai-ground); }
 /* Under an answer (plan K8): what can be done with it, and the one quiet line of what went where. */
 .pv-ai-actrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
 /* The calm line under an answer (plan Oberfläche O7, M6): what it rests on and where it went, then "Details". */
@@ -5343,7 +5348,7 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai--touch .pv-ai-msg { max-width: 96%; }
 /* The dock (plan Oberfläche O7): the conversation in the full height of the right column, under the week strip; the
    thread scrolls inside, the head and the composer stay put. */
-.pv-ai-dock { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.pv-ai-dock { display: flex; flex: 1; flex-direction: column; min-height: 0; outline: none; }
 .pv-ai-dock > .pv-ai { flex: 1; min-height: 0; }
 .pv-ai-dock-head { display: flex; flex: none; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-bottom: 1px solid var(--border-color-light); }
 .pv-ai--dock .pv-ai-msg { max-width: 100%; }

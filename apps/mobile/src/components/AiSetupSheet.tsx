@@ -54,12 +54,18 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
     const first = start.providerId ? providerById(start.providerId, session.getState().settings.custom) : null;
     return first?.kind === "platform-device" ? "device" : first?.custom ? "server" : first ? "cloud" : offer.kinds[0]!;
   });
-  const [cloudId, setCloudId] = useState(offer.cloud[0]?.id ?? "");
+  const [cloudId, setCloudId] = useState(() => (start.providerId && offer.cloud.some((p) => p.id === start.providerId) ? start.providerId : (offer.cloud[0]?.id ?? "")));
   const [key, setKey] = useState("");
-  const [address, setAddress] = useState("");
+  // A server that is set up but cannot answer is shown with its address, to be corrected (review O7, O2).
+  const [address, setAddress] = useState(() => (start.providerId ? (session.getState().settings.custom.find((c) => c.id === start.providerId)?.baseUrl ?? "") : ""));
   const [providerId, setProviderId] = useState<string | null>(start.providerId);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  // Begun at a provider that failed: what went wrong stands there from the start.
+  const [problem, setProblem] = useState<string | null>(() => {
+    const failed = start.providerId ? session.getState().tests[start.providerId] : undefined;
+    const info = start.providerId ? providerById(start.providerId, session.getState().settings.custom) : null;
+    return failed?.state === "failed" && failed.failure && info ? aiFailureText(t, failed.failure, failureRecipient(info)) : null;
+  });
   const [choosingModel, setChoosingModel] = useState(false);
   // A key or an address typed and not stored yet is asked about before the sheet goes.
   const close = useSheetGuard("ai-setup", Boolean(key.trim() || address.trim()), onClose);
@@ -109,6 +115,12 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
           setProblem(t("ai.add.invalidUrl"));
           return;
         }
+        // The server this setup began with, at the same address: asked again, not added a second time.
+        const same = settings.custom.find((c) => c.id === start.providerId && c.baseUrl === normalized.baseUrl);
+        if (same) {
+          await tested(same.id);
+          return;
+        }
         const id = customEndpointId(settings.custom.map((c) => c.id));
         // The system's own confirmation names the address before anything can go there (as on the settings page).
         const added = await session.addCustom(new URL(normalized.baseUrl).host, normalized.baseUrl, id, normalized.local);
@@ -128,7 +140,7 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
   const sayHello = () => {
     onClose();
     // An answer still under way says so instead (Befunde 06.11., B6); the hello waits for the person then.
-    if (startAiConversation(session, t)) void session.send(t("ai.setup.helloMessage"));
+    if (startAiConversation(session, t)) void session.sendGreeting(t("ai.setup.helloMessage"));
   };
 
   const loadDeviceModel = async (device: ProviderInfo) => {
@@ -277,7 +289,8 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
               )}
               <p className="m-hint">{t("ai.setup.later")}</p>
               <div className="m-ai-setup-foot">
-                {step === 1 || (step === 3 && start.step === 3) ? (
+                {/* Every step but the first has its way back (review O7, O2): a provider that failed is changed or replaced there. */}
+                {step === 1 ? (
                   <Button variant="ghost" onClick={close} data-testid="ai-setup-cancel">
                     {t("common.cancel")}
                   </Button>

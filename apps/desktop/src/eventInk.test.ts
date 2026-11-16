@@ -16,7 +16,17 @@ describe("eventInk", () => {
     expect(eventInk("#FFF")).toBe("dark");
     expect(eventInk("#1a73e8ff")).toBe("light");
     expect(eventInk("rgb(246, 191, 38)")).toBe("dark");
-    expect(eventInk("rgba(26,115,232,0.5)")).toBe("light");
+    expect(eventInk("rgb(26 115 232 / 100%)")).toBe("light");
+  });
+
+  it("lays a translucent colour over the ground first — the theme's own text where the grounds disagree (review O7, A1)", () => {
+    expect(eventInk("rgba(0,0,0,0.1)")).toBe("text");
+    expect(eventInk("#00000000")).toBe("text");
+    expect(eventInk("#fff0")).toBe("text");
+    // Nearly opaque, it is its colour: both grounds call for the same ink.
+    expect(eventInk("#1a73e8f0")).toBe("light");
+    expect(eventInk("rgba(246, 191, 38, 0.95)")).toBe("dark");
+    expect(eventColorVars("rgba(0,0,0,0.1)")).toEqual({ "--evt-color": "rgba(0,0,0,0.1)", "--evt-ink": "var(--text-main)", "--evt-hatch": "var(--bg-primary)" });
   });
 
   it("leaves the accent pair where the fill is no literal colour", () => {
@@ -26,6 +36,7 @@ describe("eventInk", () => {
   });
 
   it("sets the calendar's colour and its ink together", () => {
-    expect(eventColorVars("#2dd4bf")).toEqual({ "--evt-color": "#2dd4bf", "--evt-ink": "var(--evt-ink-dark)" });
+    expect(eventColorVars("#2dd4bf")).toEqual({ "--evt-color": "#2dd4bf", "--evt-ink": "var(--evt-ink-dark)", "--evt-hatch": "var(--evt-hatch-dark-ink)" });
+    expect(eventColorVars("#1a73e8")).toEqual({ "--evt-color": "#1a73e8", "--evt-ink": "var(--evt-ink-light)", "--evt-hatch": "var(--evt-hatch-light-ink)" });
   });
 });
