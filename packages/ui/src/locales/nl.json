@@ -738,7 +738,7 @@
         "title": "Internet",
         "desc": "Uit totdat je het voor deze vault aanzet. Ook dan maakt alleen een gesprek dat je met internet begint er gebruik van — en zolang je notities erin zitten, vraagt elke pagina en elke zoekopdracht eerst.",
         "switch": "De AI mag internet gebruiken in deze vault",
-        "switchDesc": "Geldt op dit apparaat. Notities en mappen met “Webtoegang: nooit” blijven buiten zo'n gesprek.",
+        "switchDesc": "Geldt op dit apparaat. Notities en mappen waarvoor “Naar het internet” op “niet toegestaan” staat, blijven buiten zo'n gesprek.",
         "switchLine": "Uit totdat je het voor deze vault aanzet. Geldt op dit apparaat.",
         "sites": "Websites zonder bevestiging",
         "sitesDesc": "Pagina's van deze websites waarvan het adres door jou, een notitie of een resultaat is genoemd, worden gelezen zonder eerst te vragen. Een adres dat het model zelf heeft samengesteld, vraagt altijd.",
@@ -1844,7 +1844,7 @@
       "writesRow": "{{client}} mag wijzigingen voorstellen",
       "writesOn": "Wat ze schrijft, wordt een voorstel bij de notitie of een concept, met “{{client}}” als auteur. In de vault verandert niets totdat je het overneemt of aanmaakt. Hernoemen, verplaatsen en verwijderen vragen het elke keer in Plainva.",
       "writesOff": "Uit: deze app leest alleen.",
-      "writesOnToast": "{{client}} mag nu wijzigingen voorstellen. De app ziet de nieuwe hulpmiddelen zodra ze opnieuw verbinding maakt.",
+      "writesOnToast": "{{client}} mag nu wijzigingen voorstellen. Plainva meldt de nieuwe hulpmiddelen meteen aan de app; een app die daar niet naar luistert, ziet ze zodra ze opnieuw verbinding maakt.",
       "auditAsked": "vraag gesteld",
       "auditDeclined": "afgewezen",
       "plan": {
@@ -2150,6 +2150,7 @@
         },
         "toolsOn": "De hulpmiddelen van Plainva worden de agent aangeboden. De eerste keer vraagt Plainva je welke mappen hij mag lezen.",
         "toolsOff": "De hulpmiddelen van Plainva staan uit (Instellingen → AI-apps op deze computer). De agent werkt dan alleen met de bestanden.",
+        "toolsNotReady": "De hulpmiddelen van Plainva staan aan, maar draaien nu niet voor deze vault. De agent werkt dan alleen met de bestanden.",
         "confirmTitle": "Deze agent starten?",
         "confirmMessage": "Plainva start {{agent}} in deze map, met deze opdracht. Hij draait met jouw rechten, leest en verzendt zelf, en zonder afscherming.",
         "action": "Sessie starten"

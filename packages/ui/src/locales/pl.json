@@ -822,7 +822,7 @@
         "title": "Internet",
         "desc": "Wyłączone, dopóki nie włączysz tego dla tego vaultu. Nawet wtedy z internetu korzysta tylko rozmowa, którą rozpoczniesz z dostępem do niego — a dopóki są w niej Twoje notatki, każda strona i każde wyszukiwanie pytają najpierw.",
         "switch": "AI może korzystać z internetu w tym vaulcie",
-        "switchDesc": "Obowiązuje na tym urządzeniu. Notatki i foldery z ustawieniem „Dostęp do sieci: nigdy” zostają poza taką rozmową.",
+        "switchDesc": "Obowiązuje na tym urządzeniu. Notatki i foldery, dla których „Do internetu” jest „niedozwolone”, zostają poza taką rozmową.",
         "switchLine": "Wyłączone, dopóki nie włączysz tego dla tego vaultu. Dotyczy tego urządzenia.",
         "sites": "Witryny bez potwierdzenia",
         "sitesDesc": "Strony z tych witryn, których adres pochodzi od Ciebie, z notatki lub z wyniku, są odczytywane bez pytania. Adres, który model sam zbudował, pyta zawsze.",
@@ -1970,7 +1970,7 @@
       "writesRow": "{{client}} może proponować zmiany",
       "writesOn": "To, co napisze, staje się propozycją przy notatce albo szkicem, z „{{client}}” jako autorem. W vaulcie nic się nie zmienia, dopóki tego nie zaakceptujesz lub nie utworzysz. Zmiana nazwy, przeniesienie i usunięcie pytają za każdym razem w Plainva.",
       "writesOff": "Wyłączone: ta aplikacja tylko czyta.",
-      "writesOnToast": "{{client}} może teraz proponować zmiany. Aplikacja zobaczy nowe narzędzia, gdy połączy się ponownie.",
+      "writesOnToast": "{{client}} może teraz proponować zmiany. Plainva od razu informuje aplikację o nowych narzędziach; aplikacja, która nie nasłuchuje takich zmian, zobaczy je, gdy połączy się ponownie.",
       "auditAsked": "pytanie",
       "auditDeclined": "odmówiono",
       "plan": {
@@ -2286,6 +2286,7 @@
         },
         "toolsOn": "Narzędzia Plainva są oferowane agentowi. Za pierwszym razem Plainva zapyta Cię, które foldery może czytać.",
         "toolsOff": "Narzędzia Plainva są wyłączone (Ustawienia → Aplikacje AI na tym komputerze). Agent pracuje wtedy tylko z plikami.",
+        "toolsNotReady": "Narzędzia Plainva są włączone, ale teraz nie działają dla tego vaultu. Agent pracuje wtedy tylko z plikami.",
         "confirmTitle": "Uruchomić tego agenta?",
         "confirmMessage": "Plainva uruchomi agenta {{agent}} w tym folderze, tym poleceniem. Działa z Twoimi uprawnieniami, sam czyta i wysyła, bez żadnego ogrodzenia.",
         "action": "Rozpocznij sesję"

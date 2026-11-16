@@ -738,7 +738,7 @@
         "title": "Internet",
         "desc": "Aus, bis Du es für diesen Vault einschaltest. Auch dann benutzt nur ein Gespräch das Internet, das Du damit beginnst — und solange Deine Notizen darin sind, fragt jede Seite und jede Suche vorher.",
         "switch": "Die KI darf in diesem Vault ins Internet",
-        "switchDesc": "Gilt auf diesem Gerät. Notizen und Ordner mit „Webzugriff: nie“ kommen in einem solchen Gespräch nicht vor.",
+        "switchDesc": "Gilt auf diesem Gerät. Notizen und Ordner, für die „Ins Internet“ „nicht erlaubt“ ist, kommen in einem solchen Gespräch nicht vor.",
         "switchLine": "Aus, bis Du es für diesen Vault einschaltest. Gilt auf diesem Gerät.",
         "sites": "Websites ohne Nachfrage",
         "sitesDesc": "Seiten dieser Websites, die Du, eine Notiz oder ein Ergebnis genannt haben, werden ohne Nachfrage gelesen. Eine Adresse, die das Modell selbst zusammengesetzt hat, fragt immer.",
@@ -1844,7 +1844,7 @@
       "writesRow": "{{client}} darf Änderungen vorschlagen",
       "writesOn": "Was sie schreibt, wird ein Vorschlag an der Notiz oder ein Entwurf, mit „{{client}}“ als Autor. Am Vault ändert sich nichts, bis Du übernimmst oder anlegst. Umbenennen, Verschieben und Löschen fragen jedes Mal in Plainva nach.",
       "writesOff": "Aus: diese App liest nur.",
-      "writesOnToast": "{{client}} darf jetzt Änderungen vorschlagen. Die neuen Werkzeuge sieht die App, sobald sie sich neu verbindet.",
+      "writesOnToast": "{{client}} darf jetzt Änderungen vorschlagen. Plainva meldet der App die neuen Werkzeuge sofort; eine App, die darauf nicht hört, sieht sie, sobald sie sich neu verbindet.",
       "auditAsked": "Rückfrage",
       "auditDeclined": "abgelehnt",
       "plan": {
@@ -2150,6 +2150,7 @@
         },
         "toolsOn": "Plainvas Werkzeuge werden dem Agenten angeboten. Beim ersten Mal fragt Plainva Dich, welche Ordner er lesen darf.",
         "toolsOff": "Plainvas Werkzeuge sind ausgeschaltet (Einstellungen → KI-Apps auf diesem Rechner). Der Agent arbeitet dann nur mit den Dateien.",
+        "toolsNotReady": "Plainvas Werkzeuge sind eingeschaltet, laufen für diesen Vault aber gerade nicht. Der Agent arbeitet dann nur mit den Dateien.",
         "confirmTitle": "Diesen Agenten starten?",
         "confirmMessage": "Plainva startet {{agent}} in diesem Ordner, mit diesem Befehl. Er läuft mit Deinen Rechten, liest und sendet selbst und ist nicht eingezäunt.",
         "action": "Sitzung starten"

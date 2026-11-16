@@ -780,7 +780,7 @@
         "title": "Internet",
         "desc": "Desactivado hasta que lo actives para este vault. Aun así, solo usa Internet una conversación que empieces con Internet activado — y mientras tus notas estén en ella, cada página y cada búsqueda pregunta antes.",
         "switch": "La IA puede usar Internet en este vault",
-        "switchDesc": "Se aplica en este dispositivo. Las notas y carpetas configuradas como «Acceso web: nunca» quedan fuera de una conversación así.",
+        "switchDesc": "Se aplica en este dispositivo. Las notas y carpetas en las que «A internet» está «no permitido» quedan fuera de una conversación así.",
         "switchLine": "Desactivado hasta que lo actives para este vault. Vale en este dispositivo.",
         "sites": "Sitios sin confirmación",
         "sitesDesc": "Las páginas de estos sitios cuya dirección fue nombrada por ti, por una nota o por un resultado se leen sin preguntar. Una dirección que el modelo compuso por sí mismo siempre pregunta.",
@@ -1907,7 +1907,7 @@
       "writesRow": "{{client}} puede sugerir cambios",
       "writesOn": "Lo que escriba será una sugerencia en la nota o un borrador, con «{{client}}» como autor. Nada cambia en el vault hasta que lo aceptes o lo crees. Renombrar, mover y eliminar preguntan cada vez en Plainva.",
       "writesOff": "Desactivado: esta app solo lee.",
-      "writesOnToast": "{{client}} ya puede sugerir cambios. La app verá las nuevas herramientas cuando vuelva a conectarse.",
+      "writesOnToast": "{{client}} ya puede sugerir cambios. Plainva avisa a la app de las nuevas herramientas al instante; una app que no está atenta a ese aviso las verá cuando vuelva a conectarse.",
       "auditAsked": "consulta",
       "auditDeclined": "denegada",
       "plan": {
@@ -2218,6 +2218,7 @@
         },
         "toolsOn": "Las herramientas de Plainva se ofrecen al agente. La primera vez, Plainva te pregunta qué carpetas puede leer.",
         "toolsOff": "Las herramientas de Plainva están desactivadas (Configuración → Apps de IA en este ordenador). El agente trabaja entonces solo con los archivos.",
+        "toolsNotReady": "Las herramientas de Plainva están activadas, pero ahora no funcionan para este vault. El agente trabaja entonces solo con los archivos.",
         "confirmTitle": "¿Iniciar este agente?",
         "confirmMessage": "Plainva iniciará {{agent}} en esta carpeta, con este comando. Se ejecuta con tus permisos, lee y envía por su cuenta, y sin ningún cercado.",
         "action": "Empezar la sesión"

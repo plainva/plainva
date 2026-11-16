@@ -780,7 +780,7 @@
         "title": "Internet",
         "desc": "Désactivé jusqu'à ce que vous l'activiez pour ce vault. Même alors, seule une conversation que vous commencez avec Internet l'utilise — et tant que vos notes y sont, chaque page et chaque recherche demandent d'abord.",
         "switch": "L'IA peut utiliser Internet dans ce vault",
-        "switchDesc": "S'applique sur cet appareil. Les notes et dossiers réglés sur « Accès web: jamais » restent hors d'une telle conversation.",
+        "switchDesc": "S'applique sur cet appareil. Les notes et dossiers pour lesquels « Vers Internet » est « interdit » restent hors d'une telle conversation.",
         "switchLine": "Désactivé jusqu'à ce que vous l'activiez pour ce vault. Valable sur cet appareil.",
         "sites": "Sites sans confirmation",
         "sitesDesc": "Les pages de ces sites dont l'adresse a été nommée par vous, par une note ou par un résultat sont lues sans demander. Une adresse que le modèle a construite lui-même demande toujours.",
@@ -1907,7 +1907,7 @@
       "writesRow": "{{client}} peut proposer des modifications",
       "writesOn": "Ce qu'elle écrit devient une proposition sur la note ou un brouillon, avec « {{client}} » comme auteur. Rien ne change dans le vault tant que vous n'acceptez pas ou ne créez pas. Renommer, déplacer et supprimer demandent à chaque fois dans Plainva.",
       "writesOff": "Désactivé : cette app ne fait que lire.",
-      "writesOnToast": "{{client}} peut désormais proposer des modifications. L'app verra les nouveaux outils dès qu'elle se reconnectera.",
+      "writesOnToast": "{{client}} peut désormais proposer des modifications. Plainva signale aussitôt les nouveaux outils à l'app ; une app qui n'écoute pas ce signal les verra dès qu'elle se reconnectera.",
       "auditAsked": "question posée",
       "auditDeclined": "déclinée",
       "plan": {
@@ -2218,6 +2218,7 @@
         },
         "toolsOn": "Les outils de Plainva sont proposés à l'agent. La première fois, Plainva vous demande quels dossiers il peut lire.",
         "toolsOff": "Les outils de Plainva sont désactivés (Paramètres → Apps d'IA sur cet ordinateur). L'agent travaille alors avec les fichiers seuls.",
+        "toolsNotReady": "Les outils de Plainva sont activés, mais ne tournent pas pour ce vault en ce moment. L'agent travaille alors avec les fichiers seuls.",
         "confirmTitle": "Démarrer cet agent ?",
         "confirmMessage": "Plainva démarrera {{agent}} dans ce dossier, avec cette commande. Il s'exécute avec vos droits, lit et envoie de lui-même, et sans aucune clôture.",
         "action": "Démarrer la session"

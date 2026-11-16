@@ -738,7 +738,7 @@
         "title": "Internet",
         "desc": "Off until you switch it on for this vault. Even then only a conversation you start with it uses the internet — and while your notes are in it, every page and every search asks first.",
         "switch": "The AI may use the internet in this vault",
-        "switchDesc": "Applies on this device. Notes and folders set to “Web access: never” stay out of such a conversation.",
+        "switchDesc": "Applies on this device. Notes and folders where “Onto the internet” is “not allowed” stay out of such a conversation.",
         "switchLine": "Off until you switch it on for this vault. Applies on this device.",
         "sites": "Sites that need no asking",
         "sitesDesc": "Pages of these sites that you, a note or a result named are read without asking. An address the model put together itself always asks.",
@@ -1844,7 +1844,7 @@
       "writesRow": "{{client}} may suggest changes",
       "writesOn": "What it writes becomes a suggestion on the note or a draft, with “{{client}}” as the author. Nothing in the vault changes until you accept or create it. Renaming, moving and deleting ask in Plainva every time.",
       "writesOff": "Off: this app only reads.",
-      "writesOnToast": "{{client}} may now suggest changes. The app sees the new tools once it reconnects.",
+      "writesOnToast": "{{client}} may now suggest changes. Plainva tells the app about the new tools at once; an app that does not listen for that sees them once it reconnects.",
       "auditAsked": "asked",
       "auditDeclined": "declined",
       "plan": {
@@ -2150,6 +2150,7 @@
         },
         "toolsOn": "Plainva's tools are offered to the agent. The first time, Plainva asks you which folders it may read.",
         "toolsOff": "Plainva's tools are switched off (Settings → AI apps on this computer). The agent then works with the files alone.",
+        "toolsNotReady": "Plainva's tools are switched on but not running for this vault right now. The agent then works with the files alone.",
         "confirmTitle": "Start this agent?",
         "confirmMessage": "Plainva will start {{agent}} in this folder, with this command. It runs with your rights, reads and sends on its own, and is not fenced in.",
         "action": "Start session"
