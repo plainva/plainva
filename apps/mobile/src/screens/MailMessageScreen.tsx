@@ -200,7 +200,7 @@ export function MailMessageScreen({
     const html = mailBodyHtml(message);
     if (html) {
       const allowRemote = remoteImages.allow;
-      const clean = sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote });
+      const clean = sanitizeEmailHtml(html, { allowRemoteImages: allowRemote });
       // The theme's canvas for a mail that sets no colours of its own (finding X3).
       return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote, canvas: mailCanvas }), blocked: clean.blockedRemote };
     }
@@ -459,12 +459,12 @@ export function MailMessageScreen({
    *  the vault syncs with everything else. Where it goes and what it is called
    *  is the shared rule (`saveMailAttachment`): the desktop saves the same file
    *  to the same place. */
-  const saveAttachment = async (index: number, name: string) => {
+  const saveAttachment = async (index: number, name: string, mime: string) => {
     if (!vaultId || !account) return;
     setBusy(true);
     try {
       const base64 = await fetchAttachment(vaultId, account, mailbox, messageId, index);
-      const path = await saveMailAttachment(vault.files, getMobileSettings().mailFolder, name, base64);
+      const path = await saveMailAttachment(vault.files, getMobileSettings().mailFolder, name, base64, mime);
       // The index hears of the file now, not at the next full scan (finding 2026-10-12).
       void vault.reindexPaths([path]);
       toast.success(t("mail.attachmentSaved", { name: path }));
@@ -747,7 +747,7 @@ export function MailMessageScreen({
                     type="button"
                     className="m-row"
                     disabled={busy}
-                    onClick={() => void saveAttachment(a.index, a.name)}
+                    onClick={() => void saveAttachment(a.index, a.name, a.mime)}
                   >
                     <Paperclip size={ICON.ui} />
                     <span className="m-linestack">

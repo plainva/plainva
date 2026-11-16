@@ -1,3 +1,4 @@
+import { extensionOfType } from "./attachmentSave";
 import { mailAccountKind, type MailAccountConfig } from "./mailAccounts";
 import { GRAPH_FILE_LIMIT } from "./graphMail";
 import { guessAttachmentMime, type MailAttachment } from "./mailOut";
@@ -170,21 +171,6 @@ export function cleanAttachmentMime(mime: string, name: string): string {
   return guessAttachmentMime(typeof name === "string" ? name : "");
 }
 
-/** What a file WITHOUT a name of its own is called after its type, so that
- *  whoever receives it can open it. */
-const EXTENSION_BY_TYPE: Readonly<Record<string, string>> = {
-  "application/pdf": "pdf",
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/gif": "gif",
-  "image/webp": "webp",
-  "image/svg+xml": "svg",
-  "text/calendar": "ics",
-  "text/csv": "csv",
-  "text/html": "html",
-  "text/plain": "txt",
-};
-
 /**
  * The name a transport will take, and a recipient can use: no control
  * characters (a line break in a file name ends the header it stands in), no
@@ -211,7 +197,8 @@ export function cleanAttachmentName(name: string, mime: string, index: number): 
   // "attachment" is the stand-in the desktop's parser lists a nameless part
   // under. An entry of the table itself, never one every object inherits.
   const nameless = cleaned === "" || cleaned === "attachment";
-  if (nameless && Object.prototype.hasOwnProperty.call(EXTENSION_BY_TYPE, kind)) return `${base}.${EXTENSION_BY_TYPE[kind]}`;
+  const typed = nameless ? extensionOfType(kind) : null;
+  if (typed) return `${base}.${typed}`;
   return base;
 }
 

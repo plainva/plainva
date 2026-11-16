@@ -572,10 +572,11 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       return;
     }
     const disposition = dispositionOf(partHeaders);
+    // An empty name is none, as the desktop's parser reads it (review of 2026-11-16).
+    const named = (value: string | undefined): string | null => (value && value.trim() ? value : null);
     const name =
-      parseParams(partHeaders.get("content-disposition") ?? "").get("filename") ??
-      parseParams(partHeaders.get("content-type") ?? "").get("name") ??
-      null;
+      named(parseParams(partHeaders.get("content-disposition") ?? "").get("filename")) ??
+      named(parseParams(partHeaders.get("content-type") ?? "").get("name"));
     const wholeWords = depth === 0 && wordsOfAWholeMessage(partHeaders);
     const isText = wholeWords || (type.startsWith("text/") && disposition !== "attachment");
     const text = partOfTheText(type, disposition, name, position, parent);

@@ -1977,7 +1977,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setSavingFile(file.index);
       try {
         const content = await fetchAttachment(vaultPath, from, origin.mailbox, message.id, file.index);
-        const path = await saveMailAttachment(vaultAdapter, await mailFolder(), file.name, content);
+        const path = await saveMailAttachment(vaultAdapter, await mailFolder(), file.name, content, file.mime);
         if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
         triggerFileTreeUpdate([path]);
         toast.success(t("mail.attachmentSaved", { name: path }));

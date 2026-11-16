@@ -104,6 +104,21 @@
       "name": "a message that is nothing but text",
       "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHello\r\n",
       "files": []
+    },
+    {
+      "name": "a text part with an empty name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: text/plain; name=\"\"\r\n\r\nfooter\r\n--mix--\r\n",
+      "files": []
+    },
+    {
+      "name": "an attached image with an empty file name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=\"\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
     }
   ]
 }
