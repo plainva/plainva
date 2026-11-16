@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEmptyVaultListing } from "./emptyVault";
+import { isEmptyVaultListing } from "./emptyVault.js";
 
 const file = (name: string) => ({ name, isDirectory: false });
 const dir = (name: string) => ({ name, isDirectory: true });
