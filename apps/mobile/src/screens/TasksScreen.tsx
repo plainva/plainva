@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AreaBoundary, consumePendingNew, getPlatformServices } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
-import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
+import { Banner, CalendarSyncNotice, errorText, needsTaskDatabase, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
 import { convertDueColumnToDateTime, offerDueTimeColumn, TaskPriorityFlag } from "@plainva/ui";
-import { checkboxTextOfCapture, createTaskDatabase, taskDatabaseLabels } from "@plainva/ui";
+import { checkboxTextOfCapture } from "@plainva/ui";
 import { subtaskProgress } from "@plainva/ui";
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
@@ -29,11 +29,12 @@ import { TemplateKeysNotice } from "../components/TemplateKeysNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLinkTargetLookup } from "../lib/useLinkTargetLookup";
-import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { getMobileSettings } from "../services/mobileSettings";
 import { configuredNoteType } from "../services/newNote";
 import { phoneTemplateVault } from "../services/templateVault";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
-import { mPrompt, mSelect } from "../services/mobileDialogs";
+import { mSelect } from "../services/mobileDialogs";
+import { createStandardTaskDatabase } from "../services/taskDatabaseCreate";
 import { captureJournalEntry } from "../services/journalService";
 import { openLink } from "../services/openLink";
 import { setTaskDone } from "../services/taskCompletionAction";
@@ -517,24 +518,14 @@ export function TasksScreen({
       .catch(() => null)
       .then((name) => setCapture({ providerList: name ?? null, text }));
   }, [taskDb, promotionAdapter]);
-  /** A task database made from the capture's hint: named, created, set for this vault — the sheet stays open and now makes a task note. */
+  /** A task database made from a hint (the capture's, or a list's that cannot reach any note): named, created, set for this vault — the capture sheet stays open and now makes a task note. */
   const createDatabaseFromCapture = useCallback(async () => {
-    const name = await mPrompt({
-      title: t("settings.taskDatabaseCreate"),
-      message: t("settings.taskDatabaseCreateName"),
-      initial: t("settings.taskDatabaseDefaultName"),
-    });
-    if (name.cancelled || !name.value.trim()) return;
-    const path = await createTaskDatabase(vault.files, name.value, taskDatabaseLabels((key) => t(key))).catch((e: unknown) => {
-      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
-      return null;
-    });
+    const path = await createStandardTaskDatabase(vault, t);
     if (!path) return;
-    await updateMobileSettings({ taskDatabase: path });
-    // No watcher on the phone: the index is told, so the tab lists the database now.
-    void vault.reindexPaths([path]);
     setTaskDb(path);
     setTick((x) => x + 1);
+    // The lists that waited for it are carried in at the end of this cycle.
+    pimSyncNow();
   }, [vault, t]);
   const createFromCapture = useCallback(
     async (result: CaptureResult, alsoAtProvider: boolean) => {
@@ -760,7 +751,11 @@ export function TasksScreen({
         }
       />
       {ptrIndicator}
-      <CalendarSyncNotice problems={syncProblems} onRetry={pimSyncNow} />
+      <CalendarSyncNotice
+        problems={syncProblems}
+        onRetry={pimSyncNow}
+        action={needsTaskDatabase(syncProblems) ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createDatabaseFromCapture(), testId: "tasks-sync-create-db" } : undefined}
+      />
 
       <TaskPlannerNav variant="segment" value={list} onChange={setList} counts={planner.counts} allCount={openCount} />
 

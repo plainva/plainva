@@ -2,14 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
 import { type PimSyncProblem, isOpenTaskState, taskNameText, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
-import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
+import { CalendarSyncNotice, needsTaskDatabase, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { Select } from "../Select";
-import { useVault, templateFolderKey, defaultCalendarKey, taskDatabaseKey } from "../../contexts/VaultContext";
-import { appPrompt } from "../../services/appDialogs";
+import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { useJournalCapture } from "../../hooks/useJournal";
 import { useCheckboxReminders } from "../../hooks/useCheckboxReminders";
 import { getSettingsStore } from "../../services/settingsStore";
-import { createTaskDatabase, getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
+import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
 import { templateVaultOf } from "../../services/dailyNotes";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
@@ -22,6 +21,7 @@ import { TemplateKeysNotice } from "./TemplateKeysNotice";
 import { TaskCaptureBar } from "./TaskCaptureBar";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
+import { createStandardTaskDatabase } from "../../services/taskDatabaseCreate";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 import {
   calendarPickerOptions,
@@ -32,7 +32,7 @@ import {
   type TaskBlockValues,
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
-import { calendarDay, checkboxTextOfCapture, subtaskProgress, taskDatabaseLabels } from "@plainva/ui";
+import { calendarDay, checkboxTextOfCapture, subtaskProgress } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
@@ -546,28 +546,15 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     },
     [vaultAdapter, vaultPath, taskDb, taskDbFor, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, captureJournal, t]
   );
-  /** A task database made from the capture's hint: named, created and set for this vault — the same steps as in Settings. */
+  /** A task database made from a hint (the capture's, or a list's that cannot reach any note): named, created and set for this vault. */
   const createDatabaseFromCapture = useCallback(async () => {
     if (!vaultAdapter || !vaultPath) return;
-    const name = await appPrompt({
-      title: t("settings.taskDatabaseCreate"),
-      message: t("settings.taskDatabaseCreateName"),
-      initial: t("settings.taskDatabaseDefaultName"),
-    });
-    if (name === null) return;
-    try {
-      const path = await createTaskDatabase(vaultAdapter, name, taskDatabaseLabels((key) => t(key)));
-      if (!path) return;
-      const store = await getSettingsStore();
-      await store.set(taskDatabaseKey(vaultPath), path);
-      await store.save();
-      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
-      triggerFileTreeUpdate([path]);
-      setRefreshTick((x) => x + 1);
-    } catch (e) {
-      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
-    }
-  }, [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, t]);
+    const path = await createStandardTaskDatabase({ vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, t });
+    if (!path) return;
+    setRefreshTick((x) => x + 1);
+    // The lists that waited for it are carried in at the end of this cycle.
+    if (pimRuntime) void pimRuntime.worker.triggerImmediate().catch(() => undefined);
+  }, [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, pimRuntime, t]);
   // `seeded` counts the requests that BROUGHT text (the capture dialog's kind
   // switch, plan Journal J4): the bar is keyed by it, so such a request starts
   // it over with that text instead of an effect writing into its state.
@@ -1152,7 +1139,11 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
-      <CalendarSyncNotice problems={syncProblems} onRetry={refreshAll} />
+      <CalendarSyncNotice
+        problems={syncProblems}
+        onRetry={refreshAll}
+        action={needsTaskDatabase(syncProblems) ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createDatabaseFromCapture(), testId: "tasks-sync-create-db" } : undefined}
+      />
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
         {list === "all" && (

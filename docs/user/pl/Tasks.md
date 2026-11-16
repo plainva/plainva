@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-11-05
+Stan na: 2026-11-16
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -217,6 +217,11 @@ Zadanie, które Plainva odzwierciedla z listy zadań Twojego dostawcy, nosi nazw
 O tym, które zadanie jest w którym pliku, nie mówi nazwa, lecz znacznik we frontmatter (`plainva.pim`, zob. [Dokumentacja formatu plików](File_Format_Reference.md)). Dlatego Plainva używa istniejącej nazwy ponownie tylko wtedy, gdy plik zawiera to samo zadanie, i tworzy nowe zadania na każdym urządzeniu w tej samej kolejności — dwa urządzenia nadają więc te same numery. Gdy tytuł zmieni się u dostawcy, Plainva aktualizuje nagłówek notatki, ale nie zmienia nazwy pliku: linki do notatki nadal działają. Zmienić nazwę notatki lub ją przenieść możesz w każdej chwili sam; znacznik utrzymuje powiązanie.
 
 **Porządkowanie nazw z identyfikatorem.** Od 12 do 24 września 2026 Plainva dodawała identyfikator do nazw nowych notatek zadań (`Zadzwonić do dentysty — 3f9a1c0b7d2e4a61.md`). Jeśli Twój vault ma jeszcze takie nazwy, widok zadań — na komputerze i na telefonie — pokazuje jednorazowo komunikat z listą stara → nowa nazwa i liczbą linków, które zostaną dostosowane. **Uporządkuj nazwy…** pyta jeszcze raz, a potem zmienia nazwy notatek na ich tytuły, numerując te o tym samym tytule jak wyżej; linki do nich zostaną dostosowane. **Ukryj** odkłada komunikat, dopóki nie pojawią się kolejne takie nazwy. Plainva rozpoznaje tylko nazwy nadane przez siebie: identyfikator musi pasować do znacznika w tym samym pliku. Nic nie zmienia nazwy samo. Pozostałe urządzenia otrzymują zmiany nazw jako przeniesienie, gdy mają tę samą wersję; starsza wersja widzi tam zamiast tego usunięte i nowe notatki i może zapytać o usunięcie albo zostawić starą nazwę obok nowej — najlepiej wcześniej zaktualizować te urządzenia. Na komputerze komunikat pojawia się w oknie głównym.
+
+<!-- task-lists-silent-2026-11-16 -->
+## Gdy zadania od dostawcy się nie pojawiają
+
+Zadania z listy zadań dostawcy stają się notatkami w **Domyślnej bazie zadań**. Jeśli lista jest włączona, ale nie dociera żadne z jej zadań, Plainva mówi dlaczego — w komunikacie nad widokiem zadań i na stronie konta pod **Listy zadań**, na komputerze i na telefonie: nie ustawiono **Domyślnej bazy zadań**, nie da się jej odczytać, nie wskazuje folderu na nowe notatki albo nowe zadania czekają, aż zakończy się pierwsza synchronizacja vaultu (aby żadne nie zostało przejęte dwa razy). Jeśli nie ustawiono bazy zadań, **Utwórz nową bazę…** obok komunikatu tworzy ją i ustawia; listy docierają przy następnej synchronizacji. **Spróbuj ponownie** od razu pyta dostawcę. Komunikat znika, gdy tylko zadania dotrą.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Metadane Tasks i powtarzanie

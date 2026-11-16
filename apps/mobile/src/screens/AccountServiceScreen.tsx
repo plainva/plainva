@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, CalendarDays, ChevronRight, Cloud, ListChecks, Mail, Pause, RefreshCw } from "lucide-react";
 import { AreaBoundary,
+  CalendarSyncNotice,
+  needsTaskDatabase,
+  taskListProblemsOf,
   accountPageModel,
   Banner,
   Button,
@@ -28,7 +31,7 @@ import { AreaBoundary,
   type CloudServiceId,
 } from "@plainva/ui";
 import { listMailAccounts, listMailboxesFor, normalizeSenderAddress, senderOptions, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
-import type { PimCalendar } from "@plainva/core";
+import type { PimCalendar, PimSyncProblem } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { CloudFolderPickerSheet } from "../components/CloudFolderPickerSheet";
 import { ColorPickSheet } from "../components/ColorPickSheet";
@@ -57,6 +60,7 @@ import { listPimAccounts, listPimCalendars, listPimTaskLists, pimSyncNow, setPim
 import { getPimCache } from "../services/pim/pimRuntime";
 import { MAIL_CHANGED_EVENT, mailVaultId } from "../services/mail/mailRuntime";
 import type { MobileVault } from "../services/vaultService";
+import { createStandardTaskDatabase } from "../services/taskDatabaseCreate";
 
 /**
  * One service of ONE account (plan "Verbinden", V3 - level 3), the phone's
@@ -131,7 +135,7 @@ export function AccountServiceScreen({
           </p>
         )}
         {card && service === "files" && card.vaultId && <FilesPart vaultId={card.vaultId} vault={vault} on={!!row?.on} />}
-        {card && service === "calendar" && card.pimAccountId && <CalendarPart pimAccountId={card.pimAccountId} />}
+        {card && service === "calendar" && card.pimAccountId && <CalendarPart pimAccountId={card.pimAccountId} vault={vault} />}
         {card && service === "mail" && card.mailAccountId && <MailPart mailAccountId={card.mailAccountId} />}
         <GroupCard>
           <RowList>
@@ -267,7 +271,7 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
 
 type CalendarRow = PimCalendar & { accountId: string; selected: boolean };
 
-function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
+function CalendarPart({ pimAccountId, vault }: { pimAccountId: string; vault: MobileVault }) {
   const { t } = useTranslation();
   const [calendars, setCalendars] = useState<CalendarRow[]>([]);
   const [lists, setLists] = useState<{ id: string; name: string; accountId: string; selected: boolean }[]>([]);
@@ -277,6 +281,8 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
   const defaultCalendar = getMobileSettings().defaultCalendar;
   /** What the last cycle said about this account and its lists, and its provider (for the empty-list hint). */
   const [scope, setScope] = useState<{ account?: string; lists?: string; provider: string }>({ provider: "" });
+  /** Why a switched-on list of this account does not reach the notes (issue 172). */
+  const [listProblems, setListProblems] = useState<PimSyncProblem[]>([]);
   const reload = useCallback(async () => {
     setCalendars((await listPimCalendars()).filter((calendar) => calendar.accountId === pimAccountId));
     setLists((await listPimTaskLists()).filter((list) => list.accountId === pimAccountId));
@@ -287,8 +293,15 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
       listPimAccounts().catch(() => []),
     ]);
     setScope({ account: account?.lastError ?? undefined, lists: tasks?.lastError ?? undefined, provider: rows.find((row) => row.id === pimAccountId)?.provider ?? "" });
+    setListProblems(taskListProblemsOf((await cache?.listSyncProblems().catch(() => [])) ?? [], pimAccountId));
   }, [pimAccountId]);
   useEffect(() => { void reload(); }, [reload]);
+  // The reconcile writes the lines a list carries (issue 172).
+  useEffect(() => {
+    const onDone = () => void reload();
+    window.addEventListener("m-task-sync-done", onDone);
+    return () => window.removeEventListener("m-task-sync-done", onDone);
+  }, [reload]);
 
   const toggleCalendar = (calendar: CalendarRow, selected: boolean) => {
     void setPimCalendarSelected(pimAccountId, calendar.id, selected).then(reload);
@@ -304,6 +317,10 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
   };
   const listState = taskListState({ count: lists.length, listsError: scope.lists, accountError: scope.account });
   const lookAgain = () => { pimSyncNow(); window.setTimeout(() => void reload(), 1500); };
+  // A list that waits for a standard task database can get one right here (issue 172).
+  const createTaskDb = async () => {
+    if (await createStandardTaskDatabase(vault, t)) lookAgain();
+  };
   // E13 of the settings plan: the default calendar is set on the Calendar page
   // only; this page marks which of this account's calendars it is.
   const isDefault = (calendar: CalendarRow) => calendarKey(calendar) === defaultCalendar;
@@ -357,6 +374,11 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
               ))}
             </RowList>
           </GroupCard>}
+          <CalendarSyncNotice
+            problems={listProblems}
+            onRetry={lookAgain}
+            action={needsTaskDatabase(listProblems) ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createTaskDb(), testId: "account-tasklist-create-db" } : undefined}
+          />
         </>
       )}
       <GroupCard>

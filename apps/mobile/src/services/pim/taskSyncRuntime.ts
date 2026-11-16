@@ -1,6 +1,7 @@
 import { App as CapApp } from "@capacitor/app";
 import {
   runTaskSync,
+  reportTaskListsBlocked,
   pendingTaskDeletions,
   taskDeletionsInFlight,
   resolveTaskDeletion,
@@ -90,7 +91,13 @@ export async function runMobileTaskSync(): Promise<void> {
   running = true;
   try {
     const taskDbPath = getMobileSettings().taskDatabase.trim();
-    if (!taskDbPath) return;
+    if (!taskDbPath) {
+      // Switched-on lists cannot reach any note without a standard task
+      // database: they say so instead of staying empty (issue 172).
+      await reportTaskListsBlocked(w.cache, "no-task-db");
+      window.dispatchEvent(new CustomEvent("m-task-sync-done"));
+      return;
+    }
     const query = w.vault.queryService;
     if (!query) {
       // Identical lines collapse in the log, so a vault that is still opening

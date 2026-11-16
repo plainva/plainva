@@ -19,6 +19,7 @@ const runTaskSyncCalls: Array<{
   generatedBy?: string;
 }> = [];
 let resolveRun: (() => void) | null = null;
+const blockedReports: Array<{ cache: unknown; block: string }> = [];
 
 vi.mock("@plainva/ui", () => ({
   runTaskSync: (opts: {
@@ -42,6 +43,10 @@ vi.mock("@plainva/ui", () => ({
       if (resolveRun === null) done();
       else resolveRun = done;
     });
+  },
+  // Issue 172: the skip without a database leaves its line on the lists.
+  reportTaskListsBlocked: async (cache: unknown, block: string) => {
+    blockedReports.push({ cache, block });
   },
   pendingTaskDeletions: () => [{ uid: "armed" }],
   taskDeletionsInFlight: () => [{ uid: "waiting" }],
@@ -144,11 +149,14 @@ describe("mobile task sync runtime", () => {
     expect(runTaskSyncCalls[0].pendingDeletions).toEqual([{ uid: "armed" }]);
   });
 
-  it("does nothing without a task database", async () => {
+  it("reconciles nothing without a task database, and says so on the lists (issue 172)", async () => {
     settings = { taskDatabase: "  ", defaultNoteType: "Task" };
-    startTaskSyncRuntime({ vault: fakeVault(), cache: {} as never, buildTarget: async () => null });
+    const cache = { id: "phone-cache" };
+    blockedReports.length = 0;
+    startTaskSyncRuntime({ vault: fakeVault(), cache: cache as never, buildTarget: async () => null });
     await runMobileTaskSync();
     expect(runTaskSyncCalls).toEqual([]);
+    expect(blockedReports).toEqual([{ cache, block: "no-task-db" }]);
   });
 
   it("queues exactly one follow-up instead of stacking runs", async () => {

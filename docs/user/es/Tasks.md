@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-11-05
+Última actualización: 2026-11-16
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -217,6 +217,11 @@ Una tarea que Plainva refleja desde una lista de tareas de tu proveedor se llama
 Qué tarea está en qué archivo no lo dice el nombre, sino la marca en el frontmatter (`plainva.pim`, consulta la [Referencia del formato de archivo](File_Format_Reference.md)). Por eso Plainva solo reutiliza un nombre existente si el archivo contiene la misma tarea, y crea las tareas nuevas en el mismo orden en cada dispositivo: así dos dispositivos asignan los mismos números. Si el título cambia en el proveedor, Plainva actualiza el encabezado de la nota, pero no renombra el archivo, y los enlaces a la nota siguen funcionando. Puedes renombrarla o moverla tú cuando quieras; la marca mantiene el enlace.
 
 **Limpiar nombres con identificador.** Entre el 12 y el 24 de septiembre de 2026, Plainva añadía un identificador al nombre de las notas de tarea nuevas (`Llamar al dentista — 3f9a1c0b7d2e4a61.md`). Si tu vault todavía tiene nombres así, la vista de tareas —en el escritorio y en el teléfono— muestra una vez un aviso con la lista antiguo → nuevo y el número de enlaces que se actualizan con ellas. **Limpiar nombres…** vuelve a preguntar y después renombra las notas según su título, numerando las del mismo título como arriba; los enlaces a ellas se actualizan. **Ocultar** aparta el aviso hasta que aparezcan más nombres así. Plainva solo reconoce los nombres que asignó él mismo: el identificador debe coincidir con la marca del mismo archivo. Nunca se renombra nada por sí solo. Tus otros dispositivos reciben los cambios de nombre como un traslado cuando tienen la misma versión; una versión anterior ve allí en su lugar notas eliminadas y nuevas, y a veces pregunta si debe eliminarlas, a veces deja el nombre antiguo junto al nuevo; mejor actualiza antes esos dispositivos. En el escritorio, el aviso aparece en la ventana principal.
+
+<!-- task-lists-silent-2026-11-16 -->
+## Cuando las tareas del proveedor no aparecen
+
+Las tareas de una lista de tareas de tu proveedor se convierten en notas de tu **Base de datos de tareas predeterminada**. Si una lista está activada pero no llega ninguna de sus tareas, Plainva dice por qué — en el aviso sobre la vista de tareas y en la página de la cuenta bajo **Listas de tareas**, en el escritorio y en el teléfono: no hay ninguna **Base de datos de tareas predeterminada**, no se puede leer, no indica ninguna carpeta para las notas nuevas, o las tareas nuevas esperan a que termine la primera sincronización del vault (para que ninguna se importe dos veces). Si no hay base de datos de tareas, **Crear base de datos…** junto al aviso crea una y la establece; las listas llegan con la siguiente sincronización. **Reintentar** consulta al proveedor al instante. El aviso desaparece en cuanto las tareas llegan.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Metadatos de Tasks y repetición

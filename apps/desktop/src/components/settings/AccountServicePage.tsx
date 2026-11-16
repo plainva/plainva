@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import {
   Banner,
   Button,
+  CalendarSyncNotice,
   DriveDestinationDialog,
   EVENT_COLOR_PALETTE,
   ICON,
@@ -22,6 +23,8 @@ import {
   emptyTaskListHintVisible,
   calendarKey,
   familyLabel,
+  needsTaskDatabase,
+  taskListProblemsOf,
   taskListState,
   serviceLabel,
   toast,
@@ -31,7 +34,9 @@ import {
   type CloudServiceId,
 } from "@plainva/ui";
 import { listMailAccounts, listMailboxesFor, type MailAccountConfig } from "@plainva/ui/mail";
-import type { PimCalendar } from "@plainva/core";
+import type { PimCalendar, PimSyncProblem } from "@plainva/core";
+import { useVault } from "../../contexts/VaultContext";
+import { createStandardTaskDatabase } from "../../services/taskDatabaseCreate";
 import { MIN_SYNC_INTERVAL_SECONDS, defaultCalendarKey, defaultSyncIntervalSeconds, syncIntervalKey } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -241,6 +246,9 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
   const [defaultCalendar, setDefaultCalendar] = useState("");
   /** What the last cycle said about this account and its lists, and its provider (for the empty-list hint). */
   const [scope, setScope] = useState<{ account?: string; lists?: string; provider: string }>({ provider: "" });
+  /** Why a switched-on list of this account does not reach the notes (issue 172). */
+  const [listProblems, setListProblems] = useState<PimSyncProblem[]>([]);
+  const vault = useVault();
 
   const reload = useCallback(async () => {
     if (!runtime?.isActive()) return;
@@ -252,6 +260,7 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
       runtime.cache.listAccounts().catch(() => []),
     ]);
     setScope({ account: account?.lastError ?? undefined, lists: tasks?.lastError ?? undefined, provider: rows.find((row) => row.id === pimAccountId)?.provider ?? "" });
+    setListProblems(taskListProblemsOf(await runtime.cache.listSyncProblems().catch(() => []), pimAccountId));
     setColors(await loadCalendarColors(vaultPath));
     setDefaultCalendar((await (await getSettingsStore()).get<string>(defaultCalendarKey(vaultPath))) ?? "");
   }, [runtime, pimAccountId, vaultPath]);
@@ -261,9 +270,12 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
     window.addEventListener("plainva-pim-changed", onChanged);
     // The marker follows the Calendar page, where the default is set.
     window.addEventListener("plainva-default-calendar-changed", onChanged);
+    // The reconcile writes the lines a list carries (issue 172).
+    window.addEventListener("plainva-task-sync-done", onChanged);
     return () => {
       window.removeEventListener("plainva-pim-changed", onChanged);
       window.removeEventListener("plainva-default-calendar-changed", onChanged);
+      window.removeEventListener("plainva-task-sync-done", onChanged);
     };
   }, [reload]);
 
@@ -284,6 +296,16 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
   };
   const listState = taskListState({ count: lists.length, listsError: scope.lists, accountError: scope.account });
   const lookAgain = () => { void runtime.worker.triggerImmediate().then(() => reload()); };
+  // A list that waits for a standard task database can get one right here,
+  // for the vault this page belongs to (issue 172).
+  const createTaskDb =
+    vault.vaultAdapter && vault.vaultPath === vaultPath && needsTaskDatabase(listProblems)
+      ? async () => {
+          if (!vault.vaultAdapter) return;
+          const path = await createStandardTaskDatabase({ vaultAdapter: vault.vaultAdapter, vaultPath, indexer: vault.indexer, triggerFileTreeUpdate: vault.triggerFileTreeUpdate, t });
+          if (path) lookAgain();
+        }
+      : null;
   // E13 of the settings plan: one place sets the default calendar - the Calendar
   // page; this page only marks which of this account's calendars it is.
   const isDefault = (calendar: CalendarRow) => calendarKey(calendar) === defaultCalendar;
@@ -340,6 +362,15 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
               <Switch checked={list.selected} label={list.name} onChange={(next) => void toggleList(list.id, next)} testId={`account-tasklist-${list.id}`} />
             </SettingRow>
           ))}
+          {listProblems.length > 0 && (
+            <SettingCardBlock>
+              <CalendarSyncNotice
+                problems={listProblems}
+                onRetry={lookAgain}
+                action={createTaskDb ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createTaskDb(), testId: "account-tasklist-create-db" } : undefined}
+              />
+            </SettingCardBlock>
+          )}
         </SettingCard>
       ) : null}
       <Button variant="secondary" icon={<RefreshCw size={ICON.meta} />} onClick={() => void runtime.worker.triggerImmediate()} data-testid="account-calendar-sync">
