@@ -8,13 +8,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const store = new Map<string, unknown>();
+let storeFails = false;
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("./settingsStore", () => ({
-  getSettingsStore: async () => ({
-    get: async (key: string) => store.get(key),
-    set: async (key: string, value: unknown) => void store.set(key, value),
-    save: async () => {},
-  }),
+  getSettingsStore: async () => {
+    if (storeFails) throw new Error("store unreadable");
+    return {
+      get: async (key: string) => store.get(key),
+      set: async (key: string, value: unknown) => void store.set(key, value),
+      save: async () => {},
+    };
+  },
 }));
 vi.mock("./appearanceSync", () => ({ notifyAppearanceChanged: vi.fn() }));
 
@@ -35,21 +39,34 @@ const reported = (invoke: ReturnType<typeof vi.fn>) =>
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("the spell-checking switch and the web view's checker", () => {
-  beforeEach(() => store.clear());
+  beforeEach(() => {
+    store.clear();
+    storeFails = false;
+  });
 
-  it("reports off at start when nothing is stored, and nothing more", async () => {
+  it("reports nothing before the store is read, then off when nothing is stored", async () => {
     const { invoke, service } = await load();
     service.initSpellcheck();
+    expect(reported(invoke)).toEqual([]);
     await settle();
     expect(reported(invoke)).toEqual([false]);
   });
 
-  it("reports on when the stored switch is on", async () => {
+  it("reports exactly on when the stored switch is on - a new window never switches the others off first", async () => {
     store.set("spellcheck", true);
     const { invoke, service } = await load();
     service.initSpellcheck();
     await settle();
-    expect(reported(invoke)).toEqual([false, true]);
+    expect(reported(invoke)).toEqual([true]);
+  });
+
+  it("reports nothing when the store cannot be read", async () => {
+    storeFails = true;
+    const { invoke, service, ui } = await load();
+    service.initSpellcheck();
+    await settle();
+    expect(reported(invoke)).toEqual([]);
+    expect(ui.isSpellcheckOn()).toBe(false);
   });
 
   it("follows the switch both ways, so switching off clears WebKit's markers", async () => {
@@ -70,7 +87,7 @@ describe("the spell-checking switch and the web view's checker", () => {
     service.initSpellcheck();
     await settle();
     ui.setSpellcheckOn(false);
-    expect(reported(invoke)).toEqual([false, true, false]);
+    expect(reported(invoke)).toEqual([true, false]);
   });
 
   it("keeps the page's rule when the host refuses the command", async () => {
@@ -82,5 +99,40 @@ describe("the spell-checking switch and the web view's checker", () => {
     expect(invoke).toHaveBeenCalledWith("set_webview_spellcheck", { on: true });
     expect(ui.isSpellcheckOn()).toBe(true);
     expect(store.get("spellcheck")).toBe(true);
+    await settle();
+    expect(service.getWebviewSpellStatus()).toBeNull();
+  });
+
+  it("keeps what the checker loaded while on, and forgets it when off", async () => {
+    const { invoke, service } = await load();
+    invoke.mockImplementation(async (_cmd: string, args?: unknown) =>
+      (args as { on: boolean }).on ? { languages: [], appImage: false } : null,
+    );
+    service.initSpellcheck();
+    await settle();
+    await service.setStoredSpellcheck(true);
+    await settle();
+    expect(service.getWebviewSpellStatus()).toEqual({ languages: [], appImage: false });
+    await service.setStoredSpellcheck(false);
+    await settle();
+    expect(service.getWebviewSpellStatus()).toBeNull();
+  });
+});
+
+describe("the line under the switch", () => {
+  it("appears only while on and with no dictionary loaded", async () => {
+    const { service } = await load();
+    const none = { languages: [], appImage: false };
+    expect(service.spellcheckHint(true, none)).toBe("noDictionary");
+    expect(service.spellcheckHint(false, none)).toBeNull();
+    expect(service.spellcheckHint(true, { languages: ["de_DE"], appImage: false })).toBeNull();
+    // Windows, macOS, the phone, an older binary: the host says nothing.
+    expect(service.spellcheckHint(true, null)).toBeNull();
+  });
+
+  it("names the AppImage's limit instead of the dictionary", async () => {
+    const { service } = await load();
+    expect(service.spellcheckHint(true, { languages: [], appImage: true })).toBe("appImage");
+    expect(service.spellcheckHint(true, { languages: ["en_US"], appImage: true })).toBeNull();
   });
 });

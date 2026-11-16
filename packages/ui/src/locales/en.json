@@ -3059,6 +3059,8 @@
     "spellcheck": "Spell checking",
     "spellcheckDesc": "Underlines misspelled words in notes, table cells, emails, comments, journal entries and tasks. Plainva uses your system's spell checker and its languages; code, keys and passwords are never checked.",
     "spellcheckMenuDesc": "While it is on, a right-click in such text opens the system's menu with the suggestions instead of Plainva's own.",
+    "spellcheckNoDictionary": "Checks nothing: no dictionary is installed for your languages. Install one (e.g. hunspell-en-us) and restart Plainva.",
+    "spellcheckAppImage": "Checks nothing: in the AppImage, checking depends on the system's Enchant modules and works only on Debian and Ubuntu.",
     "inboxFolder": "Inbox folder",
     "inboxFolderDesc": "Where the ＋ quick capture on your phone puts a note, where text shared from another app lands, and where an AI answer you keep as a note goes — on the desktop too. Otherwise the desktop creates notes where you point it.",
     "attachmentFolder": "Attachments folder",

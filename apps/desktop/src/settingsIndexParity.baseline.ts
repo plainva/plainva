@@ -34,7 +34,7 @@ export const SETTINGS_INDEX_ASYMMETRY: Record<string, { desktopOnly: readonly st
     mobileOnly: ["database.folder","settings.addFolderTemplate","settings.addTypeTemplate","settings.allowExtendedDbInfoMobile"],
   },
   "editor": {
-    desktopOnly: ["settings.defaultViewMode","settings.defaultViewModeDesc","settings.newNotesInNewTab","settings.newNotesInNewTabDesc","settings.spellcheckMenuDesc"],
+    desktopOnly: ["settings.defaultViewMode","settings.defaultViewModeDesc","settings.newNotesInNewTab","settings.newNotesInNewTabDesc","settings.spellcheckAppImage","settings.spellcheckMenuDesc","settings.spellcheckNoDictionary"],
     mobileOnly: ["mobile.defaultViewNewNotes","mobile.noteHeadButton","mobile.noteHeadButtonHint","mobile.readerAutoHide","mobile.settingDefaultView"],
   },
   "journal": {

@@ -361,16 +361,31 @@ fn print_webview(webview_window: tauri::WebviewWindow) -> Result<(), String> {
     webview_window.print().map_err(|e| e.to_string())
 }
 
+/// What `set_webview_spellcheck` tells the page after switching the checker
+/// on (Linux only): the dictionaries WebKit actually loaded - empty means
+/// nothing is checked - and whether the app runs as an AppImage, whose bundled
+/// Enchant finds dictionary providers only where a Debian-like host keeps them.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebviewSpellStatus {
+    pub languages: Vec<String>,
+    pub app_image: bool,
+}
+
 /// The device switch "Spell checking" for the web view's own checker. Only
 /// WebKitGTK needs it (src/linux_spellcheck.rs); WebView2 checks by the page's
 /// `spellcheck` attribute alone, and macOS has its process-wide state set once
-/// at start (src/macos_spellcheck.rs), so there it does nothing.
+/// at start (src/macos_spellcheck.rs), so there it does nothing and says
+/// nothing (`None`).
 #[tauri::command]
-fn set_webview_spellcheck(app: tauri::AppHandle, on: bool) {
+async fn set_webview_spellcheck(app: tauri::AppHandle, on: bool) -> Option<WebviewSpellStatus> {
     #[cfg(target_os = "linux")]
-    linux_spellcheck::set_switch(&app, on);
+    return linux_spellcheck::set_switch(&app, on).await;
     #[cfg(not(target_os = "linux"))]
-    let _ = (app, on);
+    {
+        let _ = (app, on);
+        None
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -490,7 +505,8 @@ pub fn run() {
                 db_tx::release_owner_later(webview.app_handle(), webview.label().to_string(), "its page loaded");
                 // WebKitGTK checks spelling only while the app has its checker
                 // on (src/linux_spellcheck.rs): a new page, a second window's
-                // too, starts with the switch as the page last reported it.
+                // too, takes over the switch as a window last reported it, and
+                // never changes it before its own page has read the store.
                 #[cfg(target_os = "linux")]
                 let _ = webview.with_webview(|platform| linux_spellcheck::on_page_load(&platform.inner()));
             }
