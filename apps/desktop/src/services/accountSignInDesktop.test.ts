@@ -56,7 +56,10 @@ vi.mock("./accountBroker", () => ({
   saveAccountToken: vi.fn(async (_v: string, id: string, token: StoredAccountToken) => { h.grants.set(id, [...(h.grants.get(id) ?? []), token]); }),
   getAccountToken: vi.fn(async (_v: string, id: string) => (h.grants.get(id) ?? []).slice(-1)[0] ?? null),
   getAccountBroker: vi.fn(() => ({ getAccessToken: vi.fn(async () => "access-from-broker") })),
-  setPendingBrokerAccount: vi.fn((marker: { accountId: string } | null) => { h.pending.push(marker?.accountId ?? null); }),
+  holdPendingBrokerAccount: vi.fn((marker: { accountId: string }) => {
+    h.pending.push(marker.accountId);
+    return () => { h.pending.push(null); };
+  }),
   claimPendingMailbox: vi.fn(),
 }));
 vi.mock("./cloudAccountsActions", () => ({

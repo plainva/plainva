@@ -211,7 +211,7 @@ async function connectCalendar(
   }
 }
 
-export async function connectMicrosoftMailAccount(vaultPath: string, clientId: string, viaBroker?: boolean): Promise<{ id: string; address: string }> {
+export async function connectMicrosoftMailAccount(vaultPath: string, clientId: string, viaBroker: boolean, cardId: string): Promise<{ id: string; address: string }> {
   if (!viaBroker) throw new ServiceConnectionError("needsConsent");
   const refreshToken = "";
   const id = newId();
@@ -219,7 +219,7 @@ export async function connectMicrosoftMailAccount(vaultPath: string, clientId: s
   // just minted, or the one of the card the connect reuses — before any
   // card points at it. The broker hands that sign-in to the mailbox the
   // connect names and to no other, so the name comes first.
-  claimPendingMailbox(vaultPath, id);
+  claimPendingMailbox(vaultPath, cardId, id);
   const account: MailAccountConfig = { id, label: "Microsoft", host: "", port: 0, user: "", kind: "microsoft", clientId };
   await saveMicrosoftMailAccount(vaultPath, account, refreshToken, "connect");
   try {

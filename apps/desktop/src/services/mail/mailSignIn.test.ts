@@ -300,7 +300,7 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
     it("still serves the mailbox the connect is creating", async () => {
       const fresh = mailbox("box-new", "neu@example.org");
       // The wizard names the mailbox, saves it, then reads its address.
-      claimPendingMailbox(VAULT, fresh.id);
+      claimPendingMailbox(VAULT, "card-new", fresh.id);
       await saveBrokerMailAccount(VAULT, fresh, "connect");
       await expect(mailAccessTokenFor(VAULT, fresh.id)).resolves.toBe("access:sign-in-new");
     });
@@ -311,7 +311,7 @@ describe("the sign-in a mailbox works with, as the main window registers it", ()
       // ago, before the wizard's own card exists. That card holds no sign-in,
       // and it must not turn the connect's own mailbox away.
       const fresh = mailbox("box-new", "neu@example.org");
-      claimPendingMailbox(VAULT, fresh.id);
+      claimPendingMailbox(VAULT, "card-new", fresh.id);
       await saveBrokerMailAccount(VAULT, fresh, "connect");
       state.records = [...state.records, card("card-found", "", fresh.id)];
       await expect(mailAccessTokenFor(VAULT, fresh.id)).resolves.toBe("access:sign-in-new");

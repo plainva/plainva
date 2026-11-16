@@ -354,9 +354,38 @@ interface PendingBrokerAccount {
   /** The mailbox this connect creates — the one mailbox the marker answers. */
   mailAccountId?: string;
 }
-let pendingAccount: PendingBrokerAccount | null = null;
+
+/**
+ * One marker per connect, keyed by vault and card (Fehlerliste C3).
+ *
+ * A single module-wide marker let a second connect replace the first one's,
+ * and the first one's end then cleared the second's: whichever validation ran
+ * next found no marker, or the wrong account's. Nothing in the interface stops
+ * two connects from binding at the same time — the settings area can be left
+ * and opened again while a consent waits in the browser, and the account
+ * page's own sign-in runs beside the wizard's.
+ */
+const pendingAccounts = new Map<string, PendingBrokerAccount>();
+const pendingKey = (vaultPath: string, accountId: string) => `${vaultPath}\u0000${accountId}`;
+
+/**
+ * Marks a connect as running and returns the call that ends it. Ending only
+ * removes this connect's own marker: a later connect at the same card that
+ * replaced it keeps running.
+ */
+export function holdPendingBrokerAccount(next: PendingBrokerAccount): () => void {
+  const key = pendingKey(next.vaultPath, next.accountId);
+  const entry: PendingBrokerAccount = { ...next };
+  pendingAccounts.set(key, entry);
+  return () => {
+    if (pendingAccounts.get(key) === entry) pendingAccounts.delete(key);
+  };
+}
+
+/** Sets one connect's marker, as `holdPendingBrokerAccount`; `null` ends every connect. */
 export function setPendingBrokerAccount(next: PendingBrokerAccount | null): void {
-  pendingAccount = next;
+  if (next) holdPendingBrokerAccount(next);
+  else pendingAccounts.clear();
 }
 
 /**
@@ -372,19 +401,20 @@ export function setPendingBrokerAccount(next: PendingBrokerAccount | null): void
  * saved a moment ago. So the marker answers the mailbox that was named, and no
  * other.
  */
-export function claimPendingMailbox(vaultPath: string, mailAccountId: string): void {
-  if (pendingAccount && pendingAccount.vaultPath === vaultPath) pendingAccount = { ...pendingAccount, mailAccountId };
+export function claimPendingMailbox(vaultPath: string, accountId: string, mailAccountId: string): void {
+  const entry = pendingAccounts.get(pendingKey(vaultPath, accountId));
+  if (entry) entry.mailAccountId = mailAccountId;
 }
 
-/** Whether the account being connected right now answers this question. */
-function pendingAnswers(
-  pending: PendingBrokerAccount,
-  records: CloudAccountRecord[],
-  service: CloudServiceId,
-  subsystemId: string
-): boolean {
-  if (service === "mail") return pending.mailAccountId === subsystemId;
-  return !belongsToAnotherAccount(records, service, subsystemId, pending.accountId);
+/**
+ * The connect running in this vault that answers this subsystem, if any. Mail:
+ * the connect that named the mailbox. Calendar: a connect whose card is the
+ * only one that may claim the row — the newest one, when several run.
+ */
+function pendingFor(vaultPath: string, service: CloudServiceId, subsystemId: string, records: CloudAccountRecord[]): PendingBrokerAccount | undefined {
+  const running = [...pendingAccounts.values()].filter((pending) => pending.vaultPath === vaultPath);
+  if (service === "mail") return running.find((pending) => pending.mailAccountId === subsystemId);
+  return running.reverse().find((pending) => !belongsToAnotherAccount(records, service, subsystemId, pending.accountId));
 }
 
 /** Resolve only a service whose stored grant covers it. Both shells use the
@@ -404,16 +434,13 @@ export async function brokerTokenProvider(
   // Nobody asking is nobody to answer — not even the connect in progress.
   if (!subsystemId) return undefined;
   const records = await loadCloudAccounts(vaultPath);
-  if (
-    pendingAccount &&
-    pendingAccount.vaultPath === vaultPath &&
-    pendingAnswers(pendingAccount, records, service, subsystemId)
-  ) {
-    const minted = await getAccountToken(vaultPath, pendingAccount.accountId, service, pendingAccount.family);
+  const pending = pendingFor(vaultPath, service, subsystemId, records);
+  if (pending) {
+    const minted = await getAccountToken(vaultPath, pending.accountId, service, pending.family);
     // The same scope rule as below: a consent that just covered file sync must
     // not be handed to the calendar mid-connect either.
-    if (minted && tokenCoversService(minted, service, pendingAccount.family)) {
-      const { accountId, family } = pendingAccount;
+    if (minted && tokenCoversService(minted, service, pending.family)) {
+      const { accountId, family } = pending;
       return async (force: boolean) => {
         const broker = getAccountBroker(vaultPath, accountId, family);
         if (force) broker.forget();
@@ -467,24 +494,9 @@ export async function fileBrokerTokenProvider(vaultPath: string, binding: FileBr
  * Whether the asking subsystem already belongs to a card OTHER than the one
  * being connected right now.
  *
- * The pending marker exists so the validations that run DURING a connect find
- * the freshly minted token, before the registry record exists. But the workers
- * keep running meanwhile — and the marker outlived its connect, so from the
- * moment a second account was added, every service of the vault drew that
- * account's token: the Google calendar was handed the MICROSOFT access token
- * and Google answered 401 UNAUTHENTICATED "Expected OAuth 2 access token",
- * which reads exactly like a revoked sign-in. Deleting the new account made it
- * disappear, because that removed the token the marker pointed at (finding
- * 2026-07-30).
- *
  * A subsystem that some card already claims is never part of the connect in
- * progress, so it keeps its own path. That only holds when the subsystem is
- * named: mail asked without its mailbox until 2026-10-12, so for the length of
- * a connect every OAuth mailbox of the vault drew the token just minted for
- * the new account.
- *
- * This is the calendar's rule. Mail no longer asks it: the connect names the
- * mailbox it creates (`claimPendingMailbox`), and the marker answers that one.
+ * progress, so it keeps its own path (finding 2026-07-30). This is the
+ * calendar's rule; mail names its mailbox (`claimPendingMailbox`).
  */
 function belongsToAnotherAccount(
   records: CloudAccountRecord[],

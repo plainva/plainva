@@ -45,7 +45,7 @@ import { authorizeDrive } from "./driveAuth";
 import { authorizeOneDrive } from "./oneDriveAuth";
 import { oauthErrorText } from "./oauthLoopback";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
-import { claimPendingMailbox, getAccountBroker, getAccountToken, saveAccountToken, setPendingBrokerAccount } from "./accountBroker";
+import { claimPendingMailbox, getAccountBroker, getAccountToken, holdPendingBrokerAccount, saveAccountToken } from "./accountBroker";
 import { announceCredentials, clearOtherSyncSlots, connectMicrosoftMailAccount } from "./cloudAccountsActions";
 import { connectGoogleAccount, connectMicrosoftAccount } from "./pim/pimAccounts";
 import { getPimCredentials } from "./pim/pimCredentials";
@@ -227,7 +227,7 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
   const finished = await bindSignedInAccount(prepared, completed, {
     loadCards: () => loadCloudAccounts(vaultPath),
     saveCards: (records) => saveCloudAccounts(vaultPath, records),
-    setPending: (cardId, family) => setPendingBrokerAccount(cardId ? { vaultPath, accountId: cardId, family } : null),
+    setPending: pendingMarker(vaultPath),
     bindFiles: async (cardId) => {
       filesBound = true;
       return bindFiles(vaultPath, cardId, completed, access.clientSecret);
@@ -270,7 +270,7 @@ export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFam
     saveGrant: (cardId, token) => saveAccountToken(vaultPath, cardId, token),
     newCardId: () => crypto.randomUUID(),
     saveCards: (records) => saveCloudAccounts(vaultPath, records),
-    setPending: (cardId, fam) => setPendingBrokerAccount(cardId ? { vaultPath, accountId: cardId, family: fam } : null),
+    setPending: pendingMarker(vaultPath),
     bindFiles: (cardId, completed) => bindFiles(vaultPath, cardId, completed, access.access.clientSecret),
     bindCalendar: () => Promise.reject(new Error("not part of an online vault sign-in")),
     bindMail: () => Promise.reject(new Error("not part of an online vault sign-in")),
@@ -281,6 +281,19 @@ export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFam
   const files = finished.rows.find((row) => row.service === "files");
   if (files?.state !== "active") throw new Error(files?.detail ?? "files were not granted");
   return finished.record;
+}
+
+/**
+ * The broker's pending marker for ONE connect (Fehlerliste C3): the port sets
+ * it with the card and ends it with `null`, and ending ends this connect's
+ * marker only, never one another connect set meanwhile.
+ */
+function pendingMarker(vaultPath: string): (cardId: string | null, family: OAuthFamily) => void {
+  let release: (() => void) | null = null;
+  return (cardId, family) => {
+    release?.();
+    release = cardId ? holdPendingBrokerAccount({ vaultPath, accountId: cardId, family }) : null;
+  };
 }
 
 async function bindFiles(vaultPath: string, cardId: string, completed: CompletedSignIn, clientSecret: string | undefined): Promise<{ provider: "drive" | "onedrive" }> {
@@ -387,11 +400,11 @@ async function bindMail(vaultPath: string, cardId: string, completed: CompletedS
     // OAuth mailbox replaces it at the card; the password mailbox is kept.
   }
   if (family === "microsoft") {
-    const { id } = await connectMicrosoftMailAccount(vaultPath, completed.token.clientId, true);
+    const { id } = await connectMicrosoftMailAccount(vaultPath, completed.token.clientId, true, cardId);
     return { mailAccountId: id };
   }
   const id = await stableGmailId(completed.identity.subject);
-  claimPendingMailbox(vaultPath, id);
+  claimPendingMailbox(vaultPath, cardId, id);
   const accessToken = await getAccountBroker(vaultPath, cardId, "google").getAccessToken("mail", completed.token);
   await mailTransport().checkLogin({ host: "imap.gmail.com", port: 993, user: completed.email, pass: accessToken, auth: "xoauth2" });
   const account: MailAccountConfig = {
