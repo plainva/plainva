@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-11-10
+Dernière mise à jour : 2026-11-16
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -50,7 +50,7 @@ Tapez `/` en début de ligne pour ouvrir le menu d'insertion. Il est organisé e
 - **Replier les listes** — un clic sur la puce d’un élément qui a des sous-éléments les replie ; la puce prend la couleur d’accent et un « … » marque l’endroit, un second clic déplie. Le fichier ne change jamais. Les puces alternent selon le niveau (• ◦ ▪) et les lignes de continuation se placent exactement sous le texte de leur élément — sur le téléphone aussi, où la puce est la seule commande de repli.
 - **Position de défilement** — chaque note s’ouvre là où vous l’aviez laissée ; mémorisé par appareil, non synchronisé.
 - **Rechercher & remplacer** dans la note actuelle : `Ctrl+F` (voir [Recherche](Search.md)).
-- **Vérification orthographique** — désactivée par défaut. Activez-la sous **Paramètres → App → Éditeur et notes** et les mots mal orthographiés sont soulignés dans les notes, les cellules de tableau, les e-mails, les commentaires, les entrées du journal et les tâches ; le code, les adresses web, les clés et les mots de passe ne sont jamais vérifiés. Plainva utilise le correcteur orthographique de votre système et ses langues et n'apporte aucun dictionnaire. Tant qu'elle est activée, un clic droit dans un tel texte ouvre le menu du système avec les suggestions au lieu de celui de Plainva ; une cellule de tableau garde son menu de tableau. Le réglage appartient à cet appareil. Sous Linux, Plainva n'active pas encore le correcteur de la WebView du système ; il y reste sans effet.
+- **Vérification orthographique** — désactivée par défaut. Activez-la sous **Paramètres → App → Éditeur et notes** et les mots mal orthographiés sont soulignés dans les notes, les cellules de tableau, les e-mails, les commentaires, les entrées du journal et les tâches ; le code, les adresses web, les clés et les mots de passe ne sont jamais vérifiés. Plainva utilise le correcteur orthographique de votre système et ses langues et n'apporte aucun dictionnaire. Tant qu'elle est activée, un clic droit dans un tel texte ouvre le menu du système avec les suggestions au lieu de celui de Plainva ; une cellule de tableau garde son menu de tableau. Le réglage appartient à cet appareil. Sous Linux, les dictionnaires viennent du système, dans les langues qui y sont configurées : si rien n'est souligné, installez le dictionnaire Hunspell de votre langue (par exemple le paquet `hunspell-fr`) et redémarrez Plainva.
 
 ## Liens et backlinks
 

@@ -2971,7 +2971,6 @@
     "spellcheck": "拼写检查",
     "spellcheckDesc": "在笔记、表格单元格、邮件、评论、日志条目和任务中为拼写错误的单词加下划线。Plainva 使用系统的拼写检查及其语言；代码、密钥和密码从不检查。",
     "spellcheckMenuDesc": "开启后，在这类文本中点击右键会打开带有更正建议的系统菜单，而不是 Plainva 自己的菜单。",
-    "spellcheckLinux": "在 Linux 上暂不生效。",
     "inboxFolder": "收件箱文件夹",
     "inboxFolderDesc": "手机上 ＋ 速记会把笔记存放在这里，从其他应用分享来的文字会落在这里；你作为笔记保留的AI回答，在桌面端也会放在这里。除此之外，桌面端会在你指定的位置新建笔记。",
     "attachmentFolder": "附件文件夹",

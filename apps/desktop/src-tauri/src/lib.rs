@@ -20,6 +20,8 @@ mod embedding;
 mod linux_appimage;
 #[cfg(target_os = "macos")]
 mod macos_spellcheck;
+#[cfg(target_os = "linux")]
+mod linux_spellcheck;
 mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
@@ -359,6 +361,18 @@ fn print_webview(webview_window: tauri::WebviewWindow) -> Result<(), String> {
     webview_window.print().map_err(|e| e.to_string())
 }
 
+/// The device switch "Spell checking" for the web view's own checker. Only
+/// WebKitGTK needs it (src/linux_spellcheck.rs); WebView2 checks by the page's
+/// `spellcheck` attribute alone, and macOS has its process-wide state set once
+/// at start (src/macos_spellcheck.rs), so there it does nothing.
+#[tauri::command]
+fn set_webview_spellcheck(app: tauri::AppHandle, on: bool) {
+    #[cfg(target_os = "linux")]
+    linux_spellcheck::set_switch(&app, on);
+    #[cfg(not(target_os = "linux"))]
+    let _ = (app, on);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Before anything loads a graphics library: the AppImage on a Mesa-25 host
@@ -474,6 +488,11 @@ pub fn run() {
         .on_page_load(|webview, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Started {
                 db_tx::release_owner_later(webview.app_handle(), webview.label().to_string(), "its page loaded");
+                // WebKitGTK checks spelling only while the app has its checker
+                // on (src/linux_spellcheck.rs): a new page, a second window's
+                // too, starts with the switch as the page last reported it.
+                #[cfg(target_os = "linux")]
+                let _ = webview.with_webview(|platform| linux_spellcheck::on_page_load(&platform.inner()));
             }
         })
         .on_window_event(|window, event| {
@@ -567,6 +586,7 @@ pub fn run() {
             oauth_token_request,
             move_to_trash,
             print_webview,
+            set_webview_spellcheck,
             tray::tray_enable,
             tray::tray_disable,
             tray::tray_set_next,

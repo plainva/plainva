@@ -149,6 +149,12 @@ libc = "0.2"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSUserDefaults"] }
 
+# Spell checking in WebKitGTK (src/linux_spellcheck.rs): the checker and its
+# languages are set on the web view's context. Already in the lock file
+# through tauri and wry, with the same feature set.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = { version = "2", features = ["v2_40"] }
+
 [dev-dependencies]
 # The MCP server's connection tests run against Tauri's mock runtime.
 tauri = { version = "2", features = ["test"] }

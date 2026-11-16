@@ -1,4 +1,5 @@
-import { setSpellcheckOn } from "@plainva/ui";
+import { invoke } from "@tauri-apps/api/core";
+import { isSpellcheckOn, setSpellcheckOn, subscribeSpellcheck } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { notifyAppearanceChanged } from "./appearanceSync";
 
@@ -13,6 +14,13 @@ import { notifyAppearanceChanged } from "./appearanceSync";
  * On the desktop the switch has a second effect, in services/webviewHardening:
  * while it is on, a right-click in a checked text field shows the system's
  * menu, because the correction suggestions exist only there.
+ *
+ * And a third, for the web view's own checker: WebKitGTK on Linux checks only
+ * while the app has switched its checker on, and removes the red lines it drew
+ * only when the app switches it off again - turning the attribute to `false`
+ * leaves them standing. So every change of the rule is reported to src-tauri
+ * (`set_webview_spellcheck`, src/linux_spellcheck.rs); on Windows and macOS
+ * the command does nothing.
  */
 export const DEFAULT_SPELLCHECK = false;
 
@@ -37,8 +45,26 @@ export async function setStoredSpellcheck(on: boolean): Promise<void> {
   notifyAppearanceChanged();
 }
 
+let reporting = false;
+
+/**
+ * Reports the rule's state to the web view's checker, now and on every change.
+ * Once per window; a failed call (no Tauri host, an older binary) changes
+ * nothing for the page, which keeps deciding by the attribute.
+ */
+export function reportSpellcheckToWebview(): void {
+  if (reporting) return;
+  reporting = true;
+  const report = () => {
+    invoke("set_webview_spellcheck", { on: isSpellcheckOn() }).catch(() => {});
+  };
+  subscribeSpellcheck(report);
+  report();
+}
+
 /** Reads the stored switch into the shared rule. Until then the rule is off. */
 export function initSpellcheck(): void {
+  reportSpellcheckToWebview();
   getStoredSpellcheck()
     .then((on) => setSpellcheckOn(on))
     .catch(() => {});

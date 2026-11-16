@@ -3059,7 +3059,6 @@
     "spellcheck": "Rechtschreibprüfung",
     "spellcheckDesc": "Unterstreicht falsch geschriebene Wörter in Notizen, Tabellenzellen, E-Mails, Kommentaren, Journal-Einträgen und Aufgaben. Plainva nutzt die Rechtschreibprüfung Deines Systems und dessen Sprachen; Code, Schlüssel und Passwörter werden nie geprüft.",
     "spellcheckMenuDesc": "Solange sie an ist, öffnet ein Rechtsklick in solchem Text das Menü des Systems mit den Korrekturvorschlägen statt Plainvas eigenem.",
-    "spellcheckLinux": "Unter Linux noch ohne Wirkung.",
     "inboxFolder": "Eingangsordner",
     "inboxFolderDesc": "Wohin die ＋-Schnellerfassung auf Deinem Telefon eine Notiz legt, wo aus anderen Apps geteilter Text landet und wohin eine KI-Antwort geht, die Du als Notiz festhältst — auch am Desktop. Sonst entstehen Notizen am Desktop dort, wohin Du zeigst.",
     "attachmentFolder": "Anhänge-Ordner",

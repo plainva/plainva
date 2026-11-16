@@ -284,13 +284,6 @@ export interface EditorPageProps {
   onPlaceStamp: (v: boolean) => void;
 }
 
-/**
- * wry never switches WebKitGTK's spell checker on, and it is off by default
- * there, so on Linux the switch changes the attribute and nothing checks. The
- * page says so instead of offering a control that silently does nothing.
- */
-const IS_LINUX_DESKTOP = typeof navigator !== "undefined" && /Linux/.test(navigator.userAgent || "") && !/Android/.test(navigator.userAgent || "");
-
 export const EditorPage: React.FC<EditorPageProps> = (p) => {
   const { t } = useTranslation();
   return (
@@ -327,7 +320,6 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
         <SettingRow
           label={t("settings.spellcheck")}
           info={`${t("settings.spellcheckDesc")}\n\n${t("settings.spellcheckMenuDesc")}`}
-          desc={IS_LINUX_DESKTOP ? t("settings.spellcheckLinux") : undefined}
         >
           <Switch checked={p.spellcheck} label={t("settings.spellcheck")} onChange={p.onSpellcheck} />
         </SettingRow>
