@@ -17,6 +17,7 @@ vi.mock("./mobileBar", () => ({
 vi.mock("./windowClass", () => ({ getWindowClass: () => "compact", isRailClass: () => false }));
 
 const { restoreSession } = await import("./navActions");
+const { claimStart, __resetStartClaimForTest } = await import("./startClaim");
 const { flushNavSave, readNavState, scheduleNavSave, writeNavState } = await import("./sessionState");
 const { rememberLastOpen } = await import("@plainva/ui");
 
@@ -31,6 +32,7 @@ function boot(vaultId: string): Promise<NavState> {
 }
 
 beforeEach(() => {
+  __resetStartClaimForTest();
   localStorage.clear();
   for (const id of ["v-left", "v-home"]) writeNavState(id, pushEntry(initialNavState("tasks"), { kind: "note", path: "Left/open.md" }));
 });
@@ -94,6 +96,7 @@ describe("on start (P10)", () => {
     };
     const restoring = restoreSession(vaultOf("v-link"), setNav as never);
     // plainva://open, a widget or a reminder, while the restore still awaits the bar.
+    claimStart(); // what receiveNoteLinks does before it opens the note
     setNav((s) => pushEntry(s, { kind: "note", path: "From/link.md" }));
     await restoring;
     expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
@@ -106,6 +109,7 @@ describe("on start (P10)", () => {
       nav = typeof next === "function" ? next(nav) : next;
     };
     const restoring = restoreSession(vaultOf(vaultId), setNav as never);
+    claimStart(); // what receiveNoteLinks does before it opens the note
     setNav((s) => pushEntry(s, { kind: "note", path: "From/link.md" }));
     await restoring;
     return nav;
@@ -128,6 +132,38 @@ describe("on start (P10)", () => {
     rememberLastOpen("v-first-link", "Last/opened.md");
     const nav = await openDuringRestore("v-first-link");
     expect(Object.values(nav.stacks).flat()).toEqual([{ kind: "note", path: "From/link.md" }]);
+  });
+
+  // Review of issue 173, second round: a screen the app opens itself at a cold
+  // start is no claim. The connect run's next step (Android ended the app
+  // during the sign-in) comes back on top of the restored session.
+  it("a screen the app opens itself meanwhile stays on top of the restored session", async () => {
+    settings.startView = "restore";
+    let nav: NavState = initialNavState("notes");
+    const setNav = (next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    };
+    const restoring = restoreSession(vaultOf("v-left"), setNav as never);
+    setNav((s) => ({ ...s, overlay: [...s.overlay, { kind: "sync", path: "" }] }));
+    await restoring;
+    expect(nav.activeTab).toBe("tasks");
+    expect(nav.stacks.tasks).toEqual([{ kind: "note", path: "Left/open.md" }]);
+    expect(nav.overlay).toEqual([{ kind: "sync", path: "" }]);
+  });
+
+  it("a launcher shortcut that only switches the area keeps it: the restore does not take it back", async () => {
+    settings.startView = "restore";
+    let nav: NavState = initialNavState("notes");
+    const setNav = (next: NavState | ((s: NavState) => NavState)) => {
+      nav = typeof next === "function" ? next(nav) : next;
+    };
+    const restoring = restoreSession(vaultOf("v-left"), setNav as never);
+    // newInTab -> tabTapped: claims the start, then switches the tab; the stacks stay empty.
+    claimStart();
+    setNav((s) => ({ ...s, activeTab: "today" }));
+    await restoring;
+    expect(nav.activeTab).toBe("today");
+    expect(Object.values(nav.stacks).flat()).toEqual([]);
   });
 });
 

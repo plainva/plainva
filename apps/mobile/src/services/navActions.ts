@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import { initialNavState, navTop, popTop, pushEntry, replaceTop, type NavEntry, type NavState, type TabScreenId } from "../navigation";
 import { askBeforeLeaving } from "./leaveQuestion";
+import { startClaimed } from "./startClaim";
+export { claimStart } from "./startClaim";
 import { recallLastOpen, rememberLastOpen } from "@plainva/ui";
 import { getMobileSettings } from "./mobileSettings";
 import type { MobileVault } from "./vaultService";
@@ -67,15 +69,10 @@ export function createNavActions(
   };
 }
 
-/**
- * True while the boot's navigation is as the boot made it: no tab stack and
- * no overlay holds anything. The restore runs asynchronously, and what a
- * person opens meanwhile — a `plainva://open` link, a widget, a reminder —
- * wins over every branch of it: the restore only ever replaces an untouched
- * start (review of issue 173).
- */
-function untouchedStart(s: NavState): boolean {
-  return s.overlay.length === 0 && Object.values(s.stacks).every((stack) => stack.length === 0);
+/** The restored state, with what the app itself put on top meanwhile kept on top. */
+function restoredUnder(current: NavState, restored: NavState): NavState {
+  if (startClaimed()) return current;
+  return current.overlay.length === 0 ? restored : { ...restored, overlay: [...restored.overlay, ...current.overlay] };
 }
 
 /**
@@ -95,7 +92,7 @@ export async function restoreLastOpenNote(
   try {
     // A database is remembered too since P6 — it opens as what it is.
     const kind = /\.base$/i.test(last) ? "base" : "note";
-    if (await vault.files.exists(last)) setNav((st) => (untouchedStart(st) ? pushEntry(st, { kind, path: last }) : st));
+    if (await vault.files.exists(last)) setNav((st) => (startClaimed() ? st : pushEntry(st, { kind, path: last })));
     else rememberLastOpen(vault.vaultId, null);
   } catch {
     /* the note stays where it is; nothing to restore */
@@ -124,7 +121,7 @@ export async function restoreSession(
   // and "As you left it" finds what was open when the app was last left.
   if (getMobileSettings().startView === "fresh") {
     const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
-    if (visible.includes("notes")) setNav((s) => (untouchedStart(s) ? initialNavState("notes") : s));
+    if (visible.includes("notes")) setNav((s) => restoredUnder(s, initialNavState("notes")));
     return;
   }
   if (stored) {
@@ -134,7 +131,7 @@ export async function restoreSession(
     // restoring: left on Home, or the note left open is gone. It then starts
     // on this vault's Home — never on the note opened last (issue 173).
     const restored = next ?? initialNavState(visible[0] ?? "notes");
-    setNav((s) => (untouchedStart(s) ? restored : s));
+    setNav((s) => restoredUnder(s, restored));
     return;
   }
   // No session stored at all (a first start, or a build before P6): the

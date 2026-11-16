@@ -43,7 +43,7 @@ import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mActions, mPrompt } from "./services/mobileDialogs";
 import { askBeforeLeaving, leaveThen } from "./services/leaveQuestion";
-import { createNavActions, restoreSession } from "./services/navActions";
+import { claimStart, createNavActions, restoreSession } from "./services/navActions";
 import { useNavPersistence } from "./services/sessionState";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import { JournalCaptureSheet } from "./components/JournalCaptureSheet";
@@ -640,7 +640,7 @@ export default function App() {
     <ShellProviders index={vault.queryService ?? null} embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
-      <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
+      <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => { claimStart(); setNav(state => pushCapturedNote(state, slots, path)); }} /></AreaBoundary>
       <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} indexClosed={vault.indexClosed} /></AreaBoundary>
       {!onboarded && <AreaBoundary area="shell:onboarding" placeClassName="m-onboarding"><OnboardingChoice onChoose={finishOnboarding} /></AreaBoundary>}
 
