@@ -5340,11 +5340,13 @@
     "deleteWithoutSnapshotNoTrashFileGone": "Sul telefono non c'è un cestino: i file eliminati si recuperano dai loro backup. Senza backup, questo file sparisce definitivamente dal dispositivo. Controlla lo spazio libero.",
     "deleteWithoutSnapshotNoTrashFolder": "Plainva non è riuscito a creare un backup di {{failed}} dei {{total}} file prima dell'eliminazione:",
     "deleteWithoutSnapshotNoTrashFolderGone": "Sul telefono non c'è un cestino: i file eliminati si recuperano dai loro backup. Senza backup, questi file spariscono definitivamente dal dispositivo. Controlla lo spazio libero.",
+    "deleteWithoutSnapshotNoTrashMany": "Plainva non è riuscito a creare un backup di {{items}} degli elementi selezionati prima dell'eliminazione:",
     "deleteWithoutSnapshotTitle": "Eliminare senza backup?",
     "deleteWithoutSnapshotTrashFile": "Il cestino di sistema non è disponibile per questo file (ad esempio su un'unità di rete) e Plainva non è riuscito a crearne un backup:",
     "deleteWithoutSnapshotTrashFileGone": "Questo file andrebbe perso definitivamente.",
     "deleteWithoutSnapshotTrashFolder": "Il cestino di sistema non è disponibile per questa cartella (ad esempio su un'unità di rete) e Plainva non è riuscito a creare un backup di {{failed}} dei {{total}} file:",
     "deleteWithoutSnapshotTrashFolderGone": "Questi file andrebbero persi definitivamente.",
+    "deleteWithoutSnapshotTrashMany": "Il cestino di sistema non è disponibile per {{items}} degli elementi selezionati (ad esempio su un'unità di rete) e Plainva non è riuscito a crearne un backup:",
     "deleteWithoutSnapshotUnlisted": "Plainva non è riuscito a leggere tutto il contenuto di questa cartella e quindi non ha potuto crearne un backup prima dell'eliminazione:",
     "snapshotFailed": "Lo snapshot di versione per {{path}} non è riuscito — il file è stato comunque salvato. Controlla lo spazio su disco e la cartella dei backup.",
     "largeFileTrimmed": "I file di grandi dimensioni conservano solo la versione più recente: {{path}} occupa {{mb}} MB. Le note e i file piccoli mantengono tutta la cronologia; un file eliminato viene sempre salvato per intero."
