@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
+import { isMissingFile } from "./fileErrors";
 
 /**
  * On iOS the phone's databases leave `Documents` for `Library/CapacitorDatabase`
@@ -18,38 +19,47 @@ import { Directory, Filesystem } from "@capacitor/filesystem";
  * `iosDatabaseLocation: "Library/CapacitorDatabase"`, which the Files app does
  * not show.
  *
- * The plugin moves existing databases itself, once, at launch (before any
- * JavaScript runs), when it creates that folder - but only the `…SQLite.db`
- * files (`UtilsFile.moveAllDBSQLite`). The log and a rollback journal stay
- * behind in `Documents`; a database opened without its log has lost the
- * transactions that were not yet folded in. And a move that failed half way is
- * never tried again, because the folder exists by then. So before this
- * JavaScript lifetime opens or deletes its first database, this module puts
- * every database's files where the plugin now looks:
+ * The plugin would move existing databases itself when it creates that
+ * folder at launch - but only the `…SQLite.db` files (`UtilsFile.moveAllDBSQLite`),
+ * leaving the log and a rollback journal in `Documents`, and it excludes the
+ * folder from the iCloud backup while the notes stay in it. So the app makes
+ * the folder before the plugin loads and keeps it in the backup
+ * (`MainViewController.swift`, `DatabaseFolder`), and the plugin moves
+ * nothing. Before this JavaScript lifetime opens or deletes its first
+ * database, this module puts every database's files where the plugin now
+ * looks:
  *
- *  - a database still in `Documents` (the plugin's move failed, or an older
- *    build ran after the move and made a new one there): its journal and log
- *    go first, the database last. A rename inside the app's container is one
- *    step, so a kill between two files leaves the database where it was and
- *    the next start goes on with what is left; a log never waits in
- *    `Library` without its database for longer than that.
- *  - a database in BOTH places: only an older build writes `Documents`, so the
- *    copy there is the last one written and wins; the one in `Library` is
- *    removed with its files first. (A newer build never writes `Documents`.)
- *  - a log or journal left in `Documents` whose database the plugin moved:
+ *  - a log, journal or log index in the new folder whose database is not
+ *    there: no move of this module leaves one (the database always goes
+ *    first), so it is left from a deletion or a removal that ended half way.
+ *    It is removed first - SQLite would replay it into the next database of
+ *    that name.
+ *  - a database still in `Documents` (written by a build before this one, or
+ *    by an older build after it): if the new folder holds that database too,
+ *    the copy in `Documents` is the last one written - only an older build
+ *    writes there - and the one in the new folder goes, its log first and the
+ *    database last. Then the database moves, then its journal and log, and its
+ *    log index is removed. A rename inside the app's container is one step,
+ *    so a start that ends in between leaves the database in the new folder
+ *    and its log in `Documents`, which the next start brings after it.
+ *  - a log or journal left in `Documents` whose database is in the new folder:
  *    it follows its database, unless the database already has a log of its
- *    own in `Library` (then it was opened since and the old log is stale).
+ *    own there (then it was opened since and the old log is stale).
  *  - a log or journal whose database is nowhere: left over from a deletion,
  *    removed.
  *  - `-shm` is the log's index, rebuilt by SQLite from the log when no
  *    connection is open (as here, before the first open): it is removed, never
  *    moved.
  *
+ * Only a file the platform calls missing counts as missing; any other answer
+ * leaves the database's files where they are, and the database closed until
+ * the next start.
+ *
  * A database whose files could not be moved is not opened in this lifetime:
  * the plugin would make a new, empty one in `Library` while the real one,
  * with its queue, waits in `Documents` - two databases for one vault. The
  * vault runs without its index (stability plan R5, the strip on top says so),
- * and the next start tries again. If even the listing of `Documents` fails,
+ * and the next start tries again. If even a folder cannot be listed,
  * nothing is known, and no database opens. Nothing here ever deletes a
  * database that is the only copy.
  *
@@ -70,6 +80,9 @@ const REBUILT = "-shm";
 export interface DatabaseFolders {
   /** File names at the top of `Documents`. */
   listOld(): Promise<string[]>;
+  /** File names in the new folder; none when it does not exist. */
+  listNew(): Promise<string[]>;
+  /** False only when the platform says the file is missing; any other failure throws. */
   existsNew(file: string): Promise<boolean>;
   /** Moves `Documents/<file>` to the new folder; the target does not exist. */
   moveToNew(file: string): Promise<void>;
@@ -80,12 +93,15 @@ export interface DatabaseFolders {
 export interface FolderOutcome {
   /** Database names (as the app opens them, without `SQLite.db`) that must not open. */
   refused: Set<string>;
-  /** True when `Documents` could not be read: no database may open. */
+  /** True when a folder could not be read: no database may open. */
   unknown: boolean;
 }
 
+/** The suffixes of the files beside a database, in the order they are removed. */
+const COMPANIONS = [REBUILT, ...CARRIED] as const;
+
 function companionOf(file: string): { db: string; suffix: string } | null {
-  for (const suffix of [...CARRIED, REBUILT]) {
+  for (const suffix of COMPANIONS) {
     const tail = `${DB_SUFFIX}${suffix}`;
     if (file.endsWith(tail)) return { db: file.slice(0, -suffix.length), suffix };
   }
@@ -96,8 +112,9 @@ function nameOf(dbFile: string): string {
   return dbFile.slice(0, -DB_SUFFIX.length);
 }
 
+/** The files of a database in the new folder: its companions first, the database last. */
 async function removeNewSet(folders: DatabaseFolders, dbFile: string): Promise<void> {
-  for (const suffix of ["", ...CARRIED, REBUILT]) {
+  for (const suffix of [...COMPANIONS, ""]) {
     if (await folders.existsNew(dbFile + suffix)) await folders.removeNew(dbFile + suffix);
   }
 }
@@ -106,27 +123,39 @@ async function removeNewSet(folders: DatabaseFolders, dbFile: string): Promise<v
 export async function moveDatabasesOutOfDocuments(folders: DatabaseFolders): Promise<FolderOutcome> {
   const refused = new Set<string>();
   let files: string[];
+  let newFiles: string[];
   try {
     files = await folders.listOld();
+    newFiles = await folders.listNew();
   } catch (error) {
-    console.warn("[sqlite] Documents could not be listed; no database opens", error);
+    console.warn("[sqlite] the database folders could not be listed; no database opens", error);
     return { refused, unknown: true };
   }
   const present = new Set(files);
-  const databases = files.filter((file) => file.endsWith(DB_SUFFIX));
+  const presentNew = new Set(newFiles);
 
-  for (const dbFile of databases) {
+  // Companions in the new folder without their database: never ours to keep.
+  for (const file of newFiles) {
+    const companion = companionOf(file);
+    if (!companion || presentNew.has(companion.db)) continue;
+    try {
+      await folders.removeNew(file);
+    } catch (error) {
+      console.warn(`[sqlite] ${file} without its database could not be removed; its database stays closed until the next start`, error);
+      refused.add(nameOf(companion.db));
+    }
+  }
+
+  for (const dbFile of files.filter((file) => file.endsWith(DB_SUFFIX))) {
+    if (refused.has(nameOf(dbFile))) continue;
     try {
       // Only an older build writes Documents: its copy is the last one written.
-      if (await folders.existsNew(dbFile)) await removeNewSet(folders, dbFile);
-      for (const suffix of CARRIED) {
-        const file = dbFile + suffix;
-        if (!present.has(file)) continue;
-        if (await folders.existsNew(file)) await folders.removeNew(file);
-        await folders.moveToNew(file);
-      }
+      if (presentNew.has(dbFile) || (await folders.existsNew(dbFile))) await removeNewSet(folders, dbFile);
       if (present.has(dbFile + REBUILT)) await folders.removeOld(dbFile + REBUILT);
       await folders.moveToNew(dbFile);
+      for (const suffix of CARRIED) {
+        if (present.has(dbFile + suffix)) await folders.moveToNew(dbFile + suffix);
+      }
     } catch (error) {
       console.warn(`[sqlite] ${nameOf(dbFile)} could not leave Documents; it stays closed until the next start`, error);
       refused.add(nameOf(dbFile));
@@ -139,7 +168,7 @@ export async function moveDatabasesOutOfDocuments(folders: DatabaseFolders): Pro
     try {
       const dbMoved = await folders.existsNew(companion.db);
       if (dbMoved && companion.suffix !== REBUILT && !(await folders.existsNew(file))) {
-        // The plugin moved the database at launch and left its log behind.
+        // A start that ended between the database and its log.
         await folders.moveToNew(file);
       } else {
         await folders.removeOld(file);
@@ -158,12 +187,22 @@ export const capacitorDatabaseFolders: DatabaseFolders = {
     const { files } = await Filesystem.readdir({ path: "", directory: Directory.Documents });
     return files.filter((entry) => entry.type === "file").map((entry) => entry.name);
   },
+  async listNew() {
+    try {
+      const { files } = await Filesystem.readdir({ path: IOS_DATABASE_FOLDER, directory: Directory.Library });
+      return files.filter((entry) => entry.type === "file").map((entry) => entry.name);
+    } catch (error) {
+      if (isMissingFile(error)) return [];
+      throw error;
+    }
+  },
   async existsNew(file) {
     try {
       await Filesystem.stat({ path: `${IOS_DATABASE_FOLDER}/${file}`, directory: Directory.Library });
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      if (isMissingFile(error)) return false;
+      throw error;
     }
   },
   async moveToNew(file) {
@@ -191,6 +230,27 @@ export async function databaseFolderRefusal(name: string, folders: DatabaseFolde
     return new Error(`Database ${name} is not opened: its files could not be moved out of Documents. The next start tries again.`);
   }
   return null;
+}
+
+/**
+ * After the plugin deleted a database (it removes the database file alone on
+ * iOS), removes the files beside it, so a new database of that name never
+ * replays an old log. When that fails, the name stays closed until the next
+ * start, whose sweep removes them before anything opens.
+ */
+export async function removeDatabaseLeftovers(name: string, folders: DatabaseFolders = capacitorDatabaseFolders): Promise<void> {
+  if (Capacitor.getPlatform() !== "ios") return;
+  outcome ??= moveDatabasesOutOfDocuments(folders);
+  const { refused } = await outcome;
+  try {
+    for (const suffix of COMPANIONS) {
+      const file = `${name}${DB_SUFFIX}${suffix}`;
+      if (await folders.existsNew(file)) await folders.removeNew(file);
+    }
+  } catch (error) {
+    refused.add(name);
+    throw error;
+  }
 }
 
 /** Tests only: a new JavaScript lifetime. */

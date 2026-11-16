@@ -1,6 +1,6 @@
 import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from "@capacitor-community/sqlite";
 import { TransactionTurns } from "@plainva/ui";
-import { databaseFolderRefusal, resetDatabaseFolderForTests } from "./iosDatabaseFolder";
+import { databaseFolderRefusal, removeDatabaseLeftovers, resetDatabaseFolderForTests } from "./iosDatabaseFolder";
 
 /**
  * Every database the phone opens goes through ONE `SQLiteConnection`
@@ -118,9 +118,10 @@ export function releaseDatabase(name: string): Promise<void> {
  *  - The log is a file beside the database (`<name>-wal`, with its index
  *    `<name>-shm`). SQLite folds it into the database when the last
  *    connection closes and removes both; deleting a database leaves the log
- *    first (`deleteDatabaseFile`), so no log of a deleted database is left
- *    for a new one of the same name to replay. Nothing on the phone copies or
- *    backs up a database file: the index is rebuilt from the vault.
+ *    first and removes what is left beside it (`deleteDatabaseFile`), so no
+ *    log of a deleted database is left for a new one of the same name to
+ *    replay. Nothing in the app copies a database file; the iCloud backup
+ *    takes it with its log, as it takes the notes (`MainViewController.swift`).
  *  - An app killed in the middle of a write comes back with every committed
  *    transaction and nothing of the one that was open: SQLite reads the log
  *    on the next open and drops what was never committed (`walRecovery.test.ts`
@@ -177,7 +178,8 @@ async function useWriteAheadLog(name: string, connection: SQLiteDBConnection): P
  * connection is opened for the deletion when none is. Before the file goes,
  * the database leaves its write-ahead log: the log is folded in and removed
  * with its index file, which the plugin's deletion on iOS would leave behind
- * (it removes the database file alone).
+ * (it removes the database file alone) - and whatever is still beside it
+ * afterwards is removed.
  */
 export function deleteDatabaseFile(name: string): Promise<void> {
   return inQueue(async () => {
@@ -206,6 +208,11 @@ export function deleteDatabaseFile(name: string): Promise<void> {
     } finally {
       if (opened) await plugin().closeConnection(name, false).catch(() => {});
     }
+    // The log stays when the switch above failed (a reader still in the log),
+    // and the plugin's deletion on iOS removes the database file alone. Once
+    // no connection is left, the files beside it go (Android's
+    // `Context.deleteDatabase` removes them itself).
+    if (!known) await removeDatabaseLeftovers(name);
   });
 }
 
