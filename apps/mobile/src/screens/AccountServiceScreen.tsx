@@ -3,8 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Activity, CalendarDays, ChevronRight, Cloud, ListChecks, Mail, Pause, RefreshCw } from "lucide-react";
 import { AreaBoundary,
   CalendarSyncNotice,
-  needsTaskDatabase,
+  TaskDatabaseHint,
   taskListProblemsOf,
+  withoutTaskDatabaseLines,
   accountPageModel,
   Banner,
   Button,
@@ -374,11 +375,8 @@ function CalendarPart({ pimAccountId, vault }: { pimAccountId: string; vault: Mo
               ))}
             </RowList>
           </GroupCard>}
-          <CalendarSyncNotice
-            problems={listProblems}
-            onRetry={lookAgain}
-            action={needsTaskDatabase(listProblems) ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createTaskDb(), testId: "account-tasklist-create-db" } : undefined}
-          />
+          <CalendarSyncNotice problems={withoutTaskDatabaseLines(listProblems)} onRetry={lookAgain} />
+          <TaskDatabaseHint vault={vault.vaultId} problems={listProblems} onCreate={() => void createTaskDb()} testId="account-task-db-hint" />
         </>
       )}
       <GroupCard>

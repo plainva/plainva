@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AreaBoundary, consumePendingNew, getPlatformServices } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
-import { Banner, CalendarSyncNotice, errorText, needsTaskDatabase, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
+import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, TaskDatabaseHint, useTaskDuplicates, withoutTaskDatabaseLines } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
 import { convertDueColumnToDateTime, offerDueTimeColumn, TaskPriorityFlag } from "@plainva/ui";
 import { checkboxTextOfCapture } from "@plainva/ui";
@@ -751,11 +751,8 @@ export function TasksScreen({
         }
       />
       {ptrIndicator}
-      <CalendarSyncNotice
-        problems={syncProblems}
-        onRetry={pimSyncNow}
-        action={needsTaskDatabase(syncProblems) ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createDatabaseFromCapture(), testId: "tasks-sync-create-db" } : undefined}
-      />
+      <CalendarSyncNotice problems={withoutTaskDatabaseLines(syncProblems)} onRetry={pimSyncNow} />
+      <TaskDatabaseHint vault={vault.vaultId} problems={syncProblems} onCreate={() => void createDatabaseFromCapture()} />
 
       <TaskPlannerNav variant="segment" value={list} onChange={setList} counts={planner.counts} allCount={openCount} />
 

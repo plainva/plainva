@@ -46,12 +46,13 @@ export function syncProblemReason(problem: PimSyncProblem, t: Translate): string
     const code = problem.error.slice(TASK_NOTE_PROBLEM_PREFIX.length);
     if (code === "no-done-column") return t("pim.problemTaskNoDoneColumn");
     if (code === "no-due-column") return t("pim.problemTaskNoDueColumn");
-    // The three ways the reconcile could not start, and the hold while the
-    // vault fills up: each used to leave the lists empty in silence (issue 172).
+    // The ways the reconcile could not start or create: each used to leave
+    // the lists empty in silence (issue 172).
     if (code === "no-task-db") return t("pim.problemTaskNoDatabase");
     if (code === "task-db-unreadable") return t("pim.problemTaskDatabaseUnreadable");
     if (code === "task-db-no-folder") return t("pim.problemTaskDatabaseNoFolder");
-    if (code === "waiting-first-sync") return t("pim.problemTaskWaitingForSync");
+    if (code === "not-created") return t("pim.problemTaskNotCreated");
+    if (code === "no-index") return t("pim.problemTaskNoIndex");
     return t("pim.problemTaskNotWritten");
   }
   if (isLocalStoreBusy(problem.error)) return t("pim.problemBusy");
@@ -132,4 +133,13 @@ export function taskListProblemsOf(problems: readonly PimSyncProblem[], accountI
 /** True when a line asks for a standard task database: the card then offers to create one. */
 export function needsTaskDatabase(problems: readonly PimSyncProblem[]): boolean {
   return problems.some((p) => p.error === `${TASK_NOTE_PROBLEM_PREFIX}no-task-db`);
+}
+
+/**
+ * The problems for the yellow notice: everything but the lines that only say
+ * "no standard task database". Those are no fault and get the quiet
+ * `TaskDatabaseHint` instead, once, not one warning per list (issue 172).
+ */
+export function withoutTaskDatabaseLines(problems: readonly PimSyncProblem[]): PimSyncProblem[] {
+  return problems.filter((p) => p.error !== `${TASK_NOTE_PROBLEM_PREFIX}no-task-db`);
 }

@@ -1,5 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
-import { reportBackground, reportingTo, reportTaskListsBlocked } from "@plainva/ui";
+import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -1137,6 +1137,9 @@ export const VaultProvider: React.FC<{
           const store = await getSettingsStore();
           const taskDbPath = ((await store.get<string>(taskDatabaseKey(path))) ?? "").trim() || null;
           if (taskDbPath) {
+            // A task database again: should it go missing later, that is a
+            // new state, and the quiet hint may say so (issue 172).
+            resetTaskDbHint(path);
             const noteType = ((await store.get<string>(defaultNoteTypeKey(path))) ?? "").trim() || DEFAULT_NOTE_TYPE;
             const allNotePaths = (await queryService.listNotes()).map((n) => n.path);
             const taskSyncStarted = performance.now();
@@ -1185,8 +1188,10 @@ export const VaultProvider: React.FC<{
             window.dispatchEvent(new CustomEvent("plainva-task-sync-done"));
           } else {
             // No standard task database: switched-on lists cannot reach any
-            // note, and they say so instead of staying empty (issue 172).
-            await reportTaskListsBlocked(pimRuntime.cache, "no-task-db");
+            // note, and they say so instead of staying empty (issue 172) -
+            // once the vault has filled up; during a first sync the setting
+            // may simply not have arrived yet.
+            if (firstSyncSettled && !coldIndexOwed) await reportTaskListsBlocked(pimRuntime.cache, "no-task-db");
             window.dispatchEvent(new CustomEvent("plainva-task-sync-done"));
           }
           // The writing connection (S19): entries that were put in the calendar

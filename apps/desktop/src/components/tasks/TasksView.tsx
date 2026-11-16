@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
 import { type PimSyncProblem, isOpenTaskState, taskNameText, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
-import { CalendarSyncNotice, needsTaskDatabase, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
+import { CalendarSyncNotice, TaskDatabaseHint, withoutTaskDatabaseLines, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
 import { useJournalCapture } from "../../hooks/useJournal";
@@ -1139,11 +1139,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
-      <CalendarSyncNotice
-        problems={syncProblems}
-        onRetry={refreshAll}
-        action={needsTaskDatabase(syncProblems) ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createDatabaseFromCapture(), testId: "tasks-sync-create-db" } : undefined}
-      />
+      <CalendarSyncNotice problems={withoutTaskDatabaseLines(syncProblems)} onRetry={refreshAll} />
+      <TaskDatabaseHint vault={vaultPath} problems={syncProblems} onCreate={() => void createDatabaseFromCapture()} />
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "0.5rem 0.9rem", borderBottom: "1px solid var(--border-color)" }}>
         {list === "all" && (

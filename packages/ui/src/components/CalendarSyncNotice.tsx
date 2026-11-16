@@ -18,17 +18,11 @@ export function CalendarSyncNotice({
   problems,
   onRetry,
   busy,
-  action,
 }: {
   problems: readonly PimSyncProblem[];
   onRetry: () => void;
   /** A cycle is running: the action waits for its answer. */
   busy?: boolean;
-  /**
-   * The step a line asks for, beside "Try again" — "Create new database…"
-   * when a list waits for a standard task database (issue 172).
-   */
-  action?: { label: string; onClick: () => void; testId?: string };
 }) {
   const { t, i18n } = useTranslation();
   const notice = describeSyncProblems(problems, t, i18n.language);
@@ -38,16 +32,9 @@ export function CalendarSyncNotice({
       <Banner
         kind="warning"
         actions={
-          <>
-            {action ? (
-              <Button size="sm" variant="primary" onClick={action.onClick} data-testid={action.testId}>
-                {action.label}
-              </Button>
-            ) : null}
-            <Button size="sm" disabled={busy} onClick={onRetry} data-testid="calendar-sync-retry">
-              {t("pim.tryAgain")}
-            </Button>
-          </>
+          <Button size="sm" disabled={busy} onClick={onRetry} data-testid="calendar-sync-retry">
+            {t("pim.tryAgain")}
+          </Button>
         }
       >
         {notice.lines.map((line) => (

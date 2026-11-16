@@ -6,6 +6,8 @@ import {
   Banner,
   Button,
   CalendarSyncNotice,
+  TaskDatabaseHint,
+  withoutTaskDatabaseLines,
   DriveDestinationDialog,
   EVENT_COLOR_PALETTE,
   ICON,
@@ -364,11 +366,8 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
           ))}
           {listProblems.length > 0 && (
             <SettingCardBlock>
-              <CalendarSyncNotice
-                problems={listProblems}
-                onRetry={lookAgain}
-                action={createTaskDb ? { label: t("settings.taskDatabaseCreate"), onClick: () => void createTaskDb(), testId: "account-tasklist-create-db" } : undefined}
-              />
+              <CalendarSyncNotice problems={withoutTaskDatabaseLines(listProblems)} onRetry={lookAgain} />
+              <TaskDatabaseHint vault={vaultPath} problems={listProblems} onCreate={createTaskDb ? () => void createTaskDb() : undefined} testId="account-task-db-hint" />
             </SettingCardBlock>
           )}
         </SettingCard>

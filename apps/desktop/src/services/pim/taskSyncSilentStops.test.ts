@@ -181,16 +181,27 @@ describe("a task list that cannot reach the notes says why (issue 172)", () => {
     expect(await lineOf()).toContain("pim.problemTaskDatabaseNoFolder");
   });
 
-  it("new tasks held back until the first sync finishes say so, and arrive after it", async () => {
+  it("during a first sync nothing is said: new tasks wait quietly and arrive after it", async () => {
     const { vault, cycle } = setup({ "Aufgaben.base": buildTaskDbFile("Aufgaben", LABELS).content }, "Aufgaben.base");
     const held = await cycle({ mayCreateNotes: false });
     expect(held.deferredCreates).toBe(1);
     expect(vault.files.has("Aufgaben/Steuern einreichen.md")).toBe(false);
-    expect(await lineOf()).toContain("pim.problemTaskWaitingForSync");
+    expect(await cache.listSyncProblems()).toEqual([]);
 
     const done = await cycle();
     expect(done.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
     expect(await cache.listSyncProblems()).toEqual([]);
+  });
+
+  it("during a first sync a database not there yet, or no setting yet, is no line either", async () => {
+    const missingFile = setup({}, "Aufgaben.base");
+    expect((await missingFile.cycle({ mayCreateNotes: false })).blocked).toBe("task-db-unreadable");
+    expect(await cache.listSyncProblems()).toEqual([]);
+    expect((await missingFile.cycle({ mayCreateNotes: false, taskDbPath: null })).blocked).toBe("no-task-db");
+    expect(await cache.listSyncProblems()).toEqual([]);
+    // Once the vault has filled up and the state stays, it is said.
+    await missingFile.cycle();
+    expect(await lineOf()).toContain("pim.problemTaskDatabaseUnreadable");
   });
 
   it("the line goes once the database is set, and the tasks arrive", async () => {
@@ -201,6 +212,23 @@ describe("a task list that cannot reach the notes says why (issue 172)", () => {
     const res = await first.cycle({ taskDbPath: "Aufgaben.base" });
     expect(res.blocked).toBeUndefined();
     expect(res.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
+    expect(await cache.listSyncProblems()).toEqual([]);
+  });
+
+  it("a note the vault refuses to write says so, and the line goes once the write works", async () => {
+    const { vault, cycle } = setup({ "Aufgaben.base": buildTaskDbFile("Aufgaben", LABELS).content }, "Aufgaben.base");
+    const write = vault.adapter.writeTextFile;
+    vault.adapter.writeTextFile = async () => {
+      throw new Error("EACCES: read-only vault");
+    };
+    const refused = await cycle();
+    expect(refused.createdNotes).toEqual([]);
+    expect(refused.errors).toHaveLength(1);
+    expect(await lineOf()).toContain("pim.problemTaskNotCreated");
+
+    vault.adapter.writeTextFile = write;
+    const done = await cycle();
+    expect(done.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
     expect(await cache.listSyncProblems()).toEqual([]);
   });
 

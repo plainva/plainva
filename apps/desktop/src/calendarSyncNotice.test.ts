@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PimCycleInfo, PimSyncProblem } from "@plainva/core";
-import { describeSyncProblems, needsTaskDatabase, taskListProblemsOf, syncProblemsFor, TASK_NOTE_PROBLEM_PREFIX, formatPimCycle, planAllDayRows, hiddenBeyondDots, syncProblemReason, syncProblemSince, withoutUrlPaths, SYNC_PROBLEM_LINES } from "@plainva/ui";
+import { describeSyncProblems, needsTaskDatabase, taskListProblemsOf, withoutTaskDatabaseLines, syncProblemsFor, TASK_NOTE_PROBLEM_PREFIX, formatPimCycle, planAllDayRows, hiddenBeyondDots, syncProblemReason, syncProblemSince, withoutUrlPaths, SYNC_PROBLEM_LINES } from "@plainva/ui";
 import en from "../../../packages/ui/src/locales/en.json";
 
 /**
@@ -192,14 +192,22 @@ describe("a task list that cannot reach the notes (issue 172)", () => {
   const list = (code: string, over: Partial<PimSyncProblem> = {}) =>
     problem({ accountLabel: "Nextcloud", taskListId: "l1", taskListName: "Inbox", error: `${TASK_NOTE_PROBLEM_PREFIX}${code}`, ...over });
 
-  it("says each of the four silences in a sentence of its own", () => {
+  it("says each silence in a sentence of its own", () => {
     const text = (code: string) => describeSyncProblems([list(code)], t, "en", NOW)!.lines[0]!.text;
     expect(text("no-task-db")).toBe(
       "Changes to “Inbox (Nextcloud)” at the provider do not reach their notes: No “Standard task database” is set, and tasks from a provider become notes in it. Choose one in the settings or create one."
     );
     expect(text("task-db-unreadable")).toContain(": The standard task database could not be read.");
     expect(text("task-db-no-folder")).toContain(": The standard task database names no folder for new notes.");
-    expect(text("waiting-first-sync")).toContain(": New tasks wait until the first sync of the vault has finished");
+    expect(text("not-created")).toContain(": A note for a new task could not be created in the folder of the standard task database.");
+    expect(text("no-index")).toContain(": The vault's index is not open on this device, so tasks from a provider cannot be matched to their notes.");
+  });
+
+  it("the yellow notice leaves the missing database to the quiet hint, and keeps the real faults", () => {
+    const missing = [list("no-task-db"), list("no-task-db", { taskListId: "l2", taskListName: "Work" })];
+    const faults = [list("task-db-unreadable", { taskListId: "l3" }), list("not-created", { taskListId: "l4" }), list("no-index", { taskListId: "l5" })];
+    const listing = problem({ taskListId: "", error: "caldav propfind 503" });
+    expect(withoutTaskDatabaseLines([...missing, ...faults, listing])).toEqual([...faults, listing]);
   });
 
   it("offers to create a database only where one is missing", () => {
