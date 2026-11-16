@@ -1,6 +1,6 @@
 import { trimEndChars, trimChars, checkedContentPath } from "@plainva/core";
 import { reportVisible, reportingTo } from "@plainva/ui";
-import { BaseSearchField, IconButton, PinboardCache, reorderShown, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
+import { BaseSearchField, boardOrderAfterMove, IconButton, PinboardCache, reorderShown, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive } from "../services/templateInteractive";
@@ -2308,7 +2308,7 @@ export function BaseViewer({
   // reorder the group property's options (so dropdowns everywhere follow —
   // maintainer choice); relation/text boards remember a per-view layout under
   // views[i].plainva.boardColumnOrder instead.
-  const handleReorderBoardColumns = (orderedKeys: string[]) => {
+  const handleReorderBoardColumns = (orderedKeys: string[], wholeOrder?: string[]) => {
     if (!boardGroupBy || !dbConfig) return;
     const nc = JSON.parse(JSON.stringify(dbConfig));
     const col = nc.columns && !Array.isArray(nc.columns) ? nc.columns[boardGroupBy] : undefined;
@@ -2326,7 +2326,8 @@ export function BaseViewer({
       if (!Array.isArray(nc.views) || nc.views.length === 0) nc.views = [{ type: currentViewType }];
       const vi = Math.min(activeViewIndex, nc.views.length - 1);
       const stored = Array.isArray(nc.views[vi]?.boardColumnOrder) ? (nc.views[vi].boardColumnOrder as unknown[]).map(String) : [];
-      nc.views[vi] = { ...nc.views[vi], boardColumnOrder: reorderShown(stored, orderedKeys) };
+      // A column hidden by the search that was never saved stays where it stood (B17).
+      nc.views[vi] = { ...nc.views[vi], boardColumnOrder: boardOrderAfterMove(stored, orderedKeys, wholeOrder) };
     }
     void saveConfig(nc);
   };
@@ -2686,7 +2687,7 @@ export function BaseViewer({
     // completion model decides whether a date can be overdue at all.
     const dueModel = dueModelOf(dbConfig);
     if (currentViewType === "gallery") return <BaseGalleryView dbData={scopedData} visibleColumns={visibleColumns} coverImageProperty={coverImageProperty} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
-    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits} boardLaneBy={typeof dbConfig?.views?.[activeViewIndex]?.boardLaneBy === "string" && dbConfig.views[activeViewIndex].boardLaneBy !== boardGroupBy ? dbConfig.views[activeViewIndex].boardLaneBy : null} cardColorBy={getColorProperty()} collapsedLanes={collapsedLanes} onToggleLane={toggleLane} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} onSetWipLimit={setBoardWipLimit} />;
+    if (currentViewType === "board") return <BaseBoardView dbData={scopedData} dbConfig={dbConfig} visibleColumns={visibleColumns} boardGroupBy={boardGroupBy} boardColumnOrder={dbConfig?.views?.[activeViewIndex]?.boardColumnOrder} boardColorMode={dbConfig?.views?.[activeViewIndex]?.boardColorMode === "column" ? "column" : "chip"} boardWipLimits={dbConfig?.views?.[activeViewIndex]?.boardWipLimits} boardLaneBy={typeof dbConfig?.views?.[activeViewIndex]?.boardLaneBy === "string" && dbConfig.views[activeViewIndex].boardLaneBy !== boardGroupBy ? dbConfig.views[activeViewIndex].boardLaneBy : null} cardColorBy={getColorProperty()} collapsedLanes={collapsedLanes} onToggleLane={toggleLane} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} onAddGroup={handleAddBoardGroup} onReorderColumns={handleReorderBoardColumns} viewRows={dbData} onSetWipLimit={setBoardWipLimit} />;
     if (currentViewType === "calendar") return <BaseCalendarView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} cursor={calCursor} setCursor={setCalCursor} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     if (currentViewType === "timeline") return <BaseTimelineView dbData={scopedData} dateProp={getDateProperty()} endProp={getEndDateProperty()} timelineWindow={timelineWindow} setTimelineWindow={setTimelineWindow} colorProp={getColorProperty()} columns={dbConfig?.columns ?? {}} visibleColumns={visibleColumns} cells={cells} dueModel={dueModel} onOpenNote={requestOpen} onDropToSplit={onOpenInSplit} />;
     return (

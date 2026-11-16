@@ -1174,6 +1174,41 @@ test('Base board: a column dragged while the head search hides another keeps the
   await expect.poll(columns).toEqual(['paused', 'done', 'active', '__UNGROUPED__']);
 });
 
+test('Base board: a column the head search hides and that was never saved stays before "No value" after a column drag (B17)', async ({ page }) => {
+  // "done" was never saved: it stood after the saved columns and before "No
+  // value". A drag with the search hiding it wrote the shown columns with
+  // "No value" among them, and "done" fell behind "No value".
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Textboard.base'] = [
+      'filters:', '  and:', '    - file.folder == "Projekte"',
+      'views:', '  - type: table', '    name: Textboard', '    order:', '      - file.name', '      - note.status',
+      '    plainva:', '      render: board', '      groupBy: status',
+      '      boardColumnOrder:', '        - active', '        - paused', '',
+    ].join('\n');
+    fs['/test-vault/Projekte/Alpha.md'] = '---\nstatus: active\n---\n# Alpha\n\nSonderfall.\n';
+    fs['/test-vault/Projekte/Beta.md'] = '---\nstatus: paused\n---\n# Beta\n\nSonderfall.\n';
+    fs['/test-vault/Projekte/Gamma.md'] = '---\nstatus: done\n---\n# Gamma\n';
+    (window as any).__dbProps['3'][0] = { key: 'status', value: 'done', type: 'text' };
+  });
+  await page.goto('/');
+  await openBase(page, 'Textboard');
+  const header = (name: string) => page.getByText(name, { exact: true }).first();
+  await expect(header('done')).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('base-search-toggle').click();
+  await page.getByTestId('base-search').locator('input').fill('Sonderfall');
+  await expect(header('done')).toHaveCount(0);
+  const from = (await header('paused').boundingBox())!;
+  const to = (await header('active').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 8, { steps: 3 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  const columns = async () => orderOf(String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base'])), 'boardColumnOrder');
+  await expect.poll(columns).toEqual(['paused', 'active', 'done', '__UNGROUPED__']);
+});
+
 test('Base board: a column drag keeps what another device changed in another view of the file meanwhile (B20)', async ({ page }) => {
   // The database wrote the copy of the whole .base it loaded on opening: a
   // view another device changed after that came back as it was.
