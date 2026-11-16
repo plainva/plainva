@@ -22,6 +22,7 @@ import { TaskCaptureBar } from "./TaskCaptureBar";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
 import { createStandardTaskDatabase } from "../../services/taskDatabaseCreate";
+import { useTaskDatabaseSetting } from "../../hooks/useTaskDatabaseSetting";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 import {
   calendarPickerOptions,
@@ -111,6 +112,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
+  // Read again when the settings save: a database picked there while this view
+  // is open ends the "create one" hint at once (review of issue 172).
+  const taskDbSetting = useTaskDatabaseSetting(vaultPath);
   // Which vault the setting above was read for: until it is known, a capture
   // must not take "no database" for an answer and file into the daily note.
   const [taskDbFor, setTaskDbFor] = useState<string | null>(null);
@@ -295,7 +299,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     return () => {
       alive = false;
     };
-  }, [vaultPath, queryService, vaultAdapter, fileTreeVersion, refreshTick]);
+  }, [vaultPath, queryService, vaultAdapter, fileTreeVersion, refreshTick, taskDbSetting]);
 
   // Writable calendars for "block time" — the SAME rule the calendar tab uses
   // (shared pure helpers), so the two pickers can never disagree about which

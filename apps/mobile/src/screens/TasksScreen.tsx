@@ -35,6 +35,7 @@ import { phoneTemplateVault } from "../services/templateVault";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mSelect } from "../services/mobileDialogs";
 import { createStandardTaskDatabase } from "../services/taskDatabaseCreate";
+import { useTaskDatabaseSetting } from "../hooks/useTaskDatabaseSetting";
 import { captureJournalEntry } from "../services/journalService";
 import { openLink } from "../services/openLink";
 import { setTaskDone } from "../services/taskCompletionAction";
@@ -125,7 +126,8 @@ export function TasksScreen({
   // task database" there, and the request was taken and dropped — the tab
   // opened without its sheet, and the journal's typed text was lost. The effect
   // below keeps the value current when the vault or its settings change.
-  const [taskDb, setTaskDb] = useState(() => getMobileSettings().taskDatabase.trim());
+  const taskDbSetting = useTaskDatabaseSetting();
+  const [taskDb, setTaskDb] = useState(taskDbSetting);
   const [dbRows, setDbRows] = useState<TaskDbRow[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** The database's date column — where a generated occurrence writes its
@@ -193,7 +195,9 @@ export function TasksScreen({
   // The task database: its rows, its completion model and its date column, all
   // derived from the `.base`'s own schema — never guessed by column name.
   useEffect(() => {
-    const db = getMobileSettings().taskDatabase.trim();
+    // Read again when the setting changes (`taskDbSetting`): a database picked
+    // in the settings ends the "create one" hint here at once.
+    const db = taskDbSetting;
     setTaskDb(db);
     const service = vault.queryService;
     if (!db || !service) {
@@ -231,7 +235,7 @@ export function TasksScreen({
     return () => {
       alive = false;
     };
-  }, [vault, bump, tick]);
+  }, [vault, bump, tick, taskDbSetting]);
 
   // Which accounts and task lists are not being synced, and why (B2, 19.10.):
   // the same line the desktop's task view shows. Read again whenever a cycle

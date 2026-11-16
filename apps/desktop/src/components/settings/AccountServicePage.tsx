@@ -39,7 +39,7 @@ import { listMailAccounts, listMailboxesFor, type MailAccountConfig } from "@pla
 import type { PimCalendar, PimSyncProblem } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { createStandardTaskDatabase } from "../../services/taskDatabaseCreate";
-import { getTaskDatabasePath } from "../../services/taskDatabase";
+import { useTaskDatabaseSetting } from "../../hooks/useTaskDatabaseSetting";
 import { MIN_SYNC_INTERVAL_SECONDS, defaultCalendarKey, defaultSyncIntervalSeconds, syncIntervalKey } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -251,8 +251,8 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
   const [scope, setScope] = useState<{ account?: string; lists?: string; provider: string }>({ provider: "" });
   /** Why a switched-on list of this account does not reach the notes (issue 172). */
   const [listProblems, setListProblems] = useState<PimSyncProblem[]>([]);
-  /** The vault's standard task database; undefined until read. */
-  const [taskDb, setTaskDb] = useState<string | null | undefined>(undefined);
+  /** The vault's standard task database; undefined until read, read again when the settings save. */
+  const taskDb = useTaskDatabaseSetting(vaultPath);
   const vault = useVault();
 
   const reload = useCallback(async () => {
@@ -266,7 +266,6 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
     ]);
     setScope({ account: account?.lastError ?? undefined, lists: tasks?.lastError ?? undefined, provider: rows.find((row) => row.id === pimAccountId)?.provider ?? "" });
     setListProblems(taskListProblemsOf(await runtime.cache.listSyncProblems().catch(() => []), pimAccountId));
-    setTaskDb(await getTaskDatabasePath(vaultPath));
     setColors(await loadCalendarColors(vaultPath));
     setDefaultCalendar((await (await getSettingsStore()).get<string>(defaultCalendarKey(vaultPath))) ?? "");
   }, [runtime, pimAccountId, vaultPath]);
