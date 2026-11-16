@@ -47,10 +47,11 @@ import type { WorkspaceStateStore } from "../workspace/state.js";
  * so no link could check a change. A write made meanwhile is picked up at the
  * next start by `initializePersonalWorkspaceMigration`, which every
  * `startWorker` runs: it compares the files with the object map by hash and
- * queues what differs, without `authorizeExternalChange`. A write the member
- * may not make is therefore not kept as a local fork; its push fails on the
- * worker's authorization assert ("local mutation is not permitted by the
- * active workspace policy"). A deletion or a rename
+ * asks the chain's `authorizeExternalChange` for each that differs before it
+ * queues it (release 0.9.0 A3). A write the member may not make stays a local
+ * fork, as one made while the app runs; until then it went into the queue
+ * and its push failed on the worker's authorization assert ("local mutation
+ * is not permitted by the active workspace policy"). A deletion or a rename
  * cannot happen at all (the refusal link).
  *
  * What the app writes goes through `files`, the top. What lies below it is
@@ -146,7 +147,8 @@ export function workspaceDeniedFork(versions: IVaultAdapter, state: WorkspaceSta
     const forkId = createWorkspaceObjectId();
     const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
     const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
-    if (await versions.exists(request.path)) {
+    // A folder has no bytes to keep: its refusal is the record alone.
+    if (await versions.exists(request.path) && !(await versions.getFileInfo(request.path)).isDirectory) {
       await versions.createDir(WORKSPACE_FORKS_FOLDER);
       await versions.writeBinaryFile(forkPath, await versions.readBinaryFile(request.path));
     }

@@ -8,6 +8,16 @@ import { isWorkspaceLocalOnlyPath } from "./queueingVaultAdapter.js";
 import { protocolAssert } from "./errors.js";
 import { WorkspaceLocalProbe, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
 
+/**
+ * The permission check of the vault's chain for a change made outside the
+ * app (`PermissionedVaultAdapter.authorizeExternalChange`): true when the
+ * change goes into the queue; false when the workspace already holds it, or
+ * when the member may not make it — then a copy is kept as a local fork.
+ */
+export interface WorkspaceExternalChangeCheck {
+  authorizeExternalChange(path: string, exists: boolean): Promise<boolean>;
+}
+
 export interface PersonalWorkspaceMigrationResult {
   total: number;
   alreadyCompleted: number;
@@ -58,6 +68,17 @@ export async function initializePersonalWorkspaceMigration(input: {
   /** Reports queue-building progress over the vault inventory so the first-run
    * setup UI can show a determinate bar while every file is hashed. */
   onProgress?: (done: number, total: number) => void;
+  /**
+   * The chain's permission link, asked before each change the reconcile finds
+   * goes into the queue (release 0.9.0 A3) — the same question a change from
+   * outside the app gets while the app runs. Without it a write the member may
+   * not make went into the queue and failed only at its push ("local mutation
+   * is not permitted by the active workspace policy"), again at every cycle,
+   * instead of staying here as a local fork. Every start of a running vault
+   * passes it; the conversion of one's own vault and a recovery, where the
+   * device acts as the owner, do without.
+   */
+  permissions?: WorkspaceExternalChangeCheck | null;
 }): Promise<PersonalWorkspaceMigrationResult> {
   let meta = await input.state.loadMeta();
   if (!meta) {
@@ -95,12 +116,41 @@ export async function initializePersonalWorkspaceMigration(input: {
   const pendingPaths = new Set(await input.state.listQueuedPaths());
   const probesByPath = new Map((await input.state.listLocalProbes()).map((probe) => [probe.path, probe]));
   const probeUpserts: WorkspaceLocalProbe[] = [];
+  const permissions = input.permissions ?? null;
+  // A change refused once is a local fork already (`workspaceDeniedFork`).
+  // The reconcile meets it again at every start — the file still differs
+  // from what the workspace holds, the object is still missing here — and a
+  // second copy of the same refusal is nothing the person needs.
+  const deniedForks = permissions
+    ? (await input.state.listLocalForks()).filter((fork) => fork.reason === "permission-denied")
+    : [];
+  // A file's refusal kept a copy of its bytes; a deletion's, or a folder's,
+  // kept none.
+  const refusedBefore = async (path: string, sha: string | null): Promise<boolean> => {
+    for (const fork of deniedForks) {
+      if (fork.originalPath !== path) continue;
+      const kept = await input.vault.exists(fork.forkPath);
+      if (sha === null ? !kept : kept && sha256Hex(await input.vault.readBinaryFile(fork.forkPath)) === sha) return true;
+    }
+    return false;
+  };
+  /**
+   * True when the change goes into the queue; false when it stays here, a
+   * local fork. `sha` is the file's hash, null for a folder or a deletion.
+   */
+  const mayQueue = async (path: string, exists: boolean, sha: string | null): Promise<boolean> => {
+    if (!permissions) return true;
+    if (await refusedBefore(path, sha)) return false;
+    return permissions.authorizeExternalChange(path, exists);
+  };
   for (const entry of inventory) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     processed += 1;
     if (processed === inventory.length || processed % progressStep === 0) input.onProgress?.(processed, inventory.length);
     const existing = objectsByPath.get(entry.path);
     if (pendingPaths.has(entry.path)) { queued += 1; continue; }
+    // The file's hash, where it was taken; what the refusal check compares.
+    let sha: string | null = null;
     if (existing && !existing.deleted) {
       let unchanged: boolean;
       if (entry.isDirectory) {
@@ -113,7 +163,6 @@ export async function initializePersonalWorkspaceMigration(input: {
         // so unchanged files cost no read. Anything else falls back to hashing
         // once and refreshes the probe for the next open.
         const probe = probesByPath.get(entry.path);
-        let sha: string;
         if (probe && entry.mtime > 0 && probe.mtime === entry.mtime && probe.size === entry.size) {
           sha = probe.plaintextSha256;
         } else {
@@ -124,6 +173,8 @@ export async function initializePersonalWorkspaceMigration(input: {
       }
       if (unchanged) { completed += 1; continue; }
     }
+    if (permissions && !entry.isDirectory && sha === null) sha = sha256Hex(await input.vault.readBinaryFile(entry.path));
+    if (!(await mayQueue(entry.path, true, entry.isDirectory ? null : sha))) { completed += 1; continue; }
     await input.state.enqueue(entry.isDirectory ? "mkdir" : "write", entry.path);
     queued += 1;
   }
@@ -134,6 +185,7 @@ export async function initializePersonalWorkspaceMigration(input: {
   for (const object of missingObjects) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     if (pendingPaths.has(object.path)) { queued += 1; continue; }
+    if (!(await mayQueue(object.path, false, null))) { completed += 1; continue; }
     await input.state.enqueue("delete", object.path);
     queued += 1;
   }

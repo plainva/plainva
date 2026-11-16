@@ -1306,7 +1306,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // large vault; surface it as determinate sync progress instead of a silent
     // freeze (package F1, Punkt 14).
     setState({ status: "syncing", message: null });
-    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
+    // What changed while Plainva was closed is asked like a change from
+    // outside while it runs (release 0.9.0 A3).
+    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }), permissions: v.workspacePermissions });
     if (generation !== startGeneration) {
       // Stopped meanwhile (finding 4): no worker, and no "syncing" left standing.
       await settleCancelledStart(v);

@@ -1511,6 +1511,9 @@ export const VaultProvider: React.FC<{
                     runtime,
                     recoveryConfirmedAt: activeSecurityStatus.recoveryConfirmedAt,
                     signal: currentAbortSignal,
+                    // What changed while Plainva was closed is asked like a
+                    // change from outside while it runs (release 0.9.0 A3).
+                    permissions: permissionedWorkspaceAdapter,
                     onProgress: deferWorkspaceReconcile
                       ? undefined
                       : (done, total) => setState((s) => s.loadingPath === path

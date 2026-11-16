@@ -148,6 +148,12 @@ export interface MobileVault {
   ownDeletions: OwnDeletionRegister;
   workspaceRuntime: PersonalWorkspaceRuntime | null;
   workspaceState: SqlWorkspaceStateStore | null;
+  /**
+   * The encrypted workspace's permission link of the chain, or null: what the
+   * start-up reconcile asks before it queues a change made while the app was
+   * closed (release 0.9.0 A3), the desktop's `permissionedWorkspaceAdapter`.
+   */
+  workspacePermissions: PermissionedVaultAdapter | null;
   /** Raw index DB (also carries the pim_* tables) — the calendar/PIM runtime. */
   db: IDatabaseAdapter | null;
   indexer: VaultIndexer | null;
@@ -1088,6 +1094,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     ownDeletions,
     workspaceRuntime,
     workspaceState,
+    workspacePermissions: permissioned,
     db,
     indexer,
     queryService,
