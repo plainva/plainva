@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import { parse } from "yaml";
 import { prepareDesktopRelease } from "../scripts/prepare-release.mjs";
 
 const sha = "a".repeat(40);
@@ -74,9 +75,38 @@ describe("coordinated desktop release allocation", () => {
     expect(workflow).toContain("needs: prepare");
     expect(workflow).toContain("releaseId: ${{ needs.prepare.outputs.release_id }}");
     expect(workflow).toContain("group: desktop-release-${{ inputs.rebuild_windows_tag && format('refs/tags/{0}', inputs.rebuild_windows_tag) || github.ref }}");
-    expect(workflow).toContain("(github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag) || needs.prepare.result == 'success'");
+    expect(workflow).toContain("(github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag && !inputs.rehearsal) || needs.prepare.result == 'success'");
     expect(workflow).toContain("ref: ${{ needs.prepare.outputs.source_sha || github.sha }}");
     expect(workflow).toContain("tagName: ${{ needs.prepare.outputs.release_tag }}");
     expect(workflow).toMatch(/prepare:\s+if: github\.event_name != 'workflow_dispatch'/);
+  });
+
+  // The rehearsal builds, signs and notarizes like a release and publishes
+  // nothing. These hold the construction that makes it so, not the care.
+  it("keeps the release rehearsal unable to publish anything", () => {
+    type Step = { uses?: string; run?: string; env?: Record<string, string>; with?: Record<string, unknown> };
+    type Job = { if?: string; needs?: unknown; permissions?: Record<string, string>; steps: Step[] };
+    const text = readFileSync(new URL("../../../.github/workflows/release.yml", import.meta.url), "utf8");
+    const workflow = parse(text) as { on: { workflow_dispatch: { inputs: Record<string, { default: unknown }> } }; jobs: Record<string, Job> };
+    expect(workflow.on.workflow_dispatch.inputs.rehearsal.default).toBe(false);
+    const job = workflow.jobs.rehearsal;
+    expect(job.if).toBe("github.event_name == 'workflow_dispatch' && inputs.rehearsal");
+    expect(job.needs, "no draft is allocated before it").toBeUndefined();
+    expect(job.permissions).toEqual({ contents: "read" });
+    const steps = JSON.stringify(job.steps);
+    expect(steps).not.toContain("tauri-action");
+    expect(steps).not.toContain("GITHUB_TOKEN");
+    expect(steps).not.toContain("github.token");
+    expect(steps).not.toContain("upload-artifact");
+    expect(steps).not.toContain("releaseId");
+    expect(steps).not.toMatch(/\bgh (release|api)\b/);
+    // The same guards as the release legs, on what the rehearsal built.
+    expect(steps).toContain("check-webdriver-server.sh");
+    expect(steps).toContain("./apps/desktop/scripts/verify-windows-signatures.ps1");
+    expect(steps).toContain("fetch-onnxruntime.mjs");
+    expect(steps).toContain("xcrun stapler validate");
+    // The draft-making jobs stay skipped for any manual run without a rebuild tag.
+    for (const id of ["release-gate", "prepare"]) expect(workflow.jobs[id].if).toBe("github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag");
+    expect(JSON.stringify(workflow.jobs.release.steps)).toContain("./apps/desktop/scripts/verify-windows-signatures.ps1");
   });
 });
