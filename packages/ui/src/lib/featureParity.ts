@@ -793,6 +793,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-06",
   },
   {
+    id: "calendar-drag-to-move",
+    title: "Move or resize an event by dragging it in the calendar's time grid",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's day and week grids move an event by dragging it and change " +
+      "its length at its edge. The phone's grid has no drag for an event: a " +
+      "horizontal drag pages to the next day or week and a vertical one scrolls " +
+      "the hours, so an event moves only through its edit sheet (date, start, " +
+      "end) - the same result in more steps. A hold-then-drag that does not " +
+      "collide with paging and scrolling is not built; decided for after " +
+      "release 0.9.0 (known-defects list B14, open-items plan § 3.43).",
+    verified: "2026-11-16",
+  },
+  {
     id: "device-pim-accounts",
     title: "The device's own calendars and reminder lists as a calendar account",
     area: "pim",
