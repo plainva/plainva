@@ -5340,11 +5340,13 @@
     "deleteWithoutSnapshotNoTrashFileGone": "Il n'y a pas de corbeille sur le téléphone : les fichiers supprimés se récupèrent depuis leurs sauvegardes. Sans sauvegarde, ce fichier disparaît définitivement de l'appareil. Vérifiez l'espace libre.",
     "deleteWithoutSnapshotNoTrashFolder": "Plainva n'a pas pu créer de sauvegarde de {{failed}} des {{total}} fichiers avant la suppression :",
     "deleteWithoutSnapshotNoTrashFolderGone": "Il n'y a pas de corbeille sur le téléphone : les fichiers supprimés se récupèrent depuis leurs sauvegardes. Sans sauvegarde, ces fichiers disparaissent définitivement de l'appareil. Vérifiez l'espace libre.",
+    "deleteWithoutSnapshotNoTrashMany": "Plainva n'a pas pu créer de sauvegarde de {{items}} des éléments sélectionnés avant la suppression :",
     "deleteWithoutSnapshotTitle": "Supprimer sans sauvegarde ?",
     "deleteWithoutSnapshotTrashFile": "La corbeille du système n'est pas disponible pour ce fichier (par exemple sur un lecteur réseau), et Plainva n'a pas pu en créer de sauvegarde :",
     "deleteWithoutSnapshotTrashFileGone": "Ce fichier serait définitivement perdu.",
     "deleteWithoutSnapshotTrashFolder": "La corbeille du système n'est pas disponible pour ce dossier (par exemple sur un lecteur réseau), et Plainva n'a pas pu créer de sauvegarde de {{failed}} des {{total}} fichiers :",
     "deleteWithoutSnapshotTrashFolderGone": "Ces fichiers seraient définitivement perdus.",
+    "deleteWithoutSnapshotTrashMany": "La corbeille du système n'est pas disponible pour {{items}} des éléments sélectionnés (par exemple sur un lecteur réseau), et Plainva n'a pas pu en créer de sauvegarde :",
     "deleteWithoutSnapshotUnlisted": "Plainva n'a pas pu lire tout le contenu de ce dossier et n'a donc pas pu en créer de sauvegarde avant la suppression :",
     "snapshotFailed": "L'instantané de version pour {{path}} a échoué — le fichier a tout de même été enregistré. Vérifiez l'espace disque et le dossier de sauvegarde.",
     "largeFileTrimmed": "Les fichiers volumineux ne conservent que leur version la plus récente : {{path}} fait {{mb}} Mo. Les notes et les petits fichiers gardent tout leur historique ; un fichier supprimé est toujours sauvegardé intégralement."

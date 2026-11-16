@@ -5118,11 +5118,13 @@
     "deleteWithoutSnapshotNoTrashFileGone": "スマートフォンにはごみ箱がありません。削除したファイルはバックアップから復元します。バックアップがないと、このファイルはデバイスから完全に失われます。空き容量を確認してください。",
     "deleteWithoutSnapshotNoTrashFolder": "削除の前に、{{total}} 件中 {{failed}} 件のファイルのバックアップを作成できませんでした：",
     "deleteWithoutSnapshotNoTrashFolderGone": "スマートフォンにはごみ箱がありません。削除したファイルはバックアップから復元します。バックアップがないと、これらのファイルはデバイスから完全に失われます。空き容量を確認してください。",
+    "deleteWithoutSnapshotNoTrashMany": "選択した項目のうち {{items}} 件は、削除の前にバックアップを作成できませんでした：",
     "deleteWithoutSnapshotTitle": "バックアップなしで削除しますか？",
     "deleteWithoutSnapshotTrashFile": "このファイルにはシステムのごみ箱を使用できず（ネットワークドライブなど）、バックアップも作成できませんでした：",
     "deleteWithoutSnapshotTrashFileGone": "このファイルは完全に失われます。",
     "deleteWithoutSnapshotTrashFolder": "このフォルダーにはシステムのごみ箱を使用できず（ネットワークドライブなど）、{{total}} 件中 {{failed}} 件のファイルのバックアップを作成できませんでした：",
     "deleteWithoutSnapshotTrashFolderGone": "これらのファイルは完全に失われます。",
+    "deleteWithoutSnapshotTrashMany": "選択した項目のうち {{items}} 件にはシステムのごみ箱を使用できず（ネットワークドライブなど）、バックアップも作成できませんでした：",
     "deleteWithoutSnapshotUnlisted": "このフォルダーの内容をすべて読み取れなかったため、削除の前にバックアップを作成できませんでした：",
     "snapshotFailed": "{{path}} のバージョンスナップショットに失敗しました。ファイル自体は保存されています。ディスク容量とバックアップフォルダーを確認してください。",
     "largeFileTrimmed": "大きなファイルは最新版のみを保持します：{{path}} は {{mb}} MB です。ノートや小さなファイルは全履歴を保持し、削除したファイルは常に完全に保存されます。"

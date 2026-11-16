@@ -5340,11 +5340,13 @@
     "deleteWithoutSnapshotNoTrashFileGone": "No celular não há lixeira — arquivos excluídos são recuperados a partir dos backups. Sem backup, este arquivo some do dispositivo para sempre. Verifique o espaço livre.",
     "deleteWithoutSnapshotNoTrashFolder": "O Plainva não conseguiu criar um backup de {{failed}} dos {{total}} arquivos antes de excluir:",
     "deleteWithoutSnapshotNoTrashFolderGone": "No celular não há lixeira — arquivos excluídos são recuperados a partir dos backups. Sem backup, estes arquivos somem do dispositivo para sempre. Verifique o espaço livre.",
+    "deleteWithoutSnapshotNoTrashMany": "O Plainva não conseguiu criar um backup de {{items}} dos itens selecionados antes de excluir:",
     "deleteWithoutSnapshotTitle": "Excluir sem backup?",
     "deleteWithoutSnapshotTrashFile": "A lixeira do sistema não está disponível para este arquivo (por exemplo, em uma unidade de rede), e o Plainva não conseguiu criar um backup dele:",
     "deleteWithoutSnapshotTrashFileGone": "Este arquivo seria perdido para sempre.",
     "deleteWithoutSnapshotTrashFolder": "A lixeira do sistema não está disponível para esta pasta (por exemplo, em uma unidade de rede), e o Plainva não conseguiu criar um backup de {{failed}} dos {{total}} arquivos:",
     "deleteWithoutSnapshotTrashFolderGone": "Estes arquivos seriam perdidos para sempre.",
+    "deleteWithoutSnapshotTrashMany": "A lixeira do sistema não está disponível para {{items}} dos itens selecionados (por exemplo, em uma unidade de rede), e o Plainva não conseguiu criar um backup deles:",
     "deleteWithoutSnapshotUnlisted": "O Plainva não conseguiu ler todo o conteúdo desta pasta e, por isso, não conseguiu criar um backup antes de excluir:",
     "snapshotFailed": "O snapshot de versão de {{path}} falhou — o arquivo foi salvo mesmo assim. Verifique o espaço em disco e a pasta de backup.",
     "largeFileTrimmed": "Arquivos grandes mantêm apenas a versão mais recente: {{path}} tem {{mb}} MB. Notas e arquivos pequenos mantêm todo o histórico; um arquivo excluído é sempre salvo por completo."
