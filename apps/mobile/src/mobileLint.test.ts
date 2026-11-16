@@ -1158,7 +1158,7 @@ describe("mail can answer everyone, pass on, and carry a file", () => {
 
   it("saves a received attachment by the rule the desktop reads too", () => {
     const message = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
-    expect(message).toMatch(/saveMailAttachment\(vault\.files, getMobileSettings\(\)\.mailFolder, name, base64\)/);
+    expect(message).toMatch(/saveMailAttachment\(vault\.files, getMobileSettings\(\)\.mailFolder, name, base64, mime\)/);
     // Not a second copy of where it goes and what it is called.
     expect(message).not.toMatch(/\/Attachments/);
     expect(message).not.toMatch(/safeFileStem\(/);
