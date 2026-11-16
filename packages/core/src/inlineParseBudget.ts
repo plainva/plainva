@@ -670,29 +670,37 @@ export function tableRowParts(text: string, from: number, to: number, asRead = t
   // writing of it, as long as the row or longer, is not built (review, 2026-11-16: a row of 1.5 MB of `[[x` ran the
   // scan out of memory there, where main took 36 ms).
   if (partsCost(written, 0) > TABLE_READ_BUDGET) return written;
-  const shown = shownRow(text, from, to);
-  if (shown === undefined) return written;
+  const links = wikiLinksOfRow(text, from, to);
+  if (links === undefined) return written;
+  // Nor is it built where it is longer than the budget at the least (review, 2026-11-16: a cell of five million
+  // characters of CJK in a wiki link, light as written, is ten times as long with its target encoded): the row
+  // weighs that length, and its table is over the budget.
+  const atLeast = shownLengthAtLeast(links);
+  if (TABLE_ROW_WEIGHT + atLeast > TABLE_READ_BUDGET) return { ...written, chars: Math.max(written.chars, atLeast) };
+  const shown = shownRow(links);
   // The reading view reads the row as it writes it: each part weighs the more of the two.
   const read = rowParts(shown, 0, shown.length);
   return Object.fromEntries(Object.entries(written).map(([key, value]) => [key, Math.max(value, read[key as keyof TableRowParts])])) as unknown as TableRowParts;
 }
 
+/** The wiki links of a table row (`wikiLinksOfRow`): the row, and for each link its `[[`, its `]]` and whether it is an embed (`![[`), three numbers a link. */
+interface RowWikiLinks {
+  row: string;
+  links: number[];
+}
+
 /**
- * The row `text[from, to)` as the reading view writes it: each wiki link the
- * Markdown link `readerWikiLink` makes of it, its label spelled out and its
- * target encoded (`[[中文]]` is `[中文](wiki://%E4%B8%AD%E6%96%87)`).
- * `undefined` for a row without one. The links are found as the parser finds
- * them in a table: the row is split into cells at each bar no backslash stands
- * in front of, before anything else is read; in a cell, an escaped character
- * and a code span come first, and a link runs from a `[[` (a `![[`) to the
- * first `]]` of its cell (`wikiLinkSyntax.ts`).
+ * The wiki links of the row `text[from, to)`, as the parser finds them in a
+ * table: the row is split into cells at each bar no backslash stands in front
+ * of, before anything else is read; in a cell, an escaped character and a code
+ * span come first, and a link runs from a `[[` (a `![[`) to the first `]]` of
+ * its cell (`wikiLinkSyntax.ts`). `undefined` for a row without one.
  */
-function shownRow(text: string, from: number, to: number): string | undefined {
+function wikiLinksOfRow(text: string, from: number, to: number): RowWikiLinks | undefined {
   // The row on its own, so that no search runs past its end (a table of many rows stays linear).
   const row = text.slice(from, to);
   if (!row.includes("[[")) return undefined;
-  let shown = "";
-  let copied = 0;
+  const links: number[] = [];
   // The cell's end: the next bar without a backslash in front of it.
   let cellEnd = -1;
   const endOfCell = (at: number) => {
@@ -753,15 +761,68 @@ function shownRow(text: string, from: number, to: number): string | undefined {
         i = cellEnd;
         continue;
       }
-      if (close > i + 2) {
-        const embed = i > 0 && row[i - 1] === "!" && !escaped(row, i - 1);
-        shown += row.slice(copied, embed ? i - 1 : i) + readerWikiLink(row.slice(i + 2, close), embed, undefined, false).text;
-        copied = close + 2;
-      }
+      if (close > i + 2) links.push(i, close, i > 0 && row[i - 1] === "!" && !escaped(row, i - 1) ? 1 : 0);
       i = close + 1;
     }
   }
-  return copied === 0 ? undefined : shown + row.slice(copied);
+  return links.length === 0 ? undefined : { row, links };
+}
+
+/**
+ * The row as the reading view writes it: each wiki link the Markdown link
+ * `readerWikiLink` makes of it, its label spelled out and its target encoded
+ * (`[[中文]]` is `[中文](wiki://%E4%B8%AD%E6%96%87)`).
+ */
+function shownRow({ row, links }: RowWikiLinks): string {
+  const pieces: string[] = [];
+  let copied = 0;
+  for (let k = 0; k < links.length; k += 3) {
+    const [open, close, embed] = [links[k], links[k + 1], links[k + 2] === 1];
+    pieces.push(row.slice(copied, embed ? open - 1 : open), readerWikiLink(row.slice(open + 2, close), embed, undefined, false).text);
+    copied = close + 2;
+  }
+  pieces.push(row.slice(copied));
+  return pieces.join("");
+}
+
+/**
+ * The fewest characters `shownRow` can write, counted without writing them:
+ * the row less its wiki links, and for each link at least its label and its
+ * target percent-encoded behind `](wiki://` (an embed at least
+ * `![img](wiki-image://` and its target).
+ */
+function shownLengthAtLeast({ row, links }: RowWikiLinks): number {
+  let length = row.length;
+  for (let k = 0; k < links.length; k += 3) {
+    const [open, close, embed] = [links[k], links[k + 1], links[k + 2] === 1];
+    const inner = open + 2;
+    // The name ends in front of the first bar of the link, and in front of the backslash that keeps the bar in its cell (`wikiLinkParts`).
+    let bar = row.indexOf("|", inner);
+    if (bar >= close) bar = -1;
+    const headEnd = bar < 0 ? close : row[bar - 1] === "\\" ? bar - 1 : bar;
+    const label = bar < 0 ? close - inner : close - bar - 1;
+    const target = encodedLength(row, inner, headEnd);
+    length -= close + 2 - (embed ? open - 1 : open);
+    length += embed ? "![img](wiki-image://)".length + target : "[](wiki://)".length + label + target;
+  }
+  return length;
+}
+
+/** How long `encodeURIComponent` (and `readerWikiLink`'s encoding of `()!'*`) writes `text[from, to)`, counted without writing it. */
+function encodedLength(text: string, from: number, to: number): number {
+  let length = 0;
+  for (let i = from; i < to; i++) {
+    const code = text.charCodeAt(i);
+    if ((code >= 0x30 && code <= 0x39) || (code >= 0x41 && code <= 0x5a) || (code >= 0x61 && code <= 0x7a) || code === 0x2d || code === 0x2e || code === 0x5f || code === 0x7e) length += 1;
+    else if (code < 0x80) length += 3;
+    else if (code < 0x800) length += 6;
+    else if (code >= 0xd800 && code <= 0xdbff && i + 1 < to) {
+      // A pair of surrogates is one character of four bytes.
+      length += 12;
+      i++;
+    } else length += 9;
+  }
+  return length;
 }
 
 /** Whether a backslash stands in front of `text[at]` that is not itself escaped. */
@@ -781,17 +842,20 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   let links = 0;
   let tags = 0;
   let maths = 0;
-  let mathChars = 0;
-  // A formula opens at a run of `$` and closes at the next run as long in its cell (`$x$`, `$$x$$`), as remark-math reads it.
-  let inMath = false;
-  let mathRun = 0;
+  // A formula opens at a run of `$` and closes at the next run as long in its cell (`$x$`, `$$x$$`), as remark-math
+  // reads it; a run starts where the `$` before is none (`\$$x$` is an escaped `$` and a formula). Read twice: with
+  // the code spans of the row, where a `$` is no delimiter (`` `$` $x$ `` is code and one formula), and without them,
+  // for a backtick the scan takes for code that is none (in an HTML tag, a link's destination, an autolink:
+  // review, 2026-11-16). The formula weighs the more of the two readings.
+  const withCode: FormulaReading = { inMath: false, run: 0, last: -2, chars: 0, from: 0 };
+  const withoutCode: FormulaReading = { inMath: false, run: 0, last: -2, chars: 0, from: 0 };
   let marks = 0;
   let inWord = false;
   let wordStart = -1;
-  // The latest `$` read as a delimiter: a run of them starts where the one before is none (`\$$x$` is an escaped `$` and a formula).
-  let lastDollar = -2;
-  // Code spans: a `$` in one is no delimiter (`` `$` $x$ `` is code and one formula).
-  const spans = text.indexOf("`", from) >= 0 && text.indexOf("`", from) < to ? codeSpansOf(text, from, to) : [];
+  // Code spans, looked for only where the row holds a backtick: a search through the rest of the note from every row made the scan quadratic (review, 2026-11-16).
+  let ticked = false;
+  for (let i = from; i < to && !ticked; i++) ticked = text.charCodeAt(i) === 0x60;
+  const spans = ticked ? codeSpansOf(text, from, to) : [];
   let nextSpan = 0;
   let codeUntil = -1;
   // What the reading view writes for an `@date` beyond the characters it stands in.
@@ -803,7 +867,7 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
     const ch = text[i];
     if (nextSpan < spans.length && i === spans[nextSpan]) {
       // A code span that opens inside a formula is none: the formula read first.
-      if (!inMath) codeUntil = spans[nextSpan + 1];
+      if (!withCode.inMath) codeUntil = spans[nextSpan + 1];
       nextSpan += 2;
     }
     if (ch === "|" && backslashes % 2 === 0) {
@@ -812,7 +876,8 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
       boundaries++;
       held = false;
       // The table parser splits the row before anything else is read: no formula runs past a cell.
-      inMath = false;
+      withCode.inMath = false;
+      withoutCode.inMath = false;
     } else {
       if (TABLE_SYNTAX.includes(ch)) syntax++;
       if (ch === "@" || (ch === ":" && text.charCodeAt(i + 1) === 0x2f && text.charCodeAt(i + 2) === 0x2f)) literals++;
@@ -832,25 +897,20 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
       }
       if (ch === "[" && text[i + 1] === "^") {
         references++;
-      } else if (ch === "$" && backslashes % 2 === 0 && i >= codeUntil) {
+      } else if (ch === "$" && (backslashes % 2 === 0 || withCode.inMath || withoutCode.inMath)) {
+        // Inside a formula a backslash escapes nothing: `$a\$$b$` is one formula, `\$$` a run of two in it.
         maths++;
-        const starts = lastDollar !== i - 1;
-        lastDollar = i;
-        if (starts) {
-          let run = 1;
-          while (i + run < to && text[i + run] === "$") run++;
-          if (!inMath) {
-            inMath = true;
-            mathRun = run;
-          } else if (run === mathRun) inMath = false;
-        }
+        if (backslashes % 2 === 0 || withoutCode.inMath) dollar(withoutCode, text, i, to);
+        if (i >= codeUntil && (backslashes % 2 === 0 || withCode.inMath)) dollar(withCode, text, i, to);
       }
       else if (ch === "=" && text[i + 1] === "=") marks++;
       else if (ch === "#" && (i === from || text[i - 1] === " " || text[i - 1] === "\t" || text[i - 1] === "|") && i + 1 < to && text[i + 1] !== " " && text[i + 1] !== "#") tags++;
     }
     // A word: a run of characters other than blanks and cell boundaries, in any script.
     // The characters of a formula: KaTeX lays out what stands between its `$`.
-    if (inMath && ch !== "$") mathChars++;
+    // Every character of an open formula, a `$` of a run that does not close it or behind a backslash as well.
+    if (withCode.inMath && i >= withCode.from) withCode.chars++;
+    if (withoutCode.inMath && i >= withoutCode.from) withoutCode.chars++;
     const word = ch !== " " && ch !== "\t" && !(ch === "|" && backslashes % 2 === 0);
     if (word && !inWord) {
       words++;
@@ -862,7 +922,31 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   if (held) cells++;
   // A row is at least one cell: `|` alone is one, empty.
   if (cells === 0 && boundaries > 0) cells = 1;
+  const mathChars = Math.max(withCode.chars, withoutCode.chars);
   return { chars: to - from + shownChars, boundaries, cells, syntax, literals, words, references, links, tags, maths, mathChars, marks };
+}
+
+/** One reading of a row's formulas (`rowParts`): whether one is open, the length of the run that opened it, the latest `$` read, the characters counted, and where the open formula's content begins. */
+interface FormulaReading {
+  inMath: boolean;
+  run: number;
+  last: number;
+  chars: number;
+  from: number;
+}
+
+/** A `$` at `text[at]` that no backslash escapes, read by `reading`: a run of them opens a formula, or closes one opened by a run as long. */
+function dollar(reading: FormulaReading, text: string, at: number, to: number): void {
+  const starts = reading.last !== at - 1;
+  reading.last = at;
+  if (!starts) return;
+  let run = 1;
+  while (at + run < to && text[at + run] === "$") run++;
+  if (!reading.inMath) {
+    reading.inMath = true;
+    reading.run = run;
+    reading.from = at + run;
+  } else if (run === reading.run) reading.inMath = false;
 }
 
 /**

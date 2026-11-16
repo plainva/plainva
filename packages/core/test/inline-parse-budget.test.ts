@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { prepareReaderSource } from "../src/noteSource.js";
 import { describe, expect, it } from "vitest";
 import { within } from "./helpers/timeBudget.js";
@@ -806,13 +807,27 @@ describe("where a table ends", () => {
     // with, and runs no further than its cell.
     const dd = "| $$\\frac{a}{b}$$ | $x$ |";
     expect(tableRowParts(dd, 0, dd.length).mathChars).toBe("\\frac{a}{b}".length + 1);
-    expect(tableRowParts("| $a$$b$ |", 0, 10).mathChars).toBe(2);
+    // `$a$$b$` is one formula: a run of two does not close one opened by one, and is part of it.
+    expect(tableRowParts("| $a$$b$ |", 0, 10).mathChars).toBe("a$$b".length);
     expect(tableRowParts("| $a | b$ |", 0, 11).mathChars).toBe(3);
     // An escaped `$` is none, so the `$` behind it opens the formula; a `$` in a code span is code (review, 2026-11-16).
     const escapedOpen = "| \\$$\\frac{a}{b}$ | \\$$$x$$ |";
     expect(tableRowParts(escapedOpen, 0, escapedOpen.length).mathChars).toBe("\\frac{a}{b}".length + 1);
+    // Read with its code spans the row holds three characters of formulas; read without them more. It weighs the more.
     const coded = "| `$` $x$ `` $ `` $y$ | \\`x` $z$ |";
-    expect(tableRowParts(coded, 0, coded.length).mathChars).toBe(3);
+    expect(tableRowParts(coded, 0, coded.length).mathChars).toBeGreaterThanOrEqual(3);
+    const formulaAfterCode = `| \`$\` $${"\\frac{a}{b}".repeat(40)}$ |`;
+    expect(tableRowParts(formulaAfterCode, 0, formulaAfterCode.length).mathChars).toBeGreaterThanOrEqual("\\frac{a}{b}".length * 40);
+    // A backtick the scan cannot be sure is code — in an HTML tag, a link's destination, an autolink — is read both
+    // ways, and the formula weighs the more (review, 2026-11-16: each weighed a tenth of what KaTeX made of it).
+    const formula = "\\frac{a}{b}".repeat(40);
+    for (const cell of [`<i title="\`">$${formula}$ \`x\``, `[a](\`) $${formula}$ \`x\``, `<http://a.b/\`> $${formula}$ \`x\``]) {
+      const row = `| ${cell} |`;
+      expect(tableRowParts(row, 0, row.length).mathChars, cell).toBeGreaterThanOrEqual(formula.length);
+    }
+    // Inside a formula a backslash escapes nothing: `\$$` is a run of two in it, which does not close a formula of one.
+    const inside = "| $a\\$$b$ |";
+    expect(tableRowParts(inside, 0, inside.length).mathChars).toBe("a\\$$b".length);
     // `[^1][^1]…` is one word but as many pieces of the cell's text: each
     // reference and link glued to the word before it counts as a word.
     expect(tableRowParts("| [^1][^1][^1] |", 0, 16).words).toBe(3);
@@ -867,19 +882,49 @@ describe("where a table ends", () => {
     within(2 * SECONDS, () => parseMarkdownTree(brackets));
   }, 60 * SECONDS);
 
-  it("weighs a row longer than the budget without writing it as the reading view would", () => {
-    // `[[x` a million times over and a `]]`: one wiki link whose label the
-    // reading view spells out character by character. The scan built that
-    // writing for a row already far over the budget and ran out of memory
-    // under 128 MB, where main took 36 ms (review, 2026-11-16).
-    for (const row of [`| ${"[[x".repeat(500_000)}]] |`, `| [[${"[".repeat(1_500_000)}]] |`]) {
-      const text = `# N\n\n| h |\n|---|\n${row}\n\nbelow\n`;
-      const before = process.memoryUsage().heapUsed;
-      const ranges = within(1_000, () => overBudgetInlineRanges(text));
-      expect(ranges).toHaveLength(1);
-      expect(process.memoryUsage().heapUsed - before).toBeLessThan(200_000_000);
+  it("weighs a row longer than the budget without writing it as the reading view would, under a capped heap", () => {
+    // `[[x` half a million times over and a `]]`, or brackets alone: one wiki
+    // link whose label the reading view spells out character by character;
+    // and five million characters of CJK in one, light as written, whose
+    // target the reading view encodes to ten times its length. The scan built
+    // that writing and ran out of memory under 128 MB, where main took 36 ms
+    // (reviews of 2026-11-16). Each runs in a process of its own with 64 MB of
+    // heap, where an allocation over it ends the process.
+    const scan = (row: string) => {
+      const script = `const B = await import(${JSON.stringify(new URL("../src/inlineParseBudget.ts", import.meta.url).pathname)}); const text = "# N\\n\\n| h |\\n|---|\\n" + ${row} + "\\n\\nbelow\\n"; console.log("ranges " + B.overBudgetInlineRanges(text).length);`;
+      return spawnSync(process.execPath, ["--max-old-space-size=64", "--import", "tsx", "--input-type=module", "-e", script], { cwd: new URL("..", import.meta.url).pathname, encoding: "utf8", timeout: 120_000 });
+    };
+    for (const row of [`"| " + "[[x".repeat(500000) + "]] |"`, `"| [[" + "[".repeat(1500000) + "]] |"`, `"| [[" + "中".repeat(5000000) + "]] |"`]) {
+      const run = scan(row);
+      expect(run.stdout.trim(), `${row}: ${run.stderr.slice(-300)}`).toBe("ranges 1");
+      expect(run.status, row).toBe(0);
     }
-  }, 60 * SECONDS);
+  }, 120 * SECONDS);
+
+  it("scans a note in time linear in its size: with and without backticks, one large table and many small ones", () => {
+    // A row looked for code spans from its place to the next backtick of the
+    // whole note, twice: without one, every row cost the rest of the note
+    // (review, 2026-11-16: 2 MB of `| a | b |` 5.4 s, main 67 ms).
+    const time = (text: string) => {
+      let best = Infinity;
+      for (let run = 0; run < 3; run++) {
+        const started = performance.now();
+        overBudgetInlineRanges(text);
+        best = Math.min(best, performance.now() - started);
+      }
+      return best;
+    };
+    const notes: Record<string, (size: number) => string> = {
+      rows: (size) => `| h | h |\n|---|---|\n${"| a | b |\n".repeat(size / 10)}`,
+      ticked: (size) => `| h | h |\n|---|---|\n${"| `a` | b |\n".repeat(size / 12)}`,
+      small: (size) => "| a | b |\n|---|---|\n| c | d |\n\ntext between\n\n".repeat(size / 44),
+    };
+    for (const [name, note] of Object.entries(notes)) {
+      const one = time(note(500_000));
+      const four = within(3 * SECONDS, () => time(note(2_000_000)));
+      expect(four, `${name}: ${Math.round(one)} ms, four times the size ${Math.round(four)} ms`).toBeLessThan(8 * one + 100);
+    }
+  }, 120 * SECONDS);
 
   it("finds the wiki links of a long row in time linear in its length", () => {
     // `closingRun` searched each run of backticks from the cell's start, and

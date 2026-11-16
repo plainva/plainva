@@ -576,8 +576,12 @@ since and are held by `--margin` (each table at 1.3 or 1.4 × the budget, withou
 
 - formulas between two `$` on each side (`$$…$$`, which remark-math reads in a cell as `$…$`; the
   scan turned at every `$` and counted none of its content). A formula opens at a run of `$` no
-  backslash escapes and outside a code span, and closes at the next run as long in its cell
-  (`\$$x$` is an escaped `$` and a formula, `` `$` $x$ `` code and a formula);
+  backslash escapes, and closes at the next run as long in its cell (`\$$x$` is an escaped `$` and a
+  formula); inside a formula a backslash escapes nothing, and every character counts, a `$` of
+  another run as well. The row is read with its code spans (`` `$` $x$ `` is code and a formula) and
+  without them, for a backtick in an HTML tag, a link's destination or an autolink, which the scan
+  cannot tell from code; the formula weighs the more (30 000 random cells a seed, eight seeds: none
+  weighed short of remark-math);
 - 120 `[^1]`, 80 `[l](u)` or `![i](p)`, 80 `[l][r]` or `[r][]`, 120 `[r]` with their definition,
   all without blanks between them: one word, but as many pieces of the cell's text. Each `[`
   glued to the word before it now counts as a word as well (not the second `[` of a wiki link,
@@ -604,7 +608,9 @@ a word for a day up to two away, else the date, in the app's language) beyond it
 characters: at most 5 characters and two words more ("depois de amanhã", "2026. 03. 04.").
 
 A row heavier than the whole budget as written is not written out as the reading view would write
-it: its table is over the budget either way. The scan built that writing for every row with a wiki
+it: its table is over the budget either way. Nor is a row whose writing is longer than the budget at
+the least — its labels and its targets percent-encoded, counted without writing them (a wiki link of
+five million CJK characters, light as written, ran the scan out of memory). The scan built that writing for every row with a wiki
 link, and a row of 1.5 MB whose link holds `[[x` over and over ran it out of memory under 128 MB
 (main: 36 ms, 25 MB; now 72 ms, 27 MB). The writing itself (`readerWikiLink`) is built from its
 pieces in one join and walks a label's spellings one by one; a stretch read as written is made
@@ -660,16 +666,20 @@ Markdown link, 115 rows of 80 Markdown links); a column of a short formula loses
 date and a cell: 2 631 rows, now 3 299; five dates in a cell: 972, now 1 552; main 4 586 and
 2 794), since the date weighs what the reading view writes for it.
 
-**Open, the same on main: a stretch read as written costs the note parse a piece per word.** GFM
-tries an e-mail address at every start of a run of letters and digits, and holds the text in a
-piece for each: a paragraph of 1.5 MB of `x x …` or `x]x]…` runs `parseMarkdownTree` out of 128 MB
-on main and on this branch alike. A table read as written is such a stretch. The one form where
-this branch is worse than main is a table row of 1.5 MB with one wiki link whose label is `[[x`
-over and over: main reads it as a table, where the wiki-link syntax takes the whole cell as one
-link (about 0.3 s and 40 MB); here its million `[` weigh as inline syntax, the row alone is over
-the budget, and read as written it costs the pieces (about 300 MB). Up to
-about 300 KB such a row stays under 128 MB. The memory of a whole note (L14) is where this
-belongs.
+**Open until L14: a stretch read as written costs the parse in its words and its spelled-out characters.**
+GFM tries an e-mail address at every start of a run of letters and digits and holds the text in a
+piece for each, and the reading view spells out each character of a wiki link's label that Markdown
+would read (`_`, `&`, `<`, `!`, `$`, a backtick, `\`, `[`, `]`). Neither the table budget nor the paragraph budget weighs the
+stretch that is read as written, so a large one can still run a parse out of 128 MB. Measured in the
+review of 2026-11-16, at 128 MB: on this branch the note parse (`parseMarkdownTree`) reads a table
+row of one wiki link whose label is `[[x` over and over up to about 850 KB (main 1.5 MB and more,
+since main reads it as a table and the wiki-link syntax takes the whole cell), the index parse up
+to 1 MB, and a wiki link whose label is `a_a_…` up to about 500 KB (main about 1 MB). The other way
+round, main runs out in the reading view for both at 300 KB (this branch reads `[[x…` to 600 KB),
+and on main a paragraph of `x x …` runs out at 600 KB and a table row of it at 450 KB. This is
+the class, not one form: wherever a parse reads a large stretch as written. L14 (the memory of a
+whole note) closes it, with this as its acceptance: for each of these forms the branch is in no
+reading worse than main and stays under the memory budget.
 
 Main and the branch weigh differently, so the loss is not the margin alone. The margin of about
 30 % costs every form the same; beyond it, the branch weighs a cell and a row at what the reading

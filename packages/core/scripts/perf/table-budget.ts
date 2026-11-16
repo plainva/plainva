@@ -272,7 +272,7 @@ const LONG_KINDS = ["spans", "opens", "brackets"] as const;
  * of the cell's text, and `$$x$$` is a formula as `$x$` is (review,
  * 2026-11-16: neither was drawn, and both ran out of memory at the budget).
  */
-const TIGHT_UNITS = ["[^1]", "[l](u)", "![i](p)", "[[n]]", "$$x$$", "$$\\frac{a}{b}$$", "$$\\sqrt{\\sqrt{x}}$$", "[^1][[n]]", "`a`", "]]", "[l][r]", "[r]", "[r][]", "\\$$\\frac{a}{b}$", "`$` $\\frac{a}{b}$", "`$$` $$x$$"] as const;
+const TIGHT_UNITS = ["[^1]", "[l](u)", "![i](p)", "[[n]]", "$$x$$", "$$\\frac{a}{b}$$", "$$\\sqrt{\\sqrt{x}}$$", "[^1][[n]]", "`a`", "]]", "[l][r]", "[r]", "[r][]", "\\$$\\frac{a}{b}$", "`$` $\\frac{a}{b}$", "`$$` $$x$$", "<i t=\"`\">$\\frac{a}{b}$ `x`", "[a](`) $\\frac{a}{b}$ `x`", "<http://a.b/`> $\\frac{a}{b}$ `x`", "$a\\$$b$"] as const;
 
 /**
  * A paragraph line right above the table and items in items on its header
@@ -474,7 +474,7 @@ function passes(name: string, rows: number, bounded: boolean): { ok: boolean; ms
     const run = spawnSync(process.execPath, [`--max-old-space-size=${HEAP_MB}`, "--import", "tsx", HERE, bounded ? "--child" : "--child-unbounded", name, String(rows), parse], { cwd: CORE, encoding: "utf8", timeout: 300_000 });
     const out = /^ok (\d+)/m.exec(run.stdout ?? "");
     if (run.status !== 0 || !out) {
-      const why = /not read as a table[^\n]*/.exec(run.stderr ?? "")?.[0] ?? (/heap out of memory|Allocation failed/i.test(run.stderr ?? "") ? "out of memory" : `exit ${run.status}`);
+      const why = /Error: (not read as a table[^\n]*)/.exec(run.stderr ?? "")?.[1] ?? (/heap out of memory|Allocation failed/i.test(run.stderr ?? "") ? "out of memory" : `exit ${run.status}`);
       return { ok: false, ms, slowest, why: `${parse}: ${why}` };
     }
     ms += Number(out[1]);
@@ -736,7 +736,9 @@ function child(name: string, rows: number, parse: string, bounded: boolean): voi
   // A table the budget reads as written costs what plain text costs: only a table read as a table counts, in whatever block it stands.
   const hasTable = (node: { type: string; children?: unknown[] } | undefined): boolean =>
     !!node && (node.type === "table" || (node.children ?? []).some((child) => hasTable(child as { type: string; children?: unknown[] })));
-  if (!shapeOf(name).mayBeText && !hasTable(tree as { type: string; children?: unknown[] })) throw new Error(`not read as a table: ${tree.children?.map((node) => node.type).join(", ")}`);
+  // A table the scan reads as written — a shape whose single row is over the budget already — is text, as it must be.
+  const readAsWritten = bounded && overBudgetInlineRanges(text).some((range) => range.table);
+  if (!shapeOf(name).mayBeText && !readAsWritten && !hasTable(tree as { type: string; children?: unknown[] })) throw new Error(`not read as a table: ${tree.children?.map((node) => node.type).join(", ")}`);
   console.log(`ok ${Math.round(performance.now() - started)}`);
 }
 
