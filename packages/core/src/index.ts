@@ -45,6 +45,7 @@ export * from "./vault/SyncStateRepository.js";
 export * from "./vault/VaultIndexer.js";
 export * from "./vault/indexedRowStamp.js";
 export * from "./vault/systemJunk.js";
+export * from "./vault/emptyVault.js";
 export * from "./vault/yielder.js";
 export * from "./vault/missingFile.js";
 export * from "./vault/newVault.js";

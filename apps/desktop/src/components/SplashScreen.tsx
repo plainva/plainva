@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { FolderOpen, Cloud, Folder, Laptop, Plus, X, FilePlus2, Database, Download, SquareArrowOutUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OnlineVaultSetup } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Checkbox, ICON, Switch } from "@plainva/ui";
+import { exists } from "@tauri-apps/plugin-fs";
+import { Checkbox, getTourTemplate, ICON, Switch } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
@@ -16,6 +17,7 @@ import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "@plainva/ui";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
+import { findTourFolder, tauriTourFolderProbe } from "../services/tourVault";
 import {
   getVaultTemplates,
   templatePreviewFolders,
@@ -135,10 +137,18 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
   const handleCreateVault = async (template: VaultTemplateDefinition | null) => {
     const selected = await open({ directory: true, multiple: false, title: t("splash.selectNewVaultFolderTitle") });
     if (!selected || typeof selected !== "string") return;
+    await createVaultAt(selected, template);
+  };
+
+  /** Scaffolds `template` into the new, empty folder `selected` and opens it. */
+  const createVaultAt = async (selected: string, template: VaultTemplateDefinition | null) => {
     setCreating(true);
     setCreateError(null);
     try {
-      if (!(await isVaultFolderEmpty(selected))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
+      // A folder the tour is about to make does not exist yet; one that
+      // exists must be empty and unknown — the scaffolder never writes into
+      // anybody's notes.
+      if ((await exists(selected)) && !(await isVaultFolderEmpty(selected))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
       const adapter = new TauriVaultAdapter(selected);
       await adapter.initialize();
       await scaffoldVaultTemplate({ isNewVault: true,
@@ -154,6 +164,36 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
       setCreateError(e instanceof Error ? e.message : String(e));
     } finally {
       setCreating(false);
+    }
+  };
+
+  /**
+   * The welcome's main action (O8, mockup M8): the tour vault in one click.
+   * Its folder is looked up while the welcome is open, so the tour card can
+   * name it BEFORE the click; the click looks again, because a folder can
+   * appear in between.
+   */
+  const [tourFolder, setTourFolder] = useState<string | null>(null);
+  useEffect(() => {
+    if (!showFirstRun) return;
+    let live = true;
+    void findTourFolder(getTourTemplate(i18n.language).name, tauriTourFolderProbe)
+      .then((path) => { if (live) setTourFolder(path); })
+      .catch(() => { if (live) setTourFolder(null); });
+    return () => { live = false; };
+  }, [showFirstRun, i18n.language]);
+
+  const handleTryTour = async () => {
+    const tour = getTourTemplate(i18n.language);
+    setCreateError(null);
+    try {
+      const folder = await findTourFolder(tour.name, tauriTourFolderProbe);
+      if (!folder) throw new Error(t("firstRun.tourNoFolder"));
+      onFirstRunDismiss?.();
+      await createVaultAt(folder, tour);
+    } catch (e) {
+      onFirstRunDismiss?.();
+      setCreateError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -460,13 +500,18 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
       {showImport && <ImportWizardModal targetVaultPath="" onClose={() => setShowImport(false)} />}
 
       {/* Each action dismisses the welcome first, so the chosen flow is the
-          only thing on screen afterwards. */}
+          only thing on screen afterwards. "Open a folder" and "new empty
+          vault" go straight to the folder dialog: the welcome already said
+          where (this computer); the cloud stays on the splash behind it. */}
       {showFirstRun && (
         <FirstRunModal
           onClose={() => onFirstRunDismiss?.()}
-          onOpenVault={() => { onFirstRunDismiss?.(); setShowOpenWhere(true); }}
-          onNewVault={() => { onFirstRunDismiss?.(); setCreateError(null); setShowCreateWhere(true); }}
+          onTour={() => { void handleTryTour(); }}
+          onOpenFolder={() => { onFirstRunDismiss?.(); void selectVault(); }}
+          onNewEmpty={() => { onFirstRunDismiss?.(); void handleCreateVault(null); }}
           onImport={() => { onFirstRunDismiss?.(); setShowImport(true); }}
+          tourFolder={tourFolder}
+          busy={creating}
         />
       )}
 

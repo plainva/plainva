@@ -17,10 +17,12 @@ function firstRunShell(page: any) {
   return page.addInitScript(() => {
     (window as any).mockFs = { '/somewhere': { isDir: true } };
     const fs = (window as any).mockFs;
+    // What the welcome's actions did to the disk, for the tour tests (O8).
+    const calls: Array<{ cmd: string; path: string }> = ((window as any).__fsCalls = []);
     (window as any).__TAURI_INTERNALS__ = {
       plugins: { path: { sep: '/' } },
       transformCallback: () => 1,
-      invoke: async (cmd: string, args: any) => {
+      invoke: async (cmd: string, args: any, options?: any) => {
         if (cmd === 'plugin:path|normalize') {
           let p = String(args.path).replace(/\\/g, '/');
           while (p.includes('//')) p = p.replace('//', '/');
@@ -52,13 +54,39 @@ function firstRunShell(page: any) {
           const bytes = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|read_text_file", { path });
           return typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
         }
+        // The tour goes into Documents (O8): a fixed place for the test.
+        if (cmd === 'plugin:path|resolve_directory') return '/home/u/Documents';
+        if (cmd === 'plugin:fs|mkdir' || cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
+          const path = String(args?.path ?? options?.headers?.path ?? '');
+          calls.push({ cmd, path: decodeURIComponent(path) });
+          if (cmd === 'plugin:fs|mkdir') fs[decodeURIComponent(path).replace(/\/$/, '')] = { isDir: true };
+          return null;
+        }
+        // The vault adapter writes through the checked native command.
+        if (cmd === 'write_file_atomic') {
+          const root = String(args.rootId).replace(/^mock-root:/, '').replace(/\/$/, '');
+          calls.push({ cmd: 'write', path: `${root}/${String(args.relPath).replace(/^\/+/, '')}` });
+          return null;
+        }
         if (cmd === 'plugin:fs|exists') return !!fs[String(args.path).replace(/\/$/, '')];
-        if (cmd === 'plugin:fs|read_dir') return [];
+        if (cmd === 'plugin:fs|read_dir') {
+          const dir = String(args.path).replace(/\/$/, '');
+          const kids = (fs[dir] && fs[dir].children) || [];
+          return kids.map((name: string) => ({ name, isDirectory: false, isFile: true, isSymlink: false }));
+        }
         if (cmd === 'plugin:fs|watch') return 1;
         return null;
       },
     };
   });
+}
+
+/** Folders that already exist in Documents, some with notes in them. */
+function documentsHolding(page: any, folders: Record<string, string[]>) {
+  return page.addInitScript((f: Record<string, string[]>) => {
+    const fs = (window as any).mockFs;
+    for (const [name, children] of Object.entries(f)) fs[`/home/u/Documents/${name}`] = { isDir: true, children };
+  }, folders);
 }
 
 /**
@@ -97,18 +125,71 @@ function updatedShell(page: any) {
   });
 }
 
-test('welcomes a first-time user with the three ways in', async ({ page }) => {
+test('welcomes a first-time user with the tour as the main way in (O8, mockup M8)', async ({ page }, testInfo) => {
   await firstRunShell(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 20000 });
   await expect(dialog.getByText(/Willkommen bei Plainva|Welcome to Plainva/)).toBeVisible();
 
-  // Three actions, not a "next": the welcome is the entry itself.
-  await expect(dialog.getByTestId('firstrun-open')).toBeVisible();
-  await expect(dialog.getByTestId('firstrun-new')).toBeVisible();
-  await expect(dialog.getByTestId('firstrun-import')).toBeVisible();
+  // The tour is THE action; the folder of notes one already has sits beside
+  // it; empty and import are links underneath, not buttons of equal weight.
+  await expect(dialog.getByTestId('firstrun-tour')).toHaveClass(/pv-btn--primary/);
+  await expect(dialog.getByTestId('firstrun-open')).toHaveClass(/pv-btn--secondary/);
+  await expect(dialog.getByTestId('firstrun-new')).toHaveClass(/pv-linkbtn/);
+  await expect(dialog.getByTestId('firstrun-import')).toHaveClass(/pv-linkbtn/);
+  // No "later" button any more: the ✕ is the way out.
+  await expect(dialog.getByRole('button', { name: /^(Später|Later)$/ })).toHaveCount(0);
+
+  // The tour card names the folder BEFORE the click.
+  await expect(dialog.getByTestId('firstrun-tour-where')).toContainText('/home/u/Documents/Plainva');
+
+  // Nothing cut off at 1440 px (finding D3: a chip was truncated here).
+  const clipped = await dialog.evaluate((el) =>
+    [...el.querySelectorAll('button, strong, span, h3, p')].some((n) => (n as HTMLElement).scrollWidth > (n as HTMLElement).clientWidth + 1));
+  expect(clipped).toBe(false);
+  // Let the dialog's entrance finish: a photo mid-fade shows the splash through it.
+  await page.waitForTimeout(500);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('firstrun-1440.png') });
+  await page.setViewportSize({ width: 1024, height: 700 });
+  await page.waitForTimeout(300);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('firstrun-1024.png') });
+});
+
+test('the tour is one click: it makes the named folder in Documents and writes the tour into it', async ({ page }) => {
+  await firstRunShell(page);
+  await page.goto('/');
+
+  const dialog = page.getByRole('dialog');
+  const where = dialog.getByTestId('firstrun-tour-where');
+  await expect(where).toBeVisible({ timeout: 20000 });
+  const named = (await where.textContent()) ?? '';
+  await dialog.getByTestId('firstrun-tour').click();
+
+  // The welcome gives way, and the folder it named is the one that was made.
+  await expect(page.getByTestId('firstrun-tour')).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(() => (window as any).__fsCalls.filter((c: any) => c.cmd === 'plugin:fs|mkdir').map((c: any) => c.path)), { timeout: 15000 })
+    .toContainEqual(expect.stringMatching(/^\/home\/u\/Documents\/Plainva[ -]Tour$/));
+  const made = await page.evaluate(() => (window as any).__fsCalls.find((c: any) => c.cmd === 'plugin:fs|mkdir').path);
+  expect(named).toContain(made);
+  // And the tour's notes went into it, nowhere else.
+  const notes = () => page.evaluate(() => (window as any).__fsCalls
+    .filter((c: any) => (c.cmd === 'write' || c.cmd === 'plugin:fs|write_text_file') && /\.(md|base)$/.test(c.path)).map((c: any) => c.path));
+  await expect.poll(async () => (await notes()).length, { timeout: 15000 }).toBeGreaterThan(10);
+  const outside = (await notes()).filter((path: string) => !path.startsWith(`${made}/`));
+  expect(outside).toEqual([]);
+});
+
+test('a tour folder that already holds notes is never written into — the next name is used', async ({ page }) => {
+  await firstRunShell(page);
+  await documentsHolding(page, { 'Plainva Tour': ['Mine.md'], 'Plainva-Tour': ['Mine.md'] });
+  await page.goto('/');
+
+  const where = page.getByRole('dialog').getByTestId('firstrun-tour-where');
+  await expect(where).toBeVisible({ timeout: 20000 });
+  await expect(where).toContainText(/Plainva[ -]Tour 2/);
 });
 
 test('the import action opens the import wizard', async ({ page }) => {
@@ -125,13 +206,13 @@ test('the import action opens the import wizard', async ({ page }) => {
   await expect(page.getByTestId('firstrun-import')).toHaveCount(0);
 });
 
-test('"later" leaves the ordinary splash behind', async ({ page }) => {
+test('the ✕ leaves the ordinary splash behind', async ({ page }) => {
   await firstRunShell(page);
   await page.goto('/');
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 20000 });
-  await dialog.getByRole('button', { name: /Später|Later/ }).click();
+  await dialog.getByRole('button', { name: /Schließen|Close/ }).click();
 
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByTestId('splash-import')).toBeVisible();

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Folder } from "lucide-react";
-import { AreaBoundary, Chip, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
+import { isEmptyVaultListing } from "@plainva/core";
+import { AreaBoundary, Chip, FirstNotePrompt, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { useSyncSubtitle } from "../components/syncSubtitle";
@@ -92,6 +93,20 @@ export function NavigatorScreen({
   const [marks, setMarks] = useState<BookmarkEntry[]>([]);
   const targets = useBookmarkTargets(vault.adapter, marks, bump);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
+  // An empty vault is ONE prompt, "Write your first note" (O8, T11): the
+  // tabs, the search field and a listing of the managed index.md said
+  // "this is full of things" about a vault with nothing in it. The core's
+  // rule, the same one the desktop's empty pane asks; read again on every
+  // bump, so the first note ends it.
+  const [vaultEmpty, setVaultEmpty] = useState(false);
+  useEffect(() => {
+    let live = true;
+    vault.files.listDir("").then(
+      (entries) => { if (live) setVaultEmpty(isEmptyVaultListing(entries)); },
+      () => { if (live) setVaultEmpty(false); },
+    );
+    return () => { live = false; };
+  }, [vault, bump]);
   const ptrRef = useRef<HTMLDivElement>(null);
   const syncSubtitle = useSyncSubtitle();
   const ptrIndicator = usePullToRefresh(ptrRef);
@@ -148,6 +163,10 @@ export function NavigatorScreen({
       <AppBar large onMenu={onMenu} onSearch={onSearch} subtitle={syncSubtitle} title={vaultName} actions={<SyncIndicator />} />
       {ptrIndicator}
 
+      {vaultEmpty && onCreateNote ? (
+        <FirstNotePrompt onCreate={onCreateNote} />
+      ) : (
+      <>
       {/* Pinned sections, exactly the desktop's `leftSections` — above the
           tabs, because they answer "where was I" before "what is there". */}
       {recent.length > 0 && (
@@ -229,6 +248,8 @@ export function NavigatorScreen({
         <DatabasesScreen bump={bump} onCreate={onCreateDatabase} onOpenBase={onOpenBase} pane vault={vault} />
       )
       )}</AreaBoundary>
+      </>
+      )}
 
     </div>
   );

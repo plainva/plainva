@@ -4,12 +4,12 @@ import { NavBar } from "./components/NavBar";
 import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { OnboardingChoice } from "./components/OnboardingChoice";
+import { OnboardingChoice, type OnboardingWay } from "./components/OnboardingChoice";
+import { chooseExistingVault, pickVaultTemplate } from "./services/firstStart";
 import {
   AreaBoundary,
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
-  getVaultTemplates,
   ICON,
   journalTodayKey,
   setPlaceProvider,
@@ -102,7 +102,7 @@ const dayOfIso = (iso: string): Date => {
 };
 
 export default function App() {
-  const { i18n, t } = useTranslation();
+  const { t } = useTranslation();
   // The bar's arrangement, from the shared bar model (S10). Starts at the
   // model's default and is replaced once the vault's own value is read — a
   // synchronous first paint matters more here than a moment of the default,
@@ -441,12 +441,27 @@ export default function App() {
   const focusedSetup = isFocusedSetup(top, !!connectionRun?.pending.length);
   const barHidden = focusedSetup || (hidesTabBar(top) && windowClass === "compact");
 
-  const finishOnboarding = (connectCloud: boolean) => {
-    void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)
-    setReleaseDialog("none");
-    setOnboarded(true);
-    void updateMobileSettings({ onboarded: true });
-    if (connectCloud) {
+  const finishOnboarding = (way: OnboardingWay) => {
+    const done = () => {
+      void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)
+      setReleaseDialog("none");
+      setOnboarded(true);
+      void updateMobileSettings({ onboarded: true });
+    };
+    if (way === "existing") {
+      // "I already have a vault" (O8): the screen stays until a way in was
+      // actually taken — a cancelled sheet or folder picker is not a start.
+      void (async () => {
+        const how = await chooseExistingVault();
+        if (how === "folder" && !(await createVaultInPickedFolder())) return;
+        if (how === null) return;
+        done();
+        if (how === "cloud") push({ kind: "cloudconnect", path: "files" });
+      })().catch((e) => console.error("existing vault failed", e));
+      return;
+    }
+    done();
+    if (way === "cloud") {
       // Cloud branch (2026-07-13): existing vault vs. a NEW vault in the cloud
       // (order: place -> template -> connection, matching the desktop splash).
       void (async () => {
@@ -460,16 +475,9 @@ export default function App() {
         if (choice === "existing") {
           push({ kind: "cloudconnect", path: "files" });
         } else if (choice === "new") {
-          const defs = getVaultTemplates(i18n.language);
-          const pick = await mActions({
-            title: t("mobile.templatePick"),
-            options: [
-              { value: "", label: t("splash.emptyVault") },
-              ...defs.map((d) => ({ value: d.id, label: d.name })),
-            ],
-          });
+          const pick = await pickVaultTemplate();
           if (pick === null) return;
-          push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
+          push({ kind: "cloudconnect", path: "files", createTemplateId: pick.id });
         }
       })();
       return;
@@ -477,17 +485,10 @@ export default function App() {
     // Local start: offer the shared structure templates (package I). Only a
     // vault this boot created gets the offer — the one-time onboarding also
     // shows once on existing installs, whose content must never gain folders.
+    // A dismissed sheet is an empty vault, as before.
     void (async () => {
       if (!vault.claimTemplateCreation()) return;
-      const defs = getVaultTemplates(i18n.language);
-      const pick = await mActions({
-        title: t("mobile.templatePick"),
-        options: [
-          { value: "", label: t("splash.emptyVault") },
-          ...defs.map((d) => ({ value: d.id, label: d.name })),
-        ],
-      });
-      const def = defs.find((d) => d.id === pick) ?? null;
+      const def = (await pickVaultTemplate())?.def ?? null;
       await scaffoldVaultTemplate({
         adapter: vault.belowChain,
         isNewVault: vault.freshlySeeded,
@@ -509,17 +510,10 @@ export default function App() {
       const where = await chooseVaultPlace();
       if (where === null) return;
       if (where === "folder") { await createVaultInPickedFolder(); return; }
-      const defs = getVaultTemplates(i18n.language);
-      const pick = await mActions({
-        title: t("mobile.templatePick"),
-        options: [
-          { value: "", label: t("splash.emptyVault") },
-          ...defs.map((d) => ({ value: d.id, label: d.name })),
-        ],
-      });
+      const pick = await pickVaultTemplate();
       if (pick === null) return;
       if (where === "online") {
-        push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
+        push({ kind: "cloudconnect", path: "files", createTemplateId: pick.id });
         return;
       }
       const { value: rawName, cancelled } = await mPrompt({
@@ -528,7 +522,7 @@ export default function App() {
       });
       const name = rawName?.trim();
       if (cancelled || !name) return;
-      const def = defs.find((d) => d.id === pick) ?? null;
+      const def = pick.def;
       await createLocalVault(name, def);
       const nv = await getMobileVault();
       if (def) {

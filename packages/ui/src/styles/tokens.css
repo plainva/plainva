@@ -84,6 +84,10 @@
      indicator, so a page that reserved only the bar's own height still
      ended up underneath it on a phone with a gesture bar. */
   --m-docked-h: calc(64px + env(safe-area-inset-bottom, 0px));
+  /* The first-start screen covers the app and its bar, but the sheets it
+     opens ("I already have a vault", the template choice) must lie on top of
+     it: on the overlay layer they rendered behind the screen (O8). */
+  --z-m-onboarding: 35;
   --z-m-sheet: 40;
   --z-m-sheet-dialog: 50;
   --z-m-overlay: 60;

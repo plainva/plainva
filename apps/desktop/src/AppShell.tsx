@@ -20,7 +20,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, FirstNotePrompt, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -63,6 +63,7 @@ import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
 import { useDailyNoteAction } from "./hooks/useDailyNoteAction";
+import { useVaultEmpty } from "./hooks/useVaultEmpty";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
@@ -693,6 +694,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       if (refused) toast.error(refused);
     });
   });
+  // An empty vault lands on ONE prompt instead of "nothing is open" (O8).
+  const vaultEmpty = useVaultEmpty(vaultAdapter, fileTreeVersion);
   const dispatchNewNote = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } })));
   const toggleReadEdit = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "read" } })));
   const toggleSourceMode = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "source" } })));
@@ -1945,6 +1948,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                     // before they had read the sentence. What they had open
                     // last is a list, not a button, because it names things.
                     <div className="pv-emptypane" style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {vaultEmpty ? (
+                        // The vault holds nothing yet (O8, T11): the one
+                        // thing to do is the first note — the same prompt as
+                        // the phone's Home, from the same component.
+                        <FirstNotePrompt onCreate={() => { focusPane(i); dispatchNewNote(); }} />
+                      ) : (
                       <EmptyState
                         icon={<FileText size={ICON.empty} />}
                         title={t("editor.emptyPaneTitle")}
@@ -1979,6 +1988,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           />
                         </span>
                       </EmptyState>
+                      )}
                     </div>
                   )}
                 </div>

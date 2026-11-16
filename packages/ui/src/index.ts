@@ -390,6 +390,7 @@ export * from "./components/audioPlayer";
 export * from "./components/fileEmbedMount";
 export { isEditorInteractive } from "./components/editorInteractive";
 export * from "./components/FileEmbedCard";
+export * from "./components/FirstNotePrompt";
 export * from "./services/voiceMemo";
 export * from "./services/placeStamp";
 export * from "./components/PlaceStampButton";

@@ -2317,7 +2317,7 @@ textarea {
 .m-onboarding {
   position: fixed;
   inset: 0;
-  z-index: var(--z-m-overlay);
+  z-index: var(--z-m-onboarding);
   background: var(--surface);
   display: flex;
   flex-direction: column;
