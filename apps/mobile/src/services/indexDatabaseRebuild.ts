@@ -30,10 +30,21 @@ async function databaseFolder(): Promise<DatabaseFolder> {
   if (Capacitor.getPlatform() === "ios") {
     return { path: (file) => `${IOS_DATABASE_FOLDER}/${file}`, directory: Directory.Library };
   }
-  // Android: `files/` and `databases/` lie side by side in the app's own data folder.
   const { uri } = await Filesystem.getUri({ path: "", directory: Directory.Data });
-  const root = uri.replace(/\/+$/, "").replace(/\/files$/, "");
-  return { path: (file) => `${root}/databases/${file}` };
+  const databases = androidDatabasesFolder(uri);
+  return { path: (file) => `${databases}/${file}` };
+}
+
+/**
+ * Android: `files/` and `databases/` lie side by side in the app's own data
+ * folder; from the uri of `files/` (with or without slashes at its end), the
+ * uri of `databases/`.
+ */
+export function androidDatabasesFolder(filesUri: string): string {
+  let root = filesUri;
+  while (root.endsWith("/")) root = root.slice(0, -1);
+  if (root.endsWith("/files")) root = root.slice(0, -"/files".length);
+  return `${root}/databases`;
 }
 
 function filesIn(folder: DatabaseFolder): IndexDatabaseFiles {

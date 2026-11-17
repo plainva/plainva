@@ -43,7 +43,7 @@ vi.mock("@capacitor/filesystem", () => ({
 }));
 vi.mock("@capacitor-community/sqlite", async () => (await import("../../../../packages/core/test/helpers/phoneSqlitePlugin")).phoneSqlite.module);
 
-const { removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } = await import("./indexDatabaseRebuild");
+const { androidDatabasesFolder, removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } = await import("./indexDatabaseRebuild");
 const { resetDatabasesForTests } = await import("../adapters/sqliteConnections");
 const { resetDatabaseFolderForTests } = await import("../adapters/iosDatabaseFolder");
 
@@ -75,6 +75,24 @@ describe("setting the phone's damaged index database aside", () => {
     const aside = await setAsideMobileIndexDatabase("plainva-v1");
     expect(device.files.get(key(`file:///data/user/0/com.plainva.app/databases/${aside}`))).toBe("damaged");
     expect(device.files.get(key(db))).toBe("");
+  });
+
+  it("Android: the databases folder beside files, however many slashes the files uri ends in", () => {
+    // What the earlier `uri.replace(/\/+$/, "").replace(/\/files$/, "")` gave, case by case.
+    const app = "file:///data/user/0/com.plainva.app";
+    for (const [uri, folder] of [
+      [`${app}/files`, `${app}/databases`],
+      [`${app}/files/`, `${app}/databases`],
+      [`${app}/files///`, `${app}/databases`],
+      [app, `${app}/databases`],
+      [`${app}/`, `${app}/databases`],
+      [`${app}/filesystem`, `${app}/filesystem/databases`],
+      ["", "/databases"],
+      ["/", "/databases"],
+      ["///", "/databases"],
+    ]) {
+      expect(androidDatabasesFolder(uri), uri).toBe(folder);
+    }
   });
 
   it("forgetting the vault on this device removes every copy set aside, and nothing else", async () => {
