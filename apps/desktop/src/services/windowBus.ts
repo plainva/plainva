@@ -31,6 +31,7 @@ import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
 import { currentWindowParams } from "./windowContext";
+import { keptForAWhile } from "./keptForAWhile";
 import { SnapshotBeforeDeleteError, isSnapshotBeforeDeleteError } from "@plainva/core";
 import type { CommentOperation, CommentOperationInput, CommentOperationPhase, CommentPostInput } from "@plainva/core";
 
@@ -693,15 +694,20 @@ export const RPC_WRITE_KINDS: ReadonlySet<RpcKind> = new Set(
  * draft, a bookmark toggled. The others can be repeated — a whole text, a
  * merge against its base, a rename, a deletion land the same way twice.
  *
- * A request of these kinds may carry an attempt (`RequestOptions.attempt`):
+ * Every request of these kinds carries a key. A surface may give its attempt
+ * (`RequestOptions.attempt`):
  * one action of a person, the same for each try at it. The surface that took
  * the action keeps it until a try succeeded — the person pressing "Add" once
  * more after "may still land" sends the same attempt (`createAttempt`) — and
  * the owner does not run it a second time: the try joins the run still going,
  * or gets the outcome of the one that landed. A run that failed on the
  * owner's side is forgotten there, so its repetition runs. Without an attempt
- * every request is its own action: two clicks on the star are two toggles,
- * even when they arrive together.
+ * every request is its own action — two clicks on the star are two toggles,
+ * even when they arrive together — with one exception: a request that ended
+ * in "it may still land" is remembered by what it asked, and the next request
+ * that asks exactly the same is taken as the person trying it again (the same
+ * key). So pressing "Save" on an event, "Send" on a comment or the star once
+ * more after that message does not do it twice.
  */
 export const RPC_ONCE_KINDS: ReadonlySet<RpcKind> = new Set(
   (Object.keys(RPC_EFFECT) as RpcKind[]).filter((kind) => RPC_EFFECT[kind] === "once"),
@@ -712,6 +718,14 @@ export const RPC_WRITE_CEILING_MS = 10 * 60_000;
 
 /** How long the owner keeps the answer to a write, for a caller whose reply went missing. */
 const RPC_ANSWER_KEEP_MS = 2 * 60_000;
+
+/**
+ * `RPC_ONCE_KINDS`: how long a try that ended in "it may still land" is
+ * remembered by its window, and a run that landed by the owner — so the
+ * person's next press is the same action even half an hour later, and after
+ * either window loaded again (`keptForAWhile.ts`).
+ */
+export const RPC_ONCE_KEEP_MS = 30 * 60_000;
 
 /**
  * The owner-only surfaces, derived from the contract above rather than written
@@ -829,6 +843,12 @@ export function createWindowBus(
     ceiling?: ReturnType<typeof setTimeout>;
   }
   const pending = new Map<string, Waiting>();
+  /**
+   * `RPC_ONCE_KINDS` without an attempt: what a request asked that ended in
+   * "it may still land", and the key it went with. Read only while it holds
+   * something, so a request is not even looked at in the usual case.
+   */
+  const unsure = keptForAWhile<string>(`window-bus.unsure.${transport.label}`, RPC_ONCE_KEEP_MS);
   /** Writes the caller gave up on — a late answer is said, not swallowed. */
   const givenUp = new Map<string, string>();
   let replyListener: Promise<void> | null = null;
@@ -885,7 +905,7 @@ export function createWindowBus(
    * still going, or the value it succeeded with (kept like `answered`).
    */
   const onceRuns = new Map<string, Promise<unknown>>();
-  const onceDone = new Map<string, { value: unknown }>();
+  const onceDone = keptForAWhile<{ value: unknown }>(`window-bus.once.${transport.label}`, RPC_ONCE_KEEP_MS);
   let askListener: Promise<void> | null = null;
   const ensureAskListener = () => {
     if (askListener) return askListener;
@@ -925,7 +945,6 @@ export function createWindowBus(
       (value) => {
         onceRuns.delete(at);
         onceDone.set(at, { value });
-        setTimeout(() => onceDone.delete(at), RPC_ANSWER_KEEP_MS);
       },
       () => onceRuns.delete(at),
     );
@@ -971,7 +990,24 @@ export function createWindowBus(
       // One action of a person, tried again, carries the same attempt (A15);
       // the owner then does not run it twice. Two requests that only look alike
       // are two actions and both run.
-      if (opts?.attempt !== undefined && RPC_ONCE_KINDS.has(kind)) envelope.key = opts.attempt;
+      // A request without an attempt is its own action, unless it asks exactly
+      // what one that ended in "it may still land" asked: then it is that one again.
+      let askedFor: string | null = null;
+      if (RPC_ONCE_KINDS.has(kind)) {
+        if (opts?.attempt !== undefined) envelope.key = opts.attempt;
+        else {
+          if (unsure.size > 0) {
+            askedFor = JSON.stringify([kind, vaultPath ?? null, args]);
+            envelope.key = unsure.get(askedFor) ?? id;
+          } else envelope.key = id;
+        }
+      }
+      const generic = RPC_ONCE_KINDS.has(kind) && opts?.attempt === undefined;
+      const rememberUnsure = () => {
+        if (!generic || envelope.key === undefined) return;
+        askedFor ??= JSON.stringify([kind, vaultPath ?? null, args]);
+        unsure.set(askedFor, envelope.key);
+      };
       const result = new Promise((resolve, reject) => {
         const waiting: Waiting = { resolve, reject, taken: false, timer: undefined as unknown as ReturnType<typeof setTimeout> };
         const timedOut = () => {
@@ -992,11 +1028,13 @@ export function createWindowBus(
             }
             settle(id);
             givenUp.set(id, kind);
+            rememberUnsure();
             reject(new Error(`window RPC "${kind}" got no answer after the owner took it; it may still land`));
           };
           waiting.ceiling = setTimeout(() => {
             settle(id);
             givenUp.set(id, kind);
+            rememberUnsure();
             reject(new Error(`window RPC "${kind}" did not finish within ${RPC_WRITE_CEILING_MS}ms; it may still land`));
           }, RPC_WRITE_CEILING_MS);
           waiting.timer = setTimeout(waiting.expire, timeoutMs);
@@ -1006,7 +1044,13 @@ export function createWindowBus(
         pending.set(id, waiting);
       });
       await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
-      return (await result) as never;
+      const value = await result.catch((e: unknown) => {
+        // The owner said it failed: that try is over, and the next press is a new one.
+        if (askedFor !== null && !(e instanceof Error && e.message.endsWith("it may still land"))) unsure.delete(askedFor);
+        throw e;
+      });
+      if (askedFor !== null) unsure.delete(askedFor);
+      return value as never;
     },
 
     async handle(kind, handler, opts) {

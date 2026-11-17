@@ -1,8 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { BROADCAST_SCOPE, RPC_EFFECT, RPC_ONCE_KINDS, RPC_SCOPE, RPC_WRITE_KINDS, createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
 import { createAttempt } from "./attempt";
+import { resetKeptForAWhileForTest } from "./keptForAWhile";
+
+beforeEach(() => resetKeptForAWhileForTest());
 
 /**
  * The wire every auxiliary window's mutation rides on (multi-window P0/P1).
@@ -568,6 +571,143 @@ describe("a request asked for again after it failed (A15)", () => {
     await Promise.all([move("10:00"), move("11:00")]);
     await move("10:00");
     expect(at).toBe("10:00");
+  });
+});
+
+describe("pressed again after \"it may still land\", without an attempt (A15)", () => {
+  /** An owner that says it has the first request once, then falls silent on it while it runs. */
+  function silentOwner(wire: ReturnType<typeof createWire>) {
+    const transport = wire.make(OWNER_LABEL);
+    let first: string | null = null;
+    let said = false;
+    return createWindowBus({
+      ...transport,
+      async emitTo(target, event, payload) {
+        if (event === "pv:rpc-alive") {
+          const id = (payload as { id: string }).id;
+          first ??= id;
+          if (id === first) {
+            if (said) return;
+            said = true;
+          }
+        }
+        return transport.emitTo(target, event, payload);
+      },
+    });
+  }
+
+  const event = { accountId: "a", op: { kind: "createEvent", calendarId: "c", draft: { title: "Dentist" } } } as never;
+
+  async function lostFirstAnswer(handlerRuns: { n: number }) {
+    const wire = createWire();
+    const owner = silentOwner(wire);
+    const aux = createWindowBus(wire.make("aux-1"), 50);
+    const install = (bus: typeof owner) =>
+      bus.handle("pim-write", (async () => {
+        handlerRuns.n += 1;
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        return { ok: true as const, etag: "e" };
+      }) as never);
+    await install(owner);
+    const first = aux.request("pim-write", event);
+    const failed = expect(first).rejects.toThrow(/may still land/);
+    await vi.advanceTimersByTimeAsync(200);
+    await failed;
+    return { wire, owner, aux, install };
+  }
+
+  it("creates the event once when the person presses \"Save\" again", async () => {
+    vi.useFakeTimers();
+    try {
+      const runs = { n: 0 };
+      const { owner, aux } = await lostFirstAnswer(runs);
+      const again = aux.request("pim-write", event);
+      await vi.advanceTimersByTimeAsync(400);
+      await expect(again).resolves.toEqual({ ok: true, etag: "e" });
+      expect(runs.n).toBe(1);
+      await owner.dispose(); await aux.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("creates it once even when the central window loaded again in between", async () => {
+    vi.useFakeTimers();
+    try {
+      const runs = { n: 0 };
+      const { wire, owner, aux, install } = await lostFirstAnswer(runs);
+      await vi.advanceTimersByTimeAsync(400);
+      await owner.dispose();
+      const reloaded = createWindowBus(wire.make(OWNER_LABEL));
+      await install(reloaded);
+      await expect(aux.request("pim-write", event)).resolves.toEqual({ ok: true, etag: "e" });
+      expect(runs.n).toBe(1);
+      await reloaded.dispose(); await aux.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs a different request as a new one", async () => {
+    vi.useFakeTimers();
+    try {
+      const runs = { n: 0 };
+      const { owner, aux } = await lostFirstAnswer(runs);
+      const other = aux.request("pim-write", { accountId: "a", op: { kind: "createEvent", calendarId: "c", draft: { title: "Gym" } } } as never);
+      await vi.advanceTimersByTimeAsync(400);
+      await other;
+      expect(runs.n).toBe(2);
+      await owner.dispose(); await aux.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("posts a remark once, and stars a note once, when pressed again", async () => {
+    vi.useFakeTimers();
+    try {
+      for (const [kind, args] of [
+        ["comment-post", { path: "N.md", body: "hi" }],
+        ["toggle-bookmark", { path: "N.md" }],
+      ] as const) {
+        const wire = createWire();
+        const owner = silentOwner(wire);
+        const aux = createWindowBus(wire.make("aux-1"), 50);
+        let runs = 0;
+        await owner.handle(kind as never, (async () => {
+          runs += 1;
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          return kind === "toggle-bookmark" ? [] : { ok: true };
+        }) as never);
+        const first = aux.request(kind as never, args as never);
+        const failed = expect(first).rejects.toThrow(/may still land/);
+        await vi.advanceTimersByTimeAsync(200);
+        await failed;
+        const again = aux.request(kind as never, args as never);
+        await vi.advanceTimersByTimeAsync(400);
+        await again;
+        expect({ kind, runs }).toEqual({ kind, runs: 1 });
+        await owner.dispose(); await aux.dispose();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs it again when the central window said the first try failed", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire.make(OWNER_LABEL));
+    const aux = createWindowBus(wire.make("aux-1"));
+    let runs = 0;
+    await owner.handle("pim-write", (async () => {
+      runs += 1;
+      if (runs === 1) throw new Error("the provider said no");
+      return { ok: true as const, etag: "e" };
+    }) as never);
+    await expect(aux.request("pim-write", event)).rejects.toThrow(/said no/);
+    await expect(aux.request("pim-write", event)).resolves.toEqual({ ok: true, etag: "e" });
+    expect(runs).toBe(2);
+    await owner.dispose(); await aux.dispose();
   });
 });
 
