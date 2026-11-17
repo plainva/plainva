@@ -518,13 +518,12 @@ export function rewriteNoteLinks(
   // in, so each round leaves out the last such link of every one of them at
   // once, and a note full of them is read a few times, not once per link
   // (Fehlerliste 0.9.0, B2: renamed to a name with a backtick, a note with
-  // two thousand such lines was read two thousand times). Where one paragraph
-  // still loses links after `READ_BACK_ROUNDS` rounds, a round leaves out the
-  // first lost link and those behind it; after twice as many, the links of
-  // that paragraph whose new name can pair are all left as they were — they
-  // still name the file they named.
+  // two thousand such lines was read two thousand times). Within one
+  // paragraph a round still leaves out one link, the last lost one: which of
+  // the links behind an open backtick read back depends on every one left
+  // out before it, and no link is left out that this order keeps.
   let containers: InlineContainers | null = null;
-  for (let round = 0; ; round++) {
+  for (;;) {
     const { text, made } = withEdits(content, edits);
     if (retargeted.size === 0) return { content: text, rewritten: made, unplaced: left };
     const lost = editsNotReadBack(text, edits, retargeted);
@@ -537,32 +536,15 @@ export function rewriteNoteLinks(
       edits.splice(edits.indexOf(edit), 1);
     };
     const lastLost = new Map<number, Edit>();
-    const firstLost = new Map<number, Edit>();
     for (const edit of lost) {
       const key = containers.of(retargeted.get(edit)!.link.start);
       const last = lastLost.get(key);
       if (!last || edit.from > last.from) lastLost.set(key, edit);
-      const first = firstLost.get(key);
-      if (!first || edit.from < first.from) firstLost.set(key, edit);
     }
-    if (round < READ_BACK_ROUNDS) {
-      for (const edit of lastLost.values()) leaveOut(edit);
-      continue;
-    }
-    // From here on a round leaves out the first link that does not read back
-    // and every one behind it in its paragraph: the links in front of it read
-    // back with those behind it standing, so they stay renamed, as they did
-    // when the rounds left out one link at a time.
-    const final = round >= 2 * READ_BACK_ROUNDS;
-    for (const edit of [...retargeted.keys()]) {
-      const first = firstLost.get(containers.of(retargeted.get(edit)!.link.start));
-      if (first && (final || edit.from >= first.from)) leaveOut(edit);
-    }
+    for (const edit of lastLost.values()) leaveOut(edit);
   }
 }
 
-/** How often a paragraph is read again for the links a rename left out of it, one at a time. */
-const READ_BACK_ROUNDS = 16;
 
 interface InlineContainers {
   /** The paragraph, heading or table cell a place of the note stands in, by number; a place in none is a container of its own. */
