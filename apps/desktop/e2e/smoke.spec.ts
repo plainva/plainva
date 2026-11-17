@@ -4607,7 +4607,8 @@ test('AI scripts: a script runs for nobody until this device signed it, then in 
   // Its review says what a writing tool means.
   await addLine.getByTestId('ai-skill-more').click();
   await page.getByTestId('ai-skill-action-showInstructions').click();
-  await expect(approval).toContainText('It can suggest changes and leave drafts, signed with its name.');
+  await expect(approval).toContainText('It can suggest changes and leave drafts, signed with its name — they wait for you to accept or create.');
+  await expect(approval).toContainText('Started by the AI in a conversation with “Apply directly”, or in a folder with “Change without asking”, it changes notes at once, with Undo.');
   await page.keyboard.press('Escape');
   await expect(approval).toHaveCount(0);
 
@@ -9269,13 +9270,13 @@ test('AI apply directly: the chip writes a change at once, with a version marked
   await expect(chip).toHaveAttribute('aria-pressed', 'false');
   await chip.click();
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
-  await expect(companion.getByTestId('ai-direct-marking')).toHaveText('The AI may change and create notes in this conversation. Deleting, renaming and moving still ask.');
+  await expect(companion.getByTestId('ai-direct-marking')).toHaveText('The AI, and scripts it starts, may change and create notes in this conversation. Deleting, renaming and moving still ask.');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-chip-desktop.png') });
 
   const { consent } = await directAsk(page, 'Raise the day rate to 1,900 euros and note the rates.');
   // The overview before sending names it.
   await expect(consent).toBeVisible();
-  await expect(companion.getByTestId('ai-overview-direct')).toHaveText('The AI may change and create notes; deleting still asks.');
+  await expect(companion.getByTestId('ai-overview-direct')).toHaveText('The AI, and scripts it starts, may change and create notes; deleting still asks.');
   await consent.click();
   await expect(companion.getByText('I raised the rate and wrote down the rates.')).toBeVisible();
 

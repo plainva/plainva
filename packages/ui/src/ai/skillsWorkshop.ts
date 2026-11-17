@@ -169,9 +169,13 @@ function scriptFacts(t: Translate, entry: InstructionEntry, language: string): A
   const script = source.script ?? null;
   const number = new Intl.NumberFormat(language);
   // A script that names a writing tool (the second stage) lays down suggestions and drafts — and the review says what
-  // that means, in the words a skill's review uses for the same tools: nothing changes before the user takes it.
+  // that means, in the words a skill's review uses for the same tools: it waits for the user — except where the
+  // user let changes apply directly.
   const may = script
-    ? [script.tools.length ? t("ai.scripts.mayTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.mayNoTools"), t("ai.scripts.mayNothingElse"), t(scriptWrites(script) ? "ai.scripts.mayPropose" : "ai.scripts.mayReadOnly")]
+    ? [script.tools.length ? t("ai.scripts.mayTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.mayNoTools"), t("ai.scripts.mayNothingElse"), t(scriptWrites(script) ? "ai.scripts.mayPropose" : "ai.scripts.mayReadOnly"),
+        // Every tool a script writes with is one that can write directly (maintainer, 2026-11-16): started by the AI
+        // in a conversation that applies directly, or for a folder that changes without asking, it does.
+        ...(scriptWrites(script) ? [t("ai.scripts.mayProposeDirect")] : [])]
     : [];
   const limits = script
     ? t("ai.scripts.limitsLine", {
