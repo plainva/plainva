@@ -164,6 +164,30 @@ export interface VaultIndexerOptions {
    * so `whenIdle` does not wait for a read that never answers.
    */
   scanSignal?: AbortSignal;
+  /**
+   * This device's steady clock, in milliseconds (`performance.now`): what
+   * tells whether a reading vouches for a file's timestamp (`readingVouches`).
+   * For tests.
+   */
+  monotonicNow?: () => number;
+  /**
+   * The shell hears of no change to the vault's files (the phone has no
+   * watcher). A file removed or moved from outside between a full scan's read
+   * of it and the write of its row was a row for a file that is not there, and
+   * the file at its new place had none, until the next scan: a scan that read
+   * files looks at the vault once more, which reads nothing the rows already
+   * stand for. Where a watcher reports such a change, the pass it starts sets
+   * the reading aside (`changesSince`).
+   */
+  hearsNoChanges?: boolean;
+  /**
+   * The indexer comes back by itself to a row whose timestamp it could not
+   * confirm, once its tick is over, and to a file owed a reading
+   * (`readingVouches`, `READS_PER_PATH`), instead of waiting for the next pass
+   * that comes by. Both shells' indexers do; one without it (a test, a
+   * one-off scan) does nothing behind its passes.
+   */
+  comesBackByItself?: boolean;
   onExternalModification?: (path: string, oldHash: string | null, newHash: string) => void;
   /**
    * Answers whether `sha256` is content the app's own adapter wrote to `path`
@@ -248,25 +272,39 @@ type FileReading = (
   | { kind: "text"; read: LocalText }
   | { kind: "bytes"; sha256: string }
 ) & {
-  /** When the read began (`Date.now()`): what the row's timestamp says about it (`indexedMtime`). */
-  at: number;
+  /** When the read began, on this device's steady clock (`VaultIndexerOptions.monotonicNow`). */
+  began: number;
+  /** Since when, on the same clock, the file has had the timestamp and size it was read under, at the latest (`readingVouches`). */
+  seenSince: number;
 };
 
+/** This device's steady clock: it does not jump with the time of day (`readingVouches`). */
+const steadyNow = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+
 /**
- * How close to the read a file's timestamp may lie before the row does not
- * vouch for the file as it is, where the timestamp was taken by a coarse
- * clock (`COARSE_CLOCK_MS`): the coarsest a vault is commonly kept on (FAT
- * 2 s; HFS+, ext3, many network mounts and some Android versions 1 s) with
- * room for a share whose clock runs a little behind this device's.
+ * The longest tick of a file system's clock a timestamp can have been taken
+ * by: where it lies on a whole second, the coarsest clock a vault is commonly
+ * kept on (FAT counts in 2 s; HFS+, ext3, many shares and some Android
+ * versions in 1 s), with room; otherwise the coarsest of the clocks that count
+ * finer (exFAT 10 ms, the 15.6 ms system tick NTFS stamps by, a kernel's
+ * coarse clock), with room. A fine clock's timestamp that happens to lie on a
+ * whole second only costs a longer wait.
  */
-const RACY_TIMESTAMP_MS = 3000;
+function timestampTickBound(mtime: number): number {
+  return mtime % 1000 === 0 ? COARSE_TICK_BOUND_MS : FINE_TICK_BOUND_MS;
+}
+const COARSE_TICK_BOUND_MS = 3000;
+const FINE_TICK_BOUND_MS = 100;
 
-/** A timestamp on a whole second is taken as one of a clock that counts in seconds or more. */
-const COARSE_CLOCK_MS = 1000;
+/** How long the indexer waits before it reads an owed file again by itself (`OWED_RETRY_MS`). */
+function owedRetryDelay(tries: number): number {
+  return Math.min(OWED_RETRY_MAX_MS, OWED_RETRY_MS * 2 ** Math.min(tries, 16));
+}
 
 /**
- * The timestamp a row is written with, for a file read at `readAt` whose
- * timestamp was `mtime`.
+ * Whether a reading vouches for the file under its timestamp — confirmed
+ * timestamps.
  *
  * Every pass skips a file whose timestamp and size are what the index holds
  * (the full scan, a folder re-read, the echo check of a single path). A
@@ -278,24 +316,25 @@ const COARSE_CLOCK_MS = 1000;
  * found "unchanged": old text in the search, and no upload of the change until
  * the next one (the "racy timestamp" every content index meets).
  *
- * So a read that began within a tick of the file's timestamp, before or
- * after it, does not vouch for the file: its row carries the timestamp
- * one millisecond earlier, which no pass takes for the file's own, and the
- * next pass that looks reads the file again — by then mostly after the tick,
- * and that reading stands. The tick is the clock's the timestamp was taken
- * by: on a whole second, `RACY_TIMESTAMP_MS`; otherwise the millisecond both
- * shells' timestamps count in, so that a file read a moment after it was
- * written — as every save, pull and import is — is not read once more for
- * it. A timestamp that only happens to lie on a whole second costs one more
- * read. A timestamp far from this device's clock — a share whose clock runs
- * hours ahead — says nothing about the read's place in its tick and does not
- * make every pass read the file again until this clock has caught up. What
- * the row says when the file was changed is off by that millisecond in the
- * meantime.
+ * Whether a read fell within the tick cannot be told by this device's clock
+ * against the file's timestamp: a share's clock runs ahead or behind, by
+ * seconds or by hours. What tells it is time on this device's steady clock:
+ * the file had its timestamp when this indexer saw it (`seenSince` — the
+ * listing a pass read it from, or an earlier look), so the tick that
+ * timestamp belongs to had begun by then, and it is surely over a tick bound
+ * later. A reading that began after that vouches for the file; its row is
+ * confirmed. A row written from an earlier reading carries the file's own
+ * timestamp all the same — the sync's check of its own deletions, the change
+ * time sent to a provider, the order of a view and `file.mtime` read it — and
+ * a mark that it is not confirmed yet (`files.stamp_vouched` = 0). The
+ * indexer reads such a file once more when the tick is surely over
+ * (`confirmationDue`), compares the bytes, and either confirms the row or
+ * indexes what it found; a pass that comes by sooner leaves it as it is, so
+ * the echo of a save reads nothing. Rows of an older version count as
+ * confirmed.
  */
-function indexedMtime(mtime: number, readAt: number): number {
-  const tick = mtime % COARSE_CLOCK_MS === 0 ? RACY_TIMESTAMP_MS : 1;
-  return Math.abs(mtime - readAt) < tick ? mtime - 1 : mtime;
+function readingVouches(reading: FileReading, mtime: number): boolean {
+  return reading.began - reading.seenSince >= timestampTickBound(mtime);
 }
 
 /** The hash of the bytes a reading was made of (the one a row is written with). */
@@ -303,27 +342,28 @@ function readingHash(reading: FileReading): string {
   return reading.kind === "text" ? reading.read.sha256 : reading.sha256;
 }
 
-/**
- * Whether a file read again is unchanged: its row did not vouch for this very
- * timestamp only because its read came too close to it (`indexedMtime`), and
- * the bytes are the ones the row was written from. The pass writes the row
- * again (now, mostly, with the file's own timestamp) and counts no change —
- * the views do not reload for the echo of a save (issue 122).
- */
-function readAgainUnchanged(
-  row: { mtime_local?: unknown; size_bytes?: unknown; sha256?: unknown } | undefined | null,
-  file: VaultFileInfo,
-  hash: string | null,
-): boolean {
-  return !!row && hash !== null && Number(row.mtime_local) === file.mtime - 1
-    && Number(row.size_bytes) === file.size && row.sha256 === hash;
-}
+/** An index row as the passes compare it with a file. */
+type ComparedRow = { mtime_local?: unknown; size_bytes?: unknown; sha256?: unknown; stamp_vouched?: unknown };
 
-/** Whether a row stands for the file as listed: same timestamp and same size (`indexedMtime`). */
-function rowVouchesFor(row: { mtime_local?: unknown; size_bytes?: unknown } | undefined | null, file: VaultFileInfo): boolean {
+/** Whether a row was written for the file as listed: same timestamp and same size. */
+function rowMatches(row: ComparedRow | undefined | null, file: VaultFileInfo): row is ComparedRow {
   if (!row) return false;
   return Number(row.mtime_local) === file.mtime && Number(row.size_bytes) === file.size;
 }
+
+/** Whether a row was written from a reading that did not vouch for its timestamp (`readingVouches`). */
+function rowUnconfirmed(row: ComparedRow): boolean {
+  return Number(row.stamp_vouched ?? 1) === 0;
+}
+
+/** Whether a reading confirms a row: it vouches, and found the bytes the row was written from (`readingVouches`). */
+function readingConfirms(row: ComparedRow | undefined | null, file: VaultFileInfo, reading: FileReading): boolean {
+  return rowMatches(row, file) && rowUnconfirmed(row) && row.sha256 === readingHash(reading) && readingVouches(reading, file.mtime);
+}
+
+/** Confirms a row as it is (`readingConfirms`); a row written meanwhile is left alone. */
+const CONFIRM_ROW_SQL = `UPDATE files SET stamp_vouched = 1 WHERE path = ? AND mtime_local = ? AND size_bytes = ? AND sha256 = ?`;
+const confirmRowParams = (file: VaultFileInfo, reading: FileReading) => [file.path, file.mtime, file.size, readingHash(reading)];
 
 /** A file the full scan read before the transaction that writes it, and where its read began (`changesSince`). */
 interface ScanReading {
@@ -343,6 +383,8 @@ interface ScanWork {
   file: VaultFileInfo;
   attachment: boolean;
   asideBefore?: number;
+  /** When the scan saw `file` (its listing, or its look once more), on the steady clock (`readingVouches`). */
+  seenAt: number;
 }
 
 /**
@@ -357,13 +399,15 @@ const SCAN_TRANSACTION_TEXT = 16 * 1024 * 1024;
 
 /**
  * How often a pass reads a file whose readings keep being set aside
- * (`changesSince`) before it leaves the file out — the full scan and a single
- * path alike. A reading is set aside only where its own path changed, or a
- * folder it lies in moved; a folder that moved has nothing left at the old
- * path, so a file left out is one somebody keeps changing while it is read.
- * Left out, it is never left out in silence: the index is marked as owed a
- * full scan (`indexComplete`), the scan names it in its report (`changing`),
- * and the next full scan reads it. "Complete" never means that a file is missing.
+ * (`changesSince`) — the full scan and a single path alike. A reading is set
+ * aside only where its own path changed, or a folder it lies in moved; a
+ * folder that moved has nothing left at the old path. The last reading is
+ * written all the same where the file is still there — the row is a moment
+ * old, never missing, as it was before readings were set aside — and the
+ * file stays owed a reading (`OWED_PATHS_KEY`): the indexer reads it again
+ * by itself, any pass that comes by reads it, and until one has, the index
+ * is not complete and both shells name the file where they name what could
+ * not be read ("changing").
  */
 const READS_PER_PATH = 4;
 
@@ -415,6 +459,17 @@ interface IndexPass {
  */
 const INDEX_OWED_KEY = "index_scan_owed";
 
+/**
+ * The `meta` key that lists, as JSON, the files whose row was written from a
+ * reading that changed under it (`READS_PER_PATH`): owed a reading, by any
+ * pass. The index is not complete while one is listed (`indexComplete`).
+ */
+const OWED_PATHS_KEY = "index_owed_paths";
+
+/** How long the indexer waits before it reads an owed file again by itself, the first time; each time after, twice as long, up to `OWED_RETRY_MAX_MS`. */
+const OWED_RETRY_MS = 3000;
+const OWED_RETRY_MAX_MS = 5 * 60_000;
+
 /** A row of the index as a full scan finds it when it begins. */
 interface IndexedAtScanStart {
   rowid?: number | null;
@@ -422,6 +477,7 @@ interface IndexedAtScanStart {
   mtime_local: number;
   size_bytes?: number | null;
   sha256?: string | null;
+  stamp_vouched?: number | null;
 }
 
 export class VaultIndexer {
@@ -450,6 +506,17 @@ export class VaultIndexer {
 
   private readonly vaultAdapter: IVaultAdapter;
   private readonly dbAdapter: IDatabaseAdapter;
+  /** This device's steady clock (`readingVouches`). */
+  private readonly clock: () => number;
+  /** Rows not confirmed yet, by path: the file's timestamp and size, and since when this indexer has seen them (`confirmationDue`). */
+  private readonly unconfirmed = new Map<string, { mtime: number; size: number; since: number }>();
+  private confirmTimer: ReturnType<typeof setTimeout> | null = null;
+  /** When the timer is due, on the steady clock: one that fires sooner by that clock is not set again (`confirmDue`). */
+  private confirmTimerDueAt = 0;
+  /** The files owed a reading (`OWED_PATHS_KEY`), as last read or written; null until a pass loads them. */
+  private owedPaths: Set<string> | null = null;
+  /** When the indexer reads an owed file again by itself, on the steady clock, and how often it has. */
+  private readonly owedRetry = new Map<string, { at: number; tries: number }>();
 
   constructor(
     vaultAdapter: IVaultAdapter,
@@ -464,12 +531,190 @@ export class VaultIndexer {
     this.vaultAdapter = signal ? readsCalledOffBy(vaultAdapter, signal) : vaultAdapter;
     this.dbAdapter = signal ? writesRefusedAfter(dbAdapter, signal) : dbAdapter;
     this.syncRepo = new SyncStateRepository(this.dbAdapter);
+    this.clock = options?.monotonicNow ?? steadyNow;
+    signal?.addEventListener("abort", () => {
+      if (this.confirmTimer) clearTimeout(this.confirmTimer);
+      this.confirmTimer = null;
+      this.unconfirmed.clear();
+      this.owedRetry.clear();
+    }, { once: true });
+  }
+
+  /** Since when this indexer has seen the file under its timestamp and size: `at`, or an earlier look (`readingVouches`). */
+  private seenSince(file: VaultFileInfo, at: number): number {
+    const known = this.unconfirmed.get(file.path);
+    return known && known.mtime === file.mtime && known.size === file.size ? Math.min(known.since, at) : at;
+  }
+
+  /** A row written from a reading that did not vouch: read once more when the tick is surely over (`confirmationDue`). */
+  private awaitConfirmation(file: VaultFileInfo, since: number): void {
+    if (this.options?.scanSignal?.aborted) return;
+    this.unconfirmed.set(file.path, { mtime: file.mtime, size: file.size, since });
+    this.scheduleConfirmation();
+  }
+
+  /**
+   * For a row that matches the file as listed (`rowMatches`): whether the
+   * pass is to read the file now — the row is not confirmed, and its tick is
+   * surely over. Sooner, the pass leaves it, and the indexer comes back to it
+   * by itself once the tick is over; a confirmed row is never read for this.
+   */
+  private confirmationDue(file: VaultFileInfo, row: ComparedRow): boolean {
+    if (!rowUnconfirmed(row)) {
+      this.unconfirmed.delete(file.path);
+      return false;
+    }
+    const now = this.clock();
+    const since = this.seenSince(file, now);
+    if (now - since >= timestampTickBound(file.mtime)) return true;
+    this.awaitConfirmation(file, since);
+    return false;
+  }
+
+  /** Comes back to the rows not confirmed yet once the first one's tick is over (`confirmationDue`). */
+  private scheduleConfirmation(): void {
+    if (!this.options?.comesBackByItself) return;
+    if (this.confirmTimer || (this.unconfirmed.size === 0 && this.owedRetry.size === 0) || this.options?.scanSignal?.aborted) return;
+    let due = Infinity;
+    for (const entry of this.unconfirmed.values()) due = Math.min(due, entry.since + timestampTickBound(entry.mtime));
+    for (const retry of this.owedRetry.values()) due = Math.min(due, retry.at);
+    if (due === Infinity) return;
+    const timer = setTimeout(() => {
+      this.confirmTimer = null;
+      void this.confirmDue();
+    }, Math.max(0, due - this.clock()) + 1);
+    // Nothing waits for it: a process that ends leaves the marks for the next one.
+    (timer as { unref?: () => void }).unref?.();
+    this.confirmTimer = timer;
+    this.confirmTimerDueAt = due;
+  }
+
+  /** Looks at every path whose row's tick is over: the look reads it once more (`inspectPathIn`). */
+  private async confirmDue(): Promise<void> {
+    // A timer that fires before its time by the steady clock — a test's
+    // timers, a clock that stands — is not set again in a loop: the next pass
+    // that comes by asks again.
+    if (this.clock() < this.confirmTimerDueAt) return;
+    // A full scan under way confirms what it reads itself; what is left, after it.
+    await this.whenIdle();
+    const now = this.clock();
+    const due = [...this.unconfirmed].filter(([, e]) => now - e.since >= timestampTickBound(e.mtime));
+    for (const [path, entry] of due) {
+      if (this.options?.scanSignal?.aborted) return;
+      // A full scan begun meanwhile reads these itself: never side by side with it.
+      await this.whenIdle();
+      await this.comeBackTo(path).catch((error: unknown) => {
+        console.warn(`[VaultIndexer] could not confirm the timestamp of ${path}`, error);
+      });
+      // Gone, moved, or not to be read: nothing more to come back to under this timestamp.
+      if (this.unconfirmed.get(path) === entry) this.unconfirmed.delete(path);
+    }
+    // The owed files whose time has come: a look reads each (`inspectPathIn`); one that changed again is owed again, later.
+    for (const [path, retry] of [...this.owedRetry]) {
+      if (this.options?.scanSignal?.aborted) return;
+      if (retry.at > this.clock()) continue;
+      await this.whenIdle();
+      await this.comeBackTo(path).catch((error: unknown) => {
+        console.warn(`[VaultIndexer] could not read ${path} again`, error);
+      });
+      if (this.owedRetry.get(path) === retry) this.owedRetry.set(path, { at: this.clock() + owedRetryDelay(retry.tries + 1), tries: retry.tries + 1 });
+    }
+    this.scheduleConfirmation();
+  }
+
+  /**
+   * The indexer's own look at a path it comes back to (`comesBackByItself`):
+   * a row not confirmed yet is confirmed by one reading or the file indexed as
+   * it is; a file owed a reading is read. It never removes a row and never
+   * reports a file gone: a file that is not there, or that changed since,
+   * belongs to the pass that follows the change — the watcher's, the app's
+   * own after a move (`relocatePathInIndex`), the next scan. Looking for
+   * itself, it would take a folder the app has just moved on the disk, and
+   * not yet in the index, for files that were deleted.
+   */
+  private async comeBackTo(path: string): Promise<void> {
+    await this.inPass(async (pass) => {
+      const info = await this.lookAt(path).catch(() => null);
+      if (!info || info.isDirectory) return;
+      const row = await this.dbAdapter.queryOne<ComparedRow>(
+        `SELECT mtime_local, size_bytes, sha256, stamp_vouched FROM files WHERE path = ?`, [path]);
+      if (!row) return;
+      if (!this.owedPaths?.has(path)) {
+        if (!rowMatches(row, info) || !this.confirmationDue(info, row)) return;
+        const reading = await this.readForIndex(info);
+        if (readingConfirms(row, info, reading)) {
+          await this.dbAdapter.execute(CONFIRM_ROW_SQL, confirmRowParams(info, reading));
+          this.unconfirmed.delete(path);
+          return;
+        }
+      }
+      await this.indexOne(info, pass);
+      this.flushCallbacks(pass);
+    });
+  }
+
+  /** The files owed a reading, loaded once per indexer (`OWED_PATHS_KEY`). */
+  private async owed(): Promise<Set<string>> {
+    if (this.owedPaths) return this.owedPaths;
+    const row = await this.dbAdapter.queryOne<{ value?: string | null }>(`SELECT value FROM meta WHERE key = ?`, [OWED_PATHS_KEY]);
+    let listed: unknown;
+    try {
+      listed = JSON.parse(row?.value ?? "[]");
+    } catch {
+      listed = [];
+    }
+    if (this.owedPaths) return this.owedPaths;
+    this.owedPaths = new Set(Array.isArray(listed) ? listed.filter((p): p is string => typeof p === "string") : []);
+    // Owed when an earlier session ended: read again soon.
+    for (const path of this.owedPaths) if (!this.owedRetry.has(path)) this.owedRetry.set(path, { at: this.clock() + OWED_RETRY_MS, tries: 0 });
+    this.scheduleConfirmation();
+    return this.owedPaths;
+  }
+
+  /** What a scan names as left out: `skipped`, and every file owed a reading as the scan ends ("changing"). */
+  private withOwed(skipped: VaultWalkSkip[]): VaultWalkSkip[] {
+    const owed = this.owedPaths;
+    if (!owed || owed.size === 0) return skipped;
+    return [...skipped, ...[...owed].sort().map((path): VaultWalkSkip => ({ path, reason: "changing" }))];
+  }
+
+  /** Writes the list of owed files as it stands, with the writes of the pass that changed it. */
+  private writeOwed(writer: SqlWriter): Promise<void> {
+    const owed = this.owedPaths ?? new Set<string>();
+    return owed.size > 0
+      ? writer.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`, [OWED_PATHS_KEY, JSON.stringify([...owed].sort())])
+      : writer.execute(`DELETE FROM meta WHERE key = ?`, [OWED_PATHS_KEY]);
+  }
+
+  /** A file whose row was written from a reading that changed under it: owed a reading (`READS_PER_PATH`). */
+  private async owe(path: string, writer: SqlWriter): Promise<void> {
+    (this.owedPaths ??= new Set()).add(path);
+    const before = this.owedRetry.get(path);
+    const tries = before?.tries ?? 0;
+    this.owedRetry.set(path, { at: this.clock() + owedRetryDelay(tries), tries });
+    await this.writeOwed(writer);
+    console.warn(`[VaultIndexer] ${path} changed during every reading; indexed as last read, and read again later`);
+    this.scheduleConfirmation();
+  }
+
+  /** Files whose row was written from a reading that stood, or removed: owed nothing any more. */
+  private async settleOwed(paths: Iterable<string>, writer: SqlWriter): Promise<void> {
+    const owed = this.owedPaths;
+    if (!owed || owed.size === 0) return;
+    let settled = false;
+    for (const path of paths) {
+      if (!owed.delete(path)) continue;
+      this.owedRetry.delete(path);
+      settled = true;
+    }
+    if (settled) await this.writeOwed(writer);
   }
 
   /** Runs one pass: what it finds is its own, and so is the moment it began. */
   private async inPass<T>(work: (pass: IndexPass) => Promise<T>): Promise<T> {
     this.openPasses++;
     try {
+      await this.owed();
       return await work({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock });
     } finally {
       // Nobody is left who read the index before one of these moments.
@@ -916,8 +1161,10 @@ export class VaultIndexer {
     // merge base, that reading would be written back by the next merge (see
     // the end of this method). A pass over many files reads first
     // (`readOrLeaveOut`) and hands the reading in.
-    const readAt = reading?.at ?? Date.now();
-    const read = reading?.kind === "text" ? reading.read : await readLocalText(this.vaultAdapter, fileInfo.path);
+    const made = reading ?? (await this.readForIndex(fileInfo));
+    const vouched = this.vouchedRow(fileInfo, made);
+    await this.settleOwed([fileInfo.path], writer);
+    const read = made.kind === "text" ? made.read : await readLocalText(this.vaultAdapter, fileInfo.path);
     // UTF-16 read as UTF-8 carries a NUL after every character; without them
     // the reading has the note's headings and links again.
     const content = read.exact ? read.text : read.text.split(NUL).join("");
@@ -1087,9 +1334,9 @@ export class VaultIndexer {
 
       // Insert into files
       await writer.execute(
-        `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)`,
-        [fileId, fileInfo.path, title, sha256, indexedMtime(fileInfo.mtime, readAt), ctime, fileInfo.size, mode, rowSyncState]
+        `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, stamp_vouched, sync_state, fts_rowid)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0)`,
+        [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, vouched, rowSyncState]
       );
 
       // Insert into fts_notes — with the character-pair form of text written
@@ -1155,9 +1402,9 @@ export class VaultIndexer {
       // row — not a stale reading of it.
       await writer.execute(`DELETE FROM files WHERE id = ? OR path = ?`, [fileId, fileInfo.path]);
       await writer.execute(
-        `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?, 0)`,
-        [fileId, fileInfo.path, fileInfo.name, sha256, indexedMtime(fileInfo.mtime, readAt), ctime, fileInfo.size, rowSyncState]
+        `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, stamp_vouched, sync_state, fts_rowid)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?, ?, 0)`,
+        [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, vouched, rowSyncState]
       );
       await writer.execute(
         INSERT_FULL_TEXT_ROW,
@@ -1214,7 +1461,8 @@ export class VaultIndexer {
     // a `.txt` in UTF-16) has the hash of its bytes and no base_text, like the truly
     // binary files (images, PDFs, …).
     const textLike = isTextFile(fileInfo.path);
-    const { sha256, textContent, at: readAt } = await this.attachmentContent(fileInfo, textLike, reading);
+    const { sha256, textContent, vouched } = await this.attachmentContent(fileInfo, textLike, reading);
+    await this.settleOwed([fileInfo.path], writer);
 
     const existingFileState = lookups
       ? lookups.fileStateByPath.get(fileInfo.path) ?? null
@@ -1268,9 +1516,9 @@ export class VaultIndexer {
     // (the delete trigger, db/fullTextRows.ts).
     await writer.execute(`DELETE FROM files WHERE id = ? OR path = ?`, [fileId, fileInfo.path]);
     await writer.execute(
-      `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)`,
-      [fileId, fileInfo.path, fileInfo.name, sha256, indexedMtime(fileInfo.mtime, readAt), ctime, fileInfo.size, "attachment", rowSyncState]
+      `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, stamp_vouched, sync_state, fts_rowid)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0)`,
+      [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, "attachment", vouched, rowSyncState]
     );
 
     if (isNewLocalFile) {
@@ -1422,17 +1670,27 @@ export class VaultIndexer {
     this.touch(path);
 
     // Same mtime and size as indexed -> the event is an echo (our own save
-    // already re-indexed the file, or a no-op touch): skip the re-parse.
-    const knownRow = await this.dbAdapter.queryOne<{ mtime_local: number; size_bytes: number | null; sha256: string | null }>(
-      `SELECT mtime_local, size_bytes, sha256 FROM files WHERE path = ?`,
+    // already re-indexed the file, or a no-op touch): skip the re-parse —
+    // unless the row's timestamp is to be confirmed now (`confirmationDue`):
+    // one reading, and the row is confirmed or the file indexed as it is.
+    const knownRow = await this.dbAdapter.queryOne<ComparedRow>(
+      `SELECT mtime_local, size_bytes, sha256, stamp_vouched FROM files WHERE path = ?`,
       [path]
     );
-    if (rowVouchesFor(knownRow, info)) return "unchanged";
+    // A file owed a reading (`READS_PER_PATH`) is read whatever its row says.
+    if (rowMatches(knownRow, info) && !this.owedPaths?.has(path)) {
+      if (!this.confirmationDue(info, knownRow)) return "unchanged";
+      const reading = await this.readForIndex(info);
+      if (readingConfirms(knownRow, info, reading)) {
+        await this.dbAdapter.execute(CONFIRM_ROW_SQL, confirmRowParams(info, reading));
+        this.unconfirmed.delete(path);
+        return "unchanged";
+      }
+    }
 
-    const written = info.name.endsWith(".md") || !isInternalPath(info.path) ? await this.indexOne(info, pass) : null;
+    if (info.name.endsWith(".md") || !isInternalPath(info.path)) await this.indexOne(info, pass);
     this.flushCallbacks(pass);
-    // The echo of a save, mostly: read again, and nothing changed.
-    return readAgainUnchanged(knownRow, info, written) ? "unchanged" : "indexed";
+    return "indexed";
   }
 
   /**
@@ -1484,51 +1742,77 @@ export class VaultIndexer {
    * reading begun later stands (`claimWrite`). The file's timestamps cannot
    * decide that: another program may set an older one.
    */
-  private async indexOne(fileInfo: VaultFileInfo, pass: IndexPass): Promise<string | null> {
+  private async indexOne(fileInfo: VaultFileInfo, pass: IndexPass): Promise<void> {
     let info = fileInfo;
     for (let reads = 1; ; reads++) {
+      // The last reading is written whatever changed under it (`READS_PER_PATH`).
+      const last = reads >= READS_PER_PATH;
       const { mark, release } = await this.takeChangeMark();
       try {
         const from = this.readBegins();
         const reading = await this.readForIndex(info);
+        // Removed or moved during it: nothing here to write, and nothing owed.
+        if (last && !(await this.stillThere(info.path))) return;
         let undo: (() => void) | null = null;
         const outcome = await this.dbAdapter.transaction(async (tx): Promise<"aside" | "stood" | "wrote"> => {
           // Changed since the read began: read again (`changesSince`).
-          if ((await this.changesSince(mark, tx))(info.path, mark)) return "aside";
+          const changed = (await this.changesSince(mark, tx))(info.path, mark);
+          if (changed && !last) return "aside";
           undo = this.claimWrite(info.path, from);
           if (!undo) return "stood";
           if (info.name.endsWith(".md")) await this._indexFileInternal(info, pass, tx, undefined, tx, reading);
           else await this._indexAttachmentInternal(info, pass, tx, undefined, tx, reading);
+          if (changed) await this.owe(info.path, tx);
           return "wrote";
         }).catch((error: unknown) => {
           (undo as (() => void) | null)?.();
+          // Rolled back: what it settled or owed is read anew.
+          this.owedPaths = null;
           throw error;
         });
-        // The hash of the bytes the row was written from, or null where a later reading stood.
-        if (outcome === "wrote") return readingHash(reading);
-        if (outcome === "stood") return null;
-        if (reads >= READS_PER_PATH) {
-          // Whoever keeps changing it follows it with a pass of its own; until a full scan has read it, the index is not complete.
-          await this.leaveOut([info.path]);
-          return null;
-        }
+        if (outcome !== "aside") return;
       } finally {
         release();
       }
       // The file as it is now: moved or removed meanwhile, there is nothing here to index.
       const now = await this.lookAt(info.path);
-      if (!now || now.isDirectory) return null;
+      if (!now || now.isDirectory) return;
       info = now;
     }
   }
 
-  /** Reads a file the way its kind is indexed: as text where its name says so, else as bytes. */
-  private async readForIndex(fileInfo: VaultFileInfo): Promise<FileReading> {
-    const at = Date.now();
+  /** Whether a file is still where it was read (the last reading, `READS_PER_PATH`); an answer that fails counts as there. */
+  private async stillThere(path: string): Promise<boolean> {
+    const now = await this.lookAt(path).catch(() => undefined);
+    return now === undefined || (now !== null && !now.isDirectory);
+  }
+
+  /**
+   * Reads a file the way its kind is indexed: as text where its name says so,
+   * else as bytes. `seenAt`: when the caller saw the file as `fileInfo` lists
+   * it, on the steady clock — a listing (`readingVouches`).
+   */
+  private async readForIndex(fileInfo: VaultFileInfo, seenAt?: number): Promise<FileReading> {
+    const began = this.clock();
+    const seenSince = this.seenSince(fileInfo, Math.min(seenAt ?? began, began));
     if (fileInfo.name.endsWith(".md") || isTextFile(fileInfo.path)) {
-      return { kind: "text", read: await readLocalText(this.vaultAdapter, fileInfo.path), at };
+      return { kind: "text", read: await readLocalText(this.vaultAdapter, fileInfo.path), began, seenSince };
     }
-    return { kind: "bytes", sha256: await sha256Bytes(await this.vaultAdapter.readBinaryFile(fileInfo.path)), at };
+    return { kind: "bytes", sha256: await sha256Bytes(await this.vaultAdapter.readBinaryFile(fileInfo.path)), began, seenSince };
+  }
+
+  /**
+   * What the row written from a reading says of its timestamp (`stamp_vouched`):
+   * confirmed where the reading vouches for it, else not yet — and then the
+   * indexer comes back to the file once its tick is over (`readingVouches`).
+   */
+  private vouchedRow(fileInfo: VaultFileInfo, reading: FileReading): 0 | 1 {
+    if (readingVouches(reading, fileInfo.mtime)) {
+      this.unconfirmed.delete(fileInfo.path);
+      return 1;
+    }
+    this.awaitConfirmation(fileInfo, reading.seenSince);
+    return 0;
   }
 
   /** What an attachment is indexed with: the hash of its bytes, and its text where it is one. */
@@ -1536,10 +1820,11 @@ export class VaultIndexer {
     fileInfo: VaultFileInfo,
     textLike: boolean,
     reading?: FileReading,
-  ): Promise<{ sha256: string; textContent: string | null; at: number }> {
+  ): Promise<{ sha256: string; textContent: string | null; vouched: 0 | 1 }> {
     const read = reading ?? (await this.readForIndex(fileInfo));
-    if (read.kind === "bytes") return { sha256: read.sha256, textContent: null, at: read.at };
-    return { sha256: read.read.sha256, textContent: textLike && read.read.exact ? read.read.text : null, at: read.at };
+    const vouched = this.vouchedRow(fileInfo, read);
+    if (read.kind === "bytes") return { sha256: read.sha256, textContent: null, vouched };
+    return { sha256: read.read.sha256, textContent: textLike && read.read.exact ? read.read.text : null, vouched };
   }
 
   /**
@@ -1561,9 +1846,9 @@ export class VaultIndexer {
    * A single path is one question and keeps its answer: a read that fails
    * fails it, and its caller comes again.
    */
-  private async readOrLeaveOut(fileInfo: VaultFileInfo, unreadable: VaultWalkSkip[]): Promise<FileReading | null> {
+  private async readOrLeaveOut(fileInfo: VaultFileInfo, unreadable: VaultWalkSkip[], seenAt?: number): Promise<FileReading | null> {
     try {
-      return await this.readForIndex(fileInfo);
+      return await this.readForIndex(fileInfo, seenAt);
     } catch (error) {
       // Called off: no file of this vault is "unreadable" for that.
       this.options?.scanSignal?.throwIfAborted();
@@ -1716,6 +2001,7 @@ export class VaultIndexer {
   }
 
   private async deleteIndexRows(paths: string[], writer: SqlWriter): Promise<void> {
+    await this.settleOwed(paths, writer);
     const CHUNK = 400;
     for (let k = 0; k < paths.length; k += CHUNK) {
       const slice = paths.slice(k, k + CHUNK);
@@ -1802,6 +2088,8 @@ export class VaultIndexer {
     } catch {
       listing = { files: [], skipped: [{ path: root, reason: "unreadable" }] };
     }
+    // Every file listed had its timestamp by now (`readingVouches`).
+    const listedAt = this.clock();
     let skipped = listing.skipped;
     // The folder itself could not be listed. Proven absent → it is empty (its
     // rows go); anything else → nothing here can be judged.
@@ -1836,21 +2124,21 @@ export class VaultIndexer {
       ? { where: `substr(path, 1, length(?)) = ? COLLATE BINARY${extra}`, params: [inFolder, inFolder] as unknown[] }
       : { where: `1 = 1${extra}`, params: [] as unknown[] };
     const scoped = new Map<string, number>();
-    // The size each row was written with: a row stands for a file only where both agree (rowVouchesFor).
-    const scopedRow = new Map<string, { mtime_local: number; size_bytes?: number | null; sha256?: string | null }>();
-    const hold = (r: { path: string; mtime_local: number; size_bytes?: number | null; sha256?: string | null }) => {
+    // The size each row was written with, and whether its timestamp is confirmed (rowMatches, confirmationDue).
+    const scopedRow = new Map<string, ComparedRow & { mtime_local: number }>();
+    const hold = (r: ComparedRow & { path: string; mtime_local: number }) => {
       scoped.set(r.path, Number(r.mtime_local));
       scopedRow.set(r.path, r);
     };
     if (recursive) {
       const q = underRoot();
-      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number; size_bytes: number | null; sha256: string | null }>(
-        `SELECT path, mtime_local, size_bytes, sha256 FROM files WHERE ${q.where}`, q.params)) hold(r);
+      for (const r of await this.dbAdapter.query<ComparedRow & { path: string; mtime_local: number }>(
+        `SELECT path, mtime_local, size_bytes, sha256, stamp_vouched FROM files WHERE ${q.where}`, q.params)) hold(r);
     } else {
       // Own files: nothing after the folder's slash contains another slash.
       const own = underRoot(` AND instr(substr(path, length(?) + 1), '/') = 0`);
-      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number; size_bytes: number | null; sha256: string | null }>(
-        `SELECT path, mtime_local, size_bytes, sha256 FROM files WHERE ${own.where}`, [...own.params, inFolder])) hold(r);
+      for (const r of await this.dbAdapter.query<ComparedRow & { path: string; mtime_local: number }>(
+        `SELECT path, mtime_local, size_bytes, sha256, stamp_vouched FROM files WHERE ${own.where}`, [...own.params, inFolder])) hold(r);
       // Subfolders the index knows, by their first segment below the folder.
       const deep = underRoot(` AND instr(substr(path, length(?) + 1), '/') > 0`);
       const segments = await this.dbAdapter.query<{ seg: string }>(
@@ -1863,8 +2151,8 @@ export class VaultIndexer {
         if (!seg || diskDirs.has(sub) || isInternalPath(sub)) continue;
         if (skipped.some((s) => !s.path || s.path === sub || sub.startsWith(`${s.path}/`))) continue;
         const prefix = `${sub}/`;
-        for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number; size_bytes: number | null; sha256: string | null }>(
-          `SELECT path, mtime_local, size_bytes, sha256 FROM files WHERE substr(path, 1, length(?)) = ? COLLATE BINARY`, [prefix, prefix]))
+        for (const r of await this.dbAdapter.query<ComparedRow & { path: string; mtime_local: number }>(
+          `SELECT path, mtime_local, size_bytes, sha256, stamp_vouched FROM files WHERE substr(path, 1, length(?)) = ? COLLATE BINARY`, [prefix, prefix]))
           hold(r);
         report.foldersRemoved = true;
       }
@@ -1886,7 +2174,10 @@ export class VaultIndexer {
         || (await this.isVanishedAppleDouble(path, this.dbAdapter, (p) => scoped.has(p) || onDisk.has(p)));
       (excluded ? silent : vanished).push(path);
     }
-    const toIndex = [...onDisk.values()].filter((f) => !rowVouchesFor(scopedRow.get(f.path), f));
+    const toIndex = [...onDisk.values()].filter((f) => {
+      const row = scopedRow.get(f.path);
+      return !rowMatches(row, f) || !!this.owedPaths?.has(f.path) || this.confirmationDue(f, row);
+    });
 
     if (vanished.length === 0 && silent.length === 0 && toIndex.length === 0) return report;
     // The files this re-read indexed, and the ones that are there and could not be read (readOrLeaveOut).
@@ -1899,7 +2190,7 @@ export class VaultIndexer {
     try {
       for (const f of toIndex) {
         const from = this.readBegins();
-        const reading = await this.readOrLeaveOut(f, unreadable);
+        const reading = await this.readOrLeaveOut(f, unreadable, listedAt);
         if (reading) readings.push({ f, reading, from });
       }
     } catch (error) {
@@ -1921,9 +2212,15 @@ export class VaultIndexer {
         const undo = this.claimWrite(f.path, from);
         if (!undo) continue;
         claims.push(undo);
+        // Read once more only to confirm its timestamp, and unchanged: no change.
+        if (readingConfirms(scopedRow.get(f.path), f, reading)) {
+          await tx.execute(CONFIRM_ROW_SQL, confirmRowParams(f, reading));
+          this.unconfirmed.delete(f.path);
+          continue;
+        }
         if (f.name.endsWith(".md")) await this._indexFileInternal(f, pass, tx, undefined, tx, reading);
         else await this._indexAttachmentInternal(f, pass, tx, undefined, tx, reading);
-        if (!readAgainUnchanged(scopedRow.get(f.path), f, readingHash(reading))) indexed.push(f.path);
+        indexed.push(f.path);
       }
       aside.push(...readings.filter(({ f }) => changed(f.path, mark)).map(({ f }) => f.path));
       // The rows of what went leave last, as in the full scan: a re-read that
@@ -1941,8 +2238,8 @@ export class VaultIndexer {
       // Moved or removed meanwhile: whoever did it follows the path. A look that fails proves nothing either way.
       const now = await this.lookAt(path).catch(() => null);
       if (!now || now.isDirectory) continue;
-      const written = await this.indexOne(now, pass);
-      if (!readAgainUnchanged(scopedRow.get(path), now, written)) indexed.push(path);
+      await this.indexOne(now, pass);
+      indexed.push(path);
     }
     this.flushCallbacks(pass);
     this.reportRemoved(vanished.filter((path) => mine.has(path)), pass.since, (path) => indexedRowStamp(scoped.get(path)));
@@ -2117,17 +2414,9 @@ export class VaultIndexer {
    * scan reads it, and until then the index is not complete.
    */
   async indexComplete(): Promise<boolean> {
-    return !(await this.indexOwed(this.dbAdapter));
-  }
-
-  /**
-   * A single path leaves out files whose every reading was set aside
-   * (`READS_PER_PATH`): until a full scan has read them, the index is owed one
-   * and says so (`indexComplete`).
-   */
-  private async leaveOut(paths: string[]): Promise<void> {
-    console.warn(`[VaultIndexer] left out of the index until the next full scan, changed during every reading: ${paths.join(", ")}`);
-    await this.dbAdapter.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, [INDEX_OWED_KEY]);
+    if (await this.indexOwed(this.dbAdapter)) return false;
+    const owed = await this.dbAdapter.queryOne<{ value?: string | null }>(`SELECT value FROM meta WHERE key = ?`, [OWED_PATHS_KEY]);
+    return !owed?.value || owed.value === "[]";
   }
 
   /** Whether the mark that this index is owed a full scan stands (read with `query`, not a write). */
@@ -2189,7 +2478,7 @@ export class VaultIndexer {
     // The row each path has as the scan begins: its timestamp decides what is
     // read again, its rowid tells a row the app moves meanwhile (movedAway).
     const dbFiles = await this.dbAdapter.query<IndexedAtScanStart>(
-      `SELECT rowid, path, mtime_local, size_bytes, sha256 FROM files`
+      `SELECT rowid, path, mtime_local, size_bytes, sha256, stamp_vouched FROM files`
     );
     // An index is owed a full scan from the moment one begins on it empty
     // until one goes through (indexComplete). A scan that gets to write says
@@ -2197,7 +2486,23 @@ export class VaultIndexer {
     // not go through says so here at the latest.
     const startsEmpty = dbFiles.length === 0;
     try {
-      return await this.scanFrom(pass, dbFiles, startsEmpty, startedAt);
+      const report = await this.scanFrom(pass, dbFiles, startsEmpty, startedAt);
+      if (!this.options?.hearsNoChanges || report.added + report.changed === 0) return report;
+      // Once more, against the rows as they are now (`hearsNoChanges`).
+      signal?.throwIfAborted();
+      const after = await this.dbAdapter.query<IndexedAtScanStart>(
+        `SELECT rowid, path, mtime_local, size_bytes, sha256, stamp_vouched FROM files`
+      );
+      // A pass of its own: what the first one wrote is what this one judges.
+      const again = await this.scanFrom({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock }, after, false, Date.now());
+      return {
+        ...again,
+        added: report.added + again.added,
+        changed: report.changed + again.changed,
+        removed: report.removed + again.removed,
+        durationMs: Date.now() - startedAt,
+        foldersChanged: report.foldersChanged || again.foldersChanged,
+      };
     } catch (error) {
       // However far a first scan got — its walk, its lookups, a tail that was
       // its only batch —, the rows that saves and the watcher write after it
@@ -2227,6 +2532,8 @@ export class VaultIndexer {
     } else {
       diskFiles = await this.vaultAdapter.listDir("", true, { signal });
     }
+    // Every file listed had its timestamp by now (`readingVouches`).
+    const listedAt = this.clock();
     signal?.throwIfAborted();
     // The exclusion has to hold HERE, in the shared core, not only in an adapter:
     // only TauriVaultAdapter skips internal folders during the walk, so on mobile
@@ -2281,9 +2588,10 @@ export class VaultIndexer {
       // Equality instead of `>`: restoring an OLDER file version (Explorer copy,
       // backup restore, sync rollback) keeps the old mtime — a strictly-greater
       // check would never re-index it and the stale content would stick around.
-      // And the size as well: a timestamp alone misses a change within one
-      // tick of the file system's clock (indexedMtime).
-      if (rowVouchesFor(dbFileMap.get(file.path), file)) continue;
+      // And the size as well; and a row whose timestamp is not confirmed yet
+      // is read once more when its tick is over (`readingVouches`).
+      const row = dbFileMap.get(file.path);
+      if (rowMatches(row, file) && !this.owedPaths?.has(file.path) && !this.confirmationDue(file, row)) continue;
       (file.name.endsWith(".md") ? mdToIndex : attachmentsToIndex).push(file);
     }
     const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
@@ -2329,8 +2637,6 @@ export class VaultIndexer {
     let scannedCount = 0;
     // Files that are there and could not be read: left out and named (issue #125).
     const unreadable: VaultWalkSkip[] = [];
-    // Files whose every reading was set aside (`READS_PER_PATH`): left out, named, and owed to the next scan.
-    const leftOut: string[] = [];
     // The rows this scan removes: decided in its transaction (stillMine).
     let removedRows = new Set<string>();
     const report = (): IndexScanReport => {
@@ -2341,9 +2647,7 @@ export class VaultIndexer {
         added: addedCount,
         changed: scannedCount - addedCount,
         removed: removedRows.size,
-        skipped: unreadable.length + leftOut.length > 0
-          ? [...skipped, ...unreadable, ...leftOut.map((path): VaultWalkSkip => ({ path, reason: "changing" }))]
-          : skipped,
+        skipped: this.withOwed(unreadable.length > 0 ? [...skipped, ...unreadable] : skipped),
         durationMs: Date.now() - startedAt,
         walked: candidates.length,
         foldersChanged,
@@ -2385,8 +2689,8 @@ export class VaultIndexer {
     // (`INDEX_OWED_KEY`) until a scan gets through. The rows of vanished files
     // go last, with the last transaction, as they always did.
     const work: ScanWork[] = [
-      ...mdToIndex.map((file) => ({ file, attachment: false })),
-      ...attachmentsToIndex.map((file) => ({ file, attachment: true })),
+      ...mdToIndex.map((file) => ({ file, attachment: false, seenAt: listedAt })),
+      ...attachmentsToIndex.map((file) => ({ file, attachment: true, seenAt: listedAt })),
     ];
     const FLUSH_AT = this.options?.scanBatchStatements ?? 4000;
     const TRANSACTION_MS = this.options?.scanTransactionMs ?? 100;
@@ -2418,7 +2722,7 @@ export class VaultIndexer {
         try {
           while (next < work.length && readings.length < LOOKUP_SLICE) {
             const { attachment, asideBefore = 0 } = work[next];
-            let file = work[next].file;
+            let { file, seenAt } = work[next];
             if (asideBefore > 0) {
               next++;
               // Read once more, as it is now: moved or removed meanwhile, whoever did it follows the path.
@@ -2426,6 +2730,7 @@ export class VaultIndexer {
               signal?.throwIfAborted();
               if (!now || now.isDirectory) continue;
               file = now;
+              seenAt = this.clock();
             } else if (!attachment) {
               if (this.options?.onProgress) {
                 this.options.onProgress(mdDone + 1, mdToIndex.length, file.path);
@@ -2450,7 +2755,9 @@ export class VaultIndexer {
             if (asideBefore === 0) next++;
             // The read's place among this indexer's reads, taken as it begins (`claimWrite`).
             const from = this.readBegins();
-            const reading = await this.readOrLeaveOut(file, unreadable);
+            const reading = await this.readOrLeaveOut(file, unreadable, seenAt);
+            // The last reading is written whatever changed under it (`READS_PER_PATH`) — not for a file removed or moved during it.
+            if (reading && asideBefore + 1 >= READS_PER_PATH && !(await this.stillThere(file.path))) continue;
             readings.push({ file, attachment, reading, from, mark, asideBefore });
             if (reading?.kind === "text") text += reading.read.text.length;
             if (Date.now() - began >= TRANSACTION_MS || text >= SCAN_TRANSACTION_TEXT) break;
@@ -2503,9 +2810,7 @@ export class VaultIndexer {
             // Added vs. changed: a file with no row was created outside Plainva, one
             // with a row just moved on. Against the index as it is now — a file
             // whose row the app moved here since the scan began is no new file.
-            const counted = (file: VaultFileInfo, reading: FileReading) => {
-              // Read again only because its last read came too close to its timestamp, and unchanged.
-              if (readAgainUnchanged(dbFileMap.get(file.path), file, readingHash(reading))) return;
+            const counted = (file: VaultFileInfo) => {
               scannedCount += 1;
               if (!lookups.fileStateByPath.has(file.path)) addedCount += 1;
             };
@@ -2519,19 +2824,26 @@ export class VaultIndexer {
               // written, the reading could bring back a row for a file that is
               // elsewhere or gone, or report the app's own save as a foreign
               // change. Read once more at the end, up to `READS_PER_PATH`
-              // readings; then it is left out, named, and owed to the next scan.
-              if (changed(file.path, mark)) {
-                if (asideBefore + 1 < READS_PER_PATH) setAside.push({ file, attachment, asideBefore: asideBefore + 1 });
-                else leftOut.push(file.path);
+              // readings; the last is written, and the file stays owed a reading.
+              const last = changed(file.path, mark);
+              if (last && asideBefore + 1 < READS_PER_PATH) {
+                setAside.push({ file, attachment, asideBefore: asideBefore + 1, seenAt: reading.seenSince });
                 continue;
               }
               // A reading begun later by another pass and written already stands (`claimWrite`).
               const undo = this.claimWrite(file.path, from);
               if (!undo) continue;
               claims.push(undo);
+              // Read once more only to confirm its timestamp, and unchanged: no change.
+              if (!last && readingConfirms(dbFileMap.get(file.path), file, reading)) {
+                await sink.execute(CONFIRM_ROW_SQL, confirmRowParams(file, reading));
+                this.unconfirmed.delete(file.path);
+                continue;
+              }
               if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
               else await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
-              counted(file, reading);
+              if (last) await this.owe(file.path, sink);
+              counted(file);
               if (batch.length >= FLUSH_AT) await flush();
             }
 
@@ -2584,10 +2896,10 @@ export class VaultIndexer {
                 await this.markRemoved(vanishedFromDisk.filter((path) => removedRows.has(path)), sink);
               }
 
-              // The scan has gone through once its last rows are in: the index owes no more —
-              // unless it left out a file that kept changing as it was read.
-              if (leftOut.length > 0) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
-              else if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
+              // The scan has gone through once its last rows are in: the index
+              // owes no more full scan. A file owed a reading is owed it on its
+              // own (`OWED_PATHS_KEY`), whoever left it so and when.
+              if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
               done = true;
             }
 
@@ -2606,12 +2918,12 @@ export class VaultIndexer {
       }
     } catch (error: unknown) {
       // What the transactions that went through wrote stays; the one that
-      // failed took its flushes back with it.
+      // failed took its flushes back with it, and what it settled or owed is read anew.
       this.announceWhatStays(pass, committed);
+      this.owedPaths = null;
       throw error;
     }
 
-    if (leftOut.length > 0) console.warn(`[VaultIndexer] left out of the index, changed during every reading: ${leftOut.join(", ")}`);
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest
     // inside it.
     this.flushCallbacks(pass);

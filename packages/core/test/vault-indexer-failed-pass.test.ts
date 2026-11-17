@@ -274,9 +274,15 @@ describe("an index owed a full scan (issue 125)", () => {
   it("is owed one again once it was empty, and an unchanged scan writes nothing for it", async () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
-    const indexer = new VaultIndexer(vault, db, hooks(0));
+    // The indexer's steady clock, held still while a scan runs: the first scan
+    // cannot vouch for timestamps it saw just now, and the next one, once the
+    // tick is over, confirms them (vault-indexer-racy-timestamp.test.ts).
+    let steady = 0;
+    const indexer = new VaultIndexer(vault, db, { ...hooks(0), monotonicNow: () => steady });
     await indexer.indexVaultFull("open, empty index");
     expect(await indexer.indexComplete()).toBe(true);
+    steady += 10_000;
+    await indexer.indexVaultFull("automatic refresh");
 
     // Nothing changed: the scan writes not a single statement.
     const execute = db.execute.bind(db);

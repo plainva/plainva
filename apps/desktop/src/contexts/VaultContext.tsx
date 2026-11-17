@@ -1026,6 +1026,8 @@ export const VaultProvider: React.FC<{
       const ownDeletions = new OwnDeletionRegister();
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
         scanSignal: currentAbortSignal,
+        // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
+        comesBackByItself: true,
         onExternalModification: (path) => {
           console.log(`VaultContext: External modification detected for ${path}`);
           window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
