@@ -11,7 +11,9 @@ import CryptoKit
  *
  * Paths are relative to Capacitor's Directory.Data, which on iOS resolves
  * to the Documents directory (Capacitor 8 maps DATA -> .document) — the same
- * root the vault adapter reads and writes through @capacitor/filesystem.
+ * root the vault adapter reads and writes through @capacitor/filesystem —
+ * or, with `directory: "LIBRARY"`, to Library (Directory.Library), where the
+ * app keeps the files that belong to it and not to the person.
  * Targets are standardized and required to stay inside that root (no `..`,
  * no absolute path, no sandbox escape). Capacitor runs plugin methods off
  * the main thread, so the sync never blocks the UI.
@@ -34,9 +36,20 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let encoding = call.getString("encoding") ?? "utf8"
 
-        guard let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        // "LIBRARY" for the app's own files, which the Files app must not show
+        // (src/platform/internalFiles.ts); Directory.Data (Documents) otherwise.
+        let directory = call.getString("directory") ?? "DATA"
+        let searchPath: FileManager.SearchPathDirectory
+        switch directory {
+        case "DATA": searchPath = .documentDirectory
+        case "LIBRARY": searchPath = .libraryDirectory
+        default:
+            call.reject("unknown directory \(directory)")
+            return
+        }
+        guard let root = FileManager.default.urls(for: searchPath, in: .userDomainMask).first
         else {
-            call.reject("no documents directory")
+            call.reject("no \(directory) directory")
             return
         }
         let rootStd = root.standardizedFileURL

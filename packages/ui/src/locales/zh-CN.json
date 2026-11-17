@@ -5119,11 +5119,13 @@
     "deleteWithoutSnapshotNoTrashFileGone": "手机上没有回收站——已删除的文件需从备份中恢复。没有备份，此文件将从设备上永久消失。请检查可用存储空间。",
     "deleteWithoutSnapshotNoTrashFolder": "Plainva 无法在删除前为 {{total}} 个文件中的 {{failed}} 个创建备份：",
     "deleteWithoutSnapshotNoTrashFolderGone": "手机上没有回收站——已删除的文件需从备份中恢复。没有备份，这些文件将从设备上永久消失。请检查可用存储空间。",
+    "deleteWithoutSnapshotNoTrashMany": "Plainva 无法在删除前为所选项目中的 {{items}} 项创建备份：",
     "deleteWithoutSnapshotTitle": "不备份就删除？",
     "deleteWithoutSnapshotTrashFile": "此文件无法使用系统回收站（例如位于网络驱动器上），并且 Plainva 无法为其创建备份：",
     "deleteWithoutSnapshotTrashFileGone": "此文件将永久丢失。",
     "deleteWithoutSnapshotTrashFolder": "此文件夹无法使用系统回收站（例如位于网络驱动器上），并且 Plainva 无法为 {{total}} 个文件中的 {{failed}} 个创建备份：",
     "deleteWithoutSnapshotTrashFolderGone": "这些文件将永久丢失。",
+    "deleteWithoutSnapshotTrashMany": "所选项目中有 {{items}} 项无法使用系统回收站（例如位于网络驱动器上），并且 Plainva 无法为它们创建备份：",
     "deleteWithoutSnapshotUnlisted": "Plainva 无法读取此文件夹中的全部内容，因此无法在删除前为其创建备份：",
     "snapshotFailed": "{{path}} 的版本快照失败——文件仍已保存。请检查磁盘空间和备份文件夹。",
     "largeFileTrimmed": "大文件仅保留最新版本：{{path}} 为 {{mb}} MB。笔记和小文件保留完整历史；已删除的文件始终会完整保存。"

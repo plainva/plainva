@@ -778,6 +778,21 @@ describe("surfaces and runs that belong to the central window", () => {
     window.removeEventListener("plainva-open-sync-settings", on);
     dispose();
   });
+
+  it("carries the dialog an AI notice asked for in another window (C12)", async () => {
+    const { aux, dispose } = await setup();
+    let detail: unknown = null;
+    const on = (e: Event) => (detail = (e as CustomEvent).detail);
+    window.addEventListener("plainva-open-sync-settings", on);
+
+    await aux.request("owner-surface", { surface: "settings", area: "ai", aiIntent: { kind: "model", profile: "strong" } });
+
+    // The page that opens the dialog is the central window's: without the
+    // intent it showed the AI page and nothing on it.
+    expect(detail).toMatchObject({ area: "ai", aiIntent: { kind: "model", profile: "strong" } });
+    window.removeEventListener("plainva-open-sync-settings", on);
+    dispose();
+  });
 });
 
 describe("re-reading the vault from a client window", () => {

@@ -1,5 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
-import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint } from "@plainva/ui";
+import { dailyDayResolver, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -492,6 +492,20 @@ export const syncIntervalKey = (vaultPath: string) =>
 
 export const dailyNotesFolderKey = (vaultPath: string) => `dailyNotesFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+
+/**
+ * Which day a daily note's name stands for in this vault (plan
+ * Journal-Erweiterungen, X8), read from the two settings that name a daily
+ * note. Handed to the query service as soon as it exists (it waits for the
+ * answer), so the first task list after a start already knows a journal
+ * stamp (plan Rückmeldungen 2026-11-05, § 3.177 Nr. 2).
+ */
+export async function readDailyDayOfPath(vaultPath: string): Promise<((path: string) => string | null) | null> {
+  const store = await getSettingsStore();
+  const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) ?? "";
+  const format = (await store.get<string>(dailyNotesFormatKey(vaultPath))) ?? "YYYY-MM-DD";
+  return dailyDayResolver({ folder, format });
+}
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Folder → template mapping (plan Vorlagen-Engine P4), a `FolderTemplateRule[]`. */
 export const folderTemplatesKey = (vaultPath: string) => `folderTemplates_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
@@ -1094,6 +1108,7 @@ export const VaultProvider: React.FC<{
         }
       });
       const queryService = new VaultQueryService(dbAdapter);
+      queryService.setDayOfPath(readDailyDayOfPath(path));
       const graphService = new GraphService(dbAdapter);
 
       // Serialized incremental indexing for watcher events and sync pulls (P2.5):

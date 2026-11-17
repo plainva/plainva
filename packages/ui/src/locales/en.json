@@ -5230,11 +5230,13 @@
     "deleteWithoutSnapshotNoTrashFileGone": "There is no trash on the phone — you restore deleted files from their backups. Without a backup, this file is gone from the device for good. Check the free storage.",
     "deleteWithoutSnapshotNoTrashFolder": "Plainva could not save a backup of {{failed}} of the {{total}} files before deleting:",
     "deleteWithoutSnapshotNoTrashFolderGone": "There is no trash on the phone — you restore deleted files from their backups. Without a backup, these files are gone from the device for good. Check the free storage.",
+    "deleteWithoutSnapshotNoTrashMany": "Plainva could not save a backup of {{items}} of the selected items before deleting:",
     "deleteWithoutSnapshotTitle": "Delete without a backup?",
     "deleteWithoutSnapshotTrashFile": "The system trash is not available for this file (on a network drive, for example), and Plainva could not save a backup of it:",
     "deleteWithoutSnapshotTrashFileGone": "This file would be gone for good.",
     "deleteWithoutSnapshotTrashFolder": "The system trash is not available for this folder (on a network drive, for example), and Plainva could not save a backup of {{failed}} of the {{total}} files:",
     "deleteWithoutSnapshotTrashFolderGone": "These files would be gone for good.",
+    "deleteWithoutSnapshotTrashMany": "The system trash is not available for {{items}} of the selected items (on a network drive, for example), and Plainva could not save a backup of them:",
     "deleteWithoutSnapshotUnlisted": "Plainva could not read everything in this folder, so it could not save a backup of it before deleting:",
     "snapshotFailed": "Version snapshot for {{path}} failed — the file was still saved. Check disk space and the backup folder.",
     "largeFileTrimmed": "Large files keep only their newest version: {{path}} is {{mb}} MB. Notes and small files keep their full history; a deleted file is always saved in full."

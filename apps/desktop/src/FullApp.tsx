@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, EmptyState, ICON, parkTreeReveal } from "@plainva/ui";
+import { Button, EmptyState, ICON, parkTreeReveal, takeAiSettingsIntent, type AiSettingsIntent } from "@plainva/ui";
 import { FolderOpen } from "lucide-react";
 import { AppShell } from "./AppShell";
 import { MailComposeHost } from "./components/mail/MailComposeHost";
@@ -80,7 +80,7 @@ export function FullApp() {
   const openOwnerSurface = useCallback(
     (
       surface: OwnerSurface,
-      opts?: { provider?: string; area?: string; accountId?: string },
+      opts?: { provider?: string; area?: string; accountId?: string; aiIntent?: AiSettingsIntent },
     ) => {
       void (async () => {
         try {
@@ -122,7 +122,9 @@ export function FullApp() {
   }, []);
 
   const capabilities = useMemo<ShellCapabilities>(() => ({
-    openSettings: (opts) => openOwnerSurface("settings", opts),
+    // The dialog an AI notice asked for travels along (C12): it was set in
+    // THIS window's module, and the settings page that takes it is the owner's.
+    openSettings: (opts) => openOwnerSurface("settings", { ...opts, ...(opts?.area === "ai" ? { aiIntent: takeAiSettingsIntent() ?? undefined } : {}) }),
     openSyncError: () => openOwnerSurface("sync-error"),
     openImport: () => openOwnerSurface("import"),
     reportOpenContents,

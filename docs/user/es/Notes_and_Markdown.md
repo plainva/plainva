@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-10
+Última actualización: 2026-11-16
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -138,7 +138,7 @@ Configura una **Carpeta de plantillas** en **Configuración → Vault → Notas 
 | `{{yesterday}}`, `{{tomorrow}}` | El día anterior, el día siguiente |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Ese día de la semana, de esta semana o de la siguiente; un formato sigue a los segundos dos puntos: `{{weekday:monday:DD.MM.}}`. El día en que empieza la semana depende de tu configuración de calendario |
 | `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un enlace a la nota diaria de hoy, de mañana o de ayer; con tu propia etiqueta: `{{daily+1:Mañana}}` — «hoy» es el día en curso según **El día termina a las**; en una nota diaria o de reunión, el día de esa nota |
-| `{{folder}}`, `{{vault}}` | La carpeta de la nota, el nombre del vault |
+| `{{folder}}`, `{{vault}}` | La carpeta de la nota, el nombre del vault tal como lo muestra Plainva (el nombre que le diste; si no, en el escritorio, su carpeta) |
 | `{{cursor}}` | Sin texto — marca dónde queda el cursor después |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Te pide texto (mostrado como *Label*) |
 | `{{select:Label\|A,B,C}}` | Te pregunta con una lista de opciones |

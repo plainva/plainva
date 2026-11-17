@@ -32,7 +32,7 @@ vi.mock("./vaultService", async () => {
 
 const bridge = vi.hoisted(() => ({ readFile: vi.fn(), readdir: vi.fn(), write: vi.fn() }));
 vi.mock("@capacitor/filesystem", () => ({ Directory: { Data: "DATA" }, Encoding: { UTF8: "utf8" }, Filesystem: bridge }));
-vi.mock("../platform/atomicFile", () => ({ atomicWriteText: (...args: unknown[]) => bridge.write(...args) }));
+vi.mock("../platform/atomicFile", () => ({ atomicWriteInternalText: (...args: unknown[]) => bridge.write(...args) }));
 import { mobileCommentOperationJournal } from "./commentOperationJournal";
 
 let root: string;

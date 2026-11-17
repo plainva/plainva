@@ -14,7 +14,7 @@ import {
   X,
   ArrowUpDown,
 } from "lucide-react";
-import { AreaBoundary, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, GroupCard, reportBackground, toast, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
+import { AreaBoundary, Button, conflictOriginalPath, deleteEachWithNet, DocIcon, EmptyState, errorText, GroupCard, reportBackground, toast, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, resolveOpenAction, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countVaultFiles } from "../lib/folderDeletion";
 import { folderContents } from "../lib/folderContents";
@@ -254,16 +254,15 @@ export function BrowseScreen({
       }
       // A file that could not be deleted does not stop the others, and it is
       // said: the person believes every selected file gone (stability plan R4).
+      // Where the storage is full, "Delete without a backup?" is asked once
+      // for the whole selection (A12).
       const failed: string[] = [];
       let firstError: unknown = null;
-      for (const p of selected) {
-        try {
-          await vaultOps.remove(vault, p, { confirmed: true });
-        } catch (error) {
-          reportBackground("delete:selection", error);
-          if (failed.length === 0) firstError = error;
-          failed.push(p);
-        }
+      for (const outcome of await deleteEachWithNet([...selected], (p, ask) => vaultOps.remove(vault, p, { confirmed: true }, ask))) {
+        if (!("error" in outcome)) continue;
+        reportBackground("delete:selection", outcome.error);
+        if (failed.length === 0) firstError = outcome.error;
+        failed.push(outcome.item);
       }
       if (failed.length > 0) {
         const names = failed.slice(0, 3).join(", ") + (failed.length > 3 ? ", …" : "");
