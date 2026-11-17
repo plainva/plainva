@@ -3083,6 +3083,7 @@
     "groupView": "ビュー",
     "groupZipBackups": "ZIP バックアップ",
     "installingUpdate": "アップデートをダウンロードしてインストールしています...",
+    "updateWaitingForWrites": "Plainva が書き込みを終えています。アップデートは最大 {{seconds}} 秒後にインストールされます。",
     "installUpdate": "今すぐインストールして再起動",
     "keychainChecking": "確認中...",
     "keychainFallback": "利用不可（フォールバックストアを使用中）",
@@ -7544,6 +7545,7 @@
     "verifierPlaceholder": "あなたの名前"
   },
   "window": {
+    "closedBeforeSaved": "前回、すべてのウィンドウの保存が終わる前に Plainva が終了しました。最後に編集していたノートを確認してください。",
     "openInNewWindow": "新しいウィンドウで開く",
     "popOutCompose": "別ウィンドウで開く",
     "pinOnTop": "常に最前面",

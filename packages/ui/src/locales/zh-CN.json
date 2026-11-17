@@ -3083,6 +3083,7 @@
     "groupView": "视图",
     "groupZipBackups": "ZIP 备份",
     "installingUpdate": "正在下载并安装更新…",
+    "updateWaitingForWrites": "Plainva 正在完成写入——更新最多 {{seconds}} 秒后安装。",
     "installUpdate": "立即安装并重启",
     "keychainChecking": "检查中…",
     "keychainFallback": "不可用（使用后备存储）",
@@ -7544,6 +7545,7 @@
     "verifierPlaceholder": "你的名字"
   },
   "window": {
+    "closedBeforeSaved": "上次 Plainva 在所有窗口完成保存之前就关闭了。请检查你最后编辑的笔记。",
     "openInNewWindow": "在新窗口中打开",
     "popOutCompose": "在独立窗口中打开",
     "pinOnTop": "始终置顶",

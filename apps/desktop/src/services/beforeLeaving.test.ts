@@ -65,7 +65,38 @@ describe("before a window goes", () => {
       throw new Error("the database is gone");
     });
     try {
-      await expect(settleBeforeLeaving()).resolves.toBeUndefined();
+      await expect(settleBeforeLeaving()).resolves.toBe("settled");
+    } finally {
+      off();
+    }
+  });
+
+  it("does not wait past its limit for writes that keep coming, as during a sync pull", async () => {
+    const disk = countWrites({ writeTextFile: () => later(20, null) });
+    let going = true;
+    const pull = () => {
+      if (!going) return;
+      void disk.writeTextFile();
+      setTimeout(pull, 50);
+    };
+    pull();
+    try {
+      await expect(settleBeforeLeaving(300)).resolves.toBe("cut");
+    } finally {
+      going = false;
+    }
+  });
+
+  it("does not wait past its limit for a write that never returns", async () => {
+    const disk = countWrites({ writeTextFile: () => new Promise<never>(() => {}) });
+    void disk.writeTextFile();
+    await expect(settleBeforeLeaving(200)).resolves.toBe("cut");
+  });
+
+  it("does not wait past its limit for a surface whose part never ends", async () => {
+    const off = onBeforeLeaving(() => new Promise<never>(() => {}));
+    try {
+      await expect(settleBeforeLeaving(200)).resolves.toBe("cut");
     } finally {
       off();
     }

@@ -3171,6 +3171,7 @@
     "groupView": "View",
     "groupZipBackups": "ZIP backups",
     "installingUpdate": "Downloading and installing update...",
+    "updateWaitingForWrites": "Finishing what Plainva is writing — the update installs in at most {{seconds}} seconds.",
     "installUpdate": "Install now & Restart",
     "keychainChecking": "Checking...",
     "keychainFallback": "Not available (using fallback store)",
@@ -7703,6 +7704,7 @@
     "verifierPlaceholder": "Your name"
   },
   "window": {
+    "closedBeforeSaved": "Last time Plainva closed before every window had finished saving. Check the notes you were editing last.",
     "openInNewWindow": "Open in new window",
     "popOutCompose": "Open in its own window",
     "pinOnTop": "Always on top",

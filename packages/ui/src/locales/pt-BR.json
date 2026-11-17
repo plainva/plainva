@@ -3259,6 +3259,7 @@
     "groupView": "Visualização",
     "groupZipBackups": "Backups ZIP",
     "installingUpdate": "Baixando e instalando a atualização...",
+    "updateWaitingForWrites": "O Plainva está terminando de gravar — a atualização será instalada em no máximo {{seconds}} segundos.",
     "installUpdate": "Instalar agora e reiniciar",
     "keychainChecking": "Verificando...",
     "keychainFallback": "Indisponível (usando armazenamento alternativo)",
@@ -7862,6 +7863,7 @@
     "verifierPlaceholder": "Seu nome"
   },
   "window": {
+    "closedBeforeSaved": "Da última vez, o Plainva fechou antes de todas as janelas terminarem de salvar. Confira as notas que você editou por último.",
     "openInNewWindow": "Abrir em nova janela",
     "popOutCompose": "Abrir em janela própria",
     "pinOnTop": "Sempre visível",

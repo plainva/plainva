@@ -140,17 +140,31 @@ export function describeUpdateFailure(error: unknown, step: "check" | "install",
   }
 }
 
+/** The longest the drafts and writes of every window are waited for before the update installs. */
+export const UPDATE_SETTLE_MS = 5_000;
+/** How long the wait goes on before the person is told what it waits for. */
+export const UPDATE_WAIT_WORD_MS = 700;
+
 /**
  * Downloads, installs and relaunches. Rejects on failure — caller shows it.
  *
  * Between download and install the drafts every window still buffers are
- * written (A7): installing ends the process on Windows, and a restart is the
- * one way out the native side cannot hold (`src-tauri/src/leave.rs`).
+ * written, and the writes on their way are waited for (A7): installing ends
+ * the process on Windows, and a restart is the one way out the native side
+ * cannot hold (`src-tauri/src/leave.rs`). At most `UPDATE_SETTLE_MS`: writes
+ * that keep coming (a sync pull) or one that hangs do not keep the update
+ * from installing. When the wait goes on past a moment, `onWaiting` gets the
+ * limit in seconds, for the person to see why nothing happens yet.
  */
-export async function downloadAndInstallUpdate(update: Update): Promise<void> {
+export async function downloadAndInstallUpdate(update: Update, onWaiting?: (seconds: number) => void): Promise<void> {
   await update.download();
   const { settleEveryWindowBeforeLeaving } = await import("./leaveFlush");
-  await settleEveryWindowBeforeLeaving();
+  const word = setTimeout(() => onWaiting?.(Math.ceil(UPDATE_SETTLE_MS / 1000)), UPDATE_WAIT_WORD_MS);
+  try {
+    await settleEveryWindowBeforeLeaving(UPDATE_SETTLE_MS);
+  } finally {
+    clearTimeout(word);
+  }
   await update.install();
   await relaunch();
 }
@@ -195,8 +209,12 @@ export function scheduleStartupUpdateCheck(): void {
               // Persistent toast: the download/install can take a while and ends
               // in a relaunch, so it must not vanish after a few seconds — it
               // stays up (through the restart) or is replaced by an error.
-              const installingId = toast.progress(i18n.t("settings.installingUpdate"));
-              void downloadAndInstallUpdate(update).catch((e) => {
+              let installingId = toast.progress(i18n.t("settings.installingUpdate"));
+              const onWaiting = (seconds: number) => {
+                toast.dismiss(installingId);
+                installingId = toast.progress(i18n.t("settings.updateWaitingForWrites", { seconds }));
+              };
+              void downloadAndInstallUpdate(update, onWaiting).catch((e) => {
                 toast.dismiss(installingId);
                 logDiagnostic("update.install", String(e));
                 toast.error(describeUpdateFailure(e, "install", (key, options) => i18n.t(key, options)));

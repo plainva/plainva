@@ -19,12 +19,21 @@ vi.mock("@tauri-apps/api/app", () => ({ getIdentifier }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 const flushes = vi.hoisted(() => [] as string[]);
-vi.mock("./leaveFlush", () => ({ settleEveryWindowBeforeLeaving: async () => { flushes.push("flush"); } }));
+let settleTakes = 0;
+const settleLimits: number[] = [];
+vi.mock("./leaveFlush", () => ({
+  settleEveryWindowBeforeLeaving: async (limitMs: number) => {
+    settleLimits.push(limitMs);
+    if (settleTakes > 0) await new Promise((resolve) => setTimeout(resolve, settleTakes));
+    flushes.push("flush");
+    return true;
+  },
+}));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn() }));
 vi.mock("@plainva/ui", () => ({ logDiagnostic: vi.fn(), toast: { info: vi.fn(), progress: vi.fn(), dismiss: vi.fn(), error: vi.fn() } }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
-import { checkForAppUpdate, classifyUpdateFailure, downloadAndInstallUpdate, describeUpdateFailure, getUpdatesManagedBy, resetStartupUpdateCheckForTests, scheduleStartupUpdateCheck } from "./appUpdate";
+import { checkForAppUpdate, classifyUpdateFailure, downloadAndInstallUpdate, UPDATE_SETTLE_MS, describeUpdateFailure, getUpdatesManagedBy, resetStartupUpdateCheckForTests, scheduleStartupUpdateCheck } from "./appUpdate";
 import { logDiagnostic, toast } from "@plainva/ui";
 
 const release = { version: "9.9.9" };
@@ -172,5 +181,33 @@ describe("installing an update (A7)", () => {
     };
     await downloadAndInstallUpdate(update as never);
     expect(steps).toEqual(["download", "install after 1 flush"]);
+  });
+
+  it("waits for the writes at most a bounded time, and tells the person what it waits for", async () => {
+    vi.useFakeTimers();
+    try {
+      flushes.length = 0;
+      settleLimits.length = 0;
+      settleTakes = 2_000;
+      const said: number[] = [];
+      const update = { download: vi.fn(async () => {}), install: vi.fn(async () => {}) };
+      const done = downloadAndInstallUpdate(update as never, (seconds) => said.push(seconds));
+      await vi.advanceTimersByTimeAsync(2_000);
+      await done;
+      expect(settleLimits).toEqual([UPDATE_SETTLE_MS]);
+      expect(UPDATE_SETTLE_MS).toBeLessThanOrEqual(5_000);
+      expect(said).toEqual([Math.ceil(UPDATE_SETTLE_MS / 1000)]);
+      expect(update.install).toHaveBeenCalledTimes(1);
+    } finally {
+      settleTakes = 0;
+      vi.useRealTimers();
+    }
+  });
+
+  it("says nothing when the writes are done at once", async () => {
+    const said: number[] = [];
+    const update = { download: vi.fn(async () => {}), install: vi.fn(async () => {}) };
+    await downloadAndInstallUpdate(update as never, (seconds) => said.push(seconds));
+    expect(said).toEqual([]);
   });
 });

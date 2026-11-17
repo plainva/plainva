@@ -31,6 +31,13 @@ export interface BeforeLeavingRequest {
 /** How long no write may start before the window counts as done. */
 const QUIET_MS = 100;
 
+/**
+ * The longest a window waits for its writes when nobody gave a limit: below
+ * the central window's wait for the others (`windowDraftFlush.ts`), so a window
+ * answers before it is given up on.
+ */
+export const SETTLE_LIMIT_MS = 1_500;
+
 // What the shared surfaces hold back for a moment (the phone writes the same
 // when it goes to the background, `apps/mobile/src/services/appLifecycle.ts`):
 // graph pins (800 ms) and the task view's filters (250 ms).
@@ -39,9 +46,14 @@ if (typeof window !== "undefined") {
   onBeforeLeaving(async () => flushTaskViewStates());
 }
 
-/** Leaves the field in progress, has every surface write now, and waits for this window's writes. */
-export async function settleBeforeLeaving(): Promise<void> {
-  if (typeof document === "undefined" || typeof window === "undefined") return;
+/**
+ * Leaves the field in progress, has every surface write now, and waits for
+ * this window's writes — at most `limitMs`. "cut" when something was still
+ * going at the limit: writes that keep coming (a sync pull), or one that hangs.
+ */
+export async function settleBeforeLeaving(limitMs: number = SETTLE_LIMIT_MS): Promise<"settled" | "cut"> {
+  if (typeof document === "undefined" || typeof window === "undefined") return "settled";
+  const until = Date.now() + limitMs;
   const active = document.activeElement;
   if (active instanceof HTMLElement && active !== document.body) active.blur();
   // The field's own handler runs on the blur; its write starts from there.
@@ -49,8 +61,16 @@ export async function settleBeforeLeaving(): Promise<void> {
   const works: Promise<unknown>[] = [];
   const request: BeforeLeavingRequest = { waitUntil: (work) => void works.push(work) };
   window.dispatchEvent(new CustomEvent(BEFORE_LEAVING_EVENT, { detail: request }));
-  await Promise.allSettled(works);
-  await settleInflightWrites(QUIET_MS);
+  let cut = false;
+  await Promise.race([
+    Promise.allSettled(works),
+    new Promise<void>((resolve) => setTimeout(() => {
+      cut = true;
+      resolve();
+    }, Math.max(0, until - Date.now()))),
+  ]);
+  if (cut) return "cut";
+  return (await settleInflightWrites(QUIET_MS, Math.max(0, until - Date.now()))) ? "settled" : "cut";
 }
 
 /** A surface's part: `work` runs when the window is about to go. Returns the way to take it out. */

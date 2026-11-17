@@ -44,22 +44,49 @@ export function countWrites<T extends object>(adapter: T): T {
 }
 
 /**
- * Resolves once no counted write is on its way and none started for `quietMs`
- * — a write that a finished one leads to (an editor's next save) is waited for
- * too. The caller bounds the whole: a write that hangs is not waited out here.
+ * Resolves true once no counted write is on its way and none started for
+ * `quietMs` — a write that a finished one leads to (an editor's next save) is
+ * waited for too. Resolves false at `limitMs` whatever is still going: writes
+ * that keep coming (a sync pull) or one that hangs are not waited out.
  */
-export async function settleInflightWrites(quietMs: number): Promise<void> {
-  for (;;) {
-    if (inflight > 0) await new Promise<void>((resolve) => {
-      const wake = () => {
-        idle.delete(wake);
-        resolve();
-      };
-      idle.add(wake);
-    });
-    const before = started;
-    await new Promise((resolve) => setTimeout(resolve, quietMs));
-    if (inflight === 0 && started === before) return;
+export async function settleInflightWrites(quietMs: number, limitMs: number): Promise<boolean> {
+  let timedOut = false;
+  let wakeAtLimit: (() => void) | null = null;
+  const limit = setTimeout(() => {
+    timedOut = true;
+    wakeAtLimit?.();
+  }, limitMs);
+  try {
+    for (;;) {
+      if (inflight > 0) {
+        await new Promise<void>((resolve) => {
+          const wake = () => {
+            idle.delete(wake);
+            wakeAtLimit = null;
+            resolve();
+          };
+          idle.add(wake);
+          wakeAtLimit = wake;
+        });
+      }
+      if (timedOut) return false;
+      const before = started;
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          wakeAtLimit = null;
+          resolve();
+        }, quietMs);
+        wakeAtLimit = () => {
+          clearTimeout(timer);
+          wakeAtLimit = null;
+          resolve();
+        };
+      });
+      if (timedOut) return false;
+      if (inflight === 0 && started === before) return true;
+    }
+  } finally {
+    clearTimeout(limit);
   }
 }
 

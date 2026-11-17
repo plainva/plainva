@@ -3171,6 +3171,7 @@
     "groupView": "Weergave",
     "groupZipBackups": "ZIP-backups",
     "installingUpdate": "Update wordt gedownload en geïnstalleerd...",
+    "updateWaitingForWrites": "Plainva schrijft nog af — de update wordt binnen hooguit {{seconds}} seconden geïnstalleerd.",
     "installUpdate": "Nu installeren & herstarten",
     "keychainChecking": "Controleren...",
     "keychainFallback": "Niet beschikbaar (fallback-opslag wordt gebruikt)",
@@ -7703,6 +7704,7 @@
     "verifierPlaceholder": "Je naam"
   },
   "window": {
+    "closedBeforeSaved": "De vorige keer werd Plainva afgesloten voordat elk venster klaar was met opslaan. Controleer de notities die je het laatst bewerkte.",
     "openInNewWindow": "In nieuw venster openen",
     "popOutCompose": "In een eigen venster openen",
     "pinOnTop": "Altijd op de voorgrond",

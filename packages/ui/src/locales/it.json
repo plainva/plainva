@@ -3259,6 +3259,7 @@
     "groupView": "Vista",
     "groupZipBackups": "Backup ZIP",
     "installingUpdate": "Download e installazione dell'aggiornamento in corso...",
+    "updateWaitingForWrites": "Plainva sta finendo di scrivere: l'aggiornamento si installa entro {{seconds}} secondi al massimo.",
     "installUpdate": "Installa ora e riavvia",
     "keychainChecking": "Verifica in corso...",
     "keychainFallback": "Non disponibile (in uso l'archivio di riserva)",
@@ -7862,6 +7863,7 @@
     "verifierPlaceholder": "Il tuo nome"
   },
   "window": {
+    "closedBeforeSaved": "L'ultima volta Plainva si è chiuso prima che ogni finestra avesse finito di salvare. Controlla le note che stavi modificando per ultime.",
     "openInNewWindow": "Apri in una nuova finestra",
     "popOutCompose": "Apri in una finestra separata",
     "pinOnTop": "Sempre in primo piano",
