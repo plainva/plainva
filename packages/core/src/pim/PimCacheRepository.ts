@@ -79,6 +79,10 @@ type PimAccountCacheTable =
   | "pim_state"
   | "pim_task_state";
 
+/** The `pim_state` scope that carries the account row's revision (F21). */
+const ACCOUNT_ROW_SCOPE = "account-row";
+let accountRevisions = 0;
+
 const ACCOUNT_CACHE_TABLES: ReadonlyArray<{
   name: PimAccountCacheTable;
   accountColumn: "id" | "account_id";
@@ -224,12 +228,39 @@ export class PimCacheRepository {
    * lists the person had switched off were imported into the vault once more.
    */
   async upsertAccount(row: PimAccountRow): Promise<void> {
+    const values = [row.id, row.provider, row.label, JSON.stringify(row.config ?? {}), row.enabled ? 1 : 0] as const;
+    const stored = await this.db.queryOne<{ provider: string; label: string | null; config: string | null; enabled: number }>(
+      `SELECT provider, label, config, enabled FROM pim_accounts WHERE id = ?`,
+      [row.id]
+    );
     await this.db.execute(
       `INSERT INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET provider = excluded.provider, label = excluded.label,
          config = excluded.config, enabled = excluded.enabled`,
-      [row.id, row.provider, row.label, JSON.stringify(row.config ?? {}), row.enabled ? 1 : 0]
+      [...values]
     );
+    const same =
+      stored !== null &&
+      stored.provider === values[1] &&
+      (stored.label ?? "") === values[2] &&
+      (stored.config ?? "{}") === values[3] &&
+      stored.enabled === values[4];
+    // A new revision for every row that is new or changed (F21): the worker
+    // reports a cycle as news when it meets one, so a rename, an account made
+    // again under its old id, or one switched off and on between two cycles
+    // reaches the views open beside it. A re-save of the same row - every
+    // settings sync does one - leaves it alone.
+    if (!same) {
+      await this.db.execute(
+        `INSERT OR REPLACE INTO pim_state (account_id, scope, cursor, last_sync_ts, last_error, last_error_kind, auth_revision) VALUES (?, ?, ?, ?, NULL, NULL, NULL)`,
+        [row.id, ACCOUNT_ROW_SCOPE, `${Date.now().toString(36)}-${(++accountRevisions).toString(36)}-${Math.random().toString(36).slice(2, 8)}`, Date.now()]
+      );
+    }
+  }
+
+  /** The account row's revision (see `upsertAccount`); null for a row written before revisions existed. */
+  async accountRevision(accountId: string): Promise<string | null> {
+    return (await this.getScopeState(accountId, ACCOUNT_ROW_SCOPE))?.cursor ?? null;
   }
 
   /** Removes the account and every cached object belonging to it. The
