@@ -157,3 +157,41 @@ describe("updateAllManagedIndexes", () => {
     expect(v.store.get("P/index.md")).toContain("[a](a.md)");
   });
 });
+
+describe("the root overview's heading (F7 of release 0.9.0)", () => {
+  // Every name a shell has for the vault holds on one device only — the
+  // desktop's own name or folder, the phone's list entry, a translated label.
+  // The root listing is synced: a refresh keeps the heading that is there.
+  const root = (heading: string) => `---\nokf_version: "0.2"\n---\n\n# ${heading}\n\n* [A](A.md)\n\n${PLAINVA_INDEX_MARKER}\n`;
+  const headingOf = (text: string | undefined) => text?.split("\n").find((line) => line.startsWith("# "));
+
+  it("a refresh on any device keeps it, however that device names the vault", async () => {
+    const v = makeVault({ "index.md": root("Plainva"), "A.md": "# A\n" });
+    for (const [i, name] of ["Auf diesem Gerät", "wiki_dev", "Google Drive · wiki_dev", "Mein Wiki"].entries()) {
+      v.store.set(`N${i}.md`, "# n\n");
+      const updater = createIndexAutoUpdater(deps(v, { vaultName: () => name, debounceMs: 1 }));
+      updater.notify([{ type: "create", path: `N${i}.md` }]);
+      expect((await updater.flush()).updated).toEqual(["index.md"]);
+      updater.dispose();
+      expect(headingOf(v.store.get("index.md"))).toBe("# Plainva");
+      expect(v.store.get("index.md")).toContain(`[N${i}](N${i}.md)`);
+    }
+  });
+
+  it("so does updating every overview, and a root without a heading gets the vault's name", async () => {
+    const v = makeVault({ "index.md": root("Mein Wiki"), "P/index.md": `${PLAINVA_INDEX_MARKER}\n`, "P/a.md": "# a\n" });
+    await updateAllManagedIndexes(deps(v, { vaultName: () => "wiki_dev" }));
+    expect(headingOf(v.store.get("index.md"))).toBe("# Mein Wiki");
+    // A subfolder's heading is its folder's name, the same on every device.
+    expect(headingOf(v.store.get("P/index.md"))).toBe("# P");
+    const bare = makeVault({ "index.md": `---\nokf_version: "0.2"\n---\n\n${PLAINVA_INDEX_MARKER}\n`, "A.md": "# A\n" });
+    await updateAllManagedIndexes(deps(bare, { vaultName: () => "wiki_dev" }));
+    expect(headingOf(bare.store.get("index.md"))).toBe("# wiki_dev");
+  });
+
+  it("keeps a heading behind properties written with CRLF", async () => {
+    const v = makeVault({ "index.md": root("Plainva").split("\n").join("\r\n"), "A.md": "# A\n" });
+    await updateAllManagedIndexes(deps(v, { vaultName: () => "wiki_dev" }));
+    expect(v.store.get("index.md")).toContain("# Plainva\r\n");
+  });
+});

@@ -1,7 +1,9 @@
 import {
+  frontmatterSpan,
   generateIndexContent,
   inShapeOf,
   isExcludedFromOkfScan,
+  isPlainvaManagedIndex,
   isReservedOkfName,
   readRootOkfDeclaration,
   type VaultQueryService,
@@ -61,6 +63,17 @@ export async function backupIndexFile(
   return backupPath;
 }
 
+/** The first `# ` heading of a listing, behind its properties — null when it has none. */
+export function listingHeadingOf(text: string): string | null {
+  const fm = frontmatterSpan(text);
+  const rest = fm ? text.slice(fm.end) : text.replace(/^\uFEFF/, "");
+  for (const line of rest.split(/\r\n|\n|\r/)) {
+    const m = /^# (.*)$/.exec(line);
+    if (m) return m[1].trimEnd();
+  }
+  return null;
+}
+
 /**
  * Generates (or regenerates) the spec-shaped index.md for a folder. An
  * existing index.md is backed up first — the caller confirms the overwrite.
@@ -115,10 +128,20 @@ export async function generateIndexForFolder(opts: {
   // Keep the declared bundle version of an existing root; only a root that
   // declares none (or a fresh one) gets the version Plainva writes.
   const okfVersion = bundleRoot && existing !== null ? readRootOkfDeclaration(existing) ?? undefined : undefined;
+  // The root's heading names the vault, and every name a shell has for it holds
+  // on one device only: the desktop's own name or folder, the phone's vault
+  // list entry, a translated label for an unnamed one (F7 of release 0.9.0).
+  // The root listing is synced, so writing the device's name over the one that
+  // is there made each device rewrite the others' heading on every refresh. A
+  // listing Plainva keeps keeps its heading; only a new one is named. A
+  // subfolder's heading is its folder's name, the same everywhere, and follows
+  // a rename.
+  const kept = bundleRoot && existing !== null && isPlainvaManagedIndex(existing) ? listingHeadingOf(existing) : null;
+  const heading = kept ?? opts.heading;
 
   const content = generateIndexContent({
     folder,
-    heading: opts.heading,
+    heading,
     files: directFiles.map((p) => ({
       path: p,
       title: titleMap.get(p) || undefined,
