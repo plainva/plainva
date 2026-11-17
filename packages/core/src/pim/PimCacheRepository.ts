@@ -184,6 +184,18 @@ export class PimCacheRepository {
    * one native call on the phone), a transaction otherwise. Pure writes only —
    * whatever a replace needs to read, it reads before it builds the list.
    */
+  /**
+   * The rows a replace is about, as one text: whether the replace changed
+   * anything is whether that text differs afterwards (finding F21). A replace
+   * rewrites its rows on every cycle, and the worker used to report every
+   * cycle as "data changed": on the phone that rescheduled every reminder and
+   * reloaded the views every two minutes. Reading twice is cheap beside the
+   * rewrite, and it cannot miss a column the way a hand-made comparison can.
+   */
+  private async rowsAsText(sql: string, params: unknown[]): Promise<string> {
+    return JSON.stringify(await this.db.query(sql, params));
+  }
+
   private async writeAtomic(statements: BatchStatement[]): Promise<void> {
     if (statements.length === 0) return;
     if (this.db.runBatch) {
@@ -334,7 +346,10 @@ export class PimCacheRepository {
 
   // ---- calendars ----------------------------------------------------------
 
-  async replaceCalendars(accountId: string, calendars: PimCalendar[]): Promise<void> {
+  /** Resolves to whether the account's calendars changed (finding F21). */
+  async replaceCalendars(accountId: string, calendars: PimCalendar[]): Promise<boolean> {
+    const rowsSql = `SELECT * FROM pim_calendars WHERE account_id = ? ORDER BY cal_id`;
+    const before = await this.rowsAsText(rowsSql, [accountId]);
     // Keep the user's selection across refreshes: capture, replace, re-apply.
     const prev = await this.db.query<{ cal_id: string; selected: number }>(
       `SELECT cal_id, selected FROM pim_calendars WHERE account_id = ?`,
@@ -365,6 +380,7 @@ export class PimCacheRepository {
     // One step: `listEvents` JOINs this table, so a reader between a separate
     // DELETE and its INSERTs saw a calendar with no events at all.
     await this.writeAtomic(statements);
+    return (config !== null && pending !== undefined) || (await this.rowsAsText(rowsSql, [accountId])) !== before;
   }
 
   async listCalendars(accountId?: string): Promise<Array<PimCalendar & { accountId: string; selected: boolean }>> {
@@ -423,14 +439,17 @@ export class PimCacheRepository {
    * [windowStartTs, windowEndTs) with the fresh pull — one delete + chunked
    * inserts, applied as ONE step (see the class comment): a failed insert
    * leaves the previous window in place. Rows outside the window (older
-   * cache) stay untouched. */
+   * cache) stay untouched. Resolves to whether the window changed (F21). */
   async replaceEventWindow(
     accountId: string,
     calId: string,
     windowStartTs: number,
     windowEndTs: number,
     events: PimEvent[]
-  ): Promise<void> {
+  ): Promise<boolean> {
+    const rowsSql = `SELECT * FROM pim_events WHERE account_id = ? AND cal_id = ? AND start_ts >= ? AND start_ts < ? ORDER BY uid`;
+    const rowsParams = [accountId, calId, windowStartTs, windowEndTs];
+    const before = await this.rowsAsText(rowsSql, rowsParams);
     await this.writeAtomic([
       {
         sql: `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND start_ts >= ? AND start_ts < ?`,
@@ -438,6 +457,7 @@ export class PimCacheRepository {
       },
       ...this.eventInsertStatements(accountId, calId, events),
     ]);
+    return (await this.rowsAsText(rowsSql, rowsParams)) !== before;
   }
 
   /**
@@ -448,6 +468,9 @@ export class PimCacheRepository {
    * the provider explicitly named. An event that is merely absent from this
    * page stays — it is unchanged, not gone, and a delta feed has no way to say
    * "still there" for every row it did not send.
+   *
+   * Resolves to whether there was anything to apply (F21): a delta names only
+   * what changed, so an empty one is the quiet cycle.
    */
   async applyEventDelta(
     accountId: string,
@@ -455,7 +478,7 @@ export class PimCacheRepository {
     events: PimEvent[],
     deletedUids: string[],
     deletedHrefs: string[] = []
-  ): Promise<void> {
+  ): Promise<boolean> {
     const statements = this.eventInsertStatements(accountId, calId, events);
     for (const group of chunk(deletedUids, CHUNK)) {
       if (group.length === 0) continue;
@@ -476,6 +499,7 @@ export class PimCacheRepository {
     // One step, like the window replace: half a delta is a state the provider
     // never had, and the cursor that would repeat it is only stored afterwards.
     await this.writeAtomic(statements);
+    return statements.length > 0;
   }
 
   /** The insert both paths share — one column list, so a new field cannot
@@ -549,7 +573,10 @@ export class PimCacheRepository {
 
   // ---- task lists / tasks (read cache; the note reconcile is stage 3) ------
 
-  async replaceTaskLists(accountId: string, lists: PimTaskList[]): Promise<void> {
+  /** Resolves to whether the account's task lists changed (finding F21). */
+  async replaceTaskLists(accountId: string, lists: PimTaskList[]): Promise<boolean> {
+    const rowsSql = `SELECT * FROM pim_tasklists WHERE account_id = ? ORDER BY list_id`;
+    const before = await this.rowsAsText(rowsSql, [accountId]);
     const prev = await this.db.query<{ list_id: string; selected: number }>(
       `SELECT list_id, selected FROM pim_tasklists WHERE account_id = ?`,
       [accountId]
@@ -585,6 +612,7 @@ export class PimCacheRepository {
     // Same shape as the calendars, same reason: a list that is briefly gone
     // reads as "this account has no task lists" to whoever asks in between.
     await this.writeAtomic(statements);
+    return (config !== null && pending !== undefined) || (await this.rowsAsText(rowsSql, [accountId])) !== before;
   }
 
   async listTaskLists(accountId?: string): Promise<Array<PimTaskList & { accountId: string; selected: boolean }>> {
@@ -606,7 +634,10 @@ export class PimCacheRepository {
     await this.forgetParkedSelection(accountId, "plainvaPendingTaskListSelections", listId);
   }
 
-  async replaceTasks(accountId: string, listId: string, tasks: PimTask[]): Promise<void> {
+  /** Resolves to whether the list's tasks changed (finding F21). */
+  async replaceTasks(accountId: string, listId: string, tasks: PimTask[]): Promise<boolean> {
+    const rowsSql = `SELECT * FROM pim_tasks WHERE account_id = ? AND list_id = ? ORDER BY uid`;
+    const before = await this.rowsAsText(rowsSql, [accountId, listId]);
     const statements: BatchStatement[] = [{ sql: `DELETE FROM pim_tasks WHERE account_id = ? AND list_id = ?`, params: [accountId, listId] }];
     for (const group of chunk(tasks, CHUNK)) {
       const values: unknown[] = [];
@@ -621,6 +652,7 @@ export class PimCacheRepository {
       });
     }
     await this.writeAtomic(statements);
+    return (await this.rowsAsText(rowsSql, [accountId, listId])) !== before;
   }
 
   async listTasks(accountId: string, listId: string): Promise<PimTask[]> {

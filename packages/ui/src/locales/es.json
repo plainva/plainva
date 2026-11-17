@@ -5853,7 +5853,7 @@
     "legacyNamesNoLinks": "Los enlaces a estas notas se actualizan con ellas (aquí: ninguno).",
     "legacyNamesClean": "Limpiar nombres…",
     "legacyNamesHide": "Ocultar",
-    "taskDbHint": "Las listas de tareas de tu proveedor necesitan una base de datos de tareas predeterminada: sus tareas se convierten en notas en ella. «Crear base de datos…» crea una y la establece.",
+    "taskDbHint": "Las listas de tareas del proveedor necesitan una base de datos de tareas predeterminada para ser notas. «Crear base de datos…» crea una.",
     "taskDbHintHide": "Ocultar",
     "legacyNamesConfirmTitle": "¿Limpiar nombres?",
     "legacyNamesConfirmMsg_one": "1 nota de tarea recibe su título como nombre; los enlaces a ella se actualizan. Tus otros dispositivos lo reciben como un traslado cuando tienen la misma versión. Una versión anterior ve allí notas eliminadas y nuevas: a veces pregunta si debe eliminarlas, a veces deja el nombre antiguo junto al nuevo; mejor actualiza antes esos dispositivos.",

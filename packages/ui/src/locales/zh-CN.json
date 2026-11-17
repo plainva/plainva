@@ -5603,7 +5603,7 @@
     "legacyNamesNoLinks": "指向这些笔记的链接会一并更新（此处：无）。",
     "legacyNamesClean": "整理名称…",
     "legacyNamesHide": "隐藏",
-    "taskDbHint": "提供方的任务列表需要一个默认任务数据库：其中的任务会成为该数据库中的笔记。“新建数据库…”会新建一个并设为默认。",
+    "taskDbHint": "提供方的任务列表需要默认任务数据库才能成为笔记。“新建数据库…”会新建一个。",
     "taskDbHintHide": "隐藏",
     "legacyNamesConfirmTitle": "整理名称？",
     "legacyNamesConfirmMsg_other": "{{count}} 篇任务笔记将以标题作为名称，指向它们的链接会随之更新。其他设备升级到相同版本后，会以移动的形式收到这一变化。较旧的版本会把它看作删除加新建：可能询问是否删除，也可能在新名称旁保留旧名称——最好先更新这些设备。",

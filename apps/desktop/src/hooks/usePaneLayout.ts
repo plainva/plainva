@@ -50,6 +50,18 @@ export function adoptTabInLayout(layout: Layout, incoming: TabItem): Layout {
 }
 
 /**
+ * The restored layout with the tabs of `meanwhile` folded in: the layout the
+ * window had while its stored tabs were still being checked, which only holds
+ * what was opened in that time. Its active tab comes in last and is active.
+ */
+export function withTabsOpenedMeanwhile(restored: Layout, meanwhile: Layout): Layout {
+  const active = meanwhile.panes[meanwhile.activePaneIndex]?.tabs[meanwhile.panes[meanwhile.activePaneIndex]?.activeIndex ?? -1];
+  const opened = meanwhile.panes.flatMap((pane) => pane.tabs).filter((tab) => tab !== active);
+  if (active) opened.push(active);
+  return opened.reduce((layout, tab) => adoptTabInLayout(layout, tab), restored);
+}
+
+/**
  * The notes whose pane stops showing them when `before` becomes `after`.
  *
  * A pane shows the active tab's current note, and AppShell keys each pane by
@@ -477,7 +489,10 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
       if (cancelled) return;
       markFirstHydrate(layoutScope);
       if (restored) {
-        setLayout(restored.layout);
+        // A tab opened while the stored ones were checked — a plainva://open
+        // link, whose handler waits for the index, not for this — stays, on
+        // top of the restored tabs (review of issue 173).
+        setLayout((meanwhile) => withTabsOpenedMeanwhile(restored.layout, meanwhile));
         setSplitRatioState(restored.splitRatio);
       }
       hydratedForVault.current = vaultPath;
