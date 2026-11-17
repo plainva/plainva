@@ -28,7 +28,7 @@ import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
-import { askMassDeletion as askMassDeletionWith, type MassDeletionAnswers } from "@plainva/ui";
+import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers } from "@plainva/ui";
 
 /**
  * The mass-deletion question for either worker (plain sync, encrypted
@@ -38,8 +38,12 @@ import { askMassDeletion as askMassDeletionWith, type MassDeletionAnswers } from
 function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: number; syncedTotal: number }): void {
   void askMassDeletionWith(worker, info, (question) => appConfirm({ ...question, kind: "danger" }));
 }
+
+function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: { missing: number; confirmed: number; probed: number; absent: number }): void {
+  void askSuspendedDeletionsWith(worker, info, (question) => appConfirm({ ...question, kind: "danger" }));
+}
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -1575,6 +1579,10 @@ export const VaultProvider: React.FC<{
                 worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
                 // The plain sync's question, word for word (release 0.9.0 A4).
                 worker.onMassDeletionPending = (info) => askMassDeletion(worker, info);
+                // And the pull-side one: another device's mass deletion waits for an answer.
+                worker.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(worker, info);
+                // A change the workspace's policy refused stays here as a local fork: said, not only listed.
+                worker.onChangesRefused = (paths) => { const text = refusedChangesText(paths); if (text) toast.info(text); };
                 // The first cycle has looked: what the index found and an ended
                 // app never queued goes into the workspace's queue (R22).
                 worker.onFirstCycleComplete = () => sweepOwedToRemote("workspace");
@@ -1739,39 +1747,11 @@ export const VaultProvider: React.FC<{
             };
             const guardedWorker = fileWorker;
             fileWorker.onMassDeletionPending = (info) => askMassDeletion(guardedWorker, info);
-            fileWorker.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
-              // The pull-side guard tripped and the journal does not explain the
-              // absences. Since 2026-09-20 the worker has ASKED the remote about a
-              // sample of them first: had one been alive, there would be no
-              // question at all (onListingIncomplete). So the dialog can say what
-              // was checked instead of offering "deleted elsewhere — or the cloud
-              // answered incompletely" and leaving the person to guess. Without a
-              // definitive answer (a provider that cannot be asked, or rows
-              // without an id) it says that, too. Cancel/Escape and the focus sit
-              // on the safe branch: keep the local copies.
-              void (async () => {
-                const applyHere = await appConfirm({
-                  title: i18n.t("sync.pullGuardTitle"),
-                  message: absent > 0
-                    ? i18n.t("sync.pullGuardBody", { n: missing, total: confirmed, absent, probed })
-                    : i18n.t("sync.pullGuardBodyUnverified", { n: missing, total: confirmed }),
-                  kind: "danger",
-                  confirmLabel: i18n.t("sync.pullGuardApply"),
-                  cancelLabel: i18n.t("sync.pullGuardKeep"),
-                });
-                if (applyHere) {
-                  guardedWorker.approveSuspendedDeletions();
-                } else {
-                  try {
-                    const kept = await guardedWorker.keepSuspendedDeletionsLocal();
-                    toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
-                  } catch (e) {
-                    console.error("[VaultContext] keepSuspendedDeletionsLocal failed", e);
-                    toast.error(i18n.t("sync.pullGuardFailed"));
-                  }
-                }
-              })();
-            };
+            // The pull-side guard tripped and the journal does not explain the
+            // absences; the shared question says what was checked
+            // (`askSuspendedDeletions`). Cancel/Escape and the focus sit on the
+            // safe branch: keep the local copies.
+            fileWorker.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(guardedWorker, info);
             fileWorker.onDeletionReport = (report) => {
               // A remote deletion the worker did NOT mirror because the local
               // copy carries unsynced edits used to be silent — and silence is

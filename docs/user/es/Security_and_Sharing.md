@@ -1,6 +1,6 @@
 # Seguridad y uso compartido
 
-Última actualización: 2026-11-11
+Última actualización: 2026-11-16
 
 > **Experimental — aún no revisado de forma independiente.** Los espacios de trabajo cifrados se ofrecen como vista previa. El diseño criptográfico todavía no ha sido auditado por un revisor independiente, y todavía se están recopilando pruebas con dos dispositivos en hardware real de Android e iOS. Pruébalo, pero conserva una copia de seguridad de todo lo que no puedas permitirte perder, y no confíes en él para material que debas proteger.
 
@@ -62,7 +62,7 @@ Los comentarios aparecen junto a la nota original en escritorio y móvil, agrupa
 
 **Historial de versiones** lee las revisiones cifradas del workspace y restaura una revisión anterior como un nuevo cambio firmado o como una copia.
 
-Los artefactos remotos inválidos se aíslan uno a uno en **Integridad y bifurcaciones locales**. Puedes reintentarlos, exportar el texto cifrado, marcarlos como reparados tras una reparación externa o ignorarlos deliberadamente. Un archivo inválido no bloquea el resto de la sincronización válida, y la mera ausencia remota nunca implica una eliminación. Un cambio realizado por un programa local sin permiso de escritura se conserva como una copia privada de bifurcación. Una **bifurcación local** —la copia que este dispositivo conserva cuando se rechazó una escritura— tiene **Comparar**: la misma vista de comparación que un conflicto, con las salidas Adoptar, Conservar ambas y Descartar; después la bifurcación desaparece de la lista. En el teléfono igual.
+Los artefactos remotos inválidos se aíslan uno a uno en **Integridad y bifurcaciones locales**. Puedes reintentarlos, exportar el texto cifrado, marcarlos como reparados tras una reparación externa o ignorarlos deliberadamente. Un archivo inválido no bloquea el resto de la sincronización válida, y la mera ausencia remota nunca implica una eliminación. Un cambio realizado por un programa local sin permiso de escritura se conserva como una copia privada de bifurcación. Una **bifurcación local** —la copia que este dispositivo conserva cuando se rechazó una escritura— tiene **Comparar**: la misma vista de comparación que un conflicto, con las salidas Adoptar, Conservar ambas y Descartar; después la bifurcación desaparece de la lista. En el teléfono igual. Si allí se rechaza un cambio tuyo —ya no puedes editar, eliminar o mover la nota, o está fuera de lo que puedes cambiar—, un aviso lo nombra una vez y el cambio se queda en este dispositivo como bifurcación local; una nota que no podías eliminar o mover vuelve a su sitio.
 
 ### Qué dice **Integridad y bifurcaciones locales**
 

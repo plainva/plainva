@@ -1,6 +1,6 @@
 # Segurança e compartilhamento
 
-Última revisão: 2026-11-11
+Última revisão: 2026-11-16
 
 > **Experimental — ainda sem revisão independente.** Workspaces criptografados são lançados como uma prévia. O design ainda não passou por uma revisão criptográfica independente, e evidências de dois dispositivos em hardware Android e iOS reais ainda estão sendo coletadas. Experimente, mas mantenha um backup de tudo que você não pode perder, e não confie nele para material que você precisa proteger.
 
@@ -62,7 +62,7 @@ Os comentários aparecem junto à nota original no desktop e no celular, agrupad
 
 **Histórico de versões** lê revisões criptografadas do workspace e restaura uma revisão anterior como uma nova alteração assinada ou como uma cópia.
 
-Artefatos remotos inválidos são isolados individualmente em **Integridade e forks locais**. Você pode tentar novamente, exportar o ciphertext, marcar como reparado um artefato reparado externamente, ou ignorá-lo deliberadamente. Um arquivo inválido não bloqueia o restante de uma sincronização válida, e a mera ausência remota nunca significa exclusão. Uma alteração de um programa local sem permissão de escrita é mantida como uma cópia privada de fork. Um **fork local** — a cópia que este dispositivo guarda quando uma gravação foi recusada — tem **Comparar**: a mesma visão de comparação de um conflito, com as saídas Adotar, Manter ambos e Descartar; depois o fork sai da lista. No telefone é igual.
+Artefatos remotos inválidos são isolados individualmente em **Integridade e forks locais**. Você pode tentar novamente, exportar o ciphertext, marcar como reparado um artefato reparado externamente, ou ignorá-lo deliberadamente. Um arquivo inválido não bloqueia o restante de uma sincronização válida, e a mera ausência remota nunca significa exclusão. Uma alteração de um programa local sem permissão de escrita é mantida como uma cópia privada de fork. Um **fork local** — a cópia que este dispositivo guarda quando uma gravação foi recusada — tem **Comparar**: a mesma visão de comparação de um conflito, com as saídas Adotar, Manter ambos e Descartar; depois o fork sai da lista. No telefone é igual. Se uma alteração sua for recusada ali — você não pode mais editar, excluir ou mover a nota, ou ela está fora do que você pode alterar —, um aviso a nomeia uma vez, e a alteração fica neste dispositivo como fork local; uma nota que você não podia excluir ou mover volta ao seu lugar.
 
 ### O que **Integridade e bifurcações locais** diz
 

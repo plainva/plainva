@@ -26,3 +26,15 @@ function fileName(path: string): string {
   const name = path.slice(path.lastIndexOf("/") + 1);
   return name.toLowerCase().endsWith(".md") ? name.slice(0, -3) : name;
 }
+
+/**
+ * Changes the encrypted workspace's policy refused, each kept on this device
+ * as a local fork (`EncryptedWorkspaceWorker.onChangesRefused`) — named as the
+ * kept deletions are, and pointing to where the forks are listed.
+ */
+export function refusedChangesText(paths: ReadonlyArray<string>): string | null {
+  if (paths.length === 0) return null;
+  const names = paths.slice(0, KEPT_DELETIONS_NAMES_SHOWN).map(fileName);
+  const more = paths.length > KEPT_DELETIONS_NAMES_SHOWN ? ", …" : "";
+  return i18n.t("sync.workspaceChangesRefused", { names: names.join(", ") + more });
+}

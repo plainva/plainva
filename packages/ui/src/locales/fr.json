@@ -3804,6 +3804,7 @@
     "deletionsKeptLocalEdits_one": "« {{names}} » a été supprimé dans le cloud, mais contenait ici des modifications pas encore envoyées. Plainva l'a conservé et l'envoie à nouveau ; supprimez-le ici si vous n'en voulez plus.",
     "deletionsKeptLocalEdits_many": "{{count}} fichiers ont été supprimés dans le cloud, mais contenaient ici des modifications pas encore envoyées. Plainva les a conservés et les envoie à nouveau ; supprimez-les ici si vous n'en voulez plus : {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} fichiers ont été supprimés dans le cloud, mais contenaient ici des modifications pas encore envoyées. Plainva les a conservés et les envoie à nouveau ; supprimez-les ici si vous n'en voulez plus : {{names}}",
+    "workspaceChangesRefused": "Non autorisé dans cet espace : {{names}}. La modification reste sur cet appareil comme fork local et ne part pas vers les autres — voir « Intégrité et forks locaux ».",
     "downloading": "Téléchargement des modifications… {{current}}/{{total}}",
     "uploading": "Envoi des modifications… {{current}}/{{total}}",
     "idle": "Synchroniser maintenant (nouvelle tentative incluse)",

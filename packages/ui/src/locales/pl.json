@@ -3894,6 +3894,7 @@
     "deletionsKeptLocalEdits_few": "{{count}} pliki usunięto w chmurze, ale miały tu zmiany, które nie zostały jeszcze wysłane. Plainva je zachowała i wysyła ponownie — usuń je tutaj, jeśli mają zniknąć: {{names}}",
     "deletionsKeptLocalEdits_many": "{{count}} plików usunięto w chmurze, ale miały tu zmiany, które nie zostały jeszcze wysłane. Plainva je zachowała i wysyła ponownie — usuń je tutaj, jeśli mają zniknąć: {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} pliku usunięto w chmurze, ale miał tu zmiany, które nie zostały jeszcze wysłane. Plainva zachowała go i wysyła ponownie — usuń go tutaj, jeśli ma zniknąć: {{names}}",
+    "workspaceChangesRefused": "Niedozwolone w tym obszarze roboczym: {{names}}. Zmiana zostaje na tym urządzeniu jako lokalny fork i nie trafia do innych — zobacz „Integralność i lokalne forki”.",
     "downloading": "Pobieranie zmian… {{current}}/{{total}}",
     "uploading": "Wysyłanie zmian… {{current}}/{{total}}",
     "idle": "Synchronizuj teraz (z ponowieniem)",

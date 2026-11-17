@@ -8,7 +8,7 @@ import {
   WorkspaceQueueingVaultAdapter,
   type WorkspaceStateStore,
 } from "../src/index.js";
-import { live, queued, synced } from "./helpers/workspaceReconcile.ts";
+import { live, ownerSecondDevice, queued, synced } from "./helpers/workspaceReconcile.ts";
 
 /**
  * The encrypted workspace's mass-deletion guard (release 0.9.0 A4). The
@@ -185,5 +185,81 @@ describe("an index from before release 0.9.0", () => {
     await initializeSchema(db);
     const state = new SqlWorkspaceStateStore(db);
     expect((await state.listQueue()).map((entry) => [entry.path, entry.confirmedAt])).toEqual([["old.md", null]]);
+  });
+});
+
+/**
+ * Another device's mass deletion (review of release 0.9.0 A4). The guard
+ * above stops one before it leaves the device; a device without it — an
+ * older version, a broken one — sent it out signed, and every other device
+ * carried it out without a question. The plain sync holds such a pull; the
+ * workspace does now, with the plain sync's question.
+ */
+describe("A4 after review: another device's mass deletion is held here until answered", () => {
+  const names = Array.from({ length: 60 }, (_, index) => `n${String(index).padStart(2, "0")}.md`);
+  /** The owner's desktop deletes fifty files as a device without the guard would: let through. */
+  async function deletedElsewhere() {
+    const owner = await synced(names);
+    const phone = await ownerSecondDevice(owner);
+    for (const name of names.slice(0, 50)) {
+      await owner.vault.deleteItem(name);
+      await owner.state.enqueue("delete", name, null, { confirmed: true });
+    }
+    // And what that device wrote after them.
+    await owner.vault.writeTextFile("after.md", "# after\n");
+    await owner.state.enqueue("write", "after.md");
+    await owner.worker.runCycle();
+    expect(await live(owner.state, names[0])).toBe(false);
+    const asked: Array<{ missing: number; confirmed: number }> = [];
+    phone.worker.onDeletionMirroringSuspended = (info) => asked.push({ missing: info.missing, confirmed: info.confirmed });
+    return { owner, phone, asked };
+  }
+
+  it("held and asked once; nothing is deleted here, and what came after waits with it", { timeout: 30_000 }, async () => {
+    const { phone, asked } = await deletedElsewhere();
+    await phone.worker.runCycle();
+    await phone.worker.runCycle();
+    expect(asked).toEqual([{ missing: 50, confirmed: 60 }]);
+    expect(names.every((name) => phone.vault.files.has(name))).toBe(true);
+    expect(phone.vault.files.has("after.md")).toBe(false);
+    expect(await phone.state.listQuarantine("pending")).toEqual([]);
+  });
+
+  it("let go: the files go here too, and what came after arrives", { timeout: 30_000 }, async () => {
+    const { phone } = await deletedElsewhere();
+    await phone.worker.runCycle();
+    phone.worker.approveSuspendedDeletions();
+    await phone.worker.runCycle();
+    expect(names.slice(0, 50).some((name) => phone.vault.files.has(name))).toBe(false);
+    expect(names.slice(50).every((name) => phone.vault.files.has(name))).toBe(true);
+    expect(phone.vault.files.has("after.md")).toBe(true);
+  });
+
+  it("kept: the files stay here and go up again, for the other device too", { timeout: 30_000 }, async () => {
+    const { owner, phone } = await deletedElsewhere();
+    await phone.worker.runCycle();
+    expect(await phone.worker.keepSuspendedDeletionsLocal()).toBe(50);
+    await phone.worker.runCycle();
+    expect(names.every((name) => phone.vault.files.has(name))).toBe(true);
+    expect(phone.vault.files.has("after.md")).toBe(true);
+    expect(await queued(phone.state)).toEqual([]);
+    expect(await live(phone.state, names[0])).toBe(true);
+    await owner.worker.runCycle();
+    expect(names.every((name) => owner.vault.files.has(name))).toBe(true);
+  });
+
+  it("a few deletions from elsewhere are carried out without a question", { timeout: 30_000 }, async () => {
+    const owner = await synced(names);
+    const phone = await ownerSecondDevice(owner);
+    for (const name of names.slice(0, 3)) {
+      await owner.vault.deleteItem(name);
+      await owner.state.enqueue("delete", name);
+    }
+    await owner.worker.runCycle();
+    let asked = 0;
+    phone.worker.onDeletionMirroringSuspended = () => { asked += 1; };
+    await phone.worker.runCycle();
+    expect(asked).toBe(0);
+    expect(names.slice(0, 3).some((name) => phone.vault.files.has(name))).toBe(false);
   });
 });

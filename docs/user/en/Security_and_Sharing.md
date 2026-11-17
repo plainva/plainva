@@ -1,6 +1,6 @@
 # Security & Sharing
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-16
 
 > **Experimental — not yet independently reviewed.** Encrypted workspaces ship as a preview. The cryptographic design has not been audited by an independent reviewer, and two-device evidence on real Android and iOS hardware is still being collected. Try it, but keep a backup of anything you cannot lose, and do not rely on it for material you must protect.
 
@@ -62,7 +62,7 @@ Feedback appears beside the original note on desktop and mobile, grouped by publ
 
 **Version history** reads encrypted workspace revisions and restores an older revision as a new signed change or as a copy.
 
-Malformed remote artifacts are isolated under **Integrity & local forks**. You can retry them, export their ciphertext, mark an externally repaired artifact as repaired, or deliberately ignore it. One malformed file does not stop valid synchronization, and remote absence alone is never interpreted as deletion. A local program’s unauthorized change is retained as a private fork copy. A **local fork** — the copy this device keeps when a write was refused — carries **Compare**: the same comparison view as a conflict, with the exits Adopt, Keep both and Discard; afterwards the fork leaves the list. The same on the phone.
+Malformed remote artifacts are isolated under **Integrity & local forks**. You can retry them, export their ciphertext, mark an externally repaired artifact as repaired, or deliberately ignore it. One malformed file does not stop valid synchronization, and remote absence alone is never interpreted as deletion. A local program’s unauthorized change is retained as a private fork copy. A **local fork** — the copy this device keeps when a write was refused — carries **Compare**: the same comparison view as a conflict, with the exits Adopt, Keep both and Discard; afterwards the fork leaves the list. The same on the phone. When a change you made is refused there — you may no longer edit, delete or move the note, or it lies outside what you may change — a notice names it once, and the change stays on this device as a local fork; a note you were not allowed to delete or move comes back in its place.
 
 ### What **Integrity & local forks** says
 

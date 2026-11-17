@@ -3624,6 +3624,7 @@
     "journalCheckEmpty": "删除日志中没有需要检查的内容。",
     "journalCheckFailed": "无法检查删除日志。",
     "deletionsKeptLocalEdits_other": "云端已删除的 {{count}} 个文件在此处有尚未上传的更改。Plainva 已保留这些文件并正在重新上传；如不再需要，请在此处删除：{{names}}",
+    "workspaceChangesRefused": "此工作区不允许：{{names}}。更改作为本地分支保留在此设备上，不会发送到其他设备——见“完整性与本地分支”。",
     "downloading": "正在下载更改… {{current}}/{{total}}",
     "uploading": "正在上传更改… {{current}}/{{total}}",
     "idle": "立即同步(含重试)",

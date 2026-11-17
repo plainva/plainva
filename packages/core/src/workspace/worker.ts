@@ -41,6 +41,7 @@ import { PersonalWorkspaceRuntime } from "./personal.js";
 import { assertCanonicalVaultPath } from "./path.js";
 import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
 import {
+  deletedObjectPath,
   PreparedWorkspaceMutation,
   WorkspaceObjectRecord,
   WorkspacePendingPublication,
@@ -60,7 +61,7 @@ import { quarantineReasonCode } from "./quarantineReasons.js";
 import { splitDeviceChains } from "./deviceChains.js";
 import { openWorkspaceComment, publishQueuedWorkspaceComment, workspaceCommentRecord, WorkspaceRevisionHistoryService } from "./collaboration.js";
 import { isMassFileDeletion, vanishingFiles } from "../sync/massDeletion.js";
-import { workspaceDeniedFork } from "./deniedFork.js";
+import { recordWorkspaceDeniedChange } from "./deniedFork.js";
 import { recoverWorkspaceCommentDecisions } from "./commentDecisionRecovery.js";
 import { reconcileWorkspaceCommentRetractions } from "./commentRetractions.js";
 import { validateWorkspaceRecoveryAnchorChain } from "./recovery.js";
@@ -96,6 +97,18 @@ export async function refreshWorkspacePolicy(input: { store: WorkspaceObjectStor
 }
 
 /** The policy refused the mutation (an authorization assert while it was prepared), not a fault. */
+/**
+ * A queued file that could not be read when its change was prepared — locked
+ * by another program (EBUSY), its drive gone for a moment. Its entry waits
+ * for the next cycle; the rest of the queue goes on.
+ */
+class WorkspaceUnreadableFileError extends Error {
+  constructor(readonly path: string, cause: unknown) {
+    super(`${path} could not be read: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = "WorkspaceUnreadableFileError";
+  }
+}
+
 function isRefusedByPolicy(error: unknown): boolean {
   return error instanceof WorkspaceProtocolError && error.code === "authorization";
 }
@@ -240,6 +253,30 @@ export class EncryptedWorkspaceWorker {
   /** The held deletions the open question is about: what the two answers act on. */
   private massDeletionPromptIds: number[] = [];
   private massDeletionSignaled = false;
+  /**
+   * Fired once when another device's deletions would take an implausibly
+   * large share of the files here (review of release 0.9.0 A4), with the plain
+   * sync's arguments (`SyncWorker.onDeletionMirroringSuspended`), so both
+   * shells ask the plain sync's pull-side question. The guard above stops a
+   * mass deletion before it leaves this device; a device without it — an
+   * older version, a broken one — sent it out signed, and every other device
+   * carried it out. Now the deletions, and what that device wrote after them,
+   * wait until `approveSuspendedDeletions()` or `keepSuspendedDeletionsLocal()`.
+   * A signed deletion is no claim of a listing: every one is counted as
+   * checked and gone.
+   */
+  /** The paths of changes refused by the workspace's policy since the last report, each kept here as a local fork. */
+  public onChangesRefused?: (paths: string[]) => void;
+  public onDeletionMirroringSuspended?: (info: { missing: number; confirmed: number; probed: number; absent: number }) => void;
+  /** The held incoming deletions the open question is about (operation hashes). */
+  private suspendedRemoteDeletions: string[] = [];
+  private suspendedRemoteFiles = 0;
+  private remoteDeletionSignaled = false;
+  /** Answered in this session: carried out, or kept here and made anew. Gone with a restart, as in the plain sync. */
+  private readonly approvedRemoteDeletions = new Set<string>();
+  private readonly keptRemoteDeletions = new Set<string>();
+  /** Devices whose operations wait behind a held deletion: their remote head is not taken as observed yet. */
+  private heldDeviceIds = new Set<string>();
   private activePolicy: WorkspaceSignedDocument<"policy", WorkspacePolicyPayload>;
 
   constructor(
@@ -392,6 +429,30 @@ export class EncryptedWorkspaceWorker {
     await this.syncing;
   }
 
+  /** Answer to `onDeletionMirroringSuspended`: the files go here too, at the next cycle. */
+  approveSuspendedDeletions(): void {
+    for (const hash of this.suspendedRemoteDeletions) this.approvedRemoteDeletions.add(hash);
+    this.suspendedRemoteDeletions = [];
+    this.remoteDeletionSignaled = false;
+    this.scheduleImmediate();
+  }
+
+  /**
+   * Answer to `onDeletionMirroringSuspended`, the safe one: the files stay
+   * here and go up again as new notes, for every device (the plain sync's
+   * "keep and upload again"). The deletions are taken into the workspace's
+   * record at the next cycle, the files on the disk untouched.
+   */
+  async keepSuspendedDeletionsLocal(): Promise<number> {
+    for (const hash of this.suspendedRemoteDeletions) this.keptRemoteDeletions.add(hash);
+    const kept = this.suspendedRemoteFiles;
+    this.suspendedRemoteDeletions = [];
+    this.suspendedRemoteFiles = 0;
+    this.remoteDeletionSignaled = false;
+    this.scheduleImmediate();
+    return kept;
+  }
+
   /**
    * Answer to `onMassDeletionPending`: the files really are meant to go. The
    * next cycle pushes the held deletions. Session-scoped, as in the plain
@@ -490,6 +551,7 @@ export class EncryptedWorkspaceWorker {
     await this.reconcileCommentRetractions(signal);
     this.flushCommentsChanged();
     await this.push(signal);
+    await this.reportRefusedChanges();
     await resumeWorkspaceRekey(this.state);
     await this.publishCheckpoint(signal);
     await this.refreshPublications(signal);
@@ -500,6 +562,28 @@ export class EncryptedWorkspaceWorker {
     meta.lastSyncFailure = null;
     if (meta.phase === "migrating" && (await this.state.listQueue(1)).length === 0 && !meta.pendingPublication) meta.phase = "active";
     await this.state.saveMeta(meta);
+  }
+
+  /**
+   * The changes refused since the last report, by path — at the start, while
+   * the app runs, or at the upload. Each is a local fork, shown under the
+   * workspace's integrity; until now that was the only place it reached the
+   * person, the rest a console line (review of release 0.9.0).
+   */
+  private async reportRefusedChanges(): Promise<void> {
+    const meta = await this.requireMeta();
+    const since = meta.refusalsReportedThrough ?? "";
+    const fresh = (await this.state.listLocalForks())
+      .filter((fork) => fork.reason === "permission-denied" && fork.createdAt > since)
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    if (fresh.length === 0) return;
+    meta.refusalsReportedThrough = fresh[fresh.length - 1].createdAt;
+    await this.state.saveMeta(meta);
+    try {
+      this.onChangesRefused?.([...new Set(fresh.map((fork) => fork.originalPath))]);
+    } catch (error) {
+      console.error("[EncryptedWorkspaceWorker] onChangesRefused consumer failed", error);
+    }
   }
 
   private flushCommentsChanged(): void {
@@ -835,7 +919,11 @@ export class EncryptedWorkspaceWorker {
     }
     const chained = await this.validateDeviceChains(fresh, meta.operationHeads);
 
-    const pending = chained.sort((left, right) => left.hash.localeCompare(right.hash));
+    const sorted = chained.sort((left, right) => left.hash.localeCompare(right.hash));
+    const heldFrom = await this.heldRemoteDeletions(sorted);
+    this.heldDeviceIds = new Set(heldFrom.keys());
+    const held = (entry: (typeof sorted)[number]) => (heldFrom.get(entry.document.payload.deviceId) ?? Infinity) <= entry.document.payload.sequence;
+    const pending = sorted.filter((entry) => !held(entry));
     const changed: string[] = [];
     let progress = true;
     while (pending.length && progress) {
@@ -874,9 +962,54 @@ export class EncryptedWorkspaceWorker {
         progress = true;
       }
     }
-    for (const entry of pending) await this.quarantineArtifact("operation", entry.key, entry.bytes, new WorkspaceProtocolError("integrity", "operation graph contains missing revision parents"));
+    // What waits for a held deletion's device may wait for its revisions too; it is looked at again then.
+    if (heldFrom.size === 0) for (const entry of pending) await this.quarantineArtifact("operation", entry.key, entry.bytes, new WorkspaceProtocolError("integrity", "operation graph contains missing revision parents"));
     await this.verifyRemoteHeads(meta, policy, signal);
     return changed;
+  }
+
+  /**
+   * The incoming deletions the guard holds (`onDeletionMirroringSuspended`):
+   * for each device that sent one, the sequence from which its operations
+   * wait. A device's chain is applied in order, so what it wrote after a held
+   * deletion waits with it. Counted as the push-side guard counts: the files
+   * that would leave this device, a folder with every file in it, against the
+   * files it holds. A deletion that would not take a file here (the object
+   * changed since, or unknown) is not counted; neither is one answered.
+   */
+  private async heldRemoteDeletions(operations: Array<{ document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string }>): Promise<Map<string, number>> {
+    const candidates: Array<{ hash: string; deviceId: string; sequence: number; path: string }> = [];
+    for (const { document, hash } of operations) {
+      const operation = document.payload;
+      if (operation.operation !== "delete" || this.approvedRemoteDeletions.has(hash) || this.keptRemoteDeletions.has(hash)) continue;
+      const current = await this.state.getObjectById(operation.objectId);
+      if (!current || current.deleted || !current.currentRevisionId || !operation.parentRevisionIds.includes(current.currentRevisionId)) continue;
+      candidates.push({ hash, deviceId: operation.deviceId, sequence: operation.sequence, path: current.path });
+    }
+    const files = candidates.length > 0
+      ? (await this.state.listObjects(false)).filter((object) => object.contentKind !== "directory").map((object) => object.path)
+      : [];
+    const vanishing = vanishingFiles(candidates.map((candidate) => candidate.path), files);
+    if (!isMassFileDeletion(vanishing, files.length)) {
+      this.remoteDeletionSignaled = false;
+      this.suspendedRemoteDeletions = [];
+      this.suspendedRemoteFiles = 0;
+      return new Map();
+    }
+    const heldFrom = new Map<string, number>();
+    for (const candidate of candidates) heldFrom.set(candidate.deviceId, Math.min(heldFrom.get(candidate.deviceId) ?? Infinity, candidate.sequence));
+    console.warn(`[EncryptedWorkspaceWorker] another device's deletions would take ${vanishing} of ${files.length} files; they are held until confirmed`);
+    this.suspendedRemoteDeletions = candidates.map((candidate) => candidate.hash);
+    this.suspendedRemoteFiles = vanishing;
+    if (!this.remoteDeletionSignaled) {
+      this.remoteDeletionSignaled = true;
+      try {
+        this.onDeletionMirroringSuspended?.({ missing: vanishing, confirmed: files.length, probed: vanishing, absent: vanishing });
+      } catch (error) {
+        console.error("[EncryptedWorkspaceWorker] onDeletionMirroringSuspended consumer failed:", error);
+      }
+    }
+    return heldFrom;
   }
 
   private async validateDeviceChains<T extends { document: WorkspaceSignedDocument<"operation", WorkspaceOperationPayload>; hash: string; key: string; bytes: Uint8Array }>(operations: T[], knownHeads: WorkspaceRuntimeMeta["operationHeads"]): Promise<T[]> {
@@ -946,16 +1079,20 @@ export class EncryptedWorkspaceWorker {
     if ((meta.operationHeads[operation.deviceId]?.sequence ?? 0) < incomingHead.sequence) meta.operationHeads[operation.deviceId] = incomingHead;
     meta.needsPublication = true;
     if (operation.operation === "delete") {
-      return withPathMutation(this.state, [current?.path ?? `deleted-${operation.objectId}`], async () => {
+      return withPathMutation(this.state, [current?.path ?? deletedObjectPath(operation.objectId)], async () => {
       const deleteSlices = current
         ? workspaceSliceIdsForObject(operationPolicy, { objectId: current.objectId, path: current.path, contentKind: current.contentKind })
         : [];
       protocolAssert(evaluateWorkspaceAccess(operationPolicy, { memberId: operation.memberId, deviceId: operation.deviceId, capability: "content.delete", objectId: operation.objectId, sliceIds: deleteSlices }).allowed, "authorization", "delete capability is not granted for the encrypted object");
       const setCurrent = !!current && !!current.currentRevisionId && operation.parentRevisionIds.includes(current.currentRevisionId);
-      if (setCurrent && current) await this.materializeDelete(current, operationHash);
+      // Kept here (`keepSuspendedDeletionsLocal`): the deletion is recorded,
+      // the file stays and goes up again as a new object.
+      const keep = setCurrent && !!current && this.keptRemoteDeletions.has(operationHash) && await this.vault.exists(current.path);
+      if (keep && current) await this.state.enqueue(current.contentKind === "directory" ? "mkdir" : "write", current.path);
+      else if (setCurrent && current) await this.materializeDelete(current, operationHash);
       const object: WorkspaceObjectRecord = current
         ? { ...current, currentRevisionId: null, payloadHash: null, deleted: true, modifiedAt: operation.createdAt }
-        : { objectId: operation.objectId, path: `deleted-${operation.objectId}`, currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, authorMemberId: "", createdAt: operation.createdAt, modifiedAt: operation.createdAt };
+        : { objectId: operation.objectId, path: deletedObjectPath(operation.objectId), currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, authorMemberId: "", createdAt: operation.createdAt, modifiedAt: operation.createdAt };
       await this.state.recordIncoming({ object, revision: null, operationHash, operationDocument: toBase64(encodeWorkspaceDocument(document)), deviceId: operation.deviceId, sequence: operation.sequence }, setCurrent, meta);
       Object.assign(acceptedMeta, meta);
       return setCurrent ? [object.path] : [];
@@ -1109,10 +1246,15 @@ export class EncryptedWorkspaceWorker {
       [item.path, item.newPath].some((own) => !!own && (own === entry.path || own.startsWith(`${entry.path}/`) || entry.path.startsWith(`${own}/`))));
     queue = queue.filter((item) => !held.has(item.id) && !(held.size > 0 && behindHeld(item)));
     const absorbed = new Set<number>();
+    // Paths whose file could not be read this cycle; what touches them waits with it.
+    const unreadable: string[] = [];
+    const touches = (item: WorkspaceQueuedMutation, path: string) => [item.path, item.newPath].some((own) =>
+      !!own && (own === path || own.startsWith(`${path}/`) || path.startsWith(`${own}/`)));
     let current = 0;
     for (const item of queue) {
       if (absorbed.has(item.id)) continue;
       if (signal?.aborted) throw new DOMException("Encrypted workspace push aborted", "AbortError");
+      if (!item.prepared && unreadable.some((path) => touches(item, path))) continue;
       this.onProgress?.({ phase: "push", current: ++current, total: queue.length });
       try {
         let prepared = item.prepared;
@@ -1120,6 +1262,12 @@ export class EncryptedWorkspaceWorker {
           try {
             prepared = await this.prepareMutation(item, queue);
           } catch (error) {
+            if (error instanceof WorkspaceUnreadableFileError) {
+              console.warn(`[EncryptedWorkspaceWorker] ${error.message}; it is tried again at the next sync`);
+              await this.state.markQueueFailed(item.id, error.message);
+              unreadable.push(error.path, item.path);
+              continue;
+            }
             // A device the policy no longer counts as active is not refused one
             // change at a time: that stays the error it is.
             if (!isRefusedByPolicy(error) || !this.deviceIsActive()) throw error;
@@ -1190,12 +1338,36 @@ export class EncryptedWorkspaceWorker {
     return this.activePolicy.payload.devices.some((device) => device.deviceId === deviceId && device.state === "active");
   }
 
+  /**
+   * A refused change never turns into one the person did not make (review of
+   * release 0.9.0). The workspace keeps what it holds: a deletion or a move
+   * the policy refuses brings the original back to its place here — taken out
+   * of the queue with the original still missing, the next start found it gone
+   * and queued its deletion, and the note left every device without a
+   * question. What the person made stays theirs: the file at the new place of
+   * a refused move, like a refused creation or edit, is kept as a local fork.
+   * The original comes back first; if that fails, the entry stays in the queue
+   * as it was and is tried again.
+   */
   private async keepRefusedMutation(item: WorkspaceQueuedMutation, error: unknown): Promise<void> {
     const path = item.operation === "rename" && item.newPath ? item.newPath : item.path;
-    const capability = item.operation === "delete" ? "content.delete" : item.operation === "rename" ? "content.rename" : "content.write";
     console.warn(`[EncryptedWorkspaceWorker] ${item.operation} ${path} is refused by the workspace policy; kept on this device as a local fork`, error);
-    await withPathMutation(this.state, [path], () => workspaceDeniedFork(this.vault, this.state)({ action: "external", path, capability }));
+    if (item.operation === "delete" || item.operation === "rename") await this.restoreOriginal(item.path);
+    await withPathMutation(this.state, [path], () => recordWorkspaceDeniedChange(this.vault, this.state, path, item.operation !== "delete"));
     await this.state.discardQueue(item.id);
+  }
+
+  /** The object the workspace holds at `path`, written back from its current revision where it is missing here. */
+  private async restoreOriginal(path: string): Promise<void> {
+    const history = new WorkspaceRevisionHistoryService(this.objectStore, this.state, this.runtime.groupKeys);
+    const restored = await withPathMutation(this.state, [path], async () => {
+      const object = await this.state.getObjectByPath(path);
+      if (!object || object.deleted || !object.currentRevisionId || await this.vault.exists(path)) return false;
+      if (object.contentKind === "directory") await this.vault.createDir(path);
+      else await this.vault.writeBinaryFile(path, await history.read(object.currentRevisionId));
+      return true;
+    });
+    if (restored) this.onFilesChanged?.([path]);
   }
 
   private async resumePreparedMutations(signal?: AbortSignal): Promise<void> {
@@ -1242,14 +1414,26 @@ export class EncryptedWorkspaceWorker {
     const resolved = await this.resolveRenameChain(item, queue);
     item = resolved.item;
     const meta = await this.requireMeta();
-    const source = await this.state.getObjectByPath(item.path);
+    // A deleted object is no source (release 0.9.0, review of A4): a note
+    // deleted and made again under its name is a new object. Taken as the
+    // deleted one, it went out as a "write" without a revision parent, which
+    // every reader refuses — and the push failed at it, with everything behind
+    // it, for good.
+    const found = await this.state.getObjectByPath(item.path);
+    const source = found && !found.deleted ? found : null;
     const targetPath = item.operation === "rename" ? item.newPath : item.path;
     if (!targetPath) throw new WorkspaceProtocolError("format", "rename queue item is missing its destination");
     if (item.operation === "delete" && !source?.currentRevisionId) return null;
     if (item.operation !== "delete" && !(await this.vault.exists(targetPath))) return null;
-    const info = item.operation === "delete" ? null : await this.vault.getFileInfo(targetPath);
+    let info: Awaited<ReturnType<IVaultAdapter["getFileInfo"]>> | null;
+    let plaintext: Uint8Array;
+    try {
+      info = item.operation === "delete" ? null : await this.vault.getFileInfo(targetPath);
+      plaintext = item.operation === "delete" || item.operation === "mkdir" || info?.isDirectory === true ? new Uint8Array() : await this.vault.readBinaryFile(targetPath);
+    } catch (error) {
+      throw new WorkspaceUnreadableFileError(targetPath, error);
+    }
     const directory = item.operation === "mkdir" || info?.isDirectory === true;
-    const plaintext = item.operation === "delete" || directory ? new Uint8Array() : await this.vault.readBinaryFile(targetPath);
     const objectId = source?.objectId ?? createWorkspaceObjectId();
     const revisionId = item.operation === "delete" ? null : createWorkspaceRevisionId();
     const operationName: WorkspaceOperationName = item.operation === "write"
@@ -1592,7 +1776,10 @@ export class EncryptedWorkspaceWorker {
             throw error;
           }
         }
-        if (!own) meta.operationHeads[payload.deviceId] = { sequence: payload.sequence, operationHash: payload.operationHash };
+        // A device held behind a deletion keeps the head of what was applied:
+        // pinned to its remote head, the held operations would no longer
+        // continue the chain and go to quarantine on the next pull.
+        if (!own && !this.heldDeviceIds.has(payload.deviceId)) meta.operationHeads[payload.deviceId] = { sequence: payload.sequence, operationHash: payload.operationHash };
         await this.acceptArtifact("head", info.key);
       } catch (error) {
         await this.quarantineArtifact("head", info.key, bytes, error);

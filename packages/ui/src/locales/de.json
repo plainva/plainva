@@ -3714,6 +3714,7 @@
     "journalCheckFailed": "Das Löschprotokoll konnte nicht geprüft werden.",
     "deletionsKeptLocalEdits_one": "„{{names}}“ wurde in der Cloud gelöscht, hatte hier aber Änderungen, die noch nicht hochgeladen waren. Plainva hat die Datei behalten und lädt sie wieder hoch — lösche sie hier, wenn sie weg soll.",
     "deletionsKeptLocalEdits_other": "{{count}} Dateien wurden in der Cloud gelöscht, hatten hier aber Änderungen, die noch nicht hochgeladen waren. Plainva hat sie behalten und lädt sie wieder hoch — lösche sie hier, wenn sie weg sollen: {{names}}",
+    "workspaceChangesRefused": "In diesem Workspace nicht erlaubt: {{names}}. Die Änderung bleibt als lokaler Fork auf diesem Gerät und geht nicht an die anderen — zu finden unter „Integrität & lokale Forks“.",
     "downloading": "Änderungen werden geladen… {{current}}/{{total}}",
     "uploading": "Änderungen werden hochgeladen… {{current}}/{{total}}",
     "idle": "Jetzt synchronisieren (inkl. erneutem Versuch)",

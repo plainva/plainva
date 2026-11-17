@@ -325,6 +325,12 @@ export interface WorkspaceRuntimeMeta {
   operationHeads: Record<string, { sequence: number; operationHash: string }>;
   needsPublication: boolean;
   pendingPublication: WorkspacePendingPublication | null;
+  /**
+   * The newest refused change this device has told the person about
+   * (`EncryptedWorkspaceWorker.onChangesRefused`), the creation time of its
+   * local fork. Optional: older state has told nothing yet.
+   */
+  refusalsReportedThrough?: string | null;
   /** Durable full-rekey cursor. Optional so pre-P8 local state remains readable. */
   rekeyJob?: WorkspaceRekeyJob | null;
   /**
@@ -527,7 +533,8 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     return [...this.objects.values()].filter((value) => includeDeleted || !value.deleted).map(clone).sort((a, b) => a.path.localeCompare(b.path));
   }
   async getObjectByPath(path: string): Promise<WorkspaceObjectRecord | null> {
-    return clone([...this.objects.values()].find((value) => value.path === path) ?? null);
+    const objects = [...this.objects.values()];
+    return clone(objects.find((value) => value.path === path && !value.deleted) ?? objects.find((value) => value.path === path) ?? null);
   }
   async getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null> { return clone(this.objects.get(objectId) ?? null); }
   async getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null> { return clone(this.revisions.get(revisionId) ?? null); }
@@ -698,7 +705,13 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   private commitMutation(mutation: CommitWorkspaceMutation, setCurrent: boolean): void {
     this.operations.set(mutation.operationHash, clone(mutation));
     if (mutation.revision) this.revisions.set(mutation.revision.revisionId, clone(mutation.revision));
-    if (setCurrent) this.objects.set(mutation.object.objectId, clone(mutation.object));
+    if (!setCurrent) return;
+    if (!mutation.object.deleted) {
+      for (const other of this.objects.values()) {
+        if (other.deleted && other.path === mutation.object.path && other.objectId !== mutation.object.objectId) other.path = deletedObjectPath(other.objectId);
+      }
+    }
+    this.objects.set(mutation.object.objectId, clone(mutation.object));
   }
 }
 
@@ -849,6 +862,28 @@ function revisionFromRow(row: RevisionRow): WorkspaceRevisionRecord {
   };
 }
 
+/**
+ * Where a deleted object's record goes when a living object takes its path:
+ * a note deleted and made again under its name is a new object, and the path
+ * is one object's at a time (`workspace_object.path` is unique). The record
+ * keeps its id, so a late operation on the deleted object still finds it —
+ * the same place a deletion of an object this device never knew is recorded.
+ */
+export function deletedObjectPath(objectId: string): string {
+  return `deleted-${objectId}`;
+}
+
+/** The object's row, after a deleted object holding its path has given it up. */
+function objectWrites(record: WorkspaceObjectRecord) {
+  return [
+    ...(record.deleted ? [] : [{
+      sql: `UPDATE workspace_object SET path = 'deleted-' || object_id WHERE path = ? AND object_id <> ? AND deleted = 1`,
+      params: [record.path, record.objectId],
+    }]),
+    objectWrite(record),
+  ];
+}
+
 function objectWrite(record: WorkspaceObjectRecord) {
   return {
     // author_member_id is deliberately absent from DO UPDATE, like created_at: who made an
@@ -971,7 +1006,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     return rows.map(objectFromRow);
   }
   async getObjectByPath(path: string): Promise<WorkspaceObjectRecord | null> {
-    const row = await this.db.queryOne<ObjectRow>(`SELECT * FROM workspace_object WHERE path = ? LIMIT 1`, [path]);
+    const row = await this.db.queryOne<ObjectRow>(`SELECT * FROM workspace_object WHERE path = ? ORDER BY deleted ASC LIMIT 1`, [path]);
     return row ? objectFromRow(row) : null;
   }
   async getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null> {
@@ -1223,7 +1258,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
         sql: `INSERT OR IGNORE INTO workspace_operation (operation_hash,device_id,sequence,document_json) VALUES (?,?,?,?)`,
         params: [mutation.operationHash, mutation.deviceId, mutation.sequence, mutation.operationDocument],
       },
-      ...(setCurrent ? [objectWrite(mutation.object)] : []),
+      ...(setCurrent ? objectWrites(mutation.object) : []),
       ...trailing,
       { sql: `INSERT INTO workspace_meta (id,state_json) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json`, params: [JSON.stringify(meta)] },
     ]);

@@ -1,6 +1,6 @@
 # Bezpieczeństwo i udostępnianie
 
-Stan na: 2026-11-11
+Stan na: 2026-11-16
 
 > **Eksperymentalne — jeszcze nie zweryfikowane niezależnie.** Zaszyfrowane workspace'y są udostępniane jako wersja zapoznawcza. Projekt kryptograficzny nie został jeszcze poddany niezależnemu audytowi, a testy na dwóch urządzeniach na prawdziwym sprzęcie z Androidem i iOS wciąż trwają. Wypróbuj tę funkcję, ale zachowaj kopię zapasową wszystkiego, czego nie możesz stracić, i nie polegaj na niej jeszcze w przypadku materiałów, które naprawdę muszą być chronione.
 
@@ -62,7 +62,7 @@ Opinie pojawiają się przy oryginalnej notatce na komputerze i telefonie, pogru
 
 **Historia wersji** odczytuje zaszyfrowane rewizje workspace'u i przywraca starszą rewizję jako nową podpisaną zmianę lub jako kopię.
 
-Nieprawidłowe artefakty zdalne są izolowane pojedynczo w **Integralność i lokalne forki**. Możesz je ponowić, wyeksportować ich ciphertext, oznaczyć naprawiony zewnętrznie artefakt jako naprawiony lub świadomie go zignorować. Jeden nieprawidłowy plik nie blokuje reszty prawidłowej synchronizacji, a sam zdalny brak nigdy nie oznacza usunięcia. Zmiana wprowadzona przez lokalny program bez prawa zapisu jest zachowywana jako prywatna kopia forka. **Lokalny fork** — kopia, którą to urządzenie zachowuje, gdy zapis został odrzucony — ma **Porównaj**: ten sam widok porównania co przy konflikcie, z wyjściami Przyjmij, Zachowaj oba i Odrzuć; potem fork znika z listy. Na telefonie tak samo.
+Nieprawidłowe artefakty zdalne są izolowane pojedynczo w **Integralność i lokalne forki**. Możesz je ponowić, wyeksportować ich ciphertext, oznaczyć naprawiony zewnętrznie artefakt jako naprawiony lub świadomie go zignorować. Jeden nieprawidłowy plik nie blokuje reszty prawidłowej synchronizacji, a sam zdalny brak nigdy nie oznacza usunięcia. Zmiana wprowadzona przez lokalny program bez prawa zapisu jest zachowywana jako prywatna kopia forka. **Lokalny fork** — kopia, którą to urządzenie zachowuje, gdy zapis został odrzucony — ma **Porównaj**: ten sam widok porównania co przy konflikcie, z wyjściami Przyjmij, Zachowaj oba i Odrzuć; potem fork znika z listy. Na telefonie tak samo. Jeśli Twoja zmiana zostanie tam odrzucona — nie możesz już edytować, usuwać ani przenosić notatki albo leży ona poza tym, co możesz zmieniać — powiadomienie nazwie ją raz, a zmiana zostanie na tym urządzeniu jako lokalny fork; notatka, której nie wolno było usunąć ani przenieść, wraca na swoje miejsce.
 
 ### Co mówi **Integralność i lokalne rozgałęzienia**
 

@@ -3714,6 +3714,7 @@
     "journalCheckFailed": "Het verwijderlogboek kon niet worden gecontroleerd.",
     "deletionsKeptLocalEdits_one": "‘{{names}}’ is in de cloud verwijderd, maar had hier wijzigingen die nog niet waren geüpload. Plainva heeft het bestand behouden en uploadt het opnieuw — verwijder het hier als je het kwijt wilt.",
     "deletionsKeptLocalEdits_other": "{{count}} bestanden zijn in de cloud verwijderd, maar hadden hier wijzigingen die nog niet waren geüpload. Plainva heeft ze behouden en uploadt ze opnieuw — verwijder ze hier als je ze kwijt wilt: {{names}}",
+    "workspaceChangesRefused": "Niet toegestaan in deze workspace: {{names}}. De wijziging blijft als lokale fork op dit apparaat en gaat niet naar de andere — zie ‘Integriteit en lokale forks’.",
     "downloading": "Wijzigingen downloaden… {{current}}/{{total}}",
     "uploading": "Wijzigingen uploaden… {{current}}/{{total}}",
     "idle": "Nu synchroniseren (inclusief nieuwe poging)",

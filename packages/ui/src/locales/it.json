@@ -3804,6 +3804,7 @@
     "deletionsKeptLocalEdits_one": "«{{names}}» è stato eliminato nel cloud, ma qui aveva modifiche non ancora caricate. Plainva l'ha conservato e lo carica di nuovo; eliminalo qui se vuoi che sparisca.",
     "deletionsKeptLocalEdits_many": "{{count}} file sono stati eliminati nel cloud, ma qui avevano modifiche non ancora caricate. Plainva li ha conservati e li carica di nuovo; eliminali qui se vuoi che spariscano: {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} file sono stati eliminati nel cloud, ma qui avevano modifiche non ancora caricate. Plainva li ha conservati e li carica di nuovo; eliminali qui se vuoi che spariscano: {{names}}",
+    "workspaceChangesRefused": "Non consentito in questo workspace: {{names}}. La modifica resta su questo dispositivo come fork locale e non arriva agli altri; la trovi in «Integrità e fork locali».",
     "downloading": "Download delle modifiche… {{current}}/{{total}}",
     "uploading": "Caricamento delle modifiche… {{current}}/{{total}}",
     "idle": "Sincronizza ora (incluso un nuovo tentativo)",

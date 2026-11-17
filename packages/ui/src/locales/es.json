@@ -3804,6 +3804,7 @@
     "deletionsKeptLocalEdits_one": "«{{names}}» se eliminó en la nube, pero tenía cambios aquí que aún no se habían subido. Plainva lo conservó y lo vuelve a subir; elimínalo aquí si quieres que desaparezca.",
     "deletionsKeptLocalEdits_many": "{{count}} archivos se eliminaron en la nube, pero tenían cambios aquí que aún no se habían subido. Plainva los conservó y los vuelve a subir; elimínalos aquí si quieres que desaparezcan: {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} archivos se eliminaron en la nube, pero tenían cambios aquí que aún no se habían subido. Plainva los conservó y los vuelve a subir; elimínalos aquí si quieres que desaparezcan: {{names}}",
+    "workspaceChangesRefused": "No está permitido en este espacio: {{names}}. El cambio se queda en este dispositivo como bifurcación local y no llega a los demás; consúltalo en «Integridad y bifurcaciones locales».",
     "downloading": "Descargando cambios… {{current}}/{{total}}",
     "uploading": "Subiendo cambios… {{current}}/{{total}}",
     "idle": "Sincronizar ahora (incluye reintento)",

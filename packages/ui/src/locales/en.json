@@ -3714,6 +3714,7 @@
     "journalCheckFailed": "The deletion log could not be checked.",
     "deletionsKeptLocalEdits_one": "“{{names}}” was deleted in the cloud but had changes here that were not uploaded yet. Plainva kept it and is uploading it again — delete it here if you want it gone.",
     "deletionsKeptLocalEdits_other": "{{count}} files were deleted in the cloud but had changes here that were not uploaded yet. Plainva kept them and is uploading them again — delete them here if you want them gone: {{names}}",
+    "workspaceChangesRefused": "Not allowed in this workspace: {{names}}. The change stays on this device as a local fork and does not go to the others — see “Integrity & local forks”.",
     "downloading": "Downloading changes… {{current}}/{{total}}",
     "uploading": "Uploading changes… {{current}}/{{total}}",
     "idle": "Sync now (including retry)",

@@ -1,6 +1,6 @@
 # Sicherheit & Freigaben
 
-Stand: 2026-11-11
+Stand: 2026-11-16
 
 > **Experimentell — noch nicht unabhängig geprüft.** Verschlüsselte Workspaces sind eine Vorschau. Das kryptografische Design wurde noch nicht von unabhängiger Seite auditiert, und die Zwei-Geräte-Abnahme auf echter Android- und iOS-Hardware läuft noch. Probier es aus, aber halte von allem, was Du nicht verlieren darfst, eine Sicherung — und verlass Dich noch nicht darauf für Material, das wirklich geschützt sein muss.
 
@@ -62,7 +62,7 @@ Rückmeldungen erscheinen auf Desktop und Mobil bei der Originalnotiz, getrennt 
 
 **Versionsverlauf** liest die verschlüsselten Workspace-Revisionen und stellt eine ältere Revision als neue signierte Änderung oder als Kopie wieder her.
 
-Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**. Du kannst sie erneut prüfen, als Ciphertext exportieren, nach externer Reparatur als repariert markieren oder bewusst ignorieren. Eine fehlerhafte Datei hält gültige Synchronisationen nicht an; bloße Remote-Abwesenheit wird niemals als Löschung interpretiert. Änderungen eines lokalen Programms ohne Schreibrecht bleiben als private Fork-Kopie erhalten. Ein **lokaler Fork** — die Kopie, die dieses Gerät behält, wenn ein Schreiben abgelehnt wurde — trägt **Vergleichen**: dieselbe Vergleichsfläche wie bei einem Konflikt, mit den Ausgängen Übernehmen, Beide behalten und Verwerfen; danach verschwindet der Fork aus der Liste. Am Telefon genauso.
+Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**. Du kannst sie erneut prüfen, als Ciphertext exportieren, nach externer Reparatur als repariert markieren oder bewusst ignorieren. Eine fehlerhafte Datei hält gültige Synchronisationen nicht an; bloße Remote-Abwesenheit wird niemals als Löschung interpretiert. Änderungen eines lokalen Programms ohne Schreibrecht bleiben als private Fork-Kopie erhalten. Ein **lokaler Fork** — die Kopie, die dieses Gerät behält, wenn ein Schreiben abgelehnt wurde — trägt **Vergleichen**: dieselbe Vergleichsfläche wie bei einem Konflikt, mit den Ausgängen Übernehmen, Beide behalten und Verwerfen; danach verschwindet der Fork aus der Liste. Am Telefon genauso. Wird dort eine Änderung von Dir abgelehnt — Du darfst die Notiz nicht mehr bearbeiten, löschen oder verschieben, oder sie liegt außerhalb dessen, was Du ändern darfst —, nennt ein Hinweis sie einmal, und die Änderung bleibt als lokaler Fork auf diesem Gerät; eine Notiz, die Du nicht löschen oder verschieben durftest, kommt an ihren Platz zurück.
 
 ### Was **Integrität & lokale Forks** sagt
 

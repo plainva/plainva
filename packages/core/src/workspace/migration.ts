@@ -6,8 +6,10 @@ import { WorkspaceObjectStore } from "./objectStore.js";
 import { PersonalWorkspaceRuntime } from "./personal.js";
 import { isWorkspaceLocalOnlyPath } from "./queueingVaultAdapter.js";
 import { protocolAssert } from "./errors.js";
-import { WorkspaceLocalProbe, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
+import { WorkspaceLocalProbe, WorkspaceObjectRecord, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
 import { refreshWorkspacePolicy } from "./worker.js";
+import { WorkspaceRevisionHistoryService } from "./collaboration.js";
+import { withPathMutation } from "../vault/pathMutation.js";
 
 /**
  * The permission check of the vault's chain for a change made outside the
@@ -173,9 +175,18 @@ export async function initializePersonalWorkspaceMigration(input: {
     if (judged === "held") return "kept";
     if (kind === "file" && sha === null) sha = await readHash(path);
     if (kind === "file" && sha === null) return "later";
+    if (kind === "file" && sha && !objectsByPath.get(path)) refusedNewContent.add(sha);
     if (!(await refusedBefore(path, kind === "file" ? sha : null))) await permissions.keepDeniedExternalChange(path, exists);
     return "kept";
   };
+  // What a refused new file holds (its hash). A file moved while the app was
+  // closed looks like a new file here and a missing object there; when the new
+  // place is refused, the move is (review of release 0.9.0): the missing
+  // original is no deletion the person made, and it comes back from the
+  // workspace instead of going out as one. Read as a move whenever the bytes
+  // match — a copy made elsewhere and the original deleted is kept the same
+  // way, the safe side of the two.
+  const refusedNewContent = new Set<string>();
   let deferred = 0;
   for (const entry of inventory) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
@@ -218,9 +229,37 @@ export async function initializePersonalWorkspaceMigration(input: {
   // the durable object map against the startup inventory so offline edits and
   // deletions enter the same signed queue before the first pull.
   const missingObjects = [...objectsByPath.values()].filter((object) => !object.deleted && !localPaths.has(object.path) && !unjudged(object.path));
-  for (const object of missingObjects) {
+  // Files first, then folders from the deepest: a folder whose file came back is no folder that went.
+  const restoredPaths: string[] = [];
+  const restore = async (object: WorkspaceObjectRecord): Promise<boolean> => {
+    try {
+      const history = new WorkspaceRevisionHistoryService(input.store, input.state, input.runtime.groupKeys);
+      return await withPathMutation(input.state, [object.path], async () => {
+        if (await input.vault.exists(object.path)) return true;
+        if (object.contentKind === "directory") await input.vault.createDir(object.path);
+        else await input.vault.writeBinaryFile(object.path, await history.read(object.currentRevisionId!));
+        restoredPaths.push(object.path);
+        return true;
+      });
+    } catch (error) {
+      // Not brought back now; neither is it deleted. The next start looks again.
+      console.warn(`[workspace] ${object.path} was moved to a place this member may not write and could not be put back`, error);
+      return false;
+    }
+  };
+  const missingOrder = [...missingObjects].sort((left, right) =>
+    Number(left.contentKind === "directory") - Number(right.contentKind === "directory") || right.path.split("/").length - left.path.split("/").length);
+  for (const object of missingOrder) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     if (pendingPaths.has(object.path)) { queued += 1; continue; }
+    const movedAway = object.contentKind === "directory"
+      ? restoredPaths.some((path) => path.startsWith(`${object.path}/`))
+      : !!object.plaintextSha256 && refusedNewContent.has(object.plaintextSha256);
+    if (movedAway && object.currentRevisionId) {
+      await restore(object);
+      completed += 1;
+      continue;
+    }
     if ((await verdict(object.path, "deletion", null)) === "kept") { completed += 1; continue; }
     // Unconfirmed: nobody deleted these in the app. Many of them at once are
     // held by the worker's mass-deletion guard until the person answers (A4).

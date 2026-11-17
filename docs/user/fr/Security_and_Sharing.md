@@ -1,6 +1,6 @@
 # Sécurité et partage
 
-Dernière mise à jour : 2026-11-11
+Dernière mise à jour : 2026-11-16
 
 > **Expérimental — pas encore audité de manière indépendante.** Les espaces de travail chiffrés sont proposés en avant-première. La conception cryptographique n’a pas encore été auditée par un examinateur indépendant, et les tests sur deux appareils avec du matériel Android et iOS réel sont encore en cours. Essayez-le, mais conservez une sauvegarde de tout ce que vous ne pouvez pas vous permettre de perdre, et ne vous y fiez pas encore pour du contenu qui doit impérativement être protégé.
 
@@ -62,7 +62,7 @@ Les retours apparaissent avec la note originale sur ordinateur et mobile, regrou
 
 **Historique des versions** lit les révisions chiffrées du workspace et restaure une révision plus ancienne comme nouvelle modification signée ou comme copie.
 
-Les artefacts distants invalides sont isolés individuellement sous **Intégrité et forks locaux**. Vous pouvez les réessayer, exporter leur ciphertext, marquer un artefact réparé en externe comme réparé, ou l’ignorer délibérément. Un fichier invalide ne bloque pas le reste de la synchronisation valide, et une absence distante seule ne vaut jamais suppression. Une modification apportée par un programme local sans droit d’écriture est conservée comme une copie de fork privée. Un **fork local** — la copie que cet appareil conserve lorsqu'une écriture a été refusée — porte **Comparer** : la même vue de comparaison qu'un conflit, avec les sorties Adopter, Garder les deux et Abandonner ; ensuite le fork disparaît de la liste. Pareil sur le téléphone.
+Les artefacts distants invalides sont isolés individuellement sous **Intégrité et forks locaux**. Vous pouvez les réessayer, exporter leur ciphertext, marquer un artefact réparé en externe comme réparé, ou l’ignorer délibérément. Un fichier invalide ne bloque pas le reste de la synchronisation valide, et une absence distante seule ne vaut jamais suppression. Une modification apportée par un programme local sans droit d’écriture est conservée comme une copie de fork privée. Un **fork local** — la copie que cet appareil conserve lorsqu'une écriture a été refusée — porte **Comparer** : la même vue de comparaison qu'un conflit, avec les sorties Adopter, Garder les deux et Abandonner ; ensuite le fork disparaît de la liste. Pareil sur le téléphone. Si une de vos modifications y est refusée — vous ne pouvez plus modifier, supprimer ou déplacer la note, ou elle se trouve hors de ce que vous pouvez changer —, un avis la nomme une fois, et la modification reste sur cet appareil comme fork local ; une note que vous n'aviez pas le droit de supprimer ou de déplacer revient à sa place.
 
 ### Ce que dit **Intégrité et bifurcations locales**
 
