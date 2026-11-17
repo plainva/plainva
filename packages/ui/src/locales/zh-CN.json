@@ -5466,6 +5466,7 @@
     "backupZipNever": "尚无备份",
     "backupZipDone": "已创建备份：{{name}}",
     "backupZipFailed": "无法创建“{{name}}”的备份。以前的归档会保留。你可以在资料库设置中重试。",
+    "backupZipLastFailed": "上次备份失败",
     "backupUnreadableTitle": "较早的备份无法读取",
     "backupUnreadableBody": "“文件”应用仍能打开它们。",
     "backupUnreadableShort": "{{folder}} 中的部分文件自重新安装后无法读取；它们不会被统计或清理。",

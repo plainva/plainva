@@ -5702,6 +5702,7 @@
     "backupZipNever": "Nessun backup finora",
     "backupZipDone": "Backup creato: {{name}}",
     "backupZipFailed": "Non è stato possibile creare il backup di «{{name}}». Gli archivi precedenti restano disponibili. Puoi riprovare dalle impostazioni del vault.",
+    "backupZipLastFailed": "Ultimo backup non riuscito",
     "backupUnreadableTitle": "I backup precedenti non sono leggibili",
     "backupUnreadableBody": "L’app File può ancora aprirli.",
     "backupUnreadableShort": "Alcuni file in {{folder}} non sono leggibili dopo una reinstallazione; non vengono né contati né ripuliti.",

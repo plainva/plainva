@@ -127,6 +127,7 @@ export * from "./pim/taskToProvider";
 export * from "./pim/taskTimeBlock";
 export * from "./pim/actualTime";
 export * from "./pim/taskSync";
+export * from "./pim/taskSyncNews";
 export * from "./pim/taskDeletion";
 export * from "./lib/appFonts";
 export * from "./lib/contentFont";

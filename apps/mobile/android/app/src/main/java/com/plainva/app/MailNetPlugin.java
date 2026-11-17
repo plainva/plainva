@@ -65,7 +65,8 @@ public class MailNetPlugin extends Plugin {
     @PluginMethod
     public void open(PluginCall call) {
         String host = call.getString("host");
-        Integer port = call.getInt("port");
+        Long portArg = JsNumbers.whole(call, "port");
+        Integer port = portArg == null ? null : portArg.intValue();
         boolean tls = Boolean.TRUE.equals(call.getBoolean("tls", false));
         if (host == null || port == null) {
             call.reject("host and port are required");
@@ -146,7 +147,7 @@ public class MailNetPlugin extends Plugin {
             call.reject("unknown connection");
             return;
         }
-        Integer timeout = call.getInt("timeoutMs", 30000);
+        Integer timeout = (int) JsNumbers.wholeOr(call, "timeoutMs", 30000L);
         try {
             c.socket.setSoTimeout(timeout == null ? 30000 : timeout);
             byte[] buf = new byte[MAX_READ];
