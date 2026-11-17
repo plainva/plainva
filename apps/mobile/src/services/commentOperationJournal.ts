@@ -1,7 +1,8 @@
 import { FileCommentOperationJournal } from "@plainva/core";
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Encoding, Filesystem } from "@capacitor/filesystem";
 import { isMissingFile } from "../adapters/fileErrors";
-import { atomicWriteText } from "../platform/atomicFile";
+import { atomicWriteInternalText } from "../platform/atomicFile";
+import { internalPlace } from "../platform/internalFiles";
 
 /** The normal draft retention skips this directory; unfinished operations stay. */
 export function mobileCommentOperationJournal(vaultId: string): FileCommentOperationJournal {
@@ -10,15 +11,17 @@ export function mobileCommentOperationJournal(vaultId: string): FileCommentOpera
   return new FileCommentOperationJournal({
     read: async (file) => {
       try {
-        const result = await Filesystem.readFile({ path: `${directory}/${file}`, directory: Directory.Data, encoding: Encoding.UTF8 });
+        const place = await internalPlace(`${directory}/${file}`);
+        const result = await Filesystem.readFile({ path: place.path, directory: place.directory, encoding: Encoding.UTF8 });
         if (typeof result.data !== "string") throw new Error("The comment journal read could not be confirmed");
         return result.data;
       } catch (error) { if (isMissingFile(error)) return null; throw error; }
     },
-    writeAtomic: (file, text) => atomicWriteText(`${directory}/${file}`, text),
+    writeAtomic: (file, text) => atomicWriteInternalText(`${directory}/${file}`, text),
     list: async () => {
       try {
-        const result = await Filesystem.readdir({ path: directory, directory: Directory.Data });
+        const place = await internalPlace(directory);
+        const result = await Filesystem.readdir({ path: place.path, directory: place.directory });
         if (!Array.isArray(result.files) || result.files.some((entry) => !entry || typeof entry.name !== "string"
           || !entry.name || (entry.type !== "file" && entry.type !== "directory"))) throw new Error("The comment journal listing could not be confirmed");
         return result.files.map((entry) => entry.name);

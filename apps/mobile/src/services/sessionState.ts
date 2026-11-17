@@ -15,7 +15,7 @@
  * Stored per vault in local storage, like the scroll memory and the
  * conflicts; written debounced on every change and flushed when the app goes
  * to the background, because Android may kill the process without a further
- * callback.
+ * callback, and when the page goes away (a reload).
  */
 import { useEffect } from "react";
 import { NAV_KINDS, INPUT_KINDS, emptyStacks, ensureVisibleTab, type NavEntry, type NavKind, type NavState, type TabScreenId } from "../navigation";
@@ -134,7 +134,7 @@ export async function restoreNavState(
 
 /* ---------------------------------------------------------------- saving */
 
-let pending: { vaultKey: string; nav: NavState } | null = null;
+let pending: { vaultKey: string; nav: NavState; storage: StorageLike | null } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 /** Vaults whose restore has been attempted — before that, nothing is written over the stored session. */
 const ready = new Set<string>();
@@ -149,23 +149,37 @@ export function markSessionReady(vaultKey: string): void {
 /** Debounced write; the boot's initial state never overwrites a session that has not been read yet. */
 export function scheduleNavSave(vaultKey: string, nav: NavState, storage: StorageLike | null = defaultStorage()): void {
   if (!ready.has(vaultKey)) return;
-  pending = { vaultKey, nav };
+  pending = { vaultKey, nav, storage };
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     timer = null;
-    flushNavSave(storage);
+    flushNavSave();
   }, NAV_SAVE_DEBOUNCE_MS);
 }
 
-/** Writes what is pending NOW — the app is going to the background. */
-export function flushNavSave(storage: StorageLike | null = defaultStorage()): void {
+/** Writes what is pending NOW — the app is going to the background, or the page away. */
+export function flushNavSave(storage?: StorageLike | null): void {
   if (timer) {
     clearTimeout(timer);
     timer = null;
   }
   if (!pending) return;
-  writeNavState(pending.vaultKey, pending.nav, storage);
+  writeNavState(pending.vaultKey, pending.nav, storage === undefined ? pending.storage : storage);
   pending = null;
+}
+
+/**
+ * Leaving the page writes what is pending (B12 of release 0.9.0): a reload —
+ * the WebView's, the preview's, a crash recovery — sends no background
+ * callback, and a "Back" in the last 250 ms before it was lost, so the
+ * screen the person had left came back. `pagehide` is the one event every
+ * engine sends for a reload and a close; the write is synchronous.
+ */
+export function installNavFlushOnLeave(target: Pick<EventTarget, "addEventListener" | "removeEventListener"> | null = typeof window === "undefined" ? null : window): () => void {
+  if (!target) return () => {};
+  const flush = () => flushNavSave();
+  target.addEventListener("pagehide", flush);
+  return () => target.removeEventListener("pagehide", flush);
 }
 
 /**
@@ -174,6 +188,7 @@ export function flushNavSave(storage: StorageLike | null = defaultStorage()): vo
  * flushes it, because Android may kill the process without another callback.
  */
 export function useNavPersistence(vault: { vaultId: string } | null, nav: NavState): void {
+  useEffect(() => installNavFlushOnLeave(), []);
   useEffect(() => {
     if (vault) scheduleNavSave(vault.vaultId, nav);
   }, [nav, vault]);

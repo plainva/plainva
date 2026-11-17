@@ -1,6 +1,6 @@
 # Łączenie aplikacji AI (beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Aplikacje AI na Twoim komputerze — Claude Code, Claude Desktop, Cursor, VS Code i inne, które mówią protokołem Model Context Protocol (MCP) — mogą czytać Twój vault przez Plainva: przeszukiwać go, czytać notatki i ich sekcje, konspekty, linki zwrotne, bazy danych, zadania i ostatnie notatki oraz otwierać notatkę w Plainva. Same niczego nie zmieniają: aplikacja, której na to pozwolisz, może proponować zmiany, a te czekają, aż zdecydujesz (zob. niżej). To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -16,9 +16,9 @@ Plainva instaluje obok aplikacji mały program pomocniczy, `plainva-mcp`. Aplika
 
 1. Otwórz **Ustawienia → AI** i włącz **Używaj AI na tym urządzeniu**.
 2. Na karcie **Aplikacje AI na tym komputerze** włącz **Pozwól aplikacjom AI na tym komputerze czytać ten vault**.
-3. Skonfiguruj aplikację (zob. niżej). Przy pierwszym połączeniu Plainva pyta, jaka to aplikacja, jaki program ją uruchomił i które foldery może czytać. Nic nie jest zaznaczone: wybierz foldery albo **Cały vault**, potem **Zezwól**. **Odmów** odprawia aplikację, a Plainva przez dziesięć minut nie pyta o nią ponownie. Pod folderami znajduje się **Może proponować zmiany** — wyłączone, dopóki tego nie zaznaczysz; na co pozwala, opisano niżej.
+3. Skonfiguruj aplikację (zob. niżej). Przy pierwszym połączeniu Plainva pyta, jaka to aplikacja, jaki program ją uruchomił i które foldery może czytać. Nic nie jest zaznaczone: wybierz spośród folderów najwyższego poziomu vaultu albo **Cały vault**, potem **Zezwól**. **Odmów** odprawia aplikację, a Plainva przez dziesięć minut nie pyta o nią ponownie. Pod folderami znajduje się **Może proponować zmiany** — wyłączone, dopóki tego nie zaznaczysz; na co pozwala, opisano niżej.
 
-Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery przyznaje się dla każdej aplikacji i każdego vaultu osobno: w innym vaulcie aplikacja pyta ponownie. Gdy otworzysz inny vault, aplikacje połączone z poprzednim zostają rozłączone; nowy odczytają dopiero po ponownym połączeniu.
+Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery przyznaje się dla każdej aplikacji i każdego vaultu osobno: w innym vaulcie aplikacja pyta ponownie. Gdy otworzysz inny vault, aplikacje połączone z poprzednim zostają rozłączone; nowy odczytają dopiero po ponownym połączeniu. Dopóki włączone jest **W pełni lokalnie** (zob. [Asystent AI](AI_Assistant.md)), serwer odpoczywa: żadna aplikacja nie może czytać vaultu, a aplikacja, która się łączy, zostaje odrzucona.
 
 ## Konfiguracja aplikacji
 
@@ -28,23 +28,23 @@ Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery pr
 
 ## Co widzi aplikacja
 
-Tylko foldery, na które zezwolono, i tylko to, co Twoje zasady prywatności puszczają do modelu w chmurze, który może sięgać do internetu — aplikacja jest traktowana jak taki model, bo Plainva nie widzi, co robi z tym, co przeczyta: notatki z `cloud: deny` albo `web: deny`, albo w folderze z jedną z tych reguł, dla aplikacji nie istnieją — ani ich tekst, ani tytuły —, linki do nich są zatrzymywane, a miejsca z dziennika nigdy nie wychodzą. Własne foldery Plainva (`.plainva`, `.agent`) i same reguły nigdy nie są czytelne. Każda ścieżka w zapytaniu i w odpowiedzi jest sprawdzana dwa razy: w oknie aplikacji i w natywnej części Plainva.
+Tylko foldery, na które zezwolono, i tylko to, co Twoje zasady prywatności puszczają do modelu w chmurze, który może sięgać do internetu — aplikacja jest traktowana jak taki model, bo Plainva nie widzi, co robi z tym, co przeczyta: notatki z `cloud: deny` albo `web: deny`, albo w folderze z jedną z tych reguł, dla aplikacji nie istnieją — ani ich tekst, ani tytuły —, linki do nich są zatrzymywane, a miejsca z dziennika nigdy nie wychodzą. Notatka w dozwolonym folderze, której nazwy nie da się ocenić w takiej postaci, jaka jest — kończy się spacją lub kropką, zawiera dwukropek albo nie jest w złożonej postaci Unicode — też zostaje pominięta, a odpowiedź mówi, ile notatek pominięto. Własne foldery Plainva (`.plainva`, `.agent`) i same reguły nigdy nie są czytelne. Każda ścieżka w zapytaniu i w odpowiedzi jest sprawdzana dwa razy: w oknie aplikacji i w natywnej części Plainva.
 
-Ustawienia pokazują dozwolone aplikacje z ich folderami i ostatnie zapytania. **Usuń** cofa zgodę aplikacji we wszystkich vaultach. Obowiązuje to od razu — także dla aplikacji, która jest w tej chwili połączona.
+Ustawienia pokazują aplikacje dozwolone na tym komputerze z ich folderami w tym vaulcie (**żaden w tym vaulcie** przy aplikacji dozwolonej tylko gdzie indziej) i ostatnie zapytania. **Usuń** cofa zgodę aplikacji we wszystkich vaultach. Obowiązuje to od razu — także dla aplikacji, która jest w tej chwili połączona.
 
-Oprócz narzędzi Plainva udostępnia swoje trzy umiejętności jako prompty, w języku aplikacji: `daily-orientation`, `weekly-review` i `project-status`, który pyta o nazwę projektu. Aplikacja obsługująca prompty pokazuje je wśród swoich poleceń.
+Oprócz narzędzi Plainva udostępnia pięć swoich umiejętności jako prompty, we własnym języku Plainvy, oraz opis formatu plików jako zasób (`plainva://format`): prompty to `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` i `task-triage`; `project-status` pyta o nazwę projektu, a `meeting-prep` o spotkanie. Aplikacja obsługująca prompty pokazuje je wśród swoich poleceń.
 
 ## Pozwalanie aplikacji na proponowanie zmian
 
-Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; Plainva od razu informuje połączoną aplikację, że jej narzędzia się zmieniły — czy aplikacja na to zareaguje i pokaże je bez ponownego połączenia, zależy od niej.
+Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także proponować zmiany, jest osobną odpowiedzią: **Może proponować zmiany** w pytaniu przy pierwszym połączeniu albo później przełącznik **… może proponować zmiany** w ustawieniach — dla każdej aplikacji i każdego vaultu osobno, wyłączony, dopóki go nie włączysz. Obowiązuje od następnego zapytania aplikacji; Plainva od razu informuje połączoną aplikację, że jej narzędzia się zmieniły (aplikacja, która używa najnowszej rewizji protokołu, dowie się o tym tylko wtedy, gdy o to poprosiła) — czy wtedy pokaże je bez ponownego połączenia, zależy od niej.
 
 Aplikacja, której na to pozwolono, dostaje sześć dodatkowych narzędzi i żadne z nich nie zmienia vaultu:
 
 - **Zmiana w notatce** — w jej tekście albo w jednej z właściwości — staje się propozycją na marginesie notatki, podpisaną nazwą aplikacji i „(aplikacja AI)”. Tam akceptujesz lub odrzucasz każdą zmianę osobno, jak przy każdej propozycji (zobacz [Komentarze i propozycje](Comments_and_Suggestions.md)).
 - **Nowa notatka** staje się szkicem w **Do decyzji** na karcie AI. Powstaje, gdy wybierzesz tam **Utwórz**.
-- **Zmiana nazwy, przeniesienie i usunięcie** najpierw pytają. Plainva pokazuje we własnym oknie, co by się stało — przy zmianie nazwy także notatki, których linki poszłyby za nią — a aplikacja pokazuje informację, że Plainva czeka. Dopiero po **Zezwól** w Plainva i gdy aplikacja będzie kontynuować, Plainva robi to tak, jak wtedy, gdy robisz to ręcznie; aplikacja dowiaduje się tylko, czy to nastąpiło. Przy usuwaniu Plainva otwiera wtedy własne okno usuwania i nic nie znika, zanim tam nie potwierdzisz. Aplikacji, która nie potrafi pokazać takiej informacji, te trzy narzędzia nie są oferowane.
+- **Zmiana nazwy, przeniesienie i usunięcie** najpierw pytają. Plainva pokazuje we własnym oknie, co by się stało — przy zmianie nazwy także notatki, których linki poszłyby za nią — a aplikacja pokazuje informację, że Plainva czeka. Dopiero po **Zezwól** w Plainva i gdy aplikacja będzie kontynuować, Plainva robi to tak, jak wtedy, gdy robisz to ręcznie; aplikacja dowiaduje się tylko, czy to nastąpiło. Przy usuwaniu Plainva otwiera wtedy własne okno usuwania i nic nie znika, zanim tam nie potwierdzisz. Aplikacji, która nie potrafi pokazać takiej informacji — potrzebuje rewizji protokołu MCP 2026-07-28 lub nowszej i musi móc zadać Ci pytanie w formularzu —, te trzy narzędzia nie są oferowane.
 
-Adres internetowy, który wnosi aplikacja, jest zapisywany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`), tak jak u asystenta. Własnych zasad prywatności notatki (`plainva.ai`) nie ustawia żadna aplikacja, a w zaszyfrowanym workspace nic nie jest proponowane, szkicowane ani planowane. **Ostatnie zapytania** w ustawieniach mówi przy każdym zapytaniu, co się z nim stało — także to, że Plainva zapytała Ciebie, albo że odmówiono.
+Adres internetowy, który wnosi aplikacja, jest zapisywany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`), tak jak u asystenta. Własnych zasad prywatności notatki (`plainva.ai`) nie ustawia żadna aplikacja, a w zaszyfrowanym workspace nic nie jest proponowane, szkicowane ani planowane. Lista ostatnich zapytań w ustawieniach pokazuje osiem najnowszych i oznacza te zapytania, o które Plainva pytała Ciebie (**pytanie**), te, na które odpowiedź brzmiała „nie” (**odmówiono**), i te, które nie zostały przepuszczone (**odrzucone**); zapytanie, które zostało przepuszczone, nie nosi żadnego słowa.
 
 ## Ograniczenia
 

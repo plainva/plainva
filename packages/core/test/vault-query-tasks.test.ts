@@ -89,6 +89,39 @@ describe("the journal stamp in front of a task", () => {
     expect(tasks.every((t) => t.journalTime === undefined)).toBe(true);
   });
 
+  it("a list asked for while the shell still reads the naming waits for it", async () => {
+    const db = new MockDatabaseAdapter();
+    db.mockedResults = [[{ path: "Daily/2026-11-05.md", title: "2026-11-05", content: DAILY }]];
+    const query = new VaultQueryService(db);
+    let settle!: (resolver: ((path: string) => string | null) | null) => void;
+    query.setDayOfPath(new Promise((resolve) => (settle = resolve)));
+    const listed = query.listTasks();
+    settle((path) => (path.startsWith("Daily/") ? path.slice(6, 16) : null));
+    const tasks = await listed;
+    expect(tasks.find((t) => t.text.startsWith("10:15 Call Anna"))?.journalTime).toBe("10:15");
+  });
+
+  it("a naming that cannot be read means no daily notes, not a list that never comes", async () => {
+    const db = new MockDatabaseAdapter();
+    db.mockedResults = [[{ path: "Daily/2026-11-05.md", title: "2026-11-05", content: DAILY }]];
+    const query = new VaultQueryService(db);
+    query.setDayOfPath(Promise.reject(new Error("store gone")));
+    const tasks = await query.listTasks();
+    expect(tasks.every((t) => t.journalTime === undefined)).toBe(true);
+  });
+
+  it("a later naming wins over one still being read", async () => {
+    const db = new MockDatabaseAdapter();
+    db.mockedResults = [[{ path: "Daily/2026-11-05.md", title: "2026-11-05", content: DAILY }]];
+    const query = new VaultQueryService(db);
+    let settle!: (resolver: ((path: string) => string | null) | null) => void;
+    query.setDayOfPath(new Promise((resolve) => (settle = resolve)));
+    query.setDayOfPath(null);
+    settle((path) => (path.startsWith("Daily/") ? path.slice(6, 16) : null));
+    const tasks = await query.listTasks();
+    expect(tasks.every((t) => t.journalTime === undefined)).toBe(true);
+  });
+
   it("is the journal's own rule: a time of day, then the text", () => {
     expect(splitJournalStamp("10:15 Call Anna")).toEqual({ time: "10:15", name: "Call Anna" });
     expect(splitJournalStamp("7:05 early")).toEqual({ time: "7:05", name: "early" });

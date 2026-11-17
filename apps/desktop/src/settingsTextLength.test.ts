@@ -43,6 +43,9 @@ describe("visible lines in settings (E8)", () => {
   const { visibleKeys } = extractSettingsIndex();
   const keys = new Map(visibleKeys);
   for (const area of SETTINGS_AREAS) keys.set(area.descKey, "settingsCatalog (page description)");
+  // A shared component of packages/ui the extraction does not read, standing
+  // visibly under the task lists of an account's page (issue 172).
+  keys.set("tasks.taskDbHint", "TaskDatabaseHint (packages/ui), on the account page's task lists");
 
   it("reads a reasonable number of visible lines (the extraction did not go blind)", () => {
     expect(keys.size).toBeGreaterThan(150);

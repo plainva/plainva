@@ -39,6 +39,7 @@ import { listMailAccounts, listMailboxesFor, type MailAccountConfig } from "@pla
 import type { PimCalendar, PimSyncProblem } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { createStandardTaskDatabase } from "../../services/taskDatabaseCreate";
+import { useTaskDatabaseSetting } from "../../hooks/useTaskDatabaseSetting";
 import { MIN_SYNC_INTERVAL_SECONDS, defaultCalendarKey, defaultSyncIntervalSeconds, syncIntervalKey } from "../../contexts/VaultContext";
 import { syncStatusStore } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -250,6 +251,8 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
   const [scope, setScope] = useState<{ account?: string; lists?: string; provider: string }>({ provider: "" });
   /** Why a switched-on list of this account does not reach the notes (issue 172). */
   const [listProblems, setListProblems] = useState<PimSyncProblem[]>([]);
+  /** The vault's standard task database; undefined until read, read again when the settings save. */
+  const taskDb = useTaskDatabaseSetting(vaultPath);
   const vault = useVault();
 
   const reload = useCallback(async () => {
@@ -367,7 +370,10 @@ function CalendarPart({ vaultPath, pimAccountId, runtime }: { vaultPath: string;
           {listProblems.length > 0 && (
             <SettingCardBlock>
               <CalendarSyncNotice problems={withoutTaskDatabaseLines(listProblems)} onRetry={lookAgain} />
-              <TaskDatabaseHint vault={vaultPath} problems={listProblems} onCreate={createTaskDb ? () => void createTaskDb() : undefined} testId="account-task-db-hint" />
+              {/* Text and button belong together: no button (settings of another vault, the setting not read yet), no hint. */}
+              {createTaskDb && taskDb !== undefined && (
+                <TaskDatabaseHint vault={vaultPath} problems={listProblems} taskDatabase={taskDb} onCreate={() => void createTaskDb()} testId="account-task-db-hint" />
+              )}
             </SettingCardBlock>
           )}
         </SettingCard>

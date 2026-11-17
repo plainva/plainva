@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 const writeFile = vi.fn(async (_options: unknown) => {});
-vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false }, registerPlugin: () => ({}) }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" }, registerPlugin: () => ({}) }));
 vi.mock("@capacitor/filesystem", () => ({
   Directory: { Data: "DATA" },
   Encoding: { UTF8: "utf8" },
