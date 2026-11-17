@@ -70,10 +70,21 @@ while IFS= read -r rel; do
   # A library by its SONAME (the bundle also carries copies under development
   # names such as libgio-2.0.so, owned by -dev packages); a module without one
   # by its path below usr/lib, which tells GTK 3 modules from GTK 2 ones of the
-  # same name; the build's own copies in usr/lib/enchant-2 by file name.
+  # same name; the build's own copies in usr/lib/enchant-2 by file name. dpkg
+  # takes a pattern with a leading slash as an exact path, so each query is a
+  # glob ending in that name, wherever the build machine keeps it.
+  dir="$(dirname "$rel")"
+  # Not from a package: Enchant's own build (its licence was asserted above)
+  # and a library shipped with its licence beside it (ONNX Runtime).
+  case "$(basename "$rel")" in
+    libenchant-2.so.2 | enchant_hunspell.so) licensed+=("enchant-2"); continue ;;
+  esac
+  if [ "$dir" != . ] && { compgen -G "$root/usr/lib/$dir/LICENSE*" || compgen -G "$root/usr/lib/$dir/COPYING*"; } >/dev/null; then
+    licensed+=("$dir"); continue
+  fi
   soname="$(objdump -p "$root/usr/lib/$rel" 2>/dev/null | awk '$1 == "SONAME" { print $2 }')"
   owners=""
-  for query in ${soname:+"/$soname"} "/$rel" "/$(basename "$rel")"; do
+  for query in ${soname:+"*/$soname"} "*/$rel" "*/$(basename "$rel")"; do
     owners="$(dpkg -S "$query" 2>/dev/null || true)"
     [ -n "$owners" ] && break
   done
