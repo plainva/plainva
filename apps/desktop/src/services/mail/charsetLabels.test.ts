@@ -15,7 +15,7 @@ const LABELS = readFileSync(fileURLToPath(new URL("../../../../../packages/ui/sr
   .split("\n")
   .map((line) => line.split(" ") as [string, string]);
 
-/** mail-parser's charset as the platform names it; the two the platform does not decode are decoded in `charsets.ts`. */
+/** mail-parser's charset as the platform names it; four are decoded in `charsets.ts` whatever the platform has (two no browser has, two Node's ICU lacks). */
 const PLATFORM: Record<string, string> = {
   Utf8: "utf-8", Utf16: "utf-16le", Utf16Le: "utf-16le", Utf16Be: "utf-16be", Ibm866: "ibm866", Koi8R: "koi8-r", Koi8U: "koi8-u",
   Macintosh: "macintosh", Windows874: "windows-874", Big5: "big5", EucJp: "euc-jp", Iso2022Jp: "iso-2022-jp", ShiftJis: "shift_jis",
@@ -31,7 +31,7 @@ describe("the charsets a mail names", () => {
     for (const [label, charset] of LABELS) {
       if (charset === "Replacement") continue;
       const decoder = charsetDecoder(label);
-      if (charset === "Ibm850" || charset === "Utf7") {
+      if (charset === "Ibm850" || charset === "Utf7" || charset === "Iso8859_16" || charset === "XUserDefined") {
         if (!decoder || decoder instanceof TextDecoder) wrong.push(`${label}: ${charset}`);
       } else if (!(decoder instanceof TextDecoder) || (decoder.encoding !== platformName(charset) && !(charset === "Iso8859_8" && decoder.encoding === "iso-8859-8-i"))) {
         // ISO-8859-8-I is ISO-8859-8 in logical order: the same characters for the same bytes.
@@ -50,5 +50,6 @@ describe("the charsets a mail names", () => {
     expect(decodeWords("=?utf-7?Q?+AKM-1_Gr+APwA3w-e?=")).toBe("£1 Grüße");
     expect(decodeWords("=?latin-9?Q?Preis_5=A4?=")).toBe("Preis 5€");
     expect(decodeWords("=?ISO-8859-1:1987?Q?caf=E9?=")).toBe("café");
+    expect(decodeWords("=?iso-8859-16?Q?Bun=E3_ziua=2C_=BAtefan?=")).toBe("Bună ziua, ştefan".replace("ş", "\u0219"));
   });
 });
