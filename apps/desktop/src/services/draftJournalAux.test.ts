@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -25,6 +26,7 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
 }));
 
 import { clearDraft, dropDraft, recordDraft, writeDraft } from "./draftJournal";
+import { installLeaveAnswer } from "./beforeLeaving";
 
 const V = "C:/vaults/main";
 
@@ -72,17 +74,18 @@ describe("the draft journal of an auxiliary window", () => {
   });
 
   it("writes what it buffers when the owner asks before the window goes, then says so (A7)", async () => {
+    await installLeaveAnswer();
+    expect(requests.map(([command]) => command), "it says it listens").toEqual(["leave-listening"]);
     writeDraft(V, "N4.md", () => "Hel", 1, "aux-editor");
     await vi.advanceTimersByTimeAsync(0);
     writeDraft(V, "N4.md", () => "Hello", 2, "aux-editor");
-    const flush = broadcasts.get("drafts-flush");
-    expect(flush, "listening once it buffered a snapshot").toBeDefined();
-    flush!({ id: "f1", labels: ["other-window"] });
+    const flush = broadcasts.get("drafts-flush")!;
+    flush({ id: "f1", labels: ["other-window"] });
     await vi.advanceTimersByTimeAsync(0);
-    expect(requests.map(([command]) => command), "not asked: nothing happens").toEqual(["draft-record"]);
-    flush!({ id: "f2", labels: ["aux-1"] });
-    await vi.advanceTimersByTimeAsync(0);
+    expect(requests.map(([command]) => command), "not asked: nothing happens").toEqual(["leave-listening", "draft-record"]);
+    flush({ id: "f2", labels: ["aux-1"] });
     // Long before the 400-ms interval would have written it.
-    expect(requests.map(([command, args]) => `${command}:${String(args.text ?? args.id)}`)).toEqual(["draft-record:Hel", "draft-record:Hello", "drafts-flushed:f2"]);
+    await vi.advanceTimersByTimeAsync(150);
+    expect(requests.map(([command, args]) => `${command}:${String(args.text ?? args.id)}`)).toEqual(["leave-listening:undefined", "draft-record:Hel", "draft-record:Hello", "drafts-flushed:f2"]);
   });
 });

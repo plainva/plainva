@@ -469,6 +469,11 @@ pub fn run() {
             // Started by a note link (Windows, Linux): it waits until the
             // window takes it (src/note_links.rs).
             note_links::arrive(app.handle(), note_links::note_link_args(std::env::args().skip(1)));
+            // The ways out the hold sees, beyond Tauri's own (src/leave.rs).
+            #[cfg(target_os = "macos")]
+            leave::install_quit_menu(app.handle())?;
+            #[cfg(unix)]
+            leave::watch_termination(app.handle());
             Ok(())
         })
         // A webview that loads a page has lost the JavaScript that knew its
@@ -476,6 +481,8 @@ pub fn run() {
         .on_page_load(|webview, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Started {
                 db_tx::release_owner_later(webview.app_handle(), webview.label().to_string(), "its page loaded");
+                // And it no longer listens for the way out (src/leave.rs).
+                leave::page_loading(webview.app_handle(), webview.label());
             }
         })
         .on_window_event(|window, event| {
@@ -577,6 +584,7 @@ pub fn run() {
             tray::tray_disable,
             tray::tray_set_next,
             leave::leave_ready,
+            leave::leave_armed,
             session::desktop_session_kind,
             app_identity::app_updates_managed_by,
             note_links::note_links_take,

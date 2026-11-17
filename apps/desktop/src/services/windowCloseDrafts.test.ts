@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *    destroyed;
  *  - a window that never buffered a draft is not asked and waits for nothing;
  *  - a window that does not answer is still closed, after a moment;
- *  - the way out of the app (`flushAllDraftsBeforeLeaving`) asks every window
+ *  - the way out of the app (`settleEveryWindowBeforeLeaving`) asks every window
  *    that buffered a draft, and only those.
  */
 
@@ -51,23 +51,29 @@ vi.mock("@tauri-apps/api/window", () => ({
 vi.mock("./settingsStore", () => ({
   getSettingsStore: async () => ({ get: async () => undefined, set: async () => {}, save: async () => {} }),
 }));
-vi.mock("./draftJournal", () => ({
+vi.mock("./draftJournal", async () => {
+  // The real module joins the way out at load (`onBeforeLeaving`); so does this stand-in.
+  const { onBeforeLeaving } = await import("./beforeLeaving");
+  onBeforeLeaving(async () => {
+    journal.ownFlushes += 1;
+  });
+  return {
   recordDraft: async (_vault: string, path: string, text: string) => {
     journal.recorded.push(`${path}:${text}`);
   },
   clearDraft: async () => {},
   relocateDrafts: async () => {},
-  flushDrafts: async () => {
-    journal.ownFlushes += 1;
-  },
-}));
+  flushDrafts: async () => {},
+  };
+});
 vi.mock("./saveFlush", () => ({ requestSaveFlush: async () => {} }));
 
 import { createWindowBus, OWNER_LABEL, setWindowBusForTest, type BusTransport, type WindowBus } from "./windowBus";
 import { installOwnerAppBus } from "./ownerBus";
 import { listAuxWindows, openAuxWindow, resetWindowRegistryForTest } from "./windowManager";
 import { WINDOW_FLUSH_WAIT_MS, resetWindowDraftFlushForTest } from "./windowDraftFlush";
-import { flushAllDraftsBeforeLeaving } from "./leaveFlush";
+import { leaveOrStay, settleEveryWindowBeforeLeaving } from "./leaveFlush";
+import { noteWindowCloseHold } from "./windowManager";
 
 function createWire() {
   const listeners = new Map<string, Set<{ label: string; fn: (p: unknown) => void }>>();
@@ -211,10 +217,11 @@ describe("closing a window right after typing", () => {
     vi.useFakeTimers();
 
     let done = false;
-    void flushAllDraftsBeforeLeaving().then(() => {
+    void settleEveryWindowBeforeLeaving().then(() => {
       done = true;
     });
-    await vi.advanceTimersByTimeAsync(0);
+    // This window's own part takes its quiet moment; no other window is waited for.
+    await vi.advanceTimersByTimeAsync(200);
     expect(done, "nobody left to wait for").toBe(true);
 
     expect(state.asked).toBe(1);
@@ -230,10 +237,58 @@ describe("the way out of the app", () => {
     await typingWindow(b.label, { typed: true, buffered: "Hello B" });
     const quiet = await typingWindow(c.label, { typed: false });
 
-    await flushAllDraftsBeforeLeaving();
+    await settleEveryWindowBeforeLeaving();
 
     expect(journal.ownFlushes).toBe(1);
     expect(journal.recorded).toEqual(expect.arrayContaining([`${a.label}.md:Hello A`, `${b.label}.md:Hello B`]));
     expect(quiet.asked).toBe(0);
+  });
+});
+
+describe("quitting while a window holds a mail not sent (A2)", () => {
+  it("brings that window to its question and keeps the app open, writing nothing yet", async () => {
+    const a = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "A.md" });
+    noteWindowCloseHold(a.label, true);
+    const asked: string[] = [];
+    const other = createWindowBus(wire(a.label));
+    others.push(other);
+    await other.onBroadcast("close-requested", ({ label }) => {
+      asked.push(label);
+      void other.request("window-close-hold", { held: true });
+    });
+
+    await expect(leaveOrStay()).resolves.toBe(true);
+
+    expect(asked).toEqual([a.label]);
+    expect(journal.ownFlushes).toBe(0);
+  });
+
+  it("goes on once nothing is held any more", async () => {
+    const a = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "A.md" });
+    noteWindowCloseHold(a.label, true);
+    const other = createWindowBus(wire(a.label));
+    others.push(other);
+    await other.onBroadcast("close-requested", () => void other.request("window-close-hold", { held: false }));
+
+    await expect(leaveOrStay()).resolves.toBe(false);
+    expect(journal.ownFlushes).toBe(1);
+  });
+});
+
+describe("a window that said it listens", () => {
+  it("is asked on the way out although it never typed, and answers", async () => {
+    const a = await openAuxWindow({ role: "aux", vaultPath: VAULT, content: "A.md" });
+    const bus = createWindowBus(wire(a.label));
+    others.push(bus);
+    let asked = 0;
+    await bus.onBroadcast("drafts-flush", ({ id }) => {
+      asked += 1;
+      void bus.request("drafts-flushed", { id });
+    });
+    await bus.request("leave-listening", {});
+
+    await settleEveryWindowBeforeLeaving();
+
+    expect(asked).toBe(1);
   });
 });

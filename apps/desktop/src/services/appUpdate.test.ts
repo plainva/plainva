@@ -19,7 +19,7 @@ vi.mock("@tauri-apps/api/app", () => ({ getIdentifier }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 const flushes = vi.hoisted(() => [] as string[]);
-vi.mock("./leaveFlush", () => ({ flushAllDraftsBeforeLeaving: async () => { flushes.push("flush"); } }));
+vi.mock("./leaveFlush", () => ({ settleEveryWindowBeforeLeaving: async () => { flushes.push("flush"); } }));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn() }));
 vi.mock("@plainva/ui", () => ({ logDiagnostic: vi.fn(), toast: { info: vi.fn(), progress: vi.fn(), dismiss: vi.fn(), error: vi.fn() } }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));

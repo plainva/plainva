@@ -149,8 +149,8 @@ export function describeUpdateFailure(error: unknown, step: "check" | "install",
  */
 export async function downloadAndInstallUpdate(update: Update): Promise<void> {
   await update.download();
-  const { flushAllDraftsBeforeLeaving } = await import("./leaveFlush");
-  await flushAllDraftsBeforeLeaving();
+  const { settleEveryWindowBeforeLeaving } = await import("./leaveFlush");
+  await settleEveryWindowBeforeLeaving();
   await update.install();
   await relaunch();
 }

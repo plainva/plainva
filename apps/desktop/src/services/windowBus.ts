@@ -249,6 +249,12 @@ export interface RpcMap {
   /** The answer to `drafts-flush`: what this window had buffered has reached the owner. */
   "drafts-flushed": { args: { id: string }; result: void };
   /**
+   * Another window listens for `drafts-flush` (A7): the way out of the app asks
+   * it before going and waits for its answer. A window that never said so — a
+   * start that failed, a page loading again — is not waited for.
+   */
+  "leave-listening": { args: Record<string, never>; result: void };
+  /**
    * Open this content wherever it belongs: the owner focuses the window that
    * already has it, otherwise it tells the caller to show it itself. `where`
    * says what happened, so the caller does not guess.
@@ -561,6 +567,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "draft-clear": "app",
   "draft-relocate": "app",
   "drafts-flushed": "app",
+  "leave-listening": "app",
   "flush-pending": "app",
 };
 
@@ -657,6 +664,7 @@ export const RPC_EFFECT: Record<RpcKind, "read" | "write" | "once"> = {
   "draft-clear": "write",
   "draft-relocate": "write",
   "drafts-flushed": "read",
+  "leave-listening": "read",
   "flush-pending": "write",
 };
 

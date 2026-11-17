@@ -792,6 +792,12 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
+    await bus.handle("leave-listening", (_args, from) => {
+      noteDraftWindow(from);
+    }),
+  );
+
+  offs.push(
     await bus.handle("draft-clear", async ({ vaultPath, notePath, upToRevision, sessionId }) => {
       await clearDraft(vaultPath, notePath, upToRevision ?? Infinity, sessionId);
     }),

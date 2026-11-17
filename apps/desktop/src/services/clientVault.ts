@@ -1,4 +1,5 @@
 import { GraphService, VaultQueryService, type IVaultAdapter } from "@plainva/core";
+import { countWrites } from "./inflightWrites";
 import { appDataDir } from "@tauri-apps/api/path";
 import { exists as fsExists } from "@tauri-apps/plugin-fs";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
@@ -77,7 +78,8 @@ export async function openClientVault(vaultPath: string, bus: WindowBus): Promis
   // would race the owner on the very first open of a new vault.
   const queryService = new VaultQueryService(dbAdapter);
   const graphService = new GraphService(dbAdapter);
-  const vaultAdapter = new RemoteVaultAdapter(readAdapter, bus, vaultPath);
+  // Counted, so the way out waits for a write on its way (`inflightWrites.ts`).
+  const vaultAdapter = countWrites(new RemoteVaultAdapter(readAdapter, bus, vaultPath));
 
   return {
     vaultPath,

@@ -21,13 +21,13 @@ import { getWindowBus } from "./windowBus";
 /** How long the owner waits for windows to write what they buffered: a little past their own bound (`MOVE_WAIT_MS`). */
 export const WINDOW_FLUSH_WAIT_MS = 2_500;
 
-/** Windows that have handed the owner at least one draft snapshot. */
+/** Windows that said they listen (`leave-listening`), or handed the owner a draft snapshot. */
 const writers = new Set<string>();
 /** Flushes waiting for answers, by id: the windows that still owe one. */
 const waiting = new Map<string, { owed: Set<string>; done: () => void }>();
 let counter = 0;
 
-/** The owner received a snapshot from this window (its `draft-record` handler). */
+/** This window listens: it said so, or it sent a snapshot (the owner's `leave-listening` and `draft-record` handlers). */
 export function noteDraftWindow(label: string): void {
   writers.add(label);
 }
@@ -52,9 +52,10 @@ export function noteDraftsFlushed(id: string, label: string): void {
 }
 
 /**
- * Asks these windows (`null`: every one) to write their buffered snapshots,
- * and resolves once they did, or after `WINDOW_FLUSH_WAIT_MS`. Windows that
- * never buffered a draft are not asked, so closing them waits for nothing.
+ * Asks these windows (`null`: every one) to do what they do before going —
+ * leave their field, save, write their journal (`beforeLeaving.ts`) — and
+ * resolves once they did, or after `WINDOW_FLUSH_WAIT_MS`. A window that never
+ * said it listens is not asked, so closing it waits for nothing.
  */
 export async function flushWindowDrafts(labels: readonly string[] | null, waitMs = WINDOW_FLUSH_WAIT_MS): Promise<void> {
   const owed = new Set((labels ?? [...writers]).filter((label) => writers.has(label)));

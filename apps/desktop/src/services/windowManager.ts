@@ -122,6 +122,20 @@ const closeAnswers = new Map<string, { answer: Promise<boolean>; settle: (held: 
  */
 export const CLOSE_ANSWER_TIMEOUT_MS = 2_000;
 
+/**
+ * The way out of the app (A2): does a window still hold a mail or a remark
+ * not sent? Each window that said so is asked now; one that still does comes
+ * to the front and asks its question — the same as when it is closed by
+ * itself. True when one does: the app stays, and the person decides there.
+ */
+export async function windowsStillHoldingWork(): Promise<boolean> {
+  const holding = (await Promise.all([...holdsWork].map(async (label) => ((await stillHoldsWork(label)) ? label : null)))).filter(
+    (label): label is string => label !== null,
+  );
+  for (const label of holding) await focusAuxWindow(label);
+  return holding.length > 0;
+}
+
 /** A client window reports whether closing it now would lose something. */
 export function noteWindowCloseHold(label: string, held: boolean): void {
   if (held) holdsWork.add(label);

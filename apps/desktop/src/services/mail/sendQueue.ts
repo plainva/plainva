@@ -4,6 +4,7 @@ import i18n from "@plainva/ui/i18n";
 import { isOwnerWindow } from "../windowContext";
 import { getWindowBus } from "../windowBus";
 import type { Attempt } from "../attempt";
+import { onBeforeLeaving } from "../beforeLeaving";
 import type { ComposeSnapshot } from "./composeHandoff";
 
 /**
@@ -173,6 +174,8 @@ function undoQueue(): UndoSendQueue<QueuedSend> {
   });
   // Closing Plainva must not lose a message someone asked to send.
   if (typeof window !== "undefined") window.addEventListener("beforeunload", () => void queue?.flush());
+  // The way out that waits (A7): a page that is destroyed never sees `beforeunload`.
+  if (typeof window !== "undefined") onBeforeLeaving(async () => { await queue?.flush(); });
   return queue;
 }
 

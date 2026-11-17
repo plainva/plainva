@@ -1,4 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
+import { countWrites } from "../services/inflightWrites";
 import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
@@ -816,7 +817,9 @@ export const VaultProvider: React.FC<{
 
       if (currentAbortSignal.aborted) return;
 
-      const tauriVaultAdapter = new TauriVaultAdapter(path);
+      // Counted, so the way out waits for a write on its way (`inflightWrites.ts`):
+      // every write of the chain above ends here.
+      const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path));
       await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());
       await tauriVaultAdapter.createDir(".plainva");
 

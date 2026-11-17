@@ -191,16 +191,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // The way out of the app (A7): the native side holds a close or a quit for a
   // moment, and the drafts every window still buffers are written first.
   useEffect(() => {
-    if (!isOwner || !isTauriRuntime) return;
+    if (!isTauriRuntime) return;
     let stop: (() => void) | null = null;
     let cancelled = false;
-    void import("../services/leaveFlush")
-      .then(({ installLeaveFlush }) => installLeaveFlush())
+    // The central window answers the native side; every other window answers the central one.
+    void (isOwner
+      ? import("../services/leaveFlush").then(({ installLeaveFlush }) => installLeaveFlush())
+      : import("../services/beforeLeaving").then(({ installLeaveAnswer }) => installLeaveAnswer()))
       .then((off) => {
         if (cancelled) off();
         else stop = off;
       })
-      .catch((e) => console.warn("[AppContext] drafts are not flushed on the way out", e));
+      .catch((e) => console.warn("[AppContext] this window is not settled on the way out", e));
     return () => {
       cancelled = true;
       stop?.();
