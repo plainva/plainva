@@ -718,6 +718,15 @@ export class SyncEngine {
           // server's metadata): then the deletion goes on the new marker.
           if (op.operation === "delete" && isRemoteChanged(err) && await this.deleteWhereOnlyTheMarkerMoved(op)) {
             deletedOnNewMarker = true;
+          } else if (op.operation === "delete" && isRemoteChanged(err) && await this.ownDeletionsBelow(op.file_path)) {
+            // A folder still holding files whose deletions this device has
+            // queued too (F44): the shells queue the files and their folder
+            // one by one, in no fixed order. The folder goes behind them, and
+            // finds itself empty then — or holding a file of another device.
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            await this.queue.queueDeletePaths([op.file_path]);
+            consecutiveFailures = 0;
+            continue;
           } else if (op.operation === "delete" && isRemoteChanged(err)) {
             console.warn(`[SyncEngine] not deleting ${op.file_path}: ${(err as Error).message}; it comes back here instead`);
             if (this.stateRepo) await this.stateRepo.deleteSyncState(op.file_path);
@@ -938,6 +947,12 @@ export class SyncEngine {
    * other answer leaves the deletion refused (false), and the file comes
    * back here (F44 no. 3).
    */
+  /** Does the queue still hold deletions of paths below `folder`? */
+  private async ownDeletionsBelow(folder: string): Promise<boolean> {
+    const prefix = folder + "/";
+    return (await this.queue.getPendingDeletePaths()).some((path) => path.startsWith(prefix));
+  }
+
   private async deleteWhereOnlyTheMarkerMoved(op: SyncOperation): Promise<boolean> {
     const base = this.stateRepo ? (await this.stateRepo.getSyncState(op.file_path))?.base_sha256 : null;
     if (!base || !this.target.stat) return false;

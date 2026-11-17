@@ -219,3 +219,123 @@ describe("a folder rename whose queue entry was given up", () => {
     for (const d of [a, b]) expect(await d.text("Neu/N.md")).toBe("# N\n");
   });
 });
+
+describe("the window between the folder check and the DELETE (second review)", () => {
+  it("an empty folder deleted outside the app is not deleted where the remote cannot refuse it — a note put there stays", async () => {
+    const { dav, remote } = world();
+    const a = await device(dav), b = await device(dav);
+    await filled(a);
+    await a.app.createDir("Ordner");
+    await a.cycle();
+    await b.cycle();
+    await b.cycle();
+
+    await b.removeDir("Ordner");
+    await a.app.writeTextFile("Ordner/Neu.md", NOTE);
+    // A's upload lands after B's check of the folder, right before B's DELETE.
+    onceBefore(dav, ["DELETE"], "Ordner", () => a.cycle());
+    await b.cycle();
+    for (let i = 0; i < 2; i++) {
+      await a.cycle();
+      await b.cycle();
+    }
+
+    expect(remote("Ordner/Neu.md")).toBe(NOTE);
+    expect(await a.text("Ordner/Neu.md")).toBe(NOTE);
+    expect(await b.text("Ordner/Neu.md")).toBe(NOTE);
+  });
+
+  it("a folder whose deletion was queued before its files' waits behind them and goes", async () => {
+    const { dav } = world();
+    const a = await device(dav);
+    await filled(a);
+    await a.app.createDir("Projekt");
+    await a.app.writeTextFile("Projekt/P1.md", "# P1\n");
+    await a.cycle();
+    await a.cycle();
+    expect(dav.files.has("Projekt/P1.md")).toBe(true);
+
+    // The shells queue a folder and its files one by one, in no fixed order.
+    await a.removeDir("Projekt");
+    await a.queue.queueDeletePaths(["Projekt"]);
+    for (let i = 0; i < 3; i++) await a.cycle();
+
+    expect(dav.files.has("Projekt/P1.md")).toBe(false);
+    expect(dav.folders.has("Projekt")).toBe(false);
+    expect(await a.exists("Projekt")).toBe(false);
+    expect(await a.queue.getPendingOperations()).toEqual([]);
+  });
+});
+
+describe("a folder deleted on another device", () => {
+  it("does not stay behind empty here once its notes are gone", async () => {
+    const { dav, remote } = world();
+    const a = await device(dav), b = await device(dav);
+    await filled(a);
+    await a.app.createDir("Projekt");
+    await a.app.writeTextFile("Projekt/Alt.md", "# old\n");
+    for (let i = 0; i < 2; i++) await a.cycle();
+    await b.cycle();
+    await b.cycle();
+    expect(await b.text("Projekt/Alt.md")).toBe("# old\n");
+
+    await b.app.deleteItem("Projekt", true, { confirmed: true });
+    for (let i = 0; i < 3; i++) {
+      await b.cycle();
+      await a.cycle();
+    }
+
+    expect(remote("Projekt/Alt.md")).toBeNull();
+    expect(dav.folders.has("Projekt")).toBe(false);
+    expect(await a.exists("Projekt")).toBe(false);
+    expect(await b.exists("Projekt")).toBe(false);
+  });
+
+  it("stays here while it holds a note of this device, and that note brings it back", async () => {
+    const { dav, remote } = world();
+    const a = await device(dav), b = await device(dav);
+    await filled(a);
+    await a.app.createDir("Projekt");
+    await a.app.writeTextFile("Projekt/Alt.md", "# old\n");
+    for (let i = 0; i < 2; i++) await a.cycle();
+    await b.cycle();
+    await b.cycle();
+
+    await b.app.deleteItem("Projekt", true, { confirmed: true });
+    await b.cycle();
+    await a.app.writeTextFile("Projekt/Neu.md", "# new on A\n");
+    for (let i = 0; i < 3; i++) {
+      await a.cycle();
+      await b.cycle();
+    }
+
+    expect(await a.text("Projekt/Neu.md")).toBe("# new on A\n");
+    expect(remote("Projekt/Neu.md")).toBe("# new on A\n");
+  });
+});
+
+describe("a folder rename given up before its notes were uploaded", () => {
+  it("leaves no empty old folder behind, on the server or here", async () => {
+    const { dav } = world();
+    const a = await device(dav, { queueing: { giveUpAfterMs: 0, retryAtMs: [] } });
+    await filled(a);
+    await a.app.createDir("Alt");
+    await a.cycle();
+    await a.cycle();
+    expect(dav.folders.has("Alt")).toBe(true);
+    // A note in it, indexed but not uploaded yet.
+    await a.app.writeTextFile("Alt/N.md", "# N\n");
+    await a.indexer.indexVaultFull();
+
+    const { vi } = await import("vitest");
+    vi.spyOn(a.queue, "queueRename").mockRejectedValueOnce(new Error("database is locked"));
+    await expect(a.app.renameItem("Alt", "Neu")).rejects.toThrow("database is locked");
+    await a.indexer.relocatePathInIndex("Alt", "Neu");
+    for (let i = 0; i < 4; i++) await a.cycle();
+
+    expect(dav.files.get("Neu/N.md") !== undefined).toBe(true);
+    expect(dav.folders.has("Alt")).toBe(false);
+    expect(await a.exists("Alt")).toBe(false);
+    expect(await a.text("Neu/N.md")).toBe("# N\n");
+  });
+});

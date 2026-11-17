@@ -10,15 +10,20 @@ import { device, world } from "../helpers/davDevice.js";
  * remote folder so that empty ones appear on a new device, created it again
  * here. Now the worker remembers which folders it has seen both here and on
  * the remote: one of those that is gone here was deleted here, and its
- * deletion goes up instead. A folder it never saw here is new on the remote
- * and is created, as before. The rule lives in the core, so it holds for the
- * desktop and the phone alike.
+ * deletion goes up instead — where the remote itself refuses to delete a
+ * folder holding a file (S3; F44). Elsewhere a note another device puts there
+ * between the check and the DELETE would go with the folder, so there the
+ * folder comes back, as before. A folder it never saw here is new on the
+ * remote and is created, as before. The rule lives in the core, so it holds
+ * for the desktop and the phone alike.
  */
+
+const ATOMIC = { deletesFolderOnlyWhileEmpty: true };
 
 describe("an empty folder deleted outside the app", () => {
   it("stays deleted: its deletion goes up instead of the listing bringing it back", async () => {
     const { dav } = world();
-    const a = await device(dav), b = await device(dav);
+    const a = await device(dav, ATOMIC), b = await device(dav, ATOMIC);
     await a.app.createDir("Leer");
     await a.cycle();
     expect(dav.folders.has("Leer")).toBe(true);
@@ -36,7 +41,7 @@ describe("an empty folder deleted outside the app", () => {
 
   it("also a nested one, with its empty subfolder", async () => {
     const { dav } = world();
-    const a = await device(dav);
+    const a = await device(dav, ATOMIC);
     await a.app.createDir("Projekte");
     await a.app.createDir("Projekte/Alt");
     await a.cycle();
@@ -47,6 +52,21 @@ describe("an empty folder deleted outside the app", () => {
     expect(await a.exists("Projekte")).toBe(false);
     expect(dav.folders.has("Projekte")).toBe(false);
     expect(dav.folders.has("Projekte/Alt")).toBe(false);
+  });
+
+  it("comes back where the remote deletes a folder with whatever is in it", async () => {
+    const { dav } = world();
+    const a = await device(dav), b = await device(dav);
+    await a.app.createDir("Leer");
+    await a.cycle();
+    await b.cycle();
+    await b.removeDir("Leer");
+    await b.cycle();
+    await b.cycle();
+
+    expect(dav.folders.has("Leer")).toBe(true);
+    expect(await b.exists("Leer")).toBe(true);
+    expect(await b.queue.getPendingOperations()).toEqual([]);
   });
 
   it("still creates an empty folder the remote has and this device never saw", async () => {

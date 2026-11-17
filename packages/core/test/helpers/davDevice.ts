@@ -40,7 +40,11 @@ export async function walk(dir: string, base = dir): Promise<string[]> {
   return out.sort();
 }
 
-export async function device(dav: ByteExactDav, options: { queueing?: ConstructorParameters<typeof QueueingVaultAdapter>[2] } = {}) {
+export async function device(dav: ByteExactDav, options: {
+  queueing?: ConstructorParameters<typeof QueueingVaultAdapter>[2];
+  /** Acts as a remote that refuses to delete a folder holding a file (as S3 does). */
+  deletesFolderOnlyWhileEmpty?: boolean;
+} = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-dav-device-"));
   const db = await realSqlite();
   closers.push(async () => {
@@ -63,6 +67,7 @@ export async function device(dav: ByteExactDav, options: { queueing?: Constructo
   });
   const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, (input, init) => dav.fetch(input, init));
   target.allowRootCreation = false;
+  if (options.deletesFolderOnlyWhileEmpty) (target as { deletesFolderOnlyWhileEmpty?: boolean }).deletesFolderOnlyWhileEmpty = true;
   const engine = new SyncEngine(queue, target, app, repo);
   const worker = new SyncWorker(engine, target, repo, backup, queue, 60_000);
   (worker as unknown as { isRunning: boolean }).isRunning = true;

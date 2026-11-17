@@ -2411,8 +2411,17 @@ export class SyncWorker {
       // deleted here, and its deletion goes up instead. Only while the remote
       // copy holds no file: a file in it decides on its own (its deletion is
       // queued by the index, or it comes down), and the folder with it.
+      // Only where the remote itself refuses to delete a folder that holds a
+      // file (`ISyncTarget.deletesFolderOnlyWhileEmpty`, F44): elsewhere a
+      // check before the DELETE leaves a window of one request, in which a
+      // note another device puts there goes with the folder — on every
+      // device. There the folder comes back here instead, as before A2: an
+      // empty folder too many costs nothing, the other way can cost a note.
+      const deleteUpstream = this.rawTarget.deletesFolderOnlyWhileEmpty === true;
       const listedFolders = pullResult.folders ?? [];
-      const seenRecord = listedFolders.length > 0 && typeof this.stateRepo.listSeenFolders === "function";
+      // A cursor pull lists only the folders that changed: seen folders are
+      // only weighed against a full listing.
+      const seenRecord = doFullListing && listedFolders.length > 0 && typeof this.stateRepo.listSeenFolders === "function";
       const seenFolders = seenRecord ? await this.stateRepo.listSeenFolders().catch(() => new Set<string>()) : new Set<string>();
       const seenNow: string[] = [];
       const deletedHere: string[] = [];
@@ -2445,7 +2454,7 @@ export class SyncWorker {
         try {
           if (await this.vault.exists(folder)) {
             if (!seenFolders.has(folder)) seenNow.push(folder);
-          } else if (seenFolders.has(folder) && !holdsRemoteFile(folder)) {
+          } else if (deleteUpstream && seenFolders.has(folder) && !holdsRemoteFile(folder)) {
             deletedHere.push(folder);
           } else {
             await this.vault.createDir(folder);
@@ -2466,7 +2475,29 @@ export class SyncWorker {
           }
           const listed = new Set(listedFolders);
           const gone = [...seenFolders].filter((f) => !listed.has(f) || deletedHere.some((d) => f === d || f.startsWith(d + "/")));
-          await this.stateRepo.forgetSeenFolders(gone);
+          // A folder seen here and on the remote that the remote no longer
+          // lists was deleted elsewhere: it goes here too once it holds no
+          // file (F44) — the files in it go one by one as the remote's
+          // deletions reach them, so it is weighed again until then. One that
+          // holds a file stays, and that file brings it back to the remote.
+          const keptSeen = new Set<string>();
+          for (const folder of [...gone].sort((x, y) => y.length - x.length)) {
+            if (listed.has(folder) || !alive()) continue;
+            if (awaitingDeletion(folder) || awaitingStructure(folder)) continue;
+            try {
+              if (!(await this.vault.exists(folder))) continue;
+              if ((await this.vault.listDir(folder, true)).some((entry) => !entry.isDirectory)) {
+                keptSeen.add(folder);
+                continue;
+              }
+              await this.vault.deleteItem(folder, true);
+              console.log(`[SyncWorker] removed an empty folder the remote deleted: ${folder}`);
+            } catch (e) {
+              keptSeen.add(folder);
+              console.warn(`[SyncWorker] could not remove a folder the remote deleted: ${folder}`, e);
+            }
+          }
+          await this.stateRepo.forgetSeenFolders(gone.filter((f) => !keptSeen.has(f)));
           await this.stateRepo.rememberSeenFolders(seenNow);
         } catch (e) {
           console.warn("[SyncWorker] could not record the folders seen here", e);

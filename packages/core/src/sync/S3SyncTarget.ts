@@ -110,6 +110,8 @@ export class S3SyncTarget implements ISyncTarget {
   private readonly prefix: string;
   /** Set once an uploader is injected (issue #48). */
   public acceptsContentRef = false;
+  /** A folder is its keys: only empty markers go, a file key never with them (F44). */
+  public readonly deletesFolderOnlyWhileEmpty = true;
 
   constructor(
     private creds: S3Credentials,

@@ -1589,6 +1589,7 @@ export class VaultIndexer {
     // next full scan would have found it.
     const unqueued = await this.moveNeverQueued(from);
     let moved: string[] = [];
+    let folderFrom: string | null = null;
     const fromPrefix = from + "/";
     const toPrefix = to + "/";
     const move = (p: string): string => (p === from ? to : to + p.substring(from.length));
@@ -1633,11 +1634,19 @@ export class VaultIndexer {
           this.touch(path);
         }
       }
+      // A folder's move no queue took leaves the folder at its old name on
+      // the remote, too: it is reported gone after its files, so that its
+      // deletion waits behind theirs and finds it empty (F44). Its files at
+      // the old name are this device's own; one another device put there
+      // keeps the folder. (Not marked: a folder has no sync row, so the
+      // sweep would owe the remote nothing for it.)
+      const movedFolder = arrived.length > 0 && !arrived.some(({ path }) => path === to);
       if (unqueued) await this.markRemoved(arrived.map(({ path }) => back(path)), tx);
       moved = arrived.map(({ path }) => path);
+      if (movedFolder) folderFrom = from;
     });
     if (unqueued && moved.length > 0) {
-      this.reportRemoved(moved.map(back), this.touchClock);
+      this.reportRemoved([...moved.map(back), ...(folderFrom ? [folderFrom] : [])], this.touchClock);
       for (const path of moved) {
         if (this.openPasses > 0) this.announcedNewAt.set(path, ++this.touchClock);
         this.options?.onNewLocalFile?.(path);
