@@ -119,6 +119,15 @@ function dynamicKeyShapes(text: string): { prefixes: string[]; suffixes: string[
   for (const m of text.matchAll(/\bt\(\s*["']([a-zA-Z][a-zA-Z0-9_.]*[._])["']\s*\+/g)) {
     prefixes.add(m[1]);
   }
+  // A key a helper builds and hands to t() later (`deviceStateKey`,
+  // `profileAreaKey`, …): a template that starts with a namespace and part of
+  // a key. Four of them went as "unreachable" on 04.08. and the screen showed
+  // `settingsSync.diagRunning` (F53 of release 0.9.0). A bare namespace
+  // (`comments.${…}`, a file name) excuses nothing.
+  for (const m of text.matchAll(/`([a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z0-9_.]*[a-zA-Z_.])\$\{/g)) {
+    if (/^[a-zA-Z0-9]+\.$/.test(m[1])) continue;
+    prefixes.add(m[1]);
+  }
   return { prefixes: [...prefixes], suffixes: [...suffixes] };
 }
 
