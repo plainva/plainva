@@ -25,16 +25,28 @@
 //! (`leave_armed`): the error page of a failed start, a start not finished, a
 //! page that is loading again. There the step happens at once, as before.
 //!
+//! A termination signal (`kill`, `systemctl stop`, the session ending on
+//! Linux) is held as well, but asks nobody: the windows write what they hold
+//! and the app goes, within the same deadline. A second signal ends the
+//! process at once.
+//!
+//! When the deadline runs out before the central window answered, the app
+//! still goes, and says so at the next start (`leave_was_cut`).
+//!
 //! An exit that arrives while a close is held is not lost: it is what happens
 //! once the hold ends. What is not held: a restart (the updater — Tauri ignores
-//! `prevent_exit` for it, so the updater writes first, then installs); and the
-//! ways out that never reach Tauri's exit request — on macOS "Quit" in the
-//! Dock, logging out and shutting down (the system's terminate, which tao only
-//! reports as the process ending), on Windows logging out and shutting down
-//! (tao ends the process on WM_ENDSESSION). There what the journal had not yet
-//! written is lost: at most one snapshot interval of typing.
+//! `prevent_exit` for it, so the updater writes first, at most 5 s, then
+//! installs); and the ways out that never reach Tauri's exit request. On macOS
+//! "Quit" in the Dock, logging out and shutting down are the system's
+//! `terminate:`; tao 0.37 gives its app delegate no
+//! `applicationShouldTerminate:` (the one hook that could defer it) and only
+//! reports `applicationWillTerminate:`, after which the process ends. On
+//! Windows tao leaves `WM_QUERYENDSESSION` unanswered and calls
+//! `std::process::exit` on `WM_ENDSESSION`. Holding those needs a change in
+//! tao. There what the journal had not yet written is lost: for a note up to
+//! 1 MB at most 400 ms of typing (`packages/ui/src/lib/draftJournal.ts`).
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
@@ -74,6 +86,16 @@ pub enum Then {
     CloseMain,
     /// A window holds a mail or a remark not sent: nothing happens.
     Stay,
+    /// The answer was "stay", but a termination signal came meanwhile: the
+    /// windows are asked again, to write what they hold without a question.
+    AskAgain,
+}
+
+/// How a hold ended: what it does, and whether the deadline cut it short.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Ended {
+    pub then: Then,
+    pub cut: bool,
 }
 
 /// The central window's answer.
@@ -89,6 +111,8 @@ pub struct LeaveState {
     answer: Mutex<Answer>,
     answered: Condvar,
     armed: AtomicBool,
+    /// Termination signals received; from the first on, nobody is asked.
+    signals: AtomicU32,
 }
 
 impl Default for LeaveState {
@@ -98,6 +122,7 @@ impl Default for LeaveState {
             answer: Mutex::new(Answer::None),
             answered: Condvar::new(),
             armed: AtomicBool::new(false),
+            signals: AtomicU32::new(0),
         }
     }
 }
@@ -141,6 +166,16 @@ impl LeaveState {
         self.armed.store(armed, Ordering::SeqCst);
     }
 
+    /// A termination signal arrived; how many so far, this one included.
+    fn note_signal(&self) -> u32 {
+        self.signals.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    /// False once a termination signal arrived: the windows write, nobody is asked.
+    fn may_stay(&self) -> bool {
+        self.signals.load(Ordering::SeqCst) == 0
+    }
+
     /// The windows did what they had to; `stay` when one holds a mail or a remark not sent.
     fn mark_ready(&self, stay: bool) {
         let mut answer = self.answer.lock().unwrap_or_else(|e| e.into_inner());
@@ -149,7 +184,7 @@ impl LeaveState {
     }
 
     /// Waits for the answer, at most `limit`, and ends the hold: what it did.
-    fn wait_and_release(&self, limit: Duration) -> Then {
+    fn wait_and_release(&self, limit: Duration) -> Ended {
         let answer = {
             let answer = self.answer.lock().unwrap_or_else(|e| e.into_inner());
             let (mut answer, _) = self
@@ -161,15 +196,18 @@ impl LeaveState {
         };
         let mut gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());
         if answer == Answer::Stay {
+            if !self.may_stay() {
+                return Ended { then: Then::AskAgain, cut: false };
+            }
             *gate = Gate::Open;
-            return Then::Stay;
+            return Ended { then: Then::Stay, cut: false };
         }
         let then = match *gate {
             Gate::Holding { exit: Some(code) } => Then::Exit(code),
             _ => Then::CloseMain,
         };
         *gate = Gate::Released;
-        then
+        Ended { then, cut: answer == Answer::None }
     }
 }
 
@@ -195,12 +233,35 @@ pub fn page_loading<R: Runtime>(app: &AppHandle<R>, label: &str) {
     }
 }
 
+/// What the central window is told: whether a window may still ask its question.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Leaving {
+    may_stay: bool,
+}
+
+/// The file that says the last way out was cut short by the deadline.
+const CUT_MARK: &str = "leave-cut";
+
+fn cut_mark<R: Runtime>(app: &AppHandle<R>) -> Option<std::path::PathBuf> {
+    app.path().app_local_data_dir().ok().map(|dir| dir.join(CUT_MARK))
+}
+
 fn start<R: Runtime>(app: &AppHandle<R>) {
-    let _ = app.emit_to(MAIN, "plainva-leaving", ());
     let handle = app.clone();
-    std::thread::spawn(move || {
-        let then = handle.state::<LeaveState>().wait_and_release(LEAVE_WAIT);
-        match then {
+    std::thread::spawn(move || loop {
+        let state = handle.state::<LeaveState>();
+        let _ = handle.emit_to(MAIN, "plainva-leaving", Leaving { may_stay: state.may_stay() });
+        let ended = state.wait_and_release(LEAVE_WAIT);
+        if ended.cut {
+            if let Some(mark) = cut_mark(&handle) {
+                if let Some(dir) = mark.parent() {
+                    let _ = std::fs::create_dir_all(dir);
+                }
+                let _ = std::fs::write(mark, b"");
+            }
+        }
+        match ended.then {
             Then::Exit(code) => handle.exit(code),
             Then::CloseMain => {
                 if let Some(main) = handle.get_webview_window(MAIN) {
@@ -208,8 +269,23 @@ fn start<R: Runtime>(app: &AppHandle<R>) {
                 }
             }
             Then::Stay => {}
+            Then::AskAgain => continue,
         }
+        break;
     });
+}
+
+/// The central window asks once at its start: did the last way out run past
+/// its deadline? The answer is given once.
+#[tauri::command]
+pub fn leave_was_cut<R: Runtime>(app: AppHandle<R>) -> bool {
+    match cut_mark(&app) {
+        Some(mark) if mark.exists() => {
+            let _ = std::fs::remove_file(mark);
+            true
+        }
+        _ => false,
+    }
 }
 
 /// The central window's close is asked for (and not hidden into the tray).
@@ -284,8 +360,10 @@ pub fn install_quit_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Linux and macOS: a termination signal (the session ending on Linux, `kill`)
-/// asks for the exit the hold sees, instead of ending the process on the spot.
+/// Linux and macOS: a termination signal (the session ending on Linux, `kill`,
+/// `systemctl stop`) asks for the exit the hold sees, instead of ending the
+/// process on the spot. Nobody is asked a question then, and the deadline
+/// holds; a second signal ends the process at once.
 #[cfg(unix)]
 pub fn watch_termination<R: Runtime>(app: &AppHandle<R>) {
     use tokio::signal::unix::{signal, SignalKind};
@@ -294,8 +372,13 @@ pub fn watch_termination<R: Runtime>(app: &AppHandle<R>) {
         let Ok(mut term) = signal(SignalKind::terminate()) else {
             return;
         };
-        if term.recv().await.is_some() {
-            handle.exit(0);
+        while term.recv().await.is_some() {
+            if handle.state::<LeaveState>().note_signal() == 1 {
+                handle.exit(0);
+            } else {
+                handle.cleanup_before_exit();
+                std::process::exit(0);
+            }
         }
     });
 }
@@ -321,7 +404,7 @@ mod tests {
         assert_eq!(state.hold_close(), Hold::Start);
         assert_eq!(state.hold_close(), Hold::Joined);
         state.mark_ready(false);
-        assert_eq!(state.wait_and_release(Duration::from_secs(5)), Then::CloseMain);
+        assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::CloseMain);
         assert_eq!(state.hold_close(), Hold::LetGo);
         assert_eq!(state.hold_exit(0), Hold::LetGo);
     }
@@ -332,7 +415,7 @@ mod tests {
         assert_eq!(state.hold_close(), Hold::Start);
         assert_eq!(state.hold_exit(0), Hold::Joined);
         state.mark_ready(false);
-        assert_eq!(state.wait_and_release(Duration::from_secs(5)), Then::Exit(0));
+        assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Exit(0));
     }
 
     #[test]
@@ -340,7 +423,9 @@ mod tests {
         let state = armed();
         assert_eq!(state.hold_exit(3), Hold::Start);
         let started = Instant::now();
-        assert_eq!(state.wait_and_release(Duration::from_millis(50)), Then::Exit(3));
+        let ended = state.wait_and_release(Duration::from_millis(50));
+        assert_eq!(ended.then, Then::Exit(3));
+        assert!(ended.cut, "a deadline that ran out is said at the next start");
         assert!(started.elapsed() < Duration::from_secs(5));
         assert_eq!(state.hold_exit(3), Hold::LetGo);
     }
@@ -355,7 +440,7 @@ mod tests {
             answering.mark_ready(false);
         });
         let started = Instant::now();
-        assert_eq!(state.wait_and_release(Duration::from_secs(30)), Then::CloseMain);
+        assert_eq!(state.wait_and_release(Duration::from_secs(30)).then, Then::CloseMain);
         assert!(started.elapsed() < Duration::from_secs(10));
         answer.join().unwrap();
     }
@@ -375,9 +460,41 @@ mod tests {
         let state = armed();
         assert_eq!(state.hold_exit(0), Hold::Start);
         state.mark_ready(true);
-        assert_eq!(state.wait_and_release(Duration::from_secs(5)), Then::Stay);
+        assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Stay);
         assert_eq!(state.hold_exit(0), Hold::Start);
         state.mark_ready(false);
-        assert_eq!(state.wait_and_release(Duration::from_secs(5)), Then::Exit(0));
+        assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Exit(0));
+    }
+
+    #[test]
+    fn an_answer_in_time_is_no_cut() {
+        let state = armed();
+        assert_eq!(state.hold_exit(0), Hold::Start);
+        state.mark_ready(false);
+        assert!(!state.wait_and_release(Duration::from_secs(5)).cut);
+    }
+
+    #[test]
+    fn after_a_termination_signal_nobody_keeps_the_app_open() {
+        let state = armed();
+        assert_eq!(state.note_signal(), 1);
+        assert!(!state.may_stay());
+        assert_eq!(state.hold_exit(0), Hold::Start);
+        // A window answered "stay" before it heard of the signal: asked again, without a question.
+        state.mark_ready(true);
+        assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::AskAgain);
+        state.mark_ready(false);
+        assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Exit(0));
+        assert_eq!(state.note_signal(), 2, "the second signal is counted, and ends the process at once");
+    }
+
+    #[test]
+    fn after_a_termination_signal_a_window_that_never_answers_still_lets_the_app_go() {
+        let state = armed();
+        state.note_signal();
+        assert_eq!(state.hold_exit(0), Hold::Start);
+        let ended = state.wait_and_release(Duration::from_millis(50));
+        assert_eq!(ended.then, Then::Exit(0));
+        assert!(ended.cut);
     }
 }

@@ -585,6 +585,7 @@ pub fn run() {
             tray::tray_set_next,
             leave::leave_ready,
             leave::leave_armed,
+            leave::leave_was_cut,
             session::desktop_session_kind,
             app_identity::app_updates_managed_by,
             note_links::note_links_take,
