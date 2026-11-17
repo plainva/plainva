@@ -1,6 +1,6 @@
 # Gedächtnis (Beta)
 
-Stand: 2026-11-06
+Stand: 2026-11-16
 
 Das Gedächtnis hält fest, was die KI über Dich und Deine Arbeit wissen soll, ohne dass Du es wieder sagst: was Du machst, wie Du Antworten magst, wer Deine Kunden sind. Es sind zwei Dateien in Deinem Vault. Nichts kommt ohne Dein Ja hinein, und Du kannst jeden Eintrag lesen, ändern und löschen.
 
@@ -38,7 +38,7 @@ Wie alle Anweisungen muss die Datei auf jedem Gerät freigegeben sein, bevor sie
 
 Ein Gedächtnis, das gewachsen ist, wiederholt sich. Unter **Aufräumen** nennt die Gedächtnis-Ansicht, was dieses Gerät von selbst bemerkt hat, ohne ein Modell zu fragen: zwei Einträge, die fast dasselbe sagen, einen Eintrag, der älter als ein Jahr ist, und Einträge von **Immer dabei**, die nicht mehr passen. **Vergleichen** zeigt die zwei Einträge zusammen, jeden mit allem, was sein Menü kann.
 
-Für einen genaueren Blick gibt es einen Skill. **Gedächtnis pflegen** liest die Einträge mit dem Modell eines Gesprächs und entwirft, was zusammengehört und was gehen kann; die Zeile **Das Gedächtnis durchsehen lassen** startet ihn. Was er vorschlägt, sind Entwürfe wie alle anderen: nichts ändert sich, bevor Du es annimmst, und wo zwei Einträge sich widersprechen, fragt er, statt zu entscheiden.
+Für einen genaueren Blick gibt es einen Skill. **Gedächtnis pflegen** liest die Einträge mit dem Modell eines Gesprächs und entwirft, was zusammengehört und was gehen kann; die Zeile **Das Gedächtnis durchsehen lassen** startet ihn — sie steht unter **Aufräumen**, sobald dort etwas genannt ist. Was er vorschlägt, sind Entwürfe wie alle anderen: nichts ändert sich, bevor Du es annimmst, und wo zwei Einträge sich widersprechen, fragt er, statt zu entscheiden.
 
 ## Schreibstil
 
@@ -52,12 +52,12 @@ Der Stil liegt auf diesem Gerät, nicht im Vault: auf einem anderen Gerät wähl
 
 ## Datenschutz
 
-- Ein Eintrag kann eine eigene Regel tragen: **Nicht an Cloud-Modelle**, **Nicht in Gesprächen mit Internet**. Ein Modell auf diesem Gerät bekommt jeden Eintrag.
+- Ein Eintrag kann eine eigene Regel tragen: **Nicht an Cloud-Modelle**, **Nicht in Gesprächen mit Internet**. Ein Modell auf diesem Gerät bekommt jeden Eintrag, der lesbar und kurz genug ist — außer in einem Gespräch mit Internet, wo auch hier ein Eintrag mit **Nicht in Gesprächen mit Internet** draußen bleibt.
 - Ein Eintrag, den die KI in einem Gespräch entworfen hat, das Notizen unter einer Datenschutzregel gelesen hat, bekommt dieselben Regeln — die Karte sagt **Der Eintrag bekommt die Datenschutzregeln der Notizen, auf denen dieses Gespräch beruhte.** Was aus einer Notiz stammt, die auf diesem Gerät bleiben muss, erreicht über das Gedächtnis keine Cloud.
 - Deine [Datenschutzregeln](AI_Assistant.md) gelten auch für die beiden Dateien: Eine Ordnerregel für `.agent/` hält das ganze Gedächtnis von der Cloud fern.
 - Die Sendeübersicht hat eine Zeile **Gedächtnis** — wie viele Einträge mitgehen — und zählt die Einträge, die Deine Regeln zurückhalten, unter **Zurückgehalten**. Sie nennt nie einen Eintrag.
 - Für die KI ist ein Eintrag eine Auskunft, keine Anweisung: Ein Satz im Gedächtnis gibt ihr keine Rechte.
-- Ein Gespräch behält das Gedächtnis, mit dem es begonnen hat. Ein Eintrag, den Du löschst, geht in kein neues Gespräch mehr; Gespräche, die schon begonnen haben, behalten, was sie bekommen haben.
+- Ein Gespräch behält, was ihm das Gedächtnis bei seinem Beginn gegeben hat — die Einträge unter **Immer dabei**. Ein Eintrag, den Du löschst, geht in kein neues Gespräch mehr; Gespräche, die schon begonnen haben, behalten, was sie bekommen haben, und was sie später nachschlagen, kommt aus den Dateien, wie sie dann sind.
 
 ## Ausschalten
 
@@ -76,4 +76,4 @@ Der Stil liegt auf diesem Gerät, nicht im Vault: auf einem anderen Gerät wähl
 
 `added` und `by` sagen, wann der Eintrag hinzukam und ob Du ihn geschrieben oder einen Entwurf angenommen hast, `source` nennt das Gespräch, aus dem ein Entwurf stammt, und `deny` hält seine Regeln (`cloud`, `web`). Du kannst die Dateien in jedem Editor bearbeiten. In Plainva öffnet **Datei öffnen** jede der beiden.
 
-Plainva rät nicht. Ein Eintrag, dessen Kommentar beschädigt ist, trägt die Marke **Regeln nicht lesbar — geht an kein Modell**, bis Du den Kommentar reparierst oder den Eintrag neu anlegst. Text, der in einem Kommentar oder in unsichtbaren Zeichen versteckt ist, wird nie mitgeschickt; der Eintrag zeigt dann, wie viele versteckte Stellen weggelassen wurden. Eine Datei fasst höchstens 2.000 Einträge und 256 KB.
+Plainva rät nicht. Ein Eintrag, dessen Kommentar beschädigt ist, trägt die Marke **Regeln nicht lesbar — geht an kein Modell**, bis Du den Kommentar reparierst oder den Eintrag neu anlegst. Text, der in einem Kommentar oder in unsichtbaren Zeichen versteckt ist, wird nie mitgeschickt; der Eintrag zeigt dann, wie viele versteckte Stellen weggelassen wurden. Von einer Datei werden höchstens 2.000 Einträge gelesen, und eine Datei, die größer ist als 256 KB, wird gar nicht gelesen.

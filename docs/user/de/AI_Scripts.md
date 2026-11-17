@@ -1,8 +1,8 @@
 # Skripte (Beta)
 
-Stand: 2026-11-06
+Stand: 2026-11-16
 
-Ein Skript ist ein kleines Programm für das, was ein Modell schlecht kann und ein Programm jedes Mal gleich macht: zählen, sortieren, vergleichen, zusammenrechnen. Du schreibst es in JavaScript. Es läuft in einem geschlossenen Kasten in Plainva: es kann keine Datei öffnen, nicht ins Netz und nicht auf später warten. Es ruft nur die Werkzeuge auf, die Du ihm angekreuzt hast: sie lesen Deinen Vault so, wie die Werkzeuge der KI es tun, oder hinterlassen einen Vorschlag, über den Du entscheidest. Von sich aus ändert ein Skript nichts.
+Ein Skript ist ein kleines Programm für das, was ein Modell schlecht kann und ein Programm jedes Mal gleich macht: zählen, sortieren, vergleichen, zusammenrechnen. Du schreibst es in JavaScript. Es läuft in einem geschlossenen Kasten in Plainva: es kann keine Datei öffnen, nicht ins Netz und nicht auf später warten. Es ruft nur die Werkzeuge auf, die Du ihm angekreuzt hast: sie lesen Deinen Vault so, wie die Werkzeuge der KI es tun, oder hinterlassen einen Vorschlag, über den Du entscheidest. Ein Skript, das Du hier startest, ändert von sich aus nichts; eines, das die KI in einem Gespräch startet, kann direkt schreiben, wo Du es zulässt (siehe „In einem Gespräch“ weiter unten).
 
 ## Ein Skript ausführen
 
@@ -12,13 +12,13 @@ Ein Lauf, den Du hier startest, bleibt auf diesem Gerät: nichts davon geht an e
 
 ## In einem Gespräch
 
-In einem gewöhnlichen Gespräch kann die KI Deine aktiven Skripte finden und eines ausführen, wenn es passt; der Schritt heißt dann **Führt das Skript „word-count“ aus**. Das Skript liest nur, was dieses Gespräch lesen darf: eine Notiz, die Du von der Cloud fernhältst, bleibt fern, und jede Notiz, die das Skript liest, zählt zu dem, was der Lauf gelesen hat. Was es zurückgibt, geht als Daten an das Modell, nie als Anweisung. Einem Gespräch, das mit einem Skill gestartet wurde, werden keine Skripte angeboten, und einer KI-App, die über den MCP-Server verbunden ist, auch nicht.
+In einem gewöhnlichen Gespräch kann die KI Deine aktiven Skripte finden und eines ausführen, wenn es passt; der Schritt heißt dann **Führt das Skript „word-count“ aus**. Das Skript liest nur, was dieses Gespräch lesen darf: eine Notiz, die Du von der Cloud fernhältst, bleibt fern, und jede Notiz, die das Skript liest, zählt zu dem, was der Lauf gelesen hat. Was es zurückgibt, geht als Daten an das Modell, nie als Anweisung. Eine Routine, der Testlauf eines Skills und die Einstiege **Bild erklären** und **Notiz daraus machen** führen kein Skript aus, einem Gespräch, das mit einem Skill gestartet wurde, werden keine angeboten, und einer KI-App, die über den MCP-Server verbunden ist, auch nicht.
 
 ## Änderungen vorschlagen
 
-Ein Skript kann auch Werkzeuge bekommen, die vorschlagen. Die Werkzeuge **Schlägt Änderungen an einer Notiz vor** und **Schlägt einen Eigenschaftswert vor** hinterlassen einen Vorschlag am Rand einer Notiz; **Entwirft eine Notiz**, **Entwirft einen Datenbank-Eintrag**, **Entwirft eine Aufgabe** und **Entwirft einen Journal-Eintrag** hinterlassen einen Entwurf. Beides trägt den Namen des Skripts, und in Deinem Vault ändert sich nichts, bevor Du einen Vorschlag übernimmst oder einen Entwurf anlegst — genau wie bei einem Vorschlag der KI. Nach einem Lauf führt der Dialog sie unter **Vorschläge und Entwürfe** auf; ein Lauf, der mit **Probelauf** gestartet wurde, hinterlässt nichts.
+Ein Skript kann auch Werkzeuge bekommen, die vorschlagen. Die Werkzeuge **Schlägt Änderungen an einer Notiz vor** und **Schlägt einen Eigenschaftswert vor** hinterlassen einen Vorschlag am Rand einer Notiz; **Entwirft eine Notiz**, **Entwirft einen Datenbank-Eintrag**, **Entwirft eine Aufgabe** und **Entwirft einen Journal-Eintrag** hinterlassen einen Entwurf. Beides trägt den Namen des Skripts. Ein Skript, das Du hier mit **Ausführen** startest, schreibt nichts direkt: In Deinem Vault ändert sich nichts, bevor Du einen Vorschlag übernimmst oder einen Entwurf anlegst — genau wie bei einem Vorschlag der KI. Nach einem Lauf führt der Dialog sie unter **Vorschläge und Entwürfe** auf; ein Lauf, der mit **Probelauf** gestartet wurde, hinterlässt nichts.
 
-Was ein Skript gelesen hat, entscheidet, wo es schreiben darf: einen Vorschlag oder einen Entwurf, der auf einer Notiz beruht, die Du von der Cloud fernhältst, nimmt nur ein Ort an, für den dieselbe Regel gilt. In einem Gespräch wird der KI ein Skript, das vorschlägt, nur angeboten, wo das Gespräch selbst vorschlagen kann, und was das Skript dort hinterlässt, trägt den Namen des Modells dieses Gesprächs.
+Was ein Skript gelesen hat, entscheidet, wo es schreiben darf: einen Vorschlag oder einen Entwurf, der auf einer Notiz beruht, die Du von der Cloud fernhältst, nimmt nur ein Ort an, für den dieselbe Regel gilt. In einem Gespräch wird der KI ein Skript, das vorschlägt, nur angeboten, wo das Gespräch selbst vorschlagen kann, und was das Skript dort hinterlässt, trägt den Namen des Modells dieses Gesprächs. Wo das Gespräch Änderungen direkt übernimmt — mit dem Chip **Direkt übernehmen** oder für ein Ziel in einem Ordner, der **Ohne Nachfrage ändern** erlaubt —, geht auch das, was ein solches Skript schreibt, direkt hinein: eine Änderung an einer Notiz und an ihren Eigenschaften, eine neue Notiz, ein Datenbank-Eintrag, eine Aufgabe oder ein Journal-Eintrag, mit demselben Netz wie die eigenen direkten Änderungen des Assistenten (siehe „Direkt übernehmen“ in [KI-Assistent](AI_Assistant.md)). Ohne diese Erlaubnis hinterlässt das Skript Vorschläge und Entwürfe, wie oben.
 
 ## Ein Skript schreiben
 
@@ -62,8 +62,8 @@ Die Sprache ist aktuelles JavaScript — ES2024, dazu das meiste von ES2025 — 
 | `graph_neighborhood` — **Folgt Links** | `path`; wahlweise `depth` (1 oder 2), `limit` (bis 50) | `path`; `notes`: eine Liste aus `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Sieht zuletzt benutzte Notizen an** | wahlweise `kind` (`opened` oder `edited`), `limit` (bis 20) | `kind`; `notes`: eine Liste aus `{ title, path, at }` |
 | `get_changes` — **Sieht nach, was sich geändert hat** | `since` als `YYYY-MM-DD`; wahlweise `until`, `folder`, `limit` (bis 20) | `since`, `until`; `notes`: eine Liste aus `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **Verfolgt, wie sich eine Notiz entwickelt hat** | `path`; wahlweise `since` und `until` als `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: eine Liste aus `{ day, added, removed, gained }` |
-| `get_calendar` — **Liest Termine** | `from` und `to` als `YYYY-MM-DD`; wahlweise `details`, `limit` (bis 100) | `events`: eine Liste aus `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
+| `get_note_history` — **Verfolgt, wie sich eine Notiz entwickelt hat** | `path`; wahlweise `since` und `until` als `YYYY-MM-DD`, höchstens 31 Tage auseinander | `path`, `since`, `until`, `made`; `days`: eine Liste aus `{ day, added, removed, gained }` |
+| `get_calendar` — **Liest Termine** | `from` und `to` als `YYYY-MM-DD`, höchstens 31 Tage auseinander; wahlweise `details`, `limit` (bis 100) | `events`: eine Liste aus `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Bedient die App** | `id`, ein Befehl der App wie `open-note`, `show-in-graph` oder `open-calendar`; wahlweise `args` mit `path`, `section` oder `date` | `done`, `command` |
 | `propose_edit` — **Schlägt Änderungen an einer Notiz vor** | `path`; `edits`, eine Liste aus `{ find, replace }`, oder `append`; wahlweise `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Schlägt einen Eigenschaftswert vor** | `path`, `key`, `value`; wahlweise `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ Ein Skript trägt seine Grenzen in seinem Manifest. Drei davon setzt das Formula
 | **Aufrufe von Werkzeugen** | 20 | 0 bis 50 |
 | **Speicher in MB** | 32 | 8 bis 128 |
 
-Es zählt nur die Zeit, in der ein Skript rechnet, nicht die Zeit, die ein Werkzeug braucht. Ein Skript, das eine Grenze überschreitet, wird beendet, der Dialog sagt, welche Grenze es war, und ein beendetes Skript gibt nichts zurück. Die Argumente eines Aufrufs und das Ergebnis dürfen je höchstens 64 KB groß sein.
+Es zählt nur die Zeit, in der ein Skript rechnet, nicht die Zeit, die ein Werkzeug braucht. Ein Skript, das eine Grenze überschreitet — Zeit, Speicher, Schritte, die Zahl der Aufrufe, die Größe der Argumente eines Aufrufs oder die Größe des Ergebnisses, das das Skript selbst zurückgibt —, wird beendet, der Dialog sagt, welche Grenze es war, und ein beendetes Skript gibt nichts zurück. Eine Antwort eines Werkzeugs, die größer ist als die Grenze für einen Aufruf, ist kein Ende: Das Skript bekommt für diesen Aufruf einen Fehler und läuft weiter. Standardmäßig dürfen die Argumente eines Aufrufs, was ein Aufruf zurückgibt, und das Ergebnis je höchstens 64 KB groß sein; ein Manifest darf bis zu 256 KB erlauben.
 
 ## Nichts läuft, bevor Du es freigibst
 
@@ -92,4 +92,4 @@ Mit **Freigeben** unterschreibt dieses Gerät genau diese Dateien. Der Schlüsse
 
 ## Grenzen der Beta
 
-Ein Skript schlägt vor und entwirft; es benennt, verschiebt oder löscht nie eine Notiz, und es schreibt keine E-Mail und keinen Termin. Ein Skill kann kein Skript starten, und der eigene Ordner `scripts/` eines Skills wird nicht ausgeführt. E-Mails, das Internet und die Werkzeuge externer Server stehen Skripten nicht zur Verfügung.
+Ein Skript schlägt vor und entwirft und schreibt nur in einem Gespräch direkt, in dem Du den Assistenten Änderungen direkt übernehmen lässt; es benennt, verschiebt oder löscht nie eine Notiz, und es schreibt keine E-Mail und keinen Termin. Ein Skill kann kein Skript starten, und der eigene Ordner `scripts/` eines Skills wird nicht ausgeführt. E-Mails, das Internet und die Werkzeuge externer Server stehen Skripten nicht zur Verfügung.

@@ -22,7 +22,7 @@ import {
 } from "@plainva/core";
 import { serializeBaseConfig } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
-import { beforeEveryWrite, realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import { atTheNextTransactionWrite, beforeEveryWrite, realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { byteExactDav, type ByteExactDav } from "../../../../packages/core/test/helpers/byteExactDav";
 
 /**
@@ -229,14 +229,13 @@ async function phone(dav: ByteExactDav) {
       await indexer.indexVaultFull("return to the app");
       await settle();
     },
-    /** `work` runs once inside the next index pass: before the file it reads as its `nth` is read. */
-    whenTheIndexReadsItsNth(nth: number, work: () => Promise<void>) {
-      const read = files.readTextFile.bind(files);
-      let count = 0;
-      files.readTextFile = async (p) => {
-        if (++count === nth) await work();
-        return read(p);
-      };
+    /**
+     * Runs `work` once inside the next full scan's transaction, as it writes
+     * what it read (the scan reads its files outside its transactions since
+     * performance plan L2). Returns whether it ran.
+     */
+    whenTheScanWrites(work: () => Promise<unknown>) {
+      return atTheNextTransactionWrite(db, work);
     },
     /** The app was closed and opened: what lived in memory is gone, and the vault is read again. */
     async restart() {
@@ -529,7 +528,7 @@ describe("a file a pull removed leaves the index with the pull", () => {
     await here.put("n2.md", "n2\n");
     const told: { index?: Promise<void> } = {};
     // …and is inside its transaction when the index is told of the pull.
-    here.whenTheIndexReadsItsNth(1, async () => {
+    const met = here.whenTheScanWrites(async () => {
       const refused = here.attempted("indexPath");
       told.index = here.reindexPaths(pulled);
       await refused;
@@ -543,6 +542,7 @@ describe("a file a pull removed leaves the index with the pull", () => {
     });
     await expect(here.resume()).rejects.toThrow("disk full");
     restore();
+    expect(met(), "the index was told of the pull inside the scan's transaction").toBe(true);
     await told.index;
     await here.settle();
 
@@ -618,11 +618,12 @@ describe("one path at a time on the phone's one connection", () => {
     const names = ["n1.md", "n2.md", "n3.md", "n4.md", "n5.md", "n6.md", "n7.md", "n8.md"];
     // Notes that appear in the vault past the app (the Files app, another program).
     for (const name of names) await here.put(name, `${name}\n`);
-    // Three notes into the re-read of the next return, the index is told of one of
+    // As the re-read of the next return writes what it found, the index is told of one of
     // them. That pass is refused at both attempts — the scan's transaction is open —
     // and does not wait for the scan.
-    here.whenTheIndexReadsItsNth(4, () => here.reindexPaths(["n1.md"]));
+    const met = here.whenTheScanWrites(() => here.reindexPaths(["n1.md"]));
     await here.resume();
+    expect(met(), "the single path met the scan's transaction").toBe(true);
     expect.soft(here.leftBehind).toBe(1);
     // The refused pass used to empty the scan's list on its way in: what the scan
     // had found until then was not announced, so not queued for upload.

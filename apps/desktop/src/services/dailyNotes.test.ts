@@ -4,6 +4,7 @@ import { editorTextOf } from "@plainva/core";
 import { buildDailyNotePath, clearPendingTemplateCaret, consumePendingTemplateCaret, dailyPathFrom, type TemplateContext } from "@plainva/ui";
 import { listExistingDailyNotes, noteStamp, resolveOrCreateDailyNote, templateVaultOf } from "./dailyNotes";
 import { applyTemplateInteractive } from "./templateInteractive";
+import { vaultNameKey } from "./vaultNames";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -376,6 +377,13 @@ describe("templateVaultOf", () => {
   it("names the vault by its folder", async () => {
     expect((await templateVaultOf("C:\\Notizen\\Arbeit")).name).toBe("Arbeit");
     expect((await templateVaultOf("/home/kim/Vault/")).name).toBe("Vault");
+  });
+
+  it("names the vault as the app does: by the name it was given, else its folder (B25)", async () => {
+    storeValues[vaultNameKey("/home/kim/Vault")] = "  Work notes ";
+    expect((await templateVaultOf("/home/kim/Vault")).name).toBe("Work notes");
+    storeValues[vaultNameKey("/home/kim/Vault")] = "   ";
+    expect((await templateVaultOf("/home/kim/Vault")).name).toBe("Vault");
   });
 
   it("resolves the daily note that many days from the reference instant", async () => {

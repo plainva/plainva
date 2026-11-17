@@ -60,7 +60,7 @@ import {
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
 import { syncSoon } from "./syncService";
 import { answerTemplateFile, buildNewNoteFromTemplate } from "./templateInteractive";
-import { getActiveVaultEntry } from "./vaultRegistry";
+import { phoneTemplateVault } from "./templateVault";
 
 /**
  * Mobile .base IO (R4): every read/write goes through the SHARED contract —
@@ -519,7 +519,7 @@ export async function createBaseItem(
   const built = await buildNewNoteFromTemplate({
     read: (p) => vaultOps.read(v, p),
     exists: (p) => v.files.exists(p),
-    vaultName: (await getActiveVaultEntry()).name || "Plainva",
+    vaultName: (await phoneTemplateVault()).name,
     folder,
     title: name,
     type,
@@ -624,7 +624,7 @@ export async function planMobilePinboardEntry(
           const answered = await answerTemplateFile({
             read: (p) => vaultOps.read(v, p),
             exists: (p) => v.files.exists(p),
-            vaultName: (await getActiveVaultEntry()).name || "Plainva",
+            vaultName: (await phoneTemplateVault()).name,
             folder,
             title,
             template,

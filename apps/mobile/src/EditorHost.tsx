@@ -67,7 +67,7 @@ import { openLink } from "./services/openLink";
 import { applyTemplateInteractive } from "./services/templateInteractive";
 import { setEditorRangeReader, setEditorSelectionReader } from "./services/editorSelection";
 import { getMobileSettings } from "./services/mobileSettings";
-import { getActiveVaultEntry } from "./services/vaultRegistry";
+import { phoneTemplateVault } from "./services/templateVault";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
 import { pickDeviceFiles } from "./services/pickFiles";
 import { editedNoteProperties, recallScrollTop, rememberScrollTop, withNoteColor, withNoteIcon } from "@plainva/ui";
@@ -1294,7 +1294,7 @@ export function EditorHost({
         title: stem,
         now: new Date(),
         folder: path.split("/").slice(0, -1).join("/"),
-        vaultName: (await getActiveVaultEntry()).name || "Plainva",
+        vaultName: (await phoneTemplateVault()).name,
         hostPath: path,
       });
       if (!answered) return; // cancelled → nothing is inserted
