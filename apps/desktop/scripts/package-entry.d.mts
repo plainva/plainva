@@ -1,6 +1,6 @@
 export const MAIN: string;
 export const HELPER: string;
-export function desktopCommand(text: string): string[] | undefined;
+export function desktopCommand(text: string): { words: string[]; error?: undefined } | { words?: undefined; error: string };
 export function desktopExec(text: string): string | undefined;
 export function plistString(xml: string, key: string): string | undefined;
 export function checkLinuxTree(root: string, options?: { appimage?: boolean }): string[];

@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -68,16 +68,27 @@ describe("reading an entry", () => {
     expect(desktopExec("[Desktop Entry]\r\nExec=plainva-desktop\r\n")).toBe("plainva-desktop");
     expect(desktopExec("[Desktop Action new]\nExec=plainva-desktop\n")).toBeUndefined();
     // A launcher's own env prefix is read through.
-    expect(desktopCommand(desktop("env GDK_BACKEND=x11 -u FOO /usr/bin/plainva-desktop %U"))).toEqual(["/usr/bin/plainva-desktop", "%U"]);
+    expect(desktopCommand(desktop("env GDK_BACKEND=x11 -u FOO -i /usr/bin/plainva-desktop %U"))).toEqual({ words: ["/usr/bin/plainva-desktop", "%U"] });
     // Quoted words with escapes, and the \s string escape.
-    expect(desktopCommand(desktop('"/opt/My App/plainva-desktop" "a \\\\"b\\\\""'))).toEqual(["/opt/My App/plainva-desktop", 'a "b"']);
-    expect(desktopCommand(desktop("/opt/plainva\\sdesktop"))).toEqual(["/opt/plainva", "desktop"]);
+    expect(desktopCommand(desktop('"/opt/My App/plainva-desktop" "a \\\\"b\\\\""'))).toEqual({ words: ["/opt/My App/plainva-desktop", 'a "b"'] });
+    expect(desktopCommand(desktop("/opt/plainva\\sdesktop"))).toEqual({ words: ["/opt/plainva", "desktop"] });
+  });
+
+  it("says why it does not read an Exec key, instead of guessing", () => {
+    expect(desktopCommand("[Desktop Entry]\nName=x\n")).toEqual({ error: "no Exec key in its [Desktop Entry] group" });
+    expect(desktopCommand(desktop('"/opt/plainva-desktop'))).toEqual({ error: 'its Exec value has an unclosed quote: "/opt/plainva-desktop' });
+    expect(desktopCommand(desktop("env -C /opt plainva-desktop"))).toEqual({ error: "its Exec runs env with the option -C, which this check does not read" });
+    expect(desktopCommand(desktop("env FOO=1"))).toEqual({ error: "its Exec runs env without a program" });
+    expect(desktopCommand(desktop(""))).toEqual({ error: "its Exec value is empty" });
   });
 
   it("takes a string of a property list", () => {
     expect(plistString(plist("plainva-desktop"), "CFBundleExecutable")).toBe("plainva-desktop");
     expect(plistString(plist("plainva-desktop"), "CFBundleIconFile")).toBeUndefined();
-    expect(plistString("<dict><key> CFBundleExecutable </key>\n<string> a&amp;b&#x41; </string></dict>", "CFBundleExecutable")).toBe("a&bA");
+    // The value as written (a plist string keeps its spaces), entities decoded; an impossible code point stays as written.
+    expect(plistString("<dict><key>CFBundleExecutable</key>\n<string> a&amp;b&#x41;&#99999999; </string></dict>", "CFBundleExecutable")).toBe(" a&bA&#99999999; ");
+    expect(plistString("<dict><key> CFBundleExecutable </key><string>x</string></dict>", "CFBundleExecutable")).toBeUndefined();
+    expect(plistString("<dict><key>CFBundleExecutable</key><string/></dict>", "CFBundleExecutable")).toBe("");
   });
 });
 
@@ -110,6 +121,15 @@ onPosix("a Linux package", () => {
     ]);
   });
 
+  it("names an entry it cannot read or does not understand, and does not crash", () => {
+    const dir = tree(good);
+    symlinkSync(join(dir, "nowhere.desktop"), join(dir, "usr/share/applications/Broken.desktop"));
+    expect(checkLinuxTree(dir)).toEqual(["usr/share/applications/Broken.desktop cannot be read (ENOENT)"]);
+    expect(checkLinuxTree(tree({ ...good, "usr/share/applications/Plainva.desktop": desktop("env -C /opt plainva-desktop") }))).toEqual([
+      "usr/share/applications/Plainva.desktop: its Exec runs env with the option -C, which this check does not read",
+    ]);
+  });
+
   it("fails a program that is not executable", () => {
     expect(checkLinuxTree(tree({ ...good, "usr/bin/plainva-desktop": "#!/bin/sh\n" }))).toEqual(["usr/bin/plainva-desktop is missing or not executable"]);
   });
@@ -127,6 +147,9 @@ onPosix("a macOS app", () => {
     const { "Contents/MacOS/plainva-mcp": _helper, ...noHelper } = good;
     expect(checkMacApp(tree(noHelper))).toEqual(["Contents/MacOS/plainva-mcp is missing or not executable"]);
     expect(checkMacApp(tree({}))).toEqual(["Contents/Info.plist is missing"]);
+    expect(checkMacApp(tree({ ...good, "Contents/Info.plist": "<dict><key>CFBundleExecutable</key><string/></dict>" }))).toEqual([
+      "CFBundleExecutable is empty, not plainva-desktop",
+    ]);
   });
 
   it("reads a binary Info.plist through plutil, and says so where it cannot", () => {

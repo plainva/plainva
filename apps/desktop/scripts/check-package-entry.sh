@@ -23,9 +23,11 @@
 # and require the process 3 seconds later; a slow start is waited for, never
 # retried. A failure names what was missing and shows the program's output;
 # a command that ends the script without a word of its own is named by the
-# ERR trap (line and command) — once: whatever reported a failure itself
-# (here, a subshell, package-entry-check.mjs, package-start-linux.sh) marks
-# it, and the trap stays silent.
+# ERR trap (line and command). Exactly one annotation per failure, never
+# none: this script, package-entry-check.mjs and package-start-linux.sh mark
+# a failure they named ($PLAINVA_REPORTED), and the trap stays silent then;
+# a command that failed without naming it (xvfb-run, dbus-run-session, a
+# crash of node) is named by `reports`, with its status.
 #
 # Only processes of these starts are ended, by their PID (Linux: the start's
 # own descendants; macOS: the processes of the copied .app); another Plainva
@@ -51,13 +53,20 @@ installed=""
 app=""
 opener=""
 reported="$work/.reported"
+export PLAINVA_REPORTED="$reported"
 
 # The processes started from the copied .app (macOS), by path.
 app_pids() { [ -n "$app" ] && pgrep -f "$app/Contents/MacOS/" || true; }
 
 cleanup() {
   local p
-  for p in $(app_pids) $opener; do kill "$p" 2>/dev/null || true; done
+  for p in $(app_pids); do kill "$p" 2>/dev/null || true; done
+  # The background `open -W`: ended and collected quietly, or bash writes
+  # "Terminated: 15 open -W …" into a green log.
+  if [ -n "$opener" ]; then
+    kill "$opener" 2>/dev/null || true
+    wait "$opener" 2>/dev/null || true
+  fi
   if [ -n "$mounted" ]; then hdiutil detach "$mounted" -quiet || true; fi
   if [ -n "$installed" ]; then sudo apt-get remove -y -qq "$installed" >/dev/null || true; fi
   rm -rf "$work"
@@ -72,8 +81,15 @@ die() {
   echo "::error::$*" >&2
   exit 1
 }
-# Commands that name their own failure.
-reports() { "$@" || { : >"$reported"; exit 1; }; }
+# A command that may name its own failure (it marks $PLAINVA_REPORTED when it
+# does); when it fails without the mark, its failure is named here.
+reports() {
+  local status=0
+  "$@" || status=$?
+  [ "$status" = 0 ] && return 0
+  [ -e "$reported" ] || die "$* ended with status $status and no message of its own"
+  exit 1
+}
 check() { reports node "$here/package-entry-check.mjs" "$@"; }
 one() {
   local found

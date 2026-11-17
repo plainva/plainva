@@ -26,25 +26,45 @@ shift 2
 main=plainva-desktop
 timeout_s="${PLAINVA_START_TIMEOUT:-45}"
 
+# The parent of a process. /proc/<pid>/stat is "pid (comm) state ppid …",
+# and comm may hold spaces and parentheses: read after the last ")".
+parent() {
+  local stat
+  stat="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0
+  stat="${stat##*) }"
+  set -- $stat
+  echo "${2:-}"
+}
+
 # The plainva-desktop processes of this start: $pid itself or a descendant.
+# Once $pid is collected (`reaped`), its number may belong to another process:
+# only descendants still under it would count, and there are none to find.
+reaped=0
 ours() {
   local p q
+  [ "$reaped" = 1 ] && return 0
   for p in $(pgrep -x "$main"); do
     q="$p"
-    while [ -n "$q" ] && [ "$q" -gt 1 ]; do
+    while [ -n "$q" ] && [ "$q" -gt 1 ] 2>/dev/null; do
       if [ "$q" = "$pid" ]; then echo "$p"; break; fi
-      q="$(awk '{print $4}' "/proc/$q/stat" 2>/dev/null)"
+      q="$(parent "$q")"
     done
   done
 }
 
+# Ends the processes of this start; never a PID that was already collected.
 stop() {
   local p
-  for p in $(ours) "$pid"; do kill "$p" 2>/dev/null; done
-  wait "$pid" 2>/dev/null
+  for p in $(ours); do kill "$p" 2>/dev/null; done
+  if [ "$reaped" = 0 ]; then
+    kill "$pid" 2>/dev/null
+    wait "$pid" 2>/dev/null
+    reaped=1
+  fi
 }
 
 fail() {
+  if [ -n "${PLAINVA_REPORTED:-}" ]; then : >"$PLAINVA_REPORTED"; fi
   echo "::error::$label: $1"
   echo "--- last lines of the program's output ($log) ---"
   tail -n 40 "$log" 2>/dev/null || echo "(no output)"
@@ -84,6 +104,7 @@ for _ in $(seq "$timeout_s"); do
   if ! kill -0 "$pid" 2>/dev/null && [ -z "$(ours)" ]; then
     wait "$pid"
     code=$?
+    reaped=1
     if [ "$seen" = 1 ]; then fail "$main started and ended before a window appeared (exit code $code)"; fi
     fail "no $main process was seen; the start command ($(basename "$1")) ended with exit code $code within $SECONDS s"
   fi
