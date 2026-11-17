@@ -3,6 +3,7 @@ import { BatchStatement, IDatabaseAdapter, SqlStatements } from "../db/IDatabase
 import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
 import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules, contentPathRefusal, contentPathIsReal, checkedContentPath, foldSegment, isWindowsDeviceSegment, isShortNameAlias } from "./internalPath.js";
 import { createYielder } from "./yielder.js";
+import { readsCalledOffBy, writesRefusedAfter } from "./indexerCalledOff.js";
 import { trimChars } from "../textScan.js";
 import { runStatementsAtomic } from "../db/batch.js";
 import { escapeLikePrefix } from "../db/likeEscape.js";
@@ -156,7 +157,12 @@ export interface FolderReconcileReport {
 }
 
 export interface VaultIndexerOptions {
-  /** Cancels read-only reconciliation before any index mutation starts. */
+  /**
+   * The owner's "this vault is being closed". A full scan stops at its next
+   * look at it; every read of the indexer under way is answered at once with
+   * its reason, and after it the indexer writes nothing (indexerCalledOff.ts) —
+   * so `whenIdle` does not wait for a read that never answers.
+   */
   scanSignal?: AbortSignal;
   onExternalModification?: (path: string, oldHash: string | null, newHash: string) => void;
   /**
@@ -238,9 +244,86 @@ interface BulkIndexLookups {
  * bytes. A pass over many files reads first and indexes after, so that a file
  * that cannot be read is left out instead of ending the pass (`readOrLeaveOut`).
  */
-type FileReading =
+type FileReading = (
   | { kind: "text"; read: LocalText }
-  | { kind: "bytes"; sha256: string };
+  | { kind: "bytes"; sha256: string }
+) & {
+  /** When the read began (`Date.now()`): what the row's timestamp says about it (`indexedMtime`). */
+  at: number;
+};
+
+/**
+ * How close to the read a file's timestamp may lie before the row does not
+ * vouch for the file as it is, where the timestamp was taken by a coarse
+ * clock (`COARSE_CLOCK_MS`): the coarsest a vault is commonly kept on (FAT
+ * 2 s; HFS+, ext3, many network mounts and some Android versions 1 s) with
+ * room for a share whose clock runs a little behind this device's.
+ */
+const RACY_TIMESTAMP_MS = 3000;
+
+/** A timestamp on a whole second is taken as one of a clock that counts in seconds or more. */
+const COARSE_CLOCK_MS = 1000;
+
+/**
+ * The timestamp a row is written with, for a file read at `readAt` whose
+ * timestamp was `mtime`.
+ *
+ * Every pass skips a file whose timestamp and size are what the index holds
+ * (the full scan, a folder re-read, the echo check of a single path). A
+ * timestamp only tells two states of a file apart when they lie on different
+ * ticks of its file system's clock: another program that writes a note twice
+ * within one tick — a sync client, a script, an editor that saves in two
+ * steps — leaves the second state under the timestamp of the first. A read
+ * that fell between the two writes indexed the first, and every pass after it
+ * found "unchanged": old text in the search, and no upload of the change until
+ * the next one (the "racy timestamp" every content index meets).
+ *
+ * So a read that began within a tick of the file's timestamp, before or
+ * after it, does not vouch for the file: its row carries the timestamp
+ * one millisecond earlier, which no pass takes for the file's own, and the
+ * next pass that looks reads the file again — by then mostly after the tick,
+ * and that reading stands. The tick is the clock's the timestamp was taken
+ * by: on a whole second, `RACY_TIMESTAMP_MS`; otherwise the millisecond both
+ * shells' timestamps count in, so that a file read a moment after it was
+ * written — as every save, pull and import is — is not read once more for
+ * it. A timestamp that only happens to lie on a whole second costs one more
+ * read. A timestamp far from this device's clock — a share whose clock runs
+ * hours ahead — says nothing about the read's place in its tick and does not
+ * make every pass read the file again until this clock has caught up. What
+ * the row says when the file was changed is off by that millisecond in the
+ * meantime.
+ */
+function indexedMtime(mtime: number, readAt: number): number {
+  const tick = mtime % COARSE_CLOCK_MS === 0 ? RACY_TIMESTAMP_MS : 1;
+  return Math.abs(mtime - readAt) < tick ? mtime - 1 : mtime;
+}
+
+/** The hash of the bytes a reading was made of (the one a row is written with). */
+function readingHash(reading: FileReading): string {
+  return reading.kind === "text" ? reading.read.sha256 : reading.sha256;
+}
+
+/**
+ * Whether a file read again is unchanged: its row did not vouch for this very
+ * timestamp only because its read came too close to it (`indexedMtime`), and
+ * the bytes are the ones the row was written from. The pass writes the row
+ * again (now, mostly, with the file's own timestamp) and counts no change —
+ * the views do not reload for the echo of a save (issue 122).
+ */
+function readAgainUnchanged(
+  row: { mtime_local?: unknown; size_bytes?: unknown; sha256?: unknown } | undefined | null,
+  file: VaultFileInfo,
+  hash: string | null,
+): boolean {
+  return !!row && hash !== null && Number(row.mtime_local) === file.mtime - 1
+    && Number(row.size_bytes) === file.size && row.sha256 === hash;
+}
+
+/** Whether a row stands for the file as listed: same timestamp and same size (`indexedMtime`). */
+function rowVouchesFor(row: { mtime_local?: unknown; size_bytes?: unknown } | undefined | null, file: VaultFileInfo): boolean {
+  if (!row) return false;
+  return Number(row.mtime_local) === file.mtime && Number(row.size_bytes) === file.size;
+}
 
 /** A file the full scan read before the transaction that writes it, and where its read began (`changesSince`). */
 interface ScanReading {
@@ -327,6 +410,8 @@ interface IndexedAtScanStart {
   rowid?: number | null;
   path: string;
   mtime_local: number;
+  size_bytes?: number | null;
+  sha256?: string | null;
 }
 
 export class VaultIndexer {
@@ -353,12 +438,22 @@ export class VaultIndexer {
    */
   private readonly openMarks = new Map<number, number>();
 
+  private readonly vaultAdapter: IVaultAdapter;
+  private readonly dbAdapter: IDatabaseAdapter;
+
   constructor(
-    private readonly vaultAdapter: IVaultAdapter,
-    private readonly dbAdapter: IDatabaseAdapter,
+    vaultAdapter: IVaultAdapter,
+    dbAdapter: IDatabaseAdapter,
     private readonly options?: VaultIndexerOptions
   ) {
-    this.syncRepo = new SyncStateRepository(dbAdapter);
+    // Once the owner calls the index off, no read of it is waited for and
+    // nothing of it is written any more (indexerCalledOff.ts): closing a
+    // vault must not hang on a read that never answers, and a reading that
+    // comes back after all must not land in a database.
+    const signal = options?.scanSignal;
+    this.vaultAdapter = signal ? readsCalledOffBy(vaultAdapter, signal) : vaultAdapter;
+    this.dbAdapter = signal ? writesRefusedAfter(dbAdapter, signal) : dbAdapter;
+    this.syncRepo = new SyncStateRepository(this.dbAdapter);
   }
 
   /** Runs one pass: what it finds is its own, and so is the moment it began. */
@@ -811,6 +906,7 @@ export class VaultIndexer {
     // merge base, that reading would be written back by the next merge (see
     // the end of this method). A pass over many files reads first
     // (`readOrLeaveOut`) and hands the reading in.
+    const readAt = reading?.at ?? Date.now();
     const read = reading?.kind === "text" ? reading.read : await readLocalText(this.vaultAdapter, fileInfo.path);
     // UTF-16 read as UTF-8 carries a NUL after every character; without them
     // the reading has the note's headings and links again.
@@ -983,7 +1079,7 @@ export class VaultIndexer {
       await writer.execute(
         `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)`,
-        [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, rowSyncState]
+        [fileId, fileInfo.path, title, sha256, indexedMtime(fileInfo.mtime, readAt), ctime, fileInfo.size, mode, rowSyncState]
       );
 
       // Insert into fts_notes — with the character-pair form of text written
@@ -1051,7 +1147,7 @@ export class VaultIndexer {
       await writer.execute(
         `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?, 0)`,
-        [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, rowSyncState]
+        [fileId, fileInfo.path, fileInfo.name, sha256, indexedMtime(fileInfo.mtime, readAt), ctime, fileInfo.size, rowSyncState]
       );
       await writer.execute(
         INSERT_FULL_TEXT_ROW,
@@ -1108,7 +1204,7 @@ export class VaultIndexer {
     // a `.txt` in UTF-16) has the hash of its bytes and no base_text, like the truly
     // binary files (images, PDFs, …).
     const textLike = isTextFile(fileInfo.path);
-    const { sha256, textContent } = await this.attachmentContent(fileInfo, textLike, reading);
+    const { sha256, textContent, at: readAt } = await this.attachmentContent(fileInfo, textLike, reading);
 
     const existingFileState = lookups
       ? lookups.fileStateByPath.get(fileInfo.path) ?? null
@@ -1164,7 +1260,7 @@ export class VaultIndexer {
     await writer.execute(
       `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)`,
-      [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, "attachment", rowSyncState]
+      [fileId, fileInfo.path, fileInfo.name, sha256, indexedMtime(fileInfo.mtime, readAt), ctime, fileInfo.size, "attachment", rowSyncState]
     );
 
     if (isNewLocalFile) {
@@ -1315,17 +1411,18 @@ export class VaultIndexer {
     // does not get to write.
     this.touch(path);
 
-    // Same mtime as indexed -> the event is an echo (our own save already
-    // re-indexed the file, or a no-op touch): skip the re-parse.
-    const knownRow = await this.dbAdapter.queryOne<{ mtime_local: number }>(
-      `SELECT mtime_local FROM files WHERE path = ?`,
+    // Same mtime and size as indexed -> the event is an echo (our own save
+    // already re-indexed the file, or a no-op touch): skip the re-parse.
+    const knownRow = await this.dbAdapter.queryOne<{ mtime_local: number; size_bytes: number | null; sha256: string | null }>(
+      `SELECT mtime_local, size_bytes, sha256 FROM files WHERE path = ?`,
       [path]
     );
-    if (knownRow && Number(knownRow.mtime_local) === info.mtime) return "unchanged";
+    if (rowVouchesFor(knownRow, info)) return "unchanged";
 
-    if (info.name.endsWith(".md") || !isInternalPath(info.path)) await this.indexOne(info, pass);
+    const written = info.name.endsWith(".md") || !isInternalPath(info.path) ? await this.indexOne(info, pass) : null;
     this.flushCallbacks(pass);
-    return "indexed";
+    // The echo of a save, mostly: read again, and nothing changed.
+    return readAgainUnchanged(knownRow, info, written) ? "unchanged" : "indexed";
   }
 
   /**
@@ -1377,7 +1474,7 @@ export class VaultIndexer {
    * reading begun later stands (`claimWrite`). The file's timestamps cannot
    * decide that: another program may set an older one.
    */
-  private async indexOne(fileInfo: VaultFileInfo, pass: IndexPass): Promise<void> {
+  private async indexOne(fileInfo: VaultFileInfo, pass: IndexPass): Promise<string | null> {
     let info = fileInfo;
     for (let reads = 1; ; reads++) {
       const { mark, release } = await this.takeChangeMark();
@@ -1385,36 +1482,39 @@ export class VaultIndexer {
         const from = this.readBegins();
         const reading = await this.readForIndex(info);
         let undo: (() => void) | null = null;
-        const aside = await this.dbAdapter.transaction(async (tx) => {
+        const outcome = await this.dbAdapter.transaction(async (tx): Promise<"aside" | "stood" | "wrote"> => {
           // Changed since the read began: read again (`changesSince`).
-          if ((await this.changesSince(mark, tx))(info.path, mark)) return true;
+          if ((await this.changesSince(mark, tx))(info.path, mark)) return "aside";
           undo = this.claimWrite(info.path, from);
-          if (!undo) return false;
+          if (!undo) return "stood";
           if (info.name.endsWith(".md")) await this._indexFileInternal(info, pass, tx, undefined, tx, reading);
           else await this._indexAttachmentInternal(info, pass, tx, undefined, tx, reading);
-          return false;
+          return "wrote";
         }).catch((error: unknown) => {
           (undo as (() => void) | null)?.();
           throw error;
         });
+        // The hash of the bytes the row was written from, or null where a later reading stood.
+        if (outcome === "wrote") return readingHash(reading);
         // Whoever keeps changing it follows it with a pass of its own; the next scan reads it besides.
-        if (!aside || reads >= SINGLE_PATH_READS) return;
+        if (outcome === "stood" || reads >= SINGLE_PATH_READS) return null;
       } finally {
         release();
       }
       // The file as it is now: moved or removed meanwhile, there is nothing here to index.
       const now = await this.lookAt(info.path);
-      if (!now || now.isDirectory) return;
+      if (!now || now.isDirectory) return null;
       info = now;
     }
   }
 
   /** Reads a file the way its kind is indexed: as text where its name says so, else as bytes. */
   private async readForIndex(fileInfo: VaultFileInfo): Promise<FileReading> {
+    const at = Date.now();
     if (fileInfo.name.endsWith(".md") || isTextFile(fileInfo.path)) {
-      return { kind: "text", read: await readLocalText(this.vaultAdapter, fileInfo.path) };
+      return { kind: "text", read: await readLocalText(this.vaultAdapter, fileInfo.path), at };
     }
-    return { kind: "bytes", sha256: await sha256Bytes(await this.vaultAdapter.readBinaryFile(fileInfo.path)) };
+    return { kind: "bytes", sha256: await sha256Bytes(await this.vaultAdapter.readBinaryFile(fileInfo.path)), at };
   }
 
   /** What an attachment is indexed with: the hash of its bytes, and its text where it is one. */
@@ -1422,10 +1522,10 @@ export class VaultIndexer {
     fileInfo: VaultFileInfo,
     textLike: boolean,
     reading?: FileReading,
-  ): Promise<{ sha256: string; textContent: string | null }> {
+  ): Promise<{ sha256: string; textContent: string | null; at: number }> {
     const read = reading ?? (await this.readForIndex(fileInfo));
-    if (read.kind === "bytes") return { sha256: read.sha256, textContent: null };
-    return { sha256: read.read.sha256, textContent: textLike && read.read.exact ? read.read.text : null };
+    if (read.kind === "bytes") return { sha256: read.sha256, textContent: null, at: read.at };
+    return { sha256: read.read.sha256, textContent: textLike && read.read.exact ? read.read.text : null, at: read.at };
   }
 
   /**
@@ -1451,6 +1551,8 @@ export class VaultIndexer {
     try {
       return await this.readForIndex(fileInfo);
     } catch (error) {
+      // Called off: no file of this vault is "unreadable" for that.
+      this.options?.scanSignal?.throwIfAborted();
       const missing = (error as { code?: unknown } | null)?.code === "FILE_NOT_FOUND";
       if (missing && !(await this.vaultAdapter.exists(fileInfo.path).catch(() => true))) return null;
       unreadable.push({ path: fileInfo.path, reason: "unreadable" });
@@ -1626,6 +1728,8 @@ export class VaultIndexer {
     try {
       junk = hasAppleDoubleHeader(await this.vaultAdapter.readBinaryFile(info.path));
     } catch {
+      // Called off (indexerCalledOff.ts): the pass ends here, it does not go on without the answer.
+      this.options?.scanSignal?.throwIfAborted();
       // Unreadable is not evidence: the file keeps counting as the user's.
       return false;
     }
@@ -1718,15 +1822,21 @@ export class VaultIndexer {
       ? { where: `substr(path, 1, length(?)) = ? COLLATE BINARY${extra}`, params: [inFolder, inFolder] as unknown[] }
       : { where: `1 = 1${extra}`, params: [] as unknown[] };
     const scoped = new Map<string, number>();
+    // The size each row was written with: a row stands for a file only where both agree (rowVouchesFor).
+    const scopedRow = new Map<string, { mtime_local: number; size_bytes?: number | null; sha256?: string | null }>();
+    const hold = (r: { path: string; mtime_local: number; size_bytes?: number | null; sha256?: string | null }) => {
+      scoped.set(r.path, Number(r.mtime_local));
+      scopedRow.set(r.path, r);
+    };
     if (recursive) {
       const q = underRoot();
-      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number }>(
-        `SELECT path, mtime_local FROM files WHERE ${q.where}`, q.params)) scoped.set(r.path, Number(r.mtime_local));
+      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number; size_bytes: number | null; sha256: string | null }>(
+        `SELECT path, mtime_local, size_bytes, sha256 FROM files WHERE ${q.where}`, q.params)) hold(r);
     } else {
       // Own files: nothing after the folder's slash contains another slash.
       const own = underRoot(` AND instr(substr(path, length(?) + 1), '/') = 0`);
-      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number }>(
-        `SELECT path, mtime_local FROM files WHERE ${own.where}`, [...own.params, inFolder])) scoped.set(r.path, Number(r.mtime_local));
+      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number; size_bytes: number | null; sha256: string | null }>(
+        `SELECT path, mtime_local, size_bytes, sha256 FROM files WHERE ${own.where}`, [...own.params, inFolder])) hold(r);
       // Subfolders the index knows, by their first segment below the folder.
       const deep = underRoot(` AND instr(substr(path, length(?) + 1), '/') > 0`);
       const segments = await this.dbAdapter.query<{ seg: string }>(
@@ -1739,9 +1849,9 @@ export class VaultIndexer {
         if (!seg || diskDirs.has(sub) || isInternalPath(sub)) continue;
         if (skipped.some((s) => !s.path || s.path === sub || sub.startsWith(`${s.path}/`))) continue;
         const prefix = `${sub}/`;
-        for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number }>(
-          `SELECT path, mtime_local FROM files WHERE substr(path, 1, length(?)) = ? COLLATE BINARY`, [prefix, prefix]))
-          scoped.set(r.path, Number(r.mtime_local));
+        for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number; size_bytes: number | null; sha256: string | null }>(
+          `SELECT path, mtime_local, size_bytes, sha256 FROM files WHERE substr(path, 1, length(?)) = ? COLLATE BINARY`, [prefix, prefix]))
+          hold(r);
         report.foldersRemoved = true;
       }
     }
@@ -1762,7 +1872,7 @@ export class VaultIndexer {
         || (await this.isVanishedAppleDouble(path, this.dbAdapter, (p) => scoped.has(p) || onDisk.has(p)));
       (excluded ? silent : vanished).push(path);
     }
-    const toIndex = [...onDisk.values()].filter((f) => scoped.get(f.path) !== f.mtime);
+    const toIndex = [...onDisk.values()].filter((f) => !rowVouchesFor(scopedRow.get(f.path), f));
 
     if (vanished.length === 0 && silent.length === 0 && toIndex.length === 0) return report;
     // The files this re-read indexed, and the ones that are there and could not be read (readOrLeaveOut).
@@ -1799,7 +1909,7 @@ export class VaultIndexer {
         claims.push(undo);
         if (f.name.endsWith(".md")) await this._indexFileInternal(f, pass, tx, undefined, tx, reading);
         else await this._indexAttachmentInternal(f, pass, tx, undefined, tx, reading);
-        indexed.push(f.path);
+        if (!readAgainUnchanged(scopedRow.get(f.path), f, readingHash(reading))) indexed.push(f.path);
       }
       aside.push(...readings.filter(({ f }) => changed(f.path, mark)).map(({ f }) => f.path));
       // The rows of what went leave last, as in the full scan: a re-read that
@@ -1817,8 +1927,8 @@ export class VaultIndexer {
       // Moved or removed meanwhile: whoever did it follows the path. A look that fails proves nothing either way.
       const now = await this.lookAt(path).catch(() => null);
       if (!now || now.isDirectory) continue;
-      await this.indexOne(now, pass);
-      indexed.push(path);
+      const written = await this.indexOne(now, pass);
+      if (!readAgainUnchanged(scopedRow.get(path), now, written)) indexed.push(path);
     }
     this.flushCallbacks(pass);
     this.reportRemoved(vanished.filter((path) => mine.has(path)), pass.since, (path) => indexedRowStamp(scoped.get(path)));
@@ -2053,7 +2163,7 @@ export class VaultIndexer {
     // The row each path has as the scan begins: its timestamp decides what is
     // read again, its rowid tells a row the app moves meanwhile (movedAway).
     const dbFiles = await this.dbAdapter.query<IndexedAtScanStart>(
-      `SELECT rowid, path, mtime_local FROM files`
+      `SELECT rowid, path, mtime_local, size_bytes, sha256 FROM files`
     );
     // An index is owed a full scan from the moment one begins on it empty
     // until one goes through (indexComplete). A scan that gets to write says
@@ -2142,11 +2252,12 @@ export class VaultIndexer {
       if (p) await p;
       if (appleDouble.has(file.path)) continue;
       diskFilePaths.add(file.path);
-      const dbMtime = dbFileMap.get(file.path)?.mtime_local;
-      // `!==` instead of `>`: restoring an OLDER file version (Explorer copy,
+      // Equality instead of `>`: restoring an OLDER file version (Explorer copy,
       // backup restore, sync rollback) keeps the old mtime — a strictly-greater
       // check would never re-index it and the stale content would stick around.
-      if (dbMtime !== undefined && file.mtime === dbMtime) continue;
+      // And the size as well: a timestamp alone misses a change within one
+      // tick of the file system's clock (indexedMtime).
+      if (rowVouchesFor(dbFileMap.get(file.path), file)) continue;
       (file.name.endsWith(".md") ? mdToIndex : attachmentsToIndex).push(file);
     }
     const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
@@ -2362,7 +2473,9 @@ export class VaultIndexer {
             // Added vs. changed: a file with no row was created outside Plainva, one
             // with a row just moved on. Against the index as it is now — a file
             // whose row the app moved here since the scan began is no new file.
-            const counted = (file: VaultFileInfo) => {
+            const counted = (file: VaultFileInfo, reading: FileReading) => {
+              // Read again only because its last read came too close to its timestamp, and unchanged.
+              if (readAgainUnchanged(dbFileMap.get(file.path), file, readingHash(reading))) return;
               scannedCount += 1;
               if (!lookups.fileStateByPath.has(file.path)) addedCount += 1;
             };
@@ -2387,7 +2500,7 @@ export class VaultIndexer {
               claims.push(undo);
               if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
               else await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
-              counted(file);
+              counted(file, reading);
               if (batch.length >= FLUSH_AT) await flush();
             }
 

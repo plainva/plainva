@@ -773,8 +773,9 @@ export const VaultProvider: React.FC<{
     }
 
     activeLoadPathRef.current = path;
-    loadAbortRef.current = new AbortController();
-    const currentAbortSignal = loadAbortRef.current.signal;
+    const loadController = new AbortController();
+    loadAbortRef.current = loadController;
+    const currentAbortSignal = loadController.signal;
     // What this load starts on its way; a load that is called off stops it
     // again instead of leaving it running for a vault nobody has open (3.120).
     const loadStarts = new LoadStarts(path, currentAbortSignal);
@@ -1908,7 +1909,10 @@ export const VaultProvider: React.FC<{
         return;
       }
       // A load that failed leaves no open vault behind either: nothing it
-      // started may keep running.
+      // started may keep running — its index included, which is called off
+      // like a closed vault's, so the drain does not wait for a read of it
+      // that never answers (indexerCalledOff.ts).
+      loadController.abort();
       void loadStarts.abandon();
       console.error("Failed to load vault", error);
       setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
