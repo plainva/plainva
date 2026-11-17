@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-11-06
+Stan na: 2026-11-17
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -71,7 +71,7 @@ Na telefonie **Backupy ZIP** to pierwsza grupa strony **Backup i historia wersji
 
 Na urządzeniu mobilnym nieudany zapis notatki zatrzymuje zmianę, ponowne wczytanie lub usunięcie vaulta. Tekst pozostaje w kolejce do ponownej próby. Notatki o tej samej nazwie w różnych vaultach mają oddzielne oczekujące zapisy i szkice. Konflikt zapisu zachowuje daną wersję tekstu; późniejsze zmiany są następnie zapisywane osobno lub w kolejnej kopii konfliktowej. Oba interfejsy wykonują zapisy i usuwanie szkiców w kolejności, aby opóźnione zakończenie nie usunęło nowszej kopii. Nieudany zapis kopii konfliktowej nie zastępuje tekstu w edytorze mobilnym.
 
-Kopia ZIP jest uznawana za udaną dopiero po odczytaniu wszystkich wybranych plików i zapisaniu pełnego archiwum. Nieudana próba nie usuwa wcześniejszych archiwów ani nie zmienia daty ostatniej udanej kopii. Na urządzeniu mobilnym komunikat błędu automatycznej kopii podaje nazwę vaulta; przycisk **Utwórz kopię zapasową teraz** w sekcji **Backup i historia wersji** → **Backupy ZIP** uruchamia kolejną próbę. Ukryta konfiguracja użytkownika, np. `.obsidian`, jest uwzględniana na obu platformach. Katalogi `.plainva`, `.git`, `.trash` i `node_modules` są wykluczane na każdym poziomie. Przy tworzeniu kilku archiwów w tej samej sekundzie nowa nazwa otrzymuje przyrostek, np. `_001`.
+Kopia ZIP jest uznawana za udaną dopiero po odczytaniu wszystkich wybranych plików i zapisaniu pełnego archiwum. Nieudana próba nie usuwa wcześniejszych archiwów ani nie zmienia daty ostatniej udanej kopii. Na urządzeniu mobilnym komunikat błędu automatycznej kopii podaje nazwę vaulta; przycisk **Utwórz kopię zapasową teraz** w sekcji **Backup i historia wersji** → **Backupy ZIP** uruchamia kolejną próbę. Ukryta konfiguracja użytkownika, np. `.obsidian`, jest uwzględniana na obu platformach. Katalogi `.plainva`, `.git`, `.trash` i `node_modules` są wykluczane na każdym poziomie. Przy tworzeniu kilku archiwów w tej samej sekundzie nowa nazwa otrzymuje przyrostek, np. `_001`. Po niepowodzeniu automatyczna kopia na telefonie czeka dzień, potem za każdym razem dwa razy dłużej, najwyżej tydzień, zamiast próbować ponownie przy każdym uruchomieniu; plik, który zniknie w trakcie kopii, zostaje pominięty.
 
 Zapis jest oznaczany jako zakończony dopiero po potwierdzeniu zapisu danych. Tekst wpisany podczas zapisywania pozostaje niezapisany, dopóki nie zostanie zapisana również jego wersja. Szkice na komputerze należą do swojej sesji edytora: zakończenie starej sesji nie usuwa szkicu z nowo otwartego edytora. Gdy jednocześnie pojawiają się zmiany zewnętrzne, Plainva scala zgodne zmiany; tekst powodujący konflikt pozostaje dostępny jako szkic i kopia konfliktowa.
 

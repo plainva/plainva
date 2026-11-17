@@ -6,7 +6,7 @@ vi.mock("@capacitor/filesystem", () => ({
   Directory: { Data: "DATA" }, Encoding: { UTF8: "utf8" },
   Filesystem: { readFile: native.read, stat: native.stat, readdir: native.list },
 }));
-vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn() }));
+vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn(), atomicWriteBytes: vi.fn(), nativeReadBytes: vi.fn(), nativeFileDigest: vi.fn(), sweepAtomicTemps: vi.fn(async () => {}) }));
 
 import { CapacitorVaultAdapter } from "./CapacitorVaultAdapter";
 

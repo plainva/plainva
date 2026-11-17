@@ -15,6 +15,7 @@ const fs = vi.hoisted(() => ({
   library: new Map<string, string>(),
   failRename: new Set<string>(),
   failStat: new Set<string>(),
+  failListDocuments: false,
 }));
 
 const missing = () => Object.assign(new Error("File does not exist"), { code: "OS-PLUG-FILE-0008" });
@@ -24,8 +25,10 @@ vi.mock("@capacitor/filesystem", () => {
   const folder = (directory: string) => (directory === "LIBRARY" ? fs.library : fs.documents);
   return {
     Directory: { Documents: "DOCUMENTS", Library: "LIBRARY" },
+    Encoding: { UTF8: "utf8" },
     Filesystem: {
       readdir: async ({ path, directory }: { path: string; directory: string }) => {
+        if (directory !== "LIBRARY" && fs.failListDocuments) throw Object.assign(new Error("not permitted"), { code: "OS-PLUG-FILE-0007" });
         const prefix = path ? `${path}/` : "";
         const names = [...folder(directory).keys()].filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length));
         if (path && names.length === 0) throw missing();
@@ -43,6 +46,7 @@ vi.mock("@capacitor/filesystem", () => {
         folder(directory).delete(from);
         folder(toDirectory).set(to, data);
       },
+      writeFile: async ({ path, directory, data }: { path: string; directory: string; data: string }) => { folder(directory).set(path, data); },
       deleteFile: async ({ path, directory }: { path: string; directory: string }) => { folder(directory).delete(path); },
     },
   };
@@ -58,6 +62,7 @@ beforeEach(() => {
   fs.library.clear();
   fs.failRename.clear();
   fs.failStat.clear();
+  fs.failListDocuments = false;
 });
 
 describe("opening a database on iOS", () => {
@@ -82,12 +87,12 @@ describe("opening a database on iOS", () => {
     await releaseDatabase("plainva-index");
   });
 
-  it("does not delete at the new place a database that is still in Documents", async () => {
+  it("deletes a database that is still in Documents there, without the plugin making a new one at its place", async () => {
     fs.documents.set("plainva-v1SQLite.db", "db").set("plainva-v1SQLite.db-wal", "wal");
     fs.failRename.add("plainva-v1SQLite.db");
-    await expect(deleteDatabaseFile("plainva-v1")).rejects.toThrow(/could not be moved out of Documents/);
+    await deleteDatabaseFile("plainva-v1");
     expect(phoneSqlite.log).toEqual([]);
-    expect(fs.documents.get("plainva-v1SQLite.db")).toBe("db");
+    expect(fs.documents.size).toBe(0);
   });
 
   it("keeps the log in Documents when the new folder cannot be checked, and does not open", async () => {
@@ -105,5 +110,29 @@ describe("opening a database on iOS", () => {
     fs.library.set("CapacitorDatabase/plainva-v1SQLite.db-wal", "wal").set("CapacitorDatabase/plainva-v1SQLite.db-shm", "shm");
     await deleteDatabaseFile("plainva-v1");
     expect([...fs.library.keys()].filter((key) => key.startsWith("CapacitorDatabase/plainva-v1"))).toEqual([]);
+  });
+
+  it("opens a database when one entry of Documents cannot be listed (F43)", async () => {
+    fs.failListDocuments = true;
+    fs.documents.set("plainva-v1SQLite.db", "db").set("plainva-v1SQLite.db-wal", "wal");
+    await acquireDatabase("plainva-v1");
+    expect(phoneSqlite.isOpen("plainva-v1")).toBe(true);
+    expect(fs.documents.size).toBe(0);
+    await releaseDatabase("plainva-v1");
+  });
+
+  it("deletes a database that stayed closed where it lies, and the next start leaves it gone (F43)", async () => {
+    fs.documents.set("plainva-v1SQLite.db", "db").set("plainva-v1SQLite.db-wal", "wal");
+    fs.failRename.add("plainva-v1SQLite.db");
+    await expect(acquireDatabase("plainva-v1")).rejects.toThrow(/could not be moved out of Documents/);
+    await deleteDatabaseFile("plainva-v1");
+    expect(fs.documents.size).toBe(0);
+    expect(fs.library.size).toBe(0);
+
+    resetDatabasesForTests();
+    fs.failRename.clear();
+    await acquireDatabase("plainva-index");
+    expect([...fs.library.keys()].filter((key) => key.includes("plainva-v1"))).toEqual([]);
+    await releaseDatabase("plainva-index");
   });
 });

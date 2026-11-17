@@ -11,7 +11,7 @@ import {
   type PimAccountRow,
   type PimStatus,
 } from "@plainva/core";
-import { formatPimCycle, isSignedOutSlot, logDiagnostic } from "@plainva/ui";
+import { formatPimCycle, isSignedOutSlot, logDiagnostic, markTaskSyncInputChanged } from "@plainva/ui";
 import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 
@@ -113,6 +113,8 @@ export function createPimRuntime(opts: {
     // provider pull 14 s after the first, and nothing on record to explain it).
     onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
     onDataChanged: () => {
+      // The reconcile after this cycle is news for the task views (F21).
+      markTaskSyncInputChanged(cache);
       window.dispatchEvent(new CustomEvent("plainva-pim-changed"));
     },
     onStatusChange: (status: PimStatus, message?: string) => {

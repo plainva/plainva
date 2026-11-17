@@ -228,6 +228,17 @@ export interface IVaultAdapter {
   readBinaryFile(path: string): Promise<Uint8Array>;
 
   /**
+   * The SHA-256 (hex) of a file's bytes, taken where the file lies, without
+   * handing its bytes out - optional; `contentSha256Of` falls back to reading
+   * the file. The phone has it: there every byte handed out crosses the
+   * WebView bridge, and the index and the sync need only the hash of a
+   * picture. An adapter that changes the bytes it hands out (an encrypted
+   * workspace) must not forward the hash of the stored ones.
+   * @throws VaultFileNotFoundError
+   */
+  contentSha256?(path: string): Promise<string>;
+
+  /**
    * Writes text to a file. Overwrites if exists, creates if it doesn't.
    * Also creates missing parent directories.
    */
@@ -378,8 +389,10 @@ export interface VaultWalkSkip {
   /**
    * `cycle` — a link target already visited in this walk (following it would loop).
    * `unreadable` — listing the entry failed (permissions, offline network share).
+   * `changing` — the index read the file again and again, and something
+   *   changed it during every reading; the next full scan reads it (`VaultIndexer`).
    */
-  reason: "cycle" | "unreadable";
+  reason: "cycle" | "unreadable" | "changing";
 }
 
 /** How a reporting directory walk goes (see `IVaultAdapter.listDirReport`). */

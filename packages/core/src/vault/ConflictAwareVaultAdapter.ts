@@ -2,7 +2,7 @@ import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, Vault
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
-import { NotTextFileError, copyFileContent, fileSha256, isHashWithoutMark, isMarkerTakenWithoutMark, isNotTextFileError, readExactText, readLocalText } from "./localText.js";
+import { NotTextFileError, contentSha256Of, copyFileContent, fileSha256, isHashWithoutMark, isMarkerTakenWithoutMark, isNotTextFileError, readExactText, readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult, type PreservingConflictWriter } from "./conflictSession.js";
 import { hasUnkeptLineEnds, readTextShape, withKeptLineEnds, type TextFileShape } from "../textFileShape.js";
@@ -567,6 +567,11 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
     return this.inner.readBinaryFile(path);
+  }
+
+  /** The inner adapter's hash, without the bytes where it can (`contentSha256Of`): this one hands them out unchanged. */
+  contentSha256(path: string): Promise<string> {
+    return contentSha256Of(this.inner, path);
   }
 
   /**

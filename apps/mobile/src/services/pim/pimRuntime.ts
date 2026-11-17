@@ -1,6 +1,6 @@
 import { PimCacheRepository, PimWorker, type IPimTarget, type PimAccountRow, type PimCycleInfo, type PimStatus } from "@plainva/core";
 import { isDevicePimSupported, onDevicePimChanged } from "../../platform/devicePim";
-import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync, runMobileEntryEventSync } from "./taskSyncRuntime";
+import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync, runMobileEntryEventSync, markPimDataChanged } from "./taskSyncRuntime";
 import type { MobileVault } from "../vaultService";
 
 /**
@@ -102,6 +102,8 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
     // the same line (finding 2026-09-20: a second pull nobody could explain).
     onCycle: (info) => wiring.onCycle(info),
     onDataChanged: () => {
+      // The reconcile after this cycle is news for the task views (F21).
+      markPimDataChanged(cache);
       window.dispatchEvent(new CustomEvent("m-pim-changed"));
       // A finished cycle is the only moment the phone learns about new or moved
       // appointments — so it is also the moment its reminders can go stale

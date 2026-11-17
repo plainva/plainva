@@ -53,7 +53,9 @@ export interface PimWorkerOptions {
    * worker is usable without one.
    */
   parkedMessage?: string;
-  /** Fired after a cycle wrote fresh data — the UI re-queries the cache. */
+  /** Fired after a cycle that changed what the views show — new or changed
+   * data, a selection, a failure that came or went; never after a quiet one
+   * (F21). The UI re-queries the cache. */
   onDataChanged?: () => void;
   /**
    * One line per finished cycle, for the diagnostics log (finding 2026-09-20:
@@ -75,6 +77,7 @@ export type PimCycleCause = "start" | "timer" | "manual" | "queued";
 export interface PimCycleInfo {
   cause: PimCycleCause;
   ms: number;
+  /** Whether the cycle changed what the views show (see `onDataChanged`). */
   wroteData: boolean;
   hadError: boolean;
   /** Manual triggers the cycle answered without a second run (see TRIGGER_COALESCE_MS). */
@@ -151,6 +154,25 @@ export const PIM_WINDOW_FUTURE_DAYS = 400;
 /** Accounts refreshed at once; each of them pulls its calendars in batches too. */
 const ACCOUNT_CONCURRENCY = 3;
 
+/**
+ * A short fingerprint of what one calendar or list pulled (F21), independent
+ * of the order the provider listed it in. FNV-1a over the sorted rows: cheap,
+ * in memory, and nothing of the cache is read for it.
+ */
+function fingerprint(rows: readonly unknown[]): string {
+  const lines = rows.map((row) => JSON.stringify(row)).sort();
+  let h = 0x811c9dc5;
+  for (const line of lines) {
+    for (let i = 0; i < line.length; i++) {
+      h ^= line.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    h ^= 0x0a;
+    h = Math.imul(h, 0x01000193);
+  }
+  return `${lines.length}:${(h >>> 0).toString(36)}`;
+}
+
 export class PimWorker {
   private timer: ReturnType<typeof setInterval> | null = null;
   private generation = 0;
@@ -175,8 +197,56 @@ export class PimWorker {
    * "in a row, in this run".
    */
   private retries = new Map<string, { failures: number; notBefore: number; message: string }>();
+  /**
+   * What each account looked like at the end of its last cycle, part by part
+   * (F21): the calendars and lists with their selection, a fingerprint of
+   * what every calendar and list pulled, and the failures. A cycle reports
+   * "data changed" only when one of these differs.
+   *
+   * Every cycle rewrites the cache whether or not anything changed, so "it
+   * wrote" said nothing - and on the phone each such report cleared and
+   * rescheduled every reminder and reloaded the views, every two minutes.
+   * Comparing the cache before and after each write (a first attempt) read
+   * the whole event cache twice per cycle and still missed what the write
+   * does not show: a selection made in the settings, a failure that passed,
+   * an appointment that began before the window. The fingerprint is taken
+   * from what the provider answered, which is everything the cache gets.
+   *
+   * In memory on purpose, like `retries`: a restart reports once.
+   */
+  private seen = new Map<string, Map<string, string>>();
+
+  /** Tells two feed answers apart that arrived in the same millisecond. */
+  private deltaSeen = 0;
 
   constructor(private opts: PimWorkerOptions) {}
+
+  /**
+   * The account row itself and its revision: a rename, an account made again
+   * under its old id (its cache emptied in between), one switched off and on
+   * again between two cycles - nothing the provider says shows any of these.
+   */
+  private async accountParts(account: PimAccountRow): Promise<Array<[string, string]>> {
+    let revision: string | null;
+    try {
+      revision = await this.opts.cache.accountRevision(account.id);
+    } catch {
+      revision = "?"; // never worth losing the account's cycle over
+    }
+    return [
+      ["account", JSON.stringify([account.provider, account.label, account.config, account.enabled])],
+      ["revision", revision ?? ""],
+    ];
+  }
+
+  /** Stores what the account looks like now; true when any part differs from the last cycle. */
+  private settle(accountId: string, parts: Map<string, string>): boolean {
+    const before = this.seen.get(accountId);
+    this.seen.set(accountId, parts);
+    if (!before || before.size !== parts.size) return true;
+    for (const [key, value] of parts) if (before.get(key) !== value) return true;
+    return false;
+  }
 
   private noteFailure(key: string, message: string): void {
     const failures = (this.retries.get(key)?.failures ?? 0) + 1;
@@ -367,6 +437,13 @@ export class PimWorker {
         }
       }
       report = enabled.map((a) => stats.get(a.id)!);
+      // An account that is gone or switched off takes its rows out of every
+      // view: that is a change, once.
+      for (const id of [...this.seen.keys()]) {
+        if (enabled.some((a) => a.id === id)) continue;
+        this.seen.delete(id);
+        wroteData = true;
+      }
       // Accounts refresh CONCURRENTLY. They share nothing but the cache, and
       // every write inside is scoped to one account, so there is no order to
       // preserve between them — while sequentially a single slow or dead
@@ -413,7 +490,9 @@ export class PimWorker {
               else this.noteFailure(account.id, msg);
               stat.error = msg;
               errors.set(account.id, `${account.label}: ${msg}`);
-              return false;
+              // The failure is now on the account's row: news once, not
+              // every time the same failure comes back.
+              return this.settle(account.id, new Map([["failed", msg], ...(await this.accountParts(account))]));
             }
           })
         );
@@ -455,10 +534,17 @@ export class PimWorker {
   ): Promise<{ wrote: boolean; events: number; calendarErrors: string[]; taskListErrors?: string[]; superseded: boolean }> {
     const { cache } = this.opts;
     const { startTs, endTs } = this.windowRange;
-    let wrote = false;
     let eventCount = 0;
     const calendarErrors: string[] = [];
-    const stoppedHere = () => ({ wrote, events: eventCount, calendarErrors, superseded: true });
+    // A superseded cycle reports nothing: the cycle that replaces it does.
+    const stoppedHere = () => ({ wrote: false, events: eventCount, calendarErrors, superseded: true });
+    const before = this.seen.get(account.id);
+    const parts = new Map<string, string>(await this.accountParts(account));
+    /** A part this cycle did not look at keeps what it was: the cache kept it too. */
+    const keep = (key: string) => {
+      const was = before?.get(key);
+      if (was !== undefined) parts.set(key, was);
+    };
 
     // ONE collection listing per cycle. CalDAV reminder lists arrive in the same
     // listing as the calendars and are told apart here — a VTODO-only collection
@@ -483,13 +569,16 @@ export class PimWorker {
         }))
         .catch(() => {});
     }
-    wrote = true;
 
     // Pull the selected calendars CONCURRENTLY (network-bound), in small batches,
     // then apply the writes serially (SQLite is a single writer). A windowed full
     // refresh has no reconcile state to corrupt, so parallel pulls are safe; this
     // is the main per-cycle cost, so it drives the "faster sync" win.
-    const selected = (await cache.listCalendars(account.id)).filter((c) => c.selected);
+    const calendars = await cache.listCalendars(account.id);
+    // Names, colours and the selection (a calendar switched on or off in the
+    // settings changes nothing the provider says, but every view).
+    parts.set("calendars", JSON.stringify(calendars));
+    const selected = calendars.filter((c) => c.selected);
     const PULL_CONCURRENCY = 4;
     const supportsDelta = typeof target.pullEventsDelta === "function";
     // The worker's OWN clock, not the wall clock: the window range already
@@ -518,7 +607,10 @@ export class PimWorker {
     // it are pulled as if it were not there.
     const due = selected.filter((cal) => {
       const waitingOn = askEveryone ? null : this.waitingOn(calKey(cal.id), now);
-      if (waitingOn !== null) calendarErrors.push(waitingOn);
+      if (waitingOn !== null) {
+        calendarErrors.push(waitingOn);
+        keep(`events:${cal.id}`);
+      }
       return waitingOn === null;
     });
     const pulled: Pulled[] = [];
@@ -582,6 +674,7 @@ export class PimWorker {
     for (const r of pulled) {
       if (gen !== this.generation) return stoppedHere();
       if (!r.error) continue;
+      keep(`events:${r.calId}`);
       calendarErrors.push(r.error);
       if (r.signIn) signInError = signInError ?? r.error;
       else this.noteFailure(calKey(r.calId), r.error);
@@ -607,6 +700,14 @@ export class PimWorker {
       });
       eventCount += r.events!.length;
       this.retries.delete(calKey(r.calId));
+      const key = `events:${r.calId}`;
+      if (r.full) parts.set(key, fingerprint(r.events!));
+      else if (r.events!.length > 0 || (r.deletedUids?.length ?? 0) > 0 || (r.deletedHrefs?.length ?? 0) > 0) {
+        // A feed names only what changed: anything it names is news. What
+        // the window holds then is not known here, so the next full refresh
+        // is compared against nothing and reports once.
+        parts.set(key, `delta:${now}:${++this.deltaSeen}`);
+      } else keep(key);
     }
     // The task side runs whatever happened to the calendars (finding B2,
     // 19.10.): it used to sit behind the sign-in check below and behind every
@@ -614,7 +715,7 @@ export class PimWorker {
     // while a tick made in Plainva still reached the provider by its own way.
     // "Ticked here goes, ticked there does not" was the result, and nothing on
     // screen said why.
-    const tasks = await this.refreshTaskLists(account, target, collections, gen, askEveryone);
+    const tasks = await this.refreshTaskLists(account, target, collections, gen, askEveryone, parts, keep);
     if (tasks === null) return stoppedHere();
     signInError = signInError ?? tasks.signInError;
 
@@ -634,7 +735,10 @@ export class PimWorker {
         lastError: calendarErrors[0] ?? tasks.errors[0] ?? null,
       })
     );
-    return { wrote, events: eventCount, calendarErrors, taskListErrors: tasks.errors, superseded: false };
+    // The failures as the views read them: one that passed is news as much
+    // as one that came (the line above the calendar goes).
+    parts.set("errors", JSON.stringify([calendarErrors, tasks.errors]));
+    return { wrote: this.settle(account.id, parts), events: eventCount, calendarErrors, taskListErrors: tasks.errors, superseded: false };
   }
 
   /**
@@ -652,7 +756,9 @@ export class PimWorker {
     target: IPimTarget,
     collections: PimCalendar[],
     gen: number,
-    askEveryone: boolean
+    askEveryone: boolean,
+    parts: Map<string, string>,
+    keep: (key: string) => void
   ): Promise<{ errors: string[]; signInError?: string } | null> {
     const { cache } = this.opts;
     const errors: string[] = [];
@@ -695,12 +801,15 @@ export class PimWorker {
     // Even when the listing failed: the lists known from before are still
     // selected, and their tasks can still be asked for.
     const listKey = (listId: string) => `${account.id}\ntasks\n${listId}`;
-    for (const list of await cache.listTaskLists(account.id)) {
+    const known = await cache.listTaskLists(account.id);
+    parts.set("tasklists", JSON.stringify(known));
+    for (const list of known) {
       if (gen !== this.generation) return null;
       if (!list.selected) continue;
       const waitingOn = askEveryone ? null : this.waitingOn(listKey(list.id), now);
       if (waitingOn !== null) {
         errors.push(waitingOn);
+        keep(`tasks:${list.id}`);
         continue;
       }
       let pulled: PimTask[];
@@ -713,6 +822,7 @@ export class PimWorker {
         if (isSignInFailure(e)) signInError = signInError ?? msg;
         else this.noteFailure(listKey(list.id), msg);
         await cache.recordScopeFailure(account.id, `tasks:${list.id}`, { lastError: msg, lastErrorKind: classifySyncError(e) }).catch(() => {});
+        keep(`tasks:${list.id}`);
         continue;
       }
       if (gen !== this.generation) return null;
@@ -721,6 +831,7 @@ export class PimWorker {
         await cache.setScopeState(account.id, `tasks:${list.id}`, { lastError: null });
       });
       this.retries.delete(listKey(list.id));
+      parts.set(`tasks:${list.id}`, fingerprint(pulled));
     }
     return { errors, ...(signInError ? { signInError } : {}) };
   }

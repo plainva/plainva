@@ -22,6 +22,20 @@ name: Updater manifest
 # the first moment the asset URLs inside the manifest resolve). Mobile tags
 # (`mobile-v…`) and pre-releases are skipped. A manual run with a tag repairs
 # or bootstraps the fixed manifest without cutting anything.
+#
+# What it waits for: the signature counter-check. The fixed manifest moves only
+# when both "updater signature" jobs (Linux, Windows; native-smoke.yml, called
+# by release.yml) are green in the release run started by the push of exactly
+# this tag, for the commit it names (apps/desktop/scripts/updater-signature-gate.mjs,
+# test apps/desktop/src/updaterSignatureGate.test.ts). Publishing the draft is
+# the maintainer's hand and nothing in release.yml orders it after the smoke,
+# so the jobs may still run when this starts: it waits for them (up to 90
+# minutes), never passes an unfinished one, and fails on a red or missing one.
+# A rehearsal or a Windows rebuild (both workflow_dispatch) never counts as the
+# evidence. A repair run may go without the check only with
+# `without_signature_check` and a `reason`; the run says so in a warning and in
+# its summary. `requireSignedVersion` and the manifest check below stay as they
+# are.
 
 on:
   release:
@@ -31,14 +45,35 @@ on:
       tag:
         description: 'Desktop release tag to copy the manifest from (e.g. v0.8.0)'
         required: true
+      without_signature_check:
+        description: 'Repair only: copy without a green updater signature check in the tag''s release run (needs a reason; shown as a warning)'
+        type: boolean
+        default: false
+      reason:
+        description: 'Why the signature check is skipped (required with without_signature_check)'
+        type: string
+        default: ''
 
 permissions:
   contents: write
+  actions: read
+
+# One run at a time for the one fixed manifest: a run that waits for the
+# signature check (up to 90 minutes) and a repair run never overtake each
+# other, and an older run never rewrites the manifest after a newer one.
+# Never cancelled: a run in progress always finishes. (GitHub keeps one run
+# queued behind it per group and cancels an older queued one for a newer:
+# start a repair run only when no other manifest run is queued, or that one
+# is lost and must be started again.)
+concurrency:
+  group: updater-manifest
+  cancel-in-progress: false
 
 jobs:
   copy-manifest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Up to 90 minutes of it is the wait for the signature check.
+    timeout-minutes: 100
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -81,6 +116,29 @@ jobs:
             apps/desktop/scripts
             apps/desktop/src-tauri/tauri.conf.json
           sparse-checkout-cone-mode: false
+
+      - name: The updater signature check of this release is green
+        if: steps.src.outputs.skip == 'false'
+        env:
+          RELEASE_TAG: ${{ steps.src.outputs.tag }}
+          WITHOUT_CHECK: ${{ github.event_name == 'workflow_dispatch' && inputs.without_signature_check }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          if [ "$WITHOUT_CHECK" = "true" ]; then
+            # The reason is typed by hand: one line, and `%` escaped, so it
+            # can never start a workflow command of its own (a newline would
+            # put "::stop-commands::…" at the start of the next line).
+            reason="$(printf '%s' "$REASON" | tr '\r\n\t' '   ')"
+            if [ -z "${reason//[[:space:]]/}" ]; then
+              echo "::error::without_signature_check needs a reason"
+              exit 1
+            fi
+            echo "::warning::$RELEASE_TAG: the manifest is copied WITHOUT a green updater signature check (repair run). Reason: ${reason//%/%25}"
+            echo "**$RELEASE_TAG: copied without the updater signature check** (repair run by ${GITHUB_ACTOR}). Reason: $reason" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node apps/desktop/scripts/updater-signature-gate.mjs
 
       - name: Download the manifest of that release
         if: steps.src.outputs.skip == 'false'
