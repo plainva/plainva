@@ -575,13 +575,24 @@ since and are held by `--margin` (each table at 1.3 or 1.4 × the budget, withou
 128 MB), not by a limit search:
 
 - formulas between two `$` on each side (`$$…$$`, which remark-math reads in a cell as `$…$`; the
-  scan turned at every `$` and counted none of its content). A formula opens at a run of `$` no
-  backslash escapes, and closes at the next run as long in its cell (`\$$x$` is an escaped `$` and a
-  formula); inside a formula a backslash escapes nothing, and every character counts, a `$` of
-  another run as well. The row is read with its code spans (`` `$` $x$ `` is code and a formula) and
-  without them, for a backtick in an HTML tag, a link's destination or an autolink, which the scan
-  cannot tell from code; the formula weighs the more (30 000 random cells a seed, eight seeds: none
-  weighed short of remark-math);
+  scan turned at every `$` and counted none of its content). Since the ninth review (2026-11-17)
+  the scan no longer reads formulas by hand: a row with a `$` (up to 100 000 characters) is read by
+  the reading view's own parser, micromark with GFM and math (`rowFormulas`), as the only row of a
+  table, and its formulas weigh what that parser makes formulas of — no more and no less. Weighed
+  by hand, a `$` without a closing one (a price, `$5 per month`) weighed everything behind it, a
+  `$` in a code span paired with one outside it, and tables of 91 to 208 rows lost their links to
+  the index; a `$` in an HTML tag, a link's destination or an autolink paired with the `$` of a
+  formula behind it, which stayed unweighed, and the sentence that no random cell weighed short of
+  remark-math was not true. `readerTableBudget.test.tsx` holds 6 000 random rows against the
+  reading view's parse (equal in every row), `inline-parse-budget.test.ts` prices, variables, code
+  with `$`, currencies and shell lines and 40 random such tables (a table, every link in the
+  index, and as heavy as without the `$`). The parser reads a row only where its formulas decide
+  (each row weighs them at a bound first, the characters between the first and the last `$` of a
+  cell with two, and at none; only where the two lie on either side of the budget is the row
+  parsed, the widest first): micromark reads about 2 MB a second, and read for every row a table
+  of 1 MB of prices took 4 s. It parses no row over 20 000 characters and no more than 1 000 000
+  characters of a note; beyond that a formula weighs its bound. A note the reading view reads no
+  formula in (`readsFormulas`, the rule `MarkdownReader.tsx` loads remark-math by) weighs none;
 - 120 `[^1]`, 80 `[l](u)` or `![i](p)`, 80 `[l][r]` or `[r][]`, 120 `[r]` with their definition,
   all without blanks between them: one word, but as many pieces of the cell's text. Each `[`
   glued to the word before it now counts as a word as well (not the second `[` of a wiki link,

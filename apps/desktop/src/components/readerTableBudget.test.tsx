@@ -3,7 +3,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { overBudgetInlineRanges, prepareReaderSource, READER_READING } from "@plainva/core";
+import { overBudgetInlineRanges, prepareReaderSource, READER_READING, tableRowParts } from "@plainva/core";
 import { boundReaderMarkdown } from "@plainva/ui";
 import { SHAPES, shapeTable } from "../../../../packages/core/scripts/perf/table-budget";
 import { loadReaderMath, READER_REMARK_PLUGINS } from "./markdownReaderModel";
@@ -77,6 +77,40 @@ describe("the table budget against the reading view's own plugins", () => {
     // And every calibrated shape through the reading view's own plugins.
     for (const name of Object.keys(SHAPES)) hold(name, shapeTable(name, 20));
     expect(failures).toEqual([]);
+  }, 300_000);
+
+  it("weighs the formulas of a row as remark-math reads them, no more and no less (random rows, against the reading view)", async () => {
+    // The ninth review (2026-11-17): weighed by hand, a price (`$5 per month`)
+    // weighed everything behind it as a formula, a `$` in a code span paired
+    // with one outside it, and a `$` in an HTML tag, a link's destination or an
+    // autolink with the `$` of a formula behind it, which stayed unweighed.
+    // The scan asks the reading view's parser; this holds it against the
+    // reading view's own parse of the prepared note, GFM and remark-math.
+    const math = await loadReaderMath();
+    // Without KaTeX a formula stays on the page as remark-math hands it on: `<code class="language-math math-inline">`.
+    const decode = (html: string) => html.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&amp;/g, "&");
+    const formulasOf = (html: string) => [...html.matchAll(/<code class="language-math math-inline">([^<]*)<\/code>/g)].reduce((sum, m) => sum + decode(m[1]).length, 0);
+    const pieces = ["$", "$", "$$", "\\$", "`", "``", "\\`", "x", "ab", " ", "\\|", "|", '<i t="`">', "<i t='$'>", "[a](`)", "[a]($)", "[a](<`>)", "<http://a.b/`>", "<http://a.b/$>", "<a@b.c>", "[`](u)", "\\\\", "\\", "<!-- ` -->", "&#36;", "*", "_", "[[a]]", "[[a\\|$b$]]", "[[$]]", "$5", "per month", "`$HOME`"];
+    let seed = 20261117;
+    const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const misses: string[] = [];
+    let withFormulas = 0;
+    for (let k = 0; k < 6_000; k++) {
+      let row = "|";
+      for (let i = 0, length = 1 + Math.floor(random() * 12); i < length; i++) row += pieces[Math.floor(random() * pieces.length)];
+      row += " |";
+      // A header as wide as the row: the reading view shows no cell beyond the header's columns (the scan weighs them all).
+      const cells = Math.max(1, tableRowParts(row, 0, row.length).cells);
+      const source = prepareReaderSource(`|${" h |".repeat(cells)}\n|${"---|".repeat(cells)}\n${row}\n`);
+      const html = render(source.text, [...READER_REMARK_PLUGINS, math.remark] as Plugins);
+      if (!html.includes("<table")) continue;
+      const real = formulasOf(html);
+      if (real > 0) withFormulas++;
+      const counted = tableRowParts(row, 0, row.length).mathChars;
+      if (counted !== real) misses.push(`${JSON.stringify(row)}: remark-math ${real}, the scan ${counted}`);
+    }
+    expect(withFormulas).toBeGreaterThan(500);
+    expect(misses.slice(0, 10)).toEqual([]);
   }, 300_000);
 
   it("decides as the index decides: a table the note's parsers read as written the reading view reads as written, and the other way round", () => {

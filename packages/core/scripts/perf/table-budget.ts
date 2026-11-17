@@ -37,7 +37,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
 import { readFileSync } from "node:fs";
-import { READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_MATH_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, overBudgetInlineRanges, boundMarkdownInRanges, unitedRanges, TABLE_MATH_CONTENT_WEIGHT, tableLineStart, tableMarkerCost, tableMarkerCount, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { readsFormulas, READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_MATH_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, overBudgetInlineRanges, boundMarkdownInRanges, unitedRanges, TABLE_MATH_CONTENT_WEIGHT, tableLineStart, tableMarkerCost, tableMarkerCount, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
 import { prepareReaderSource } from "../../src/noteSource.js";
 import { toHast } from "mdast-util-to-hast";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
@@ -62,7 +62,7 @@ const remarkMath = await fromDesktop("remark-math");
 const rehypeKatex = await fromDesktop("rehype-katex");
 const remarkRehype = await fromDesktop("remark-rehype", createRequire(desktop.resolve("react-markdown")));
 /** The reading view's test for math in a note (`MarkdownReader.tsx`). */
-const HAS_MATH = /\$\$[\s\S]+?\$\$|(?<![\\$])\$(?!\s)[^$\n]+?(?<!\s)\$(?!\d)/;
+const HAS_MATH = { test: readsFormulas };
 
 /** The V8 old space every parse must fit into. */
 export const HEAP_MB = 128;
@@ -171,6 +171,17 @@ export const SHAPES: Record<string, Shape> = {
   emoji: { header: "| h |\n|---|", row: () => `| ${"😀 ".repeat(100)}|` },
   combining: { header: "| h |\n|---|", row: () => `| ${"e\u0301 ".repeat(100)}|` },
   // Footnote references with their definition below the table: each is a reference node.
+  // Tables as people write them with a `$` that is no formula (review, 2026-11-17: weighed by hand as formulas, they were read as text from 91 to 208 rows).
+  price: { header: "| h | h |\n|---|---|", row: (i) => `| Pro ${i} | $5 per month, billed yearly, cancel any time, see [[Plans]] |` },
+  envvar: { header: "| h | h | h |\n|---|---|---|", row: (i) => `| \`$HOME\` | The home directory of user ${i}, used by many tools | [[Shell]] |` },
+  varcode: { header: "| h |\n|---|", row: (i) => `| \`$x\` the variable ${i} is read by the shell at login and holds the path the tools look in first, see [[Shell]] |` },
+  shell: { header: "| h | h |\n|---|---|", row: (i) => `| \`export PATH=$HOME/bin:$PATH\` | puts the own tools first, see [[Shell ${i}]] |` },
+  currency: { header: "| h | h | h | h | h |\n|---|---|---|---|---|", row: (i) => `| Coffee ${i} | 3,50 € | $4.20 | £3.10 | [[Shop]] |` },
+  // Two prices in a cell are a formula to remark-math, which KaTeX lays out: words, no commands.
+  // The same with a formula in the header: the reading view reads every pair of `$` as one, and KaTeX lays them out.
+  twopricesmath: { header: "| h $x^2$ | h |\n|---|---|", row: (i) => `| Pro ${i} | $5 per month, billed yearly, or $50 a year, see [[Plans]] |` },
+  twoprices: { header: "| h | h |\n|---|---|", row: (i) => `| Pro ${i} | $5 per month, billed yearly, or $50 a year, see [[Plans]] |` },
+  dollars: { header: "| h | h | h | h | h |\n|---|---|---|---|---|", row: (i) => `| $${i} | $10 | $20 | $50 per year | [[Plans]] |` },
   fnref: { header: "| h |\n|---|", row: () => `| ${"[^1] ".repeat(100)}|`, after: "\n[^1]: x" },
   fnmany: { header: "| h |\n|---|", row: (i) => `| ${Array.from({ length: 50 }, (_, k) => `[^${i * 50 + k}]`).join(" ")} |`, after: "\n[^1]: x" },
   refs: { header: "| h |\n|---|", row: () => `| ${"[a] ".repeat(100)}|`, after: "\n[a]: u" },

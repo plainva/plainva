@@ -50,6 +50,8 @@
 
 import { opensUnclosedProperties } from "./frontmatter-block.js";
 import { readerWikiLink } from "./readerWikiLink.js";
+import { prepareReaderSource } from "./noteSource.js";
+import { readerFormulas } from "./markdown-parser.js";
 
 /** The most `inlineParseCost` a stretch may have and still be parsed as Markdown. */
 export const INLINE_PARSE_BUDGET = 15_000_000;
@@ -652,19 +654,18 @@ export function tableMarkerCount(prefix: string): number {
  * (measured 2026-11-13: 999, 1 498 and 1 443 rows under 128 MB). `references` counts `[^`, a
  * footnote reference where a definition exists. `tags`, `maths` and `marks`
  * count what the reading view's own plugins make nodes of: a `#` that may
- * start a tag, a `$`, a `==`; `mathChars` the characters of a formula,
- * from a run of `$` to the next run as long in the same cell (`$x$`,
- * `$$x$$`) — a run starts at a `$` no backslash escapes and that stands in
- * no code span, behind any other character (`\$$x$` is an escaped `$` and a
- * formula, `` `$` $x$ `` code and a formula). Each `[` glued to the word
+ * start a tag, a `$` of a formula, a `==`; `mathChars` the characters of
+ * the row's formulas as the reading view's parser reads them (`rowFormulas`),
+ * or with `exact: false` a bound no formula exceeds: the characters between
+ * the first and the last `$` of each cell with two. Each `[` glued to the word
  * before it — a reference, a link, a reference link, an image not at the
  * word's start, not a wiki link's second — counts as a word as well, and an
  * `@date` the reading view writes anew as what it writes
  * (`RELATIVE_DATE_SHOWN_CHARS`). `text[from, to)` is the row behind its
  * container markers (`tableLineStart`).
  */
-export function tableRowParts(text: string, from: number, to: number, asRead = true): TableRowParts {
-  const written = rowParts(text, from, to);
+export function tableRowParts(text: string, from: number, to: number, asRead = true, exact = true): TableRowParts {
+  const written = rowParts(text, from, to, exact);
   if (!asRead) return written;
   // A row heavier than the whole budget as written puts its table over the budget either way: the reading view's
   // writing of it, as long as the row or longer, is not built (review, 2026-11-16: a row of 1.5 MB of `[[x` ran the
@@ -679,8 +680,10 @@ export function tableRowParts(text: string, from: number, to: number, asRead = t
   if (TABLE_ROW_WEIGHT + atLeast > TABLE_READ_BUDGET) return { ...written, chars: Math.max(written.chars, atLeast) };
   const shown = shownRow(links);
   // The reading view reads the row as it writes it: each part weighs the more of the two.
-  const read = rowParts(shown, 0, shown.length);
-  return Object.fromEntries(Object.entries(written).map(([key, value]) => [key, Math.max(value, read[key as keyof TableRowParts])])) as unknown as TableRowParts;
+  const read = rowParts(shown, 0, shown.length, exact);
+  const parts = Object.fromEntries(Object.entries(written).map(([key, value]) => [key, Math.max(value, read[key as keyof TableRowParts])])) as unknown as TableRowParts;
+  // Formulas only the reading view makes, of the row as it prepares it (`rowFormulas`), not the heavier reading; a bound: the larger.
+  return exact ? { ...parts, maths: written.maths, mathChars: written.mathChars } : parts;
 }
 
 /** The wiki links of a table row (`wikiLinksOfRow`): the row, and for each link its `[[`, its `]]` and whether it is an embed (`![[`), three numbers a link. */
@@ -832,7 +835,7 @@ function escaped(text: string, at: number): boolean {
   return backslashes % 2 === 1;
 }
 
-function rowParts(text: string, from: number, to: number): TableRowParts {
+function rowParts(text: string, from: number, to: number, exact: boolean): TableRowParts {
   let boundaries = 0;
   let cells = 0;
   let syntax = 0;
@@ -842,22 +845,15 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   let links = 0;
   let tags = 0;
   let maths = 0;
-  // A formula opens at a run of `$` and closes at the next run as long in its cell (`$x$`, `$$x$$`), as remark-math
-  // reads it; a run starts where the `$` before is none (`\$$x$` is an escaped `$` and a formula). Read twice: with
-  // the code spans of the row, where a `$` is no delimiter (`` `$` $x$ `` is code and one formula), and without them,
-  // for a backtick the scan takes for code that is none (in an HTML tag, a link's destination, an autolink:
-  // review, 2026-11-16). The formula weighs the more of the two readings.
-  const withCode: FormulaReading = { inMath: false, run: 0, last: -2, chars: 0, from: 0 };
-  const withoutCode: FormulaReading = { inMath: false, run: 0, last: -2, chars: 0, from: 0 };
+  // Formulas: what the parser reads (`rowFormulas`) when `exact`, else a bound no formula exceeds — in each cell
+  // the characters between its first `$` and its last, where it holds two (a formula opens and closes in its cell).
+  let mathBound = 0;
+  let cellDollars = 0;
+  let firstDollar = -1;
+  let lastDollar = -1;
   let marks = 0;
   let inWord = false;
   let wordStart = -1;
-  // Code spans, looked for only where the row holds a backtick: a search through the rest of the note from every row made the scan quadratic (review, 2026-11-16).
-  let ticked = false;
-  for (let i = from; i < to && !ticked; i++) ticked = text.charCodeAt(i) === 0x60;
-  const spans = ticked ? codeSpansOf(text, from, to) : [];
-  let nextSpan = 0;
-  let codeUntil = -1;
   // What the reading view writes for an `@date` beyond the characters it stands in.
   let shownChars = 0;
   let backslashes = 0;
@@ -865,19 +861,14 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   let held = false;
   for (let i = from; i < to; i++) {
     const ch = text[i];
-    if (nextSpan < spans.length && i === spans[nextSpan]) {
-      // A code span that opens inside a formula is none: the formula read first.
-      if (!withCode.inMath) codeUntil = spans[nextSpan + 1];
-      nextSpan += 2;
-    }
     if (ch === "|" && backslashes % 2 === 0) {
       // A stretch between two boundaries is a cell; the one before the first only when it holds something.
       if (boundaries > 0 || held) cells++;
       boundaries++;
       held = false;
       // The table parser splits the row before anything else is read: no formula runs past a cell.
-      withCode.inMath = false;
-      withoutCode.inMath = false;
+      if (cellDollars >= 2) mathBound += lastDollar - firstDollar - 1;
+      cellDollars = 0;
     } else {
       if (TABLE_SYNTAX.includes(ch)) syntax++;
       if (ch === "@" || (ch === ":" && text.charCodeAt(i + 1) === 0x2f && text.charCodeAt(i + 2) === 0x2f)) literals++;
@@ -897,20 +888,16 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
       }
       if (ch === "[" && text[i + 1] === "^") {
         references++;
-      } else if (ch === "$" && (backslashes % 2 === 0 || withCode.inMath || withoutCode.inMath)) {
-        // Inside a formula a backslash escapes nothing: `$a\$$b$` is one formula, `\$$` a run of two in it.
+      } else if (ch === "$") {
+        // Every `$` may be one of a formula: inside one a backslash escapes nothing (`$a\$$b$` is one formula).
         maths++;
-        if (backslashes % 2 === 0 || withoutCode.inMath) dollar(withoutCode, text, i, to);
-        if (i >= codeUntil && (backslashes % 2 === 0 || withCode.inMath)) dollar(withCode, text, i, to);
+        if (cellDollars++ === 0) firstDollar = i;
+        lastDollar = i;
       }
       else if (ch === "=" && text[i + 1] === "=") marks++;
       else if (ch === "#" && (i === from || text[i - 1] === " " || text[i - 1] === "\t" || text[i - 1] === "|") && i + 1 < to && text[i + 1] !== " " && text[i + 1] !== "#") tags++;
     }
     // A word: a run of characters other than blanks and cell boundaries, in any script.
-    // The characters of a formula: KaTeX lays out what stands between its `$`.
-    // Every character of an open formula, a `$` of a run that does not close it or behind a backslash as well.
-    if (withCode.inMath && i >= withCode.from) withCode.chars++;
-    if (withoutCode.inMath && i >= withoutCode.from) withoutCode.chars++;
     const word = ch !== " " && ch !== "\t" && !(ch === "|" && backslashes % 2 === 0);
     if (word && !inWord) {
       words++;
@@ -922,31 +909,44 @@ function rowParts(text: string, from: number, to: number): TableRowParts {
   if (held) cells++;
   // A row is at least one cell: `|` alone is one, empty.
   if (cells === 0 && boundaries > 0) cells = 1;
-  const mathChars = Math.max(withCode.chars, withoutCode.chars);
+  if (cellDollars >= 2) mathBound += lastDollar - firstDollar - 1;
+  let mathChars = mathBound;
+  // No cell with two `$`: no formula, whatever the `$` stand for.
+  if (mathBound === 0) maths = 0;
+  if (exact && mathBound > 0 && to - from <= FORMULA_PARSE_LIMIT) {
+    const read = rowFormulas(text.slice(from, to), Math.max(cells, 1));
+    maths = read.maths;
+    mathChars = read.mathChars;
+  }
   return { chars: to - from + shownChars, boundaries, cells, syntax, literals, words, references, links, tags, maths, mathChars, marks };
 }
 
-/** One reading of a row's formulas (`rowParts`): whether one is open, the length of the run that opened it, the latest `$` read, the characters counted, and where the open formula's content begins. */
-interface FormulaReading {
-  inMath: boolean;
-  run: number;
-  last: number;
-  chars: number;
-  from: number;
-}
+/**
+ * The longest row whose formulas the parser reads (`rowFormulas`); a longer
+ * one weighs them at their bound (`rowParts`). The scan guards against what
+ * a parse holds: it parses no more than a row of this length at once, far
+ * longer than any ordinary table's.
+ */
+const FORMULA_PARSE_LIMIT = 20_000;
 
-/** A `$` at `text[at]` that no backslash escapes, read by `reading`: a run of them opens a formula, or closes one opened by a run as long. */
-function dollar(reading: FormulaReading, text: string, at: number, to: number): void {
-  const starts = reading.last !== at - 1;
-  reading.last = at;
-  if (!starts) return;
-  let run = 1;
-  while (at + run < to && text[at + run] === "$") run++;
-  if (!reading.inMath) {
-    reading.inMath = true;
-    reading.run = run;
-    reading.from = at + run;
-  } else if (run === reading.run) reading.inMath = false;
+/**
+ * The formulas of the table row `row` as the reading view reads them: the
+ * parser it runs (micromark with GFM and math, `remark-gfm` and
+ * `remark-math`) reads the row, as the reading view prepares it, as the only
+ * one of a table of `cells` columns,
+ * and `maths` counts the `$` that open and close a formula, `mathChars` the
+ * characters between them. Nothing else decides what a formula is: a `$`
+ * without a closing one (`$5 per month`), one in a code span, an HTML tag, a
+ * link's destination or an autolink is none, as the parser reads it
+ * (review, 2026-11-17: weighed by hand, a price, an environment variable in
+ * a code span or a `$` in a tag put ordinary tables of a hundred rows over
+ * the budget, or left a formula behind it unweighed).
+ */
+function rowFormulas(row: string, cells: number): { maths: number; mathChars: number } {
+  let doc = `|${" a |".repeat(cells)}\n|${" - |".repeat(cells)}\n${row.trimStart()}\n`;
+  // A row with a wiki link as the reading view writes it (`prepareReaderSource`: `[[a|$b$]]` is `[$b$](wiki://a)`).
+  if (row.includes("[[")) doc = prepareReaderSource(doc).text;
+  return readerFormulas(doc);
 }
 
 /**
@@ -958,57 +958,6 @@ function dollar(reading: FormulaReading, text: string, at: number, to: number): 
  */
 const RELATIVE_DATE_SHOWN_CHARS = 5;
 const RELATIVE_DATE_SHOWN_WORDS = 2;
-
-/**
- * The code spans of the row `text[from, to)`, as `[start, end, …]` (from the
- * opening run to past the closing one): in each cell, a run of backticks no
- * backslash escapes opens a span that closes at the next run as long in the
- * cell; one without such a run is text. Each run of a length is found once,
- * a cursor walks them to the right: linear in the row.
- */
-function codeSpansOf(text: string, from: number, to: number): number[] {
-  const spans: number[] = [];
-  let starts: number[] = [];
-  let lengths: number[] = [];
-  const match = () => {
-    const byLength = new Map<number, number[]>();
-    lengths.forEach((length, k) => {
-      const list = byLength.get(length) ?? [];
-      list.push(k);
-      byLength.set(length, list);
-    });
-    const cursors = new Map<number, number>();
-    for (let k = 0; k < starts.length; ) {
-      const list = byLength.get(lengths[k])!;
-      let next = cursors.get(lengths[k]) ?? 0;
-      while (next < list.length && list[next] <= k) next++;
-      cursors.set(lengths[k], next);
-      if (next < list.length) {
-        const close = list[next];
-        spans.push(starts[k], starts[close] + lengths[close]);
-        k = close + 1;
-      } else k++;
-    }
-    starts = [];
-    lengths = [];
-  };
-  for (let i = from; i < to; i++) {
-    if (text[i] === "|" && !escaped(text, i)) match();
-    else if (text[i] === "`") {
-      let run = 1;
-      while (i + run < to && text[i + run] === "`") run++;
-      // An escaped backtick is text: the run starts behind it.
-      const skip = escaped(text, i) ? 1 : 0;
-      if (run > skip) {
-        starts.push(i + skip);
-        lengths.push(run - skip);
-      }
-      i += run - 1;
-    }
-  }
-  match();
-  return spans;
-}
 
 /** Whether `text[at]` is the `@` of a date the reading view writes anew (`relativeDates` in noteSource.ts): not glued to a word or an escape. */
 function isRelativeDate(text: string, at: number, to: number): boolean {
@@ -1042,6 +991,63 @@ function lowerIs(text: string, at: number, lower: string): boolean {
   return true;
 }
 
+
+/**
+ * Whether the reading view reads formulas in `text` at all: it loads
+ * remark-math and KaTeX only for a note that holds `$$…$$`, or a `$…$` with
+ * no blank inside either `$` and no digit behind the closing one
+ * (`MarkdownReader.tsx`). In any other note a `$` is text, and no row weighs
+ * a formula (review, 2026-11-17: a table of prices is no formula to it).
+ */
+export function readsFormulas(text: string): boolean {
+  return READS_FORMULAS.test(text);
+}
+
+const READS_FORMULAS = /\$\$[\s\S]+?\$\$|(?<![\\$])\$(?!\s)[^$\n]+?(?<!\s)\$(?!\d)/;
+
+/** `parts` with no formula: a row of a note the reading view reads no formula in (`readsFormulas`). */
+function withoutFormulas(parts: TableRowParts): TableRowParts {
+  return { ...parts, maths: 0, mathChars: 0 };
+}
+
+/** A table row with a `$` (`formulasRead`): where it stands, what it weighs with its formulas at their bound and without them, and its markers' weight. */
+interface FormulaRow {
+  from: number;
+  to: number;
+  bound: number;
+  without: number;
+  markers: number;
+}
+
+/**
+ * The most characters of rows with a `$` the parser reads for one note
+ * (`formulasRead`), about half a second of micromark; beyond them, rows weigh
+ * their formulas at the bound.
+ */
+const FORMULA_PARSE_TOTAL = 1_000_000;
+
+/**
+ * What a table weighs whose rows weigh `cost` with their formulas at their
+ * bound and `least` without them: where both lie on the same side of the
+ * budget, that; otherwise the parser reads the formulas of the rows in
+ * `rows` (`rowFormulas`), the widest bound first, until the table is within
+ * the budget or over it without formulas, or the note's share of parsing
+ * (`parse.left`, `FORMULA_PARSE_TOTAL`) is spent. micromark reads about 2 MB a
+ * second: read for every row, a table of 1 MB with a price in each row took
+ * 4 s to weigh, where most need no formula read at all.
+ */
+function formulasRead(text: string, cost: number, least: number, rows: FormulaRow[], columns: number, parse: { left: number }): number {
+  if (cost <= TABLE_READ_BUDGET || least > TABLE_READ_BUDGET) return cost;
+  rows.sort((a, b) => b.bound - b.without - (a.bound - a.without));
+  for (const row of rows) {
+    if (cost <= TABLE_READ_BUDGET || least > TABLE_READ_BUDGET || parse.left < row.to - row.from) break;
+    const exact = tableReadCost(text, row.from, row.to, columns) + row.markers;
+    parse.left -= row.to - row.from;
+    cost -= row.bound - exact;
+    least += exact - row.without;
+  }
+  return cost;
+}
 
 /**
  * What reading the table row `text[from, to)` weighs: `TABLE_ROW_WEIGHT`,
@@ -1233,6 +1239,9 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   const ranges: BoundedRange[] = [];
   const lines = splitLines(text);
   const containers = !(reading.properties && opensNoContainers(text));
+  const formulas = readsFormulas(text);
+  // What the parser may still read of this note's rows with a `$` (`formulasRead`).
+  const parse = { left: FORMULA_PARSE_TOTAL };
   let run: { from: number; to: number; first: number; last: number } | null = null;
   const flush = () => {
     if (run) {
@@ -1276,7 +1285,11 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       { from: header.from + head.at, to: header.to },
       { from: delimiter.from + under.at, to: delimiter.to },
     ];
-    let cost = tableReadCost(text, content[0].from, content[0].to) + tableMarkerCost(header.text.slice(0, head.at));
+    const headerCost = formulas ? tableReadCost(text, content[0].from, content[0].to) : partsCost(withoutFormulas(tableRowParts(text, content[0].from, content[0].to, true, false)), 0);
+    let cost = headerCost + tableMarkerCost(header.text.slice(0, head.at));
+    // The rows weigh their formulas at a bound first (`cost`), and at none (`least`); the parser reads a row's formulas only where they decide.
+    let least = cost;
+    const withFormulas: FormulaRow[] = [];
     const costly: BoundedRange[] = [];
     if (exceedsInlineParseBudget(text, content[0].from, content[0].to)) costly.push(content[0]);
     let last = index + 1;
@@ -1289,10 +1302,25 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       if (endsTable(row, start.indent, containers)) break;
       const range = { from: line.from + start.at, to: line.to };
       content.push(range);
-      cost += tableReadCost(text, range.from, range.to, delimiterCells ?? 0) + tableMarkerCost(line.text.slice(0, start.at));
+      const parts = tableRowParts(text, range.from, range.to, true, false);
+      const markers = tableMarkerCost(line.text.slice(0, start.at));
+      if (parts.mathChars === 0) {
+        const rowCost = partsCost(parts, delimiterCells ?? 0) + markers;
+        cost += rowCost;
+        least += rowCost;
+      } else {
+        // A cell with two `$`: a formula where the reading view reads formulas, at its bound until the parser decides.
+        const without = partsCost(withoutFormulas(parts), delimiterCells ?? 0) + markers;
+        const bound = formulas ? partsCost(parts, delimiterCells ?? 0) + markers : without;
+        cost += bound;
+        least += without;
+        // Kept for the parser only while the table may still be within the budget without its formulas.
+        if (formulas && least <= TABLE_READ_BUDGET) withFormulas.push({ from: range.from, to: range.to, bound, without, markers });
+      }
       if (exceedsInlineParseBudget(text, range.from, range.to)) costly.push(range);
       last = at;
     }
+    cost = formulasRead(text, cost, least, withFormulas, delimiterCells ?? 0, parse);
     observe?.table?.(index, last, exact, cost);
     if (cost > TABLE_READ_BUDGET) {
       // One range where only blanks, line ends and markers that are no markup lie between two lines.

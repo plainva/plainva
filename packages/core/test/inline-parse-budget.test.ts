@@ -23,6 +23,7 @@ import {
   TABLE_ROW_WEIGHT,
   tableLineStart,
   TABLE_SYNTAX_WEIGHT,
+  readsFormulas,
   tableReadCost,
   tableRowParts,
   COMMONMARK_READING,
@@ -783,9 +784,9 @@ describe("where a table ends", () => {
     expect(tableMarkerCount("10. ")).toBe(1);
     expect(tableMarkerCost("> ".repeat(12))).toBe(24 + 12 * TABLE_MARKER_WEIGHT);
     const formula = "| $\\int_0^1 x\\,dx$ | a$ |";
-    expect(tableRowParts(formula, 0, formula.length).maths).toBe(3);
-    // The open `$` of the second cell runs to its end, not past its bar: the table parser splits the row first.
-    expect(tableRowParts(formula, 0, formula.length).mathChars).toBe("\\int_0^1 x\\,dx".length + " ".length);
+    expect(tableRowParts(formula, 0, formula.length).maths).toBe(2);
+    // The `$` of the second cell opens nothing: no `$` closes it in its cell, and the table parser splits the row first.
+    expect(tableRowParts(formula, 0, formula.length).mathChars).toBe("\\int_0^1 x\\,dx".length);
     // Quotes and lists in each other as well (the hunt of 2026-11-15 drew `> - > - … |h|`): the scan is sure of their
     // blocks and reads the table exactly — under the budget as a table, over it as written.
     for (const [prefix, rest] of [["> ".repeat(12), "> ".repeat(12)], ["- ".repeat(12), "  ".repeat(12)], ["> - ".repeat(6), ">   ".repeat(6)]]) {
@@ -799,6 +800,73 @@ describe("where a table ends", () => {
     }
   });
 
+  it("weighs a `$` the parser reads as no formula as nothing: a table with prices, variables and code stays as heavy as without them", () => {
+    // The ninth review (2026-11-17): weighed by hand, a `$` without a closing
+    // one (a price) weighed everything behind it as a formula, and a `$` in a
+    // code span paired with one outside it; tables of 91 to 208 rows lost
+    // their links to the index and their table in the reading view, where
+    // main read them as tables. What a formula is, the parser decides.
+    const rows = [
+      "| Pro | $5 per month, billed yearly, cancel any time, see [[Plans]] |",
+      "| `$HOME` | The home directory of the current user, used by many tools | [[Shell]] |",
+      "| `$x` the variable is read by the shell at login and holds the path the tools look in first, see [[Shell]] |",
+      "| `export PATH=$HOME/bin:$PATH` | puts the own tools first, see [[Shell]] |",
+      "| Coffee | 3,50 € | $4.20 | £3.10 | [[Shop]] |",
+      "| $5 | $10 | $20 | $50 per year | [[Plans]] |",
+      "| `echo $1 $2` | prints the first two arguments, US$ 3 | [[Shell]] |",
+      "| <span title=\"$x\">cost</span> | $ 12 | [link](https://a.b/?q=$x) | <https://a.b/$y> | [[Shop]] |",
+    ];
+    for (const row of rows) {
+      const parts = tableRowParts(row, 0, row.length);
+      expect({ maths: parts.maths, mathChars: parts.mathChars }, row).toEqual({ maths: 0, mathChars: 0 });
+      // As heavy as its twin with an `S` for each `$`: the same characters, words and syntax but for the `$` itself.
+      const twin = row.replaceAll("$", "S");
+      expect(tableReadCost(row, 0, row.length), row).toBe(tableReadCost(twin, 0, twin.length) + TABLE_SYNTAX_WEIGHT * (row.split("$").length - 1));
+      // 300 rows of it — main reads 1 900 and more of each under 128 MB — are a table, and the index holds every link of every row.
+      const note = `# N\n\n| a | b | c | d | e |\n|---|---|---|---|---|\n${`${row}\n`.repeat(300)}\nbelow [[Below]]\n`;
+      expect(overBudgetInlineRanges(note), row).toEqual([]);
+      const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })).links.length;
+      expect(linksOf(note), row).toBe(300 * linksOf(`| a | b | c | d | e |\n|---|---|---|---|---|\n${row}\n`) + 1);
+    }
+    // And tables made at random of such pieces: where the parser reads no formula — in a note the reading view reads
+    // none in (`readsFormulas`), or in rows it finds none in — each weighs what its twin with an `S` for each `$`
+    // weighs, but for the `$` themselves; at 150 to 400 rows it is a table, and the index holds every link the
+    // parse of its rows ten at a time finds.
+    let seed = 20261117;
+    const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    // At most one piece with a `$` a cell: two would be a formula wherever the reading view reads formulas.
+    const dollars = ["$5", "$12.50", "US$ 3", "$HOME", "`$PATH`", "`echo $1`", "`a$b`", "**$9**", "<b>$</b>", "$ ", "a$", "[$](u)", "<https://a.b/$>", '<i t="$">', "\\$", "$-1"];
+    const words = ["€ 4", "per month", "[[Plans]]", "word", "two words", "x = 3", "*em*", "`code`"];
+    const cell = () => {
+      const parts = Array.from({ length: 1 + Math.floor(random() * 3) }, () => words[Math.floor(random() * words.length)]);
+      if (random() < 0.8) parts.splice(Math.floor(random() * (parts.length + 1)), 0, dollars[Math.floor(random() * dollars.length)]);
+      return parts.join(" ");
+    };
+    // The rows as the scan weighs them where they decide (`formulasRead`): with the formulas the parser reads.
+    const weightOf = (rows: string[], columns: number) => rows.reduce((sum, row) => sum + tableReadCost(row, 0, row.length, columns), 0);
+    let checked = 0;
+    for (let t = 0; t < 60; t++) {
+      const columns = 2 + Math.floor(random() * 5);
+      const tableRows = Array.from({ length: 150 + Math.floor(random() * 250) }, () => `| ${Array.from({ length: columns }, cell).join(" | ")} |`);
+      const head = `|${" h |".repeat(columns)}\n|${"---|".repeat(columns)}\n`;
+      const note = `# N\n\n${head}${tableRows.join("\n")}\n`;
+      if (tableRows.some((row) => tableRowParts(row, 0, row.length).mathChars > 0)) {
+        // Rows the parser reads formulas in, in a note the reading view reads none in: the table decides as its twin does.
+        if (!readsFormulas(note)) expect(overBudgetInlineRanges(note), `table ${t}`).toEqual(overBudgetInlineRanges(note.replaceAll("$", "S")));
+        continue;
+      }
+      checked++;
+      const twins = tableRows.map((row) => row.replaceAll("$", "S"));
+      expect(weightOf(tableRows, columns), `table ${t}`).toBe(weightOf(twins, columns) + TABLE_SYNTAX_WEIGHT * (note.split("$").length - 1));
+      expect(overBudgetInlineRanges(note), `table ${t}`).toEqual([]);
+      const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })).links.length;
+      let links = 0;
+      for (let k = 0; k < tableRows.length; k += 10) links += linksOf(`# N\n\n${head}${tableRows.slice(k, k + 10).join("\n")}\n`);
+      expect(linksOf(note), `table ${t}`).toBe(links);
+    }
+    expect(checked).toBe(60);
+  });
+
   it("weighs a formula between two `$`, references and links without blanks, and dates as the reading view writes them", () => {
     // The review of 2026-11-16: `$$x$$` in a cell is a formula to remark-math
     // as `$x$` is, but the scan turned at every `$` and counted none of it
@@ -809,21 +877,22 @@ describe("where a table ends", () => {
     expect(tableRowParts(dd, 0, dd.length).mathChars).toBe("\\frac{a}{b}".length + 1);
     // `$a$$b$` is one formula: a run of two does not close one opened by one, and is part of it.
     expect(tableRowParts("| $a$$b$ |", 0, 10).mathChars).toBe("a$$b".length);
-    expect(tableRowParts("| $a | b$ |", 0, 11).mathChars).toBe(3);
+    expect(tableRowParts("| $a | b$ |", 0, 11).mathChars).toBe(0);
     // An escaped `$` is none, so the `$` behind it opens the formula; a `$` in a code span is code (review, 2026-11-16).
     const escapedOpen = "| \\$$\\frac{a}{b}$ | \\$$$x$$ |";
     expect(tableRowParts(escapedOpen, 0, escapedOpen.length).mathChars).toBe("\\frac{a}{b}".length + 1);
-    // Read with its code spans the row holds three characters of formulas; read without them more. It weighs the more.
+    // The parser reads `$x$`, `$y$` and `$z$` as formulas: the `$` in the code spans are code, and so is `` `x` `` behind an escaped backtick? No: `\\`` is one, `x` and the backtick behind it text.
     const coded = "| `$` $x$ `` $ `` $y$ | \\`x` $z$ |";
-    expect(tableRowParts(coded, 0, coded.length).mathChars).toBeGreaterThanOrEqual(3);
+    expect(tableRowParts(coded, 0, coded.length).mathChars).toBe(3);
     const formulaAfterCode = `| \`$\` $${"\\frac{a}{b}".repeat(40)}$ |`;
     expect(tableRowParts(formulaAfterCode, 0, formulaAfterCode.length).mathChars).toBeGreaterThanOrEqual("\\frac{a}{b}".length * 40);
-    // A backtick the scan cannot be sure is code — in an HTML tag, a link's destination, an autolink — is read both
-    // ways, and the formula weighs the more (review, 2026-11-16: each weighed a tenth of what KaTeX made of it).
+    // A backtick in an HTML tag, a link's destination or an autolink is no code, a `$` there no formula: the formula
+    // behind it weighs all its characters (review, 2026-11-16: each weighed a tenth of what KaTeX made of it), and
+    // pairs with no `$` before it (review, 2026-11-17: `<i t='$'>` and the `$` of a formula behind it, as one).
     const formula = "\\frac{a}{b}".repeat(40);
-    for (const cell of [`<i title="\`">$${formula}$ \`x\``, `[a](\`) $${formula}$ \`x\``, `<http://a.b/\`> $${formula}$ \`x\``]) {
+    for (const cell of [`<i title="\`">$${formula}$ \`x\``, `[a](\`) $${formula}$ \`x\``, `<http://a.b/\`> $${formula}$ \`x\``, `<i t='$'>$${formula}$`, `[a]($) $${formula}$`, `<http://a.b/$> $${formula}$`]) {
       const row = `| ${cell} |`;
-      expect(tableRowParts(row, 0, row.length).mathChars, cell).toBeGreaterThanOrEqual(formula.length);
+      expect(tableRowParts(row, 0, row.length).mathChars, cell).toBe(formula.length);
     }
     // Inside a formula a backslash escapes nothing: `\$$` is a run of two in it, which does not close a formula of one.
     const inside = "| $a\\$$b$ |";
@@ -967,10 +1036,16 @@ describe("where a table ends", () => {
     const names = ["gen:895992:80", "gen:895992:162", ...Array.from({ length: 40 }, (_, k) => `gen:20261115:${k}`)];
     const lighter: string[] = [];
     for (const name of names) {
-      const text = shapeTable(name, 20);
+      // The weights below the budget, where neither reading has the parser read a formula (`formulasRead`: over it, a
+      // reading reports the formulas it read, not their bound); and at 20 rows, near the budget, the same decision.
+      const text = shapeTable(name, 10);
       const index = weight(text);
       const reader = weight(prepareReaderSource(text).text, READER_READING);
       if (index < reader) lighter.push(`${name}: index ${index} < reader ${reader}`);
+      const near = shapeTable(name, 20);
+      const indexOver = overBudgetInlineRanges(near).length > 0;
+      const readerOver = overBudgetInlineRanges(prepareReaderSource(near).text, undefined, READER_READING).length > 0;
+      if (readerOver && !indexOver) lighter.push(`${name}: 20 rows, the reading view reads them as text, the index as a table`);
     }
     expect(lighter).toEqual([]);
   }, 120 * SECONDS);

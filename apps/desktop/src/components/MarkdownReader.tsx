@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
-import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
+import { markdownLinkTarget, prepareReaderSource, readsFormulas, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
@@ -342,7 +342,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   // only when the note actually contains math syntax — the bundle stays out
   // of every math-free session. Until loaded, $…$ renders as plain text for
   // one frame.
-  const hasMath = /\$\$[\s\S]+?\$\$|(?<![\\$])\$(?!\s)[^$\n]+?(?<!\s)\$(?!\d)/.test(content);
+  // One rule with the table budget, which weighs formulas only where the reading view reads them (`readsFormulas`).
+  const hasMath = readsFormulas(content);
   const [mathPlugins, setMathPlugins] = React.useState<{ remark: unknown; rehype: unknown } | null>(null);
   React.useEffect(() => {
     if (!hasMath || mathPlugins) return;

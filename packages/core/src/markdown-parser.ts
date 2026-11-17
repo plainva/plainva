@@ -5,6 +5,9 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified } from "unified";
+import { parse, postprocess, preprocess } from "micromark";
+import { gfm } from "micromark-extension-gfm";
+import { math } from "micromark-extension-math";
 import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type MarkdownReading } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
@@ -145,4 +148,26 @@ export function parseMarkdownTree(text: string): MarkdownTreeNode {
 export function parseCommonMarkTree(text: string): MarkdownTreeNode {
   // Weighed for CommonMark: its tables are paragraphs, and the measure of a paragraph must see their lines.
   return parsedInText((source) => commonMarkParser.parse(source), text, COMMONMARK_READING) as unknown as MarkdownTreeNode;
+}
+
+let formulaParser: ReturnType<typeof parse> | undefined;
+
+/**
+ * The formulas the reading view's parser reads in `text` (micromark with GFM
+ * and math, the parsers of `remark-gfm` and `remark-math`): how many `$` open
+ * and close one, and how many characters stand between them. Counts only,
+ * no places — the table budget weighs a row's formulas by them
+ * (`inlineParseBudget.ts`).
+ */
+export function readerFormulas(text: string): { maths: number; mathChars: number } {
+  formulaParser ??= parse({ extensions: [gfm(), math()] });
+  const events = postprocess(formulaParser.document().write(preprocess()(text, undefined, true)));
+  let maths = 0;
+  let mathChars = 0;
+  for (const [kind, token] of events) {
+    if (kind !== "enter") continue;
+    if (token.type === "mathTextSequence") maths += token.end.offset - token.start.offset;
+    else if (token.type === "mathTextData") mathChars += token.end.offset - token.start.offset;
+  }
+  return { maths, mathChars };
 }
