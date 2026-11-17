@@ -19,6 +19,11 @@ on:
   # on Mesa-25 hosts (issue #85) only shows on a distribution newer than the
   # runner, so a reporter has to try the build. A tag would create a draft
   # release named after a branch; an artifact is the honest shape of a test.
+  #
+  # `rehearsal` builds, signs and notarizes the three release legs exactly like
+  # a tag push and publishes nothing — see the job `rehearsal` at the end.
+  # Run it on the release branch before the tag, so it builds the version the
+  # tag will build: gh workflow run Release --ref <branch> -f rehearsal=true
   workflow_dispatch:
     inputs:
       linux_appimage:
@@ -29,6 +34,10 @@ on:
         description: 'Rebuild Windows for an existing unpublished draft (exact vX.Y.Z tag; empty means dry-run)'
         type: string
         default: ''
+      rehearsal:
+        description: 'Release rehearsal: build, sign and notarize all three installers exactly like a release, publish nothing (no draft, no manifest, no asset)'
+        type: boolean
+        default: false
 
 # A rerun for the same tag must not race another draft allocation.
 concurrency:
@@ -51,7 +60,7 @@ jobs:
   # same rule for its tag. Read-only token.
   release-gate:
     name: Release gate
-    if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+    if: (github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag) && !inputs.rehearsal
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -75,7 +84,7 @@ jobs:
         run: node apps/desktop/scripts/release-gate.mjs
 
   prepare:
-    if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+    if: (github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag) && !inputs.rehearsal
     needs: release-gate
     runs-on: ubuntu-latest
     permissions:
@@ -121,7 +130,7 @@ jobs:
 
   release:
     needs: prepare
-    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag) || needs.prepare.result == 'success') }}
+    if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag && !inputs.rehearsal) || needs.prepare.result == 'success') }}
     # Every platform uploads to the same previously allocated draft ID.
     permissions:
       contents: write
@@ -244,6 +253,22 @@ jobs:
       - name: Fetch ONNX Runtime
         run: node apps/desktop/scripts/fetch-onnxruntime.mjs
 
+      # The Tauri CLI that builds the release is pinned exactly in
+      # apps/desktop/package.json and pnpm-lock.yaml: 2.12.4, the version the
+      # last public release (0.8.7) was bundled with. CI compiles with it every
+      # day, but its smokes build with --no-bundle — the installers, the DMG,
+      # the AppImage and the updater signatures of a CLI are shown only by the
+      # release rehearsal, so raising the CLI goes: raise, rehearse, then tag
+      # (docs/engineering/Dependency_Updates.md). Until 0.9.0 tauri-action
+      # found no @tauri-apps/cli at the repository root and installed the
+      # newest 2.x globally ("Could not detect valid `@tauri-apps/cli`
+      # installation", log of the 0.8.7 cut) — a version nobody had chosen and
+      # no rehearsal could match. `tauriScript` below points the action at the
+      # pinned one.
+      - name: Tauri CLI version
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+        run: node apps/desktop/node_modules/@tauri-apps/cli/tauri.js --version
+
       # Spell checking in the AppImage (Sammelplan § 3.183 Nr. 1): the bundler
       # carries the build image's libenchant without its provider modules, and
       # that library looks for them only at Debian's compiled-in path — so
@@ -274,9 +299,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS code-signing (Developer ID Application, team M3FGXPBLFZ): tauri-action
-          # imports the base64 .p12 from APPLE_CERTIFICATE and signs the app. Only runs on
-          # a tag push; manual Windows recovery never runs the macOS leg.
+          # macOS code-signing (Developer ID Application, team M3FGXPBLFZ): the Tauri
+          # CLI itself imports the base64 .p12 from APPLE_CERTIFICATE into a temporary
+          # keychain and signs the app (tauri-bundler, macos/sign.rs `keychain`);
+          # tauri-action does not touch the APPLE_* variables, so the rehearsal covers
+          # the import too. Only runs on a tag push; manual Windows recovery never runs
+          # the macOS leg.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -313,6 +341,13 @@ jobs:
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
+          # The locked CLI (see "Tauri CLI version"). With `tauriScript` the
+          # action skips its own CLI detection and runs exactly
+          # `<tauriScript> build <args>` from projectPath, the repository root
+          # (tauri-action v1, src/runner.ts getRunner and src/build.ts
+          # buildProject); nothing else of this step changes. The rehearsal
+          # runs the same command from the same directory.
+          tauriScript: node apps/desktop/node_modules/@tauri-apps/cli/tauri.js
           # The signing config is a separate file loaded only on the Windows leg, so
           # local builds and outside contributors never trip over a signCommand they
           # cannot run. The path is relative to the REPOSITORY ROOT, not to the app
@@ -323,6 +358,15 @@ jobs:
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
             || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json --config apps/desktop/src-tauri/tauri.appimage.conf.json') }}
+
+      # Every file this leg uploads is there and not empty
+      # (apps/desktop/scripts/expected-bundles.mjs, the assets of 0.8.7).
+      # tauri-action v1.0.0 counts a build that a signal ended as a success
+      # and uploads what is already there; this fails the run before it ends
+      # green, and the draft stays unpublished. The rehearsal runs the same.
+      - name: Every release file was built
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+        run: node apps/desktop/scripts/expected-bundles-check.mjs ${{ matrix.platform }}
 
       # The embedded WebDriver server of the native smoke (a full remote control
       # of the app on a local port) is compiled in only by the smoke build's
@@ -399,61 +443,255 @@ jobs:
       - name: Verify Windows signatures carry a timestamp
         if: matrix.platform == 'windows-latest' && (github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag)
         shell: pwsh
+        run: ./apps/desktop/scripts/verify-windows-signatures.ps1
+
+  # Release rehearsal (manual input `rehearsal`): the three release legs exactly
+  # as a tag push builds them — ONNX Runtime fetched and bundled, the Windows
+  # installers signed through Azure with the MCP helper inside, the universal
+  # macOS app signed with the Developer ID and notarized, the updater
+  # signatures made — and then every check a release runs on what it built.
+  # It exists because a release with a new native part (0.9.0: the MCP helper,
+  # ONNX on macOS) would otherwise meet its first real build on the release tag.
+  #
+  # What it can never do, by construction rather than by care:
+  # - its token is read-only (`contents: read`), so it cannot create a release,
+  #   a draft, a tag or an asset even if a step tried;
+  # - it runs the very command tauri-action runs on a tag — the locked Tauri
+  #   CLI, `build` with the same arguments, from the repository root, with
+  #   the environment the action adds (FORCE_COLOR=0; on macOS
+  #   TAURI_BUNDLER_DMG_IGNORE_CI=true) — but not the action itself, and no
+  #   step gets GITHUB_TOKEN: nothing here talks to the releases API, and no
+  #   latest.json is written (only tauri-action writes one);
+  #   src/releaseCli.test.ts holds the two commands together;
+  # - `release-gate` and `prepare` stay skipped for a manual run, so no draft
+  #   is allocated, and the `release` job is skipped for a rehearsal;
+  # - the installers are NOT uploaded as workflow artifacts: on a public
+  #   repository those are downloadable by anyone signed in to GitHub, and a
+  #   signed installer of an unreleased version is a release in all but name.
+  #   The run leaves only its log and the step summary (names, sizes, SHA-256,
+  #   signature results).
+  # Apple keeps a record of the notarization, as for every signed build.
+  #
+  # What a green rehearsal therefore does NOT show, and only the tag can:
+  # - the action's own part around the build: finding the artifacts it
+  #   uploads by name, renaming them, uploading them to the draft
+  #   (`releaseId`), and the release name and body it sets;
+  # - latest.json: its contents, its platform entries and the asset URLs in
+  #   it (the updater reads it);
+  # - the draft itself, prepare's allocation and the Windows recovery path;
+  # - the secrets and permissions of a tag run (`contents: write`), the
+  #   release-gate check against CI of the exact commit, and anything that
+  #   differs between the commit rehearsed and the commit tagged;
+  # - that tauri-action with `tauriScript` starts node on all three runners
+  #   and finds the artifacts under the names it expects — read in its
+  #   source (v1.0.0, src/runner.ts and src/build.ts), never run.
+  # The certificate import of the macOS signing is not on this list: the
+  # Tauri CLI does it, not the action, so the rehearsal runs it.
+  rehearsal:
+    name: Release rehearsal
+    if: github.event_name == 'workflow_dispatch' && inputs.rehearsal
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 120
+    steps:
+      - name: A rehearsal is not a Windows rebuild
+        if: inputs.rebuild_windows_tag
         run: |
-          $root = "apps/desktop/src-tauri/target/release"
-          $targets = @(
-            "$root/bundle/nsis/*.exe",
-            "$root/bundle/msi/*.msi"
-          )
-          # NOT "$root/plainva-desktop.exe": that is the raw build output, which Tauri
-          # never signs — it signs the copy it packs into the installers. Checking it
-          # failed the 0.6.8 cut for a file nobody ships. The binary a user actually gets
-          # is the one inside the MSI, so extract it and measure that (finding 2026-08-22).
-          $extract = Join-Path $env:RUNNER_TEMP "msi-extract"
-          $msi = Get-ChildItem -Path "$root/bundle/msi/*.msi" -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-          if ($msi) {
-            New-Item -ItemType Directory -Force -Path $extract | Out-Null
-            $p = Start-Process msiexec -ArgumentList "/a `"$($msi.FullName)`" /qn TARGETDIR=`"$extract`"" -Wait -PassThru
-            if ($p.ExitCode -eq 0) {
-              $inner = Get-ChildItem -Path $extract -Recurse -Filter "plainva-desktop.exe" -ErrorAction SilentlyContinue |
-                Select-Object -First 1
-              if ($inner) { $targets += $inner.FullName }
-              else { Write-Host "::warning::no plainva-desktop.exe inside the MSI" }
-              # The MCP helper (plan KI-Harness §17.3) ships beside the app and is
-              # started by other programs, so it is measured like the app itself.
-              $helper = Get-ChildItem -Path $extract -Recurse -Filter "plainva-mcp.exe" -ErrorAction SilentlyContinue |
-                Select-Object -First 1
-              if ($helper) { $targets += $helper.FullName }
-              else { $helperMissing = $true }
-            } else {
-              Write-Host "::warning::msiexec /a exited $($p.ExitCode); skipping the inner binary"
-            }
+          echo "::error::rehearsal and rebuild_windows_tag exclude each other"
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb libhunspell-dev patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # What "Load the versioned release notes" of the tag path demands, for
+      # the tag this commit would get: the three versions agree, and
+      # docs/releases/v<version>.md exists and is not empty. The tag is the
+      # version of apps/desktop/package.json, so a branch without a version
+      # bump checks the notes of the release it already carries (they exist),
+      # and a release branch whose notes are missing turns red here, before
+      # anything is built. Nothing is written anywhere.
+      - name: The versioned release notes exist
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, existsSync } from 'node:fs';
+          const tag = `v${JSON.parse(readFileSync('apps/desktop/package.json', 'utf8')).version}`;
+          if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error(`Not a coordinated desktop release version: ${tag}`);
+          for (const path of ['apps/desktop/package.json', 'apps/mobile/package.json', 'apps/desktop/src-tauri/tauri.conf.json']) {
+            if (JSON.parse(readFileSync(path, 'utf8')).version !== tag.slice(1)) throw new Error(`Version mismatch: ${path}`);
           }
-          $checked = 0
-          $failed = @()
-          if ($helperMissing) { $failed += "the MCP helper plainva-mcp.exe is missing from the MSI" }
-          foreach ($pattern in $targets) {
-            $files = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
-            if (-not $files) { $failed += "no artifact matched $pattern"; continue }
-            foreach ($f in $files) {
-              $checked++
-              $sig = Get-AuthenticodeSignature $f.FullName
-              $stamped = [bool]$sig.TimeStamperCertificate
-              # Null-safe on purpose: an unsigned file has no SignerCertificate, and
-              # $null.Subject.Split() throws — which killed the step before the two
-              # checks below could report anything. A guard that crashes says nothing.
-              $signer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject.Split(',')[0] } else { '<unsigned>' }
-              "{0}: {1}, timestamped={2}, signer={3}" -f $f.Name, $sig.Status, $stamped, $signer
-              if ($sig.Status -ne 'Valid') { $failed += "$($f.Name): status $($sig.Status)" }
-              if (-not $stamped) { $failed += "$($f.Name): signed but NOT timestamped" }
-            }
-          }
-          if ($failed.Count -gt 0) {
-            $failed | ForEach-Object { Write-Host "::error::$_" }
-            throw "Windows signature check failed ($($failed.Count) of $checked artifacts)"
-          }
-          "All $checked Windows artifacts are signed and timestamped."
+          const notes = `docs/releases/${tag}.md`;
+          if (!existsSync(notes)) throw new Error(`The release notes ${notes} are missing: the tag ${tag} would fail at "Load the versioned release notes"`);
+          if (!readFileSync(notes, 'utf8').trim()) throw new Error(`The release notes ${notes} are empty`);
+          console.log(`${notes} is there for the tag ${tag}`);
+          NODE
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Browsers (smoke)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: pnpm --filter desktop exec playwright install --with-deps chromium
+
+      - name: Production build smoke
+        if: matrix.platform == 'ubuntu-22.04'
+        run: xvfb-run pnpm --filter desktop run smoke:prod
+
+      - name: Install Azure signing tool (windows only)
+        if: matrix.platform == 'windows-latest'
+        run: cargo install artifact-signing-cli --locked
+
+      - name: Fetch ONNX Runtime
+        run: node apps/desktop/scripts/fetch-onnxruntime.mjs
+
+      # The AppImage's relocatable Enchant, as in the release legs.
+      - name: Build the AppImage's spell-checking library
+        if: matrix.platform == 'ubuntu-22.04'
+        run: bash apps/desktop/scripts/build-appimage-enchant.sh
+
+      - name: Tauri CLI version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node apps/desktop/node_modules/@tauri-apps/cli/tauri.js --version)"
+          echo "$version"
+          echo "TAURI_CLI_VERSION=$version" >> "$GITHUB_ENV"
+
+      # The command "Build Tauri App" of the release legs runs, from the same
+      # directory (the repository root, so `pnpm build` is the same turbo run
+      # and the configs are `apps/desktop/src-tauri/…`), with the same
+      # secrets. TAURI_ARGS is the `args` input of that step, character for
+      # character; tauri-action splits it with string-argv, bash splits it on
+      # spaces, and it holds no quotes, so both give the same words.
+      - name: Build, sign and notarize (nothing is uploaded)
+        shell: bash
+        env:
+          TAURI_ARGS: >-
+            ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
+            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json --config apps/desktop/src-tauri/tauri.appimage.conf.json') }}
+          # What tauri-action adds to the environment of the CLI (execCommand
+          # in src/utils.ts; TAURI_BUNDLER_DMG_IGNORE_CI on macOS only, below).
+          FORCE_COLOR: '0'
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
+          VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID }}
+          VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = macos-latest ]; then
+            export TAURI_BUNDLER_DMG_IGNORE_CI="${TAURI_BUNDLER_DMG_IGNORE_CI:-true}"
+          fi
+          # shellcheck disable=SC2086 # TAURI_ARGS is split into words on purpose
+          node apps/desktop/node_modules/@tauri-apps/cli/tauri.js build $TAURI_ARGS
+
+      - name: Every release file was built
+        run: node apps/desktop/scripts/expected-bundles-check.mjs ${{ matrix.platform }}
+
+      - name: No embedded WebDriver server in the release binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.platform }}" in
+            macos-latest) binaries=(apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app/Contents/MacOS/*) ;;
+            windows-latest) binaries=(apps/desktop/src-tauri/target/release/plainva-desktop.exe) ;;
+            *) binaries=(apps/desktop/src-tauri/target/release/plainva-desktop) ;;
+          esac
+          bash apps/desktop/scripts/check-webdriver-server.sh "${binaries[@]}"
+
+      - name: Verify Windows signatures carry a timestamp
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: ./apps/desktop/scripts/verify-windows-signatures.ps1
+
+      # macOS: the app, the MCP helper and the bundled ONNX Runtime are signed,
+      # the app is notarized with its ticket stapled, and both native files
+      # carry both architectures of the universal build.
+      - name: Verify the macOS bundle
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="$(ls -d apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app | head -n 1)"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute --verbose=4 "$app"
+          xcrun stapler validate "$app"
+          for f in "$app/Contents/MacOS/plainva-mcp" "$app/Contents/Frameworks/libonnxruntime.dylib"; do
+            test -f "$f" || { echo "::error::missing from the bundle: $f"; exit 1; }
+            codesign --verify --strict --verbose=2 "$f"
+            archs="$(lipo -archs "$f")"
+            echo "$f: $archs"
+            case "$archs" in *x86_64*arm64*|*arm64*x86_64*) ;; *) echo "::error::$f is not universal ($archs)"; exit 1 ;; esac
+          done
+
+      - name: Check the Linux AppImage
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          set -euo pipefail
+          appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
+          bash apps/desktop/scripts/check-appimage.sh "$appimage"
+
+      # The record of the rehearsal: what a release would have uploaded, by
+      # name, size and SHA-256 — the files themselves stay on the runner.
+      - name: List what a release would have uploaded
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=apps/desktop/src-tauri/target
+          {
+            echo "### Release rehearsal on ${{ matrix.platform }} at ${GITHUB_SHA}"
+            echo
+            echo "Built with ${TAURI_CLI_VERSION}, the CLI a tag build uses."
+            echo
+            echo '| File | Bytes | SHA-256 |'
+            echo '|---|---:|---|'
+            node apps/desktop/scripts/expected-bundles-check.mjs "${{ matrix.platform }}" --list | while read -r rel; do
+              f="$root/$rel"
+              if command -v sha256sum >/dev/null; then sum="$(sha256sum "$f" | cut -d' ' -f1)"; else sum="$(shasum -a 256 "$f" | cut -d' ' -f1)"; fi
+              size="$(wc -c < "$f" | tr -d ' ')"
+              echo "| $rel | $size | \`$sum\` |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # The AppImage on the distributions it has to run on (Sammelplan § 3.183
   # Nr. 1): it must start everywhere it started before — also on a system
@@ -467,7 +705,7 @@ jobs:
   appimage-distros:
     name: AppImage on ${{ matrix.name }}
     needs: [prepare, release]
-    if: ${{ !cancelled() && !inputs.rebuild_windows_tag && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage) }}
+    if: ${{ !cancelled() && !inputs.rebuild_windows_tag && !inputs.rehearsal && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container: ${{ matrix.image }}
