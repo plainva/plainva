@@ -165,7 +165,7 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
   await context.addInitScript(() => {
     localStorage.setItem(
       "CapacitorStorage.ai",
-      JSON.stringify({ enabled: true, providers: [], custom: [{ id: "custom-1", label: "192.168.1.5:11434", baseUrl: "http://192.168.1.5:11434/v1", api: "openai-chat", local: true }], profiles: {} }),
+      JSON.stringify({ enabled: true, providers: [], custom: [{ id: "custom-1", label: "ai.example.org", baseUrl: "https://ai.example.org/v1", api: "openai-chat", local: false }], profiles: {} }),
     );
   });
   await installSeam(context, [], ["ok"]);
@@ -189,12 +189,12 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
     await conversation.getByRole("button", { name: "Set up", exact: true }).click();
     await sheet.getByTestId("ai-setup-back").click();
     await expect(current).toContainText("Access");
-    await expect(sheet.getByTestId("ai-setup-address")).toHaveValue("http://192.168.1.5:11434/v1");
-    await sheet.getByTestId("ai-setup-address").fill("http://192.168.1.6:11434/v1");
+    await expect(sheet.getByTestId("ai-setup-address")).toHaveValue("https://ai.example.org/v1");
+    await sheet.getByTestId("ai-setup-address").fill("https://llm.example.org/v1");
     await sheet.getByTestId("ai-setup-next").click();
     await expect(current).toContainText("Try it");
     const custom = await page.evaluate(() => (JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { custom?: { id: string; baseUrl: string }[] }).custom ?? []);
-    expect(custom.map((c) => [c.id, c.baseUrl])).toEqual([["custom-1", "http://192.168.1.6:11434/v1"]]);
+    expect(custom.map((c) => [c.id, c.baseUrl])).toEqual([["custom-1", "https://llm.example.org/v1"]]);
     // The address in the field is the stored one now: closing asks nothing.
     await page.locator(".m-sheet-backdrop").click({ position: { x: 8, y: 8 } });
     await expect(sheet).toHaveCount(0);
