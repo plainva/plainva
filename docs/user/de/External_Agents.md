@@ -1,6 +1,6 @@
 # Externe Agenten (Beta)
 
-Stand: 2026-11-06
+Stand: 2026-11-16
 
 Ein externer Agent ist ein KI-Programm eines anderen Herstellers — ein Agent, den Du auf Deinem Rechner installiert und bei dem Du Dich selbst angemeldet hast, mit Deinem eigenen Abo oder Schlüssel. Plainva kann so einen Agenten im Ordner eines Vaults starten und seine Sitzung im KI-Tab zeigen. Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -9,7 +9,7 @@ Ein externer Agent ist nicht Plainvas Assistent. Der [KI-Assistent](AI_Assistant
 ## Was Plainva nicht kontrolliert
 
 - **Das Programm.** Ein Agent ist das Programm eines anderen. Es läuft auf diesem Rechner mit Deinen Rechten, im Ordner des Vaults, und es ist nicht eingezäunt: es kann lesen und ändern, was Du lesen und ändern kannst.
-- **Was er liest und sendet.** Er liest Dateien selbst — auch Notizen, die Du von der Cloud fernhältst — und sendet, was er auswählt, an seinen eigenen Dienst. Deine Datenschutzregeln und die Übersicht vor dem Senden erreichen ihn nicht, und nichts fragt Dich, bevor er sendet.
+- **Was er liest und sendet.** Er liest Dateien selbst — auch Notizen, die Du von der Cloud fernhältst — und sendet, was er auswählt, an seinen eigenen Dienst. Deine Datenschutzregeln und die Übersicht vor dem Senden erreichen nicht, was er selbst tut, und nichts fragt Dich, bevor er sendet. Nur eine Datei, die er bei Plainva erfragt, wird an Deinen Regeln geprüft: eine Notiz, die Du von der Cloud oder vom Internet fernhältst, wird abgelehnt.
 - **Was er selbst schreibt.** Eine Änderung, die der Agent selbst macht, steht sofort im Vault, ohne Vorschlag. Die Sitzung sagt es Dir, wenn der Agent so eine Änderung meldet; eine Änderung, die er nicht meldet, sieht Plainva nicht.
 - **Seine Anmeldung.** Der Agent meldet sich selbst an. Plainva sieht seine Zugangsdaten nie und speichert keine.
 
@@ -18,7 +18,7 @@ Starte einen Agenten nur in einem Vault, dessen Inhalt den Dienst des Agenten er
 ## Was Plainva kontrolliert
 
 - **Die eigenen Werkzeuge.** Wo **KI-Apps auf diesem Rechner diesen Vault lesen lassen** eingeschaltet ist, werden Plainvas Werkzeuge dem Agenten angeboten — dieselben wie für jede App in [KI-Apps verbinden](Connect_AI_Apps.md): nur die Ordner, die Du freigibst, nie eine von der Cloud oder vom Internet ferngehaltene Notiz, und nur lesend — es sei denn, Du erlaubst ihm dort, Änderungen vorzuschlagen.
-- **Was der Agent Plainva zu lesen bittet.** Eine von der Cloud oder vom Internet ferngehaltene Notiz und Plainvas eigene Ordner werden nicht herausgegeben. Der Agent erfährt das, und Du auch.
+- **Was der Agent Plainva zu lesen bittet.** Eine von der Cloud oder vom Internet ferngehaltene Notiz und Plainvas eigene Ordner werden nicht herausgegeben. Der Agent erfährt das, und Du auch. Jede andere Datei des Vaults wird herausgegeben: Die Ordner, die Du für Plainvas Werkzeuge freigegeben hast, begrenzen keine Datei, nach der der Agent fragt.
 - **Was der Agent Plainva zu schreiben bittet.** Geschrieben wird nichts. Eine Änderung an einer Notiz wird eine Vorschlagsrunde unter dem Namen des Agenten, und eine neue Notiz wartet als Entwurf, bis Du sie anlegst.
 - **Kein Terminal.** Plainva bietet einem Agenten kein eigenes Terminal an.
 
@@ -38,13 +38,13 @@ Es läuft eine Sitzung zur selben Zeit, und sie gehört zu dem Vault, in dem sie
 
 ## Anmelden
 
-Ein Agent, der nicht angemeldet ist, sagt es, und die Sitzung zeigt **⟨Agent⟩ verlangt eine Anmeldung** mit den Wegen, die der Agent nennt. Je nach Agent öffnet die Wahl ein Terminal-Fenster mit dem eigenen Programm des Agenten, oder der Agent führt Dich selbst zu seiner Anmeldung. Plainva wartet und startet den Agenten danach neu. Wo sich kein Terminal öffnen lässt, zeigt Plainva den Befehl, den Du in einem eigenen Terminal ausführst; wähle danach **Erneut versuchen**. Von der Anmeldung sieht Plainva nichts.
+Ein Agent, der nicht angemeldet ist, sagt es, und die Sitzung zeigt **⟨Agent⟩ verlangt eine Anmeldung** mit den Wegen, die der Agent nennt. Je nach Agent öffnet die Wahl ein Terminal-Fenster mit dem eigenen Programm des Agenten, oder der Agent führt Dich selbst zu seiner Anmeldung. Plainva wartet und startet den Agenten nach einer Anmeldung in einem Terminal neu; wo sich der Agent selbst anmeldet, geht es in derselben Sitzung weiter. Wo sich kein Terminal öffnen lässt, zeigt Plainva den Befehl, den Du in einem eigenen Terminal ausführst; wähle danach **Erneut versuchen**. Von der Anmeldung sieht Plainva nichts.
 
 ## In einer Sitzung
 
 Schreib, was der Agent tun soll. Die Notiz, die Du offen hast, wird dem Agenten genannt — ihr Name und wo sie liegt, nicht ihr Text —, außer Du nimmst sie über dem Eingabefeld heraus; eine Notiz, die Du von der Cloud oder vom Internet fernhältst, wird nie genannt. Die Sitzung zeigt, was der Agent sagt, seinen Plan und jeden seiner Schritte, mit den Dateien des Vaults, die er nennt.
 
-Will der Agent Deine Erlaubnis für einen Schritt, zeigt **⟨Agent⟩ fragt** ihn. Die Worte sind die des Agenten, und zur Wahl steht, was der Agent anbietet — **Erlauben**, **Immer erlauben**, **Ablehnen**, **Immer ablehnen**. Deine Antwort geht nur an den Agenten: was er nach einem Ja tut, ist seine Sache, und ein „immer“ ist ein Versprechen, das der Agent hält, nicht Plainva.
+Will der Agent Deine Erlaubnis für einen Schritt, zeigt **⟨Agent⟩ fragt** ihn. Die Worte sind die des Agenten, und die Wahl auch: Die Schaltflächen tragen die Namen, die der Agent ihnen gibt — nur wo er keinen nennt, siehst Du **Erlauben**, **Immer erlauben**, **Ablehnen** oder **Immer ablehnen**. Deine Antwort geht nur an den Agenten: was er nach einem Ja tut, ist seine Sache, und ein „immer“ ist ein Versprechen, das der Agent hält, nicht Plainva.
 
 **Einstellungen und Befehle.** Wo der Agent sie anbietet, zeigt der Fuß der Sitzung seine eigenen Einstellungen: seinen Modus und sein Modell als Schaltflächen — **⟨Einstellung⟩: ⟨Wert⟩** —, den Rest hinter der Regler-Schaltfläche **Weitere Einstellungen von ⟨Agent⟩**. Jedes ihrer Menüs beginnt mit Plainvas eigener Überschrift — **⟨Einstellung⟩ von ⟨Agent⟩** oder **Weitere Einstellungen von ⟨Agent⟩** —; darunter sind Namen, Werte und Beschreibungen die des Agenten, in seiner Reihenfolge: der aktuelle Wert mit einem Haken, ein Schalter als Eintrag mit oder ohne Haken. Wo die Worte des Agenten in einer Überschrift oder einem Satz von Plainva stehen, sind sie in ruhiger Kursivschrift abgesetzt, nie in den Großbuchstaben der Überschrift. Jede Sitzung beginnt mit den Vorgaben des Agenten. Eine Einstellung ändert, wie der Agent arbeitet, nicht, was Plainva durchlässt: Lesen und Schreiben über Plainva folgen in jedem Modus denselben Regeln, und ein Modus, in dem der Agent nichts mehr fragt, erspart keinen von Plainvas eigenen Schritten. Was der Agent mit seinen eigenen Werkzeugen tut, liegt in jedem Modus außerhalb von Plainva. Ändert der Agent eine Einstellung selbst, sagt es die Sitzung: **Der Agent hat „⟨Einstellung⟩“ selbst auf „⟨Wert⟩“ gestellt.** Was er zusammen mit einer Änderung von Dir umstellt, nennt sie als solches — **Damit hat der Agent „⟨Einstellung⟩“ auf „⟨Wert⟩“ gestellt.** —, und eine Änderung, die er nicht vorgenommen hat, ebenso: **Der Agent hat „⟨Einstellung⟩“ nicht geändert.** Solange eine Änderung auf den Agenten wartet, dreht sich neben den Einstellungen ein Kreis, und sie nehmen nichts an, bis er antwortet. Ein **/** am Anfang einer Nachricht listet unter **Befehle von ⟨Agent⟩** die eigenen Befehle des Agenten mit dem, was sie laut ihm tun: Die Pfeiltasten gehen durch die Liste, Enter oder Tab übernehmen einen Befehl, Escape schließt die Liste. Ein Befehl ist eine Nachricht, die mit seinem Namen beginnt; wo der Agent sagt, was danach kommt, steht das unter dem Feld, bis Du weiterschreibst. Was ein Befehl tut, ist Sache des Agenten.
 
@@ -61,7 +61,7 @@ Plainva nimmt nicht alles an: nur Markdown-Notizen; keine KI-Regeln, keine Vertr
 ## Was Plainva behält
 
 - **Auf diesem Gerät:** den Befehl, den Du bestätigt hast, Deinen Namen für den Agenten und was zuletzt von seinen Änderungen beobachtet wurde — in Plainvas eigenen Daten, nie im Vault.
-- **Je Vault:** **Letzte Sitzungen in diesem Vault** nennt, wann eine Sitzung lief, mit welchem Agenten, und wie viele Nachrichten, Änderungen über Plainva und eigene Änderungen es gab — nie, was gesagt wurde.
+- **Je Vault:** Plainva behält die letzten 50 Sitzungen; **Letzte Sitzungen in diesem Vault** zeigt die fünf neuesten — wann eine Sitzung lief, mit welchem Agenten, und wie viele Nachrichten, Änderungen über Plainva und eigene Änderungen es gab — nie, was gesagt wurde. Auch diese Liste liegt in Plainvas eigenen Daten auf diesem Gerät, nicht im Vault.
 - **Nicht die Sitzung selbst:** was Du und der Agent gesagt habt, ist weg, sobald die Sitzung geschlossen ist. Was der Agent auf seiner Seite behält, ist Sache des Agenten.
 
 Endet das Programm des Agenten von selbst, sagt die Sitzung das, und **Seine letzten Zeilen zeigen** zeigt das Ende dessen, was das Programm geschrieben hat.
@@ -70,6 +70,7 @@ Endet das Programm des Agenten von selbst, sagt die Sitzung das, und **Seine let
 
 - Nur am Desktop und nur im Hauptfenster. Am Telefon gibt es Plainvas eigenen Assistenten.
 - Nicht in einem verschlüsselten Workspace.
+- Nicht, solange **Voll-lokal** an ist: Kein Agent startet und keine Anmeldung läuft, und eine laufende Sitzung endet.
 - Eine Sitzung zur selben Zeit, und kein Verlauf: eine beendete Sitzung lässt sich nicht wieder öffnen.
 - Bilder lassen sich nicht an einen Agenten senden, und einen Modus oder ein Modell, das Du in einer Sitzung wählst, übernimmt Plainva nicht in die nächste.
 - Bisher wurde das nur mit einem eigenen Test-Agenten von Plainva ausprobiert. Welche Agenten hier funktionieren und welche ihre Änderungen an Plainva geben, zeigt sich, wenn Du sie ausprobierst — Rückmeldungen sind willkommen.

@@ -62,6 +62,7 @@ import { getPimCache } from "../services/pim/pimRuntime";
 import { MAIL_CHANGED_EVENT, mailVaultId } from "../services/mail/mailRuntime";
 import type { MobileVault } from "../services/vaultService";
 import { createStandardTaskDatabase } from "../services/taskDatabaseCreate";
+import { useTaskDatabaseSetting } from "../hooks/useTaskDatabaseSetting";
 
 /**
  * One service of ONE account (plan "Verbinden", V3 - level 3), the phone's
@@ -284,6 +285,7 @@ function CalendarPart({ pimAccountId, vault }: { pimAccountId: string; vault: Mo
   const [scope, setScope] = useState<{ account?: string; lists?: string; provider: string }>({ provider: "" });
   /** Why a switched-on list of this account does not reach the notes (issue 172). */
   const [listProblems, setListProblems] = useState<PimSyncProblem[]>([]);
+  const taskDbSetting = useTaskDatabaseSetting();
   const reload = useCallback(async () => {
     setCalendars((await listPimCalendars()).filter((calendar) => calendar.accountId === pimAccountId));
     setLists((await listPimTaskLists()).filter((list) => list.accountId === pimAccountId));
@@ -376,7 +378,7 @@ function CalendarPart({ pimAccountId, vault }: { pimAccountId: string; vault: Mo
             </RowList>
           </GroupCard>}
           <CalendarSyncNotice problems={withoutTaskDatabaseLines(listProblems)} onRetry={lookAgain} />
-          <TaskDatabaseHint vault={vault.vaultId} problems={listProblems} onCreate={() => void createTaskDb()} testId="account-task-db-hint" />
+          <TaskDatabaseHint vault={vault.vaultId} problems={listProblems} taskDatabase={taskDbSetting} onCreate={() => void createTaskDb()} testId="account-task-db-hint" />
         </>
       )}
       <GroupCard>

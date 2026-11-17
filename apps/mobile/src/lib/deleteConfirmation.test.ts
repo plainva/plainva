@@ -19,10 +19,16 @@ const fixture = vi.hoisted(() => ({
   deleted: [] as unknown[][],
   operations: null as Record<string, Operation> | null,
 }));
-vi.mock("@plainva/ui", () => ({
-  initialSelection: () => ({}), isBasePath: () => false, isLargeDeletion: () => false,
-  noteDisplayName: (p: string) => p, planNeedsDialog: () => false, selectedPaths: () => [],
-}));
+vi.mock("@plainva/ui", async () => {
+  // The shared batch with its one question, answered by the fixture (A12).
+  const net = await vi.importActual<typeof import("../../../../packages/ui/src/lib/deletionNet")>("../../../../packages/ui/src/lib/deletionNet");
+  net.registerDeletionNetQuestion(async () => { fixture.asked++; return fixture.noNet; });
+  return {
+    initialSelection: () => ({}), isBasePath: () => false, isLargeDeletion: () => false,
+    noteDisplayName: (p: string) => p, planNeedsDialog: () => false, selectedPaths: () => [],
+    deleteEachWithNet: net.deleteEachWithNet,
+  };
+});
 vi.mock("../services/mobileDialogs", () => ({ mConfirm: async () => fixture.answer, mCascade: async () => null }));
 vi.mock("../services/cascadeDelete", () => ({ buildMobileDeletionPlan: async () => null, executeMobileCascade: vi.fn() }));
 vi.mock("./folderDeletion", () => ({ countVaultFiles: async () => 20 }));
@@ -50,8 +56,8 @@ const compiled = ts.transpileModule(`const operations = { ${methods.join(",")}, 
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
 }).outputText;
 // The shared `deleteWithNet` as packages/ui has it, with the phone's question answered by the fixture.
-const deleteWithNet = (files: { deleteItem(p: string, r?: boolean, c?: DeletionConfirmation): Promise<void> }, path: string, recursive?: boolean, confirmation?: DeletionConfirmation) =>
-  deleteWithSafetyNet((c) => files.deleteItem(path, recursive, c), async () => { fixture.asked++; return fixture.noNet; }, confirmation);
+const deleteWithNet = (files: { deleteItem(p: string, r?: boolean, c?: DeletionConfirmation): Promise<void> }, path: string, recursive?: boolean, confirmation?: DeletionConfirmation, ask?: () => Promise<boolean>) =>
+  deleteWithSafetyNet((c) => files.deleteItem(path, recursive, c), ask ?? (async () => { fixture.asked++; return fixture.noNet; }), confirmation);
 fixture.operations = new Function("noteSaver", "notifyFileOps", "window", "deleteWithNet", compiled + "\nreturn operations;")(
   { flush: async () => { fixture.order.push("flush"); }, flushAll: async () => { fixture.order.push("flush-all"); } },
   () => {}, { dispatchEvent: () => {} }, deleteWithNet,
@@ -110,10 +116,18 @@ describe("mobile confirmation reaches the actual deletion", () => {
     expect(await confirmDeleteFile(vault, "note.md", "Note", t)).toBe(true);
     expect(fixture.deleted).toEqual([["note.md", undefined, { confirmed: true, withoutSnapshot: true }]]);
   });
-  it("a selection asks for each file it cannot keep, and reports only what went", async () => {
+  it("a selection asks once for all the files it cannot keep, and reports only what went (A12)", async () => {
     fixture.refuse = true;
     expect(await confirmDeleteFiles(vault, ["one.md", "two.md"], t)).toEqual([]);
-    expect(fixture.asked).toBe(2);
+    expect(fixture.asked).toBe(1);
+    expect(fixture.deleted).toEqual([]);
+  });
+  it("a \"Delete anyway\" for a selection deletes every file of it without a snapshot", async () => {
+    fixture.refuse = true;
+    fixture.noNet = true;
+    expect(await confirmDeleteFiles(vault, ["one.md", "two.md", "three.md"], t)).toEqual(["one.md", "two.md", "three.md"]);
+    expect(fixture.asked).toBe(1);
+    expect(fixture.deleted.map((args) => args[0])).toEqual(["one.md", "two.md", "three.md"]);
   });
   it("a clean-up nobody watches does not ask: without a net it throws, and nothing goes", async () => {
     fixture.refuse = true;

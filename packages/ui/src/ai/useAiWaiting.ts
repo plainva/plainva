@@ -17,7 +17,9 @@ const NONE = (): AiState | null => null;
 export function useAiWaitingCount(session: AiSession | null): number {
   const state = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
   // Read again whenever the vault or the switch changes: the entry lives as long as the app.
-  const proposals = useOpenProposals(session && state?.settings.enabled ? session : null, `${state?.hasVault}:${state?.summaries.length}`);
+  // The vault's own count (`vaultEpoch`), not only its conversations: two
+  // vaults with none had the same key, and the old vault's number stayed.
+  const proposals = useOpenProposals(session && state?.settings.enabled ? session : null, `${state?.vaultEpoch}:${state?.hasVault}:${state?.summaries.length}`);
   if (!state || !state.loaded || !state.settings.enabled) return 0;
   return openWritesCount(state.drafts, proposals) + waitingCount(state.skills.entries);
 }

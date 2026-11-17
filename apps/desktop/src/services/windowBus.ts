@@ -1,4 +1,4 @@
-import type { BookmarkEntry } from "@plainva/ui";
+import type { AiSettingsIntent, BookmarkEntry } from "@plainva/ui";
 /**
  * The window bus (multi-window P0).
  *
@@ -347,6 +347,8 @@ export interface RpcMap {
       /** "settings" only: land on THIS cloud account's detail page (D2) —
        *  its own id, or the id of the mail/calendar account it owns. */
       accountId?: string;
+      /** "settings" only: the dialog of the AI page to open there — a provider's key, a profile's model (C12). */
+      aiIntent?: AiSettingsIntent;
       /** `new-window`: which vault the new window shows (stage D); `encryption-unlock`: which vault to unlock (N3). */
       vaultPath?: string;
     };
