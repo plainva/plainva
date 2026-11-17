@@ -2,7 +2,7 @@ import { FileCommentOperationJournal } from "@plainva/core";
 import { Encoding, Filesystem } from "@capacitor/filesystem";
 import { isMissingFile } from "../adapters/fileErrors";
 import { atomicWriteInternalText } from "../platform/atomicFile";
-import { internalPlace } from "../platform/internalFiles";
+import { internalPlace, listInternalFolder } from "../platform/internalFiles";
 
 /** The normal draft retention skips this directory; unfinished operations stay. */
 export function mobileCommentOperationJournal(vaultId: string): FileCommentOperationJournal {
@@ -20,11 +20,10 @@ export function mobileCommentOperationJournal(vaultId: string): FileCommentOpera
     writeAtomic: (file, text) => atomicWriteInternalText(`${directory}/${file}`, text),
     list: async () => {
       try {
-        const place = await internalPlace(directory);
-        const result = await Filesystem.readdir({ path: place.path, directory: place.directory });
-        if (!Array.isArray(result.files) || result.files.some((entry) => !entry || typeof entry.name !== "string"
+        const files = await listInternalFolder(directory);
+        if (!Array.isArray(files) || files.some((entry) => !entry || typeof entry.name !== "string"
           || !entry.name || (entry.type !== "file" && entry.type !== "directory"))) throw new Error("The comment journal listing could not be confirmed");
-        return result.files.map((entry) => entry.name);
+        return files.map((entry) => entry.name);
       } catch (error) { if (isMissingFile(error)) return []; throw error; }
     },
   });

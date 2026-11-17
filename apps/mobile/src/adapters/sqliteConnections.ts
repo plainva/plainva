@@ -1,6 +1,6 @@
 import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from "@capacitor-community/sqlite";
 import { TransactionTurns } from "@plainva/ui";
-import { databaseFolderRefusal, removeDatabaseLeftovers, resetDatabaseFolderForTests } from "./iosDatabaseFolder";
+import { databaseFolderRefusal, deleteClosedDatabase, removeDatabaseLeftovers, resetDatabaseFolderForTests } from "./iosDatabaseFolder";
 
 /**
  * Every database the phone opens goes through ONE `SQLiteConnection`
@@ -188,9 +188,13 @@ export function deleteDatabaseFile(name: string): Promise<void> {
     let opened = false;
     if (!connection) {
       // A database still in Documents is not reached at the plugin's location;
-      // deleting there would leave it - and make a new, empty one first.
-      const refusal = await databaseFolderRefusal(name);
-      if (refusal) throw refusal;
+      // deleting there would leave it - and make a new, empty one first. It is
+      // deleted where it lies instead, and what will not go now goes at the
+      // next start, before anything moves (`iosDatabaseFolder.ts`).
+      if (await databaseFolderRefusal(name)) {
+        await deleteClosedDatabase(name);
+        return;
+      }
       const conn = plugin();
       if (!checked) {
         await conn.checkConnectionsConsistency();

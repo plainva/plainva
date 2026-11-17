@@ -209,8 +209,15 @@ public class DevicePimPlugin extends Plugin {
     @PluginMethod
     public void events(PluginCall call) {
         String calendarId = call.getString("calendarId");
-        long from = call.getDouble("fromTs", 0d).longValue();
-        long to = call.getDouble("toTs", 0d).longValue();
+        // A time in milliseconds arrives as a Long, which getDouble answered with 0: the window was empty.
+        Long fromArg = JsNumbers.whole(call, "fromTs");
+        Long toArg = JsNumbers.whole(call, "toTs");
+        if (fromArg == null || toArg == null) {
+            call.reject("fromTs and toTs must be whole numbers");
+            return;
+        }
+        long from = fromArg;
+        long to = toArg;
         JSArray out = new JSArray();
         try (Cursor c = queryInstances(from, to, Instances.CALENDAR_ID + " = ?", new String[] { calendarId })) {
             while (c != null && c.moveToNext()) {
@@ -251,10 +258,15 @@ public class DevicePimPlugin extends Plugin {
     @PluginMethod
     public void event(PluginCall call) {
         String id = call.getString("id");
-        Double ts = call.getDouble("occurrenceStartTs");
+        boolean asksOccurrence = call.getData().has("occurrenceStartTs") && !call.getData().isNull("occurrenceStartTs");
+        Long ts = JsNumbers.whole(call, "occurrenceStartTs");
+        if (asksOccurrence && ts == null) {
+            call.reject("occurrenceStartTs must be a whole number");
+            return;
+        }
         JSObject ret = new JSObject();
         try {
-            JSObject found = findInstance(id, ts == null ? null : ts.longValue());
+            JSObject found = findInstance(id, ts);
             ret.put("event", found == null ? JSONObject.NULL : found);
         } catch (SecurityException e) {
             call.reject("calendar permission missing");
@@ -371,7 +383,14 @@ public class DevicePimPlugin extends Plugin {
     @PluginMethod
     public void deleteEvent(PluginCall call) {
         String id = call.getString("id");
-        Double ts = call.getDouble("occurrenceStartTs");
+        // An occurrence named by a time that cannot be read deletes nothing: getDouble answered a Long
+        // with null, and the whole series went instead of one of its dates.
+        boolean asksOccurrence = call.getData().has("occurrenceStartTs") && !call.getData().isNull("occurrenceStartTs");
+        Long ts = JsNumbers.whole(call, "occurrenceStartTs");
+        if (asksOccurrence && ts == null) {
+            call.reject("occurrenceStartTs must be a whole number");
+            return;
+        }
         ContentResolver cr = getContext().getContentResolver();
         try {
             if (ts != null) {

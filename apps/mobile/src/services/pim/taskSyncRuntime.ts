@@ -14,6 +14,8 @@ import {
   logDiagnostic,
   entryEventWindow,
   runEntryEventSync,
+  taskSyncHasNews,
+  markTaskSyncInputChanged,
   type TaskDeletionOrder,
 } from "@plainva/ui";
 import { updateVaultText, type PimAccountRow, type PimCacheRepository, type IPimTarget } from "@plainva/core";
@@ -56,6 +58,16 @@ interface Wiring {
 }
 
 let wiring: Wiring | null = null;
+
+/** The provider cycle changed data: the reconcile after it is news (F21). */
+export function markPimDataChanged(cache: PimCacheRepository): void {
+  markTaskSyncInputChanged(cache);
+}
+
+/** "Task sync done" for the screens and widgets - only when it is news (F21, `taskSyncHasNews`). */
+async function announce(cache: PimCacheRepository, res: Parameters<typeof taskSyncHasNews>[1]): Promise<void> {
+  if (await taskSyncHasNews(cache, res)) window.dispatchEvent(new CustomEvent("m-task-sync-done"));
+}
 let running = false;
 let queued = false;
 
@@ -98,7 +110,7 @@ export async function runMobileTaskSync(): Promise<void> {
       // the vault has filled up; during a first sync the setting may simply
       // not have arrived yet.
       if (firstSyncSettled() && w.vault.indexSettled()) await reportTaskListsBlocked(w.cache, "no-task-db");
-      window.dispatchEvent(new CustomEvent("m-task-sync-done"));
+      await announce(w.cache, null);
       return;
     }
     // A task database again: should it go missing later, that is a new
@@ -112,7 +124,7 @@ export async function runMobileTaskSync(): Promise<void> {
       // Without its index database the phone stays here for good: the lists
       // say why they stay empty (issue 172).
       await reportTaskListsBlocked(w.cache, "no-index");
-      window.dispatchEvent(new CustomEvent("m-task-sync-done"));
+      await announce(w.cache, null);
       return;
     }
     const started = performance.now();
@@ -168,8 +180,9 @@ export async function runMobileTaskSync(): Promise<void> {
     const line = formatTaskSync(res, performance.now() - started, mayCreateNotes);
     if (line) logDiagnostic("tasks", `reconcile: ${line}`);
     // The task screens listen for this to re-query — the index diff alone is
-    // not a reliable refresh signal for them.
-    window.dispatchEvent(new CustomEvent("m-task-sync-done"));
+    // not a reliable refresh signal for them. Only when there is something to
+    // re-query (F21): this runs every cycle.
+    await announce(w.cache, res);
   } catch (e) {
     console.warn("[mobile] task sync failed", e);
     logDiagnostic("tasks", `reconcile failed: ${e instanceof Error ? e.message : String(e)}`);

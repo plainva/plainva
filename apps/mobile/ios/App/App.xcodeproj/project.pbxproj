@@ -26,6 +26,7 @@
 		7C0002000000000000000002 /* VaultFolderListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0001000000000000000002 /* VaultFolderListing.swift */; };
 		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000001 /* WidgetBridgePlugin.swift */; };
+		7F0002000000000000000051 /* ProcessExitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000051 /* ProcessExitPlugin.swift */; };
 		B20002000000000000000001 /* IntentBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000001 /* IntentBridgePlugin.swift */; };
 		B20002000000000000000002 /* PlainvaIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000002 /* PlainvaIntents.swift */; };
 		B20002000000000000000003 /* IntentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000003 /* IntentStore.swift */; };
@@ -113,6 +114,7 @@
 		7C0001000000000000000002 /* VaultFolderListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFolderListing.swift; sourceTree = "<group>"; };
 		7D0001000000000000000001 /* DevicePimPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePimPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000001 /* WidgetBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridgePlugin.swift; sourceTree = "<group>"; };
+		7F0001000000000000000051 /* ProcessExitPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessExitPlugin.swift; sourceTree = "<group>"; };
 		B20001000000000000000001 /* IntentBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentBridgePlugin.swift; sourceTree = "<group>"; };
 		B20001000000000000000002 /* PlainvaIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainvaIntents.swift; sourceTree = "<group>"; };
 		B20001000000000000000003 /* IntentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/IntentStore.swift; sourceTree = SOURCE_ROOT; };
@@ -231,6 +233,7 @@
 				7C0001000000000000000002 /* VaultFolderListing.swift */,
 				7D0001000000000000000001 /* DevicePimPlugin.swift */,
 				7F0001000000000000000001 /* WidgetBridgePlugin.swift */,
+				7F0001000000000000000051 /* ProcessExitPlugin.swift */,
 				B20001000000000000000001 /* IntentBridgePlugin.swift */,
 				B20001000000000000000002 /* PlainvaIntents.swift */,
 				B20001000000000000000004 /* PlainvaIntents.xcstrings */,
@@ -468,6 +471,7 @@
 				7C0002000000000000000002 /* VaultFolderListing.swift in Sources */,
 				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 				7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */,
+				7F0002000000000000000051 /* ProcessExitPlugin.swift in Sources */,
 				B20002000000000000000001 /* IntentBridgePlugin.swift in Sources */,
 				B20002000000000000000002 /* PlainvaIntents.swift in Sources */,
 				B20002000000000000000003 /* IntentStore.swift in Sources */,
