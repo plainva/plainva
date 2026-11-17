@@ -263,3 +263,131 @@ describe("the change journal does not grow without end", () => {
     expect(await count()).toBe(0);
   });
 });
+
+/** The vault, with `onRead(path, readings)` run after every read of a file, `readings` counting this file's reads so far. */
+function eventsOnReads(onRead: (p: string, readings: number) => Promise<void>) {
+  const readings = new Map<string, number>();
+  const vault = new Proxy(raw, {
+    get(target, key, receiver) {
+      const value = Reflect.get(target, key, receiver);
+      if (typeof value !== "function") return value;
+      if (key !== "readBinaryFile" && key !== "readTextFile") return value.bind(target);
+      return async (p: string, ...rest: unknown[]) => {
+        const answer = await (value as (...a: unknown[]) => Promise<unknown>).call(target, p, ...rest);
+        const n = (readings.get(p) ?? 0) + 1;
+        readings.set(p, n);
+        await onRead(p, n);
+        return answer;
+      };
+    },
+  });
+  return { vault, readings };
+}
+
+describe("ordinary changes beside a reading do not keep it out of the index", () => {
+  /**
+   * Ten notes arrive while the app is closed; the open's scan reads them, and
+   * during the first readings and again during the second, `event` changes
+   * something else in their folder. Every one of them is in the index after
+   * the scan, which calls the index complete.
+   */
+  async function twoEventsInTheFolder(event: (indexer: VaultIndexer, nth: number) => Promise<void>, setUp: () => Promise<void> = async () => {}) {
+    await raw.writeTextFile("Daily/old1.md", "# old1\n");
+    await raw.writeTextFile("Daily/old2.md", "# old2\n");
+    await raw.writeTextFile("Daily/today.md", "# today\n");
+    await new VaultIndexer(raw, db).indexVaultFull();
+    await setUp();
+    for (let i = 0; i < 10; i++) await raw.writeTextFile(`Daily/new${i}.md`, `# new ${i}\n\nfresh${i}\n`);
+    let events = 0;
+    let indexer!: VaultIndexer;
+    const { vault, readings } = eventsOnReads(async (p, n) => {
+      if (!p.startsWith("Daily/new")) return;
+      // During the first readings of the new notes, and during their second ones, if any.
+      if ((events === 0 && n === 1) || (events === 1 && n === 2)) await event(indexer, ++events);
+    });
+    const news: string[] = [];
+    indexer = new VaultIndexer(vault, db, { onNewLocalFile: (p) => news.push(p) });
+    await indexer.indexVaultFull("open");
+    const fresh = (await rows()).filter((p) => p.startsWith("Daily/new"));
+    expect(fresh, "every new note has its row").toHaveLength(10);
+    expect(news.filter((p) => p.startsWith("Daily/new")), "and is announced to the sync").toHaveLength(10);
+    expect((await new VaultQueryService(db).searchFullText("fresh3")).map((hit) => hit.path)).toEqual(["Daily/new3.md"]);
+    expect(await indexer.indexComplete()).toBe(true);
+    return { readings };
+  }
+
+  it("two renames in the app, in the folder of the new notes", async () => {
+    const queue = new SyncQueue(db);
+    await twoEventsInTheFolder(async (indexer, nth) => {
+      const from = `Daily/old${nth}.md`;
+      const to = `Daily/old${nth}-renamed.md`;
+      await raw.renameItem(from, to);
+      await queue.queueRename(from, to);
+      await indexer.relocatePathInIndex(from, to);
+      await indexer.indexPath(to);
+    });
+    expect(await rows(), "the rename is followed").toContain("Daily/old1-renamed.md");
+  });
+
+  it("an encrypted workspace recording two revisions of the note beside them", async () => {
+    const record = (revision: number) => db.execute(
+      `INSERT INTO workspace_object (object_id, path, current_revision_id, payload_hash, plaintext_sha256, content_kind, deleted, author_member_id, created_at, modified_at)
+       VALUES ('today', 'Daily/today.md', ?, ?, ?, 'text', 0, 'me', '2026-11-17', '2026-11-17')
+       ON CONFLICT(object_id) DO UPDATE SET current_revision_id = excluded.current_revision_id, payload_hash = excluded.payload_hash, plaintext_sha256 = excluded.plaintext_sha256`,
+      [`r${revision}`, `p${revision}`, sha(`today ${revision}`)]);
+    await twoEventsInTheFolder(async (_indexer, nth) => { await record(nth); }, async () => { await record(0); });
+  });
+});
+
+describe("a reading set aside again and again is read again, or the index says it is not complete", () => {
+  it("a note changed during its first two readings stands with its third", async () => {
+    await raw.writeTextFile("keep.md", "# keep\n");
+    await new VaultIndexer(raw, db).indexVaultFull();
+    await raw.writeTextFile("N.md", "# N\n\nthird time\n");
+    const { vault, readings } = eventsOnReads(async (p, n) => {
+      if (p === "N.md" && n <= 2) await noteIndexChange(["N.md"], db);
+    });
+    const indexer = new VaultIndexer(vault, db);
+    await indexer.indexVaultFull();
+    expect(readings.get("N.md")).toBe(3);
+    expect(await rows()).toEqual(["N.md", "keep.md"]);
+    expect(await indexer.indexComplete()).toBe(true);
+  });
+
+  it("a note changed during every reading of the scan is named, and the index is not complete until a scan gets it", async () => {
+    await raw.writeTextFile("keep.md", "# keep\n");
+    await new VaultIndexer(raw, db).indexVaultFull();
+    await raw.writeTextFile("N.md", "# N\n\nbusy\n");
+    let busy = true;
+    const { vault } = eventsOnReads(async (p) => {
+      if (busy && p === "N.md") await noteIndexChange(["N.md"], db);
+    });
+    const indexer = new VaultIndexer(vault, db);
+    const report = await indexer.indexVaultFull();
+    expect(await rows()).toEqual(["keep.md"]);
+    expect(report.skipped, "the scan names what it left out").toEqual([{ path: "N.md", reason: "changing" }]);
+    expect(await indexer.indexComplete(), "and does not call the index complete").toBe(false);
+    busy = false;
+    await indexer.indexVaultFull();
+    expect(await rows()).toEqual(["N.md", "keep.md"]);
+    expect(await indexer.indexComplete()).toBe(true);
+  });
+
+  it("a single path whose every reading is set aside leaves the index not complete", async () => {
+    await raw.writeTextFile("keep.md", "# keep\n");
+    await new VaultIndexer(raw, db).indexVaultFull();
+    await raw.writeTextFile("N.md", "# N\n\nbusy\n");
+    let busy = true;
+    const { vault } = eventsOnReads(async (p) => {
+      if (busy && p === "N.md") await noteIndexChange(["N.md"], db);
+    });
+    const indexer = new VaultIndexer(vault, db);
+    await indexer.indexPath("N.md");
+    expect(await rows()).toEqual(["keep.md"]);
+    expect(await indexer.indexComplete()).toBe(false);
+    busy = false;
+    await indexer.indexVaultFull();
+    expect(await rows()).toEqual(["N.md", "keep.md"]);
+    expect(await indexer.indexComplete()).toBe(true);
+  });
+});
