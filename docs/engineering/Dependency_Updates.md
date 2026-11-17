@@ -41,11 +41,36 @@ Security tab and is handled with the procedure below, straight away.
 3. npm: set each `@tauri-apps/*` half in `apps/desktop/package.json` to the
    `~X.Y.0` range of its crate's new major.minor (`~` keeps pnpm from running
    ahead of the crate into a minor that `tauri build` refuses), then
-   `pnpm install`. `@tauri-apps/cli` moves along, with a `^` range.
+   `pnpm install`. `@tauri-apps/cli` does not move along: it has a section of
+   its own below.
 4. Run `npx vitest run src/tauriVersionPairs.test.ts src/editorSingletons.test.ts`
    in `apps/desktop`, then commit crates and npm halves together
    (`chore(deps): move the Tauri pairs to 2.X`). The CI's Rust job and the
    WebKit editor regression cover the rest.
+
+## Tauri CLI: pinned, raised only through a rehearsal
+
+`@tauri-apps/cli` is the one Tauri package that is not a pair: it bundles the
+installers (NSIS, WiX, the DMG, the AppImage) and makes the updater
+signatures, and every release is built with it — the tag through
+tauri-action's `tauriScript`, the release rehearsal with the same command
+(`.github/workflows/release.yml`). CI compiles with it every day, but its
+smokes build with `--no-bundle`, so no CI run shows what a new CLI changes in
+an installer. It therefore stands exactly, without a range, in
+`apps/desktop/package.json`, and Dependabot leaves it alone like the other
+`@tauri-apps/*` packages.
+
+Pinned CLI: `2.12.4` — the version the last public release (0.8.7) was bundled with.
+
+Raising it is a step of its own, never part of the pairs above:
+
+1. Set the exact version in `apps/desktop/package.json`, `pnpm install`, and
+   change the version on the "Pinned CLI" line above in the same commit
+   (`apps/desktop/src/releaseCli.test.ts` holds the three together).
+2. Start the release rehearsal on that commit (Actions → "Release",
+   input `rehearsal`) and read its record: all three legs green, the CLI
+   version it names.
+3. Only then a release tag.
 
 ## Editor building blocks: one version each
 
