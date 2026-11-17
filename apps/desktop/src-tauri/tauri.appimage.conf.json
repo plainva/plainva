@@ -4,7 +4,8 @@
     "linux": {
       "appimage": {
         "files": {
-          "/usr/lib": "target/appimage-enchant/lib"
+          "/usr/lib": "target/appimage-enchant/lib",
+          "/usr/share/doc": "target/appimage-enchant/doc"
         }
       }
     }

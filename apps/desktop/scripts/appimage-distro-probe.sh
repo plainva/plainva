@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Starts a built AppImage on the distribution this runs on and reports whether
 # it starts and whether spell checking loaded a dictionary (Sammelplan § 3.183
-# Nr. 1). Run by the `appimage-distros` job of release.yml in one container per
-# distribution; it works the same on any Linux machine with Xvfb.
+# Nr. 1). Run by appimage-distros.sh in one container per distribution; it
+# works the same on any Linux machine with Xvfb.
 #
 # How it measures:
 #   - The AppImage is extracted and its AppRun started under Xvfb with spell

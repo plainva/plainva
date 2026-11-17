@@ -146,10 +146,14 @@ jobs:
     # cap stays for the manual dry run, which still does.
     timeout-minutes: 120
     steps:
+      # No token in .git/config: the AppImage step builds a third-party
+      # tarball (build-appimage-enchant.sh), and nothing in this job pushes —
+      # tauri-action takes its token from the environment.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
+          persist-credentials: false
 
       - name: Verify the exact build source
         shell: bash
@@ -278,8 +282,8 @@ jobs:
       # src-tauri/tauri.appimage.conf.json maps it into the AppDir; the two
       # AppImage builds below pass it.
       # The .deb and .rpm are unaffected: they use the system's WebKitGTK and
-      # Enchant. The `appimage-distros` job proves the result on each
-      # distribution.
+      # Enchant. The step "The AppImage starts on the distributions" proves
+      # the result on each distribution.
       - name: Build the AppImage's spell-checking library
         if: matrix.platform == 'ubuntu-22.04' && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage)
         run: bash apps/desktop/scripts/build-appimage-enchant.sh
@@ -414,13 +418,29 @@ jobs:
           appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
           bash apps/desktop/scripts/check-appimage.sh "$appimage"
 
-      # Also on a release: the `appimage-distros` job starts this very file on
-      # each distribution. Nothing is published from the artifact.
-      - name: Upload the Linux AppImage (test build and distribution probe)
+      # The AppImage on six distributions (appimage-distros.sh): it has to
+      # start on each and check spelling with the host's Hunspell dictionary
+      # (Sammelplan § 3.183 Nr. 1). Here on the runner that built it, in one
+      # container per distribution, so the file never leaves the runner on the
+      # tag path before the draft is published, and the containers get neither
+      # the checkout nor a token. A red distribution turns the release run red.
+      # The rehearsal runs the same.
+      - name: The AppImage starts on the distributions
         if: matrix.platform == 'ubuntu-22.04' && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage)
+        run: |
+          set -euo pipefail
+          appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
+          bash apps/desktop/scripts/appimage-distros.sh "$appimage"
+
+      # Only the manual test build hands the AppImage out as a workflow
+      # artifact. On the tag path it exists only in the draft until the
+      # maintainer publishes it: an artifact of this public repository can be
+      # downloaded by any signed-in GitHub user.
+      - name: Upload the Linux AppImage (manual test build only)
+        if: matrix.platform == 'ubuntu-22.04' && github.event_name == 'workflow_dispatch' && inputs.linux_appimage
         uses: actions/upload-artifact@v7
         with:
-          name: plainva-appimage-${{ needs.prepare.outputs.source_sha || github.sha }}
+          name: plainva-appimage-${{ github.sha }}
           path: apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
           if-no-files-found: error
           retention-days: 14
@@ -539,8 +559,11 @@ jobs:
           echo "::error::rehearsal and rebuild_windows_tag exclude each other"
           exit 1
 
+      # No token in .git/config, as on the tag path.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -705,6 +728,13 @@ jobs:
           appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
           bash apps/desktop/scripts/check-appimage.sh "$appimage"
 
+      - name: The AppImage starts on the distributions
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          set -euo pipefail
+          appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
+          bash apps/desktop/scripts/appimage-distros.sh "$appimage"
+
       - name: The packages start the main program
         shell: bash
         run: |
@@ -736,92 +766,3 @@ jobs:
               echo "| $rel | $size | \`$sum\` |"
             done
           } >> "$GITHUB_STEP_SUMMARY"
-
-  # The AppImage on the distributions it has to run on (Sammelplan § 3.183
-  # Nr. 1): it must start everywhere it started before — also on a system
-  # without Enchant and on ones with a far newer Enchant and GLib than the
-  # build image — and spell checking must use the host's Hunspell dictionary.
-  # Each container starts the AppImage under Xvfb twice: without a German
-  # dictionary (nothing may load) and with one (de_DE must load). The second
-  # run also installs the distribution's own Enchant (not on openSUSE), so a
-  # far newer host Enchant beside the bundled one is measured too. The base
-  # packages are what any desktop has and a minimal container lacks. The probe
-  # reads the line the app writes when the checker is switched on, so it also
-  # proves the page loaded. It runs after every AppImage build, so a new build
-  # image or Tauri CLI is measured again; the job summary has the table.
-  appimage-distros:
-    name: AppImage on ${{ matrix.name }}
-    needs: [prepare, release]
-    if: ${{ !cancelled() && !inputs.rebuild_windows_tag && !inputs.rehearsal && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    container: ${{ matrix.image }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Debian stable
-            image: debian:stable
-            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 libgles2 libgpg-error0 fonts-dejavu-core
-            dictionary: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends hunspell-de-de libenchant-2-2
-          - name: Ubuntu 24.04 LTS
-            image: ubuntu:24.04
-            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 libgles2 libgpg-error0 fonts-dejavu-core
-            dictionary: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends hunspell-de-de libenchant-2-2
-          - name: Fedora
-            image: fedora:latest
-            base: dnf -y install --setopt=install_weak_deps=False xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon dbus-tools procps-ng gtk3 mesa-libGL mesa-libEGL mesa-libgbm mesa-libGLES libgpg-error dejavu-sans-fonts
-            dictionary: dnf -y install --setopt=install_weak_deps=False hunspell-de enchant2
-          - name: Arch Linux
-            image: archlinux:latest
-            base: pacman -Syu --noconfirm xorg-server-xvfb xorg-xauth dbus procps-ng gtk3 mesa ttf-dejavu
-            dictionary: pacman -S --noconfirm hunspell-de enchant
-          - name: openSUSE Tumbleweed
-            image: opensuse/tumbleweed:latest
-            base: zypper -n install --no-recommends xvfb-run xauth dbus-1 procps libgtk-3-0 Mesa-libGL1 Mesa-libEGL1 libgbm1 dejavu-fonts
-            dictionary: zypper -n install --no-recommends myspell-de_DE
-          # No Enchant and no dictionary at all: the bundled library must
-          # neither break the start nor pretend to check.
-          - name: Debian stable without Enchant
-            image: debian:stable
-            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 libgles2 libgpg-error0 fonts-dejavu-core
-            dictionary: ''
-    steps:
-      - name: Install the desktop's base
-        run: ${{ matrix.base }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
-
-      - name: Download the AppImage
-        uses: actions/download-artifact@v7
-        with:
-          name: plainva-appimage-${{ needs.prepare.outputs.source_sha || github.sha }}
-          path: appimage
-
-      - name: Start it without a dictionary
-        shell: bash
-        run: |
-          set -euo pipefail
-          {
-            echo "### AppImage on ${{ matrix.name }}"
-            echo
-            echo "| Run | Starts | Languages loaded | Expected | Host Enchant | Host GLib |"
-            echo "|---|---|---|---|---|---|"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ -z "${{ matrix.dictionary }}" ]; then
-            for so in libenchant-2.so.2 libhunspell-1.7.so.0; do
-              if ls /usr/lib*/"$so" /usr/lib/*/"$so" >/dev/null 2>&1; then echo "::error::$so is installed"; exit 1; fi
-            done
-          fi
-          bash apps/desktop/scripts/appimage-distro-probe.sh appimage/*.AppImage "${{ matrix.name }}, no dictionary" no
-
-      - name: Start it with the German Hunspell dictionary
-        if: matrix.dictionary != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          ${{ matrix.dictionary }}
-          bash apps/desktop/scripts/appimage-distro-probe.sh appimage/*.AppImage "${{ matrix.name }}, hunspell de_DE" yes

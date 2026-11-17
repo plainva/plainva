@@ -21,25 +21,35 @@
 # same ones the AppImage already bundles, so it starts wherever today's build
 # starts.
 #
-# The output directory mirrors usr/lib of the AppDir;
-# src-tauri/tauri.appimage.conf.json maps it there (bundle.linux.appimage.files,
-# relative to src-tauri like every bundle path), and the release passes that
-# overlay with --config. The bundler copies it in before linuxdeploy
+# Licences travel along (LGPL-2.1 for Enchant, MPL/GPL/LGPL for Hunspell):
+# Enchant's COPYING.LIB and AUTHORS from the very tarball go to
+# usr/share/doc/enchant-2, the Debian copyright of the libhunspell package to
+# usr/share/doc/<package>. The same step adds the copyright files linuxdeploy
+# leaves out for libraries it does bundle (see copyright_packages below);
+# check-appimage.sh fails a build in which any bundled library's package has
+# none.
+#
+# The output directory mirrors the AppDir: lib/ goes to usr/lib, doc/ to
+# usr/share/doc. src-tauri/tauri.appimage.conf.json maps both
+# (bundle.linux.appimage.files, relative to src-tauri like every bundle path),
+# and the release passes that overlay with --config. The bundler copies it in before linuxdeploy
 # runs, so linuxdeploy treats it like
 # its own (dependencies, runpaths); check-appimage.sh asserts afterwards that
 # the AppImage carries this build and not the system's.
 #
-# Usage: build-appimage-enchant.sh   (writes src-tauri/target/appimage-enchant/lib)
+# Usage: build-appimage-enchant.sh   (writes src-tauri/target/appimage-enchant/{lib,doc})
 # Needs: build-essential, pkg-config, patchelf, libglib2.0-dev, libhunspell-dev.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-out="$here/../src-tauri/target/appimage-enchant/lib"
+base="$here/../src-tauri/target/appimage-enchant"
+out="$base/lib"
+doc="$base/doc"
 
 version=2.3.2
 sha256=ce9ba47fd4d34031bd69445598a698a6611602b2b0e91d705e91a6f5099ead6e
 urls=(
-  "http://archive.ubuntu.com/ubuntu/pool/main/e/enchant-2/enchant-2_${version}.orig.tar.gz"
+  "https://archive.ubuntu.com/ubuntu/pool/main/e/enchant-2/enchant-2_${version}.orig.tar.gz"
   "https://github.com/AbiWord/enchant/releases/download/v${version}/enchant-${version}.tar.gz"
 )
 # Not a path on the build machine or the host: only the anchor relocation
@@ -79,8 +89,8 @@ lib="$work/dest$prefix/lib"
 provider="$lib/enchant-2/enchant_hunspell.so"
 [ -f "$provider" ] || { echo "::error::the Hunspell provider was not built (libhunspell-dev missing?)"; exit 1; }
 
-rm -rf "$out"
-mkdir -p "$out/enchant-2"
+rm -rf "$base"
+mkdir -p "$out/enchant-2" "$doc/enchant-2"
 cp -L "$lib/libenchant-2.so.2" "$out/libenchant-2.so.2"
 cp "$provider" "$out/enchant-2/"
 # libhunspell beside the provider: found through its runpath even if
@@ -91,9 +101,33 @@ cp -L "$hunspell" "$out/enchant-2/$(basename "$hunspell")"
 patchelf --set-rpath '$ORIGIN' "$out/libenchant-2.so.2"
 patchelf --set-rpath '$ORIGIN:$ORIGIN/..' "$out/enchant-2/enchant_hunspell.so"
 
+# Licences. Enchant's from the tarball that was built; Hunspell's from the
+# package the copied library belongs to.
+cp "$src/COPYING.LIB" "$src/AUTHORS" "$doc/enchant-2/"
+hunspell_package="$(dpkg -S "$(readlink -f "$hunspell")" | cut -d: -f1 | head -n 1)"
+[ -n "$hunspell_package" ] || { echo "::error::no package owns $hunspell"; exit 1; }
+
+# Copyright files linuxdeploy does not carry for libraries it bundles: on
+# Ubuntu 22.04 it looks a library up by its /usr/lib path, and dpkg knows the
+# ones from /lib (usrmerge) only by that path; the GIO, GDK-Pixbuf and tray
+# libraries come in through the bundler's plugins without one. Measured in the
+# AppImage of the 0.9.0 test build of 2026-11-17 (Sammelplan § 3.183 Nr. 1);
+# check-appimage.sh names any package that is still missing.
+copyright_packages=(
+  "$hunspell_package"
+  libbz2-1.0 libcap2 libdbus-1-3 libkeyutils1 liblzma5 libpcre3 libselinux1
+  libayatana-appindicator3-1 librsvg2-common glib-networking dconf-gsettings-backend
+)
+for package in "${copyright_packages[@]}"; do
+  file="/usr/share/doc/$package/copyright"
+  [ -f "$file" ] || { echo "::error::$package is not installed on the build machine, or has no $file"; exit 1; }
+  mkdir -p "$doc/$package"
+  cp -L "$file" "$doc/$package/copyright"
+done
+
 # Relocation is the point; refuse a build without it.
 grep -q '/proc/self/maps' "$out/libenchant-2.so.2" \
   || { echo "::error::libenchant was built without relocation"; exit 1; }
 
-echo "Built relocatable Enchant ${version} into $out:"
-find "$out" -type f -printf '  %P (%s bytes)\n'
+echo "Built relocatable Enchant ${version} into $base:"
+find "$base" -type f -printf '  %P (%s bytes)\n'
