@@ -1,6 +1,6 @@
 # Memory (Beta)
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-16
 
 The memory holds what the AI should know about you and your work without being told again: what you do, how you like your answers, who your clients are. It is two files in your vault. Nothing gets into it without your yes, and you can read, change and delete every entry.
 
@@ -38,7 +38,7 @@ Like all instructions, the file has to be approved on each device before it coun
 
 A memory that has grown repeats itself. Under **Tidy up**, the memory view names what this device noticed by itself, without asking a model: two entries that say almost the same, an entry that is more than a year old, and entries of **Always included** that no longer fit. **Compare** shows the two entries together, each with everything its menu can do.
 
-For a closer look there is a skill. **Memory care** reads the entries with the model of a conversation and drafts what belongs together and what can go; the row **Have the memory looked through** starts it. What it suggests are drafts like any other: nothing changes before you accept it, and where two entries contradict each other it asks instead of deciding.
+For a closer look there is a skill. **Memory care** reads the entries with the model of a conversation and drafts what belongs together and what can go; the row **Have the memory looked through** starts it — it stands under **Tidy up** whenever something is named there. What it suggests are drafts like any other: nothing changes before you accept it, and where two entries contradict each other it asks instead of deciding.
 
 ## Writing style
 
@@ -52,12 +52,12 @@ The style lies on this device, not in the vault: on another device you choose it
 
 ## Privacy
 
-- An entry can carry a rule of its own: **Not to cloud models**, **Not in conversations with the internet**. A model on this device gets every entry.
+- An entry can carry a rule of its own: **Not to cloud models**, **Not in conversations with the internet**. A model on this device gets every entry that is readable and short enough — except in a conversation with the internet, where an entry marked **Not in conversations with the internet** stays out here too.
 - An entry the AI drafted in a conversation that read notes under a privacy rule gets the same rules — the card says **The entry gets the privacy rules of the notes this conversation rested on.** What came from a note that has to stay on this device does not reach a cloud by way of the memory.
 - Your [privacy rules](AI_Assistant.md) hold for the two files as well: a folder rule for `.agent/` keeps the whole memory from the cloud.
 - The send overview has a row **Memory** — how many entries go along — and counts the entries your rules keep back under **Kept back**. It never names an entry.
 - To the AI an entry is information, not an instruction: a sentence in the memory gives it no rights.
-- A conversation keeps the memory it was started with. An entry you delete goes to no new conversation; conversations that have already begun keep what they were given.
+- A conversation keeps what the memory gave it at its start — the entries under **Always included**. An entry you delete goes to no new conversation; conversations that have already begun keep what they were given, and what they look up later comes from the files as they are then.
 
 ## Switching it off
 
@@ -76,4 +76,4 @@ The style lies on this device, not in the vault: on another device you choose it
 
 `added` and `by` say when the entry was added and whether you wrote it or accepted a draft, `source` names the conversation a draft came from, and `deny` holds its rules (`cloud`, `web`). You can edit the files in any editor. In Plainva, **Open file** opens either of them.
 
-Plainva does not guess. An entry whose comment is damaged is marked **Rules unreadable — goes to no model** until you repair the comment or add the entry again. Text that is hidden in a comment or in invisible characters is never sent; the entry then shows how many hidden parts were left out. A file holds at most 2,000 entries and 256 KB.
+Plainva does not guess. An entry whose comment is damaged is marked **Rules unreadable — goes to no model** until you repair the comment or add the entry again. Text that is hidden in a comment or in invisible characters is never sent; the entry then shows how many hidden parts were left out. Of a file at most 2,000 entries are read, and a file larger than 256 KB is not read at all.

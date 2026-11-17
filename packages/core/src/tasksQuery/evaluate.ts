@@ -10,6 +10,7 @@
  */
 
 import type { TaskRecord } from "../vault/VaultQueryService.js";
+import { taskNameText } from "../journal.js";
 import { readTasksInvalidDates, stripTasksPriority, tasksDescription, TASKS_PRIORITY_LEVELS, type TasksDateField, type TasksPriorityLevel } from "../vault/taskMetadata.js";
 import { dayNumberOf, type DayKey } from "./dates.js";
 import {
@@ -131,7 +132,9 @@ export function tasksQueryDescription(text: string): string {
 /**
  * Worked out once per record: every block of every open note evaluates over
  * the same `listTasks()` records until the index moves on (E3), and a record
- * is never changed — a new index state brings new records.
+ * is never changed — a new index state brings new records. The description
+ * starts from the task's NAME: a journal task's stamp (`10:15 Call Anna`) is
+ * the time of its entry, which no Tasks filter or sort may read as words.
  */
 const descriptionCache = new WeakMap<TaskRecord, string>();
 const invalidCache = new WeakMap<TaskRecord, TasksDateField[]>();
@@ -139,7 +142,7 @@ const invalidCache = new WeakMap<TaskRecord, TasksDateField[]>();
 function descriptionOf(p: Prepared): string {
   if (p.description === undefined) {
     let description = descriptionCache.get(p.task);
-    if (description === undefined) descriptionCache.set(p.task, (description = tasksQueryDescription(p.task.text)));
+    if (description === undefined) descriptionCache.set(p.task, (description = tasksQueryDescription(taskNameText(p.task))));
     p.description = description;
   }
   return p.description;

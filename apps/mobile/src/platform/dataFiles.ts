@@ -1,5 +1,6 @@
 import { Directory, Filesystem } from "@capacitor/filesystem";
-import { atomicWriteText } from "./atomicFile";
+import { atomicWriteInternalText } from "./atomicFile";
+import { internalPlace } from "./internalFiles";
 
 /**
  * Removals in the app's data folder that are allowed to find nothing.
@@ -39,12 +40,12 @@ export async function removeDataFile(path: string, directory: Directory = Direct
  * a finished run was interrupted — an import rolled back, a conversion
  * offered again. Throws only when neither works.
  */
-export async function retireDataFile(path: string): Promise<void> {
+export async function retireInternalFile(rel: string): Promise<void> {
   try {
-    await removeDataFile(path);
+    await removeInternalFile(rel);
   } catch (error) {
     try {
-      await atomicWriteText(path, JSON.stringify({ done: true }));
+      await atomicWriteInternalText(rel, JSON.stringify({ done: true }));
     } catch {
       // silent: the removal's failure is the one that says what is wrong with the file.
       throw error;
@@ -59,4 +60,16 @@ export async function removeDataFolder(path: string, directory: Directory = Dire
   } catch (error) {
     if (await stillInData(path, directory)) throw error;
   }
+}
+
+/** `removeDataFile` for an app-owned file (`internalFiles.ts`). */
+export async function removeInternalFile(rel: string): Promise<void> {
+  const place = await internalPlace(rel);
+  await removeDataFile(place.path, place.directory);
+}
+
+/** `removeDataFolder` for an app-owned folder (`internalFiles.ts`). */
+export async function removeInternalFolder(rel: string): Promise<void> {
+  const place = await internalPlace(rel);
+  await removeDataFolder(place.path, place.directory);
 }

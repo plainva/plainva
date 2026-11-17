@@ -121,6 +121,28 @@ describe("evaluation details", () => {
     expect(result.shown).toBe(2);
   });
 
+  it("a journal task's description is its name: the stamp in front is the entry's time, not a word of it", () => {
+    const content = "- [ ] 10:15 Call Anna\n- [ ] 09:00 Book train\n- [ ] 08:00 Zebra\n";
+    const records = taskRecordsOf([{ path: "Daily/2026-11-16.md", content }]).map((r) => {
+      const stamp = /^(\d{2}:\d{2}) /.exec(r.text);
+      return stamp ? { ...r, journalTime: stamp[1] } : r;
+    });
+    const names = (source: string) => {
+      const result = runTasksQuery(source, records, { today: SAMPLE_TODAY }).result;
+      if (result.status !== "ok") throw new Error(source);
+      return result.root.items.map((item) => item.task.text);
+    };
+    expect(names("description includes 10:15")).toEqual([]);
+    expect(names("description includes call anna")).toEqual(["10:15 Call Anna"]);
+    expect(names("description does not include 10:15")).toEqual(["10:15 Call Anna", "09:00 Book train", "08:00 Zebra"]);
+    expect(names("sort by description")).toEqual(["09:00 Book train", "10:15 Call Anna", "08:00 Zebra"]);
+    // The same line outside the journal keeps its time as words.
+    const plain = taskRecordsOf([{ path: "x.md", content: "- [ ] 10:15 Call Anna\n" }]);
+    const result = runTasksQuery("description includes 10:15", plain, { today: SAMPLE_TODAY }).result;
+    if (result.status !== "ok") throw new Error();
+    expect(result.root.items).toHaveLength(1);
+  });
+
   it("show tree keeps the children of the file, nested, in file order — and every level", () => {
     const content = ["- [ ] Root #x", "  - [ ] Child", "    - [x] Grandchild #x", "  - Note", "  - [ ] Second child #x", "- [ ] Other"].join("\n");
     const records = taskRecordsOf([{ path: "t.md", content }]);

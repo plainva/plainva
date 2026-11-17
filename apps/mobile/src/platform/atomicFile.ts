@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { internalPlace } from "./internalFiles";
 
 /**
  * Atomic write bridge (hardening P2 mobile): native platforms go through the
@@ -9,7 +10,8 @@ import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
  */
 
 interface AtomicFilePluginApi {
-  write(opts: { path: string; data: string; encoding: "utf8" | "base64" }): Promise<void>;
+  /** `directory` "LIBRARY" (iOS only) writes below Library instead of Documents. */
+  write(opts: { path: string; data: string; encoding: "utf8" | "base64"; directory?: "DATA" | "LIBRARY" }): Promise<void>;
   /** Content hash computed natively while streaming the file (issue #48). */
   sha256(opts: { path: string }): Promise<{ sha256: string; size: number }>;
 }
@@ -28,6 +30,19 @@ export async function atomicWriteText(path: string, text: string): Promise<void>
     data: text,
     recursive: true,
   });
+}
+
+/**
+ * An app-owned file (`internalFiles.ts`): drafts, journals, AI conversations.
+ * `rel` starts with one of `INTERNAL_FOLDERS`; on iOS it lands below Library.
+ */
+export async function atomicWriteInternalText(rel: string, text: string): Promise<void> {
+  const place = await internalPlace(rel);
+  if (Capacitor.isNativePlatform()) {
+    await AtomicFile.write({ path: place.path, data: text, encoding: "utf8", directory: place.directory === Directory.Library ? "LIBRARY" : "DATA" });
+    return;
+  }
+  await Filesystem.writeFile({ path: place.path, directory: place.directory, encoding: Encoding.UTF8, data: text, recursive: true });
 }
 
 export async function atomicWriteBase64(path: string, dataB64: string): Promise<void> {

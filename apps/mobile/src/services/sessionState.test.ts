@@ -9,6 +9,7 @@ import {
   resetSessionState,
   restoreNavState,
   scheduleNavSave,
+  installNavFlushOnLeave,
   serializeNavState,
   sessionKey,
   writeNavState,
@@ -138,5 +139,27 @@ describe("sessionState", () => {
     expect(readNavState("v", storage)?.stacks.notes).toHaveLength(2);
     expect(readNavState("v", null)).toBeNull();
     writeNavState("v", session(), null); // no throw
+  });
+
+  it("a reload right after a navigation keeps it: leaving the page writes what is pending (B12)", () => {
+    const storage = fakeStorage();
+    markSessionReady("local");
+    scheduleNavSave("local", session(), storage);
+    vi.advanceTimersByTime(300);
+    // "Back", then a reload before the debounce fires: the page goes without a background callback.
+    const page = new EventTarget();
+    const uninstall = installNavFlushOnLeave(page);
+    try {
+      scheduleNavSave("local", initialNavState("notes"), storage);
+      page.dispatchEvent(new Event("pagehide"));
+      expect(readNavState("local", storage)?.stacks.notes ?? []).toHaveLength(0);
+      expect(readNavState("local", storage)?.activeTab).toBe("notes");
+    } finally {
+      uninstall();
+    }
+    // Uninstalled, a leave writes nothing more.
+    scheduleNavSave("local", session(), storage);
+    page.dispatchEvent(new Event("pagehide"));
+    expect(readNavState("local", storage)?.activeTab).toBe("notes");
   });
 });
