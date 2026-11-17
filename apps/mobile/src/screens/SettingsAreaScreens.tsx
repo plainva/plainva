@@ -15,6 +15,10 @@ import { AppBar } from "../components/AppBar";
 import { TemplateRules } from "../components/TemplateRules";
 import { FolderField } from "../components/FolderField";
 import { useSettingsState } from "../hooks/useSettingsState";
+import { loadProcessExits } from "../services/processExits";
+import { lastProcessExitDays } from "../platform/processExit";
+import { bridgePeaks } from "../platform/bridgeMeter";
+import { storageSizes } from "../services/storageSizes";
 
 /**
  * Settings detail screens (redesign 2026-07-18, P4): the master list mirrors
@@ -550,6 +554,12 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
         os: Capacitor.getPlatform(),
         language: i18nInstance.language,
         conflicts: await (await getMobileVault()).files.listConflictDiagnostics?.(),
+        // How the system ended the app lately (release list F51): the export is the one place a person can pass it on.
+        processExits: Capacitor.isNativePlatform() ? await loadProcessExits() : undefined,
+        dailyExits: Capacitor.getPlatform() === "ios" ? await lastProcessExitDays() : undefined,
+        // Which plugin call carries the largest message, and how large what the app reads at start is (F51).
+        bridgePeaks: Capacitor.isNativePlatform() ? bridgePeaks() : undefined,
+        storageSizes: Capacitor.isNativePlatform() ? await storageSizes((await getMobileVault()).db ?? null).catch(() => []) : undefined,
       });
       const name = `plainva-diagnostics-${new Date().toISOString().slice(0, 10)}.md`;
       if (Capacitor.getPlatform() === "web") {

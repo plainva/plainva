@@ -1,5 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { loadProcessExits, processExitLabelKey, type ProcessExitRecord } from "../services/processExits";
+import { isShownProcessExit, loadProcessExits, processExitLabelKey, type ProcessExitRecord } from "../services/processExits";
+import { lastProcessExitDays, type ProcessExitDay } from "../platform/processExit";
+
+/** The frames a screenshot needs: the exception's class, then for an ANR the main thread's first. */
+function topFrames(exit: ProcessExitRecord): string[] {
+  const frames = exit.frames ?? [];
+  const main = frames.filter((frame) => frame.startsWith("main: "));
+  const ordered = main.length > 0 ? [...main, ...frames.filter((frame) => !frame.startsWith("main: "))] : frames;
+  return [...(exit.exception ? [exit.exception] : []), ...ordered].slice(0, 8);
+}
 import { useTranslation } from "react-i18next";
 import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, SETTINGS_SYNC_FAILURES_BEFORE_ERROR, settingsSyncFailureIsWaiting, type SyncDiagnostics } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
@@ -37,6 +46,8 @@ export function SyncDiagnosticsScreen({
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
   const [diag, setDiag] = useState<SyncDiagnostics>(emptyDiagnostics());
   const [exits, setExits] = useState<ProcessExitRecord[]>([]);
+  // iOS: the system's daily counts (a memory kill has no diagnostic of its own) - the export carries the same.
+  const [exitDays, setExitDays] = useState<ProcessExitDay[]>([]);
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
   const [encryption, setEncryption] = useState<"none" | "locked" | "unlocked">("none");
   // "Check deletion log" (finding 2026-09-20), here since the settings plan of
@@ -65,7 +76,8 @@ export function SyncDiagnosticsScreen({
     let alive = true;
     const read = () => {
       void loadSyncDiagnostics(vaultId).then((d) => { if (alive) setDiag(d); });
-      void loadProcessExits().then((list) => { if (alive) setExits(list); });
+      void loadProcessExits().then((list) => { if (alive) setExits(list.filter((exit) => isShownProcessExit(exit.kind))); });
+      void lastProcessExitDays().then((days) => { if (alive) setExitDays(days.filter((day) => day.memory > 0 || day.other > 0)); });
     };
     read();
     window.addEventListener(SYNC_DIAGNOSTICS_EVENT, read);
@@ -242,7 +254,7 @@ export function SyncDiagnosticsScreen({
       </div>
       {/* Android's own record of why the app last ended (plan 2026-09-04, P1):
           the memory limiter kills without a trace the user could see. */}
-      {exits.length > 0 && (
+      {(exits.length > 0 || exitDays.length > 0) && (
         <>
           <SectionLabel>{t("settingsSync.diagProcessExits")}</SectionLabel>
           <GroupCard>
@@ -251,7 +263,21 @@ export function SyncDiagnosticsScreen({
                 <Row
                   key={e.at}
                   title={new Date(e.at).toLocaleString()}
-                  subtitle={e.description ? `${t(processExitLabelKey(e.kind))} · ${e.description}` : t(processExitLabelKey(e.kind))}
+                  subtitle={
+                    <>
+                      {e.description ? `${t(processExitLabelKey(e.kind))} · ${e.description}` : t(processExitLabelKey(e.kind))}
+                      {/* The top of the stack (F51): the app may freeze before an export is made, a screenshot of this is enough. */}
+                      {topFrames(e).length > 0 && <code className="m-exit-frames">{topFrames(e).join("\n")}</code>}
+                    </>
+                  }
+                  wrap
+                />
+              ))}
+              {exitDays.map((day) => (
+                <Row
+                  key={`day-${day.day}`}
+                  title={new Date(`${day.day}T12:00:00`).toLocaleDateString()}
+                  subtitle={t("settingsSync.diagExitDay", { memory: day.memory, other: day.other })}
                   wrap
                 />
               ))}

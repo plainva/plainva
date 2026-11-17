@@ -6,37 +6,44 @@
  * this record the only symptom is "the app was gone when I came back", and
  * the question whether Plainva has a leak can only be guessed at. The system
  * remembers the last exits of a package; on every start the new ones are
- * classified and appended to a short list in the settings store. Only exits
- * a person can act on are kept — a normal swipe-away or an update is noise.
+ * classified and appended to a short list in the settings store.
+ *
+ * Every exit is kept now (release list F51: an ANR every minute left nothing
+ * in the diagnostics export), with the build that ran, and for an ANR or a
+ * Java crash the frames the system or the app's own handler kept - scrubbed of
+ * paths, addresses and file names and bounded (`boundedProcessExit`). The
+ * screen still shows only the exits a person can act on; the export carries
+ * all of them, newest first, at most ten.
  */
-import { getPlatformServices } from "@plainva/ui";
+import { boundedProcessExit, getPlatformServices, type DiagnosticsProcessExit } from "@plainva/ui";
 import { lastProcessExits, type ProcessExitInfo } from "../platform/processExit";
 
-export type ProcessExitKind = "memory-limiter" | "low-memory" | "excessive-resources" | "crash" | "anr";
+export type ProcessExitKind = "memory-limiter" | "low-memory" | "excessive-resources" | "crash" | "anr" | "hang" | "user" | "other";
 
-export interface ProcessExitRecord {
-  /** ISO timestamp of the exit. */
-  at: string;
+/** One exit as kept; its `description`, `exception` and `frames` are scrubbed. */
+export interface ProcessExitRecord extends DiagnosticsProcessExit {
   kind: ProcessExitKind;
-  /** The system's own words, when it had any (e.g. `MemoryLimiter:AnonSwap`). */
-  description?: string;
 }
 
 /** `ApplicationExitInfo` reason codes this record cares about. */
-const REASON_SIGNALED = 2;
 const REASON_LOW_MEMORY = 3;
 const REASON_CRASH = 4;
 const REASON_CRASH_NATIVE = 5;
 const REASON_ANR = 6;
 const REASON_EXCESSIVE_RESOURCE_USAGE = 9;
-const REASON_OTHER = 13;
+const REASON_USER_REQUESTED = 10;
+const REASON_USER_STOPPED = 11;
+/** iOS (MetricKit): a hang of the main thread - Android has no such code (`ProcessExitPlugin.swift`). */
+const REASON_HANG = 100;
 
 const KEEP = 10;
+/** Of the exits nobody acts on (closed by the person, an update, …), the most that are kept. */
+const OTHERS = 3;
 const RECORDS_KEY = "process-exits";
 const SEEN_KEY = "process-exits-seen";
 
-/** What an exit was, or null for the ones nobody needs to know about. */
-export function classifyProcessExit(info: { reason: number; description?: string | null }): ProcessExitKind | null {
+/** What an exit was. */
+export function classifyProcessExit(info: { reason: number; description?: string | null }): ProcessExitKind {
   // The limiter names itself in the description, under REASON_OTHER or a
   // signal — the description is the reliable part.
   if (/MemoryLimiter/i.test(info.description ?? "")) return "memory-limiter";
@@ -46,10 +53,16 @@ export function classifyProcessExit(info: { reason: number; description?: string
     case REASON_CRASH:
     case REASON_CRASH_NATIVE: return "crash";
     case REASON_ANR: return "anr";
-    case REASON_SIGNALED:
-    case REASON_OTHER:
-    default: return null;
+    case REASON_HANG: return "hang";
+    case REASON_USER_REQUESTED:
+    case REASON_USER_STOPPED: return "user";
+    default: return "other";
   }
+}
+
+/** Whether the diagnostics screen names this exit: the ones a person can act on. */
+export function isShownProcessExit(kind: ProcessExitKind): boolean {
+  return kind !== "user" && kind !== "other";
 }
 
 /**
@@ -68,15 +81,21 @@ export function mergeProcessExits(
     if (!(info.timestamp > seenUntil)) continue;
     newest = Math.max(newest, info.timestamp);
     const kind = classifyProcessExit(info);
-    if (!kind) continue;
-    added.push({
+    added.push(boundedProcessExit({
       at: new Date(info.timestamp).toISOString(),
       kind,
       ...(info.description ? { description: info.description } : {}),
-    });
+      ...(info.build ? { build: info.build } : {}),
+      ...(info.exception ? { exception: info.exception } : {}),
+      ...(info.frames?.length ? { frames: info.frames } : {}),
+    }) as ProcessExitRecord);
   }
+  // Newest first, at most KEEP - and a closed app or an update never pushes a
+  // crash, an ANR or a memory kill out: of those, at most OTHERS are kept.
+  let others = 0;
   const records = [...added, ...known]
     .sort((a, b) => b.at.localeCompare(a.at))
+    .filter((record) => isShownProcessExit(record.kind) || ++others <= OTHERS)
     .slice(0, KEEP);
   return { records, seenUntil: newest };
 }
@@ -85,7 +104,8 @@ export async function loadProcessExits(): Promise<ProcessExitRecord[]> {
   try {
     const store = await getPlatformServices().loadSettings();
     const raw = await store.get<ProcessExitRecord[]>(RECORDS_KEY);
-    return Array.isArray(raw) ? raw : [];
+    // Scrubbed again as read: a record an older build kept had the system's words unscrubbed.
+    return Array.isArray(raw) ? raw.map((record) => boundedProcessExit(record) as ProcessExitRecord) : [];
   } catch {
     return [];
   }
@@ -106,7 +126,7 @@ export async function recordProcessExitsOnBoot(): Promise<ProcessExitRecord[]> {
   return merged.records;
 }
 
-/** The i18n key that names an exit to the user. */
+/** The i18n key that names an exit to the user (only for `isShownProcessExit` kinds). */
 export function processExitLabelKey(kind: ProcessExitKind): string {
   switch (kind) {
     case "memory-limiter":
@@ -117,5 +137,11 @@ export function processExitLabelKey(kind: ProcessExitKind): string {
       return "settingsSync.diagExitCrash";
     case "anr":
       return "settingsSync.diagExitAnr";
+    case "hang":
+      return "settingsSync.diagExitHang";
+    case "user":
+    case "other":
+      // Not shown on the screen (`isShownProcessExit`); the section's own name.
+      return "settingsSync.diagProcessExits";
   }
 }

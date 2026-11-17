@@ -124,6 +124,63 @@ export function clearDiagnosticsForTests(): void {
   entries.length = 0;
 }
 
+/**
+ * How the system ended the app once (release list F51), as the export carries
+ * it: kept on the device and handed out only in the export the person shares
+ * and on the phone's diagnostics screen.
+ */
+export interface DiagnosticsProcessExit {
+  /** ISO time of the exit. */
+  at: string;
+  /** memory-limiter, low-memory, excessive-resources, crash, anr, user, other. */
+  kind: string;
+  /** The system's own words, scrubbed (`scrubExitText`). */
+  description?: string;
+  /** The build that ran then, where the platform keeps it. */
+  build?: string;
+  /** A crash: the exception's class, never its message. */
+  exception?: string;
+  /** Frame lines, scrubbed, at most `EXIT_MAX_FRAMES`. */
+  frames?: string[];
+}
+
+/** The most exits an export carries, and the most frames and characters of each. */
+export const EXIT_MAX_RECORDS = 10;
+export const EXIT_MAX_FRAMES = 32;
+const EXIT_MAX_LINE = 200;
+
+/**
+ * A text from the system or a frame line, without what could name a person's
+ * files, accounts or places: a URL, a mail address and a path are replaced
+ * (a native library keeps its file name - `libc.so` names no note), and the
+ * line is cut to a fixed length. Applied before an exit is kept and again
+ * when it is exported.
+ */
+export function scrubExitText(text: string): string {
+  const cleaned = text
+    .replace(/(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/\S+/gi, "<url>")
+    .replace(/(?<![^\s@<>()])[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}/gi, "<email>")
+    .replace(/(?:~|\.{1,2})?(?:\/[^\s/:()"']+)+\/?/g, (path) => {
+      const name = path.split("/").filter(Boolean).pop() ?? "";
+      return /\.so(?:\.\d+)*$/.test(name) ? name : "<path>";
+    })
+    .replace(/[A-Za-z]:\\(?:[^\s\\:()"']+\\?)+/g, "<path>")
+    // A file name without a folder: what a vault holds, by its ending.
+    .replace(/(?<![^\s/\\:()"'<>])[^\s/\\:()"'<>]+\.(?:md|markdown|txt|canvas|base|csv|json|pdf|png|jpe?g|gif|webp|heic|svg|mp3|m4a|wav|mp4|mov|docx?|xlsx?|pptx?|zip|eml|ics)\b/gi, "<file>");
+  return cleaned.length > EXIT_MAX_LINE ? `${cleaned.slice(0, EXIT_MAX_LINE)}…` : cleaned;
+}
+
+/** One exit as kept: scrubbed and bounded. */
+export function boundedProcessExit(exit: DiagnosticsProcessExit): DiagnosticsProcessExit {
+  const out: DiagnosticsProcessExit = { at: exit.at, kind: exit.kind };
+  // A crash's description can be its exception's message, which carries what the app was handling: never kept.
+  if (exit.description && exit.kind !== "crash") out.description = scrubExitText(exit.description);
+  if (exit.build) out.build = scrubExitText(exit.build).slice(0, 40);
+  if (exit.exception) out.exception = scrubExitText(exit.exception).slice(0, 120);
+  if (exit.frames?.length) out.frames = exit.frames.slice(0, EXIT_MAX_FRAMES).map(scrubExitText);
+  return out;
+}
+
 export interface DiagnosticsAppInfo {
   appVersion: string;
   tauriVersion: string;
@@ -132,6 +189,14 @@ export interface DiagnosticsAppInfo {
   os: string;
   language: string;
   conflicts?: readonly import("@plainva/core").ConflictDiagnostic[];
+  /** How the system ended the app lately (the phone; a desktop OS keeps no such record). */
+  processExits?: readonly DiagnosticsProcessExit[];
+  /** iOS: the system's daily counts of exits by cause, without a time of day (a memory kill has no diagnostic of its own). */
+  dailyExits?: readonly { day: string; memory: number; other: number }[];
+  /** The phone: the largest bridge messages per plugin method, this run and the one before (`bridgeMeter.ts`). */
+  bridgePeaks?: readonly { startedAt: string; peaks: readonly { call: string; direction: string; size: number; at: string }[] }[];
+  /** The phone: sizes of what it reads at start - its own files, the index, its largest tables. Numbers only. */
+  storageSizes?: readonly (readonly [string, string])[];
 }
 
 /**
@@ -168,6 +233,35 @@ export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
     const conflicts = info.conflicts.map(({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }) =>
       ({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }));
     lines.push("", "## Local conflict diagnostics (no file names or note content)", "", "```json", redactDiagnosticText(JSON.stringify(conflicts, null, 2)), "```");
+  }
+  if (info.processExits) {
+    lines.push("", "## How the system ended the app (newest first; no paths, no content)", "");
+    if (info.processExits.length === 0) lines.push("(none recorded)");
+    for (const raw of info.processExits.slice(0, EXIT_MAX_RECORDS)) {
+      const exit = boundedProcessExit(raw);
+      const facts = [exit.kind, exit.build ? `build ${exit.build}` : null, exit.exception ?? null].filter(Boolean).join(", ");
+      lines.push(`- ${exit.at} ${facts}${exit.description ? `: ${exit.description}` : ""}`);
+      if (exit.frames?.length) lines.push("  ```", ...exit.frames.map((frame) => `  ${frame}`), "  ```");
+    }
+  }
+  if (info.bridgePeaks) {
+    lines.push("", "## Largest bridge messages (per plugin method; sizes only, from 64 KB)", "");
+    for (const [index, run] of info.bridgePeaks.slice(0, 2).entries()) {
+      lines.push(`- ${index === 0 ? "This run" : "The run before"}, from ${scrubExitText(run.startedAt)}:${run.peaks.length === 0 ? " none" : ""}`);
+      for (const peak of run.peaks.slice(0, 12)) {
+        lines.push(`  - ${scrubExitText(peak.call).slice(0, 80)} ${peak.direction === "in" ? "in" : "out"} ${Number(peak.size) || 0} at ${scrubExitText(peak.at)}`);
+      }
+    }
+  }
+  if (info.storageSizes?.length) {
+    lines.push("", "## Sizes of what the app reads at start (numbers only)", "");
+    for (const [label, value] of info.storageSizes.slice(0, 24)) lines.push(`- ${scrubExitText(label).slice(0, 60)}: ${scrubExitText(value).slice(0, 120)}`);
+  }
+  if (info.dailyExits?.length) {
+    lines.push("", "## Daily counts of exits by the system (per day, no time of day)", "");
+    for (const day of info.dailyExits.slice(0, 7)) {
+      lines.push(`- ${String(day.day).slice(0, 10)}: ${Number(day.memory) || 0} memory, ${Number(day.other) || 0} other`);
+    }
   }
   return lines.join("\n") + "\n";
 }
