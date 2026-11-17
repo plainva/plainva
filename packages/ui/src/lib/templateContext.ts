@@ -71,6 +71,18 @@ export function dailyPathFrom(now: Date, vault: Pick<TemplateVault, "dailyFolder
  * 01:30 with a day that ends at 04:00, that is yesterday's note, not the new
  * calendar day's that nobody writes in yet.
  */
+/**
+ * What `{{vault}}` stands for, in both shells (B25 of release 0.9.0): the name
+ * the vault goes by in the app — the name it was given (the phone's vault
+ * list, the desktop's own vault name) where it has one, else what the app
+ * shows for it without one (the desktop: its folder; the phone: its unnamed
+ * entry). Before, the desktop always took the folder and the phone its
+ * entry, so one synced template wrote two names.
+ */
+export function templateVaultName(givenName: string | null | undefined, shownWithout: string): string {
+  return givenName?.trim() || shownWithout;
+}
+
 export async function withVaultContext(ctx: TemplateContext, vault: TemplateVault | null): Promise<TemplateContext> {
   const next: TemplateContext = { ...ctx };
   if (vault) {

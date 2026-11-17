@@ -67,6 +67,30 @@ export function deletionNetQuestion(t: Translate, refusal: Refusal): DeletionNet
   };
 }
 
+const MANY_TEXTS = {
+  "no-trash": "backup.deleteWithoutSnapshotNoTrashMany",
+  "trash-unavailable": "backup.deleteWithoutSnapshotTrashMany",
+} as const;
+
+/**
+ * The ONE question for several refused deletions of one batch (a selection,
+ * a cascade): every file without a copy, named together — not a question per
+ * file. One refusal is asked as itself.
+ */
+export function deletionNetManyQuestion(t: Translate, refusals: readonly Refusal[]): DeletionNetQuestion {
+  if (refusals.length === 1) return deletionNetQuestion(t, refusals[0]!);
+  const net = refusals[0]!.net;
+  const uncovered = refusals.flatMap((refusal) => (refusal.uncovered.length > 0 ? refusal.uncovered : [refusal.path]));
+  const shown = uncovered.slice(0, DELETION_NET_LIST_MAX);
+  const rest = uncovered.length - shown.length;
+  const list = [...shown, ...(rest > 0 ? [t("backup.deleteWithoutSnapshotMore", { rest })] : [])].join("\n");
+  return {
+    title: t("backup.deleteWithoutSnapshotTitle"),
+    message: `${t(MANY_TEXTS[net], { items: refusals.length })}\n${list}\n\n${t(TEXTS[net].folderGone)}`,
+    confirmLabel: t("backup.deleteAnyway"),
+  };
+}
+
 let host: ((question: DeletionNetQuestion) => Promise<boolean>) | null = null;
 
 /** The shell's dialog for the question (danger, "Cancel" preselected); true = delete anyway. */
@@ -80,19 +104,74 @@ export async function askDeleteWithoutSnapshot(refusal: Refusal): Promise<boolea
   return host(deletionNetQuestion((key, options) => i18n.t(key, options), refusal));
 }
 
+/** Who answers "Delete without a backup?" for one deletion: true = delete anyway. */
+export type DeletionNetAsk = (refusal: Refusal) => Promise<boolean>;
+
 /**
  * A deletion a person asked for, through the chain and its net rule: true
  * where it was deleted, false where the person kept it at the question.
  * Every way a person deletes a file or folder in either shell goes here
- * (`deletionNetGuard.test.ts`).
+ * (`deletionNetGuard.test.ts`). `ask` is the question's dialog; a batch
+ * hands in its own (`deleteEachWithNet`).
  */
 export function deleteWithNet(
   files: Pick<IVaultAdapter, "deleteItem">,
   path: string,
   recursive?: boolean,
   confirmation: DeletionConfirmation = { confirmed: true },
+  ask: DeletionNetAsk = askDeleteWithoutSnapshot,
 ): Promise<boolean> {
-  return deleteWithSafetyNet((c) => files.deleteItem(path, recursive, c), askDeleteWithoutSnapshot, confirmation);
+  return deleteWithSafetyNet((c) => files.deleteItem(path, recursive, c), ask, confirmation);
+}
+
+/** What became of one item of a batch: deleted, kept at the question, or failed. */
+export type DeletionOutcome<T> = { item: T; deleted: boolean } | { item: T; error: unknown };
+
+/**
+ * Several deletions a person asked for at once — a selection, a cascade —
+ * with ONE question for every item that has no net (finding A12 of release
+ * 0.9.0: a full phone asked once per file).
+ *
+ * First every item is deleted where it has a net; an item without one is
+ * kept and its refusal noted. Then one question names them all; only a
+ * "Delete anyway" runs those items again, each through `remove` with an
+ * answer that is already yes. `remove` is the shell's whole deletion of one
+ * item (flushes, index, notifications) and hands `ask` to `deleteWithNet`.
+ * An error of one item does not stop the others. Outcomes keep the order
+ * of `items`.
+ */
+export async function deleteEachWithNet<T>(
+  items: readonly T[],
+  remove: (item: T, ask: DeletionNetAsk) => Promise<boolean>,
+): Promise<DeletionOutcome<T>[]> {
+  const outcomes: DeletionOutcome<T>[] = [];
+  const refused: { at: number; refusal: Refusal }[] = [];
+  for (const item of items) {
+    const seen: { refusal: Refusal | null } = { refusal: null };
+    const note: DeletionNetAsk = async (refusal) => {
+      seen.refusal = refusal;
+      return false;
+    };
+    try {
+      const deleted = await remove(item, note);
+      if (!deleted && seen.refusal) refused.push({ at: outcomes.length, refusal: seen.refusal });
+      outcomes.push({ item, deleted });
+    } catch (error) {
+      outcomes.push({ item, error });
+    }
+  }
+  if (refused.length === 0 || !host) return outcomes;
+  const yes = await host(deletionNetManyQuestion((key, options) => i18n.t(key, options), refused.map((r) => r.refusal)));
+  if (!yes) return outcomes;
+  for (const { at } of refused) {
+    const item = outcomes[at]!.item;
+    try {
+      outcomes[at] = { item, deleted: await remove(item, async () => true) };
+    } catch (error) {
+      outcomes[at] = { item, error };
+    }
+  }
+  return outcomes;
 }
 
 /**

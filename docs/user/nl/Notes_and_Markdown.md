@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-10
+Laatst bijgewerkt: 2026-11-16
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -138,7 +138,7 @@ Stel een **Sjablonenmap** in onder **Instellingen → Vault → Notities en orde
 | `{{yesterday}}`, `{{tomorrow}}` | De dag ervoor, de dag erna |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Die weekdag van deze of de volgende week; een opmaak volgt na een tweede dubbele punt: `{{weekday:monday:DD.MM.}}`. Wanneer de week begint, hangt af van je kalenderinstelling |
 | `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Een link naar de dagnotitie van vandaag, morgen of gisteren; met je eigen label: `{{daily+1:Morgen}}` — "vandaag" is de dag die volgens **De dag eindigt om** loopt; in een dag- of vergadernotitie de dag van die notitie |
-| `{{folder}}`, `{{vault}}` | De map van de notitie, de naam van de vault |
+| `{{folder}}`, `{{vault}}` | De map van de notitie, de naam van de vault zoals Plainva hem toont (de naam die je hem gaf, anders op de desktop zijn map) |
 | `{{cursor}}` | Geen tekst — markeert waar de cursor daarna terechtkomt |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Vraagt je om tekst (weergegeven als *Label*) |
 | `{{select:Label\|A,B,C}}` | Vraagt je met een lijst met keuzes |

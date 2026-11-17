@@ -1,8 +1,8 @@
 # Skrypty (Beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
-Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone: czytają one Twój vault tak samo jak narzędzia AI albo zostawiają propozycję, o której decydujesz Ty. Skrypt sam niczego nie zmienia.
+Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone: czytają one Twój vault tak samo jak narzędzia AI albo zostawiają propozycję, o której decydujesz Ty. Skrypt, który uruchamiasz tutaj, sam niczego nie zmienia; skrypt, który AI uruchamia w rozmowie, może zapisywać od razu tam, gdzie na to pozwolisz (zob. „W rozmowie” niżej).
 
 ## Uruchamianie skryptu
 
@@ -12,13 +12,13 @@ Przebieg uruchomiony tutaj zostaje na tym urządzeniu: nic z niego nie trafia do
 
 ## W rozmowie
 
-W zwykłej rozmowie AI może znaleźć Twoje aktywne skrypty i uruchomić jeden z nich, gdy pasuje do pytania; krok w rozmowie nazywa się wtedy **Uruchamianie skryptu „word-count”**. Skrypt czyta tylko to, co wolno czytać tej rozmowie: notatka trzymana z dala od chmury zostaje na urządzeniu, a każda notatka, którą skrypt czyta, liczy się do tego, co przeczytał przebieg. To, co zwraca, trafia do modelu jako dane, nigdy jako instrukcje. Skrypty nie są oferowane ani rozmowie uruchomionej z umiejętnością, ani aplikacji AI połączonej przez serwer MCP.
+W zwykłej rozmowie AI może znaleźć Twoje aktywne skrypty i uruchomić jeden z nich, gdy pasuje do pytania; krok w rozmowie nazywa się wtedy **Uruchamianie skryptu „word-count”**. Skrypt czyta tylko to, co wolno czytać tej rozmowie: notatka trzymana z dala od chmury zostaje na urządzeniu, a każda notatka, którą skrypt czyta, liczy się do tego, co przeczytał przebieg. To, co zwraca, trafia do modelu jako dane, nigdy jako instrukcje. Rutyna, przebieg testowy umiejętności oraz punkty wejścia **Wyjaśnij obraz** i **Zrób z tego notatkę** nie uruchamiają żadnego skryptu, a skrypty nie są oferowane ani rozmowie uruchomionej z umiejętnością, ani aplikacji AI połączonej przez serwer MCP.
 
 ## Proponowanie zmian
 
-Skryptowi można też dać narzędzia do proponowania. Narzędzia **Proponowanie zmian w notatce** i **Proponowanie wartości właściwości** zostawiają propozycję na marginesie notatki; narzędzia **Przygotowywanie szkicu notatki**, **Przygotowywanie szkicu wpisu bazy danych**, **Przygotowywanie szkicu zadania** i **Przygotowywanie szkicu wpisu dziennika** zostawiają szkic. Jedno i drugie jest podpisane nazwą skryptu, a w Twoim vaulcie nic się nie zmienia, dopóki nie zaakceptujesz propozycji lub nie utworzysz szkicu — dokładnie tak jak przy propozycji AI. Po przebiegu okno wymienia je w sekcji **Propozycje i szkice**; przebieg uruchomiony jako **Przebieg próbny** niczego nie zostawia.
+Skryptowi można też dać narzędzia do proponowania. Narzędzia **Proponowanie zmian w notatce** i **Proponowanie wartości właściwości** zostawiają propozycję na marginesie notatki; narzędzia **Przygotowywanie szkicu notatki**, **Przygotowywanie szkicu wpisu bazy danych**, **Przygotowywanie szkicu zadania** i **Przygotowywanie szkicu wpisu dziennika** zostawiają szkic. Jedno i drugie jest podpisane nazwą skryptu. Skrypt uruchomiony tutaj przyciskiem **Uruchom** niczego nie zapisuje od razu: w Twoim vaulcie nic się nie zmienia, dopóki nie zaakceptujesz propozycji lub nie utworzysz szkicu — dokładnie tak jak przy propozycji AI. Po przebiegu okno wymienia je w sekcji **Propozycje i szkice**; przebieg uruchomiony jako **Przebieg próbny** niczego nie zostawia.
 
-To, co skrypt przeczytał, decyduje o tym, gdzie wolno mu zapisywać: propozycje i szkice, które opierają się na notatce trzymanej z dala od chmury, mogą trafić tylko tam, gdzie obowiązuje ta sama zasada. W rozmowie skrypt, który proponuje, jest oferowany AI tylko tam, gdzie sama rozmowa może proponować, a to, co skrypt tam zostawia, jest podpisane nazwą modelu tej rozmowy.
+To, co skrypt przeczytał, decyduje o tym, gdzie wolno mu zapisywać: propozycje i szkice, które opierają się na notatce trzymanej z dala od chmury, mogą trafić tylko tam, gdzie obowiązuje ta sama zasada. W rozmowie skrypt, który proponuje, jest oferowany AI tylko tam, gdzie sama rozmowa może proponować, a to, co skrypt tam zostawia, jest podpisane nazwą modelu tej rozmowy. Tam, gdzie rozmowa stosuje zmiany od razu — z chipem **Zastosuj od razu** albo dla miejsca docelowego w folderze, który pozwala na **Zmieniaj bez pytania** —, to, co taki skrypt zapisuje, jest stosowane od razu: zmiana notatki i jej właściwości, nowa notatka, wpis w bazie danych, zadanie lub wpis w dzienniku, z tą samą siatką bezpieczeństwa co własne zmiany asystenta stosowane od razu (zob. „Zastosuj od razu” w [Asystent AI](AI_Assistant.md)). Bez tego przyzwolenia skrypt zostawia propozycje i szkice, jak wyżej.
 
 ## Pisanie skryptu
 
@@ -62,8 +62,8 @@ Językiem jest aktualny JavaScript — ES2024 i większość ES2025 — bez `Int
 | `graph_neighborhood` — **Podążanie za linkami** | `path`; opcjonalnie `depth` (1 lub 2), `limit` (do 50) | `path`; `notes`: lista obiektów `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Przeglądanie ostatnich notatek** | opcjonalnie `kind` (`opened` lub `edited`), `limit` (do 20) | `kind`; `notes`: lista obiektów `{ title, path, at }` |
 | `get_changes` — **Przeglądanie zmian** | `since` jako `YYYY-MM-DD`; opcjonalnie `until`, `folder`, `limit` (do 20) | `since`, `until`; `notes`: lista obiektów `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **Śledzenie rozwoju notatki** | `path`; opcjonalnie `since` i `until` jako `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: lista obiektów `{ day, added, removed, gained }` |
-| `get_calendar` — **Czytanie spotkań** | `from` i `to` jako `YYYY-MM-DD`; opcjonalnie `details`, `limit` (do 100) | `events`: lista obiektów `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
+| `get_note_history` — **Śledzenie rozwoju notatki** | `path`; opcjonalnie `since` i `until` jako `YYYY-MM-DD`, najwyżej 31 dni od siebie | `path`, `since`, `until`, `made`; `days`: lista obiektów `{ day, added, removed, gained }` |
+| `get_calendar` — **Czytanie spotkań** | `from` i `to` jako `YYYY-MM-DD`, najwyżej 31 dni od siebie; opcjonalnie `details`, `limit` (do 100) | `events`: lista obiektów `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Korzystanie z aplikacji** | `id`, polecenie aplikacji, np. `open-note`, `show-in-graph` lub `open-calendar`; opcjonalnie `args` z `path`, `section` lub `date` | `done`, `command` |
 | `propose_edit` — **Proponowanie zmian w notatce** | `path`; `edits`, czyli lista obiektów `{ find, replace }`, albo `append`; opcjonalnie `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Proponowanie wartości właściwości** | `path`, `key`, `value`; opcjonalnie `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ Limity skryptu są zapisane w jego manifeście. Formularz ustawia trzy z nich:
 | **Wywołania narzędzi** | 20 | od 0 do 50 |
 | **Pamięć w MB** | 32 | od 8 do 128 |
 
-Liczy się tylko czas obliczeń skryptu, a nie czas, który zajmuje narzędzie. Skrypt, który przekroczy limit, zostaje zakończony; okno mówi, o który limit chodziło, a zakończony skrypt niczego nie zwraca. Argumenty jednego wywołania i wynik mogą mieć najwyżej po 64 KB.
+Liczy się tylko czas obliczeń skryptu, a nie czas, który zajmuje narzędzie. Skrypt, który przekroczy limit — czas, pamięć, kroki, liczbę wywołań, rozmiar argumentów jednego wywołania lub rozmiar wyniku samego skryptu —, zostaje zakończony; okno mówi, o który limit chodziło, a zakończony skrypt niczego nie zwraca. Odpowiedź narzędzia większa niż limit dla jednego wywołania nie jest końcem: skrypt dostaje dla tego wywołania błąd i działa dalej. Domyślnie argumenty jednego wywołania, to, co jedno wywołanie zwraca, i wynik mogą mieć najwyżej po 64 KB; manifest może pozwolić na wartości do 256 KB.
 
 ## Nic nie działa przed zatwierdzeniem
 
@@ -92,4 +92,4 @@ Po wybraniu **Zatwierdź** to urządzenie podpisuje dokładnie te pliki. Klucz d
 
 ## Ograniczenia wersji beta
 
-Skrypt proponuje i zostawia szkice; nigdy nie zmienia nazwy notatki, nie przenosi jej ani nie usuwa, nie pisze też e-maili i nie tworzy spotkań. Umiejętność nie może uruchomić skryptu, a własny folder `scripts/` umiejętności nie jest uruchamiany. E-maile, internet i narzędzia zewnętrznych serwerów nie są dostępne dla skryptów.
+Skrypt proponuje i zostawia szkice, a zapisuje od razu tylko w rozmowie, w której pozwolisz asystentowi stosować zmiany od razu; nigdy nie zmienia nazwy notatki, nie przenosi jej ani nie usuwa, nie pisze też e-maili i nie tworzy spotkań. Umiejętność nie może uruchomić skryptu, a własny folder `scripts/` umiejętności nie jest uruchamiany. E-maile, internet i narzędzia zewnętrznych serwerów nie są dostępne dla skryptów.

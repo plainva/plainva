@@ -44,6 +44,7 @@ import {
   setActiveVault,
   LOCAL_VAULT_ID,
   type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
+import { phoneTemplateVault } from "./templateVault";
 import { getStoredProvider, purgeCredentials, startSyncIfConfigured, stopSyncAndDrain, syncSoon } from "./syncService";
 import { armedLeaveGuards, foreignInputArmed } from "./leaveGuard";
 import { takeScreen } from "./screenStep";
@@ -92,7 +93,7 @@ import {
 } from "@plainva/ui";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
-import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet } from "@plainva/ui";
+import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet, type DeletionNetAsk } from "@plainva/ui";
 import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
@@ -1430,15 +1431,16 @@ export const vaultOps = {
    * "Delete without a backup?" where the snapshot before it could not be
    * written (D1), and "Cancel" keeps the file. One without the person's
    * confirmation, or a clean-up nobody watches (`ask` false), is not
-   * carried out without a net and throws.
+   * carried out without a net and throws. A batch hands in its own
+   * question (`deleteEachWithNet`), so a selection asks once.
    */
-  async remove(v: MobileVault, path: string, confirmation?: DeletionConfirmation, ask = true): Promise<boolean> {
+  async remove(v: MobileVault, path: string, confirmation?: DeletionConfirmation, ask: boolean | DeletionNetAsk = true): Promise<boolean> {
     // S2: a queued save landing after the delete resurrects the note. Flushing
     // (rather than discarding) also awaits a write already in flight, which
     // `discard` cannot recall — and it leaves a snapshot of the last state.
     await noteSaver.flush(path, v);
     if (confirmation?.confirmed && ask) {
-      if (!(await deleteWithNet(v.files, path, undefined, confirmation))) return false;
+      if (!(await deleteWithNet(v.files, path, undefined, confirmation, typeof ask === "function" ? ask : undefined))) return false;
     } else {
       await v.files.deleteItem(path, undefined, confirmation);
     }
@@ -1766,7 +1768,7 @@ export const vaultOps = {
       const built = await buildNewNoteFromTemplate({
         read: (p) => this.read(v, p),
         exists: (p) => v.files.exists(p),
-        vaultName: (await getActiveVaultEntry()).name || "Plainva",
+        vaultName: (await phoneTemplateVault()).name,
         folder,
         title,
         type,
@@ -1819,7 +1821,7 @@ export const vaultOps = {
     // the same thing, and the share path has no file at all.
     const built = await buildNewNoteFromTemplateText({
       raw: templateRaw,
-      vaultName: (await getActiveVaultEntry()).name || "Plainva",
+      vaultName: (await phoneTemplateVault()).name,
       folder,
       title: name,
       type: configuredNoteType(),
@@ -1878,7 +1880,7 @@ export const vaultOps = {
    */
   async ensureDailyNote(v: MobileVault, date: Date, mode: "interactive" | "headless" = "interactive"): Promise<EnsuredDailyNote | null> {
     const ms = getMobileSettings();
-    const vaultName = (await getActiveVaultEntry()).name || "Plainva";
+    const vaultName = (await phoneTemplateVault()).name;
     const ensured = await ensureSharedDailyNote(
       date,
       { folder: ms.dailyFolder, format: ms.dailyFormat, templateFolder: ms.templateFolder, template: ms.dailyTemplate, noteType: configuredDailyNoteType() },

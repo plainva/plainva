@@ -59,4 +59,26 @@ describe("desktop vault read failures", () => {
     native.text.mockResolvedValue(false);
     await expect(vault.readTextFile("unknown.md")).rejects.toThrow("could not be confirmed");
   });
+  it("a file that goes between the existence check and the read is missing, not unreadable (A13)", async () => {
+    // A pass over many files lists, then reads: a file deleted in between was
+    // named as "could not be read" because the plugin's error carries no code.
+    const gone = new Error("failed to open file at path: /vault/scan.pdf with error: No such file or directory (os error 2)");
+    native.exists.mockResolvedValueOnce(true).mockResolvedValue(false);
+    fs.readFile.mockRejectedValue(gone);
+    await expect(vault.readBinaryFile("scan.pdf")).rejects.toBeInstanceOf(VaultFileNotFoundError);
+    native.exists.mockReset();
+    native.exists.mockResolvedValueOnce(true).mockResolvedValue(false);
+    fs.stat.mockRejectedValue(gone);
+    await expect(vault.getFileInfo("scan.pdf")).rejects.toBeInstanceOf(VaultFileNotFoundError);
+  });
+  it("a read that fails while the file is still there keeps its own error", async () => {
+    const locked = new Error("The process cannot access the file because it is being used by another process. (os error 32)");
+    fs.readFile.mockRejectedValue(locked);
+    fs.stat.mockRejectedValue(locked);
+    await expect(vault.readBinaryFile("scan.pdf")).rejects.toBe(locked);
+    await expect(vault.getFileInfo("scan.pdf")).rejects.toBe(locked);
+    // A second question nobody can answer leaves the first answer standing.
+    native.exists.mockResolvedValueOnce(true).mockRejectedValue(new Error("share dropped"));
+    await expect(vault.readBinaryFile("scan.pdf")).rejects.toBe(locked);
+  });
 });

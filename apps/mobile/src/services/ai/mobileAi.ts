@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Encoding, Filesystem } from "@capacitor/filesystem";
 import i18n from "@plainva/ui/i18n";
 import { MCP_OAUTH_CLIENT_DOCUMENT, withTodoAsTask } from "@plainva/core";
 import {
@@ -55,8 +55,9 @@ import {
   type VaultPolicyHost,
   GRAPH_TRAIL_EVENT,
 } from "@plainva/ui";
-import { atomicWriteText } from "../../platform/atomicFile";
-import { removeDataFile, removeDataFolder } from "../../platform/dataFiles";
+import { atomicWriteInternalText } from "../../platform/atomicFile";
+import { internalPlace } from "../../platform/internalFiles";
+import { removeInternalFile, removeInternalFolder } from "../../platform/dataFiles";
 import { mConfirm } from "../mobileDialogs";
 import { createMobileAiEgress, setMobileLocalOnly } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
@@ -87,23 +88,24 @@ const ROOT = "ai";
 export const mobileAiFiles: AiFileStore = {
   async read(relPath) {
     try {
-      const res = await Filesystem.readFile({ path: `${ROOT}/${relPath}`, directory: Directory.Data, encoding: Encoding.UTF8 });
+      const place = await internalPlace(`${ROOT}/${relPath}`);
+      const res = await Filesystem.readFile({ path: place.path, directory: place.directory, encoding: Encoding.UTF8 });
       return typeof res.data === "string" ? res.data : null;
     } catch {
       return null;
     }
   },
   async write(relPath, text) {
-    await atomicWriteText(`${ROOT}/${relPath}`, text);
+    await atomicWriteInternalText(`${ROOT}/${relPath}`, text);
   },
   // Absent is fine; anything else that leaves the file there fails, as on the
   // desktop (desktopAi.ts): a conversation or a vault's AI data the person
   // removed must not come back with nobody told (stability plan R4).
   async remove(relPath) {
-    await removeDataFile(`${ROOT}/${relPath}`);
+    await removeInternalFile(`${ROOT}/${relPath}`);
   },
   async removeDir(relPath) {
-    await removeDataFolder(`${ROOT}/${relPath}`);
+    await removeInternalFolder(`${ROOT}/${relPath}`);
   },
 };
 

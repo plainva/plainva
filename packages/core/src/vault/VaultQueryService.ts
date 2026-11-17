@@ -862,6 +862,7 @@ export class VaultQueryService {
    * document-order ordinal that toggleTaskAtIndex needs to flip it back.
    */
   async listTasks(): Promise<TaskRecord[]> {
+    await this.dayOfPathReady();
     // Only rows that belong to a file (FULL_TEXT_ROW_IS_FILED). `rowid DESC`:
     // the rows this build writes are numbered `-files.rowid`, so this is the
     // order the notes came into the index, as it was before index format 9;
@@ -2124,9 +2125,36 @@ export class VaultQueryService {
    * query may still override it through its options.
    */
   private dayOfPath: ((path: string) => string | null) | null = null;
+  /**
+   * The naming while the shell still reads it (the desktop keeps it in an
+   * async settings store): a reader that asks before it is known waits for it
+   * instead of answering with no daily notes, which showed a journal task with
+   * its stamp until the next load.
+   */
+  private dayOfPathPending: Promise<void> | null = null;
 
-  setDayOfPath(resolver: ((path: string) => string | null) | null): void {
-    this.dayOfPath = resolver;
+  setDayOfPath(resolver: ((path: string) => string | null) | null | Promise<((path: string) => string | null) | null>): void {
+    if (!(resolver instanceof Promise)) {
+      this.dayOfPathPending = null;
+      this.dayOfPath = resolver;
+      return;
+    }
+    // A naming that cannot be read is no naming: the list still comes.
+    const pending: Promise<void> = resolver.then(
+      (value) => {
+        if (this.dayOfPathPending === pending) this.dayOfPath = value;
+      },
+      () => {
+        if (this.dayOfPathPending === pending) this.dayOfPath = null;
+      },
+    ).finally(() => {
+      if (this.dayOfPathPending === pending) this.dayOfPathPending = null;
+    });
+    this.dayOfPathPending = pending;
+  }
+
+  private async dayOfPathReady(): Promise<void> {
+    while (this.dayOfPathPending) await this.dayOfPathPending;
   }
 
   /**
@@ -2163,6 +2191,8 @@ export class VaultQueryService {
     } = {},
   ): Promise<any[]> {
     const reach = options.reach ? reachOf(options.reach) : null;
+    // `file.day` reads the same naming as the task list.
+    if (!options.dayOfPath) await this.dayOfPathReady();
     let sql = `
       SELECT f.id, f.path AS path, f.title, f.mtime_local, f.size_bytes, f.sha256, f.ctime
       FROM files f
