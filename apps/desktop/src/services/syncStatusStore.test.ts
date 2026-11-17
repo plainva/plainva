@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { captureSyncErrorSnapshot, syncStatusStore } from "./syncStatusStore";
+import { captureSyncErrorSnapshot, isFirstPullPending, syncStatusStore } from "./syncStatusStore";
 
 /** Every existing assertion is about one vault; stage D only names it. */
 const V = "/vault";
@@ -106,5 +106,24 @@ describe("two vaults in one process (stage D)", () => {
     // an error over a screen with no vault behind it.
     expect(syncStatusStore.get(null).status).toBe("idle");
     expect(syncStatusStore.getErrorHistory(null)).toEqual([]);
+  });
+});
+
+describe("isFirstPullPending (O8: a cloud vault arriving is not an empty one)", () => {
+  beforeEach(() => syncStatusStore.resetAll());
+
+  it("is pending from the worker's start until its first cycle is done", () => {
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false); // no sync at all
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive" });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+    syncStatusStore.set(V, { status: "idle", message: null });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+    syncStatusStore.set(V, { firstPullDone: true });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+  });
+
+  it("a first pull that failed is not pending: the ordinary start shows", () => {
+    syncStatusStore.set(V, { status: "error", message: "offline", provider: "drive" });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
   });
 });

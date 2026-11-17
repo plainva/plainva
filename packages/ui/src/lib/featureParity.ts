@@ -1577,6 +1577,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-26",
   },
   {
+    id: "first-start-tour-one-click",
+    title: "The tour vault on the first start, in one click",
+    area: "vault",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's welcome makes the tour in one click, in a folder of the " +
+      "user's Documents it names beforehand (mockup M8). The phone has no such " +
+      "folder to name: its first vault lives in the app's own storage and " +
+      "exists already when the first screen shows. So the phone's first screen " +
+      "asks where the vault lives (this device, the cloud, one the user has) " +
+      "and 'Start locally' leads to the template sheet with the tour first and " +
+      "marked as recommended - one tap more, the same tour (plan Oberflaeche, " +
+      "O8; mockup M8 'sinngemaess' for the phone).",
+    verified: "2026-11-17",
+  },
+  {
     id: "settings-backup-zip-destination",
     title: "Where the daily ZIP archive goes: choose, reset and open the folder (Backup & version history)",
     area: "vault",

@@ -150,9 +150,15 @@ interface SyncState {
   listingIncomplete: ListingIncompleteInfo | null;
   /** The remote folder of a vault that has synced before is gone (plan A4). */
   rootMissing: boolean;
+  /**
+   * The running worker's first pull: `false` until it finished, `true` after,
+   * `null` with no worker. Until then an empty vault is still arriving, and
+   * Home says so instead of offering a first note (O8, review 2026-11-17).
+   */
+  firstPullDone: boolean | null;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false, firstPullDone: null };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -222,8 +228,24 @@ function setState(next: {
     // Same rule: raised and lowered by the worker's own report, not by a status.
     listingIncomplete: next.status === "off" ? null : state.listingIncomplete,
     rootMissing: next.rootMissing ?? false,
+    firstPullDone: next.status === "off" ? null : state.firstPullDone,
   };
   for (const l of listeners) l();
+}
+
+function setFirstPullDone(firstPullDone: boolean | null): void {
+  if (state.firstPullDone === firstPullDone) return;
+  state = { ...state, firstPullDone };
+  for (const l of listeners) l();
+}
+
+/**
+ * Whether the vault syncs and its first pull has not finished — one rule
+ * with the desktop's `isFirstPullPending`. A failed first pull is not
+ * "pending": Home shows its ordinary start, and the sync line says what broke.
+ */
+export function isFirstPullPending(s: Pick<SyncState, "status" | "firstPullDone">): boolean {
+  return s.firstPullDone === false && s.status !== "error" && s.status !== "off";
 }
 
 function setListingIncomplete(info: ListingIncompleteInfo | null): void {
@@ -938,6 +960,7 @@ export function stopSync(): void {
   clearMobileCommentWorker();
   worker?.stop();
   worker = null;
+  setFirstPullDone(null);
   settingsOnlySync?.stop();
   settingsOnlySync = null;
   deletionJournal = null;
@@ -963,6 +986,7 @@ async function stopAndDrainNow(): Promise<void> {
   clearMobileCommentWorker();
   const w = worker;
   worker = null;
+  setFirstPullDone(null);
   const settingsOnly = settingsOnlySync;
   settingsOnlySync = null;
   await settingsOnly?.stopAndDrain();
@@ -1339,11 +1363,13 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // The first cycle has looked: a file the index finds as new from now on
     // goes into the workspace queue at once, as with the plain worker (3.119).
     encrypted.onFirstCycleComplete = () => {
+      setFirstPullDone(true);
       v.markFirstSyncComplete();
       // What the index found and an ended app never queued (R22).
       v.sweepOwedToRemote("workspace");
     };
     worker = encrypted;
+    setFirstPullDone(false);
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
     encrypted.start();
@@ -1435,6 +1461,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     setProgress(p ? { current: p.current, total: p.total } : null);
   };
   w.onFirstCycleComplete = (outcome) => {
+    setFirstPullDone(true);
     // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
     void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
     // Owed changes not queued now are queued by the next start's first cycle; a trace says why they waited.
@@ -1525,6 +1552,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     }
   };
   worker = w;
+  setFirstPullDone(false);
   setState({ status: "idle", message: null });
   w.start();
   w.triggerImmediate();

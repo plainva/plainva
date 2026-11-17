@@ -7375,12 +7375,20 @@
     "tourCardTitle": "导览仓库",
     "tourCardBody": "示例笔记展示链接、数据库、日志和任务。你可以随意修改或删除。",
     "tourCardWhere": "Plainva 将为此创建文件夹 {{path}}。",
-    "tourNoFolder": "在你的文档文件夹中找不到可用于导览的空闲文件夹。请新建一个仓库并选择文件夹。"
+    "tourBusy": "正在创建导览…",
+    "tourFailed": "Plainva 无法在 {{place}} 创建导览——可能不允许访问此文件夹。请选择其他位置。",
+    "tourElsewhere": "选择其他位置",
+    "tourElsewhereTitle": "为导览仓库选择位置",
+    "moreAt": "了解更多：",
+    "guideLink": "用户指南",
+    "later": "稍后"
   },
   "firstNote": {
     "title": "写下你的第一条笔记",
     "body": "这个仓库还是空的。从第一条笔记开始吧。",
-    "action": "新建笔记"
+    "action": "新建笔记",
+    "fetchingTitle": "正在加载你的仓库",
+    "fetchingBody": "云端的笔记正在传来。"
   },
   "refresh": {
     "action": "重新读取仓库",

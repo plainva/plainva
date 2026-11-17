@@ -214,6 +214,7 @@ export * from "./lib/fileStem";
 export * from "./lib/vaultRefresh";
 export * from "./lib/movedNote";
 export * from "./hooks/useMissingFile";
+export * from "./hooks/useVaultEmptiness";
 export * from "./lib/markdownToPlainText";
 export * from "./lib/noteCardModel";
 export * from "./lib/noteCardTint";

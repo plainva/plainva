@@ -7685,12 +7685,20 @@
     "tourCardTitle": "Vault du Tour Plainva",
     "tourCardBody": "Des notes d'exemple montrent les liens, les bases de données, le journal et les tâches. Vous pouvez tout modifier ou supprimer.",
     "tourCardWhere": "Plainva crée pour cela le dossier {{path}}.",
-    "tourNoFolder": "Aucun dossier libre pour le Tour Plainva n'a été trouvé dans vos Documents. Créez un nouveau vault et choisissez un dossier."
+    "tourBusy": "Création du Tour …",
+    "tourFailed": "Plainva n’a pas pu créer le Tour dans {{place}} – l’accès à ce dossier n’est peut-être pas autorisé. Choisis un autre emplacement.",
+    "tourElsewhere": "Choisir un autre emplacement",
+    "tourElsewhereTitle": "Choisir un emplacement pour le vault du Tour",
+    "moreAt": "En savoir plus :",
+    "guideLink": "Guide utilisateur",
+    "later": "Plus tard"
   },
   "firstNote": {
     "title": "Écrivez votre première note",
     "body": "Ce vault est encore vide. Votre première note le lance.",
-    "action": "Nouvelle note"
+    "action": "Nouvelle note",
+    "fetchingTitle": "Ton vault se charge",
+    "fetchingBody": "Les notes du cloud arrivent."
   },
   "refresh": {
     "action": "Relire le vault",

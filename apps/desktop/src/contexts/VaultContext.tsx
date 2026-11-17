@@ -1577,7 +1577,10 @@ export const VaultProvider: React.FC<{
                 worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
                 // The first cycle has looked: what the index found and an ended
                 // app never queued goes into the workspace's queue (R22).
-                worker.onFirstCycleComplete = () => sweepOwedToRemote("workspace");
+                worker.onFirstCycleComplete = () => {
+                  syncStatusStore.set(path, { firstPullDone: true });
+                  sweepOwedToRemote("workspace");
+                };
                 // A queued remark published or failed, or one arrived from another
                 // device: the open column and the overview refresh themselves (K6).
                 worker.onCommentsChanged = (paths) => {
@@ -1723,6 +1726,7 @@ export const VaultProvider: React.FC<{
               // Never silently: the copies kept where both sides differed (review 2026-10-27).
               sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
                 window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: copy } })));
+              syncStatusStore.set(path, { firstPullDone: true }); // empty now, not arriving (O8)
             };
             fileWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the

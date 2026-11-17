@@ -6,13 +6,22 @@ import { installMenuVault } from './fixtures/menuVault';
 // your first note", in the empty editor pane, from the same component the
 // phone's Home shows. A vault with notes keeps the ordinary empty pane.
 
-/** The menu vault emptied down to what a new vault without a template holds. */
+/** The menu vault emptied down to what a new vault without a template holds: the overview Plainva generated. */
 function emptyVault() {
   const fs = (window as any).mockFs;
   for (const path of Object.keys(fs)) {
     if (path !== '/test-vault' && path !== '/test-vault/.plainva' && !path.startsWith('/test-vault/.plainva/')) delete fs[path];
   }
-  fs['/test-vault/index.md'] = '# test-vault\n';
+  fs['/test-vault/index.md'] = '# test-vault\n\n<!-- plainva:index generated -->\n';
+}
+
+/** The same, but the one file is the person's own home note — no marker. */
+function ownIndexOnly() {
+  const fs = (window as any).mockFs;
+  for (const path of Object.keys(fs)) {
+    if (path !== '/test-vault' && path !== '/test-vault/.plainva' && !path.startsWith('/test-vault/.plainva/')) delete fs[path];
+  }
+  fs['/test-vault/index.md'] = '# My home\n\n[[Projects]]\n';
 }
 
 test.beforeEach(async ({ page }) => {
@@ -45,6 +54,15 @@ test('an empty vault shows one prompt, and the first note ends it', async ({ pag
     Object.keys((window as any).mockFs).some((p) => p.startsWith('/test-vault/') && p.endsWith('.md') && !p.endsWith('/index.md'))), { timeout: 15000 })
     .toBe(true);
   await expect(page.getByTestId('first-note-create')).toHaveCount(0);
+});
+
+test('a vault whose only file is its own index.md is a vault with a note, not an empty one', async ({ page }) => {
+  await page.addInitScript(ownIndexOnly);
+  await page.goto('/');
+  const pane = page.locator('.pv-emptypane');
+  await expect(pane).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('file-tree')).toContainText('index');
+  await expect(pane.getByTestId('first-note-create')).toHaveCount(0);
 });
 
 test('a vault with notes keeps the ordinary empty pane', async ({ page }) => {

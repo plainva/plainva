@@ -7840,12 +7840,20 @@
     "tourCardTitle": "Vault wycieczki",
     "tourCardBody": "Przykładowe notatki pokazują linki, bazy danych, dziennik i zadania. Wszystko możesz zmienić lub usunąć.",
     "tourCardWhere": "Plainva utworzy w tym celu folder {{path}}.",
-    "tourNoFolder": "W Twoich Dokumentach nie znaleziono wolnego folderu na wycieczkę. Utwórz nowy vault i wybierz folder."
+    "tourBusy": "Tworzenie wycieczki …",
+    "tourFailed": "Plainva nie mogła utworzyć wycieczki w {{place}} – być może dostęp do tego folderu nie jest dozwolony. Wybierz inne miejsce.",
+    "tourElsewhere": "Wybierz inne miejsce",
+    "tourElsewhereTitle": "Wybierz miejsce na vault wycieczki",
+    "moreAt": "Więcej informacji:",
+    "guideLink": "Instrukcja obsługi",
+    "later": "Później"
   },
   "firstNote": {
     "title": "Napisz swoją pierwszą notatkę",
     "body": "Ten vault jest jeszcze pusty. Pierwsza notatka go uruchomi.",
-    "action": "Nowa notatka"
+    "action": "Nowa notatka",
+    "fetchingTitle": "Twój vault się wczytuje",
+    "fetchingBody": "Notatki z chmury właśnie docierają."
   },
   "refresh": {
     "action": "Wczytaj vault ponownie",

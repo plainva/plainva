@@ -7685,12 +7685,20 @@
     "tourCardTitle": "Vault do tour",
     "tourCardBody": "Notas de exemplo mostram links, bancos de dados, o diário e tarefas. Você pode alterar ou excluir tudo.",
     "tourCardWhere": "O Plainva cria para isso a pasta {{path}}.",
-    "tourNoFolder": "Nenhuma pasta livre para o tour foi encontrada nos seus Documentos. Crie um vault novo e escolha uma pasta."
+    "tourBusy": "Criando o tour …",
+    "tourFailed": "O Plainva não conseguiu criar o tour em {{place}} – talvez o acesso a esta pasta não seja permitido. Escolha outro lugar.",
+    "tourElsewhere": "Escolher outro lugar",
+    "tourElsewhereTitle": "Escolha um lugar para o vault do tour",
+    "moreAt": "Saiba mais:",
+    "guideLink": "Guia do usuário",
+    "later": "Depois"
   },
   "firstNote": {
     "title": "Escreva sua primeira nota",
     "body": "Este vault ainda está vazio. Sua primeira nota dá a partida.",
-    "action": "Nova nota"
+    "action": "Nova nota",
+    "fetchingTitle": "Seu vault está carregando",
+    "fetchingBody": "As notas da nuvem estão chegando."
   },
   "refresh": {
     "action": "Reler o vault",

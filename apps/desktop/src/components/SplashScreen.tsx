@@ -12,12 +12,12 @@ import { Modal } from "@plainva/ui";
 import { forgetVaultEverywhere } from "../services/vaultForget";
 import { useVaultLabels } from "../services/vaultNames";
 import { ImportWizardModal } from "./import/ImportWizardModal";
-import { FirstRunModal } from "./onboarding/FirstRunModal";
+import { FirstRunModal, type TourProgress } from "./onboarding/FirstRunModal";
 import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "@plainva/ui";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
-import { findTourFolder, tauriTourFolderProbe } from "../services/tourVault";
+import { findTourFolder, plannedTourFolder, tauriTourFolderProbe, tourParentFolder } from "../services/tourVault";
 import {
   getVaultTemplates,
   templatePreviewFolders,
@@ -140,25 +140,30 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     await createVaultAt(selected, template);
   };
 
-  /** Scaffolds `template` into the new, empty folder `selected` and opens it. */
+  /** Scaffolds `template` into the new, empty folder `selected` and opens it; throws what went wrong. */
+  const scaffoldAndOpen = async (selected: string, template: VaultTemplateDefinition | null) => {
+    // A folder the tour is about to make does not exist yet; one that
+    // exists must be empty and unknown — the scaffolder never writes into
+    // anybody's notes.
+    if ((await exists(selected)) && !(await isVaultFolderEmpty(selected))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
+    const adapter = new TauriVaultAdapter(selected);
+    await adapter.initialize();
+    await scaffoldVaultTemplate({ isNewVault: true,
+      adapter,
+      template,
+      vaultName: getBasename(selected),
+      subfoldersHeading: t("indexMd.subfoldersHeading"),
+    });
+    await applyVaultTemplateSettings(selected, template);
+    await openVault(selected);
+  };
+
+  /** `scaffoldAndOpen` for the splash's own flows: an error shows on the splash. */
   const createVaultAt = async (selected: string, template: VaultTemplateDefinition | null) => {
     setCreating(true);
     setCreateError(null);
     try {
-      // A folder the tour is about to make does not exist yet; one that
-      // exists must be empty and unknown — the scaffolder never writes into
-      // anybody's notes.
-      if ((await exists(selected)) && !(await isVaultFolderEmpty(selected))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
-      const adapter = new TauriVaultAdapter(selected);
-      await adapter.initialize();
-      await scaffoldVaultTemplate({ isNewVault: true,
-        adapter,
-        template,
-        vaultName: getBasename(selected),
-        subfoldersHeading: t("indexMd.subfoldersHeading"),
-      });
-      await applyVaultTemplateSettings(selected, template);
-      await openVault(selected);
+      await scaffoldAndOpen(selected, template);
     } catch (e) {
       console.error("Vault scaffolding failed:", e);
       setCreateError(e instanceof Error ? e.message : String(e));
@@ -169,32 +174,47 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
 
   /**
    * The welcome's main action (O8, mockup M8): the tour vault in one click.
-   * Its folder is looked up while the welcome is open, so the tour card can
-   * name it BEFORE the click; the click looks again, because a folder can
-   * appear in between.
+   *
+   * Before the click nothing is looked at: the card names the place from the
+   * path alone, because looking into "Documents" is what makes macOS ask for
+   * access (review of O8, 2026-11-17). The click searches, writes and opens,
+   * with the welcome open and saying so; a place that is refused — or any
+   * write that fails — comes back as words with "Choose another place".
    */
   const [tourFolder, setTourFolder] = useState<string | null>(null);
+  const [tourProgress, setTourProgress] = useState<TourProgress>({ kind: "idle" });
   useEffect(() => {
     if (!showFirstRun) return;
     let live = true;
-    void findTourFolder(getTourTemplate(i18n.language).name, tauriTourFolderProbe)
+    void plannedTourFolder(getTourTemplate(i18n.language).name)
       .then((path) => { if (live) setTourFolder(path); })
       .catch(() => { if (live) setTourFolder(null); });
     return () => { live = false; };
   }, [showFirstRun, i18n.language]);
 
-  const handleTryTour = async () => {
+  const makeTour = async (parent?: string) => {
+    if (tourProgress.kind === "busy") return;
     const tour = getTourTemplate(i18n.language);
-    setCreateError(null);
+    setTourProgress({ kind: "busy" });
+    let place = parent ?? tourFolder ?? "";
     try {
-      const folder = await findTourFolder(tour.name, tauriTourFolderProbe);
-      if (!folder) throw new Error(t("firstRun.tourNoFolder"));
+      place = parent ?? (await tourParentFolder());
+      const folder = await findTourFolder(tour.name, tauriTourFolderProbe(recentVaults), parent);
+      if (!folder) throw new Error("no free name for the tour");
+      await scaffoldAndOpen(folder, tour);
+      setTourProgress({ kind: "idle" });
       onFirstRunDismiss?.();
-      await createVaultAt(folder, tour);
     } catch (e) {
-      onFirstRunDismiss?.();
-      setCreateError(e instanceof Error ? e.message : String(e));
+      // The raw text is for the diagnostics; the welcome says it in words.
+      console.error("The tour could not be made:", e);
+      setTourProgress({ kind: "failed", place });
     }
+  };
+
+  const makeTourElsewhere = async () => {
+    const parent = await open({ directory: true, multiple: false, title: t("firstRun.tourElsewhereTitle") });
+    if (!parent || typeof parent !== "string") return;
+    await makeTour(parent);
   };
 
   /** A chooser card is a teaser, not an inventory. The tour ships nine folders
@@ -506,12 +526,13 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
       {showFirstRun && (
         <FirstRunModal
           onClose={() => onFirstRunDismiss?.()}
-          onTour={() => { void handleTryTour(); }}
+          onTour={() => { void makeTour(); }}
+          onTourElsewhere={() => { void makeTourElsewhere(); }}
           onOpenFolder={() => { onFirstRunDismiss?.(); void selectVault(); }}
           onNewEmpty={() => { onFirstRunDismiss?.(); void handleCreateVault(null); }}
           onImport={() => { onFirstRunDismiss?.(); setShowImport(true); }}
           tourFolder={tourFolder}
-          busy={creating}
+          tour={tourProgress}
         />
       )}
 

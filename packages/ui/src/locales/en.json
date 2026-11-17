@@ -7530,12 +7530,20 @@
     "tourCardTitle": "Tour vault",
     "tourCardBody": "Sample notes show links, databases, the journal and tasks. You can change or delete all of it.",
     "tourCardWhere": "Plainva creates the folder {{path}} for it.",
-    "tourNoFolder": "No free folder for the tour was found in your Documents. Create a new vault and choose a folder."
+    "tourBusy": "Creating the tour …",
+    "tourFailed": "Plainva could not create the tour in {{place}} – access to this folder may not be allowed. Choose another place for it.",
+    "tourElsewhere": "Choose another place",
+    "tourElsewhereTitle": "Choose a place for the tour vault",
+    "moreAt": "More about this:",
+    "guideLink": "User guide",
+    "later": "Later"
   },
   "firstNote": {
     "title": "Write your first note",
     "body": "This vault is still empty. Your first note gets it going.",
-    "action": "New note"
+    "action": "New note",
+    "fetchingTitle": "Your vault is loading",
+    "fetchingBody": "The notes from the cloud are arriving."
   },
   "refresh": {
     "action": "Read the vault again",

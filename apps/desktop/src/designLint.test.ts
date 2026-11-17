@@ -222,7 +222,7 @@ const BUDGET: Record<string, Counts> = {
   "components/mail/VacationSettings.tsx": {nakedInput:2},
   "components/mail/mail.css": {hex:1},
   "components/mathMermaidLive.ts": {rawSpacing:2},
-  "components/onboarding/FirstRunModal.tsx": {nakedButton:2},
+  "components/onboarding/FirstRunModal.tsx": {nakedButton:1},
   "components/pim/PimAccountsSection.tsx": {rawSpacing:29},
   "components/pimcal/BlockCalendarsModal.tsx": {rawSpacing:3},
   // rawSpacing 29 (was 28): not a new value - `marginInline: 3` has stood in

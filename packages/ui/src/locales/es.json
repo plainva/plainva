@@ -7685,12 +7685,20 @@
     "tourCardTitle": "Vault del tour",
     "tourCardBody": "Notas de ejemplo muestran enlaces, bases de datos, el diario y tareas. Puedes cambiarlo o borrarlo todo.",
     "tourCardWhere": "Plainva crea para ello la carpeta {{path}}.",
-    "tourNoFolder": "No se encontró ninguna carpeta libre para el tour en tus Documentos. Crea un vault nuevo y elige una carpeta."
+    "tourBusy": "Creando el tour …",
+    "tourFailed": "Plainva no pudo crear el tour en {{place}}; puede que no se permita el acceso a esta carpeta. Elige otro lugar.",
+    "tourElsewhere": "Elegir otro lugar",
+    "tourElsewhereTitle": "Elige un lugar para el vault del tour",
+    "moreAt": "Más información:",
+    "guideLink": "Guía del usuario",
+    "later": "Más tarde"
   },
   "firstNote": {
     "title": "Escribe tu primera nota",
     "body": "Este vault aún está vacío. Tu primera nota lo pone en marcha.",
-    "action": "Nueva nota"
+    "action": "Nueva nota",
+    "fetchingTitle": "Tu vault se está cargando",
+    "fetchingBody": "Las notas de la nube están llegando."
   },
   "refresh": {
     "action": "Volver a leer el vault",

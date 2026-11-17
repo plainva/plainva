@@ -7530,12 +7530,20 @@
     "tourCardTitle": "Tour-Vault",
     "tourCardBody": "Beispielnotizen zeigen Links, Datenbanken, das Journal und Aufgaben. Du kannst alles ändern oder löschen.",
     "tourCardWhere": "Plainva legt dafür den Ordner {{path}} an.",
-    "tourNoFolder": "In Deinen Dokumenten war kein freier Ordner für die Tour zu finden. Leg einen neuen Vault an und wähle einen Ordner."
+    "tourBusy": "Die Tour wird angelegt …",
+    "tourFailed": "Plainva konnte die Tour nicht in {{place}} anlegen – vielleicht ist der Zugriff auf diesen Ordner nicht erlaubt. Wähle einen anderen Ort dafür.",
+    "tourElsewhere": "Anderen Ort wählen",
+    "tourElsewhereTitle": "Ort für den Tour-Vault wählen",
+    "moreAt": "Mehr dazu:",
+    "guideLink": "Handbuch",
+    "later": "Später"
   },
   "firstNote": {
     "title": "Schreib Deine erste Notiz",
     "body": "Dieser Vault ist noch leer. Mit der ersten Notiz geht es los.",
-    "action": "Neue Notiz"
+    "action": "Neue Notiz",
+    "fetchingTitle": "Dein Vault wird geladen",
+    "fetchingBody": "Die Notizen aus der Cloud kommen gerade an."
   },
   "refresh": {
     "action": "Vault neu einlesen",

@@ -7530,12 +7530,20 @@
     "tourCardTitle": "Tour-vault",
     "tourCardBody": "Voorbeeldnotities laten links, databases, het journaal en taken zien. Je kunt alles wijzigen of verwijderen.",
     "tourCardWhere": "Plainva maakt daarvoor de map {{path}} aan.",
-    "tourNoFolder": "In je Documenten is geen vrije map voor de tour gevonden. Maak een nieuwe vault aan en kies een map."
+    "tourBusy": "De tour wordt aangemaakt …",
+    "tourFailed": "Plainva kon de tour niet aanmaken in {{place}} – mogelijk is toegang tot deze map niet toegestaan. Kies een andere plek.",
+    "tourElsewhere": "Andere plek kiezen",
+    "tourElsewhereTitle": "Kies een plek voor de tourvault",
+    "moreAt": "Meer hierover:",
+    "guideLink": "Handleiding",
+    "later": "Later"
   },
   "firstNote": {
     "title": "Schrijf je eerste notitie",
     "body": "Deze vault is nog leeg. Met je eerste notitie gaat het van start.",
-    "action": "Nieuwe notitie"
+    "action": "Nieuwe notitie",
+    "fetchingTitle": "Je vault wordt geladen",
+    "fetchingBody": "De notities uit de cloud komen binnen."
   },
   "refresh": {
     "action": "Vault opnieuw inlezen",

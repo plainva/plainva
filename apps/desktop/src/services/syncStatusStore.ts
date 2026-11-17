@@ -72,6 +72,12 @@ export interface SyncStatusSnapshot {
    * a retry of something that did not fail. Null once a listing holds again.
    */
   listingIncomplete?: ListingIncompleteInfo | null;
+  /**
+   * The running worker's first cycle has finished (`onFirstCycleComplete`):
+   * what the cloud folder holds is here. Before that an empty vault is a vault
+   * still arriving (O8, review 2026-11-17).
+   */
+  firstPullDone?: boolean;
 }
 
 const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null };
@@ -212,6 +218,22 @@ export function captureSyncErrorSnapshot(vaultPath: string | null): SyncErrorSna
 /** Authentication failures are the only errors for which reconnect is useful. */
 export function isSyncAuthenticationError(message: string): boolean {
   return /(?:\b401\b|unauthori[sz]ed|invalid[_ -]?grant|invalid[_ -]?token|token.*(?:expired|revoked)|refresh token|authentication|authentifizierung|anmeldung.*abgelaufen)/i.test(message);
+}
+
+/**
+ * Whether the vault syncs and its first pull has not finished yet — the start
+ * of an empty vault then says it is being loaded instead of calling it empty.
+ * A failed first pull is not "pending": the ordinary start shows, and the
+ * status bar says what went wrong.
+ */
+export function isFirstPullPending(snap: SyncStatusSnapshot): boolean {
+  return snap.provider != null && !snap.firstPullDone && snap.status !== "error";
+}
+
+/** `isFirstPullPending` for the open vault; re-renders only when it flips. */
+export function useFirstPullPending(vaultPath: string | null): boolean {
+  const read = useCallback(() => isFirstPullPending(syncStatusStore.get(vaultPath)), [vaultPath]);
+  return useSyncExternalStore(syncStatusStore.subscribe, read);
 }
 
 export function useSyncStatus(vaultPath: string | null): SyncStatusSnapshot {

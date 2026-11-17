@@ -461,6 +461,8 @@ export default function App() {
       return;
     }
     done();
+    // Import (O8, as on the desktop's welcome): into the vault this boot made.
+    if (way === "import") return void push({ kind: "importwizard", path: "" });
     if (way === "cloud") {
       // Cloud branch (2026-07-13): existing vault vs. a NEW vault in the cloud
       // (order: place -> template -> connection, matching the desktop splash).

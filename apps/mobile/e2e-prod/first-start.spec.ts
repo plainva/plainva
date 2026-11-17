@@ -50,6 +50,16 @@ test("three ways in, and 'I already have a vault' explains before it leads on", 
   await expect(page.locator(".m-onboarding")).toBeVisible();
 });
 
+test("under the cards: the import as a link, the website and the guide — as on the desktop's welcome", async ({ page }) => {
+  await freshStart(page);
+  await expect(page.getByTestId("onboarding-more")).toContainText("plainva.com");
+  await expect(page.getByTestId("onboarding-more").getByRole("button", { name: "Handbuch" })).toBeVisible();
+
+  await page.getByTestId("onboarding-import").click();
+  await expect(page.locator(".m-onboarding")).toHaveCount(0);
+  await expect(page.getByTestId("import-vault-name").or(page.getByText("Schritt 1 von 3")).first()).toBeVisible({ timeout: 15000 });
+});
+
 test("starting locally leads with the tour; an empty vault lands on one prompt", async ({ page }, testInfo) => {
   await freshStart(page);
   await page.getByTestId("onboarding-local").click();

@@ -160,7 +160,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, disconnectFiles, getSyncStatus, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
+import { connectProvider, disconnectFiles, getSyncStatus, isFirstPullPending, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -452,5 +452,20 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     const joined = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
     await startSyncIfConfigured(joined).catch(() => undefined);
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
+  });
+});
+
+describe("the first pull of a vault (O8: a cloud vault arriving is not an empty one)", () => {
+  it("is pending from the worker's start until its first cycle is done, and nothing without a worker", async () => {
+    expect(isFirstPullPending(getSyncStatus())).toBe(false);
+    await startSyncIfConfigured(vault);
+    expect(getSyncStatus().firstPullDone).toBe(false);
+    expect(isFirstPullPending(getSyncStatus())).toBe(true);
+    const plain = state.workers[state.workers.length - 1] as { onFirstCycleComplete?: (outcome: { skipped: string[]; conflictCopies: string[] }) => void };
+    plain.onFirstCycleComplete!({ skipped: [], conflictCopies: [] });
+    expect(getSyncStatus().firstPullDone).toBe(true);
+    expect(isFirstPullPending(getSyncStatus())).toBe(false);
+    await stopSyncAndDrain();
+    expect(getSyncStatus().firstPullDone).toBeNull();
   });
 });

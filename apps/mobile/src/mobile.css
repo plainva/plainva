@@ -2346,6 +2346,15 @@ textarea {
   color: var(--text-muted);
   font-size: var(--text-ui);
 }
+/* The links under the cards (O8): quieter than a card, reachable by thumb. */
+.m-onboarding-more {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.m-onboarding-more .pv-linkbtn {
+  min-height: var(--touch-sm);
+}
 
 /* P2 editor popovers on small viewports */
 .cm-tooltip.cm-tooltip-autocomplete {
