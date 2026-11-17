@@ -222,7 +222,11 @@ describe("a short summary and a reader with a narrower view", () => {
     const again = await withinAsync(200, () => ask());
     expect(again.text).toEqual(first.text);
     expect(again.looked).toBeLessThan(20);
+    // Every question a kept verdict asks: one about each note its links could mean (every note of the area is one
+    // here, N), and those of the package besides the verdict — never more than deciding it anew would.
     expect(again.lookups - again.looked).toBeGreaterThan(0);
+    expect(again.lookups).toBeLessThanOrEqual(N + 20);
+    expect(again.lookups).toBeLessThan(first.lookups);
     // A note of the area that links to the kept note since: decided anew, and its gist stays back.
     await files.writeTextFile("Projects/n3.md", "# n3\nSee [[Private/Salary Kowalski]].\n");
     await indexer.indexVaultFull();

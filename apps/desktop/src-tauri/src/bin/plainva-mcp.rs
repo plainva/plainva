@@ -75,7 +75,7 @@ async fn run(identifier: &str) -> Result<(), String> {
     let stream = match connect(identifier).await {
         Ok(stream) => stream,
         Err(_) => {
-            return refuse(&mut stdout, &request_id, "Plainva is not running, or AI tools are switched off in its Settings (AI & automation).").await;
+            return refuse(&mut stdout, &request_id, "Plainva is not running, or AI tools are switched off in its Settings (AI).").await;
         }
     };
     let (pipe_read, mut pipe_write) = tokio::io::split(stream);
@@ -94,7 +94,7 @@ async fn run(identifier: &str) -> Result<(), String> {
     };
     if !reply.ok {
         let message = match reply.reason.as_deref() {
-            Some("denied") => "Plainva did not allow this client. Allow it when Plainva asks, or look in Settings, AI & automation.",
+            Some("denied") => "Plainva did not allow this client. Allow it when Plainva asks, or look in Settings, AI.",
             Some("no-vault") => "Plainva has no vault open.",
             Some("busy") => "Plainva is asking about another client right now. Try again in a moment.",
             Some("version") => "This helper does not match the running Plainva. Update Plainva.",

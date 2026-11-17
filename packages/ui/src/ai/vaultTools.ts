@@ -52,6 +52,7 @@ import {
   viewMatchesSearch,
   viewSearchSnippet,
   withholdDeniedLinksIn,
+  frontmatterSpan,
   withholdPlacesIn,
   withoutExcludedSearchTerms,
   withoutSensitiveProperties,
@@ -566,11 +567,41 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    * note through, and the query takes the way it always took, without asking about each note (review of R19, wave 2).
    */
   const readerReach = restricted ? { reach: allowedOf } : {};
+  const linkRule: LinkRule = scope?.linksInReach ? "in-reach" : "any-kept-back";
+  /**
+   * What a database is asked to give such a reader: its rows read through the reader's view of each note — a row's
+   * name, its values, its tags (`queryDatabaseFiles` `withhold`), the one building block for a note's title and
+   * properties (`notesAsSeen` for the lists, review of R19, wave 2).
+   */
+  const readerRows = restricted ? { reach: allowedOf, withhold: { rule: linkRule } } : {};
   /**
    * Rows of the index with their titles as this run may see them (review of R19, wave 2): the index takes a note's
    * title from its properties, and a title holds a link like any text — withheld the same way, before a search tests
    * a hit on it and before any list names a note by it.
    */
+  /**
+   * The names of a database's views as this run may see them (review of R19, wave 2): read from the file's text with
+   * the links withheld it may not follow, the way a note's properties block is read (`propertiesInView`) — the file
+   * is YAML like a block, so it is withheld as one, every way YAML writes a link —, and each name withheld once more
+   * as YAML reads it. A name that is no text, or a file that reads otherwise once withheld, gives no names.
+   */
+  const shownViewNames = async (raw: string, path: string, views: readonly { name?: unknown }[]): Promise<string[]> => {
+    if (!restricted) return views.map((v) => String(v.name ?? ""));
+    const text = raw.replace(/\r\n?/g, "\n");
+    const seen = await withhold(`---\n${text}${text.endsWith("\n") ? "" : "\n"}---\n`, path);
+    let seenViews: { name?: unknown }[] = [];
+    try {
+      // Read back as the one definition reads a block: nothing may stand behind it.
+      const span = frontmatterSpan(seen);
+      const inner = span && seen.slice(span.end).trim() === "" ? span.yaml : null;
+      const parsed = inner === null ? null : parseBaseConfig(inner);
+      seenViews = parsed && Array.isArray(parsed.views) ? parsed.views : [];
+    } catch {
+      seenViews = [];
+    }
+    if (seenViews.length !== views.length) return views.map(() => "");
+    return Promise.all(seenViews.map(async (v) => (typeof v.name === "string" ? withhold(v.name, path) : "")));
+  };
   const titled = async <R extends object>(rows: R[], pathKey: keyof R & string, titleKey: keyof R & string): Promise<R[]> => {
     if (!restricted) return rows;
     const seen = await notesSeen(rows.map((row) => String(row[pathKey] ?? "")));
@@ -813,9 +844,13 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             return { content: "This database file could not be read.", isError: true };
           }
           const views = Array.isArray(config.views) ? config.views : [];
+          // The views by the names this run may see (review of R19, wave 2): a view's name holds a link like any text.
+          const viewNames = await shownViewNames(raw, path, views);
           const wanted = typeof a.view === "string" ? a.view.trim().toLowerCase() : "";
-          const view = wanted ? views.find((v) => (v.name ?? "").toLowerCase() === wanted) : views[0];
-          if (wanted && !view) return { content: `No view "${String(a.view)}". Views: ${views.map((v) => v.name ?? "").filter(Boolean).join(", ") || "none"}.`, isError: true };
+          const at = wanted ? views.findIndex((v, i) => viewNames[i]!.toLowerCase() === wanted || (!restricted && String(v.name ?? "").toLowerCase() === wanted)) : 0;
+          const view = at >= 0 ? views[at] : undefined;
+          if (wanted && !view) return { content: `No view "${String(a.view)}". Views: ${viewNames.filter(Boolean).join(", ") || "none"}.`, isError: true };
+          const viewName = view ? viewNames[at]! : "";
           // What the view shows: the sources AND the view's own filters, like the database views do.
           const merged = { ...config, filters: combineFilters(config.filters, view?.filters), views: view ? [view] : [] };
           // A reverse column and a rollup are computed only from notes this run may see: a sum over a relation into a
@@ -847,11 +882,11 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             lines.push(`- [[${title}]] (${rowPath})${cells.length ? `: ${cells.map((c) => c.slice(2)).join("; ")}` : ""}`);
             listed.push({ title, path: rowPath, properties: propertyValues(cells) });
           }
-          const viewNames = views.map((v) => v.name ?? "").filter(Boolean);
-          const head = `${path}, view "${view?.name ?? "—"}"${views.length > 1 ? ` (views: ${viewNames.join(", ")})` : ""}`;
+          const listedNames = viewNames.filter(Boolean);
+          const head = `${path}, view "${viewName || "—"}"${views.length > 1 ? ` (views: ${listedNames.join(", ")})` : ""}`;
           const next = lines.length === limit ? String(offset + limit) : null;
           const more = next ? `\n\nMore rows: call query_base again with cursor "${next}".` : "";
-          return result(tool.name, `${head}\n\n${lines.length ? lines.join("\n") : "No rows."}${more}`, { base: path, view: view?.name ?? null, views: viewNames, rows: listed, next });
+          return result(tool.name, `${head}\n\n${lines.length ? lines.join("\n") : "No rows."}${more}`, { base: path, view: viewName || null, views: listedNames, rows: listed, next });
         }
         case "get_tasks": {
           const range = typeof a.range === "string" ? a.range : "today";
@@ -859,7 +894,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const offset = offsetOf(a.cursor);
           const today = deps.todayKey();
           const rows: PlannerRow[] = [];
-          const all = await deps.taskRows(readerReach);
+          // A row of the task database is named by its note's name in the view, like every other list (review of R19).
+          const all = await deps.taskRows(readerRows);
           await ready(all.map((row) => row.path));
           for (const row of all) if (await allowed(row.path)) rows.push(row);
           // The note a task stands in is named by its title as this run may see it — before the planner orders by it.

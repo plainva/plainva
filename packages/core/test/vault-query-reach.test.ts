@@ -8,6 +8,8 @@ import { VaultQueryService } from "../src/vault/VaultQueryService.ts";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.ts";
 import { initializeSchema } from "../src/db/Schema.ts";
 import { withinAsync } from "./helpers/timeBudget.ts";
+import { MemoryVaultAdapter } from "./helpers/memoryVault.ts";
+import { BLOCK_READS } from "../src/vault/propertiesInView.ts";
 
 /**
  * A database read by someone who may not see the whole vault — an assistant run that keeps a folder from the cloud,
@@ -297,6 +299,64 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
       expect(read.filter((sql) => /n\.content AS content/.test(sql))).toEqual([]);
     }, notes);
   });
+
+  /**
+   * What a query costs such a reader grows with what it needs, at no size of a vault more than at another (review of
+   * R19, wave 2): a store of a fixed size, walked through in the order of the paths, read every block anew from the
+   * note after its last one. Counted at two sizes past that store (8 192 blocks): the first query reads each block
+   * once (and the view of it once), every query after it reads none and no text of a note, and asks the index the
+   * same number of questions per note at either size. A block with a bracket that holds no link — `tags: [a, b]` —
+   * is read as YAML by no query.
+   */
+  it("a query costs a narrower reader the same per note at any size of a vault: each block read once per text, never again (review of R19, wave 2)", async () => {
+    const work = async (n: number) => {
+      const vault = new MemoryVaultAdapter(1_000);
+      await vault.writeTextFile("Private/Meier, Kowalski.md", note("", "Meier"));
+      for (let i = 0; i < n; i++) {
+        const linked = i % 2 === 0;
+        await vault.writeTextFile(`Board/n${i}.md`, linked ? `---\nstate: open\nup: [[Meier, Kowalski]]\ntags: [a, b]\n---\n# n${i}\n` : `---\nstate: open\ntags: [a, b]\nkin: [x, y]\n---\n# n${i}\n`);
+      }
+      const { DatabaseSync } = (await import("node:sqlite")) as any;
+      const db = new NodeSqliteAdapter(new DatabaseSync(":memory:"));
+      await initializeSchema(db);
+      await new VaultIndexer(vault, db).indexVaultFull();
+      const query = new VaultQueryService(db as never);
+      const sql: string[] = [];
+      const plain = db.query.bind(db);
+      db.query = (async (text: string, params?: unknown[]) => {
+        sql.push(text);
+        return plain(text, params);
+      }) as typeof db.query;
+      const config = { filters: { and: ['file.folder == "Board"'] }, views: [{ type: "table", name: "T", sort: [{ property: "state", direction: "ASC" }] }] } as any;
+      const ask = async () => {
+        sql.length = 0;
+        BLOCK_READS.count = 0;
+        const rows = await query.queryDatabaseFiles(config, { reach: visible, withhold: { rule: "any-kept-back" } });
+        return { rows, reads: BLOCK_READS.count, questions: sql.length, texts: sql.filter((text) => /n\.content/.test(text)).length };
+      };
+      const first = await ask();
+      const again = await ask();
+      const third = await ask();
+      await db.close();
+      expect(first.rows).toHaveLength(n);
+      expect(first.rows.filter((row: any) => row.up === "⟦withheld note⟧")).toHaveLength(n / 2);
+      expect(again.rows).toEqual(first.rows);
+      expect(third).toEqual(again);
+      return { first, again };
+    };
+    const small = await work(3_000);
+    const large = await work(9_000);
+    // Every query after the first reads no note's text, and no block as YAML, at either size.
+    expect(small.again.texts).toBe(0);
+    expect(large.again.texts).toBe(0);
+    expect(small.again.reads).toBe(0);
+    expect(large.again.reads).toBe(0);
+    // The first reads the block of each note that holds a link, and its view: twice per such note.
+    expect(small.first.reads).toBe(3_000);
+    expect(large.first.reads).toBe(9_000);
+    // And asks the index as many questions per note at either size: three times the notes, three times the questions.
+    expect(large.again.questions).toBeLessThanOrEqual(3 * small.again.questions + 4);
+  }, 300_000);
 
   it("a rollup reads one key of the notes it reaches, and withholds no other (review of R19, wave 2)", async () => {
     await withVault(

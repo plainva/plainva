@@ -1,4 +1,4 @@
-import { gateDecision, isAiHiddenPath, isCloudRecipient, notePropertiesAsWritten, type EffectivePolicy, type GateRun, type SituationInput } from "@plainva/core";
+import { gateDecision, isAiHiddenPath, isCloudRecipient, notePropertiesAsWritten, type EffectivePolicy, type GateRun, type LinkRule, type SituationInput } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveTaskCompletionModel, taskDbRows } from "../lib/taskDatabase";
 import { addDaysToKey, type PlannerRow } from "../lib/taskPlanner";
@@ -192,9 +192,13 @@ export async function databaseTaskRows(baseText: string | null, query: (config: 
 /**
  * The reach of the situation's task database for one run (review of R19, wave 2): the notes the gate lets through
  * for that recipient. A value the database computes from other notes — and so its filters and its sort — is made of
- * those alone (`VaultQueryService.queryDatabaseFiles`).
+ * those alone (`VaultQueryService.queryDatabaseFiles`), and every row is read through the reader's view of the note:
+ * a task's title is its note's name as the view gives it, like the context package's other links (`any-kept-back`).
  */
-export function situationReach(policyOf: (path: string) => Promise<EffectivePolicy>, run: GateRun): { reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>> } {
+export function situationReach(
+  policyOf: (path: string) => Promise<EffectivePolicy>,
+  run: GateRun,
+): { reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>>; withhold?: { rule: LinkRule } } {
   // A model on this device without the internet: the gate lets every note through, and the tasks are computed as
   // they always were, without asking about each note (review of R19, wave 2).
   if (!isCloudRecipient(run.recipient) && !run.webTools) return {};
@@ -204,5 +208,6 @@ export function situationReach(policyOf: (path: string) => Promise<EffectivePoli
       for (const path of paths) if (!isAiHiddenPath(path) && gateDecision(await policyOf(path), run).allowed) yes.add(path);
       return yes;
     },
+    withhold: { rule: "any-kept-back" },
   };
 }

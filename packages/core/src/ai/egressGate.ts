@@ -191,8 +191,19 @@ export function redactDeniedLinks(text: string, isDenied: (target: string) => bo
   return { text: view.text, redacted };
 }
 
+/**
+ * Whether a text can hold a link `redactDeniedLinksIn` withholds: every way it reads one is written with `[[`, with
+ * `](` or with a reference's `]:` (a reference's uses count only beside its definition), and a quoted text of a
+ * properties block builds one only from an escape (`\`). A text without any of them is withheld as it is.
+ */
+const LINK_SHAPE = /\[\[|\]\(|\]:|\\/;
+export function mayHoldAWithheldLink(text: string): boolean {
+  return LINK_SHAPE.test(text);
+}
+
 /** `redactDeniedLinks` on a reader's view: each withheld link becomes a withheld piece of it (`ReaderView`). */
 export function redactDeniedLinksIn(view: ReaderView, isDenied: (target: string) => boolean): { view: ReaderView; redacted: number } {
+  if (!LINK_SHAPE.test(view.text)) return { view, redacted: 0 };
   let redacted = 0;
   const withheld = () => {
     redacted++;

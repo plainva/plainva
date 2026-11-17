@@ -16,7 +16,7 @@ import {
 import i18n from "@plainva/ui/i18n";
 import { eventHandle } from "../../../../packages/ui/src/ai/eventDetails";
 import { plannerRowsFromTasks } from "../../../../packages/ui/src/lib/taskPlannerRows";
-import { notePropertiesOf } from "../../../../packages/ui/src/ai/aiSituation";
+import { databaseTaskRows, notePropertiesOf, situationFrom, situationReach } from "../../../../packages/ui/src/ai/aiSituation";
 import { buildContextPackage } from "../../../../packages/core/src/ai/context/package";
 import { protectedTokens } from "../../../../packages/core/src/ai/context/gists";
 import { GistStore, resetGistStores } from "../../../../packages/core/src/ai/context/gistStore";
@@ -66,6 +66,11 @@ const readable = (name: string): Record<string, string> => ({
   "Projects/Tagged.base": "filters:\n  and:\n    - file.folder == \"Projects\"\n    - 'contains(tags, \"Kowalski\")'\nviews:\n  - type: table\n    name: T\n    order: [tags]\n",
   "Projects/TagSource.base": `filters:\n  and:\n    - 'file.hasTag("[${HIDDEN[0]}, Meier]")'\nviews:\n  - type: table\n    name: T\n    order: [aliases]\n`,
   "Projects/Hub.md": "---\nkids: [\"[[Projects/Forms]]\"]\n---\n# Hub\n",
+  // The task database: a task of it is named by its note's title, in each way YAML reads a link (review of R19).
+  "Projects/Tasks.base": 'filters:\n  and:\n    - file.folder == "Projects/Tasks"\ncolumns:\n  due:\n    input: date\nviews:\n  - type: table\n    name: T\n    order: [due]\n',
+  ...Object.fromEntries(Object.entries(TITLES(name)).map(([form, title]) => [`Projects/Tasks/Do ${form}.md`, `---\ntitle: ${title}\ndue: 2026-11-13\n---\n# Do ${form}\n`])),
+  // A database whose views are named with links, in each way YAML writes one (review of R19, wave 2).
+  "Projects/Views.base": `filters:\n  and:\n    - file.folder == "Projects/Tasks"\nviews:\n  - type: table\n    name: "Talk [[${name}]]"\n  - type: table\n    name: Talk [[Private/${name}]] here\n  - type: table\n    name: "Talk [[${escaped(name)}]]"\n  - type: table\n    name: "Talk [[${name},\tMeier]]"\n  - type: table\n    name: T\n`,
   // Notes named by such a title: each links to the hub and holds a task, so every list that names a note names them.
   ...Object.fromEntries(Object.entries(TITLES(name)).map(([form, title]) => [`Projects/Titled ${form}.md`, `---\ntitle: ${title}\n---\n# ${form}\n\nThe titled ${form}, see [[Projects/Hub]].\n\n- [ ] call about ${form} 📅 2026-11-13\n`])),
   // A tag YAML builds from an escape, and a source that chooses rows by that tag (review of R19, wave 2).
@@ -118,16 +123,22 @@ async function vaultOf(name: string) {
     resolveLink: (target, from) => query.resolveNotePath(target, from),
     linkCandidates: async (target, from) => filesALinkCouldMean(buildLinkNameIndex(await query.linkTargets()), target, from),
     policyOf: (path, text) => policy.policyOf(path, text),
-    // The tasks as both shells list them: the note a task stands in is named by its title.
-    taskRows: async () => plannerRowsFromTasks((await query.listTasks()).filter((task) => !task.excluded)),
+    // The tasks as both shells list them (`desktopAi`, `mobileAi`): the rows of the task database, read as the run
+    // asks, and the tasks of the notes, each named by the title of its note.
+    taskRows: async (options) => [
+      ...(await databaseTaskRows(await read("Projects/Tasks.base"), (config) => query.queryDatabaseFiles(config, options))),
+      ...plannerRowsFromTasks((await query.listTasks()).filter((task) => !task.excluded)),
+    ],
     todayKey: () => "2026-11-13",
-    commands: () => [],
+    // A command that opens a note: its path is asked of the resolver (`run_command`, `open_in_app`).
+    commands: () => [{ id: "open-note", label: "Open note", run: async () => true }],
     backlinks: (path, options) => query.getBacklinks(path, options),
     neighbors: (path, limit, options) => query.getLinkNeighbors(path, limit, options),
     recentlyOpened: async () => [{ path: "Projects/Pay.md", openedAt: 1 }],
     recentlyChanged: (limit, offset, within) => query.getRecentlyChangedNotes(limit, offset, within),
     queryDatabase: (config, options) => query.queryDatabaseFiles(config, options),
     notesAsSeen: (paths, reach, rule) => query.notesAsSeen(paths, reach, rule),
+    moodKey: async () => "mood",
     events: async () => [event],
     mail: {
       accounts: async () => [MAIL],
@@ -243,6 +254,11 @@ const questions = (handle: string): [string, Record<string, unknown>][] => [
   ["get_recent", { kind: "edited", limit: 40 }],
   ["get_changes", { since: "2000-01-01", limit: 40 }],
   ["get_tasks", { range: "all" }],
+  ["get_tasks", { range: "today" }],
+  ["query_base", { base: "Projects/Tasks.base", limit: 20 }],
+  ["query_base", { base: "Projects/Views.base", limit: 5 }],
+  ["query_base", { base: "Projects/Views.base", view: "T", limit: 5 }],
+  ["query_base", { base: "Projects/Views.base", view: "Kowalski", limit: 5 }],
   ["get_backlinks", { path: "Projects/Pay.md", limit: 20 }],
   ["get_backlinks", { path: "Projects/Mia.md", limit: 20 }],
   ["graph_neighborhood", { path: "Projects/Pay.md", limit: 20, depth: 2 }],
@@ -254,8 +270,11 @@ const questions = (handle: string): [string, Record<string, unknown>][] => [
   ["get_calendar", { from: "2026-11-13", to: "2026-11-13" }],
   ["get_event", { id: handle }],
   ["search_mail", { query: "pay" }],
+  ["search_mail", {}],
+  ["search_mail", { folder: "Archive" }],
   ["read_mail", { message: "a1/INBOX/7", question: "What is it about?" }],
   ["run_command", { id: "nothing" }],
+  ["run_command", { id: "open-note", args: { path: "Projects/Pay" } }],
   ["open_in_app", { path: "Projects/Pay.md" }],
   ["search_memory", { query: "pay" }],
   ["search_memory", { query: "Kowalski" }],
@@ -288,6 +307,7 @@ const WRITES: [string, Record<string, unknown>][] = [
   ["set_property", { path: "Projects/Pay.md", key: "owner", value: "Mia" }],
   ["set_property", { path: "Projects/Pay.md", key: "unquoted", value: "Mia" }],
   ["set_property", { path: "Projects/Plan.md", key: "owner", value: `[[${GUESS}]]` }],
+  ["set_property", { path: "Projects/Plan.md", key: "plainva.ai.web", value: "deny" }],
   ["create_note", { title: "Talk", body: `With [[${GUESS}]] and [[Private/${GUESS}]].` }],
   ["create_entry", { base: "Projects/Board.base", title: "Entry", properties: { owner: `[[${GUESS}]]` }, content: `See [[Private/${GUESS}]].` }],
   ["create_task", { text: `Ask [[${GUESS}]] about the pay` }],
@@ -299,8 +319,158 @@ const WRITES: [string, Record<string, unknown>][] = [
   ["draft_event", { title: `Talk [[${GUESS}]]`, day: "2026-11-14", start: "10:00" }],
   ["rename_note", { path: "Projects/Pay.md", title: "Pay 2026" }],
   ["move_note", { path: "Projects/Pay.md", folder: "Archive" }],
+  ["move_note", { path: "Projects/Pay.md", folder: "Projects/Archive" }],
   ["delete_note", { path: "Projects/Pay.md" }],
 ];
+
+/** What a poisoned text starts with: a tool that shows it took the text past the building block. */
+const POISON = "☠";
+
+/**
+ * Every text a dependency of the tools hands over, by the dependency and the field it stands in (`search.title`,
+ * `history.changedIn.title`; `*` stands for any field below), and how it may reach an answer (review of R19, wave 2):
+ * "name" is what the index holds of a note's title or properties — a tool takes that from the building block
+ * (`notesAsSeen`, `queryDatabaseFiles` with `withhold`) for such a reader, or shows nothing of it, so the guard poisons
+ * it —; "text" is what the text barrier shows as the reader may see it, the view of the building block itself, or
+ * names no note.
+ */
+const FIELDS: Record<string, "name" | "text"> = {
+  "search.path": "text",
+  "search.title": "name",
+  "search.snippet": "text",
+  "search.content": "text",
+  readNote: "text",
+  resolveLink: "text",
+  linkCandidates: "text",
+  // The gate's own answer about a note: never shown, it decides what is.
+  "policyOf.*": "text",
+  "taskRows.id": "text",
+  "taskRows.source": "text",
+  "taskRows.path": "text",
+  "taskRows.noteTitle": "name",
+  // A task's own text through the text barrier; a row of the task database read through the view (`withhold`).
+  "taskRows.title": "text",
+  "taskRows.state": "text",
+  "taskRows.due": "text",
+  "taskRows.status": "text",
+  "taskRows.dbStatus": "text",
+  "taskRows.tags": "text",
+  "taskRows.line.text": "text",
+  "taskRows.line.taskId": "text",
+  "taskRows.details": "text",
+  "taskRows.parentId": "text",
+  "taskRows.priority": "text",
+  todayKey: "text",
+  "commands.id": "text",
+  "commands.label": "text",
+  "backlinks.source_path": "text",
+  "backlinks.source_title": "name",
+  "backlinks.target_path": "text",
+  "backlinks.link_type": "text",
+  // A heading of the note asked about, which the reader reads itself.
+  "backlinks.anchor": "text",
+  // The key a link stands under in the linking note's properties: the index's, never shown.
+  "backlinks.property_key": "name",
+  "neighbors.path": "text",
+  "neighbors.title": "name",
+  "recentlyOpened.path": "text",
+  "recentlyChanged.path": "text",
+  "recentlyChanged.title": "name",
+  // The rows of a database come out of the building block itself (`queryDatabaseFiles` with `withhold`).
+  "queryDatabase.*": "text",
+  moodKey: "text",
+  // The calendar's and the mail's texts name no note's title; they pass the text barrier.
+  "events.*": "text",
+  "mail.*": "text",
+  "memory.*": "text",
+  "writes.*": "text",
+  "history.changedIn.path": "text",
+  "history.changedIn.title": "name",
+  "history.versions.id": "text",
+  "history.readVersion": "text",
+};
+
+/**
+ * Every dependency the tools can be given (`VaultToolDeps`): the guard's vault gives each one, so a new one fails the
+ * typecheck until it stands here, and this guard until the vault gives it.
+ */
+const EVERY_DEPENDENCY: Record<keyof VaultToolDeps, true> = {
+  search: true,
+  readNote: true,
+  resolveLink: true,
+  linkCandidates: true,
+  policyOf: true,
+  taskRows: true,
+  todayKey: true,
+  commands: true,
+  backlinks: true,
+  neighbors: true,
+  recentlyOpened: true,
+  recentlyChanged: true,
+  history: true,
+  events: true,
+  queryDatabase: true,
+  notesAsSeen: true,
+  moodKey: true,
+  mail: true,
+  writes: true,
+  memory: true,
+};
+
+/** Dependencies no question of the guard reaches, and why nothing of theirs can name a note there. */
+const UNASKED: Record<string, string> = {};
+
+/** The place of a field (`FIELDS`): its own line, or the nearest `*` above it. */
+function fieldOf(label: string): "name" | "text" | undefined {
+  if (label in FIELDS) return FIELDS[label];
+  const parts = label.split(".");
+  for (let i = parts.length - 1; i > 0; i--) {
+    const wild = FIELDS[`${parts.slice(0, i).join(".")}.*`];
+    if (wild) return wild;
+  }
+  return undefined;
+}
+
+const plainObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+
+/** Every dependency that is a function, by its place (`history.changedIn`). */
+function dependencyNames(deps: object, at = ""): string[] {
+  const names: string[] = [];
+  for (const [key, value] of Object.entries(deps)) {
+    if (typeof value === "function") names.push(`${at}${key}`);
+    else if (plainObject(value)) names.push(...dependencyNames(value, `${at}${key}.`));
+  }
+  return names;
+}
+
+/** What a dependency hands over, every text of it noted by its field (`seen`), and poisoned where it names a note. */
+function poisonOut(value: unknown, label: string, seen: Set<string>): unknown {
+  if (typeof value === "string") {
+    seen.add(label);
+    return fieldOf(label) === "name" && value ? `${POISON}${value}` : value;
+  }
+  if (Array.isArray(value)) return value.map((item) => poisonOut(item, label, seen));
+  if (plainObject(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, poisonOut(item, `${label}.${key}`, seen)]));
+  if (value !== null && typeof value === "object") seen.add(`${label}<${(value as object).constructor?.name ?? "object"}>`);
+  return value;
+}
+
+/** The dependencies with every answer of theirs passed through `poisonOut`, each call noted (`called`). */
+function poisoned(deps: object, seen: Set<string>, called: Set<string>, at = ""): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(deps)) {
+    const label = `${at}${key}`;
+    if (typeof value === "function") {
+      out[key] = (...args: unknown[]) => {
+        called.add(label);
+        const answer = (value as (...a: unknown[]) => unknown)(...args);
+        return answer instanceof Promise ? answer.then((resolved) => poisonOut(resolved, label, seen)) : poisonOut(answer, label, seen);
+      };
+    } else if (plainObject(value)) out[key] = poisoned(value, seen, called, `${label}.`);
+    else out[key] = value;
+  }
+  return out;
+}
 
 describe("the reader-view guard on the real search path", () => {
   it("asks every read tool and every write tool such a reader reaches: a new one needs its question here", async () => {
@@ -331,35 +501,42 @@ describe("the reader-view guard on the real search path", () => {
     });
 
     /**
-     * Every tool on the list names a note by the title its view gives (`notesAsSeen`), never by the one the index
-     * holds (review of R19, wave 2): every title the index's lists hand the tools is poisoned here, and the building
-     * block answers for every note. A tool that took a title past it — a sixth place, a new tool — names a note by
-     * the poison.
+     * Every tool on the list names a note by the title its view gives (`notesAsSeen`), never by what the index holds
+     * (review of R19, wave 2): every text any dependency hands the tools is sorted by where it stands (`FIELDS`), and
+     * each that names a note by what the index holds of it is poisoned here, while the building block answers for
+     * every note. A tool that took such a text past the building block names a note by the poison; a field or a
+     * dependency nobody sorted yet turns this red until it has its line.
      */
-    it(`${who}: no tool names a note by a title the index holds past the reader's view of it`, async () => {
+    it(`${who}: no tool names a note by a text the index holds past the reader's view of it`, async () => {
       const v = await vaultOf(HIDDEN[0]);
-      const POISON = "☠";
-      const poisoned = <T extends string | null | undefined>(title: T, path: string): T => (typeof title === "string" && title ? (`${POISON}${path}` as T) : title);
+      const seen = new Set<string>();
+      const called = new Set<string>();
       const real = v.deps;
-      const deps: VaultToolDeps = {
-        ...real,
-        search: async (...args) => (await real.search(...args)).map((hit) => ({ ...hit, title: poisoned(hit.title, hit.path) })),
-        backlinks: async (...args) => (await real.backlinks!(...args)).map((row) => ({ ...row, source_title: poisoned(row.source_title, row.source_path) })),
-        neighbors: async (...args) => (await real.neighbors!(...args)).map((row) => ({ ...row, title: poisoned(row.title, row.path) })),
-        recentlyChanged: async (...args) => (await real.recentlyChanged!(...args)).map((row) => ({ ...row, title: poisoned(row.title, row.path) })),
-        history: { ...real.history!, changedIn: async (...args) => (await real.history!.changedIn(...args)).map((row) => ({ ...row, title: poisoned(row.title, row.path) })) },
-        taskRows: async (...args) => (await real.taskRows(...args)).map((row) => ({ ...row, noteTitle: poisoned(row.noteTitle, row.path) })),
-        // The building block answers for every note: by the name of its file where its view withholds nothing.
-        notesAsSeen: async (paths, reach, rule) => {
-          const seen = new Map(await real.notesAsSeen!(paths, reach, rule));
-          for (const path of paths) if (!seen.has(path)) seen.set(path, { title: path.replace(/^.*\//, "").replace(/\.md$/, ""), tags: [] });
-          return seen;
-        },
+      const deps = poisoned(real, seen, called) as unknown as VaultToolDeps;
+      // The building block answers for every note: by the name of its file where its view withholds nothing.
+      deps.notesAsSeen = async (paths, reach, rule) => {
+        called.add("notesAsSeen");
+        const found = new Map(await real.notesAsSeen!(paths, reach, rule));
+        for (const path of paths) if (!found.has(path)) found.set(path, { title: path.replace(/^.*\//, "").replace(/\.md$/, ""), tags: [] });
+        return found;
       };
       for (const [name, args] of questions(eventHandle(v.event)!)) {
         const out = await createVaultToolExecutor(deps, { recipient: cloud, webTools: web }, scope, undefined, { more: furtherToolNames(deps) }).execute(toolByName(name)!, args, { type: "tool_call", id: "c", name, args });
         expect(JSON.stringify(out), `${name} ${JSON.stringify(args)}`).not.toContain(POISON);
       }
+      for (const [name, args] of WRITES) {
+        const out = await createVaultToolExecutor(deps, { recipient: cloud, webTools: web }, scope, undefined, { more: furtherToolNames(deps) }, writer()).execute(toolByName(name)!, args, { type: "tool_call", id: "c", name, args });
+        expect(JSON.stringify(out), `${name} ${JSON.stringify(args)}`).not.toContain(POISON);
+      }
+      // Every dependency is given, every field a dependency handed over has its place, and every dependency was asked
+      // or says why it is not.
+      const functions = dependencyNames(real);
+      expect({
+        notGiven: Object.keys(EVERY_DEPENDENCY).filter((key) => !(key in real)),
+        unsorted: [...seen].filter((label) => fieldOf(label) === undefined).sort(),
+        unasked: functions.filter((label) => !called.has(label) && !(label in UNASKED)).sort(),
+        listedButAsked: Object.keys(UNASKED).filter((label) => called.has(label) || !functions.includes(label)).sort(),
+      }).toEqual({ notGiven: [], unsorted: [], unasked: [], listedButAsked: [] });
       await v.done();
     });
 
@@ -447,7 +624,11 @@ describe("the reader-view guard on the real search path", () => {
       };
       const found = ["Projects/Weekly.md", "Projects/Second.md", "Projects/Plan.md", "Projects/Pay.md"].map((path, i) => ({ path, title: path.replace(/^.*\//, "").replace(/\.md$/, ""), signals: { lexical: i === 0 ? 0.4 : 0.1 } }));
       const active = { ...situation.active, path: open, title: open.replace(/^.*\//, "").replace(/\.md$/, ""), properties };
-      const out = await buildContextPackage({ question: "How do the rounds go?", recipient: cloud, situation: { ...situation, active }, candidates: [found], pins: [], budget: { evidence: 0, cards: 2, map: 6 } }, host);
+      // The due tasks as both shells hand them to the package: the task database read through the reader's view.
+      const rows = await v.deps.taskRows(situationReach((path) => v.policy.policyOf(path), { recipient: cloud, webTools: false }));
+      const { tasks } = situationFrom({ now: new Date(2026, 10, 13, 10), active: null, taskRows: rows });
+      expect(tasks.length).toBeGreaterThan(5);
+      const out = await buildContextPackage({ question: "How do the rounds go?", recipient: cloud, situation: { ...situation, active, tasks }, candidates: [found], pins: [], budget: { evidence: 0, cards: 2, map: 6 } }, host);
       return out.part.text;
     };
     // The summaries are there: written for the notes, among them one that shares its section with the hidden note.
