@@ -594,8 +594,9 @@ export async function applyProfileValues(
     window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
     window.dispatchEvent(new CustomEvent(BAR_LAYOUT_CHANGED_EVENT));
     window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT));
-    // The daily-note naming from another device: task lists and databases of
-    // every window on this vault read it again (F8 of release 0.9.0).
+    // The task database and the daily-note naming among them: their readers
+    // read again (useTaskDatabaseSetting, useDayBoundary), in every window on
+    // this vault (F8 of release 0.9.0).
     window.dispatchEvent(new CustomEvent(FEATURES_SAVED_EVENT));
     announceVaultFeaturesSaved(vaultPath);
   }

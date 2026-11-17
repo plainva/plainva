@@ -11,6 +11,9 @@ vi.mock("../../../mobile/src/platform/atomicFile", () => ({
   atomicWriteText: vi.fn(async (path: string, data: string) => {
     journalFiles.set(path, data);
   }),
+  atomicWriteInternalText: vi.fn(async (path: string, data: string) => {
+    journalFiles.set(path, data);
+  }),
 }));
 import {
   canonicalSecretId,

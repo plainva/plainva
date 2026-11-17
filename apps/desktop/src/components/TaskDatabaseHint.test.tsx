@@ -32,16 +32,16 @@ afterEach(() => {
   container.remove();
 });
 
-function View({ problems, onCreate }: { problems: PimSyncProblem[]; onCreate?: () => void }) {
+function View({ problems, onCreate, taskDatabase }: { problems: PimSyncProblem[]; onCreate: () => void; taskDatabase: string | null }) {
   return (
     <>
       <CalendarSyncNotice problems={withoutTaskDatabaseLines(problems)} onRetry={() => {}} />
-      <TaskDatabaseHint vault="/vault" problems={problems} onCreate={onCreate} />
+      <TaskDatabaseHint vault="/vault" problems={problems} taskDatabase={taskDatabase} onCreate={onCreate} />
     </>
   );
 }
-const render = async (problems: PimSyncProblem[], onCreate?: () => void) => {
-  await act(async () => root.render(<View problems={problems} onCreate={onCreate} />));
+const render = async (problems: PimSyncProblem[], onCreate: () => void = () => {}, taskDatabase: string | null = null) => {
+  await act(async () => root.render(<View problems={problems} onCreate={onCreate} taskDatabase={taskDatabase} />));
 };
 const hints = () => container.querySelectorAll("[data-testid=task-db-hint]");
 const warning = () => container.querySelector("[data-testid=calendar-sync-notice]");
@@ -78,6 +78,12 @@ describe("the hint for a missing task database (issue 172)", () => {
     root = createRoot(container);
     await render([line("l1", "no-task-db")]);
     expect(hints()).toHaveLength(1);
+  });
+
+  it("is gone once a task database is set, whatever line an earlier run left: no second database", async () => {
+    await render([line("l1", "no-task-db")], () => {}, "Tasks.base");
+    expect(hints()).toHaveLength(0);
+    expect(container.querySelector("[data-testid=task-db-hint-create]")).toBeNull();
   });
 
   it("keeps real faults yellow, beside the quiet line", async () => {

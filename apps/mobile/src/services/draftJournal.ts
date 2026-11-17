@@ -1,4 +1,4 @@
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Encoding, Filesystem } from "@capacitor/filesystem";
 import {
   createDraftJournal,
   createDraftWriter,
@@ -10,7 +10,8 @@ import {
   type DraftWriter,
   type DraftJournalStorage,
 } from "@plainva/ui";
-import { atomicWriteText } from "../platform/atomicFile";
+import { atomicWriteInternalText } from "../platform/atomicFile";
+import { internalPlace } from "../platform/internalFiles";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -24,9 +25,10 @@ import type { MobileVault } from "./vaultService";
  * What is the phone's own here:
  *
  * - **Where the files lie:** `drafts/<vault id>/<note path in URL-safe
- *   base64>.json` under `Directory.Data`, as the phone always wrote them, so a
- *   draft an older version left is found.
- * - **How a file is written:** through `atomicWriteText` — the native plugin
+ *   base64>.json` among the app's own files (`internalFiles.ts`: the private
+ *   data folder on Android, `Library/PlainvaData` on iOS, where the drafts an
+ *   older version left in `Documents` are moved before the first read).
+ * - **How a file is written:** through `atomicWriteInternalText` — the native plugin
  *   fsyncs and renames into place, so the crash the journal exists for cannot
  *   tear it (finding 2026-08-19).
  * - **Whose entry it is:** one session per run of the app (`RUN_SESSION`); the
@@ -59,7 +61,8 @@ function draftFile(v: MobileVault, path: string): string {
 /** Whether `file` is there: a failed stat is "not there" only for what the platform calls missing. */
 async function isThere(file: string): Promise<boolean> {
   try {
-    await Filesystem.stat({ path: file, directory: Directory.Data });
+    const place = await internalPlace(file);
+    await Filesystem.stat({ path: place.path, directory: place.directory });
     return true;
   } catch {
     return false;
@@ -69,7 +72,8 @@ async function isThere(file: string): Promise<boolean> {
 const storage: DraftJournalStorage = {
   async read(file) {
     try {
-      const res = await Filesystem.readFile({ path: file, directory: Directory.Data, encoding: Encoding.UTF8 });
+      const place = await internalPlace(file);
+      const res = await Filesystem.readFile({ path: place.path, directory: place.directory, encoding: Encoding.UTF8 });
       return String(res.data);
     } catch (error) {
       // Present but unreadable (an I/O fault) throws, and nothing is written over it.
@@ -77,17 +81,19 @@ const storage: DraftJournalStorage = {
       throw error;
     }
   },
-  write: (file, text) => atomicWriteText(file, text),
+  write: (file, text) => atomicWriteInternalText(file, text),
   async remove(file) {
     try {
-      await Filesystem.deleteFile({ path: file, directory: Directory.Data });
+      const place = await internalPlace(file);
+      await Filesystem.deleteFile({ path: place.path, directory: place.directory });
     } catch (error) {
       if (await isThere(file)) throw error;
     }
   },
   async list(dir) {
     try {
-      const listed = await Filesystem.readdir({ path: dir, directory: Directory.Data });
+      const place = await internalPlace(dir);
+      const listed = await Filesystem.readdir({ path: place.path, directory: place.directory });
       return listed.files.map((f) => ({ name: f.name, isFile: f.type === "file", mtimeMs: typeof f.mtime === "number" ? f.mtime : null }));
     } catch {
       return [];

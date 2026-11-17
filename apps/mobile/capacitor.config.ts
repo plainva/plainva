@@ -17,6 +17,13 @@ const config: CapacitorConfig = {
     Keyboard: {
       resize: KeyboardResize.Native,
     },
+    // iOS: the databases live outside Documents, which the app shares with
+    // the Files app (release list A11). Existing ones are moved at the first
+    // start (src/adapters/iosDatabaseFolder.ts). Android keeps them in the
+    // app's private databases folder and ignores this.
+    CapacitorSQLite: {
+      iosDatabaseLocation: "Library/CapacitorDatabase",
+    },
   },
 };
 

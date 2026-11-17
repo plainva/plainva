@@ -1,6 +1,6 @@
 # Geheugen (Beta)
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-16
 
 Het geheugen bewaart wat de AI over jou en je werk moet weten zonder dat je het opnieuw hoeft te vertellen: wat je doet, hoe je je antwoorden het liefst wilt hebben, wie je klanten zijn. Het zijn twee bestanden in je vault. Er komt niets in zonder jouw ja, en je kunt elk item lezen, wijzigen en verwijderen.
 
@@ -38,7 +38,7 @@ Zoals alle instructies moet het bestand op elk apparaat worden goedgekeurd voord
 
 Een geheugen dat is gegroeid, herhaalt zichzelf. Onder **Opruimen** noemt de geheugenweergave wat dit apparaat zelf heeft opgemerkt, zonder een model te raadplegen: twee items die bijna hetzelfde zeggen, een item dat meer dan een jaar oud is, en items van **Altijd erbij** die niet meer passen. **Vergelijken** toont de twee items samen, elk met alles wat zijn menu kan.
 
-Voor een nadere blik is er een vaardigheid. **Geheugen onderhouden** leest de items met het model van een gesprek en stelt een concept op van wat bij elkaar hoort en wat weg kan; de rij **Het geheugen laten doornemen** start haar. Wat ze voorstelt, zijn concepten zoals alle andere: niets verandert voordat je het overneemt, en waar twee items elkaar tegenspreken, vraagt ze het je in plaats van te beslissen.
+Voor een nadere blik is er een vaardigheid. **Geheugen onderhouden** leest de items met het model van een gesprek en stelt een concept op van wat bij elkaar hoort en wat weg kan; de rij **Het geheugen laten doornemen** start haar — ze staat onder **Opruimen** zodra daar iets genoemd wordt. Wat ze voorstelt, zijn concepten zoals alle andere: niets verandert voordat je het overneemt, en waar twee items elkaar tegenspreken, vraagt ze het je in plaats van te beslissen.
 
 ## Schrijfstijl
 
@@ -52,12 +52,12 @@ De stijl staat op dit apparaat, niet in de vault: op een ander apparaat kies je 
 
 ## Privacy
 
-- Een item kan een eigen regel dragen: **Niet naar cloudmodellen**, **Niet in gesprekken met internet**. Een model op dit apparaat krijgt elk item.
+- Een item kan een eigen regel dragen: **Niet naar cloudmodellen**, **Niet in gesprekken met internet**. Een model op dit apparaat krijgt elk item dat leesbaar en kort genoeg is — behalve in een gesprek met internet, waar een item met het label **Niet in gesprekken met internet** ook hier buiten blijft.
 - Een item dat de AI heeft opgesteld in een gesprek waarin notities met een privacyregel zijn gelezen, krijgt dezelfde regels — op de kaart staat **Het item krijgt de privacyregels van de notities waarop dit gesprek berustte.** Wat afkomstig is uit een notitie die op dit apparaat moet blijven, komt via het geheugen niet bij een cloud terecht.
 - Je [privacyregels](AI_Assistant.md) gelden ook voor de twee bestanden: een mapregel voor `.agent/` houdt het hele geheugen van de cloud weg.
 - Het verzendoverzicht heeft een rij **Geheugen** — hoeveel items er meegaan — en telt de items die je regels achterhouden onder **Achtergehouden**. Het noemt nooit een item.
 - Voor de AI is een item informatie, geen instructie: een zin in het geheugen geeft geen rechten.
-- Een gesprek behoudt het geheugen waarmee het is begonnen. Een item dat je verwijdert, gaat naar geen enkel nieuw gesprek; gesprekken die al zijn begonnen, behouden wat ze hebben meegekregen.
+- Een gesprek behoudt wat het geheugen het bij het begin meegaf — de items onder **Altijd erbij**. Een item dat je verwijdert, gaat naar geen enkel nieuw gesprek; gesprekken die al zijn begonnen, behouden wat ze hebben meegekregen, en wat ze later opzoeken komt uit de bestanden zoals die dan zijn.
 
 ## Uitschakelen
 
@@ -76,4 +76,4 @@ De stijl staat op dit apparaat, niet in de vault: op een ander apparaat kies je 
 
 `added` en `by` zeggen wanneer het item is toegevoegd en of je het zelf hebt geschreven of een concept hebt geaccepteerd, `source` noemt het gesprek waaruit een concept afkomstig is, en `deny` bevat de regels ervan (`cloud`, `web`). Je kunt de bestanden in elke editor bewerken. In Plainva opent **Bestand openen** elk van de twee.
 
-Plainva gaat niet raden. Een item waarvan het commentaar beschadigd is, wordt gemarkeerd met **Regels onleesbaar — gaat naar geen enkel model** totdat je het commentaar herstelt of het item opnieuw toevoegt. Tekst die verborgen is in een commentaar of in onzichtbare tekens, wordt nooit verzonden; het item toont dan hoeveel verborgen delen zijn weggelaten. Een bestand bevat hoogstens 2.000 items en 256 KB.
+Plainva gaat niet raden. Een item waarvan het commentaar beschadigd is, wordt gemarkeerd met **Regels onleesbaar — gaat naar geen enkel model** totdat je het commentaar herstelt of het item opnieuw toevoegt. Tekst die verborgen is in een commentaar of in onzichtbare tekens, wordt nooit verzonden; het item toont dan hoeveel verborgen delen zijn weggelaten. Van een bestand worden hoogstens 2.000 items gelezen, en een bestand groter dan 256 KB wordt helemaal niet gelezen.

@@ -205,7 +205,7 @@ export default function App() {
   // none, the shell shows where the boot stands (issue 143).
   const { vault, boot } = useVaultBoot({
     onOpened: (v, first) => {
-      if (first) void restoreSession(v, setNav).finally(() => window.dispatchEvent(new Event("m-connect-run-changed")));
+      if (first) void restoreSession(v, setNav, navRef.current).finally(() => window.dispatchEvent(new Event("m-connect-run-changed")));
       else setBump((n) => n + 1);
       void adoptBar(v.vaultId);
     },

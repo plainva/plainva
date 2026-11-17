@@ -5982,7 +5982,7 @@
     "legacyNamesNoLinks": "Linki do tych notatek zostaną dostosowane (tutaj: brak).",
     "legacyNamesClean": "Uporządkuj nazwy…",
     "legacyNamesHide": "Ukryj",
-    "taskDbHint": "Listy zadań dostawcy potrzebują domyślnej bazy zadań: ich zadania stają się w niej notatkami. „Utwórz nową bazę…” tworzy ją i ustawia.",
+    "taskDbHint": "Listy zadań dostawcy potrzebują domyślnej bazy zadań, aby stać się notatkami. „Utwórz nową bazę…” tworzy ją.",
     "taskDbHintHide": "Ukryj",
     "legacyNamesConfirmTitle": "Uporządkować nazwy?",
     "legacyNamesConfirmMsg_one": "1 notatka zadania otrzyma tytuł jako nazwę; linki do niej zostaną dostosowane. Pozostałe urządzenia otrzymają to jako przeniesienie, gdy będą miały tę samą wersję. Starsza wersja widzi tam usunięte i nowe notatki: może zapytać o usunięcie albo zostawić starą nazwę obok nowej — najlepiej wcześniej zaktualizować te urządzenia.",
