@@ -5578,6 +5578,7 @@
     "backupZipNever": "Noch keine Sicherung",
     "backupZipDone": "Sicherung erstellt: {{name}}",
     "backupZipFailed": "Die Sicherung für „{{name}}“ konnte nicht erstellt werden. Bisherige Archive bleiben erhalten. Du kannst die Sicherung in den Vault-Einstellungen erneut starten.",
+    "backupZipLastFailed": "Letzte Sicherung fehlgeschlagen",
     "backupUnreadableTitle": "Ältere Sicherungen sind nicht lesbar",
     "backupUnreadableBody": "In der Dateien-App bleiben sie erreichbar.",
     "backupUnreadableShort": "Einige Dateien in {{folder}} sind seit einer Neuinstallation nicht lesbar; sie werden weder gezählt noch aufgeräumt.",

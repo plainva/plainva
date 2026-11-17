@@ -5460,6 +5460,7 @@
     "backupZipNever": "まだバックアップなし",
     "backupZipDone": "バックアップを作成しました: {{name}}",
     "backupZipFailed": "「{{name}}」のバックアップを作成できませんでした。以前のアーカイブは保持されています。保管庫の設定から再試行できます。",
+    "backupZipLastFailed": "前回のバックアップに失敗",
     "backupUnreadableTitle": "以前のバックアップは読み取れません",
     "backupUnreadableBody": "ファイルアプリからは引き続き開けます。",
     "backupUnreadableShort": "{{folder}} 内の一部のファイルは、再インストール以降は読み取れません。数えられず、整理もされません。",

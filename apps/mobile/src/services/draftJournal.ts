@@ -11,7 +11,7 @@ import {
   type DraftJournalStorage,
 } from "@plainva/ui";
 import { atomicWriteInternalText } from "../platform/atomicFile";
-import { internalPlace } from "../platform/internalFiles";
+import { internalPlace, listInternalFolder } from "../platform/internalFiles";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -92,9 +92,8 @@ const storage: DraftJournalStorage = {
   },
   async list(dir) {
     try {
-      const place = await internalPlace(dir);
-      const listed = await Filesystem.readdir({ path: place.path, directory: place.directory });
-      return listed.files.map((f) => ({ name: f.name, isFile: f.type === "file", mtimeMs: typeof f.mtime === "number" ? f.mtime : null }));
+      const listed = await listInternalFolder(dir);
+      return listed.map((f) => ({ name: f.name, isFile: f.type === "file", mtimeMs: f.mtime }));
     } catch {
       return [];
     }
