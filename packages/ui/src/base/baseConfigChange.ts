@@ -1,5 +1,5 @@
 import { applyTextShape, editorTextOf, readTextShape, updateVaultText, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
-import { parseBaseConfig, serializeBaseConfig } from "./baseFormat";
+import { fromPropId, parseBaseConfig, serializeBaseConfig, toPropId } from "./baseFormat";
 import { migrateFiltersToPerView } from "./filterExpr";
 
 /**
@@ -22,15 +22,24 @@ import { migrateFiltersToPerView } from "./filterExpr";
  * - Objects merge key by key. A single value both sides changed differently
  *   is the screen's: the user's own action wins.
  * - A list of distinct entries (columns in `order`, the cards of a pinboard,
- *   the options of a select property, filter conditions) merges entry by
- *   entry: what the other side added stays added, what it removed stays
- *   removed, what the screen added or removed likewise; the order is the
- *   screen's, an entry only the other side has stands after the entry it
- *   follows there. Any other list (a sort) is one value.
+ *   the options of a select property) merges entry by entry: what the other
+ *   side added stays added, what it removed stays removed, what the screen
+ *   added or removed likewise; the order is the screen's, an entry only the
+ *   other side has stands after the entry it follows there. Any other list (a
+ *   sort) is one value.
+ * - A filter both sides changed is one value, the screen's: rules merged from
+ *   two edits make a filter neither side wrote.
+ * - A container the screen emptied (the last summary, the cover that was a
+ *   view's last `plainva` key, the last pinned card, the last property) keeps
+ *   what the other side added to it meanwhile. An entry the screen removed —
+ *   a property, a formula, a summary, a width — goes whole, whatever the other
+ *   side set on it; a property goes from `properties` and `columns` alike.
  * - A view of `shown` is found in the file by being EQUAL to one there (the
- *   other side did not touch it; its name aside where the screen never named
- *   it), then by its name where that name is unique on both sides, then — a
- *   view only renamed elsewhere — by being equal but for the name. A name is
+ *   other side did not touch it) under its name — a view the screen never
+ *   named under none, or the one the serializer gave it —, then by its name
+ *   where that name is unique on both sides and no unclaimed view of the file
+ *   is equal to it under another, then — a view only renamed elsewhere — by
+ *   being equal but for the name, as the only such. A name is
  *   compared as text: a view called `2024` or `true` is the same view however
  *   YAML reads the name. A view is never found by its position, and never
  *   guessed: a view the screen changed, removed or moved that cannot be found
@@ -171,34 +180,62 @@ function mergeList(base: unknown[], ours: unknown[], theirs: unknown[]): unknown
   return out;
 }
 
+/** The maps whose entries are things of their own (a property, a formula, a column's summary or width): one the user removed goes whole. */
+const ENTITY_MAPS = new Set(["properties", "columns", "formulas", "summaries", "widths"]);
+/** Values that merge as one: a filter both sides changed is the user's (a rule merged from two edits means what neither wrote). */
+const WHOLE_VALUES = new Set(["filters"]);
+
+/** The empty container of a value's kind (`undefined` for a scalar): what a container the user emptied reads as. */
+function emptyOf(v: unknown): unknown {
+  if (Array.isArray(v)) return [];
+  if (isPlainObject(v)) return {};
+  return undefined;
+}
+
+function isEmptyContainer(v: unknown): boolean {
+  return (Array.isArray(v) && v.length === 0) || (isPlainObject(v) && Object.keys(v).every((k) => v[k] === undefined));
+}
+
 /**
  * Three-way merge of plain data: what `ours` changed against `base` is set on
  * `theirs`; the rest stays as `theirs` has it. Objects merge key by key (in
  * `ours`' key order, keys only `theirs` has after them); lists of distinct
- * entries entry by entry; other lists and scalars are whole values — `ours`
- * wins where it changed one.
+ * entries entry by entry; other lists, filters and scalars are whole values —
+ * `ours` wins where it changed one. `key` is the key the value stands under.
+ *
+ * A key `ours` no longer has (it was in `base`) is the user's removal: a
+ * scalar, a filter, or an entry of an ENTITY_MAPS map (a property deleted)
+ * goes whole, whatever `theirs` did to it. Any other container — the
+ * serializer drops one the user emptied (the last summary, the cover that was
+ * a view's last `plainva` key, the last property) — reads as emptied: what was
+ * in it goes, what `theirs` added to it since stays.
  */
-function merge3(base: any, ours: any, theirs: any): any {
+function merge3(base: any, ours: any, theirs: any, key?: string): any {
   if (same(ours, base)) return theirs;
   if (same(theirs, base)) return ours;
+  if (key !== undefined && WHOLE_VALUES.has(key)) return ours;
   if (Array.isArray(ours) && Array.isArray(theirs)) return mergeList(Array.isArray(base) ? base : [], ours, theirs);
   if (!isPlainObject(ours) || !isPlainObject(theirs)) return ours;
   const b = isPlainObject(base) ? base : {};
+  const entities = key !== undefined && ENTITY_MAPS.has(key);
   const out: Record<string, any> = {};
-  for (const k of Object.keys(ours)) {
-    if (k in theirs) {
-      out[k] = merge3(b[k], ours[k], theirs[k]);
+  const has = (o: Record<string, any>, k: string) => o[k] !== undefined;
+  const keys = [...Object.keys(ours), ...Object.keys(theirs).filter((k) => !(k in ours))];
+  for (const k of keys) {
+    if (has(ours, k) && has(theirs, k)) { out[k] = merge3(b[k], ours[k], theirs[k], k); continue; }
+    if (has(ours, k)) {
+      // Removed there and left as it was here: the removal stands.
+      if (has(b, k) && same(ours[k], b[k])) continue;
+      out[k] = ours[k];
       continue;
     }
-    // Removed there and left as it was here: the removal stands.
-    if (ours[k] === undefined || (k in b && same(ours[k], b[k]))) continue;
-    out[k] = ours[k];
-  }
-  for (const k of Object.keys(theirs)) {
-    if (k in out) continue;
-    // Removed here (it was in `base`, `ours` dropped it): stays removed — the user's own action.
-    if (k in b && !(k in ours)) continue;
-    out[k] = theirs[k];
+    if (!has(theirs, k)) continue;
+    if (!has(b, k)) { out[k] = theirs[k]; continue; } // added there
+    // Removed here (the user's own action).
+    const emptied = entities || WHOLE_VALUES.has(k) ? undefined : emptyOf(b[k]);
+    if (emptied === undefined) continue;
+    const kept = merge3(b[k], emptied, theirs[k], k);
+    if (!isEmptyContainer(kept)) out[k] = kept;
   }
   return out;
 }
@@ -233,12 +270,14 @@ function comparable(v: any): any {
  * screens keep an unchanged view as the same object, or deep-clone the whole
  * config: so an untouched view is found by reference, then by equal data
  * (its own place first); a changed one by its name, where that is unique
- * among the views left; a renamed one by being equal but for its name. What
- * is left is added (in `next`) or removed (in `shown`) — never paired by its
- * place: a view added and another renamed in one change are no edit of each
- * other.
+ * among the views left (a view never named by the name the serializer gives
+ * it); a renamed one by being equal but for its name. Where as many views
+ * are left on both sides, one action changed them in place (a property
+ * deleted from every view showing it): they pair in their order. Otherwise
+ * what is left is added (in `next`) or removed (in `shown`): a view added and
+ * another renamed in one change are no edit of each other.
  */
-function pairViews(shown: any[], next: any[]): number[] {
+function pairViews(shown: any[], next: any[], shownRead: any[], nextRead: any[]): number[] {
   const pair = new Array<number>(next.length).fill(-1);
   const taken = new Set<number>();
   const take = (j: number, i: number) => { pair[j] = i; taken.add(i); };
@@ -253,17 +292,28 @@ function pairViews(shown: any[], next: any[]): number[] {
   });
   const leftShown = () => shown.map((_, i) => i).filter((i) => !taken.has(i));
   const leftNext = () => next.map((_, j) => j).filter((j) => pair[j] < 0);
+  // A view the screen never named goes by the name the serializer gives it:
+  // the same where the change made to it added, removed or moved no view.
+  const shownName = (i: number) => viewName(shown[i]) ?? viewName(shownRead[i]);
+  const nextName = (j: number) => viewName(next[j]) ?? viewName(nextRead[j]);
   for (const j of leftNext()) {
-    const name = viewName(next[j]);
+    const name = nextName(j);
     if (name === null) continue;
-    const named = leftShown().filter((i) => viewName(shown[i]) === name);
-    const alike = leftNext().filter((k) => viewName(next[k]) === name);
+    const named = leftShown().filter((i) => shownName(i) === name);
+    const alike = leftNext().filter((k) => nextName(k) === name);
     if (named.length === 1 && alike.length === 1) take(j, named[0]);
   }
   for (const j of leftNext()) {
     const alike = leftShown().filter((i) => same(comparable(shown[i]), comparable(next[j])));
     if (alike.length === 1) take(j, alike[0]);
   }
+  // One action changed several views alike (a property deleted or renamed
+  // reaches every view that shows it), and none was added, removed or moved:
+  // as many views are left on both sides, and they are the same views in the
+  // same order. Where the numbers differ, what is left is added or removed.
+  const restShown = leftShown();
+  const restNext = leftNext();
+  if (restShown.length === restNext.length && restNext.length > 0) restNext.forEach((j, k) => take(j, restShown[k]));
   return pair;
 }
 
@@ -281,30 +331,57 @@ function findInFile(named: any[], read: any[], current: any[]): number[] {
   const readSig = read.map((v) => signature(comparable(v)));
   const currentSig = current.map((v) => signature(comparable(v)));
   const equal = (i: number, k: number) => readSig[i] === currentSig[k];
-  // 1. Equal to a view of the file: untouched there. Its own place first among equals.
+  // 1. Equal to a view of the file: untouched there. A view the screen never
+  // named fits one the file holds without a name, or under the name the
+  // serializer gave it when the screen wrote it — never one of another name
+  // (its own duplicate "Table Kopie" is equal but for the name). Its own place
+  // first among equals; equals of different names are no certain match.
   read.forEach((_, i) => {
-    const name = viewName(named[i]);
-    const fits = (k: number) => !taken.has(k) && (name === null || viewName(current[k]) === name) && equal(i, k);
-    if (i < current.length && fits(i)) return take(i, i);
-    const k = current.findIndex((_, k) => fits(k));
-    if (k >= 0) take(i, k);
+    const own = viewName(named[i]);
+    const written = viewName(read[i]);
+    const nameFits = (k: number) => {
+      const there = viewName(current[k]);
+      return own !== null ? there === own : there === null || there === written;
+    };
+    const fits = current.map((_, k) => k).filter((k) => !taken.has(k) && nameFits(k) && equal(i, k));
+    if (fits.length === 0) return;
+    if (new Set(fits.map((k) => viewName(current[k]))).size > 1) return;
+    take(i, fits.includes(i) ? i : fits[0]);
   });
-  // 2. By a name that is unique on both sides.
+  // 2. By a name that is unique on both sides — unless a view the file holds
+  // under another name, claimed by none, is equal to it: then the file may
+  // have renamed it and given its name to another, and neither is certain.
   const count = (list: any[], name: string) => list.filter((v) => viewName(v) === name).length;
+  const unclear = new Set<number>();
   read.forEach((_, i) => {
     if (found[i] >= 0) return;
     const name = viewName(named[i]);
     if (name === null || count(named, name) !== 1 || count(current, name) !== 1) return;
     const k = current.findIndex((v) => viewName(v) === name);
-    if (!taken.has(k)) take(i, k);
+    if (taken.has(k)) return;
+    if (current.some((_, o) => o !== k && !taken.has(o) && equal(i, o))) { unclear.add(i); return; }
+    take(i, k);
   });
   // 3. Renamed elsewhere and nothing else: equal but for the name, and only one such.
   read.forEach((_, i) => {
-    if (found[i] >= 0) return;
+    if (found[i] >= 0 || unclear.has(i)) return;
     const ks = current.map((_, k) => k).filter((k) => !taken.has(k) && equal(i, k));
     if (ks.length === 1) take(i, ks[0]);
   });
   return found;
+}
+
+/**
+ * A view the screen never named, as changed here: under the name it read back
+ * with before. The serializer names an unnamed view by its type and place
+ * ("Gallery", "Gallery 2"), so a move here hands it another name nobody gave
+ * it — no rename to set on the file.
+ */
+function keepUnnamed(shownNamed: any, shownRead: any, nextNamed: any, nextRead: any): any {
+  if (viewName(shownNamed) !== null || viewName(nextNamed) !== null || !isPlainObject(nextRead) || !isPlainObject(shownRead)) return nextRead;
+  const out: Record<string, any> = { ...nextRead, name: shownRead.name };
+  if (isPlainObject(nextRead._obsidian)) out._obsidian = { ...nextRead._obsidian, name: isPlainObject(shownRead._obsidian) ? shownRead._obsidian.name : shownRead.name };
+  return out;
 }
 
 interface ViewsMerged {
@@ -315,7 +392,7 @@ interface ViewsMerged {
 
 /** The views of the file now, with the screen's change to its views applied. */
 function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextRead: any[], current: any[]): ViewsMerged {
-  const pair = pairViews(shownNamed, nextNamed);
+  const pair = pairViews(shownNamed, nextNamed, shownRead, nextRead);
   const inFile = findInFile(shownNamed, shownRead, current);
   const known = new Set(inFile.filter((c) => c >= 0));
   /** Views of the file that none of `shown`'s was found as: one of them may be a view not found. */
@@ -342,7 +419,7 @@ function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextR
       if (same(n, shownRead[i]) && !(movedAtAll && unclaimed)) return null;
       return refuse(i);
     }
-    return { view: merge3(shownRead[i], n, current[c]), at: c };
+    return { view: merge3(shownRead[i], keepUnnamed(shownNamed[i], shownRead[i], nextNamed[j], n), current[c]), at: c };
   });
   // Removed here: goes from the file, where it is found; one that cannot be found refuses where it might be one there.
   const removed = new Set<number>();
@@ -392,6 +469,39 @@ function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextR
   return { views: out, placeOf: made.map((m) => (m ? out.indexOf(m.view) : -1)) };
 }
 
+/** The properties a config knows, by bare name: each is an entry under `properties` and, with settings, one under `columns`. */
+function propertiesOf(cfg: any): Set<string> {
+  const ids = (m: unknown) => (isPlainObject(m) ? Object.keys(m) : []);
+  return new Set([
+    ...ids(cfg?.properties).map(fromPropId),
+    ...ids(cfg?._obsidian?.properties).map(fromPropId),
+    ...ids(cfg?.columns),
+  ]);
+}
+
+/**
+ * A property is one thing in two places (its entry under `properties`, its
+ * settings under `columns`): one the user deleted or renamed away goes from
+ * both, whatever the other side set on it meanwhile — it does not come back
+ * half.
+ */
+function withoutRemovedProperties(rest: Record<string, any>, shownRead: any, nextRead: any): Record<string, any> {
+  const kept = propertiesOf(nextRead);
+  const gone = [...propertiesOf(shownRead)].filter((p) => !kept.has(p));
+  if (gone.length === 0) return rest;
+  const drop = (m: unknown, key: (p: string) => string) => {
+    if (!isPlainObject(m)) return m;
+    const out = { ...m };
+    for (const p of gone) delete out[key(p)];
+    return out;
+  };
+  const out = { ...rest };
+  if ("columns" in out) out.columns = drop(out.columns, (p) => p);
+  if ("properties" in out) out.properties = drop(out.properties, toPropId);
+  if (isPlainObject(out._obsidian) && "properties" in out._obsidian) out._obsidian = { ...out._obsidian, properties: drop(out._obsidian.properties, toPropId) };
+  return out;
+}
+
 const viewsOf = (cfg: any): any[] => (isPlainObject(cfg) && Array.isArray(cfg.views) ? cfg.views : []);
 const unchangedPlaces = (cfg: any): number[] => viewsOf(cfg).map((_, j) => j);
 
@@ -412,7 +522,9 @@ export interface BaseConfigRebased {
  * serializer before they are compared with the file. Where the file is what
  * the screen loaded or last wrote, `next` is written as it is.
  */
-export function rebaseBaseConfigText(shown: any, next: any, currentText: string): BaseConfigRebased {
+export function rebaseBaseConfigText(shownGiven: any, next: any, currentText: string): BaseConfigRebased {
+  // A screen that never had a config (an empty `.base`) showed a database without views.
+  const shown = isPlainObject(shownGiven) ? shownGiven : loadBaseConfigText("");
   const unchanged = (): BaseConfigRebased => {
     const text = serializeBaseConfig(next);
     remember(next, text);
@@ -427,6 +539,8 @@ export function rebaseBaseConfigText(shown: any, next: any, currentText: string)
   if (same(current, shown)) return unchanged();
 
   const shownRead = loadBaseConfigText(shownText);
+  // The serializer writes a default view for a config without one; the screen showed none.
+  if (viewsOf(shown).length === 0 && isPlainObject(shownRead)) shownRead.views = [];
   const nextRead = loadBaseConfigText(serializeBaseConfig(next));
   const s = isPlainObject(shownRead) ? shownRead : {};
   const n = isPlainObject(nextRead) ? nextRead : {};
@@ -435,7 +549,7 @@ export function rebaseBaseConfigText(shown: any, next: any, currentText: string)
     const { views: _views, ...rest } = cfg;
     return rest;
   };
-  const rest = merge3(strip(s), strip(n), strip(c));
+  const rest = withoutRemovedProperties(merge3(strip(s), strip(n), strip(c)), s, n);
   // Which view is which is told by the screen's own objects (an untouched view
   // is the same object, or equal data), where reading back kept their number.
   const sameCount = viewsOf(shown).length === viewsOf(s).length && viewsOf(next).length === viewsOf(n).length;

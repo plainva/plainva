@@ -104,6 +104,16 @@ describe("a database change on the phone lands on the file as it lies there (B20
     expect(files.get(PATH)).toBe(serializeBaseConfig(next));
   });
 
+  it("\"Save here again\" onto a file whose views stand in another order answers where they stand, so the active view follows", async () => {
+    const shown = loadBaseConfigText(TEXT);
+    files.set(PATH, serializeBaseConfig({ ...shown, views: [shown.views[1], shown.views[0]] }));
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views[0].order = ["note.prio"];
+    const saved = await saveBaseConfig(vault, PATH, next, { recreate: true, shown });
+    expect(saved.placeOf).toEqual([1, 0]);
+    expect(saved.config.views[1].order).toEqual(["note.prio"]);
+  });
+
   it("removes a property without undoing a view change made elsewhere", async () => {
     const shown = loadBaseConfigText(TEXT);
     const elsewhere = JSON.parse(JSON.stringify(shown));

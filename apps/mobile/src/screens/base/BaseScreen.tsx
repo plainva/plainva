@@ -489,7 +489,7 @@ export function BaseScreen({
   /** "Save here again": the reader brings the database back where it was, with the waiting change. */
   const restoreHere = useStableHandler(async (): Promise<void> => {
     if (pendingConfig === null) return;
-    let saved: { config: any };
+    let saved: { config: any; placeOf: number[] };
     try {
       saved = await saveBaseConfig(vault, path, pendingConfig.next, { recreate: true, shown: pendingConfig.shown });
     } catch (e) {
@@ -498,6 +498,8 @@ export function BaseScreen({
       return;
     }
     setLoaded({ config: saved.config, stem: title });
+    // The active view follows its view onto the file that stands there again (B20).
+    setViewIndex((i) => (saved.placeOf[i] >= 0 ? saved.placeOf[i] : i));
     setPendingConfig(null);
     setLoadFailed(false);
     missing.clear();

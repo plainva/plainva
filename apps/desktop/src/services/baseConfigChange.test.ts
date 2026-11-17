@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   BaseConfigChangeRefusedError,
+  deletePropertyFromConfig,
+  renamePropertyInConfig,
   loadBaseConfigText,
   rebaseBaseConfigText,
   serializeBaseConfig,
@@ -482,5 +484,177 @@ describe("a database view change where nobody else changed the file (B20)", () =
       compared++;
     }
     expect(compared).toBeGreaterThan(200);
+  });
+});
+
+// --- Second review of B20 (17.11.): views never named, emptied containers, filters, deleted properties ---
+
+/** A handwritten database whose views carry no names: the screens keep them unnamed all session. */
+const UNNAMED = ["views:", "  - type: table", "    order:", "      - file.name", "  - type: cards", "    order:", "      - file.name", ""].join("\n");
+
+describe("a view the screen never named is found as itself, never as an equal view of another name (B20)", () => {
+  it("next to its own duplicate \"Table Kopie\", with the file's views moved: the sort lands on the view itself", () => {
+    const shown = loadBaseConfigText(UNNAMED);
+    // The screen wrote once (the file got the serializer's names) and duplicated the table; then another device moved the views.
+    const copy = { ...JSON.parse(JSON.stringify(shown.views[0])), name: "Table Kopie" };
+    const held = { ...shown, views: [shown.views[0], shown.views[1], copy] };
+    const written = loadBaseConfigText(serializeBaseConfig(held));
+    const file = serializeBaseConfig({ ...written, views: [written.views[2], written.views[1], written.views[0]] });
+    const next = JSON.parse(JSON.stringify(held));
+    next.views[0].sort = sortBy("note.status");
+    const made = rebaseBaseConfigText(held, next, file);
+    const byName = (n: string) => made.config.views.find((v: any) => String(v.name) === n);
+    expect(byName("Table").sort).toEqual(sortBy("note.status"));
+    expect(byName("Table Kopie").sort).toBeUndefined();
+    expect(made.placeOf[0]).toBe(made.config.views.indexOf(byName("Table")));
+  });
+
+  it("next to its own duplicate, removed here while the file moved the views: the view itself goes, the duplicate stays", () => {
+    const shown = loadBaseConfigText(UNNAMED);
+    const copy = { ...JSON.parse(JSON.stringify(shown.views[0])), name: "Table Kopie" };
+    const held = { ...shown, views: [shown.views[0], shown.views[1], copy] };
+    const written = loadBaseConfigText(serializeBaseConfig(held));
+    const file = serializeBaseConfig({ ...written, views: [written.views[2], written.views[0], written.views[1]] });
+    const next = { ...held, views: [held.views[1], held.views[2]] };
+    const made = rebaseBaseConfigText(held, next, file);
+    expect(made.config.views.map((v: any) => String(v.name)).sort()).toEqual(["Gallery", "Table Kopie"]);
+  });
+
+  it("changed here while the file moved the views and still holds none of their names: the change lands on it", () => {
+    const shown = loadBaseConfigText(UNNAMED);
+    const file = UNNAMED.replace("views:\n", "views:\n  - type: list\n");
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views[1].coverImage = "note.cover";
+    const made = rebaseBaseConfigText(shown, next, file);
+    expect(made.config.views.map((v: any) => v.type)).toEqual(["list", "table", "gallery"]);
+    expect(made.config.views[2].coverImage).toBe("note.cover");
+    expect(made.config.views[1].coverImage).toBeUndefined();
+  });
+
+  it("moved here, one of them renamed elsewhere: the name given elsewhere stays, no name the serializer made up is set", () => {
+    const text = ["views:", "  - type: cards", "    limit: 2", "  - type: cards", "    order:", "      - file.name", ""].join("\n");
+    const shown = loadBaseConfigText(text);
+    const file = text + "    name: Reading\n";
+    const next = { ...shown, views: [shown.views[1], shown.views[0]] };
+    const made = rebaseBaseConfigText(shown, next, file);
+    expect(made.config.views.map((v: any) => v.name ?? null)).toEqual(["Reading", null]);
+  });
+});
+
+describe("a container the user emptied keeps what the other side added to it (B20)", () => {
+  const view = (lines: string[]) => ["views:", "  - type: cards", "    name: T", ...lines, ""].join("\n");
+
+  it("the last summary cleared here, another summary added elsewhere: that one stays", () => {
+    const text = view(["    summaries:", "      note.a: Sum"]);
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "T", { summaries: {} });
+    const made = rebaseBaseConfigText(shown, next, text + "      note.b: Average\n");
+    expect(made.config.views[0].summaries).toEqual({ b: "Average" });
+  });
+
+  it("the cover cleared here (the view's last plainva key), a key Plainva does not know added there: it stays", () => {
+    const text = view(["    plainva:", "      coverImage: pic"]);
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "T", { coverImage: undefined });
+    const made = rebaseBaseConfigText(shown, next, text + "      futureKey: keepme\n");
+    expect(made.text).toContain("futureKey: keepme");
+    expect(made.config.views[0].coverImage).toBeUndefined();
+  });
+
+  it("the last card unpinned here, another card pinned there: the other card stays pinned", () => {
+    const text = view(["    plainva:", "      pinboardOrder:", "        - a.md"]);
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "T", { pinboardOrder: [] });
+    const made = rebaseBaseConfigText(shown, next, text + "        - b.md\n");
+    expect(made.config.views[0].pinboardOrder).toEqual(["b.md"]);
+  });
+
+  it("the last property deleted here, another property set up there: that one stays", () => {
+    const text = ["properties:", "  note.a:", "    displayName: A", "views:", "  - type: table", "    name: T", ""].join("\n");
+    const shown = loadBaseConfigText(text);
+    const next = deletePropertyFromConfig(JSON.parse(JSON.stringify(shown)), "a");
+    const file = text.replace("views:", "  note.e:\n    displayName: Estimate\nviews:");
+    const made = rebaseBaseConfigText(shown, next, file);
+    expect(made.text).toContain("Estimate");
+    expect(made.text).not.toContain("note.a");
+  });
+});
+
+describe("a property deleted here goes whole, whatever the other side set on it (B20)", () => {
+  const text = ["properties:", "  note.a:", "    displayName: A", "  note.k:", "    displayName: K", "views:", "  - type: table", "    name: T", ""].join("\n");
+  const file = text.replace("    displayName: A\n", "    displayName: A\n    plainva:\n      input: select\n      options:\n        - value: v1\n");
+
+  it("deleted here, given options there: it does not come back half", () => {
+    const shown = loadBaseConfigText(text);
+    const made = rebaseBaseConfigText(shown, deletePropertyFromConfig(JSON.parse(JSON.stringify(shown)), "a"), file);
+    expect(made.text).not.toContain("note.a");
+    expect(made.config.columns?.a).toBeUndefined();
+    expect(made.text).toContain("displayName: K");
+  });
+
+  it("renamed here, given options there: only the new name stands", () => {
+    const shown = loadBaseConfigText(text);
+    const made = rebaseBaseConfigText(shown, renamePropertyInConfig(JSON.parse(JSON.stringify(shown)), "a", "b"), file);
+    expect(made.text).not.toContain("note.a:");
+    expect(made.text).toContain("note.b:");
+  });
+});
+
+describe("a filter both sides changed is the user's, never a rule merged from both (B20)", () => {
+  const text = ["views:", "  - type: table", "    name: T", "    filters:", "      and:", '        - note.status == "open"', "        - note.prio > 1", ""].join("\n");
+  const filtersOf = (cfg: any) => cfg.views[0].filters;
+
+  it("the same rule edited on both sides: the user's rule, not both", () => {
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "T", { filters: { and: ['note.status == "done"', "note.prio > 1"] } });
+    const made = rebaseBaseConfigText(shown, next, text.replace('"open"', '"blocked"'));
+    expect(filtersOf(made.config).and).toEqual(['note.status == "done"', "note.prio > 1"]);
+  });
+
+  it("a rule removed here that was edited there stays removed; the file's edit does not come back", () => {
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "T", { filters: { and: ["note.prio > 1"] } });
+    const made = rebaseBaseConfigText(shown, next, text.replace('"open"', '"blocked"'));
+    expect(filtersOf(made.config).and).toEqual(["note.prio > 1"]);
+  });
+
+  it("a filter only the other side changed stays as it made it, under this side's change to another key", () => {
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "T", { sort: sortBy("note.prio") });
+    const made = rebaseBaseConfigText(shown, next, text.replace('"open"', '"blocked"'));
+    expect(filtersOf(made.config).and).toEqual(['note.status == "blocked"', "note.prio > 1"]);
+    expect(made.config.views[0].sort).toEqual(sortBy("note.prio"));
+  });
+});
+
+describe("an empty database file (B20)", () => {
+  it("takes a change from a screen that never had a config, and adds it to a file written meanwhile", () => {
+    const next = { views: [{ type: "table", sort: sortBy("note.a") }] };
+    expect(loadBaseConfigText(rebaseBaseConfigText(null, next, "").text).views[0].sort).toEqual(sortBy("note.a"));
+    const made = rebaseBaseConfigText(null, next, ["views:", "  - type: cards", "    name: Elsewhere", ""].join("\n"));
+    expect(made.config.views.map((v: any) => v.type).sort()).toEqual(["gallery", "table"]);
+  });
+});
+
+describe("a name another view took meanwhile is no certain match (B20)", () => {
+  const text = ["views:", "  - type: table", "    name: Open", "    order:", "      - file.name", "  - type: cards", "    name: Done", ""].join("\n");
+
+  it("renamed elsewhere and its name given to a new view: a change to it refuses, nothing is guessed", async () => {
+    const f = fakeFiles(text);
+    const shown = loadBaseConfigText(text);
+    f.files["Tasks.base"] = text.replace("name: Open", "name: Backlog") + "  - type: list\n    name: Open\n";
+    const before = f.files["Tasks.base"];
+    const next = withView(shown, "Open", { sort: sortBy("file.name") });
+    await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, next)).rejects.toMatchObject({ reason: "viewUnclear" });
+    expect(f.files["Tasks.base"]).toBe(before);
+  });
+
+  it("one action that changes several views called alike (a property deleted from each) lands on each of them", () => {
+    const twins = ["views:", "  - type: table", "    name: T", "    order:", "      - note.a", "      - note.x", "  - type: table", "    name: T", "    order:", "      - note.b", "      - note.x", ""].join("\n");
+    const shown = loadBaseConfigText(twins);
+    const next = deletePropertyFromConfig(JSON.parse(JSON.stringify(shown)), "x");
+    const made = rebaseBaseConfigText(shown, next, "formulas:\n  f: 1 + 1\n" + twins);
+    expect(made.config.views.map((v: any) => v.order)).toEqual([["a"], ["b"]]);
+    expect(made.text).toContain("f: 1 + 1");
   });
 });
