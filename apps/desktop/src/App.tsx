@@ -9,7 +9,7 @@ import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStat
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 import { AlertTriangle } from "lucide-react";
 import { AreaBoundary, Button, ICON, migrateLegacyBarLayouts, Modal, toast, useStableHandler } from "@plainva/ui";
-import { setNoteLinksVaultLoading } from "@plainva/ui";
+import { requestAiSettingsIntent, setNoteLinksVaultLoading, type AiSettingsIntent } from "@plainva/ui";
 import { WorkspaceActivationOverlay } from "./components/security/WorkspaceActivationOverlay";
 import { appConfirm } from "./services/appDialogs";
 import { IndexMdModal } from "./components/IndexMdModal";
@@ -87,6 +87,9 @@ function App() {
       const area = (e as CustomEvent).detail?.area;
       const accountId = (e as CustomEvent).detail?.accountId;
       const connect = (e as CustomEvent).detail?.connect;
+      // Another window's AI notice asked for one dialog of the AI page (C12): the page takes it from here.
+      const aiIntent = (e as CustomEvent).detail?.aiIntent as AiSettingsIntent | undefined;
+      if (aiIntent && typeof aiIntent === "object") requestAiSettingsIntent(aiIntent);
       openSettings({
         connect: connect === "calendar" || connect === "mail" || connect === "files" ? connect : undefined,
         provider: typeof provider === "string" ? provider : undefined,

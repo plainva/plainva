@@ -6,9 +6,9 @@ A skill is a set of instructions for work that comes back: preparing a meeting, 
 
 ## Using a skill
 
-Start a skill with one click: under **Skills** below the input field of an empty conversation (the featured ones first), under **Skills** in the AI tab, on the phone on the AI screen under skills, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names.
+Start a skill with one click: under **Skills** below the input field of an empty conversation (the featured ones first), under **Skills** in the AI tab, on the phone on the AI screen under skills, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names — a skill that names no tools gets those that only read or show.
 
-You can also simply ask. In every conversation the AI knows the names and descriptions of your active skills and loads one when your question matches — "prepare my next meeting" is enough.
+You can also simply ask. In a conversation with tools the AI knows the names and descriptions of your active skills — as many as fit into 6,000 characters, the others stay startable by hand — and loads one when your question matches — "prepare my next meeting" is enough.
 
 ## The skills that come with Plainva
 
@@ -37,13 +37,13 @@ All of them only read: none changes a note or sends anything. The one that draft
 
 **Mail and calendar** reads mail through the same question as any conversation: **Read your mail?** the first time. It never reads the text of a message itself; a second reader without tools writes a report about it. Both are described in [AI Assistant](AI_Assistant.md).
 
-A skill of your own uses the internet only when its `allowed-tools` line names `web_search` or `fetch_url`. **Review and approve** then says **Uses the internet where you allowed it for this vault.** before you approve it. A skill that names no tools never brings the internet along.
+A skill of your own brings the internet into its conversation only when its `allowed-tools` line names `web_search` or `fetch_url`. **Review and approve** then says **Uses the internet where you allowed it for this vault.** before you approve it. A skill without an `allowed-tools` line never brings the internet along, but it uses what its conversation has: in a conversation that already has the internet, it can search and read pages like the conversation itself. A skill whose `allowed-tools` line names neither has no internet in its run, whatever the conversation has.
 
 A test run never uses the internet, and it never asks: mail it was not allowed to read in this session stays unread.
 
 ## Proposing changes
 
-A skill of your own proposes changes only when its `allowed-tools` line names the tools for it: `propose_edit` and `set_property` for suggestions on a note's text and on its properties, `create_note`, `create_entry`, `create_task` and `add_journal_entry` for drafts, `rename_note`, `move_note` and `delete_note` for plans. **Review and approve** then names each of them and says **May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.** A skill that names no tools proposes nothing — one you approved earlier gains nothing either — and a test run leaves nothing behind. What the three forms are: **Proposing changes** in [AI Assistant](AI_Assistant.md).
+A skill of your own proposes changes only when its `allowed-tools` line names the tools for it: `propose_edit` and `set_property` for suggestions on a note's text and on its properties, `create_note`, `create_entry`, `create_task` and `add_journal_entry` for drafts, `rename_note`, `move_note` and `delete_note` for plans. **Review and approve** then names each of them and says **May suggest changes, leave drafts and lay out plans.** Nothing in the vault changes before you accept, create or confirm — except where the conversation has **Apply directly** on or the note lies in a folder with **Change without asking**: there a skill that names `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` or `add_journal_entry` writes at once, with a version before and **Undo** (see **Apply directly** in [AI Assistant](AI_Assistant.md)). A skill that names no tools proposes nothing — one you approved earlier gains nothing either — and a test run leaves nothing behind. What the three forms are: **Proposing changes** in [AI Assistant](AI_Assistant.md).
 
 ## Your own skills
 
@@ -53,7 +53,7 @@ The button **New…** offers a skill, a script and an import. **New skill** asks
 
 ## Nothing runs before you approve it
 
-A skill in your vault that is new or changed — through sync, an import, or an edit on this or another device — does not run until you approve it **on this device**. Such skills wait at the top of **Skills** under **Waiting for your approval**, and in **Settings → AI in this vault**. A sentence at the top of the view explains what skills are; the order is waiting for approval, **Comes with Plainva**, **Your own**, scripts, from servers, the row **Instructions for this vault** (with `AGENTS.md` as its second line), test runs and what was learned. Withdrawing an approval asks first. **Review and approve** shows what the skill may do, what changed since your last approval, its instructions, files and where it lies. The approval holds for exactly this version; any change lifts it again. Approvals are stored on this device, never in the vault.
+A skill in your vault that is new or changed — through sync, another program that wrote it, or an edit on this or another device — does not run until you approve it **on this device**. Such a skill waits at the top of **Skills** under **Waiting for your approval**, and in **Settings → AI in this vault**. A skill you create here (**New skill**), copy here (**Make your own version**) or import here (**Import and approve**) is the exception: it is approved on this device at once, because you saw it here. A sentence at the top of the view explains what skills are; the order is waiting for approval, **Comes with Plainva**, **Your own**, scripts, from servers, the row **Instructions for this vault** (with `AGENTS.md` as its second line), test runs and what was learned. Withdrawing an approval asks first. **Review and approve** shows what the skill may do, what changed since your last approval, its instructions, files and where it lies. The approval holds for exactly this version; any change lifts it again. Approvals are stored on this device, never in the vault.
 
 The same holds for an `AGENTS.md` at the top of your vault: once approved, its standing instructions go into every new conversation. Neither a skill nor `AGENTS.md` can lift your privacy rules, and a skill never gets more than a conversation has — it can only narrow it. A rule you add in the memory, or accept from the AI, is one more line of this file; see [Memory](AI_Memory.md).
 
@@ -61,7 +61,7 @@ The same holds for an `AGENTS.md` at the top of your vault: once approved, its s
 
 A server you connect under **External tools** can bring skills of its own: guides for its tools, written by whoever runs it. They stand under **Skills** in the group **From servers**, each with the name of its server — never among your own and never in place of one: the AI loads such a skill under a name of its own, such as `mcp_tracker/code-review`. A server's skills are offered only in a vault that uses the server.
 
-**Review and approve** shows the server and where it is reached, the skill's name, what the server writes about it — as its quote —, every file with its size and the start of its checksum, and what the skill may use. Plainva reads none of its files to show you this; **Show instructions** reads its `SKILL.md` now, and each file the AI may read of it, and checks every one first. The approval holds on this device for exactly these files and this description: if the server changes one of them, the skill waits again, and its review lists what changed — and, if you read its instructions before you approved it, compares the new ones with them line by line.
+**Review and approve** shows the server and where it is reached, the skill's name, what the server writes about it — as its quote —, every file with its size and the start of its checksum, and what the skill may use. Plainva reads none of its files to show you this; **Show instructions** reads its `SKILL.md` now, and each file the AI may read of it, and checks every one first — one look shows at most 20 files and 1 MB together. The approval holds on this device for exactly these files and this description: if the server changes one of them, the skill waits again, and its review lists what changed — and, if you read its instructions before you approved it, compares the new ones with them line by line.
 
 A server's skill may use Plainva's tools that only read or show, and the tools of its own server that the vault allows — every call is asked as always. Whatever tools it names, it gets none of Plainva's tools that change anything and none of the app's commands, no internet, no script, and never the tools of another server. Once such a skill — its instructions or one of its files — is part of a conversation, the rest of that conversation keeps to these limits, whichever skill is loaded after it. The AI loads it in a conversation you start yourself, when your question matches; a conversation a skill started, a routine and a test run do not offer it, and neither does a device that is fully local. Each file is read from its server only when it is needed and checked against what you approved; a file that differs is not used, and the files beside its `SKILL.md` reach the AI as the server's data, never as instructions.
 
@@ -69,7 +69,7 @@ A server's skill may use Plainva's tools that only read or show, and the tools o
 
 ## Test runs of skills
 
-A skill can bring test scenarios: a message that starts it, and what a good run does. The skills that come with Plainva have them; for your own, write them into `tests/scenarios.json` in the skill's folder:
+A skill can bring test scenarios: a message that starts it, and what a good run does. Thirteen of the fourteen skills that come with Plainva have them — all but **Memory care**; for your own, write them into `tests/scenarios.json` in the skill's folder:
 
 ```json
 {
@@ -88,7 +88,7 @@ A skill can bring test scenarios: a message that starts it, and what a good run 
 
 `tools` names the tools a good run uses and those it must leave alone, `cites` the notes its answer names, `never` text that must not appear in it. A skill has at most eight scenarios.
 
-**Test run with ⟨model⟩** — at the bottom of **Skills** (**Test run…**), or in a skill's menu — runs the scenarios against the model a new conversation would use. Nothing starts by itself: the dialog first says how many scenarios would run and against which model, and you set a **Ceiling** in US dollars; the run ends between two scenarios once it is reached. Where no price is known for the model, the run ends after a fixed number of tokens instead; a model on this device needs no ceiling.
+**Test run with ⟨model⟩** — at the bottom of **Skills** (**Test run…**), or in a skill's menu — runs the scenarios against the model a new conversation would use. Nothing starts by itself: the dialog first says how many scenarios would run and against which model, and you set a **Ceiling** in US dollars; the run ends between two scenarios once it is reached. A limit of 400,000 tokens ends the run as well, also where a price is known; a model on this device needs no ceiling.
 
 Each scenario is an ordinary run of its skill: it reads your vault like a run by hand, passes the same overview before sending, counts towards your usage and leaves its conversation in the history, where its next run replaces it — unless it is open on screen or you went on with it; then it stays. Afterwards every scenario shows its verdict in words, and the skill's row says how its last run went. A result is about one model and one version of the skill: once you choose another model or change the skill, the row says so instead of showing a result that no longer counts. Some scenarios that come with Plainva ask about notes of Plainva's own test vault; in your vault they do not apply, and the dialog counts them apart instead of failing them.
 
@@ -110,7 +110,7 @@ A conversation that read a web page, an e-mail or an external tool suggests entr
 
 ### Watched versions and the way back
 
-A version that came from a suggestion is watched for three runs, and its row counts them. If a run does not end with an answer, the skills view names the skill under **Watched versions** and offers two things: **Back to the version before**, or **Keep**. Nothing goes back by itself.
+A skill that a suggestion has rewritten is watched for three runs of the new version, and its row counts them. If a run runs out of steps or tokens, goes in circles, is cut off or is refused — a run you stopped, or one the provider did not answer, does not count —, the skills view names the skill under **Watched versions** and offers two things: **Back to the version before**, or **Keep**. Nothing goes back by itself.
 
 **Earlier versions…** in a skill's menu lists what the vault's version history keeps of the skill's file. The dialog holds the version you choose against the skill as it is now — its lines, and what it may do — and warns where the earlier version may do more. **Restore this version** writes it back and approves it on this device. The versions are kept on this device.
 
@@ -136,4 +136,4 @@ The send overview lists the instructions that go along under **Instructions**: t
 
 ## Limits of the beta
 
-A skill runs no scripts of its own; for small programs that read your vault, see [Scripts](AI_Scripts.md). Your own skills are not offered to AI apps connected through the MCP server; only the skills that come with Plainva are.
+A skill runs no scripts of its own; for small programs that read your vault, see [Scripts](AI_Scripts.md). Your own skills are not offered to AI apps connected through the MCP server; only five of the skills that come with Plainva are: **Daily orientation**, **Weekly review**, **Project status**, **Meeting preparation** and **Task triage**.

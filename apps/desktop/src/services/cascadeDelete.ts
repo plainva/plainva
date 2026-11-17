@@ -24,7 +24,7 @@ import { loadAnchoredNotes, readProviderTaskAnchor, type ProviderTaskAnchor } fr
 import { requestTaskDeletion } from "./pim/taskDeletion";
 import { getTemplateFolder } from "./newItemFlow";
 import { removeRelationLinksToNote } from "@plainva/ui";
-import { deleteWithNet } from "@plainva/ui";
+import { deleteEachWithNet, deleteWithNet } from "@plainva/ui";
 import { requestSaveFlush } from "./saveFlush";
 import type { IndexerApi } from "./remoteIndexer";
 
@@ -233,15 +233,25 @@ export async function executeDeletionPlan(opts: {
 
   // 3. Delete sequentially (every delete snapshots via the backup chain).
   const deleted: string[] = [];
-  for (const p of paths) {
+  // Kept where the person said "Cancel" to "Delete without a backup?" (D1),
+  // asked once for the whole cascade (A12).
+  // A path asked about runs a second time; the progress counts it once.
+  const counted = new Set<string>();
+  const outcomes = await deleteEachWithNet(paths, async (p, ask) => {
     try {
-      // Kept where the person said "Cancel" to "Delete without a backup?" (D1).
-      if (await deleteWithNet(adapter, p, true)) deleted.push(p);
-    } catch (e) {
-      console.error("cascade delete failed", p, e);
-      errors.push(p.split(/[/\\]/).pop() ?? p);
+      return await deleteWithNet(adapter, p, true, undefined, ask);
+    } finally {
+      if (!counted.has(p)) {
+        counted.add(p);
+        step();
+      }
     }
-    step();
+  });
+  for (const outcome of outcomes) {
+    if ("error" in outcome) {
+      console.error("cascade delete failed", outcome.item, outcome.error);
+      errors.push(outcome.item.split(/[/\\]/).pop() ?? outcome.item);
+    } else if (outcome.deleted) deleted.push(outcome.item);
   }
 
   // 3b. Only what really went away starts the window.

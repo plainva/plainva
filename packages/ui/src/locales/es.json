@@ -5368,11 +5368,13 @@
     "deleteWithoutSnapshotNoTrashFileGone": "En el teléfono no hay papelera: los archivos eliminados se recuperan desde sus copias de seguridad. Sin copia de seguridad, este archivo desaparece del dispositivo para siempre. Comprueba el espacio libre.",
     "deleteWithoutSnapshotNoTrashFolder": "Plainva no pudo crear una copia de seguridad de {{failed}} de los {{total}} archivos antes de eliminar:",
     "deleteWithoutSnapshotNoTrashFolderGone": "En el teléfono no hay papelera: los archivos eliminados se recuperan desde sus copias de seguridad. Sin copia de seguridad, estos archivos desaparecen del dispositivo para siempre. Comprueba el espacio libre.",
+    "deleteWithoutSnapshotNoTrashMany": "Plainva no pudo crear una copia de seguridad de {{items}} de los elementos seleccionados antes de eliminar:",
     "deleteWithoutSnapshotTitle": "¿Eliminar sin copia de seguridad?",
     "deleteWithoutSnapshotTrashFile": "La papelera del sistema no está disponible para este archivo (por ejemplo, en una unidad de red) y Plainva no pudo crear una copia de seguridad de él:",
     "deleteWithoutSnapshotTrashFileGone": "Este archivo se perdería para siempre.",
     "deleteWithoutSnapshotTrashFolder": "La papelera del sistema no está disponible para esta carpeta (por ejemplo, en una unidad de red) y Plainva no pudo crear una copia de seguridad de {{failed}} de los {{total}} archivos:",
     "deleteWithoutSnapshotTrashFolderGone": "Estos archivos se perderían para siempre.",
+    "deleteWithoutSnapshotTrashMany": "La papelera del sistema no está disponible para {{items}} de los elementos seleccionados (por ejemplo, en una unidad de red) y Plainva no pudo crear una copia de seguridad de ellos:",
     "deleteWithoutSnapshotUnlisted": "Plainva no pudo leer todo el contenido de esta carpeta y por eso no pudo crear una copia de seguridad antes de eliminar:",
     "snapshotFailed": "La instantánea de versión de {{path}} falló — el archivo se guardó de todos modos. Comprueba el espacio en disco y la carpeta de copias.",
     "largeFileTrimmed": "Los archivos grandes solo conservan su versión más reciente: {{path}} ocupa {{mb}} MB. Las notas y los archivos pequeños mantienen todo su historial; un archivo eliminado siempre se guarda por completo."

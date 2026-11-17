@@ -6,7 +6,7 @@ import { accountSecretKey } from "./accountBroker";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { mobileWorkspaceSecretKeys } from "./mobileWorkspaceSecurity";
 import { profileJournalPath } from "./profileImportJournal";
-import { removeDataFile, removeDataFolder } from "../platform/dataFiles";
+import { removeInternalFile, removeInternalFolder } from "../platform/dataFiles";
 
 /**
  * Everything a forgotten vault leaves behind (finding 2026-08-19).
@@ -80,8 +80,8 @@ export async function forgetVaultFiles(vaultId: string): Promise<void> {
   // Absent is fine (no drafts were ever written, no import was interrupted).
   // Drafts hold note text: a folder that stays behind fails, after the
   // journal had its turn (stability plan R4).
-  const drafts = removeDataFolder(`drafts/${vaultId}`).then(() => null, (error: unknown) => error);
-  const journal = removeDataFile(profileJournalPath(vaultId)).then(() => null, (error: unknown) => error);
+  const drafts = removeInternalFolder(`drafts/${vaultId}`).then(() => null, (error: unknown) => error);
+  const journal = removeInternalFile(profileJournalPath(vaultId)).then(() => null, (error: unknown) => error);
   const failed = (await drafts) ?? (await journal);
   if (failed) throw failed;
 }

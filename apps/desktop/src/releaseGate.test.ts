@@ -115,7 +115,7 @@ describe("the release gate", () => {
 
   it("is the first job of the release: nothing is drafted or built before it, and a release runs no unit suite", () => {
     const workflow = readFileSync(new URL("../../../.github/workflows/release.yml", import.meta.url), "utf8");
-    expect(workflow).toMatch(/release-gate:\n\s+name: Release gate\n\s+if: github\.event_name != 'workflow_dispatch' \|\| inputs\.rebuild_windows_tag/);
+    expect(workflow).toMatch(/release-gate:\n\s+name: Release gate\n\s+if: \(github\.event_name != 'workflow_dispatch' \|\| inputs\.rebuild_windows_tag\) && !inputs\.rehearsal\n/);
     expect(workflow).toMatch(/permissions:\n\s+contents: read\n\s+checks: read/);
     expect(workflow).toContain("run: node apps/desktop/scripts/release-gate.mjs");
     expect(workflow).toMatch(/prepare:\n\s+if: [^\n]+\n\s+needs: release-gate/);

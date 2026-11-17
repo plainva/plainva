@@ -9,7 +9,7 @@ import {
   type DeletionPlanDeps,
 } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
-import { collectTaskAnchors, requestTaskDeletion } from "@plainva/ui";
+import { collectTaskAnchors, deleteEachWithNet, requestTaskDeletion } from "@plainva/ui";
 
 /**
  * Mobile side of the cascade deletion (plan Kaskadenloeschung): the shared
@@ -125,15 +125,14 @@ export async function executeMobileCascade(
 
   // 3. Delete through the established mobile path (sync chain + index +
   //    bookmark cleanup per file).
+  // Kept where the person said "Cancel" to "Delete without a backup?" (D1),
+  // asked once for the whole cascade (A12).
   const deleted: string[] = [];
-  for (const p of paths) {
-    try {
-      // Kept where the person said "Cancel" to "Delete without a backup?" (D1).
-      if (await vaultOps.remove(v, p, { confirmed: true })) deleted.push(p);
-    } catch (e) {
-      console.error("mobile cascade delete failed", p, e);
+  for (const outcome of await deleteEachWithNet(paths, (p, ask) => vaultOps.remove(v, p, { confirmed: true }, ask))) {
+    if ("error" in outcome) {
+      console.error("mobile cascade delete failed", outcome.item, outcome.error);
       errors++;
-    }
+    } else if (outcome.deleted) deleted.push(outcome.item);
   }
 
   // 3b. Only what really went away starts the window.

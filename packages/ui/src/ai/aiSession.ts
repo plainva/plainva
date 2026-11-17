@@ -1023,6 +1023,12 @@ export interface AiState {
   /** A vault is attached (AI v1 runs only where a vault is open). */
   hasVault: boolean;
   /**
+   * Counts the vaults attached so far: a new one with each `attachVault`. What
+   * is read per vault keys on it — two vaults alike in every count are still
+   * two vaults (C11 of release 0.9.0: the waiting count kept the old vault's).
+   */
+  vaultEpoch: number;
+  /**
    * The send overview waiting for the user's answer (plan §13.3): shown before
    * the first request of the session and whenever the scope grows. `images`:
    * the pictures the request would carry, exactly as they would go (plan
@@ -1663,6 +1669,7 @@ export class AiSession {
       notice: null,
       dress: null,
       hasVault: false,
+      vaultEpoch: 0,
       consent: null,
       skills: { entries: APP_ENTRIES(), omitted: [], servers: [] },
       skillTests: { records: [], running: null },
@@ -1969,6 +1976,7 @@ export class AiSession {
       draftChoice: null,
       notice: null,
       hasVault: Boolean(vault),
+      vaultEpoch: this.state.vaultEpoch + 1,
       skills: { entries: APP_ENTRIES(), omitted: [], servers: [] },
       skillTests: { records: [], running: null },
       // Another vault's switch says nothing about this one: off until its own settings are read.

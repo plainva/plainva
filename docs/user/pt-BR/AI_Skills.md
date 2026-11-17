@@ -6,9 +6,9 @@ Uma habilidade é um conjunto de instruções para um trabalho que se repete: pr
 
 ## Usar uma habilidade
 
-Inicie uma habilidade com um clique: em **Habilidades** sob o campo de entrada de uma conversa vazia (as em destaque primeiro), em **Habilidades** na aba de IA, no celular na tela de IA, em habilidades, ou pela paleta de comandos. A conversa passa então a usar a habilidade: as instruções dela vão junto, e ela usa só as ferramentas e pastas que nomeia.
+Inicie uma habilidade com um clique: em **Habilidades** sob o campo de entrada de uma conversa vazia (as em destaque primeiro), em **Habilidades** na aba de IA, no celular na tela de IA, em habilidades, ou pela paleta de comandos. A conversa passa então a usar a habilidade: as instruções dela vão junto, e ela usa só as ferramentas e pastas que nomeia — uma habilidade que não nomeia ferramentas recebe as que apenas leem ou mostram.
 
-Você também pode simplesmente perguntar. Em toda conversa a IA conhece os nomes e as descrições das suas habilidades ativas e carrega uma quando a sua pergunta combina — basta “prepare minha próxima reunião”.
+Você também pode simplesmente perguntar. Em uma conversa com ferramentas, a IA conhece os nomes e as descrições das suas habilidades ativas — tantas quantas cabem em 6.000 caracteres; as outras continuam podendo ser iniciadas à mão — e carrega uma quando a sua pergunta combina — basta “prepare minha próxima reunião”.
 
 ## As habilidades incluídas no Plainva
 
@@ -37,13 +37,13 @@ Todas apenas leem: nenhuma altera uma nota ou envia algo. A que prepara rascunho
 
 **E-mail e calendário** lê e-mail pela mesma pergunta de qualquer conversa: **Ler seu e-mail?** na primeira vez. Ela nunca lê sozinha o texto de uma mensagem; um segundo leitor, sem ferramentas, escreve um relatório sobre ele. Ambos estão descritos em [Assistente de IA](AI_Assistant.md).
 
-Uma habilidade sua só usa a internet quando a linha `allowed-tools` dela nomeia `web_search` ou `fetch_url`. **Revisar e aprovar** então diz **Usa a internet onde você a permitiu para este vault.** antes de você aprová-la. Uma habilidade que não nomeia ferramentas nunca traz a internet junto.
+Uma habilidade sua só traz a internet para a conversa dela quando a linha `allowed-tools` nomeia `web_search` ou `fetch_url`. **Revisar e aprovar** então diz **Usa a internet onde você a permitiu para este vault.** antes de você aprová-la. Uma habilidade sem linha `allowed-tools` nunca traz a internet junto, mas usa o que a conversa dela tem: em uma conversa que já tem a internet, ela pode pesquisar e ler páginas como a própria conversa. Uma habilidade cuja linha `allowed-tools` não nomeia nenhuma das duas não tem internet na execução dela, não importa o que a conversa tenha.
 
 Uma execução de teste nunca usa a internet e nunca pergunta: o e-mail que ela não tinha permissão para ler nesta sessão continua não lido.
 
 ## Propor alterações
 
-Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela nomeia as ferramentas para isso: `propose_edit` e `set_property` para sugestões no texto e nas propriedades de uma nota, `create_note`, `create_entry`, `create_task` e `add_journal_entry` para rascunhos, `rename_note`, `move_note` e `delete_note` para planos. **Revisar e aprovar** então nomeia cada uma delas e diz **Pode sugerir alterações, deixar rascunhos e apresentar planos. Nada muda no vault antes de você aceitar, criar ou confirmar.** Uma habilidade que não nomeia ferramentas não propõe nada — uma que você aprovou antes também não ganha nada —, e uma execução de teste não deixa nada. O que são as três formas: **Propor alterações** em [Assistente de IA](AI_Assistant.md).
+Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela nomeia as ferramentas para isso: `propose_edit` e `set_property` para sugestões no texto e nas propriedades de uma nota, `create_note`, `create_entry`, `create_task` e `add_journal_entry` para rascunhos, `rename_note`, `move_note` e `delete_note` para planos. **Revisar e aprovar** então nomeia cada uma delas e diz **Pode sugerir alterações, deixar rascunhos e apresentar planos.** Nada muda no vault antes de você aceitar, criar ou confirmar — exceto onde a conversa tem **Aplicar diretamente** ligado ou a nota está em uma pasta com **Alterar sem perguntar**: ali uma habilidade que nomeia `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` ou `add_journal_entry` escreve na hora, com uma versão antes e **Desfazer** (veja **Aplicar diretamente** em [Assistente de IA](AI_Assistant.md)). Uma habilidade que não nomeia ferramentas não propõe nada — uma que você aprovou antes também não ganha nada —, e uma execução de teste não deixa nada. O que são as três formas: **Propor alterações** em [Assistente de IA](AI_Assistant.md).
 
 ## Suas próprias habilidades
 
@@ -53,7 +53,7 @@ O botão **Novo…** oferece uma habilidade, um script e uma importação. **Nov
 
 ## Nada roda antes da sua aprovação
 
-Uma habilidade do seu vault que é nova ou foi alterada — pela sincronização, por uma importação ou por uma edição neste ou em outro dispositivo — só roda quando você a aprova **neste dispositivo**. Essas habilidades aguardam no topo de **Habilidades**, em **Aguardando sua aprovação**, e em **Configurações → IA neste vault**. Uma frase no alto da visão explica o que são habilidades; a ordem é: aguardando aprovação, **Incluídas no Plainva**, **Suas**, scripts, de servidores, a linha **Instruções para este vault** (com `AGENTS.md` como segunda linha), testes e o que foi aprendido. Retirar uma aprovação pergunta antes. **Revisar e aprovar** mostra o que a habilidade pode fazer, o que mudou desde a sua última aprovação, as instruções, os arquivos e onde ela fica. A aprovação vale exatamente para esta versão; qualquer alteração a anula. As aprovações ficam neste dispositivo, nunca no vault.
+Uma habilidade do seu vault que é nova ou foi alterada — pela sincronização, por outro programa que a escreveu ou por uma edição neste ou em outro dispositivo — só roda quando você a aprova **neste dispositivo**. Uma habilidade assim aguarda no topo de **Habilidades**, em **Aguardando sua aprovação**, e em **Configurações → IA neste vault**. Uma habilidade que você cria aqui (**Nova habilidade**), copia aqui (**Criar sua própria versão**) ou importa aqui (**Importar e aprovar**) é a exceção: ela é aprovada neste dispositivo na hora, porque você a viu aqui. Uma frase no alto da visão explica o que são habilidades; a ordem é: aguardando aprovação, **Incluídas no Plainva**, **Suas**, scripts, de servidores, a linha **Instruções para este vault** (com `AGENTS.md` como segunda linha), testes e o que foi aprendido. Retirar uma aprovação pergunta antes. **Revisar e aprovar** mostra o que a habilidade pode fazer, o que mudou desde a sua última aprovação, as instruções, os arquivos e onde ela fica. A aprovação vale exatamente para esta versão; qualquer alteração a anula. As aprovações ficam neste dispositivo, nunca no vault.
 
 O mesmo vale para um `AGENTS.md` no topo do seu vault: depois de aprovado, suas instruções permanentes vão em toda nova conversa. Nem uma habilidade nem o `AGENTS.md` podem suspender suas regras de privacidade, e uma habilidade nunca recebe mais do que uma conversa tem — ela só pode restringir. Uma regra que você adiciona na memória, ou aceita da IA, é mais uma linha deste arquivo; veja [Memória](AI_Memory.md).
 
@@ -61,7 +61,7 @@ O mesmo vale para um `AGENTS.md` no topo do seu vault: depois de aprovado, suas 
 
 Um servidor que você conecta em **Ferramentas externas** pode trazer habilidades próprias: guias para as ferramentas dele, escritos por quem o mantém. Elas ficam em **Habilidades**, no grupo **De servidores**, cada uma com o nome do seu servidor — nunca entre as suas e nunca no lugar de uma delas: a IA carrega uma habilidade assim com um nome próprio, como `mcp_tracker/code-review`. As habilidades de um servidor só são oferecidas num vault que usa esse servidor.
 
-**Revisar e aprovar** mostra o servidor e onde ele é acessado, o nome da habilidade, o que o servidor escreve sobre ela — como citação dele —, cada arquivo com o tamanho e o começo da soma de verificação, e o que a habilidade pode usar. Para mostrar isso o Plainva não lê nenhum dos arquivos dela; **Ver instruções** lê na hora o `SKILL.md` dela e cada arquivo que a IA pode ler dela, e confere cada um antes. A aprovação vale neste dispositivo exatamente para estes arquivos e esta descrição: se o servidor alterar algum deles, a habilidade volta a aguardar, e a revisão dela mostra o que mudou — e, se você leu as instruções dela antes de aprová-la, compara as novas com elas linha por linha.
+**Revisar e aprovar** mostra o servidor e onde ele é acessado, o nome da habilidade, o que o servidor escreve sobre ela — como citação dele —, cada arquivo com o tamanho e o começo da soma de verificação, e o que a habilidade pode usar. Para mostrar isso o Plainva não lê nenhum dos arquivos dela; **Ver instruções** lê na hora o `SKILL.md` dela e cada arquivo que a IA pode ler dela, e confere cada um antes — uma consulta mostra no máximo 20 arquivos e 1 MB juntos. A aprovação vale neste dispositivo exatamente para estes arquivos e esta descrição: se o servidor alterar algum deles, a habilidade volta a aguardar, e a revisão dela mostra o que mudou — e, se você leu as instruções dela antes de aprová-la, compara as novas com elas linha por linha.
 
 Uma habilidade de um servidor pode usar as ferramentas do Plainva que só leem ou mostram, e as ferramentas do próprio servidor que o vault permite — cada chamada é perguntada como sempre. Sejam quais forem as ferramentas que ela cite, não recebe nenhuma ferramenta do Plainva que altere algo, nenhum comando do aplicativo, nem internet, nem script, e nunca as ferramentas de outro servidor. Assim que uma habilidade dessas — as instruções dela ou um dos arquivos dela — faz parte de uma conversa, o resto dessa conversa se mantém nesses limites, seja qual for a habilidade carregada depois. A IA a carrega numa conversa que você mesmo começa, quando a sua pergunta combina; uma conversa iniciada por uma habilidade, uma rotina e um teste não a oferecem, nem um dispositivo totalmente local. Cada arquivo é lido do servidor só quando é necessário e conferido com o que você aprovou; um arquivo diferente não é usado, e os arquivos ao lado do `SKILL.md` dela chegam à IA como dados do servidor, nunca como instruções.
 
@@ -69,7 +69,7 @@ Uma habilidade de um servidor pode usar as ferramentas do Plainva que só leem o
 
 ## Testes de habilidades
 
-Uma habilidade pode trazer cenários de teste: uma mensagem que a inicia e o que uma boa execução faz. As habilidades incluídas os têm; para as suas, escreva-os em `tests/scenarios.json`, na pasta da habilidade:
+Uma habilidade pode trazer cenários de teste: uma mensagem que a inicia e o que uma boa execução faz. Treze das catorze habilidades incluídas no Plainva os têm — todas, menos **Cuidar da memória**; para as suas, escreva-os em `tests/scenarios.json`, na pasta da habilidade:
 
 ```json
 {
@@ -88,7 +88,7 @@ Uma habilidade pode trazer cenários de teste: uma mensagem que a inicia e o que
 
 `tools` indica as ferramentas que uma boa execução usa e as que ela não deve tocar; `cites`, as notas que a resposta cita; `never`, texto que não deve aparecer nela. Uma habilidade tem no máximo oito cenários.
 
-**Teste com ⟨modelo⟩** — no fim de **Habilidades** (**Teste…**) ou no menu de uma habilidade — roda os cenários com o modelo que uma nova conversa usaria. Nada começa sozinho: o diálogo primeiro diz quantos cenários rodariam e com qual modelo, e você define um **Teto** em dólares americanos; o teste termina entre dois cenários assim que ele é atingido. Se não há preço conhecido para o modelo, o teste termina após um número fixo de tokens; um modelo neste dispositivo não precisa de teto.
+**Teste com ⟨modelo⟩** — no fim de **Habilidades** (**Teste…**) ou no menu de uma habilidade — roda os cenários com o modelo que uma nova conversa usaria. Nada começa sozinho: o diálogo primeiro diz quantos cenários rodariam e com qual modelo, e você define um **Teto** em dólares americanos; o teste termina entre dois cenários assim que ele é atingido. Um limite de 400.000 tokens também encerra o teste, mesmo onde há preço conhecido; um modelo neste dispositivo não precisa de teto.
 
 Cada cenário é uma execução comum da sua habilidade: lê seu vault como uma execução à mão, passa pelo mesmo resumo antes do envio, conta no seu consumo e deixa sua conversa no histórico, onde a próxima execução a substitui — a menos que ela esteja aberta ou que você a tenha continuado; então ela fica. Depois, cada cenário mostra seu resultado em palavras, e a linha da habilidade diz como foi sua última execução. Um resultado vale para um modelo e uma versão da habilidade: se você escolher outro modelo ou alterar a habilidade, a linha diz isso em vez de mostrar um resultado que não conta mais. Alguns cenários incluídos perguntam sobre notas do vault de testes do Plainva; no seu vault eles não valem, e o diálogo os conta à parte em vez de reprová-los.
 
@@ -110,7 +110,7 @@ Uma conversa que leu uma página da web, um e-mail ou uma ferramenta externa só
 
 ### Versões em observação e o caminho de volta
 
-Uma versão que veio de uma sugestão fica em observação por três execuções, e a linha dela as conta. Se uma execução termina sem uma resposta, a tela de habilidades nomeia a habilidade em **Versões em observação** e oferece duas opções: **Voltar à versão anterior** ou **Manter**. Nada volta à versão anterior por conta própria.
+Uma habilidade que uma sugestão reescreveu fica em observação por três execuções da nova versão, e a linha dela as conta. Se uma execução fica sem passos ou tokens, anda em círculos, é interrompida ou é recusada — uma execução que você parou, ou uma que o provedor não respondeu, não conta —, a tela de habilidades nomeia a habilidade em **Versões em observação** e oferece duas opções: **Voltar à versão anterior** ou **Manter**. Nada volta à versão anterior por conta própria.
 
 **Versões anteriores…**, no menu de uma habilidade, lista o que o histórico de versões do vault guarda do arquivo da habilidade. O diálogo compara a versão que você escolhe com a habilidade como ela está agora — as linhas dela e o que ela pode fazer — e avisa onde a versão anterior pode fazer mais. **Restaurar esta versão** grava de volta a versão escolhida e a aprova neste dispositivo. As versões ficam guardadas neste dispositivo.
 
@@ -136,4 +136,4 @@ A visão de envio mostra em **Instruções** o que vai junto: a habilidade da co
 
 ## Limites da beta
 
-Uma habilidade não executa scripts próprios; para pequenos programas que leem o seu vault, veja [Scripts](AI_Scripts.md). Suas próprias habilidades não são oferecidas aos apps de IA conectados pelo servidor MCP; apenas as incluídas no Plainva.
+Uma habilidade não executa scripts próprios; para pequenos programas que leem o seu vault, veja [Scripts](AI_Scripts.md). Suas próprias habilidades não são oferecidas aos apps de IA conectados pelo servidor MCP; apenas cinco das incluídas no Plainva são oferecidas: **Orientação do dia**, **Revisão semanal**, **Status do projeto**, **Preparar reunião** e **Triagem de tarefas**.

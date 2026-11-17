@@ -1,5 +1,5 @@
 import { sameStoredValue } from "@plainva/core";
-import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { Encoding, Filesystem } from "@capacitor/filesystem";
 import { PimCacheRepository, type PimAccountRow } from "@plainva/core";
 import {
   cloudRegistryToLogical,
@@ -20,8 +20,9 @@ import {
   type ProfileAccountMap,
 } from "@plainva/ui";
 import { listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
-import { atomicWriteText } from "../platform/atomicFile";
-import { retireDataFile } from "../platform/dataFiles";
+import { atomicWriteInternalText } from "../platform/atomicFile";
+import { retireInternalFile } from "../platform/dataFiles";
+import { internalPlace } from "../platform/internalFiles";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
 import type { MobileVault } from "./vaultService";
@@ -43,7 +44,7 @@ import type { MobileVault } from "./vaultService";
  *    apply leaves the way back on the device. That is also why it is a file and
  *    not a preference: Capacitor's Preferences write through `apply()`, which
  *    is asynchronous — the same reason the secure store was moved to `commit()`.
- *    `atomicWriteText` goes through the native plugin (fsync on Android,
+ *    `atomicWriteInternalText` goes through the native plugin (fsync on Android,
  *    F_FULLFSYNC on iOS) and renames into place, so the journal is never torn.
  * 2. It lives OUTSIDE the vault container, next to the drafts. Inside it would
  *    be synchronised — and a half state travelling to other devices is exactly
@@ -161,25 +162,26 @@ export async function captureProfileSnapshot(vault: MobileVault): Promise<Profil
 /** Durable, before the first change. Torn journals are worse than none. */
 export async function writeProfileJournal(vaultId: string, snapshot: ProfileImportSnapshot): Promise<void> {
   const journal: ProfileImportJournal = { startedAt: new Date().toISOString(), snapshot };
-  await atomicWriteText(profileJournalPath(vaultId), JSON.stringify(journal));
+  await atomicWriteInternalText(profileJournalPath(vaultId), JSON.stringify(journal));
 }
 
 /**
  * Already gone, or never written — both mean there is nothing to roll back.
- * One that will not go is closed in place (`retireDataFile`, read as absent):
+ * One that will not go is closed in place (`retireInternalFile`, read as absent):
  * left as it was, the next start would take it for an interrupted import and
  * roll back one that went through, without a word. Throws only when neither
  * works (stability plan R4).
  */
 export async function clearProfileJournal(vaultId: string): Promise<void> {
-  await retireDataFile(profileJournalPath(vaultId));
+  await retireInternalFile(profileJournalPath(vaultId));
 }
 
 async function readProfileJournal(vaultId: string): Promise<ProfileImportJournal | null> {
   try {
+    const place = await internalPlace(profileJournalPath(vaultId));
     const res = await Filesystem.readFile({
-      path: profileJournalPath(vaultId),
-      directory: Directory.Data,
+      path: place.path,
+      directory: place.directory,
       encoding: Encoding.UTF8,
     });
     const parsed = JSON.parse(String(res.data)) as ProfileImportJournal;

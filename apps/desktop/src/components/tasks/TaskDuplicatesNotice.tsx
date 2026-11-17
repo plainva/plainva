@@ -37,7 +37,7 @@ export function TaskDuplicatesNotice({
     listBoundTaskNotes: () => (pimRuntime ? pimRuntime.cache.listBoundTaskNotes() : Promise.resolve([])),
     readTextFile: (path) => vaultAdapter!.readTextFile(path),
     // The person's own button: through the net rule of a deletion, with its question (D1).
-    deleteNote: (path) => deleteWithNet(vaultAdapter!, path, false),
+    deleteNote: (path, ask) => deleteWithNet(vaultAdapter!, path, false, undefined, ask),
     onRemoved: async (removed) => {
       if (indexer) await applyIndexChanges(indexer, { removed }).catch(() => undefined);
       notifyFileOps(removed.map((path) => ({ type: "delete" as const, path })));
