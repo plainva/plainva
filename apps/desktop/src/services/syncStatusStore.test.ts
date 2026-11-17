@@ -114,7 +114,7 @@ describe("isFirstPullPending (O8: a cloud vault arriving is not an empty one)", 
 
   it("is pending from the worker's start until its first cycle is done", () => {
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false); // no sync at all
-    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive" });
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
     syncStatusStore.set(V, { status: "idle", message: null });
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
@@ -122,8 +122,14 @@ describe("isFirstPullPending (O8: a cloud vault arriving is not an empty one)", 
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
   });
 
+  it("a held folder names its provider and fetches nothing: not pending (second review of O8)", () => {
+    // What the desktop sets while an encrypted folder waits for a decision (onWaiting, the held start).
+    syncStatusStore.set(V, { status: "retrying", message: "unconfirmed", provider: "drive", reason: "encrypted-workspace", retryAt: 1 });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+  });
+
   it("a first pull that failed is not pending: the ordinary start shows", () => {
-    syncStatusStore.set(V, { status: "error", message: "offline", provider: "drive" });
+    syncStatusStore.set(V, { status: "error", message: "offline", provider: "drive", firstPullDone: false });
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
   });
 });

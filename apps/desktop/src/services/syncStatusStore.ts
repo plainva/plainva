@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, NameCollisionCase, WorkspaceSyncFailureKind, ListingIncompleteInfo } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { connectionErrorText, logDiagnostic } from "@plainva/ui";
+import { isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 
 /**
  * Sync status as a tiny external store (Gesamtplan Editor-Stabilitaet
@@ -73,9 +74,10 @@ export interface SyncStatusSnapshot {
    */
   listingIncomplete?: ListingIncompleteInfo | null;
   /**
-   * The running worker's first cycle has finished (`onFirstCycleComplete`):
-   * what the cloud folder holds is here. Before that an empty vault is a vault
-   * still arriving (O8, review 2026-11-17).
+   * `false` from the moment a sync worker exists until its first cycle has
+   * finished (`onFirstCycleComplete`), `true` after it; absent while no worker
+   * runs. Before the first cycle an empty vault is a vault still arriving
+   * (O8, review 2026-11-17). Mirrored to the other windows with the status.
    */
   firstPullDone?: boolean;
 }
@@ -221,13 +223,13 @@ export function isSyncAuthenticationError(message: string): boolean {
 }
 
 /**
- * Whether the vault syncs and its first pull has not finished yet — the start
- * of an empty vault then says it is being loaded instead of calling it empty.
- * A failed first pull is not "pending": the ordinary start shows, and the
- * status bar says what went wrong.
+ * The shared rule (`isFirstPullPending` in core) over this store's snapshot:
+ * `firstPullDone` is `false` from the worker's creation until its first cycle
+ * is done, and absent while no worker runs — so a held folder that says
+ * "retrying" with a provider is not "being loaded" (second review of O8).
  */
 export function isFirstPullPending(snap: SyncStatusSnapshot): boolean {
-  return snap.provider != null && !snap.firstPullDone && snap.status !== "error";
+  return isCoreFirstPullPending(snap);
 }
 
 /** `isFirstPullPending` for the open vault; re-renders only when it flips. */

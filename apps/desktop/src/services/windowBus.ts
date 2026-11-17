@@ -85,6 +85,12 @@ export interface BroadcastMap {
     retryAt?: number | null;
     /** Mirrors core's SyncProgress verbatim — see services/syncStatusStore.ts. */
     progress?: { phase: "pull" | "push"; current: number; total: number } | null;
+    /**
+     * The owner's worker and its first cycle (O8): `false` while it runs,
+     * `true` after it, null without a worker. Without it a second window of an
+     * empty synced vault said "being loaded" for ever (second review of O8).
+     */
+    firstPullDone?: boolean | null;
   };
   /** Calendar/task data changed (PIM worker cycle finished). */
   "pim-changed": Record<string, never>;

@@ -61,3 +61,20 @@ export async function readVaultEmptiness(
   }
   return options.firstPullPending ? "fetching" : "empty";
 }
+
+/**
+ * Whether the first pull of a syncing vault is running or about to start — the
+ * one rule both shells ask before they call an empty vault "being loaded"
+ * (second review of O8, 2026-11-17).
+ *
+ * `firstPullDone` is `false` only from the moment a sync worker exists until
+ * its first cycle has finished, `true` after it, and absent (`null` or
+ * `undefined`) while no worker runs — a folder held back for a decision, a
+ * vault that does not sync, a stopped sync. Only `false` is "loading": a
+ * status that names a provider proves nothing about a pull. A failed pull is
+ * not pending either: the ordinary start shows, and the status bar says what
+ * went wrong. A worker that is retrying is still about to fetch.
+ */
+export function isFirstPullPending(s: { firstPullDone?: boolean | null; status: string }): boolean {
+  return s.firstPullDone === false && s.status !== "error" && s.status !== "off";
+}

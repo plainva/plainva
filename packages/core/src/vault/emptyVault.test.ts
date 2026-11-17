@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PLAINVA_INDEX_MARKER } from "../okf-index.js";
-import { readVaultEmptiness, type VaultRootReader } from "./emptyVault.js";
+import { isFirstPullPending, readVaultEmptiness, type VaultRootReader } from "./emptyVault.js";
 
 type Entry = { name: string; isDirectory: boolean };
 const file = (name: string) => ({ name, isDirectory: false });
@@ -77,5 +77,27 @@ describe("readVaultEmptiness", () => {
     expect(await readVaultEmptiness(root([file("index.md")], { "index.md": MANAGED }), { firstPullPending: true })).toBe("fetching");
     // Content is content, pull or not.
     expect(await readVaultEmptiness(root([file("First.md")]), { firstPullPending: true })).toBe("content");
+  });
+});
+
+describe("isFirstPullPending — one rule for both shells", () => {
+  it("is pending only while a worker exists and its first cycle has not finished", () => {
+    expect(isFirstPullPending({ firstPullDone: false, status: "idle" })).toBe(true);
+    expect(isFirstPullPending({ firstPullDone: false, status: "syncing" })).toBe(true);
+    // A worker that retries is about to fetch again.
+    expect(isFirstPullPending({ firstPullDone: false, status: "retrying" })).toBe(true);
+    expect(isFirstPullPending({ firstPullDone: true, status: "syncing" })).toBe(false);
+  });
+
+  it("is never pending without a worker, whatever the status says", () => {
+    // A folder held back for a decision says "retrying" with a provider, and nothing is fetched.
+    expect(isFirstPullPending({ firstPullDone: undefined, status: "retrying" })).toBe(false);
+    expect(isFirstPullPending({ firstPullDone: null, status: "idle" })).toBe(false);
+    expect(isFirstPullPending({ status: "syncing" })).toBe(false);
+  });
+
+  it("a failed or stopped first pull is not pending", () => {
+    expect(isFirstPullPending({ firstPullDone: false, status: "error" })).toBe(false);
+    expect(isFirstPullPending({ firstPullDone: false, status: "off" })).toBe(false);
   });
 });

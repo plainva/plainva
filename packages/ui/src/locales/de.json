@@ -7534,6 +7534,7 @@
     "tourFailed": "Plainva konnte die Tour nicht in {{place}} anlegen – vielleicht ist der Zugriff auf diesen Ordner nicht erlaubt. Wähle einen anderen Ort dafür.",
     "tourElsewhere": "Anderen Ort wählen",
     "tourElsewhereTitle": "Ort für den Tour-Vault wählen",
+    "tourMade": "Die Tour liegt in {{path}}.",
     "moreAt": "Mehr dazu:",
     "guideLink": "Handbuch",
     "later": "Später"

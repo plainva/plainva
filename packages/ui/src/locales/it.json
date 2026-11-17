@@ -7689,6 +7689,7 @@
     "tourFailed": "Plainva non è riuscito a creare il tour in {{place}}: forse l’accesso a questa cartella non è consentito. Scegli un altro posto.",
     "tourElsewhere": "Scegli un altro posto",
     "tourElsewhereTitle": "Scegli un posto per il vault del tour",
+    "tourMade": "Il tour si trova in {{path}}.",
     "moreAt": "Per saperne di più:",
     "guideLink": "Guida utente",
     "later": "Più tardi"

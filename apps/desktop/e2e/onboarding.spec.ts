@@ -19,6 +19,8 @@ interface FirstRunOptions {
   pick?: string | null;
   /** Each vault write waits this long, so the welcome's progress can be seen. */
   writeDelayMs?: number;
+  /** The first vault write whose path ends so fails, once (a full disk mid-tour). */
+  failWriteOnce?: string;
 }
 
 /** A machine that has never run Plainva: no seen-marker, no recent vaults. */
@@ -75,7 +77,18 @@ function firstRunShell(page: any, opts: FirstRunOptions = {}) {
         if (cmd === 'write_file_atomic') {
           if (o.writeDelayMs) await new Promise((r) => setTimeout(r, o.writeDelayMs));
           const root = String(args.rootId).replace(/^mock-root:/, '').replace(/\/$/, '');
-          calls.push({ cmd: 'write', path: `${root}/${String(args.relPath).replace(/^\/+/, '')}` });
+          const path = `${root}/${String(args.relPath).replace(/^\/+/, '')}`;
+          if (o.failWriteOnce && path.endsWith(o.failWriteOnce)) {
+            o.failWriteOnce = undefined;
+            throw 'No space left on device';
+          }
+          calls.push({ cmd: 'write', path });
+          return null;
+        }
+        if (cmd === 'plugin:fs|remove') {
+          const path = String(args.path).replace(/\/$/, '');
+          calls.push({ cmd, path });
+          for (const key of Object.keys(fs)) if (key === path || key.startsWith(path + '/')) delete fs[key];
           return null;
         }
         if (cmd === 'plugin:fs|exists' || cmd === 'plugin:fs|read_dir') {
@@ -227,6 +240,27 @@ test('a tour folder that already holds notes is never written into — the next 
   await expect(dialog.getByTestId('firstrun-tour-where')).toBeVisible({ timeout: 20000 });
   await dialog.getByTestId('firstrun-tour').click();
   await expect.poll(() => madeFolders(page), { timeout: 15000 }).toEqual([expect.stringMatching(/\/Plainva[ -]Tour 2$/)]);
+  // The card had named "Plainva Tour"; the message after it names the folder the tour is in.
+  await expect(page.getByText(/(Die Tour liegt in|The tour is in) .*Plainva[ -]Tour 2/)).toBeVisible({ timeout: 15000 });
+});
+
+test('a tour that fails halfway takes its half folder back, and the next try gets the same name', async ({ page }) => {
+  await firstRunShell(page, { failWriteOnce: '.md' });
+  await page.goto('/');
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByTestId('firstrun-tour')).toBeVisible({ timeout: 20000 });
+  await dialog.getByTestId('firstrun-tour').click();
+  await expect(dialog.getByTestId('firstrun-tour-failed')).toBeVisible({ timeout: 20000 });
+  const first = (await madeFolders(page))[0];
+  expect(first).toMatch(/\/Plainva[ -]Tour$/);
+  const removed = await page.evaluate(() => (window as any).__fsCalls.filter((c: any) => c.cmd === 'plugin:fs|remove').map((c: any) => c.path));
+  expect(removed).toEqual([first]);
+
+  await dialog.getByTestId('firstrun-tour').click();
+  await expect(page.getByTestId('firstrun-tour')).toHaveCount(0, { timeout: 30000 });
+  // The same name again, no "Plainva Tour 2" beside a half vault.
+  expect(await madeFolders(page)).toEqual([first, first]);
 });
 
 test('the place of a vault Plainva still remembers is skipped, even when its folder is gone', async ({ page }) => {

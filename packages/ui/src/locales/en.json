@@ -7534,6 +7534,7 @@
     "tourFailed": "Plainva could not create the tour in {{place}} – access to this folder may not be allowed. Choose another place for it.",
     "tourElsewhere": "Choose another place",
     "tourElsewhereTitle": "Choose a place for the tour vault",
+    "tourMade": "The tour is in {{path}}.",
     "moreAt": "More about this:",
     "guideLink": "User guide",
     "later": "Later"

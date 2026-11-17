@@ -7534,6 +7534,7 @@
     "tourFailed": "Plainva kon de tour niet aanmaken in {{place}} – mogelijk is toegang tot deze map niet toegestaan. Kies een andere plek.",
     "tourElsewhere": "Andere plek kiezen",
     "tourElsewhereTitle": "Kies een plek voor de tourvault",
+    "tourMade": "De tour staat in {{path}}.",
     "moreAt": "Meer hierover:",
     "guideLink": "Handleiding",
     "later": "Later"

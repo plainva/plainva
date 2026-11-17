@@ -25,7 +25,7 @@ import {
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
-import { assertEmptyRemoteVault } from "@plainva/core";
+import { assertEmptyRemoteVault, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
@@ -240,12 +240,12 @@ function setFirstPullDone(firstPullDone: boolean | null): void {
 }
 
 /**
- * Whether the vault syncs and its first pull has not finished — one rule
- * with the desktop's `isFirstPullPending`. A failed first pull is not
+ * Whether the vault syncs and its first pull is running or about to start —
+ * core's `isFirstPullPending`, the desktop asks the same. A failed first pull is not
  * "pending": Home shows its ordinary start, and the sync line says what broke.
  */
 export function isFirstPullPending(s: Pick<SyncState, "status" | "firstPullDone">): boolean {
-  return s.firstPullDone === false && s.status !== "error" && s.status !== "off";
+  return isCoreFirstPullPending(s);
 }
 
 function setListingIncomplete(info: ListingIncompleteInfo | null): void {

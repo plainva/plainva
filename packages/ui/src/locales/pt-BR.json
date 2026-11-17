@@ -7689,6 +7689,7 @@
     "tourFailed": "O Plainva não conseguiu criar o tour em {{place}} – talvez o acesso a esta pasta não seja permitido. Escolha outro lugar.",
     "tourElsewhere": "Escolher outro lugar",
     "tourElsewhereTitle": "Escolha um lugar para o vault do tour",
+    "tourMade": "O tour está em {{path}}.",
     "moreAt": "Saiba mais:",
     "guideLink": "Guia do usuário",
     "later": "Depois"

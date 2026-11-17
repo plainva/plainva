@@ -7379,6 +7379,7 @@
     "tourFailed": "Plainva 无法在 {{place}} 创建导览——可能不允许访问此文件夹。请选择其他位置。",
     "tourElsewhere": "选择其他位置",
     "tourElsewhereTitle": "为导览仓库选择位置",
+    "tourMade": "导览位于 {{path}}。",
     "moreAt": "了解更多：",
     "guideLink": "用户指南",
     "later": "稍后"

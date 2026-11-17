@@ -7844,6 +7844,7 @@
     "tourFailed": "Plainva nie mogła utworzyć wycieczki w {{place}} – być może dostęp do tego folderu nie jest dozwolony. Wybierz inne miejsce.",
     "tourElsewhere": "Wybierz inne miejsce",
     "tourElsewhereTitle": "Wybierz miejsce na vault wycieczki",
+    "tourMade": "Wycieczka jest w {{path}}.",
     "moreAt": "Więcej informacji:",
     "guideLink": "Instrukcja obsługi",
     "later": "Później"

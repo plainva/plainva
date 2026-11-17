@@ -7379,6 +7379,7 @@
     "tourFailed": "{{place}} にツアーを作成できませんでした。このフォルダーへのアクセスが許可されていない可能性があります。別の場所を選んでください。",
     "tourElsewhere": "別の場所を選ぶ",
     "tourElsewhereTitle": "ツアー保管庫の場所を選ぶ",
+    "tourMade": "ツアーは {{path}} にあります。",
     "moreAt": "詳細はこちら：",
     "guideLink": "ユーザーガイド",
     "later": "後で"

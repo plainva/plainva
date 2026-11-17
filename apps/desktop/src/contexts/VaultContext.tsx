@@ -20,7 +20,7 @@ import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
-import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
+import { syncStatusStore } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { LoadStarts } from "../services/loadStarts";
@@ -53,7 +53,7 @@ import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
+import { applyMirroredSyncStatus, broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { usePinboardDraftSweep } from "../services/usePinboardDraftSweep";
@@ -1560,6 +1560,8 @@ export const VaultProvider: React.FC<{
                     return access.state === "unlocked" ? access.runtime : null;
                   },
                 });
+                // A worker exists: until its first cycle is done the vault is arriving (O8).
+                syncStatusStore.set(path, { firstPullDone: false });
                 worker.onStatusChange = (status, errorMsg, _reason, retryAt, failureKind) => {
                   const message = workspaceSyncFailureText(errorMsg, failureKind);
                   syncStatusStore.set(path, { status, message, retryAt, workspaceFailure: failureKind, authRecoverable: failureKind === "authentication", ...(status !== "syncing" ? { progress: null } : {}) });
@@ -1690,6 +1692,8 @@ export const VaultProvider: React.FC<{
             fileWorker.onUnverifiedFiles = (unverifiedFiles) => {
               syncStatusStore.set(path, { unverifiedFiles });
             };
+            // A worker exists: until its first cycle is done the vault is arriving (O8).
+            syncStatusStore.set(path, { firstPullDone: false });
             fileWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app. `reason`
@@ -2060,15 +2064,7 @@ export const VaultProvider: React.FC<{
             // moves, and a status filed under the wrong vault outlives that
             // moment (stage D).
             if (!vault) return;
-            syncStatusStore.set(vault, {
-              status: s.status as SyncStatusSnapshot["status"],
-              message: s.message ?? null,
-              provider: (s.provider ?? null) as SyncStatusSnapshot["provider"],
-              // `retryAt` is optional, not nullable: null would type-error and
-              // read as "a retry at epoch zero" in the status bar.
-              retryAt: s.retryAt ?? undefined,
-              progress: s.progress ?? null,
-            });
+            applyMirroredSyncStatus(vault, s);
           }),
         );
         // The watcher lives in the owner. Without this an auxiliary window would

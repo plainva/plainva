@@ -2,7 +2,7 @@ import { loadDesktopBookmarks, publishBookmarks, bindBookmarkVault, retargetDesk
 import { CommentOperationError, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
-import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
+import { getWindowBus, OWNER_LABEL, type BroadcastMap, type RpcMap } from "./windowBus";
 import { enqueueSend, appendDraftFor, releaseRefusedSend } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
@@ -22,7 +22,7 @@ import {
 } from "./windowManager";
 import { holdersOf, setHolderVault } from "./vaultRuntimes";
 import { clearDraft, recordDraft, relocateDrafts } from "./draftJournal";
-import { syncStatusStore } from "./syncStatusStore";
+import { syncStatusStore, type SyncStatusSnapshot } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { withPendingWrite } from "./pendingWrites";
 import { runQuickCapture } from "./quickCapture";
@@ -195,6 +195,24 @@ function installEventBridges(vaultPath: string): () => void {
 }
 
 /**
+ * What a window that does not own the vault makes of the owner's mirrored
+ * status — filed under the vault the owner named. Every field the start of a
+ * vault reads travels, `firstPullDone` included (second review of O8).
+ */
+export function applyMirroredSyncStatus(vault: string, s: BroadcastMap["sync-status"]): void {
+  syncStatusStore.set(vault, {
+    status: s.status as SyncStatusSnapshot["status"],
+    message: s.message ?? null,
+    provider: (s.provider ?? null) as SyncStatusSnapshot["provider"],
+    // `retryAt` is optional, not nullable: null would type-error and read as
+    // "a retry at epoch zero" in the status bar.
+    retryAt: s.retryAt ?? undefined,
+    progress: s.progress ?? null,
+    firstPullDone: s.firstPullDone ?? undefined,
+  });
+}
+
+/**
  * Mirrors the owner's sync status into the other windows (C3).
  *
  * Subscribed to the store rather than called at each writer: the worker's
@@ -211,7 +229,7 @@ export function installSyncStatusMirror(vaultPath: string): () => void {
     const s = syncStatusStore.get(vaultPath);
     // Cheap equality: the store also emits for fields no other window draws
     // (error history, authRecoverable), and every emit here is an IPC message.
-    const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total].join("|");
+    const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total, s.firstPullDone].join("|");
     if (key === last) return;
     last = key;
     void getWindowBus()
@@ -224,6 +242,7 @@ export function installSyncStatusMirror(vaultPath: string): () => void {
             provider: s.provider,
             retryAt: s.retryAt ?? null,
             progress: s.progress ?? null,
+            firstPullDone: s.firstPullDone ?? null,
           },
           vaultPath,
         ),

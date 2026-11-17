@@ -77,8 +77,8 @@ vi.mock("./windowBus", async (importOriginal) => {
 });
 
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
-import { syncStatusStore } from "./syncStatusStore";
-import { installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
+import { isFirstPullPending, syncStatusStore } from "./syncStatusStore";
+import { applyMirroredSyncStatus, installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
 import { resetVaultRuntimes, setHolderVault } from "./vaultRuntimes";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import {
@@ -873,6 +873,26 @@ describe("the sync status the other windows see", () => {
     // file of a thousand-file cycle.
     expect(seen.map((s) => s.status)).toEqual(["syncing", "error"]);
     expect(seen[1]?.message).toBe("no route to host");
+    stop();
+    off();
+    dispose();
+  });
+  it("carries the first pull to a window that does not own the vault (second review of O8)", async () => {
+    // The owner files under "/vault"; the client window's own copy is kept apart
+    // under "/client" so the test sees only what crossed the bus.
+    const { aux, dispose } = await setup();
+    const off = await aux.onBroadcast("sync-status", (p) => applyMirroredSyncStatus("/client", p));
+    const stop = installSyncStatusMirror("/vault");
+
+    syncStatusStore.set("/vault", { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(true);
+
+    // The owner's first cycle ends; the status itself need not change for the mark to travel.
+    syncStatusStore.set("/vault", { status: "syncing", message: null, firstPullDone: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(syncStatusStore.get("/client").firstPullDone).toBe(true);
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(false);
     stop();
     off();
     dispose();
