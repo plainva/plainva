@@ -574,140 +574,103 @@ describe("a request asked for again after it failed (A15)", () => {
   });
 });
 
-describe("pressed again after \"it may still land\", without an attempt (A15)", () => {
-  /** An owner that says it has the first request once, then falls silent on it while it runs. */
-  function silentOwner(wire: ReturnType<typeof createWire>) {
-    const transport = wire.make(OWNER_LABEL);
-    let first: string | null = null;
-    let said = false;
-    return createWindowBus({
-      ...transport,
+describe("the same request again, without an attempt, is a new action (A15, review 2026-11-17)", () => {
+  /** A bus whose owner's answer to the first request goes missing; later answers arrive. */
+  function lossyWire() {
+    const listeners = new Map<string, Set<{ label: string; fn: (payload: unknown) => void }>>();
+    let lose: string | null = null;
+    let loseNext = false;
+    const make = (label: string): BusTransport => ({
+      label,
+      async emit(event, payload) {
+        for (const entry of listeners.get(event) ?? []) entry.fn(payload);
+      },
       async emitTo(target, event, payload) {
-        if (event === "pv:rpc-alive") {
+        if (event === "pv:rpc-reply") {
           const id = (payload as { id: string }).id;
-          first ??= id;
-          if (id === first) {
-            if (said) return;
-            said = true;
-          }
+          if (loseNext) { lose = id; loseNext = false; }
+          if (id === lose) return;
         }
-        return transport.emitTo(target, event, payload);
+        for (const entry of listeners.get(event) ?? []) if (entry.label === target) entry.fn(payload);
+      },
+      async listen(event, handler) {
+        const entry = { label, fn: handler };
+        const set = listeners.get(event) ?? new Set();
+        set.add(entry);
+        listeners.set(event, set);
+        return () => set.delete(entry);
       },
     });
+    return { make, loseTheNextAnswer: () => { loseNext = true; } };
   }
 
-  const event = { accountId: "a", op: { kind: "createEvent", calendarId: "c", draft: { title: "Dentist" } } } as never;
-
-  async function lostFirstAnswer(handlerRuns: { n: number }) {
-    const wire = createWire();
-    const owner = silentOwner(wire);
-    const aux = createWindowBus(wire.make("aux-1"), 50);
-    const install = (bus: typeof owner) =>
-      bus.handle("pim-write", (async () => {
-        handlerRuns.n += 1;
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        return { ok: true as const, etag: "e" };
-      }) as never);
-    await install(owner);
-    const first = aux.request("pim-write", event);
-    const failed = expect(first).rejects.toThrow(/may still land/);
-    await vi.advanceTimersByTimeAsync(200);
-    await failed;
-    return { wire, owner, aux, install };
-  }
-
-  it("creates the event once when the person presses \"Save\" again", async () => {
-    vi.useFakeTimers();
-    try {
-      const runs = { n: 0 };
-      const { owner, aux } = await lostFirstAnswer(runs);
-      const again = aux.request("pim-write", event);
-      await vi.advanceTimersByTimeAsync(400);
-      await expect(again).resolves.toEqual({ ok: true, etag: "e" });
-      expect(runs.n).toBe(1);
-      await owner.dispose(); await aux.dispose();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("creates it once even when the central window loaded again in between", async () => {
-    vi.useFakeTimers();
-    try {
-      const runs = { n: 0 };
-      const { wire, owner, aux, install } = await lostFirstAnswer(runs);
-      await vi.advanceTimersByTimeAsync(400);
-      await owner.dispose();
-      const reloaded = createWindowBus(wire.make(OWNER_LABEL));
-      await install(reloaded);
-      await expect(aux.request("pim-write", event)).resolves.toEqual({ ok: true, etag: "e" });
-      expect(runs.n).toBe(1);
-      await reloaded.dispose(); await aux.dispose();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("runs a different request as a new one", async () => {
-    vi.useFakeTimers();
-    try {
-      const runs = { n: 0 };
-      const { owner, aux } = await lostFirstAnswer(runs);
-      const other = aux.request("pim-write", { accountId: "a", op: { kind: "createEvent", calendarId: "c", draft: { title: "Gym" } } } as never);
-      await vi.advanceTimersByTimeAsync(400);
-      await other;
-      expect(runs.n).toBe(2);
-      await owner.dispose(); await aux.dispose();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("posts a remark once, and stars a note once, when pressed again", async () => {
-    vi.useFakeTimers();
-    try {
-      for (const [kind, args] of [
-        ["comment-post", { path: "N.md", body: "hi" }],
-        ["toggle-bookmark", { path: "N.md" }],
-      ] as const) {
-        const wire = createWire();
-        const owner = silentOwner(wire);
-        const aux = createWindowBus(wire.make("aux-1"), 50);
-        let runs = 0;
-        await owner.handle(kind as never, (async () => {
-          runs += 1;
-          await new Promise((resolve) => setTimeout(resolve, 400));
-          return kind === "toggle-bookmark" ? [] : { ok: true };
-        }) as never);
-        const first = aux.request(kind as never, args as never);
-        const failed = expect(first).rejects.toThrow(/may still land/);
-        await vi.advanceTimersByTimeAsync(200);
-        await failed;
-        const again = aux.request(kind as never, args as never);
-        await vi.advanceTimersByTimeAsync(400);
-        await again;
-        expect({ kind, runs }).toEqual({ kind, runs: 1 });
-        await owner.dispose(); await aux.dispose();
+  async function sequence<K extends "toggle-bookmark" | "comment-post" | "pim-write">(kind: K, handler: (args: never) => unknown, steps: Array<{ args: unknown; lost?: boolean; attempt?: string }>) {
+    const wire = lossyWire();
+    const owner = createWindowBus(wire.make(OWNER_LABEL), 40);
+    const aux = createWindowBus(wire.make("aux-1"), 40);
+    await owner.handle(kind, (async (args: never) => handler(args)) as never);
+    const outcomes: string[] = [];
+    for (const step of steps) {
+      if (step.lost) wire.loseTheNextAnswer();
+      try {
+        await aux.request(kind, step.args as never, step.attempt ? { attempt: step.attempt } : undefined);
+        outcomes.push("ok");
+      } catch (e) {
+        outcomes.push((e as Error).message.includes("may still land") ? "may still land" : "failed");
       }
-    } finally {
-      vi.useRealTimers();
     }
+    await owner.dispose(); await aux.dispose();
+    return outcomes;
+  }
+
+  it("takes the star off again when the person clicks it after \"it may still land\"", async () => {
+    const starred = new Set<string>();
+    const out = await sequence("toggle-bookmark", (({ path }: { path: string }) => { if (starred.has(path)) starred.delete(path); else starred.add(path); return []; }) as never, [
+      { args: { path: "A.md", type: "file" }, lost: true },
+      { args: { path: "A.md", type: "file" } },
+    ]);
+    expect(out).toEqual(["may still land", "ok"]);
+    expect(starred.has("A.md")).toBe(false);
   });
 
-  it("runs it again when the central window said the first try failed", async () => {
-    const wire = createWire();
-    const owner = createWindowBus(wire.make(OWNER_LABEL));
-    const aux = createWindowBus(wire.make("aux-1"));
+  it("posts a second, deliberately equal \"+1\" as a second remark", async () => {
+    const remarks: string[] = [];
+    await sequence("comment-post", (({ body }: { body: string }) => { remarks.push(body); return undefined; }) as never, [
+      { args: { path: "N.md", body: "+1", parentCommentId: null, anchor: null }, lost: true },
+      { args: { path: "N.md", body: "+1", parentCommentId: null, anchor: null } },
+    ]);
+    expect(remarks).toEqual(["+1", "+1"]);
+  });
+
+  it("ends an event moved 10 to 11 (lost), to 10, to 11 on 11", async () => {
+    let at = "10";
+    const move = (start: string) => ({ accountId: "a", op: { kind: "updateEvent", ref: { calendarId: "c", uid: "u" }, draft: { title: "T", start } } });
+    await sequence("pim-write", (({ op }: { op: { draft: { start: string } } }) => { at = op.draft.start; return { ok: true }; }) as never, [
+      { args: move("11"), lost: true },
+      { args: move("10") },
+      { args: move("11") },
+    ]);
+    expect(at).toBe("11");
+  });
+
+  it("still creates an event once when the same form's \"Try again\" follows \"it may still land\"", async () => {
+    const created: string[] = [];
+    const create = { accountId: "a", op: { kind: "createEvent", calendarId: "c", draft: { title: "Dentist" } } };
+    await sequence("pim-write", (() => { created.push("Dentist"); return { ok: true, uid: "e1" }; }) as never, [
+      { args: create, lost: true, attempt: "event-form-1" },
+      { args: create, attempt: "event-form-1" },
+    ]);
+    expect(created).toEqual(["Dentist"]);
+  });
+
+  it("gives the outcome of a landed try once: a third try of the same attempt runs again", async () => {
     let runs = 0;
-    await owner.handle("pim-write", (async () => {
-      runs += 1;
-      if (runs === 1) throw new Error("the provider said no");
-      return { ok: true as const, etag: "e" };
-    }) as never);
-    await expect(aux.request("pim-write", event)).rejects.toThrow(/said no/);
-    await expect(aux.request("pim-write", event)).resolves.toEqual({ ok: true, etag: "e" });
+    await sequence("journal-capture" as never, (() => { runs += 1; return { ok: true }; }) as never, [
+      { args: { text: "Call Anna", task: false }, lost: true, attempt: "capture-1" },
+      { args: { text: "Call Anna", task: false }, attempt: "capture-1" },
+      { args: { text: "Call Anna", task: false }, attempt: "capture-1" },
+    ]);
     expect(runs).toBe(2);
-    await owner.dispose(); await aux.dispose();
   });
 });
 

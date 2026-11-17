@@ -38,9 +38,9 @@ function unavailable(what: string): never {
   throw new Error(`${what} runs in the central window only`);
 }
 
-async function send(accountId: string, op: PimWriteOp) {
+async function send(accountId: string, op: PimWriteOp, attempt?: string) {
   const bus = await getWindowBus();
-  const res = await bus.request("pim-write", { accountId, op });
+  const res = attempt === undefined ? await bus.request("pim-write", { accountId, op }) : await bus.request("pim-write", { accountId, op }, { attempt });
   if ("conflict" in res) {
     // PimConflictError cannot survive JSON; the caller's `instanceof` check is
     // what decides between "re-pull and reopen" and "show an error". The etag
@@ -55,9 +55,32 @@ async function send(accountId: string, op: PimWriteOp) {
  * purpose (see above) — the views in an aux window read the cache, never a
  * provider.
  */
+/** The remote targets, by what `withWriteAttempt` needs to make one that names its action. */
+const remoteAccounts = new WeakMap<IPimTarget, string>();
+
+/**
+ * The target for one action of the person — the event a form created — which
+ * names it in the create it sends (`RequestOptions.attempt`, A15): pressing
+ * "Try again" after "it may still land" is that action again, and the central
+ * window does not create the event twice. A new form is a new action, however
+ * alike its event. Updates, deletions and answers set a state and repeat
+ * harmlessly; a target of the central window itself is given back as it is.
+ */
+export function withWriteAttempt(target: IPimTarget | null, attempt: string): IPimTarget | null {
+  const id = target ? remoteAccounts.get(target) : undefined;
+  if (!target || id === undefined) return target;
+  return {
+    ...target,
+    async createEvent(calendarId: string, draft: PimEventDraft) {
+      const res = await send(id, { kind: "createEvent", calendarId, draft }, attempt);
+      return { uid: res.uid ?? "", etag: res.etag, href: res.href };
+    },
+  } as IPimTarget;
+}
+
 export function createRemotePimTarget(account: PimAccountRow): IPimTarget {
   const id = account.id;
-  return {
+  const target = {
     provider: account.provider,
     listCalendars: () => unavailable("listCalendars"),
     pullEvents: () => unavailable("pullEvents"),
@@ -83,6 +106,8 @@ export function createRemotePimTarget(account: PimAccountRow): IPimTarget {
       return { etag: res.etag };
     },
   } as IPimTarget;
+  remoteAccounts.set(target, id);
+  return target;
 }
 
 /**

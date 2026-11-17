@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { reportingTo } from "@plainva/ui";
+import { withWriteAttempt } from "../../services/pim/remotePimTarget";
 import { useTranslation } from "react-i18next";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Users } from "lucide-react";
@@ -1056,13 +1057,18 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // Whoever handed this appointment over hears of it once the calendar took it — not before, and not on a failure.
       const seeded = seedSaved.current;
       seedSaved.current = null;
+      // One action of the person: this form's event. "Try again" on a failed
+      // write is the same action — in another window the central one then
+      // does not create it twice (A15) — and the next form is a new one.
+      const action = `event-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
       const create = () => {
         const id = pendingEventWrites.reserve();
         const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
         void writeEventOptimistically(
           pendingEventWrites,
           { kind: "create", row: pendingEventRow(id, shown) },
-          () => createCalendarEvent({ targetFor }, accountId, calId, draft),
+          () => createCalendarEvent(actionTargets, accountId, calId, draft),
           (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
           id,
         ).then(

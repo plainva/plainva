@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { moveBookmark as moveBookmarkEntries, moveBookmarkOnDisk, removeBookmarksOnDisk, toggleBookmarkOnDisk, toast, type BookmarkEntry, type BookmarksIO } from "@plainva/ui";
+import { bookmarkKey, moveBookmark as moveBookmarkEntries, moveBookmarkOnDisk, removeBookmarksOnDisk, toggleBookmarkOnDisk, toast, type BookmarkEntry, type BookmarksIO } from "@plainva/ui";
 import { getWindowBus } from "../services/windowBus";
 import { isOwnerWindow } from "../services/windowContext";
 import { loadDesktopBookmarks, publishBookmarks } from "../services/bookmarks";
@@ -8,7 +8,13 @@ import { loadDesktopBookmarks, publishBookmarks } from "../services/bookmarks";
 /** Every shell mirrors owner state; a client never writes a complete list. */
 export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | null) {
   const { t } = useTranslation();
-  const [bookmarks, setBookmarks] = useState<BookmarkEntry[]>([]);
+  const [bookmarks, setBookmarksState] = useState<BookmarkEntry[]>([]);
+  // What the window shows right now, also between two clicks before a render.
+  const shown = useRef<BookmarkEntry[]>([]);
+  const setBookmarks = useCallback((next: BookmarkEntry[] | ((current: BookmarkEntry[]) => BookmarkEntry[])) => {
+    shown.current = typeof next === "function" ? next(shown.current) : next;
+    setBookmarksState(shown.current);
+  }, []);
   const generation = useRef(0);
   useEffect(() => {
     let alive = true, updated = 0;
@@ -31,7 +37,18 @@ export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | n
     };
     void read().catch(() => { if (alive) toast.error(t("sidebar.bookmarkSaveFailed")); });
     return () => { alive = false; window.removeEventListener("plainva-bookmarks-changed", local); void off.then(unsubscribe => unsubscribe()).catch(() => {}); };
-  }, [io, vaultPath, t]);
+  }, [io, vaultPath, t, setBookmarks]);
+  /**
+   * Another window asks for the state it shows the star going to (2026-11-17),
+   * not for a toggle: a try that comes twice lands once, and the next click
+   * asks for the other state. The star turns at once; the answer replaces it.
+   */
+  const askForStar = async (path: string, type: BookmarkEntry["type"]) => {
+    const key = bookmarkKey({ path, type });
+    const on = !shown.current.some((entry) => bookmarkKey(entry) === key);
+    setBookmarks((current) => (on ? [...current, { path, type }] : current.filter((entry) => bookmarkKey(entry) !== key)));
+    return (await getWindowBus()).request("toggle-bookmark", { path, type, on }, { vaultPath });
+  };
   const mutate = async (kind: "toggle" | "remove", paths: string[], type: BookmarkEntry["type"] = "file") => {
     if (!io || !vaultPath) return;
     const epoch = generation.current;
@@ -39,7 +56,7 @@ export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | n
       const next = isOwnerWindow()
         ? await (kind === "toggle" ? toggleBookmarkOnDisk(io, paths[0], type) : removeBookmarksOnDisk(io, paths))
         : await (kind === "toggle"
-          ? (await getWindowBus()).request("toggle-bookmark", { path: paths[0], type }, { vaultPath })
+          ? await askForStar(paths[0], type)
           : (await getWindowBus()).request("remove-bookmarks", { paths }, { vaultPath }));
       if (isOwnerWindow()) publishBookmarks(vaultPath, next);
       if (generation.current === epoch) setBookmarks(next);

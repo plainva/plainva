@@ -21,7 +21,7 @@ vi.mock("../windowBus", () => ({
   getWindowBus: async () => ({ request }),
 }));
 
-const { createRemotePimTarget, createClientPimRuntime } = await import("./remotePimTarget");
+const { createRemotePimTarget, createClientPimRuntime, withWriteAttempt } = await import("./remotePimTarget");
 
 const account = { id: "acc-1", provider: "google" } as unknown as PimAccountRow;
 const ref = { calendarId: "cal", uid: "u1", etag: "e1" } as never;
@@ -93,5 +93,22 @@ describe("remote PIM target", () => {
     const runtime = createClientPimRuntime({} as never);
     await runtime.worker.triggerImmediate({ afterWrite: true });
     expect(request).toHaveBeenCalledWith("pim-refresh", { afterWrite: true });
+  });
+});
+
+describe("the target of one form's event (A15)", () => {
+  it("names the form's action in the create it sends, and only there", async () => {
+    request.mockResolvedValue({ ok: true, uid: "created" });
+    const target = withWriteAttempt(createRemotePimTarget(account), "event-form-1")!;
+    await target.createEvent!("cal", draft);
+    await target.updateEvent!(ref, draft);
+    expect(request.mock.calls[0]).toEqual(["pim-write", { accountId: "acc-1", op: { kind: "createEvent", calendarId: "cal", draft } }, { attempt: "event-form-1" }]);
+    expect(request.mock.calls[1]).toEqual(["pim-write", { accountId: "acc-1", op: { kind: "updateEvent", ref, draft } }]);
+  });
+
+  it("leaves a target of the central window itself, and no target, as they are", () => {
+    const own = { provider: "google" } as never;
+    expect(withWriteAttempt(own, "event-form-1")).toBe(own);
+    expect(withWriteAttempt(null, "event-form-1")).toBeNull();
   });
 });

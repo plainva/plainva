@@ -394,7 +394,8 @@ function clientComments(vaultPath: string | null): Pick<VaultContextType, "postW
   listPublicationComments: (path) => getWindowBus().then((bus) => bus.request("comment-list-publication", { path }, scope)),
   listWorkspaceMembers: () => getWindowBus().then((bus) => bus.request("comment-members", {}, scope)),
   getCommentSelfId: () => getWindowBus().then((bus) => bus.request("comment-self", {}, scope)),
-  postWorkspaceCommentInput: (input) => getWindowBus().then((bus) => bus.request("comment-post", input, scope)),
+  // A remark with its operation's identity is that operation, however often it is tried (A15).
+  postWorkspaceCommentInput: (input) => getWindowBus().then((bus) => bus.request("comment-post", input, input.identity ? { ...scope, attempt: `comment-${input.identity.commentId}` } : scope)),
   postWorkspaceComment: (path, body, parentCommentId = null, anchor = null, suggestion = null, batch = null) =>
     getWindowBus().then((bus) => bus.request("comment-post", { path, body, parentCommentId, anchor, suggestion, batch }, scope)),
   resolveWorkspaceComment: (path, commentId, suggestionOutcome = null) => getWindowBus().then((bus) => bus.request("comment-resolve", { path, commentId, suggestionOutcome }, scope)),
