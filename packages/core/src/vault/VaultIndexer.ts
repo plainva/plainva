@@ -11,7 +11,7 @@ import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
-import { isMarkerTakenWithoutMark, readLocalText, type LocalText } from "./localText.js";
+import { contentSha256Of, isMarkerTakenWithoutMark, readLocalText, type LocalText } from "./localText.js";
 import { encodeIndexedProperty } from "./indexedProperty.js";
 import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
@@ -39,11 +39,6 @@ async function sha256Hash(text: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function sha256Bytes(bytes: Uint8Array): Promise<string> {
-  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 // The internal-path rules live in internalPath.ts (as data, shared with the
 // native vault walk); re-exported so the many existing importers keep their path.
@@ -1435,7 +1430,8 @@ export class VaultIndexer {
     if (fileInfo.name.endsWith(".md") || isTextFile(fileInfo.path)) {
       return { kind: "text", read: await readLocalText(this.vaultAdapter, fileInfo.path) };
     }
-    return { kind: "bytes", sha256: await sha256Bytes(await this.vaultAdapter.readBinaryFile(fileInfo.path)) };
+    // The hash only: on a phone the bytes of a picture would cross the WebView bridge for it.
+    return { kind: "bytes", sha256: await contentSha256Of(this.vaultAdapter, fileInfo.path) };
   }
 
   /** What an attachment is indexed with: the hash of its bytes, and its text where it is one. */

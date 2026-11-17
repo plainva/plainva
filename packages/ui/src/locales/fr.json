@@ -5695,6 +5695,7 @@
     "backupZipNever": "Aucune sauvegarde pour l'instant",
     "backupZipDone": "Sauvegarde créée : {{name}}",
     "backupZipFailed": "La sauvegarde de « {{name}} » n’a pas pu être créée. Les archives précédentes sont conservées. Vous pouvez réessayer depuis les réglages du vault.",
+    "backupZipLastFailed": "Échec de la dernière sauvegarde",
     "backupUnreadableTitle": "Les sauvegardes plus anciennes ne peuvent pas être lues",
     "backupUnreadableBody": "L’app Fichiers peut toujours y accéder.",
     "backupUnreadableShort": "Certains fichiers de {{folder}} sont illisibles depuis une réinstallation ; ils ne sont ni comptés ni nettoyés.",

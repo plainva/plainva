@@ -5,7 +5,7 @@ import {
   makeBackupPath,
   parseBackupFileName,
 } from "./backupNaming.js";
-import { readLocalFile } from "./localText.js";
+import { contentSha256Of, readLocalFile } from "./localText.js";
 import { markAiVersion } from "./versionOrigins.js";
 
 export interface BackupRetentionPolicy {
@@ -119,6 +119,11 @@ export class BackupVaultAdapter implements IVaultAdapter {
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
     return this.inner.readBinaryFile(path);
+  }
+
+  /** The inner adapter's hash, without the bytes where it can (`contentSha256Of`): this one hands them out unchanged. */
+  contentSha256(path: string): Promise<string> {
+    return contentSha256Of(this.inner, path);
   }
 
   /**

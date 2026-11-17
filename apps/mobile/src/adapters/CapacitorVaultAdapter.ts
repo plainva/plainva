@@ -12,7 +12,7 @@ import {
   withStoredSpelling,
   type SpellingSource,
 } from "@plainva/core";
-import { atomicWriteBase64, atomicWriteText } from "../platform/atomicFile";
+import { atomicWriteBytes, atomicWriteText, nativeFileDigest, nativeReadBytes, sweepAtomicTemps } from "../platform/atomicFile";
 import { isExistingDirectory, isMissingFile } from "./fileErrors";
 
 /**
@@ -51,14 +51,6 @@ function storedAsBase64(data: string): boolean {
   }
 }
 
-function bytesToB64(bytes: Uint8Array): string {
-  let bin = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(bin);
-}
 
 export class CapacitorVaultAdapter implements IVaultAdapter {
   /** Sandbox root under Directory.Data; per-vault since the isolation rework. */
@@ -110,6 +102,11 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     } catch (error) {
       if (!isExistingDirectory(error)) throw error;
     }
+    // A write in parts that a killed process left: its temp file goes (the target kept its old bytes).
+    await sweepAtomicTemps(this.root).catch((error: unknown) => {
+      // silent: a leftover temp file is hidden (dot name) and goes at a later start; it never blocks opening the vault.
+      console.warn("[vault] leftover temp files stay until the next start", error);
+    });
   }
 
   async dispose(): Promise<void> {}
@@ -146,6 +143,8 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   async readTextFile(path: string): Promise<string> {
     return this.stored(path, async (raw) => {
       try {
+        // In parts on a phone: no file crosses the bridge in one message (`BRIDGE_PART_BYTES`).
+        if (Capacitor.isNativePlatform()) return textOfFileBytes(await nativeReadBytes(this.full(raw)));
         const res = await Filesystem.readFile({ path: this.full(raw), directory: Directory.Data });
         if (res.data instanceof Blob) return textOfFileBytes(new Uint8Array(await res.data.arrayBuffer()));
         if (!Capacitor.isNativePlatform()) return res.data;
@@ -160,6 +159,7 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   async readBinaryFile(path: string): Promise<Uint8Array> {
     return this.stored(path, async (raw) => {
       try {
+        if (Capacitor.isNativePlatform()) return await nativeReadBytes(this.full(raw));
         const res = await Filesystem.readFile({ path: this.full(raw), directory: Directory.Data });
         if (res.data instanceof Blob) return new Uint8Array(await res.data.arrayBuffer());
         // The browser build hands back what it was given: a file written as text is its text there, no base64 —
@@ -181,7 +181,28 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
-    await atomicWriteBase64(this.full(await this.realPath(path)), bytesToB64(content));
+    await atomicWriteBytes(this.full(await this.realPath(path)), content);
+  }
+
+  /**
+   * The SHA-256 of a file's bytes. On a phone it is taken where the file lies
+   * (`nativeFileDigest`): the index and the sync need only the hash of a
+   * picture, and its bytes no longer cross the bridge for it.
+   */
+  async contentSha256(path: string): Promise<string> {
+    if (Capacitor.isNativePlatform()) {
+      return this.stored(path, async (raw) => {
+        try {
+          return (await nativeFileDigest(this.full(raw)))!.sha256;
+        } catch (error) {
+          if (isMissingFile(error) || !(await this.exists(path))) throw new VaultFileNotFoundError(path);
+          throw error;
+        }
+      });
+    }
+    // The browser build: the bytes are in the page already.
+    const digest = await crypto.subtle.digest("SHA-256", (await this.readBinaryFile(path)) as BufferSource);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
 
   /** See `IVaultAdapter.removeEmptyDir`: `readdir` hides nothing, and `rmdir` without `recursive` refuses a folder that holds something. */
