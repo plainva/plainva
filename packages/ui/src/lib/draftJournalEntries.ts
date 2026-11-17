@@ -124,3 +124,35 @@ export function offeredDraft<E extends DraftJournalEntry>(entries: readonly E[],
     .filter((e) => isDraftOf(e, owner) && (diskText === undefined || e.text !== diskText))
     .sort((a, b) => b.savedAt - a.savedAt || draftSessionOf(a).localeCompare(draftSessionOf(b)))[0] ?? null;
 }
+
+/**
+ * Two copies of one journal file as one (release list F43): an older build ran
+ * after a newer one, and both left the file - the phone's in `Documents` and
+ * in `Library/PlainvaData`. Every entry of either copy stays; where both hold
+ * the entry of one session for one note, the later revision stays (on a tie,
+ * the one written last). A text that cannot be read as a journal yields to
+ * one that can; `null` when neither can.
+ */
+export function mergeDraftJournals(a: string, b: string): string | null {
+  const read = (raw: string) => {
+    try {
+      return decodeDraftJournal(raw);
+    } catch {
+      return null;
+    }
+  };
+  const left = read(a);
+  const right = read(b);
+  if (!left && !right) return null;
+  if (!left) return b;
+  if (!right) return a;
+  const key = (e: DraftJournalEntry) => JSON.stringify([e.vaultPath ?? null, e.notePath, draftSessionOf(e)]);
+  const merged = new Map<string, DraftJournalEntry>();
+  for (const entry of [...left, ...right]) {
+    const previous = merged.get(key(entry));
+    if (!previous || entry.revision > previous.revision || (entry.revision === previous.revision && entry.savedAt > previous.savedAt)) {
+      merged.set(key(entry), entry);
+    }
+  }
+  return encodeDraftJournal([...merged.values()]);
+}

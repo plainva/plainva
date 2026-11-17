@@ -31,9 +31,14 @@ class Trees implements InternalFolders {
   async existsOld(path: string) { return this.has(this.old, path); }
   async existsNew(path: string) { return this.has(this.new, path, this.newFolders); }
   async listOld(folder: string) {
+    if (this.failListAfter-- <= 0) throw new Error("readdir failed");
     return [...this.old].filter(([key]) => key.startsWith(`${folder}/`)).map(([key, entry]) => ({ rel: key.slice(folder.length + 1), mtime: entry.mtime }));
   }
   async mtimeNew(path: string) { return this.new.get(path)!.mtime; }
+  async readOld(path: string) { return this.old.get(path)!.data; }
+  async readNew(path: string) { return this.new.get(path)!.data; }
+  failListAfter = Infinity;
+  async writeNew(path: string, data: string) { this.new.set(path, { data, mtime: (this.new.get(path)?.mtime ?? 0) + 100 }); }
   async makeNewFolder(path: string) { this.newFolders.add(path); }
   async moveToNew(path: string) {
     if (this.failMove.has(path)) throw new Error(`rename ${path} failed`);
@@ -152,5 +157,88 @@ describe("where an app-owned file lies", () => {
     const swift = readFileSync(new URL("../../ios/App/App/AtomicFilePlugin.swift", import.meta.url), "utf8");
     expect(swift).toMatch(/case "LIBRARY": searchPath = \.libraryDirectory/);
     expect(swift).toMatch(/case "DATA": searchPath = \.documentDirectory/);
+  });
+});
+
+/** Every operation of the move, with one of them failing (`failAt`) or the lifetime ending there (`crashAt`). */
+function faulty(trees: Trees, { failAt = -1, crashAt = -1 }: { failAt?: number; crashAt?: number }): InternalFolders & { ops: number } {
+  const wrapped = { ops: 0 } as InternalFolders & { ops: number };
+  for (const name of ["existsOld", "existsNew", "listOld", "mtimeNew", "readOld", "readNew", "writeNew", "makeNewFolder", "moveToNew", "removeOld", "removeNew", "removeOldFolder"] as const) {
+    (wrapped as unknown as Record<string, unknown>)[name] = async (...args: unknown[]) => {
+      wrapped.ops += 1;
+      if (crashAt >= 0 && wrapped.ops >= crashAt) throw new Error("the app was ended");
+      if (wrapped.ops === failAt) throw new Error(`injected failure of ${name}`);
+      return (trees[name] as unknown as (...a: unknown[]) => Promise<unknown>).apply(trees, args);
+    };
+  }
+  return wrapped;
+}
+
+const journalOf = (...entries: Array<{ session: string; text: string; revision?: number }>) =>
+  JSON.stringify({ version: 2, entries: entries.map((e) => ({ notePath: "Note.md", text: e.text, revision: e.revision ?? 1, savedAt: 1, sessionId: e.session })) });
+const sessionsIn = (raw: string) => (JSON.parse(raw) as { entries: Array<{ sessionId: string; text: string }> }).entries.map((e) => `${e.sessionId}:${e.text}`).sort();
+
+describe("after a step back to an older build (F43)", () => {
+  const DRAFT = "drafts/v1/Tm90ZS5tZA==.json";
+
+  it("joins two copies of a draft journal entry by entry, so neither build's drafts are lost", async () => {
+    trees.new.set(DRAFT, at(journalOf({ session: "run-new", text: "typed in the newer build" }), 9));
+    trees.old.set(DRAFT, at(journalOf({ session: "run-old", text: "typed in the older build" }, { session: "run-new", text: "stale", revision: 0 }), 5));
+    await moveInternalFilesOutOfDocuments(trees);
+    expect(trees.old.size).toBe(0);
+    expect(sessionsIn(trees.new.get(DRAFT)!.data)).toEqual(["run-new:typed in the newer build", "run-old:typed in the older build"]);
+  });
+
+  it("keeps both builds' drafts wherever the start ends, and the next start finishes", async () => {
+    const fresh = () => {
+      const t = new Trees();
+      t.new.set(DRAFT, at(journalOf({ session: "run-new", text: "new" }), 9));
+      t.old.set(DRAFT, at(journalOf({ session: "run-old", text: "old" }), 5));
+      return t;
+    };
+    const total = faulty(fresh(), {});
+    await moveInternalFilesOutOfDocuments(total);
+    for (let crashAt = 1; crashAt <= total.ops + 1; crashAt += 1) {
+      const t = fresh();
+      await moveInternalFilesOutOfDocuments(faulty(t, { crashAt }));
+      await moveInternalFilesOutOfDocuments(t);
+      expect({ crashAt, old: t.old.size, entries: sessionsIn(t.new.get(DRAFT)!.data) }).toEqual({ crashAt, old: 0, entries: ["run-new:new", "run-old:old"] });
+    }
+  });
+
+  it("reads a profile journal left in Documents when the merge breaks off", async () => {
+    trees.new.set("profile-journal/other.json", at("{}", 9));
+    trees.old.set("profile-journal/v1.json", at("rollback image", 5));
+    trees.failListAfter = 0;
+    expect(await internalPlace("profile-journal/v1.json", trees)).toEqual({ directory: "DATA", path: "profile-journal/v1.json" });
+    // What is only in the new place is still read there.
+    expect(await internalPlace("profile-journal/other.json", trees)).toEqual({ directory: "LIBRARY", path: `${IOS_INTERNAL_FOLDER}/profile-journal/other.json` });
+  });
+
+  it("reads a file in Documents whose copy there is the newer one and could not move", async () => {
+    trees.new.set("profile-journal/v1.json", at("older answer", 1));
+    trees.old.set("profile-journal/v1.json", at("rollback image", 5));
+    trees.failMove.add("profile-journal/v1.json");
+    expect(await internalPlace("profile-journal/v1.json", trees)).toEqual({ directory: "DATA", path: "profile-journal/v1.json" });
+    expect(trees.old.get("profile-journal/v1.json")?.data).toBe("rollback image");
+  });
+
+  it("finds an interrupted import's journal whichever step of the move fails", async () => {
+    const REL = "profile-journal/v1.json";
+    const fresh = () => {
+      const t = new Trees();
+      t.new.set("profile-journal/other.json", at("{}", 9));
+      t.old.set(REL, at("rollback image", 5));
+      return t;
+    };
+    const total = faulty(fresh(), {});
+    await internalPlace(REL, total);
+    for (let failAt = 1; failAt <= total.ops + 2; failAt += 1) {
+      const t = fresh();
+      resetInternalFilesForTests();
+      const place = await internalPlace(REL, faulty(t, { failAt }));
+      const found = place.directory === "DATA" ? t.old.get(REL) : t.new.get(REL);
+      expect({ failAt, found: found?.data }).toEqual({ failAt, found: "rollback image" });
+    }
   });
 });

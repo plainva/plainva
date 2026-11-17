@@ -37,7 +37,11 @@ export async function atomicWriteText(path: string, text: string): Promise<void>
  * `rel` starts with one of `INTERNAL_FOLDERS`; on iOS it lands below Library.
  */
 export async function atomicWriteInternalText(rel: string, text: string): Promise<void> {
-  const place = await internalPlace(rel);
+  await atomicWriteTextAt(await internalPlace(rel), text);
+}
+
+/** Writes text atomically at a place of the app's own files (`internalPlace`, or the move's new place). */
+export async function atomicWriteTextAt(place: { path: string; directory: Directory }, text: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     await AtomicFile.write({ path: place.path, data: text, encoding: "utf8", directory: place.directory === Directory.Library ? "LIBRARY" : "DATA" });
     return;

@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const platform = vi.hoisted(() => ({ kind: "ios" }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { getPlatform: () => platform.kind, isNativePlatform: () => platform.kind !== "web" }, registerPlugin: () => ({}) }));
 
-const { moveDatabasesOutOfDocuments, databaseFolderRefusal, removeDatabaseLeftovers, resetDatabaseFolderForTests, IOS_DATABASE_FOLDER } = await import("./iosDatabaseFolder");
+const { moveDatabasesOutOfDocuments, databaseFolderRefusal, deleteClosedDatabase, removeDatabaseLeftovers, resetDatabaseFolderForTests, IOS_DATABASE_FOLDER } = await import("./iosDatabaseFolder");
 type DatabaseFolders = import("./iosDatabaseFolder").DatabaseFolders;
 
 class Folders implements DatabaseFolders {
@@ -30,8 +30,19 @@ class Folders implements DatabaseFolders {
     if (this.failList) throw new Error("readdir failed");
     return [...this.old.keys()];
   }
-  async listNew() { return [...this.new.keys()]; }
+  failRemoveOld = new Set<string>();
+  failExistsOld = new Set<string>();
+  failListNew = false;
+  async listNew() {
+    if (this.failListNew) throw new Error("readdir failed");
+    return [...this.new.keys()];
+  }
+  async existsOld(file: string) {
+    if (this.failExistsOld.has(file)) throw Object.assign(new Error("not permitted"), { code: "OS-PLUG-FILE-0007" });
+    return this.old.has(file);
+  }
   async existsNew(file: string) { return this.new.has(file); }
+  async writeNew(file: string, text: string) { this.new.set(file, text); }
   async moveToNew(file: string) {
     if (this.failMove.has(file)) throw new Error(`rename ${file} failed`);
     const data = this.old.get(file);
@@ -40,7 +51,10 @@ class Folders implements DatabaseFolders {
     this.old.delete(file);
     this.new.set(file, data);
   }
-  async removeOld(file: string) { this.old.delete(file); }
+  async removeOld(file: string) {
+    if (this.failRemoveOld.has(file)) throw new Error(`remove ${file} failed`);
+    this.old.delete(file);
+  }
   async removeNew(file: string) {
     if (this.failRemove.has(file)) throw new Error(`remove ${file} failed`);
     this.removedNew.push(file);
@@ -62,7 +76,7 @@ describe("moving the databases out of Documents", () => {
     folders.old.set("notes.txt", "user");
     folders.new.set(DB, "db");
     const outcome = await moveDatabasesOutOfDocuments(folders);
-    expect(outcome).toEqual({ refused: new Set(), unknown: false });
+    expect(outcome).toEqual({ refused: new Set(), unknown: false, unlisted: null });
     expect([...folders.old]).toEqual([["notes.txt", "user"]]);
     expect([...folders.new]).toEqual([[DB, "db"]]);
   });
@@ -173,8 +187,8 @@ describe("moving the databases out of Documents", () => {
     expect(Object.fromEntries(folders.new)).toEqual({ [DB]: "db", [`${DB}-wal`]: "own" });
   });
 
-  it("refuses every database when a folder cannot be listed", async () => {
-    folders.failList = true;
+  it("refuses every database when its own folder cannot be listed", async () => {
+    folders.failListNew = true;
     expect((await moveDatabasesOutOfDocuments(folders)).unknown).toBe(true);
   });
 
@@ -220,9 +234,17 @@ describe("the refusal before a database opens", () => {
     expect(folders.calls).toBe(1);
   });
 
-  it("refuses every name when Documents could not be read", async () => {
+  it("opens every database whose own files it can ask for when Documents could not be listed (F43)", async () => {
+    // Documents is shared with the Files app: one entry it cannot list must not close every database.
     folders.failList = true;
-    expect(await databaseFolderRefusal("plainva-index", folders)).toBeInstanceOf(Error);
+    folders.old.set(DB, "db").set(`${DB}-wal`, "wal").set(`${DB}-shm`, "shm");
+    folders.failExistsOld.add("plainva-v2SQLite.db");
+    expect(await databaseFolderRefusal("plainva-index", folders)).toBeNull();
+    expect(await databaseFolderRefusal("plainva-v1", folders)).toBeNull();
+    expect(Object.fromEntries(folders.new)).toEqual({ [DB]: "db", [`${DB}-wal`]: "wal" });
+    expect(folders.old.size).toBe(0);
+    // Only the database whose own files cannot be asked for stays closed.
+    expect(await databaseFolderRefusal("plainva-v2", folders)).toBeInstanceOf(Error);
   });
 
   it.each(["android", "web"])("moves nothing on %s", async (kind) => {
@@ -254,5 +276,101 @@ describe("the refusal before a database opens", () => {
     const body = loadView.slice(loadView.indexOf("func loadView()"));
     expect(body.indexOf("instanceDescriptor()")).toBeGreaterThan(-1);
     expect(body.indexOf("instanceDescriptor()")).toBeLessThan(body.indexOf("CapacitorBridge(with:"));
+  });
+});
+
+/** Every operation, with the lifetime ending at operation `crashAt` (the app is ended there). */
+function crashing(source: Folders, crashAt: number): DatabaseFolders & { ops: number } {
+  const wrapped = { ops: 0 } as DatabaseFolders & { ops: number };
+  for (const name of ["listOld", "listNew", "existsOld", "existsNew", "moveToNew", "removeOld", "removeNew", "writeNew"] as const) {
+    (wrapped as unknown as Record<string, unknown>)[name] = async (...args: unknown[]) => {
+      wrapped.ops += 1;
+      if (crashAt >= 0 && wrapped.ops >= crashAt) throw new Error("the app was ended");
+      return (source[name] as unknown as (...a: unknown[]) => Promise<unknown>).apply(source, args);
+    };
+  }
+  return wrapped;
+}
+
+describe("deleting a database that is closed (F43)", () => {
+  it("deletes it where it lies, so the next start does not bring it back", async () => {
+    folders.old.set(DB, "db").set(`${DB}-wal`, "wal");
+    folders.failMove.add(DB);
+    expect(await databaseFolderRefusal("plainva-v1", folders)).toBeInstanceOf(Error);
+    await deleteClosedDatabase("plainva-v1", folders);
+    expect(folders.old.size).toBe(0);
+    expect(folders.new.size).toBe(0);
+    // The name is free again: a new database of it may open.
+    expect(await databaseFolderRefusal("plainva-v1", folders)).toBeNull();
+
+    resetDatabaseFolderForTests();
+    folders.failMove.clear();
+    expect(await databaseFolderRefusal("plainva-v1", folders)).toBeNull();
+    expect(folders.new.size).toBe(0);
+  });
+
+  it("finishes a deletion that could not finish at the next start, before anything moves", async () => {
+    folders.old.set(DB, "db").set(`${DB}-wal`, "wal");
+    folders.failMove.add(DB);
+    folders.failRemoveOld.add(DB);
+    await expect(deleteClosedDatabase("plainva-v1", folders)).rejects.toThrow();
+    expect(await databaseFolderRefusal("plainva-v1", folders)).toBeInstanceOf(Error);
+
+    resetDatabaseFolderForTests();
+    folders.failMove.clear();
+    folders.failRemoveOld.clear();
+    expect(await databaseFolderRefusal("plainva-v1", folders)).toBeNull();
+    expect(folders.old.size).toBe(0);
+    expect(folders.new.size).toBe(0);
+  });
+
+  it("never brings a deleted database back, wherever the deletion ends", async () => {
+    const fresh = () => {
+      const f = new Folders();
+      f.old.set(DB, "db").set(`${DB}-wal`, "wal").set(`${DB}-shm`, "shm");
+      f.new.set(`${DB}-journal`, "stale");
+      return f;
+    };
+    const count = fresh();
+    count.failMove.add(DB);
+    const total = crashing(count, -1);
+    await databaseFolderRefusal("plainva-v1", total);
+    await deleteClosedDatabase("plainva-v1", total);
+    for (let crashAt = 1; crashAt <= total.ops + 1; crashAt += 1) {
+      const f = fresh();
+      f.failMove.add(DB);
+      resetDatabaseFolderForTests();
+      const run = crashing(f, crashAt);
+      // The database is closed first (its move fails), only then deleted.
+      if (await databaseFolderRefusal("plainva-v1", run).catch(() => new Error("ended"))) await deleteClosedDatabase("plainva-v1", run).catch(() => {});
+      // Whatever ended there, the next start is undisturbed.
+      resetDatabaseFolderForTests();
+      f.failMove.clear();
+      const outcome = await databaseFolderRefusal("plainva-v1", f);
+      const left = { old: [...f.old.keys()], new: [...f.new.keys()] };
+      if (left.new.length === 0 && left.old.length === 0) continue;
+      // Ended before the deletion was marked: nothing was deleted yet, and nothing was lost.
+      expect({ crashAt, outcome, left }).toEqual({ crashAt, outcome: null, left: { old: [], new: [DB, `${DB}-wal`] } });
+      expect(f.new.get(DB)).toBe("db");
+    }
+  });
+
+  it("puts a database in place by name wherever that start ends, and loses nothing", async () => {
+    const fresh = () => {
+      const f = new Folders();
+      f.failList = true;
+      f.old.set(DB, "db").set(`${DB}-wal`, "wal").set(`${DB}-shm`, "shm");
+      return f;
+    };
+    const total = crashing(fresh(), -1);
+    await databaseFolderRefusal("plainva-v1", total);
+    for (let crashAt = 1; crashAt <= total.ops + 1; crashAt += 1) {
+      const f = fresh();
+      resetDatabaseFolderForTests();
+      await databaseFolderRefusal("plainva-v1", crashing(f, crashAt)).catch(() => {});
+      resetDatabaseFolderForTests();
+      expect({ crashAt, refusal: await databaseFolderRefusal("plainva-v1", f) }).toEqual({ crashAt, refusal: null });
+      expect({ crashAt, old: [...f.old.keys()], db: f.new.get(DB), wal: f.new.get(`${DB}-wal`) }).toEqual({ crashAt, old: [], db: "db", wal: "wal" });
+    }
   });
 });
