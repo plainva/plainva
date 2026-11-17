@@ -4,9 +4,9 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
   forgetTaskViewState, readSeenTaskDuplicates, removeTaskCopies, summarizeDuplicateTasks, taskDuplicatesSeenKey, useTaskDuplicates, writeSeenTaskDuplicates,
-  findDuplicateTaskNotes, type TaskDuplicatesDeps, type TaskDuplicatesState,
+  findDuplicateTaskNotes, deleteWithNet, registerDeletionNetQuestion, type TaskDuplicatesDeps, type TaskDuplicatesState,
 } from "@plainva/ui";
-import type { TaskAnchorRecord } from "@plainva/core";
+import { SnapshotBeforeDeleteError, type TaskAnchorRecord } from "@plainva/core";
 
 /**
  * Finding 2026-09-20: the clean-up of task notes that exist more than once —
@@ -63,6 +63,35 @@ describe("removeTaskCopies", () => {
     });
     expect(result.removed).toEqual(["a 3.md"]);
     expect(result.skipped).toEqual(["a 2.md"]);
+  });
+
+  it("copies without a net are one question for the whole clean-up, not one per copy (A12)", async () => {
+    const files: Record<string, string> = { "a.md": note("A", "Offen"), "a 2.md": note("A", "Offen"), "a 3.md": note("A", "Offen"), "a 4.md": note("A", "Offen") };
+    const opts = { anchorsByUid: anchors(Object.keys(files)), boundPath: () => "a.md", readTextFile: async (p: string) => files[p], db: DB };
+    // A full storage: no deletion has a net until it is told to go without one.
+    const adapter = {
+      deleteItem: async (path: string, _r?: boolean, c?: { withoutSnapshot?: true }) => {
+        if (!c?.withoutSnapshot) throw new SnapshotBeforeDeleteError(path, [path], 1, "no-trash");
+        delete files[path];
+      },
+    };
+    let answer = false;
+    let asked = 0;
+    registerDeletionNetQuestion(async () => (asked++, answer));
+    try {
+      const shown = await findDuplicateTaskNotes(opts);
+      const kept = await removeTaskCopies(shown, opts, (path, ask) => deleteWithNet(adapter, path, false, undefined, ask));
+      expect(asked).toBe(1);
+      // What the person did not want deleted is what was skipped.
+      expect(kept).toEqual({ removed: [], skipped: ["a 2.md", "a 3.md", "a 4.md"] });
+      answer = true;
+      const gone = await removeTaskCopies(shown, opts, (path, ask) => deleteWithNet(adapter, path, false, undefined, ask));
+      expect(asked).toBe(2);
+      expect(gone).toEqual({ removed: ["a 2.md", "a 3.md", "a 4.md"], skipped: [] });
+      expect(Object.keys(files)).toEqual(["a.md"]);
+    } finally {
+      registerDeletionNetQuestion(null);
+    }
   });
 });
 
@@ -150,7 +179,7 @@ describe("useTaskDuplicates", () => {
     await act(async () => { removed = await current.remove(); });
     expect(removed).toBe(1);
     expect(deleteNote).toHaveBeenCalledTimes(1);
-    expect(deleteNote).toHaveBeenCalledWith("T/Blumen 2.md");
+    expect(deleteNote).toHaveBeenCalledWith("T/Blumen 2.md", expect.any(Function));
     expect(removedSeen).toEqual([["T/Blumen 2.md"]]);
     expect(current.groups).toBeNull();
 

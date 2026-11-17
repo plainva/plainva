@@ -186,7 +186,24 @@ export class TauriVaultAdapter implements IVaultAdapter {
     const raw = await this.realPath(path);
     const absPath = await this.getAbsolutePath(raw);
     if (!(await checkedPathExists(await this.rootId(), raw))) throw new VaultFileNotFoundError(path);
-    return readFile(absPath);
+    return this.missingAfter(path, raw, () => readFile(absPath));
+  }
+
+  /**
+   * A read that failed because the file went after the existence check — a
+   * pass over many files lists, then reads — says so with the shared error
+   * (A13 of release 0.9.0): the plugin's own error carries no code, and the
+   * index named a deleted file as one it could not read. Only a second check
+   * that answers "gone" turns the error; anything else keeps it.
+   */
+  private async missingAfter<T>(path: string, raw: string, read: () => Promise<T>): Promise<T> {
+    try {
+      return await read();
+    } catch (error) {
+      const there = await checkedPathExists(await this.rootId(), raw).catch(() => true);
+      if (!there) throw new VaultFileNotFoundError(path);
+      throw error;
+    }
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
@@ -317,7 +334,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
     const raw = await this.realPath(path);
     const absPath = await this.getAbsolutePath(raw);
     if (!(await checkedPathExists(await this.rootId(), raw))) throw new VaultFileNotFoundError(path);
-    const entryStat = await stat(absPath);
+    const entryStat = await this.missingAfter(path, raw, () => stat(absPath));
     const identity = this.spellings.identityOfStored(raw);
     return {
       name: identity.split(/[/\\]/).pop() || "",

@@ -2,7 +2,7 @@
 # Measures a freshly built AppImage (issue #85, tauri-apps/tauri#15665).
 #
 # Three things are asserted, the rest is measured:
-#   - the AppImage extracts and carries the application binary and an AppRun;
+#   - the AppImage extracts and carries the app, the MCP helper and an AppRun;
 #   - spell checking travels along (Sammelplan § 3.183 Nr. 1): the bundled
 #     libenchant is the relocatable build of build-appimage-enchant.sh, not the
 #     build machine's, and the Hunspell provider with libhunspell sits in
@@ -31,8 +31,14 @@ chmod +x "$work/app.AppImage"
 root="$work/squashfs-root"
 
 [ -x "$root/AppRun" ] || { echo "::error::AppRun missing or not executable"; exit 1; }
-binary="$(find "$root/usr/bin" -maxdepth 1 -type f -perm -u+x | head -n 1 || true)"
-[ -n "$binary" ] || { echo "::error::no executable under usr/bin"; exit 1; }
+# Two programs since 0.9.0: the app and the MCP helper. Both are required by
+# name; the first executable under usr/bin is not "the binary" any more (the
+# 0.9.0 rehearsal reported the helper here). What the AppImage starts is
+# checked by check-package-entry.sh.
+for program in plainva-desktop plainva-mcp; do
+  [ -x "$root/usr/bin/$program" ] || { echo "::error::usr/bin/$program missing or not executable"; exit 1; }
+done
+binary="$root/usr/bin/plainva-desktop"
 
 enchant="$root/usr/lib/libenchant-2.so.2"
 [ -f "$enchant" ] || { echo "::error::no bundled libenchant-2.so.2"; exit 1; }

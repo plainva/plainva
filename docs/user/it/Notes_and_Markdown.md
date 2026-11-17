@@ -138,7 +138,7 @@ Imposta una **Cartella dei modelli** in **Impostazioni → Vault → Note e arch
 | `{{yesterday}}`, `{{tomorrow}}` | Il giorno prima, il giorno dopo |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Quel giorno della settimana, di questa settimana o della successiva; un formato segue i secondi due punti: `{{weekday:monday:DD.MM.}}`. Il giorno in cui inizia la settimana dipende dalla tua impostazione del calendario |
 | `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Un link alla nota giornaliera di oggi, di domani o di ieri; con un'etichetta a tua scelta: `{{daily+1:Domani}}` — «oggi» è il giorno in corso secondo **La giornata finisce alle**; in una nota giornaliera o di riunione, il giorno di quella nota |
-| `{{folder}}`, `{{vault}}` | La cartella della nota, il nome del vault |
+| `{{folder}}`, `{{vault}}` | La cartella della nota, il nome del vault come lo mostra Plainva (il nome che gli hai dato, altrimenti sul desktop la sua cartella) |
 | `{{cursor}}` | Nessun testo — indica dove atterrerà il cursore in seguito |
 | `{{prompt:Label}}`, `{{prompt:Label\|Default}}` | Ti chiede del testo (mostrato come *Label*) |
 | `{{select:Label\|A,B,C}}` | Ti chiede con un elenco di opzioni |

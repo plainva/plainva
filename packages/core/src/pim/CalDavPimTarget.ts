@@ -346,7 +346,12 @@ export class CalDavPimTarget implements IPimTarget {
       try {
         const jcal = ICAL.parse(e.calendarData);
         const comp = new ICAL.Component(jcal);
-        for (const vtodo of comp.getAllSubcomponents("vtodo")) {
+        // One calendar object is one task (RFC 5545 § 3.8.4.4): a recurring
+        // VTODO keeps its exceptions as further VTODOs with the same UID and a
+        // RECURRENCE-ID. The task is the master; without one, the first part.
+        const parts = comp.getAllSubcomponents("vtodo");
+        const master = parts.find((part) => !part.hasProperty("recurrence-id")) ?? parts[0];
+        for (const vtodo of master ? [master] : []) {
           const uid = String(vtodo.getFirstPropertyValue("uid") ?? e.href);
           const due = vtodo.getFirstPropertyValue("due");
           const lastMod = vtodo.getFirstPropertyValue("last-modified");

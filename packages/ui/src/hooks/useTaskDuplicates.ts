@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TaskAnchorRecord } from "@plainva/core";
 import type { TaskCompletionModel } from "../lib/taskDatabase";
+import type { DeletionNetAsk } from "../lib/deletionNet";
 import { readSeenTaskDuplicates, writeSeenTaskDuplicates } from "../lib/taskDuplicatesSeen";
 import {
   findDuplicateTaskNotes, removableTaskCopies, removeTaskCopies, summarizeDuplicateTasks,
@@ -33,8 +34,11 @@ export interface TaskDuplicatesDeps {
    * The shell's plain, confirmed note delete (snapshot, index, sync queue). NOT
    * the task-deletion path that makes the provider's task follow.
    */
-  /** `false` where the person kept the copy at "Delete without a backup?" (D1). */
-  deleteNote: (path: string) => Promise<boolean | void>;
+  /**
+   * `false` where the person kept the copy at "Delete without a backup?" (D1).
+   * `ask` is that question for the whole clean-up (hand it to `deleteWithNet`).
+   */
+  deleteNote: (path: string, ask: DeletionNetAsk) => Promise<boolean | void>;
   onRemoved?: (removed: string[]) => void | Promise<void>;
   onError: (error: unknown) => void;
 }

@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Última actualización: 2026-11-06
+Última actualización: 2026-11-16
 
 La memoria guarda lo que la IA debe saber sobre ti y tu trabajo sin que tengas que repetírselo: a qué te dedicas, cómo quieres las respuestas, quiénes son tus clientes. Son dos archivos en tu vault. Nada entra en la memoria sin tu sí, y puedes leer, cambiar y eliminar cada entrada.
 
@@ -38,7 +38,7 @@ Como todas las instrucciones, el archivo debe aprobarse en cada dispositivo ante
 
 Una memoria que ha crecido se repite. En **Poner en orden**, la vista de la memoria indica lo que este dispositivo ha detectado por sí mismo, sin consultar a un modelo: dos entradas que dicen casi lo mismo, una entrada de hace más de un año y entradas de **Siempre incluido** que ya no caben. **Comparar** muestra las dos entradas juntas, cada una con todo lo que ofrece su menú.
 
-Para verlo con más detalle hay una habilidad. **Cuidar la memoria** lee las entradas con el modelo de una conversación y prepara borradores de lo que va junto y de lo que puede quitarse; la fila **Pedir una revisión de la memoria** la inicia. Lo que sugiere son borradores como todos los demás: nada cambia hasta que lo aceptes, y si dos entradas se contradicen, pregunta en lugar de decidir.
+Para verlo con más detalle hay una habilidad. **Cuidar la memoria** lee las entradas con el modelo de una conversación y prepara borradores de lo que va junto y de lo que puede quitarse; la fila **Pedir una revisión de la memoria** la inicia — aparece en **Poner en orden** siempre que allí se nombre algo. Lo que sugiere son borradores como todos los demás: nada cambia hasta que lo aceptes, y si dos entradas se contradicen, pregunta en lugar de decidir.
 
 ## Estilo de escritura
 
@@ -52,12 +52,12 @@ El estilo se guarda en este dispositivo, no en el vault: en otro dispositivo eli
 
 ## Privacidad
 
-- Una entrada puede llevar una regla propia: **No a modelos en la nube**, **No en conversaciones con Internet**. Un modelo en este dispositivo recibe todas las entradas.
+- Una entrada puede llevar una regla propia: **No a modelos en la nube**, **No en conversaciones con Internet**. Un modelo en este dispositivo recibe todas las entradas que sean legibles y lo bastante cortas — salvo en una conversación con Internet, donde una entrada marcada **No en conversaciones con Internet** también se queda fuera aquí.
 - Una entrada que la IA redactó en una conversación que leyó notas con una regla de privacidad recibe las mismas reglas: la tarjeta dice **La entrada recibe las reglas de privacidad de las notas en las que se basó esta conversación.** Lo que procede de una nota que debe quedarse en este dispositivo no llega a una nube a través de la memoria.
 - Tus [reglas de privacidad](AI_Assistant.md) valen también para los dos archivos: una regla de carpeta para `.agent/` mantiene toda la memoria fuera de la nube.
 - La vista de envío tiene una fila **Memoria** —cuántas entradas van incluidas— y cuenta las entradas que tus reglas retienen en **Retenido**. Nunca nombra una entrada.
 - Para la IA, una entrada es información, no una instrucción: una frase de la memoria no le da ningún permiso.
-- Una conversación conserva la memoria con la que empezó. Una entrada que eliminas no va a ninguna conversación nueva; las conversaciones que ya han empezado conservan lo que recibieron.
+- Una conversación conserva lo que la memoria le dio al empezar: las entradas que están en **Siempre incluido**. Una entrada que eliminas no va a ninguna conversación nueva; las conversaciones que ya han empezado conservan lo que recibieron, y lo que consultan después sale de los archivos tal como estén entonces.
 
 ## Desactivar la memoria
 
@@ -76,4 +76,4 @@ El estilo se guarda en este dispositivo, no en el vault: en otro dispositivo eli
 
 `added` y `by` indican cuándo se añadió la entrada y si la escribiste tú o aceptaste un borrador, `source` nombra la conversación de la que viene un borrador, y `deny` contiene sus reglas (`cloud`, `web`). Puedes editar los archivos en cualquier editor. En Plainva, **Abrir archivo** abre cualquiera de los dos.
 
-Plainva no adivina. Una entrada cuyo comentario está dañado se marca como **Reglas ilegibles: no va a ningún modelo** hasta que repares el comentario o vuelvas a añadir la entrada. El texto oculto en un comentario o en caracteres invisibles nunca se envía; la entrada muestra entonces cuántas partes ocultas se dejaron fuera. Un archivo puede contener como máximo 2.000 entradas y 256 KB.
+Plainva no adivina. Una entrada cuyo comentario está dañado se marca como **Reglas ilegibles: no va a ningún modelo** hasta que repares el comentario o vuelvas a añadir la entrada. El texto oculto en un comentario o en caracteres invisibles nunca se envía; la entrada muestra entonces cuántas partes ocultas se dejaron fuera. De un archivo se leen como máximo 2.000 entradas, y un archivo mayor de 256 KB no se lee en absoluto.
