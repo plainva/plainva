@@ -6,6 +6,7 @@ import { markNotesForWikiLinkReading } from "./wikiLinkReadingMigration.js";
 import { runStatementsAtomic } from "./batch.js";
 import { FIRST_ROWID_BEFORE, FULL_TEXT_SENTINEL, fullTextRowOf, UNNUMBERED_FLAG } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
+import { INDEX_CHANGES_SCHEMA } from "./indexChanges.js";
 
 /**
  * The full-text table. `content` doubles as the note text for other readers
@@ -704,6 +705,9 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
        INSERT OR REPLACE INTO meta (key, value) VALUES ('${UNNUMBERED_FLAG}', '1');
      END`
   );
+
+  // The change journal the index sets a stale reading aside by (db/indexChanges.ts).
+  for (const statement of INDEX_CHANGES_SCHEMA) await db.execute(statement);
 
   // Paths are NFC identities since ADR 0016; re-keys what older versions stored.
   await migratePathIdentity(db);
