@@ -44,6 +44,8 @@ describe("Recovery Drill", () => {
     
     // Simulate what the DB returns when VaultIndexer queries for existing files
     db.mockedResults.push([{ path: "note1.md", mtime_local: 0 }, { path: "orphan-123.md", mtime_local: 0 }]);
+    // …and, a moment later, the index's rows as the scan's first transaction reads them: the same two.
+    db.mockedResults.push([{ path: "note1.md", sync_state: null, ctime: null }, { path: "orphan-123.md", sync_state: null, ctime: null }]);
     
     await indexer.indexVaultFull();
     
