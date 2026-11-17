@@ -34,6 +34,8 @@ export class MockDatabaseAdapter implements IDatabaseAdapter {
       const prefix = query.includes("conflict-session:") ? "conflict-session:" : "conflict-diagnostic:";
       return [...this.conflictMeta].filter(([key]) => key.startsWith(prefix)).map(([, value]) => ({ value })) as T[];
     }
+    // The index's change journal (db/indexChanges.ts) is empty here and never takes a mocked result.
+    if (/\bFROM index_changes\b/.test(query)) return [] as T[];
     return (this.mockedResults.shift() || []) as T[];
   }
 
@@ -43,6 +45,7 @@ export class MockDatabaseAdapter implements IDatabaseAdapter {
       const value = this.conflictMeta.get(params[0]);
       return (value === undefined ? null : { value }) as T | null;
     }
+    if (/\bFROM index_changes\b/.test(query)) return { seq: 0 } as T;
     return (this.mockedOneResults.shift() || null) as T;
   }
 
