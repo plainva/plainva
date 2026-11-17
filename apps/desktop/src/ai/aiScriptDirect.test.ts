@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { DIRECT_TOOL_NAMES, SCRIPT_WRITE_TOOL_NAMES } from "@plainva/core";
+import { DIRECT_TOOL_NAMES, SCRIPT_LIMIT_DEFAULTS, SCRIPT_WRITE_TOOL_NAMES } from "@plainva/core";
 import type { ScriptDraft } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { results, turn } from "./mcpSessionHarness";
@@ -54,7 +54,7 @@ const MAKE_MANY: ScriptDraft = {
   description: "Makes numbered notes.",
   tools: ["create_note"],
   parameters: [{ name: "count", type: "text", description: "How many", required: true }],
-  limits: { calls: 3 },
+  limits: { ...SCRIPT_LIMIT_DEFAULTS, calls: 3 },
   code: `const made = [];
 for (let n = 1; n <= Number(input.count); n++) made.push(await tools.create_note({ title: "Note " + n, content: "Number " + n + "." }));
 return made;
