@@ -7875,6 +7875,7 @@
     "databaseSave": "The database could not be saved: {{reason}}",
     "databaseViewGone": "The view “{{name}}” is no longer in this database: it was removed or renamed elsewhere.",
     "databaseViewUnclear": "The view “{{name}}” can no longer be told apart for certain in this database since it was changed elsewhere.",
+    "databaseFileChanging": "The file of this database is being written elsewhere right now. Try again in a moment.",
     "overview": "The overview could not be written: {{reason}}",
     "adopt": "“{{file}}” could not become the overview: {{reason}}",
     "promote": "The task could not be moved: {{reason}}",

@@ -305,6 +305,8 @@ describe("a note with an open conflict: what was typed at this desk stays in its
 const BASE = "Projects/Projects.base";
 const baseText = (name: string, extra: string[] = []) =>
   [`filters:`, `  and:`, `    - file.folder == "Projects"`, `views:`, `  - type: table`, `    name: ${name}`, ...extra, ``].join("\n");
+/** The same database with a second view: a database of one view holds the same view on both sides, whatever each did to it. */
+const twoViews = (name: string, extra: string[] = []) => `${baseText(name, extra)}  - type: cards\n    name: Other\n`;
 const sortLines = (direction: string) => [`    sort:`, `      - property: file.name`, `        direction: ${direction}`];
 const loaded = (text: string) => loadBaseConfigText(text);
 /** A change of the first view as the view makes it: a copy of the configuration with that view replaced. */
@@ -409,31 +411,31 @@ describe("a database view's change lands on the file as it lies there, at an ope
   });
 
   it("at an open conflict a change the user's own version has no place for lands in the file alone; that version stays as it is", async () => {
-    await openVault({ [BASE]: baseText("Table") });
-    await landedFromOutside(BASE, baseText("Their table"));
+    await openVault({ [BASE]: twoViews("Table") });
+    await landedFromOutside(BASE, twoViews("Their table"));
     // The user's own version renamed AND sorted the view: no certain match for "Their table" there.
-    const saved = await vaultAdapter.writeEditorText(BASE, baseText("My table", sortLines("ASC")), baseText("Table"));
+    const saved = await vaultAdapter.writeEditorText(BASE, twoViews("My table", sortLines("ASC")), twoViews("Table"));
     const copy = saved.session!.workingCopyPath;
-    const shownConfig = loaded(baseText("Their table"));
-    const view = viewState(shownConfig, baseText("Their table"));
+    const shownConfig = loaded(twoViews("Their table"));
+    const view = viewState(shownConfig, twoViews("Their table"));
     expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), view.scope)).toBe(true);
     expect(loaded(await raw.readTextFile(BASE)).views[0].order).toEqual(["note.status"]);
-    expect(await raw.readTextFile(copy)).toBe(baseText("My table", sortLines("ASC")));
+    expect(await raw.readTextFile(copy)).toBe(twoViews("My table", sortLines("ASC")));
   });
 
   it("a change to a view deleted or renamed elsewhere meanwhile writes nothing, is said, and the view goes back to what it showed", async () => {
-    await openVault({ [BASE]: baseText("Table") });
-    const shownConfig = loaded(baseText("Table"));
+    await openVault({ [BASE]: twoViews("Table") });
+    const shownConfig = loaded(twoViews("Table"));
     // Renamed and sorted by another device after the view loaded it: no certain match.
-    await landedFromOutside(BASE, baseText("Renamed", sortLines("DESC")));
+    await landedFromOutside(BASE, twoViews("Renamed", sortLines("DESC")));
     const shownAgain: unknown[] = [];
-    const view = viewState(shownConfig, baseText("Table"));
+    const view = viewState(shownConfig, twoViews("Table"));
     const layout = { showViewLayout: (config: unknown) => { shownAgain.push(config); return true; }, saveTurn: { current: 0 } };
     expect(await saveConfig(withFirstView(shownConfig, { order: ["note.status"] }), { ...view.scope, ...layout })).toBe(false);
-    expect(await raw.readTextFile(BASE)).toBe(baseText("Renamed", sortLines("DESC")));
+    expect(await raw.readTextFile(BASE)).toBe(twoViews("Renamed", sortLines("DESC")));
     expect(await vaultAdapter.getConflictSession(BASE)).toBeNull();
     expect(view.state.config).toBe(shownConfig);
-    expect(view.state.text).toBe(baseText("Table"));
+    expect(view.state.text).toBe(twoViews("Table"));
     expect(view.state.pending).toBeNull();
     // What the file holds now is loaded.
     expect(view.state.reloaded).toBe(1);

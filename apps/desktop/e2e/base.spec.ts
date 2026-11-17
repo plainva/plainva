@@ -563,12 +563,13 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'plugin:fs|exists') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
-          return !!fs[p];
+          // An empty file is there: '' is a file's text, not its absence.
+          return fs[p] !== undefined;
         }
         if (cmd === 'plugin:fs|stat') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
           const file = fs[p];
-          if (!file) throw new Error('File not found');
+          if (file === undefined) throw new Error('File not found');
           return { isDir: !!file.isDir, isFile: !file.isDir, mtime: Date.now(), size: typeof file === 'string' ? file.length : 0 };
         }
         if (cmd === 'plugin:fs|read_dir') {
@@ -1246,6 +1247,37 @@ test('Base board: a column drag keeps what another device changed in another vie
   const saved = async () => orderOf((await file()).split('  - type: table\n    name: Liste')[0], 'boardColumnOrder');
   await expect.poll(saved).toEqual(['paused', 'active', 'done', '__UNGROUPED__']);
   expect(await file()).toContain('direction: DESC');
+});
+
+test('Base: a database file emptied elsewhere reads as a database without views, and a view added then lands (B20)', async ({ page }) => {
+  // The screen kept the database it showed before the file was emptied, and
+  // measured every change against views the file no longer held: each one was
+  // refused, until the database was opened again.
+  const text = [
+    'views:', '  - type: table', '    name: Textboard', '    order:', '      - file.name', '      - note.status',
+    '    plainva:', '      render: board', '      groupBy: status', '',
+  ].join('\n');
+  await page.addInitScript((t) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Textboard.base'] = t;
+    fs['/test-vault/Projekte/Alpha.md'] = '---\nstatus: active\n---\n# Alpha\n';
+  }, text);
+  await page.goto('/');
+  await openBase(page, 'Textboard');
+  const head = page.locator('.base-view-tab', { hasText: 'Textboard' });
+  await expect(head).toBeVisible({ timeout: 10000 });
+  // Another program empties the file; the watcher reports it.
+  await page.evaluate(() => {
+    (window as any).mockFs['/test-vault/Textboard.base'] = '';
+    window.dispatchEvent(new CustomEvent('plainva-external-update', { detail: { path: 'Textboard.base', vaultPath: '/test-vault' } }));
+  });
+  // The database shows what the file holds now: no view called "Textboard".
+  await expect(head).toHaveCount(0);
+  await page.locator('button.base-view-add').click();
+  await page.getByText(/^\s*(Galerie|Gallery)\s*$/).first().click();
+  const file = async () => String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base']));
+  await expect.poll(file).toContain('type: cards');
+  expect(await file()).not.toContain('name: Textboard');
 });
 
 test('Base board: color mode "column" tints the whole column and persists (WP3)', async ({ page }) => {

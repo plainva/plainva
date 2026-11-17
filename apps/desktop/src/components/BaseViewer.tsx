@@ -1594,11 +1594,11 @@ export function BaseViewer({
           await vaultAdapter.acknowledgeExternalUpdate(activePath).catch(console.error);
         }
 
-        // An empty file is a database without a config, as when it is first
-        // opened: what was shown before it was emptied is no base for a change
-        // (B20 — every change would be measured against views the file lost).
+        // An empty file is a database without views, as the phone reads it:
+        // what was shown before it was emptied is no base for a change (B20 —
+        // every change would be measured against views the file lost).
         if (!text) {
-          setDbConfig(null);
+          setDbConfig(loadBaseConfigText(text));
           setDbData([]);
         }
         if (text && queryService) {

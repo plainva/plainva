@@ -517,6 +517,11 @@ describe("a database with an open conflict: its screen's save does not go in pla
  * nothing is written.
  */
 const sorted = (name: string, direction: string) => serializeBaseConfig({ ...database(name), views: [{ type: "table", name, sort: [{ property: "file.name", direction }] }] });
+/** The same database with a second view: a database of one view holds the same view on both sides, whatever each did to it. */
+const twoViews = (name: string, direction?: string) => serializeBaseConfig({
+  ...database(name),
+  views: [{ type: "table", name, ...(direction ? { sort: [{ property: "file.name", direction }] } : {}) }, { type: "cards", name: "Other" }],
+});
 const withOrder = (config: any) => ({ ...config, views: config.views.map((v: any, i: number) => (i === 0 ? { ...v, order: ["file.name", "status"] } : v)) });
 
 describe("a database screen's change lands on the file as it lies there, at an open conflict in both versions (B20)", () => {
@@ -536,24 +541,24 @@ describe("a database screen's change lands on the file as it lies there, at an o
   });
 
   it("at an open conflict a change the user's own version has no place for lands in the file alone", async () => {
-    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
-    await landedFromOutside(BASE, baseText("Their table"));
+    await syncedVault({ [BASE]: twoViews("Table") }, [BASE]);
+    await landedFromOutside(BASE, twoViews("Their table"));
     // The user's own version renamed AND sorted the view: no certain match for "Their table" there.
-    const saved = await chain.writeEditorText(BASE, sorted("My table", "ASC"), baseText("Table"));
+    const saved = await chain.writeEditorText(BASE, twoViews("My table", "ASC"), twoViews("Table"));
     const copy = saved.session!.workingCopyPath;
-    const shownConfig = loadBaseConfigText(baseText("Their table"));
+    const shownConfig = loadBaseConfigText(twoViews("Their table"));
     await writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig });
     expect(loadBaseConfigText(await raw.readTextFile(BASE)).views[0].order).toEqual(["file.name", "status"]);
-    expect(await raw.readTextFile(copy)).toBe(sorted("My table", "ASC"));
+    expect(await raw.readTextFile(copy)).toBe(twoViews("My table", "ASC"));
   });
 
   it("a change to a view renamed and changed elsewhere meanwhile writes nothing", async () => {
-    await syncedVault({ [BASE]: baseText("Table") }, [BASE]);
-    const shownConfig = loadBaseConfigText(baseText("Table"));
+    await syncedVault({ [BASE]: twoViews("Table") }, [BASE]);
+    const shownConfig = loadBaseConfigText(twoViews("Table"));
     // Renamed and sorted elsewhere: no certain match.
-    await landedFromOutside(BASE, sorted("Renamed", "DESC"));
+    await landedFromOutside(BASE, twoViews("Renamed", "DESC"));
     await expect(writers.saveBaseConfig(vault, BASE, withOrder(shownConfig), { shown: shownConfig })).rejects.toThrow(/Table/);
-    expect(await raw.readTextFile(BASE)).toBe(sorted("Renamed", "DESC"));
+    expect(await raw.readTextFile(BASE)).toBe(twoViews("Renamed", "DESC"));
     expect(await chain.getConflictSession(BASE)).toBeNull();
   });
 

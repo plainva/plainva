@@ -39,7 +39,10 @@ import { migrateFiltersToPerView } from "./filterExpr";
  *   named under none, or the one the serializer gave it —, then by its name
  *   where that name is unique on both sides and no unclaimed view of the file
  *   is equal to it under another, then — a view only renamed elsewhere — by
- *   being equal but for the name, as the only such. A name is
+ *   being equal but for the name, as the only such. A view never named is
+ *   also found under the name the serializer gives it, or as the only view
+ *   without a name left on both sides; a database of one view on both sides
+ *   holds the same view. A name is
  *   compared as text: a view called `2024` or `true` is the same view however
  *   YAML reads the name. A view is never found by its position, and never
  *   guessed: a view the screen changed, removed or moved that cannot be found
@@ -59,7 +62,7 @@ import { migrateFiltersToPerView } from "./filterExpr";
  *   a cell, Sammelplan § 3.87); the screen goes on with the file's.
  */
 
-export type BaseConfigRefusal = "viewGone" | "viewUnclear";
+export type BaseConfigRefusal = "viewGone" | "viewUnclear" | "fileChanging";
 
 /** A change to a view that cannot be found in the file with certainty: nothing was written. */
 export class BaseConfigChangeRefusedError extends Error {
@@ -70,7 +73,9 @@ export class BaseConfigChangeRefusedError extends Error {
     super(
       reason === "viewGone"
         ? `The view "${viewName}" is no longer in this database; it was removed or renamed elsewhere. The database was not changed.`
-        : `The view "${viewName}" cannot be told apart from the other views of this database since it was changed elsewhere. The database was not changed.`,
+        : reason === "viewUnclear"
+          ? `The view "${viewName}" cannot be told apart from the other views of this database since it was changed elsewhere. The database was not changed.`
+          : "The file of this database is being written elsewhere right now. The database was not changed.",
     );
     this.name = "BaseConfigChangeRefusedError";
   }
@@ -180,10 +185,21 @@ function mergeList(base: unknown[], ours: unknown[], theirs: unknown[]): unknown
   return out;
 }
 
+/**
+ * Where a value stands in a config or a view (`a/b` from the config's or the
+ * view's top; `null` inside a list entry). Rules hang on places, not on key
+ * names: a property may be called `filters` or `widths`.
+ */
+type Place = string | null;
+const below = (place: Place, key: string): Place => (place === null ? null : place === "" ? key : `${place}/${key}`);
+
 /** The maps whose entries are things of their own (a property, a formula, a column's summary or width): one the user removed goes whole. */
-const ENTITY_MAPS = new Set(["properties", "columns", "formulas", "summaries", "widths"]);
-/** Values that merge as one: a filter both sides changed is the user's (a rule merged from two edits means what neither wrote). */
-const WHOLE_VALUES = new Set(["filters"]);
+const ENTITY_PLACES = new Set([
+  "properties", "columns", "formulas", "summaries", "widths",
+  "_obsidian/properties", "_obsidian/formulas", "_obsidian/summaries", "_obsidian/plainva/widths",
+]);
+/** The filter of the file and of each view: one value — a filter both sides changed is the user's (a rule merged from two edits means what neither wrote). */
+const WHOLE_PLACES = new Set(["filters", "_obsidian/filters"]);
 
 /** The empty container of a value's kind (`undefined` for a scalar): what a container the user emptied reads as. */
 function emptyOf(v: unknown): unknown {
@@ -201,28 +217,29 @@ function isEmptyContainer(v: unknown): boolean {
  * `theirs`; the rest stays as `theirs` has it. Objects merge key by key (in
  * `ours`' key order, keys only `theirs` has after them); lists of distinct
  * entries entry by entry; other lists, filters and scalars are whole values —
- * `ours` wins where it changed one. `key` is the key the value stands under.
+ * `ours` wins where it changed one. `place` is where the value stands in a
+ * config or a view ("" at its top).
  *
  * A key `ours` no longer has (it was in `base`) is the user's removal: a
- * scalar, a filter, or an entry of an ENTITY_MAPS map (a property deleted)
+ * scalar, a filter, or an entry of an ENTITY_PLACES map (a property deleted)
  * goes whole, whatever `theirs` did to it. Any other container — the
  * serializer drops one the user emptied (the last summary, the cover that was
  * a view's last `plainva` key, the last property) — reads as emptied: what was
  * in it goes, what `theirs` added to it since stays.
  */
-function merge3(base: any, ours: any, theirs: any, key?: string): any {
+function merge3(base: any, ours: any, theirs: any, place: Place = null): any {
   if (same(ours, base)) return theirs;
   if (same(theirs, base)) return ours;
-  if (key !== undefined && WHOLE_VALUES.has(key)) return ours;
+  if (place !== null && WHOLE_PLACES.has(place)) return ours;
   if (Array.isArray(ours) && Array.isArray(theirs)) return mergeList(Array.isArray(base) ? base : [], ours, theirs);
   if (!isPlainObject(ours) || !isPlainObject(theirs)) return ours;
   const b = isPlainObject(base) ? base : {};
-  const entities = key !== undefined && ENTITY_MAPS.has(key);
+  const entities = place !== null && ENTITY_PLACES.has(place);
   const out: Record<string, any> = {};
   const has = (o: Record<string, any>, k: string) => o[k] !== undefined;
   const keys = [...Object.keys(ours), ...Object.keys(theirs).filter((k) => !(k in ours))];
   for (const k of keys) {
-    if (has(ours, k) && has(theirs, k)) { out[k] = merge3(b[k], ours[k], theirs[k], k); continue; }
+    if (has(ours, k) && has(theirs, k)) { out[k] = merge3(b[k], ours[k], theirs[k], below(place, k)); continue; }
     if (has(ours, k)) {
       // Removed there and left as it was here: the removal stands.
       if (has(b, k) && same(ours[k], b[k])) continue;
@@ -232,9 +249,10 @@ function merge3(base: any, ours: any, theirs: any, key?: string): any {
     if (!has(theirs, k)) continue;
     if (!has(b, k)) { out[k] = theirs[k]; continue; } // added there
     // Removed here (the user's own action).
-    const emptied = entities || WHOLE_VALUES.has(k) ? undefined : emptyOf(b[k]);
+    const at = below(place, k);
+    const emptied = entities || (at !== null && WHOLE_PLACES.has(at)) ? undefined : emptyOf(b[k]);
     if (emptied === undefined) continue;
-    const kept = merge3(b[k], emptied, theirs[k], k);
+    const kept = merge3(b[k], emptied, theirs[k], at);
     if (!isEmptyContainer(kept)) out[k] = kept;
   }
   return out;
@@ -353,21 +371,39 @@ function findInFile(named: any[], read: any[], current: any[]): number[] {
   // have renamed it and given its name to another, and neither is certain.
   const count = (list: any[], name: string) => list.filter((v) => viewName(v) === name).length;
   const unclear = new Set<number>();
+  const certain = (i: number, k: number) => {
+    if (current.some((_, o) => o !== k && !taken.has(o) && equal(i, o))) { unclear.add(i); return; }
+    take(i, k);
+  };
   read.forEach((_, i) => {
     if (found[i] >= 0) return;
     const name = viewName(named[i]);
     if (name === null || count(named, name) !== 1 || count(current, name) !== 1) return;
     const k = current.findIndex((v) => viewName(v) === name);
-    if (taken.has(k)) return;
-    if (current.some((_, o) => o !== k && !taken.has(o) && equal(i, o))) { unclear.add(i); return; }
-    take(i, k);
+    if (!taken.has(k)) certain(i, k);
   });
+  // 2b. A view the screen never named: under the name the serializer gives it,
+  // where the file holds exactly one view of that name and the screen names
+  // none so; or as the only view without a name left on both sides.
+  const unnamedLeft = () => read.map((_, i) => i).filter((i) => found[i] < 0 && !unclear.has(i) && viewName(named[i]) === null);
+  for (const i of unnamedLeft()) {
+    const written = viewName(read[i]);
+    if (written === null || count(named, written) !== 0 || count(current, written) !== 1) continue;
+    const k = current.findIndex((v) => viewName(v) === written);
+    if (!taken.has(k)) certain(i, k);
+  }
+  const left = unnamedLeft();
+  const fileUnnamed = current.map((_, k) => k).filter((k) => !taken.has(k) && viewName(current[k]) === null);
+  if (left.length === 1 && fileUnnamed.length === 1) certain(left[0], fileUnnamed[0]);
   // 3. Renamed elsewhere and nothing else: equal but for the name, and only one such.
   read.forEach((_, i) => {
     if (found[i] >= 0 || unclear.has(i)) return;
     const ks = current.map((_, k) => k).filter((k) => !taken.has(k) && equal(i, k));
     if (ks.length === 1) take(i, ks[0]);
   });
+  // 4. A database of one view on both sides: it is the same view, whatever
+  // each side did to it (renamed and changed elsewhere, changed here).
+  if (read.length === 1 && current.length === 1 && found[0] < 0) take(0, 0);
   return found;
 }
 
@@ -419,7 +455,7 @@ function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextR
       if (same(n, shownRead[i]) && !(movedAtAll && unclaimed)) return null;
       return refuse(i);
     }
-    return { view: merge3(shownRead[i], keepUnnamed(shownNamed[i], shownRead[i], nextNamed[j], n), current[c]), at: c };
+    return { view: merge3(shownRead[i], keepUnnamed(shownNamed[i], shownRead[i], nextNamed[j], n), current[c], ""), at: c };
   });
   // Removed here: goes from the file, where it is found; one that cannot be found refuses where it might be one there.
   const removed = new Set<number>();
@@ -442,14 +478,16 @@ function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextR
       if (removed.has(ci)) return;
       out.push(byCurrent.has(ci) ? byCurrent.get(ci) : c);
     });
-    // Views added here, after the view they follow in `next`.
+    // Views added here, after the view they follow in `next`; where that one
+    // has no certain place in the file, at the end — never first, where it
+    // would become the view the database opens with.
     made.forEach((m, j) => {
       if (!m || m.at >= 0) return;
-      let at = 0;
-      for (let p = j - 1; p >= 0; p--) {
-        const prev = made[p];
+      let at = j === 0 ? 0 : out.length;
+      if (j > 0) {
+        const prev = made[j - 1];
         const idx = prev ? out.indexOf(prev.view) : -1;
-        if (idx >= 0) { at = idx + 1; break; }
+        if (idx >= 0) at = idx + 1;
       }
       out.splice(at, 0, m.view);
     });
@@ -509,6 +547,8 @@ const unchangedPlaces = (cfg: any): number[] => viewsOf(cfg).map((_, j) => j);
 export interface BaseConfigRebased {
   config: any;
   text: string;
+  /** Whether the change was merged with what the file holds (it was not the text the screen loaded or wrote). */
+  merged: boolean;
   /** Where each view of `next` stands in `config` (`-1`: not there) — the screen's active view follows its view. */
   placeOf: number[];
 }
@@ -528,7 +568,7 @@ export function rebaseBaseConfigText(shownGiven: any, next: any, currentText: st
   const unchanged = (): BaseConfigRebased => {
     const text = serializeBaseConfig(next);
     remember(next, text);
-    return { config: next, text, placeOf: unchangedPlaces(next) };
+    return { config: next, text, placeOf: unchangedPlaces(next), merged: false };
   };
   // Texts first: nothing is parsed where the file is the text the screen loaded or wrote.
   const known = isPlainObject(shown) ? textOf.get(shown) : undefined;
@@ -549,7 +589,7 @@ export function rebaseBaseConfigText(shownGiven: any, next: any, currentText: st
     const { views: _views, ...rest } = cfg;
     return rest;
   };
-  const rest = withoutRemovedProperties(merge3(strip(s), strip(n), strip(c)), s, n);
+  const rest = withoutRemovedProperties(merge3(strip(s), strip(n), strip(c), ""), s, n);
   // Which view is which is told by the screen's own objects (an untouched view
   // is the same object, or equal data), where reading back kept their number.
   const sameCount = viewsOf(shown).length === viewsOf(s).length && viewsOf(next).length === viewsOf(n).length;
@@ -566,7 +606,7 @@ export function rebaseBaseConfigText(shownGiven: any, next: any, currentText: st
   if (!placed) config.views = merged.views;
   const text = serializeBaseConfig(config);
   remember(config, text);
-  return { config, text, placeOf: merged.placeOf };
+  return { config, text, placeOf: merged.placeOf, merged: true };
 }
 
 /** The config writes in flight, per storage and path: one after the other. */
@@ -579,12 +619,53 @@ export interface BaseConfigWritten {
   update: TextFileUpdate;
 }
 
+/** How often a change reads the file anew before it gives up on a file that does not hold still. */
+const SETTLE_ATTEMPTS = 5;
+/** How long a change waits before it reads again a file that lost what the screen showed. */
+const SETTLE_MS = 150;
+
+/**
+ * Whether a file's text lacks what the config the screen showed holds — a
+ * view, a property, a formula, a filter, any key of the file — or no longer
+ * reads at all: what a file looks like while another writer (a sync client,
+ * a text editor, a network drive) has written only part of it.
+ */
+function lacksWhatWasShown(shown: any, text: string): boolean {
+  if (!isPlainObject(shown)) return false;
+  let current: any;
+  try { current = loadBaseConfigText(text); } catch { return true; }
+  if (!isPlainObject(current)) return true;
+  if (viewsOf(current).length < viewsOf(shown).length) return true;
+  const ids = (m: unknown) => (isPlainObject(m) ? Object.keys(m) : []);
+  const raw = (cfg: any) => (isPlainObject(cfg._obsidian) ? cfg._obsidian : {});
+  const shownRaw = raw(shown);
+  const currentRaw = raw(current);
+  for (const k of ids(shownRaw)) if (k !== "views" && !(k in currentRaw)) return true;
+  for (const k of ["properties", "formulas"]) {
+    const there = new Set(ids(currentRaw[k]));
+    if (ids(shownRaw[k]).some((id) => !there.has(id))) return true;
+  }
+  return false;
+}
+
+class FileUnsettled extends Error {}
+
+const settle = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /**
  * Writes a database config change through the vault's chain, read and
  * written in one step (`updateVaultText`). Answers the config the file now
  * holds — at an open conflict the file's, not the user's own version's — and
  * what the write did. Throws `BaseConfigChangeRefusedError` (nothing written)
  * where the change has nothing to land on with certainty.
+ *
+ * A change merges only with a reading that holds still: the file read just
+ * before is the text the chain hands the change. Another writer — a sync
+ * client, a text editor, a network drive, none of which writes atomically —
+ * leaves a file empty or cut off while it writes; such a reading is no "the
+ * other side removed it all". Where the file lacks what the screen showed, it
+ * is read again after a moment, and decided on only once two readings agree.
+ * A file that never holds still refuses the change (`fileChanging`).
  *
  * Changes to one file go one after the other: a screen makes its next change
  * from the config it shows, which already holds the change before, so the
@@ -596,23 +677,48 @@ export function writeBaseConfigChange(files: TextUpdateFiles, path: string, show
   if (!byPath) inFlight.set(files, (byPath = new Map()));
   const before = byPath.get(path) ?? Promise.resolve();
   const run = before.catch(() => {}).then(async () => {
-    // The chain hands the change the file's text and, at an open conflict, the user's own version's: each answered here.
-    // Each in its own shape: a byte order mark and CRLF line ends stay as the file has them.
-    const made = new Map<string, BaseConfigRebased>();
-    const update = await updateVaultText(files, path, (text) => {
-      const { text: plain, shape } = readTextShape(text);
-      const m = made.get(text) ?? rebaseBaseConfigText(shown, next, plain);
-      made.set(text, m);
-      return m.text === plain ? text : applyTextShape(m.text, shape);
-    });
-    const ofFile = made.get(update.before);
-    const config = ofFile ? ofFile.config : next;
-    // What the file now is, without its shape: the next change's first look.
-    remember(config, editorTextOf(update.text));
-    return { config, placeOf: ofFile ? ofFile.placeOf : unchangedPlaces(next), update };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await writeOnce(files, path, shown, next);
+      } catch (e) {
+        if (!(e instanceof FileUnsettled)) throw e;
+        if (attempt >= SETTLE_ATTEMPTS) throw new BaseConfigChangeRefusedError("fileChanging", "");
+      }
+    }
   });
   byPath.set(path, run);
   const done = () => { if (byPath.get(path) === run) byPath.delete(path); };
   run.then(done, done);
   return run;
+}
+
+async function writeOnce(files: TextUpdateFiles, path: string, shown: any, next: any): Promise<BaseConfigWritten> {
+  // The reading the merge may rely on, where it comes to a merge.
+  let read = await files.readTextFile(path);
+  if (lacksWhatWasShown(shown, readTextShape(read).text)) {
+    await settle(SETTLE_MS);
+    const again = await files.readTextFile(path);
+    if (again !== read) throw new FileUnsettled();
+    read = again;
+  }
+  // The chain hands the change the file's text first and, at an open
+  // conflict, the user's own version's after it: each answered here, each in
+  // its own shape (a byte order mark and CRLF line ends stay as the file has them).
+  const made = new Map<string, BaseConfigRebased>();
+  let theFile = true;
+  const update = await updateVaultText(files, path, (text) => {
+    const ofFile = theFile;
+    theFile = false;
+    const { text: plain, shape } = readTextShape(text);
+    const m = made.get(text) ?? rebaseBaseConfigText(shown, next, plain);
+    // The file changed between the reading above and the chain's: it does not hold still.
+    if (ofFile && m.merged && text !== read) throw new FileUnsettled();
+    made.set(text, m);
+    return m.text === plain ? text : applyTextShape(m.text, shape);
+  });
+  const ofFile = made.get(update.before);
+  const config = ofFile ? ofFile.config : next;
+  // What the file now is, without its shape: the next change's first look.
+  remember(config, editorTextOf(update.text));
+  return { config, placeOf: ofFile ? ofFile.placeOf : unchangedPlaces(next), update };
 }

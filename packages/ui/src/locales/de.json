@@ -7875,6 +7875,7 @@
     "databaseSave": "Die Datenbank konnte nicht gespeichert werden: {{reason}}",
     "databaseViewGone": "Die Ansicht „{{name}}“ gibt es in dieser Datenbank nicht mehr: Sie wurde anderswo entfernt oder umbenannt.",
     "databaseViewUnclear": "Die Ansicht „{{name}}“ lässt sich in dieser Datenbank nicht mehr sicher wiederfinden, seit sie anderswo geändert wurde.",
+    "databaseFileChanging": "Die Datei dieser Datenbank wird gerade anderswo geschrieben. Versuch es gleich noch einmal.",
     "overview": "Die Übersicht konnte nicht geschrieben werden: {{reason}}",
     "adopt": "„{{file}}“ konnte nicht als Übersicht übernommen werden: {{reason}}",
     "promote": "Die Aufgabe konnte nicht verschoben werden: {{reason}}",

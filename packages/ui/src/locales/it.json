@@ -8037,6 +8037,7 @@
     "databaseSave": "Impossibile salvare il database: {{reason}}",
     "databaseViewGone": "La vista «{{name}}» non è più in questo database: è stata rimossa o rinominata altrove.",
     "databaseViewUnclear": "La vista «{{name}}» non si può più riconoscere con certezza in questo database da quando è stata modificata altrove.",
+    "databaseFileChanging": "Il file di questo database è in fase di scrittura altrove in questo momento. Riprova tra poco.",
     "overview": "Non è stato possibile scrivere la panoramica: {{reason}}",
     "adopt": "«{{file}}» non è potuto diventare la panoramica: {{reason}}",
     "promote": "Impossibile spostare l’attività: {{reason}}",

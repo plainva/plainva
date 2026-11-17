@@ -126,7 +126,7 @@ function inputErrorText(message: string): string {
 function baseConfigRefusal(err: unknown): { reason: string; viewName: string } | null {
   const e = err as { name?: unknown; reason?: unknown; viewName?: unknown } | null;
   if (!e || typeof e !== "object" || e.name !== "BaseConfigChangeRefusedError") return null;
-  if (e.reason !== "viewGone" && e.reason !== "viewUnclear") return null;
+  if (e.reason !== "viewGone" && e.reason !== "viewUnclear" && e.reason !== "fileChanging") return null;
   return { reason: e.reason, viewName: typeof e.viewName === "string" ? e.viewName : "" };
 }
 
@@ -137,7 +137,10 @@ export function errorText(err: unknown): string {
   if (isStructureNeedsIndexError(err)) return i18n.t("errors.structureNeedsIndex");
   // A database change whose view cannot be found in the file with certainty (B20): by its reason, in the reader's language.
   const refusal = baseConfigRefusal(err);
-  if (refusal) return i18n.t(refusal.reason === "viewGone" ? "writeFailed.databaseViewGone" : "writeFailed.databaseViewUnclear", { name: refusal.viewName });
+  if (refusal) {
+    const key = refusal.reason === "viewGone" ? "writeFailed.databaseViewGone" : refusal.reason === "viewUnclear" ? "writeFailed.databaseViewUnclear" : "writeFailed.databaseFileChanging";
+    return i18n.t(key, { name: refusal.viewName });
+  }
   const connection = connectionErrorText(err);
   if (connection) return connection;
   if (typeof err === "string") return inputErrorText(err.trim() || "unknown error");

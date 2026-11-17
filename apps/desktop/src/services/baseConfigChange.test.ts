@@ -653,8 +653,144 @@ describe("a name another view took meanwhile is no certain match (B20)", () => {
     const twins = ["views:", "  - type: table", "    name: T", "    order:", "      - note.a", "      - note.x", "  - type: table", "    name: T", "    order:", "      - note.b", "      - note.x", ""].join("\n");
     const shown = loadBaseConfigText(twins);
     const next = deletePropertyFromConfig(JSON.parse(JSON.stringify(shown)), "x");
-    const made = rebaseBaseConfigText(shown, next, "formulas:\n  f: 1 + 1\n" + twins);
-    expect(made.config.views.map((v: any) => v.order)).toEqual([["a"], ["b"]]);
-    expect(made.text).toContain("f: 1 + 1");
+    // The file swapped the two meanwhile: the change lands on each where the file keeps it, as one edit of each.
+    const swapped = ["views:", "  - type: table", "    name: T", "    order:", "      - note.b", "      - note.x", "  - type: table", "    name: T", "    order:", "      - note.a", "      - note.x", ""].join("\n");
+    const made = rebaseBaseConfigText(shown, next, swapped);
+    expect(made.config.views.map((v: any) => v.order)).toEqual([["b"], ["a"]]);
+    expect(made.placeOf).toEqual([1, 0]);
+  });
+});
+
+describe("a file another writer has written only in part is no base for a merge (B20)", () => {
+  const FULL = [
+    "filters:", "  and:", '    - file.inFolder("Projekte")', "formulas:", "  f1: a + 1",
+    "properties:", "  note.status:", "    displayName: Status",
+    "views:", "  - type: table", "    name: Offen", "    order:", "      - note.status", "  - type: cards", "    name: Karten", "    limit: 5", "",
+  ].join("\n");
+  /** A file whose readings are `texts` one after the other, the last one from then on. */
+  function writtenMeanwhile(texts: string[]) {
+    let reads = 0;
+    const store = { text: texts[0] };
+    const adapter = {
+      readTextFile: async () => (store.text = texts[Math.min(reads++, texts.length - 1)]),
+      writeTextFile: async (_p: string, c: string) => { store.text = c; texts = [c]; reads = 0; },
+    };
+    return { store, adapter };
+  }
+  const addView = (shown: any) => ({ ...shown, views: [...shown.views, { type: "list", name: "Neu" }] });
+
+  it("an empty reading while another writer writes: read again, and the change lands on the whole file", async () => {
+    const shown = loadBaseConfigText(FULL);
+    const full = FULL.replace("limit: 5", "limit: 9");
+    const f = writtenMeanwhile(["", full]);
+    await writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown));
+    const out = loadBaseConfigText(f.store.text);
+    expect(out.views.map((v: any) => v.name)).toEqual(["Offen", "Karten", "Neu"]);
+    expect(f.store.text).toContain("limit: 9");
+    expect(f.store.text).toContain("f1: a + 1");
+    expect(f.store.text).toContain('file.inFolder("Projekte")');
+  });
+
+  it("a reading cut off at any byte while another writer writes: nothing of the file is lost", async () => {
+    const shown = loadBaseConfigText(FULL);
+    const full = FULL.replace("limit: 5", "limit: 9");
+    for (const cut of [1, 20, 45, 80, 120, full.length - 3]) {
+      const f = writtenMeanwhile([full.slice(0, cut), full]);
+      await writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown));
+      const out = loadBaseConfigText(f.store.text);
+      expect(out.views.map((v: any) => v.name)).toEqual(["Offen", "Karten", "Neu"]);
+      expect(f.store.text).toContain("limit: 9");
+      expect(f.store.text).toContain("displayName: Status");
+    }
+  });
+
+  it("a file that never holds still refuses the change, and nothing is written", async () => {
+    const shown = loadBaseConfigText(FULL);
+    let n = 0;
+    const writes: string[] = [];
+    const adapter = {
+      readTextFile: async () => FULL.slice(0, 10 + (n++ % 7) * 3),
+      writeTextFile: async (_p: string, c: string) => { writes.push(c); },
+    };
+    await expect(writeBaseConfigChange(adapter, "Tasks.base", shown, addView(shown))).rejects.toMatchObject({ name: "BaseConfigChangeRefusedError", reason: "fileChanging" });
+    expect(writes).toEqual([]);
+  });
+
+  it("a file emptied for good (two readings agree) is decided on: the change lands on it", async () => {
+    const shown = loadBaseConfigText(FULL);
+    const f = writtenMeanwhile([""]);
+    await writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown));
+    expect(loadBaseConfigText(f.store.text).views.map((v: any) => v.name)).toEqual(["Neu"]);
+  });
+});
+
+describe("a view added after a view the file holds no certain place for (B20)", () => {
+  const ONE = ["views:", "  - type: cards", "    order:", "      - note.a", ""].join("\n");
+  const DUP = ["views:", "  - type: table", "    name: T", "    order:", "      - note.a", "  - type: table", "    name: T", "    order:", "      - note.b", ""].join("\n");
+
+  it("goes to the end, never first, where it would become the view the database opens with", () => {
+    const shown = loadBaseConfigText(DUP);
+    // Both changed the second "T": it has no certain place; the user adds a view after it.
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views.push({ type: "list", name: "Neu" });
+    const file = DUP.replace("      - note.b\n", "      - note.b\n    limit: 5\n");
+    const made = rebaseBaseConfigText(shown, next, file);
+    expect(made.config.views.map((v: any) => v.name)).toEqual(["T", "T", "Neu"]);
+  });
+
+  it("a duplicate of the one view never named, which the file limited, stands after it", () => {
+    const shown = loadBaseConfigText(ONE);
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views.splice(1, 0, { ...JSON.parse(JSON.stringify(next.views[0])), name: "Gallery Kopie" });
+    const made = rebaseBaseConfigText(shown, next, ONE + "    limit: 5\n");
+    expect(made.config.views.map((v: any) => v.name ?? null)).toEqual([null, "Gallery Kopie"]);
+    expect(made.text.split("Gallery Kopie")[0]).toContain("limit: 5");
+  });
+});
+
+describe("a view never named that is certain is found, though both sides changed it (B20)", () => {
+  const ONE = ["views:", "  - type: table", "    order:", "      - note.a", ""].join("\n");
+  const sorted = (shown: any, i = 0) => {
+    const next = JSON.parse(JSON.stringify(shown));
+    next.views[i].sort = sortBy("note.a");
+    return next;
+  };
+
+  it("the one view on each side, still without a name there: the sort lands next to the limit", () => {
+    const shown = loadBaseConfigText(ONE);
+    const made = rebaseBaseConfigText(shown, sorted(shown), ONE + "    limit: 5\n");
+    expect(made.config.views).toHaveLength(1);
+    expect(made.config.views[0].sort).toEqual(sortBy("note.a"));
+    expect(made.text).toContain("limit: 5");
+  });
+
+  it("the other side is Plainva and wrote the name the serializer gives it: found under that name", () => {
+    const shown = loadBaseConfigText(ONE);
+    const made = rebaseBaseConfigText(shown, sorted(shown), ONE + "    limit: 5\n    name: Table\n");
+    expect(made.config.views.map((v: any) => [v.name, v.sort])).toEqual([["Table", sortBy("note.a")]]);
+    expect(made.text).toContain("limit: 5");
+  });
+
+  it("two views never named, the other one untouched: the changed one is the only one left on both sides", () => {
+    const two = ["views:", "  - type: table", "    order:", "      - note.a", "  - type: cards", "    order:", "      - note.b", ""].join("\n");
+    const shown = loadBaseConfigText(two);
+    const made = rebaseBaseConfigText(shown, sorted(shown), two.replace("      - note.a\n", "      - note.a\n    limit: 5\n"));
+    expect(made.config.views.map((v: any) => [v.type, v.sort ?? null])).toEqual([["table", sortBy("note.a")], ["gallery", null]]);
+    expect(made.text.split("type: cards")[0]).toContain("limit: 5");
+  });
+});
+
+describe("the filter rule hangs on the filter, not on a key of that name (B20)", () => {
+  it("a note property called \"filters\" keeps the option the other side added", () => {
+    const text = ["properties:", "  note.filters:", "    plainva:", "      input: select", "      options:", "        - value: a", "views:", "  - type: table", "    name: T", ""].join("\n");
+    const shown = loadBaseConfigText(text);
+    const next = JSON.parse(JSON.stringify(shown));
+    next.columns.filters = { ...next.columns.filters, options: [...next.columns.filters.options, { value: "mine" }] };
+    const made = rebaseBaseConfigText(shown, next, text).text;
+    const file = text.replace("        - value: a\n", "        - value: a\n        - value: fromOther\n");
+    const out = rebaseBaseConfigText(shown, next, file).text;
+    expect(made).toContain("mine");
+    expect(out).toContain("fromOther");
+    expect(out).toContain("mine");
   });
 });
