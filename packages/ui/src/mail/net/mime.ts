@@ -1,5 +1,6 @@
 import { htmlToPlainText } from "@plainva/core";
 import type { MailAttachmentInfo } from "../types";
+import { decoderOrUtf8 } from "./charsets";
 
 /**
  * The MIME reading side of the mobile mail client (mail feinplan G2).
@@ -37,13 +38,8 @@ export interface ParsedMessage {
   parts: ParsedPart[];
 }
 
-const dec = (label: string) => {
-  try {
-    return new TextDecoder(label, { fatal: false });
-  } catch {
-    return new TextDecoder("utf-8", { fatal: false });
-  }
-};
+/** The decoder of a charset as a mail names it (`charsets.ts`), UTF-8 for a name nobody knows. */
+const dec = (label: string) => decoderOrUtf8(label);
 
 /**
  * A message in the form its structure is read in: one character per byte. A
