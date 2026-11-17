@@ -43,7 +43,11 @@ function Get-MsiRows($db, [string]$sql, [int]$columns) {
   while ($true) {
     $record = Invoke-Com $view 'Fetch' $call $null
     if ($null -eq $record) { break }
-    $rows += , @(1..$columns | ForEach-Object { Invoke-Com $record 'StringData' $get @($_) })
+    # A plain [int] index: a number that came through the pipeline is wrapped, and the
+    # COM binder answers a wrapped one with DISP_E_TYPEMISMATCH (first rehearsal with this step).
+    $cells = @()
+    for ($i = 1; $i -le $columns; $i++) { $cells += [string](Invoke-Com $record 'StringData' $get @([int]$i)) }
+    $rows += , $cells
   }
   Invoke-Com $view 'Close' $call $null | Out-Null
   [void][Runtime.InteropServices.Marshal]::ReleaseComObject($view)
@@ -65,7 +69,8 @@ $shortcuts = Get-MsiRows $db 'SELECT `Shortcut`, `Target` FROM `Shortcut`' 2
 foreach ($program in @($main, $helper)) {
   if ($files.Values -notcontains $program) { $problems.Add("$(Split-Path $msi -Leaf): $program is not in its File table") }
 }
-$toFiles = @($shortcuts | Where-Object { $_[1] -match '^\[[!#](.+)\]$' })
+$toFiles = [System.Collections.Generic.List[object]]::new()
+foreach ($s in $shortcuts) { if ($s[1] -match '^\[[!#](.+)\]$') { $toFiles.Add($s) } }
 if ($toFiles.Count -eq 0) { $problems.Add("$(Split-Path $msi -Leaf): no shortcut points at a file") }
 foreach ($s in $toFiles) {
   $null = $s[1] -match '^\[[!#](.+)\]$'

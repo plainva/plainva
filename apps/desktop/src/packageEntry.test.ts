@@ -73,7 +73,11 @@ describe("reading an entry", () => {
   });
 });
 
-describe("a Linux package", () => {
+// The trees below rest on POSIX execute bits and forward-slash paths; the scripts that read
+// real packages this way run on Linux and macOS only (Windows: check-package-entry.ps1).
+const onPosix = describe.skipIf(process.platform === "win32");
+
+onPosix("a Linux package", () => {
   const good = { "usr/bin/plainva-desktop": program, "usr/bin/plainva-mcp": program, "usr/share/applications/Plainva.desktop": desktop("plainva-desktop") };
 
   it("passes when it carries both and its entry starts the app", () => {
@@ -103,7 +107,7 @@ describe("a Linux package", () => {
   });
 });
 
-describe("a macOS app", () => {
+onPosix("a macOS app", () => {
   const good = { "Contents/Info.plist": plist("plainva-desktop"), "Contents/MacOS/plainva-desktop": program, "Contents/MacOS/plainva-mcp": program };
 
   it("passes when CFBundleExecutable is the app and the helper is next to it", () => {
@@ -118,7 +122,7 @@ describe("a macOS app", () => {
   });
 });
 
-describe("the record of the new parts", () => {
+onPosix("the record of the new parts", () => {
   it("lists the app, the helper and the ONNX Runtime library by size, wherever they are", () => {
     const dir = tree({
       "usr/bin/plainva-desktop": program,

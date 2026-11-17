@@ -20,11 +20,13 @@
 #     the window server's list, no permission dialog).
 # Both wait up to $PLAINVA_START_TIMEOUT seconds (default 45) for the window
 # and require the process 3 seconds later; a slow start is waited for, never
-# retried. A failure names what was missing and shows the program's output.
+# retried. A failure names what was missing and shows the program's output;
+# a command that ends the script without a word of its own is named by the
+# ERR trap (line and command).
 #
 # Not started: the rpm (there is no rpm-based runner; it is read only).
 # Windows: check-package-entry.ps1. Usage: check-package-entry.sh <leg>
-set -euo pipefail
+set -Eeuo pipefail
 
 leg="${1:?usage: check-package-entry.sh <macos-latest|ubuntu-22.04>}"
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -42,6 +44,7 @@ cleanup() {
   rm -rf "$work"
 }
 trap cleanup EXIT
+trap 'echo "::error::check-package-entry.sh stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 check() { node "$here/package-entry-check.mjs" "$@"; }
 one() {
@@ -71,7 +74,13 @@ case "$leg" in
     check linux "$work/deb" "$(basename "$deb")"
 
     rpm="$(one "$target/release/bundle/rpm/*.rpm")"
-    mkdir "$work/rpm" && (cd "$work/rpm" && rpm2cpio "$rpm" | cpio -idm --quiet)
+    # rpm2cpio's exit status is not the judge: on the first rehearsal with this
+    # step it ended the script with status 1 and no message. cpio fails on a
+    # short or broken archive, and the check below reads what came out.
+    mkdir "$work/rpm"
+    rpm2cpio "$rpm" >"$work/rpm.cpio" || echo "rpm2cpio ended with status $? for $(basename "$rpm"); cpio judges the archive"
+    [ -s "$work/rpm.cpio" ] || { echo "::error::$(basename "$rpm"): rpm2cpio wrote no archive"; exit 1; }
+    (cd "$work/rpm" && cpio -idm --quiet <"$work/rpm.cpio") || { echo "::error::$(basename "$rpm"): cpio could not unpack the payload"; exit 1; }
     check linux "$work/rpm" "$(basename "$rpm")"
 
     appimage="$(one "$target/release/bundle/appimage/*.AppImage")"
@@ -83,7 +92,7 @@ case "$leg" in
     pkg="$(dpkg-deb -f "$deb" Package)"
     sudo apt-get install -y -qq "$deb" >/dev/null
     installed="$pkg"
-    entry="$(ls /usr/share/applications/*.desktop | xargs grep -l "^Exec=$main\b\|^Exec=/usr/bin/$main\b" | head -n 1 || true)"
+    entry="$(grep -l "^Exec=$main\b\|^Exec=/usr/bin/$main\b" /usr/share/applications/*.desktop 2>/dev/null | head -n 1 || true)"
     [ -n "$entry" ] || { echo "::error::$(basename "$deb"): installed, but no .desktop entry under /usr/share/applications runs $main"; exit 1; }
     exec_cmd="$(grep -m1 '^Exec=' "$entry" | cut -d= -f2- | awk '{print $1}')"
     start_linux "$(basename "$deb") (installed, $(basename "$entry"))" "$(command -v "$exec_cmd")"
@@ -106,27 +115,32 @@ case "$leg" in
     mkdir "$work/apps" && cp -R "$mounted/Plainva.app" "$work/apps/"
     hdiutil detach "$mounted" -quiet && mounted=""
 
-    windows=""
-    if swiftc -O -o "$work/window-count" "$here/window-count.swift" 2>"$work/swiftc.log"; then windows="$work/window-count"
-    else echo "::warning::window-count.swift did not compile, the start is judged by the process alone"; cat "$work/swiftc.log"; fi
+    # Without the window count the start would be judged by the process alone
+    # and a start without a window would pass: no fallback, the step fails.
+    windows="$work/window-count"
+    swiftc -O -o "$windows" "$here/window-count.swift" 2>"$work/swiftc.log" || {
+      echo "::error::window-count.swift did not compile; the start cannot be judged by its window"
+      cat "$work/swiftc.log"
+      exit 1
+    }
 
     label="Plainva.app from $(basename "$dmg") (open)"
     log="$work/output.log"
     : >"$log"
-    open -n --stdout "$log" --stderr "$log" "$work/apps/Plainva.app"
     fail() {
       echo "::error::$label: $1"
       echo "--- last lines of the program's output ($log) ---"
       tail -n 40 "$log" 2>/dev/null || true
       exit 1
     }
+    open -n --stdout "$log" --stderr "$log" "$work/apps/Plainva.app" || fail "open could not start the app (status $?)"
     pid="" seen=0 shown=0
     for _ in $(seq "$timeout_s"); do
       sleep 1
       pid="$(pgrep -x "$main" | head -n 1 || true)"
       if [ -n "$pid" ]; then
         seen=1
-        if [ -z "$windows" ] || [ "$("$windows" "$pid")" -gt 0 ]; then shown=1; break; fi
+        if [ "$("$windows" "$pid")" -gt 0 ]; then shown=1; break; fi
       elif [ "$seen" = 1 ]; then
         fail "$main started and ended before a window appeared (open does not pass on its exit code)"
       fi
@@ -138,7 +152,7 @@ case "$leg" in
     [ "$shown" = 1 ] || fail "$main runs (pid $pid), but owns no on-screen window after ${timeout_s} s"
     sleep 3
     pgrep -x "$main" >/dev/null || fail "$main ended within 3 s after its window appeared"
-    echo "$label: $main is running$([ -n "$windows" ] && echo " with an on-screen window")"
+    echo "$label: $main is running with an on-screen window"
     ;;
   *)
     echo "::error::unknown build leg: $leg (Windows: check-package-entry.ps1)" >&2
