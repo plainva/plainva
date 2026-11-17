@@ -12,6 +12,7 @@ import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingV
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
+import { isSaveFailureFinal } from "../../../../packages/ui/src/lib/saveRetry";
 import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
 
@@ -82,7 +83,7 @@ function harness(vault: MobileVault) {
   const stopped = vi.fn(async () => {});
   const activated = vi.fn(async () => {});
   const deps = {
-    vault, createSaveCoordinator, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
+    vault, createSaveCoordinator, isSaveFailureFinal, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>
       drafts.set(JSON.stringify([v.vaultId, path]), { text, revision }),

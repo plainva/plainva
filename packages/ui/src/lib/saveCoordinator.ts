@@ -1,3 +1,4 @@
+import { SAVE_RETRY_BASE_MS, SAVE_RETRY_MAX_MS, isSaveFailureFinal, saveRetryDelay } from "./saveRetry";
 /**
  * Pending note text belongs to a vault AND a path. Revisions stay monotonic
  * after a successful write, so a late confirmation cannot clear a newer draft.
@@ -13,7 +14,8 @@ export interface SaveCoordinatorOptions<C> {
   onSaved?: (path: string, ctx: C, revision: number) => void;
   onError?: (path: string, error: unknown, attempt: number, ctx: C, revision: number) => void;
   /** The failed revision was preserved separately, for example in a conflict
-   * copy. A newer revision still needs its OWN confirmed save or recovery. */
+   * copy. A newer revision still needs its OWN confirmed save or recovery.
+   * Defaults to the rule both shells share (`saveRetry.ts`). */
   isTerminal?: (error: unknown) => boolean;
   write: (ctx: C, path: string, text: string, revision: number) => Promise<void>;
 }
@@ -43,8 +45,9 @@ export interface SaveCoordinator<C> {
 
 export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveCoordinator<C> {
   const debounceMs = opts.debounceMs ?? 800;
-  const retryBaseMs = opts.retryBaseMs ?? 1000;
-  const maxRetryDelayMs = opts.maxRetryDelayMs ?? 30_000;
+  const retryBaseMs = opts.retryBaseMs ?? SAVE_RETRY_BASE_MS;
+  const maxRetryDelayMs = opts.maxRetryDelayMs ?? SAVE_RETRY_MAX_MS;
+  const isTerminal = opts.isTerminal ?? isSaveFailureFinal;
   const entries = new Map<string, Entry<C>>();
   const revisions = new Map<string, number>();
   const writes = new Map<string, Promise<void>>();
@@ -102,11 +105,11 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
           entry.attempts = 0;
           return run(key);
         }
-        if (opts.isTerminal?.(error)) {
+        if (isTerminal(error)) {
           clearTimers(entry);
           entries.delete(key);
         } else {
-          const delay = Math.min(maxRetryDelayMs, retryBaseMs * 2 ** (attempt - 1));
+          const delay = saveRetryDelay(attempt, retryBaseMs, maxRetryDelayMs);
           entry.retryTimer = setTimeout(() => {
             entry.retryTimer = null;
             if (entries.get(key) === entry) background(key);

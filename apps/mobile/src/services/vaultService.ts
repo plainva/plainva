@@ -51,7 +51,7 @@ import { takeScreen } from "./screenStep";
 import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
-import { createSaveCoordinator, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
+import { createSaveCoordinator, isSaveFailureFinal, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
@@ -2120,7 +2120,10 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
     // no text over it, however often it is asked. The write above keeps the text
     // beside such a file; what still arrives here met the change between its
     // read and its write.
-    isTerminal: (err) => err instanceof ConflictError || ["FILE_NOT_FOUND", "NOT_TEXT_FILE"].includes((err as { code?: string } | null)?.code ?? ""),
+    // Nor is a note the device gives no right to write, or a read-only drive:
+    // only the person can change that, so their next edit tries again.
+    // The list is the one both shells share (`isSaveFailureFinal`, @plainva/ui).
+    isTerminal: isSaveFailureFinal,
     onError: (path, err, attempt, vault) => {
       if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
         window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
