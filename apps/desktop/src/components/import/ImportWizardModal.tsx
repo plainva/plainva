@@ -16,6 +16,7 @@ import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';
 import { scaffoldVaultTemplate, isVaultFolderEmpty } from '../../services/vaultTemplates';
 import { buildImportLabels } from '@plainva/ui';
 import { extractArchive, discardExtractedArchive, readFolderAsFiles, type ExtractedArchive } from '../../services/importArchive';
+import { vaultFolderLabel } from '../../services/vaultNames';
 
 /**
  * Above this many notes, indexing and the first sync are a noticeable wait.
@@ -420,9 +421,6 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     return payload;
   };
 
-  /** Last path segment of an OS path — the vault's name. */
-  const basenameOf = (path: string): string => path.split(/[/\\]/).filter(Boolean).pop() || path;
-
   /** Vault path and subfolder the current target resolves to. */
   const resolvedTarget = (): { vaultPath: string; subfolder: string } =>
     target === 'newVault'
@@ -601,13 +599,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       // — an imported vault must be an OKF vault like any other.
       let writeAdapter: unknown = vaultAdapter;
       if (target === 'newVault') {
-        if (!(await isVaultFolderEmpty(newVaultPath))) throw new Error(t('splash.folderNotEmptyConfirm', { name: basenameOf(newVaultPath) }));
+        if (!(await isVaultFolderEmpty(newVaultPath))) throw new Error(t('splash.folderNotEmptyConfirm', { name: vaultFolderLabel(newVaultPath) }));
         const adapter = new TauriVaultAdapter(newVaultPath);
         await adapter.initialize();
         await scaffoldVaultTemplate({ isNewVault: true,
           adapter,
           template: null,
-          vaultName: basenameOf(newVaultPath),
+          // A new vault has no name of its own yet: its folder's (F7).
+          vaultName: vaultFolderLabel(newVaultPath),
           subfoldersHeading: t('indexMd.subfoldersHeading'),
         });
         writeAdapter = adapter;

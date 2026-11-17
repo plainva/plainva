@@ -10,6 +10,7 @@ import { syncStateLabel } from "./components/syncSubtitle";
 import { backupState } from "./services/vaultBackup";
 import { getMobileAiSession } from "./services/ai/mobileAi";
 import { AppBar } from "./components/AppBar";
+import { vaultEntryName } from "./services/vaultEntryName";
 
 /**
  * Mobile settings MASTER list (redesign 2026-07-18, P4): opened directly from
@@ -64,7 +65,7 @@ export function SettingsScreen({
   useEffect(() => {
     const reload = () => void getActiveVaultEntry().then((e) => {
       setVaultEntry(e);
-      setVaultName(e.name || t("mobile.vaultLocal"));
+      setVaultName(vaultEntryName(e.name));
       // The states of the accounts, calendar, mail and security rows (E15).
       void loadAccountCards().then(({ cards: next }) => setCards(next)).catch(() => setCards([]));
       void getMobileWorkspaceStatus(e.id).then((status) => setSecurityPhase(status?.phase ?? null)).catch(() => setSecurityPhase(null));

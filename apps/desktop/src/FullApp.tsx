@@ -9,6 +9,7 @@ import { useApp } from "./contexts/AppContext";
 import { getWindowBus, type OwnerSurface } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { installRevealPathListener } from "./services/revealRouting";
+import { useVaultLabels } from "./services/vaultNames";
 import { currentWindowParams } from "./services/windowContext";
 import { useWindowTitle } from "./services/windowTitle";
 import { useVaultWeekStart } from "./services/weekStartVault";
@@ -146,6 +147,8 @@ export function FullApp() {
       })();
     },
   }), [openOwnerSurface, reportOpenContents, label, openVault, closeVault, recentVaults]);
+  // The vaults this window offers, by the names they go by (F7 of release 0.9.0).
+  const vaultNameOf = useVaultLabels(recentVaults.slice(0, 5));
 
   // No vault here: offer the ones that are known, and a folder. Deliberately
   // not the splash — that one creates vaults, imports and sets up cloud
@@ -157,7 +160,7 @@ export function FullApp() {
           <span>{t("window.noVaultBody")}</span>
           {recentVaults.slice(0, 5).map((path) => (
             <Button key={path} variant="ghost" onClick={() => { void openVault(path); }}>
-              {path.split(/[/\\]/).filter(Boolean).pop() ?? path}
+              {vaultNameOf(path)}
             </Button>
           ))}
           <Button variant="primary" onClick={() => { void selectVault(); }}>{t("splash.openVault")}</Button>

@@ -86,7 +86,6 @@ interface SettingsModalProps {
 
 const GENERAL = "general";
 
-const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
 /* Every settings page stays mounted in one grid cell (.pv-setpages), so the
  * window is sized by the TALLEST page and never resizes between areas. Each
@@ -1160,7 +1159,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         <SyncFolderPickerModal
           // The vault root is a legitimate pick for both fields ("" = root).
           allowRoot
-          rootLabel={basename(section)}
+          rootLabel={vaultLabelOf(section)}
           listFolders={listVaultFolders}
           onSelect={(picked) => {
             // The browser lists `.plainva` as well: no folder setting may point there (3.127 no. 4).
