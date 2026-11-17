@@ -295,10 +295,11 @@ describe("DropboxSyncTarget", () => {
     ]);
   });
 
-  it("deletes recursively via delete_v2 and tolerates not_found", async () => {
+  it("deletes via delete_v2 after asking whether a folder there holds files (F44), and tolerates not_found", async () => {
     const { target, fetchFn } = makeTarget(async () => res({ error_summary: "path_lookup/not_found/." }, { status: 409 }));
     await target.push({ id: 1, file_path: "dir", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 });
-    const call = calls(fetchFn)[0];
+    expect(calls(fetchFn)[0].url).toBe(`${API}/files/list_folder`);
+    const call = calls(fetchFn)[1];
     expect(call.url).toBe(`${API}/files/delete_v2`);
     expect(JSON.parse(call.init.body)).toEqual({ path: "/Plainva/dir" });
   });

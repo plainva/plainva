@@ -192,6 +192,17 @@ describe("a folder of the second spelling", () => {
     expect(await fs.readFile(path.join(w.root, NFC), "utf8")).toBe(BODY);
   });
 
+  it("stays while it holds a conflict copy, which no listing of the sync reports (F44)", async () => {
+    const w = await world({ cloudTwin: BODY });
+    const copy = `${FOLDER_NFD}/${"Brötchen holen.CONFLICT-2026-09-01.md".normalize("NFC")}`;
+    w.dav.files.set(copy, { bytes: bytes("# other edit\n"), etag: "e-cc" });
+    await w.cycle();
+    await w.worker.resolveNameCollisions("remove-duplicate");
+    await w.settle();
+    expect(text(w.dav.files.get(copy)?.bytes)).toBe("# other edit\n");
+    expect(cloudFolders(w.dav)).toContain(FOLDER_NFD);
+  });
+
   it("stays while it still holds a note of its own", async () => {
     const w = await world({ cloudTwin: BODY });
     const extra = `${FOLDER_NFD}/Eigenes.md`;

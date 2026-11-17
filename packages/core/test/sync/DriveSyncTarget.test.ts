@@ -645,6 +645,8 @@ describe("DriveSyncTarget", () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);
         if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+        // Asked whether the item is a folder that holds files (F44): nothing below a file.
+        if (init.method === "GET" && u.includes("/drive/v3/files?") && !u.includes("name")) return res({ files: [] });
         if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f-1", name: askedName(u) }] });
         if (init.method === "DELETE" && u.includes("/files/f-1")) return res({}, { status: 404, ok: false });
         throw new Error(`unexpected ${init.method} ${u}`);
@@ -654,10 +656,15 @@ describe("DriveSyncTarget", () => {
       expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE" && String(c[0]).includes("/files/f-1"))).toBe(true);
     });
 
-    it("deletes a FOLDER: the mime-unfiltered lookup finds the folder object (Drive deletes recursively)", async () => {
+    it("deletes a FOLDER that holds no file: the mime-unfiltered lookup finds the folder object (F44)", async () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);
         if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+        // Asked whether the folder holds files: it holds none.
+        if (init.method === "GET" && u.includes("/drive/v3/files?") && !u.includes("name")) {
+          expect(u).toContain("folder-7");
+          return res({ files: [] });
+        }
         // The delete lookup carries NO mimeType filter, so the folder itself matches.
         if (init.method === "GET" && u.includes("/drive/v3/files?")) {
           expect(u).toContain(encodeURIComponent("name='proj'"));

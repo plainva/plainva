@@ -261,11 +261,12 @@ describe("OneDriveSyncTarget", () => {
     expect(chunkPuts[0].init.headers["Authorization"]).toBeUndefined();
   });
 
-  it("deletes items (recursive on folders) and tolerates 404", async () => {
+  it("deletes items and tolerates 404; a folder only after asking whether it holds files (F44)", async () => {
     const { target, fetchFn } = makeTarget(async () => res({}, { status: 404 }));
     await target.push({ id: 1, file_path: "gone.md", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 });
-    expect(calls(fetchFn)[0].method).toBe("DELETE");
-    expect(calls(fetchFn)[0].url).toBe(`${GRAPH}/me/drive/root:/Plainva/gone.md:`);
+    expect(calls(fetchFn).map((c) => c.method)).toEqual(["GET", "DELETE"]);
+    expect(calls(fetchFn)[0].url).toContain(`${GRAPH}/me/drive/root:/Plainva/gone.md:/children`);
+    expect(calls(fetchFn)[1].url).toBe(`${GRAPH}/me/drive/root:/Plainva/gone.md:`);
   });
 
   it("renames within the same folder via PATCH name only", async () => {
@@ -282,10 +283,11 @@ describe("OneDriveSyncTarget", () => {
     expect(result).toEqual({ etag: "c2", remoteId: "i1" });
     const call = calls(fetchFn)[0];
     expect(call.method).toBe("PATCH");
-    expect(call.url).toBe(`${GRAPH}/me/drive/root:/Plainva/notes/old.md:`);
+    // A move never replaces what lies at its destination (A1): Graph refuses
+    // an existing name; the behaviour goes in the address (F44).
+    expect(call.url).toBe(`${GRAPH}/me/drive/root:/Plainva/notes/old.md:?@microsoft.graph.conflictBehavior=fail`);
     const body = JSON.parse(call.init.body);
-    // A move never replaces what lies at its destination (A1): Graph refuses an existing name.
-    expect(body).toEqual({ name: "new.md", "@microsoft.graph.conflictBehavior": "fail" });
+    expect(body).toEqual({ name: "new.md" });
   });
 
   it("reports renameSourceMissing instead of silent success when the source 404s (P1.2)", async () => {

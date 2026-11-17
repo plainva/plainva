@@ -528,11 +528,13 @@ export class S3SyncTarget implements ISyncTarget {
 
     if (op.operation === "delete") {
       const key = this.keyFor(op.file_path);
-      // Folder case first: sweep every key under "<path>/" (a folder has no exact
-      // object of its own — and S3's DELETE returns 204 even for missing keys, so
-      // the sweep is the only reliable signal).
+      // Folder case first: a folder is the keys under "<path>/". It goes only
+      // while none of them is a file (F44) — another device may have put a
+      // note there since this one last looked, and that note decides on its
+      // own. Then only its folder markers are deleted, the deepest first.
       const children = await this.listAll(`${key}/`);
-      for (const child of children) {
+      if (children.some((child) => !child.key.endsWith("/"))) throw new RemoteChangedError(op.file_path, "the folder holds files");
+      for (const child of [...children].sort((x, y) => y.key.length - x.key.length)) {
         await this.deleteObject(encodeS3Key(child.key));
       }
       // A file's deletion removes only the version this device saw last

@@ -543,6 +543,10 @@ export class OneDriveSyncTarget implements ISyncTarget {
       // `eTag` — Graph answers 412 when it changed in between.
       const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
       let ifMatch: string | undefined;
+      // A folder's DELETE takes everything below it: it goes only while
+      // OneDrive holds no file in it (F44) — another device may have put a
+      // note there since this one last looked, and that note decides on its own.
+      if (!expected && await this.folderHoldsFiles(op.file_path)) throw new RemoteChangedError(op.file_path, "the folder holds files");
       if (expected) {
         const item = await this.statItem(op.file_path);
         if (!item) return;
@@ -571,12 +575,16 @@ export class OneDriveSyncTarget implements ISyncTarget {
       // refuses an existing name with 409 `nameAlreadyExists`. Not for a
       // change of letter case only, where that name is the item itself.
       const caseOnly = foldsToSameName(op.file_path, op.new_path);
-      const body: Record<string, unknown> = { name: newName, ...(caseOnly ? {} : { "@microsoft.graph.conflictBehavior": "fail" }) };
+      // The behaviour goes in the address, not the body: "should be included
+      // in the URL instead of the body of the request" (driveItem resource,
+      // https://learn.microsoft.com/en-us/graph/api/resources/driveitem,
+      // instance attributes; F44 no. 5). The move pages document no default.
+      const body: Record<string, unknown> = { name: newName };
       if (oldParent !== newParent) {
         await this.ensureFolder(newParent);
         body.parentReference = { path: `/drive/root:/${this.drivePath(newParent)}` };
       }
-      const res = await this.authedFetch("PATCH", this.itemUrl(op.file_path), {
+      const res = await this.authedFetch("PATCH", this.itemUrl(op.file_path) + (caseOnly ? "" : "?@microsoft.graph.conflictBehavior=fail"), {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -709,6 +717,30 @@ export class OneDriveSyncTarget implements ISyncTarget {
   public async stat(filePath: string): Promise<RemoteStat | null> {
     const item = await this.statItem(filePath);
     return item ? this.statOf(item) : null;
+  }
+
+  /**
+   * True when `path` is a folder on OneDrive with a file anywhere below it —
+   * any file, conflict copies included, which the sync's listing leaves out.
+   */
+  private async folderHoldsFiles(path: string): Promise<boolean> {
+    let url: string | undefined = this.itemUrl(path, "children") + "?$select=name,folder,file";
+    while (url) {
+      const res: Response = await this.authedFetch("GET", url);
+      // No folder there (404), or a file (Graph refuses its children): nothing below.
+      if (res.status === 404 || res.status === 400) {
+        discardResponse(res);
+        return false;
+      }
+      if (!res.ok) throw syncHttpError(`OneDrive list failed: ${res.status} ${res.statusText}`, res);
+      const json = (await res.json()) as { value?: GraphItem[]; "@odata.nextLink"?: string };
+      for (const item of json.value ?? []) {
+        if (!item.folder) return true;
+        if (await this.folderHoldsFiles(path ? `${path}/${item.name}` : item.name)) return true;
+      }
+      url = json["@odata.nextLink"];
+    }
+    return false;
   }
 
   /** The file's item as Graph answers it, or null (no file, a folder, a conflict copy). */

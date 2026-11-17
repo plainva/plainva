@@ -598,6 +598,28 @@ export class DriveSyncTarget implements ISyncTarget {
     this.folderIdToPath.set(id, path);
   }
 
+  /**
+   * True when the item `id` is a folder with a file anywhere below it — any
+   * file, conflict copies included, which the sync's listing leaves out.
+   */
+  private async folderHoldsFiles(id: string): Promise<boolean> {
+    let pageToken: string | undefined;
+    do {
+      const params = new URLSearchParams({ q: `${driveQueryString(id)} in parents and trashed=false`, fields: "nextPageToken,files(id,mimeType)", pageSize: "1000" });
+      if (pageToken) params.set("pageToken", pageToken);
+      const res = await this.authedFetch("GET", `${DRIVE_API}/files?${params.toString()}`);
+      if (res.status === 404) return false;
+      if (!res.ok) throw await driveResponseError("folder listing", res);
+      const json = (await res.json()) as { files?: DriveFile[]; nextPageToken?: string };
+      for (const f of json.files ?? []) {
+        if (f.mimeType !== FOLDER_MIME) return true;
+        if (await this.folderHoldsFiles(f.id)) return true;
+      }
+      pageToken = json.nextPageToken;
+    } while (pageToken);
+    return false;
+  }
+
   private async findFileId(filePath: string): Promise<string | null> {
     const cached = this.pathToId.get(filePath);
     if (cached) return cached;
@@ -771,6 +793,10 @@ export class DriveSyncTarget implements ISyncTarget {
       // (Fehlerliste 0.9.0 A1). Drive has no conditional delete: the file is
       // asked right before — the window of one request, as for its uploads.
       const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      // A folder's deletion takes everything below it: it goes only while
+      // Drive holds no file in it (F44) — another device may have put a note
+      // there since this one last looked, and that note decides on its own.
+      if (!expected && await this.folderHoldsFiles(id)) throw new RemoteChangedError(op.file_path, "the folder holds files");
       if (expected) {
         const meta = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,md5Checksum,modifiedTime`);
         if (meta.status === 404) {

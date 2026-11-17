@@ -2416,11 +2416,16 @@ export class SyncWorker {
       const seenFolders = seenRecord ? await this.stateRepo.listSeenFolders().catch(() => new Set<string>()) : new Set<string>();
       const seenNow: string[] = [];
       const deletedHere: string[] = [];
+      // A remote file whose deletion this device has queued does not count: it
+      // is going (a folder moved away here whose queue entry was given up,
+      // F44). Its folder's deletion queues behind it and goes once it is empty.
+      const deletionQueued = new Set(deletionPending);
       let foldersWithFiles: Set<string> | null = null;
       const holdsRemoteFile = (folder: string): boolean => {
         if (!foldersWithFiles) {
           foldersWithFiles = new Set<string>();
           for (const p of remotePaths) {
+            if (deletionQueued.has(p)) continue;
             for (let i = p.indexOf("/"); i > 0; i = p.indexOf("/", i + 1)) foldersWithFiles.add(p.slice(0, i));
           }
         }
@@ -2454,7 +2459,8 @@ export class SyncWorker {
       if (seenRecord && alive()) {
         try {
           if (deletedHere.length > 0) {
-            // Only the outermost are in the list: a folder's DELETE takes its subfolders along.
+            // Only the outermost are in the list: a folder's DELETE takes its
+            // empty subfolders along, and goes only while it holds no file (F44).
             console.log(`[SyncWorker] ${deletedHere.length} empty folder(s) deleted on this device; deleting them on the remote too`);
             await this.queue.queueDeletePaths(deletedHere);
           }

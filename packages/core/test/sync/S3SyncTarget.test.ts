@@ -139,23 +139,27 @@ describe("S3SyncTarget", () => {
     expect(seq[1].url).toBe("http://127.0.0.1:9000/vault/a.md");
   });
 
-  it("deletes a folder by sweeping all keys under its prefix", async () => {
-    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
-      if (init.method === "GET") {
-        return res({ body: listXml([{ key: "dir/a.md" }, { key: "dir/sub/b.md" }]) });
-      }
+  it("never sweeps a folder that holds files; one that holds only folder markers loses them (F44)", async () => {
+    const holding = makeTarget(async (_url: string, init: any) => {
+      if (init.method === "GET") return res({ body: listXml([{ key: "dir/a.md" }, { key: "dir/sub/b.md" }]) });
       return res({ status: 204 });
     });
-    await target.push({ id: 1, file_path: "dir", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 });
+    await expect(
+      holding.target.push({ id: 1, file_path: "dir", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 })
+    ).rejects.toThrow("the folder holds files");
+    expect(calls(holding.fetchFn).filter((c) => c.method === "DELETE")).toEqual([]);
+    expect(calls(holding.fetchFn)[0].url).toContain("prefix=dir%2F");
 
-    const deletes = calls(fetchFn).filter((c) => c.method === "DELETE");
-    expect(deletes.map((c) => c.url)).toEqual([
-      "http://127.0.0.1:9000/vault/dir/a.md",
-      "http://127.0.0.1:9000/vault/dir/sub/b.md",
+    const empty = makeTarget(async (_url: string, init: any) => {
+      if (init.method === "GET") return res({ body: listXml([{ key: "dir/" }, { key: "dir/sub/" }]) });
+      return res({ status: 204 });
+    });
+    await empty.target.push({ id: 1, file_path: "dir", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 });
+    expect(calls(empty.fetchFn).filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual([
+      "http://127.0.0.1:9000/vault/dir/sub/",
+      "http://127.0.0.1:9000/vault/dir/",
       "http://127.0.0.1:9000/vault/dir",
     ]);
-    const list = calls(fetchFn)[0];
-    expect(list.url).toContain("prefix=dir%2F");
   });
 
   it("renames a file via signed copy + delete and returns the copy ETag", async () => {

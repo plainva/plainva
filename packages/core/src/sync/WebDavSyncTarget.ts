@@ -295,6 +295,11 @@ export class WebDavSyncTarget implements ISyncTarget {
       // (Fehlerliste 0.9.0 A1): `If-Match` on it, or a question right before
       // where the tag is weak or the server ignores the condition.
       const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      // A DELETE of a collection takes everything below it. A folder goes
+      // only while the server holds no file in it (F44): another device may
+      // have put a note there since this one last looked, and whatever is
+      // there decides on its own, file by file.
+      if (!expected && await this.folderHoldsFiles(op.file_path)) throw new RemoteChangedError(op.file_path, "the folder holds files");
       const stat = () => this.stat(op.file_path);
       const condition = expected && this.conditions.conditionsHold ? WebDavSyncTarget.conditionFor(expected) : null;
       if (expected && !condition && !(await this.conditions.askBeforeDelete(op.file_path, expected, stat))) return;
@@ -653,6 +658,29 @@ export class WebDavSyncTarget implements ISyncTarget {
    * listing (getetag without quotes); a server that reports no etag yields ""
    * and the caller hashes the bytes, exactly as the listing path does.
    */
+  /**
+   * True when `path` is a collection on the server with a file anywhere
+   * below it — any file, conflict copies and hidden files included, which no
+   * listing of the sync reports. One PROPFIND with Depth: 1 per folder level.
+   */
+  private async folderHoldsFiles(path: string): Promise<boolean> {
+    const rel = trimChars(path.replace(/\\/g, "/"), "/");
+    if (!rel) return true;
+    const res = await this.request("PROPFIND", this.urlForPath(rel + "/"), { headers: { ...this.headers, "Depth": "1" } });
+    if (res.status === 404) return false;
+    if (!res.ok) throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
+    const entries = this.parseListing(await res.text()).filter((r) => r.href);
+    const self = entries.find((r) => trimEndChars(this.relativeHref(r.href!), "/") === rel);
+    if (self && !self.isCollection) return false;
+    for (const entry of entries) {
+      const childRel = trimEndChars(this.relativeHref(entry.href!), "/");
+      if (!childRel || childRel === rel) continue;
+      if (!entry.isCollection) return true;
+      if (await this.folderHoldsFiles(childRel)) return true;
+    }
+    return false;
+  }
+
   public async stat(filePath: string): Promise<RemoteStat | null> {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.request("PROPFIND", this.urlForPath(filePath), {

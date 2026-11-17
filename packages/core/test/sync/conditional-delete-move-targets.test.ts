@@ -12,7 +12,7 @@ import { byteExactDav } from "../helpers/byteExactDav.js";
  * A DELETE removes only the version this device saw last, and a MOVE never
  * replaces what lies at its destination (Fehlerliste 0.9.0 A1), in the way
  * each service understands: WebDAV with `If-Match` and `Overwrite: F`,
- * OneDrive on the item's `eTag` and `conflictBehavior: fail`, S3 by asking
+ * OneDrive on the item's `eTag` and `conflictBehavior=fail` in the address, S3 by asking
  * right before (and `If-Match` where the store keeps conditional deletes),
  * Dropbox on the `rev` (`parent_rev`, `autorename: false`), Google Drive by
  * asking right before — it has no conditional delete. A refusal is
@@ -85,12 +85,12 @@ describe("WebDAV", () => {
     expect(requests.filter((r) => r.method === "DELETE").every((r) => !r.headers.has("If-Match"))).toBe(true);
   });
 
-  it("without an expectation (a folder, a file never synced) deletes as before", async () => {
+  it("without an expectation (a folder, a file never synced) deletes after asking whether it is a folder that holds files", async () => {
     const { dav, t, put, requests } = target();
     put("a.md", "x");
     await t.push(del("a.md"));
     expect(dav.files.has("a.md")).toBe(false);
-    expect(requests.map((r) => r.method)).toEqual(["DELETE"]);
+    expect(requests.map((r) => r.method)).toEqual(["PROPFIND", "DELETE"]);
   });
 
   it("a move never replaces its destination: Overwrite: F, and a refusal leaves both files", async () => {
@@ -228,7 +228,7 @@ describe("OneDrive", () => {
         const body = JSON.parse(init.body);
         const to = body.name as string;
         if (items.has(to) && to !== p) {
-          if (body["@microsoft.graph.conflictBehavior"] === "fail") return json(409, { error: { code: "nameAlreadyExists" } });
+          if (new URL(url).searchParams.get("@microsoft.graph.conflictBehavior") === "fail") return json(409, { error: { code: "nameAlreadyExists" } });
         }
         items.delete(p);
         items.set(to, current);
@@ -256,7 +256,7 @@ describe("OneDrive", () => {
     expect(text(items.get("a.md")!.body)).toBe("theirs");
   });
 
-  it("a move never replaces its destination: conflictBehavior fail, refused as a moved remote", async () => {
+  it("a move never replaces its destination: conflictBehavior=fail, refused as a moved remote", async () => {
     quiet();
     const { items, t, store } = drive();
     store("old.md", "mine");

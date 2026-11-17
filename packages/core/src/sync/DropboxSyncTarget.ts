@@ -255,6 +255,27 @@ export class DropboxSyncTarget implements ISyncTarget {
   }
 
   /** RPC endpoint (api.dropboxapi.com): JSON in, JSON out. */
+  /**
+   * True when `path` is a folder on Dropbox with a file anywhere below it —
+   * any file, conflict copies included, which the sync's listing leaves out.
+   */
+  private async folderHoldsFiles(path: string): Promise<boolean> {
+    let res = await this.rpc("files/list_folder", { path: this.dropboxPath(path), recursive: true, include_deleted: false });
+    for (;;) {
+      if (res.status === 409) {
+        // path/not_found, path/not_folder: no folder there, nothing below.
+        const summary = await this.errorSummary(res);
+        if (summary.includes("not_found") || summary.includes("not_folder")) return false;
+        throw new Error(`Dropbox folder listing failed: ${summary || "409"}`);
+      }
+      if (!res.ok) throw syncHttpError(`Dropbox folder listing failed: ${res.status} ${res.statusText}`, res);
+      const json = (await res.json()) as { entries: DropboxEntry[]; cursor: string; has_more: boolean };
+      if ((json.entries ?? []).some((entry) => entry[".tag"] === "file")) return true;
+      if (!json.has_more) return false;
+      res = await this.rpc("files/list_folder/continue", { cursor: json.cursor });
+    }
+  }
+
   private async rpc(path: string, body: unknown): Promise<Response> {
     return this.authedFetch(`${API}/${path}`, {
       headers: { "Content-Type": "application/json" },
@@ -702,6 +723,10 @@ export class DropboxSyncTarget implements ISyncTarget {
       // answer (`parent_rev`) — Dropbox refuses it when the file changed after.
       const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
       let parentRev: string | undefined;
+      // A folder's deletion takes everything below it: it goes only while
+      // Dropbox holds no file in it (F44) — another device may have put a
+      // note there since this one last looked, and that note decides on its own.
+      if (!expected && await this.folderHoldsFiles(op.file_path)) throw new RemoteChangedError(op.file_path, "the folder holds files");
       if (expected) {
         const entry = await this.statEntry(op.file_path);
         if (!entry) return;
@@ -733,6 +758,10 @@ export class DropboxSyncTarget implements ISyncTarget {
       });
       if (res.status === 409) {
         const summary = await this.errorSummary(res);
+        // Source gone remotely: NOT a success — the engine uploads at the new
+        // path, otherwise the file would exist under no remote path at all
+        // (as on WebDAV, OneDrive and Drive; F44).
+        if (summary.includes("from_lookup/not_found")) return { renameSourceMissing: true };
         if (summary.includes("not_found")) return;
         // A move never replaces what lies at its destination (A1): with
         // `autorename: false` Dropbox refuses an existing name.
