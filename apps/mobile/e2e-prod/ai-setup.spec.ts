@@ -168,7 +168,7 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
       JSON.stringify({ enabled: true, providers: [], custom: [{ id: "custom-1", label: "ai.example.org", baseUrl: "https://ai.example.org/v1", api: "openai-chat", local: false }], profiles: {} }),
     );
   });
-  await installSeam(context, [], ["ok"]);
+  await installSeam(context, [], ["ok", "ok", "ok"]);
   await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
   try {
     await page.goto("/");
@@ -195,7 +195,28 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
     await expect(current).toContainText("Try it");
     const custom = await page.evaluate(() => (JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { custom?: { id: string; baseUrl: string }[] }).custom ?? []);
     expect(custom.map((c) => [c.id, c.baseUrl])).toEqual([["custom-1", "https://llm.example.org/v1"]]);
-    // The address in the field is the stored one now: closing asks nothing.
+
+    // A provider tried in between, then the server again (review O7, third round): the same address is that server.
+    await sheet.getByTestId("ai-setup-back").click();
+    await sheet.getByTestId("ai-setup-back").click();
+    await expect(current).toContainText("Provider");
+    await sheet.getByTestId("ai-setup-kind-cloud").click();
+    await sheet.getByTestId("ai-setup-next").click();
+    await sheet.getByTestId("ai-setup-cloud").filter({ hasText: "Anthropic" }).click();
+    await sheet.getByTestId("ai-setup-key").fill("sk-test-key");
+    await sheet.getByTestId("ai-setup-next").click();
+    await expect(current).toContainText("Try it");
+    await sheet.getByTestId("ai-setup-back").click();
+    await sheet.getByTestId("ai-setup-back").click();
+    await sheet.getByTestId("ai-setup-kind-server").click();
+    await sheet.getByTestId("ai-setup-next").click();
+    await expect(sheet.getByTestId("ai-setup-address")).toHaveValue("https://llm.example.org/v1");
+    await sheet.getByTestId("ai-setup-next").click();
+    await expect(current).toContainText("Try it");
+    const after = await page.evaluate(() => (JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { custom?: { id: string; baseUrl: string }[] }).custom ?? []);
+    expect(after.map((c) => [c.id, c.baseUrl])).toEqual([["custom-1", "https://llm.example.org/v1"]]);
+
+    // The address in the field is a stored one: closing asks nothing.
     await page.locator(".m-sheet-backdrop").click({ position: { x: 8, y: 8 } });
     await expect(sheet).toHaveCount(0);
   } finally {

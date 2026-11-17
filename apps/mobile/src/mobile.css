@@ -485,14 +485,16 @@ textarea {
    confirmed fills as before. Declined (finding 2026-07-30) is the cancelled
    treatment, dimmed: it happens, just not for you. */
 .m-evt {
-  background: var(--evt-color, var(--accent-color));
+  /* The fill the ink stands on: `--evt-fill` where a translucent colour is shown fainter for its text (review O7,
+     third round); `--evt-color` stays the calendar's colour for the text, edges and dots that are drawn in it. */
+  background: var(--evt-fill, var(--evt-color, var(--accent-color)));
   color: var(--evt-ink, var(--accent-on));
 }
 .m-evt--tentative {
   background-image: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 5px,
-    color-mix(in srgb, var(--evt-color, var(--accent-color)) 70%, var(--evt-hatch, var(--evt-hatch-accent))) 5px 10px
+    color-mix(in srgb, var(--evt-fill, var(--evt-color, var(--accent-color))) 100%, transparent) 0 5px,
+    color-mix(in srgb, var(--evt-fill, var(--evt-color, var(--accent-color))) 70%, var(--evt-hatch, var(--evt-hatch-accent))) 5px 10px
   );
 }
 .m-evt--cancelled,

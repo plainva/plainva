@@ -110,10 +110,15 @@ const INK_VAR: Record<EventInk, string> = { light: "var(--evt-ink-light)", dark:
  */
 const HATCH_VAR: Record<EventInk, string> = { light: "var(--evt-hatch-light-ink)", dark: "var(--evt-hatch-dark-ink)", text: "var(--bg-primary)" };
 
-/** The custom properties an appointment's surface carries: its calendar's colour, the ink that reads on it, and its hatch. */
+/** The custom properties an appointment's surface carries: its calendar's colour, the fill and the ink that reads on it, and its hatch. */
 export function eventColorVars(fill: string): CSSProperties {
   const shown = surface(fill);
   const rgba = shown?.alpha !== undefined ? channels(fill) : null;
-  const color = rgba ? `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${shown!.alpha})` : fill;
-  return { ["--evt-color" as string]: color, ...(shown ? { ["--evt-ink" as string]: INK_VAR[shown.ink], ["--evt-hatch" as string]: HATCH_VAR[shown.ink] } : {}) } as CSSProperties;
+  // `--evt-color` stays the calendar's colour: a pill's text, an outline and a dot are drawn in it. Only the fill the
+  // chosen ink stands on is shown fainter where it has to be (review O7, third round).
+  return {
+    ["--evt-color" as string]: fill,
+    ...(rgba ? { ["--evt-fill" as string]: `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${shown!.alpha})` } : {}),
+    ...(shown ? { ["--evt-ink" as string]: INK_VAR[shown.ink], ["--evt-hatch" as string]: HATCH_VAR[shown.ink] } : {}),
+  } as CSSProperties;
 }

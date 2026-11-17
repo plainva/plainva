@@ -68,12 +68,15 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
   });
   const [choosingModel, setChoosingModel] = useState(false);
   const settings = state.settings;
-  /** The server this setup works on — the one it began with, or the one it added —, as stored. */
-  const server = providerId ? (settings.custom.find((c) => c.id === providerId) ?? null) : null;
-  // A key typed, or an address that is not the stored one, is asked about before the sheet goes (review O7, second
-  // round): a server's own address shown to be corrected is nothing unsaved.
+  /**
+   * The server this setup works on, as stored: the one tried last, else the one it began with — also after a provider
+   * was tried in between (review O7, third round: server, cloud, server again made a second server of the same address).
+   */
+  const server = settings.custom.find((c) => c.id === providerId) ?? settings.custom.find((c) => c.id === start.providerId) ?? null;
+  // A key typed, or an address no stored server has, is asked about before the sheet goes (review O7, second round): a
+  // server's own address shown to be corrected is nothing unsaved.
   const typedAddress = address.trim() ? (normalizeBaseUrl(address)?.baseUrl ?? address.trim()) : "";
-  const close = useSheetGuard("ai-setup", Boolean(key.trim() || (typedAddress && typedAddress !== server?.baseUrl)), onClose);
+  const close = useSheetGuard("ai-setup", Boolean(key.trim() || (typedAddress && !settings.custom.some((c) => c.baseUrl === typedAddress))), onClose);
 
   const provider = providerId ? providerById(providerId, settings.custom) : null;
   const test = providerId ? state.tests[providerId] : undefined;
@@ -119,9 +122,11 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
           setProblem(t("ai.add.invalidUrl"));
           return;
         }
-        // The server this setup works on, at the same address: asked again, not added a second time.
-        if (server && server.baseUrl === normalized.baseUrl) {
-          await tested(server.id);
+        // A server at this address is there already — the one this setup works on, or another —: asked again, never
+        // added a second time.
+        const same = settings.custom.find((c) => c.baseUrl === normalized.baseUrl);
+        if (same) {
+          await tested(same.id);
           return;
         }
         // A corrected address replaces the server it corrects (review O7, second round): the broken one does not stay

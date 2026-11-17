@@ -2,6 +2,7 @@ import { markdownLinkTarget } from "../linkEncoding.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { createFenceTracker } from "../markdownFence.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile } from "../vault/LinkResolver.js";
+import { linkTargetMayNameNote } from "../noteLinkForm.js";
 import { wikiLinkInner, wikiLinkParts } from "../wikiLink.js";
 
 /**
@@ -91,10 +92,11 @@ export interface AnswerGrounding {
   /** The note the conversation stands in: where `./Note` and `../Folder/Note` are read from. */
   from?: string;
   /**
-   * Every file of the vault: a link is read against all of it, where it leads
-   * in the editor. Without it only what the conversation had is asked — a
-   * link that names another note of the same name is then taken for the one
-   * it had.
+   * The files of the vault the answer's links can lead to — all of them, or
+   * only those the links can name (`linkTargetsNamed`), which answers alike: a
+   * link is read against them where it leads in the editor. Without them only
+   * what the conversation had is asked — a link that names another note of
+   * the same name is then taken for the one it had.
    */
   vault?: readonly VaultLinkFile[];
 }
@@ -105,8 +107,6 @@ export interface AnswerNoteLink {
   target: string;
 }
 
-/** A Markdown destination with a scheme (`https:`, `mailto:`, `plainva:`) leads out of the vault — the graph's and the link look's rule. */
-const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 /** Inline HTML elements whose content is code, not links. */
 const CODE_OPEN = /^<(?:code|pre|kbd|samp)(?:\s[^>]*)?>$/i;
 const CODE_CLOSE = /^<\/(?:code|pre|kbd|samp)\s*>$/i;
@@ -135,9 +135,11 @@ function hrefsIn(html: string): string[] {
  * the app's parser reads them (`parseMarkdownAst`): wiki links — embeds are
  * shown, not cited —, inline Markdown links, links by reference to their
  * definition (`[P][ref]`), and the `<a href>` of inline HTML. Code is none of
- * them: fences, code spans of any length, and an HTML `<code>` element.
- * Targets are read as the index reads them (`wikiLinkParts`,
- * `markdownLinkTarget`); a Markdown destination with a scheme is left out.
+ * them: fences, code spans of any length, an HTML `<code>` element, and a
+ * formula between two `$`. Targets are read as the index reads them
+ * (`wikiLinkParts`, `markdownLinkTarget`), and only a target whose form can
+ * name a note is kept (`linkTargetMayNameNote`): no address, drive, folder or
+ * file of another kind — in both ways of writing, whether it is there or not.
  */
 export function answerNoteLinks(answer: string): AnswerNoteLink[] {
   const tree = parseMarkdownAst(answer) as unknown as AstNode;
@@ -148,22 +150,28 @@ export function answerNoteLinks(answer: string): AnswerNoteLink[] {
   };
   gather(tree);
   const out: AnswerNoteLink[] = [];
-  const markdown = (url: string) => {
-    const { target } = markdownLinkTarget(url);
-    if (!SCHEME.test(target)) out.push({ type: "markdown-link", target });
+  const add = (link: AnswerNoteLink) => {
+    if (linkTargetMayNameNote(link.target)) out.push(link);
   };
+  const markdown = (url: string) => add({ type: "markdown-link", target: markdownLinkTarget(url).target });
   const walk = (node: AstNode, inCode: boolean): void => {
     if (!inCode) {
-      if (node.type === "wikiLink" && typeof node.value === "string" && node.embed !== true) out.push({ type: "wikilink", target: wikiLinkParts(wikiLinkInner({ value: node.value, embed: false })).target });
+      if (node.type === "wikiLink" && typeof node.value === "string" && node.embed !== true) add({ type: "wikilink", target: wikiLinkParts(wikiLinkInner({ value: node.value, embed: false })).target });
       else if (node.type === "link" && typeof node.url === "string") markdown(node.url);
       else if (node.type === "linkReference" && typeof node.identifier === "string") {
         const url = definitions.get(node.identifier);
         if (url !== undefined) markdown(url);
       } else if (node.type === "html" && typeof node.value === "string") for (const href of hrefsIn(node.value)) markdown(href);
     }
-    // Between an HTML `<code>` and its end, among the children of one parent, nothing is a link.
+    // Between an HTML `<code>` and its end, among the children of one parent, nothing is a link — nor inside a
+    // formula between two `$`.
     let depth = 0;
+    let math = false;
     for (const child of node.children ?? []) {
+      if (child.type === "text" && typeof child.value === "string") {
+        for (let at = 0; at < child.value.length; at++) if (child.value[at] === "$" && child.value[at - 1] !== "\\") math = !math;
+        continue;
+      }
       if (child.type === "html" && typeof child.value === "string") {
         const tag = child.value.trim();
         if (CODE_OPEN.test(tag)) {
@@ -175,7 +183,7 @@ export function answerNoteLinks(answer: string): AnswerNoteLink[] {
           continue;
         }
       }
-      walk(child, inCode || depth > 0);
+      walk(child, inCode || depth > 0 || math);
     }
   };
   walk(tree, false);
@@ -204,14 +212,30 @@ interface AstNode {
  * earlier turns goes on as text, and an unchanged note is not sent again. A
  * link leads where it leads in the editor (ADR 0027): a wiki link by the wiki
  * rule, a Markdown link from the linking note's folder first, both against
- * the whole vault where it is given — `[[Plan]]` that opens `Plan.md` is not
- * the sent `Projects/Plan.md`. A link that leads to a file that is no note
- * names no source; one that leads to no file names a note the conversation
- * never had. When the tools read more than the run kept a list of, nothing is
+ * the files of the vault these links can name where they are given
+ * (`VaultQueryService.linkTargetsNamed`) — `[[Plan]]` that opens `Plan.md` is
+ * not the sent `Projects/Plan.md`. Whether a link means a note at all is its
+ * form's to say (`answerNoteLinks`); the files say only which note. A link
+ * that leads to a file that is no note names no source; one that leads to no
+ * file names a note the conversation never had. When the tools read more than the run kept a list of, nothing is
  * said: an unknown is no finding. Each note is named once, as the answer
  * spelled it first.
  */
 export function unfoundedNoteCitations(answer: string, grounding: AnswerGrounding): string[] {
+  return grounding.readMore ? [] : unfoundedAmong(answerNoteLinks(answer), grounding);
+}
+
+/**
+ * Whether an answer can hold a link at all — two brackets, a bracket before a
+ * destination or a reference, an `href` —: the one look an answer without any
+ * costs (review O7, third round). False is certain; true only means "read it".
+ */
+export function answerMayLink(answer: string): boolean {
+  return answer.includes("[[") || answer.includes("](") || answer.includes("][") || answer.includes("]:") || /href/i.test(answer);
+}
+
+/** `unfoundedNoteCitations` for links already read (`answerNoteLinks`): what the vault is asked about is those alone. */
+export function unfoundedAmong(links: readonly AnswerNoteLink[], grounding: AnswerGrounding): string[] {
   if (grounding.readMore) return [];
   const had = [...grounding.sent, ...(grounding.read ?? [])];
   const hadKeys = new Set(had.map((path) => path.normalize("NFC")));
@@ -222,7 +246,7 @@ export function unfoundedNoteCitations(answer: string, grounding: AnswerGroundin
   const from = grounding.from ?? "";
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const link of answerNoteLinks(answer)) {
+  for (const link of links) {
     const target = link.target.trim();
     // `[[#Heading]]` points into the open note's own text: no other note is named.
     if (!target) continue;

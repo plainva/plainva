@@ -384,7 +384,9 @@ export class AiAcp {
   async refresh(): Promise<void> {
     const host = this.host;
     if (!host) return;
-    const generation = this.generation;
+    // Each reading its own generation (review O7, third round): of two that overlap — the MCP switch turned twice in a
+    // row —, the later one's answer stands, however late the first one's comes.
+    const generation = ++this.generation;
     try {
       const [registered, records, sessions, toolbox] = await Promise.all([host.native.agents(), host.store.load().catch(() => ({})), this.vault ? this.vault.store.sessions().catch(() => []) : Promise.resolve([]), host.toolbox().catch(() => null)]);
       const agents: AiAcpAgent[] = registered.map((entry) => {

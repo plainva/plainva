@@ -905,6 +905,42 @@ export class VaultQueryService {
   }
 
   /**
+   * The part of `linkTargets()` that these link targets can lead to (review
+   * O7, third round): every file whose name ends one of them — the last part
+   * of the target, for a note with or without `.md`, in any spelling the link
+   * rule reads as the same name — and every note titled as one of them. The
+   * link rule over this list answers as over the whole corpus, since it only
+   * ever chooses among files of the name or the title asked for; the cost
+   * follows the number of targets, not the size of the vault.
+   */
+  async linkTargetsNamed(targets: readonly string[]): Promise<LinkTargetRow[]> {
+    const patterns = new Set<string>();
+    for (const raw of targets) {
+      const target = raw.normalize("NFC").trim();
+      const last = target.split(/[/\\]/).pop() ?? "";
+      if (!last) continue;
+      for (const spelling of likeAnySpelling(last.replace(/\.md$/i, ""))) {
+        for (const tail of [spelling, `${spelling}.md`]) {
+          patterns.add(`p:${tail}`);
+          patterns.add(`p:%/${tail}`);
+        }
+      }
+      for (const spelling of likeAnySpelling(target)) patterns.add(`t:${spelling}`);
+    }
+    if (patterns.size === 0) return [];
+    const rows = new Map<string, LinkTargetRow>();
+    const all = [...patterns];
+    // A statement holds at most a few hundred parameters on every engine the shells use.
+    for (let at = 0; at < all.length; at += 400) {
+      const chunk = all.slice(at, at + 400);
+      const where = chunk.map((pattern) => (pattern.startsWith("p:") ? `path LIKE ? ESCAPE '\\'` : `title LIKE ? ESCAPE '\\'`)).join(" OR ");
+      const found = await this.db.query<LinkTargetRow>(`SELECT path, title, mode FROM files WHERE (is_deleted IS NULL OR is_deleted = 0) AND (${where})`, chunk.map((pattern) => pattern.slice(2)));
+      for (const row of found) rows.set(row.path, row);
+    }
+    return [...rows.values()];
+  }
+
+  /**
    * Where a link leads: the vault path of the file `target` names, read from
    * the note at `sourcePath`, or null where it names none (a click then offers
    * to create the note). THE answer of both shells — the editor and the

@@ -351,8 +351,10 @@ import {
   type RoutineRun,
   type Turn,
   type VaultLinkFile,
+  answerMayLink,
+  answerNoteLinks,
   RUN_UNFOUNDED_CAP,
-  unfoundedNoteCitations,
+  unfoundedAmong,
 } from "@plainva/core";
 import { skillView } from "./aiSkills";
 import { conversationGrounding } from "./answerGrounds";
@@ -437,6 +439,9 @@ export interface AiSessionHost {
   localOnly?(on: boolean): Promise<void>;
 }
 
+/** How long the end of a run waits for the vault to say where an answer's links lead (review O7, third round). */
+const UNFOUNDED_CHECK_MS = 2000;
+
 export interface AiVaultHost {
   /**
    * What this vault's data in the app is filed under on this device
@@ -458,11 +463,12 @@ export interface AiVaultHost {
   /** Note sizes in bytes, as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   /**
-   * Every file of the vault as the link rule reads it (`VaultQueryService.linkTargets`): where the links of an answer
-   * lead, as in the editor (plan Oberfläche O7, E2). Absent, an answer's links are read against what the conversation
-   * had.
+   * The files of the vault these link targets can lead to, as the link rule reads them
+   * (`VaultQueryService.linkTargetsNamed`): where the links of an answer lead, as in the editor (plan Oberfläche O7,
+   * E2) — asked for those links alone, never for the whole vault. Absent, an answer's links are read against what the
+   * conversation had.
    */
-  linkFiles?(): Promise<readonly VaultLinkFile[]>;
+  linkFilesFor?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   policy: ContextPolicyHost;
   /**
    * The tools of a run for this recipient, optionally narrowed (the MCP
@@ -7631,19 +7637,31 @@ export class AiSession {
   /**
    * The notes a run's answer names as its source although the conversation never had them (plan Oberfläche O7, E2):
    * the links of every text the run gave — one before a tool call as much as the last —, led where the editor leads
-   * them, against the whole vault where the shell lists it, and read from the note the conversation stood in. A vault
-   * whose files cannot be listed now is asked as if it had only what the conversation had.
+   * them, read from the note the conversation stood in. What it costs follows the answer's links (review O7, third
+   * round): an answer that cannot hold one is not read, and the vault is asked only for the files those links can
+   * name. A vault that cannot answer now is asked as if it had only what the conversation had.
    */
   private async unfoundedOf(vault: AiVaultHost, runs: readonly RunMeta[], turns: readonly Turn[], pack: ContextPackage): Promise<string[]> {
     const answer = turns
       .filter((turn) => turn.role === "assistant")
       .flatMap((turn) => turn.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])))
       .join("\n\n");
-    if (!answer.trim()) return [];
-    const files = vault.linkFiles ? await vault.linkFiles().catch(() => undefined) : undefined;
-    const from = pack.refs.find((ref) => ref.reasons.includes("active"))?.path;
-    const grounding = conversationGrounding(runs, runs.length - 1, from);
-    return unfoundedNoteCitations(answer, files ? { ...grounding, vault: files } : grounding).slice(0, RUN_UNFOUNDED_CAP);
+    if (!answerMayLink(answer)) return [];
+    const grounding = conversationGrounding(runs, runs.length - 1, pack.refs.find((ref) => ref.reasons.includes("active"))?.path);
+    if (grounding.readMore) return [];
+    const links = answerNoteLinks(answer);
+    if (links.length === 0) return [];
+    // A vault that does not answer in time says nothing: the run ends, and an unknown is no finding.
+    const late = Symbol("late");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const files = vault.linkFilesFor
+      ? await Promise.race([
+          vault.linkFilesFor([...new Set(links.map((link) => link.target))]).catch(() => undefined),
+          new Promise<typeof late>((resolve) => (timer = setTimeout(() => resolve(late), UNFOUNDED_CHECK_MS))),
+        ]).finally(() => clearTimeout(timer))
+      : undefined;
+    if (files === late) return [];
+    return unfoundedAmong(links, files ? { ...grounding, vault: files } : grounding).slice(0, RUN_UNFOUNDED_CAP);
   }
 
   private async execute(input: {
@@ -7852,10 +7870,6 @@ export class AiSession {
       ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length || input.writes.applied?.length) ? { writes: input.writes } : {}),
       ...(input.scriptLog?.runs.length ? { scripts: input.scriptLog } : {}),
     };
-    // The notes the answer names as its source that the conversation never had (plan Oberfläche O7, E2): checked once,
-    // as the run ends — every text the run gave, against the whole vault —, never while the screen draws.
-    const unfounded = await this.unfoundedOf(vault, [...input.record.runs, run], result.conversation.turns.slice(userTurn + 1), pack);
-    if (unfounded.length) run.unfounded = unfounded;
     // The conversation as the user has it now, with what this run brings (step 8). Until its end is decided, a choice
     // goes onto this — with the run's turns and record in it, whatever the screen shows meanwhile.
     const entry = this.running.get(record.id) ?? { vault, stored: null, choices: null };
@@ -7878,6 +7892,16 @@ export class AiSession {
       try {
         // After any deletion asked for before: where that is done by then, nothing is written, and the ledger keeps the run.
         await this.write(vault, record);
+        // The notes the answer names as its source that the conversation never had (plan Oberfläche O7, E2): checked
+        // once, after the run is written — it cannot hold the run up (review O7, third round) —, and before the run
+        // ends, so no other run of this conversation can be written in between. Never while the screen draws.
+        const unfounded = await this.unfoundedOf(vault, record.runs, result.conversation.turns.slice(userTurn + 1), pack).catch(() => []);
+        if (unfounded.length) {
+          record = { ...record, runs: record.runs.map((meta, index) => (index === record.runs.length - 1 ? { ...meta, unfounded } : meta)) };
+          entry.stored = record;
+          if (!this.gone(record.id) && this.state.active?.id === record.id) this.set({ active: this.withUserChoices(record, entry) });
+          await this.write(vault, record);
+        }
         const ledger = await vault.ledger.load();
         await vault.ledger.save(
           appendAiLedgerEntry(ledger, {

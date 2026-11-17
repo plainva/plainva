@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GraphService } from "../src/vault/GraphService.js";
-import { buildLinkTargetIndex, resolveLinkTargetIndexed, wikiTargetChooser, wikiTargetForPath } from "../src/vault/LinkResolver.js";
+import { buildLinkTargetIndex, linkTargetName, resolveLinkTargetIndexed, wikiTargetChooser, wikiTargetForPath } from "../src/vault/LinkResolver.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
 import { LINK_CASES, type LinkCase } from "./helpers/linkCases.js";
@@ -54,6 +54,17 @@ describe.each(LINK_CASES)("case $id: $shows", (linkCase: LinkCase) => {
       }
       await vault.db.close();
     }
+  });
+
+  // Review O7, third round: the warning under an AI answer asks the index only for the files its links can name.
+  it("the files the links can name answer as the whole corpus does", async () => {
+    const vault = await indexed(linkCase.files);
+    const named = await vault.query.linkTargetsNamed(linkCase.links.map((link) => linkTargetName(link.target)));
+    const index = buildLinkTargetIndex(named);
+    const answers = linkCase.links.map((link) => ({ ...link, leadsTo: resolveLinkTargetIndexed(link.from, linkTargetName(link.target), index) }));
+    expect(answers).toEqual(linkCase.links);
+    expect(named.length).toBeLessThanOrEqual((await indexRows(vault)).length);
+    await vault.db.close();
   });
 
   it("the graph draws the link to that file, or lists it as broken", async () => {
@@ -155,5 +166,17 @@ describe("what the rule costs", () => {
     reads.forEach((answer) => answer());
     expect(await Promise.all(together)).toEqual(["Start.md", null, "Start.md"]);
     expect(await after).toBe("Neu.md");
+  });
+});
+
+describe("the files a few links can name", () => {
+  it("are those of their names and titles, however large the vault", async () => {
+    const files: Record<string, string> = { "Projects/Plan.md": "# Plan", "Plan.md": "# Plan", "Areas/Brief.md": "---\ntitle: Roadmap\n---\n# Brief" };
+    for (let n = 0; n < 200; n++) files[`Archive/Note ${n}.md`] = `# Note ${n}`;
+    const vault = await indexed(files);
+    const named = await vault.query.linkTargetsNamed(["Plan", "Roadmap", "Missing"]);
+    expect(named.map((row) => row.path).sort()).toEqual(["Areas/Brief.md", "Plan.md", "Projects/Plan.md"]);
+    expect(await vault.query.linkTargetsNamed([])).toEqual([]);
+    await vault.db.close();
   });
 });

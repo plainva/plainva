@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerCoverage, answerStatements, unfoundedNoteCitations } from "./coverage.js";
+import { answerCoverage, answerMayLink, answerStatements, unfoundedNoteCitations } from "./coverage.js";
 
 /** Plan KI-Harness P2b-5: coverage after the answer — how many statements name a note. */
 describe("answer coverage", () => {
@@ -96,7 +96,9 @@ describe("unfounded note citations", () => {
 
   it("checks Markdown links to notes too, and leaves addresses and other files alone", () => {
     const answer = "See [Pricing](Pricing%202026.md), [the plan](<Projects/Website relaunch.md>), [site](https://example.com), [pdf](plan.pdf).";
-    expect(unfoundedNoteCitations(answer, { ...grounding, vault: [...vault, { path: "plan.pdf", mode: "attachment" }] })).toEqual(["Pricing 2026.md"]);
+    // `plan.pdf` is in no list: its form says it is no note (review O7, third round).
+    expect(unfoundedNoteCitations(answer, grounding)).toEqual(["Pricing 2026.md"]);
+    expect(unfoundedNoteCitations(answer, { ...grounding, vault })).toEqual(["Pricing 2026.md"]);
   });
 
   it("a link with a folder leads where the app's rule says: a same-named note elsewhere is not the sent one", () => {
@@ -144,5 +146,72 @@ describe("unfounded note citations", () => {
 
   it("a title the vault lists counts like the note's path", () => {
     expect(unfoundedNoteCitations("x [[Website relaunch]] [[Roadmap]].", { ...grounding, vault })).toEqual([]);
+  });
+
+  // Review O7, third round: whether a target means a note is its form's to say — a scheme, a drive, `www.`, a folder,
+  // a file of another kind —, the same in both ways of writing and whether the file is there or not; the vault's list
+  // says only WHICH note. Each case with the list and without it.
+  describe("by the form of the target", () => {
+    const listed = [
+      { path: "Projects/Website relaunch.md", title: "Website relaunch", mode: "note" },
+      { path: "Areas/Roadmap.md", title: "Roadmap", mode: "note" },
+      { path: "Pricing 2026.md", title: "Pricing 2026", mode: "note" },
+      { path: "assets/report.pdf", title: "report.pdf", mode: "attachment" },
+      { path: "assets/chart.png", title: "chart.png", mode: "attachment" },
+    ];
+    const silent: [string, string][] = [
+      ["a web address as a wiki link", "See [[https://example.com]]."],
+      ["a mail address as a wiki link", "Write [[mailto:a@b.c]]."],
+      ["a drive path", "Under [[C:\\Pfad\\x]]."],
+      ["an app address as a wiki link", "Open [[plainva://open?path=a]]."],
+      ["a web address", "[site](https://example.com/a.md)"],
+      ["www. without a scheme", "[site](www.example.com)"],
+      ["an app address", "[open](plainva://open?path=Pricing%202026.md)"],
+      ["a heading of this note", "[below](#abschnitt)"],
+      ["an attachment that is there", "[r](assets/report.pdf)"],
+      ["a PDF that is not there", "[r](budget.pdf)"],
+      ["a PDF that is not there, as a wiki link", "See [[budget.pdf]]."],
+      ["a picture that is not there", "See [[photo.png]]."],
+      ["a picture behind a plain link", "[pic](img/photo.jpg)"],
+      ["a picture shown", "![a](missing.png)"],
+      ["a reference to an address", "See [site][s].\n\n[s]: https://example.com"],
+      ["a definition nobody refers to", "Text.\n\n[p]: Pricing%202026.md"],
+      ["<a href> to an address", 'See <a href="https://x.y/Pricing.md">x</a>.'],
+      ["<a href> to a heading", 'See <a href="#top">top</a>.'],
+      ["an autolink", "See <https://example.com>."],
+      ["a bare address", "See https://example.com/Pricing.md now."],
+      ["a folder that is there", "[p](Projects/)"],
+      ["a folder that is not there", "[p](Nowhere/)"],
+      ["a heading of this note, as a wiki link", "See [[#Budget]]."],
+      ["a wiki link in <pre>", "<pre>[[Pricing 2026]]</pre>"],
+      ["a wiki link in <code> over lines", "<code>\n[[Pricing 2026]]\n</code>"],
+      ["a wiki link in a code span", "Write `[[Pricing 2026]]`."],
+      ["a wiki link in a formula", "Formula $[[a]]$ ok."],
+      ["escaped brackets", "Write \\[\\[Pricing 2026\\]\\]."],
+    ];
+    const warned: [string, string, string[]][] = [
+      ["a note not sent", "x [[Pricing 2026]].", ["Pricing 2026"]],
+      ["a note not sent, as a Markdown link", "x [p](Pricing%202026.md).", ["Pricing 2026.md"]],
+      ["<a href> to a note not sent", '<a href="Pricing%202026.md">p</a>', ["Pricing 2026.md"]],
+      ["a note that is not there", "x [[Ideas 2027]].", ["Ideas 2027"]],
+      ["after a <code> that closed", "<code>a</code> [[Pricing 2026]]", ["Pricing 2026"]],
+      ["in a list after a <code> of another paragraph", "<code>x\n\n- [[Pricing 2026]]", ["Pricing 2026"]],
+    ];
+    for (const [name, answer] of silent) {
+      it(`says nothing of ${name}`, () => {
+        expect(unfoundedNoteCitations(answer, { sent: ["Projects/Website relaunch.md"], vault: listed })).toEqual([]);
+        expect(unfoundedNoteCitations(answer, { sent: ["Projects/Website relaunch.md"] })).toEqual([]);
+      });
+    }
+    for (const [name, answer, names] of warned) {
+      it(`names ${name}`, () => {
+        expect(unfoundedNoteCitations(answer, { sent: ["Projects/Website relaunch.md"], vault: listed })).toEqual(names);
+        expect(unfoundedNoteCitations(answer, { sent: ["Projects/Website relaunch.md"] })).toEqual(names);
+      });
+    }
+    it("an answer that cannot hold a link is not read", () => {
+      expect(answerMayLink("Three feature pages instead of six.\n\n- Screenshots are missing.")).toBe(false);
+      for (const [, answer] of warned) expect(answerMayLink(answer)).toBe(true);
+    });
   });
 });

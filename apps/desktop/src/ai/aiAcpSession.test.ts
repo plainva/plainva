@@ -57,6 +57,22 @@ describe("the agents of this device", () => {
 });
 
 describe("an agent with its own sign-in works in the vault", () => {
+  it("of two readings that overlap, the later one's stands — a late first answer does not bring the tools back (review O7, third round)", async () => {
+    const h = await acpHarness(undefined, { toolbox: TOOLBOX });
+    let release!: () => void;
+    // The first reading: the tools still on, and its answer comes late.
+    h.toolboxFor = () => new Promise((resolve) => (release = () => resolve(TOOLBOX)));
+    const first = h.agents.refresh();
+    // The switch turned off meanwhile: the second reading answers at once.
+    h.toolboxFor = undefined;
+    h.toolbox = null;
+    await h.agents.refresh();
+    expect(h.state().tools).toBe(false);
+    release();
+    await first;
+    expect(h.state().tools).toBe(false);
+  });
+
   it("is started in the vault's folder, told who hosts it and what is offered — and gets Plainva's tools as a program it starts itself", async () => {
     const h = await acpHarness(undefined, { toolbox: TOOLBOX });
     await h.agents.start("geminicli");

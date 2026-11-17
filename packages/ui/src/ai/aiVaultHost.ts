@@ -29,6 +29,7 @@ import {
   type InstructionIO,
   type IVaultAdapter,
   type LinkNameIndex,
+  type NamedFile,
   type VaultLinkFile,
   type PackageGists,
   type ParsedPolicyFile,
@@ -65,11 +66,12 @@ export interface VaultPolicyHost extends ContextPolicyHost {
   /** The parsed folder rules, re-read at most every few seconds. */
   rules(): Promise<ParsedPolicyFile>;
   /**
-   * Every file of the vault as the link rule reads it, re-read at most every
-   * few seconds; absent in a host that was given none. What an answer's links
-   * lead to is asked of it (`unfoundedNoteCitations`).
+   * The files of the vault these link targets can lead to, as the link rule
+   * reads them (`VaultQueryService.linkTargetsNamed`): asked when an answer's
+   * links are checked (`unfoundedAmong`), for those links alone, never for the
+   * whole vault. Absent in a host that was given none.
    */
-  files?(): Promise<readonly VaultLinkFile[]>;
+  filesNamed?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   /** Forget the cached rules (after the settings wrote the file). */
   invalidate(): void;
 }
@@ -88,14 +90,16 @@ export function createVaultPolicy(opts: {
    * resolver does not follow is still withheld where it names a note the
    * rules keep back. Without it only `resolveLink` is asked.
    */
-  fileNames?(): Promise<readonly VaultLinkFile[]>;
+  fileNames?(): Promise<readonly NamedFile[]>;
+  /** The files these link targets can lead to; without it, a link is read against what the conversation had. */
+  filesNamed?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   /** True inside an encrypted workspace: the cloud is off unless the rules say otherwise. */
   encrypted(): boolean;
   now?: () => number;
 }): VaultPolicyHost {
   const now = opts.now ?? (() => Date.now());
   let cached: { at: number; parsed: ParsedPolicyFile } | null = null;
-  let names: { at: number; files: Promise<readonly VaultLinkFile[]>; index: Promise<LinkNameIndex> } | null = null;
+  let names: { at: number; index: Promise<LinkNameIndex> } | null = null;
   /**
    * The lookup over the vault's file names, read at most every few seconds;
    * null in a host that was given none. Where the names cannot be read it
@@ -103,19 +107,12 @@ export function createVaultPolicy(opts: {
    */
   const nameIndex = (): Promise<LinkNameIndex | null> => {
     if (!opts.fileNames) return Promise.resolve(null);
-    return listed()!.index;
-  };
-  /** The vault's files and the lookup over their names, read together at most every few seconds; null without a list. */
-  const listed = (): { files: Promise<readonly VaultLinkFile[]>; index: Promise<LinkNameIndex> } | null => {
-    if (!opts.fileNames) return null;
-    if (names && now() - names.at < POLICY_CACHE_MS) return names;
-    const files = opts.fileNames();
-    const index = files.then((list) => buildLinkNameIndex(list));
+    if (names && now() - names.at < POLICY_CACHE_MS) return names.index;
+    const index = opts.fileNames().then((files) => buildLinkNameIndex(files));
     // Kept also when it failed, so one burst of questions asks once; whoever awaits it hears the failure.
-    files.catch(() => {});
     index.catch(() => {});
-    names = { at: now(), files, index };
-    return names;
+    names = { at: now(), index };
+    return index;
   };
   const rules = async (): Promise<ParsedPolicyFile> => {
     if (cached && now() - cached.at < POLICY_CACHE_MS) return cached.parsed;
@@ -134,7 +131,7 @@ export function createVaultPolicy(opts: {
   };
   return {
     rules,
-    ...(opts.fileNames ? { files: () => listed()!.files } : {}),
+    ...(opts.filesNamed ? { filesNamed: opts.filesNamed } : {}),
     invalidate() {
       cached = null;
       names = null;
@@ -466,7 +463,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.agents ? { agents: { ...input.agents, store: createAcpVaultStore(input.files, input.vaultKey) } } : {}),
     activeNote: input.activeNote,
     readNote: input.readNote,
-    ...(input.policy.files ? { linkFiles: input.policy.files } : {}),
+    ...(input.policy.filesNamed ? { linkFilesFor: input.policy.filesNamed } : {}),
     situation: input.situation,
     candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
     ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),

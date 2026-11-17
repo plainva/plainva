@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { DIRECT_TOOL_NAMES, SCRIPT_LIMIT_DEFAULTS, SCRIPT_WRITE_TOOL_NAMES } from "@plainva/core";
+import { DIRECT_TOOL_NAMES, readSkillImport, SCRIPT_LIMIT_DEFAULTS, SCRIPT_WRITE_TOOL_NAMES } from "@plainva/core";
 import type { ScriptDraft } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { results, turn } from "./mcpSessionHarness";
@@ -181,9 +181,9 @@ describe("a script started from the workshop", () => {
 
 /**
  * Runs started apart from the composer carry no script (`apart` in `runMessage`): a replay, a door — the "@AI" of a
- * comment thread — and a skill's test run. In each the model asks for the script as it did in the conversation, and
- * is told there is no such tool here; nothing is written. A routine carries neither `find_tools` nor `call_tool`, the
- * only ways to a script (`aiRoutineGate.test.ts`, "NEVER").
+ * comment thread — and a skill's test run. In the first two the model asks for the script as it did in the
+ * conversation, and is told there is no such tool here; nothing is written. A skill's test run, like a routine, carries
+ * neither `find_tools` nor `call_tool`, the only ways to a script (`aiRoutineGate.test.ts`, "NEVER").
  */
 describe("a run started apart from the composer", () => {
   const refusedHere = (said: readonly unknown[]) => said.some((content) => String(content).includes('No tool "script_write_one" can be called here.'));
@@ -219,18 +219,44 @@ describe("a run started apart from the composer", () => {
     expect(await vault.disk("Inbox/Rates.md")).toBeNull();
   });
 
-  it("a skill's test run runs no script", async () => {
+  it("a skill's test run runs no script — a run bound to a skill has neither find_tools nor call_tool, even where the skill names them", async () => {
     const vault = await gateVault(NOTES, { scripts: true, direct: { unsaved: new Set() } });
-    const calls = Array.from({ length: 6 }, (_, at) => scriptTurns(one("create_note", { title: "Rates", content: `From a test ${at}.` }, `c${at + 10}`))).flat();
-    const { s, fake } = await gateSession(calls, vault, undefined, { scripts: true });
+    const { s, fake } = await gateSession(scriptTurns(one("create_note", { title: "Rates", content: "From a test." })), vault, undefined, { scripts: true });
     expect(await s.saveScript(WRITE_ONE)).toMatchObject({ ok: true, approved: true });
     s.setDirect(true);
-    const plan = await s.skillTestPlan(null);
-    const ran = plan!.targets.filter((target) => target.scenarios > target.notApplicable).map((target) => target.id);
-    expect(ran.length).toBeGreaterThan(0);
-    await s.testSkills(ran, { maxCostUsd: null });
+    // A skill of the vault's own that names the two tools that reach further tools, with one scenario. A run bound to a
+    // skill carries exactly the tools its grant leaves of the conversation's own (`conversationStart`): the two that
+    // reach further tools — and with them every script — are none of them, so the scenario's call_tool is unknown there.
+    const skill = "---\nname: tool-check\ndescription: Checks a note with the tools it finds. Use when asked to check a note.\nallowed-tools: find_tools call_tool read_note\n---\n\nFind the tools and use them.\n";
+    const scenarios = JSON.stringify({ version: 1, scenarios: [{ id: "write", message: "Note the rates down." }] });
+    const encode = (text: string) => new TextEncoder().encode(text);
+    const imported = readSkillImport([
+      { path: "tool-check/SKILL.md", bytes: encode(skill) },
+      { path: "tool-check/tests/scenarios.json", bytes: encode(scenarios) },
+    ]);
+    expect(imported.blocked).toBeNull();
+    expect(await s.importSkill(imported, { label: "test" })).toMatchObject({ ok: true });
+    const id = ".agent/skills/tool-check";
+    const plan = await s.skillTestPlan([id]);
+    expect(plan!.targets).toEqual([expect.objectContaining({ id, scenarios: 1, notApplicable: 0 })]);
+    await s.testSkills([id], { maxCostUsd: null });
+    // The scenario was asked of the model, with the skill's tools and nothing that reaches further.
     expect(fake.sent.length).toBeGreaterThan(0);
+    const records = [];
+    for (const summary of s.getState().summaries) {
+      const record = await vault.host.conversations.load(summary.id);
+      if (record?.instructions?.skill?.id === id) records.push(record);
+    }
+    expect(records).toHaveLength(1);
+    const conversation = records[0]!.conversation;
+    expect(conversation.tools).toContain("read_note");
+    expect(conversation.tools).not.toContain("find_tools");
+    expect(conversation.tools).not.toContain("call_tool");
+    expect(conversation.more ?? []).toEqual([]);
+    const said = results(records[0]!).map((result) => String(result.content));
+    expect(said.some((content) => content.includes('Unknown tool "call_tool"'))).toBe(true);
     expect(await vault.disk("Inbox/Rates.md")).toBeNull();
     expect(Object.keys(await vault.notes()).filter((path) => path.startsWith("Inbox/"))).toEqual([]);
   });
+
 });

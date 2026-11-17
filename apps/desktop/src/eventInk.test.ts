@@ -56,7 +56,9 @@ describe("eventInk", () => {
     };
     for (const fill of ["rgba(0,0,0,0.5)", "rgba(128,128,128,0.9)", "rgba(255,0,0,0.6)", "rgba(3,155,229,0.3)", "rgba(255,255,255,0.5)", "rgba(0,0,0,0.3)", "rgba(80,80,80,0.7)"]) {
       const vars = eventColorVars(fill) as Record<string, string>;
-      const [r, g, b, a] = rgba(vars["--evt-color"]!);
+      // The colour of the calendar stays as given; the fill the ink stands on may be fainter.
+      expect(vars["--evt-color"]).toBe(fill);
+      const [r, g, b, a] = rgba(vars["--evt-fill"] ?? fill);
       for (const theme of themes) {
         for (const ground of theme.grounds) {
           const shown = ground.map((v, i) => [r, g, b][i]! * a! + v * (1 - a!));
@@ -65,6 +67,6 @@ describe("eventInk", () => {
       }
     }
     // A fill that reads already keeps its strength.
-    expect(eventColorVars("rgba(0,0,0,0.1)")["--evt-color" as never]).toBe("rgba(0,0,0,0.1)");
+    expect(eventColorVars("rgba(0,0,0,0.1)")["--evt-fill" as never]).toBeUndefined();
   });
 });
