@@ -7,15 +7,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * soon enough that the next start still has them after a freeze.
  */
 
-const store = vi.hoisted(() => ({ values: new Map<string, unknown>() }));
-vi.mock("./capacitorPlatform", () => ({
-  capacitorSettingsStore: {
-    get: async (key: string) => store.values.get(key),
-    set: async (key: string, value: unknown) => { store.values.set(key, JSON.parse(JSON.stringify(value))); },
-  },
+const store = vi.hoisted(() => ({ values: new Map<string, unknown>(), writes: 0 }));
+// Kept outside every backup (`diagnosticsStore.ts`); here a map, counting its writes.
+vi.mock("./diagnosticsStore", () => ({
+  readDiagnosticsRecord: async (name: string) => store.values.get(name),
+  writeDiagnosticsRecord: async (name: string, value: unknown) => { store.writes += 1; store.values.set(name, JSON.parse(JSON.stringify(value))); },
 }));
 
-const { bridgePeaks, installBridgeMeter, messageSize, resetBridgeMeterForTests } = await import("./bridgeMeter");
+const { bridgePeaks, installBridgeMeter, messageSize, noteBridgeMessage, resetBridgeMeterForTests } = await import("./bridgeMeter");
 const { formatDiagnosticsExport } = await import("@plainva/ui");
 
 type Stored = { resolve?: (data: unknown) => void };
@@ -26,6 +25,7 @@ const answers = new Map<string, unknown>();
 beforeEach(() => {
   vi.useFakeTimers();
   store.values.clear();
+  store.writes = 0;
   sent.length = 0;
   answers.clear();
   resetBridgeMeterForTests();
@@ -75,4 +75,17 @@ describe("the bridge meter", () => {
     expect(text).toContain("## Largest bridge messages");
     expect(text).toMatch(/The run before, from .*:\n {2}- AtomicFile\.write out \d+/);
   });
+
+  it("writes only when the kept list changed (second review)", async () => {
+    const run = { startedAt: "2026-11-17T00:00:00.000Z", peaks: [] as never[] };
+    for (let i = 0; i < 12; i += 1) expect(noteBridgeMessage(`P.m${i}`, "in", 200_000 + i, run)).toBe(true);
+    // Smaller than all twelve kept: nothing changes, nothing is written.
+    expect(noteBridgeMessage("P.small", "in", 100_000, run)).toBe(false);
+    expect(noteBridgeMessage("P.m0", "in", 150_000, run)).toBe(false);
+    installBridgeMeter();
+    for (let i = 0; i < 3; i += 1) await call("P", "same", { data: "x".repeat(100_000) });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(store.writes).toBe(1);
+  });
 });
+

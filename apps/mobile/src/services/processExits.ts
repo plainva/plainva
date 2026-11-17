@@ -17,6 +17,7 @@
  */
 import { boundedProcessExit, getPlatformServices, type DiagnosticsProcessExit } from "@plainva/ui";
 import { lastProcessExits, type ProcessExitInfo } from "../platform/processExit";
+import { readDiagnosticsRecord, writeDiagnosticsRecord } from "../platform/diagnosticsStore";
 
 export type ProcessExitKind = "memory-limiter" | "low-memory" | "excessive-resources" | "crash" | "anr" | "hang" | "user" | "other";
 
@@ -39,8 +40,10 @@ const REASON_HANG = 100;
 const KEEP = 10;
 /** Of the exits nobody acts on (closed by the person, an update, …), the most that are kept. */
 const OTHERS = 3;
+/** Where an older version kept them, in the settings. */
 const RECORDS_KEY = "process-exits";
 const SEEN_KEY = "process-exits-seen";
+const EXITS_FILE = "process-exits";
 
 /** What an exit was. */
 export function classifyProcessExit(info: { reason: number; description?: string | null }): ProcessExitKind {
@@ -100,29 +103,42 @@ export function mergeProcessExits(
   return { records, seenUntil: newest };
 }
 
+/** What is kept: the exits, and the newest time already looked at (`diagnosticsStore.ts`, outside every backup). */
+interface KeptExits {
+  records: ProcessExitRecord[];
+  seenUntil: number;
+}
+
+async function readKept(): Promise<KeptExits> {
+  const kept = await readDiagnosticsRecord<KeptExits>(EXITS_FILE);
+  if (kept && Array.isArray(kept.records)) return { records: kept.records, seenUntil: Number(kept.seenUntil) || 0 };
+  // An older version kept them in the settings, which the system backup takes along: moved here once.
+  const store = await getPlatformServices().loadSettings();
+  const records = (await store.get<ProcessExitRecord[]>(RECORDS_KEY)) ?? [];
+  const seenUntil = (await store.get<number>(SEEN_KEY)) ?? 0;
+  const moved = { records: Array.isArray(records) ? records.map((record) => boundedProcessExit(record) as ProcessExitRecord) : [], seenUntil };
+  await writeDiagnosticsRecord(EXITS_FILE, moved);
+  await store.delete(RECORDS_KEY);
+  await store.delete(SEEN_KEY);
+  await store.save();
+  return moved;
+}
+
 export async function loadProcessExits(): Promise<ProcessExitRecord[]> {
   try {
-    const store = await getPlatformServices().loadSettings();
-    const raw = await store.get<ProcessExitRecord[]>(RECORDS_KEY);
     // Scrubbed again as read: a record an older build kept had the system's words unscrubbed.
-    return Array.isArray(raw) ? raw.map((record) => boundedProcessExit(record) as ProcessExitRecord) : [];
+    return (await readKept()).records.map((record) => boundedProcessExit(record) as ProcessExitRecord);
   } catch {
     return [];
   }
 }
 
-/** On every start: what the system says happened since the last look. */
+/** On every start: what the system says happened since the last look - and only that is read. */
 export async function recordProcessExitsOnBoot(): Promise<ProcessExitRecord[]> {
-  const fresh = await lastProcessExits();
-  const store = await getPlatformServices().loadSettings();
-  const known = await loadProcessExits();
-  const seenUntil = (await store.get<number>(SEEN_KEY)) ?? 0;
-  const merged = mergeProcessExits(known, fresh, seenUntil);
-  if (merged.seenUntil !== seenUntil) {
-    await store.set(RECORDS_KEY, merged.records);
-    await store.set(SEEN_KEY, merged.seenUntil);
-    await store.save();
-  }
+  const kept = await readKept();
+  const fresh = await lastProcessExits(kept.seenUntil);
+  const merged = mergeProcessExits(kept.records, fresh, kept.seenUntil);
+  if (merged.seenUntil !== kept.seenUntil) await writeDiagnosticsRecord(EXITS_FILE, merged);
   return merged.records;
 }
 

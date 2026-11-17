@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { formatDiagnosticsExport, scrubExitText } from "@plainva/ui";
+import { boundedProcessExit, formatDiagnosticsExport, scrubExitText } from "@plainva/ui";
 import { classifyProcessExit, mergeProcessExits, processExitLabelKey, type ProcessExitRecord } from "./services/processExits";
 
 /**
@@ -101,7 +101,7 @@ describe("process exits in the diagnostics export (F51)", () => {
 
   it("keeps at most ten exits, of the ones nobody acts on three, and bounds each", () => {
     const closed = Array.from({ length: 8 }, (_, i) => ({ reason: 10, description: null, timestamp: t("2026-11-17T09:00:00.000Z") + i, importance: 100 }));
-    const anrs = Array.from({ length: 9 }, (_, i) => ({ reason: 6, description: "x".repeat(5000), timestamp: t("2026-11-17T08:00:00.000Z") + i, importance: 100,
+    const anrs = Array.from({ length: 9 }, (_, i) => ({ reason: 6, description: `Input dispatching timed out ${"x".repeat(5000)}`, timestamp: t("2026-11-17T08:00:00.000Z") + i, importance: 100,
       frames: Array.from({ length: 200 }, (_, f) => `main: at a.B.c${f}(B.java:${f})`) }));
     const { records } = mergeProcessExits([], [...closed, ...anrs], 0);
     expect(records).toHaveLength(10);
@@ -186,3 +186,80 @@ describe("the screen 'Ended by the system' shows the top of the stack (F51)", ()
     expect(readFileSync(new URL("./mobile.css", import.meta.url), "utf8")).toMatch(/\.m-exit-frames \{/);
   });
 });
+
+describe("only what is known to name nothing of the person's gets through (second review)", () => {
+  const exit = (description: string, frames: string[] = []) =>
+    boundedProcessExit({ at: "2026-11-17T08:00:00.000Z", kind: "anr", description, frames });
+
+  it.each([
+    ["a path with spaces", "Failed at /storage/emulated/0/Documents/Mein Vault/Arzt Brief Juni.md"],
+    ["a folder in brackets", "Input dispatching timed out at /storage/emulated/0/Projekt (alt)/Plan.md"],
+    ["a URL", "Input dispatching timed out https://dav.example.org/remote.php/dav/files/anna/"],
+    ["a mail address", "user request after error anna.schmidt@example.org"],
+    ["a file name", "remove task Arztbrief 2026.pdf"],
+    ["an unknown text", "something the system said about Tagebuch"],
+  ])("drops a description with %s whole", (_name, description) => {
+    expect(exit(description).description).toBeUndefined();
+  });
+
+  it("keeps the system's own words in the shapes it uses", () => {
+    expect(exit("Input dispatching timed out (com.plainva.app/com.plainva.app.MainActivity is not responding. Waited 5000ms for MotionEvent)").description).toMatch(/^Input dispatching timed out/);
+    expect(exit("MemoryLimiter:AnonSwap").description).toBe("MemoryLimiter:AnonSwap");
+    expect(exit("Namespace SIGNAL, Code 0x9").description).toBe("Namespace SIGNAL, Code 0x9");
+    expect(exit("3.2 s").description).toBe("3.2 s");
+  });
+
+  it("keeps frames in the shapes the plugins write, and drops any other", () => {
+    const frames = exit("MemoryLimiter:AnonSwap", [
+      "main: at android.os.MessageQueue.nativePollOnce(Native Method)",
+      "CapacitorPlugins: at com.plainva.app.AtomicFilePlugin.write(AtomicFilePlugin.java:88)",
+      "at com.plainva.app.WebDavHttpPlugin$1.onResponse:271",
+      "main: native: #00 pc 000a1b /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28)",
+      "Plainva +123456",
+      "main: at java.io.FileInputStream.open(/data/user/0/com.plainva.app/files/vaults/v1/Notiz.md)",
+      "Arzt Brief Juni",
+    ]).frames;
+    expect(frames).toEqual([
+      "main: at android.os.MessageQueue.nativePollOnce(Native Method)",
+      "CapacitorPlugins: at com.plainva.app.AtomicFilePlugin.write(AtomicFilePlugin.java:88)",
+      "at com.plainva.app.WebDavHttpPlugin$1.onResponse:271",
+      "main: native: #00 pc 000a1b libc.so (syscall+28)",
+      "Plainva +123456",
+    ]);
+  });
+
+  it("a termination reason that carries a path is dropped whole", () => {
+    expect(exit("Namespace SIGNAL, Code 0x9 /private/var/containers/Bundle/Application/1A2B/Plainva.app/Plainva").description).toBeUndefined();
+  });
+});
+
+describe("costs and keys (second review)", () => {
+  const java = () => readFileSync(new URL("../android/app/src/main/java/com/plainva/app/ProcessExitPlugin.java", import.meta.url), "utf8");
+  const swift = () => readFileSync(new URL("../ios/App/App/ProcessExitPlugin.swift", import.meta.url), "utf8");
+
+  it("Android reads only exits after what was seen, and off the plugin thread", () => {
+    expect(java()).toMatch(/JsNumbers\.wholeOr\(call, "since", 0L\)/);
+    expect(java()).toMatch(/new Thread\(\(\) -> call\.resolve\(readExits\(since\)\), "plainva-exits"\)\.start\(\)/);
+    const body = java().slice(java().indexOf("private JSObject readExits("));
+    expect(body.indexOf("if (info.getTimestamp() <= since) continue;")).toBeGreaterThan(-1);
+    expect(body.indexOf("if (info.getTimestamp() <= since) continue;")).toBeLessThan(body.indexOf("anrFrames(info)"));
+  });
+
+  it("the daily counts are asked for only on iOS", () => {
+    const bridge = readFileSync(new URL("./platform/processExit.ts", import.meta.url), "utf8");
+    expect(bridge).toMatch(/export async function lastProcessExitDays\(\)[^{]*\{\s*if \(Capacitor\.getPlatform\(\) !== "ios"\) return \[\];/);
+  });
+
+  it("iOS keeps one key per diagnosis, and its folder out of the iCloud backup", () => {
+    expect(swift()).toMatch(/for \(index, crash\) in \(payload\.crashDiagnostics \?\? \[\]\)\.enumerated\(\)/);
+    expect(swift()).toMatch(/for \(index, hang\) in \(payload\.hangDiagnostics \?\? \[\]\)\.enumerated\(\)/);
+    expect(swift()).toMatch(/values\.isExcludedFromBackup = true/);
+    expect(swift()).toMatch(/self\.excludeFromBackup\(\)/);
+  });
+
+  it("the crash handler says honestly that its record is best effort, and always hands on", () => {
+    expect(java()).toMatch(/the record can therefore be missing/);
+    expect(java()).toMatch(/finally \{\s*if \(previous != null\) previous\.uncaughtException\(thread, error\);/);
+  });
+});
+

@@ -35,26 +35,29 @@ export interface ProcessExitDay {
 }
 
 interface ProcessExitNative {
-  lastExits(): Promise<{ exits: ProcessExitInfo[]; days?: ProcessExitDay[] }>;
+  /** Only exits after `since` (ms): what the app has seen is not read again, nor an ANR's dump unpacked again. */
+  lastExits(opts: { since?: number }): Promise<{ exits: ProcessExitInfo[]; days?: ProcessExitDay[] }>;
 }
 
 const ProcessExit = registerPlugin<ProcessExitNative>("ProcessExit");
 
-/** Newest first; empty everywhere the platform has no record. */
-export async function lastProcessExits(): Promise<ProcessExitInfo[]> {
-  return (await readNative()).exits;
+/** Newest first, only those after `since`; empty everywhere the platform has no record. */
+export async function lastProcessExits(since = 0): Promise<ProcessExitInfo[]> {
+  return (await readNative(since)).exits;
 }
 
-/** iOS' daily counts, newest first; empty elsewhere. */
+/** iOS' daily counts, newest first; empty elsewhere - Android is not asked, it has none. */
 export async function lastProcessExitDays(): Promise<ProcessExitDay[]> {
-  return (await readNative()).days;
+  if (Capacitor.getPlatform() !== "ios") return [];
+  // Every exit is old to this question: only the counts are wanted.
+  return (await readNative(Number.MAX_SAFE_INTEGER)).days;
 }
 
-async function readNative(): Promise<{ exits: ProcessExitInfo[]; days: ProcessExitDay[] }> {
+async function readNative(since: number): Promise<{ exits: ProcessExitInfo[]; days: ProcessExitDay[] }> {
   if (!Capacitor.isNativePlatform()) return { exits: [], days: [] };
   try {
-    const answer = await ProcessExit.lastExits();
-    return { exits: answer.exits ?? [], days: (answer.days ?? []).slice(0, 7) };
+    const answer = await ProcessExit.lastExits({ since });
+    return { exits: (answer.exits ?? []).filter((exit) => exit.timestamp > since), days: (answer.days ?? []).slice(0, 7) };
   } catch {
     return { exits: [], days: [] };
   }

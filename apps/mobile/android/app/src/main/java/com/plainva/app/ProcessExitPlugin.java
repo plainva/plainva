@@ -81,8 +81,12 @@ public class ProcessExitPlugin extends Plugin {
     /**
      * Writes the class and frames of an uncaught exception into the crash file,
      * then hands it on to the handler that was there before - the app ends as
-     * it always did. The file is opened and the buffer made at start: an
-     * OutOfMemoryError must not need memory to be recorded.
+     * it always did. The file is opened and the buffer made at start, so the
+     * write itself needs no memory; turning the time and the line numbers into
+     * text and copying the frames (`getStackTrace`) still allocate a little.
+     * Under a real shortage of memory the record can therefore be missing - it
+     * is best effort. What never fails is the hand-over: it is in `finally`,
+     * after anything that may throw.
      */
     private static synchronized void installCrashHandler(Context context) {
         if (handlerInstalled) return;
@@ -144,9 +148,19 @@ public class ProcessExitPlugin extends Plugin {
         return at;
     }
 
-    /** The most recent exits of this package, newest first, at most eight. */
+    /**
+     * The most recent exits of this package, newest first, at most eight - only
+     * those after `since` (ms; what the app has seen already is not read again).
+     * Off the plugin thread: an ANR's dump is unpacked and read, and every other
+     * plugin call waits on that thread.
+     */
     @PluginMethod
     public void lastExits(PluginCall call) {
+        final long since = JsNumbers.wholeOr(call, "since", 0L);
+        new Thread(() -> call.resolve(readExits(since)), "plainva-exits").start();
+    }
+
+    private JSObject readExits(long since) {
         JSArray out = new JSArray();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
@@ -155,6 +169,8 @@ public class ProcessExitPlugin extends Plugin {
                 String[] crash = readCrashFile();
                 boolean crashUsed = false;
                 for (ApplicationExitInfo info : infos) {
+                    // Seen before: neither listed nor its dump read again.
+                    if (info.getTimestamp() <= since) continue;
                     JSObject o = new JSObject();
                     o.put("reason", info.getReason());
                     o.put("description", info.getDescription());
@@ -184,7 +200,7 @@ public class ProcessExitPlugin extends Plugin {
         }
         JSObject result = new JSObject();
         result.put("exits", out);
-        call.resolve(result);
+        return result;
     }
 
     /** The crash file's lines (time, class, frames), or null when there is none. */

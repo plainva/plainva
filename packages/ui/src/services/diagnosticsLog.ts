@@ -170,14 +170,71 @@ export function scrubExitText(text: string): string {
   return cleaned.length > EXIT_MAX_LINE ? `${cleaned.slice(0, EXIT_MAX_LINE)}…` : cleaned;
 }
 
-/** One exit as kept: scrubbed and bounded. */
+/**
+ * Whether a text could name something of the person's: a URL, a mail
+ * address, a path or a file name. A component name of the app itself
+ * (`com.plainva.app/com.plainva.app.MainActivity`) is no path.
+ */
+function namesSomethingPrivate(text: string): boolean {
+  const withoutComponents = text.replace(/(?<![\w.])[a-z]\w*(?:\.\w+)+\/[\w.$]+/gi, "component");
+  return /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\//i.test(withoutComponents)
+    || /\S@\S/.test(withoutComponents)
+    || /\//.test(withoutComponents)
+    || /[A-Za-z]:\\/.test(withoutComponents)
+    || /\.(?:md|markdown|txt|canvas|base|csv|json|pdf|png|jpe?g|gif|webp|heic|svg|mp3|m4a|wav|mp4|mov|docx?|xlsx?|pptx?|zip|eml|ics)\b/i.test(withoutComponents);
+}
+
+/**
+ * The system's descriptions an export carries: only these known shapes, and
+ * only while they name nothing of the person's (release list F51, second
+ * review: cutting out what looked like a path left words of folder and file
+ * names standing). Anything else is dropped whole; the exit keeps its kind.
+ */
+const KNOWN_DESCRIPTIONS = [
+  /^MemoryLimiter:\w+$/,
+  /^Input dispatching timed out\b/i,
+  /^(?:user request after error|remove task|stop app|crash|anr|low memory|lmk)\b/i,
+  /^excessive (?:cpu|resource)/i,
+  /^Namespace [A-Z_]+, Code 0x[0-9a-f]+/i,
+  /^\d+(?:\.\d+)? s$/,
+];
+
+/** A frame in one of the shapes the plugins write; anything else is dropped. */
+const KNOWN_FRAMES = [
+  // Android, from an ANR's dump: `main: at a.B.c(B.java:12)`.
+  /^(?:(?:main|CapacitorPlugins): )?at [\w$.<>-]+\((?:[\w$.-]+\.(?:java|kt):\d+|Native Method|Unknown Source(?::\d+)?)\)$/,
+  // Android, from the app's crash handler: `at a.B.c:12`.
+  /^at [\w$.<>-]+:(?:\d+|\?)$/,
+  // Android, a native frame with its library's name only.
+  /^(?:(?:main|CapacitorPlugins): )?native: #\d+ pc [0-9a-f]+ +[\w.+-]+\.so(?:\.\d+)*(?: \([^()/@]*\))*$/,
+  // iOS, MetricKit: `Plainva +12345`.
+  /^[\w.+-][\w .+-]* \+-?\d+$/,
+];
+
+function knownDescription(text: string): string | undefined {
+  const trimmed = text.trim();
+  if (namesSomethingPrivate(trimmed) || !KNOWN_DESCRIPTIONS.some((shape) => shape.test(trimmed))) return undefined;
+  return trimmed.length > EXIT_MAX_LINE ? `${trimmed.slice(0, EXIT_MAX_LINE)}…` : trimmed;
+}
+
+function knownFrame(frame: string): string | undefined {
+  // A native library keeps its file name - `libc.so` names no note - and loses its folder.
+  const shortened = frame.replace(/(?<!\S)(?:\/[^\s/:()"']+)+\/([^\s/:()"']+\.so(?:\.\d+)*)/g, "$1").trim();
+  return KNOWN_FRAMES.some((shape) => shape.test(shortened)) && !/@/.test(shortened) ? shortened.slice(0, EXIT_MAX_LINE) : undefined;
+}
+
+/** One exit as kept: only what is known to name nothing of the person's, bounded. */
 export function boundedProcessExit(exit: DiagnosticsProcessExit): DiagnosticsProcessExit {
   const out: DiagnosticsProcessExit = { at: exit.at, kind: exit.kind };
   // A crash's description can be its exception's message, which carries what the app was handling: never kept.
-  if (exit.description && exit.kind !== "crash") out.description = scrubExitText(exit.description);
-  if (exit.build) out.build = scrubExitText(exit.build).slice(0, 40);
-  if (exit.exception) out.exception = scrubExitText(exit.exception).slice(0, 120);
-  if (exit.frames?.length) out.frames = exit.frames.slice(0, EXIT_MAX_FRAMES).map(scrubExitText);
+  if (exit.description && exit.kind !== "crash") {
+    const description = knownDescription(exit.description);
+    if (description) out.description = description;
+  }
+  if (exit.build && /^[\w.() -]{1,40}$/.test(exit.build)) out.build = exit.build;
+  if (exit.exception && /^[\w$., -]{1,120}$/.test(exit.exception) && !namesSomethingPrivate(exit.exception)) out.exception = exit.exception;
+  const frames = (exit.frames ?? []).slice(0, EXIT_MAX_FRAMES).map(knownFrame).filter((frame): frame is string => frame !== undefined);
+  if (frames.length) out.frames = frames;
   return out;
 }
 

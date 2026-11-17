@@ -37,9 +37,30 @@ final class ExitDiagnostics: NSObject, MXMetricManagerSubscriber {
     private var started = false
 
     private var fileURL: URL? {
+        ExitDiagnostics.folderURL?.appendingPathComponent("exits.json")
+    }
+
+    /**
+     * The folder of the diagnostics (this record, and the page's own files of
+     * exits and bridge peaks), kept out of the iCloud backup: what the system
+     * said about a crash stays on this device and leaves it only in the export
+     * the person shares.
+     */
+    static var folderURL: URL? {
         FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first?
             .appendingPathComponent("PlainvaDiagnostics", isDirectory: true)
-            .appendingPathComponent("exits.json")
+    }
+
+    private func excludeFromBackup() {
+        guard var folder = ExitDiagnostics.folderURL else { return }
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try folder.setResourceValues(values)
+        } catch {
+            NSLog("[exit-diagnostics] not kept out of the backup: %@", error.localizedDescription)
+        }
     }
 
     /** Called early at launch: subscribes, and takes in what the system delivered before. */
@@ -47,6 +68,7 @@ final class ExitDiagnostics: NSObject, MXMetricManagerSubscriber {
         queue.async {
             guard !self.started else { return }
             self.started = true
+            self.excludeFromBackup()
             MXMetricManager.shared.add(self)
             self.take(diagnostics: MXMetricManager.shared.pastDiagnosticPayloads)
             self.take(metrics: MXMetricManager.shared.pastPayloads)
@@ -112,14 +134,15 @@ final class ExitDiagnostics: NSObject, MXMetricManagerSubscriber {
         guard !payloads.isEmpty else { return }
         var object = load()
         var exits = (object["exits"] as? [[String: Any]]) ?? []
-        var keys = Set(exits.map { "\($0["timestamp"] ?? "")|\($0["reason"] ?? "")" })
+        var keys = Set(exits.compactMap { $0["key"] as? String })
         for payload in payloads {
             let at = Int64(payload.timeStampEnd.timeIntervalSince1970 * 1000)
-            for crash in payload.crashDiagnostics ?? [] {
-                let key = "\(at)|4"
+            // One key per diagnosis: a payload can carry several, and the same payload comes again at every start.
+            for (index, crash) in (payload.crashDiagnostics ?? []).enumerated() {
+                let key = "\(at)|4|\(index)|\(crash.exceptionType ?? 0)|\(crash.signal ?? 0)"
                 guard !keys.contains(key) else { continue }
                 keys.insert(key)
-                var entry: [String: Any] = ["reason": 4, "timestamp": at, "importance": 0]
+                var entry: [String: Any] = ["reason": 4, "timestamp": at, "importance": 0, "key": key]
                 let parts = [
                     crash.exceptionType.map { "type \($0)" },
                     crash.exceptionCode.map { "code \($0)" },
@@ -132,12 +155,12 @@ final class ExitDiagnostics: NSObject, MXMetricManagerSubscriber {
                 if !frames.isEmpty { entry["frames"] = frames }
                 exits.append(entry)
             }
-            for hang in payload.hangDiagnostics ?? [] {
-                let key = "\(at)|\(ExitDiagnostics.hangReason)"
+            for (index, hang) in (payload.hangDiagnostics ?? []).enumerated() {
+                let key = "\(at)|\(ExitDiagnostics.hangReason)|\(index)|\(Int(hang.hangDuration.converted(to: .milliseconds).value))"
                 guard !keys.contains(key) else { continue }
                 keys.insert(key)
                 let seconds = hang.hangDuration.converted(to: .seconds).value
-                var entry: [String: Any] = ["reason": ExitDiagnostics.hangReason, "timestamp": at, "importance": 0,
+                var entry: [String: Any] = ["reason": ExitDiagnostics.hangReason, "timestamp": at, "importance": 0, "key": key,
                                             "description": String(format: "%.1f s", seconds)]
                 if let build = ExitDiagnostics.clip(hang.metaData.applicationBuildVersion) { entry["build"] = build }
                 let frames = ExitDiagnostics.frames(of: hang.callStackTree)
@@ -187,7 +210,9 @@ public class ProcessExitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /** The kept exits, newest first, and the daily counts, newest first. */
     @objc func lastExits(_ call: CAPPluginCall) {
+        let since = (call.options["since"] as? NSNumber)?.int64Value ?? 0
         let kept = ExitDiagnostics.shared.read()
-        call.resolve(["exits": kept["exits"] ?? [], "days": kept["days"] ?? []])
+        let exits = ((kept["exits"] as? [[String: Any]]) ?? []).filter { (($0["timestamp"] as? NSNumber)?.int64Value ?? 0) > since }
+        call.resolve(["exits": exits, "days": kept["days"] ?? []])
     }
 }

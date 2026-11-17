@@ -1,4 +1,4 @@
-import { capacitorSettingsStore } from "./capacitorPlatform";
+import { readDiagnosticsRecord, writeDiagnosticsRecord } from "./diagnosticsStore";
 
 /**
  * The largest messages over the Capacitor bridge, per plugin method and
@@ -14,9 +14,10 @@ import { capacitorSettingsStore } from "./capacitorPlatform";
  * the way in. Only the largest few are kept, with the method's name, the size
  * and the time - never what the message held.
  *
- * A run that ends in a freeze cannot be exported, so the peaks are written to
- * the settings store soon after a new large one appears, and the next start
- * keeps them as "the run before" for the export.
+ * A run that ends in a freeze cannot be exported, so the peaks are written
+ * down soon after the kept list changes, and the next start keeps them as
+ * "the run before" for the export. They are kept where no backup takes them
+ * along (`diagnosticsStore.ts`), not in the settings.
  */
 
 /** A message at least this large is kept (characters of its text, about bytes). */
@@ -78,7 +79,11 @@ export function messageSize(value: unknown): number {
   return size;
 }
 
-/** Records one message; pure enough to test (`run` is this lifetime's). */
+/**
+ * Records one message; pure enough to test (`run` is this lifetime's). True
+ * only when the kept list changed - a message that does not make it among the
+ * largest `KEEP` changes nothing, and nothing is written for it.
+ */
 export function noteBridgeMessage(call: string, direction: "out" | "in", size: number, target: BridgeRun = run): boolean {
   if (size < NOTEWORTHY) return false;
   const same = target.peaks.find((peak) => peak.call === call && peak.direction === direction);
@@ -86,9 +91,11 @@ export function noteBridgeMessage(call: string, direction: "out" | "in", size: n
     if (same.size >= size) return false;
     same.size = size;
     same.at = new Date().toISOString();
-  } else {
-    target.peaks.push({ call, direction, size, at: new Date().toISOString() });
+    target.peaks.sort((a, b) => b.size - a.size);
+    return true;
   }
+  if (target.peaks.length >= KEEP && size <= target.peaks[target.peaks.length - 1].size) return false;
+  target.peaks.push({ call, direction, size, at: new Date().toISOString() });
   target.peaks.sort((a, b) => b.size - a.size);
   target.peaks.length = Math.min(target.peaks.length, KEEP);
   return true;
@@ -98,7 +105,7 @@ function scheduleWrite(): void {
   if (writeTimer) return;
   writeTimer = setTimeout(() => {
     writeTimer = null;
-    void loaded.then(() => capacitorSettingsStore.set(STORE_KEY, run)).catch(() => {
+    void loaded.then(() => writeDiagnosticsRecord(STORE_KEY, run)).catch(() => {
       // silent: a diagnostic that cannot be written is left out of the next export, never an error of its own.
     });
   }, WRITE_AFTER_MS);
@@ -119,7 +126,7 @@ type ToNative = (pluginName: string, methodName: string, options: unknown, store
 export function installBridgeMeter(): void {
   if (installed) return;
   installed = true;
-  loaded = capacitorSettingsStore.get<BridgeRun>(STORE_KEY).then((last) => {
+  loaded = readDiagnosticsRecord<BridgeRun>(STORE_KEY, STORE_KEY).then((last) => {
     if (last && Array.isArray(last.peaks)) previous = last;
   }).catch(() => {
     // silent: no earlier run to show.
@@ -130,7 +137,7 @@ export function installBridgeMeter(): void {
   cap.toNative = (pluginName, methodName, options, stored) => {
     const call = `${pluginName}.${methodName}`;
     // Not the meter's own writes, and nothing from the console bridge.
-    const measured = pluginName !== "Console" && !(pluginName === "Preferences" && methodName === "set" && (options as { key?: string } | null)?.key === STORE_KEY);
+    const measured = pluginName !== "Console";
     if (measured && noteBridgeMessage(call, "out", messageSize(options))) scheduleWrite();
     let wrapped = stored;
     if (measured && stored) {
