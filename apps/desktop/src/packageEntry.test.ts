@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { checkLinuxTree, checkMacApp, desktopExec, HELPER, MAIN, partSizes, plistString } from "../scripts/package-entry.mjs";
+import { checkLinuxTree, checkMacApp, desktopCommand, desktopExec, HELPER, MAIN, partSizes, plistString } from "../scripts/package-entry.mjs";
 
 // 0.9.0 is the first release with two programs in every package: the app and
 // the MCP helper. Review of the rehearsal, 2026-11-16: the AppImage check
@@ -50,12 +50,7 @@ describe("the names", () => {
     expect(ps1).toContain(`$helper = '${HELPER}.exe'`);
     expect(read("apps/desktop/scripts/check-appimage.sh")).toContain(`for program in ${MAIN} ${HELPER}; do`);
     expect(read("apps/desktop/scripts/check-package-entry.sh")).toContain(`main=${MAIN}\n`);
-    expect(read("apps/desktop/scripts/package-start-linux.sh")).toContain(`main=${MAIN}\ntitle=Plainva\n`);
-  });
-
-  it("looks for the window title the app sets", () => {
-    const conf = JSON.parse(read("apps/desktop/src-tauri/tauri.conf.json")) as { app: { windows: { title: string }[] } };
-    expect(conf.app.windows[0].title).toBe("Plainva");
+    expect(read("apps/desktop/scripts/package-start-linux.sh")).toContain(`main=${MAIN}\n`);
   });
 });
 
@@ -67,9 +62,22 @@ describe("reading an entry", () => {
     expect(desktopExec("[Desktop Entry]\nName=x\n")).toBeUndefined();
   });
 
+  it("reads an Exec key as a launcher does", () => {
+    // Only the [Desktop Entry] group; a desktop action has an Exec of its own.
+    expect(desktopExec("[Desktop Action new]\nExec=plainva-mcp\n[Desktop Entry]\nExec = plainva-desktop %U\n")).toBe("plainva-desktop");
+    expect(desktopExec("[Desktop Entry]\r\nExec=plainva-desktop\r\n")).toBe("plainva-desktop");
+    expect(desktopExec("[Desktop Action new]\nExec=plainva-desktop\n")).toBeUndefined();
+    // A launcher's own env prefix is read through.
+    expect(desktopCommand(desktop("env GDK_BACKEND=x11 -u FOO /usr/bin/plainva-desktop %U"))).toEqual(["/usr/bin/plainva-desktop", "%U"]);
+    // Quoted words with escapes, and the \s string escape.
+    expect(desktopCommand(desktop('"/opt/My App/plainva-desktop" "a \\\\"b\\\\""'))).toEqual(["/opt/My App/plainva-desktop", 'a "b"']);
+    expect(desktopCommand(desktop("/opt/plainva\\sdesktop"))).toEqual(["/opt/plainva", "desktop"]);
+  });
+
   it("takes a string of a property list", () => {
     expect(plistString(plist("plainva-desktop"), "CFBundleExecutable")).toBe("plainva-desktop");
     expect(plistString(plist("plainva-desktop"), "CFBundleIconFile")).toBeUndefined();
+    expect(plistString("<dict><key> CFBundleExecutable </key>\n<string> a&amp;b&#x41; </string></dict>", "CFBundleExecutable")).toBe("a&bA");
   });
 });
 
@@ -120,6 +128,18 @@ onPosix("a macOS app", () => {
     expect(checkMacApp(tree(noHelper))).toEqual(["Contents/MacOS/plainva-mcp is missing or not executable"]);
     expect(checkMacApp(tree({}))).toEqual(["Contents/Info.plist is missing"]);
   });
+
+  it("reads a binary Info.plist through plutil, and says so where it cannot", () => {
+    const binary = { ...good, "Contents/Info.plist": "bplist00\u0000\u0001" };
+    expect(checkMacApp(tree(binary), { convert: () => plist("plainva-desktop") })).toEqual([]);
+    expect(checkMacApp(tree(binary), { convert: () => plist("plainva-mcp") })).toEqual(["CFBundleExecutable is plainva-mcp, not plainva-desktop"]);
+    const problems = checkMacApp(tree(binary), {
+      convert: () => {
+        throw new Error("plutil: not found");
+      },
+    });
+    expect(problems).toEqual(["Contents/Info.plist is a binary property list and plutil could not read it (plutil: not found)"]);
+  });
 });
 
 onPosix("the record of the new parts", () => {
@@ -161,9 +181,14 @@ describe("in the release workflow", () => {
     expect(named("rehearsal", "The packages start the main program")!.if).toBeUndefined();
   });
 
-  it("has rpm2cpio, Xvfb, D-Bus and xwininfo on the Linux runner of both paths", () => {
+  it("has rpm, rpm2cpio, Xvfb, D-Bus and xwininfo/xprop on the Linux runner of both paths", () => {
     for (const job of ["release", "rehearsal"]) {
-      expect(named(job, "Install dependencies (ubuntu only)")!.run).toMatch(/apt-get install -y .*\bxvfb rpm2cpio dbus x11-utils$/m);
+      expect(named(job, "Install dependencies (ubuntu only)")!.run).toMatch(/apt-get install -y .*\bxvfb rpm rpm2cpio dbus x11-utils$/m);
     }
+  });
+
+  it("keeps the rehearsal's file list after a red check, as long as the build made every file", () => {
+    expect(named("rehearsal", "List what a release would have uploaded")!.if).toBe("always() && steps.built.outcome == 'success'");
+    expect((steps("rehearsal").find((s) => s.name === "Every release file was built") as Step & { id?: string }).id).toBe("built");
   });
 });

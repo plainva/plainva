@@ -8,6 +8,7 @@
 // The checks here read an extracted package tree; check-package-entry.sh
 // extracts the Linux and macOS packages and calls package-entry-check.mjs,
 // check-package-entry.ps1 does the same for the MSI and NSIS installers.
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 
@@ -23,19 +24,92 @@ const executable = (path) => {
   }
 };
 
-/** The program an Exec= line of a .desktop file starts (its first word, without a path). */
-export function desktopExec(text) {
-  const line = text.split('\n').find((l) => l.startsWith('Exec='));
-  if (!line) return undefined;
-  const value = line.slice('Exec='.length).trim();
-  const first = value.startsWith('"') ? value.slice(1, value.indexOf('"', 1)) : value.split(/\s+/)[0];
-  return basename(first);
+/**
+ * The command line an Exec key of a .desktop file runs, as words — read the
+ * way the Desktop Entry Specification says a launcher reads it: only the
+ * [Desktop Entry] group (a [Desktop Action …] group has an Exec of its own),
+ * spaces around `=` allowed, the string escapes (\\s, \\n, \\t, \\r, \\\\) undone
+ * first, then double-quoted words with their backslash escapes. A leading
+ * `env NAME=value …` is a launcher's own way of starting the program and is
+ * read through, so the first word is the program itself.
+ */
+export function desktopCommand(text) {
+  let group = null;
+  let value;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith('[')) {
+      group = line;
+      continue;
+    }
+    const m = /^Exec\s*=\s*(.*)$/.exec(line);
+    if (m && group === '[Desktop Entry]') {
+      value = m[1];
+      break;
+    }
+  }
+  if (value === undefined) return undefined;
+  value = value.replace(/\\([sntr\\])/g, (_, c) => ({ s: ' ', n: '\n', t: '\t', r: '\r', '\\': '\\' })[c]);
+  const words = [];
+  let word = null;
+  let quoted = false;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (quoted) {
+      if (c === '\\' && i + 1 < value.length) word += value[++i];
+      else if (c === '"') quoted = false;
+      else word += c;
+    } else if (c === '"') {
+      quoted = true;
+      word ??= '';
+    } else if (/\s/.test(c)) {
+      if (word !== null) words.push(word);
+      word = null;
+    } else word = (word ?? '') + c;
+  }
+  if (word !== null) words.push(word);
+  if (basename(words[0] ?? '') === 'env') {
+    words.shift();
+    while (words.length) {
+      if (words[0] === '-u' || words[0] === '--unset') words.splice(0, 2);
+      else if (words[0].startsWith('-') || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0])) words.shift();
+      else break;
+    }
+  }
+  return words.length ? words : undefined;
 }
 
-/** A <key>…</key><string>…</string> pair of an XML property list. */
+/** The program the Exec key of a .desktop file starts (its first word, without a path). */
+export function desktopExec(text) {
+  const words = desktopCommand(text);
+  return words ? basename(words[0]) : undefined;
+}
+
+const XML_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+
+/** A top-level <key>…</key><string>…</string> pair of an XML property list, entities decoded. */
 export function plistString(xml, key) {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`<key>${escaped}</key>\\s*<string>([^<]*)</string>`).exec(xml)?.[1];
+  const raw = new RegExp(`<key>\\s*${escaped}\\s*</key>\\s*(?:<string>([^<]*)</string>|<string\\s*/>)`).exec(xml);
+  if (!raw) return undefined;
+  return (raw[1] ?? '').trim().replace(/&(amp|lt|gt|quot|apos|#x[0-9a-f]+|#\d+);/gi, (_, e) =>
+    e[0] === '#' ? String.fromCodePoint(e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : XML_ENTITIES[e.toLowerCase()],
+  );
+}
+
+/**
+ * An Info.plist as XML. A binary property list (`bplist00`, what Xcode and
+ * `plutil -convert binary1` write) is converted with plutil where there is
+ * one (macOS); elsewhere it is reported, not guessed at.
+ */
+export function readPlist(path, convert = (file) => execFileSync('plutil', ['-convert', 'xml1', '-o', '-', file], { encoding: 'utf8' })) {
+  const bytes = readFileSync(path);
+  if (bytes.subarray(0, 6).toString('latin1') !== 'bplist') return { xml: bytes.toString('utf8') };
+  try {
+    return { xml: convert(path) };
+  } catch (error) {
+    return { error: `Contents/Info.plist is a binary property list and plutil could not read it (${String(error?.message ?? error).split('\n')[0]})` };
+  }
 }
 
 const desktopFiles = (dir) => {
@@ -68,14 +142,16 @@ export function checkLinuxTree(root, { appimage = false } = {}) {
 }
 
 /** A built Plainva.app: CFBundleExecutable is the app, and the helper is next to it. */
-export function checkMacApp(app) {
+export function checkMacApp(app, { convert } = {}) {
   const problems = [];
-  let plist;
+  let read;
   try {
-    plist = readFileSync(join(app, 'Contents/Info.plist'), 'utf8');
+    read = readPlist(join(app, 'Contents/Info.plist'), convert);
   } catch {
     return ['Contents/Info.plist is missing'];
   }
+  if (read.error) return [read.error];
+  const plist = read.xml;
   const bundleExecutable = plistString(plist, 'CFBundleExecutable');
   if (bundleExecutable !== MAIN) problems.push(`CFBundleExecutable is ${bundleExecutable ?? 'not set'}, not ${MAIN}`);
   for (const program of [MAIN, HELPER]) {

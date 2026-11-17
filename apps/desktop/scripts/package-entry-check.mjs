@@ -1,10 +1,22 @@
 // `node apps/desktop/scripts/package-entry-check.mjs linux <root> [--appimage] <label>`
 // `node apps/desktop/scripts/package-entry-check.mjs mac <Plainva.app> <label>`
+// `node apps/desktop/scripts/package-entry-check.mjs exec <file.desktop>` prints
+// the program its Exec key starts (the first word, as the launcher reads it).
 // Fails unless the extracted package starts the app and carries the helper
 // (package-entry.mjs).
-import { checkLinuxTree, checkMacApp, HELPER, MAIN, partSizes } from './package-entry.mjs';
+import { readFileSync } from 'node:fs';
+import { checkLinuxTree, checkMacApp, desktopCommand, HELPER, MAIN, partSizes } from './package-entry.mjs';
 
 const [kind, path, ...rest] = process.argv.slice(2);
+if (kind === 'exec') {
+  const words = desktopCommand(readFileSync(path, 'utf8'));
+  if (!words) {
+    console.error(`::error::${path}: no Exec key in its [Desktop Entry] group`);
+    process.exit(1);
+  }
+  console.log(words[0]);
+  process.exit(0);
+}
 const appimage = rest.includes('--appimage');
 const label = rest.filter((a) => a !== '--appimage')[0] ?? path;
 

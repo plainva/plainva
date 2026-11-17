@@ -13,7 +13,8 @@
 #     line, then removed; the AppImage, extracted and started through AppRun.
 #     Each start runs under Xvfb in a D-Bus session of its own, with its own
 #     HOME and XDG_RUNTIME_DIR (package-start-linux.sh). Evidence: a process
-#     named plainva-desktop with a mapped window titled "Plainva".
+#     named plainva-desktop, launched by this start, owning a mapped window
+#     (by its _NET_WM_PID; the title is reported, the app renames it).
 #   - macOS: the .app copied out of the dmg and started through `open`
 #     (LaunchServices, which reads CFBundleExecutable). Evidence: a process
 #     named plainva-desktop owning an on-screen window (window-count.swift,
@@ -22,9 +23,17 @@
 # and require the process 3 seconds later; a slow start is waited for, never
 # retried. A failure names what was missing and shows the program's output;
 # a command that ends the script without a word of its own is named by the
-# ERR trap (line and command).
+# ERR trap (line and command) — once: whatever reported a failure itself
+# (here, a subshell, package-entry-check.mjs, package-start-linux.sh) marks
+# it, and the trap stays silent.
 #
-# Not started: the rpm (there is no rpm-based runner; it is read only).
+# Only processes of these starts are ended, by their PID (Linux: the start's
+# own descendants; macOS: the processes of the copied .app); another Plainva
+# on the same machine is never touched.
+#
+# Not started: the rpm (there is no rpm-based runner; it is read only). Its
+# header and payload digests are verified (`rpm -K --nosignature`), since
+# rpm2cpio does not check them.
 # Windows: check-package-entry.ps1. Usage: check-package-entry.sh <leg>
 set -Eeuo pipefail
 
@@ -34,23 +43,42 @@ target="$here/../src-tauri/target"
 timeout_s="${PLAINVA_START_TIMEOUT:-45}"
 main=plainva-desktop
 
-work="$(mktemp -d)"
+# The physical path: macOS starts the copied app under /private/var/…, and
+# its processes are found by that path.
+work="$(cd "$(mktemp -d)" && pwd -P)"
 mounted=""
 installed=""
+app=""
+opener=""
+reported="$work/.reported"
+
+# The processes started from the copied .app (macOS), by path.
+app_pids() { [ -n "$app" ] && pgrep -f "$app/Contents/MacOS/" || true; }
+
 cleanup() {
-  pkill -x "$main" 2>/dev/null || true
+  local p
+  for p in $(app_pids) $opener; do kill "$p" 2>/dev/null || true; done
   if [ -n "$mounted" ]; then hdiutil detach "$mounted" -quiet || true; fi
   if [ -n "$installed" ]; then sudo apt-get remove -y -qq "$installed" >/dev/null || true; fi
   rm -rf "$work"
 }
 trap cleanup EXIT
-trap 'echo "::error::check-package-entry.sh stopped at line $LINENO: $BASH_COMMAND" >&2' ERR
+trap '[ -e "$reported" ] || { : >"$reported"; echo "::error::check-package-entry.sh stopped at line $LINENO: $BASH_COMMAND" >&2; }' ERR
 
-check() { node "$here/package-entry-check.mjs" "$@"; }
+# A failure this script names itself: reported once, and the ERR trap of the
+# enclosing shells stays silent.
+die() {
+  : >"$reported"
+  echo "::error::$*" >&2
+  exit 1
+}
+# Commands that name their own failure.
+reports() { "$@" || { : >"$reported"; exit 1; }; }
+check() { reports node "$here/package-entry-check.mjs" "$@"; }
 one() {
   local found
   found="$(ls $1 2>/dev/null | head -n 1 || true)"
-  [ -n "$found" ] || { echo "::error::no package matches $1" >&2; exit 1; }
+  [ -n "$found" ] || die "no package matches $1"
   echo "$found"
 }
 
@@ -61,7 +89,7 @@ start_linux() {
   run="$(mktemp -d "$work/run-XXXX")"
   mkdir -p "$run/home" "$run/runtime"
   chmod 700 "$run/runtime"
-  HOME="$run/home" XDG_CONFIG_HOME="$run/home/.config" XDG_DATA_HOME="$run/home/.local/share" \
+  reports env HOME="$run/home" XDG_CONFIG_HOME="$run/home/.config" XDG_DATA_HOME="$run/home/.local/share" \
     XDG_CACHE_HOME="$run/home/.cache" XDG_RUNTIME_DIR="$run/runtime" PLAINVA_START_TIMEOUT="$timeout_s" \
     xvfb-run -a -s "-screen 0 1440x900x24" dbus-run-session -- \
     bash "$here/package-start-linux.sh" "$label" "$run/output.log" "$@"
@@ -74,28 +102,37 @@ case "$leg" in
     check linux "$work/deb" "$(basename "$deb")"
 
     rpm="$(one "$target/release/bundle/rpm/*.rpm")"
+    # The digests first: rpm2cpio unpacks without checking them.
+    digests="$(rpm -K --nosignature "$rpm" 2>&1)" || die "$(basename "$rpm"): its digests do not match ($digests)"
+    echo "$digests"
     # rpm2cpio's exit status is not the judge: on the first rehearsal with this
     # step it ended the script with status 1 and no message. cpio fails on a
     # short or broken archive, and the check below reads what came out.
     mkdir "$work/rpm"
     rpm2cpio "$rpm" >"$work/rpm.cpio" || echo "rpm2cpio ended with status $? for $(basename "$rpm"); cpio judges the archive"
-    [ -s "$work/rpm.cpio" ] || { echo "::error::$(basename "$rpm"): rpm2cpio wrote no archive"; exit 1; }
-    (cd "$work/rpm" && cpio -idm --quiet <"$work/rpm.cpio") || { echo "::error::$(basename "$rpm"): cpio could not unpack the payload"; exit 1; }
+    [ -s "$work/rpm.cpio" ] || die "$(basename "$rpm"): rpm2cpio wrote no archive"
+    (cd "$work/rpm" && cpio -idm --quiet <"$work/rpm.cpio") || die "$(basename "$rpm"): cpio could not unpack the payload"
     check linux "$work/rpm" "$(basename "$rpm")"
 
     appimage="$(one "$target/release/bundle/appimage/*.AppImage")"
     mkdir "$work/ai" && cp "$appimage" "$work/ai/app.AppImage" && chmod +x "$work/ai/app.AppImage"
-    (cd "$work/ai" && ./app.AppImage --appimage-extract >/dev/null)
+    (cd "$work/ai" && ./app.AppImage --appimage-extract >/dev/null) || die "$(basename "$appimage"): --appimage-extract failed"
     check linux "$work/ai/squashfs-root" --appimage "$(basename "$appimage")"
 
-    # The deb as a user installs it, started by what its menu entry runs.
+    # The deb as a user installs it, started by what its menu entry runs —
+    # the Exec key read as a launcher reads it (package-entry.mjs).
     pkg="$(dpkg-deb -f "$deb" Package)"
-    sudo apt-get install -y -qq "$deb" >/dev/null
+    sudo apt-get install -y -qq "$deb" >/dev/null || die "$(basename "$deb"): apt-get could not install it"
     installed="$pkg"
-    entry="$(grep -l "^Exec=$main\b\|^Exec=/usr/bin/$main\b" /usr/share/applications/*.desktop 2>/dev/null | head -n 1 || true)"
-    [ -n "$entry" ] || { echo "::error::$(basename "$deb"): installed, but no .desktop entry under /usr/share/applications runs $main"; exit 1; }
-    exec_cmd="$(grep -m1 '^Exec=' "$entry" | cut -d= -f2- | awk '{print $1}')"
-    start_linux "$(basename "$deb") (installed, $(basename "$entry"))" "$(command -v "$exec_cmd")"
+    entry="" exec_cmd=""
+    for file in /usr/share/applications/*.desktop; do
+      word="$(node "$here/package-entry-check.mjs" exec "$file" 2>/dev/null || true)"
+      if [ "$(basename "${word:-x}")" = "$main" ]; then entry="$file" exec_cmd="$word"; break; fi
+    done
+    [ -n "$entry" ] || die "$(basename "$deb"): installed, but no .desktop entry under /usr/share/applications runs $main"
+    resolved="$(command -v "$exec_cmd" || true)"
+    [ -n "$resolved" ] || die "$(basename "$deb"): $(basename "$entry") runs $exec_cmd, which is not on PATH"
+    start_linux "$(basename "$deb") (installed, $(basename "$entry"))" "$resolved"
     sudo apt-get remove -y -qq "$pkg" >/dev/null
     installed=""
 
@@ -114,44 +151,56 @@ case "$leg" in
     check mac "$mounted/Plainva.app" "$(basename "$dmg")"
     mkdir "$work/apps" && cp -R "$mounted/Plainva.app" "$work/apps/"
     hdiutil detach "$mounted" -quiet && mounted=""
+    app="$work/apps/Plainva.app"
 
     # Without the window count the start would be judged by the process alone
     # and a start without a window would pass: no fallback, the step fails.
     windows="$work/window-count"
-    swiftc -O -o "$windows" "$here/window-count.swift" 2>"$work/swiftc.log" || {
-      echo "::error::window-count.swift did not compile; the start cannot be judged by its window"
+    if ! swiftc -O -o "$windows" "$here/window-count.swift" 2>"$work/swiftc.log"; then
       cat "$work/swiftc.log"
-      exit 1
-    }
+      die "window-count.swift did not compile; the start cannot be judged by its window"
+    fi
 
     label="Plainva.app from $(basename "$dmg") (open)"
     log="$work/output.log"
     : >"$log"
     fail() {
+      : >"$reported"
       echo "::error::$label: $1"
       echo "--- last lines of the program's output ($log) ---"
       tail -n 40 "$log" 2>/dev/null || true
       exit 1
     }
-    open -n --stdout "$log" --stderr "$log" "$work/apps/Plainva.app" || fail "open could not start the app (status $?)"
+    # `open -W` stays until the app ends: when it is gone, so is the app, and
+    # an early crash is seen at once instead of after the full wait.
+    open -W -n --stdout "$log" --stderr "$log" "$app" &
+    opener=$!
+    # The app's processes named plainva-desktop (its other programs are not).
+    ours() { for p in $(app_pids); do [ "$(basename "$(ps -o comm= -p "$p" 2>/dev/null)")" = "$main" ] && echo "$p"; done; true; }
     pid="" seen=0 shown=0
     for _ in $(seq "$timeout_s"); do
       sleep 1
-      pid="$(pgrep -x "$main" | head -n 1 || true)"
+      pid="$(ours | head -n 1)"
       if [ -n "$pid" ]; then
         seen=1
         if [ "$("$windows" "$pid")" -gt 0 ]; then shown=1; break; fi
-      elif [ "$seen" = 1 ]; then
-        fail "$main started and ended before a window appeared (open does not pass on its exit code)"
+      fi
+      if ! kill -0 "$opener" 2>/dev/null && [ -z "$(ours)" ]; then
+        code=0
+        wait "$opener" || code=$?
+        opener=""
+        if [ "$seen" = 1 ]; then fail "$main started and ended before a window appeared (open does not pass on its exit code)"; fi
+        [ "$code" = 0 ] || fail "open could not start the app (status $code)"
+        fail "the app ended before a process named $main was seen (open does not pass on its exit code)"
       fi
     done
     if [ "$seen" = 0 ]; then
-      others="$(pgrep -fl "$work/apps/Plainva.app/" | tr '\n' ' ' || true)"
+      others="$(for p in $(app_pids); do ps -o comm= -p "$p"; done | xargs -n1 basename 2>/dev/null | sort -u | paste -sd ' ' - || true)"
       fail "no process named $main after ${timeout_s} s (running from the app instead: ${others:-nothing})"
     fi
     [ "$shown" = 1 ] || fail "$main runs (pid $pid), but owns no on-screen window after ${timeout_s} s"
     sleep 3
-    pgrep -x "$main" >/dev/null || fail "$main ended within 3 s after its window appeared"
+    [ -n "$(ours)" ] || fail "$main ended within 3 s after its window appeared"
     echo "$label: $main is running with an on-screen window"
     ;;
   *)
