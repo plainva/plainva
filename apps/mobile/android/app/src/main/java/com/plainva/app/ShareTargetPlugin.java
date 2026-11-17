@@ -41,7 +41,8 @@ public class ShareTargetPlugin extends Plugin {
     }
     @PluginMethod public void readFileChunk(PluginCall call) {
         execute(call, store -> {
-            Integer offset = call.getInt("offset"), length = call.getInt("length");
+            Long offsetArg = JsNumbers.whole(call, "offset"), lengthArg = JsNumbers.whole(call, "length");
+            Integer offset = offsetArg == null ? null : offsetArg.intValue(), length = lengthArg == null ? null : lengthArg.intValue();
             if (offset == null || length == null) throw new Exception("SHARE_INVALID");
             JSObject result = new JSObject(); result.put("data", store.chunk(call.getString("id"), call.getString("fileId"), offset, length)); return result;
         });

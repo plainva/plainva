@@ -5579,6 +5579,7 @@
     "backupZipNever": "No backup yet",
     "backupZipDone": "Backup created: {{name}}",
     "backupZipFailed": "The backup for “{{name}}” could not be created. Previous archives are kept. You can retry from the vault settings.",
+    "backupZipLastFailed": "Last backup failed",
     "backupUnreadableTitle": "Older backups cannot be read",
     "backupUnreadableBody": "The Files app can still reach them.",
     "backupUnreadableShort": "Some files in {{folder}} are unreadable since a reinstall; they are neither counted nor pruned.",
