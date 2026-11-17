@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-11-16
+Stan na: 2026-11-17
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -187,7 +187,7 @@ Szczegóły każdego źródła znajdziesz w [Import z innej aplikacji](Import.md
 
 ## Pierwsze uruchomienie
 
-Przy pierwszym uruchomieniu aplikacja pyta, jak chcesz zacząć: **Zacznij lokalnie**, **Połącz sejf w chmurze** lub **Mam już vault**. Po **Zacznij lokalnie** wybierasz strukturę startową; wycieczka po Plainva jest na górze i ma oznaczenie **Polecane na start**. **Mam już vault** wyjaśnia dla Twojego telefonu, gdzie może leżeć vault, i prowadzi dalej: **Folder na tym urządzeniu** otwiera folder dostępny dla telefonu (w iOS w aplikacji Pliki, w Androidzie na przykład folder Obsidian lub synchronizowany przez Syncthing), **Połącz istniejący vault** pobiera go z chmury. Jeśli Twój vault jest tylko na komputerze, najpierw skonfiguruj tam synchronizację z chmurą. Jeśli anulujesz, wybór zostaje na ekranie. Vault, który jest jeszcze pusty, pokazuje na **Start** dokładnie jedno zaproszenie: **Napisz swoją pierwszą notatkę**, z przyciskiem **Nowa notatka**.
+Przy pierwszym uruchomieniu aplikacja pyta, jak chcesz zacząć: **Zacznij lokalnie**, **Połącz sejf w chmurze** lub **Mam już vault**. Po **Zacznij lokalnie** wybierasz strukturę startową; wycieczka po Plainva jest na górze i ma oznaczenie **Polecane na start**. **Mam już vault** wyjaśnia dla Twojego telefonu, gdzie może leżeć vault, i prowadzi dalej: **Folder na tym urządzeniu** otwiera folder dostępny dla telefonu (w iOS w aplikacji Pliki, w Androidzie na przykład folder Obsidian lub synchronizowany przez Syncthing), **Połącz istniejący vault** pobiera go z chmury. Jeśli Twój vault jest tylko na komputerze, najpierw skonfiguruj tam synchronizację z chmurą. Jeśli anulujesz, wybór zostaje na ekranie. Vault, który jest jeszcze pusty, pokazuje na **Start** dokładnie jedno zaproszenie: **Napisz swoją pierwszą notatkę**, z przyciskiem **Nowa notatka**. Pod kartami **Importuj z Notion, Evernote, Obsidian …** prowadzi do importu, a plainva.com i **Instrukcja obsługi** mówią więcej. Dopóki vault z chmury jest pobierany po raz pierwszy, **Start** pokazuje zamiast tego **Twój vault się wczytuje**.
 
 ## Synchronizacja
 

@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-11-16
+Stan na: 2026-11-17
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -26,7 +26,7 @@ Vault to zwykły folder na komputerze, w którym przechowywane są notatki Markd
 
 ## Otwieranie lub tworzenie vaultu
 
-Przy **zupełnie pierwszym** uruchomieniu — zanim kiedykolwiek otworzysz jakiś vault — Plainva jednorazowo pokazuje **Witaj w Plainva**. Główną akcją jest **Wypróbuj z wycieczką**: jedno kliknięcie tworzy vault wycieczki po Plainva w nowym folderze w Twoich Dokumentach i go otwiera; karta **Vault wycieczki** podaje ten folder z góry. Obok **Otwórz istniejący folder** otwiera folder, w którym są już notatki, na przykład vault Obsidian. Poniżej **Nowy pusty vault** i **Importuj z Notion, Evernote, Obsidian …** prowadzą do dwóch pozostałych dróg. ✕ zamyka powitanie i zostawia Cię na zwykłym ekranie powitalnym; nie pojawi się ponownie, chyba że poprosisz o nie w **Ustawienia → Uruchamianie i zachowanie → Ekran powitalny**. Dopóki vault jest pusty, pusty obszar edytora pokazuje dokładnie jedno zaproszenie: **Napisz swoją pierwszą notatkę**, z przyciskiem **Nowa notatka**.
+Przy **zupełnie pierwszym** uruchomieniu — zanim kiedykolwiek otworzysz jakiś vault — Plainva jednorazowo pokazuje **Witaj w Plainva**. Główną akcją jest **Wypróbuj z wycieczką**: jedno kliknięcie tworzy vault wycieczki po Plainva w nowym folderze w Twoich Dokumentach i go otwiera; karta **Vault wycieczki** podaje ten folder z góry. Obok **Otwórz istniejący folder** otwiera folder, w którym są już notatki, na przykład vault Obsidian. Poniżej **Nowy pusty vault** i **Importuj z Notion, Evernote, Obsidian …** prowadzą do dwóch pozostałych dróg. Jeśli wycieczki nie da się tam utworzyć – na przykład dlatego, że macOS nie zezwala na dostęp do Twoich Dokumentów – powitanie o tym mówi i proponuje **Wybierz inne miejsce**. Poniżej plainva.com i **Instrukcja obsługi** mówią więcej. **Później** lub ✕ zamyka powitanie i zostawia Cię na zwykłym ekranie powitalnym; nie pojawi się ponownie, chyba że poprosisz o nie w **Ustawienia → Uruchamianie i zachowanie → Ekran powitalny**. Dopóki vault jest pusty, pusty obszar edytora pokazuje dokładnie jedno zaproszenie: **Napisz swoją pierwszą notatkę**, z przyciskiem **Nowa notatka**. Dopóki vault z chmury jest pobierany po raz pierwszy, zamiast tego widać **Twój vault się wczytuje**.
 
 Po aktualizacji to samo miejsce pokazuje, co się zmieniło: największa zmiana w danej wersji z własnym nagłówkiem, a reszta jako pojedyncze linijki. Pojawia się to raz na wersję — możesz to ponownie wywołać w dowolnym momencie w **Ustawienia → Uruchamianie i zachowanie → Pokaż ponownie najnowsze funkcje**.
 

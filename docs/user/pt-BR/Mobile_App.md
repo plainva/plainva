@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-11-16
+Última atualização: 2026-11-17
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -187,7 +187,7 @@ Os detalhes de cada fonte estão em [Importar de outro aplicativo](Import.md).
 
 ## Primeira inicialização
 
-Na primeira inicialização, o app pergunta como você quer começar: **Começar localmente**, **Conectar um cofre na nuvem** ou **Já tenho um vault**. Depois de **Começar localmente** você escolhe a estrutura inicial; o tour do Plainva vem primeiro e traz **Recomendado para começar**. **Já tenho um vault** explica, para o seu telefone, onde um vault pode estar e depois continua: **Uma pasta neste dispositivo** abre uma pasta que o telefone alcança (no iOS no app Arquivos, no Android por exemplo a do Obsidian ou uma mantida pelo Syncthing), **Conectar um vault existente** o traz da nuvem. Se o seu vault está só no computador, configure lá primeiro a sincronização com uma nuvem. Se você cancelar, a escolha continua na tela. Um vault ainda vazio mostra em **Início** um único convite: **Escreva sua primeira nota**, com o botão **Nova nota**.
+Na primeira inicialização, o app pergunta como você quer começar: **Começar localmente**, **Conectar um cofre na nuvem** ou **Já tenho um vault**. Depois de **Começar localmente** você escolhe a estrutura inicial; o tour do Plainva vem primeiro e traz **Recomendado para começar**. **Já tenho um vault** explica, para o seu telefone, onde um vault pode estar e depois continua: **Uma pasta neste dispositivo** abre uma pasta que o telefone alcança (no iOS no app Arquivos, no Android por exemplo a do Obsidian ou uma mantida pelo Syncthing), **Conectar um vault existente** o traz da nuvem. Se o seu vault está só no computador, configure lá primeiro a sincronização com uma nuvem. Se você cancelar, a escolha continua na tela. Um vault ainda vazio mostra em **Início** um único convite: **Escreva sua primeira nota**, com o botão **Nova nota**. Abaixo dos cartões, **Importar do Notion, Evernote, Obsidian …** leva à importação, e plainva.com e o **Guia do usuário** contam mais. Enquanto um vault da nuvem é baixado pela primeira vez, **Início** mostra no lugar **Seu vault está carregando**.
 
 ## Sincronização
 

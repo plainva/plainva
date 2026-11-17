@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-11-16
+Dernière mise à jour : 2026-11-17
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -26,7 +26,7 @@ Un vault est un dossier ordinaire sur votre ordinateur qui contient vos notes Ma
 
 ## Ouvrir ou créer un vault
 
-Au **tout premier** démarrage — avant d'avoir jamais ouvert de vault — Plainva affiche une seule fois **Bienvenue dans Plainva**. L'action principale est **Essayer avec le Tour Plainva** : un clic crée le vault du Tour Plainva dans un nouveau dossier de vos Documents et l'ouvre ; la carte **Vault du Tour Plainva** indique ce dossier à l'avance. À côté, **Ouvrir un dossier existant** ouvre un dossier qui contient déjà des notes, par exemple un vault Obsidian. En dessous, **Nouveau vault vide** et **Importer depuis Notion, Evernote, Obsidian …** mènent aux deux autres chemins. La ✕ ferme l'accueil et vous laisse sur l'écran d'accueil habituel ; il ne revient pas, sauf si vous le redemandez dans **Paramètres → Démarrage et comportement → Écran de bienvenue**. Tant qu'un vault est vide, la zone d'édition vide affiche une seule invitation : **Écrivez votre première note**, avec le bouton **Nouvelle note**.
+Au **tout premier** démarrage — avant d'avoir jamais ouvert de vault — Plainva affiche une seule fois **Bienvenue dans Plainva**. L'action principale est **Essayer avec le Tour Plainva** : un clic crée le vault du Tour Plainva dans un nouveau dossier de vos Documents et l'ouvre ; la carte **Vault du Tour Plainva** indique ce dossier à l'avance. À côté, **Ouvrir un dossier existant** ouvre un dossier qui contient déjà des notes, par exemple un vault Obsidian. En dessous, **Nouveau vault vide** et **Importer depuis Notion, Evernote, Obsidian …** mènent aux deux autres chemins. Si le Tour ne peut pas être créé à cet endroit – par exemple parce que macOS n'autorise pas l'accès à vos Documents –, l'accueil le dit et propose **Choisir un autre emplacement**. En dessous, plainva.com et le **Guide utilisateur** vous en disent plus. **Plus tard** ou la ✕ ferment l'accueil et vous laissent sur l'écran d'accueil habituel ; il ne revient pas, sauf si vous le redemandez dans **Paramètres → Démarrage et comportement → Écran de bienvenue**. Tant qu'un vault est vide, la zone d'édition vide affiche une seule invitation : **Écrivez votre première note**, avec le bouton **Nouvelle note**. Pendant qu'un vault venant du cloud est récupéré pour la première fois, elle affiche à la place **Ton vault se charge**.
 
 Après une mise à jour, le même endroit affiche ce qui a changé : le changement le plus important de cette version avec son propre titre, et le reste sur une ligne chacun. Cela apparaît une fois par version — vous pouvez le rappeler à tout moment sous **Paramètres → Démarrage et comportement → Réafficher les nouveautés**.
 

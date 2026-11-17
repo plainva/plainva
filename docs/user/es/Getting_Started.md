@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-11-16
+Última actualización: 2026-11-17
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -26,7 +26,7 @@ Un vault es una carpeta normal en tu equipo que contiene tus notas en Markdown. 
 
 ## Abrir o crear un vault
 
-En el **primerísimo** arranque — antes de que hayas abierto nunca un vault — Plainva muestra una sola vez **Bienvenido a Plainva**. La acción principal es **Probar con el tour**: un clic crea el vault del tour de Plainva en una carpeta nueva dentro de tus Documentos y lo abre; la tarjeta **Vault del tour** indica antes qué carpeta será. Al lado, **Abrir una carpeta existente** abre una carpeta que ya contiene notas, por ejemplo un vault de Obsidian. Debajo, **Nuevo vault vacío** e **Importar desde Notion, Evernote, Obsidian …** llevan a los otros dos caminos. La ✕ cierra la bienvenida y te deja en la pantalla de bienvenida normal; no vuelve a aparecer, salvo que la pidas de nuevo en **Configuración → Inicio y comportamiento → Pantalla de bienvenida**. Mientras un vault sigue vacío, el área vacía del editor muestra una única invitación: **Escribe tu primera nota**, con el botón **Nueva nota**.
+En el **primerísimo** arranque — antes de que hayas abierto nunca un vault — Plainva muestra una sola vez **Bienvenido a Plainva**. La acción principal es **Probar con el tour**: un clic crea el vault del tour de Plainva en una carpeta nueva dentro de tus Documentos y lo abre; la tarjeta **Vault del tour** indica antes qué carpeta será. Al lado, **Abrir una carpeta existente** abre una carpeta que ya contiene notas, por ejemplo un vault de Obsidian. Debajo, **Nuevo vault vacío** e **Importar desde Notion, Evernote, Obsidian …** llevan a los otros dos caminos. Si el tour no se puede crear ahí – por ejemplo, porque macOS no permite el acceso a tus Documentos –, la bienvenida lo dice y ofrece **Elegir otro lugar**. Debajo, plainva.com y la **Guía del usuario** te cuentan más. **Más tarde** o la ✕ cierran la bienvenida y te dejan en la pantalla de bienvenida normal; no vuelve a aparecer, salvo que la pidas de nuevo en **Configuración → Inicio y comportamiento → Pantalla de bienvenida**. Mientras un vault sigue vacío, el área vacía del editor muestra una única invitación: **Escribe tu primera nota**, con el botón **Nueva nota**. Mientras un vault de la nube se descarga por primera vez, muestra en su lugar **Tu vault se está cargando**.
 
 Después de una actualización, el mismo lugar muestra qué ha cambiado: el cambio más importante de esa versión con un título propio, y el resto en una línea cada uno. Esto aparece una vez por versión — puedes volver a mostrarlo en cualquier momento en **Configuración → Inicio y comportamiento → Mostrar lo nuevo de la versión de nuevo**.
 

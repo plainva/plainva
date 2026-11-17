@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-11-16
+Laatst bijgewerkt: 2026-11-17
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -187,7 +187,7 @@ De details van elke bron staan in [Importeren uit een andere app](Import.md).
 
 ## Eerste start
 
-Bij de eerste start vraagt de app hoe je wilt beginnen: **Lokaal beginnen**, **Cloudkluis verbinden** of **Ik heb al een vault**. Na **Lokaal beginnen** kies je de startstructuur; de Plainva-tour staat bovenaan en draagt **Aanbevolen om te starten**. **Ik heb al een vault** vertelt voor je telefoon waar een vault kan staan en gaat dan verder: **Een map op dit apparaat** opent een map die de telefoon kan bereiken (op iOS in de app Bestanden, op Android bijvoorbeeld die van Obsidian of een die Syncthing bijhoudt), **Bestaande vault verbinden** haalt hem uit de cloud. Staat je vault alleen op je computer, stel daar dan eerst synchronisatie met een cloud in. Breek je af, dan blijft de keuze staan. Een vault die nog leeg is, toont op **Home** precies één uitnodiging: **Schrijf je eerste notitie**, met de knop **Nieuwe notitie**.
+Bij de eerste start vraagt de app hoe je wilt beginnen: **Lokaal beginnen**, **Cloudkluis verbinden** of **Ik heb al een vault**. Na **Lokaal beginnen** kies je de startstructuur; de Plainva-tour staat bovenaan en draagt **Aanbevolen om te starten**. **Ik heb al een vault** vertelt voor je telefoon waar een vault kan staan en gaat dan verder: **Een map op dit apparaat** opent een map die de telefoon kan bereiken (op iOS in de app Bestanden, op Android bijvoorbeeld die van Obsidian of een die Syncthing bijhoudt), **Bestaande vault verbinden** haalt hem uit de cloud. Staat je vault alleen op je computer, stel daar dan eerst synchronisatie met een cloud in. Breek je af, dan blijft de keuze staan. Een vault die nog leeg is, toont op **Home** precies één uitnodiging: **Schrijf je eerste notitie**, met de knop **Nieuwe notitie**. Onder de kaarten leidt **Importeren uit Notion, Evernote, Obsidian …** naar het importeren, en plainva.com en de **Handleiding** vertellen meer. Zolang een vault uit de cloud voor het eerst wordt opgehaald, toont **Home** in plaats daarvan **Je vault wordt geladen**.
 
 ## Synchronisatie
 

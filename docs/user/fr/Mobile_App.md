@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-11-16
+Dernière mise à jour : 2026-11-17
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre vault reste identique dans les deux mondes.
 
@@ -187,7 +187,7 @@ Les détails de chaque source figurent dans [Importer depuis une autre applicati
 
 ## Premier démarrage
 
-Au premier démarrage, l'app demande comment vous voulez commencer : **Commencer en local**, **Connecter un vault cloud** ou **J'ai déjà un vault**. Après **Commencer en local**, vous choisissez la structure de départ ; le Tour Plainva vient en premier et porte **Recommandé pour débuter**. **J'ai déjà un vault** indique, pour votre téléphone, où un vault peut se trouver, puis continue : **Un dossier sur cet appareil** ouvre un dossier que le téléphone peut atteindre (sous iOS dans l'app Fichiers, sous Android par exemple celui d'Obsidian ou un dossier tenu à jour par Syncthing), **Connecter un vault existant** le récupère depuis le cloud. Si votre vault se trouve uniquement sur votre ordinateur, configurez d'abord la synchronisation avec un cloud. Si vous annulez, le choix reste affiché. Un vault encore vide affiche sur **Accueil** une seule invitation : **Écrivez votre première note**, avec le bouton **Nouvelle note**.
+Au premier démarrage, l'app demande comment vous voulez commencer : **Commencer en local**, **Connecter un vault cloud** ou **J'ai déjà un vault**. Après **Commencer en local**, vous choisissez la structure de départ ; le Tour Plainva vient en premier et porte **Recommandé pour débuter**. **J'ai déjà un vault** indique, pour votre téléphone, où un vault peut se trouver, puis continue : **Un dossier sur cet appareil** ouvre un dossier que le téléphone peut atteindre (sous iOS dans l'app Fichiers, sous Android par exemple celui d'Obsidian ou un dossier tenu à jour par Syncthing), **Connecter un vault existant** le récupère depuis le cloud. Si votre vault se trouve uniquement sur votre ordinateur, configurez d'abord la synchronisation avec un cloud. Si vous annulez, le choix reste affiché. Un vault encore vide affiche sur **Accueil** une seule invitation : **Écrivez votre première note**, avec le bouton **Nouvelle note**. Sous les cartes, **Importer depuis Notion, Evernote, Obsidian …** mène à l'importation, et plainva.com et le **Guide utilisateur** vous en disent plus. Pendant qu'un vault venant du cloud est récupéré pour la première fois, **Accueil** affiche à la place **Ton vault se charge**.
 
 ## Synchronisation
 
