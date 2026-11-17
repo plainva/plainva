@@ -259,8 +259,19 @@ export function fileVersionOfBytes(bytes: Uint8Array): LocalFile {
  * "the file is still the one that was compared" is asked by where the two
  * sides of a comparison are no text (`settleConflictCopy`).
  */
-export async function fileSha256(adapter: Pick<IVaultAdapter, "exists" | "readBinaryFile">, path: string): Promise<string | null> {
+export async function fileSha256(adapter: Pick<IVaultAdapter, "exists" | "readBinaryFile" | "contentSha256">, path: string): Promise<string | null> {
   if (!await adapter.exists(path)) return null;
+  return contentSha256Of(adapter, path);
+}
+
+/**
+ * The SHA-256 of the bytes a file holds: the adapter's own hash where it
+ * takes one without handing the bytes out (`IVaultAdapter.contentSha256`),
+ * the hash of the bytes it reads otherwise.
+ * @throws VaultFileNotFoundError
+ */
+export async function contentSha256Of(adapter: Pick<IVaultAdapter, "readBinaryFile" | "contentSha256">, path: string): Promise<string> {
+  if (adapter.contentSha256) return adapter.contentSha256(path);
   return sha256OfBytes(await adapter.readBinaryFile(path));
 }
 

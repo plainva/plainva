@@ -49,6 +49,7 @@ const state = {
 /** An empty container of the given kind; what a test gets back is what lies in it and how it was read. */
 export function fakeAppStorage(kind: AppStorageKind) {
   Object.assign(state, { kind, files: new Map(), dirs: new Set([""]), mtimes: new Map(), clock: 1000, reads: [] });
+  writes.clear();
   return { files: state.files, reads: state.reads };
 }
 
@@ -158,10 +159,57 @@ const Filesystem = {
   },
 };
 
-/** The app's own write plugin: the text as UTF-8 bytes, or the bytes it was handed as base64. */
+const writes = new Map<string, { path: string; parts: Uint8Array[] }>();
+
+/** What lies at `path` as bytes, for the plugin's read and hash (a phone stores nothing else). */
+function storedBytes(path: string): Uint8Array {
+  const stored = state.files.get(path);
+  if (stored === undefined) throw missing("read", path);
+  if (isText(stored)) return new TextEncoder().encode(stored);
+  if (isBytes(stored)) return stored;
+  throw new Error(`${path} was laid down as a Blob; a phone holds bytes`);
+}
+
+/**
+ * The app's own file plugin: a write in one call (the text as UTF-8 bytes, or
+ * the bytes it was handed as base64) or in parts, a read in parts - the
+ * first part of a read is what `reads` records, once per read - and a hash.
+ */
 const AtomicFile = {
   async write({ path, data, encoding }: { path: string; data: string; encoding: "utf8" | "base64" }) {
     put(path, encoding === "utf8" ? new TextEncoder().encode(data) : fromBase64(data));
+  },
+  async begin({ path }: { path: string }) {
+    const id = `write-${writes.size + 1}-${path}`;
+    writes.set(id, { path, parts: [] });
+    return { id };
+  },
+  async append({ id, data }: { id: string; data: string }) {
+    writes.get(id)!.parts.push(fromBase64(data));
+  },
+  async commit({ id }: { id: string }) {
+    const write = writes.get(id)!;
+    writes.delete(id);
+    const whole = new Uint8Array(write.parts.reduce((n, part) => n + part.length, 0));
+    let at = 0;
+    for (const part of write.parts) { whole.set(part, at); at += part.length; }
+    put(write.path, whole);
+  },
+  async abort({ id }: { id: string }) {
+    writes.delete(id);
+  },
+  async read({ path, offset, length }: { path: string; offset: number; length: number }) {
+    const bytes = storedBytes(path);
+    if (offset === 0) state.reads.push({ path, as: "bytes" });
+    return { data: toBase64(bytes.subarray(offset, offset + Math.min(length, 256 * 1024))), size: bytes.length };
+  },
+  async sha256({ path }: { path: string }) {
+    const bytes = storedBytes(path);
+    const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+    return { sha256: Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""), size: bytes.length };
+  },
+  async sweep() {
+    return { removed: 0 };
   },
 };
 

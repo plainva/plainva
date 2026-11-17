@@ -144,8 +144,9 @@ public class LocalModelPlugin extends Plugin {
         String name = call.getString("name");
         String url = call.getString("url");
         String sha256 = call.getString("sha256");
-        Long bytesValue = call.getLong("bytes");
-        long bytes = bytesValue == null ? 0 : bytesValue;
+        // optLong, not getLong: a size that fits an int arrives as an Integer, which getLong
+        // answers with null - every file under 2 GB was refused as "download_not_allowed".
+        long bytes = call.getData().optLong("bytes", 0L);
         if (!LocalModelRules.validSha256(sha256) || bytes <= 0 || !LocalModelRules.allowedUrl(url, name)) {
             call.reject("download_not_allowed");
             return;

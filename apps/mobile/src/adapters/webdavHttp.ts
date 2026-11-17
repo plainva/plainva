@@ -1,4 +1,6 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Directory, Filesystem } from "@capacitor/filesystem";
+import { atomicWriteBytes, BRIDGE_PART_BYTES, nativeReadBytes, sweepAtomicTemps } from "../platform/atomicFile";
 import { connectionFailureCode } from "@plainva/core";
 import { logDiagnostic } from "@plainva/ui";
 
@@ -25,15 +27,63 @@ interface WebDavHttpNative {
     bodyFilePath?: string;
     bodyOffset?: number;
     bodyLength?: number;
-  }): Promise<{ status: number; headers: Record<string, string>; bodyBase64: string }>;
+  }): Promise<NativeResponse>;
   allowOrigin(options: { origin: string }): Promise<void>;
+}
+
+/**
+ * The plugin's answer. A body up to `BRIDGE_PART_BYTES` comes in it as base64;
+ * a larger one waits in `bodyFile` (relative to `bodyDirectory`, Data when
+ * absent), which is read in parts and removed - no body crosses the bridge in
+ * one message (`BRIDGE_PART_BYTES`).
+ */
+interface NativeResponse {
+  status: number;
+  headers: Record<string, string>;
+  bodyBase64?: string;
+  bodyFile?: string;
+  bodyDirectory?: "DATA" | "LIBRARY";
+  bodySize?: number;
 }
 
 const WebDavHttp = registerPlugin<WebDavHttpNative>("WebDavHttp");
 
+/** Where a large request body waits for the plugin (Data; a dot folder no vault and no Files app shows). */
+const REQUEST_FOLDER = ".plainva-http";
+
+let swept: Promise<void> | null = null;
+/** Once per lifetime: the body files a killed process left (older than ten minutes). */
+function sweepHttpFiles(): Promise<void> {
+  swept ??= (async () => {
+    try {
+      await sweepAtomicTemps(REQUEST_FOLDER);
+      if (Capacitor.getPlatform() === "ios") await sweepAtomicTemps("Caches/plainva-http", "LIBRARY");
+    } catch {
+      // silent: a folder that is not there holds nothing to sweep; what stays is swept at a later start.
+    }
+  })();
+  return swept;
+}
+
+/** The body of a native answer, read in parts where it waits in a file. */
+async function bodyOf(res: NativeResponse): Promise<Uint8Array> {
+  if (!res.bodyFile) return b64ToBytes(res.bodyBase64 ?? "");
+  const directory = res.bodyDirectory ?? "DATA";
+  try {
+    return await nativeReadBytes(res.bodyFile, directory);
+  } finally {
+    await Filesystem.deleteFile({ path: res.bodyFile, directory: directory === "LIBRARY" ? Directory.Library : Directory.Data })
+      .catch((error: unknown) => {
+        // silent: the body was read; the file is a hidden temp the next start sweeps.
+        console.warn("[webdav] a response file stays until the next start", error);
+      });
+  }
+}
+
 /** Log only a bounded code/method, never the native exception (which may
  * contain credentials, private paths or certificate subject names). */
 async function requestNative(options: Parameters<WebDavHttpNative["request"]>[0], signal?: AbortSignal | null) {
+  void sweepHttpFiles();
   try {
     return await WebDavHttp.request(options);
   } catch (error) {
@@ -133,40 +183,69 @@ const nativeFetch: typeof fetch = async (input, init) => {
   const headers: Record<string, string> = {};
   if (init?.headers) new Headers(init.headers).forEach((v, k) => (headers[k] = v));
 
-  let body: string | undefined;
-  let bodyBase64 = false;
+  let text: string | undefined;
+  let bytesBody: Uint8Array | undefined;
   const raw = init?.body;
   if (typeof raw === "string") {
-    body = raw;
+    text = raw;
   } else if (raw instanceof Uint8Array) {
-    body = bytesToB64(raw);
-    bodyBase64 = true;
+    bytesBody = raw;
   } else if (raw instanceof ArrayBuffer) {
-    body = bytesToB64(new Uint8Array(raw));
-    bodyBase64 = true;
+    bytesBody = new Uint8Array(raw);
   } else if (typeof Blob !== "undefined" && raw instanceof Blob) {
     // Drive's multipart upload builds a Blob (metadata + bytes) — without
     // this branch every NEW file push to Drive failed while folder
     // creation (JSON) worked.
-    body = bytesToB64(new Uint8Array(await raw.arrayBuffer()));
-    bodyBase64 = true;
+    bytesBody = new Uint8Array(await raw.arrayBuffer());
   } else if (ArrayBuffer.isView(raw)) {
-    body = bytesToB64(new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength));
-    bodyBase64 = true;
+    bytesBody = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
   } else if (raw instanceof URLSearchParams) {
-    body = raw.toString();
+    text = raw.toString();
   } else if (raw != null) {
     throw new Error("unsupported request body type for native WebDAV fetch");
+  }
+  // A text body is sent as its UTF-8 bytes once it is larger than one part.
+  if (text !== undefined && text.length > BRIDGE_PART_BYTES / 4) {
+    const encoded = new TextEncoder().encode(text);
+    if (encoded.length > BRIDGE_PART_BYTES) {
+      bytesBody = encoded;
+      text = undefined;
+    }
   }
 
   // A Blob may have yielded while converting its body. Do not start a native
   // write after the request was cancelled during that preparation.
   if (signal?.aborted) throw abortError(signal);
-  const call = requestNative({ url, method, headers, body, bodyBase64 }, signal);
-  const res = signal ? await raceAbort(call, signal) : await call;
-  const bytes = b64ToBytes(res.bodyBase64);
+  let staged: string | null = null;
+  let request: Parameters<WebDavHttpNative["request"]>[0];
+  if (bytesBody && bytesBody.length > BRIDGE_PART_BYTES) {
+    // A large body is written to a file in parts and streamed from there by the plugin.
+    staged = `${REQUEST_FOLDER}/.plainva-tmp-req-${crypto.randomUUID()}`;
+    await atomicWriteBytes(staged, bytesBody);
+    request = { url, method, headers, bodyFilePath: staged, bodyOffset: 0, bodyLength: bytesBody.length };
+  } else if (bytesBody) {
+    request = { url, method, headers, body: bytesToB64(bytesBody), bodyBase64: true };
+  } else {
+    request = { url, method, headers, body: text, bodyBase64: false };
+  }
+  let bytes: Uint8Array;
+  let res: NativeResponse;
+  try {
+    const call = requestNative(request, signal);
+    res = signal ? await raceAbort(call, signal) : await call;
+    bytes = await bodyOf(res);
+  } finally {
+    if (staged) {
+      const file = staged;
+      await Filesystem.deleteFile({ path: file, directory: Directory.Data })
+        .catch((error: unknown) => {
+          // silent: the request is done; the file is a hidden temp the next start sweeps.
+          console.warn("[webdav] a request body file stays until the next start", error);
+        });
+    }
+  }
   const nullBody = res.status === 204 || res.status === 205 || res.status === 304;
-  // b64ToBytes allocates fresh, so .buffer is exactly the payload.
+  // bodyOf allocates fresh (b64ToBytes or a read in parts), so .buffer is exactly the payload.
   return new Response(nullBody ? null : (bytes.buffer as ArrayBuffer), {
     status: res.status,
     headers: res.headers,
@@ -193,7 +272,7 @@ export async function webdavRequest(opts: {
   bodyLength: number;
 }): Promise<{ status: number; headers: Record<string, string>; body: string }> {
   const res = await requestNative(opts);
-  const bytes = b64ToBytes(res.bodyBase64);
+  const bytes = await bodyOf(res);
   return {
     status: res.status,
     headers: res.headers,

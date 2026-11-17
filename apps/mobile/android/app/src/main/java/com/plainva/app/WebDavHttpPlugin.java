@@ -6,8 +6,11 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -61,6 +64,16 @@ public class WebDavHttpPlugin extends Plugin {
 
     /** Hard cap for buffered response bodies (the bridge is not a streamer yet). */
     private static final long MAX_RESPONSE_BYTES = 256L * 1024 * 1024;
+    /**
+     * A response body up to this size comes back in the answer; a larger one
+     * is written to a file below the app's files dir, which the JS side reads
+     * in parts (AtomicFile.read) and removes. Every answer's text is turned
+     * into a JavaScript call on the UI thread: a 3 MB picture as one base64
+     * string there froze the app a few seconds after start (17.11.).
+     */
+    private static final int INLINE_RESPONSE_BYTES = 256 * 1024;
+    /** Where large response bodies wait for the JS side, below the files dir (`sweep` clears what a killed process left). */
+    private static final String RESPONSE_FOLDER = ".plainva-http";
 
     private static String originOf(HttpUrl url) {
         String origin = url.scheme() + "://" + url.host();
@@ -216,9 +229,10 @@ public class WebDavHttpPlugin extends Plugin {
                     return;
                 }
                 long fileLength = source.length();
-                long offset = call.getLong("bodyOffset", 0L);
-                Long lengthArg = call.getLong("bodyLength");
-                long length = lengthArg != null ? lengthArg : fileLength - offset;
+                // optLong, not getLong: a number that fits an int arrives as an Integer, which
+                // getLong answers with its default - every part of a chunked upload began at 0.
+                long offset = call.getData().optLong("bodyOffset", 0L);
+                long length = call.getData().has("bodyLength") ? call.getData().optLong("bodyLength", fileLength - offset) : fileLength - offset;
                 if (offset < 0 || length < 0 || offset + length > fileLength) {
                     call.reject("range " + offset + "+" + length + " exceeds the file (" + fileLength + " bytes)");
                     return;
@@ -259,12 +273,8 @@ public class WebDavHttpPlugin extends Plugin {
 
             @Override
             public void onResponse(Call c, Response response) {
+                File spilled = null;
                 try (Response ownedResponse = response) {
-                    byte[] bytes = ownedResponse.body() != null ? ownedResponse.body().bytes() : new byte[0];
-                    if (bytes.length > MAX_RESPONSE_BYTES) {
-                        call.reject("response exceeds the size cap");
-                        return;
-                    }
                     JSObject responseHeaders = new JSObject();
                     for (String name : response.headers().names()) {
                         responseHeaders.put(name.toLowerCase(), response.headers().get(name));
@@ -272,9 +282,51 @@ public class WebDavHttpPlugin extends Plugin {
                     JSObject ret = new JSObject();
                     ret.put("status", response.code());
                     ret.put("headers", responseHeaders);
-                    ret.put("bodyBase64", Base64.encodeToString(bytes, Base64.NO_WRAP));
+                    if (ownedResponse.body() == null) {
+                        ret.put("bodyBase64", "");
+                        call.resolve(ret);
+                        return;
+                    }
+                    InputStream in = ownedResponse.body().byteStream();
+                    ByteArrayOutputStream head = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[64 * 1024];
+                    int read;
+                    while (head.size() <= INLINE_RESPONSE_BYTES && (read = in.read(buffer)) > 0) {
+                        head.write(buffer, 0, read);
+                    }
+                    if (head.size() <= INLINE_RESPONSE_BYTES) {
+                        ret.put("bodyBase64", Base64.encodeToString(head.toByteArray(), Base64.NO_WRAP));
+                        call.resolve(ret);
+                        return;
+                    }
+                    File root = getContext().getFilesDir().getCanonicalFile();
+                    File folder = new File(root, RESPONSE_FOLDER);
+                    if (!folder.exists() && !folder.mkdirs() && !folder.exists()) throw new IOException("response folder");
+                    spilled = File.createTempFile(".plainva-tmp-http-", null, folder);
+                    long total = 0;
+                    try (FileOutputStream out = new FileOutputStream(spilled)) {
+                        head.writeTo(out);
+                        total += head.size();
+                        while ((read = in.read(buffer)) > 0) {
+                            total += read;
+                            if (total > MAX_RESPONSE_BYTES) {
+                                out.close();
+                                //noinspection ResultOfMethodCallIgnored
+                                spilled.delete();
+                                call.reject("response exceeds the size cap");
+                                return;
+                            }
+                            out.write(buffer, 0, read);
+                        }
+                    }
+                    ret.put("bodyFile", RESPONSE_FOLDER + "/" + spilled.getName());
+                    ret.put("bodySize", total);
                     call.resolve(ret);
                 } catch (IOException e) {
+                    if (spilled != null) {
+                        //noinspection ResultOfMethodCallIgnored
+                        spilled.delete();
+                    }
                     String code = HttpFailure.code(e);
                     call.reject(code, code);
                 }
