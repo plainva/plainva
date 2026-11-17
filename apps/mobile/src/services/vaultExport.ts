@@ -162,21 +162,41 @@ export class PartFileSink implements ZipSink {
   }
 }
 
-let exporting: Promise<void> | null = null;
+/** The archive being made for each vault, by vault id; exports of other vaults run one after the other. */
+const building = new Map<string, Promise<string | null>>();
+let line: Promise<unknown> = Promise.resolve();
 
 /**
- * The vault through the share sheet. One export at a time: a second tap waits
- * for the first and shares nothing of its own (two runs wrote into one file and
- * the share sheet got a broken archive). Written into a part file of its own,
- * checked like the scheduled archive, and only then handed on.
+ * The vault through the share sheet. One archive per vault at a time: a second
+ * tap while it is made waits for it and shares nothing of its own (two runs
+ * wrote into one file and the share sheet got a broken archive); an export of
+ * another vault meanwhile runs after it. The lock is free once the file is
+ * made and checked - not when the share sheet comes back, which it may never
+ * do. Written into a part file of its own, checked like the scheduled archive,
+ * and only then handed on.
  */
-export function exportVault(v: MobileVault, label: string): Promise<void> {
-  if (exporting) return exporting;
-  exporting = exportOnce(v, label).finally(() => { exporting = null; });
-  return exporting;
+export async function exportVault(v: MobileVault, label: string): Promise<void> {
+  const running = building.get(v.vaultId);
+  if (running) {
+    await running;
+    return;
+  }
+  const made = line.then(() => buildExport(v, label));
+  line = made.catch(() => {
+    // silent: this export's caller hears of its failure; the next one starts anyway.
+  });
+  building.set(v.vaultId, made);
+  let uri: string | null;
+  try {
+    uri = await made;
+  } finally {
+    if (building.get(v.vaultId) === made) building.delete(v.vaultId);
+  }
+  if (uri) await Share.share({ title: vaultExportFileName(label), url: uri });
 }
 
-async function exportOnce(v: MobileVault, label: string): Promise<void> {
+/** Makes the archive and answers where it lies (the browser build downloads it and answers null). */
+async function buildExport(v: MobileVault, label: string): Promise<string | null> {
   // The same name the desktop proposes for its export (`vaultExportFileName`).
   const name = vaultExportFileName(label);
 
@@ -189,7 +209,7 @@ async function exportOnce(v: MobileVault, label: string): Promise<void> {
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    return;
+    return null;
   }
 
   // Written as it is made, in parts (see `streamVaultZip`), into a part file of its own; checked; then moved into place.
@@ -212,7 +232,7 @@ async function exportOnce(v: MobileVault, label: string): Promise<void> {
     throw error;
   }
   const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache });
-  await Share.share({ title: name, url: uri });
+  return uri;
 }
 
 /**

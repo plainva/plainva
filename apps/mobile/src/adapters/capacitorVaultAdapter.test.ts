@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -351,6 +352,27 @@ describe("a file another program writes in place while the phone reads it (third
     } finally {
       appStorageAfterPart(null);
     }
+  });
+});
+
+describe("a file another program shortens in place while the phone reads it (fourth review)", () => {
+  it.each(["android", "ios"] as const)("is read again whole, not failed and not cut (%s)", async (system) => {
+    const { files } = fakeAppStorage(system);
+    files.set("vault/Big.md", new Uint8Array(utf8("- [ ] old\n" + "o".repeat(600 * 1024))));
+    const after = new Uint8Array(utf8("- [x] new\n" + "n".repeat(300 * 1024)));
+    let parts = 0;
+    appStorageAfterPart(() => { if (++parts === 1) appStorageWriteInPlace("vault/Big.md", after); });
+    try {
+      const bytes = await new CapacitorVaultAdapter("vault").readBinaryFile("Big.md");
+      expect(bytes.length).toBe(after.length);
+    } finally {
+      appStorageAfterPart(null);
+    }
+  });
+
+  it("Android answers a shrunk file with its new length instead of failing to read it", () => {
+    const java = readFileSync(new URL("../../android/app/src/main/java/com/plainva/app/AtomicFilePlugin.java", import.meta.url), "utf8");
+    expect(java).toMatch(/if \(now != read\.size \|\| offset \+ want > now\) \{\s*bytes = new byte\[0\];/);
   });
 });
 

@@ -249,17 +249,26 @@ public class AtomicFilePlugin extends Plugin {
         }
         try {
             read.lastUsed = System.currentTimeMillis();
-            int want = (int) Math.max(0, Math.min(Math.min(length, MAX_READ), read.size - offset));
-            byte[] bytes = new byte[want];
+            byte[] bytes;
+            long now;
             synchronized (read) {
-                read.file.seek(offset);
-                read.file.readFully(bytes);
+                // The length behind the handle now: a file written in place (not renamed) can have
+                // grown or shrunk since it was opened. Shrunk below what this part asks for, there is
+                // nothing to read whole - the answer is an empty part with the new length, and the
+                // reader starts again, as on iOS (reading on would end in an EOFException).
+                now = read.file.length();
+                int want = (int) Math.max(0, Math.min(Math.min(length, MAX_READ), read.size - offset));
+                if (now != read.size || offset + want > now) {
+                    bytes = new byte[0];
+                } else {
+                    bytes = new byte[want];
+                    read.file.seek(offset);
+                    read.file.readFully(bytes);
+                }
             }
             JSObject ret = new JSObject();
             ret.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
-            // The length behind the handle now: a file written in place (not renamed) can have grown
-            // or shrunk since it was opened, and the reader starts again rather than return part of it.
-            ret.put("size", read.file.length());
+            ret.put("size", now);
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("read failed: " + e.getMessage(), e);

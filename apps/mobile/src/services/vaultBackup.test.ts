@@ -126,7 +126,7 @@ import { Directory, Filesystem } from "@capacitor/filesystem";
 import { toast } from "@plainva/ui";
 import { buildZipFileName } from "../../../../packages/ui/src/lib/zipBackup";
 import { buildVaultZipBytes } from "./vaultExport";
-import { backupIfDue, backupState, readBackupAttempt, runVaultBackup } from "./vaultBackup";
+import { backupIfDue, backupState, backupVaultNow, loadBackupAttempt, readBackupAttempt, runVaultBackup } from "./vaultBackup";
 import { nativeFileDigest } from "../platform/atomicFile";
 
 const originalRead = vi.mocked(Filesystem.readFile).getMockImplementation()!;
@@ -339,7 +339,9 @@ describe("an archive that never crosses the bridge whole (F51)", () => {
     });
     await runVaultBackup(vault, "Vault");
     expect(seen).toMatchObject({ failures: 0, inProgress: true });
-    expect(readBackupAttempt(vault.vaultId)).toBeNull();
+    // A try ends in a written state, a success too.
+    expect(readBackupAttempt(vault.vaultId)).toMatchObject({ failures: 0 });
+    expect(readBackupAttempt(vault.vaultId)?.inProgress).toBeUndefined();
   });
 
   it("stops when it is switched off while it runs, and the part file goes", async () => {
@@ -462,6 +464,104 @@ describe("the third review: manual runs, states, vanished files, one export at a
     expect(files).toHaveLength(1);
     expect(files[0].endsWith(".zip")).toBe(true);
     expect(Object.keys(readZip(Uint8Array.from(atob(boundary.other.get(files[0])!), (c) => c.charCodeAt(0))))).toEqual(["Note.md"]);
+  });
+});
+
+describe("the third review: one try per vault, the mark is the truth, the export lock", () => {
+  const zipsIn = (folder = "Plainva Backups/Vault/") => [...boundary.documents.keys()].filter((key) => key.startsWith(folder) && key.endsWith(".zip") && key !== oldName);
+
+  it("two calls at the same moment make one try and one archive, and neither fails", async () => {
+    const [a, b] = await Promise.all([runVaultBackup(vault, "Vault"), runVaultBackup(vault, "Vault")]);
+    expect(a).toBeTruthy();
+    expect(b).toBe(a);
+    expect(zipsIn()).toHaveLength(1);
+    expect(backupState(vault.vaultId)).toMatchObject({ running: false, lastFailed: false });
+  });
+
+  it("'back up now' beside the automatic try joins it and reports its archive", async () => {
+    await Promise.all([backupIfDue(vault, "Vault"), backupVaultNow(vault, "Vault")]);
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect(vi.mocked(toast.info).mock.calls.map(([text]) => String(text))).toEqual([expect.stringMatching(/^mobile\.backupZipDone/)]);
+    expect(zipsIn()).toHaveLength(1);
+  });
+
+  it("a read of the mark that answers after the try never puts back 'running'", async () => {
+    const read = originalRead;
+    let release!: () => void;
+    const late = new Promise<void>((resume) => { release = resume; });
+    let lateRead: Promise<unknown> | null = null;
+    vi.spyOn(Filesystem, "readFile").mockImplementation(async (opts) => {
+      const answer = read(opts);
+      // The screen asks for the mark while the try runs; its answer comes after the try ended.
+      if (opts.path.startsWith("backup/") && boundary.other.has(`DATA:${opts.path}`) && !lateRead) {
+        const seen = await answer;
+        lateRead = late.then(() => seen);
+        return lateRead as never;
+      }
+      return answer;
+    });
+    const readVault = raw.readBinaryFile.bind(raw);
+    let screen: Promise<unknown> | null = null;
+    vi.spyOn(raw, "readBinaryFile").mockImplementation(async (path) => { screen ??= loadBackupAttempt(vault.vaultId); return readVault(path); });
+    await runVaultBackup(vault, "Vault");
+    release();
+    await screen;
+    expect(backupState(vault.vaultId)).toMatchObject({ lastFailed: false });
+    resetFilesystem();
+    // The next start reads the file: a written success, no failure.
+    expect((await loadBackupAttempt(vault.vaultId))?.failures).toBe(0);
+    expect((await loadBackupAttempt(vault.vaultId))?.inProgress).toBeUndefined();
+  });
+
+  it("a try whose mark cannot be written does not start", async () => {
+    const write = originalWrite;
+    vi.spyOn(Filesystem, "writeFile").mockImplementation(async (opts) => {
+      if (opts.path.startsWith("backup/")) throw new Error("disk full");
+      return write(opts);
+    });
+    await expect(runVaultBackup(vault, "Vault")).rejects.toThrow("disk full");
+    expect(zipsIn()).toEqual([]);
+  });
+
+  it("each vault has its own state: B's failure shows while A backs up", async () => {
+    const other = { ...vault, vaultId: `${vault.vaultId}-B` } as MobileVault;
+    const read = raw.readBinaryFile.bind(raw);
+    vi.spyOn(raw, "readBinaryFile").mockRejectedValueOnce(new Error("unreadable"));
+    await expect(runVaultBackup(other, "Vault B")).rejects.toThrow("unreadable");
+    let during: ReturnType<typeof backupState> | null = null;
+    vi.mocked(raw.readBinaryFile).mockImplementation(async (path) => { during ??= backupState(other.vaultId); return read(path); });
+    await runVaultBackup(vault, "Vault");
+    expect(during).toMatchObject({ running: false, lastFailed: true });
+  });
+
+  it("the export lock is free once the file is made, even if the share sheet never returns", async () => {
+    const { exportVault } = await import("./vaultExport");
+    const { Share } = await import("@capacitor/share");
+    vi.mocked(Share.share).mockImplementationOnce(() => new Promise(() => {}));
+    void exportVault(vault, "Vault");
+    await vi.waitFor(() => expect(Share.share).toHaveBeenCalledTimes(1));
+    await exportVault(vault, "Vault");
+    expect(Share.share).toHaveBeenCalledTimes(2);
+  });
+
+  it("an export of another vault meanwhile runs after the first, and both share their own", async () => {
+    const { exportVault } = await import("./vaultExport");
+    const { Share } = await import("@capacitor/share");
+    const other = { ...vault, vaultId: `${vault.vaultId}-B` } as MobileVault;
+    await Promise.all([exportVault(vault, "Vault"), exportVault(other, "Other")]);
+    const titles = vi.mocked(Share.share).mock.calls.map(([opts]) => (opts as { title: string }).title).sort();
+    expect(titles).toHaveLength(2);
+    expect(titles[0].startsWith("Other")).toBe(true);
+    expect(titles[1].startsWith("Vault")).toBe(true);
+  });
+
+  it("an export that failed does not hold the next one", async () => {
+    const { exportVault } = await import("./vaultExport");
+    const { Share } = await import("@capacitor/share");
+    vi.mocked(nativeFileDigest).mockResolvedValueOnce({ sha256: "0".repeat(64), size: 1 });
+    await expect(exportVault(vault, "Vault")).rejects.toThrow("Export verification failed");
+    await exportVault(vault, "Vault");
+    expect(Share.share).toHaveBeenCalledTimes(1);
   });
 });
 

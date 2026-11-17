@@ -2645,7 +2645,8 @@ describe("the scheduled vault archive", () => {
     const svc = readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8");
     // Measured inside the function, not from the file start — the import line
     // names the pruner long before it is used.
-    const body = svc.slice(svc.indexOf("export async function runVaultBackup"));
+    // The try itself lives in runOnce; runVaultBackup only holds the lock per vault.
+    const body = svc.slice(svc.indexOf("async function runOnce("));
     // The archive is published (renamed into place) before anything old goes.
     expect(body.indexOf("streamVaultZip(")).toBeGreaterThan(-1);
     expect(body.indexOf("Filesystem.rename(")).toBeGreaterThan(body.indexOf("streamVaultZip("));
