@@ -89,7 +89,7 @@ import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
-import { createSaveRetryTimer, type SaveRetryTimer } from "../services/saveRetryTimer";
+import { createSaveRetryTimer } from "../services/saveRetryTimer";
 
 /**
  * Text shown in the composer for a property comment, and the anchor quote.
@@ -735,9 +735,8 @@ export const Editor: React.FC<{
   // A failed save is tried again by itself, by the rule the phone keeps
   // (`saveRetryTimer.ts`, decided 2026-11-17); the status says it is planned.
   const [saveRetrying, setSaveRetrying] = useState(false);
-  const saveRetryRef = useRef<SaveRetryTimer | null>(null);
-  saveRetryRef.current ??= createSaveRetryTimer(setSaveRetrying);
-  const saveRetry = saveRetryRef.current;
+  // One timer for the pane's whole life (a lazy state, so it is made once).
+  const [saveRetry] = useState(() => createSaveRetryTimer(setSaveRetrying));
   const contentSyncTimeoutRef = useRef<number | null>(null);
   // Every asynchronous save keeps the identity and refs of its original note.
   const saveState = useMemo(() => new EditorSaveLifetime(vaultPath, activePath, vaultAdapter), [vaultPath, activePath, vaultAdapter]);
