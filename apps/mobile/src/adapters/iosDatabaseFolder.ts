@@ -63,10 +63,13 @@ import { isMissingFile } from "./fileErrors";
  *
  * A database that is deleted while it is closed here (its vault is removed,
  * a connect destination is discarded) is deleted where it lies - in
- * `Documents`, in the new folder or in both - and a mark in the new folder
- * (`<name>SQLite.db.deleted`) records the deletion first: when a file will
- * not go, the next start removes what is left before it moves anything, so a
- * deleted database is never brought back into the plugin's folder.
+ * `Documents`, in the new folder or in both - and a mark
+ * (`<name>SQLite.db.deleted`, in the new folder, or in `Documents` when the
+ * new folder takes none) records the deletion first: when a file will not
+ * go, the next start removes what is left before it moves anything, so a
+ * deleted database is never brought back into the plugin's folder. Only when
+ * neither mark can be written and a file will not go either does the
+ * deletion fail; the vault's deletion then names the index as not removed.
  *
  * A database whose files could not be moved is not opened in this lifetime:
  * the plugin would make a new, empty one in `Library` while the real one,
@@ -105,6 +108,8 @@ export interface DatabaseFolders {
   removeNew(file: string): Promise<void>;
   /** Writes a small file into the new folder (a deletion mark). */
   writeNew(file: string, text: string): Promise<void>;
+  /** Writes a small file into `Documents` (the deletion mark when the new folder takes none). */
+  writeOld(file: string, text: string): Promise<void>;
 }
 
 export interface FolderOutcome {
@@ -148,6 +153,19 @@ async function removeEverywhere(folders: DatabaseFolders, dbFile: string): Promi
   await removeNewSet(folders, dbFile);
   for (const suffix of [...COMPANIONS, ""]) {
     if (await folders.existsOld(dbFile + suffix)) await folders.removeOld(dbFile + suffix);
+  }
+}
+
+/** Removes what is left of a deleted database, then its mark; false when something stays. */
+async function finishDeletion(folders: DatabaseFolders, dbFile: string, removeMark: () => Promise<void>): Promise<boolean> {
+  try {
+    await removeEverywhere(folders, dbFile);
+    await removeMark();
+    return true;
+  } catch (error) {
+    // silent: the mark stays and the name stays closed; the next start removes the rest before anything opens.
+    console.warn(`[sqlite] ${nameOf(dbFile)} was deleted, but not all its files went; it stays closed until the next start`, error);
+    return false;
   }
 }
 
@@ -207,13 +225,7 @@ export async function moveDatabasesOutOfDocuments(folders: DatabaseFolders): Pro
   const owed = newFiles.filter((file) => file.endsWith(`${DB_SUFFIX}${DELETED}`));
   for (const mark of owed) {
     const dbFile = mark.slice(0, -DELETED.length);
-    try {
-      await removeEverywhere(folders, dbFile);
-      await folders.removeNew(mark);
-    } catch (error) {
-      console.warn(`[sqlite] ${nameOf(dbFile)} was deleted, but not all its files went; it stays closed until the next start`, error);
-      refused.add(nameOf(dbFile));
-    }
+    if (!(await finishDeletion(folders, dbFile, () => folders.removeNew(mark)))) refused.add(nameOf(dbFile));
   }
   if (owed.length > 0) {
     try {
@@ -246,7 +258,17 @@ export async function moveDatabasesOutOfDocuments(folders: DatabaseFolders): Pro
     console.warn("[sqlite] Documents could not be listed; each database looks for its own files", error);
     return { refused, unknown: false, unlisted: presentNew };
   }
-  await placeFiles(folders, files, presentNew, refused);
+  const deletedHere = new Set<string>();
+  for (const mark of files.filter((file) => file.endsWith(`${DB_SUFFIX}${DELETED}`))) {
+    const dbFile = mark.slice(0, -DELETED.length);
+    deletedHere.add(dbFile);
+    if (!(await finishDeletion(folders, dbFile, () => folders.removeOld(mark)))) refused.add(nameOf(dbFile));
+  }
+  const remaining = files.filter((file) => {
+    const dbFile = file.endsWith(DELETED) ? file.slice(0, -DELETED.length) : (companionOf(file)?.db ?? file);
+    return !deletedHere.has(dbFile);
+  });
+  await placeFiles(folders, remaining, presentNew, refused);
   return { refused, unknown: false, unlisted: null };
 }
 
@@ -289,6 +311,9 @@ export const capacitorDatabaseFolders: DatabaseFolders = {
   async writeNew(file, text) {
     await Filesystem.writeFile({ path: `${IOS_DATABASE_FOLDER}/${file}`, directory: Directory.Library, data: text, encoding: Encoding.UTF8, recursive: true });
   },
+  async writeOld(file, text) {
+    await Filesystem.writeFile({ path: file, directory: Directory.Documents, data: text, encoding: Encoding.UTF8 });
+  },
 };
 
 let outcome: Promise<FolderOutcome> | null = null;
@@ -306,6 +331,10 @@ async function settled(name: string, folders: DatabaseFolders): Promise<FolderOu
         const dbFile = `${name}${DB_SUFFIX}`;
         const own: string[] = [];
         try {
+          if (await folders.existsOld(dbFile + DELETED)) {
+            if (!(await finishDeletion(folders, dbFile, () => folders.removeOld(dbFile + DELETED)))) refused.add(name);
+            return;
+          }
           for (const suffix of ["", ...COMPANIONS]) if (await folders.existsOld(dbFile + suffix)) own.push(dbFile + suffix);
         } catch (error) {
           console.warn(`[sqlite] the files of ${name} in Documents could not be asked for; it stays closed until the next start`, error);
@@ -365,9 +394,31 @@ export async function deleteClosedDatabase(name: string, folders: DatabaseFolder
   const { refused } = await settled(name, folders);
   const dbFile = `${name}${DB_SUFFIX}`;
   refused.add(name);
-  await folders.writeNew(dbFile + DELETED, "");
+  const mark = dbFile + DELETED;
+  let removeMark: (() => Promise<void>) | null = null;
+  try {
+    await folders.writeNew(mark, "");
+    removeMark = () => folders.removeNew(mark);
+  } catch (error) {
+    console.warn(`[sqlite] the deletion mark of ${name} could not be written in the database folder; trying Documents`, error);
+    try {
+      await folders.writeOld(mark, "");
+      removeMark = () => folders.removeOld(mark);
+    } catch (second) {
+      // Without a mark the deletion is still made; only if a file will not go either does it fail.
+      console.warn(`[sqlite] no deletion mark of ${name} could be written`, second);
+    }
+  }
   await removeEverywhere(folders, dbFile);
-  await folders.removeNew(dbFile + DELETED);
+  if (removeMark) {
+    try {
+      await removeMark();
+    } catch (error) {
+      // The database is gone; the mark goes at the next start, before anything opens.
+      console.warn(`[sqlite] the deletion mark of ${name} stays until the next start`, error);
+      return;
+    }
+  }
   // Nothing of it is left anywhere: a new database of that name may open.
   refused.delete(name);
 }

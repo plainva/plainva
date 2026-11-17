@@ -130,22 +130,18 @@ export function offeredDraft<E extends DraftJournalEntry>(entries: readonly E[],
  * after a newer one, and both left the file - the phone's in `Documents` and
  * in `Library/PlainvaData`. Every entry of either copy stays; where both hold
  * the entry of one session for one note, the later revision stays (on a tie,
- * the one written last). A text that cannot be read as a journal yields to
- * one that can; `null` when neither can.
+ * the one written last). `null` when either text cannot be read as a journal:
+ * then nothing may be written over either copy.
  */
 export function mergeDraftJournals(a: string, b: string): string | null {
-  const read = (raw: string) => {
-    try {
-      return decodeDraftJournal(raw);
-    } catch {
-      return null;
-    }
-  };
-  const left = read(a);
-  const right = read(b);
-  if (!left && !right) return null;
-  if (!left) return b;
-  if (!right) return a;
+  let left: DraftJournalEntry[];
+  let right: DraftJournalEntry[];
+  try {
+    left = decodeDraftJournal(a);
+    right = decodeDraftJournal(b);
+  } catch {
+    return null;
+  }
   const key = (e: DraftJournalEntry) => JSON.stringify([e.vaultPath ?? null, e.notePath, draftSessionOf(e)]);
   const merged = new Map<string, DraftJournalEntry>();
   for (const entry of [...left, ...right]) {

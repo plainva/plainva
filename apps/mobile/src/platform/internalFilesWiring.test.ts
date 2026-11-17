@@ -12,6 +12,7 @@ const fs = vi.hoisted(() => ({
   documents: new Map<string, string>(),
   library: new Map<string, string>(),
   writes: [] as Array<{ path: string; directory?: string }>,
+  failReaddir: new Set<string>(),
 }));
 
 const missing = () => Object.assign(new Error("File does not exist"), { code: "OS-PLUG-FILE-0008" });
@@ -39,6 +40,7 @@ vi.mock("@capacitor/filesystem", () => {
         return { mtime: 1 };
       },
       readdir: async ({ path, directory }: { path: string; directory: string }) => {
+        if (fs.failReaddir.has(`${directory}:${path}`)) throw Object.assign(new Error("not permitted"), { code: "OS-PLUG-FILE-0007" });
         const names = new Map<string, string>();
         for (const key of below(tree(directory), path)) {
           const rest = key.slice(path.length + 1);
@@ -74,7 +76,7 @@ vi.mock("@capacitor/filesystem", () => {
   };
 });
 
-const { resetInternalFilesForTests } = await import("./internalFiles");
+const { listInternalFolder, resetInternalFilesForTests } = await import("./internalFiles");
 const { clearOkfJournal, readOkfJournal, writeOkfJournal } = await import("../services/okfJournal");
 const { mobileCommentOperationJournal } = await import("../services/commentOperationJournal");
 
@@ -84,6 +86,7 @@ beforeEach(() => {
   fs.documents.clear();
   fs.library.clear();
   fs.writes.length = 0;
+  fs.failReaddir.clear();
   resetInternalFilesForTests();
 });
 
@@ -110,5 +113,14 @@ describe("the app's own files on iOS", () => {
     await mobileCommentOperationJournal("v1").list().catch(() => []);
     expect([...fs.library.keys()]).toEqual(["PlainvaData/drafts/v1/comment-operations/op-1.json"]);
     expect(fs.documents.size).toBe(0);
+  });
+
+  it("lists a folder from both places while its merge is unfinished (F43)", async () => {
+    fs.library.set("PlainvaData/drafts/v1/comment-operations/op-new.json", "{}");
+    fs.documents.set("drafts/v1/comment-operations/op-old.json", "{}");
+    // The merge breaks off: Documents' drafts folder cannot be listed in this start.
+    fs.failReaddir.add("DOCUMENTS:drafts");
+    const names = (await listInternalFolder("drafts/v1/comment-operations")).map((entry) => entry.name).sort();
+    expect(names).toEqual(["op-new.json", "op-old.json"]);
   });
 });

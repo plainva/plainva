@@ -50,7 +50,11 @@ class Trees implements InternalFolders {
       this.new.set(key, entry);
     }
   }
-  async removeOld(path: string) { this.old.delete(path); }
+  failRemoveOld = new Set<string>();
+  async removeOld(path: string) {
+    if (this.failRemoveOld.has(path)) throw new Error(`remove ${path} failed`);
+    this.old.delete(path);
+  }
   async removeNew(path: string) { this.new.delete(path); }
   async removeOldFolder(path: string) {
     for (const key of [...this.old.keys()]) if (key.startsWith(`${path}/`)) throw new Error("folder not empty");
@@ -81,13 +85,13 @@ describe("moving the app's own files out of Documents", () => {
     });
   });
 
-  it("keeps the newer of two copies, whichever folder holds it", async () => {
-    trees.new.set("drafts/v1/a.json", at("new-older", 1)).set("drafts/v1/b.json", at("new-newer", 9)).set("drafts/v1/c.json", at("same-new", 5));
-    trees.old.set("drafts/v1/a.json", at("old-newer", 5)).set("drafts/v1/b.json", at("old-older", 3)).set("drafts/v1/c.json", at("same-old", 5))
-      .set("drafts/v1/d.json", at("only-old", 2));
+  it("keeps the newer of two copies of a file that is no draft journal, whichever folder holds it", async () => {
+    trees.new.set("ai/v1/a.json", at("new-older", 1)).set("ai/v1/b.json", at("new-newer", 9)).set("ai/v1/c.json", at("same-new", 5));
+    trees.old.set("ai/v1/a.json", at("old-newer", 5)).set("ai/v1/b.json", at("old-older", 3)).set("ai/v1/c.json", at("same-old", 5))
+      .set("ai/v1/d.json", at("only-old", 2));
     await moveInternalFilesOutOfDocuments(trees);
     expect(trees.old.size).toBe(0);
-    expect(contents(trees.new)).toEqual({ "drafts/v1/a.json": "old-newer", "drafts/v1/b.json": "new-newer", "drafts/v1/c.json": "same-new", "drafts/v1/d.json": "only-old" });
+    expect(contents(trees.new)).toEqual({ "ai/v1/a.json": "old-newer", "ai/v1/b.json": "new-newer", "ai/v1/c.json": "same-new", "ai/v1/d.json": "only-old" });
   });
 
   it("a merge that ends half way loses nothing, and the next start finishes it", async () => {
@@ -240,5 +244,62 @@ describe("after a step back to an older build (F43)", () => {
       const found = place.directory === "DATA" ? t.old.get(REL) : t.new.get(REL);
       expect({ failAt, found: found?.data }).toEqual({ failAt, found: "rollback image" });
     }
+  });
+});
+
+const entriesOf = (...entries: Array<[session: string, revision: number]>) =>
+  JSON.stringify({ version: 2, entries: entries.map(([session, revision]) => ({ notePath: "Note.md", text: `${session}@${revision}`, revision, savedAt: revision, sessionId: session })) });
+const textsIn = (raw: string) => (JSON.parse(raw) as { entries: Array<{ text: string }> }).entries.map((e) => e.text).sort();
+
+describe("a draft journal is never decided by its time (F43, third round)", () => {
+  const DRAFT = "drafts/v1/Tm90ZS5tZA==.json";
+
+  it("keeps every entry of both copies whichever single step fails, and the next start joins them", async () => {
+    const fresh = () => {
+      const t = new Trees();
+      t.old.set(DRAFT, at(entriesOf(["old-run", 3], ["shared", 1]), 5));
+      t.new.set(DRAFT, at(entriesOf(["new-run", 7], ["shared", 2]), 9));
+      return t;
+    };
+    const total = faulty(fresh(), {});
+    await moveInternalFilesOutOfDocuments(total);
+    for (let failAt = 1; failAt <= total.ops; failAt += 1) {
+      const t = fresh();
+      await moveInternalFilesOutOfDocuments(faulty(t, { failAt }));
+      await moveInternalFilesOutOfDocuments(t);
+      expect({ failAt, old: t.old.size, entries: textsIn(t.new.get(DRAFT)!.data) }).toEqual({ failAt, old: 0, entries: ["new-run@7", "old-run@3", "shared@2"] });
+    }
+  });
+
+  it("never removes or writes over a copy that is no journal, and reads the one that is", async () => {
+    trees.old.set(DRAFT, at("{ torn", 9));
+    trees.new.set(DRAFT, at(entriesOf(["new-run", 7]), 5));
+    expect(await internalPlace(DRAFT, trees)).toEqual({ directory: "LIBRARY", path: `${IOS_INTERNAL_FOLDER}/${DRAFT}` });
+    expect(trees.old.get(DRAFT)?.data).toBe("{ torn");
+    expect(textsIn(trees.new.get(DRAFT)!.data)).toEqual(["new-run@7"]);
+
+    resetInternalFilesForTests();
+    trees = new Trees();
+    trees.old.set(DRAFT, at(entriesOf(["old-run", 3]), 5));
+    trees.new.set(DRAFT, at("{ torn", 9));
+    expect(await internalPlace(DRAFT, trees)).toEqual({ directory: "DATA", path: DRAFT });
+    expect(trees.new.get(DRAFT)?.data).toBe("{ torn");
+    expect(textsIn(trees.old.get(DRAFT)!.data)).toEqual(["old-run@3"]);
+  });
+
+  it("a draft discarded after the copy in Documents would not go stays discarded", async () => {
+    trees.old.set(DRAFT, at(entriesOf(["old-run", 3]), 5));
+    trees.new.set(DRAFT, at(entriesOf(["new-run", 7]), 9));
+    trees.failRemoveOld.add(DRAFT);
+    await moveInternalFilesOutOfDocuments(trees);
+    expect(textsIn(trees.new.get(DRAFT)!.data)).toEqual(["new-run@7", "old-run@3"]);
+    // The person discards the older build's draft in this lifetime.
+    trees.new.set(DRAFT, at(entriesOf(["new-run", 7]), 20));
+
+    trees.failRemoveOld.clear();
+    await moveInternalFilesOutOfDocuments(trees);
+    expect(trees.old.size).toBe(0);
+    expect(textsIn(trees.new.get(DRAFT)!.data)).toEqual(["new-run@7"]);
+    expect([...trees.new.keys()].filter((key) => key.startsWith(".joined/"))).toEqual([]);
   });
 });

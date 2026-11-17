@@ -42,7 +42,12 @@ class Folders implements DatabaseFolders {
     return this.old.has(file);
   }
   async existsNew(file: string) { return this.new.has(file); }
-  async writeNew(file: string, text: string) { this.new.set(file, text); }
+  failWriteNew = false;
+  async writeNew(file: string, text: string) {
+    if (this.failWriteNew) throw new Error("write failed");
+    this.new.set(file, text);
+  }
+  async writeOld(file: string, text: string) { this.old.set(file, text); }
   async moveToNew(file: string) {
     if (this.failMove.has(file)) throw new Error(`rename ${file} failed`);
     const data = this.old.get(file);
@@ -282,7 +287,7 @@ describe("the refusal before a database opens", () => {
 /** Every operation, with the lifetime ending at operation `crashAt` (the app is ended there). */
 function crashing(source: Folders, crashAt: number): DatabaseFolders & { ops: number } {
   const wrapped = { ops: 0 } as DatabaseFolders & { ops: number };
-  for (const name of ["listOld", "listNew", "existsOld", "existsNew", "moveToNew", "removeOld", "removeNew", "writeNew"] as const) {
+  for (const name of ["listOld", "listNew", "existsOld", "existsNew", "moveToNew", "removeOld", "removeNew", "writeNew", "writeOld"] as const) {
     (wrapped as unknown as Record<string, unknown>)[name] = async (...args: unknown[]) => {
       wrapped.ops += 1;
       if (crashAt >= 0 && wrapped.ops >= crashAt) throw new Error("the app was ended");
@@ -371,6 +376,60 @@ describe("deleting a database that is closed (F43)", () => {
       resetDatabaseFolderForTests();
       expect({ crashAt, refusal: await databaseFolderRefusal("plainva-v1", f) }).toEqual({ crashAt, refusal: null });
       expect({ crashAt, old: [...f.old.keys()], db: f.new.get(DB), wal: f.new.get(`${DB}-wal`) }).toEqual({ crashAt, old: [], db: "db", wal: "wal" });
+    }
+  });
+});
+
+/** Every operation, with operation `failAt` failing once. */
+function failingOnce(source: Folders, failAt: number): DatabaseFolders & { ops: number } {
+  const wrapped = { ops: 0 } as DatabaseFolders & { ops: number };
+  for (const name of ["listOld", "listNew", "existsOld", "existsNew", "moveToNew", "removeOld", "removeNew", "writeNew", "writeOld"] as const) {
+    (wrapped as unknown as Record<string, unknown>)[name] = async (...args: unknown[]) => {
+      wrapped.ops += 1;
+      if (wrapped.ops === failAt) throw Object.assign(new Error(`injected failure of ${name}`), { code: "OS-PLUG-FILE-0013" });
+      return (source[name] as unknown as (...a: unknown[]) => Promise<unknown>).apply(source, args);
+    };
+  }
+  return wrapped;
+}
+
+describe("a deletion is never forgotten (F43, third round)", () => {
+  it("marks the deletion in Documents when the database folder takes no mark", async () => {
+    folders.old.set(DB, "db").set(`${DB}-wal`, "wal");
+    folders.failMove.add(DB);
+    folders.failWriteNew = true;
+    folders.failRemoveOld.add(DB);
+    await expect(deleteClosedDatabase("plainva-v1", folders)).rejects.toThrow();
+
+    resetDatabaseFolderForTests();
+    folders.failMove.clear();
+    folders.failWriteNew = false;
+    folders.failRemoveOld.clear();
+    expect(await databaseFolderRefusal("plainva-v1", folders)).toBeNull();
+    expect({ old: [...folders.old.keys()], new: [...folders.new.keys()] }).toEqual({ old: [], new: [] });
+  });
+
+  it("finishes the deletion at the next start whichever single step fails", async () => {
+    const fresh = () => {
+      const f = new Folders();
+      f.old.set(DB, "db").set(`${DB}-wal`, "wal").set("plainva-v10SQLite.db", "neighbour");
+      f.failMove.add(DB);
+      return f;
+    };
+    const total = failingOnce(fresh(), -1);
+    await databaseFolderRefusal("plainva-v1", total);
+    await deleteClosedDatabase("plainva-v1", total);
+    for (let failAt = 1; failAt <= total.ops; failAt += 1) {
+      const f = fresh();
+      resetDatabaseFolderForTests();
+      const run = failingOnce(f, failAt);
+      await databaseFolderRefusal("plainva-v1", run);
+      await deleteClosedDatabase("plainva-v1", run).catch(() => {});
+      resetDatabaseFolderForTests();
+      f.failMove.clear();
+      await databaseFolderRefusal("plainva-v1", f);
+      const left = [...f.old.keys(), ...f.new.keys()].filter((file) => file.startsWith("plainva-v1SQLite"));
+      expect({ failAt, left, neighbour: f.new.get("plainva-v10SQLite.db") ?? f.old.get("plainva-v10SQLite.db") }).toEqual({ failAt, left: [], neighbour: "neighbour" });
     }
   });
 });

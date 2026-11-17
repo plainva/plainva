@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
-import { mergeDraftJournals } from "@plainva/ui";
+import { decodeDraftJournal, mergeDraftJournals } from "@plainva/ui";
 import { isExistingDirectory, isMissingFile } from "../adapters/fileErrors";
 
 /**
@@ -28,12 +28,18 @@ import { isExistingDirectory, isMissingFile } from "../adapters/fileErrors";
  *    file by file. A file only in `Documents` moves. Where both hold a draft
  *    journal (`drafts/<vault>/<note>.json`, one entry per session), the two
  *    become one with every entry of either (`mergeDraftJournals`): each copy
- *    holds drafts the other does not. Where both hold any other file, the one
- *    written last stays and the other is removed - a newer state is never
- *    replaced by an older one. Each step is a rename, a removal or an atomic
- *    write of the joined journal before the old copy goes, so a start that
- *    ends in between leaves files the next start sorts the same way. Folders
- *    left empty in `Documents` are removed.
+ *    holds drafts the other does not, so a journal is never decided by its
+ *    time. When one copy cannot be read or is no journal, both stay as they
+ *    are - nothing is written over either - and the readable one is used
+ *    until a later start can join them. Before the joined copy's original in
+ *    `Documents` goes, a mark (`.joined/<path>` in the new place, holding that
+ *    copy's time) says it is joined already: when the removal fails, the next
+ *    start only removes it, and a draft discarded in between stays discarded.
+ *    Where both hold any other file, the one written last stays and the other
+ *    is removed - a newer state is never replaced by an older one. Each step
+ *    is a rename, a removal or an atomic write, so a start that ends in
+ *    between leaves files the next start sorts the same way. Folders left
+ *    empty in `Documents` are removed.
  *  - a folder that could not be renamed stays where it is and is used there
  *    for this lifetime; the next start tries again.
  *  - what stays in `Documents` during a merge is still read there in this
@@ -41,7 +47,8 @@ import { isExistingDirectory, isMissingFile } from "../adapters/fileErrors";
  *    not move, and - when the merge broke off (a listing failed) - every file
  *    that is still in `Documents`. A reader never takes "not in the new place"
  *    for "not there": an interrupted profile import would lose the way back,
- *    and the next start would keep the newer, empty answer.
+ *    and the next start would keep the newer, empty answer. A listing of such
+ *    a folder shows both places (`listInternalFolder`).
  */
 
 export const INTERNAL_FOLDERS = ["drafts", "profile-journal", "okf-journal", "ai"] as const;
@@ -101,14 +108,59 @@ function parentOf(path: string): string {
 /** A draft journal, one entry per session: joined rather than replaced. */
 const DRAFT_JOURNAL = /^drafts\/[^/]+\/[^/]+\.json$/;
 
-/** The two copies as one, where the file's folder knows how; `null` otherwise (or when one cannot be read). */
-async function joined(folders: InternalFolders, path: string): Promise<string | null> {
-  if (!DRAFT_JOURNAL.test(path)) return null;
+/**
+ * The mark of a journal whose copy in `Documents` is joined into the new one
+ * already: it holds that copy's time, so a later start only removes the copy -
+ * joining it again would bring back an entry discarded in between.
+ */
+const joinedMark = (path: string) => `.joined/${path}`;
+
+/** A copy's text when it reads as a draft journal; `null` when it cannot be read or is no journal. */
+async function journalText(read: () => Promise<string>): Promise<string | null> {
   try {
-    return mergeDraftJournals(await folders.readOld(path), await folders.readNew(path));
+    const raw = await read();
+    decodeDraftJournal(raw);
+    return raw;
   } catch {
     return null;
   }
+}
+
+/**
+ * Both copies of a draft journal (see the module comment). A journal is never
+ * decided by its time: both copies are joined, or - when one cannot be read
+ * or is no journal - both stay as they are, and the readable one is used in
+ * this lifetime (`true`: the copy in `Documents`).
+ */
+async function sortJournal(folders: InternalFolders, path: string, oldTime: number): Promise<boolean> {
+  const mark = joinedMark(path);
+  if (await folders.existsNew(mark)) {
+    if ((await folders.readNew(mark)) === String(oldTime)) {
+      await folders.removeOld(path);
+      await folders.removeNew(mark);
+      return false;
+    }
+    // The copy in Documents was written again since (an older build ran once more): join it.
+    await folders.removeNew(mark);
+  }
+  const old = await journalText(() => folders.readOld(path));
+  const current = await journalText(() => folders.readNew(path));
+  if (old === null || current === null) {
+    console.warn(`[internal-files] ${path} is in both places and one copy cannot be read; both stay until the next start`);
+    return old !== null;
+  }
+  const both = mergeDraftJournals(old, current);
+  if (both === null) return false;
+  await folders.writeNew(path, both);
+  try {
+    await folders.writeNew(mark, String(oldTime));
+  } catch (error) {
+    // silent: without the mark a failed removal below is joined again at the next start - nothing is lost, a discarded draft may be offered once more.
+    console.warn(`[internal-files] the joined mark of ${path} could not be written`, error);
+  }
+  await folders.removeOld(path);
+  await folders.removeNew(mark);
+  return false;
 }
 
 async function mergeFolder(folders: InternalFolders, folder: InternalFolder, pending: Set<string>): Promise<void> {
@@ -119,11 +171,9 @@ async function mergeFolder(folders: InternalFolders, folder: InternalFolder, pen
     let oldCounts = true;
     try {
       if (await folders.existsNew(path)) {
-        const both = await joined(folders, path);
-        if (both !== null) {
-          await folders.writeNew(path, both);
+        if (DRAFT_JOURNAL.test(path)) {
           oldCounts = false;
-          await folders.removeOld(path);
+          if (await sortJournal(folders, path, file.mtime)) pending.add(path);
           continue;
         }
         // The one written last stays; on a tie, the one already in place.
@@ -267,6 +317,54 @@ export async function internalPlace(rel: string, folders: InternalFolders = capa
     }
   }
   return { directory: Directory.Library, path: under(rel) };
+}
+
+export interface InternalEntry {
+  name: string;
+  type: "file" | "directory";
+  mtime: number | null;
+}
+
+/**
+ * The entries of a folder of the app's own files (`rel` starts with one of
+ * `INTERNAL_FOLDERS`). Where a merge left files in `Documents` that are read
+ * there (`internalPlace`), the folder is listed in both places and an entry
+ * read in `Documents` is listed from there - a listing never hides a file a
+ * read would find. A folder that is missing in a place lists nothing there;
+ * any other failure throws.
+ */
+export async function listInternalFolder(rel: string, folders: InternalFolders = capacitorInternalFolders): Promise<InternalEntry[]> {
+  const listing = async (place: InternalPlace): Promise<InternalEntry[]> => {
+    try {
+      const { files } = await Filesystem.readdir({ path: place.path, directory: place.directory });
+      // An answer that is not a listing is never taken for an empty folder.
+      if (!Array.isArray(files) || files.some((entry) => !entry || typeof entry.name !== "string" || !entry.name || (entry.type !== "file" && entry.type !== "directory"))) {
+        throw new Error(`The listing of ${rel} could not be confirmed`);
+      }
+      return files.map((entry) => ({ name: entry.name, type: entry.type, mtime: typeof entry.mtime === "number" ? entry.mtime : null }));
+    } catch (error) {
+      if (isMissingFile(error)) return [];
+      throw error;
+    }
+  };
+  const place = await internalPlace(rel, folders);
+  if (Capacitor.getPlatform() !== "ios") return listing(place);
+  const folder = folderOf(rel);
+  const { stayed, pending, split } = await outcome!;
+  if (stayed.has(folder)) return listing(place);
+  const below = `${rel}/`;
+  const library: InternalPlace = { directory: Directory.Library, path: under(rel) };
+  const someInDocuments = split.has(folder) || [...pending].some((path) => path.startsWith(below));
+  if (!someInDocuments) return listing(library);
+  const inLibrary = await listing(library);
+  const inDocuments = await listing({ directory: Directory.Data, path: rel });
+  const entries = new Map<string, InternalEntry>();
+  for (const entry of inLibrary) entries.set(entry.name, entry);
+  for (const entry of inDocuments) {
+    const read = await internalPlace(`${rel}/${entry.name}`, folders);
+    if (read.directory !== Directory.Library || !entries.has(entry.name)) entries.set(entry.name, entry);
+  }
+  return [...entries.values()];
 }
 
 /** Tests only: a new JavaScript lifetime. */
