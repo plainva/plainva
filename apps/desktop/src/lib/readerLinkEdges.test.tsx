@@ -7,6 +7,7 @@ import remarkMath from "remark-math";
 import { prepareReaderSource } from "@plainva/core";
 import { markdownToPlainText } from "@plainva/ui";
 import { remarkStripHtmlComments } from "../components/markdownReaderModel";
+import FROZEN_MAIN from "./readerFormulas.main.json";
 
 /**
  * Edges of the reading view (Fehlerliste 0.9.0, B3 to B5), through the text
@@ -57,25 +58,14 @@ describe("the reading view of a wiki link", () => {
     expect(formulas(inside)).toEqual(["y", "z"]);
   });
 
-  // The rule of the coordination: the reading view renders every formula it
-  // rendered before B4, which may only keep a formula from taking a link.
-  it("renders the formulas of a note without a link in one as it always did", () => {
-    const forms = [
-      "$$a$$ is the area, $b$ the base\n\nLater: $x^2$ and $y$.\n\n- $z$",
-      "Cost: $$\n\nLater $x^2$ here",
-      "$$\\frac{a}{b}$$ inline then text\n\n$c$",
-      "- $$\n  x\n  $$",
-      "> $$\n> x = 1\n> $$\n\n> [!note] Title\n> $$\n> y\n> $$",
-      "Text $a$\n```\n$$\n```\nmore $b$",
-      "`$$`\n\nthen $x$",
-      "$$ x $$ hm\n$y$",
-      "A formula over\na line $a +\nb$ and [[Link]] after",
-      "[[Link]] and $ x $ and $5 or $6 and \\$7",
-      "[Graph](https://graph.microsoft.com/v1.0/me/events?$filter=start) with [[Link]] and $k$",
-      "<https://e.com/?$top=5> [[Link]] $m$",
-      "| $a$ | [[Link]] |\n|---|---|\n| $$b$$ | c |",
-      "- item $p$ [[Link]]\n  - nested $$q$$",
-    ];
-    for (const form of forms) expect(html(form, true), form).toBe(html(form, false));
+  // The rule of the coordination (Fehlerliste 0.9.0, F45): the reading view
+  // renders every formula it rendered before B4, which may only keep a
+  // formula from taking a wiki link. The renderings are main's as of
+  // 2026-11-17 (`readerFormulas.main.json`), frozen: `$` in an alias and in a
+  // name of a link, forms without a link in a formula, and formulas over a
+  // link whose signs cannot be taken out unseen — behind a backslash, in an
+  // address, in code — which stay as they were.
+  it("renders as main rendered, frozen", () => {
+    for (const [form, rendered] of Object.entries(FROZEN_MAIN as Record<string, string>)) expect(html(form, true), form).toBe(rendered);
   });
 });

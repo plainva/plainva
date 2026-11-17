@@ -317,6 +317,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   const tree = treeFor(clean.text);
   const paragraphs: SourceNode[] = [];
   const links: Array<[number, number]> = [];
+  const linkEdits: ReaderEdit[] = [];
   const literals: Array<[number, number]> = [];
   const walk = (node: SourceNode, inLink = false) => {
     if (node.position && node.type === "yaml") edits.push({ from: node.position.start.offset, to: node.position.end.offset, text: "" });
@@ -350,7 +351,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
           ?? (/\.(?:png|jpe?g|gif|svg|webp|bmp|avif)(?:\||$)/i.test(target) ? "image" : "note");
         const scheme = kind === "note" ? "embed" : kind;
         const alt = kind === "image" ? "img" : kind === "audio" ? "audio" : "embed";
-        edits.push({ from, to, text: `![${alt}](wiki-${scheme}://${encodeTarget(target)})`, embed: kind === "note" ? target : undefined });
+        { const edit: ReaderEdit = { from, to, text: `![${alt}](wiki-${scheme}://${encodeTarget(target)})`, embed: kind === "note" ? target : undefined }; edits.push(edit); linkEdits.push(edit); }
       } else {
         const target = inner.slice(0, parts.headEnd);
         const labelFrom = innerFrom + (parts.aliasStart < 0 ? 0 : parts.aliasStart);
@@ -380,7 +381,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
           text += spelled.text;
           at = spelled.at + 1;
         }
-        edits.push({ from, to, text: `${text}](wiki://${encodeTarget(target)})`, visible });
+        { const edit: ReaderEdit = { from, to, text: `${text}](wiki://${encodeTarget(target)})`, visible }; edits.push(edit); linkEdits.push(edit); }
       }
     }
     if (node.type !== "code" && node.type !== "inlineCode" && node.type !== "html") {
@@ -395,13 +396,6 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     }
     return false;
   };
-  // A formula keeps no wiki link: where the renderer's formula plugin would
-  // read one over a link (`Preis $3 [[Notiz]] und $4`), the `$` that open and
-  // close it are shown as the signs they are, and the link is a link
-  // (Fehlerliste 0.9.0, B4). Every other formula reads as it always did.
-  if (options.formulas && links.length > 0 && clean.text.includes("$")) {
-    for (const at of signsOfSwallowingFormulas(clean.text, links, options.formulas)) edits.push({ from: at, to: at + 1, text: "\\$" });
-  }
   // A line under a line of a paragraph that a table would read as its
   // delimiter row stays a line of the paragraph: a link that hides the bar of
   // its alias (`[[a|b]] | c` over `|---|---|`) takes one cell from the line
@@ -435,31 +429,56 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   if (marks > 0) edits.push({ from: 0, to: marks, text: "" });
   for (const block of analyzeNoteSource(raw).blocks) edits.push({ from: clean.toClean(block.markerFrom), to: clean.toClean(block.markerTo), text: "" });
   for (const match of clean.text.matchAll(/\r\n/g)) if (!edits.some((e) => e.from <= match.index && e.to > match.index)) edits.push({ from: match.index, to: match.index + 2, text: "\n" });
-  edits.sort((a, b) => a.from - b.from || b.to - a.to);
-  const spans: ReaderSpan[] = [];
-  const visible: ReaderSpan[] = [];
-  const embeds: ReaderSource["embeds"] = [];
-  const parts: string[] = [];
-  let cursor = 0, length = 0;
-  const add = (from: number, to: number, text: string, exact: boolean) => {
-    spans.push({ from, to, start: length, end: length + text.length, exact });
-    parts.push(text); length += text.length;
+  const compose = (list: ReaderEdit[]) => {
+    list.sort((a, b) => a.from - b.from || b.to - a.to);
+    const spans: ReaderSpan[] = [];
+    const visible: ReaderSpan[] = [];
+    const embeds: ReaderSource["embeds"] = [];
+    const placed = new Map<ReaderEdit, readonly [number, number]>();
+    const parts: string[] = [];
+    let cursor = 0, length = 0;
+    const add = (from: number, to: number, text: string, exact: boolean) => {
+      spans.push({ from, to, start: length, end: length + text.length, exact });
+      parts.push(text); length += text.length;
+    };
+    for (const edit of list) {
+      if (edit.from < cursor) continue;
+      if (edit.from > cursor) add(cursor, edit.from, clean.text.slice(cursor, edit.from), true);
+      for (const stretch of edit.visible ?? []) visible.push({ from: stretch.from, to: stretch.to, start: length + stretch.start, end: length + stretch.end, exact: true });
+      if (edit.embed) embeds.push({ from: length, to: length + edit.text.length, target: edit.embed });
+      placed.set(edit, [length, length + edit.text.length]);
+      add(edit.from, edit.to, edit.text, false);
+      cursor = edit.to;
+    }
+    add(cursor, clean.text.length, clean.text.slice(cursor), true);
+    return { text: parts.join(""), spans, visible, embeds, placed, length };
   };
-  for (const edit of edits) {
-    if (edit.from < cursor) continue;
-    if (edit.from > cursor) add(cursor, edit.from, clean.text.slice(cursor, edit.from), true);
-    for (const stretch of edit.visible ?? []) visible.push({ from: stretch.from, to: stretch.to, start: length + stretch.start, end: length + stretch.end, exact: true });
-    if (edit.embed) embeds.push({ from: length, to: length + edit.text.length, target: edit.embed });
-    add(edit.from, edit.to, edit.text, false);
-    cursor = edit.to;
+  let composed = compose(edits);
+  // A formula keeps no wiki link: where the renderer's formula plugin, reading
+  // the text it is handed, would read one over a link (`Preis $3 [[Notiz]]
+  // und $4`), the `$` that open and close it are shown as the signs they are,
+  // and the link is a link (Fehlerliste 0.9.0, B4). Where a sign cannot be
+  // taken out unseen — in an address, in code, behind a backslash, or written
+  // by this preparation —, the formula stays as it always was.
+  if (options.formulas && linkEdits.length > 0 && composed.text.includes("$")) {
+    const linked = linkEdits.map((edit) => composed.placed.get(edit)).filter((range): range is readonly [number, number] => range !== undefined);
+    const own = (at: number) => composed.spans.find((stretch) => stretch.exact && stretch.start <= at && at < stretch.end);
+    const signs = signsOfSwallowingFormulas(composed.text, linked, options.formulas, (at) => own(at) === undefined);
+    if (signs.length > 0) {
+      for (const at of signs) {
+        const span = own(at)!;
+        edits.push({ from: span.from + at - span.start, to: span.from + at - span.start + 1, text: "\\$" });
+      }
+      composed = compose(edits);
+    }
   }
-  add(cursor, clean.text.length, clean.text.slice(cursor), true);
+  const { spans, visible, embeds, length } = composed;
   const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => list.find((span) => {
     const a = original ? span.from : span.start, b = original ? span.to : span.end;
     return edge === "start" ? a <= offset && offset < b : a < offset && offset <= b;
   });
   return {
-    text: parts.join(""),
+    text: composed.text,
     embeds,
     toRendered(offset, edge = "start") {
       const at = clean.toClean(Math.max(0, Math.min(raw.length, offset)));
@@ -496,52 +515,99 @@ function delimiterRowDash(line: string): number {
 
 /**
  * The `$` that open and close the formulas the renderer's formula `plugin`
- * would read over one of `links` (offsets in `text`, in order). With those
- * signs taken out, the next `$` may pair anew: the text is read again, with
- * the taken ones masked by a sign of the same width and class, until no
- * formula holds a link — or the rounds are used up, as a long paragraph of
- * `$` and links must not cost a reading per pair. A sign inside a link stays,
- * the link's own text.
+ * reads over one of `links` in `text` — the text the renderer is handed, with
+ * the places of its wiki links (in order). With those signs taken out, the
+ * next `$` may pair anew: the text is read again, with the taken ones masked
+ * by a sign of the same width and class, until no formula holds a link — or
+ * the rounds are used up, as a long paragraph of `$` and links must not cost
+ * a reading per pair. A formula whose sign cannot be taken out unseen stays
+ * as it is: one behind a backslash (a second one would be shown), one this
+ * preparation wrote (it has no place in the note to escape), and one
+ * that, taken out, stands in an address, a link, code or HTML (it would
+ * change the address, or be shown with its backslash).
  */
-function signsOfSwallowingFormulas(text: string, links: ReadonlyArray<readonly [number, number]>, plugin: Pluggable): number[] {
+function signsOfSwallowingFormulas(text: string, links: ReadonlyArray<readonly [number, number]>, plugin: Pluggable, written: (at: number) => boolean): number[] {
   const MASK = "\u00a4";
-  const taken = new Set<number>();
-  let masked = text;
-  const inLink = (at: number) => {
-    const n = lastStartingBefore(links, at + 1);
-    return n >= 0 && at < links[n][1];
-  };
+  const sorted = [...links].sort((x, y) => x[0] - y[0]);
   const holdsLink = (from: number, to: number) => {
-    const n = lastStartingBefore(links, to);
-    return n >= 0 && links[n][1] > from;
+    const n = lastStartingBefore(sorted, to);
+    return n >= 0 && sorted[n][1] > from;
   };
-  for (let round = 0; round < 8; round++) {
-    const found: number[] = [];
+  const escaped = (at: number) => {
+    let slashes = 0;
+    while (at - slashes - 1 >= 0 && text[at - slashes - 1] === "\\") slashes++;
+    return slashes % 2 === 1;
+  };
+  /** The signs of each formula taken out, by its first sign. */
+  const taken = new Map<number, number[]>();
+  /** The first signs of formulas that stay as they are. */
+  const kept = new Set<number>();
+  const LITERAL = new Set(["link", "linkReference", "image", "imageReference", "definition", "inlineCode", "code", "html"]);
+  const read = (masked: string) => {
+    const literal: Array<[number, number]> = [];
+    const formulas: Array<[number, number]> = [];
     const visit = (node: SourceNode) => {
       if (node.position && (node.type === "inlineMath" || node.type === "math")) {
-        const from = node.position.start.offset, to = node.position.end.offset;
-        if (holdsLink(from, to)) {
-          let at = from;
-          while (at < to && (masked[at] === " " || masked[at] === "\t")) at++;
-          while (at < to && masked[at] === "$") found.push(at++);
-          let end = to;
-          while (end > at && /\s/.test(masked[end - 1])) end--;
-          while (end > at && masked[end - 1] === "$") found.push(--end);
-        }
+        formulas.push([node.position.start.offset, node.position.end.offset]);
+        return;
+      }
+      if (node.position && LITERAL.has(node.type)) {
+        literal.push([node.position.start.offset, node.position.end.offset]);
         return;
       }
       for (const child of node.children ?? []) visit(child);
     };
     visit(parseMarkdownTreeWith(masked, plugin) as unknown as SourceNode);
-    if (found.length === 0) break;
-    const chars = masked.split("");
-    for (const at of found) {
-      chars[at] = MASK;
-      if (!inLink(at)) taken.add(at);
+    literal.sort((x, y) => x[0] - y[0]);
+    return { literal, formulas };
+  };
+  const signsOf = (masked: string, from: number, to: number): number[] => {
+    const signs: number[] = [];
+    let at = from;
+    while (at < to && (masked[at] === " " || masked[at] === "\t")) at++;
+    while (at < to && masked[at] === "$") signs.push(at++);
+    let end = to;
+    while (end > at && /\s/.test(masked[end - 1])) end--;
+    while (end > at && masked[end - 1] === "$") signs.push(--end);
+    return signs;
+  };
+  const maskedText = () => {
+    const chars = text.split("");
+    for (const signs of taken.values()) for (const at of signs) chars[at] = MASK;
+    return chars.join("");
+  };
+  for (let round = 0; round < 9; round++) {
+    const masked = maskedText();
+    const { literal, formulas } = read(masked);
+    // A taken sign that now stands in an address, a link or code: its
+    // formula is given back, and stays.
+    let given = false;
+    for (const [first, signs] of [...taken]) {
+      if (signs.some((at) => inLiteral(literal, at))) {
+        taken.delete(first);
+        kept.add(first);
+        given = true;
+      }
     }
-    masked = chars.join("");
+    if (given) continue;
+    if (round === 8) break;
+    let found = false;
+    for (const [from, to] of formulas) {
+      if (!holdsLink(from, to)) continue;
+      const signs = signsOf(masked, from, to);
+      if (signs.length === 0 || kept.has(signs[0])) continue;
+      if (signs.some((at) => escaped(at) || written(at))) {
+        kept.add(signs[0]);
+        continue;
+      }
+      taken.set(signs[0], signs);
+      found = true;
+    }
+    if (!found) break;
   }
-  return [...taken].sort((x, y) => x - y);
+  const { literal } = read(maskedText());
+  for (const [first, signs] of [...taken]) if (signs.some((at) => inLiteral(literal, at))) taken.delete(first);
+  return [...taken.values()].flat().sort((x, y) => x - y);
 }
 
 /** Whether `at` stands in one of `stretches` (in order, without overlap). */
