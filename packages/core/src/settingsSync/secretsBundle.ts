@@ -45,7 +45,11 @@ export interface SecretBinding {
   family: string;
   service: "calendar" | "mail" | "files";
   secretType: SecretType;
-  /** Lowercased user/login. */
+  /**
+   * The user/login exactly as the account signs in with it, only trimmed
+   * (`secretBindingUser`). Clients up to 0.8.7 wrote it lower-cased; such an
+   * entry is still read (see `isLegacyLowerCaseUser`).
+   */
   user: string;
   /** Canonical endpoint fingerprint (see canonicalizeEndpoint). */
   endpoint: string;
@@ -142,8 +146,43 @@ export function canonicalSecretId(
   } catch {
     endpoint = binding.endpoint.trim();
   }
-  const user = binding.user.trim().toLowerCase();
-  return `s1:${binding.service}:${binding.secretType}:${encodeURIComponent(user)}@${encodeURIComponent(endpoint)}`;
+  const user = bindingUserKey(binding.service, binding.user);
+  const folded = user.toLowerCase();
+  // A user written in lower case keeps the name it always had, so nothing a
+  // device on 0.8.7 knows is renamed — and renaming would retire the old name,
+  // which such a device applies by deleting a working password. Any other
+  // spelling gets its own name beside it ("#" never occurs in an encoded
+  // component): "Alice" and "alice" are two accounts on a server that tells
+  // them apart, and one name for both let the second password overwrite the
+  // first in the bundle and land in the other row's slot (GitHub issue 174).
+  const exact = user === folded ? "" : `#${encodeURIComponent(user)}`;
+  return `s1:${binding.service}:${binding.secretType}:${encodeURIComponent(folded)}${exact}@${encodeURIComponent(endpoint)}`;
+}
+
+/** The user as a binding carries it: exactly as the account signs in with it, only trimmed. */
+export function secretBindingUser(user: string): string {
+  return user.trim();
+}
+
+/**
+ * The user as the secret rules compare it. A mailbox is one account in any
+ * case of its address (`mailIdentity`), so a mail user is folded; a calendar or
+ * files user is compared exactly — "Alice" and "alice" may be two accounts of
+ * one CalDAV server.
+ */
+function bindingUserKey(service: SecretBinding["service"], user: string): string {
+  const exact = secretBindingUser(user);
+  return service === "mail" ? exact.toLowerCase() : exact;
+}
+
+/**
+ * Whether a binding's user is in lower case, the only form clients up to 0.8.7
+ * wrote. Such an entry may stand for a user in any case; it is applied to a
+ * local account whose user is not lower case only when that account is the
+ * single one it could mean.
+ */
+export function isLegacyLowerCaseUser(binding: Pick<SecretBinding, "user">): boolean {
+  return binding.user === binding.user.toLowerCase();
 }
 
 /** True when a synced entry's binding matches an observed local account. */
@@ -166,7 +205,8 @@ export function bindingMatches(binding: SecretBinding, observed: { family: strin
  */
 export function bindingMatchesExceptFamily(
   binding: SecretBinding,
-  observed: { service: SecretBinding["service"]; user: string; endpoint: string }
+  observed: { service: SecretBinding["service"]; user: string; endpoint: string },
+  userCase: "exact" | "fold" = "exact",
 ): boolean {
   let observedEndpoint: string;
   try {
@@ -174,9 +214,11 @@ export function bindingMatchesExceptFamily(
   } catch {
     return false;
   }
+  const user = bindingUserKey(binding.service, binding.user);
+  const observedUser = bindingUserKey(observed.service, observed.user);
   return (
     binding.service === observed.service &&
-    binding.user === observed.user.trim().toLowerCase() &&
+    (userCase === "exact" ? user === observedUser : user.toLowerCase() === observedUser.toLowerCase()) &&
     binding.endpoint === observedEndpoint
   );
 }

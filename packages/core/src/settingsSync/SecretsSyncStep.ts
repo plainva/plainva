@@ -38,6 +38,7 @@ export type SecretImportReason =
   | "older-entry"
   | "slot-read-failed"
   | "slot-write-failed"
+  | "superseded-by-exact-entry"
   | "tombstone-no-local-secret"
   | "unknown-account"
   | "unsupported-secret-type"

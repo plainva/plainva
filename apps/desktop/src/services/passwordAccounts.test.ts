@@ -93,20 +93,19 @@ describe("the principal the server confirmed", () => {
 
 /**
  * The settings sync names a password by `canonicalSecretId`, a rule of its own.
- * Where the two differ is pinned here: the identity may keep apart what the
- * secret name joins only in the user's case (renaming those secrets would
- * retire their old names, and a device still on 0.8.7 applies a retirement by
- * deleting a working password); every other pair the secret name joins, the
- * identity joins too.
+ * Two accesses the identity keeps apart never share a secret name — not even
+ * when they differ only in the user's case (GitHub issue 174, review
+ * 2026-11-17: one name for "Alice" and "alice" put one password into the
+ * other's slot; `secretsUserCase.test.ts` drives the whole exchange).
  */
 describe("the identity and the settings sync's name for a password", () => {
   const secretName = (url: string, user: string) => canonicalSecretId({ service: "calendar", secretType: "caldav-password", user, endpoint: url });
-  it("disagree only on the user's case where the secret name joins", () => {
+  it("the secret name never joins what the identity keeps apart (red before: the user in capitals)", () => {
     const joinedOnlyBySecret = CASES
       .filter(([urlA, userA, urlB, userB]) => secretName(urlA, userA) === secretName(urlB, userB))
       .filter(([urlA, userA, urlB, userB]) => passwordAccountIdentity(urlA, userA) !== passwordAccountIdentity(urlB, userB))
       .map(([, , , , , name]) => name);
-    expect(joinedOnlyBySecret).toEqual(["the user in capitals (Radicale, Baïkal and DAViCal tell them apart)"]);
+    expect(joinedOnlyBySecret).toEqual([]);
   });
   it("never join two servers the identity keeps apart", () => {
     for (const [urlA, userA, urlB, userB, same] of CASES) {

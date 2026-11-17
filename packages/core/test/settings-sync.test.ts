@@ -18,6 +18,7 @@ import {
   canonicalizeEndpoint,
   canonicalSecretId,
   bindingMatches,
+  bindingMatchesExceptFamily,
   mergeSecretEntries,
   mergeSecretsBundles,
   sealSecretsBundle,
@@ -671,6 +672,16 @@ describe("secretsBundle", () => {
     ).toBe(true);
     expect(bindingMatches(binding, { family: "gmail", service: "mail", user: "a@b.com", endpoint: "imaps://imap.fastmail.com:993" })).toBe(false);
     expect(bindingMatches(binding, { family: "fastmail", service: "mail", user: "a@b.com", endpoint: "imaps://imap.fastmail.com:1993" })).toBe(false);
+  });
+
+  it("a calendar user is compared exactly; an entry of a client up to 0.8.7 (lower-cased) only by the port's fallback (GitHub issue 174)", () => {
+    const calendar = { family: "webdav", service: "calendar" as const, secretType: "caldav-password" as const, user: "Alice", endpoint: "https://dav.example.com" };
+    expect(bindingMatches(calendar, { family: "webdav", service: "calendar", user: " Alice ", endpoint: "https://dav.example.com/" })).toBe(true);
+    expect(bindingMatches(calendar, { family: "webdav", service: "calendar", user: "alice", endpoint: "https://dav.example.com" })).toBe(false);
+    expect(bindingMatchesExceptFamily(calendar, { service: "calendar", user: "alice", endpoint: "https://dav.example.com" }, "fold")).toBe(true);
+    expect(canonicalSecretId(calendar)).not.toBe(canonicalSecretId({ ...calendar, user: "alice" }));
+    // A user in lower case keeps the name every client gave it.
+    expect(canonicalSecretId({ ...calendar, user: "alice" })).toBe(`s1:calendar:caldav-password:alice@${encodeURIComponent("https://dav.example.com")}`);
   });
 
   it("canonicalSecretId names the credential, not the device's account (P4c)", () => {

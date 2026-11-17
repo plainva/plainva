@@ -1,6 +1,8 @@
-import { canonicalSecretId, canonicalizeEndpoint, type SecretBinding, type SecretsPort } from "@plainva/core";
+import { canonicalSecretId, type SecretsPort } from "@plainva/core";
 import {
+  calDavSecretBinding,
   createSecretsPort,
+  imapSecretBinding,
   familyOfCalDavUrl,
   familyOfImapHost,
   migrateSecretsMetaToCanonicalIds,
@@ -60,13 +62,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
       if (!url || !user) continue;
-      const binding: SecretBinding = {
-        family: familyFor(cloud, "calendar", account.id, familyOfCalDavUrl(url) ?? "webdav"),
-        service: "calendar",
-        secretType: "caldav-password",
-        user: user.trim().toLowerCase(),
-        endpoint: canonicalizeEndpoint(url),
-      };
+      const binding = calDavSecretBinding(familyFor(cloud, "calendar", account.id, familyOfCalDavUrl(url) ?? "webdav"), url, user);
       candidates.push({
         logicalId: canonicalSecretId(binding),
         slot,
@@ -81,14 +77,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
     if (mailAccountKind(account) !== "imap") continue;
     const stored = await credentialManager.readSecret<{ pass?: string; refreshToken?: string }>(mailSecretKey(vaultPath, account.id));
     const slot = mailSecretKey(vaultPath, account.id);
-    const scheme = account.port === 993 ? "imaps" : "imap+starttls";
-    const binding: SecretBinding = {
-      family: familyFor(cloud, "mail", account.id, familyOfImapHost(account.host) ?? "imap"),
-      service: "mail",
-      secretType: "imap-password",
-      user: account.user.trim().toLowerCase(),
-      endpoint: canonicalizeEndpoint(`${scheme}://${account.host}:${account.port}`),
-    };
+    const binding = imapSecretBinding(familyFor(cloud, "mail", account.id, familyOfImapHost(account.host) ?? "imap"), account.host, account.port, account.user);
     candidates.push({
       logicalId: canonicalSecretId(binding),
       slot,

@@ -4,8 +4,11 @@ import {
   bindingMatches,
   bindingMatchesExceptFamily,
   canonicalSecretId,
+  isLegacyLowerCaseUser,
   isLegacySecretType,
   isShareableSecretType,
+  canonicalizeEndpoint,
+  secretBindingUser,
   stableStringify,
   type SecretBinding,
   type SecretEntry,
@@ -38,7 +41,9 @@ import {
  *    rejected for that entry without blocking independent accounts.
  *  - **Bindings must match.** An entry is only ever applied to an account with
  *    the same service, secret type, user and endpoint — so a password cannot
- *    land on a different server that happens to share an id. The provider
+ *    land on a different server that happens to share an id. The user is
+ *    compared exactly; an entry written lower-cased by a client up to 0.8.7
+ *    reaches the single account it can mean, and none when two could. The provider
  *    family is compared too, but a family-only difference is tolerated (see
  *    bindingMatchesExceptFamily): it is a catalog label, not an address.
  *  - **An account this device does not know yet is SKIPPED, not fatal.** That is
@@ -110,6 +115,39 @@ export interface SecretsPortHost {
   removeSlot(slot: string): Promise<void>;
   /** Injectable for tests; defaults to the wall clock. */
   now?(): string;
+}
+
+/**
+ * The binding of a CalDAV password, built ONCE for both shells: the user
+ * exactly as typed — "Alice" and "alice" may be two accounts of one server, and
+ * one secret name for both put one password into the other's slot (GitHub
+ * issue 174, see `canonicalSecretId`). Throws on an endpoint that cannot be
+ * canonicalized, as before.
+ */
+export function calDavSecretBinding(family: string, url: string, user: string): SecretBinding {
+  return {
+    family,
+    service: "calendar",
+    secretType: "caldav-password",
+    user: secretBindingUser(user),
+    endpoint: canonicalizeEndpoint(url),
+  };
+}
+
+/**
+ * The binding of an IMAP password. A mailbox is one account in any case of its
+ * address (`mailIdentity`), so its user stays lower-cased and its secret keeps
+ * the name it always had.
+ */
+export function imapSecretBinding(family: string, host: string, port: number, user: string): SecretBinding {
+  const scheme = port === 993 ? "imaps" : "imap+starttls";
+  return {
+    family,
+    service: "mail",
+    secretType: "imap-password",
+    user: secretBindingUser(user).toLowerCase(),
+    endpoint: canonicalizeEndpoint(`${scheme}://${host}:${port}`),
+  };
 }
 
 const emptyMeta = (): SecretsPortMeta => ({ entries: {}, imported: {}, quarantine: {} });
@@ -284,7 +322,12 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           // device still holds, merely under the other device's name for it. The
           // import side has resolved entries by binding for a while; the export
           // side has to apply the same yardstick.
-          if (candidates.some((candidate) => bindingMatches(previous.binding, candidate.binding))) continue;
+          //
+          // Users are compared without regard to case here, and only here: an
+          // entry a device up to 0.8.7 named for a user in capitals carries
+          // the user lower-cased, and the account is still on this device
+          // under its exact spelling. A tombstone in doubt is never written.
+          if (candidates.some((candidate) => bindingMatchesExceptFamily(previous.binding, candidate.binding, "fold"))) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
           entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };
@@ -388,22 +431,34 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // must still agree. Family alone may differ because it is a catalog
         // label rather than a credential destination.
         const direct = byId.get(logicalId);
-        const candidate =
-          (direct &&
-          direct.binding.secretType === entry.binding.secretType &&
-          bindingMatchesExceptFamily(entry.binding, direct.binding)
-            ? direct
-            : undefined) ??
-          candidates.find(
-            (item) =>
-              item.binding.secretType === entry.binding.secretType &&
-              bindingMatches(entry.binding, item.binding),
-          ) ??
-          candidates.find(
-            (item) =>
-              item.binding.secretType === entry.binding.secretType &&
-              bindingMatchesExceptFamily(entry.binding, item.binding),
-          );
+        const sameType = (item: LocalSecretCandidate) => item.binding.secretType === entry.binding.secretType;
+        const exactCandidate =
+          (direct && sameType(direct) && bindingMatchesExceptFamily(entry.binding, direct.binding) ? direct : undefined) ??
+          candidates.find((item) => sameType(item) && bindingMatches(entry.binding, item.binding)) ??
+          candidates.find((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding));
+        // An entry from a device up to 0.8.7 carries the user lower-cased,
+        // whatever its spelling was. It still reaches the account it names
+        // when exactly one account here could be meant — never one of two
+        // that differ only in case, and never an account an entry with its
+        // exact spelling already speaks for (that one is current; the
+        // lower-cased one would put an older password back).
+        const legacyMatches = exactCandidate || !isLegacyLowerCaseUser(entry.binding)
+          ? []
+          : candidates.filter((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding, "fold"));
+        const legacyCandidate = legacyMatches.length === 1 ? legacyMatches[0] : undefined;
+        if (
+          legacyCandidate &&
+          Object.entries(bundle.entries).some(
+            ([otherId, other]) =>
+              otherId !== logicalId &&
+              other.binding.secretType === entry.binding.secretType &&
+              bindingMatchesExceptFamily(other.binding, legacyCandidate.binding),
+          )
+        ) {
+          recordImportResult(result, logicalId, "unchanged", "superseded-by-exact-entry");
+          continue;
+        }
+        const candidate = exactCandidate ?? legacyCandidate;
 
         if (!candidate && entry.tombstone) {
           rememberEntry(logicalId, entry);

@@ -1,6 +1,8 @@
-import { canonicalSecretId, canonicalizeEndpoint, type SecretBinding, type SecretsPort } from "@plainva/core";
+import { canonicalSecretId, type SecretsPort } from "@plainva/core";
 import {
+  calDavSecretBinding,
   createSecretsPort,
+  imapSecretBinding,
   familyOfCalDavUrl,
   familyOfImapHost,
   getPlatformServices,
@@ -65,15 +67,9 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
       if (!url || !user) continue;
-      const binding: SecretBinding = {
-        // Same fallback chain as the desktop, so the SAME account produces the
-        // same binding on both platforms — otherwise no entry would ever match.
-        family: familyOfCalDavUrl(url) ?? "webdav",
-        service: "calendar",
-        secretType: "caldav-password",
-        user: user.trim().toLowerCase(),
-        endpoint: canonicalizeEndpoint(url),
-      };
+      // Same fallback chain as the desktop, so the SAME account produces the
+      // same binding on both platforms — otherwise no entry would ever match.
+      const binding = calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user);
       out.push({
         logicalId: canonicalSecretId(binding),
         slot,
@@ -88,14 +84,7 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
     if (mailAccountKind(account) !== "imap") continue; // Microsoft = OAuth, never synced
     const slot = mailSecretKey(vaultId, account.id);
     const stored = await getPlatformServices().credentials.readSecret<{ pass?: string; refreshToken?: string }>(slot);
-    const scheme = account.port === 993 ? "imaps" : "imap+starttls";
-    const binding: SecretBinding = {
-      family: familyOfImapHost(account.host) ?? "imap",
-      service: "mail",
-      secretType: "imap-password",
-      user: account.user.trim().toLowerCase(),
-      endpoint: canonicalizeEndpoint(`${scheme}://${account.host}:${account.port}`),
-    };
+    const binding = imapSecretBinding(familyOfImapHost(account.host) ?? "imap", account.host, account.port, account.user);
     out.push({
       logicalId: canonicalSecretId(binding),
       slot,
