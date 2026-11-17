@@ -299,14 +299,44 @@ describe("the reader shows what the assistant reads, in every engine (review of 
     expect(mailDocument(message(html)).text).toContain(SECRET);
   });
 
-  it("gives no colour that hangs on the system's theme", () => {
+  it("gives no colour that hangs on the system's theme: the reader's own pair instead", () => {
     const html = `<span id="x" style="color:canvas">${SECRET}</span>`;
-    expect(given(html)?.getAttribute("style")).toBeNull();
+    expect(given(html)?.getAttribute("style")).toBe("color:#222222 !important;background-color:#ffffff !important");
     expect(mailDocument(message(html)).text).toContain(SECRET);
   });
 });
 
+describe("the sanitizer reads a mail as the frame does (review of 2026-11-17)", () => {
+  it("parses by the rules of the frame's doctype, not the old ones", () => {
+    // Without a doctype a table nests in the paragraph before it; the frame has one, and there it does not.
+    for (const html of [`<p style="display:none"><table><tr><td>${SECRET}</td></tr></table></p>`, `<p hidden><table><tr><td>${SECRET}</td></tr></table>`]) {
+      const frame = new DOMParser().parseFromString(`<!doctype html><body>${sanitizeEmailHtml(html).html}`, "text/html");
+      expect(frame.body.textContent).toContain(SECRET);
+      expect(frame.querySelector("p table")).toBeNull();
+      expect(mailDocument(message(html)).text).toContain(SECRET);
+    }
+  });
+});
+
 describe("one pass over a message (review of 2026-11-17)", () => {
+  it("is one pass for the reader with pictures and for the assistant, the quote and the note without", () => {
+    const html = `<p>Hello there.</p><img src="https://cdn.example.org/a.png" width="20"><!-- ${Math.random()} -->`;
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
+    try {
+      const withPictures = mailBodyView({ ...message(html), text: "Plain." }, { allowRemoteImages: true });
+      expect(withPictures?.html).toContain('src="https://cdn.example.org/a.png"');
+      expect(withPictures?.blockedRemote).toBe(0);
+      expect(readableBody({ html, text: "Plain." }, 40000).text).toBe("Hello there.");
+      expect(mailMessageText({ text: null, html })).toBe("Hello there.");
+      const without = mailBodyView({ ...message(html), text: "Plain." });
+      expect(without?.html).not.toContain("cdn.example.org");
+      expect(without?.blockedRemote).toBe(1);
+      expect(parse).toHaveBeenCalledTimes(1);
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
   it("parses a message once for the reader, the assistant and the quote", () => {
     const html = `<table><tr><td style="padding:10px"><p>Hello there.</p></td></tr></table><!-- ${Math.random()} -->`;
     const both = { ...message(html), text: "Plain words." };

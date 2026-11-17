@@ -7,7 +7,7 @@ pinTestTimeZone();
 
 const baseURL = process.env.E2E_BASE_URL || "http://localhost:1440";
 export default defineConfig({
-  testDir: "./e2e", testMatch: ["listGeometry.spec.ts", "rtlEditor.spec.ts", "tableCell.spec.ts"], workers: 1,
+  testDir: "./e2e", testMatch: ["listGeometry.spec.ts", "mailFrameEquality.spec.ts", "rtlEditor.spec.ts", "tableCell.spec.ts"], workers: 1,
   forbidOnly: !!process.env.CI, retries: process.env.CI ? 1 : 0,
   reporter: "list", timeout: 60_000,
   // Its own folder, like the other two configs (a run empties its output folder first).

@@ -1,4 +1,4 @@
-import { colourHex, readAttributeColour, readColour } from "./mailColour.js";
+import { colourHex, readAttributeColour, readColour, type Rgba } from "./mailColour.js";
 import {
   appliedMailStyle, fontSizePx, lengthPx, namedFontSize, readLength, readMailStyle, writeMailStyle, type MailDeclaration,
 } from "./mailStyle.js";
@@ -38,7 +38,7 @@ export const READER_PX = 14;
 /** Below this size in pixels a text is not one a person reads. */
 export const MIN_TEXT_PX = 4;
 /** The largest font size kept: a letter wider than the frame is past it. */
-const MAX_FONT_PX = 160;
+const MAX_FONT_PX = 96;
 /**
  * The narrowest frame the reader has (a 320 px phone) scaled down to its least
  * (0.4) shows 800 px of a mail: no box reaches past `REACH_MAX`, and no content
@@ -61,6 +61,31 @@ const UA_INDENT: Record<string, [number, number, "margin" | "padding"]> = {
   ul: [40, 0, "padding"], ol: [40, 0, "padding"], menu: [40, 0, "padding"], dir: [40, 0, "padding"],
   blockquote: [40, 40, "margin"], figure: [40, 40, "margin"], dd: [40, 0, "margin"],
 };
+/** The reader's own pair (the frame's white sheet), set where the mail's pair is not understood. */
+export const STANDARD_TEXT = "#222222";
+export const STANDARD_BACKGROUND = "#ffffff";
+const STANDARD_TEXT_RGBA: Rgba = [0x22, 0x22, 0x22, 1];
+/** The properties of a pair of colours. */
+const PAIR_PROPERTIES = new Set(["color", "background-color", "background-image"]);
+/** Where `bgcolor` paints (HTML: presentational hints of the page and the parts of a table). */
+const BGCOLOR_PAINTS = new Set(["body", "table", "thead", "tbody", "tfoot", "tr", "td", "th"]);
+/** A table's parts grow to their content, whatever size they are given. */
+const TABLE_PARTS = new Set(["table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption"]);
+const TABLE_DISPLAY = new Set(["table", "inline-table", "table-row", "table-cell", "table-row-group", "table-header-group", "table-footer-group", "table-caption"]);
+/** A painted box narrower than this may be narrower than one of its letters. */
+const MIN_PAINTED_WIDTH = 40;
+
+/** A colour as a style writes it. */
+function colourCss(colour: Rgba): string {
+  return colour[3] >= 1 ? colourHex(colour) : `rgba(${colour.slice(0, 3).map(Math.round).join(",")},${Number(colour[3].toFixed(3))})`;
+}
+
+/** How far a width attribute reaches; a share of the box up to all of it stays inside. */
+function attributeReach(value: string | null): number {
+  const size = value === null ? null : attributeWidth(value);
+  return !size ? 0 : "px" in size ? size.px : size.percent <= 100 ? 0 : ((size.percent - 100) / 100) * REACH_MAX;
+}
+
 /** Elements the shaper looks at whatever the mail wrote on them. */
 const SHAPES_ITSELF = new Set([
   "col", "colgroup", "body", "html", "font", "mark", "tr", "td", "th", "ul", "ol", "menu", "dir", "blockquote", "figure", "dd",
@@ -205,6 +230,10 @@ export interface ShapeState {
   readonly dropColours: boolean;
   /** The row, for a table row. */
   readonly row: Row | null;
+  /** The colour the mail gives its letters here, where it is understood. */
+  readonly intended: Rgba | null;
+  /** Makes the nearest painted box above hold the floats inside it. */
+  readonly holdFloats?: () => void;
 }
 
 /**
@@ -253,7 +282,7 @@ export class MailShaper<N> {
   constructor(private readonly access: ShapeAccess<N>) {}
 
   root(): ShapeState {
-    return { font: { px: READER_PX, keyword: false }, left: BODY_MARGIN, dropColours: false, row: null };
+    return { font: { px: READER_PX, keyword: false }, left: BODY_MARGIN, dropColours: false, row: null, intended: STANDARD_TEXT_RGBA };
   }
 
   /**
@@ -295,22 +324,54 @@ export class MailShaper<N> {
       }
     }
 
-    // Backgrounds and the colours set on them.
+    // One pair of colours, never half of one (review of 2026-11-17): the
+    // letters stand in the colours the mail gave them on the background that
+    // really lies behind them, as far as both are understood — or in the
+    // reader's own pair, both set. Never a colour kept beside a background that
+    // fell away, or a background kept beside a colour that fell away.
     const bgcolor = written("bgcolor");
-    const attributeBackground = bgcolor === null ? null : readAttributeColour(bgcolor);
-    if (bgcolor !== null) give("bgcolor", attributeBackground ? colourHex(attributeBackground) : null);
-    const applied0 = applyOnce(declarations);
-    const ownColour = applied0.get("background-color");
-    const paintsOwn =
-      (ownColour !== undefined && (readColour(ownColour)?.[3] ?? 0) > 0) || applied0.has("background-image") || attributeBackground !== null || name === "mark";
-    const lost = read.lostBackground || (bgcolor !== null && attributeBackground === null) || written("background") !== null;
-    const dropColours = paintsOwn ? false : lost ? true : parent.dropColours;
-    if (dropColours && declarations.some((d) => d.name === "color")) declarations = declarations.filter((d) => d.name !== "color");
-    if (name === "font") {
-      const colour = written("color");
-      const value = colour === null || dropColours ? null : readAttributeColour(colour);
-      if (colour !== null) give("color", value ? colourHex(value) : null);
+    // `bgcolor` paints on a page and on the parts of a table only; elsewhere a browser ignores it.
+    const attributeBackground = bgcolor !== null && BGCOLOR_PAINTS.has(name) ? readAttributeColour(bgcolor) : null;
+    // Given as a style, which every engine paints alike (Chromium ignores it on a row group).
+    if (bgcolor !== null) give("bgcolor", null);
+    if (attributeBackground && !declarations.some((d) => d.name === "background-color")) {
+      declarations = [{ name: "background-color", value: colourHex(attributeBackground), important: false }, ...declarations];
     }
+    const applied0 = applyOnce(declarations);
+    const fill = applied0.get("background-color");
+    const paintsOwn =
+      (fill !== undefined && (readColour(fill)?.[3] ?? 0) > 0) || applied0.has("background-image") || name === "mark";
+    const lostPicture = (read.lostBackground || written("background") !== null) && !paintsOwn;
+    const ownColour = applied0.get("color");
+    const fontColour = name === "font" ? written("color") : null;
+    let intended: Rgba | null = read.lostColour ? null : ownColour !== undefined ? readColour(ownColour) : fontColour !== null ? (readAttributeColour(fontColour) ?? parent.intended) : parent.intended;
+    let dropColours: boolean;
+    let standardPair = lostPicture || read.lostColour;
+    if (!standardPair && paintsOwn && parent.dropColours && ownColour === undefined && fontColour === null) {
+      // A background of its own under a colour that fell away above: the
+      // letters take the colour the mail meant for them, or the reader's pair.
+      if (parent.intended) declarations = [...declarations, { name: "color", value: colourCss(parent.intended), important: false }];
+      else standardPair = true;
+    }
+    if (standardPair) {
+      declarations = [
+        ...declarations.filter((d) => !PAIR_PROPERTIES.has(d.name)),
+        { name: "color", value: STANDARD_TEXT, important: true },
+        { name: "background-color", value: STANDARD_BACKGROUND, important: true },
+      ];
+      if (fontColour !== null) give("color", null);
+      // What is set under it was set against a background that is not shown;
+      // `intended` stays the colour the mail meant, for a background of its own below.
+      dropColours = true;
+    } else {
+      dropColours = paintsOwn ? false : parent.dropColours;
+      if (dropColours && declarations.some((d) => d.name === "color")) declarations = declarations.filter((d) => d.name !== "color");
+      if (fontColour !== null) {
+        const value = dropColours ? null : readAttributeColour(fontColour);
+        give("color", value ? colourHex(value) : null);
+      }
+    }
+    const paints = paintsOwn || standardPair;
 
     // The font size: never lost into nothing, never wider than the frame.
     let applied = applyOnce(declarations);
@@ -325,6 +386,30 @@ export class MailShaper<N> {
     }
     const px = font.px;
     applied = applyOnce(declarations);
+
+    // A background lies behind every word of its box: a painted box keeps no
+    // size it could be smaller than its words (a table's parts grow to theirs).
+    const block = BLOCK.has(name) || (applied.has("display") && applied.get("display") !== "inline");
+    if (paints && !TABLE_PARTS.has(name) && !TABLE_DISPLAY.has(applied.get("display") ?? "")) {
+      const narrow = (value: string | undefined) => value !== undefined && value !== "auto" && value !== "none" && (lengthPx(value, px, REACH_MAX) ?? 0) < MIN_PAINTED_WIDTH;
+      const before = declarations;
+      declarations = declarations.filter((d) => !(d.name === "height" || d.name === "max-height" || ((d.name === "width" || d.name === "max-width") && narrow(d.value))));
+      if (declarations.length !== before.length) applied = applyOnce(declarations);
+    }
+    // A float in a painted box stands on that box's background: the box holds it.
+    if (applied.get("float") === "left" || applied.get("float") === "right") parent.holdFloats?.();
+    // A picture never wider than its box (the frame sets that; `max-width:none` would undo it) nor than the frame.
+    if (name === "img") {
+      const before = declarations;
+      declarations = declarations.filter((d) => !(d.name === "max-width" && (d.value === "none" || widthReach(d.value, px) > 0)));
+      const pictureWidth = Math.max(widthReach(applied.get("width"), px), widthReach(applied.get("min-width"), px), attributeReach(written("width")));
+      if (parent.left + pictureWidth > REACH_MAX) {
+        declarations = declarations.filter((d) => d.name !== "width" && d.name !== "min-width" && d.name !== "height");
+        give("width", null);
+        give("height", null);
+      }
+      if (declarations !== before) applied = applyOnce(declarations);
+    }
 
     // Where the box stands and how far it reaches.
     const row = parent.row;
@@ -376,10 +461,24 @@ export class MailShaper<N> {
     }
 
     if (declarations !== read.declarations) give("style", declarations.length === 0 ? null : writeMailStyle(declarations));
+    const final = declarations;
+    let holding = false;
+    const holdFloats =
+      paints && block && !TABLE_PARTS.has(name) && !applied.has("display")
+        ? () => {
+            if (holding) return;
+            holding = true;
+            give("style", writeMailStyle([...final, { name: "display", value: "flow-root", important: false }]));
+          }
+        : paints
+          ? undefined
+          : parent.holdFloats;
     return {
       font,
       left: contentLeft,
       dropColours,
+      intended,
+      holdFloats,
       row: name === "tr" ? { left: contentLeft, used: 0, takeBack: [] } : null,
     };
   }

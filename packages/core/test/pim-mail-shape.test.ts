@@ -66,9 +66,24 @@ describe("the mail shaper (review of 2026-11-17)", () => {
     expect(shape(two)).toBe('<table width="600"><tbody><tr><td style="padding:0 20px" width="300">a</td><td width="300">b</td></tr></tbody></table>');
   });
 
-  it("takes a text colour away with the background it was set on", () => {
+  it("gives one pair of colours, never half of one (review of 2026-11-17)", () => {
+    // A picture that is not shown: its box takes the reader's pair, and the colours set on it go.
+    const PAIR = "color:#222222 !important;background-color:#ffffff !important";
     expect(shape('<div style="background:url(x)"><p style="color:#fff;margin:0">a</p><font color="white">b</font></div>')).toBe(
-      '<div><p style="margin:0">a</p><font>b</font></div>'
+      `<div style="${PAIR}"><p style="margin:0">a</p><font>b</font></div>`
+    );
+    // `none` is no background lost: the colour stays on what lies behind.
+    expect(shape('<td style="background:none;color:#fff">a</td>')).toBe('<td style="color:#fff">a</td>');
+    expect(shape('<td style="background-image:none;color:#fff">a</td>')).toBe('<td style="color:#fff">a</td>');
+    // A colour the reader is not given, beside a background it is: both become the reader's.
+    expect(shape('<div style="background-color:#000;color:oklch(1 0 0)">a</div>')).toBe(`<div style="${PAIR}">a</div>`);
+    expect(shape('<div style="background-color:#000;color:#000;-webkit-text-fill-color:#fff">a</div>')).toBe(`<div style="${PAIR}">a</div>`);
+    expect(shape('<span style="color:initial">a</span>')).toBe(`<span style="${PAIR}">a</span>`);
+    // A background the reader is not given, under a colour set above it.
+    expect(shape('<div style="color:#fff"><div style="background-color:hwb(0 0% 100%)">a</div></div>')).toBe(`<div style="color:#fff"><div style="${PAIR}">a</div></div>`);
+    // A background of its own under a colour that fell away: the colour the mail meant.
+    expect(shape('<div style="background:url(x);color:#fff"><p style="background-color:#000">a</p></div>')).toBe(
+      `<div style="${PAIR}"><p style="background-color:#000;color:#ffffff">a</p></div>`
     );
     // Under a background of its own the colours stand again.
     expect(shape('<td background="x.png"><div style="background-color:#000"><p style="color:#fff">a</p></div></td>')).toContain('<p style="color:#fff">');
@@ -82,7 +97,24 @@ describe("the mail shaper (review of 2026-11-17)", () => {
     );
     // Inheriting a size somebody reads, a lost one is just lost.
     expect(shape('<span style="font-size:var(--x)">a</span>')).toBe("<span>a</span>");
-    expect(shape('<span style="font-size:100em">a</span>')).toBe('<span style="font-size:160px">a</span>');
+    expect(shape('<span style="font-size:100em">a</span>')).toBe('<span style="font-size:96px">a</span>');
+  });
+
+  it("lets a background lie behind every word of its box", () => {
+    expect(shape('<div style="background-color:#000;color:#fff;height:0">a</div>')).toBe('<div style="background-color:#000;color:#fff">a</div>');
+    expect(shape('<span style="display:inline-block;width:0;background-color:#000;color:#fff">a</span>')).toBe('<span style="display:inline-block;background-color:#000;color:#fff">a</span>');
+    expect(shape('<div style="background-color:#000;color:#fff;height:0"><span style="float:left">a</span></div>')).toBe(
+      '<div style="background-color:#000;color:#fff;display:flow-root"><span style="float:left">a</span></div>'
+    );
+    // A table's parts grow to their words: their sizes stay.
+    expect(shape('<td style="background-color:#000;color:#fff;height:20px">a</td>')).toBe('<td style="background-color:#000;color:#fff;height:20px">a</td>');
+    // A box without a background of its own may be any size.
+    expect(shape('<div style="height:20px">a</div>')).toBe('<div style="height:20px">a</div>');
+  });
+
+  it("keeps a picture inside its box and the frame", () => {
+    expect(shape('<img src="x" width="2000" style="max-width:none;min-width:2000px">')).toBe('<img src="x">');
+    expect(shape('<img src="x" width="600" style="max-width:100%">')).toBe('<img src="x" width="600" style="max-width:100%">');
   });
 
   it("keeps overflow only where it clips a box to nothing", () => {
@@ -94,8 +126,12 @@ describe("the mail shaper (review of 2026-11-17)", () => {
 
   it("writes attributes the way they are read", () => {
     expect(shape('<div hidden="until-found">a</div>')).toBe('<div hidden="">a</div>');
-    expect(shape('<table bgcolor="ffffff" cellpadding="600"><tbody><tr><td nowrap="">a</td></tr></tbody></table>')).toBe('<table bgcolor="#ffffff"><tbody><tr><td>a</td></tr></tbody></table>');
-    expect(shape('<table bgcolor="chucknorris"><tbody><tr><td>a</td></tr></tbody></table>')).toBe("<table><tbody><tr><td>a</td></tr></tbody></table>");
+    // A colour attribute as the legacy rule reads it — the colour a browser shows — given as a style.
+    expect(shape('<table bgcolor="ffffff" cellpadding="600"><tbody><tr><td nowrap="">a</td></tr></tbody></table>')).toBe('<table style="background-color:#ffffff"><tbody><tr><td>a</td></tr></tbody></table>');
+    expect(shape('<table bgcolor="chucknorris"><tbody><tr><td>a</td></tr></tbody></table>')).toBe('<table style="background-color:#c00000"><tbody><tr><td>a</td></tr></tbody></table>');
+    expect(shape('<font color="fff">a</font>')).toBe('<font color="#0f0f0f">a</font>');
+    // `bgcolor` paints only on a page and a table's parts.
+    expect(shape('<div bgcolor="#000">a</div>')).toBe("<div>a</div>");
     expect(shape('<table><colgroup><col style="visibility:collapse" width="900"></colgroup></table>')).toBe("<table><colgroup><col></colgroup></table>");
   });
 });
@@ -112,7 +148,10 @@ describe("colours as a mail writes them", () => {
     for (const unread of ["canvas", "currentcolor", "rgb(1,2)", "#ggg", "hsl(0 100 50)", "var(--x)"]) expect(readColour(unread), unread).toBeNull();
     expect(readAttributeColour("ffffff")).toEqual([255, 255, 255, 1]);
     expect(readAttributeColour(" White ")).toEqual([255, 255, 255, 1]);
-    expect(readAttributeColour("chucknorris")).toBeNull();
+    // The legacy rule of HTML: what a browser shows for any string.
+    expect(readAttributeColour("chucknorris")).toEqual([192, 0, 0, 1]);
+    expect(readAttributeColour("fff")).toEqual([15, 15, 15, 1]);
+    expect(readAttributeColour("transparent")).toBeNull();
   });
 
   it("tells a faint footer from a word nobody sees", () => {

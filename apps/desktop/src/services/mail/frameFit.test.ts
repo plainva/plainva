@@ -54,6 +54,13 @@ describe("applyFrameFit", () => {
     expect(frame.el.style.height).toBe(`${Math.ceil(1200 * (347 / 600))}px`);
   });
 
+  it("lets the frame scroll sideways to what is wider than the smallest scale fits, and cuts nothing off", () => {
+    const frame = fakeFrame({ frameWidth: 347, contentWidth: 3000, contentHeight: 1200 });
+    const fit = applyFrameFit(frame.el, { growHeight: true });
+    expect(fit?.scale).toBe(MIN_FRAME_SCALE);
+    expect(frame.root.style.overflowX).toBe("auto");
+  });
+
   it("measures the same numbers on a second call", () => {
     // The regression this guards: a scaled body still reports its full layout
     // width, but overflow-x:hidden clamps scrollWidth to the frame — measuring

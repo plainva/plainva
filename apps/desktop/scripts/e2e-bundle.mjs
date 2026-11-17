@@ -39,6 +39,7 @@ export const TEST_HOOK_MODULES = ["src/services/syncStatusStore.ts", "src/servic
 export const PROBE_SPECS = [
   "floatingLayer.spec.ts",
   "listGeometry.spec.ts",
+  "mailFrameEquality.spec.ts",
   "menus.spec.ts",
   "pinboardReturn.spec.ts",
   "pressBeside.spec.ts",

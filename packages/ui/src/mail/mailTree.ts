@@ -74,7 +74,8 @@ export function domReader(read: TreeAccess, heldBack: WeakSet<Node>): MarkupRead
     },
     children: (node) => read.childNodes(node),
     text: (node) => read.text(node),
-    attribute: (node, name) => read.attribute(node, name),
+    // A picture held back has no address in the view the assistant reads.
+    attribute: (node, name) => (name === "src" && heldBack.has(node) ? null : read.attribute(node, name)),
     heldBack: (node) => heldBack.has(node),
   };
 }

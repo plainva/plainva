@@ -74,9 +74,9 @@ export interface MailHtmlView extends SanitizedEmail {
   shows(): boolean;
 }
 
-/** Views made last, per remote-image choice: the reader, the quote and the assistant ask about the same message. */
-const VIEWS: [Map<string, MailHtmlView>, Map<string, MailHtmlView>] = [new Map(), new Map()];
-const VIEWS_MAX = 4;
+/** Passes made last: the reader, the quote and the assistant ask about the same message. */
+const PASSES = new Map<string, Pass>();
+const PASSES_MAX = 4;
 
 export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): SanitizedEmail {
   return mailHtmlView(raw, options);
@@ -88,27 +88,33 @@ export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): 
  * and one walk over the tree they leave — for the reader of either shell, the
  * quote, the filed note and the assistant alike (review of 2026-11-17: each of
  * them sanitized and read the same mail again, a newsletter of 500 KB took the
- * assistant seconds). Throws where there is no DOM.
+ * assistant seconds). The pass does not hang on the remote-image choice: it
+ * keeps the address of a picture beside the tree, and each choice is a view of
+ * it — the reader with pictures and the assistant without share one pass.
+ * Throws where there is no DOM.
  */
 export function mailHtmlView(raw: string, options?: SanitizeEmailOptions): MailHtmlView {
-  const allowRemoteImages = options?.allowRemoteImages === true;
-  const views = VIEWS[allowRemoteImages ? 1 : 0];
-  const known = views.get(raw);
-  if (known) {
-    views.delete(raw);
-    views.set(raw, known);
-    return known;
-  }
-  const view = makeView(raw, allowRemoteImages);
-  views.set(raw, view);
-  while (views.size > VIEWS_MAX) views.delete(views.keys().next().value as string);
-  return view;
+  let pass = PASSES.get(raw);
+  if (pass) PASSES.delete(raw);
+  else pass = makePass(raw);
+  PASSES.set(raw, pass);
+  while (PASSES.size > PASSES_MAX) PASSES.delete(PASSES.keys().next().value as string);
+  return options?.allowRemoteImages === true ? pass.withPictures : pass.withoutPictures;
 }
 
-function makeView(raw: string, allowRemoteImages: boolean): MailHtmlView {
+/** One pass over a mail and its two views. */
+interface Pass {
+  withPictures: MailHtmlView;
+  withoutPictures: MailHtmlView;
+}
+
+function makePass(raw: string): Pass {
   const read = treeAccess();
   if (!read) throw new Error("no DOM to sanitize mail with");
+  /** Fetches held back in either view, and https pictures the opt-in lets load. */
   let blockedRemote = 0;
+  let pictures = 0;
+  let paints = false;
   /** What the mail wrote in the attributes the shaper gives anew, per element. */
   const written = new WeakMap<Node, Map<string, string>>();
   /** Images whose picture was held back. */
@@ -141,8 +147,13 @@ function makeView(raw: string, allowRemoteImages: boolean): MailHtmlView {
       // network fetch (tracking) or a foreign scheme — cut and count.
       if (name === "src" && DATA_IMAGE.test(value)) return;
       // Opt-in: https images on actual <img> elements (never srcset/poster/
-      // background, never other schemes — the frame CSP mirrors this).
-      if (allowRemoteImages && name === "src" && HTTPS_URL.test(value) && tag() === "img") return;
+      // background, never other schemes — the frame CSP mirrors this). The
+      // address stays in the tree; the view without pictures leaves it out.
+      if (name === "src" && HTTPS_URL.test(value) && tag() === "img") {
+        heldBack.add(element);
+        pictures++;
+        return;
+      }
       if (name === "src" && value.trim() !== "" && tag() === "img") heldBack.add(element);
       // A background picture that is not shown: the colours set on it go with it (`MailShaper`).
       if (name === "background") record(element, name, value);
@@ -176,6 +187,15 @@ function makeView(raw: string, allowRemoteImages: boolean): MailHtmlView {
     const parent = read.parentNode(node);
     const above = (parent && states.get(parent)) || root;
     states.set(node, shaper.element(node, read.nodeName(node).toLowerCase(), above));
+    // Whether the mail paints itself, read off the tree as `mailHtmlPaintsItself` reads the markup.
+    if (!paints) {
+      const style = read.attribute(node, "style");
+      paints =
+        (style !== null && PAINTS_IN_STYLE.test(style)) ||
+        read.attribute(node, "bgcolor") !== null ||
+        read.attribute(node, "background") !== null ||
+        (read.nodeName(node).toLowerCase() === "font" && read.attribute(node, "color") !== null);
+    }
   };
 
   const dp = purifier();
@@ -183,7 +203,10 @@ function makeView(raw: string, allowRemoteImages: boolean): MailHtmlView {
   dp.addHook("afterSanitizeAttributes", afterAttributes);
   let body: Node | null;
   try {
-    body = dp.sanitize(raw, {
+    // Read in the mode the reader's frame is (`<!doctype html>`): without a
+    // doctype the parser reads by the old rules, and `<p><table>` nests the
+    // table in the paragraph there but not in the frame (review of 2026-11-17).
+    body = dp.sanitize(`<!doctype html>${raw}`, {
       // <style> blocks can url()-fetch; forms/meta/base have no business in
       // a read-only viewer. A canvas shows its inner text only where scripts
       // do not run, a marquee moves its words off the screen, and an option
@@ -200,19 +223,54 @@ function makeView(raw: string, allowRemoteImages: boolean): MailHtmlView {
     dp.removeHook("uponSanitizeAttribute");
     dp.removeHook("afterSanitizeAttributes");
   }
-  const html = body ? read.innerHTML(body) : "";
   const reader = domReader(read, heldBack);
-  // Colours are compared where the reader paints the mail on its white sheet;
-  // a mail that sets none reads in the theme's colours, all of them readable.
-  const canvas = mailHtmlPaintsItself(html) ? WHITE_SHEET : null;
+  /** The markup with the addresses of the pictures, and without them. */
+  const markup = (withPictures: boolean): string => {
+    if (!body) return "";
+    if (withPictures || pictures === 0) return read.innerHTML(body);
+    const taken: Array<[Node, string]> = [];
+    const walk = (node: Node): void => {
+      const children = read.childNodes(node);
+      for (let index = 0; index < children.length; index++) {
+        const child = children[index];
+        if (read.nodeType(child) !== 1) continue;
+        if (heldBack.has(child)) {
+          const src = read.attribute(child, "src");
+          if (src !== null) {
+            taken.push([child, src]);
+            read.removeAttribute(child, "src");
+          }
+        }
+        walk(child);
+      }
+    };
+    walk(body);
+    try {
+      return read.innerHTML(body);
+    } finally {
+      for (const [node, src] of taken) read.setAttribute(node, "src", src);
+    }
+  };
   let document: VisibleDocument | undefined;
   let shows: boolean | undefined;
-  return {
-    html,
-    blockedRemote,
-    document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas }) : { text: "", links: [], shows: false }),
-    shows: () => (shows ??= document ? document.shows : body ? visibleDocumentOf(body, reader, { canvas, untilShown: true }).shows : false),
+  const view = (withPictures: boolean): MailHtmlView => {
+    let html: string | undefined;
+    const shown = () => (html ??= markup(withPictures));
+    // Colours are compared where the reader paints the mail on its white sheet;
+    // a mail that sets none reads in the theme's colours, all of them readable.
+    const canvas = () => (paints ? WHITE_SHEET : null);
+    return {
+      get html() {
+        return shown();
+      },
+      blockedRemote: blockedRemote + (withPictures ? 0 : pictures),
+      // One reading for both views, the one without pictures: a picture that
+      // may not show makes no link visible, so the assistant reads no more than either shows.
+      document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false }),
+      shows: () => (shows ??= document ? document.shows : body ? visibleDocumentOf(body, reader, { canvas: canvas(), untilShown: true }).shows : false),
+    };
   };
+  return { withPictures: view(true), withoutPictures: view(false) };
 }
 
 /**
@@ -227,6 +285,9 @@ export interface MailCanvas {
   /** Whether the canvas is dark, so scrollbars and controls follow it. */
   dark: boolean;
 }
+
+/** A colour in a style, as `mailHtmlPaintsItself` finds one in the markup. */
+const PAINTS_IN_STYLE = /\b(background|color)\b[^:;"']*:/i;
 
 /** A colour value as computed styles report it — nothing that could close the rule. */
 const SAFE_COLOUR = /^(#[0-9a-f]{3,8}|(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\([0-9a-z.,%\s/+-]*\)|[a-z]+)$/i;

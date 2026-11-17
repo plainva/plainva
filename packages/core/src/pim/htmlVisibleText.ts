@@ -99,6 +99,8 @@ export const WHITE_SHEET: ReaderCanvas = { text: [0x22, 0x22, 0x22, 1], backgrou
 const LINK_COLOUR: Rgba = [0, 0, 0xee, 1];
 /** A `<mark>`, as a browser's own style sheet paints it. */
 const MARK: { text: Rgba; background: Rgba } = { text: [0, 0, 0, 1], background: [255, 255, 0, 1] };
+/** Where `bgcolor` paints (HTML: presentational hints of the page and the parts of a table). */
+const BGCOLOR_PAINTS = new Set(["body", "table", "thead", "tbody", "tfoot", "tr", "td", "th"]);
 /** Backgrounds tracked at most: gradients over gradients multiply. */
 const BACKGROUNDS_MAX = 16;
 
@@ -193,6 +195,8 @@ interface Inherited {
   colour: Rgba | null;
   /** What lies behind the text: one colour, or the stops of a gradient. */
   backgrounds: readonly Rgba[];
+  /** What lies behind the table the element stands in — behind its caption. */
+  outsideTable: readonly Rgba[];
 }
 
 /** On the walk's stack: an element whose content has been read, with what
@@ -292,7 +296,7 @@ export function visibleDocumentOf<N>(root: N, reader: MarkupReader<N>, options: 
   let marker = "";
   let quote = 0;
   /** Handed down from an element to its content (see `Inherited`). */
-  let state: Inherited = { font: { px: READER_PX, keyword: false }, opacity: 1, unseen: false, pre: 0, colour: canvas?.text ?? null, backgrounds: canvas ? [canvas.background] : [] };
+  let state: Inherited = { font: { px: READER_PX, keyword: false }, opacity: 1, unseen: false, pre: 0, colour: canvas?.text ?? null, backgrounds: canvas ? [canvas.background] : [], outsideTable: canvas ? [canvas.background] : [] };
   /** Whether the text in the current state is not one a person sees. */
   let hidden = false;
   const judge = (): void => {
@@ -392,10 +396,14 @@ export function visibleDocumentOf<N>(root: N, reader: MarkupReader<N>, options: 
   };
 
   /** The colours an element sets for its content, over what it stands on. */
-  const coloured = (name: string, node: N, declared: Map<string, string>, before: Inherited): Pick<Inherited, "colour" | "backgrounds"> => {
-    if (before.colour === null) return { colour: null, backgrounds: before.backgrounds };
-    let backgrounds = before.backgrounds;
-    const fill = readColour(declared.get("background-color") ?? "") ?? readAttributeColour(reader.attribute(node, "bgcolor") ?? "") ?? (name === "mark" ? MARK.background : null);
+  const coloured = (name: string, node: N, declared: Map<string, string>, before: Inherited): Pick<Inherited, "colour" | "backgrounds" | "outsideTable"> => {
+    if (before.colour === null) return { colour: null, backgrounds: before.backgrounds, outsideTable: before.outsideTable };
+    const display = declared.get("display");
+    // A caption stands outside its table's box, on what lies behind the table.
+    let backgrounds = name === "caption" || display === "table-caption" ? before.outsideTable : before.backgrounds;
+    const outsideTable = name === "table" || display === "table" || display === "inline-table" ? backgrounds : before.outsideTable;
+    const attributeFill = BGCOLOR_PAINTS.has(name) ? readAttributeColour(reader.attribute(node, "bgcolor") ?? "") : null;
+    const fill = (declared.has("background-color") ? readColour(declared.get("background-color")!) : attributeFill) ?? (name === "mark" ? MARK.background : null);
     if (fill && fill[3] > 0) backgrounds = paint([fill], backgrounds);
     const image = declared.get("background-image");
     if (image) {
@@ -405,8 +413,9 @@ export function visibleDocumentOf<N>(root: N, reader: MarkupReader<N>, options: 
     const own =
       readColour(declared.get("color") ?? "") ??
       (name === "font" ? readAttributeColour(reader.attribute(node, "color") ?? "") : null) ??
-      (name === "a" ? LINK_COLOUR : name === "mark" ? MARK.text : null);
-    return { colour: own ?? before.colour, backgrounds };
+      // A browser colours a link only where it leads somewhere.
+      (name === "a" && reader.attribute(node, "href") !== null ? LINK_COLOUR : name === "mark" ? MARK.text : null);
+    return { colour: own ?? before.colour, backgrounds, outsideTable };
   };
 
   /** Nodes still to be read, and elements whose content has been. */

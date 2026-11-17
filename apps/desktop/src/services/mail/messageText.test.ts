@@ -400,8 +400,9 @@ describe("what the reader hides, the text leaves out", () => {
   it("a style that fetches loses its address, keeps what else it says, and the text reads it so", () => {
     // The address is never given (a fetch); the declaration beside it is, in the reader and the text alike.
     const html = '<div id="pre" style="display:none;background:url(https://tracker.example.org/p.gif)">Versteckt</div><div id="shown" style="background:url(https://tracker.example.org/q.gif);padding:4px">Doch sichtbar</div><p>Sichtbar</p>';
-    expect(inFrame(html).querySelector("#pre")?.getAttribute("style")).toBe("display:none");
-    expect(inFrame(html).querySelector("#shown")?.getAttribute("style")).toBe("padding:4px");
+    // The picture is not shown, so its box takes the reader's pair of colours.
+    expect(inFrame(html).querySelector("#pre")?.getAttribute("style")).toBe("display:none;color:#222222 !important;background-color:#ffffff !important");
+    expect(inFrame(html).querySelector("#shown")?.getAttribute("style")).toBe("padding:4px;color:#222222 !important;background-color:#ffffff !important");
     expect(sanitizeEmailHtml(html).blockedRemote).toBe(2);
     expect(mailMessageText({ text: null, html })).toBe("Doch sichtbar\n\nSichtbar");
   });

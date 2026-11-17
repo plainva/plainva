@@ -106,16 +106,44 @@ export function readColour(token: string): Rgba | null {
   return [r, g, b, alpha];
 }
 
+/** The whitespace of the HTML standard. */
+const ASCII_SPACE = "\t\n\f\r ";
+
 /**
- * A colour as an attribute (`bgcolor`, `<font color>`) writes it: a name or a
- * hex value with or without its `#`. A browser reads any other string as some
- * colour by a rule of its own; such a value is not given to the reader.
+ * A colour as an attribute (`bgcolor`, `<font color>`) writes it, read by the
+ * HTML standard's rules for parsing a legacy colour value — the colour a
+ * browser shows, never another: `fff` is not white there but rgb(15, 15, 15),
+ * `chucknorris` is a red. `null` for no colour (empty, `transparent`).
  */
 export function readAttributeColour(value: string): Rgba | null {
-  const token = value.trim().toLowerCase();
-  if (/^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(token)) return hexColour(token.replace(/^#/, ""));
-  const named = NAMED.get(token);
-  return named ?? null;
+  // Trimmed of ASCII whitespace only (not `trim()`, which also takes other spaces).
+  let start = 0;
+  let end = value.length;
+  while (start < end && ASCII_SPACE.includes(value[start])) start++;
+  while (end > start && ASCII_SPACE.includes(value[end - 1])) end--;
+  let input = value.slice(start, end);
+  if (input === "" || input.toLowerCase() === "transparent") return null;
+  const named = NAMED.get(input.toLowerCase());
+  if (named) return named;
+  if (/^#[0-9a-f]{3}$/i.test(input)) return hexColour(input.slice(1));
+  // Characters beyond the basic plane count as two zeros; at most 128 are read.
+  input = Array.from(input, (c) => (c.codePointAt(0)! > 0xffff ? "00" : c)).join("").slice(0, 128);
+  if (input.startsWith("#")) input = input.slice(1);
+  input = input.replace(/[^0-9a-f]/gi, "0");
+  while (input.length === 0 || input.length % 3 !== 0) input += "0";
+  let length = input.length / 3;
+  let parts = [input.slice(0, length), input.slice(length, 2 * length), input.slice(2 * length)];
+  if (length > 8) {
+    parts = parts.map((part) => part.slice(length - 8));
+    length = 8;
+  }
+  while (length > 2 && parts.every((part) => part[0] === "0")) {
+    parts = parts.map((part) => part.slice(1));
+    length--;
+  }
+  if (length > 2) parts = parts.map((part) => part.slice(0, 2));
+  const [r, g, b] = parts.map((part) => parseInt(part, 16));
+  return [r, g, b, 1];
 }
 
 /** An opaque colour as `#rrggbb`. */

@@ -179,10 +179,22 @@ function fontFamily(_tokens: string[], value: string): boolean {
 
 /** Display values that show their content. `table-column` and its group never do. */
 const DISPLAY = oneOf(
-  "none", "block", "inline", "inline-block", "flow-root", "list-item", "contents",
+  "none", "block", "inline", "inline-block", "flow-root", "list-item",
   "table", "inline-table", "table-row", "table-cell", "table-row-group", "table-header-group", "table-footer-group", "table-caption",
   "flex", "inline-flex", "grid", "inline-grid",
 );
+/**
+ * Displays a browser reads that the walk reads as the one it names: the
+ * makers' old spellings of flex and box, and `contents`, whose box would paint
+ * nothing behind its words — given as a block, its words stand on its
+ * background. Dropping them would let a `hidden` beside them win, and words a
+ * browser shows would be gone (review of 2026-11-17).
+ */
+const DISPLAY_AS: Readonly<Record<string, string>> = {
+  "-webkit-box": "block", "-moz-box": "block", "-webkit-flex": "flex", "-ms-flexbox": "flex",
+  "-webkit-inline-box": "inline-block", "-moz-inline-box": "inline-block", "-webkit-inline-flex": "inline-flex", "-ms-inline-flexbox": "inline-flex",
+  contents: "block",
+};
 
 /** Opacity as a number from 0 to 1 or a percentage up to 100. */
 export function readOpacity(token: string): number | null {
@@ -372,7 +384,11 @@ const LAYOUT_SIZE = lengthOr("auto", "none");
 
 export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
   // What can take words off the screen — the walk judges each of these.
-  display: { kind: "judged", accepts: DISPLAY },
+  display: {
+    kind: "judged",
+    accepts: (t) => DISPLAY(t) || (t.length === 1 && Object.prototype.hasOwnProperty.call(DISPLAY_AS, t[0])),
+    write: (t) => (Object.prototype.hasOwnProperty.call(DISPLAY_AS, t[0]) ? DISPLAY_AS[t[0]] : t[0]),
+  },
   visibility: { kind: "judged", accepts: oneOf("visible", "hidden", "collapse") },
   opacity: { kind: "judged", accepts: (t) => t.length === 1 && readOpacity(t[0]) !== null },
   "font-size": { kind: "judged", accepts: (t) => t.length === 1 && fontSizeToken(t[0]) },
@@ -411,9 +427,10 @@ export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
   },
   "word-spacing": { kind: "layout", accepts: spacing(40, 2) },
   "text-indent": { kind: "layout", accepts: lengthOr() },
-  "word-break": { kind: "layout", accepts: oneOf("normal", "break-all", "keep-all", "break-word") },
-  "overflow-wrap": { kind: "layout", accepts: oneOf("normal", "break-word", "anywhere") },
-  "word-wrap": { kind: "layout", accepts: oneOf("normal", "break-word", "anywhere") },
+  // Lines break wherever they must (the frame's own rule): a word never runs past the frame.
+  "word-break": { kind: "layout", accepts: oneOf("break-all", "break-word") },
+  "overflow-wrap": { kind: "layout", accepts: oneOf("break-word", "anywhere") },
+  "word-wrap": { kind: "layout", accepts: oneOf("break-word", "anywhere") },
   direction: { kind: "layout", accepts: oneOf("ltr", "rtl") },
 
   // Boxes: sizes, spacing and borders, never negative.
@@ -535,6 +552,10 @@ const SHORTHANDS: Readonly<Record<string, (value: string) => Array<[string, stri
 
 /** The properties that paint a background; the text colour hangs on them. */
 const BACKGROUND_PROPERTIES = new Set(["background", "background-color", "background-image"]);
+/** The properties that colour the letters. */
+const COLOUR_PROPERTIES = new Set(["color", "-webkit-text-fill-color"]);
+/** Values of a background that paint nothing — not a background lost. */
+const PAINTS_NOTHING = new Set(["none", "transparent", "initial", "unset", "inherit", "revert"]);
 
 /** One kept declaration: its property, its value as it is written out, and whether it is `!important`. */
 export interface MailDeclaration {
@@ -546,8 +567,10 @@ export interface MailDeclaration {
 /** What a style keeps, and what it asked for that it does not keep. */
 export interface MailStyle {
   declarations: MailDeclaration[];
-  /** It set a background and none of it is kept (an image from an address, a value not read). */
+  /** It set a background and none of it is kept (an image from an address, a value not read) — `none` is no background lost. */
   lostBackground: boolean;
+  /** It set a colour of its letters that is not kept (a value not read, `-webkit-text-fill-color`). */
+  lostColour: boolean;
   /** It set a font size and none is kept. */
   lostFontSize: boolean;
 }
@@ -607,22 +630,45 @@ export function readMailStyle(style: string): MailStyle {
   const known = READ.get(style);
   if (known) return known;
   const kept: MailDeclaration[] = [];
-  let askedBackground = false;
+  let lostBackground = false;
+  let lostColour = false;
   let askedFontSize = false;
   const text = style.replace(/\/\*[\s\S]*?(?:\*\/|$)/g, " ");
   for (const declaration of text.split(";")) {
     const colon = declaration.indexOf(":");
     if (colon < 0) continue;
     const name = declaration.slice(0, colon).trim().toLowerCase();
-    if (BACKGROUND_PROPERTIES.has(name)) askedBackground = true;
     if (name === "font-size" || name === "font") askedFontSize = true;
-    if (declaration.includes("\\")) continue;
+    let keptBefore = kept.length;
+    const lose = (): void => {
+      if (BACKGROUND_PROPERTIES.has(name)) {
+        const words = declaration.slice(colon + 1).replace(/!\s*important\s*$/i, "").trim().toLowerCase().split(/\s+/);
+        if (!words.every((word) => PAINTS_NOTHING.has(word) || BACKGROUND_WORDS.has(word))) lostBackground = true;
+      }
+      // A colour the letters are given and the reader is not: their colour is not known.
+      if (COLOUR_PROPERTIES.has(name)) lostColour = true;
+    };
+    if (declaration.includes("\\")) {
+      lose();
+      continue;
+    }
     let value = declaration.slice(colon + 1).trim();
     const bang = value.lastIndexOf("!");
     const important = bang >= 0 && value.slice(bang + 1).trim().toLowerCase() === "important";
     if (important) value = value.slice(0, bang).trim();
-    if (bang >= 0 && !important) continue;
+    if (bang >= 0 && !important) {
+      lose();
+      continue;
+    }
     const shorthand = Object.prototype.hasOwnProperty.call(SHORTHANDS, name) ? SHORTHANDS[name] : undefined;
+    if (name === "background") {
+      // The shorthand sets the whole background anew: what was set before it is gone, as in a browser.
+      for (let index = kept.length - 1; index >= 0; index--) {
+        const d = kept[index];
+        if ((d.name === "background-color" || d.name === "background-image") && (important || !d.important)) kept.splice(index, 1);
+      }
+      keptBefore = kept.length;
+    }
     const pairs: Array<[string, string]> = shorthand ? (shorthand(value) ?? []) : [[name, value]];
     for (const [property, written] of pairs) {
       const rule = Object.prototype.hasOwnProperty.call(MAIL_STYLE, property) ? MAIL_STYLE[property] : undefined;
@@ -633,10 +679,12 @@ export function readMailStyle(style: string): MailStyle {
       const out = rule.write ? rule.write(tokens) : property === "font-family" ? written.replace(/\s+/g, " ") : tokens.join(" ");
       if (out !== null) kept.push({ name: property, value: out, important });
     }
+    if (kept.length === keptBefore || name === "-webkit-text-fill-color") lose();
   }
   const result: MailStyle = {
     declarations: kept,
-    lostBackground: askedBackground && !kept.some((d) => d.name === "background-color" || d.name === "background-image"),
+    lostBackground: lostBackground && !kept.some((d) => d.name === "background-color" || d.name === "background-image"),
+    lostColour,
     lostFontSize: askedFontSize && !kept.some((d) => d.name === "font-size"),
   };
   if (READ.size >= READ_MAX) READ.clear();
