@@ -29,7 +29,7 @@ import { listVaultFolders } from "../services/vaultFolders";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder, newOverviewPlacements, pinLinksBeforeOverviews, withPinnedLinks } from "../services/indexMd";
 import { opensExternally } from "@plainva/ui";
-import { deleteWithNet } from "@plainva/ui";
+import { deleteEachWithNet, deleteWithNet } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { flushUnsavedBeforeMove } from "../services/moveFlush";
 import { serializeBaseConfig } from "@plainva/ui";
@@ -1004,16 +1004,19 @@ export const FileTree: React.FC<{
     if (!ok) return;
     const errors: string[] = [];
     const deletedOps: { type: "delete"; path: string; isFolder: boolean }[] = [];
-    for (const p of roots) {
-      try {
-        // Kept where the person said "Cancel" to "Delete without a backup?" (D1).
-        if (!(await deleteWithNet(vaultAdapter, p, true))) continue;
-        onCloseTabsByPrefix?.(p);
-        deletedOps.push({ type: "delete", path: p, isFolder: folderPaths.has(p) });
-      } catch (err) {
-        console.error("Fehler beim Löschen", p, err);
+    // Kept where the person said "Cancel" to "Delete without a backup?" (D1),
+    // asked once for the whole selection (A12).
+    const outcomes = await deleteEachWithNet(roots, (p, ask) => deleteWithNet(vaultAdapter, p, true, undefined, ask));
+    for (const outcome of outcomes) {
+      const p = outcome.item;
+      if ("error" in outcome) {
+        console.error("Fehler beim Löschen", p, outcome.error);
         errors.push(p.split(/[/\\]/).pop() ?? p);
+        continue;
       }
+      if (!outcome.deleted) continue;
+      onCloseTabsByPrefix?.(p);
+      deletedOps.push({ type: "delete", path: p, isFolder: folderPaths.has(p) });
     }
     setSelection(new Set());
     setSelectionAnchor(null);

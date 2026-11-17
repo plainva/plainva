@@ -1,6 +1,6 @@
 # Mémoire (Bêta)
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-16
 
 La mémoire conserve ce que l'IA doit savoir sur vous et votre travail sans qu'on ait à le lui répéter : ce que vous faites, comment vous voulez qu'on vous réponde, qui sont vos clients. Elle se compose de deux fichiers dans votre vault. Rien n'y entre sans votre oui, et vous pouvez lire, modifier et supprimer chaque entrée.
 
@@ -38,7 +38,7 @@ Comme toutes les instructions, le fichier doit être approuvé sur chaque appare
 
 Une mémoire qui a grandi se répète. Sous **Ranger**, la vue de la mémoire signale ce que cet appareil a remarqué de lui-même, sans interroger de modèle : deux entrées qui disent presque la même chose, une entrée vieille de plus d'un an et des entrées de **Toujours inclus** qui ne tiennent plus. **Comparer** montre les deux entrées ensemble, chacune avec tout ce que son menu permet de faire.
 
-Pour y regarder de plus près, il existe une compétence. **Entretenir la mémoire** lit les entrées avec le modèle d'une conversation et prépare des brouillons de ce qui peut être regroupé et de ce qui peut disparaître ; la ligne **Faire examiner la mémoire** la lance. Ce qu'elle propose, ce sont des brouillons comme les autres : rien ne change avant que vous ne les acceptiez, et lorsque deux entrées se contredisent, elle pose la question au lieu de trancher.
+Pour y regarder de plus près, il existe une compétence. **Entretenir la mémoire** lit les entrées avec le modèle d'une conversation et prépare des brouillons de ce qui peut être regroupé et de ce qui peut disparaître ; la ligne **Faire examiner la mémoire** la lance — elle se trouve sous **Ranger** dès que quelque chose y est signalé. Ce qu'elle propose, ce sont des brouillons comme les autres : rien ne change avant que vous ne les acceptiez, et lorsque deux entrées se contredisent, elle pose la question au lieu de trancher.
 
 ## Style d'écriture
 
@@ -52,12 +52,12 @@ Le style est conservé sur cet appareil, pas dans le vault : sur un autre appare
 
 ## Confidentialité
 
-- Une entrée peut porter sa propre règle : **Pas aux modèles cloud**, **Pas dans les conversations avec Internet**. Un modèle sur cet appareil reçoit toutes les entrées.
+- Une entrée peut porter sa propre règle : **Pas aux modèles cloud**, **Pas dans les conversations avec Internet**. Un modèle sur cet appareil reçoit toutes les entrées lisibles et assez courtes — sauf dans une conversation avec Internet, où une entrée marquée **Pas dans les conversations avec Internet** reste aussi dehors ici.
 - Une entrée que l'IA a rédigée dans une conversation qui a lu des notes soumises à une règle de confidentialité reçoit les mêmes règles — la carte indique **L'entrée reçoit les règles de confidentialité des notes sur lesquelles reposait cette conversation.** Ce qui vient d'une note qui doit rester sur cet appareil n'atteint pas un cloud par le biais de la mémoire.
 - Vos [règles de confidentialité](AI_Assistant.md) valent aussi pour les deux fichiers : une règle de dossier pour `.agent/` tient toute la mémoire à l'écart du cloud.
 - L'aperçu d'envoi comporte une ligne **Mémoire** — combien d'entrées accompagnent la demande — et compte sous **Retenu** les entrées que vos règles retiennent. Il ne nomme jamais une entrée.
 - Pour l'IA, une entrée est une information, pas une instruction : une phrase dans la mémoire ne lui donne aucun droit.
-- Une conversation garde la mémoire avec laquelle elle a commencé. Une entrée que vous supprimez ne part dans aucune nouvelle conversation ; les conversations déjà commencées gardent ce qu'elles ont reçu.
+- Une conversation garde ce que la mémoire lui a donné au départ — les entrées sous **Toujours inclus**. Une entrée que vous supprimez ne part dans aucune nouvelle conversation ; les conversations déjà commencées gardent ce qu'elles ont reçu, et ce qu'elles consultent ensuite vient des fichiers tels qu'ils sont alors.
 
 ## Désactiver la mémoire
 
@@ -76,4 +76,4 @@ Le style est conservé sur cet appareil, pas dans le vault : sur un autre appare
 
 `added` et `by` indiquent quand l'entrée a été ajoutée et si vous l'avez écrite ou si vous avez accepté un brouillon, `source` nomme la conversation d'où vient un brouillon, et `deny` contient ses règles (`cloud`, `web`). Vous pouvez modifier les fichiers dans n'importe quel éditeur. Dans Plainva, **Ouvrir le fichier** ouvre l'un ou l'autre.
 
-Plainva ne devine pas. Une entrée dont le commentaire est endommagé est marquée **Règles illisibles — ne part vers aucun modèle** jusqu'à ce que vous répariez le commentaire ou ajoutiez de nouveau l'entrée. Un texte caché dans un commentaire ou dans des caractères invisibles n'est jamais envoyé ; l'entrée indique alors combien de parties cachées ont été laissées de côté. Un fichier contient au plus 2 000 entrées et 256 Ko.
+Plainva ne devine pas. Une entrée dont le commentaire est endommagé est marquée **Règles illisibles — ne part vers aucun modèle** jusqu'à ce que vous répariez le commentaire ou ajoutiez de nouveau l'entrée. Un texte caché dans un commentaire ou dans des caractères invisibles n'est jamais envoyé ; l'entrée indique alors combien de parties cachées ont été laissées de côté. D'un fichier, au plus 2 000 entrées sont lues, et un fichier de plus de 256 Ko n'est pas lu du tout.
