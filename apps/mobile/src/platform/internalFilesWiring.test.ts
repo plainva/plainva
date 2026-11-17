@@ -19,9 +19,11 @@ const missing = () => Object.assign(new Error("File does not exist"), { code: "O
 vi.mock("@capacitor/core", () => ({
   Capacitor: { getPlatform: () => "ios", isNativePlatform: () => true },
   registerPlugin: () => ({
-    write: async ({ path, data, directory }: { path: string; data: string; directory?: string }) => {
+    write: async ({ path, data, encoding, directory }: { path: string; data: string; encoding?: string; directory?: string }) => {
       fs.writes.push({ path, directory });
-      (directory === "LIBRARY" ? fs.library : fs.documents).set(path, data);
+      // A text goes as its UTF-8 bytes, in base64, since no file crosses the bridge as one string.
+      const text = encoding === "base64" ? new TextDecoder().decode(Uint8Array.from(atob(data), (c) => c.charCodeAt(0))) : data;
+      (directory === "LIBRARY" ? fs.library : fs.documents).set(path, text);
     },
   }),
 }));

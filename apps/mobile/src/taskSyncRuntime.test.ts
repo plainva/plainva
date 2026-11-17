@@ -63,6 +63,9 @@ vi.mock("@plainva/ui", () => ({
   // The reconcile line of the diagnostics log (T4) - not what this file tests.
   formatTaskSync: () => null,
   logDiagnostic: () => {},
+  // Whether a run is news (F21) is pinned by taskSyncQuiet.test.ts.
+  taskSyncHasNews: async () => true,
+  markTaskSyncInputChanged: () => {},
 }));
 
 let settings = { taskDatabase: "Aufgaben.base", defaultNoteType: "Task" };

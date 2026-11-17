@@ -222,9 +222,12 @@ Does the app refuse an update that is not what the Plainva project signed?
 Open since v0.1.0 (stability plan R11, finding S12), now a job of
 `native-smoke.yml` (`updater-signature`, Linux and Windows) against a
 **debug build** of the commit. `release.yml` calls the workflow for every
-release (not for a `rebuild_windows_tag` run), but nothing waits for it: the
-draft is published by hand and `updater-manifest.yml` runs on that, so the
-release checklist asks to look at both jobs before publishing. Spec `apps/desktop/wdio/updater-signature.e2e.ts`, launcher
+release (not for a `rebuild_windows_tag` run). The draft is published by
+hand, and since 2026-11-17 `updater-manifest.yml` moves the fixed
+`latest.json` only when both jobs are green in the release run of exactly
+that tag; it waits for them while they run
+(`apps/desktop/scripts/updater-signature-gate.mjs`). The release checklist
+still asks to look at both jobs before publishing. Spec `apps/desktop/wdio/updater-signature.e2e.ts`, launcher
 `apps/desktop/wdio.updater.conf.ts`, fixtures
 `apps/desktop/scripts/updater-signature-fixtures.mjs`.
 
