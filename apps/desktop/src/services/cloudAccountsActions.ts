@@ -16,6 +16,7 @@ import {
   type ServiceConnectionContext,
   assertConnectionIdentity,
   ServiceConnectionError,
+  oweSignInDeletion,
   removeAccountCard,
   signOutAccountHere,
   withServiceOff,
@@ -49,6 +50,7 @@ import {
   claimPendingMailbox,
   fileBrokerTokenProvider,
   clearAccountToken,
+  owedSignInResources,
   getAccountToken,
 } from "./accountBroker";
 import i18n from "@plainva/ui/i18n";
@@ -612,6 +614,8 @@ export async function removeCloudAccount(
     disable: async (service) => { await disableAccountService(vaultPath, runtime, record, service); },
     // The account-wide token outlives its services otherwise (E9.2).
     clearCardGrant: () => clearAccountToken(vaultPath, record.id),
+    // A grant the keychain would not let go of is owed and made up for (maintainer, 2026-11-17).
+    oweCardGrant: (error) => oweSignInDeletion(owedSignInResources(vaultPath), record.id, error),
     dropRecord: async () => {
       const stored = await loadCloudAccounts(vaultPath);
       await saveCloudAccounts(vaultPath, stored.filter((r) => r.id !== record.id));

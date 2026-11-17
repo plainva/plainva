@@ -126,6 +126,10 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
  * DB (web dev server). */
 export async function startPim(vault: MobileVault): Promise<void> {
   wirePendingEventWrites();
+  // A sign-in "Remove account" could not delete is tried again first, as on
+  // the desktop: it must be gone before anything reads the vault's sign-ins.
+  const { settleOwedAccountSignIns } = await import("../accountBroker");
+  await settleOwedAccountSignIns(vault.vaultId).catch((e) => console.error("[pim] deleting owed sign-ins failed", e));
   // A calendar or mailbox that still signs in on its own hands that sign-in
   // to its card before the calendar starts (account sign-in plan K2).
   const { migrateVaultGrants } = await import("../accountGrantMigration");
