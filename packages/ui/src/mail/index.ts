@@ -69,3 +69,4 @@ export * from "./net/imap";
 export * from "./net/smtp";
 export * from "./net/sessionPool";
 export * from "./net/socketTransport";
+export * from "./mailTree";

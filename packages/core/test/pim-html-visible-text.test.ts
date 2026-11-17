@@ -57,6 +57,8 @@ describe("htmlToVisibleText", () => {
     ["a font of no size", '<span style="font-size:0">X</span>'],
     ["a font of one pixel", '<span style="color:#ffffff;font-size:1px">X</span>'],
     ["a hidden table row", '<table><tr style="display:none"><td>X</td></tr></table>'],
+    ["a box of no height that clips", '<div style="max-height:0;overflow:hidden">X</div>'],
+    ["eight small sizes deep", `${"<small>".repeat(8)}X${"</small>".repeat(8)}`],
   ])("leaves out an element taken off the screen by %s", (_what, hidden) => {
     expect(htmlToVisibleText(`<p>Davor</p>${hidden}<p>Danach</p>`)).toBe("Davor\n\nDanach");
   });
@@ -67,15 +69,15 @@ describe("htmlToVisibleText", () => {
     ["half an opacity", '<span style="opacity:0.5">X</span>'],
     ["a readable font size", '<span style="font-size:12px">X</span>'],
     ["no height, but nothing clips", '<div style="max-height:0">X</div>'],
-    // The mail reader keeps no overflow and no position (MAIL_STYLE), so a
-    // clipping box is not one on its screen: the words stand below it.
-    ["a box of no height that would clip", '<div style="max-height:0;overflow:hidden">X</div>'],
-    ["a one-pixel box that would clip", '<span style="position:absolute;width:1px;height:1px;overflow:hidden">X</span>'],
+    // The mail reader keeps no position (MAIL_STYLE) and overflow only where it
+    // clips a box to nothing (`clipsToNothing`): an inline box does not clip,
+    // and the reader is not given a clip of a box of real size.
+    ["an inline box of one pixel that would clip", '<span style="position:absolute;width:1px;height:1px;overflow:hidden">X</span>'],
     ["a clipping box of real size", '<div style="height:40px;overflow:hidden">X</div>'],
     ["aria-hidden, which a screen still shows", '<span aria-hidden="true">X</span>'],
     ["a class, whose style sheet no mail reader keeps", '<div class="preheader">X</div>'],
-    // The mail reader removes a style that loads something, so the element is on screen there.
-    ["a style the reader drops because it names a url(", '<div style="display:none;background:url(https://tracker.example/p.gif)">X</div>'],
+    // The mail reader never keeps an address in a style, and keeps what stands beside it.
+    ["a style whose only other declaration is an address", '<div style="background:url(https://tracker.example/p.gif)">X</div>'],
   ])("keeps an element with %s", (_what, shown) => {
     expect(htmlToVisibleText(`<p>Davor</p>${shown}<p>Danach</p>`)).toBe("Davor\n\nX\n\nDanach");
   });

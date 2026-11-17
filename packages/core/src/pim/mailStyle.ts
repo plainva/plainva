@@ -1,3 +1,5 @@
+import { readColour, type Rgba } from "./mailColour.js";
+
 /**
  * The inline styles a mail may keep — ONE list for the mail reader's sanitizer
  * and for the walk that reads what the reader shows (`htmlVisibleText.ts`).
@@ -9,29 +11,38 @@
  * 9999 px to the left, `transform:scale(0)`, `clip-path`, `content-visibility`
  * …). Naming those one by one never ends. So the sanitizer keeps a
  * declaration only where this list knows its property AND reads its value, and
- * writes the style anew from what it kept; everything else falls away and the
- * reader shows the element unstyled in that respect. The walk reads the same
- * declarations with the same parser, so what it judges is exactly what the
- * browser is given.
+ * writes the style anew from what it kept; everything else falls away. The
+ * walk reads the same declarations with the same parser, so what it judges is
+ * exactly what the browser is given.
  *
- * Each property is one of three kinds:
+ * What a newsletter lays out with is READ here, not dropped (review of
+ * 2026-11-17: a reader that drops what it cannot judge makes ordinary mails
+ * unreadable — light text on a dark cell lost its alpha colour, white text lost
+ * the gradient behind it, a column lost its font size to a `font` shorthand or
+ * a `calc()`). The shorthands `font` and `background` are written out as the
+ * longhands they set; colours with alpha, gradients and sizes worked out with
+ * `calc()`, `min()`, `max()` and `clamp()` are kept and judged.
+ *
+ * Each property is one of two kinds:
  *  - `judged`: it can take words off the screen, and the walk judges it
- *    (`JUDGED_BY_THE_WALK` there; a test holds the two lists together);
+ *    (`JUDGED_BY_THE_WALK` there; a test holds the two lists together) —
+ *    display, visibility, opacity, the font size, the text colour against
+ *    the background, and overflow, which is kept only where it clips a box to
+ *    nothing (`clipsToNothing` in `mailShape.ts`);
  *  - `layout`: with the values allowed here it moves or shapes text but cannot
- *    take it off the screen — no negative lengths, no positions, no clipping
- *    (overflow is not kept at all), lengths capped;
- *  - `contrast`: a colour. Text in the colour of its background is the one
- *    limit that stays named: the walk does not compare colours, so words
- *    written white on white are read by the assistant as the reader shows
- *    them, unseen. A transparent text colour is not kept.
+ *    take it off the screen — no negative lengths, no positions, no
+ *    transforms, lengths capped, and no box reaching past the narrowest frame
+ *    (`mailShape.ts`).
  */
 
-export type MailStyleKind = "judged" | "layout" | "contrast";
+export type MailStyleKind = "judged" | "layout";
 
 interface PropertyRule {
   kind: MailStyleKind;
   /** The value, in lower case and split at blanks, as the property may keep it. */
   accepts: (tokens: string[], value: string) => boolean;
+  /** The value as the reader is given it, where that is not the value as written; null drops it. */
+  write?: (tokens: string[]) => string | null;
 }
 
 /** A length: a non-negative amount in a unit this list reads, with a cap per unit. */
@@ -40,6 +51,10 @@ const LENGTH = /^(\d+(?:\.\d+)?|\.\d+)(px|pt|pc|cm|mm|in|em|rem|ex|ch|%)?$/;
 const LENGTH_CAP: Record<string, number> = { px: 2000, pt: 1500, pc: 125, cm: 53, mm: 530, in: 21, em: 100, rem: 100, ex: 200, ch: 200, "%": 500 };
 /** Pixels per unit, for the absolute units (CSS: 96 px to the inch). */
 export const PX_PER_UNIT: Record<string, number> = { px: 1, pt: 4 / 3, pc: 16, cm: 96 / 2.54, mm: 96 / 25.4, in: 96 };
+/** The root size `rem` is measured by. */
+export const ROOT_PX = 16;
+/** How much of a letter's size an `ex` or a `ch` is at least: it hangs on a typeface the walk does not know. */
+const EX_LOW = 0.4;
 
 export function readLength(token: string): { amount: number; unit: string } | null {
   const m = LENGTH.exec(token);
@@ -51,16 +66,30 @@ export function readLength(token: string): { amount: number; unit: string } | nu
   return { amount, unit };
 }
 
-const isLength = (token: string): boolean => readLength(token) !== null;
 /**
- * A font size the walk can work out: `ex` and `ch` hang on the letters of a
- * typeface the walk does not know (Gmail sets margins in them, never a size),
- * so a size in them is not kept.
+ * A length in pixels: `em`, `ex` and `ch` from the element's font size, `%`
+ * from `percentOf`. An `ex` and a `ch` count at their smallest.
  */
-const isFontLength = (token: string): boolean => {
+export function lengthPx(token: string, fontPx: number, percentOf: number): number | null {
   const length = readLength(token);
-  return length !== null && length.unit !== "ex" && length.unit !== "ch";
-};
+  if (!length) return null;
+  if (length.unit in PX_PER_UNIT) return length.amount * PX_PER_UNIT[length.unit];
+  switch (length.unit) {
+    case "em":
+      return length.amount * fontPx;
+    case "rem":
+      return length.amount * ROOT_PX;
+    case "ex":
+    case "ch":
+      return length.amount * fontPx * EX_LOW;
+    case "%":
+      return (length.amount / 100) * percentOf;
+    default:
+      return null;
+  }
+}
+
+const isLength = (token: string): boolean => readLength(token) !== null;
 const oneOf = (...words: string[]) => {
   const set = new Set(words);
   return (tokens: string[]) => tokens.length === 1 && set.has(tokens[0]);
@@ -74,43 +103,71 @@ const boxSides = (...words: string[]) => {
   const set = new Set(words);
   return (tokens: string[]) => tokens.length >= 1 && tokens.length <= 4 && tokens.every((t) => set.has(t) || isLength(t));
 };
+/** A length up to a cap — the spacing between letters and words never lays a word past the frame. */
+const spacing = (capPx: number, capEm: number) => (tokens: string[]) => {
+  if (tokens.length !== 1) return false;
+  if (tokens[0] === "normal") return true;
+  const length = readLength(tokens[0]);
+  if (!length) return false;
+  if (length.unit in PX_PER_UNIT) return length.amount * PX_PER_UNIT[length.unit] <= capPx;
+  return (length.unit === "em" || length.unit === "rem" || length.unit === "ex" || length.unit === "ch") && length.amount <= capEm;
+};
 
-const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/;
-const HEX_ALPHA = /^#(?:[0-9a-f]{4}|[0-9a-f]{8})$/;
-const NUMBER = /^(?:\d+(?:\.\d+)?|\.\d+)%?$/;
-/** A colour function and what stands between its brackets. */
-const COLOUR_FUNCTION = /^([a-z]+)\(([^()]*)\)$/;
+const anyColour = (token: string): boolean => readColour(token) !== null;
+
+/** The words of the first argument of a gradient: a direction, an angle, a shape and where it stands. */
+const GRADIENT = /^(?:repeating-)?(?:linear|radial)-gradient\((.*)\)$/;
+const GRADIENT_WORDS = new Set([
+  "to", "left", "right", "top", "bottom", "center", "at", "circle", "ellipse",
+  "closest-side", "closest-corner", "farthest-side", "farthest-corner",
+]);
+const ANGLE = /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:deg|grad|rad|turn)$/;
+const STOP_POSITION = /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|%)$/;
 
 /**
- * The numbers of `rgb(…)`/`hsl(…)` (three) or `rgba(…)`/`hsla(…)` (four), with
- * commas or blanks between and a hue in `deg`; false for anything else.
+ * The colours of a gradient, or null where it is not one this list reads: a
+ * `linear-`, `radial-` or `repeating-` gradient whose stops are colours this
+ * list reads, with lengths, angles and the words of a direction or a shape
+ * between them — nothing that fetches, nothing that refers elsewhere.
  */
-function colourArguments(token: string, names: readonly string[], count: number): boolean {
-  const fn = COLOUR_FUNCTION.exec(token);
-  if (!fn || !names.includes(fn[1])) return false;
-  const args = fn[2].split(/[\s,]+/).filter(Boolean);
-  if (args.length !== count) return false;
-  args[0] = args[0].replace(/deg$/, "");
-  return args.every((n) => NUMBER.test(n));
+export function gradientColours(token: string): Rgba[] | null {
+  const m = GRADIENT.exec(token);
+  if (!m) return null;
+  const colours: Rgba[] = [];
+  const parts = splitTopLevel(m[1], ",");
+  for (let index = 0; index < parts.length; index++) {
+    const words = splitTokens(parts[index].trim());
+    if (words.length === 0) return null;
+    const colour = readColour(words[0]);
+    if (colour) {
+      if (words.length > 3 || !words.slice(1).every((w) => isLength(w) || STOP_POSITION.test(w))) return null;
+      colours.push(colour);
+    } else if (index === 0) {
+      if (!words.every((w) => GRADIENT_WORDS.has(w) || ANGLE.test(w) || isLength(w))) return null;
+    } else if (!(words.length === 1 && isLength(words[0]))) return null;
+  }
+  return colours.length >= 1 ? colours : null;
 }
-const NAMED = /^[a-z]{3,20}$/;
 
-/** A colour that paints: no alpha, never `transparent`. */
-function opaqueColour(token: string): boolean {
-  if (HEX.test(token)) return true;
-  if (colourArguments(token, ["rgb", "hsl"], 3)) return true;
-  return NAMED.test(token) && token !== "transparent";
+/** A background image this list keeps: one to four gradients, never an address. */
+function gradients(value: string): boolean {
+  const layers = splitTopLevel(value, ",").map((layer) => layer.trim());
+  return layers.length >= 1 && layers.length <= 4 && layers.every((layer) => gradientColours(layer) !== null);
 }
 
-/** Any colour a background may have. */
-function anyColour(token: string): boolean {
-  if (opaqueColour(token) || HEX_ALPHA.test(token) || token === "transparent") return true;
-  return colourArguments(token, ["rgba", "hsla"], 4);
+/** The colours of every gradient in a kept `background-image`. */
+export function backgroundImageColours(value: string): Rgba[] {
+  return splitTopLevel(value, ",").flatMap((layer) => gradientColours(layer.trim()) ?? []);
 }
 
 const BORDER_STYLE = new Set(["none", "hidden", "solid", "dotted", "dashed", "double", "groove", "ridge", "inset", "outset"]);
 const BORDER_WIDTH = new Set(["thin", "medium", "thick"]);
-const borderPart = (t: string) => BORDER_STYLE.has(t) || BORDER_WIDTH.has(t) || isLength(t) || anyColour(t);
+/** A border never wider than a thick line: a frame, not a way to push a box off the page. */
+const borderLength = (t: string): boolean => {
+  const length = readLength(t);
+  return length !== null && length.unit !== "%" && (lengthPx(t, 16, 0) ?? Infinity) <= 20;
+};
+const borderPart = (t: string) => BORDER_STYLE.has(t) || BORDER_WIDTH.has(t) || borderLength(t) || anyColour(t);
 const border = (tokens: string[]) => tokens.length >= 1 && tokens.length <= 3 && tokens.every(borderPart);
 
 const FONT_NAME = /^[a-z0-9 ,'"_-]+$/i;
@@ -145,6 +202,172 @@ export function namedFontSize(word: string): number | null {
   return Object.prototype.hasOwnProperty.call(NAMED_FONT_SIZE, word) ? NAMED_FONT_SIZE[word] : null;
 }
 
+/** A size worked out by a function, as the range it can come to. */
+type Range = readonly [number, number];
+/** One viewport unit in pixels, over the frames of the narrowest phone to a wide screen. */
+const VIEWPORT_UNIT: Range = [2.8, 25.6];
+const MATH_FUNCTION = /^(calc|min|max|clamp)\(/;
+const MATH_NUMBER = /^(-?(?:\d+(?:\.\d+)?|\.\d+))(px|pt|pc|cm|mm|in|em|rem|ex|ch|%|vw|vh|vmin|vmax)?/;
+
+/**
+ * A size worked out by `calc()`, `min()`, `max()` or `clamp()`, as the range
+ * it can come to: `em`, `ex`, `ch` and `%` from the parent's size, viewport
+ * units over every frame the reader can have. `null` where the expression is
+ * not one this reads, or not a length.
+ */
+function mathRange(text: string, parentPx: number): Range | null {
+  let at = 0;
+  /** Whether the value last read is a plain number: only a number multiplies or divides a length. */
+  let plain = false;
+  const blank = () => {
+    while (at < text.length && /\s/.test(text[at])) at++;
+  };
+  const unitScale = (unit: string): Range => {
+    if (unit in PX_PER_UNIT) return [PX_PER_UNIT[unit], PX_PER_UNIT[unit]];
+    if (unit === "em") return [parentPx, parentPx];
+    if (unit === "%") return [parentPx / 100, parentPx / 100];
+    if (unit === "rem") return [ROOT_PX, ROOT_PX];
+    if (unit === "ex" || unit === "ch") return [parentPx * EX_LOW, parentPx * 0.6];
+    return VIEWPORT_UNIT;
+  };
+  const factor = (): Range | null => {
+    blank();
+    if (text[at] === "(") {
+      at++;
+      const inner = sum();
+      blank();
+      if (!inner || text[at] !== ")") return null;
+      at++;
+      return inner;
+    }
+    const fn = MATH_FUNCTION.exec(text.slice(at));
+    if (fn) {
+      at += fn[0].length;
+      const args: Range[] = [];
+      for (;;) {
+        const arg = sum();
+        if (!arg || plain) return null;
+        args.push(arg);
+        blank();
+        if (text[at] === "," && args.length < 8) {
+          at++;
+          continue;
+        }
+        if (text[at] !== ")") return null;
+        at++;
+        break;
+      }
+      plain = false;
+      if (fn[1] === "calc") return args.length === 1 ? args[0] : null;
+      if (fn[1] === "clamp") {
+        if (args.length !== 3) return null;
+        const [low, middle, high] = args;
+        return [Math.max(low[0], Math.min(middle[0], high[0])), Math.max(low[1], Math.min(middle[1], high[1]))];
+      }
+      const lows = args.map((arg) => arg[0]);
+      const highs = args.map((arg) => arg[1]);
+      return fn[1] === "min" ? [Math.min(...lows), Math.min(...highs)] : [Math.max(...lows), Math.max(...highs)];
+    }
+    const m = MATH_NUMBER.exec(text.slice(at));
+    if (!m) return null;
+    at += m[0].length;
+    const n = parseFloat(m[1]);
+    const unit = m[2] ?? "";
+    plain = unit === "";
+    if (plain) return [n, n];
+    const scale = unitScale(unit);
+    return [Math.min(n * scale[0], n * scale[1]), Math.max(n * scale[0], n * scale[1])];
+  };
+  const product = (): Range | null => {
+    let left = factor();
+    if (!left) return null;
+    let leftPlain = plain;
+    for (;;) {
+      blank();
+      const op = text[at];
+      if (op !== "*" && op !== "/") {
+        plain = leftPlain;
+        return left;
+      }
+      at++;
+      const right = factor();
+      if (!right) return null;
+      if (op === "*") {
+        if (!leftPlain && !plain) return null;
+        const products: number[] = [left[0] * right[0], left[0] * right[1], left[1] * right[0], left[1] * right[1]];
+        left = [Math.min(...products), Math.max(...products)];
+        leftPlain = leftPlain && plain;
+      } else {
+        if (!plain || right[0] <= 0) return null;
+        left = [left[0] / right[1], left[1] / right[0]];
+      }
+    }
+  };
+  function sum(): Range | null {
+    let left = product();
+    if (!left) return null;
+    let leftPlain = plain;
+    for (;;) {
+      blank();
+      const op = text[at];
+      if (op !== "+" && op !== "-") {
+        plain = leftPlain;
+        return left;
+      }
+      at++;
+      const right = product();
+      if (!right || plain !== leftPlain) return null;
+      left = op === "+" ? [left[0] + right[0], left[1] + right[1]] : [left[0] - right[1], left[1] - right[0]];
+      leftPlain = plain;
+    }
+  }
+  const range = factor();
+  blank();
+  if (!range || at !== text.length || plain) return null;
+  return range;
+}
+
+/**
+ * The size in pixels a declared font size gives, from the parent's — the
+ * smallest it can come to: absolute lengths and the named sizes stand on their
+ * own, `em` and `%` are measured against the parent (of a parent of no size,
+ * nothing), `rem` against the root, `ex` and `ch` at their smallest, a size
+ * worked out by `calc()` and its kin at the least it can be. `null` for a
+ * value this list does not keep.
+ */
+export function fontSizePx(value: string, parentPx: number): number | null {
+  const named = namedFontSize(value);
+  if (named !== null) return named;
+  if (value === "larger") return parentPx * 1.2;
+  if (value === "smaller") return parentPx / 1.2;
+  if (value === "inherit" || value === "unset") return parentPx;
+  if (MATH_FUNCTION.test(value)) {
+    const range = mathRange(value, parentPx);
+    return range ? Math.max(0, range[0]) : null;
+  }
+  return lengthPx(value, parentPx, parentPx);
+}
+
+function fontSizeToken(token: string): boolean {
+  return namedFontSize(token) !== null || FONT_SIZE_WORDS.includes(token) || isLength(token) || (MATH_FUNCTION.test(token) && fontSizePx(token, 16) !== null);
+}
+
+function lineHeight(tokens: string[]): boolean {
+  if (tokens.length !== 1) return false;
+  if (tokens[0] === "normal") return true;
+  // Lines laid on top of each other are no way to read them either.
+  if (/^(\d+(?:\.\d+)?|\.\d+)$/.test(tokens[0])) return parseFloat(tokens[0]) >= 0.5 && parseFloat(tokens[0]) <= 10;
+  const length = readLength(tokens[0]);
+  if (!length) return false;
+  if (length.unit in PX_PER_UNIT) return length.amount * PX_PER_UNIT[length.unit] >= 4;
+  if (length.unit === "%") return length.amount >= 50;
+  // An ex or a ch is about half a letter's height.
+  return length.unit === "ex" || length.unit === "ch" ? length.amount >= 1 : length.amount >= 0.5;
+}
+
+const FONT_WEIGHT = oneOf("normal", "bold", "bolder", "lighter", "100", "200", "300", "400", "500", "600", "700", "800", "900");
+const FONT_STYLE = oneOf("normal", "italic", "oblique");
+
 const LAYOUT_SIZE = lengthOr("auto", "none");
 
 export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
@@ -152,33 +375,24 @@ export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
   display: { kind: "judged", accepts: DISPLAY },
   visibility: { kind: "judged", accepts: oneOf("visible", "hidden", "collapse") },
   opacity: { kind: "judged", accepts: (t) => t.length === 1 && readOpacity(t[0]) !== null },
-  "font-size": { kind: "judged", accepts: (t) => t.length === 1 && (namedFontSize(t[0]) !== null || FONT_SIZE_WORDS.includes(t[0]) || isFontLength(t[0])) },
-  "white-space": { kind: "judged", accepts: oneOf("normal", "nowrap", "pre", "pre-wrap", "pre-line", "break-spaces") },
-
-  // Colours: the named limit.
-  color: { kind: "contrast", accepts: (t) => t.length === 1 && opaqueColour(t[0]) },
-  "background-color": { kind: "contrast", accepts: (t) => t.length === 1 && anyColour(t[0]) },
-  background: { kind: "contrast", accepts: (t) => t.length === 1 && anyColour(t[0]) },
+  "font-size": { kind: "judged", accepts: (t) => t.length === 1 && fontSizeToken(t[0]) },
+  // Text that does not wrap runs past the frame, where nothing shows it: lines
+  // always wrap in the reader, and preformatted text keeps its lines.
+  "white-space": {
+    kind: "judged",
+    accepts: oneOf("normal", "nowrap", "pre", "pre-wrap", "pre-line", "break-spaces"),
+    write: (t) => (t[0] === "nowrap" ? null : t[0] === "pre" ? "pre-wrap" : t[0]),
+  },
+  color: { kind: "judged", accepts: (t) => t.length === 1 && anyColour(t[0]) },
+  "background-color": { kind: "judged", accepts: (t) => t.length === 1 && anyColour(t[0]) },
+  "background-image": { kind: "judged", accepts: (_t, value) => gradients(value.toLowerCase()) },
+  overflow: { kind: "judged", accepts: oneOf("hidden") },
 
   // Type and lines.
   "font-family": { kind: "layout", accepts: fontFamily },
-  "font-weight": { kind: "layout", accepts: oneOf("normal", "bold", "bolder", "lighter", "100", "200", "300", "400", "500", "600", "700", "800", "900") },
-  "font-style": { kind: "layout", accepts: oneOf("normal", "italic", "oblique") },
-  "line-height": {
-    kind: "layout",
-    accepts: (t) => {
-      if (t.length !== 1) return false;
-      if (t[0] === "normal") return true;
-      // Lines laid on top of each other are no way to read them either.
-      if (/^(\d+(?:\.\d+)?|\.\d+)$/.test(t[0])) return parseFloat(t[0]) >= 0.5 && parseFloat(t[0]) <= 10;
-      const length = readLength(t[0]);
-      if (!length) return false;
-      if (length.unit in PX_PER_UNIT) return length.amount * PX_PER_UNIT[length.unit] >= 4;
-      if (length.unit === "%") return length.amount >= 50;
-      // An ex or a ch is about half a letter's height.
-      return length.unit === "ex" || length.unit === "ch" ? length.amount >= 1 : length.amount >= 0.5;
-    },
-  },
+  "font-weight": { kind: "layout", accepts: FONT_WEIGHT },
+  "font-style": { kind: "layout", accepts: FONT_STYLE },
+  "line-height": { kind: "layout", accepts: lineHeight },
   "text-align": { kind: "layout", accepts: oneOf("left", "right", "center", "justify", "start", "end") },
   "vertical-align": { kind: "layout", accepts: oneOf("baseline", "top", "middle", "bottom", "text-top", "text-bottom", "sub", "super") },
   "text-decoration": { kind: "layout", accepts: (t) => t.length >= 1 && t.every((w) => ["none", "underline", "overline", "line-through"].includes(w)) },
@@ -189,13 +403,13 @@ export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
     kind: "layout",
     accepts: (t) => {
       if (t.length !== 1) return false;
-      if (t[0] === "normal" || isLength(t[0])) return true;
+      if (spacing(20, 1)(t)) return true;
       const tight = t[0].startsWith("-") ? readLength(t[0].slice(1)) : null;
       if (!tight) return false;
       return tight.unit === "em" || tight.unit === "rem" ? tight.amount <= 0.1 : tight.unit === "px" ? tight.amount <= 2 : tight.unit === "pt" ? tight.amount <= 1.5 : false;
     },
   },
-  "word-spacing": { kind: "layout", accepts: lengthOr("normal") },
+  "word-spacing": { kind: "layout", accepts: spacing(40, 2) },
   "text-indent": { kind: "layout", accepts: lengthOr() },
   "word-break": { kind: "layout", accepts: oneOf("normal", "break-all", "keep-all", "break-word") },
   "overflow-wrap": { kind: "layout", accepts: oneOf("normal", "break-word", "anywhere") },
@@ -224,12 +438,12 @@ export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
   "border-right": { kind: "layout", accepts: border },
   "border-bottom": { kind: "layout", accepts: border },
   "border-left": { kind: "layout", accepts: border },
-  "border-width": { kind: "layout", accepts: (t) => t.length >= 1 && t.length <= 4 && t.every((w) => BORDER_WIDTH.has(w) || isLength(w)) },
+  "border-width": { kind: "layout", accepts: (t) => t.length >= 1 && t.length <= 4 && t.every((w) => BORDER_WIDTH.has(w) || borderLength(w)) },
   "border-style": { kind: "layout", accepts: (t) => t.length >= 1 && t.length <= 4 && t.every((w) => BORDER_STYLE.has(w)) },
   "border-color": { kind: "layout", accepts: (t) => t.length >= 1 && t.length <= 4 && t.every(anyColour) },
   "border-radius": { kind: "layout", accepts: boxSides() },
   "border-collapse": { kind: "layout", accepts: oneOf("collapse", "separate") },
-  "border-spacing": { kind: "layout", accepts: (t) => t.length >= 1 && t.length <= 2 && t.every(isLength) },
+  "border-spacing": { kind: "layout", accepts: (t) => t.length >= 1 && t.length <= 2 && t.every((w) => spacing(40, 2)([w])) },
   "table-layout": { kind: "layout", accepts: oneOf("auto", "fixed") },
   "box-sizing": { kind: "layout", accepts: oneOf("content-box", "border-box") },
   float: { kind: "layout", accepts: oneOf("left", "right", "none") },
@@ -238,11 +452,127 @@ export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
   "list-style": { kind: "layout", accepts: (t) => t.length >= 1 && t.length <= 2 && t.every((w) => /^[a-z-]{1,24}$/.test(w)) },
 };
 
+/** Words of the `font` shorthand before its size. */
+const FONT_PREFIX = new Set([
+  "normal", "italic", "oblique", "small-caps", "bold", "bolder", "lighter", "100", "200", "300", "400", "500", "600", "700", "800", "900",
+  "ultra-condensed", "extra-condensed", "condensed", "semi-condensed", "semi-expanded", "expanded", "extra-expanded", "ultra-expanded",
+]);
+
+/**
+ * The longhands the `font` shorthand sets, as a browser reads it: the style
+ * and weight words, a size with an optional line height after a slash, and a
+ * family — without a family the shorthand is no declaration at all. What the
+ * shorthand does not name it sets back to normal. `null` where it is not one
+ * this list reads.
+ */
+function fontLonghands(value: string): Array<[string, string]> | null {
+  const words = splitTokens(value);
+  let index = 0;
+  let style = "normal";
+  let weight = "normal";
+  while (index < words.length && FONT_PREFIX.has(words[index].toLowerCase())) {
+    const word = words[index].toLowerCase();
+    if (word === "italic" || word === "oblique") style = word;
+    else if (FONT_WEIGHT([word])) weight = word;
+    index++;
+  }
+  if (index >= words.length) return null;
+  let size = words[index++].toLowerCase();
+  let height: string | null = null;
+  const slash = size.indexOf("/");
+  if (slash >= 0) {
+    height = size.slice(slash + 1);
+    size = size.slice(0, slash);
+    if (!height && index < words.length) height = words[index++].toLowerCase();
+  } else if (index < words.length && words[index].startsWith("/")) {
+    height = words[index++].slice(1).toLowerCase();
+    if (!height && index < words.length) height = words[index++].toLowerCase();
+  }
+  if (!fontSizeToken(size)) return null;
+  const family = words.slice(index).join(" ");
+  if (!family || !fontFamily([], family)) return null;
+  // A line height of no height is not kept: the lines then stand at their normal height.
+  const line = height && lineHeight([height]) ? height : "normal";
+  return [["font-style", style], ["font-weight", weight], ["font-size", size], ["line-height", line], ["font-family", family]];
+}
+
+/** Words of the `background` shorthand that only place an image. */
+const BACKGROUND_WORDS = new Set([
+  "none", "repeat", "no-repeat", "repeat-x", "repeat-y", "space", "round", "scroll", "fixed", "local",
+  "left", "right", "top", "bottom", "center", "cover", "contain", "auto", "border-box", "padding-box", "content-box",
+]);
+const backgroundWord = (word: string): boolean => BACKGROUND_WORDS.has(word) || isLength(word) || /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|%)$/.test(word);
+
+/**
+ * The longhands of the `background` shorthand the reader is given: its colour
+ * and its gradients. An image from an address is not kept (it is a fetch);
+ * how an image is placed does not matter without one. `null` where a word is
+ * not one this list reads — then nothing of it is kept.
+ */
+function backgroundLonghands(value: string): Array<[string, string]> | null {
+  const layers = splitTopLevel(value, ",");
+  let colour: string | null = null;
+  const images: string[] = [];
+  for (let layer = 0; layer < layers.length; layer++) {
+    for (const word of splitTokens(layers[layer].trim())) {
+      if (/^url\(/.test(word)) continue;
+      if (gradientColours(word)) images.push(word);
+      else if (layer === layers.length - 1 && colour === null && anyColour(word)) colour = word;
+      else if (!word.split("/").every((part) => part === "" || backgroundWord(part))) return null;
+    }
+  }
+  const longhands: Array<[string, string]> = [];
+  if (colour !== null) longhands.push(["background-color", colour]);
+  if (images.length > 0 && images.length <= 4) longhands.push(["background-image", images.join(", ")]);
+  return longhands;
+}
+
+/** Shorthands read as the longhands they set. */
+const SHORTHANDS: Readonly<Record<string, (value: string) => Array<[string, string]> | null>> = {
+  font: (value) => fontLonghands(value),
+  background: (value) => backgroundLonghands(value.toLowerCase()),
+};
+
+/** The properties that paint a background; the text colour hangs on them. */
+const BACKGROUND_PROPERTIES = new Set(["background", "background-color", "background-image"]);
+
 /** One kept declaration: its property, its value as it is written out, and whether it is `!important`. */
 export interface MailDeclaration {
   name: string;
   value: string;
   important: boolean;
+}
+
+/** What a style keeps, and what it asked for that it does not keep. */
+export interface MailStyle {
+  declarations: MailDeclaration[];
+  /** It set a background and none of it is kept (an image from an address, a value not read). */
+  lostBackground: boolean;
+  /** It set a font size and none is kept. */
+  lostFontSize: boolean;
+}
+
+/** `value` split at `separator`, except inside a function's brackets or quotes. */
+function splitTopLevel(value: string, separator: string): string[] {
+  const parts: string[] = [];
+  let part = "";
+  let depth = 0;
+  let quote = "";
+  for (const c of value) {
+    if (quote) {
+      if (c === quote) quote = "";
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === "(") depth++;
+    else if (c === ")") depth = Math.max(0, depth - 1);
+    else if (c === separator && depth === 0) {
+      parts.push(part);
+      part = "";
+      continue;
+    }
+    part += c;
+  }
+  parts.push(part);
+  return parts;
 }
 
 /** The words of a value: split at blanks, except inside a function's brackets. */
@@ -262,40 +592,89 @@ function splitTokens(value: string): string[] {
   return tokens;
 }
 
+/** A style read once is read again unchanged: a newsletter writes the same few hundred times. */
+const READ = new Map<string, MailStyle>();
+const READ_MAX = 4096;
+
 /**
- * The declarations of a `style` attribute that the list keeps, in their order.
- * A comment is nothing to a browser, so it is nothing here (a comment between
- * `display:` and `none` still says `display: none`); a declaration
+ * What a `style` attribute keeps, in its order, with the shorthands written
+ * out. A comment is nothing to a browser, so it is nothing here (a comment
+ * between `display:` and `none` still says `display: none`); a declaration
  * with a backslash — an escape, which the browser reads and this does not — is
  * not kept, nor one whose property or value the list does not know.
  */
-export function mailStyleDeclarations(style: string): MailDeclaration[] {
+export function readMailStyle(style: string): MailStyle {
+  const known = READ.get(style);
+  if (known) return known;
   const kept: MailDeclaration[] = [];
+  let askedBackground = false;
+  let askedFontSize = false;
   const text = style.replace(/\/\*[\s\S]*?(?:\*\/|$)/g, " ");
   for (const declaration of text.split(";")) {
-    if (declaration.includes("\\")) continue;
     const colon = declaration.indexOf(":");
     if (colon < 0) continue;
     const name = declaration.slice(0, colon).trim().toLowerCase();
-    const rule = Object.prototype.hasOwnProperty.call(MAIL_STYLE, name) ? MAIL_STYLE[name] : undefined;
-    if (!rule) continue;
+    if (BACKGROUND_PROPERTIES.has(name)) askedBackground = true;
+    if (name === "font-size" || name === "font") askedFontSize = true;
+    if (declaration.includes("\\")) continue;
     let value = declaration.slice(colon + 1).trim();
     const bang = value.lastIndexOf("!");
     const important = bang >= 0 && value.slice(bang + 1).trim().toLowerCase() === "important";
     if (important) value = value.slice(0, bang).trim();
     if (bang >= 0 && !important) continue;
-    const lower = value.toLowerCase();
-    // Blanks inside a function are part of its one token.
-    const tokens = splitTokens(lower);
-    if (tokens.length === 0 || !rule.accepts(tokens, value)) continue;
-    kept.push({ name, value: name === "font-family" ? value.replace(/\s+/g, " ") : tokens.join(" "), important });
+    const shorthand = Object.prototype.hasOwnProperty.call(SHORTHANDS, name) ? SHORTHANDS[name] : undefined;
+    const pairs: Array<[string, string]> = shorthand ? (shorthand(value) ?? []) : [[name, value]];
+    for (const [property, written] of pairs) {
+      const rule = Object.prototype.hasOwnProperty.call(MAIL_STYLE, property) ? MAIL_STYLE[property] : undefined;
+      if (!rule) continue;
+      // Blanks inside a function are part of its one token.
+      const tokens = splitTokens(written.toLowerCase());
+      if (tokens.length === 0 || !rule.accepts(tokens, written)) continue;
+      const out = rule.write ? rule.write(tokens) : property === "font-family" ? written.replace(/\s+/g, " ") : tokens.join(" ");
+      if (out !== null) kept.push({ name: property, value: out, important });
+    }
   }
-  return kept;
+  const result: MailStyle = {
+    declarations: kept,
+    lostBackground: askedBackground && !kept.some((d) => d.name === "background-color" || d.name === "background-image"),
+    lostFontSize: askedFontSize && !kept.some((d) => d.name === "font-size"),
+  };
+  if (READ.size >= READ_MAX) READ.clear();
+  READ.set(style, result);
+  return result;
 }
+
+/** The declarations of a `style` attribute that the list keeps, in their order (`readMailStyle`). */
+export function mailStyleDeclarations(style: string): MailDeclaration[] {
+  return readMailStyle(style).declarations;
+}
+
+/** Declarations written out as a `style` attribute, "" for none. */
+export function writeMailStyle(declarations: readonly MailDeclaration[]): string {
+  return declarations.map((d) => `${d.name}:${d.value}${d.important ? " !important" : ""}`).join(";");
+}
+
+const WRITTEN = new WeakMap<MailDeclaration[], string>();
 
 /** The `style` attribute the reader is given: the kept declarations written anew, "" for none. */
 export function keptMailStyle(style: string): string {
-  return mailStyleDeclarations(style)
-    .map((d) => `${d.name}:${d.value}${d.important ? " !important" : ""}`)
-    .join(";");
+  const declarations = mailStyleDeclarations(style);
+  let written = WRITTEN.get(declarations);
+  if (written === undefined) WRITTEN.set(declarations, (written = writeMailStyle(declarations)));
+  return written;
+}
+
+/**
+ * The declarations a browser applies: a later one replaces an earlier one
+ * unless the earlier is `!important` and the later is not.
+ */
+export function appliedMailStyle(declarations: readonly MailDeclaration[]): Map<string, string> {
+  const applied = new Map<string, string>();
+  const weighty = new Set<string>();
+  for (const { name, value, important } of declarations) {
+    if (weighty.has(name) && !important) continue;
+    applied.set(name, value);
+    if (important) weighty.add(name);
+  }
+  return applied;
 }

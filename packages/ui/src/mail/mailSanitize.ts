@@ -1,5 +1,6 @@
 import createDOMPurify from "dompurify";
-import { keptMailStyle } from "@plainva/core";
+import { keptMailStyle, MailShaper, visibleDocumentOf, WHITE_SHEET, type ShapeState, type VisibleDocument } from "@plainva/core";
+import { domReader, treeAccess } from "./mailTree";
 
 // The package's default export is a FACTORY in module environments — bind it
 // lazily to the window (desktop + jsdom tests both have one at call time).
@@ -23,9 +24,12 @@ function purifier(): ReturnType<typeof createDOMPurify> {
  *      target=_blank never opens inside a Tauri WebView. No scripts and no
  *      remote content run, so a link can only navigate on an explicit click.
  *   3. Inline styles keep only the declarations `MAIL_STYLE` (core) knows and
- *      reads — no positions, transforms, clipping or overflow, no escapes —
- *      so nothing can take words off the screen that the visible-text walk
- *      does not see taken off.
+ *      reads — no positions, transforms or clipping paths, no escapes — and
+ *      the tree is shaped so that no box reaches past the frame and no colour
+ *      outlives the background it was set on (`MailShaper`, core): nothing
+ *      can take words off the screen that the visible-text walk does not see
+ *      taken off. The walk reads the very tree the reader is given
+ *      (`MailHtmlView`).
  *   4. The caller renders the result into an allow-same-origin sandboxed
  *      <iframe> that has NO allow-scripts (so the mail HTML cannot execute any
  *      code) plus a default-src 'none' CSP meta — belt and braces should 1+2
@@ -59,27 +63,89 @@ const HTTPS_URL = /^\s*https:\/\//i;
  */
 const MAIL_ALLOWED_URI = /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|plainva(?:-dev|-labs)?):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
 
-export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): SanitizedEmail {
-  let blockedRemote = 0;
-  const allowRemoteImages = options?.allowRemoteImages === true;
+/** Attributes the shaper reads as the mail wrote them and gives the reader anew (`MailShaper`). */
+const SHAPED_ATTRS = new Set(["style", "hidden", "nowrap", "bgcolor", "width", "height", "cellpadding", "cellspacing", "hspace", "vspace", "border"]);
 
-  const hook = (node: unknown, data: { attrName: string; attrValue: string; keepAttr: boolean }) => {
+/** A sanitized mail together with what the reader shows of it, read once and shared by everything that asks. */
+export interface MailHtmlView extends SanitizedEmail {
+  /** The text and links the reader shows, read off the tree it is given. */
+  document(): VisibleDocument;
+  /** Whether the reader shows anything at all — a word or a picture. */
+  shows(): boolean;
+}
+
+/** Views made last, per remote-image choice: the reader, the quote and the assistant ask about the same message. */
+const VIEWS: [Map<string, MailHtmlView>, Map<string, MailHtmlView>] = [new Map(), new Map()];
+const VIEWS_MAX = 4;
+
+export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): SanitizedEmail {
+  return mailHtmlView(raw, options);
+}
+
+/**
+ * The mail's HTML as the reader is given it (`sanitizeEmailHtml`), and what the
+ * reader shows of it: ONE pass of the sanitizer and the shaper over the mail,
+ * and one walk over the tree they leave — for the reader of either shell, the
+ * quote, the filed note and the assistant alike (review of 2026-11-17: each of
+ * them sanitized and read the same mail again, a newsletter of 500 KB took the
+ * assistant seconds). Throws where there is no DOM.
+ */
+export function mailHtmlView(raw: string, options?: SanitizeEmailOptions): MailHtmlView {
+  const allowRemoteImages = options?.allowRemoteImages === true;
+  const views = VIEWS[allowRemoteImages ? 1 : 0];
+  const known = views.get(raw);
+  if (known) {
+    views.delete(raw);
+    views.set(raw, known);
+    return known;
+  }
+  const view = makeView(raw, allowRemoteImages);
+  views.set(raw, view);
+  while (views.size > VIEWS_MAX) views.delete(views.keys().next().value as string);
+  return view;
+}
+
+function makeView(raw: string, allowRemoteImages: boolean): MailHtmlView {
+  const read = treeAccess();
+  if (!read) throw new Error("no DOM to sanitize mail with");
+  let blockedRemote = 0;
+  /** What the mail wrote in the attributes the shaper gives anew, per element. */
+  const written = new WeakMap<Node, Map<string, string>>();
+  /** Images whose picture was held back. */
+  const heldBack = new WeakSet<Node>();
+  const states = new WeakMap<Node, ShapeState>();
+  const shaper = new MailShaper<Node>({
+    written: (node) => written.get(node),
+    // Only what changes is written: setting a style makes the engine read it again.
+    give: (node, name, value) => {
+      const now = read.attribute(node, name);
+      if (value === null) {
+        if (now !== null) read.removeAttribute(node, name);
+      } else if (now !== value) read.setAttribute(node, name, value);
+    },
+  });
+
+  const record = (node: Node, name: string, value: string): void => {
+    let attrs = written.get(node);
+    if (!attrs) written.set(node, (attrs = new Map()));
+    attrs.set(name, value);
+  };
+
+  const onAttribute = (node: unknown, data: { attrName: string; attrValue: string; keepAttr: boolean }) => {
     const name = data.attrName.toLowerCase();
     const value = data.attrValue ?? "";
+    const element = node as Node;
+    const tag = (): string => read.nodeName(element).toLowerCase();
     if (FETCHING_ATTRS.has(name)) {
       // Only self-contained data: images may load; everything else is a
       // network fetch (tracking) or a foreign scheme — cut and count.
       if (name === "src" && DATA_IMAGE.test(value)) return;
       // Opt-in: https images on actual <img> elements (never srcset/poster/
       // background, never other schemes — the frame CSP mirrors this).
-      if (
-        allowRemoteImages &&
-        name === "src" &&
-        HTTPS_URL.test(value) &&
-        String((node as Element | null)?.tagName ?? "").toLowerCase() === "img"
-      ) {
-        return;
-      }
+      if (allowRemoteImages && name === "src" && HTTPS_URL.test(value) && tag() === "img") return;
+      if (name === "src" && value.trim() !== "" && tag() === "img") heldBack.add(element);
+      // A background picture that is not shown: the colours set on it go with it (`MailShaper`).
+      if (name === "background") record(element, name, value);
       blockedRemote++;
       data.keepAttr = false;
       return;
@@ -88,37 +154,65 @@ export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): 
     // data: and other unsafe schemes, leaving safe http/https/mailto/tel links.
     // Opening is handled by the reader (MailView.handleFrameLoad routes a click
     // to the system browser) — no target/rel rewriting needed here.
-    if (name === "style") {
-      if (/url\s*\(/i.test(value)) {
-        // css url() is a fetch too (background-image tracking pixels et al.).
-        blockedRemote++;
-        data.keepAttr = false;
-        return;
-      }
-      // Only what the walk that reads the reader's text judges stays
-      // (`MAIL_STYLE`, review of 2026-11-16): the reader and the assistant
-      // read the same words by construction, not by a list of tricks.
-      const kept = keptMailStyle(value);
-      if (kept) data.attrValue = kept;
-      else data.keepAttr = false;
+    if (name === "style" && /url\s*\(/i.test(value)) {
+      // css url() is a fetch too (background-image tracking pixels et al.); it is never kept.
+      blockedRemote++;
     }
+    if (SHAPED_ATTRS.has(name) || (name === "color" && tag() === "font")) {
+      // Given anew by the shaper, from what the mail wrote (`MailShaper`).
+      record(element, name, value);
+      if (name === "style") {
+        // The style stays in the meantime as the list keeps it — most often
+        // that is what the shaper gives, and the engine reads it once.
+        const kept = keptMailStyle(value);
+        if (kept) data.attrValue = kept;
+        else data.keepAttr = false;
+      } else data.keepAttr = false;
+    }
+  };
+  const root = shaper.root();
+  const afterAttributes = (node: Node) => {
+    if (read.nodeType(node) !== 1) return;
+    const parent = read.parentNode(node);
+    const above = (parent && states.get(parent)) || root;
+    states.set(node, shaper.element(node, read.nodeName(node).toLowerCase(), above));
   };
 
   const dp = purifier();
-  dp.addHook("uponSanitizeAttribute", hook);
-  let html: string;
+  dp.addHook("uponSanitizeAttribute", onAttribute);
+  dp.addHook("afterSanitizeAttributes", afterAttributes);
+  let body: Node | null;
   try {
-    html = dp.sanitize(raw, {
+    body = dp.sanitize(raw, {
       // <style> blocks can url()-fetch; forms/meta/base have no business in
-      // a read-only viewer.
-      FORBID_TAGS: ["style", "link", "form", "input", "button", "select", "textarea", "meta", "base"],
+      // a read-only viewer. A canvas shows its inner text only where scripts
+      // do not run, a marquee moves its words off the screen, and an option
+      // outside a list is drawn by one engine and not by another: their words
+      // stand as plain text.
+      FORBID_TAGS: ["style", "link", "form", "input", "button", "select", "textarea", "meta", "base", "canvas", "marquee", "option", "optgroup"],
       USE_PROFILES: { html: true },
       ALLOWED_URI_REGEXP: MAIL_ALLOWED_URI,
-    });
+      RETURN_DOM: true,
+      FORBID_ATTR: ["class"],
+      ALLOW_DATA_ATTR: false,
+    }) as Node | null;
   } finally {
     dp.removeHook("uponSanitizeAttribute");
+    dp.removeHook("afterSanitizeAttributes");
   }
-  return { html, blockedRemote };
+  const html = body ? read.innerHTML(body) : "";
+  const reader = domReader(read, heldBack);
+  // Colours are compared where the reader paints the mail on its white sheet;
+  // a mail that sets none reads in the theme's colours, all of them readable.
+  const canvas = mailHtmlPaintsItself(html) ? WHITE_SHEET : null;
+  let document: VisibleDocument | undefined;
+  let shows: boolean | undefined;
+  return {
+    html,
+    blockedRemote,
+    document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas }) : { text: "", links: [], shows: false }),
+    shows: () => (shows ??= document ? document.shows : body ? visibleDocumentOf(body, reader, { canvas, untilShown: true }).shows : false),
+  };
 }
 
 /**
@@ -198,7 +292,10 @@ export function buildMailFrameDoc(sanitizedHtml: string, options?: MailFrameOpti
     mailCanvasRules(options?.canvas, sanitizedHtml) +
     // -webkit-touch-callout: a held link shows the APP's sheet with its target
     // (mailLinks.ts), not the system's link preview — which would load the page.
-    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer;-webkit-touch-callout:none}</style>` +
+    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer;-webkit-touch-callout:none}` +
+    // Lines always wrap: a line that runs past the frame is clipped there, and
+    // nobody sees its end (`MailShaper`). Preformatted text keeps its lines.
+    `pre,listing{white-space:pre-wrap}nobr{white-space:normal}</style>` +
     `</head><body>${sanitizedHtml}</body></html>`
   );
 }

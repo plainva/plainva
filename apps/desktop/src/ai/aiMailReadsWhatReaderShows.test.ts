@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { mailDocument } from "@plainva/ui";
-import { mailBodyHtml, mailMessageText, sanitizeEmailHtml, type MailMessage } from "@plainva/ui/mail";
+import { describe, expect, it, vi } from "vitest";
+import { mailDocument, readableBody } from "@plainva/ui";
+import { mailBodyHtml, mailBodyView, mailMessageText, sanitizeEmailHtml, type MailMessage } from "@plainva/ui/mail";
 
 /**
  * What the assistant reads of a mail is what the reader shows of it
@@ -58,12 +58,23 @@ const HIDDEN: Array<[string, string]> = [
   ["template and noscript", `<template><p>${SECRET}</p></template><noscript>${SECRET}</noscript>`],
   ["style and script", `<style>p::after{content:"${SECRET}"}</style><script>"${SECRET}"</script>`],
   ["svg text", `<svg><text>${SECRET}</text></svg>`],
+  // Review of 2026-11-17: what the reader judges the way the walk does.
+  ["a font of no size, written as the shorthand", `<span style="font:0/0 a">${SECRET}</span>`],
+  ["a transparent text colour", `<span style="color:transparent">${SECRET}</span>`],
+  ["a colour of no alpha", `<span style="color:rgba(0,0,0,0)">${SECRET}</span>`],
+  ["text in the colour of its background", `<div style="background:#ffffff"><span style="color:#ffffff">${SECRET}</span></div>`],
+  ["a font colour of the table's background", `<table bgcolor="#ffffff"><tr><td><font color="#ffffff">${SECRET}</font></td></tr></table>`],
+  ["text nearly the colour of its background", `<div style="background-color:#000"><span style="color:#050505">${SECRET}</span></div>`],
+  ["eight small sizes deep", `${"<small>".repeat(8)}${SECRET}${"</small>".repeat(8)}`],
+  ["eight subscripts deep", `${"<sub>".repeat(8)}${SECRET}${"</sub>".repeat(8)}`],
+  ["the smallest font step written over in pixels", `<font size="1"><span style="font-size:3px">${SECRET}</span></font>`],
+  ["a box of no height that clips", `<div style="max-height:0;overflow:hidden">${SECRET}</div>`],
+  ["a size worked out to nothing", `<span style="font-size:calc(2px - 2px)">${SECRET}</span>`],
 ];
 
 /** Forms the walk does not judge: the sanitizer does not give them to the reader. */
 const NOT_KEPT: Array<[string, string, string]> = [
   // name, the style written, what the reader is given of it ("" for none)
-  ["font shorthand", "font:0/0 a", ""],
   ["escaped display", "display:n\\one", ""],
   ["escaped display in hex", "display:\\6e one", ""],
   ["negative opacity", "opacity:-1", ""],
@@ -71,11 +82,10 @@ const NOT_KEPT: Array<[string, string, string]> = [
   ["a box of no height that scrolls", "height:0;overflow:scroll", "height:0"],
   ["a box of no height that clips", "overflow:hidden hidden;max-height:0", "max-height:0"],
   ["a box moved off the page", "position:absolute;left:-9999px", ""],
-  ["a line indented off the page", "text-indent:-9999px;overflow:hidden;white-space:nowrap", "white-space:nowrap"],
+  ["a line indented off the page", "text-indent:-9999px;overflow:hidden;white-space:nowrap", ""],
   ["a box clipped to nothing", "position:absolute;clip:rect(0 0 0 0)", ""],
   ["a clip path", "clip-path:inset(50%)", ""],
   ["a box scaled to nothing", "transform:scale(0)", ""],
-  ["a transparent text colour", "color:transparent", ""],
   ["content not drawn", "content-visibility:hidden", ""],
   ["a negative margin", "margin-left:-5000px", ""],
   ["lines on top of each other", "line-height:0", ""],
@@ -147,9 +157,23 @@ describe("the assistant reads a mail as the reader shows it", () => {
   });
 
   it("reads a link whose hiding style the reader is not given", () => {
-    // `font:0/0 a` falls away: the reader shows "click", and so it is read.
-    const html = `<p>x</p><a href="https://example.org/d" style="font:0/0 a">click</a>`;
+    // An escaped display falls away: the reader shows "click", and so it is read.
+    const html = `<p>x</p><a href="https://example.org/d" style="display:n\\one">click</a>`;
     expect(mailDocument(message(html)).links).toEqual([{ text: "click", url: "https://example.org/d" }]);
+  });
+
+  it("drops a link behind a picture of no size, and one the reader writes too small to see", () => {
+    const GIF = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+    const html = [
+      `<p>x</p>`,
+      `<a href="https://evil.example.net/e"><img style="max-width:0" src="${GIF}"></a>`,
+      `<a href="https://evil.example.net/f"><img style="max-height:0" src="${GIF}"></a>`,
+      `<a href="https://evil.example.net/g"><img width="0%" src="${GIF}"></a>`,
+      `<a href="https://evil.example.net/h"><img width="0.5" height="0.5" src="${GIF}"></a>`,
+      `${"<small>".repeat(8)}<a href="https://evil.example.net/j">go</a>${"</small>".repeat(8)}`,
+      `<p style="color:#fff"><a href="https://evil.example.net/k" style="color:#fff">go</a></p>`,
+    ].join("");
+    expect(mailDocument(message(html)).links).toEqual([]);
   });
 
   it("shows and reads the text part where the HTML part shows nothing", () => {
@@ -165,11 +189,137 @@ describe("the assistant reads a mail as the reader shows it", () => {
     const picture = `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="">`;
     expect(mailBodyHtml({ html: picture, text: "Alternative." })).toBe(picture);
     expect(mailBodyHtml({ html: "  ", text: null })).toBe("  ");
+    // A picture the reader holds back is a place it offers to load: the HTML
+    // part is the body, for the reader and the assistant alike, whatever the
+    // remote-image choice — never a text part nobody sees beside it.
+    const remote = { ...message(`<img src="https://cdn.example.org/banner.png" width="600" height="300">`), text: `Plain. ${SECRET}` };
+    expect(mailBodyView(remote)).not.toBeNull();
+    expect(mailBodyView(remote, { allowRemoteImages: true })).not.toBeNull();
+    expect(mailDocument(remote).text).not.toContain(SECRET);
   });
 
   it("reads the HTML part, not a plain part the reader never shows beside it", () => {
     const read = mailDocument({ ...message("<p>Shown.</p>"), text: `Plain alternative. ${SECRET}` });
     expect(read.text).toContain("Shown.");
     expect(read.text).not.toContain(SECRET);
+  });
+});
+
+/** The element the reader is given in place of the one marked `id="x"`. */
+function given(html: string, selector = "#x"): Element | null {
+  return new DOMParser().parseFromString(sanitizeEmailHtml(html).html, "text/html").body.querySelector(selector);
+}
+
+describe("a newsletter reads as it did, and the assistant reads what it shows (review of 2026-11-17)", () => {
+  const WORDS = "The words of the newsletter.";
+  const READABLE: Array<[string, string, string]> = [
+    // name, the markup, a declaration the reader is given
+    ["light text with alpha on a dark cell", `<table><tr><td style="background-color:#111111"><p id="x" style="color:rgba(255,255,255,0.85)">${WORDS}</p></td></tr></table>`, "color:rgba(255,255,255,0.85)"],
+    ["a colour with a slash", `<div style="background-color:#000"><span id="x" style="color:rgb(255 255 255 / 90%)">${WORDS}</span></div>`, "color:rgb(255 255 255 / 90%)"],
+    ["a colour in eight hex digits", `<div style="background-color:#0b1f33"><span id="x" style="color:#ffffffe6">${WORDS}</span></div>`, "color:#ffffffe6"],
+    ["white text on a gradient", `<div id="x" style="background:linear-gradient(#000,#333);color:#ffffff">${WORDS}</div>`, "background-image:linear-gradient(#000,#333)"],
+    ["a background shorthand of two words", `<div id="x" style="background:#000000 none;color:#fff">${WORDS}</div>`, "background-color:#000000"],
+    ["a column sized by the font shorthand", `<table><tr><td style="font-size:0"><div id="x" style="display:inline-block;font:16px/22px Arial,sans-serif">${WORDS}</div></td></tr></table>`, "font-size:16px"],
+    ["a column sized by calc()", `<div style="font-size:0"><span id="x" style="display:inline-block;font-size:calc(14px + 0.2vw)">${WORDS}</span></div>`, "font-size:calc(14px + 0.2vw)"],
+    ["a column sized by clamp()", `<div style="font-size:0"><span id="x" style="font-size:clamp(14px,2vw,18px)">${WORDS}</span></div>`, "font-size:clamp(14px,2vw,18px)"],
+    // A share of a size named by a word is drawn at 6 px at the least (Chromium).
+    ["a share of the smallest font step", `<font size="1"><span id="x" style="font-size:35%">${WORDS}</span></font>`, "font-size:35%"],
+    ["a column sized by a value the reader is not given", `<div style="font-size:0"><span id="x" style="font-size:var(--size)">${WORDS}</span></div>`, "font-size:14px"],
+  ];
+  for (const [name, html, declaration] of READABLE) {
+    it(`keeps it readable: ${name}`, () => {
+      expect(given(html)?.getAttribute("style") ?? "").toContain(declaration);
+      expect(mailDocument(message(html)).text).toContain(WORDS);
+    });
+  }
+
+  it("takes a text colour away with the background picture it was set on", () => {
+    // The picture is not shown; white text on the white sheet would be words nobody sees.
+    for (const html of [
+      `<table><tr><td style="background:url(https://cdn.example.org/hero.jpg) center/cover"><p id="x" style="color:#ffffff">${WORDS}</p></td></tr></table>`,
+      `<table><tr><td background="https://cdn.example.org/hero.jpg"><font id="x" color="#ffffff">${WORDS}</font></td></tr></table>`,
+    ]) {
+      const element = given(html);
+      expect(element?.getAttribute("style") ?? "").not.toContain("color");
+      expect(element?.getAttribute("color")).toBeNull();
+      expect(mailDocument(message(html)).text).toContain(WORDS);
+    }
+    // A picture over a colour: the colour stays, and the text on it.
+    const over = `<table><tr><td style="background:#123456 url(https://cdn.example.org/hero.jpg)"><p id="x" style="color:#ffffff">${WORDS}</p></td></tr></table>`;
+    expect(given(over)?.getAttribute("style")).toBe("color:#ffffff");
+    expect(mailDocument(message(over)).text).toContain(WORDS);
+  });
+
+  it("keeps a block for phones only hidden, as it was", () => {
+    const html = `<div id="x" style="display:block;max-height:0;overflow:hidden">${SECRET}</div><p>${WORDS}</p>`;
+    expect(given(html)?.getAttribute("style")).toBe("display:block;max-height:0;overflow:hidden");
+    expect(mailDocument(message(html)).text).toContain(WORDS);
+    expect(mailDocument(message(html)).text).not.toContain(SECRET);
+    // A clip that does not take the box to nothing is not given: the reader shows all of it.
+    const clipped = `<div id="x" style="height:20px;overflow:hidden">${WORDS}</div>`;
+    expect(given(clipped)?.getAttribute("style")).toBe("height:20px");
+  });
+});
+
+describe("the reader shows what the assistant reads, in every engine (review of 2026-11-17)", () => {
+  it("gives a hidden that reads the same everywhere", () => {
+    // `until-found` is a hidden one engine draws as an empty box, another as the box it styles.
+    const html = `<div id="x" hidden="until-found" style="display:block">${SECRET}</div>`;
+    expect(given(html)?.getAttribute("hidden")).toBe("");
+    expect(mailDocument(message(html)).text).toContain(SECRET);
+  });
+
+  it("lays nothing past the frame, where it would be clipped", () => {
+    const off: Array<[string, string]> = [
+      ["margins that add up", `<div style="margin-left:2000px"><div style="margin-left:2000px"><div id="x" style="margin-left:2000px;white-space:nowrap">${SECRET}</div></div></div>`],
+      ["a margin of five widths", `<div id="x" style="margin-left:500%;white-space:nowrap">${SECRET}</div>`],
+      ["a cell that pushes its neighbour", `<table><tr><td id="x" style="width:2000px">&nbsp;</td><td style="white-space:nowrap">${SECRET}</td></tr></table>`],
+      ["a wide table attribute", `<table id="x" width="3000"><tr><td>${SECRET}</td></tr></table>`],
+    ];
+    for (const [name, html] of off) {
+      const frame = new DOMParser().parseFromString(sanitizeEmailHtml(html).html, "text/html");
+      for (const element of Array.from(frame.body.querySelectorAll("*"))) {
+        const style = element.getAttribute("style") ?? "";
+        expect(style, name).not.toMatch(/margin-left:(?:2000px|500%)|width:2000px|nowrap/);
+        expect(element.getAttribute("width"), name).not.toBe("3000");
+      }
+      // The reader shows the words where a person sees them, and the assistant reads them.
+      expect(mailDocument(message(html)).text, name).toContain(SECRET);
+    }
+    // A newsletter of 600 px with two columns keeps its layout.
+    const columns = `<table width="600" style="margin:0 auto"><tr><td id="x" width="300" style="padding:0 20px">a</td><td width="300" style="padding:0 20px">b</td></tr></table>`;
+    expect(given(columns)?.getAttribute("width")).toBe("300");
+    expect(given(columns)?.getAttribute("style")).toBe("padding:0 20px");
+  });
+
+  it("gives a column no style of its own", () => {
+    // Chromium collapses a column by `visibility`, other engines do not.
+    const html = `<table><colgroup><col id="x" style="visibility:collapse"><col></colgroup><tr><td>${SECRET}</td><td>other</td></tr></table>`;
+    expect(given(html)?.getAttribute("style")).toBeNull();
+    expect(mailDocument(message(html)).text).toContain(SECRET);
+  });
+
+  it("gives no colour that hangs on the system's theme", () => {
+    const html = `<span id="x" style="color:canvas">${SECRET}</span>`;
+    expect(given(html)?.getAttribute("style")).toBeNull();
+    expect(mailDocument(message(html)).text).toContain(SECRET);
+  });
+});
+
+describe("one pass over a message (review of 2026-11-17)", () => {
+  it("parses a message once for the reader, the assistant and the quote", () => {
+    const html = `<table><tr><td style="padding:10px"><p>Hello there.</p></td></tr></table><!-- ${Math.random()} -->`;
+    const both = { ...message(html), text: "Plain words." };
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
+    try {
+      const shown = mailBodyView(both);
+      expect(shown).not.toBeNull();
+      expect(mailBodyView(both)).toBe(shown);
+      expect(readableBody(both, 40000).text).toBe("Hello there.");
+      expect(mailMessageText({ text: null, html })).toBe("Hello there.");
+      expect(parse).toHaveBeenCalledTimes(1);
+    } finally {
+      parse.mockRestore();
+    }
   });
 });

@@ -38,8 +38,7 @@ import {
   mailFolderLabel,
   listEnvelopes,
   moveMessage,
-  mailBodyHtml,
-  sanitizeEmailHtml,
+  mailBodyView,
   setMessageFlagged,
   setMessageSeen,
   AUTO_READ_DELAY_MS,
@@ -195,12 +194,12 @@ export function MailMessageScreen({
   const mailCanvas = useMailCanvas();
   const frame = useMemo(() => {
     if (!message) return null;
-    // The part the reader shows as the body (`mailBodyHtml`): an HTML part
-    // that shows nothing leaves the text part, as the assistant reads it.
-    const html = mailBodyHtml(message);
-    if (html) {
-      const allowRemote = remoteImages.allow;
-      const clean = sanitizeEmailHtml(html, { allowRemoteImages: allowRemote });
+    // The body the reader shows (`mailBodyView`): an HTML part that shows
+    // nothing leaves the text part, as the assistant reads it — in the one
+    // pass the assistant and the quote share.
+    const allowRemote = remoteImages.allow;
+    const clean = mailBodyView(message, { allowRemoteImages: allowRemote });
+    if (clean) {
       // The theme's canvas for a mail that sets no colours of its own (finding X3).
       return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote, canvas: mailCanvas }), blocked: clean.blockedRemote };
     }
