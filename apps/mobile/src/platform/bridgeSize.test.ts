@@ -71,7 +71,7 @@ vi.mock("@capacitor/core", () => {
       readPart: ({ id, offset, length }) => {
         const file = bridge.reads.get(id);
         if (!file) throw new Error("no such read");
-        return { data: b64(file.subarray(offset, offset + Math.min(length, 256 * 1024))) };
+        return { data: b64(file.subarray(offset, offset + Math.min(length, 256 * 1024))), size: file.length };
       },
       closeRead: ({ id }) => { bridge.reads.delete(id); },
       sha256: ({ path }) => ({ sha256: "f".repeat(64), size: bridge.files.get(path)!.length }),
@@ -318,6 +318,32 @@ describe("a read is one version of the file (second review)", () => {
       expect([...bridge.files.keys()]).toEqual([]);
     } finally {
       http.request = request;
+    }
+  });
+});
+
+describe("a file written in place while it is read (third review)", () => {
+  it("is never handed out cut short: the read starts again and gets the whole new version", async () => {
+    const oldNote = new TextEncoder().encode("- [ ] old version\n" + "o".repeat(2030));
+    const newNote = new TextEncoder().encode("- [x] new version\n" + "n".repeat(7030));
+    bridge.files.set("vaults/v1/Note.md", oldNote);
+    type Plugin = { openRead: (o: { path: string }) => Promise<{ id: string; size: number }> };
+    const plugin = (await import("@capacitor/core")).registerPlugin("AtomicFile") as unknown as Plugin;
+    const { openRead } = plugin;
+    let opened = 0;
+    plugin.openRead = async (opts) => {
+      const answer = await openRead(opts);
+      // Another app writes the file in place right after the first open: every open read sees the new bytes.
+      if (++opened === 1) { bridge.files.set(opts.path, newNote); bridge.reads.set(answer.id, newNote); }
+      return answer;
+    };
+    try {
+      const bytes = await nativeReadBytes("vaults/v1/Note.md");
+      expect(new TextDecoder().decode(bytes.subarray(0, 17))).toBe("- [x] new version");
+      expect(bytes.length).toBe(newNote.length);
+      expect(opened).toBe(2);
+    } finally {
+      plugin.openRead = openRead;
     }
   });
 });

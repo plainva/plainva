@@ -13,7 +13,7 @@ interface AtomicFilePluginApi {
   /** `directory` "LIBRARY" (iOS only) writes below Library instead of Documents. */
   write(opts: { path: string; data: string; encoding: "utf8" | "base64"; directory?: "DATA" | "LIBRARY" }): Promise<void>;
   /** Content hash computed natively while streaming the file (issue #48). */
-  sha256(opts: { path: string; directory?: "DATA" | "DOCUMENTS" | "LIBRARY" }): Promise<{ sha256: string; size: number }>;
+  sha256(opts: { path: string; directory?: "DATA" | "DOCUMENTS" | "LIBRARY" | "CACHE" }): Promise<{ sha256: string; size: number }>;
   /** A write in parts: the temp file in the target's folder. */
   begin(opts: { path: string; directory?: "DATA" | "LIBRARY" }): Promise<{ id: string }>;
   /** One part, base64. */
@@ -25,7 +25,7 @@ interface AtomicFilePluginApi {
   /** Opens a file for a read in parts: every part comes from this one open file, so from one version of it. */
   openRead(opts: { path: string; directory?: "DATA" | "LIBRARY" }): Promise<{ id: string; size: number }>;
   /** At most `length` bytes (and never more than one part) from `offset` of an open read, base64. */
-  readPart(opts: { id: string; offset: number; length: number }): Promise<{ data: string }>;
+  readPart(opts: { id: string; offset: number; length: number }): Promise<{ data: string; size?: number }>;
   closeRead(opts: { id: string }): Promise<void>;
   /** Removes the temp files a killed process left below `path`. */
   sweep(opts: { path: string; directory?: "DATA" | "LIBRARY" }): Promise<{ removed: number }>;
@@ -152,16 +152,38 @@ export async function nativeReadBytes(path: string, directory?: NativeDirectory,
   }
 }
 
+/** How often a read starts again on a file written in place while it is read, before it gives up. */
+const READ_ATTEMPTS = 3;
+
 async function readWholeFile(path: string, directory?: NativeDirectory): Promise<Uint8Array> {
+  for (let attempt = 1; ; attempt += 1) {
+    const result = await readOnce(path, directory);
+    if (result) return result;
+    // Written in place while it was read (not renamed: that leaves this read on the old version).
+    if (attempt >= READ_ATTEMPTS) throw new Error(`${path} kept changing while it was read`);
+  }
+}
+
+/** One read through one open file; null when the file's length changed under it - never part of a file. */
+async function readOnce(path: string, directory?: NativeDirectory): Promise<Uint8Array | null> {
   const { id, size } = await AtomicFile.openRead({ path, ...(directory ? { directory } : {}) });
   try {
     const bytes = new Uint8Array(size);
     let filled = 0;
+    let now = size;
     while (filled < size) {
-      const part = base64ToPart((await AtomicFile.readPart({ id, offset: filled, length: BRIDGE_PART_BYTES })).data);
-      if (part.length === 0 || filled + part.length > size) throw new Error(`${path} could not be read whole`);
+      const answer = await AtomicFile.readPart({ id, offset: filled, length: BRIDGE_PART_BYTES });
+      if (typeof answer.size === "number") now = answer.size;
+      if (now !== size) return null;
+      const part = base64ToPart(answer.data);
+      if (part.length === 0 || filled + part.length > size) return null;
       bytes.set(part, filled);
       filled += part.length;
+    }
+    // The last part's answer carried the length at that moment. An empty file has no part: asked once.
+    if (size === 0) {
+      const last = await AtomicFile.readPart({ id, offset: 0, length: 1 });
+      if (typeof last.size === "number" && last.size !== 0) return null;
     }
     return bytes;
   } finally {
@@ -246,7 +268,7 @@ export async function atomicWriteBase64(path: string, dataB64: string): Promise<
  * upload avoids (issue #48). Native only — the web dev server has no such
  * plugin, and no streaming upload either.
  */
-export async function nativeFileDigest(path: string, directory?: "DATA" | "DOCUMENTS"): Promise<{ sha256: string; size: number } | null> {
+export async function nativeFileDigest(path: string, directory?: "DATA" | "DOCUMENTS" | "CACHE"): Promise<{ sha256: string; size: number } | null> {
   if (!Capacitor.isNativePlatform()) return null;
   return AtomicFile.sha256({ path, ...(directory ? { directory } : {}) });
 }

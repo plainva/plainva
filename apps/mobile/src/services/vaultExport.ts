@@ -3,8 +3,8 @@ import { vaultExportFileName, ZIP_EXCLUDED_DIR_NAMES } from "@plainva/ui";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
-import { createSha256Stream } from "@plainva/core";
-import { BRIDGE_PART_BYTES } from "../platform/atomicFile";
+import { createSha256Stream, VaultFileNotFoundError } from "@plainva/core";
+import { BRIDGE_PART_BYTES, nativeFileDigest } from "../platform/atomicFile";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -72,7 +72,14 @@ export async function streamVaultZip(v: MobileVault, sink: ZipSink, shouldStop: 
     for (const entry of entries) {
       if (entry.isDirectory) continue;
       if (shouldStop()) throw new ZipStoppedError();
-      const bytes = await v.adapter.readBinaryFile(entry.path);
+      let bytes: Uint8Array;
+      try {
+        bytes = await v.adapter.readBinaryFile(entry.path);
+      } catch (error) {
+        // Gone since the listing (the sync removed it): the vault no longer has it, and the archive goes on.
+        if (error instanceof VaultFileNotFoundError) continue;
+        throw error;
+      }
       const file = new ZipDeflate(entry.path, { level: 6 });
       zip.add(file);
       file.push(bytes, true);
@@ -155,7 +162,21 @@ export class PartFileSink implements ZipSink {
   }
 }
 
-export async function exportVault(v: MobileVault, label: string): Promise<void> {
+let exporting: Promise<void> | null = null;
+
+/**
+ * The vault through the share sheet. One export at a time: a second tap waits
+ * for the first and shares nothing of its own (two runs wrote into one file and
+ * the share sheet got a broken archive). Written into a part file of its own,
+ * checked like the scheduled archive, and only then handed on.
+ */
+export function exportVault(v: MobileVault, label: string): Promise<void> {
+  if (exporting) return exporting;
+  exporting = exportOnce(v, label).finally(() => { exporting = null; });
+  return exporting;
+}
+
+async function exportOnce(v: MobileVault, label: string): Promise<void> {
   // The same name the desktop proposes for its export (`vaultExportFileName`).
   const name = vaultExportFileName(label);
 
@@ -171,11 +192,25 @@ export async function exportVault(v: MobileVault, label: string): Promise<void> 
     return;
   }
 
-  // Written as it is made, in parts (see `streamVaultZip`), then handed to the share sheet as a file.
+  // Written as it is made, in parts (see `streamVaultZip`), into a part file of its own; checked; then moved into place.
   const path = `exports/${name}`;
-  const sink = new PartFileSink(path, Directory.Cache);
-  await streamVaultZip(v, sink);
-  await sink.close();
+  const partial = `${path}.${crypto.randomUUID()}.part`;
+  const sink = new PartFileSink(partial, Directory.Cache);
+  try {
+    await streamVaultZip(v, sink);
+    const written = await sink.close();
+    const checked = await nativeFileDigest(partial, "CACHE");
+    if (!checked || checked.size !== sink.size || checked.sha256 !== written) throw new Error("Export verification failed");
+    await Filesystem.deleteFile({ path, directory: Directory.Cache }).catch(() => {
+      // silent: no earlier export of that name lies there.
+    });
+    await Filesystem.rename({ from: partial, to: path, directory: Directory.Cache, toDirectory: Directory.Cache });
+  } catch (error) {
+    if (sink.started) await Filesystem.deleteFile({ path: partial, directory: Directory.Cache }).catch(() => {
+      // silent: the cache is the system's to empty; the export's own failure is thrown.
+    });
+    throw error;
+  }
   const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache });
   await Share.share({ title: name, url: uri });
 }

@@ -51,6 +51,7 @@ export function fakeAppStorage(kind: AppStorageKind) {
   Object.assign(state, { kind, files: new Map(), dirs: new Set([""]), mtimes: new Map(), clock: 1000, reads: [] });
   writes.clear();
   openReads.clear();
+  afterPart = null;
   return { files: state.files, reads: state.reads };
 }
 
@@ -161,8 +162,26 @@ const Filesystem = {
 };
 
 const writes = new Map<string, { path: string; parts: Uint8Array[] }>();
-/** Open reads: the bytes as they were when the read was opened. */
-const openReads = new Map<string, Uint8Array>();
+/**
+ * Open reads: what the open file holds. A rename (`put`) leaves an open read
+ * on the bytes it opened; a write in place (`appStorageWriteInPlace`) changes
+ * what every open read of that file sees, as on a file system.
+ */
+const openReads = new Map<string, { path: string; bytes: Uint8Array }>();
+let readCount = 0;
+let afterPart: ((id: string) => void) | null = null;
+
+/** Tests only: called after each part a read hands out - where another program can step in. */
+export function appStorageAfterPart(hook: ((id: string) => void) | null): void {
+  afterPart = hook;
+}
+
+/** Another program writes the file in place - same file, new bytes - instead of renaming a new one over it. */
+export function appStorageWriteInPlace(path: string, bytes: Uint8Array): void {
+  state.files.set(path, bytes);
+  state.mtimes.set(path, ++state.clock);
+  for (const read of openReads.values()) if (read.path === path) read.bytes = bytes;
+}
 
 /** What lies at `path` as bytes, for the plugin's read and hash (a phone stores nothing else). */
 function storedBytes(path: string): Uint8Array {
@@ -204,14 +223,16 @@ const AtomicFile = {
   async openRead({ path }: { path: string }) {
     const bytes = storedBytes(path);
     state.reads.push({ path, as: "bytes" });
-    const id = `read-${openReads.size + 1}-${path}`;
-    openReads.set(id, bytes);
+    const id = `read-${++readCount}-${path}`;
+    openReads.set(id, { path, bytes });
     return { id, size: bytes.length };
   },
   async readPart({ id, offset, length }: { id: string; offset: number; length: number }) {
-    const bytes = openReads.get(id);
-    if (!bytes) throw new Error("no such read");
-    return { data: toBase64(bytes.subarray(offset, offset + Math.min(length, 256 * 1024))) };
+    const read = openReads.get(id);
+    if (!read) throw new Error("no such read");
+    const answer = { data: toBase64(read.bytes.subarray(offset, offset + Math.min(length, 256 * 1024))), size: read.bytes.length };
+    afterPart?.(id);
+    return answer;
   },
   async closeRead({ id }: { id: string }) {
     openReads.delete(id);

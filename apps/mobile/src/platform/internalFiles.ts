@@ -35,7 +35,8 @@ import { isExistingDirectory, isMissingFile } from "../adapters/fileErrors";
  *    already moved are read from the new place.
  */
 
-export const INTERNAL_FOLDERS = ["drafts", "profile-journal", "okf-journal", "ai"] as const;
+// "backup": the mark of a vault archive's try (`vaultBackup.ts`), written with fsync before the try reads the vault.
+export const INTERNAL_FOLDERS = ["drafts", "profile-journal", "okf-journal", "ai", "backup"] as const;
 export type InternalFolder = (typeof INTERNAL_FOLDERS)[number];
 
 /** The folder below `Library` that holds them on iOS. */

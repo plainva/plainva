@@ -13,15 +13,18 @@
  */
 
 /**
- * About 32 MB of text (a file of about 24 MB as base64). A guard against the
- * dead process, not a replacement for writing in parts: below it everything
- * goes as it did. Measured on the phone that froze (Pixel, Android 17, 256 MB
- * Java heap): the archive went through every day at 38 MB of base64 and ended
- * the app at 118 MB. Calls this app makes in parts stay at 256 KB; what still
- * sends whole files (a picked folder, mail attachments) keeps working up to
- * here, and the bridge meter reports anything from 64 KB.
+ * About 64 million characters of text. A guard against the dead process, not
+ * a replacement for writing in parts: below it everything goes as it did.
+ * Measured on the phone that froze (Pixel, Android 17, 256 MB Java heap): the
+ * archive went through every day at 38 million characters of base64 and ended
+ * the app at 118 million - with about three copies of the message in the heap
+ * at that moment (243 MB taken, 118 MB asked for). Up to about 64 million that
+ * fits on a 256 MB heap, above it no longer safely. Calls this app makes in
+ * parts stay at 256 KB; what still sends whole files (a picked folder, mail
+ * attachments) keeps working up to here, and the bridge meter reports anything
+ * from 64 KB.
  */
-export const BRIDGE_LIMIT_CHARS = 32 * 1024 * 1024;
+export const BRIDGE_LIMIT_CHARS = 64 * 1024 * 1024;
 
 /**
  * About the length of a message's text without making it: the strings'

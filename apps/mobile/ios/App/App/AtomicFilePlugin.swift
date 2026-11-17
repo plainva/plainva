@@ -233,7 +233,9 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
             let want = Int(max(0, min(min(length, Int64(AtomicFilePlugin.maxRead)), Int64(read.size) - offset)))
             try read.handle.seek(toOffset: UInt64(offset))
             let chunk = try read.handle.read(upToCount: want) ?? Data()
-            call.resolve(["data": chunk.base64EncodedString()])
+            // The length behind the handle now: a file written in place can have grown or shrunk since it was opened.
+            let now = try read.handle.seekToEnd()
+            call.resolve(["data": chunk.base64EncodedString(), "size": now])
         } catch {
             call.reject("read failed: \(error.localizedDescription)")
         }
@@ -364,7 +366,19 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
         // "DOCUMENTS" is the same folder as "DATA" on iOS (Directory.Documents and Directory.Data
         // both resolve to it); "LIBRARY" the app's own files.
         let directory = call.getString("directory") ?? "DATA"
-        guard let source = inSandbox(rel, directory == "DOCUMENTS" ? "DATA" : directory) else {
+        let source: URL?
+        if directory == "CACHE" {
+            // Directory.Cache: the export's file before the share sheet.
+            source = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first.map {
+                URL(fileURLWithPath: rel, relativeTo: $0.standardizedFileURL).standardizedFileURL
+            }.flatMap { url in
+                let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.standardizedFileURL.path
+                return url.path.hasPrefix(root.hasSuffix("/") ? root : root + "/") ? url : nil
+            }
+        } else {
+            source = inSandbox(rel, directory == "DOCUMENTS" ? "DATA" : directory)
+        }
+        guard let source = source else {
             call.reject("path escapes the sandbox")
             return
         }

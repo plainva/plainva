@@ -257,6 +257,9 @@ public class AtomicFilePlugin extends Plugin {
             }
             JSObject ret = new JSObject();
             ret.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
+            // The length behind the handle now: a file written in place (not renamed) can have grown
+            // or shrunk since it was opened, and the reader starts again rather than return part of it.
+            ret.put("size", read.file.length());
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("read failed: " + e.getMessage(), e);
@@ -414,6 +417,7 @@ public class AtomicFilePlugin extends Plugin {
             File base;
             if ("DOCUMENTS".equals(directory)) base = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
             else if ("DATA".equals(directory)) base = getContext().getFilesDir();
+            else if ("CACHE".equals(directory)) base = getContext().getCacheDir();
             else {
                 call.reject("unknown directory " + directory);
                 return;

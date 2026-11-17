@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { BRIDGE_LIMIT_CHARS, BridgeMessageTooLargeError, bridgeMessageSize, installBridgeLimit, resetBridgeLimitForTests } from "./bridgeLimit";
 
 /**
- * A hard limit at the bridge (F51): a call over 32 MB fails in JavaScript with
+ * A hard limit at the bridge (F51): a call over 64 MB fails in JavaScript with
  * its method's name, instead of a dead process - the phone's vault archive
  * was one 118 MB message, and Android ran out of memory parsing it.
  */
@@ -24,10 +24,10 @@ const call = (plugin: string, method: string, options: unknown) =>
   new Promise((resolve, reject) => (globalThis as unknown as { Capacitor: { toNative: (...a: unknown[]) => void } }).Capacitor.toNative(plugin, method, options, { resolve, reject }));
 
 describe("the bridge limit", () => {
-  it("lets an ordinary call through, and a large one that goes today (30 MB)", async () => {
+  it("lets an ordinary call through, and a large one that goes today (60 MB)", async () => {
     await call("AtomicFile", "append", { id: "w1", data: "x".repeat(350_000) });
     // A picked folder or a mail attachment still sends a whole file: up to the limit it goes as before.
-    await call("VaultFolder", "writeFile", { path: "Bilder/shot.png", data: "x".repeat(30 * 1024 * 1024) });
+    await call("VaultFolder", "writeFile", { path: "Bilder/shot.png", data: "x".repeat(60 * 1024 * 1024) });
     expect(forwarded).toEqual(["AtomicFile.append", "VaultFolder.writeFile"]);
   });
 
@@ -41,6 +41,6 @@ describe("the bridge limit", () => {
 
   it("counts a message without making its text, and stops once over", () => {
     expect(bridgeMessageSize({ data: "x".repeat(1000) })).toBeGreaterThanOrEqual(1000);
-    expect(bridgeMessageSize({ values: Array.from({ length: 400_000 }, () => ({ c: "y".repeat(100) })) }, BRIDGE_LIMIT_CHARS)).toBeGreaterThan(BRIDGE_LIMIT_CHARS);
+    expect(bridgeMessageSize({ values: Array.from({ length: 700_000 }, () => ({ c: "y".repeat(100) })) }, BRIDGE_LIMIT_CHARS)).toBeGreaterThan(BRIDGE_LIMIT_CHARS);
   });
 });

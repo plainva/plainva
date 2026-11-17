@@ -1,10 +1,11 @@
 import { Capacitor } from "@capacitor/core";
-import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { availableZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZip, toast, reportingTo } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { isMissingFile } from "../adapters/fileErrors";
 import { getMobileSettings } from "./mobileSettings";
-import { nativeFileDigest } from "../platform/atomicFile";
+import { atomicWriteInternalText, nativeFileDigest } from "../platform/atomicFile";
+import { internalPlace } from "../platform/internalFiles";
 import { PartFileSink, streamVaultZip, ZipStoppedError } from "./vaultExport";
 import type { MobileVault } from "./vaultService";
 import { classifyBackupListing, type BackupListing, type UnreadableMark } from "./backupListing";
@@ -72,17 +73,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_BACKOFF_MS = 7 * DAY_MS;
 
 export interface BackupAttempt {
-  /** Epoch ms the try began. */
+  /** Epoch ms the try began, or ended. */
   at: number;
-  /** Tries in a row that ended without an archive, this one included. */
+  /** Tries in a row that ended without an archive, the running one not counted. */
   failures: number;
+  /** Set while a try runs. Found set when none runs: that try ended the app, and counts as failed. */
+  inProgress?: boolean;
   /** What ended it, as a kind (`Error` name), when it ended without ending the app. */
   error?: string;
 }
 
-export function readBackupAttempt(vaultId: string): BackupAttempt | null {
+/** The mark's durable copy (fsync), among the app's own files; the settings' copy is the screen's quick answer. */
+const attemptFile = (vaultId: string) => `backup/attempt-${encodeURIComponent(vaultId)}.json`;
+
+function parseAttempt(raw: string | null | undefined): BackupAttempt | null {
   try {
-    const raw = localStorage.getItem(attemptKey(vaultId));
     const value = raw ? (JSON.parse(raw) as BackupAttempt) : null;
     return value && Number.isFinite(value.at) && Number.isFinite(value.failures) ? value : null;
   } catch {
@@ -90,15 +95,70 @@ export function readBackupAttempt(vaultId: string): BackupAttempt | null {
   }
 }
 
-function writeBackupAttempt(vaultId: string, attempt: BackupAttempt | null): void {
-  if (attempt) localStorage.setItem(attemptKey(vaultId), JSON.stringify(attempt));
-  else localStorage.removeItem(attemptKey(vaultId));
+/** The mark as the screen last saw it (quick, may lag a process that died); `loadBackupAttempt` is the truth. */
+export function readBackupAttempt(vaultId: string): BackupAttempt | null {
+  try {
+    return parseAttempt(localStorage.getItem(attemptKey(vaultId)));
+  } catch {
+    return null;
+  }
+}
+
+/** The mark from its durable copy, and the screen's copy brought in line with it. */
+export async function loadBackupAttempt(vaultId: string): Promise<BackupAttempt | null> {
+  let attempt: BackupAttempt | null;
+  try {
+    const place = await internalPlace(attemptFile(vaultId));
+    const { data } = await Filesystem.readFile({ path: place.path, directory: place.directory, encoding: Encoding.UTF8 });
+    attempt = parseAttempt(String(data));
+  } catch (error) {
+    // No durable copy: none was written, or an older version kept the mark in the settings only.
+    if (!isMissingFile(error)) console.warn("[backup] the mark of the last try could not be read", error);
+    attempt = readBackupAttempt(vaultId);
+  }
+  mirrorAttempt(vaultId, attempt);
+  return attempt;
+}
+
+function mirrorAttempt(vaultId: string, attempt: BackupAttempt | null): void {
+  try {
+    if (attempt) localStorage.setItem(attemptKey(vaultId), JSON.stringify(attempt));
+    else localStorage.removeItem(attemptKey(vaultId));
+  } catch {
+    // silent: the screen's copy only; the durable one decides.
+  }
+  window.dispatchEvent(new CustomEvent(BACKUP_STATE_EVENT));
+}
+
+/**
+ * Writes the mark: durably first (fsync - a try that ends the app seconds
+ * later must still be found by the next start), then the screen's copy.
+ */
+async function writeBackupAttempt(vaultId: string, attempt: BackupAttempt | null): Promise<void> {
+  const file = attemptFile(vaultId);
+  if (attempt) await atomicWriteInternalText(file, JSON.stringify(attempt));
+  else {
+    const place = await internalPlace(file);
+    await Filesystem.deleteFile({ path: place.path, directory: place.directory }).catch((error: unknown) => {
+      if (!isMissingFile(error)) throw error;
+    });
+  }
+  mirrorAttempt(vaultId, attempt);
+}
+
+/** Tries in a row that failed: a mark found running while no try runs here is one more (it ended the app). */
+export function failuresOf(attempt: BackupAttempt | null, runningHere = running): number {
+  if (!attempt) return 0;
+  return attempt.failures + (attempt.inProgress && !runningHere ? 1 : 0);
 }
 
 /** When the next automatic try may run after `attempt` failed: a day, doubling, at most a week. */
-export function nextAutomaticTry(attempt: BackupAttempt): number {
-  return attempt.at + Math.min(MAX_BACKOFF_MS, DAY_MS * 2 ** Math.max(0, attempt.failures - 1));
+export function nextAutomaticTry(attempt: BackupAttempt, failures = failuresOf(attempt)): number {
+  return attempt.at + Math.min(MAX_BACKOFF_MS, DAY_MS * 2 ** Math.max(0, failures - 1));
 }
+
+/** Sent when a try begins or ends, so the line under the switch follows. */
+export const BACKUP_STATE_EVENT = "m-backup-state";
 // Keyed by the folder name, not the vault id: the folder is what survives a
 // reinstall, and the vault id is minted fresh by the new installation.
 const unreadableKey = (name: string) => `m-backup-unreadable-${sanitizeFileName(name)}`;
@@ -128,13 +188,15 @@ export interface BackupState {
   keep: number;
   /** Epoch ms of the last successful archive; 0 = never. */
   lastRun: number;
-  /** Whether the last try ended without an archive (or ended the app). */
+  /** A try is running in this app now. */
+  running: boolean;
+  /** The last try ended without an archive, or ended the app - never while one runs. */
   lastFailed: boolean;
 }
 
 export function backupState(vaultId: string): BackupState {
   const s = getMobileSettings();
-  return { enabled: s.backupZipEnabled, keep: s.backupZipKeep, lastRun: readLastRun(vaultId), lastFailed: (readBackupAttempt(vaultId)?.failures ?? 0) > 0 };
+  return { enabled: s.backupZipEnabled, keep: s.backupZipKeep, lastRun: readLastRun(vaultId), running, lastFailed: !running && failuresOf(readBackupAttempt(vaultId)) > 0 };
 }
 
 /**
@@ -142,14 +204,15 @@ export function backupState(vaultId: string): BackupState {
  * name written, or null when the platform cannot store one (the browser
  * fixture has no documents directory).
  */
-export async function runVaultBackup(vault: MobileVault, name: string): Promise<string | null> {
+export async function runVaultBackup(vault: MobileVault, name: string, { automatic = false }: { automatic?: boolean } = {}): Promise<string | null> {
   if (Capacitor.getPlatform() === "web") return null;
   if (running) return null;
+  // Tries before this one that failed, a try found running that ended the app among them.
+  const failedBefore = failuresOf(await loadBackupAttempt(vault.vaultId), false);
   running = true;
-  // Marked before anything is written: a try that ends the app counts as one that failed.
-  const failedBefore = readBackupAttempt(vault.vaultId)?.failures ?? 0;
-  writeBackupAttempt(vault.vaultId, { at: Date.now(), failures: failedBefore + 1 });
   try {
+    // Marked durably before the vault is read: a try that ends the app is found by the next start.
+    await writeBackupAttempt(vault.vaultId, { at: Date.now(), failures: failedBefore, inProgress: true });
     const folder = backupFolderFor(name);
     const present = async (file: string): Promise<boolean> => {
       try { await Filesystem.stat({ path: file, directory: DIR }); return true; }
@@ -162,8 +225,9 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
     await removeLeftoverParts(folder);
     const sink = new PartFileSink(partial, DIR);
     try {
-      // Switched off while it runs: it stops before the next file, and the part file goes.
-      await streamVaultZip(vault, sink, () => !getMobileSettings().backupZipEnabled);
+      // The automatic one, switched off while it runs, stops before the next file, and the part
+      // file goes. One the person asked for runs whatever the switch says.
+      await streamVaultZip(vault, sink, () => automatic && !getMobileSettings().backupZipEnabled);
       const written = await sink.close();
       // Check the file on disk before publication or retention: its size and the
       // hash the system takes of it, against what was written. A resolved native
@@ -194,15 +258,20 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
     }
 
     localStorage.setItem(lastRunKey(vault.vaultId), String(Date.now()));
-    writeBackupAttempt(vault.vaultId, null);
+    running = false;
+    await writeBackupAttempt(vault.vaultId, null).catch(reportingTo("backup:mark"));
     return fileName;
   } catch (error) {
+    running = false;
     // Stopped because it was switched off: no failure, and nothing waits.
-    if (error instanceof ZipStoppedError) writeBackupAttempt(vault.vaultId, failedBefore > 0 ? { at: Date.now(), failures: failedBefore } : null);
-    else writeBackupAttempt(vault.vaultId, { at: Date.now(), failures: failedBefore + 1, error: error instanceof Error ? error.name : "Error" });
+    const next = error instanceof ZipStoppedError
+      ? (failedBefore > 0 ? { at: Date.now(), failures: failedBefore } : null)
+      : { at: Date.now(), failures: failedBefore + 1, error: error instanceof Error ? error.name : "Error" };
+    await writeBackupAttempt(vault.vaultId, next).catch(reportingTo("backup:mark"));
     throw error;
   } finally {
     running = false;
+    window.dispatchEvent(new CustomEvent(BACKUP_STATE_EVENT));
   }
 }
 
@@ -263,10 +332,11 @@ export async function backupIfDue(vault: MobileVault, name: string): Promise<voi
   const { enabled, lastRun } = backupState(vault.vaultId);
   if (!shouldRunZip({ enabled, lastRun, now: Date.now(), running })) return;
   // After a failure - or a try that ended the app - not before the wait is over.
-  const attempt = readBackupAttempt(vault.vaultId);
-  if (attempt && attempt.failures > 0 && Date.now() < nextAutomaticTry(attempt)) return;
+  const attempt = await loadBackupAttempt(vault.vaultId);
+  const failures = failuresOf(attempt);
+  if (attempt && failures > 0 && Date.now() < nextAutomaticTry(attempt, failures)) return;
   try {
-    await runVaultBackup(vault, name);
+    await runVaultBackup(vault, name, { automatic: true });
   } catch (error) {
     // Switched off while it ran: that is what was asked for, not a failure.
     if (error instanceof ZipStoppedError) return;

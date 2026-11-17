@@ -18,6 +18,8 @@ const boundary = vi.hoisted(() => ({
   messages: [] as number[],
   /** A file written in more than one part: its parts, in order. */
   pieces: new Map<string, Uint8Array[]>(),
+  /** Files outside Documents, keyed `<directory>:<path>`: the try's mark, the export's file. */
+  other: new Map<string, string>(),
 }));
 /** What lies at a path in Documents, as bytes. */
 function bytesAt(path: string): Uint8Array | undefined {
@@ -34,8 +36,8 @@ function bytesAt(path: string): Uint8Array | undefined {
 // The system's hash of the file where it lies (F51): taken here from the stored bytes.
 vi.mock("../platform/atomicFile", async (importOriginal) => ({
   ...await importOriginal<typeof import("../platform/atomicFile")>(),
-  nativeFileDigest: vi.fn(async (path: string) => {
-    const bytes = bytesAt(path);
+  nativeFileDigest: vi.fn(async (path: string, directory?: string) => {
+    const bytes = directory === "CACHE" ? (boundary.other.has(`CACHE:${path}`) ? Uint8Array.from(atob(boundary.other.get(`CACHE:${path}`)!), (c) => c.charCodeAt(0)) : undefined) : bytesAt(path);
     if (bytes === undefined) throw Object.assign(new Error("missing"), { code: "OS-PLUG-FILE-0008" });
     const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
     return { sha256: Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""), size: bytes.length };
@@ -52,6 +54,7 @@ vi.mock("@capacitor/filesystem", () => ({
   Encoding: { UTF8: "utf8" },
   Filesystem: {
     mkdir: vi.fn(async () => {}),
+    getUri: vi.fn(async ({ path }: { path: string }) => ({ uri: path })),
     readdir: vi.fn(async ({ directory, path }: { directory: string; path: string }) => {
       if (directory === "DOCS") return {
         files: [...boundary.documents.keys()].filter((p) => p.startsWith(path + "/")).map((p) => ({ name: p.slice(path.length + 1), type: "file" })),
@@ -65,6 +68,8 @@ vi.mock("@capacitor/filesystem", () => ({
       throw missing();
     }),
     readFile: vi.fn(async ({ path, directory }: { path: string; directory: string }) => {
+      if (directory !== "DOCS" && boundary.other.has(`${directory}:${path}`)) return { data: boundary.other.get(`${directory}:${path}`)! };
+      if (directory === "DATA" && path.startsWith("backup/")) throw missing();
       if (directory === "DOCS") {
         const data = boundary.documents.get(path);
         if (data === undefined) throw missing();
@@ -75,17 +80,32 @@ vi.mock("@capacitor/filesystem", () => ({
       for (let at = 0; at < bytes.length; at += 0x8000) binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
       return { data: btoa(binary) };
     }),
-    writeFile: vi.fn(async ({ path, data }: { path: string; data: string }) => { boundary.documents.set(path, data); boundary.messages.push(data.length); }),
+    writeFile: vi.fn(async ({ path, data, directory }: { path: string; data: string; directory: string }) => {
+      // The app's own folders (the try's mark, the export's file) are kept apart from Documents.
+      if (directory !== "DOCS") { boundary.other.set(`${directory}:${path}`, data); return; }
+      boundary.documents.set(path, data); boundary.messages.push(data.length);
+    }),
     // The archive is written in parts (F51): each part is appended as base64, kept as bytes.
-    appendFile: vi.fn(async ({ path, data }: { path: string; data: string }) => {
+    appendFile: vi.fn(async ({ path, data, directory }: { path: string; data: string; directory: string }) => {
+      if (directory !== "DOCS") { boundary.other.set(`${directory}:${path}`, btoa(atob(boundary.other.get(`${directory}:${path}`) ?? "") + atob(data))); return; }
       boundary.messages.push(data.length);
       const pieces = boundary.pieces.get(path) ?? [Uint8Array.from(atob(boundary.documents.get(path) ?? ""), (c) => c.charCodeAt(0))];
       pieces.push(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
       boundary.pieces.set(path, pieces);
       boundary.documents.set(path, "");
     }),
-    deleteFile: vi.fn(async ({ path }: { path: string }) => { boundary.documents.delete(path); }),
-    rename: vi.fn(async ({ from, to }: { from: string; to: string }) => {
+    deleteFile: vi.fn(async ({ path, directory }: { path: string; directory: string }) => {
+      if (directory !== "DOCS") { if (!boundary.other.delete(`${directory}:${path}`)) throw missing(); return; }
+      boundary.documents.delete(path);
+    }),
+    rename: vi.fn(async ({ from, to, directory }: { from: string; to: string; directory: string }) => {
+      if (directory !== "DOCS") {
+        const data = boundary.other.get(`${directory}:${from}`);
+        if (data === undefined) throw missing();
+        boundary.other.set(`${directory}:${to}`, data);
+        boundary.other.delete(`${directory}:${from}`);
+        return;
+      }
       if (!boundary.documents.has(from)) throw missing();
       if (boundary.documents.has(to)) throw new Error("destination exists");
       boundary.documents.set(to, boundary.documents.get(from)!);
@@ -97,12 +117,12 @@ vi.mock("@capacitor/filesystem", () => ({
 }));
 vi.mock("@plainva/ui", async () => ({
   ...await import("../../../../packages/ui/src/lib/zipBackup"),
-  toast: { warning: vi.fn() },
+  toast: { warning: vi.fn(), info: vi.fn() },
   reportingTo: () => () => {},
 }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string, values: { name?: string }) => key + ":" + values.name } }));
 vi.mock("./mobileSettings", () => ({ getMobileSettings: () => ({ backupZipEnabled: boundary.enabled, backupZipKeep: boundary.keep }) }));
-import { Filesystem } from "@capacitor/filesystem";
+import { Directory, Filesystem } from "@capacitor/filesystem";
 import { toast } from "@plainva/ui";
 import { buildZipFileName } from "../../../../packages/ui/src/lib/zipBackup";
 import { buildVaultZipBytes } from "./vaultExport";
@@ -154,6 +174,7 @@ beforeEach(async () => {
   boundary.enabled = true;
   boundary.messages.length = 0;
   boundary.pieces.clear();
+  boundary.other.clear();
   root = await mkdtemp(join(tmpdir(), "plainva-mobile-backup-"));
   raw = new LocalVaultAdapter(root);
   await raw.initialize();
@@ -221,10 +242,19 @@ describe("complete mobile backup inventory", () => {
 
 describe("mobile archive publication and retry", () => {
   it.each(["write", "verify", "rename"] as const)("does not rotate or advance lastRun after a %s failure", async (stage) => {
-    if (stage === "write") vi.spyOn(Filesystem, "writeFile").mockImplementationOnce(async (opts) => {
-      boundary.documents.set(opts.path, btoa("partial"));
-      throw new Error("archive write failed");
-    });
+    if (stage === "write") {
+      const write = originalWrite;
+      let failed = false;
+      vi.spyOn(Filesystem, "writeFile").mockImplementation(async (opts) => {
+        // The archive's first part fails; the try's mark (outside Documents) is written as always.
+        if (opts.directory === Directory.Documents && !failed) {
+          failed = true;
+          boundary.documents.set(opts.path, btoa("partial"));
+          throw new Error("archive write failed");
+        }
+        return write(opts);
+      });
+    }
     if (stage === "verify") {
       // The system finds a shorter file than was written: a truncated archive.
       vi.mocked(nativeFileDigest).mockResolvedValueOnce({ sha256: "0".repeat(64), size: 3 });
@@ -258,7 +288,7 @@ describe("mobile archive publication and retry", () => {
   it("does not interpret a denied destination stat as a free filename", async () => {
     vi.spyOn(Filesystem, "stat").mockRejectedValueOnce(Object.assign(new Error("denied"), { code: "EACCES" }));
     await expect(runVaultBackup(vault, "Vault")).rejects.toThrow("denied");
-    expect(Filesystem.writeFile).not.toHaveBeenCalled();
+    expect(vi.mocked(Filesystem.writeFile).mock.calls.filter(([opts]) => opts.directory === Directory.Documents)).toEqual([]);
     expect([...boundary.documents.keys()]).toEqual([oldName]);
   });
 
@@ -308,7 +338,7 @@ describe("an archive that never crosses the bridge whole (F51)", () => {
       return read(path);
     });
     await runVaultBackup(vault, "Vault");
-    expect(seen).toMatchObject({ failures: 1 });
+    expect(seen).toMatchObject({ failures: 0, inProgress: true });
     expect(readBackupAttempt(vault.vaultId)).toBeNull();
   });
 
@@ -370,5 +400,68 @@ describe("an archive that never crosses the bridge whole (F51)", () => {
     // Never more than about one file in the page, at any read: not the 500 MB.
     expect(Math.max(...heldAtRead)).toBeLessThanOrEqual(file.length);
   }, 300_000);
+});
+
+describe("the third review: manual runs, states, vanished files, one export at a time", () => {
+  it("'back up now' runs when the scheduled backup is switched off", async () => {
+    boundary.enabled = false;
+    const { backupVaultNow } = await import("./vaultBackup");
+    await backupVaultNow(vault, "Vault");
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect([...boundary.documents.keys()].filter((key) => key.endsWith(".zip") && key !== oldName)).toHaveLength(1);
+  });
+
+  it("a file that vanishes during the run is left out, and the run succeeds", async () => {
+    await raw.writeTextFile("Gone.md", "soon deleted");
+    const read = raw.readBinaryFile.bind(raw);
+    vi.spyOn(raw, "readBinaryFile").mockImplementation(async (path) => {
+      if (path === "Gone.md") { await raw.deleteItem("Gone.md"); }
+      return read(path);
+    });
+    const name = await runVaultBackup(vault, "Vault");
+    expect(name).toBeTruthy();
+    expect(Object.keys(archive(boundary.documents.get("Plainva Backups/Vault/" + name)!))).toEqual(["Note.md"]);
+    expect(backupState(vault.vaultId).lastFailed).toBe(false);
+  });
+
+  it("says the right thing in each of the five states", async () => {
+    // never
+    expect(backupState(vault.vaultId)).toMatchObject({ lastRun: 0, running: false, lastFailed: false });
+    // running - the first try is no failure while it runs
+    const read = raw.readBinaryFile.bind(raw);
+    let during: ReturnType<typeof backupState> | null = null;
+    vi.spyOn(raw, "readBinaryFile").mockImplementation(async (path) => { during ??= backupState(vault.vaultId); return read(path); });
+    await runVaultBackup(vault, "Vault");
+    expect(during).toMatchObject({ running: true, lastFailed: false });
+    // succeeded
+    expect(backupState(vault.vaultId)).toMatchObject({ running: false, lastFailed: false, lastRun: Date.now() });
+    // failed
+    vi.mocked(raw.readBinaryFile).mockRejectedValueOnce(new Error("unreadable"));
+    await expect(runVaultBackup(vault, "Vault")).rejects.toThrow("unreadable");
+    expect(backupState(vault.vaultId)).toMatchObject({ running: false, lastFailed: true });
+    // off
+    boundary.enabled = false;
+    expect(backupState(vault.vaultId).enabled).toBe(false);
+  });
+
+  it("a try found running at the next start ended the app: it counts as failed, durably", async () => {
+    // What a killed try leaves: its mark, written with fsync, still running.
+    boundary.other.set(`DATA:backup/attempt-${encodeURIComponent(vault.vaultId)}.json`, JSON.stringify({ at: Date.now(), failures: 0, inProgress: true }));
+    const list = vi.spyOn(adapter, "listDirForBackup");
+    await backupIfDue(vault, "Vault");
+    expect(list).not.toHaveBeenCalled();
+    expect(backupState(vault.vaultId).lastFailed).toBe(true);
+  });
+
+  it("two taps on 'export' share one checked archive", async () => {
+    const { exportVault } = await import("./vaultExport");
+    const { Share } = await import("@capacitor/share");
+    await Promise.all([exportVault(vault, "Vault"), exportVault(vault, "Vault")]);
+    expect(Share.share).toHaveBeenCalledTimes(1);
+    const files = [...boundary.other.keys()].filter((key) => key.startsWith("CACHE:exports/"));
+    expect(files).toHaveLength(1);
+    expect(files[0].endsWith(".zip")).toBe(true);
+    expect(Object.keys(readZip(Uint8Array.from(atob(boundary.other.get(files[0])!), (c) => c.charCodeAt(0))))).toEqual(["Note.md"]);
+  });
 });
 

@@ -11,7 +11,7 @@ import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaul
 import { byteExactDav, type ByteExactDav } from "../../../../packages/core/test/helpers/byteExactDav";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { CapacitorVaultAdapter } from "./CapacitorVaultAdapter";
-import { appStorageBytes, capacitorFilesystem, fakeAppStorage } from "./fakeAppStorage";
+import { appStorageAfterPart, appStorageBytes, appStorageWriteInPlace, capacitorFilesystem, fakeAppStorage } from "./fakeAppStorage";
 
 vi.mock("@capacitor/filesystem", async () => (await import("./fakeAppStorage")).capacitorFilesystem);
 vi.mock("@capacitor/core", async () => (await import("./fakeAppStorage")).capacitorCore);
@@ -334,3 +334,23 @@ describe("an iPhone that pulled a note with a byte order mark with an older buil
     expect([...phone.problems, ...other.problems]).toEqual([]);
   });
 });
+
+describe("a file another program writes in place while the phone reads it (third review)", () => {
+  it.each(["android", "ios"] as const)("is read whole, never cut to the length it had when it was opened (%s)", async (system) => {
+    const { files } = fakeAppStorage(system);
+    const before = new Uint8Array(utf8("- [ ] old\n" + "o".repeat(300 * 1024)));
+    const after = new Uint8Array(utf8("- [x] new\n" + "n".repeat(500 * 1024)));
+    files.set("vault/Big.md", before);
+    let parts = 0;
+    // After the first part, another app writes the file in place: same file, longer.
+    appStorageAfterPart(() => { if (++parts === 1) appStorageWriteInPlace("vault/Big.md", after); });
+    try {
+      const bytes = await new CapacitorVaultAdapter("vault").readBinaryFile("Big.md");
+      expect(bytes.length).toBe(after.length);
+      expect(new TextDecoder().decode(bytes.subarray(0, 9))).toBe("- [x] new");
+    } finally {
+      appStorageAfterPart(null);
+    }
+  });
+});
+
