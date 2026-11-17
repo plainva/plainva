@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { boundedProcessExit, formatDiagnosticsExport, scrubExitText } from "@plainva/ui";
-import { classifyProcessExit, mergeProcessExits, processExitLabelKey, type ProcessExitRecord } from "./services/processExits";
+import { classifyProcessExit, mergeProcessExits, processExitLabelKey, topFrames, type ProcessExitRecord } from "./services/processExits";
 
 /**
  * Android 17's memory limiter kills silently (plan 2026-09-04, P1). What the
@@ -182,7 +182,8 @@ describe("the screen 'Ended by the system' shows the top of the stack (F51)", ()
   it("each exit shows its exception and frames, the main thread first", () => {
     const screen = readFileSync(new URL("./screens/SyncDiagnosticsScreen.tsx", import.meta.url), "utf8");
     expect(screen).toMatch(/<code className="m-exit-frames">\{topFrames\(e\)\.join\("\\n"\)\}<\/code>/);
-    expect(screen).toMatch(/frame\.startsWith\("main: "\)/);
+    // The order lives beside the records (`topFrames` in processExits.ts), tested below with a real ANR.
+    expect(readFileSync(new URL("./services/processExits.ts", import.meta.url), "utf8")).toMatch(/frame\.startsWith\("main: "\)/);
     expect(readFileSync(new URL("./mobile.css", import.meta.url), "utf8")).toMatch(/\.m-exit-frames \{/);
   });
 });
@@ -263,3 +264,34 @@ describe("costs and keys (second review)", () => {
   });
 });
 
+
+describe("the real ANR from the maintainer's phone (2026-11-17)", () => {
+  // The main thread as the native side hands it on: each frame line, prefixed with its thread.
+  const frames = readFileSync(new URL("./__fixtures__/anr-main-thread-2026-11-17.txt", import.meta.url), "utf8")
+    .split("\n").map((line) => line.trim()).filter((line) => line.startsWith("at ") || line.startsWith("native: "))
+    .map((line) => `main: ${line}`);
+
+  it("every frame of it gets through, in the shape the dump writes it", () => {
+    expect(frames).toHaveLength(25);
+    const kept = boundedProcessExit({ at: "2026-11-17T12:00:00.000Z", kind: "anr", frames }).frames ?? [];
+    expect(kept).toHaveLength(25);
+    expect(kept).toContain("main: at java.lang.String.fastSubstring(Native method)");
+    expect(kept).toContain("main: at com.getcapacitor.MessageHandler.postMessage(MessageHandler.java:54)");
+    expect(kept).toContain("main: at android.os.Handler.handleCallback(unavailable:0)");
+    expect(kept).toContain("main: at WV.m03.run(chromium-SystemWebViewGoogle6432.aab-stable-810303803:94)");
+    expect(kept.some((frame) => frame.startsWith("main: native: #00 pc 000a5a20  libc.so"))).toBe(true);
+  });
+
+  it("the screen's eight lines name the place: the Java frames first, each method once", () => {
+    const kept = boundedProcessExit({ at: "2026-11-17T12:00:00.000Z", kind: "anr", frames }).frames ?? [];
+    const shown = topFrames({ frames: kept });
+    expect(shown).toHaveLength(8);
+    expect(shown[0]).toBe("main: at java.lang.String.fastSubstring(Native method)");
+    expect(shown).toContain("main: at com.getcapacitor.MessageHandler.postMessage(MessageHandler.java:54)");
+  });
+
+  it("the Android plugin keeps enough frames for it", () => {
+    const java = readFileSync(new URL("../android/app/src/main/java/com/plainva/app/ProcessExitPlugin.java", import.meta.url), "utf8");
+    expect(java).toMatch(/private static final int MAX_FRAMES = 32;/);
+  });
+});

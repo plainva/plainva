@@ -1,14 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { isShownProcessExit, loadProcessExits, processExitLabelKey, type ProcessExitRecord } from "../services/processExits";
+import { isShownProcessExit, loadProcessExits, processExitLabelKey, topFrames, type ProcessExitRecord } from "../services/processExits";
 import { lastProcessExitDays, type ProcessExitDay } from "../platform/processExit";
 
-/** The frames a screenshot needs: the exception's class, then for an ANR the main thread's first. */
-function topFrames(exit: ProcessExitRecord): string[] {
-  const frames = exit.frames ?? [];
-  const main = frames.filter((frame) => frame.startsWith("main: "));
-  const ordered = main.length > 0 ? [...main, ...frames.filter((frame) => !frame.startsWith("main: "))] : frames;
-  return [...(exit.exception ? [exit.exception] : []), ...ordered].slice(0, 8);
-}
 import { useTranslation } from "react-i18next";
 import { Banner, Button, deviceStateKey, diagnosticsState, emptyDiagnostics, GroupCard, Row, RowList, SectionLabel, SETTINGS_SYNC_FAILURES_BEFORE_ERROR, settingsSyncFailureIsWaiting, type SyncDiagnostics } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";

@@ -161,3 +161,29 @@ export function processExitLabelKey(kind: ProcessExitKind): string {
       return "settingsSync.diagProcessExits";
   }
 }
+
+/**
+ * The frames a screenshot needs: the exception's class, then for an ANR the
+ * main thread's - its Java frames first. A real dump begins with the
+ * runtime's native frames (`libc.so`, `libart.so` ...); the lines that name
+ * the place (`JSONTokener.nextString`, `MessageHandler.postMessage`) come
+ * after them and would not fit in eight lines. The export keeps the full order.
+ */
+export function topFrames(exit: Pick<ProcessExitRecord, "exception" | "frames">): string[] {
+  const frames = exit.frames ?? [];
+  const main = frames.filter((frame) => frame.startsWith("main: "));
+  // Each method once: a parser that recurses (`JSONTokener.nextValue`, `readObject` ...) would fill the lines.
+  const seen = new Set<string>();
+  const mainJava = main.filter((frame) => {
+    if (!frame.startsWith("main: at ")) return false;
+    const bracket = frame.indexOf("(");
+    const method = bracket < 0 ? frame : frame.slice(0, bracket);
+    if (seen.has(method)) return false;
+    seen.add(method);
+    return true;
+  });
+  const ordered = main.length > 0
+    ? [...(mainJava.length > 0 ? [...mainJava, ...main.filter((frame) => !frame.startsWith("main: at "))] : main), ...frames.filter((frame) => !frame.startsWith("main: "))]
+    : frames;
+  return [...(exit.exception ? [exit.exception] : []), ...ordered].slice(0, 8);
+}

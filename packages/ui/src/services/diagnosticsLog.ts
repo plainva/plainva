@@ -181,7 +181,8 @@ function namesSomethingPrivate(text: string): boolean {
     || /\S@\S/.test(withoutComponents)
     || /\//.test(withoutComponents)
     || /[A-Za-z]:\\/.test(withoutComponents)
-    || /\.(?:md|markdown|txt|canvas|base|csv|json|pdf|png|jpe?g|gif|webp|heic|svg|mp3|m4a|wav|mp4|mov|docx?|xlsx?|pptx?|zip|eml|ics)\b/i.test(withoutComponents);
+    // A file's ending - but not a package name: `org.json.JSONTokener` goes on with `.J`.
+    || /\.(?:md|markdown|txt|canvas|base|csv|json|pdf|png|jpe?g|gif|webp|heic|svg|mp3|m4a|wav|mp4|mov|docx?|xlsx?|pptx?|zip|eml|ics)\b(?!\.\w)/i.test(withoutComponents);
 }
 
 /**
@@ -201,8 +202,10 @@ const KNOWN_DESCRIPTIONS = [
 
 /** A frame in one of the shapes the plugins write; anything else is dropped. */
 const KNOWN_FRAMES = [
-  // Android, from an ANR's dump: `main: at a.B.c(B.java:12)`.
-  /^(?:(?:main|CapacitorPlugins): )?at [\w$.<>-]+\((?:[\w$.-]+\.(?:java|kt):\d+|Native Method|Unknown Source(?::\d+)?)\)$/,
+  // Android, from an ANR's dump: `main: at a.B.c(B.java:12)`. The source in brackets is any name
+  // without a path character - `String.java:3052`, `Native method` as the dump writes it,
+  // `unavailable:0`, `D8$$SyntheticClass:0`, the WebView's `chromium-...aab-stable-...:94`.
+  /^(?:(?:main|CapacitorPlugins): )?at [\w$.<>-]+\((?:[\w$.-]+(?::-?\d+)?|Native [Mm]ethod|Unknown Source(?::\d+)?)\)$/,
   // Android, from the app's crash handler: `at a.B.c:12`.
   /^at [\w$.<>-]+:(?:\d+|\?)$/,
   // Android, a native frame with its library's name only.
@@ -220,7 +223,8 @@ function knownDescription(text: string): string | undefined {
 function knownFrame(frame: string): string | undefined {
   // A native library keeps its file name - `libc.so` names no note - and loses its folder.
   const shortened = frame.replace(/(?<!\S)(?:\/[^\s/:()"']+)+\/([^\s/:()"']+\.so(?:\.\d+)*)/g, "$1").trim();
-  return KNOWN_FRAMES.some((shape) => shape.test(shortened)) && !/@/.test(shortened) ? shortened.slice(0, EXIT_MAX_LINE) : undefined;
+  // Known shape, and nothing in it that could name something of the person's (a file name, a path).
+  return KNOWN_FRAMES.some((shape) => shape.test(shortened)) && !namesSomethingPrivate(shortened) ? shortened.slice(0, EXIT_MAX_LINE) : undefined;
 }
 
 /** One exit as kept: only what is known to name nothing of the person's, bounded. */

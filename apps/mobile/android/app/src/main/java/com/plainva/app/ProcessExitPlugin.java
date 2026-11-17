@@ -48,8 +48,12 @@ import java.util.List;
 @CapacitorPlugin(name = "ProcessExit")
 public class ProcessExitPlugin extends Plugin {
 
-    /** Frames kept per thread or per exception. */
-    private static final int MAX_FRAMES = 16;
+    /**
+     * Frames kept per thread or per exception: a real ANR on the main thread has seven native
+     * frames of the runtime before the Java ones, and the line that names the place
+     * (`MessageHandler.postMessage`) was the 19th (2026-11-17).
+     */
+    private static final int MAX_FRAMES = 32;
     /** The crash file: class and frames of the last Java crash. */
     private static final String CRASH_FILE = "diagnostics/last-crash.txt";
     /** Room for the crash record; the handler writes into it without allocating. */
