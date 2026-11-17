@@ -28,7 +28,7 @@ El texto sin cifrar existente permanece junto a `.pvws/` durante la migración. 
 
 ## Uso diario
 
-Los cambios sin conexión permanecen en una cola duradera. Cada cambio va firmado; una eliminación remota por sí sola nunca borra un archivo local, pero una lápida firmada sí puede hacerlo. Las ediciones paralelas sin conexión se conservan como copias `.CONFLICT-…`. Todos los dispositivos muestran la misma versión con el nombre de la nota y la otra como copia, también cuando dos dispositivos crean a la vez la misma nota nueva, o uno elimina una nota y la vuelve a crear mientras otro la edita. **Bloquear** borra realmente las claves del workspace de la memoria — la clave de firma, la de descifrado y todas las claves de grupo que la sesión haya obtenido; **Desbloquear** las vuelve a pedir al llavero del sistema o a la frase de contraseña local.
+Los cambios sin conexión permanecen en una cola duradera. Cada cambio va firmado; una eliminación remota por sí sola nunca borra un archivo local, pero una lápida firmada sí puede hacerlo. Las ediciones paralelas sin conexión se conservan como copias `.CONFLICT-…`. Ningún texto se pierde por un cambio hecho al mismo tiempo en otro dispositivo: donde quedan dos versiones, la otra queda junto a la nota como copia de conflicto, también cuando un dispositivo elimina una nota o una carpeta mientras otro la edita. **Bloquear** borra realmente las claves del workspace de la memoria — la clave de firma, la de descifrado y todas las claves de grupo que la sesión haya obtenido; **Desbloquear** las vuelve a pedir al llavero del sistema o a la frase de contraseña local.
 
 ## Dispositivos y recuperación
 

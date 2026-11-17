@@ -215,7 +215,7 @@ async function workspaceHoldsPath(
  * here as its own (`kept-local`). Changed since, it is a change like any other.
  */
 async function heldWithoutObject(held: WorkspaceStateStore, vault: IVaultAdapter, path: string): Promise<boolean> {
-  if ((await vault.getFileInfo(path)).isDirectory) return false;
+  if ((await vault.getFileInfo(path)).isDirectory) return (await held.listLocalForks()).some((fork) => fork.reason === "kept-local" && fork.originalPath === path);
   const sha = sha256Hex(await vault.readBinaryFile(path));
   const revision = await held.findRevisionAt(path, sha);
   if (revision) {

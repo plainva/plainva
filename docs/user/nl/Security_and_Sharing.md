@@ -28,7 +28,7 @@ Oude platte tekst blijft tijdens migratie naast `.pvws/` staan. Pas bij **Beveil
 
 ## Dagelijks gebruik
 
-Offline wijzigingen blijven in een duurzame wachtrij staan. Elke wijziging wordt ondertekend; een verwijdering op afstand alleen wist nooit een lokaal bestand, een ondertekende grafsteen wel. Parallelle offline bewerkingen blijven bewaard als `.CONFLICT-…`-kopieën. Elk apparaat toont dezelfde versie onder de naam van de notitie en de andere als kopie — ook als twee apparaten tegelijk dezelfde nieuwe notitie maken, of het ene een notitie verwijdert en opnieuw maakt terwijl een ander haar bewerkt. **Vergrendelen** wist de workspace-sleutels echt uit het geheugen — de ondertekensleutel, de ontsleutelsleutel en elke groepssleutel die de sessie heeft opgehaald; **Ontgrendelen** haalt ze opnieuw op uit de systeemsleutelhanger of de lokale wachtwoordzin.
+Offline wijzigingen blijven in een duurzame wachtrij staan. Elke wijziging wordt ondertekend; een verwijdering op afstand alleen wist nooit een lokaal bestand, een ondertekende grafsteen wel. Parallelle offline bewerkingen blijven bewaard als `.CONFLICT-…`-kopieën. Geen tekst gaat verloren door een wijziging die tegelijk op een ander apparaat is gemaakt: waar twee versies blijven, ligt de andere als conflictkopie naast de notitie — ook als het ene apparaat een notitie of map verwijdert terwijl een ander erin bewerkt. **Vergrendelen** wist de workspace-sleutels echt uit het geheugen — de ondertekensleutel, de ontsleutelsleutel en elke groepssleutel die de sessie heeft opgehaald; **Ontgrendelen** haalt ze opnieuw op uit de systeemsleutelhanger of de lokale wachtwoordzin.
 
 ## Apparaten en herstel
 

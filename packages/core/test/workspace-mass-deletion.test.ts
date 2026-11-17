@@ -216,14 +216,57 @@ describe("A4 after review: another device's mass deletion is held here until ans
     return { owner, phone, asked };
   }
 
-  it("held and asked once; nothing is deleted here, and what came after waits with it", { timeout: 30_000 }, async () => {
+  it("held and asked once; nothing is deleted here, and what that device did to other files arrives", { timeout: 30_000 }, async () => {
     const { phone, asked } = await deletedElsewhere();
     await phone.worker.runCycle();
     await phone.worker.runCycle();
     expect(asked).toEqual([{ missing: 50, confirmed: 60 }]);
     expect(names.every((name) => phone.vault.files.has(name))).toBe(true);
-    expect(phone.vault.files.has("after.md")).toBe(false);
+    // Held is what depends on the held deletions, not the device's whole chain (review of release 0.9.0).
+    expect(phone.vault.files.has("after.md")).toBe(true);
     expect(await phone.state.listQuarantine("pending")).toEqual([]);
+  });
+
+  it("held: a later change of that device to a held file waits with the deletion, one to another file arrives", { timeout: 30_000 }, async () => {
+    const { owner, phone } = await deletedElsewhere();
+    await phone.worker.runCycle();
+    await owner.vault.writeTextFile(names[3], "# made again after the deletion\n");
+    await owner.state.enqueue("write", names[3]);
+    await owner.vault.writeTextFile(names[55], "# n55 edited after\n");
+    await owner.state.enqueue("write", names[55]);
+    await owner.worker.runCycle();
+    await phone.worker.runCycle();
+    expect(await phone.vault.readTextFile(names[3])).toBe(`# ${names[3]}\n`);
+    expect(await phone.vault.readTextFile(names[55])).toBe("# n55 edited after\n");
+    phone.worker.approveSuspendedDeletions();
+    await phone.worker.runCycle();
+    expect(await phone.vault.readTextFile(names[3])).toBe("# made again after the deletion\n");
+    expect(phone.vault.files.has(names[4])).toBe(false);
+  });
+
+  it("this device's own deletions held by its question: another device's changes to other files still arrive", { timeout: 30_000 }, async () => {
+    const files = Array.from({ length: 30 }, (_, index) => `m${index}.md`);
+    const owner = await synced([...files, "z.md"]);
+    const phone = await ownerSecondDevice(owner);
+    let asked = 0;
+    owner.worker.onMassDeletionPending = () => { asked += 1; };
+    for (const name of files.slice(0, 20)) {
+      await owner.vault.deleteItem(name);
+      await owner.state.enqueue("delete", name);
+    }
+    await owner.worker.runCycle();
+    await phone.vault.writeTextFile("m3.md", "# m3 edited on the phone\n");
+    await phone.state.enqueue("write", "m3.md");
+    await phone.vault.writeTextFile("z.md", "# z edited on the phone\n");
+    await phone.state.enqueue("write", "z.md");
+    await phone.vault.writeTextFile("new.md", "# new on the phone\n");
+    await phone.state.enqueue("write", "new.md");
+    await phone.worker.runCycle();
+    await owner.worker.runCycle();
+    await owner.worker.runCycle();
+    expect(asked).toBe(1);
+    expect(await owner.vault.readTextFile("z.md")).toBe("# z edited on the phone\n");
+    expect(await owner.vault.readTextFile("new.md")).toBe("# new on the phone\n");
   });
 
   it("let go: the files go here too, and what came after arrives", { timeout: 30_000 }, async () => {
@@ -301,6 +344,35 @@ describe("A2 after review: another device's mass deletion is counted against wha
     phone.worker.onDeletionMirroringSuspended = (info) => asked.push(info);
     await phone.worker.runCycle();
     expect(asked).toEqual([{ missing: 50, confirmed: 60, probed: 50, absent: 50, fromWorkspaceDevice: true, staysLocal: 0 }]);
+  });
+
+  it("a folder deleted elsewhere, on a device that may not upload: counted in its files, kept here only, no refusal", { timeout: 30_000 }, async () => {
+    const team = Array.from({ length: 50 }, (_, index) => `Team/n${String(index).padStart(2, "0")}.md`);
+    const member = await workspaceMember([], "Reader");
+    await member.owner.vault.createDir("Team");
+    await member.owner.state.enqueue("mkdir", "Team");
+    for (const name of [...team, ...names.slice(0, 10)]) {
+      await member.owner.vault.writeTextFile(name, `# ${name}\n`);
+      await member.owner.state.enqueue("write", name);
+    }
+    await member.owner.worker.runCycle();
+    await member.worker.runCycle();
+    expect(team.every((name) => member.vault.files.has(name))).toBe(true);
+    await member.owner.vault.deleteItem("Team", true);
+    await member.owner.state.enqueue("delete", "Team", null, { confirmed: true });
+    await member.owner.worker.runCycle();
+    const asked: Array<{ missing: number; staysLocal?: number }> = [];
+    member.worker.onDeletionMirroringSuspended = (info) => asked.push(info);
+    const refused: string[][] = [];
+    member.worker.onChangesRefused = (paths) => refused.push(paths);
+    await member.worker.runCycle();
+    expect(asked.map((info) => [info.missing, info.staysLocal])).toEqual([[50, 50]]);
+    await member.worker.keepSuspendedDeletionsLocal();
+    await member.worker.runCycle();
+    await member.worker.runCycle();
+    expect(team.every((name) => member.vault.files.has(name))).toBe(true);
+    expect(refused).toEqual([]);
+    expect(await queued(member.state)).toEqual([]);
   });
 
   it("on a device that may not upload, keeping means: here only, as its own version — and no list of refusals after it", { timeout: 30_000 }, async () => {

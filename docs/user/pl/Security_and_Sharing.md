@@ -28,7 +28,7 @@ Stary tekst jawny pozostaje obok `.pvws/` podczas migracji. Można go jawnie usu
 
 ## W codziennej pracy
 
-Zmiany wprowadzone offline pozostają w trwałej kolejce. Każda zmiana jest podpisana; samo usunięcie po stronie zdalnej nigdy nie kasuje pliku lokalnego, ale podpisany nagrobek już tak. Równoległe zmiany offline są zachowywane jako kopie `.CONFLICT-…`. Każde urządzenie pokazuje tę samą wersję pod nazwą notatki, a drugą jako kopię — także wtedy, gdy dwa urządzenia naraz tworzą tę samą nową notatkę albo jedno usuwa notatkę i tworzy ją od nowa, a inne ją edytuje. **Zablokuj** naprawdę usuwa klucze workspace’u z pamięci — klucz podpisujący, klucz odszyfrowujący i każdy klucz grupy pobrany w tej sesji; **Odblokuj** pobiera je ponownie z pęku kluczy systemu lub z lokalnego hasła.
+Zmiany wprowadzone offline pozostają w trwałej kolejce. Każda zmiana jest podpisana; samo usunięcie po stronie zdalnej nigdy nie kasuje pliku lokalnego, ale podpisany nagrobek już tak. Równoległe zmiany offline są zachowywane jako kopie `.CONFLICT-…`. Żaden tekst nie ginie przez zmianę wprowadzoną w tym samym czasie na innym urządzeniu: tam, gdzie zostają dwie wersje, druga leży obok notatki jako kopia konfliktu — także wtedy, gdy jedno urządzenie usuwa notatkę lub folder, a inne go edytuje. **Zablokuj** naprawdę usuwa klucze workspace’u z pamięci — klucz podpisujący, klucz odszyfrowujący i każdy klucz grupy pobrany w tej sesji; **Odblokuj** pobiera je ponownie z pęku kluczy systemu lub z lokalnego hasła.
 
 ## Urządzenia i odzyskiwanie
 

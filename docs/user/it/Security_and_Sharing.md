@@ -28,7 +28,7 @@ Il vecchio contenuto in chiaro resta accanto a `.pvws/` durante la migrazione. P
 
 ## Nell’uso quotidiano
 
-Le modifiche offline restano in una coda durevole. Ogni modifica è firmata; una cancellazione remota da sola non elimina mai un file locale, mentre una lapide firmata può farlo. Le modifiche parallele offline vengono conservate come copie `.CONFLICT-…`. Ogni dispositivo mostra la stessa versione con il nome della nota e l'altra come copia, anche quando due dispositivi creano insieme la stessa nuova nota, o uno elimina una nota e la ricrea mentre un altro la modifica. **Blocca** cancella davvero le chiavi del workspace dalla memoria — la chiave di firma, quella di decifratura e tutte le chiavi di gruppo recuperate nella sessione; **Sblocca** le richiede di nuovo al portachiavi di sistema o alla passphrase locale.
+Le modifiche offline restano in una coda durevole. Ogni modifica è firmata; una cancellazione remota da sola non elimina mai un file locale, mentre una lapide firmata può farlo. Le modifiche parallele offline vengono conservate come copie `.CONFLICT-…`. Nessun testo va perso per una modifica fatta nello stesso momento su un altro dispositivo: dove restano due versioni, l'altra sta accanto alla nota come copia di conflitto, anche quando un dispositivo elimina una nota o una cartella mentre un altro la modifica. **Blocca** cancella davvero le chiavi del workspace dalla memoria — la chiave di firma, quella di decifratura e tutte le chiavi di gruppo recuperate nella sessione; **Sblocca** le richiede di nuovo al portachiavi di sistema o alla passphrase locale.
 
 ## Dispositivi e recupero
 

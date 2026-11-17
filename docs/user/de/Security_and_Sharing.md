@@ -28,7 +28,7 @@ Bestehender Klartext bleibt während der Migration beim Anbieter neben `.pvws/` 
 
 ## Im Alltag
 
-Offline-Änderungen bleiben in einer dauerhaften Queue. Jede Änderung ist signiert; bloßes Remote-Fehlen löscht lokal nichts, ein signierter Tombstone dagegen schon. Parallele Offline-Bearbeitungen bleiben als `.CONFLICT-…`-Kopien erhalten. Jedes Gerät zeigt dieselbe Fassung unter dem Namen der Notiz und die andere als Kopie — auch wenn zwei Geräte gleichzeitig dieselbe neue Notiz anlegen oder eines eine Notiz löscht und neu anlegt, während ein anderes sie bearbeitet. **Sperren** löscht die Workspace-Schlüssel wirklich aus dem Speicher — den Signaturschlüssel, den Entschlüsselungsschlüssel und jeden Gruppenschlüssel, den die Sitzung geholt hat; **Entsperren** holt sie erneut aus Schlüsselbund oder lokaler Passphrase.
+Offline-Änderungen bleiben in einer dauerhaften Queue. Jede Änderung ist signiert; bloßes Remote-Fehlen löscht lokal nichts, ein signierter Tombstone dagegen schon. Parallele Offline-Bearbeitungen bleiben als `.CONFLICT-…`-Kopien erhalten. Kein Text geht durch eine gleichzeitige Änderung auf einem anderen Gerät verloren: Wo zwei Fassungen bleiben, liegt die andere als Konfliktkopie neben der Notiz — auch wenn ein Gerät eine Notiz oder einen Ordner löscht, während ein anderes darin bearbeitet. **Sperren** löscht die Workspace-Schlüssel wirklich aus dem Speicher — den Signaturschlüssel, den Entschlüsselungsschlüssel und jeden Gruppenschlüssel, den die Sitzung geholt hat; **Entsperren** holt sie erneut aus Schlüsselbund oder lokaler Passphrase.
 
 ## Geräte und Wiederherstellung
 

@@ -28,7 +28,7 @@ O texto simples antigo permanece ao lado de `.pvws/` durante a migração. Só n
 
 ## No dia a dia
 
-As alterações feitas offline permanecem em uma fila durável. Toda alteração é assinada; uma exclusão remota sozinha nunca apaga um arquivo local, mas uma lápide assinada pode. Edições paralelas offline são preservadas como cópias `.CONFLICT-…`. Todo dispositivo mostra a mesma versão com o nome da nota e a outra como cópia — também quando dois dispositivos criam ao mesmo tempo a mesma nota nova, ou um exclui uma nota e a cria de novo enquanto outro a edita. **Bloquear** apaga de fato as chaves do workspace da memória — a chave de assinatura, a de descriptografia e toda chave de grupo que a sessão buscou; **Desbloquear** as pede novamente ao chaveiro do sistema ou à frase secreta local.
+As alterações feitas offline permanecem em uma fila durável. Toda alteração é assinada; uma exclusão remota sozinha nunca apaga um arquivo local, mas uma lápide assinada pode. Edições paralelas offline são preservadas como cópias `.CONFLICT-…`. Nenhum texto se perde por uma alteração feita ao mesmo tempo em outro dispositivo: onde ficam duas versões, a outra fica ao lado da nota como cópia de conflito — também quando um dispositivo exclui uma nota ou pasta enquanto outro a edita. **Bloquear** apaga de fato as chaves do workspace da memória — a chave de assinatura, a de descriptografia e toda chave de grupo que a sessão buscou; **Desbloquear** as pede novamente ao chaveiro do sistema ou à frase secreta local.
 
 ## Dispositivos e recuperação
 
