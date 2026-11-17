@@ -21,7 +21,7 @@ import {
 import { useCommentShell } from "./hooks/useCommentShell";
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
-import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder } from "./services/vaultService";
+import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder, rebuildActiveIndexDatabase } from "./services/vaultService";
 import { useVaultBoot } from "./hooks/useVaultBoot";
 import { VaultBootSurface } from "./components/VaultBootSurface";
 import { IndexBuildNotice } from "./components/IndexBuildNotice";
@@ -641,7 +641,7 @@ export default function App() {
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
-      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} indexClosed={vault.indexClosed} /></AreaBoundary>
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} indexClosed={vault.indexClosed} failure={vault.indexDatabaseFailure} onRebuild={rebuildActiveIndexDatabase} /></AreaBoundary>
       {!onboarded && <AreaBoundary area="shell:onboarding" placeClassName="m-onboarding"><OnboardingChoice onChoose={finishOnboarding} /></AreaBoundary>}
 
       <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />

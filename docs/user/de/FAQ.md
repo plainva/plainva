@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-11-12
+Stand: 2026-11-17
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -111,6 +111,8 @@ Zusätzlich gleicht Plainva automatisch ab, sobald Du aus einem anderen Programm
 Beim Einlesen folgt Plainva Links so, wie das System es tut: Ein Link auf einen Ordner wird als dieser Ordner gelesen, ein Link auf eine Datei als diese Datei — am Desktop und in einem Ordner, den Du am iPhone ausgewählt hast. Was sich nicht lesen lässt, lässt Plainva aus und nennt es: einen Link auf einen Ort, den es auf diesem Gerät nicht gibt (etwa einen Ordner, der nur auf einem anderen Rechner liegt und hier als Link angekommen ist) oder einen Ordner ohne Zugriff. Ein Hinweis nennt sie einmal — **ließ sich nicht lesen und fehlt im Suchindex** —, der Rest des Vaults wird wie gewohnt erfasst. Nichts unter einem solchen Eintrag gilt als gelöscht, weder für den Index noch für den Sync eines verschlüsselten Workspace.
 
 Lässt sich der Index gar nicht aktualisieren, sagt der Hinweis, warum (**Der Suchindex konnte nicht aktualisiert werden: …**); der Vault bleibt mit dem offen, was der Index schon enthält, und beim nächsten Einlesen versucht Plainva es erneut. Am Telefon wird auch ein Suchindex genannt, der sich nicht öffnen lässt: Suche, Tags, Datenbanken, die Synchronisation und der Kalender bleiben dann aus, bis Plainva ihn öffnen kann. Bis dahin kannst Du Notizen lesen, schreiben und anlegen, und sie erreichen die Synchronisation beim nächsten Start, der den Index öffnet; in einem Vault, der synchronisiert, bleiben Löschen, Umbenennen, Verschieben und neue Ordner bis dahin aus, und der Streifen oben sagt es.
+
+Ist die Indexdatenbank selbst beschädigt, öffnet sich der Vault nicht; der Start sagt das und bietet **Index neu aufbauen** an (am Telefon im Streifen oben). Plainva fragt zuerst, legt die beschädigte Datei dann beiseite und baut den Index neu auf; Deine Notizen bleiben unberührt. Die beschädigte Datei bleibt im App-Datenordner von Plainva neben der neuen liegen, mit `.broken-` und dem Datum im Namen; sie wird nie wieder geöffnet und entfernt, wenn Du den Vault auf diesem Gerät vergisst. Noch nicht synchronisierte Löschungen und Umbenennungen gehen dabei verloren: Gelöschtes kann vom Server zurückkommen, Umbenanntes doppelt erscheinen. Der erste Abgleich danach läuft wie auf einem neuen Gerät: Er löscht nichts, was der Server hat, und schreibt nichts über eine neuere Fassung. In einem verschlüsselten Workspace baut Plainva die Datenbank nicht neu auf, weil darin Änderungen liegen, die Deine anderen Geräte noch nicht erreicht haben. Eine Datenbank, die nur ein anderes Programm sperrt, ein voller Datenträger oder fehlende Rechte werden in Worten genannt, mit dem, was zu tun ist.
 
 Entferne oder repariere den Eintrag, den der Hinweis nennt, und wähle dann **Vault neu einlesen** (am Telefon: eine Liste nach unten ziehen).
 

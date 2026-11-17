@@ -1,5 +1,6 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { dailyDayResolver, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint } from "@plainva/ui";
+import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, type IndexDatabaseFailureKind } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -11,7 +12,7 @@ import React, { createContext, useContext, useState, useEffect, useLayoutEffect,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, type BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, type BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -63,9 +64,7 @@ import { microsoftAuthFetch } from "../services/authFetch";
 import { getSettingsStore } from "../services/settingsStore";
 import { askHeldFolder, desktopSyncBranch } from "../services/encryptedRemoteStart";
 import { templateVaultOf } from "../services/dailyNotes";
-import { appDataDir } from "@tauri-apps/api/path";
-import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
-import { indexDbFileName } from "../services/indexDbPath";
+import { IndexDatabaseOpenError, openIndexDatabase, setAsideDesktopIndexDatabase } from "../services/indexDatabase";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
 import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
@@ -116,6 +115,14 @@ export interface VaultSyncWorker {
   pushSettingsNow?: () => Promise<"pushed" | "pending" | "held" | "failed" | void>;
 }
 
+interface IndexDatabaseFailure {
+  vaultPath: string;
+  url: string;
+  kind: IndexDatabaseFailureKind;
+  /** The vault is an encrypted workspace: its state lives in that database, which is never rebuilt here. */
+  workspace: boolean;
+}
+
 interface VaultState {
   vaultPath: string | null;
   vaultAdapter: IVaultAdapter | null;
@@ -142,6 +149,12 @@ interface VaultState {
   graphService: GraphService | null;
   isLoading: boolean;
   error: string | null;
+  /**
+   * The index database of the vault that did not open (`openIndexDatabase`):
+   * why, in words, and whether the start offers to build it anew
+   * (`indexDatabaseRebuildOffered`). Null otherwise.
+   */
+  indexDatabaseFailure: IndexDatabaseFailure | null;
   fileTreeVersion: number;
   /**
    * Bumped only when the FOLDER structure may have changed (folder ops, full
@@ -228,6 +241,12 @@ interface VaultContextType extends VaultState {
    * real reload; owner windows only.
    */
   reloadVault: () => Promise<void>;
+  /**
+   * The start's "Rebuild index" for a vault whose index database is damaged
+   * (`indexDatabaseFailure`): the database is set aside, an empty one takes
+   * its place, and the vault opens with its index built anew. Owner only.
+   */
+  rebuildIndexDatabase: () => Promise<void>;
   preparePersonalWorkspace: (input: { ownerDisplayName: string; deviceDisplayName: string; fallbackPassphrase?: string }) => Promise<PreparedPersonalWorkspace>;
   activatePersonalWorkspace: (draftId: string, onProgress?: (done: number, total: number) => void) => Promise<{ queued: number; total: number }>;
   unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
@@ -578,63 +597,6 @@ export const verifierNameKey = (vaultPath: string) => `verifierName_${btoa(unesc
 export const okfPromptDismissedKey = (vaultPath: string) => `okfPromptDismissed_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
 /**
- * Resolves the index-DB sqlite URL (WP5 5b). The SQLite index used to live in
- * `<vault>/.plainva/vault.db`; on a network-drive vault the ~10 index statements
- * per save were network round-trips (the sqlx pool forbids batching them into
- * one transaction), which made saving very slow. The index now lives in the OS
- * app-data dir — only the DB moves, backups stay in the vault.
- *
- * When an existing in-vault DB is found, we migrate it (copy the DB + WAL/SHM
- * sidecars) so the index AND the sync state carry over untouched — no reindex,
- * no spurious `.CONFLICT`. CRITICAL: we only switch to the app-data DB when that
- * migration actually succeeds (or there is no old DB = a genuinely new vault).
- * If the copy fails, we keep using the WARM in-vault DB instead of pointing at a
- * fresh, empty app-data DB — otherwise a failed copy would silently trigger a
- * full re-index of the whole vault on startup, and repeat it every launch.
- */
-async function resolveIndexDbUrl(vaultPath: string): Promise<string> {
-  const oldAbs = `${vaultPath}/.plainva/vault.db`;
-  try {
-    const dataDir = await appDataDir();
-    const dir = `${dataDir}/index`;
-    await mkdir(dir, { recursive: true });
-    const newAbs = `${dir}/${await indexDbFileName(vaultPath)}`;
-
-    // Already relocated (or a fresh vault whose DB was created here before): use it.
-    if (await fsExists(newAbs)) return `sqlite:${newAbs}`;
-
-    // No in-vault DB -> genuinely new vault: create the index in app-data (it is
-    // indexed once, which is correct for a new vault).
-    if (!(await fsExists(oldAbs))) return `sqlite:${newAbs}`;
-
-    // Migrate the (closed) in-vault DB. The MAIN .db copy must succeed to reuse
-    // the warm index; on failure keep the in-vault DB (warm, no reindex) rather
-    // than falling through to an empty app-data DB.
-    try {
-      await writeFile(newAbs, await readFile(oldAbs));
-    } catch (e) {
-      console.warn("[VaultContext] index DB migration failed; keeping the in-vault DB (no reindex)", e);
-      return `sqlite:${oldAbs}`;
-    }
-    // Sidecars are best-effort: copying the WAL/SHM avoids losing an
-    // un-checkpointed tail, but a miss only costs a few files the next save
-    // reconciles — it must not undo the successful main copy above.
-    for (const suffix of ["-wal", "-shm"]) {
-      try {
-        if (await fsExists(oldAbs + suffix)) await writeFile(newAbs + suffix, await readFile(oldAbs + suffix));
-      } catch (e) {
-        console.warn(`[VaultContext] index DB sidecar ${suffix} copy failed; continuing`, e);
-      }
-    }
-    return `sqlite:${newAbs}`;
-  } catch (e) {
-    console.warn("[VaultContext] app-data index path unavailable; keeping the in-vault DB", e);
-    return `sqlite:${oldAbs}`;
-  }
-}
-
-
-/**
  * How this window runs the vault (multi-window P0).
  *
  * "owner" is the central window: it builds the indexer, the file watcher, the
@@ -719,6 +681,7 @@ export const VaultProvider: React.FC<{
     pimRuntime: null,
     isLoading: true,
     error: null,
+    indexDatabaseFailure: null,
     fileTreeVersion: 0,
     treeStructureVersion: 0,
     fileTreeVersionPaths: null,
@@ -794,7 +757,7 @@ export const VaultProvider: React.FC<{
     const loadStarts = new LoadStarts(path, currentAbortSignal);
 
     try {
-      setState(s => ({ ...s, isLoading: true, error: null, loadingProgress: undefined, loadingPath: path }));
+      setState(s => ({ ...s, isLoading: true, error: null, indexDatabaseFailure: null, loadingProgress: undefined, loadingPath: path }));
       syncStatusStore.reset(path);
 
       // A previous runtime for this very vault may still be draining (stage D):
@@ -858,10 +821,8 @@ export const VaultProvider: React.FC<{
       // The SQLite index lives in the OS app-data dir, not in the vault (WP5 5b):
       // a network-drive vault paid a round-trip per index statement on every save.
       // Backups stay in the vault; an existing in-vault DB is migrated once.
-      const dbPath = await resolveIndexDbUrl(path);
-      const dbAdapter = new TauriDatabaseAdapter(dbPath);
-      await perfMeasure("vault open: database pool", () => dbAdapter.initialize());
-      await perfMeasure("vault open: database schema", () => initializeSchema(dbAdapter));
+      // One that does not open is said in words at the start, and set aside there when it is damaged (`IndexDatabaseOpenError`).
+      const { dbPath, dbAdapter } = await perfMeasure("vault open: database", () => openIndexDatabase(path));
       // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
       await logIndexDiagnostics(dbAdapter);
 
@@ -1926,7 +1887,20 @@ export const VaultProvider: React.FC<{
       // started may keep running.
       void loadStarts.abandon();
       console.error("Failed to load vault", error);
-      setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
+      if (error instanceof IndexDatabaseOpenError) {
+        // Why it did not open, in words, and what can be done (both shells, `indexDatabaseFailureKind`).
+        const kind = indexDatabaseFailureKind(error.cause);
+        const workspace = !!(await getWorkspaceSecurityStatus(path).catch(() => null));
+        setState(s => ({
+          ...s,
+          isLoading: false,
+          error: indexDatabaseFailureMessage(kind, error.cause, workspace),
+          indexDatabaseFailure: { vaultPath: path, url: error.url, kind, workspace },
+          loadingProgress: undefined,
+        }));
+      } else {
+        setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
+      }
       if (activeLoadPathRef.current === path) {
         activeLoadPathRef.current = null;
       }
@@ -2749,6 +2723,17 @@ export const VaultProvider: React.FC<{
   const reloadVault = async (): Promise<void> => {
     if (!state.vaultPath) return;
     await loadVault(state.vaultPath);
+  };
+
+  const rebuildIndexDatabase = async (): Promise<void> => {
+    if (isClient) throw new Error(ownerOnly("rebuildIndexDatabase"));
+    const failure = state.indexDatabaseFailure;
+    if (!failure || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return;
+    // Whatever of the failed open still drains goes first: nothing may hold the file.
+    await awaitVaultTeardown(failure.vaultPath);
+    await setAsideDesktopIndexDatabase(failure.url);
+    setState(s => ({ ...s, error: null, indexDatabaseFailure: null }));
+    await loadVault(failure.vaultPath);
   };
 
   /**
@@ -3806,7 +3791,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, commentOperations, postWorkspaceCommentInput, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...clientCommentApi, ...CLIENT_WORKSPACE_HISTORY } : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, rebuildIndexDatabase, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, commentOperations, postWorkspaceCommentInput, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...clientCommentApi, ...CLIENT_WORKSPACE_HISTORY } : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, clientCommentApi, commentOperations, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

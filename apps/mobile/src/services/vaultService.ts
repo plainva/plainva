@@ -89,8 +89,13 @@ import {
   scaffoldVaultTemplate,
   createIndexNotices,
   indexUnavailableText,
+  indexDatabaseFailureKind,
+  indexDatabaseFailureMessage,
+  indexDatabaseRebuildOffered,
+  type IndexDatabaseFailureKind,
   type VaultTemplateDefinition,
 } from "@plainva/ui";
+import { removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } from "./indexDatabaseRebuild";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet, type DeletionNetAsk } from "@plainva/ui";
@@ -163,6 +168,12 @@ export interface MobileVault {
    * nothing there needs the queue.
    */
   indexClosed: boolean;
+  /**
+   * Why this vault's index database did not open (`indexDatabaseFailureKind`),
+   * on a device — and whether the strip offers to build it anew
+   * (`indexDatabaseRebuildOffered`). Null where it opened.
+   */
+  indexDatabaseFailure: { kind: IndexDatabaseFailureKind; workspace: boolean; message: string } | null;
   /** Lets locally created files enqueue for push (called once sync starts). */
   enableSyncEnqueue(): void;
   /** Ends the initial-index enqueue deferral (3c) after the first pull. */
@@ -439,6 +450,23 @@ async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Pr
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: vaultId } }));
 }
 
+/**
+ * The strip's "Rebuild index" for the open vault whose index database is
+ * damaged (`MobileVault.indexDatabaseFailure`): the database is set aside, an
+ * empty one takes its place (`indexDatabaseRebuild.ts`), and the vault opens
+ * again with its index built anew — over the cold index, as on a device that
+ * never saw it. Asked first by the caller.
+ */
+export async function rebuildActiveIndexDatabase(): Promise<void> {
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  const failure = current?.indexDatabaseFailure;
+  if (!current || !failure || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return;
+  const entry = await getActiveVaultEntry();
+  if (entry.id !== current.vaultId) return;
+  await setAsideMobileIndexDatabase(entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`);
+  await reloadActiveMobileVault();
+}
+
 /** A reload waiting behind someone else's input (`screenStep.ts`). */
 const RELOAD_STEP = "vault-reload";
 
@@ -551,6 +579,8 @@ async function forgetVaultData(id: string, pimIds: string[], publicationIds: str
   }).catch(() => [] as string[]);
 
   await attempt("index-db", () => CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`));
+  // And every copy the start set aside as damaged: it holds the notes' text too.
+  await attempt("index-db-set-aside", () => removeSetAsideMobileIndexDatabases(`plainva-${id}`));
   // Drop the connection E2E pin + vault-scoped settings-sync state BEFORE the
   // provider secret is purged (the connection id is derived from it), so
   // re-connecting the same cloud folder never reanimates the fail-closed guard.
@@ -856,8 +886,10 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   /** Where this vault's conflict copies and diagnostics say they come from. */
   const chainKind = isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud";
   let db: IDatabaseAdapter | null = null;
+  const indexDatabaseName = isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`;
+  let indexDatabaseFailure: MobileVault["indexDatabaseFailure"] = null;
   try {
-    db = createIndexDatabase(isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`);
+    db = createIndexDatabase(indexDatabaseName);
     await db.initialize();
     await initializeSchema(db);
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
@@ -1046,7 +1078,12 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // syncs says so once, standing, in the strip on top (`indexClosed`, with
     // what is unavailable), and a refused action says its own sentence; a
     // vault without a remote has no strip, so this toast is its one notice.
-    if (Capacitor.isNativePlatform() && isLocal) toast.error(indexUnavailableText(err));
+    if (Capacitor.isNativePlatform()) {
+      // Why, in words, and — for a damaged file outside an encrypted workspace — the offer to build it anew (both shells).
+      const kind = indexDatabaseFailureKind(err);
+      indexDatabaseFailure = { kind, workspace: !!workspaceStatus, message: indexDatabaseFailureMessage(kind, err, !!workspaceStatus) };
+      if (isLocal) toast.error(indexUnavailableText(err));
+    }
     // The search index is optional; durable conflict editing is not. The
     // same file journal is used before and after the database recovers.
     const settings = getMobileSettings();
@@ -1094,6 +1131,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     queryService,
     searchAvailable,
     indexClosed: db === null && !isLocal,
+    indexDatabaseFailure,
     enableSyncEnqueue: () => {
       syncEnqueueEnabled = true;
     },

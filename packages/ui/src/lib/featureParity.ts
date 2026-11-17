@@ -1618,14 +1618,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     kind: "gap",
     desktop: "partial",
     desktopReason:
-      "The desktop does not open such a vault: the database not opening fails the vault " +
-      "open, and the splash names the error. The phone opens it restricted (stability plan " +
-      "R5): reading, writing and creating notes work and reach the sync at the next start " +
-      "with a database; deleting, renaming and moving are refused by the chain " +
-      "(StructureRefusingVaultAdapter) and the strip says so, because the sync queue lives " +
-      "in that database. Whether the phone keeps opening such a vault, or the desktop " +
-      "opens it the same way, is the maintainer's decision (collection plan, R5 rest item).",
+      "Both shells say in words why the database did not open, and for a damaged one outside " +
+      "an encrypted workspace both offer Rebuild index, asked first (indexDatabase.ts in " +
+      "packages/ui). For the other reasons - locked by another program, a full disk, no " +
+      "permission - the desktop does not open the vault and the start says what to do, " +
+      "while the phone opens it restricted (stability plan R5): reading, writing and " +
+      "creating notes work, deleting, renaming and moving are refused by the chain " +
+      "(StructureRefusingVaultAdapter) because the sync queue lives in that database. " +
+      "Whether the desktop opens such a vault restricted too is the maintainer's decision " +
+      "(collection plan, R5 rest item).",
     mobile: "yes",
-    verified: "2026-11-12",
+    verified: "2026-11-17",
   },
 ];

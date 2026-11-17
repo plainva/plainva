@@ -7684,6 +7684,17 @@
     "miniSee": "ver",
     "miniLink": "Plan T3"
   },
+  "indexDatabase": {
+    "damaged": "La base de datos del índice de este vault está dañada, por eso el vault no se puede abrir. «Reconstruir índice» la aparta y crea el índice de nuevo; tus notas se quedan como están.",
+    "damagedWorkspace": "La base de datos del índice de este vault está dañada. Plainva no la reconstruye aquí: en un espacio de trabajo cifrado contiene cambios que aún no han llegado a tus otros dispositivos. Reinicia la app para volver a intentarlo y pide ayuda antes de eliminar nada.",
+    "locked": "Otro programa está usando la base de datos del índice de este vault, normalmente una segunda ventana o app de Plainva. Ciérrala y vuelve a abrir el vault.",
+    "full": "El disco está lleno, por eso la base de datos del índice de este vault no se puede abrir. Libera espacio y vuelve a abrir el vault.",
+    "readOnly": "Plainva no puede abrir ni escribir la base de datos del índice de este vault: {{reason}}. Revisa los permisos de la carpeta de datos de Plainva y vuelve a abrir el vault.",
+    "unavailable": "No se pudo abrir la base de datos del índice de este vault: {{reason}}. Reinicia la app para volver a intentarlo.",
+    "rebuildTitle": "¿Reconstruir el índice?",
+    "rebuildConfirm": "La base de datos del índice de este vault está dañada. Plainva la aparta y reconstruye el índice. Tus notas no se tocan. Se pierden las eliminaciones y los cambios de nombre que aún no se han sincronizado: lo eliminado puede volver desde el servidor y lo renombrado puede aparecer dos veces.",
+    "rebuildFailed": "No se pudo reconstruir el índice: {{reason}}"
+  },
   "refresh": {
     "action": "Volver a leer el vault",
     "actionDesc": "Concilia el índice con la carpeta y, en vaults en línea, obtiene los archivos de la nube.",

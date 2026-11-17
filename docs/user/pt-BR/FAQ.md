@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-11-12
+Última revisão: 2026-11-17
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -111,6 +111,8 @@ Além disso, o Plainva concilia automaticamente sempre que você volta para a ja
 Ao ler o vault, o Plainva segue links como o sistema faz: um link para uma pasta é lido como essa pasta, um link para um arquivo como esse arquivo — no computador e em uma pasta que você escolheu no iPhone. O que ele não consegue ler, ele deixa de fora e nomeia: um link para um local que não existe neste dispositivo (por exemplo, uma pasta que só existe em outro computador e chegou aqui como link) ou uma pasta sem acesso. Um aviso os nomeia uma vez — **ficou fora do índice de busca** — e o restante do vault é indexado como sempre. Nada que esteja sob uma entrada dessas é tratado como excluído, nem pelo índice nem pela sincronização de um espaço de trabalho criptografado.
 
 Se o índice não puder ser atualizado de forma alguma, o aviso diz por quê (**Não foi possível atualizar o índice de busca: …**); o vault continua aberto com o que o índice já contém e, na próxima vez que o vault for lido, o Plainva tenta de novo. No celular, um índice de busca que não pode ser aberto também é nomeado: a busca, as tags, os bancos de dados, a sincronização e o calendário ficam então desativados até que o Plainva consiga abri-lo. Enquanto isso, você pode ler, escrever e criar notas, e elas chegam à sincronização na próxima inicialização que abrir o índice; em um vault que sincroniza, excluir, renomear, mover e criar pastas ficam indisponíveis até lá, e a faixa no topo avisa.
+
+Se o próprio banco de dados do índice estiver danificado, o vault não abre; o início diz isso e oferece **Reconstruir índice** (no telefone, na faixa do topo). O Plainva pergunta primeiro, depois deixa o arquivo danificado de lado e cria o índice de novo; suas notas permanecem intactas. O arquivo danificado fica na pasta de dados do Plainva, ao lado do novo, com `.broken-` e a data no nome; ele nunca mais é aberto e é removido quando você esquece o vault neste dispositivo. Exclusões e renomeações ainda não sincronizadas se perdem: uma nota excluída pode voltar do servidor, uma renomeada pode aparecer em dobro. A primeira sincronização depois funciona como em um dispositivo novo: não exclui nada que o servidor tenha e não grava nada por cima de uma versão mais nova. Em um espaço de trabalho criptografado, o Plainva não reconstrói o banco de dados, porque ele guarda alterações que ainda não chegaram aos seus outros dispositivos. Um banco de dados apenas bloqueado por outro programa, um disco cheio ou permissões ausentes são indicados em palavras, com o que fazer.
 
 Remova ou conserte a entrada que o aviso nomeia e depois use **Reler o vault** (no celular: puxe uma lista para baixo).
 

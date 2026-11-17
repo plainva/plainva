@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-11-12
+Last reviewed: 2026-11-17
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -111,6 +111,8 @@ Plainva additionally reconciles automatically whenever you return to the window 
 When Plainva reads the vault it follows links the way the system does: a link to a folder is read as that folder, a link to a file as that file — on the desktop and in a folder you picked on the iPhone. What it cannot read, it leaves out and names: a link to a place that does not exist on this device (for example a folder that exists only on another computer and arrived here as a link), or a folder without access. A notice names them once — **could not be read and is left out of the search index** — and the rest of the vault is indexed as usual. Nothing under such an entry is treated as deleted, neither by the index nor by the sync of an encrypted workspace.
 
 If the index cannot be updated at all, the notice says why (**The search index could not be updated: …**); the vault stays open with what the index already holds, and the next time the vault is read Plainva tries again. On the phone a search index that cannot be opened is named as well: search, tags, databases, the sync and the calendar then stay off until Plainva can open it. Meanwhile you can read, write and create notes, and they reach the sync at the next start that opens the index; in a vault that syncs, deleting, renaming, moving and new folders stay unavailable until then, and the strip on top says so.
+
+If the index database itself is damaged, the vault does not open; the start says so and offers **Rebuild index** (on the phone in the strip on top). Plainva asks first, then sets the damaged file aside and builds the index anew; your notes stay untouched. The damaged file stays in Plainva's app data folder, next to the new one, with `.broken-` and the date in its name; it is never opened again and is removed when you forget the vault on this device. Deletions and renames that had not been synced yet are lost: a deleted note can come back from the server, a renamed one can appear twice. The first sync afterwards works as on a new device: it deletes nothing the server has and writes nothing over a newer version. In an encrypted workspace Plainva does not rebuild the database, because it holds changes that have not reached your other devices yet. A database that is only locked by another program, a full disk or missing permissions are named in words, with what to do.
 
 Remove or repair the entry the notice names, then use **Read the vault again** (on the phone: pull down a list).
 

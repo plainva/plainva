@@ -1,4 +1,4 @@
-import { taskViewStateKey, forgetTaskViewState } from "@plainva/ui";
+import { taskViewStateKey, forgetTaskViewState, SET_ASIDE_MARKER } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, remove } from "@tauri-apps/plugin-fs";
 import { getSettingsStore } from "./settingsStore";
@@ -182,9 +182,16 @@ export async function forgetVaultData(
   // Index DB in app-data (+ WAL/SHM sidecars). A fresh open of the same path
   // then starts with a clean index, exactly like a never-seen vault.
   await attempt("index-db", async () => {
-    const base = await join(await appDataDir(), "index", await indexDbFileName(vaultPath));
+    const dir = await join(await appDataDir(), "index");
+    const name = await indexDbFileName(vaultPath);
+    const base = await join(dir, name);
     for (const p of [base, `${base}-wal`, `${base}-shm`]) {
       if (await exists(p)) await remove(p);
+    }
+    // And every copy the start set aside as damaged (`setAsideIndexDatabase`): it holds the notes' text too.
+    const names = await readDir(dir).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
+    for (const entry of names) {
+      if (entry.startsWith(name + SET_ASIDE_MARKER)) await remove(await join(dir, entry));
     }
   });
 

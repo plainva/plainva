@@ -7684,6 +7684,17 @@
     "miniSee": "voir",
     "miniLink": "Plan T3"
   },
+  "indexDatabase": {
+    "damaged": "La base de données de l'index de ce vault est endommagée ; le vault ne peut donc pas s'ouvrir. « Reconstruire l'index » la met de côté et reconstruit l'index ; vos notes restent telles quelles.",
+    "damagedWorkspace": "La base de données de l'index de ce vault est endommagée. Plainva ne la reconstruit pas ici : dans un espace de travail chiffré, elle contient des modifications qui n'ont pas encore atteint vos autres appareils. Redémarrez l'app pour réessayer et demandez de l'aide avant de supprimer quoi que ce soit.",
+    "locked": "Un autre programme utilise la base de données de l'index de ce vault, en général une deuxième fenêtre ou app Plainva. Fermez-la, puis rouvrez le vault.",
+    "full": "Le disque est plein ; la base de données de l'index de ce vault ne peut donc pas s'ouvrir. Libérez de l'espace, puis rouvrez le vault.",
+    "readOnly": "Plainva ne peut pas ouvrir ni écrire la base de données de l'index de ce vault : {{reason}}. Vérifiez les droits du dossier de données de Plainva, puis rouvrez le vault.",
+    "unavailable": "La base de données de l'index de ce vault n'a pas pu être ouverte : {{reason}}. Redémarrez l'app pour réessayer.",
+    "rebuildTitle": "Reconstruire l'index ?",
+    "rebuildConfirm": "La base de données de l'index de ce vault est endommagée. Plainva la met de côté et reconstruit l'index. Vos notes restent intactes. Les suppressions et les renommages pas encore synchronisés sont perdus : ce qui a été supprimé peut revenir du serveur, ce qui a été renommé peut apparaître en double.",
+    "rebuildFailed": "L'index n'a pas pu être reconstruit : {{reason}}"
+  },
   "refresh": {
     "action": "Relire le vault",
     "actionDesc": "Réconcilie l'index avec le dossier et, pour les vaults en ligne, récupère les fichiers du cloud.",

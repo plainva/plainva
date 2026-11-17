@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-11-12
+Dernière mise à jour : 2026-11-17
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -111,6 +111,8 @@ Plainva réconcilie en plus automatiquement dès que vous revenez à la fenêtre
 En lisant le vault, Plainva suit les liens comme le fait le système : un lien vers un dossier est lu comme ce dossier, un lien vers un fichier comme ce fichier — sur l'ordinateur et dans un dossier que vous avez choisi sur l'iPhone. Ce qu'il ne peut pas lire, il le laisse de côté et le nomme : un lien vers un emplacement qui n'existe pas sur cet appareil (par exemple un dossier qui n'existe que sur un autre ordinateur et arrivé ici sous forme de lien) ou un dossier sans accès. Une notification les nomme une fois — **reste hors de l'index de recherche** — et le reste du vault est indexé comme d'habitude. Rien de ce qui se trouve sous une telle entrée n'est considéré comme supprimé, ni par l'index ni par la synchronisation d'un espace de travail chiffré.
 
 Si l'index ne peut pas du tout être mis à jour, la notification dit pourquoi (**L'index de recherche n'a pas pu être mis à jour : …**) ; le vault reste ouvert avec ce que l'index contient déjà, et à la prochaine lecture du vault Plainva réessaie. Sur le téléphone, un index de recherche qui ne peut pas être ouvert est nommé lui aussi : la recherche, les tags, les bases de données, la synchronisation et le calendrier restent alors désactivés jusqu'à ce que Plainva puisse l'ouvrir. En attendant, vous pouvez lire, écrire et créer des notes, et elles arrivent à la synchronisation au prochain démarrage qui ouvre l'index ; dans un vault synchronisé, supprimer, renommer, déplacer et créer des dossiers restent indisponibles jusque-là, et le bandeau en haut le signale.
+
+Si la base de données de l'index elle-même est endommagée, le vault ne s'ouvre pas ; le démarrage le dit et propose **Reconstruire l'index** (sur le téléphone, dans le bandeau du haut). Plainva demande d'abord, puis met le fichier endommagé de côté et reconstruit l'index ; vos notes restent intactes. Le fichier endommagé reste dans le dossier de données de Plainva, à côté du nouveau, avec `.broken-` et la date dans son nom ; il n'est plus jamais ouvert et il est supprimé lorsque vous oubliez le vault sur cet appareil. Les suppressions et les renommages pas encore synchronisés sont perdus : une note supprimée peut revenir du serveur, une note renommée peut apparaître en double. La première synchronisation qui suit se passe comme sur un nouvel appareil : elle ne supprime rien de ce que le serveur possède et n'écrit rien par-dessus une version plus récente. Dans un espace de travail chiffré, Plainva ne reconstruit pas la base de données, car elle contient des modifications qui n'ont pas encore atteint vos autres appareils. Une base de données seulement verrouillée par un autre programme, un disque plein ou des droits manquants sont nommés en clair, avec ce qu'il faut faire.
 
 Supprimez ou réparez l'entrée nommée par la notification, puis utilisez **Relire le vault** (sur le téléphone : tirez une liste vers le bas).
 

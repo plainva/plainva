@@ -7684,6 +7684,17 @@
     "miniSee": "vedi",
     "miniLink": "Piano T3"
   },
+  "indexDatabase": {
+    "damaged": "Il database dell'indice di questo vault è danneggiato, quindi il vault non si può aprire. «Ricostruisci indice» lo mette da parte e ricostruisce l'indice; le tue note restano come sono.",
+    "damagedWorkspace": "Il database dell'indice di questo vault è danneggiato. Plainva non lo ricostruisce qui: in uno spazio di lavoro cifrato contiene modifiche che non hanno ancora raggiunto gli altri tuoi dispositivi. Riavvia l'app per riprovare e chiedi aiuto prima di rimuovere qualcosa.",
+    "locked": "Un altro programma sta usando il database dell'indice di questo vault, di solito una seconda finestra o app di Plainva. Chiudila e riapri il vault.",
+    "full": "Il disco è pieno, quindi il database dell'indice di questo vault non si può aprire. Libera spazio e riapri il vault.",
+    "readOnly": "Plainva non può aprire né scrivere il database dell'indice di questo vault: {{reason}}. Controlla i permessi della cartella dati di Plainva e riapri il vault.",
+    "unavailable": "Non è stato possibile aprire il database dell'indice di questo vault: {{reason}}. Riavvia l'app per riprovare.",
+    "rebuildTitle": "Ricostruire l'indice?",
+    "rebuildConfirm": "Il database dell'indice di questo vault è danneggiato. Plainva lo mette da parte e ricostruisce l'indice. Le tue note restano intatte. Le eliminazioni e le rinomine non ancora sincronizzate vanno perse: ciò che è stato eliminato può tornare dal server, ciò che è stato rinominato può comparire due volte.",
+    "rebuildFailed": "Non è stato possibile ricostruire l'indice: {{reason}}"
+  },
   "refresh": {
     "action": "Rileggi il vault",
     "actionDesc": "Riconcilia l'indice con la cartella e, per i vault online, scarica anche i file dal cloud.",

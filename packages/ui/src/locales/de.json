@@ -7529,6 +7529,17 @@
     "miniSee": "siehe",
     "miniLink": "Q3-Plan"
   },
+  "indexDatabase": {
+    "damaged": "Die Indexdatenbank dieses Vaults ist beschädigt, deshalb lässt er sich nicht öffnen. „Index neu aufbauen“ legt sie beiseite und baut den Index neu auf; Deine Notizen bleiben, wie sie sind.",
+    "damagedWorkspace": "Die Indexdatenbank dieses Vaults ist beschädigt. Plainva baut sie hier nicht neu auf: In einem verschlüsselten Workspace liegen darin Änderungen, die Deine anderen Geräte noch nicht erreicht haben. Starte die App neu, um es noch einmal zu versuchen, und hol Dir Hilfe, bevor Du etwas entfernst.",
+    "locked": "Ein anderes Programm benutzt die Indexdatenbank dieses Vaults, meist ein zweites Plainva-Fenster oder eine zweite App. Schließe es und öffne den Vault dann noch einmal.",
+    "full": "Der Datenträger ist voll, deshalb lässt sich die Indexdatenbank dieses Vaults nicht öffnen. Schaffe Platz und öffne den Vault dann noch einmal.",
+    "readOnly": "Plainva darf die Indexdatenbank dieses Vaults nicht öffnen oder schreiben: {{reason}}. Prüfe die Rechte am App-Datenordner von Plainva und öffne den Vault dann noch einmal.",
+    "unavailable": "Die Indexdatenbank dieses Vaults ließ sich nicht öffnen: {{reason}}. Starte die App neu, um es noch einmal zu versuchen.",
+    "rebuildTitle": "Index neu aufbauen?",
+    "rebuildConfirm": "Die Indexdatenbank dieses Vaults ist beschädigt. Plainva legt sie beiseite und baut den Index neu auf. Deine Notizen bleiben unberührt. Noch nicht synchronisierte Löschungen und Umbenennungen gehen dabei verloren: Gelöschtes kann vom Server zurückkommen, Umbenanntes doppelt erscheinen.",
+    "rebuildFailed": "Der Index ließ sich nicht neu aufbauen: {{reason}}"
+  },
   "refresh": {
     "action": "Vault neu einlesen",
     "actionDesc": "Gleicht den Index mit dem Ordner ab und holt bei Online-Vaults die Cloud-Dateien.",
