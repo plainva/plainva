@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-10
+Stand: 2026-11-16
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -138,7 +138,7 @@ Lege einen **Vorlagen-Ordner** in den **Einstellungen → Vault → Notizen & Ab
 | `{{yesterday}}`, `{{tomorrow}}` | Vortag, Folgetag |
 | `{{weekday:monday}}`, `{{weekday:next friday}}` | Den Wochentag dieser bzw. der nächsten Woche; Format nach einem zweiten Doppelpunkt: `{{weekday:monday:DD.MM.}}`. Wo die Woche beginnt, folgt Deiner Kalender-Einstellung |
 | `{{daily}}`, `{{daily+1}}`, `{{daily-1}}` | Einen Link auf die Tagesnotiz von heute, morgen oder gestern; mit eigener Beschriftung: `{{daily+1:Morgen}}` — „heute“ ist der Tag, der nach **Der Tag endet um** gerade läuft; in einer Tages- oder Besprechungsnotiz der Tag dieser Notiz |
-| `{{folder}}`, `{{vault}}` | Ablageordner der Notiz, Name des Vaults |
+| `{{folder}}`, `{{vault}}` | Ablageordner der Notiz, Name des Vaults, wie Plainva ihn nennt (der Name, den Du ihm gegeben hast, sonst am Desktop sein Ordner) |
 | `{{cursor}}` | Kein Text — markiert, wo die Schreibmarke danach steht |
 | `{{prompt:Label}}`, `{{prompt:Label\|Vorgabe}}` | Fragt Dich nach Text (angezeigt als *Label*) |
 | `{{select:Label\|A,B,C}}` | Fragt Dich mit einer Auswahlliste |

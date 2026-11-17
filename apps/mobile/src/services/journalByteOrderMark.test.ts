@@ -104,6 +104,8 @@ function phoneOps(): PhoneOps {
     // The type a new daily note gets: the phone's one reader of the setting.
     configuredDailyNoteType,
     getActiveVaultEntry: async () => ({ name: "Notes" }),
+    // The name a template gets, from the phone's one source (B25).
+    phoneTemplateVault: async () => ({ name: "Notes", dailyFolder: "", dailyFormat: "" }),
     ensureSharedDailyNote: ensureDailyNote,
     applyTemplateInteractive: () => { throw new Error("a capture never asks the template's questions"); },
   };

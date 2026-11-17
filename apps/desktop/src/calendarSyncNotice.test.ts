@@ -222,11 +222,11 @@ describe("a task list that cannot reach the notes (issue 172)", () => {
     expect(taskListProblemsOf([mine, other, accountLine], "a1")).toEqual([mine]);
   });
 
-  it("the account card leaves a failed listing or pull to its own banner: one cause, one notice", () => {
+  it("the account card leaves the failed listing to its own banner, and shows a list whose pull failed, once", () => {
     const mine = list("no-task-db");
     const listing = problem({ taskListId: "", error: "caldav propfind 503" });
     const pull = problem({ taskListId: "l2", taskListName: "Work", error: "caldav report 500" });
-    expect(taskListProblemsOf([mine, listing, pull], "a1")).toEqual([mine]);
+    expect(taskListProblemsOf([mine, listing, pull], "a1")).toEqual([mine, pull]);
   });
 });
 

@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { initialSelection, isBasePath, isLargeDeletion, noteDisplayName, planNeedsDialog, selectedPaths } from "@plainva/ui";
+import { deleteEachWithNet, initialSelection, isBasePath, isLargeDeletion, noteDisplayName, planNeedsDialog, selectedPaths } from "@plainva/ui";
 import { mCascade, mConfirm } from "../services/mobileDialogs";
 import { buildMobileDeletionPlan, executeMobileCascade } from "../services/cascadeDelete";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -117,7 +117,10 @@ export async function confirmDeleteFiles(
     const result = await executeMobileCascade(vault, plan, initialSelection(plan));
     return result.deleted;
   }
-  const deleted: string[] = [];
-  for (const p of paths) if (await vaultOps.remove(vault, p, { confirmed: true })) deleted.push(p);
-  return deleted;
+  // One "Delete without a backup?" for all of them (A12). An error of one file
+  // is thrown once the others were tried.
+  const outcomes = await deleteEachWithNet(paths, (p, ask) => vaultOps.remove(vault, p, { confirmed: true }, ask));
+  const failed = outcomes.find((o): o is Extract<typeof o, { error: unknown }> => "error" in o);
+  if (failed) throw failed.error;
+  return outcomes.flatMap((o) => ("deleted" in o && o.deleted ? [o.item] : []));
 }

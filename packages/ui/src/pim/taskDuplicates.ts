@@ -1,6 +1,7 @@
 import { noteBodyOf, type TaskAnchorRecord } from "@plainva/core";
 import type { TaskCompletionModel } from "../lib/taskDatabase";
 import { chooseAnchorToAdopt, fieldsEqual, readNoteFields } from "./taskSync";
+import { deleteEachWithNet, type DeletionNetAsk } from "../lib/deletionNet";
 
 /**
  * Notes that claim the same provider task (finding 2026-09-20).
@@ -191,28 +192,29 @@ export function removableTaskCopies(groups: readonly TaskDuplicateGroup[]): stri
 export async function removeTaskCopies(
   shown: readonly TaskDuplicateGroup[],
   opts: FindTaskDuplicatesOptions,
-  /** Deletes one copy; `false` where the person kept it (the question "Delete without a backup?", D1). */
-  deleteNote: (path: string) => Promise<boolean | void>
+  /**
+   * Deletes one copy; `false` where the person kept it (the question "Delete
+   * without a backup?", D1). `ask` is that question for the whole clean-up:
+   * the shell hands it to `deleteWithNet`, so N copies without a net are one
+   * question, not N (A12 of release 0.9.0).
+   */
+  deleteNote: (path: string, ask: DeletionNetAsk) => Promise<boolean | void>
 ): Promise<{ removed: string[]; skipped: string[] }> {
   const wanted = new Set(removableTaskCopies(shown));
   const current = new Set(removableTaskCopies(await findDuplicateTaskNotes(opts)));
   const removed: string[] = [];
   const skipped: string[] = [];
-  for (const path of wanted) {
-    if (!current.has(path)) {
-      skipped.push(path);
-      continue;
-    }
-    try {
-      if ((await deleteNote(path)) === false) {
-        skipped.push(path);
-        continue;
-      }
-      removed.push(path);
-    } catch (e) {
-      console.warn("[taskDuplicates] could not remove a task copy", path, e);
-      skipped.push(path);
-    }
+  const still = [...wanted].filter((path) => {
+    if (current.has(path)) return true;
+    skipped.push(path);
+    return false;
+  });
+  for (const outcome of await deleteEachWithNet(still, async (path, ask) => (await deleteNote(path, ask)) !== false)) {
+    if ("error" in outcome) {
+      console.warn("[taskDuplicates] could not remove a task copy", outcome.item, outcome.error);
+      skipped.push(outcome.item);
+    } else if (outcome.deleted) removed.push(outcome.item);
+    else skipped.push(outcome.item);
   }
   return { removed, skipped };
 }

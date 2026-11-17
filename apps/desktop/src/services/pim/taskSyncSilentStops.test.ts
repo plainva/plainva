@@ -232,6 +232,50 @@ describe("a task list that cannot reach the notes says why (issue 172)", () => {
     expect(await cache.listSyncProblems()).toEqual([]);
   });
 
+  it("a database set while its file has not arrived yet ends the 'no database' line at once (review)", async () => {
+    const { cycle } = setup({}, null);
+    await cycle();
+    expect(needsTaskDatabase(await cache.listSyncProblems())).toBe(true);
+    // The setting arrived, the file not yet; the vault still fills up.
+    await cycle({ taskDbPath: "Aufgaben.base", mayCreateNotes: false });
+    expect(needsTaskDatabase(await cache.listSyncProblems())).toBe(false);
+    expect(await cache.listSyncProblems()).toEqual([]);
+  });
+
+  it("the same line again writes nothing: a calendar-only account costs no write per cycle (review)", async () => {
+    const { cycle } = setup({}, null);
+    await cycle();
+    const writes = { n: 0 };
+    const record = cache.recordScopeFailure.bind(cache);
+    cache.recordScopeFailure = async (...args: Parameters<typeof record>) => {
+      writes.n++;
+      return record(...args);
+    };
+    await cycle();
+    await cycle();
+    expect(writes.n).toBe(0);
+    expect(needsTaskDatabase(await cache.listSyncProblems())).toBe(true);
+  });
+
+  it("a note written whose state row then fails is no 'could not be created', and is not made twice (review)", async () => {
+    const { vault, cycle } = setup({ "Aufgaben.base": buildTaskDbFile("Aufgaben", LABELS).content }, "Aufgaben.base");
+    const upsert = cache.upsertTaskState.bind(cache);
+    let fail = true;
+    cache.upsertTaskState = async (...args: Parameters<typeof upsert>) => {
+      if (fail) {
+        fail = false;
+        throw new Error("database is locked");
+      }
+      return upsert(...args);
+    };
+    const first = await cycle();
+    expect(first.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
+    expect(first.errors).toHaveLength(1);
+    expect(await lineOf()).toBeUndefined();
+    await cycle();
+    expect([...vault.files.keys()].filter((p) => p.startsWith("Aufgaben/"))).toEqual(["Aufgaben/Steuern einreichen.md"]);
+  });
+
   it("a list that is switched off carries no line", async () => {
     const { cycle } = setup({}, null);
     await cycle();

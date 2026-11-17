@@ -1,6 +1,6 @@
 # Agenci zewnętrzni (Beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Agent zewnętrzny to program AI innego producenta — agent zainstalowany samodzielnie na komputerze, do którego logujesz się samodzielnie, z własną subskrypcją lub kluczem. Plainva może uruchomić takiego agenta w folderze vaultu i pokazać jego sesję na karcie AI. To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -9,7 +9,7 @@ Agent zewnętrzny nie jest asystentem Plainva. [Asystent AI](AI_Assistant.md) wy
 ## Czego Plainva nie kontroluje
 
 - **Program.** Agent to cudzy program. Działa na tym komputerze z Twoimi uprawnieniami, w folderze vaultu, i nie jest niczym odgrodzony: może czytać i zmieniać wszystko, co Ty możesz czytać i zmieniać.
-- **Co czyta i wysyła.** Sam czyta pliki — także notatki trzymane z dala od chmury — i wysyła to, co wybierze, do własnej usługi. Twoje zasady prywatności i przegląd przed wysłaniem go nie obejmują i nic nie pyta, zanim wyśle.
+- **Co czyta i wysyła.** Sam czyta pliki — także notatki trzymane z dala od chmury — i wysyła to, co wybierze, do własnej usługi. Twoje zasady prywatności i przegląd przed wysłaniem nie obejmują tego, co robi sam, i nic nie pyta, zanim wyśle. Tylko plik, o który prosi Plainvę, jest sprawdzany według Twoich zasad: notatka trzymana z dala od chmury albo z dala od internetu zostaje odrzucona.
 - **Co sam zapisuje.** Zmiana, którą agent wprowadza sam, jest w vaulcie od razu, bez propozycji. Sesja mówi o tym, gdy agent zgłosi taką zmianę; zmiany, której nie zgłosi, Plainva nie widzi.
 - **Jego logowanie.** Agent loguje się sam. Plainva nigdy nie widzi jego danych logowania i żadnych nie przechowuje.
 
@@ -18,7 +18,7 @@ Uruchamiaj agenta tylko w vaulcie, którego zawartość może trafić do usługi
 ## Co Plainva kontroluje
 
 - **Własne narzędzia.** Tam, gdzie włączono **Pozwól aplikacjom AI na tym komputerze czytać ten vault**, narzędzia Plainva są oferowane agentowi — te same, co każdej aplikacji z [Łączenie aplikacji AI](Connect_AI_Apps.md): tylko foldery, na które zezwolisz, nigdy notatka trzymana z dala od chmury lub internetu, i tylko do odczytu — chyba że pozwolisz mu tam proponować zmiany.
-- **O czego odczyt agent prosi Plainva.** Notatka trzymana z dala od chmury lub internetu i własne foldery Plainva nie są wydawane. Agent się o tym dowiaduje, i Ty też.
+- **O czego odczyt agent prosi Plainva.** Notatka trzymana z dala od chmury lub internetu i własne foldery Plainva nie są wydawane. Agent się o tym dowiaduje, i Ty też. Każdy inny plik vaultu jest wydawany: foldery, które udostępniono narzędziom Plainva, nie ograniczają pliku, o który prosi agent.
 - **O czego zapis agent prosi Plainva.** Nic nie jest zapisywane. Zmiana w notatce staje się rundą propozycji pod nazwą agenta, a nowa notatka czeka jako szkic, aż ją utworzysz.
 - **Bez terminala.** Plainva nie oferuje agentowi własnego terminala.
 
@@ -38,13 +38,13 @@ Naraz działa jedna sesja i należy ona do vaultu, w którym została rozpoczęt
 
 ## Logowanie
 
-Agent, który nie jest zalogowany, mówi o tym, a sesja pokazuje **⟨agent⟩ wymaga zalogowania** wraz ze sposobami, które agent podaje. Zależnie od agenta wybór jednego z nich otwiera okno terminala z własnym programem agenta albo agent sam prowadzi do swojego logowania. Plainva czeka, a potem uruchamia agenta od nowa. Tam, gdzie nie da się otworzyć terminala, Plainva pokazuje polecenie do wykonania we własnym terminalu; potem wybierz **Spróbuj ponownie**. Plainva nie widzi niczego z logowania.
+Agent, który nie jest zalogowany, mówi o tym, a sesja pokazuje **⟨agent⟩ wymaga zalogowania** wraz ze sposobami, które agent podaje. Zależnie od agenta wybór jednego z nich otwiera okno terminala z własnym programem agenta albo agent sam prowadzi do swojego logowania. Plainva czeka i — po zalogowaniu w terminalu — uruchamia agenta od nowa; gdy agent loguje się sam, wszystko toczy się dalej w tej samej sesji. Tam, gdzie nie da się otworzyć terminala, Plainva pokazuje polecenie do wykonania we własnym terminalu; potem wybierz **Spróbuj ponownie**. Plainva nie widzi niczego z logowania.
 
 ## W sesji
 
 Wpisz, co agent ma zrobić. Otwarta notatka jest agentowi wskazywana — jej nazwa i położenie, nie jej tekst — chyba że usuniesz ją nad polem wpisywania; notatka trzymana z dala od chmury lub internetu nigdy nie jest wskazywana. Sesja pokazuje, co mówi agent, jego plan i każdy z jego kroków, z plikami vaultu, które wymienia.
 
-Gdy agent chce Twojej zgody na jakiś krok, pokazuje to **⟨agent⟩ pyta**. Słowa pochodzą od agenta, a do wyboru jest to, co agent oferuje — **Zezwól**, **Zawsze zezwalaj**, **Odrzuć**, **Zawsze odrzucaj**. Twoja odpowiedź trafia tylko do agenta: to, co zrobi po zgodzie, jest jego sprawą, a „zawsze” to obietnica, której dotrzymuje agent, nie Plainva.
+Gdy agent chce Twojej zgody na jakiś krok, pokazuje to **⟨agent⟩ pyta**. Słowa pochodzą od agenta i wybory także: przyciski noszą nazwy, które nadaje im agent — tylko tam, gdzie nie podaje żadnej, widzisz **Zezwól**, **Zawsze zezwalaj**, **Odrzuć** lub **Zawsze odrzucaj**. Twoja odpowiedź trafia tylko do agenta: to, co zrobi po zgodzie, jest jego sprawą, a „zawsze” to obietnica, której dotrzymuje agent, nie Plainva.
 
 **Ustawienia i polecenia.** Tam, gdzie agent je oferuje, stopka sesji pokazuje jego własne ustawienia: tryb i model jako przyciski — **⟨ustawienie⟩: ⟨wartość⟩** —, resztę pod przyciskiem z suwakami **Więcej ustawień: ⟨agent⟩**. Każde z ich menu zaczyna się od własnego nagłówka Plainvy — **⟨ustawienie⟩ — ⟨agent⟩** lub **Więcej ustawień: ⟨agent⟩** —; pod nim nazwy, wartości i opisy pochodzą od agenta, w jego kolejności: bieżąca wartość z zaznaczeniem, przełącznik jako pozycja z zaznaczeniem lub bez. Tam, gdzie słowa agenta stoją w nagłówku lub zdaniu Plainvy, są wyróżnione dyskretną kursywą, nigdy wersalikami nagłówka. Każda sesja zaczyna się od domyślnych wartości agenta. Ustawienie zmienia, jak agent pracuje, a nie to, co Plainva przepuszcza: czytanie i zapisywanie przez Plainvę podlegają w każdym trybie tym samym zasadom, a tryb, w którym agent o nic już nie pyta, nie oszczędza żadnego z własnych kroków Plainvy. To, co agent robi własnymi narzędziami, w każdym trybie pozostaje poza Plainvą. Gdy agent sam zmieni ustawienie, sesja o tym mówi: **Agent sam ustawił „⟨ustawienie⟩” na „⟨wartość⟩”.** To, co zmienia razem z Twoją zmianą, sesja nazywa wprost — **Przy tej zmianie agent ustawił „⟨ustawienie⟩” na „⟨wartość⟩”.** — podobnie jak zmianę, której nie wprowadził: **Agent nie zmienił „⟨ustawienie⟩”.** Dopóki zmiana czeka na agenta, obok ustawień kręci się wskaźnik, a ustawienia nie reagują, dopóki agent nie odpowie. Znak **/** na początku wiadomości wyświetla pod **Polecenia: ⟨agent⟩** własne polecenia agenta z tym, co według niego robią: strzałki przechodzą przez listę, Enter lub Tab wybierają polecenie, a Escape zamyka listę. Polecenie to wiadomość zaczynająca się od jego nazwy; tam, gdzie agent mówi, co ma nastąpić dalej, pojawia się to pod polem, dopóki nie zaczniesz pisać dalej. To, co robi polecenie, jest sprawą agenta.
 
@@ -61,7 +61,7 @@ Plainva nie przyjmuje wszystkiego: tylko notatki Markdown; żadnych reguł AI, p
 ## Co Plainva zachowuje
 
 - **Na tym urządzeniu:** potwierdzone polecenie, Twoją nazwę agenta i to, co ostatnio zaobserwowano z jego zmian — we własnych danych Plainva, nigdy w vaulcie.
-- **Dla vaultu:** **Ostatnie sesje w tym vaulcie** podaje, kiedy odbyła się sesja, z którym agentem oraz ile było wiadomości, zmian przez Plainva i zmian własnych — nigdy to, co zostało powiedziane.
+- **Dla vaultu:** Plainva zachowuje ostatnie 50 sesji; **Ostatnie sesje w tym vaulcie** pokazuje pięć najnowszych — kiedy odbyła się sesja, z którym agentem oraz ile było wiadomości, zmian przez Plainva i zmian własnych — nigdy to, co zostało powiedziane. Ta lista też leży we własnych danych Plainva na tym urządzeniu, nie w vaulcie.
 - **Nie samą sesję:** to, co powiedzieliście Ty i agent, znika po zamknięciu sesji. To, co agent zachowuje po swojej stronie, jest sprawą agenta.
 
 Jeśli program agenta zakończy się sam, sesja o tym mówi, a **Pokaż jego ostatnie wiersze** pokazuje koniec tego, co program wypisał.
@@ -70,6 +70,7 @@ Jeśli program agenta zakończy się sam, sesja o tym mówi, a **Pokaż jego ost
 
 - Tylko na komputerze i tylko w głównym oknie. Na telefonie jest własny asystent Plainva.
 - Nie w zaszyfrowanym obszarze roboczym.
+- Nie, gdy włączone jest **W pełni lokalnie**: żaden agent się nie uruchamia i żadne logowanie nie biegnie, a trwająca sesja się kończy.
 - Jedna sesja naraz i bez historii: zakończonej sesji nie da się otworzyć ponownie.
 - Nie można wysyłać obrazów do agenta, a trybu ani modelu wybranego w sesji Plainva nie przenosi na następną.
 - Jak dotąd wypróbowano to tylko z własnym agentem testowym Plainva. Którzy agenci tu działają i którzy przekazują swoje zmiany Plainva, okazuje się przy próbie — opinie są mile widziane.

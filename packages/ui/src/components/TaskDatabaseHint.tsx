@@ -18,18 +18,26 @@ import { hideTaskDbHint, isTaskDbHintHidden } from "../lib/taskDbHintStore";
 export function TaskDatabaseHint({
   vault,
   problems,
+  taskDatabase,
   onCreate,
   testId = "task-db-hint",
 }: {
   /** The key the hidden mark is kept under (the vault path or id). */
   vault: string | null;
   problems: readonly PimSyncProblem[];
-  /** Absent where no database can be created from here: the hint then only names what is missing. */
-  onCreate?: () => void;
+  /**
+   * The vault's standard task database as this shell knows it right now. Set,
+   * the hint is gone at once, whatever line an earlier run left: offering to
+   * create one then makes a second database (review of issue 172).
+   */
+  taskDatabase: string | null;
+  /** The text names this button, so the hint exists only where it can be offered. */
+  onCreate: () => void;
   testId?: string;
 }) {
   const { t } = useTranslation();
   const [hiddenNow, setHiddenNow] = useState<string | null>(null);
+  if (taskDatabase?.trim()) return null;
   if (!needsTaskDatabase(problems)) return null;
   if (hiddenNow === vault || isTaskDbHintHidden(vault)) return null;
   return (
@@ -38,11 +46,9 @@ export function TaskDatabaseHint({
       testId={testId}
       actions={
         <>
-          {onCreate ? (
-            <Button size="sm" variant="primary" onClick={onCreate} data-testid={`${testId}-create`}>
-              {t("settings.taskDatabaseCreate")}
-            </Button>
-          ) : null}
+          <Button size="sm" variant="primary" onClick={onCreate} data-testid={`${testId}-create`}>
+            {t("settings.taskDatabaseCreate")}
+          </Button>
           <Button
             size="sm"
             variant="ghost"
