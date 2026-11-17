@@ -589,7 +589,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     if (!restricted) return views.map((v) => String(v.name ?? ""));
     const text = raw.replace(/\r\n?/g, "\n");
     const seen = await withhold(`---\n${text}${text.endsWith("\n") ? "" : "\n"}---\n`, path);
-    let seenViews: { name?: unknown }[] = [];
+    let seenViews: { name?: unknown }[];
     try {
       // Read back as the one definition reads a block: nothing may stand behind it.
       const span = frontmatterSpan(seen);
