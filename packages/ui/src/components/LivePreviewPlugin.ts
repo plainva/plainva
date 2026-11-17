@@ -809,11 +809,16 @@ export function markdownDecorationPlugin(isLive: boolean) {
                   const marker = BLOCK_ID_MARKER.exec(state.sliceDoc(node.from, node.to));
                   const last = node.node.lastChild;
                   if (marker) {
-                    const markFrom = node.from + marker.index;
-                    const idFrom = markFrom + marker[0].indexOf("^");
-                    const idTo = markFrom + marker[0].trimEnd().length;
+                    const idFrom = node.from + marker.index + marker[0].indexOf("^");
+                    const idTo = node.from + marker.index + marker[0].trimEnd().length;
+                    // The blank hidden with it is the one on the id's own line:
+                    // an id alone on the paragraph's last line (`Text` / `^id`)
+                    // stands after a line break, which a plugin may not replace.
+                    const lineFrom = state.doc.lineAt(idFrom).from;
+                    let hideFrom = idFrom;
+                    while (hideFrom > lineFrom && /[ \t]/.test(state.sliceDoc(hideFrom - 1, hideFrom))) hideFrom--;
                     if (!last || last.to <= idFrom) {
-                      if (!revealRaw) decos.push(HIDE.range(markFrom, idTo));
+                      if (!revealRaw) decos.push(HIDE.range(hideFrom, idTo));
                       else if (!activeLines.has(state.doc.lineAt(idFrom).number)) decos.push(BLOCK_ID.range(idFrom, idTo));
                     }
                   }

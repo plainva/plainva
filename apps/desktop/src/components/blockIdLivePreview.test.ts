@@ -70,6 +70,32 @@ describe("a block id in the live preview", () => {
     }
   });
 
+  // Obsidian's other form: the id alone on the paragraph's last line. The
+  // blank in front of it is the line break, which a plugin may not replace
+  // (a RangeError drew nothing in the phone's read mode).
+  it("on a line of its own hides the id and the blanks of its line, never the line break", () => {
+    for (const doc of ["Paragraph text\n^blk\n\nnext", "Paragraph text\n  ^blk\n", "> quote\n> ^q\n"]) {
+      for (const editable of [false, true]) {
+        const v = new EditorView({
+          state: forceFullParse(EditorState.create({
+            doc,
+            extensions: [markdown(), markdownDecorationPlugin(true), EditorState.readOnly.of(!editable)],
+            selection: EditorSelection.single(doc.length),
+          })),
+          parent: document.body,
+        });
+        try {
+          const line = doc.split("\n").find((l) => l.includes("^")) ?? "";
+          const id = line.slice(line.search(/[ \t]*\^/));
+          if (editable) expect(decorated(v).hidden).toEqual([]);
+          else expect(decorated(v)).toEqual({ faint: [], hidden: [id] });
+        } finally {
+          v.destroy();
+        }
+      }
+    }
+  });
+
   it("stands as it is written in source mode", () => {
     const v = new EditorView({ state: forceFullParse(EditorState.create({ doc: DOC, extensions: [markdown(), markdownDecorationPlugin(false)] })), parent: document.body });
     try {
