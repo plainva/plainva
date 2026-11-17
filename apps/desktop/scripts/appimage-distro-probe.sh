@@ -46,8 +46,9 @@ dicts="$(ls /usr/share/hunspell/*.dic 2>/dev/null | xargs -r -n1 basename | tr '
 
 echo "== $label: host Enchant $enchant_host, host GLib $glib_host, dictionaries: ${dicts:-none}"
 echo "== libraries the bundle does not carry and the host lacks:"
-LD_LIBRARY_PATH="$root/usr/lib" ldd "$root"/usr/bin/* "$root"/usr/lib/libwebkit2gtk-4.1.so.0 "$root"/usr/lib/enchant-2/*.so 2>/dev/null \
-  | grep "not found" | sort -u || echo "   (none)"
+missing="$(find "$root/usr/bin" "$root/usr/lib" -maxdepth 2 -type f \( -name '*.so*' -o -perm -u+x \) -print0 \
+  | LD_LIBRARY_PATH="$root/usr/lib" xargs -0 -r ldd 2>/dev/null | grep "not found" | sort -u || true)"
+echo "${missing:-   (none)}"
 
 home="$work/home"
 mkdir -p "$home/.local/share/com.plainva.desktop" "$home/.config"

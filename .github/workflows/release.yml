@@ -698,7 +698,10 @@ jobs:
   # without Enchant and on ones with a far newer Enchant and GLib than the
   # build image — and spell checking must use the host's Hunspell dictionary.
   # Each container starts the AppImage under Xvfb twice: without a German
-  # dictionary (nothing may load) and with one (de_DE must load). The probe
+  # dictionary (nothing may load) and with one (de_DE must load). The second
+  # run also installs the distribution's own Enchant (not on openSUSE), so a
+  # far newer host Enchant beside the bundled one is measured too. The base
+  # packages are what any desktop has and a minimal container lacks. The probe
   # reads the line the app writes when the checker is switched on, so it also
   # proves the page loaded. It runs after every AppImage build, so a new build
   # image or Tauri CLI is measured again; the job summary has the table.
@@ -715,20 +718,20 @@ jobs:
         include:
           - name: Debian stable
             image: debian:stable
-            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 fonts-dejavu-core
-            dictionary: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends hunspell-de-de
+            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 libgles2 libgpg-error0 fonts-dejavu-core
+            dictionary: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends hunspell-de-de libenchant-2-2
           - name: Ubuntu 24.04 LTS
             image: ubuntu:24.04
-            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 fonts-dejavu-core
-            dictionary: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends hunspell-de-de
+            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 libgles2 libgpg-error0 fonts-dejavu-core
+            dictionary: DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends hunspell-de-de libenchant-2-2
           - name: Fedora
             image: fedora:latest
-            base: dnf -y install --setopt=install_weak_deps=False xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon dbus-tools procps-ng gtk3 mesa-libGL mesa-libEGL mesa-libgbm dejavu-sans-fonts
-            dictionary: dnf -y install --setopt=install_weak_deps=False hunspell-de
+            base: dnf -y install --setopt=install_weak_deps=False xorg-x11-server-Xvfb xorg-x11-xauth dbus-daemon dbus-tools procps-ng gtk3 mesa-libGL mesa-libEGL mesa-libgbm mesa-libGLES libgpg-error dejavu-sans-fonts
+            dictionary: dnf -y install --setopt=install_weak_deps=False hunspell-de enchant2
           - name: Arch Linux
             image: archlinux:latest
             base: pacman -Syu --noconfirm xorg-server-xvfb xorg-xauth dbus procps-ng gtk3 mesa ttf-dejavu
-            dictionary: pacman -S --noconfirm hunspell-de
+            dictionary: pacman -S --noconfirm hunspell-de enchant
           - name: openSUSE Tumbleweed
             image: opensuse/tumbleweed:latest
             base: zypper -n install --no-recommends xvfb-run xauth dbus-1 procps libgtk-3-0 Mesa-libGL1 Mesa-libEGL1 libgbm1 dejavu-fonts
@@ -737,7 +740,7 @@ jobs:
           # neither break the start nor pretend to check.
           - name: Debian stable without Enchant
             image: debian:stable
-            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 fonts-dejavu-core
+            base: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates xvfb xauth dbus procps libgtk-3-0t64 libgl1 libegl1 libgbm1 libgles2 libgpg-error0 fonts-dejavu-core
             dictionary: ''
     steps:
       - name: Install the desktop's base
