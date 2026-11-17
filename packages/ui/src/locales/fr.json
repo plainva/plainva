@@ -5881,7 +5881,7 @@
     "legacyNamesNoLinks": "Les liens vers ces notes sont mis à jour avec elles (ici : aucun).",
     "legacyNamesClean": "Nettoyer les noms…",
     "legacyNamesHide": "Masquer",
-    "taskDbHint": "Les listes de tâches de votre fournisseur ont besoin d’une base de tâches par défaut : leurs tâches y deviennent des notes. « Créer une base… » en crée une et la définit.",
+    "taskDbHint": "Les listes de tâches du fournisseur ont besoin d’une base de tâches par défaut pour devenir des notes. « Créer une base… » en crée une.",
     "taskDbHintHide": "Masquer",
     "legacyNamesConfirmTitle": "Nettoyer les noms ?",
     "legacyNamesConfirmMsg_one": "1 note de tâche prend son titre comme nom ; les liens vers elle sont mis à jour. Vos autres appareils reçoivent cela comme un déplacement dès qu'ils ont la même version. Une version plus ancienne y voit des notes supprimées et de nouvelles notes : soit elle demande s'il faut les supprimer, soit elle garde l'ancien nom à côté du nouveau — mettez de préférence ces appareils à jour avant.",

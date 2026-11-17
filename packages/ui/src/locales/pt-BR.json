@@ -5881,7 +5881,7 @@
     "legacyNamesNoLinks": "Os links para essas notas são atualizados junto (aqui: nenhum).",
     "legacyNamesClean": "Limpar nomes…",
     "legacyNamesHide": "Ocultar",
-    "taskDbHint": "As listas de tarefas do seu provedor precisam de um banco de tarefas padrão: as tarefas delas viram notas nele. “Criar banco de dados…” cria um e o define.",
+    "taskDbHint": "As listas de tarefas do provedor precisam de um banco de tarefas padrão para virar notas. “Criar banco de dados…” cria um.",
     "taskDbHintHide": "Ocultar",
     "legacyNamesConfirmTitle": "Limpar nomes?",
     "legacyNamesConfirmMsg_one": "1 nota de tarefa recebe o título como nome; os links para ela são atualizados. Seus outros dispositivos recebem isso como uma movimentação quando estão na mesma versão. Uma versão anterior vê ali notas excluídas e notas novas: às vezes pergunta se deve excluí-las, às vezes mantém o nome antigo ao lado do novo — de preferência, atualize esses dispositivos antes.",
