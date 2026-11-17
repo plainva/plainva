@@ -13,6 +13,33 @@ const boundary = vi.hoisted(() => ({
   raw: null as unknown as IVaultAdapter,
   documents: new Map<string, string>(),
   keep: 1,
+  enabled: true,
+  /** The length of every part the archive was written in, as base64. */
+  messages: [] as number[],
+  /** A file written in more than one part: its parts, in order. */
+  pieces: new Map<string, Uint8Array[]>(),
+}));
+/** What lies at a path in Documents, as bytes. */
+function bytesAt(path: string): Uint8Array | undefined {
+  const pieces = boundary.pieces.get(path);
+  if (pieces) {
+    const whole = new Uint8Array(pieces.reduce((n, piece) => n + piece.length, 0));
+    let at = 0;
+    for (const piece of pieces) { whole.set(piece, at); at += piece.length; }
+    return whole;
+  }
+  const data = boundary.documents.get(path);
+  return data === undefined ? undefined : Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+}
+// The system's hash of the file where it lies (F51): taken here from the stored bytes.
+vi.mock("../platform/atomicFile", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../platform/atomicFile")>(),
+  nativeFileDigest: vi.fn(async (path: string) => {
+    const bytes = bytesAt(path);
+    if (bytes === undefined) throw Object.assign(new Error("missing"), { code: "OS-PLUG-FILE-0008" });
+    const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+    return { sha256: Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""), size: bytes.length };
+  }),
 }));
 const missing = () => Object.assign(new Error("missing"), { code: "ENOENT" });
 vi.mock("@capacitor/core", () => ({
@@ -44,29 +71,43 @@ vi.mock("@capacitor/filesystem", () => ({
         return { data };
       }
       const bytes = await boundary.raw.readBinaryFile(path.replace(/^vault\/?/, ""));
-      return { data: btoa(String.fromCharCode(...bytes)) };
+      let binary = "";
+      for (let at = 0; at < bytes.length; at += 0x8000) binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+      return { data: btoa(binary) };
     }),
-    writeFile: vi.fn(async ({ path, data }: { path: string; data: string }) => { boundary.documents.set(path, data); }),
+    writeFile: vi.fn(async ({ path, data }: { path: string; data: string }) => { boundary.documents.set(path, data); boundary.messages.push(data.length); }),
+    // The archive is written in parts (F51): each part is appended as base64, kept as bytes.
+    appendFile: vi.fn(async ({ path, data }: { path: string; data: string }) => {
+      boundary.messages.push(data.length);
+      const pieces = boundary.pieces.get(path) ?? [Uint8Array.from(atob(boundary.documents.get(path) ?? ""), (c) => c.charCodeAt(0))];
+      pieces.push(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
+      boundary.pieces.set(path, pieces);
+      boundary.documents.set(path, "");
+    }),
     deleteFile: vi.fn(async ({ path }: { path: string }) => { boundary.documents.delete(path); }),
     rename: vi.fn(async ({ from, to }: { from: string; to: string }) => {
       if (!boundary.documents.has(from)) throw missing();
       if (boundary.documents.has(to)) throw new Error("destination exists");
       boundary.documents.set(to, boundary.documents.get(from)!);
       boundary.documents.delete(from);
+      const pieces = boundary.pieces.get(from);
+      if (pieces) { boundary.pieces.set(to, pieces); boundary.pieces.delete(from); }
     }),
   },
 }));
 vi.mock("@plainva/ui", async () => ({
   ...await import("../../../../packages/ui/src/lib/zipBackup"),
   toast: { warning: vi.fn() },
+  reportingTo: () => () => {},
 }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string, values: { name?: string }) => key + ":" + values.name } }));
-vi.mock("./mobileSettings", () => ({ getMobileSettings: () => ({ backupZipEnabled: true, backupZipKeep: boundary.keep }) }));
-import { Directory, Filesystem } from "@capacitor/filesystem";
+vi.mock("./mobileSettings", () => ({ getMobileSettings: () => ({ backupZipEnabled: boundary.enabled, backupZipKeep: boundary.keep }) }));
+import { Filesystem } from "@capacitor/filesystem";
 import { toast } from "@plainva/ui";
 import { buildZipFileName } from "../../../../packages/ui/src/lib/zipBackup";
 import { buildVaultZipBytes } from "./vaultExport";
-import { backupIfDue, backupState, runVaultBackup } from "./vaultBackup";
+import { backupIfDue, backupState, readBackupAttempt, runVaultBackup } from "./vaultBackup";
+import { nativeFileDigest } from "../platform/atomicFile";
 
 const originalRead = vi.mocked(Filesystem.readFile).getMockImplementation()!;
 const originalList = vi.mocked(Filesystem.readdir).getMockImplementation()!;
@@ -110,6 +151,9 @@ beforeEach(async () => {
   localStorage.clear();
   boundary.documents.clear();
   boundary.keep = 1;
+  boundary.enabled = true;
+  boundary.messages.length = 0;
+  boundary.pieces.clear();
   root = await mkdtemp(join(tmpdir(), "plainva-mobile-backup-"));
   raw = new LocalVaultAdapter(root);
   await raw.initialize();
@@ -182,9 +226,8 @@ describe("mobile archive publication and retry", () => {
       throw new Error("archive write failed");
     });
     if (stage === "verify") {
-      const read = originalRead;
-      vi.spyOn(Filesystem, "readFile").mockImplementation(async (opts) =>
-        opts.directory === Directory.Documents ? { data: btoa("truncated") } : read(opts));
+      // The system finds a shorter file than was written: a truncated archive.
+      vi.mocked(nativeFileDigest).mockResolvedValueOnce({ sha256: "0".repeat(64), size: 3 });
     }
     if (stage === "rename") vi.spyOn(Filesystem, "rename").mockRejectedValueOnce(new Error("rename failed"));
     await expect(runVaultBackup(vault, "Vault")).rejects.toThrow();
@@ -219,12 +262,113 @@ describe("mobile archive publication and retry", () => {
     expect([...boundary.documents.keys()]).toEqual([oldName]);
   });
 
-  it("reports an automatic failure with its vault name and remains due for retry", async () => {
+  it("reports an automatic failure with its vault name, and tries again only after the wait (F51)", async () => {
     vi.spyOn(raw, "readBinaryFile").mockRejectedValueOnce(new Error("unreadable"));
     await backupIfDue(vault, "Vault");
     expect(toast.warning).toHaveBeenCalledWith("mobile.backupZipFailed:Vault");
-    expect(backupState(vault.vaultId).lastRun).toBe(0);
+    expect(backupState(vault.vaultId)).toMatchObject({ lastRun: 0, lastFailed: true });
+    // The next start, at once: no new try.
+    const list = vi.spyOn(adapter, "listDirForBackup");
     await backupIfDue(vault, "Vault");
-    expect(backupState(vault.vaultId).lastRun).toBe(Date.now());
+    expect(list).not.toHaveBeenCalled();
+    // A day later it is due again, and a good archive clears the mark.
+    vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000 + 1000);
+    await backupIfDue(vault, "Vault");
+    expect(backupState(vault.vaultId)).toMatchObject({ lastRun: Date.now(), lastFailed: false });
   });
 });
+
+describe("an archive that never crosses the bridge whole (F51)", () => {
+  /** Bytes that do not compress, so the archive is as large as the vault. */
+  const noise = (size: number, seed: number) => {
+    const bytes = new Uint8Array(size);
+    let x = seed * 2654435761 >>> 0;
+    for (let i = 0; i < size; i += 1) { x = (x ^ (x << 13)) >>> 0; x = (x ^ (x >>> 17)) >>> 0; x = (x ^ (x << 5)) >>> 0; bytes[i] = x & 0xff; }
+    return bytes;
+  };
+
+  it("writes a 90 MB archive in parts of at most 512 KB, checks it and publishes it whole", async () => {
+    boundary.documents.clear();
+    for (let i = 0; i < 30; i += 1) await raw.writeBinaryFile(`Bilder/shot-${i}.png`, noise(3 * 1024 * 1024, i + 1));
+    const name = await runVaultBackup(vault, "Vault");
+    expect(name).toBeTruthy();
+    expect(Math.max(...boundary.messages)).toBeLessThanOrEqual(512 * 1024);
+    const saved = bytesAt("Plainva Backups/Vault/" + name)!;
+    expect(saved.length).toBeGreaterThan(90 * 1024 * 1024);
+    const files = readZip(saved);
+    expect(Object.keys(files)).toHaveLength(31);
+    expect(files["Bilder/shot-7.png"]).toEqual(noise(3 * 1024 * 1024, 8));
+  }, 120_000);
+
+  it("marks the try before it begins, so one that ends the app counts as failed", async () => {
+    let seen: ReturnType<typeof readBackupAttempt> = null;
+    const read = raw.readBinaryFile.bind(raw);
+    vi.spyOn(raw, "readBinaryFile").mockImplementation(async (path) => {
+      seen ??= readBackupAttempt(vault.vaultId);
+      return read(path);
+    });
+    await runVaultBackup(vault, "Vault");
+    expect(seen).toMatchObject({ failures: 1 });
+    expect(readBackupAttempt(vault.vaultId)).toBeNull();
+  });
+
+  it("stops when it is switched off while it runs, and the part file goes", async () => {
+    await raw.writeTextFile("B.md", "second");
+    const read = raw.readBinaryFile.bind(raw);
+    vi.spyOn(raw, "readBinaryFile").mockImplementation(async (path) => {
+      // The person switches the backup off while the first file is read.
+      boundary.enabled = false;
+      return read(path);
+    });
+    await backupIfDue(vault, "Vault");
+    expect(toast.warning).not.toHaveBeenCalled();
+    expect([...boundary.documents.keys()].filter((key) => key.endsWith(".part"))).toEqual([]);
+    expect([...boundary.documents.keys()]).toEqual([oldName]);
+    expect(backupState(vault.vaultId).lastFailed).toBe(false);
+  });
+
+  it("removes a part file an earlier try left, and never counts it as an archive", async () => {
+    boundary.documents.set("Plainva Backups/Vault/Vault_2026-09-08_10-00-00.zip.1234.part", btoa("half an archive"));
+    const name = await runVaultBackup(vault, "Vault");
+    expect(name).toBeTruthy();
+    expect([...boundary.documents.keys()].filter((key) => key.endsWith(".part"))).toEqual([]);
+    const { listBackups } = await import("./vaultBackup");
+    boundary.documents.set("Plainva Backups/Vault/Vault_2026-09-09_09-00-00.zip.5678.part", btoa("another half"));
+    expect((await listBackups("Vault", Date.now())).archives.every((entry) => entry.endsWith(".zip"))).toBe(true);
+  });
+
+  it("a try that ended the app is not repeated at the next start", async () => {
+    // What a killed try leaves: the mark, and no archive.
+    localStorage.setItem(`m-backup-zip-attempt-${vault.vaultId}`, JSON.stringify({ at: Date.now(), failures: 1 }));
+    const list = vi.spyOn(adapter, "listDirForBackup");
+    await backupIfDue(vault, "Vault");
+    expect(list).not.toHaveBeenCalled();
+    expect(backupState(vault.vaultId).lastFailed).toBe(true);
+  });
+
+  it("holds no more than one file's worth, whatever the vault's size: 500 MB through the test adapter", async () => {
+    // 125 files of 4 MB each, handed out by the adapter; the archive goes to a counting sink.
+    // What is measured is what the page holds between reads: everything the
+    // archive made of the files read so far has gone to the sink before the
+    // next one is read - so at the last read, all but one file is written out.
+    const { streamVaultZip } = await import("./vaultExport");
+    const file = noise(4 * 1024 * 1024, 3);
+    let written = 0;
+    const heldAtRead: number[] = [];
+    let read = 0;
+    const big = {
+      listDirForBackup: async () => Array.from({ length: 125 }, (_, i) => ({ path: `f-${i}.bin`, isDirectory: false })),
+      readBinaryFile: async () => {
+        // Bytes read so far minus bytes written so far: what is still in the page.
+        heldAtRead.push(read * file.length - written);
+        read += 1;
+        return file.slice();
+      },
+    };
+    await streamVaultZip({ ...vault, adapter: big } as unknown as MobileVault, { write: async (chunk) => { written += chunk.length; } });
+    expect(written).toBeGreaterThan(500 * 1024 * 1024);
+    // Never more than about one file in the page, at any read: not the 500 MB.
+    expect(Math.max(...heldAtRead)).toBeLessThanOrEqual(file.length);
+  }, 300_000);
+});
+

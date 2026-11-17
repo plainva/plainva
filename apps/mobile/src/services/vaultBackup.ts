@@ -4,7 +4,8 @@ import { availableZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZi
 import i18n from "@plainva/ui/i18n";
 import { isMissingFile } from "../adapters/fileErrors";
 import { getMobileSettings } from "./mobileSettings";
-import { buildVaultZip } from "./vaultExport";
+import { nativeFileDigest } from "../platform/atomicFile";
+import { PartFileSink, streamVaultZip, ZipStoppedError } from "./vaultExport";
 import type { MobileVault } from "./vaultService";
 import { classifyBackupListing, type BackupListing, type UnreadableMark } from "./backupListing";
 
@@ -45,12 +46,59 @@ import { classifyBackupListing, type BackupListing, type UnreadableMark } from "
  *
  * Naming, retention and the due-check are the shared ones (`@plainva/ui`), so
  * two devices archiving the same vault prune by one rule.
+ *
+ * **The archive never crosses the bridge whole (release list F51).** It used
+ * to be built in memory and written as one base64 message; a vault that had
+ * grown to 88 MB made that one 118 MB message, and Android ran out of memory
+ * parsing it on its UI thread 40 s after every start. Now it is written as it
+ * is made, in parts (`streamVaultZip`, `PartFileSink`), and checked by its size
+ * and the SHA-256 the system takes of the file where it lies against the one
+ * taken while writing - a truncated archive is never a success, and nothing
+ * is read back. A try is marked BEFORE it begins, so one that ends the app
+ * counts as failed; after a failure the next automatic try waits a day, then
+ * longer each time, and the vault screen says the last one failed. "Back up
+ * now" always runs. The automatic one waits until the app is quiet: after the
+ * first frame and the start-up index pass.
  */
 
 const DIR = Directory.Documents;
 const ROOT = "Plainva Backups";
 
 const lastRunKey = (vaultId: string) => `m-backup-zip-last-${vaultId}`;
+/** The last try that has not ended in an archive: `{ at, failures, error }` (see the module comment). */
+const attemptKey = (vaultId: string) => `m-backup-zip-attempt-${vaultId}`;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** The longest wait between two automatic tries after failures. */
+const MAX_BACKOFF_MS = 7 * DAY_MS;
+
+export interface BackupAttempt {
+  /** Epoch ms the try began. */
+  at: number;
+  /** Tries in a row that ended without an archive, this one included. */
+  failures: number;
+  /** What ended it, as a kind (`Error` name), when it ended without ending the app. */
+  error?: string;
+}
+
+export function readBackupAttempt(vaultId: string): BackupAttempt | null {
+  try {
+    const raw = localStorage.getItem(attemptKey(vaultId));
+    const value = raw ? (JSON.parse(raw) as BackupAttempt) : null;
+    return value && Number.isFinite(value.at) && Number.isFinite(value.failures) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeBackupAttempt(vaultId: string, attempt: BackupAttempt | null): void {
+  if (attempt) localStorage.setItem(attemptKey(vaultId), JSON.stringify(attempt));
+  else localStorage.removeItem(attemptKey(vaultId));
+}
+
+/** When the next automatic try may run after `attempt` failed: a day, doubling, at most a week. */
+export function nextAutomaticTry(attempt: BackupAttempt): number {
+  return attempt.at + Math.min(MAX_BACKOFF_MS, DAY_MS * 2 ** Math.max(0, attempt.failures - 1));
+}
 // Keyed by the folder name, not the vault id: the folder is what survives a
 // reinstall, and the vault id is minted fresh by the new installation.
 const unreadableKey = (name: string) => `m-backup-unreadable-${sanitizeFileName(name)}`;
@@ -80,11 +128,13 @@ export interface BackupState {
   keep: number;
   /** Epoch ms of the last successful archive; 0 = never. */
   lastRun: number;
+  /** Whether the last try ended without an archive (or ended the app). */
+  lastFailed: boolean;
 }
 
 export function backupState(vaultId: string): BackupState {
   const s = getMobileSettings();
-  return { enabled: s.backupZipEnabled, keep: s.backupZipKeep, lastRun: readLastRun(vaultId) };
+  return { enabled: s.backupZipEnabled, keep: s.backupZipKeep, lastRun: readLastRun(vaultId), lastFailed: (readBackupAttempt(vaultId)?.failures ?? 0) > 0 };
 }
 
 /**
@@ -96,9 +146,11 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
   if (Capacitor.getPlatform() === "web") return null;
   if (running) return null;
   running = true;
+  // Marked before anything is written: a try that ends the app counts as one that failed.
+  const failedBefore = readBackupAttempt(vault.vaultId)?.failures ?? 0;
+  writeBackupAttempt(vault.vaultId, { at: Date.now(), failures: failedBefore + 1 });
   try {
     const folder = backupFolderFor(name);
-    const zip = await buildVaultZip(vault);
     const present = async (file: string): Promise<boolean> => {
       try { await Filesystem.stat({ path: file, directory: DIR }); return true; }
       catch (error) { if (isMissingFile(error)) return false; throw error; }
@@ -106,19 +158,25 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
     const fileName = await availableZipFileName(name, new Date(), (file) => present(folder + "/" + file));
     const destination = folder + "/" + fileName;
     const partial = destination + "." + crypto.randomUUID() + ".part";
+    // A part file a try that ended the app left (it died between two parts): never an archive, removed now.
+    await removeLeftoverParts(folder);
+    const sink = new PartFileSink(partial, DIR);
     try {
-      await Filesystem.writeFile({ path: partial, directory: DIR, data: zip, recursive: true });
-      // Check the actual bytes before publication or retention. A resolved
-      // native write alone must not turn a truncated archive into a success.
-      const checked = await Filesystem.readFile({ path: partial, directory: DIR });
-      if (typeof checked.data !== "string" || checked.data.replace(/\s/g, "") !== zip) {
+      // Switched off while it runs: it stops before the next file, and the part file goes.
+      await streamVaultZip(vault, sink, () => !getMobileSettings().backupZipEnabled);
+      const written = await sink.close();
+      // Check the file on disk before publication or retention: its size and the
+      // hash the system takes of it, against what was written. A resolved native
+      // write alone must not turn a truncated archive into a success.
+      const checked = await nativeFileDigest(partial, "DOCUMENTS");
+      if (!checked || checked.size !== sink.size || checked.sha256 !== written) {
         throw new Error("Backup verification failed");
       }
       if (await present(destination)) throw new Error("Backup destination already exists");
       await Filesystem.rename({ from: partial, to: destination, directory: DIR, toDirectory: DIR });
     } catch (error) {
       // A partial archive left behind takes room until the next run; the failure itself is thrown.
-      await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
+      if (sink.started) await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
       throw error;
     }
 
@@ -136,7 +194,13 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
     }
 
     localStorage.setItem(lastRunKey(vault.vaultId), String(Date.now()));
+    writeBackupAttempt(vault.vaultId, null);
     return fileName;
+  } catch (error) {
+    // Stopped because it was switched off: no failure, and nothing waits.
+    if (error instanceof ZipStoppedError) writeBackupAttempt(vault.vaultId, failedBefore > 0 ? { at: Date.now(), failures: failedBefore } : null);
+    else writeBackupAttempt(vault.vaultId, { at: Date.now(), failures: failedBefore + 1, error: error instanceof Error ? error.name : "Error" });
+    throw error;
   } finally {
     running = false;
   }
@@ -156,17 +220,56 @@ export async function backupVaultNow(vault: MobileVault, name: string): Promise<
   }
 }
 
+/** The least time after the vault opened before the automatic archive starts. */
+const QUIET_AFTER_MS = 15_000;
+/** The most it waits for the index pass. */
+const QUIET_AT_MOST_MS = 3 * 60_000;
+
+/**
+ * Resolves once the start is quiet: the first frame is drawn, the start-up
+ * index pass is through (or three minutes have gone by), and at least 15 s
+ * have passed - the automatic archive reads the whole vault and must not do it
+ * beside the index pass in the first seconds.
+ */
+export async function whenStartIsQuiet(vault: Pick<MobileVault, "indexSettled">, now = () => Date.now(), wait = (ms: number) => new Promise<void>((resume) => setTimeout(resume, ms))): Promise<void> {
+  const began = now();
+  await new Promise<void>((resume) => (typeof requestAnimationFrame === "function" ? requestAnimationFrame(() => resume()) : resume()));
+  while (!vault.indexSettled() && now() - began < QUIET_AT_MOST_MS) await wait(2000);
+  const left = QUIET_AFTER_MS - (now() - began);
+  if (left > 0) await wait(left);
+}
+
 /**
  * Catch-up check: runs an archive if one is due. Called on vault open and on
  * return to the foreground. A failed automatic run reports the vault by name;
  * the previous successful timestamp remains unchanged so the next check retries.
  */
+/** Removes the part files a try that ended the app left in the folder (they end in `.part`, never `.zip`). */
+async function removeLeftoverParts(folder: string): Promise<void> {
+  let names: string[];
+  try {
+    const listing = await Filesystem.readdir({ path: folder, directory: DIR });
+    names = listing.files.map((f) => (typeof f === "string" ? f : f.name));
+  } catch {
+    // silent: a folder that does not exist yet holds no leftovers.
+    return;
+  }
+  for (const name of names.filter((entry) => entry.endsWith(".part"))) {
+    await Filesystem.deleteFile({ path: `${folder}/${name}`, directory: DIR }).catch(reportingTo("backup:partial"));
+  }
+}
+
 export async function backupIfDue(vault: MobileVault, name: string): Promise<void> {
   const { enabled, lastRun } = backupState(vault.vaultId);
   if (!shouldRunZip({ enabled, lastRun, now: Date.now(), running })) return;
+  // After a failure - or a try that ended the app - not before the wait is over.
+  const attempt = readBackupAttempt(vault.vaultId);
+  if (attempt && attempt.failures > 0 && Date.now() < nextAutomaticTry(attempt)) return;
   try {
     await runVaultBackup(vault, name);
-  } catch {
+  } catch (error) {
+    // Switched off while it ran: that is what was asked for, not a failure.
+    if (error instanceof ZipStoppedError) return;
     toast.warning(i18n.t("mobile.backupZipFailed", { name }));
   }
 }

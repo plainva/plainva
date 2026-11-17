@@ -39,7 +39,9 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "append", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "commit", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "abort", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openRead", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readPart", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "closeRead", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "sweep", returnType: CAPPluginReturnPromise)
     ]
 
@@ -160,32 +162,90 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    /** Part of a file: `length` bytes (at most 256 KB) from `offset`, as base64, with the file's size. */
-    @objc func read(_ call: CAPPluginCall) {
-        guard let rel = call.getString("path") else {
-            call.reject("path required")
-            return
+    /** A read in parts: one open file, so every part comes from the same version of it. */
+    private final class OpenRead {
+        let handle: FileHandle
+        let size: UInt64
+        var lastUsed = Date()
+        init(handle: FileHandle, size: UInt64) {
+            self.handle = handle
+            self.size = size
         }
-        let offset = call.getInt("offset") ?? 0
-        let length = min(call.getInt("length") ?? AtomicFilePlugin.maxRead, AtomicFilePlugin.maxRead)
-        guard offset >= 0, length >= 0, let source = inSandbox(rel, call.getString("directory") ?? "DATA") else {
+    }
+
+    private var openReads: [String: OpenRead] = [:]
+    /** A read nobody closed (its page went away) is closed after this long without a part. */
+    private static let readIdle: TimeInterval = 2 * 60
+
+    private func closeIdleReads() {
+        let cutoff = Date().addingTimeInterval(-AtomicFilePlugin.readIdle)
+        openLock.lock()
+        let idle = openReads.filter { $0.value.lastUsed < cutoff }
+        for key in idle.keys { openReads.removeValue(forKey: key) }
+        openLock.unlock()
+        for read in idle.values { try? read.handle.close() }
+    }
+
+    /**
+     * Opens a file for a read in parts and answers its size. Every part comes
+     * through this one open file: a file replaced by a rename meanwhile is read
+     * as the version that was opened, never the front of one and the end of
+     * another (release list F51, second review).
+     */
+    @objc func openRead(_ call: CAPPluginCall) {
+        guard let rel = call.getString("path"), let source = inSandbox(rel, call.getString("directory") ?? "DATA") else {
             call.reject("path escapes the sandbox")
             return
         }
+        closeIdleReads()
         guard FileManager.default.fileExists(atPath: source.path) else {
             call.reject("File does not exist", "OS-PLUG-FILE-0008")
             return
         }
         do {
             let handle = try FileHandle(forReadingFrom: source)
-            defer { try? handle.close() }
             let size = try handle.seekToEnd()
-            try handle.seek(toOffset: UInt64(offset))
-            let chunk = try handle.read(upToCount: length) ?? Data()
-            call.resolve(["data": chunk.base64EncodedString(), "size": size])
+            let id = UUID().uuidString
+            openLock.lock()
+            openReads[id] = OpenRead(handle: handle, size: size)
+            openLock.unlock()
+            call.resolve(["id": id, "size": size])
         } catch {
             call.reject("read failed: \(error.localizedDescription)")
         }
+    }
+
+    /** At most `length` bytes (and never more than 256 KB) from `offset` of an open read, as base64. */
+    @objc func readPart(_ call: CAPPluginCall) {
+        let id = call.getString("id") ?? ""
+        openLock.lock()
+        let read = openReads[id]
+        read?.lastUsed = Date()
+        openLock.unlock()
+        // A number arrives as an NSNumber of whichever size; read it as one, never through a narrower type.
+        let offset = (call.options["offset"] as? NSNumber)?.int64Value ?? -1
+        let length = (call.options["length"] as? NSNumber)?.int64Value ?? -1
+        guard let read = read, offset >= 0, length >= 0 else {
+            call.reject("no such read, or no offset and length")
+            return
+        }
+        do {
+            let want = Int(max(0, min(min(length, Int64(AtomicFilePlugin.maxRead)), Int64(read.size) - offset)))
+            try read.handle.seek(toOffset: UInt64(offset))
+            let chunk = try read.handle.read(upToCount: want) ?? Data()
+            call.resolve(["data": chunk.base64EncodedString()])
+        } catch {
+            call.reject("read failed: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func closeRead(_ call: CAPPluginCall) {
+        let id = call.getString("id") ?? ""
+        openLock.lock()
+        let read = openReads.removeValue(forKey: id)
+        openLock.unlock()
+        try? read?.handle.close()
+        call.resolve()
     }
 
     /** Removes the temp files a killed process left below `path` (older than ten minutes). */
@@ -195,15 +255,22 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         let cutoff = Date().addingTimeInterval(-AtomicFilePlugin.orphanAge)
-        var removed = 0
-        if let walker = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey]) {
-            for case let file as URL in walker where file.lastPathComponent.hasPrefix(".plainva-tmp-") {
-                let values = try? file.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey])
-                guard values?.isRegularFile == true, let modified = values?.contentModificationDate, modified < cutoff else { continue }
-                if (try? FileManager.default.removeItem(at: file)) != nil { removed += 1 }
+        openLock.lock()
+        let inUse = Set(openWrites.values.map { $0.temp.standardizedFileURL.path })
+        openLock.unlock()
+        // Off the plugins' queue: a walk over a large vault must not hold up every other call.
+        DispatchQueue.global(qos: .utility).async {
+            var removed = 0
+            if let walker = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey]) {
+                for case let file as URL in walker where file.lastPathComponent.hasPrefix(".plainva-tmp-") {
+                    let values = try? file.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey])
+                    guard values?.isRegularFile == true, let modified = values?.contentModificationDate, modified < cutoff,
+                          !inUse.contains(file.standardizedFileURL.path) else { continue }
+                    if (try? FileManager.default.removeItem(at: file)) != nil { removed += 1 }
+                }
             }
+            call.resolve(["removed": removed])
         }
-        call.resolve(["removed": removed])
     }
 
     @objc func write(_ call: CAPPluginCall) {
@@ -294,15 +361,10 @@ public class AtomicFilePlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("path required")
             return
         }
-        guard let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        else {
-            call.reject("no documents directory")
-            return
-        }
-        let rootStd = root.standardizedFileURL
-        let source = URL(fileURLWithPath: rel, relativeTo: rootStd).standardizedFileURL
-        let rootPrefix = rootStd.path.hasSuffix("/") ? rootStd.path : rootStd.path + "/"
-        guard source.path.hasPrefix(rootPrefix) else {
+        // "DOCUMENTS" is the same folder as "DATA" on iOS (Directory.Documents and Directory.Data
+        // both resolve to it); "LIBRARY" the app's own files.
+        let directory = call.getString("directory") ?? "DATA"
+        guard let source = inSandbox(rel, directory == "DOCUMENTS" ? "DATA" : directory) else {
             call.reject("path escapes the sandbox")
             return
         }

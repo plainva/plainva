@@ -65,12 +65,23 @@ function sweepHttpFiles(): Promise<void> {
   return swept;
 }
 
+/** Removes the file a body waited in. */
+async function dropBodyFile(res: NativeResponse): Promise<void> {
+  if (!res.bodyFile) return;
+  await Filesystem.deleteFile({ path: res.bodyFile, directory: res.bodyDirectory === "LIBRARY" ? Directory.Library : Directory.Data })
+    .catch((error: unknown) => {
+      // silent: a hidden temp file; the next start sweeps it.
+      console.warn("[webdav] a response file stays until the next start", error);
+    });
+}
+
 /** The body of a native answer, read in parts where it waits in a file. */
 async function bodyOf(res: NativeResponse): Promise<Uint8Array> {
   if (!res.bodyFile) return b64ToBytes(res.bodyBase64 ?? "");
   const directory = res.bodyDirectory ?? "DATA";
   try {
-    return await nativeReadBytes(res.bodyFile, directory);
+    // In the background lane: a download never holds up what the person opens.
+    return await nativeReadBytes(res.bodyFile, directory, "background");
   } finally {
     await Filesystem.deleteFile({ path: res.bodyFile, directory: directory === "LIBRARY" ? Directory.Library : Directory.Data })
       .catch((error: unknown) => {
@@ -232,6 +243,15 @@ const nativeFetch: typeof fetch = async (input, init) => {
   let res: NativeResponse;
   try {
     const call = requestNative(request, signal);
+    // A request given up still gets its answer from the plugin later; a body it
+    // brought in a file is removed then, not left until a later start.
+    if (signal) {
+      void call.then((late) => {
+        if (signal.aborted && late.bodyFile) void dropBodyFile(late);
+      }, () => {
+        // silent: the request failed; there is no body to remove.
+      });
+    }
     res = signal ? await raceAbort(call, signal) : await call;
     bytes = await bodyOf(res);
   } finally {

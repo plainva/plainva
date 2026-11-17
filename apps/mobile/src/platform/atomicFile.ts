@@ -13,7 +13,7 @@ interface AtomicFilePluginApi {
   /** `directory` "LIBRARY" (iOS only) writes below Library instead of Documents. */
   write(opts: { path: string; data: string; encoding: "utf8" | "base64"; directory?: "DATA" | "LIBRARY" }): Promise<void>;
   /** Content hash computed natively while streaming the file (issue #48). */
-  sha256(opts: { path: string }): Promise<{ sha256: string; size: number }>;
+  sha256(opts: { path: string; directory?: "DATA" | "DOCUMENTS" | "LIBRARY" }): Promise<{ sha256: string; size: number }>;
   /** A write in parts: the temp file in the target's folder. */
   begin(opts: { path: string; directory?: "DATA" | "LIBRARY" }): Promise<{ id: string }>;
   /** One part, base64. */
@@ -22,8 +22,11 @@ interface AtomicFilePluginApi {
   commit(opts: { id: string }): Promise<void>;
   /** Drops the temp file. */
   abort(opts: { id: string }): Promise<void>;
-  /** At most `length` bytes (and never more than one part) from `offset`, base64, with the file's size. */
-  read(opts: { path: string; offset: number; length: number; directory?: "DATA" | "LIBRARY" }): Promise<{ data: string; size: number }>;
+  /** Opens a file for a read in parts: every part comes from this one open file, so from one version of it. */
+  openRead(opts: { path: string; directory?: "DATA" | "LIBRARY" }): Promise<{ id: string; size: number }>;
+  /** At most `length` bytes (and never more than one part) from `offset` of an open read, base64. */
+  readPart(opts: { id: string; offset: number; length: number }): Promise<{ data: string }>;
+  closeRead(opts: { id: string }): Promise<void>;
   /** Removes the temp files a killed process left below `path`. */
   sweep(opts: { path: string; directory?: "DATA" | "LIBRARY" }): Promise<{ removed: number }>;
 }
@@ -65,7 +68,24 @@ function base64ToPart(b64: string): Uint8Array {
  * into place only when every part is in (see `BRIDGE_PART_BYTES`). A write
  * that fails part way drops its temp file; the target keeps its old bytes.
  */
+/** One lane per target: writes to one file run in the order they began, so the last begun is the one that stays. */
+const writeLanes = new Map<string, Promise<void>>();
+
 async function nativeWriteBytes(path: string, bytes: Uint8Array, directory?: NativeDirectory): Promise<void> {
+  const key = `${directory ?? "DATA"}:${path}`;
+  const before = writeLanes.get(key) ?? Promise.resolve();
+  const mine = before.catch(() => {
+    // silent: the write before this one has its own caller, who hears of its failure.
+  }).then(() => writeInParts(path, bytes, directory));
+  const settled = mine.catch(() => {
+    // silent: this write's failure goes to its caller through `mine`; the lane only waits for it.
+  });
+  writeLanes.set(key, settled);
+  void settled.then(() => { if (writeLanes.get(key) === settled) writeLanes.delete(key); });
+  return mine;
+}
+
+async function writeInParts(path: string, bytes: Uint8Array, directory?: NativeDirectory): Promise<void> {
   const where = directory ? { directory } : {};
   if (bytes.length <= BRIDGE_PART_BYTES) {
     await AtomicFile.write({ path, data: partToBase64(bytes), encoding: "base64", ...where });
@@ -84,19 +104,26 @@ async function nativeWriteBytes(path: string, bytes: Uint8Array, directory?: Nat
   }
 }
 
-/** The most whole-file reads at once on a phone (see `nativeReadBytes`). */
+/** The most whole-file reads at once on a phone, in each of the two lanes (see `nativeReadBytes`). */
 export const MAX_OPEN_READS = 2;
-let openReads = 0;
-const waitingReads: Array<() => void> = [];
 
-/** A turn for one whole-file read; the returned call hands it on to the next waiting read, or frees it. */
-async function readSlot(): Promise<() => void> {
-  if (openReads < MAX_OPEN_READS) openReads += 1;
-  else await new Promise<void>((resume) => waitingReads.push(resume));
+/** Whose read it is: what the person is opening, or a body the network brought in the background. */
+export type ReadLane = "foreground" | "background";
+
+const lanes: Record<ReadLane, { open: number; waiting: Array<() => void> }> = {
+  foreground: { open: 0, waiting: [] },
+  background: { open: 0, waiting: [] },
+};
+
+/** A turn for one whole-file read in its lane; the returned call hands it on to the next waiting read, or frees it. */
+async function readSlot(lane: ReadLane): Promise<() => void> {
+  const slots = lanes[lane];
+  if (slots.open < MAX_OPEN_READS) slots.open += 1;
+  else await new Promise<void>((resume) => slots.waiting.push(resume));
   return () => {
-    const next = waitingReads.shift();
+    const next = slots.waiting.shift();
     if (next) next();
-    else openReads -= 1;
+    else slots.open -= 1;
   };
 }
 
@@ -105,13 +132,19 @@ async function readSlot(): Promise<() => void> {
  * changes size while it is read is read again, so the answer is one version
  * of it, never the front of one and the end of another.
  *
- * At most `MAX_OPEN_READS` files are read at once, whoever asks: a note with
+ * At most `MAX_OPEN_READS` files are read at once in each lane: a note with
  * twenty embedded 3 MB pictures, the pinboard, the covers of a database and the
  * index would otherwise hold all of them in the page at the same moment
- * (17.11.: the phone froze also without a network). The others wait their turn.
+ * (17.11.). The bodies of downloads (`webdavHttp.ts`) read in a lane of their
+ * own, so what the person opens never waits behind two large downloads.
+ *
+ * The file is opened once and every part read through that open file: one
+ * replaced by a rename meanwhile (a sync pull, a save, the Files app) is read
+ * as the version that was opened, never the front of one and the end of
+ * another.
  */
-export async function nativeReadBytes(path: string, directory?: NativeDirectory): Promise<Uint8Array> {
-  const release = await readSlot();
+export async function nativeReadBytes(path: string, directory?: NativeDirectory, lane: ReadLane = "foreground"): Promise<Uint8Array> {
+  const release = await readSlot(lane);
   try {
     return await readWholeFile(path, directory);
   } finally {
@@ -120,26 +153,21 @@ export async function nativeReadBytes(path: string, directory?: NativeDirectory)
 }
 
 async function readWholeFile(path: string, directory?: NativeDirectory): Promise<Uint8Array> {
-  const where = directory ? { directory } : {};
-  for (let attempt = 0; ; attempt += 1) {
-    const first = await AtomicFile.read({ path, offset: 0, length: BRIDGE_PART_BYTES, ...where });
-    const size = first.size;
+  const { id, size } = await AtomicFile.openRead({ path, ...(directory ? { directory } : {}) });
+  try {
     const bytes = new Uint8Array(size);
     let filled = 0;
-    let part = base64ToPart(first.data);
-    let steady = true;
-    while (true) {
-      if (filled + part.length > size) { steady = false; break; }
+    while (filled < size) {
+      const part = base64ToPart((await AtomicFile.readPart({ id, offset: filled, length: BRIDGE_PART_BYTES })).data);
+      if (part.length === 0 || filled + part.length > size) throw new Error(`${path} could not be read whole`);
       bytes.set(part, filled);
       filled += part.length;
-      if (filled >= size) break;
-      const next = await AtomicFile.read({ path, offset: filled, length: BRIDGE_PART_BYTES, ...where });
-      if (next.size !== size) { steady = false; break; }
-      part = base64ToPart(next.data);
-      if (part.length === 0) { steady = false; break; }
     }
-    if (steady) return bytes;
-    if (attempt >= 2) throw new Error(`${path} kept changing while it was read`);
+    return bytes;
+  } finally {
+    await AtomicFile.closeRead({ id }).catch(() => {
+      // silent: an open read nobody closes is closed by the plugin after two minutes.
+    });
   }
 }
 
@@ -218,7 +246,7 @@ export async function atomicWriteBase64(path: string, dataB64: string): Promise<
  * upload avoids (issue #48). Native only — the web dev server has no such
  * plugin, and no streaming upload either.
  */
-export async function nativeFileDigest(path: string): Promise<{ sha256: string; size: number } | null> {
+export async function nativeFileDigest(path: string, directory?: "DATA" | "DOCUMENTS"): Promise<{ sha256: string; size: number } | null> {
   if (!Capacitor.isNativePlatform()) return null;
-  return AtomicFile.sha256({ path });
+  return AtomicFile.sha256({ path, ...(directory ? { directory } : {}) });
 }

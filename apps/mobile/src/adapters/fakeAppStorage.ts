@@ -50,6 +50,7 @@ const state = {
 export function fakeAppStorage(kind: AppStorageKind) {
   Object.assign(state, { kind, files: new Map(), dirs: new Set([""]), mtimes: new Map(), clock: 1000, reads: [] });
   writes.clear();
+  openReads.clear();
   return { files: state.files, reads: state.reads };
 }
 
@@ -160,6 +161,8 @@ const Filesystem = {
 };
 
 const writes = new Map<string, { path: string; parts: Uint8Array[] }>();
+/** Open reads: the bytes as they were when the read was opened. */
+const openReads = new Map<string, Uint8Array>();
 
 /** What lies at `path` as bytes, for the plugin's read and hash (a phone stores nothing else). */
 function storedBytes(path: string): Uint8Array {
@@ -198,10 +201,20 @@ const AtomicFile = {
   async abort({ id }: { id: string }) {
     writes.delete(id);
   },
-  async read({ path, offset, length }: { path: string; offset: number; length: number }) {
+  async openRead({ path }: { path: string }) {
     const bytes = storedBytes(path);
-    if (offset === 0) state.reads.push({ path, as: "bytes" });
-    return { data: toBase64(bytes.subarray(offset, offset + Math.min(length, 256 * 1024))), size: bytes.length };
+    state.reads.push({ path, as: "bytes" });
+    const id = `read-${openReads.size + 1}-${path}`;
+    openReads.set(id, bytes);
+    return { id, size: bytes.length };
+  },
+  async readPart({ id, offset, length }: { id: string; offset: number; length: number }) {
+    const bytes = openReads.get(id);
+    if (!bytes) throw new Error("no such read");
+    return { data: toBase64(bytes.subarray(offset, offset + Math.min(length, 256 * 1024))) };
+  },
+  async closeRead({ id }: { id: string }) {
+    openReads.delete(id);
   },
   async sha256({ path }: { path: string }) {
     const bytes = storedBytes(path);

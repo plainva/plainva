@@ -24,6 +24,8 @@ const bridge = vi.hoisted(() => ({
   sentBodies: [] as Uint8Array[],
   crashAt: -1,
   calls: 0,
+  reads: new Map<string, Uint8Array>(),
+  readIds: 0,
 }));
 
 vi.mock("@capacitor/core", () => {
@@ -52,11 +54,26 @@ vi.mock("@capacitor/core", () => {
         bridge.files.set(temp.path, whole);
       },
       abort: ({ id }) => { bridge.temps.delete(id); },
+      // The old read by path, part by part (how the branch read before the second review).
       read: ({ path, offset, length }) => {
         const file = bridge.files.get(path);
         if (!file) throw Object.assign(new Error("File does not exist"), { code: "OS-PLUG-FILE-0008" });
         return { data: b64(file.subarray(offset, offset + Math.min(length, 256 * 1024))), size: file.length };
       },
+      // A read by handle: the bytes as they were when it was opened, as an open file keeps them after a rename.
+      openRead: ({ path }) => {
+        const file = bridge.files.get(path);
+        if (!file) throw Object.assign(new Error("File does not exist"), { code: "OS-PLUG-FILE-0008" });
+        const id = `r${++bridge.readIds}`;
+        bridge.reads.set(id, file);
+        return { id, size: file.length };
+      },
+      readPart: ({ id, offset, length }) => {
+        const file = bridge.reads.get(id);
+        if (!file) throw new Error("no such read");
+        return { data: b64(file.subarray(offset, offset + Math.min(length, 256 * 1024))) };
+      },
+      closeRead: ({ id }) => { bridge.reads.delete(id); },
       sha256: ({ path }) => ({ sha256: "f".repeat(64), size: bridge.files.get(path)!.length }),
       sweep: () => ({ removed: 0 }),
     }),
@@ -168,7 +185,7 @@ describe("a write in parts that ends anywhere", () => {
 describe("the native side has the calls on both platforms", () => {
   const source = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
-  it.each(["begin", "append", "commit", "abort", "read", "sweep"])("%s", (method) => {
+  it.each(["begin", "append", "commit", "abort", "openRead", "readPart", "closeRead", "sweep"])("%s", (method) => {
     const java = source("../../android/app/src/main/java/com/plainva/app/AtomicFilePlugin.java");
     expect(java).toMatch(new RegExp(`@PluginMethod\\s+public void ${method}\\(PluginCall call\\)`));
     const swift = source("../../ios/App/App/AtomicFilePlugin.swift");
@@ -186,7 +203,7 @@ describe("the native side has the calls on both platforms", () => {
     // getLong answers an Integer with its default: every part of a chunked upload began at 0.
     const java = source("../../android/app/src/main/java/com/plainva/app/WebDavHttpPlugin.java");
     expect(java).not.toMatch(/call\.getLong\("bodyOffset"/);
-    expect(java).toMatch(/optLong\("bodyOffset"/);
+    expect(java).toMatch(/JsNumbers\.whole\(call, "bodyOffset"/);
   });
 });
 
@@ -197,24 +214,111 @@ describe("a note with twenty embedded 3 MB pictures (17.11., the phone froze als
     // Every part of a read takes a moment, as on a phone; a read is open from its first part to its last.
     const open = new Set<string>();
     let most = 0;
-    const plugin = (await import("@capacitor/core")).registerPlugin("AtomicFile") as unknown as { read: (o: { path: string; offset: number; length: number }) => Promise<{ data: string; size: number }> };
-    const read = plugin.read;
-    plugin.read = async (opts) => {
-      open.add(opts.path);
+    type Plugin = {
+      openRead: (o: { path: string }) => Promise<{ id: string; size: number }>;
+      readPart: (o: { id: string; offset: number; length: number }) => Promise<{ data: string }>;
+      closeRead: (o: { id: string }) => Promise<void>;
+    };
+    const plugin = (await import("@capacitor/core")).registerPlugin("AtomicFile") as unknown as Plugin;
+    const { openRead, readPart, closeRead } = plugin;
+    plugin.openRead = async (opts) => {
+      const answer = await openRead(opts);
+      open.add(answer.id);
       most = Math.max(most, open.size);
-      await new Promise((resume) => setTimeout(resume, 1));
-      const answer = await read(opts);
-      if (opts.offset + 256 * 1024 >= answer.size) open.delete(opts.path);
       return answer;
+    };
+    plugin.readPart = async (opts) => {
+      await new Promise((resume) => setTimeout(resume, 1));
+      return readPart(opts);
+    };
+    plugin.closeRead = async (opts) => {
+      open.delete(opts.id);
+      return closeRead(opts);
     };
     try {
       const all = await Promise.all(pictures.map((path) => nativeReadBytes(path)));
       expect(all.every((bytes) => bytes.length === 3 * 1024 * 1024)).toBe(true);
     } finally {
-      plugin.read = read;
+      Object.assign(plugin, { openRead, readPart, closeRead });
     }
     expect(most).toBeLessThanOrEqual(2);
     expect(most).toBe(2);
     expect(largest()).toBeLessThanOrEqual(LIMIT);
   });
 });
+
+describe("a read is one version of the file (second review)", () => {
+  it("a file replaced by one of the same size between two parts is read whole as the one that was opened", async () => {
+    const oldNote = new TextEncoder().encode("- [ ] Task one\n" + "x".repeat(400 * 1024) + "\n- [ ] Task two\n");
+    const newNote = new TextEncoder().encode("- [x] Task one\n" + "x".repeat(400 * 1024) + "\n- [x] Task two\n");
+    expect(newNote.length).toBe(oldNote.length);
+    bridge.files.set("vaults/v1/Tasks.md", oldNote);
+    type Plugin = { readPart: (o: { id: string; offset: number; length: number }) => Promise<{ data: string }>; read: (o: { path: string; offset: number; length: number }) => Promise<{ data: string; size: number }> };
+    const plugin = (await import("@capacitor/core")).registerPlugin("AtomicFile") as unknown as Plugin;
+    const { readPart, read } = plugin;
+    let parts = 0;
+    // A sync pull or a save renames the new version into place after the first part.
+    const replaceAfterFirst = () => { if (++parts === 1) bridge.files.set("vaults/v1/Tasks.md", newNote); };
+    plugin.readPart = async (opts) => { const answer = await readPart(opts); replaceAfterFirst(); return answer; };
+    plugin.read = async (opts) => { const answer = await read(opts); replaceAfterFirst(); return answer; };
+    try {
+      const text = new TextDecoder().decode(await nativeReadBytes("vaults/v1/Tasks.md"));
+      expect({ head: text.slice(0, 14), tail: text.slice(-15, -1) }).toEqual({ head: "- [ ] Task one", tail: "- [ ] Task two" });
+    } finally {
+      Object.assign(plugin, { readPart, read });
+    }
+  });
+
+  it("what the person opens does not wait behind two downloads", async () => {
+    bridge.files.set("vaults/v1/a.bin", picture(1024)).set("vaults/v1/b.bin", picture(1024)).set("vaults/v1/note.md", picture(10));
+    type Plugin = { readPart: (o: { id: string; offset: number; length: number }) => Promise<{ data: string }> };
+    const plugin = (await import("@capacitor/core")).registerPlugin("AtomicFile") as unknown as Plugin;
+    const { readPart } = plugin;
+    let release!: () => void;
+    const held = new Promise<void>((resume) => { release = resume; });
+    const order: string[] = [];
+    plugin.readPart = async (opts) => {
+      const answer = await readPart(opts);
+      if (answer.data.length > 100) await held; // the two downloads hang
+      return answer;
+    };
+    try {
+      const downloads = [nativeReadBytes("vaults/v1/a.bin", "DATA", "background"), nativeReadBytes("vaults/v1/b.bin", "DATA", "background")].map((p) => p.then(() => order.push("download")));
+      await nativeReadBytes("vaults/v1/note.md").then(() => order.push("note"));
+      expect(order).toEqual(["note"]);
+      release();
+      await Promise.all(downloads);
+    } finally {
+      plugin.readPart = readPart;
+    }
+  });
+
+  it("of two writes to one file, the one begun last stays", async () => {
+    const big = picture(3 * BRIDGE_PART_BYTES);
+    const small = picture(10);
+    await Promise.all([atomicWriteBytes("vaults/v1/x.bin", big), atomicWriteBytes("vaults/v1/x.bin", small)]);
+    expect(same(bridge.files.get("vaults/v1/x.bin")!, small)).toBe(true);
+  });
+
+  it("a request given up removes the body its late answer left in a file", async () => {
+    bridge.responseBody = picture(3 * 1024 * 1024);
+    type Http = { request: (o: unknown) => Promise<unknown> };
+    const http = (await import("@capacitor/core")).registerPlugin("WebDavHttp") as unknown as Http;
+    const { request } = http;
+    let answer!: () => void;
+    const late = new Promise<void>((resume) => { answer = resume; });
+    http.request = async (opts) => { await late; return request(opts); };
+    try {
+      const controller = new AbortController();
+      const fetching = webdavFetch("https://dav.example/shot.png", { signal: controller.signal });
+      controller.abort();
+      await expect(fetching).rejects.toMatchObject({ name: "AbortError" });
+      answer();
+      await new Promise((resume) => setTimeout(resume, 10));
+      expect([...bridge.files.keys()]).toEqual([]);
+    } finally {
+      http.request = request;
+    }
+  });
+});
+

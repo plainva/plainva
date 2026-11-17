@@ -1,5 +1,6 @@
 package com.plainva.app;
 
+import android.os.Environment;
 import android.util.Base64;
 
 import com.getcapacitor.JSObject;
@@ -174,17 +175,45 @@ public class AtomicFilePlugin extends Plugin {
         write.temp.delete();
     }
 
-    /** Part of a file: `length` bytes (at most 256 KB) from `offset`, as base64, with the file's size. */
+    /** A read in parts: one open file, so every part comes from the same version of it. */
+    private static final class OpenRead {
+        final RandomAccessFile file;
+        final long size;
+        volatile long lastUsed = System.currentTimeMillis();
+        OpenRead(RandomAccessFile file, long size) {
+            this.file = file;
+            this.size = size;
+        }
+    }
+
+    private final Map<String, OpenRead> reads = new ConcurrentHashMap<>();
+    /** A read nobody closed (its page went away) is closed after this long without a part. */
+    private static final long READ_IDLE_MS = 2L * 60L * 1000L;
+
+    private void closeIdleReads() {
+        long cutoff = System.currentTimeMillis() - READ_IDLE_MS;
+        for (Map.Entry<String, OpenRead> entry : reads.entrySet()) {
+            if (entry.getValue().lastUsed < cutoff && reads.remove(entry.getKey()) != null) {
+                try { entry.getValue().file.close(); } catch (Exception ignored) { /* closing is all that is left to do */ }
+            }
+        }
+    }
+
+    /**
+     * Opens a file for a read in parts and answers its size. Every part
+     * (`readPart`) comes through this one open file: a file that is replaced
+     * by a rename meanwhile - a sync pull, a save, the Files app - is read as
+     * the version that was opened, never the front of one and the end of
+     * another (release list F51, second review).
+     */
     @PluginMethod
-    public void read(PluginCall call) {
+    public void openRead(PluginCall call) {
         String rel = call.getString("path");
-        // optLong, not getLong: a small number arrives as an Integer, which getLong answers with its default.
-        long offset = call.getData().optLong("offset", 0L);
-        long length = call.getData().optLong("length", MAX_READ);
-        if (rel == null || offset < 0 || length < 0) {
-            call.reject("path, offset and length required");
+        if (rel == null) {
+            call.reject("path required");
             return;
         }
+        closeIdleReads();
         try {
             File source = inSandbox(rel);
             if (source == null) {
@@ -195,23 +224,61 @@ public class AtomicFilePlugin extends Plugin {
                 call.reject("File does not exist", "OS-PLUG-FILE-0008");
                 return;
             }
-            try (RandomAccessFile file = new RandomAccessFile(source, "r")) {
-                long size = file.length();
-                int want = (int) Math.max(0, Math.min(Math.min(length, MAX_READ), size - offset));
-                byte[] bytes = new byte[want];
-                file.seek(offset);
-                file.readFully(bytes);
-                JSObject ret = new JSObject();
-                ret.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
-                ret.put("size", size);
-                call.resolve(ret);
-            }
+            RandomAccessFile file = new RandomAccessFile(source, "r");
+            String id = UUID.randomUUID().toString();
+            reads.put(id, new OpenRead(file, file.length()));
+            JSObject ret = new JSObject();
+            ret.put("id", id);
+            ret.put("size", reads.get(id).size);
+            call.resolve(ret);
         } catch (Exception e) {
             call.reject("read failed: " + e.getMessage(), e);
         }
     }
 
-    /** Removes the temp files a killed process left below `path` (older than ten minutes). */
+    /** At most `length` bytes (and never more than 256 KB) from `offset` of an open read, as base64. */
+    @PluginMethod
+    public void readPart(PluginCall call) {
+        String id = call.getString("id");
+        OpenRead read = id == null ? null : reads.get(id);
+        Long offset = JsNumbers.whole(call, "offset");
+        Long length = JsNumbers.whole(call, "length");
+        if (read == null || offset == null || length == null || offset < 0 || length < 0) {
+            call.reject("no such read, or no offset and length");
+            return;
+        }
+        try {
+            read.lastUsed = System.currentTimeMillis();
+            int want = (int) Math.max(0, Math.min(Math.min(length, MAX_READ), read.size - offset));
+            byte[] bytes = new byte[want];
+            synchronized (read) {
+                read.file.seek(offset);
+                read.file.readFully(bytes);
+            }
+            JSObject ret = new JSObject();
+            ret.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("read failed: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
+    public void closeRead(PluginCall call) {
+        String id = call.getString("id");
+        OpenRead read = id == null ? null : reads.remove(id);
+        if (read != null) {
+            try { read.file.close(); } catch (Exception ignored) { /* closing is all that is left to do */ }
+        }
+        call.resolve(new JSObject());
+    }
+
+    /**
+     * Removes the temp files a killed process left below `path` (older than ten
+     * minutes, and none of a write still open in this process). On a thread of
+     * its own: a walk over a large vault must not hold up the plugin thread every
+     * other plugin call waits on.
+     */
     @PluginMethod
     public void sweep(PluginCall call) {
         String rel = call.getString("path");
@@ -219,28 +286,39 @@ public class AtomicFilePlugin extends Plugin {
             call.reject("path required");
             return;
         }
+        final File folder;
         try {
-            File folder = inSandbox(rel);
-            if (folder == null) {
-                call.reject("path escapes the sandbox");
-                return;
-            }
-            JSObject ret = new JSObject();
-            ret.put("removed", sweepBelow(folder, System.currentTimeMillis() - ORPHAN_AGE_MS));
-            call.resolve(ret);
+            folder = inSandbox(rel);
         } catch (Exception e) {
             call.reject("sweep failed: " + e.getMessage(), e);
+            return;
         }
+        if (folder == null) {
+            call.reject("path escapes the sandbox");
+            return;
+        }
+        final java.util.Set<String> inUse = new java.util.HashSet<>();
+        for (Open write : open.values()) inUse.add(write.temp.getAbsolutePath());
+        new Thread(() -> {
+            try {
+                JSObject ret = new JSObject();
+                ret.put("removed", sweepBelow(folder, System.currentTimeMillis() - ORPHAN_AGE_MS, inUse));
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("sweep failed: " + e.getMessage(), e);
+            }
+        }, "plainva-sweep").start();
     }
 
-    private static int sweepBelow(File folder, long olderThan) {
+    private static int sweepBelow(File folder, long olderThan, java.util.Set<String> inUse) {
         File[] entries = folder.listFiles();
         if (entries == null) return 0;
         int removed = 0;
         for (File entry : entries) {
             if (entry.isDirectory()) {
-                removed += sweepBelow(entry, olderThan);
-            } else if (entry.getName().startsWith(".plainva-tmp-") && entry.lastModified() < olderThan && entry.delete()) {
+                removed += sweepBelow(entry, olderThan, inUse);
+            } else if (entry.getName().startsWith(".plainva-tmp-") && entry.lastModified() < olderThan
+                    && !inUse.contains(entry.getAbsolutePath()) && entry.delete()) {
                 removed += 1;
             }
         }
@@ -330,7 +408,17 @@ public class AtomicFilePlugin extends Plugin {
             return;
         }
         try {
-            File root = getContext().getFilesDir().getCanonicalFile();
+            // "DOCUMENTS": the public Documents folder, where the vault archive lies - resolved as
+            // the Filesystem plugin resolves Directory.Documents. Otherwise the app's files dir.
+            String directory = call.getString("directory", "DATA");
+            File base;
+            if ("DOCUMENTS".equals(directory)) base = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+            else if ("DATA".equals(directory)) base = getContext().getFilesDir();
+            else {
+                call.reject("unknown directory " + directory);
+                return;
+            }
+            File root = base.getCanonicalFile();
             File source = new File(root, rel).getCanonicalFile();
             if (!source.getPath().startsWith(root.getPath() + File.separator)) {
                 call.reject("path escapes the sandbox");

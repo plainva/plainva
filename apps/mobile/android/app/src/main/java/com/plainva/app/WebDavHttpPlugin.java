@@ -229,10 +229,16 @@ public class WebDavHttpPlugin extends Plugin {
                     return;
                 }
                 long fileLength = source.length();
-                // optLong, not getLong: a number that fits an int arrives as an Integer, which
+                // JsNumbers, not getLong: a number that fits an int arrives as an Integer, which
                 // getLong answers with its default - every part of a chunked upload began at 0.
-                long offset = call.getData().optLong("bodyOffset", 0L);
-                long length = call.getData().has("bodyLength") ? call.getData().optLong("bodyLength", fileLength - offset) : fileLength - offset;
+                Long offsetArg = JsNumbers.whole(call, "bodyOffset", 0L);
+                Long lengthArg = offsetArg == null ? null : JsNumbers.whole(call, "bodyLength", fileLength - offsetArg);
+                if (offsetArg == null || lengthArg == null) {
+                    call.reject("bodyOffset and bodyLength must be whole numbers");
+                    return;
+                }
+                long offset = offsetArg;
+                long length = lengthArg;
                 if (offset < 0 || length < 0 || offset + length > fileLength) {
                     call.reject("range " + offset + "+" + length + " exceeds the file (" + fileLength + " bytes)");
                     return;

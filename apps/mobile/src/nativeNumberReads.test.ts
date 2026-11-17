@@ -15,17 +15,36 @@ describe("the Android plugins read whole numbers as they arrive", () => {
   const sources = readdirSync(folder).filter((name) => name.endsWith(".java"));
 
   it("finds the plugins", () => {
-    expect(sources).toEqual(expect.arrayContaining(["WebDavHttpPlugin.java", "LocalModelPlugin.java", "AtomicFilePlugin.java"]));
+    expect(sources).toEqual(expect.arrayContaining(["WebDavHttpPlugin.java", "LocalModelPlugin.java", "AtomicFilePlugin.java", "DevicePimPlugin.java", "JsNumbers.java"]));
   });
 
-  it.each(sources)("%s does not read a number with call.getLong", (name) => {
-    expect(readFileSync(new URL(name, folder), "utf8")).not.toMatch(/\bcall\.getLong\(/);
+  it.each(sources)("%s reads a number a call carries only through JsNumbers", (name) => {
+    const source = readFileSync(new URL(name, folder), "utf8");
+    // getInt, getLong, getDouble and getFloat each answer every other kind of number with their default:
+    // a time in milliseconds is a Long, an offset below 2 GB an Integer (F55).
+    expect(source).not.toMatch(/\bcall\.get(?:Int|Long|Double|Float)\(/);
+    expect(source).not.toMatch(/\bcall\.getData\(\)\.opt(?:Int|Long|Double)\(/);
   });
 
-  it("the streamed upload's range and the model size are read with optLong", () => {
+  it("the reader takes every kind of number and says when there is none", () => {
+    const reader = readFileSync(new URL("JsNumbers.java", folder), "utf8");
+    expect(reader).toMatch(/if \(!\(value instanceof Number\)\) return null;/);
+    expect(reader).toMatch(/d != Math\.rint\(d\)/);
+  });
+
+  it("the streamed upload's range, the model size and the calendar's times go through it", () => {
     const http = readFileSync(new URL("WebDavHttpPlugin.java", folder), "utf8");
-    expect(http).toMatch(/optLong\("bodyOffset", 0L\)/);
-    expect(http).toMatch(/optLong\("bodyLength"/);
-    expect(readFileSync(new URL("LocalModelPlugin.java", folder), "utf8")).toMatch(/optLong\("bytes", 0L\)/);
+    expect(http).toMatch(/JsNumbers\.whole\(call, "bodyOffset", 0L\)/);
+    expect(http).toMatch(/JsNumbers\.whole\(call, "bodyLength"/);
+    expect(readFileSync(new URL("LocalModelPlugin.java", folder), "utf8")).toMatch(/JsNumbers\.whole\(call, "bytes"\)/);
+    const pim = readFileSync(new URL("DevicePimPlugin.java", folder), "utf8");
+    expect(pim).toMatch(/JsNumbers\.whole\(call, "fromTs"\)/);
+  });
+
+  it("deleting one occurrence whose time cannot be read deletes nothing, never the whole series", () => {
+    const pim = readFileSync(new URL("DevicePimPlugin.java", folder), "utf8");
+    const body = pim.slice(pim.indexOf("public void deleteEvent("));
+    expect(body.indexOf('call.reject("occurrenceStartTs must be a whole number")')).toBeGreaterThan(-1);
+    expect(body.indexOf('call.reject("occurrenceStartTs must be a whole number")')).toBeLessThan(body.indexOf("cr.delete("));
   });
 });

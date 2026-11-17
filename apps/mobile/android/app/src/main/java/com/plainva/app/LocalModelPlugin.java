@@ -144,9 +144,10 @@ public class LocalModelPlugin extends Plugin {
         String name = call.getString("name");
         String url = call.getString("url");
         String sha256 = call.getString("sha256");
-        // optLong, not getLong: a size that fits an int arrives as an Integer, which getLong
+        // JsNumbers, not getLong: a size that fits an int arrives as an Integer, which getLong
         // answers with null - every file under 2 GB was refused as "download_not_allowed".
-        long bytes = call.getData().optLong("bytes", 0L);
+        Long bytesArg = JsNumbers.whole(call, "bytes");
+        long bytes = bytesArg == null ? 0 : bytesArg;
         if (!LocalModelRules.validSha256(sha256) || bytes <= 0 || !LocalModelRules.allowedUrl(url, name)) {
             call.reject("download_not_allowed");
             return;
@@ -360,8 +361,8 @@ public class LocalModelPlugin extends Plugin {
             try {
                 OrtSession session = sessions.get(call.getString("handle", ""));
                 if (session == null) throw new IOException("model_not_loaded");
-                int batch = call.getInt("batch", 0);
-                int seq = call.getInt("seq", 0);
+                int batch = (int) JsNumbers.wholeOr(call, "batch", 0L);
+                int seq = (int) JsNumbers.wholeOr(call, "seq", 0L);
                 String pooling = call.getString("pooling", LocalModelRules.POOL_CLS);
                 byte[] idBytes = Base64.decode(call.getString("ids", ""), Base64.DEFAULT);
                 byte[] mask = Base64.decode(call.getString("mask", ""), Base64.DEFAULT);
