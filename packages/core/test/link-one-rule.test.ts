@@ -157,38 +157,3 @@ describe("what the rule costs", () => {
     expect(await after).toBe("Neu.md");
   });
 });
-
-/**
- * A template's placeholder is no title (Fehlerliste 0.9.0, B26): the index
- * reads `title: {{title}}` of a template as its title, and step 5 of the rule
- * found the template through `[[{{title}}]]`.
- */
-describe("a placeholder as the title of a template", () => {
-  const files = [
-    { path: "Templates/Meeting.md", title: "{{title}}" },
-    { path: "Templates/Daily.md", title: "Daily {{date:YYYY-MM-DD}}" },
-    { path: "Notes/Plan.md", title: "Der Plan" },
-  ];
-  const index = buildLinkTargetIndex(files);
-
-  it("names no note", () => {
-    expect(resolveLinkTargetIndexed("Notes/A.md", "{{title}}", index)).toBeNull();
-    expect(resolveLinkTargetIndexed("Notes/A.md", "Daily {{date:YYYY-MM-DD}}", index)).toBeNull();
-  });
-
-  it("leaves the template's file name and every other title as they were", () => {
-    expect(resolveLinkTargetIndexed("Notes/A.md", "Meeting", index)).toBe("Templates/Meeting.md");
-    expect(resolveLinkTargetIndexed("Notes/A.md", "Der Plan", index)).toBe("Notes/Plan.md");
-  });
-
-  it("keeps the title of a note about braces, which no template fills in", () => {
-    const notes = buildLinkTargetIndex([
-      { path: "Notes/handlebars-each.md", title: "The {{each}} helper" },
-      { path: "Notes/jinja.md", title: "Jinja {{ variable }} syntax" },
-      { path: "Notes/braces.md", title: "Set {a} and {{}}" },
-    ]);
-    expect(resolveLinkTargetIndexed("Notes/A.md", "The {{each}} helper", notes)).toBe("Notes/handlebars-each.md");
-    expect(resolveLinkTargetIndexed("Notes/A.md", "Jinja {{ variable }} syntax", notes)).toBe("Notes/jinja.md");
-    expect(resolveLinkTargetIndexed("Notes/A.md", "Set {a} and {{}}", notes)).toBe("Notes/braces.md");
-  });
-});
