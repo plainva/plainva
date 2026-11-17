@@ -7888,7 +7888,8 @@
     "driveFolder": "Der Anbieter hat eine ungültige Ordnerkennung zurückgegeben. Der Vorgang wurde abgebrochen.",
     "htmlDepth": "Dieses HTML ist zu tief verschachtelt. Vereinfache es oder importiere einen Markdown-Export.",
     "propertiesBlock": "Der Block am Anfang der Notiz lässt sich nicht als Eigenschaften lesen. Korrigiere ihn im Text der Notiz und versuche es erneut.",
-    "propertyNameTaken": "Die Notiz hat schon eine Eigenschaft mit dem neuen Namen."
+    "propertyNameTaken": "Die Notiz hat schon eine Eigenschaft mit dem neuen Namen.",
+    "propertySharedByAnchor": "Der Wert dieser Eigenschaft ist über einen YAML-Anker mit einer anderen geteilt (& und * im Text der Notiz). Ändere ihn im Text der Notiz selbst."
   },
   "audio": {
     "play": "{{name}} abspielen",

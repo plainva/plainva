@@ -8050,7 +8050,8 @@
     "driveFolder": "Il provider ha restituito un identificatore di cartella non valido. L’operazione è stata interrotta.",
     "htmlDepth": "Questo HTML contiene troppi livelli di annidamento. Semplificalo o importa un’esportazione Markdown.",
     "propertiesBlock": "Il blocco all’inizio della nota non può essere letto come proprietà. Correggilo nel testo della nota e riprova.",
-    "propertyNameTaken": "La nota ha già una proprietà con il nuovo nome."
+    "propertyNameTaken": "La nota ha già una proprietà con il nuovo nome.",
+    "propertySharedByAnchor": "Il valore di questa proprietà è condiviso con un’altra tramite un’ancora YAML (& e * nel testo della nota). Modificalo nel testo della nota stessa."
   },
   "audio": {
     "play": "Riproduci {{name}}",

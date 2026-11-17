@@ -226,8 +226,19 @@ describe("a change that cannot be made without changing another entry is refused
     expect(() => set(note, ["anchored"], ["a", "list"])).toThrow(FrontmatterSurgicalError);
   });
 
+  // The block reads: the refusal names the anchor, not an unreadable block
+  // (Fehlerliste 0.9.0, F45, second review).
+  it("says that a value another entry refers to is shared through an anchor", () => {
+    for (const write of [() => remove(note, ["anchored"]), () => set(note, ["anchored"], "other")]) {
+      expect(write).toThrow("Frontmatter entry 'anchored' is shared through a YAML anchor and cannot be changed where it stands");
+    }
+    expect(() => set(lf(["m: &m", "  k: 1", "n: *m"]), ["m", "k"], 2)).toThrow(/^Frontmatter entry 'm' is shared through a YAML anchor/);
+    // Without a reference to it, an anchored value is set where it stands.
+    expect(set(lf(["a: &x 1", "c: 3"]), ["a"], 2)).toBe(lf(["a: &x 2", "c: 3"]));
+  });
+
   it("says so the way a block that is no map is refused: the sentence the user is shown begins there", () => {
-    for (const write of [() => remove(note, ["anchored"]), () => set(note, ["status", "inner"], 1), () => set(note, ["tags", "inner"], 1)]) {
+    for (const write of [() => set(note, ["status", "inner"], 1), () => set(note, ["tags", "inner"], 1)]) {
       let message = "";
       try {
         write();

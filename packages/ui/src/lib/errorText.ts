@@ -53,6 +53,12 @@ const UNREADABLE_PROPERTIES_BLOCK = ["Frontmatter is not parseable YAML", "Front
  * repeated — whoever shows the sentence has just typed them.
  */
 const PROPERTY_NAME_TAKEN = ["Cannot rename '", "': target key already exists"] as const;
+/**
+ * A value another entry refers to through a YAML anchor
+ * (`sharedByAnchor` in `@plainva/core`): the block reads, so it is not said
+ * as one that does not — the user is told to change it in the note's text.
+ */
+const PROPERTY_SHARED_BY_ANCHOR = ["Frontmatter entry '", "' is shared through a YAML anchor and cannot be changed where it stands"] as const;
 
 function propertiesErrorText(message: string): string | null {
   const said = (key: string, fallback: string) => {
@@ -61,6 +67,9 @@ function propertiesErrorText(message: string): string | null {
   };
   if (message.startsWith(PROPERTY_NAME_TAKEN[0]) && message.endsWith(PROPERTY_NAME_TAKEN[1])) {
     return said("propertyNameTaken", "The note already has a property with the new name.");
+  }
+  if (message.startsWith(PROPERTY_SHARED_BY_ANCHOR[0]) && message.endsWith(PROPERTY_SHARED_BY_ANCHOR[1])) {
+    return said("propertySharedByAnchor", "This property's value is shared with another one through a YAML anchor (& and * in the note's text). Change it in the note's text itself.");
   }
   // Without a translation it is still only the beginning: never the quote.
   const block = UNREADABLE_PROPERTIES_BLOCK.find((start) => message.startsWith(start));

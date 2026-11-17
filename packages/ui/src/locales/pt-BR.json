@@ -8050,7 +8050,8 @@
     "driveFolder": "O provedor retornou um identificador de pasta inválido. A operação foi interrompida.",
     "htmlDepth": "Este HTML tem níveis de aninhamento demais. Simplifique-o ou importe uma exportação em Markdown.",
     "propertiesBlock": "O bloco no início da nota não pode ser lido como propriedades. Corrija-o no texto da nota e tente novamente.",
-    "propertyNameTaken": "A nota já tem uma propriedade com o novo nome."
+    "propertyNameTaken": "A nota já tem uma propriedade com o novo nome.",
+    "propertySharedByAnchor": "O valor desta propriedade é compartilhado com outra por uma âncora YAML (& e * no texto da nota). Altere-o no próprio texto da nota."
   },
   "audio": {
     "play": "Reproduzir {{name}}",

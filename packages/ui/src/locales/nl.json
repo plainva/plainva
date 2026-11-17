@@ -7888,7 +7888,8 @@
     "driveFolder": "De provider heeft een ongeldige mapidentificatie teruggestuurd. De bewerking is gestopt.",
     "htmlDepth": "Deze HTML is te diep genest. Vereenvoudig de structuur of importeer een Markdown-export.",
     "propertiesBlock": "Het blok bovenaan de notitie kan niet als eigenschappen worden gelezen. Corrigeer het in de tekst van de notitie en probeer het opnieuw.",
-    "propertyNameTaken": "De notitie heeft al een eigenschap met de nieuwe naam."
+    "propertyNameTaken": "De notitie heeft al een eigenschap met de nieuwe naam.",
+    "propertySharedByAnchor": "De waarde van deze eigenschap wordt via een YAML-anker met een andere gedeeld (& en * in de tekst van de notitie). Wijzig haar in de tekst van de notitie zelf."
   },
   "audio": {
     "play": "{{name}} afspelen",

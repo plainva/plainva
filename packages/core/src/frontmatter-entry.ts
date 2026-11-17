@@ -86,6 +86,12 @@ type Data = Record<string, unknown>;
  * for the diagnostics; nothing of the note's text does.
  */
 const notInPlace = (key: string) => new FrontmatterSurgicalError(`Frontmatter is not a YAML map whose entry '${key}' can be changed where it stands`);
+/**
+ * An entry whose value another entry refers to through a YAML anchor: the
+ * message begins with "Frontmatter entry '" and ends as below, the name of
+ * the entry between — no text of the note.
+ */
+const sharedByAnchor = (key: string) => new FrontmatterSurgicalError(`Frontmatter entry '${key}' is shared through a YAML anchor and cannot be changed where it stands`);
 const noMapUnder = (key: string) => new FrontmatterSurgicalError(`Frontmatter is not a YAML map under '${key}'`);
 
 // ── What is written ────────────────────────────────────────────────────────
@@ -1114,7 +1120,31 @@ function firstMade(place: Place, after: Data, key: string, ways: ReadonlyArray<(
     const next = made(place, way(), after);
     if (next !== null) return next;
   }
-  throw notInPlace(key);
+  throw (sharedThroughAnchor(place, key) ? sharedByAnchor(key) : notInPlace(key));
+}
+
+/**
+ * Whether the entry `key` holds a value — or a part of one — that another
+ * entry refers to (`a: &x 1` with `b: *x`): changed where it stands it would
+ * change for both, written anew it would lose the anchor the other needs
+ * (ADR 0009). The refusal says so, for the block itself reads.
+ */
+function sharedThroughAnchor(place: Place, key: string): boolean {
+  const root = place.doc.contents;
+  const pair = isMap(root) ? pairOf(root, key, place.doc) : null;
+  if (!pair || !isNode(pair.value)) return false;
+  const anchors = new Set<string>();
+  /** Every node under `node`, the node itself first. */
+  const walk = (node: unknown, each: (node: unknown) => void): void => {
+    each(node);
+    if (isMap(node)) for (const item of node.items) { walk(item.key, each); walk(item.value, each); }
+    else if (isSeq(node)) for (const item of node.items) walk(item, each);
+  };
+  walk(pair.value, (node) => { if (isNode(node) && node.anchor) anchors.add(node.anchor); });
+  if (anchors.size === 0) return false;
+  let referred = false;
+  walk(root, (node) => { if (isAlias(node) && anchors.has(node.source)) referred = true; });
+  return referred;
 }
 
 /**
