@@ -104,10 +104,11 @@ describe("both shells clear copies the same way", () => {
   // must be the plain note delete (snapshot, index, sync queue) — the task
   // deletion orders exist to make the provider's task follow, and a copy is
   // not the task. Guarded at the source, for both shells; both put the
-  // question "Delete without a backup?" where no net is there (D1).
+  // question "Delete without a backup?" where no net is there (D1),
+  // once for the whole clean-up (A12): the delete takes the batch's answer.
   const shells = [
-    { file: join(__dirname, "components/tasks/TaskDuplicatesNotice.tsx"), plainDelete: /deleteWithNet\(vaultAdapter!, path, false\)/ },
-    { file: join(__dirname, "../../mobile/src/screens/TasksScreen.tsx"), plainDelete: /vaultOps\.remove\(vault, path, \{ confirmed: true \}\)/ },
+    { file: join(__dirname, "components/tasks/TaskDuplicatesNotice.tsx"), plainDelete: /deleteWithNet\(vaultAdapter!, path, false, undefined, ask\)/ },
+    { file: join(__dirname, "../../mobile/src/screens/TasksScreen.tsx"), plainDelete: /vaultOps\.remove\(vault, path, \{ confirmed: true \}, ask\)/ },
   ];
   for (const { file, plainDelete } of shells) {
     it(`${basename(file)} drives the shared hook with a plain note delete`, () => {

@@ -1,5 +1,6 @@
-import { ensureDailyNote, noteStamp, parkTemplateCaret, type DailyNoteCreateConfig, type DailyNoteFiles, type TemplateContext, type TemplateVault } from "@plainva/ui";
+import { ensureDailyNote, noteStamp, parkTemplateCaret, templateVaultName, type DailyNoteCreateConfig, type DailyNoteFiles, type TemplateContext, type TemplateVault } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
+import { vaultFolderLabel, vaultNameKey } from "./vaultNames";
 import { appConfirm } from "./appDialogs";
 import {
   dailyNotesFolderKey,
@@ -97,11 +98,12 @@ export { noteStamp };
  * (open-items plan 3.143 no. 5).
  */
 export async function templateVaultOf(vaultPath: string): Promise<TemplateVault> {
-  const name = vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "";
+  // The name the vault goes by in the app (`vaultNames.ts`), as on the phone.
+  const name = vaultFolderLabel(vaultPath);
   try {
     const store = await getSettingsStore();
     return {
-      name,
+      name: templateVaultName(await store.get<string>(vaultNameKey(vaultPath)), name),
       dailyFolder: (await store.get<string>(dailyNotesFolderKey(vaultPath))) || "",
       dailyFormat: (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "",
     };
