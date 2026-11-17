@@ -491,9 +491,9 @@ highlights, and KaTeX for formulas): what tag pills and highlights make of `#a` 
 covered by the word weight, so their own weights (`TABLE_TAG_WEIGHT`, `TABLE_MARK_WEIGHT`) are 0.
 Formulas the node count does not hold: KaTeX's memory while it lays out a formula is far more than
 the elements it leaves (a table of `$a$` at the budget passed the node count and ran the reading
-view out of memory). So the calibration's reading view runs `remark-math` and KaTeX for a note with
-math, as the desktop app does (`loadReaderMath`), and a formula weighs on its own
-(`TABLE_MATH_WEIGHT`). What React and the DOM hold beyond the page is not measured. Until then the scan ended a table at the first such line
+view out of memory). Since 2026-11-17 the table budget does not weigh formulas at all; the reading
+view bounds them where it makes them (below, "Formulas"). What React and the DOM hold beyond the
+page is not measured. Until then the scan ended a table at the first such line
 and weighed no table in a quote, a list item or a footnote at all — older than the table budget:
 the rows-times-length rule of 2026-11-01 had the same hole. Where the scan is sure of the blocks (a
 table behind quote markers or list items only, starting a paragraph or interrupting one in the same
@@ -510,10 +510,10 @@ Calibrated 2026-11-15 over 141 shapes (99 fixed, 42 from searches) and three par
 source, reading view with its HTML tree, and with `remark-math` and KaTeX for a note with math): one
 per character, 832 per row, 204 per cell, 122 per character of inline syntax, 63 per footnote
 reference, 316 per link or image destination (a wiki link counts as one, and as an autolink
-literal: the reading view shows it as a Markdown link), 38 per `$` of a formula and 526 per
-character between two `$`, 160 per autolink literal, 171 per word, 72 per level of a block a table
+literal: the reading view shows it as a Markdown link), 160 per autolink literal, 171 per word, 72 per level of a block a table
 stands in (each `>`, each list marker, each two blanks of indent). The base — rows, cells,
-syntax — is chosen over the shapes without markers, literals, references and formulas, with at most
+syntax — is chosen over the shapes without markers, literals, references and formulas (formula
+shapes count for the formula budget since 2026-11-17, not here), with at most
 two links and ten words a row, so that a word and a link keeps the most rows. Then every shape still
 short of the budget / 0.9 is lifted by the part that lifts it most for what it costs a word and a
 link (its count of the part per row against a word and a link's): a footnote reference, a formula
@@ -575,30 +575,14 @@ since and are held by `--margin` (each table at 1.3 or 1.4 × the budget, withou
 128 MB), not by a limit search:
 
 - formulas between two `$` on each side (`$$…$$`, which remark-math reads in a cell as `$…$`; the
-  scan turned at every `$` and counted none of its content). Since the ninth review (2026-11-17)
-  the scan no longer reads formulas by hand: a row with a `$` (up to 100 000 characters) is read by
-  the reading view's own parser, micromark with GFM and math (`rowFormulas`), as the only row of a
-  table, and its formulas weigh what that parser makes formulas of — no more and no less. Weighed
-  by hand, a `$` without a closing one (a price, `$5 per month`) weighed everything behind it, a
-  `$` in a code span paired with one outside it, and tables of 91 to 208 rows lost their links to
-  the index; a `$` in an HTML tag, a link's destination or an autolink paired with the `$` of a
-  formula behind it, which stayed unweighed, and the sentence that no random cell weighed short of
-  remark-math was not true. `readerTableBudget.test.tsx` holds 6 000 random rows against the
-  reading view's parse (equal in every row), `inline-parse-budget.test.ts` prices, variables, code
-  with `$`, currencies and shell lines and 40 random such tables (a table, every link in the
-  index, and as heavy as without the `$`). The parser reads a row only where its formulas decide
-  (each row weighs them at a bound first, the characters between the first and the last `$` of a
-  cell with two, and at none; only where the two lie on either side of the budget is the row
-  parsed, the widest first): micromark reads about 2 MB a second, and read for every row a table
-  of 1 MB of prices took 4 s. It parses no row over 20 000 characters and no more than 1 000 000
-  characters of a note; beyond that a formula weighs its bound. A note the reading view reads no
-  formula in (`readsFormulas`, the rule `MarkdownReader.tsx` loads remark-math by) weighs none;
+  scan turned at every `$` and counted none of its content). Weighed since 2026-11-17 by the
+  formula budget of the reading view (below), not by the table's weight;
 - 120 `[^1]`, 80 `[l](u)` or `![i](p)`, 80 `[l][r]` or `[r][]`, 120 `[r]` with their definition,
   all without blanks between them: one word, but as many pieces of the cell's text. Each `[`
   glued to the word before it now counts as a word as well (not the second `[` of a wiki link,
   nor the `[` of an image that opens its word);
 - a matrix of sixty cells, which kept 30 % and no more at the calibration's weight of a formula's
-  character (526): the weight is 600 since, and every formula shape passes at 1.4 ×.
+  character (526): the formula budget weighs 600 a character since (below).
 
 | Shape | At 1.3 × the budget | At 1.4 × | At the budget |
 |---|---|---|---|
@@ -627,10 +611,40 @@ link, and a row of 1.5 MB whose link holds `[[x` over and over ran it out of mem
 pieces in one join and walks a label's spellings one by one; a stretch read as written is made
 safe by one replace, not a string grown by a character.
 
+**Formulas (since the tenth review, 2026-11-17).** Weighed before the parse, by hand and then with
+a parser of their own, formulas came out wrong or expensive in every review: a price (`$5 per
+month`) weighed everything behind it, a `$` in a code span paired with one outside it, a `$` in an
+HTML tag left the formula behind it unweighed, a reference definition below a table made a link of
+what the row alone read as a formula, a padded `$ x $` that remark-math reads once it is loaded
+stayed out, and parsing each row cost a table of 60 KB a second and of 1 MB 4.5 s at every pause in
+typing. The table budget now weighs a table's structure alone — a `$` is a character of inline
+syntax and nothing more — and the reading view bounds its formulas where it makes them:
+`remarkReaderMathBudget` (`readerMathBudget.ts` in packages/core) runs behind remark-math and ahead
+of rehype-katex, weighs each `inlineMath` and `math` node of the tree it really parsed in the order
+of the note at 600 a character of its source (`MATH_CHAR_WEIGHT`), and leaves every formula past
+`MATH_BUDGET` (6 970 000) as its source, as code, which KaTeX never sees. The memory is KaTeX's:
+without it every formula shape of the calibration reads at three times its limit under 128 MB
+(`$a$` × 100 at 264 rows, forty fractions in one formula at 222, a matrix of sixty cells at 315,
+thirty `\overbrace` at 159, an integral per row at 2 190), with it each runs out there. The weight
+comes from those limits: the matrix of sixty cells (105 rows of 149 characters) weighs 1.35 × the
+budget, a hundred `$a$` per row 2.3 ×, the others more. The index never lost a link to a formula
+and never will: it lays none out. `readerTableBudget.test.tsx` holds 40 random notes — tables,
+quotes, paragraphs, prices, code with `$`, reference definitions and footnotes with a `$`, padded
+formulas — against the reading view: every formula within the budget is laid out by KaTeX, every
+one past it is not, and every table is a table. Not covered: a table at its budget and formulas at
+theirs in one note (L14 weighs the whole note), and the editor's live preview, which lays out
+formulas as they scroll into view.
+
+**What the scan costs.** The scan runs at every pause in typing (the properties panel, the status
+bar), so it is held to twice what `main`'s takes at most. It reads characters by their codes with a
+table of what to do with each, and it keeps the parts of the table rows it weighed in the latest two
+scans, by the row and the characters around it: a pause re-weighs only the rows that changed, and
+what it keeps is the rows of at most two texts.
+
 **What the criterion covers, and what not.** Covered: one table alone in an otherwise empty
 note, read by the index parse, the note-source parse and the reading view as the core can run it
-— the note prepared for it (`prepareReaderSource`), GFM, `remark-math` and KaTeX for a note with
-math, its HTML tree — each under a heap of 128 MB, for the shapes measured and the shapes the
+— the note prepared for it (`prepareReaderSource`), GFM, `remark-math`, the formula budget and
+KaTeX for a note with math, its HTML tree — each under a heap of 128 MB, for the shapes measured and the shapes the
 search draws (words, numbers, every literal, references with their definition, links, tags,
 formulas of any length between one or two `$`, references, links, images and wiki links without
 blanks between them, highlights, CJK, emoji, CRLF, a byte order mark, quotes, lists, callouts,

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
-import { markdownLinkTarget, prepareReaderSource, readsFormulas, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
+import { markdownLinkTarget, prepareReaderSource, remarkReaderMathBudget, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
@@ -342,8 +342,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   // only when the note actually contains math syntax — the bundle stays out
   // of every math-free session. Until loaded, $…$ renders as plain text for
   // one frame.
-  // One rule with the table budget, which weighs formulas only where the reading view reads them (`readsFormulas`).
-  const hasMath = readsFormulas(content);
+  const hasMath = /\$\$[\s\S]+?\$\$|(?<![\\$])\$(?!\s)[^$\n]+?(?<!\s)\$(?!\d)/.test(content);
   const [mathPlugins, setMathPlugins] = React.useState<{ remark: unknown; rehype: unknown } | null>(null);
   React.useEffect(() => {
     if (!hasMath || mathPlugins) return;
@@ -431,7 +430,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       }}
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
-        remarkPlugins={[bounded.remarkRestore, ...READER_REMARK_PLUGINS, ...(mathPlugins ? [mathPlugins.remark as never] : [])]}
+        remarkPlugins={[bounded.remarkRestore, ...READER_REMARK_PLUGINS, ...(mathPlugins ? [mathPlugins.remark as never, remarkReaderMathBudget as never] : [])]}
         rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{

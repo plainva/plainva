@@ -23,7 +23,6 @@ import {
   TABLE_ROW_WEIGHT,
   tableLineStart,
   TABLE_SYNTAX_WEIGHT,
-  readsFormulas,
   tableReadCost,
   tableRowParts,
   COMMONMARK_READING,
@@ -773,20 +772,15 @@ describe("where a table ends", () => {
     }
   });
 
-  it("weighs each level of the blocks a table stands in, and the length of its formulas", () => {
+  it("weighs each level of the blocks a table stands in", () => {
     // A table twelve quotes deep ran the parse out of memory at the budget
-    // while its markers weighed nothing; a formula weighs its characters as
-    // well as its `$` (KaTeX lays out what stands between them).
+    // while its markers weighed nothing.
     expect(tableMarkerCount("> ".repeat(12))).toBe(12);
     expect(tableMarkerCount("  ".repeat(12))).toBe(12);
     expect(tableMarkerCount("- - ")).toBe(2);
     expect(tableMarkerCount("> - > ")).toBe(3);
     expect(tableMarkerCount("10. ")).toBe(1);
     expect(tableMarkerCost("> ".repeat(12))).toBe(24 + 12 * TABLE_MARKER_WEIGHT);
-    const formula = "| $\\int_0^1 x\\,dx$ | a$ |";
-    expect(tableRowParts(formula, 0, formula.length).maths).toBe(2);
-    // The `$` of the second cell opens nothing: no `$` closes it in its cell, and the table parser splits the row first.
-    expect(tableRowParts(formula, 0, formula.length).mathChars).toBe("\\int_0^1 x\\,dx".length);
     // Quotes and lists in each other as well (the hunt of 2026-11-15 drew `> - > - … |h|`): the scan is sure of their
     // blocks and reads the table exactly — under the budget as a table, over it as written.
     for (const [prefix, rest] of [["> ".repeat(12), "> ".repeat(12)], ["- ".repeat(12), "  ".repeat(12)], ["> - ".repeat(6), ">   ".repeat(6)]]) {
@@ -800,12 +794,14 @@ describe("where a table ends", () => {
     }
   });
 
-  it("weighs a `$` the parser reads as no formula as nothing: a table with prices, variables and code stays as heavy as without them", () => {
-    // The ninth review (2026-11-17): weighed by hand, a `$` without a closing
-    // one (a price) weighed everything behind it as a formula, and a `$` in a
-    // code span paired with one outside it; tables of 91 to 208 rows lost
-    // their links to the index and their table in the reading view, where
-    // main read them as tables. What a formula is, the parser decides.
+  it("weighs a `$` as the character it is: prices, variables, code and formulas weigh as their twins without `$`", () => {
+    // Ten reviews (2026-11-16/17) found formulas weighed wrong before the
+    // parse — a price weighed everything behind it, a `$` in code paired with
+    // one outside it, a reference definition made a link of a formula — and
+    // tables of a hundred rows lost their links to the index, where main read
+    // them as tables. The table budget weighs a table's structure alone; the
+    // reading view bounds its formulas where it makes them
+    // (`readerMathBudget.ts`). A `$` is inline syntax and nothing more.
     const rows = [
       "| Pro | $5 per month, billed yearly, cancel any time, see [[Plans]] |",
       "| `$HOME` | The home directory of the current user, used by many tools | [[Shell]] |",
@@ -815,88 +811,48 @@ describe("where a table ends", () => {
       "| $5 | $10 | $20 | $50 per year | [[Plans]] |",
       "| `echo $1 $2` | prints the first two arguments, US$ 3 | [[Shell]] |",
       "| <span title=\"$x\">cost</span> | $ 12 | [link](https://a.b/?q=$x) | <https://a.b/$y> | [[Shop]] |",
+      "| $5 per month, or $50 a year | $\\frac{a}{b}$ and $$x^2$$ | [x][a$] lone $ |",
     ];
     for (const row of rows) {
-      const parts = tableRowParts(row, 0, row.length);
-      expect({ maths: parts.maths, mathChars: parts.mathChars }, row).toEqual({ maths: 0, mathChars: 0 });
       // As heavy as its twin with an `S` for each `$`: the same characters, words and syntax but for the `$` itself.
       const twin = row.replaceAll("$", "S");
       expect(tableReadCost(row, 0, row.length), row).toBe(tableReadCost(twin, 0, twin.length) + TABLE_SYNTAX_WEIGHT * (row.split("$").length - 1));
       // 300 rows of it — main reads 1 900 and more of each under 128 MB — are a table, and the index holds every link of every row.
-      const note = `# N\n\n| a | b | c | d | e |\n|---|---|---|---|---|\n${`${row}\n`.repeat(300)}\nbelow [[Below]]\n`;
+      const note = `# N $x^2$\n\n| a | b | c | d | e |\n|---|---|---|---|---|\n${`${row}\n`.repeat(300)}\nbelow [[Below]]\n\n[a$]: http://u\n`;
       expect(overBudgetInlineRanges(note), row).toEqual([]);
       const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })).links.length;
-      expect(linksOf(note), row).toBe(300 * linksOf(`| a | b | c | d | e |\n|---|---|---|---|---|\n${row}\n`) + 1);
+      expect(linksOf(note), row).toBe(300 * linksOf(`| a | b | c | d | e |\n|---|---|---|---|---|\n${row}\n\n[a$]: http://u\n`) + 1);
     }
-    // And tables made at random of such pieces: where the parser reads no formula — in a note the reading view reads
-    // none in (`readsFormulas`), or in rows it finds none in — each weighs what its twin with an `S` for each `$`
-    // weighs, but for the `$` themselves; at 150 to 400 rows it is a table, and the index holds every link the
-    // parse of its rows ten at a time finds.
+    // And tables made at random of such pieces, formulas, reference definitions and quotes among them: each table
+    // weighs what its twin with an `S` for each `$` weighs, but for the `$` themselves, and decides as it does; at
+    // 150 to 400 rows it is a table, and the index holds every link the parse of its rows ten at a time finds.
     let seed = 20261117;
     const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-    // At most one piece with a `$` a cell: two would be a formula wherever the reading view reads formulas.
-    const dollars = ["$5", "$12.50", "US$ 3", "$HOME", "`$PATH`", "`echo $1`", "`a$b`", "**$9**", "<b>$</b>", "$ ", "a$", "[$](u)", "<https://a.b/$>", '<i t="$">', "\\$", "$-1"];
-    const words = ["€ 4", "per month", "[[Plans]]", "word", "two words", "x = 3", "*em*", "`code`"];
-    const cell = () => {
-      const parts = Array.from({ length: 1 + Math.floor(random() * 3) }, () => words[Math.floor(random() * words.length)]);
-      if (random() < 0.8) parts.splice(Math.floor(random() * (parts.length + 1)), 0, dollars[Math.floor(random() * dollars.length)]);
-      return parts.join(" ");
+    const pieces = ["$5", "$12.50", "US$ 3", "$HOME", "`$PATH`", "`echo $1 $2`", "`a$b`", "**$9**", "<b>$</b>", "$ ", "a$", "[$](u)", "<https://a.b/$>", '<i t="$">', "\\$", "$-1", "$x^2$", "$$\\frac{a}{b}$$", "$ y $", "[x][a$]", "[^a$]", "€ 4", "per month", "[[Plans]]", "word", "two words", "x = 3", "*em*", "`code`"];
+    const cell = () => Array.from({ length: 1 + Math.floor(random() * 4) }, () => pieces[Math.floor(random() * pieces.length)]).join(" ");
+    const weightOf = (text: string) => {
+      let weight = 0;
+      overBudgetInlineRanges(text, { table: (_first, _last, _exact, cost) => (weight += cost) });
+      return weight;
     };
-    // The rows as the scan weighs them where they decide (`formulasRead`): with the formulas the parser reads.
-    const weightOf = (rows: string[], columns: number) => rows.reduce((sum, row) => sum + tableReadCost(row, 0, row.length, columns), 0);
-    let checked = 0;
     for (let t = 0; t < 60; t++) {
       const columns = 2 + Math.floor(random() * 5);
-      const tableRows = Array.from({ length: 150 + Math.floor(random() * 250) }, () => `| ${Array.from({ length: columns }, cell).join(" | ")} |`);
-      const head = `|${" h |".repeat(columns)}\n|${"---|".repeat(columns)}\n`;
-      const note = `# N\n\n${head}${tableRows.join("\n")}\n`;
-      if (tableRows.some((row) => tableRowParts(row, 0, row.length).mathChars > 0)) {
-        // Rows the parser reads formulas in, in a note the reading view reads none in: the table decides as its twin does.
-        if (!readsFormulas(note)) expect(overBudgetInlineRanges(note), `table ${t}`).toEqual(overBudgetInlineRanges(note.replaceAll("$", "S")));
-        continue;
-      }
-      checked++;
-      const twins = tableRows.map((row) => row.replaceAll("$", "S"));
-      expect(weightOf(tableRows, columns), `table ${t}`).toBe(weightOf(twins, columns) + TABLE_SYNTAX_WEIGHT * (note.split("$").length - 1));
+      const prefix = random() < 0.3 ? "> " : "";
+      const tableRows = Array.from({ length: 150 + Math.floor(random() * 250) }, () => `${prefix}| ${Array.from({ length: columns }, cell).join(" | ")} |`);
+      const head = `${prefix}|${" h |".repeat(columns)}\n${prefix}|${"---|".repeat(columns)}\n`;
+      const after = "\n[a$]: http://u\n\n[^a$]: a note\n";
+      const note = `# N $x^2$\n\n${head}${tableRows.join("\n")}\n${after}`;
+      const twin = note.replaceAll("$", "S");
+      expect(weightOf(note), `table ${t}`).toBe(weightOf(twin) + TABLE_SYNTAX_WEIGHT * (`${head}${tableRows.join("\n")}`.split("$").length - 1));
       expect(overBudgetInlineRanges(note), `table ${t}`).toEqual([]);
       const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })).links.length;
       let links = 0;
-      for (let k = 0; k < tableRows.length; k += 10) links += linksOf(`# N\n\n${head}${tableRows.slice(k, k + 10).join("\n")}\n`);
-      expect(linksOf(note), `table ${t}`).toBe(links);
+      for (let k = 0; k < tableRows.length; k += 10) links += linksOf(`# N\n\n${head}${tableRows.slice(k, k + 10).join("\n")}\n${after}`);
+      expect(linksOf(note) - linksOf(after), `table ${t}`).toBe(links - linksOf(after) * Math.ceil(tableRows.length / 10));
     }
-    expect(checked).toBe(60);
   });
 
-  it("weighs a formula between two `$`, references and links without blanks, and dates as the reading view writes them", () => {
-    // The review of 2026-11-16: `$$x$$` in a cell is a formula to remark-math
-    // as `$x$` is, but the scan turned at every `$` and counted none of it
-    // (the reading view ran out of memory at 150 rows the scan read as a
-    // table); a formula closes at a run of `$` as long as the one it opened
-    // with, and runs no further than its cell.
-    const dd = "| $$\\frac{a}{b}$$ | $x$ |";
-    expect(tableRowParts(dd, 0, dd.length).mathChars).toBe("\\frac{a}{b}".length + 1);
-    // `$a$$b$` is one formula: a run of two does not close one opened by one, and is part of it.
-    expect(tableRowParts("| $a$$b$ |", 0, 10).mathChars).toBe("a$$b".length);
-    expect(tableRowParts("| $a | b$ |", 0, 11).mathChars).toBe(0);
-    // An escaped `$` is none, so the `$` behind it opens the formula; a `$` in a code span is code (review, 2026-11-16).
-    const escapedOpen = "| \\$$\\frac{a}{b}$ | \\$$$x$$ |";
-    expect(tableRowParts(escapedOpen, 0, escapedOpen.length).mathChars).toBe("\\frac{a}{b}".length + 1);
-    // The parser reads `$x$`, `$y$` and `$z$` as formulas: the `$` in the code spans are code, and so is `` `x` `` behind an escaped backtick? No: `\\`` is one, `x` and the backtick behind it text.
-    const coded = "| `$` $x$ `` $ `` $y$ | \\`x` $z$ |";
-    expect(tableRowParts(coded, 0, coded.length).mathChars).toBe(3);
-    const formulaAfterCode = `| \`$\` $${"\\frac{a}{b}".repeat(40)}$ |`;
-    expect(tableRowParts(formulaAfterCode, 0, formulaAfterCode.length).mathChars).toBeGreaterThanOrEqual("\\frac{a}{b}".length * 40);
-    // A backtick in an HTML tag, a link's destination or an autolink is no code, a `$` there no formula: the formula
-    // behind it weighs all its characters (review, 2026-11-16: each weighed a tenth of what KaTeX made of it), and
-    // pairs with no `$` before it (review, 2026-11-17: `<i t='$'>` and the `$` of a formula behind it, as one).
-    const formula = "\\frac{a}{b}".repeat(40);
-    for (const cell of [`<i title="\`">$${formula}$ \`x\``, `[a](\`) $${formula}$ \`x\``, `<http://a.b/\`> $${formula}$ \`x\``, `<i t='$'>$${formula}$`, `[a]($) $${formula}$`, `<http://a.b/$> $${formula}$`]) {
-      const row = `| ${cell} |`;
-      expect(tableRowParts(row, 0, row.length).mathChars, cell).toBe(formula.length);
-    }
-    // Inside a formula a backslash escapes nothing: `\$$` is a run of two in it, which does not close a formula of one.
-    const inside = "| $a\\$$b$ |";
-    expect(tableRowParts(inside, 0, inside.length).mathChars).toBe("a\\$$b".length);
+  it("weighs references and links without blanks, and dates as the reading view writes them", () => {
     // `[^1][^1]…` is one word but as many pieces of the cell's text: each
     // reference and link glued to the word before it counts as a word.
     expect(tableRowParts("| [^1][^1][^1] |", 0, 16).words).toBe(3);
