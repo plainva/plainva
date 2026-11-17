@@ -119,6 +119,46 @@
           "mime": "image/png"
         }
       ]
+    },
+    {
+      "name": "a text part whose name is only blanks",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: text/plain; name=\"  \"\r\n\r\nfooter\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "text/plain"
+        }
+      ]
+    },
+    {
+      "name": "an attached image whose file name is only blanks",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=\"  \"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "a file name of blanks beside a name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: application/pdf; name=\"Rechnung.pdf\"\r\nContent-Disposition: attachment; filename=\"  \"\r\nContent-Transfer-Encoding: base64\r\n\r\nJVBERg==\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "Rechnung.pdf",
+          "mime": "application/pdf"
+        }
+      ]
+    },
+    {
+      "name": "a text part with an empty file name beside a name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: text/plain; name=\"notes.txt\"\r\nContent-Disposition: inline; filename=\"\"\r\n\r\nfooter\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "notes.txt",
+          "mime": "text/plain"
+        }
+      ]
     }
   ]
 }

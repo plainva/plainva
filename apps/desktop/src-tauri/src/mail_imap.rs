@@ -845,6 +845,16 @@ fn whole_message_text_part<'m>(parsed: &'m mail_parser::Message<'_>) -> Option<m
     words.then_some(part)
 }
 
+/// The name a file of a message is shown and saved by: the first of its file
+/// name and its name that is not blank, else "attachment" — the phone's reader
+/// (`net/mime.ts`) gives the same (Fehlerliste 0.9.0 F24). mail-parser's own
+/// `attachment_name` is the file name wherever one is written, blanks included.
+fn shown_file_name<'m>(part: &mail_parser::MessagePart<'m>) -> &'m str {
+    let file_name = part.content_disposition().and_then(|disposition| disposition.attribute("filename"));
+    let type_name = part.content_type().and_then(|content_type| content_type.attribute("name"));
+    [file_name, type_name].into_iter().flatten().map(str::trim).find(|name| !name.is_empty()).unwrap_or("attachment")
+}
+
 /// The raw message as the frontend receives it: standard base64, with padding
 /// and without line breaks, of exactly the bytes the server sent. Three
 /// transports hand this out — this command, the phone's socket client and
@@ -863,7 +873,7 @@ fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<M
         .enumerate()
         .map(|(index, part)| MailAttachmentInfo {
             index,
-            name: part.attachment_name().unwrap_or("attachment").to_string(),
+            name: shown_file_name(&part).to_string(),
             mime: part
                 .content_type()
                 .map(|c| match c.subtype() {

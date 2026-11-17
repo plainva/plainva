@@ -568,17 +568,23 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       return;
     }
     const disposition = dispositionOf(partHeaders);
-    // An empty name is none, as the desktop's parser reads it (review of 2026-11-16).
-    const named = (value: string | undefined): string | null => (value && value.trim() ? value : null);
-    const name =
-      named(parseParams(partHeaders.get("content-disposition") ?? "").get("filename")) ??
-      named(parseParams(partHeaders.get("content-type") ?? "").get("name"));
+    // Whether the part is named, as the desktop's parser decides it: by the
+    // first of its file name and its name that is not empty — a name of
+    // blanks names it (mail-parser, `has_part_name`; an empty value is no
+    // value there). The name it is shown and saved by is the first of the two
+    // that is not blank; a part without one is "attachment" (Fehlerliste
+    // 0.9.0 F24, review of 2026-11-17).
+    const fileName = parseParams(partHeaders.get("content-disposition") ?? "").get("filename");
+    const typeName = parseParams(partHeaders.get("content-type") ?? "").get("name");
+    const asked = fileName || typeName;
+    const shown = [fileName, typeName].find((value) => value !== undefined && value.trim() !== "")?.trim() ?? null;
+    const name = asked !== undefined && asked !== "" ? (shown ?? "") : null;
     const wholeWords = depth === 0 && wordsOfAWholeMessage(partHeaders);
     const isText = wholeWords || (type.startsWith("text/") && disposition !== "attachment");
     const text = partOfTheText(type, disposition, name, position, parent);
     const part: ParsedPart = {
       mime: type,
-      name,
+      name: shown,
       disposition,
       text: isText ? decodeText(partHeaders, partBody) : null,
       bytes: isMessageFile(wholeWords, text) ? decodeBody(partHeaders, partBody) : null,
