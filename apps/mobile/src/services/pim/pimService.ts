@@ -25,7 +25,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptedPimConfig, adoptPreferenceForCard, ownConfirmedAccessConfig, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, adoptPreferenceForCard, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -481,9 +481,17 @@ async function addPimAccountInVault(
   if (!adoptInto && source && boundId && boundId !== id) {
     const bound = known.find((a) => a.id === boundId && a.provider === provider);
     const verified = verifiedProviderIdentityOf({ config });
+    // A password account is the same by the one rule (`samePimPasswordAccount`):
+    // the card's label is whatever the card was called — for a share run it is
+    // the label that was just typed — so comparing it said yes to every row,
+    // and "Alice" got the sign-in, the settings and the calendars of "alice".
+    // A row that names no address yet (a device on 0.8.7 published it so) has
+    // nothing to contradict the card that binds it, and is taken over.
     const sameAccount = source.verifiedProviderIdentity
       ? !!verified && verifiedProviderIdentityKey(verified) === verifiedProviderIdentityKey(source.verifiedProviderIdentity)
-      : source.label.includes("@") && source.label.trim().toLowerCase() === resolvedLabel.trim().toLowerCase();
+      : provider === "caldav"
+        ? !!bound && (pimPasswordAccesses(bound).every((access) => passwordAccountIdentity(access.url, access.user) === null && !access.principal) || samePimPasswordAccount(bound, { provider, config }))
+        : source.label.includes("@") && source.label.trim().toLowerCase() === resolvedLabel.trim().toLowerCase();
     if (bound && sameAccount && !(await getPimCredentials(owner.vaultId, bound.id))) adoptInto = bound;
     assertCurrent();
   }

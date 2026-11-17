@@ -289,6 +289,26 @@ describe("a CalDAV account that is already here", () => {
     expect(state.rows.get("original")![0].config.confirmedAccess).toEqual({ laptop, phone: { url: "http://192.168.1.5/remote.php/dav", user: "anna" } });
   });
 
+  it("does not give a card's row the sign-in of another user whose name differs only in case (red before: the card's label said yes to every row)", async () => {
+    state.rows.set("original", [{ id: "r", provider: "caldav", label: "alice@cloud.example.com", config: { url: nextcloud.url, user: "alice" }, enabled: true }]);
+    state.settings.set("cloudAccounts_original", [
+      { id: "C", family: "webdav", flavor: "nextcloud", label: "alice@cloud.example.com", services: { calendar: { pimAccountId: "r" } } },
+    ] satisfies CloudAccountRecord[]);
+    await expect(pim.addPimAccount("caldav", "alice@cloud.example.com", { ...nextcloud, user: "Alice", pass: "Alice-pw" }, { vaultId: "original", cloudAccountId: "C" }))
+      .rejects.toMatchObject({ reason: "accountChanged" });
+    expect(state.rows.get("original")!.find((row) => row.id === "r")!.config).toEqual({ url: nextcloud.url, user: "alice" });
+    expect(state.secrets.get(pimSecretKey("original", "r"))).toBeUndefined();
+  });
+
+  it("a card's row that names no address yet (a device on 0.8.7 published it) is taken over by the card's sign-in", async () => {
+    state.rows.set("original", [{ id: "r", provider: "caldav", label: "Nextcloud", config: {}, enabled: true }]);
+    state.settings.set("cloudAccounts_original", [
+      { id: "C", family: "webdav", flavor: "nextcloud", label: "Nextcloud", services: { calendar: { pimAccountId: "r" } } },
+    ] satisfies CloudAccountRecord[]);
+    const id = await pim.addPimAccount("caldav", "Nextcloud", nextcloud, { vaultId: "original", cloudAccountId: "C" });
+    expect(id).toBe("r");
+  });
+
   it("adds a row for another server", async () => {
     await pim.addPimAccount("caldav", "Nextcloud", nextcloud);
     await pim.addPimAccount("caldav", "Nextcloud", { ...nextcloud, url: "https://cloud.example.com/nextcloud/remote.php/dav" });
