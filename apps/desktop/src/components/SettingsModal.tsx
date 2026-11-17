@@ -59,6 +59,7 @@ import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
 import { VaultDetailsPage } from "./settings/VaultDetailsPage";
 import { useVaultLabels } from "../services/vaultNames";
+import { announceVaultFeaturesSaved } from "../services/vaultFeaturesRelay";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
@@ -559,6 +560,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       featuresEventTimer.current = setTimeout(() => {
         featuresEventTimer.current = null;
         if (target === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
+        // Every other window with this vault reads them again too (F8).
+        announceVaultFeaturesSaved(target);
       }, 600);
     } catch (e) {
       settingFailed(e);
@@ -653,6 +656,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     if (featuresEventTimer.current) {
       clearTimeout(featuresEventTimer.current);
       if (featuresEventSection.current === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
+      if (featuresEventSection.current) announceVaultFeaturesSaved(featuresEventSection.current);
     }
   }, []);
 

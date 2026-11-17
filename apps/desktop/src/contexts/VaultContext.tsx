@@ -1,5 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
-import { dailyDayResolver, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint } from "@plainva/ui";
+import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -52,6 +52,7 @@ import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
 import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
+import { readDailyDayOfPath } from "../services/dailyNaming";
 import { getWindowBus } from "../services/windowBus";
 import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
@@ -476,27 +477,9 @@ function reportRootFolderCreated(name: string): void {
 export const syncIntervalKey = (vaultPath: string) =>
   `syncIntervalSeconds_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
-export const dailyNotesFolderKey = (vaultPath: string) => `dailyNotesFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-
-/**
- * Which day a daily note's name stands for in this vault (plan
- * Journal-Erweiterungen, X8), read from the two settings that name a daily
- * note. Handed to the query service as soon as it exists (it waits for the
- * answer), so the first task list after a start already knows a journal
- * stamp (plan Rückmeldungen 2026-11-05, § 3.177 Nr. 2).
- */
-export async function readDailyDayOfPath(vaultPath: string): Promise<((path: string) => string | null) | null> {
-  return dailyDayResolver(await readDailyNaming(vaultPath));
-}
-
-/** The two settings that name a daily note in this vault. */
-export async function readDailyNaming(vaultPath: string): Promise<{ folder: string; format: string }> {
-  const store = await getSettingsStore();
-  const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) ?? "";
-  const format = (await store.get<string>(dailyNotesFormatKey(vaultPath))) ?? "YYYY-MM-DD";
-  return { folder, format };
-}
+// The daily-note naming lives beside the window that may need it without this
+// context (an auxiliary window's vault, F8 of release 0.9.0).
+export { dailyNotesFolderKey, dailyNotesFormatKey, readDailyDayOfPath, readDailyNaming } from "../services/dailyNaming";
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Folder → template mapping (plan Vorlagen-Engine P4), a `FolderTemplateRule[]`. */
 export const folderTemplatesKey = (vaultPath: string) => `folderTemplates_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
