@@ -16,7 +16,7 @@ vi.mock("@capacitor/filesystem", () => ({
   Directory: { Data: "DATA" }, Encoding: { UTF8: "utf8" },
   Filesystem: { readdir },
 }));
-vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn() }));
+vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn(), atomicWriteBytes: vi.fn(), nativeReadBytes: vi.fn(), nativeFileDigest: vi.fn(), sweepAtomicTemps: vi.fn(async () => {}) }));
 
 const file = (name: string) => ({ name, type: "file", size: 1, mtime: 1, ctime: 1, uri: "" });
 const dir = (name: string) => ({ name, type: "directory", size: 0, mtime: 1, ctime: 1, uri: "" });

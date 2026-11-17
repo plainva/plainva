@@ -1,4 +1,5 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { contentSha256Of } from "./localText.js";
 import { SyncQueue } from "../sync/SyncQueue.js";
 import { isSystemJunkPath } from "./systemJunk.js";
 import { isWorkspaceNamespacePath } from "../workspace/path.js";
@@ -96,6 +97,11 @@ export class QueueingVaultAdapter implements IVaultAdapter {
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
     return this.inner.readBinaryFile(path);
+  }
+
+  /** The inner adapter's hash, without the bytes where it can (`contentSha256Of`): this one hands them out unchanged. */
+  contentSha256(path: string): Promise<string> {
+    return contentSha256Of(this.inner, path);
   }
 
   async writeTextFile(path: string, content: string): Promise<void> {
