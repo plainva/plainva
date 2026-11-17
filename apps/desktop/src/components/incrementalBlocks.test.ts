@@ -96,7 +96,8 @@ function legacyMath(state: EditorState): string[] {
     if (!focused) {
       const raw = doc.sliceString(line.from, doc.line(closing).to);
       const expr = raw.replace(/^\s*\$\$/, "").replace(/\$\$\s*$/, "").trim();
-      if (expr) out.push(`${line.from}-${doc.line(closing).to}:${expr}`);
+      // A formula over a wiki link is drawn as its source (Fehlerliste 0.9.0, B4).
+      if (expr && !/\[\[[^[\]\n]+\]\]/.test(expr)) out.push(`${line.from}-${doc.line(closing).to}:${expr}`);
     }
     n = closing;
   }

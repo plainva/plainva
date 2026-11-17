@@ -157,6 +157,13 @@ class MathWidget extends WidgetType {
 
 // Same boundary rules as the reader's gate (MarkdownReader hasMath): no
 // leading/trailing space inside, no $ digit confusion, escapes respected.
+/**
+ * A wiki link in a formula's text (`[[A]]`, `![[B]]`): such a formula is
+ * drawn as its source, with its link, as the reading view shows it
+ * (Fehlerliste 0.9.0, B4).
+ */
+const HOLDS_WIKI_LINK = /\[\[[^[\]\n]+\]\]/;
+
 const INLINE_MATH_RE = /\$\$([^\n$]+?)\$\$|(?<![\\$])\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g;
 
 /** Ranges the math scan must never touch: code, HTML, existing math in code. */
@@ -241,7 +248,7 @@ export function mathInlinePlugin() {
         while ((match = INLINE_MATH_RE.exec(text)) !== null) {
           const display = match[1] !== undefined;
           const expr = (display ? match[1] : match[2]).trim();
-          if (!expr) continue;
+          if (!expr || HOLDS_WIKI_LINK.test(expr)) continue;
           const matchStart = from + match.index;
           const matchEnd = matchStart + match[0].length;
           if (overlaps(matchStart, matchEnd, excluded)) continue;
@@ -529,7 +536,7 @@ const mathKind: BlockKind<MathInfo, BlockContext, MathExtra> = {
   discover: discoverMath,
   decorate(state, ctx, block) {
     if (ctx.reveal && selectionTouches(state.selection, block.from, block.to)) return null;
-    if (!block.info.expr) return null;
+    if (!block.info.expr || HOLDS_WIKI_LINK.test(block.info.expr)) return null;
     return Decoration.replace({ widget: new MathWidget(block.info.expr, true), block: true });
   },
 };
