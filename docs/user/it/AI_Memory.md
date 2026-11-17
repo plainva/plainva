@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Ultimo aggiornamento: 2026-11-06
+Ultimo aggiornamento: 2026-11-16
 
 La memoria contiene ciò che l'IA deve sapere su di te e sul tuo lavoro senza che tu glielo ripeta: che cosa fai, come preferisci ricevere le risposte, chi sono i tuoi clienti. Sono due file nel tuo vault. Nulla entra nella memoria senza il tuo sì, e puoi leggere, modificare ed eliminare ogni voce.
 
@@ -38,7 +38,7 @@ Come tutte le istruzioni, il file va approvato su ogni dispositivo prima di aver
 
 Una memoria che è cresciuta si ripete. Sotto **Riordino**, la vista della memoria segnala ciò che questo dispositivo ha notato da sé, senza chiedere a un modello: due voci che dicono quasi la stessa cosa, una voce che ha più di un anno e voci di **Sempre incluso** che non trovano più posto. **Confronta** mostra le due voci insieme, ciascuna con tutto ciò che il suo menu permette di fare.
 
-Per uno sguardo più attento c'è una competenza. **Curare la memoria** legge le voci con il modello di una conversazione e prepara bozze di ciò che va unito e di ciò che si può togliere; si avvia dalla riga **Far rileggere la memoria**. Ciò che propone sono bozze come tutte le altre: nulla cambia finché non lo accetti e, dove due voci si contraddicono, chiede invece di decidere.
+Per uno sguardo più attento c'è una competenza. **Curare la memoria** legge le voci con il modello di una conversazione e prepara bozze di ciò che va unito e di ciò che si può togliere; si avvia dalla riga **Far rileggere la memoria**, che compare sotto **Riordino** ogni volta che lì è segnalato qualcosa. Ciò che propone sono bozze come tutte le altre: nulla cambia finché non lo accetti e, dove due voci si contraddicono, chiede invece di decidere.
 
 ## Stile di scrittura
 
@@ -52,12 +52,12 @@ Lo stile resta su questo dispositivo, non nel vault: su un altro dispositivo ne 
 
 ## Privacy
 
-- Una voce può avere una regola propria: **Non ai modelli cloud**, **Non nelle conversazioni con Internet**. Un modello su questo dispositivo riceve ogni voce.
+- Una voce può avere una regola propria: **Non ai modelli cloud**, **Non nelle conversazioni con Internet**. Un modello su questo dispositivo riceve ogni voce leggibile e abbastanza breve — tranne in una conversazione con Internet, dove una voce contrassegnata **Non nelle conversazioni con Internet** resta fuori anche qui.
 - Se l'IA ha preparato la bozza di una voce in una conversazione in cui ha letto note soggette a una regola sulla privacy, la voce riceve le stesse regole — la scheda dice **La voce riceve le regole sulla privacy delle note su cui si basava questa conversazione.** Ciò che proviene da una nota che deve restare su questo dispositivo non arriva a un cloud attraverso la memoria.
 - Anche le tue [regole sulla privacy](AI_Assistant.md) valgono per i due file: una regola per la cartella `.agent/` tiene l'intera memoria lontana dal cloud.
 - Il riepilogo di invio ha una riga **Memoria** — quante voci partono — e sotto **Trattenuto** conta le voci che le tue regole trattengono. Non nomina mai una voce.
 - Per l'IA una voce è un'informazione, non un'istruzione: una frase nella memoria non le concede alcun permesso.
-- Una conversazione conserva la memoria con cui è stata avviata. Una voce che elimini non va a nessuna nuova conversazione; le conversazioni già avviate conservano ciò che hanno ricevuto.
+- Una conversazione conserva ciò che la memoria le ha dato all'avvio — le voci sotto **Sempre incluso**. Una voce che elimini non va a nessuna nuova conversazione; le conversazioni già avviate conservano ciò che hanno ricevuto, e ciò che cercano più tardi proviene dai file così come sono in quel momento.
 
 ## Disattivare la memoria
 
@@ -76,4 +76,4 @@ Lo stile resta su questo dispositivo, non nel vault: su un altro dispositivo ne 
 
 `added` e `by` indicano quando è stata aggiunta la voce e se l'hai scritta tu o hai accettato una bozza, `source` nomina la conversazione da cui proviene una bozza e `deny` contiene le regole della voce (`cloud`, `web`). Puoi modificare i file con qualsiasi editor. In Plainva, **Apri file** apre l'uno o l'altro.
 
-Plainva non tira a indovinare. Una voce con un commento danneggiato è contrassegnata con **Regole illeggibili: non va a nessun modello** finché non ripari il commento o non aggiungi di nuovo la voce. Il testo nascosto in un commento o in caratteri invisibili non viene mai inviato; la voce mostra allora quante parti nascoste sono state tralasciate. Un file contiene al massimo 2.000 voci e 256 KB.
+Plainva non tira a indovinare. Una voce con un commento danneggiato è contrassegnata con **Regole illeggibili: non va a nessun modello** finché non ripari il commento o non aggiungi di nuovo la voce. Il testo nascosto in un commento o in caratteri invisibili non viene mai inviato; la voce mostra allora quante parti nascoste sono state tralasciate. Di un file vengono lette al massimo 2.000 voci, e un file più grande di 256 KB non viene letto affatto.

@@ -64,6 +64,8 @@ function phoneOps(): Ops {
   const scope = {
     getMobileSettings: () => SETTINGS,
     getActiveVaultEntry: async () => ({ name: "Notizen" }),
+    // The name a template gets, from the phone's one source (B25).
+    phoneTemplateVault: async () => ({ name: "Notizen", dailyFolder: "", dailyFormat: "" }),
     ensureSharedDailyNote: ensureDailyNote,
     configuredDailyNoteType: () => "Daily Note",
     applyTemplateInteractive,

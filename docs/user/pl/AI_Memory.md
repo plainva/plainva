@@ -1,6 +1,6 @@
 # Pamięć (Beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-16
 
 Pamięć przechowuje to, co AI powinna wiedzieć o Tobie i Twojej pracy bez przypominania: czym się zajmujesz, jakie odpowiedzi lubisz, kim są Twoi klienci. To dwa pliki w Twoim vaulcie. Nic nie trafia do pamięci bez Twojego „tak”, a każdy wpis możesz przeczytać, zmienić i usunąć.
 
@@ -38,7 +38,7 @@ Podobnie jak wszystkie instrukcje, plik musi zostać zatwierdzony na każdym urz
 
 Pamięć, która się rozrosła, zaczyna się powtarzać. W sekcji **Porządkowanie** widok pamięci wymienia rzeczy, które to urządzenie zauważyło samo, bez pytania modelu: dwa wpisy, które mówią prawie to samo, wpis starszy niż rok oraz wpisy w sekcji **Zawsze dołączane**, które już się nie mieszczą. **Porównaj** pokazuje oba wpisy razem, każdy ze wszystkimi działaniami ze swojego menu.
 
-Do dokładniejszego przyjrzenia się pamięci służy umiejętność. **Dbanie o pamięć** czyta wpisy za pomocą modelu rozmowy i szkicuje, co do siebie należy, a co można usunąć; uruchamia ją wiersz **Zleć przejrzenie pamięci**. To, co proponuje, to szkice jak każde inne: nic się nie zmienia, dopóki ich nie zaakceptujesz, a gdy dwa wpisy są ze sobą sprzeczne, pyta zamiast rozstrzygać.
+Do dokładniejszego przyjrzenia się pamięci służy umiejętność. **Dbanie o pamięć** czyta wpisy za pomocą modelu rozmowy i szkicuje, co do siebie należy, a co można usunąć; uruchamia ją wiersz **Zleć przejrzenie pamięci**, który pojawia się w sekcji **Porządkowanie**, gdy tylko coś jest tam wymienione. To, co proponuje, to szkice jak każde inne: nic się nie zmienia, dopóki ich nie zaakceptujesz, a gdy dwa wpisy są ze sobą sprzeczne, pyta zamiast rozstrzygać.
 
 ## Styl pisania
 
@@ -52,12 +52,12 @@ Styl jest zapisany na tym urządzeniu, nie w vaulcie: na innym urządzeniu wybie
 
 ## Prywatność
 
-- Wpis może nieść własną regułę: **Nie do modeli w chmurze**, **Nie w rozmowach z internetem**. Model na tym urządzeniu dostaje każdy wpis.
+- Wpis może nieść własną regułę: **Nie do modeli w chmurze**, **Nie w rozmowach z internetem**. Model na tym urządzeniu dostaje każdy wpis, który jest czytelny i dość krótki — z wyjątkiem rozmowy z internetem, w której wpis z oznaczeniem **Nie w rozmowach z internetem** również tutaj zostaje na zewnątrz.
 - Wpis, który AI przygotowała w rozmowie, w której czytała notatki objęte zasadą prywatności, dostaje te same reguły — karta mówi: **Wpis otrzymuje zasady prywatności notatek, na których opierała się ta rozmowa.** To, co pochodzi z notatki, która musi zostać na tym urządzeniu, nie dociera do chmury przez pamięć.
 - Twoje [zasady prywatności](AI_Assistant.md) obejmują także oba pliki: reguła folderu dla `.agent/` trzyma całą pamięć z dala od chmury.
 - Przegląd wysyłki ma wiersz **Pamięć** — ile wpisów idzie razem — i liczy w **Zatrzymano** wpisy, które zatrzymują Twoje reguły. Nigdy nie wymienia żadnego wpisu.
 - Dla AI wpis jest informacją, a nie instrukcją: zdanie w pamięci nie daje jej żadnych uprawnień.
-- Rozmowa zachowuje pamięć, z którą została rozpoczęta. Usunięty wpis nie trafia do żadnej nowej rozmowy; rozmowy, które już się rozpoczęły, zachowują to, co dostały.
+- Rozmowa zachowuje to, co pamięć jej dała na początku — wpisy w miejscu **Zawsze dołączane**. Usunięty wpis nie trafia do żadnej nowej rozmowy; rozmowy, które już się rozpoczęły, zachowują to, co dostały, a to, co sprawdzają później, pochodzi z plików w takim stanie, w jakim są wtedy.
 
 ## Wyłączanie
 
@@ -76,4 +76,4 @@ Przełącznik **Używaj pamięci na tym urządzeniu** jest włączony, dopóki g
 
 `added` i `by` mówią, kiedy wpis został dodany i czy pochodzi od Ciebie, czy z zaakceptowanego szkicu, `source` podaje nazwę rozmowy, z której pochodzi szkic, a `deny` zawiera reguły wpisu (`cloud`, `web`). Pliki możesz edytować w dowolnym edytorze. W Plainva każdy z nich otwiera **Otwórz plik**.
 
-Plainva niczego nie zgaduje. Wpis z uszkodzonym komentarzem jest oznaczony jako **Reguły nieczytelne — nie trafia do żadnego modelu**, dopóki nie naprawisz komentarza lub nie dodasz wpisu od nowa. Tekst ukryty w komentarzu lub w niewidocznych znakach nigdy nie jest wysyłany; wpis pokazuje wtedy, ile ukrytych części pominięto. Plik mieści co najwyżej 2000 wpisów i 256 KB.
+Plainva niczego nie zgaduje. Wpis z uszkodzonym komentarzem jest oznaczony jako **Reguły nieczytelne — nie trafia do żadnego modelu**, dopóki nie naprawisz komentarza lub nie dodasz wpisu od nowa. Tekst ukryty w komentarzu lub w niewidocznych znakach nigdy nie jest wysyłany; wpis pokazuje wtedy, ile ukrytych części pominięto. Z pliku czytanych jest co najwyżej 2000 wpisów, a plik większy niż 256 KB nie jest czytany wcale.

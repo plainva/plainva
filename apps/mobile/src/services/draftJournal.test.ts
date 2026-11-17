@@ -28,7 +28,7 @@ vi.mock("@capacitor/filesystem", () => ({
 }));
 
 vi.mock("@capacitor/core", () => ({
-  Capacitor: { isNativePlatform: () => false },
+  Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" },
   registerPlugin: () => ({}),
 }));
 
@@ -102,7 +102,7 @@ describe("draftJournal (M3E package G)", () => {
     const src = await import("node:fs/promises").then((fs) =>
       fs.readFile(new URL("./draftJournal.ts", import.meta.url), "utf8"),
     );
-    expect(src).toContain("atomicWriteText(");
+    expect(src).toContain("atomicWriteInternalText(");
     expect(src).not.toContain("Filesystem.writeFile");
   });
 });
