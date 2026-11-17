@@ -715,18 +715,25 @@ export class DriveSyncTarget implements ISyncTarget {
         // write sends the very same request with its body coming off disk.
         const res = await this.authedFetch(
           "PATCH",
-          `${DRIVE_UPLOAD}/files/${existingId}?uploadType=media&fields=id,md5Checksum,modifiedTime`,
+          `${DRIVE_UPLOAD}/files/${existingId}?uploadType=media&fields=id,md5Checksum,modifiedTime,trashed`,
           { headers: { "Content-Type": mimeType }, body: op.contentRef ? undefined : (content as any as BodyInit) },
           false,
           op.contentRef
         );
+        // A known id another device has put into the trash since: the bytes
+        // went into the trashed file, where nobody sees them. Its path is free
+        // again, and a fresh file takes it, as after a 404 (F44).
         if (res.ok) {
           const f = (await res.json()) as DriveFile;
-          this.cachePath(op.file_path, f.id);
-          return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
-        }
-        if (res.status !== 404) throw await driveResponseError("file update", res);
-        // 404: the cached id is stale (file removed/moved on the remote). Drop it and fall
+          if (!f.trashed) {
+            this.cachePath(op.file_path, f.id);
+            return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
+          }
+          // Its folder may be in the trash with it: the folders are looked up afresh.
+          this.folderToId.clear();
+          this.folderIdToPath.clear();
+        } else if (res.status !== 404) throw await driveResponseError("file update", res);
+        // 404 or trashed: the cached id is stale (file removed/moved on the remote). Drop it and fall
         // through to create a fresh file at this path.
         this.uncachePath(op.file_path);
       }
@@ -798,16 +805,30 @@ export class DriveSyncTarget implements ISyncTarget {
       // there since this one last looked, and that note decides on its own.
       if (!expected && await this.folderHoldsFiles(id)) throw new RemoteChangedError(op.file_path, "the folder holds files");
       if (expected) {
-        const meta = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,md5Checksum,modifiedTime`);
+        const meta = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,md5Checksum,modifiedTime,trashed`);
         if (meta.status === 404) {
           this.uncachePath(op.file_path);
           return;
         }
         if (!meta.ok) throw await driveResponseError("metadata lookup", meta);
         const f = (await meta.json()) as DriveFile;
+        if (f.trashed) {
+          this.uncachePath(op.file_path);
+          return;
+        }
         if ((f.md5Checksum || f.modifiedTime || f.id) !== expected.marker) throw new RemoteChangedError(op.file_path, "found before the deletion");
       }
-      const res = await this.authedFetch("DELETE", `${DRIVE_API}/files/${id}`);
+      // Into Drive's trash, never past it (F44, rule 2): `files.delete`
+      // "permanently deletes a file … without moving it to the trash", a
+      // folder with all its descendants. Trashed, a file stays restorable —
+      // "Files in the trash are automatically deleted after 30 days"
+      // (https://developers.google.com/drive/api/guides/delete). Every query
+      // of this target asks `trashed=false`, and a cursor pull reports a
+      // trashed file as gone, so a trashed item is listed nowhere.
+      const res = await this.authedFetch("PATCH", `${DRIVE_API}/files/${id}?fields=id`, {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trashed: true }),
+      });
       if (!res.ok && res.status !== 404)
         throw await driveResponseError("file deletion", res);
       this.uncachePath(op.file_path);
@@ -1176,10 +1197,14 @@ export class DriveSyncTarget implements ISyncTarget {
     if (filePath.includes(".CONFLICT")) return null;
     const id = await this.findFileId(filePath);
     if (!id) return null;
-    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,md5Checksum,modifiedTime,size`);
+    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,md5Checksum,modifiedTime,size,trashed`);
     if (res.status === 404) return null;
     if (!res.ok) throw await driveResponseError("metadata lookup", res);
     const f = (await res.json()) as DriveFile;
+    if (f.trashed) {
+      this.uncachePath(filePath);
+      return null;
+    }
     const size = Number(f.size ?? "");
     const modifiedAt = f.modifiedTime ? Date.parse(f.modifiedTime) : Number.NaN;
     return {

@@ -270,7 +270,9 @@ describe("OneDriveSyncTarget", () => {
   });
 
   it("renames within the same folder via PATCH name only", async () => {
-    const { target, fetchFn } = makeTarget(async () => res({ id: "i1", name: "new.md", cTag: "c2" }));
+    // The destination is asked first (A1): free.
+    const { target, fetchFn } = makeTarget(async (_url: string, init: any) =>
+      init.method === "GET" ? res({}, { status: 404 }) : res({ id: "i1", name: "new.md", cTag: "c2" }));
     const result = await target.push({
       id: 1,
       file_path: "notes/old.md",
@@ -281,11 +283,11 @@ describe("OneDriveSyncTarget", () => {
       queued_at: 0,
     });
     expect(result).toEqual({ etag: "c2", remoteId: "i1" });
-    const call = calls(fetchFn)[0];
-    expect(call.method).toBe("PATCH");
-    // A move never replaces what lies at its destination (A1): Graph refuses
-    // an existing name; the behaviour goes in the address (F44).
-    expect(call.url).toBe(`${GRAPH}/me/drive/root:/Plainva/notes/old.md:?@microsoft.graph.conflictBehavior=fail`);
+    expect(calls(fetchFn)[0]).toMatchObject({ method: "GET", url: `${GRAPH}/me/drive/root:/Plainva/notes/new.md:?select=id` });
+    const call = calls(fetchFn).find((c) => c.method === "PATCH")!;
+    // The request OneDrive has always had: no parameter the move and update
+    // pages do not name (F44, rule 3).
+    expect(call.url).toBe(`${GRAPH}/me/drive/root:/Plainva/notes/old.md:`);
     const body = JSON.parse(call.init.body);
     expect(body).toEqual({ name: "new.md" });
   });
@@ -309,6 +311,7 @@ describe("OneDriveSyncTarget", () => {
   it("moves across folders with parentReference after ensuring the target chain", async () => {
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
       if (init.method === "POST") return res({}, { status: 409 });
+      if (init.method === "GET" && url.includes("to/sub/a.md")) return res({}, { status: 404 });
       return res({ id: "i1", name: "a.md", cTag: "c3" });
     });
     await target.push({

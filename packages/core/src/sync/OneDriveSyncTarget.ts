@@ -571,20 +571,22 @@ export class OneDriveSyncTarget implements ISyncTarget {
       const newParent = this.parentFolderOf(op.new_path);
       const newName = op.new_path.substring(op.new_path.lastIndexOf("/") + 1);
 
-      // A move never replaces what lies at its destination (A1): Graph
-      // refuses an existing name with 409 `nameAlreadyExists`. Not for a
+      // A move never replaces what lies at its destination (A1). Not for a
       // change of letter case only, where that name is the item itself.
       const caseOnly = foldsToSameName(op.file_path, op.new_path);
-      // The behaviour goes in the address, not the body: "should be included
-      // in the URL instead of the body of the request" (driveItem resource,
-      // https://learn.microsoft.com/en-us/graph/api/resources/driveitem,
-      // instance attributes; F44 no. 5). The move pages document no default.
+      // The request is the one OneDrive has always had from Plainva: the
+      // move and update pages (driveitem-move, driveitem-update) name no
+      // `@microsoft.graph.conflictBehavior`, and the driveItem resource
+      // defines it only "for actions that create a new item" (F44, rule 3).
+      // So the destination is asked right before — the window of one
+      // request, as on Drive — and a 409 `nameAlreadyExists` is a refusal.
+      if (!caseOnly && await this.itemExists(op.new_path)) throw new RemoteChangedError(op.new_path, "the destination exists");
       const body: Record<string, unknown> = { name: newName };
       if (oldParent !== newParent) {
         await this.ensureFolder(newParent);
         body.parentReference = { path: `/drive/root:/${this.drivePath(newParent)}` };
       }
-      const res = await this.authedFetch("PATCH", this.itemUrl(op.file_path) + (caseOnly ? "" : "?@microsoft.graph.conflictBehavior=fail"), {
+      const res = await this.authedFetch("PATCH", this.itemUrl(op.file_path), {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -744,6 +746,15 @@ export class OneDriveSyncTarget implements ISyncTarget {
   }
 
   /** The file's item as Graph answers it, or null (no file, a folder, a conflict copy). */
+  /** Is there an item — file or folder — at `filePath`? */
+  private async itemExists(filePath: string): Promise<boolean> {
+    const res = await this.authedFetch("GET", `${this.itemUrl(filePath)}?select=id`);
+    if (res.status === 404) return false;
+    if (!res.ok) throw syncHttpError(`OneDrive metadata lookup failed: ${res.status} ${res.statusText}`, res);
+    discardResponse(res);
+    return true;
+  }
+
   private async statItem(filePath: string): Promise<GraphItem | null> {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.authedFetch("GET", `${this.itemUrl(filePath)}?select=id,name,cTag,eTag,lastModifiedDateTime,size,folder,file`);

@@ -121,9 +121,14 @@ describe("OneDrive", () => {
         for (const key of [...items.keys()]) if (key === p || key.startsWith(p + "/")) items.delete(key);
         return new Response(null, { status: 204 });
       }
+      if (method === "GET") {
+        if (!items.has(p)) return json(404, { error: { code: "itemNotFound" } });
+        return json(200, { id: p, name: p.split("/").pop(), ...(items.get(p)!.folder ? { folder: {} } : { file: {} }) });
+      }
       if (method === "PATCH") {
         const body = JSON.parse(init.body);
-        if (items.has(body.name) && new URL(url).searchParams.get("@microsoft.graph.conflictBehavior") === "fail") return json(409, { error: { code: "nameAlreadyExists" } });
+        // A name another device just took: a refusal, whichever way Graph words it.
+        if (items.has(body.name)) return json(409, { error: { code: "nameAlreadyExists" } });
         items.set(body.name, items.get(p)!);
         items.delete(p);
         return json(200, { id: body.name, name: body.name, eTag: "e", file: {} });
@@ -151,15 +156,31 @@ describe("OneDrive", () => {
     expect([...items.keys()]).toEqual([]);
   });
 
-  it("asks for `conflictBehavior` in the address of a move, where the Graph documentation puts it, not in its body", async () => {
+  it("sends a move as it always has, without a parameter its documentation does not name, and refuses a taken destination before it", async () => {
     const { items, requests, t } = drive();
     items.set("old.md", { folder: false });
     items.set("new.md", { folder: false });
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     await expect(t.push(move("old.md", "new.md"))).rejects.toBeInstanceOf(RemoteChangedError);
+    expect(requests.some((r) => r.method === "PATCH")).toBe(false);
+    expect(requests.some((r) => r.url.includes("conflictBehavior"))).toBe(false);
+    expect(items.has("old.md")).toBe(true);
+  });
+
+  it("a destination taken between the check and the move is a refusal too (409 nameAlreadyExists)", async () => {
+    const { items, requests, t } = drive();
+    items.set("old.md", { folder: false });
+    let asked = false;
+    const original = (t as any).itemExists.bind(t);
+    (t as any).itemExists = async (path: string) => {
+      const found = await original(path);
+      if (!asked) { asked = true; items.set("new.md", { folder: false }); }
+      return found;
+    };
+    await expect(t.push(move("old.md", "new.md"))).rejects.toBeInstanceOf(RemoteChangedError);
     const patch = requests.find((r) => r.method === "PATCH")!;
-    expect(new URL(patch.url).searchParams.get("@microsoft.graph.conflictBehavior")).toBe("fail");
-    expect(JSON.parse(patch.body!)).not.toHaveProperty("@microsoft.graph.conflictBehavior");
+    expect(patch.url).not.toContain("conflictBehavior");
+    expect(JSON.parse(patch.body!)).toEqual({ name: "new.md" });
     expect(items.has("old.md")).toBe(true);
   });
 });
@@ -219,6 +240,7 @@ describe("Dropbox", () => {
 describe("Google Drive", () => {
   function drive() {
     const items = new Map<string, { name: string; parent: string; folder: boolean }>();
+    const trashed = new Set<string>();
     const FOLDER = "application/vnd.google-apps.folder";
     const fetchFn = async (url: string, init: any) => {
       const u = decodeURIComponent(String(url).replace(/\+/g, " "));
@@ -231,15 +253,16 @@ describe("Google Drive", () => {
         return json(200, { files: hits.map(([id, i]) => ({ id, name: i.name, mimeType: i.folder ? FOLDER : "text/markdown" })) });
       }
       const idMatch = u.match(/\/drive\/v3\/files\/([^?]+)/);
-      if (method === "DELETE" && idMatch) {
-        const drop = (id: string) => { for (const [child, i] of [...items]) if (i.parent === id) drop(child); items.delete(id); };
+      // A deletion goes into the trash with what is below it (F44, rule 2).
+      if (method === "PATCH" && idMatch && JSON.parse(init.body).trashed === true) {
+        const drop = (id: string) => { for (const [child, i] of [...items]) if (i.parent === id) drop(child); trashed.add(id); items.delete(id); };
         drop(idMatch[1]!);
-        return new Response(null, { status: 204 });
+        return json(200, { id: idMatch[1] });
       }
       throw new Error(`unexpected ${method} ${u}`);
     };
     const t = new DriveSyncTarget({ clientId: "cid", clientSecret: "s", refreshToken: "r", accessToken: "a" }, fetchFn as any);
-    return { items, t };
+    return { items, t, trashed };
   }
 
   it("keeps a folder that holds a file anywhere below it", async () => {
@@ -251,11 +274,12 @@ describe("Google Drive", () => {
     expect(items.has("n1")).toBe(true);
   });
 
-  it("deletes a folder that holds only empty folders", async () => {
-    const { items, t } = drive();
+  it("moves a folder that holds only empty folders into the trash", async () => {
+    const { items, t, trashed } = drive();
     items.set("f1", { name: "Leer", parent: "root-folder", folder: true });
     items.set("f2", { name: "Unter", parent: "f1", folder: true });
     await t.push(del("Leer"));
     expect([...items.keys()]).toEqual([]);
+    expect([...trashed].sort()).toEqual(["f1", "f2"]);
   });
 });
