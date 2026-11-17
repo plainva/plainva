@@ -5695,6 +5695,7 @@
     "backupZipNever": "Aún sin copia de seguridad",
     "backupZipDone": "Copia creada: {{name}}",
     "backupZipFailed": "No se pudo crear la copia de seguridad de «{{name}}». Se conservan los archivos anteriores. Puedes volver a intentarlo desde los ajustes del vault.",
+    "backupZipLastFailed": "Última copia de seguridad fallida",
     "backupUnreadableTitle": "Las copias de seguridad antiguas no se pueden leer",
     "backupUnreadableBody": "La app Archivos sigue pudiendo abrirlos.",
     "backupUnreadableShort": "Algunos archivos de {{folder}} no se pueden leer desde una reinstalación; no se cuentan ni se limpian.",
