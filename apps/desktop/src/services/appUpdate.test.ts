@@ -20,13 +20,14 @@ vi.mock("@tauri-apps/plugin-updater", () => ({ check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 const flushes = vi.hoisted(() => [] as string[]);
 let settleTakes = 0;
+let settleDone = true;
 const settleLimits: number[] = [];
 vi.mock("./leaveFlush", () => ({
   settleEveryWindowBeforeLeaving: async (limitMs: number) => {
     settleLimits.push(limitMs);
     if (settleTakes > 0) await new Promise((resolve) => setTimeout(resolve, settleTakes));
     flushes.push("flush");
-    return true;
+    return settleDone;
   },
 }));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn() }));
@@ -200,6 +201,27 @@ describe("installing an update (A7)", () => {
       expect(update.install).toHaveBeenCalledTimes(1);
     } finally {
       settleTakes = 0;
+      vi.useRealTimers();
+    }
+  });
+
+  it("says when the installation starts after the wait, and that the limit ran out at the next start", async () => {
+    vi.useFakeTimers();
+    try {
+      settleTakes = UPDATE_SETTLE_MS;
+      settleDone = false;
+      invoke.mockReset();
+      const said: string[] = [];
+      const steps: string[] = [];
+      const update = { download: vi.fn(async () => {}), install: vi.fn(async () => { steps.push(`install after ${invoke.mock.calls.map(([cmd]) => cmd).join(",")}`); }) };
+      const done = downloadAndInstallUpdate(update as never, (seconds) => said.push(`waiting ${seconds}`), () => said.push("installing"));
+      await vi.advanceTimersByTimeAsync(UPDATE_SETTLE_MS);
+      await done;
+      expect(said).toEqual([`waiting ${Math.ceil(UPDATE_SETTLE_MS / 1000)}`, "installing"]);
+      expect(steps).toEqual(["install after leave_mark_cut"]);
+    } finally {
+      settleTakes = 0;
+      settleDone = true;
       vi.useRealTimers();
     }
   });

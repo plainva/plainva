@@ -154,16 +154,31 @@ export const UPDATE_WAIT_WORD_MS = 700;
  * cannot hold (`src-tauri/src/leave.rs`). At most `UPDATE_SETTLE_MS`: writes
  * that keep coming (a sync pull) or one that hangs do not keep the update
  * from installing. When the wait goes on past a moment, `onWaiting` gets the
- * limit in seconds, for the person to see why nothing happens yet.
+ * limit in seconds, for the person to see why nothing happens yet, and
+ * `onInstalling` when the wait is over and the installation starts. When the
+ * limit ran out, the next start says that Plainva went before every window was
+ * done (`leave_mark_cut`, as for a quit cut short).
  */
-export async function downloadAndInstallUpdate(update: Update, onWaiting?: (seconds: number) => void): Promise<void> {
+export async function downloadAndInstallUpdate(update: Update, onWaiting?: (seconds: number) => void, onInstalling?: () => void): Promise<void> {
   await update.download();
   const { settleEveryWindowBeforeLeaving } = await import("./leaveFlush");
-  const word = setTimeout(() => onWaiting?.(Math.ceil(UPDATE_SETTLE_MS / 1000)), UPDATE_WAIT_WORD_MS);
+  let said = false;
+  const word = setTimeout(() => {
+    said = true;
+    onWaiting?.(Math.ceil(UPDATE_SETTLE_MS / 1000));
+  }, UPDATE_WAIT_WORD_MS);
+  let done: boolean;
   try {
-    await settleEveryWindowBeforeLeaving(UPDATE_SETTLE_MS);
+    done = await settleEveryWindowBeforeLeaving(UPDATE_SETTLE_MS);
   } finally {
     clearTimeout(word);
+  }
+  if (said) onInstalling?.();
+  if (!done) {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await Promise.resolve(invoke("leave_mark_cut")).catch(() => {
+      // silent: without the mark the next start says nothing; the update still installs.
+    });
   }
   await update.install();
   await relaunch();
@@ -214,7 +229,11 @@ export function scheduleStartupUpdateCheck(): void {
                 toast.dismiss(installingId);
                 installingId = toast.progress(i18n.t("settings.updateWaitingForWrites", { seconds }));
               };
-              void downloadAndInstallUpdate(update, onWaiting).catch((e) => {
+              const onInstalling = () => {
+                toast.dismiss(installingId);
+                installingId = toast.progress(i18n.t("settings.installingUpdate"));
+              };
+              void downloadAndInstallUpdate(update, onWaiting, onInstalling).catch((e) => {
                 toast.dismiss(installingId);
                 logDiagnostic("update.install", String(e));
                 toast.error(describeUpdateFailure(e, "install", (key, options) => i18n.t(key, options)));

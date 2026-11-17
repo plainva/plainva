@@ -257,7 +257,7 @@ describe("quitting while a window holds a mail not sent (A2)", () => {
       void other.request("window-close-hold", { held: true });
     });
 
-    await expect(leaveOrStay()).resolves.toBe(true);
+    await expect(leaveOrStay().then((answer) => answer.stay)).resolves.toBe(true);
 
     expect(asked).toEqual([a.label]);
     expect(journal.ownFlushes).toBe(0);
@@ -270,7 +270,7 @@ describe("quitting while a window holds a mail not sent (A2)", () => {
     others.push(other);
     await other.onBroadcast("close-requested", () => void other.request("window-close-hold", { held: false }));
 
-    await expect(leaveOrStay()).resolves.toBe(false);
+    await expect(leaveOrStay().then((answer) => answer.stay)).resolves.toBe(false);
     expect(journal.ownFlushes).toBe(1);
   });
 });

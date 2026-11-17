@@ -33,13 +33,15 @@ const steps: string[] = [];
 let heldHere = false;
 let personLetsGo = true;
 let otherWindowHolds = false;
+let ownSettle: "settled" | "cut" = "settled";
+let othersDone = true;
 vi.mock("./beforeLeaving", () => ({
   settleBeforeLeaving: async () => {
     steps.push("settled");
-    return "settled";
+    return ownSettle;
   },
 }));
-vi.mock("./windowDraftFlush", () => ({ flushWindowDrafts: async () => {} }));
+vi.mock("./windowDraftFlush", () => ({ flushWindowDrafts: async () => othersDone }));
 vi.mock("./windowManager", () => ({ windowsStillHoldingWork: async () => otherWindowHolds }));
 vi.mock("./windowCloseGuard", () => ({
   holdsUnsavedWork: () => heldHere,
@@ -115,24 +117,24 @@ describe("a mail or a remark not sent in the central window itself", () => {
   });
 
   it("is asked about on quit, and the app quits once the person lets it go", async () => {
-    expect(await leaveOrStay()).toBe(true);
+    expect((await leaveOrStay()).stay).toBe(true);
     await settle();
     expect(steps).toEqual(["asked", "exit(0)"]);
     // The quit that follows does not ask a second time.
-    expect(await leaveOrStay()).toBe(false);
+    expect((await leaveOrStay()).stay).toBe(false);
     expect(steps[steps.length - 1]).toBe("settled");
   });
 
   it("keeps the app open with everything in it when the person cancels", async () => {
     personLetsGo = false;
-    expect(await leaveOrStay()).toBe(true);
+    expect((await leaveOrStay()).stay).toBe(true);
     await settle();
     expect(steps).toEqual(["asked"]);
   });
 
   it("is not asked about on a termination signal: everything is written and the app goes", async () => {
     otherWindowHolds = true;
-    expect(await leaveOrStay(false)).toBe(false);
+    expect((await leaveOrStay(false)).stay).toBe(false);
     expect(steps).toEqual(["settled"]);
   });
 });
@@ -159,5 +161,57 @@ describe("a way out the deadline cut short", () => {
     await settle();
     expect(warnings).toEqual([]);
     off();
+  });
+});
+
+describe("an answer given on one way out", () => {
+  beforeEach(() => {
+    steps.length = 0;
+    heldHere = true;
+    personLetsGo = true;
+    otherWindowHolds = false;
+    ownSettle = "settled";
+    othersDone = true;
+    resetLeaveFlushForTest();
+  });
+
+  it("is used up when the app stays: a mail written in the central window afterwards is asked about on the next quit", async () => {
+    otherWindowHolds = true;
+    // Quit: the central window asks, the person lets its mail go, and the app quits on its own.
+    expect((await leaveOrStay()).stay).toBe(true);
+    await settle();
+    expect(steps).toEqual(["asked", "exit(0)"]);
+    // That quit: another window holds a mail, its question is cancelled, the app stays.
+    expect((await leaveOrStay()).stay).toBe(true);
+    // Later: a new mail in the central window, the other window's mail is sent, quit again.
+    otherWindowHolds = false;
+    expect((await leaveOrStay()).stay).toBe(true);
+    await settle();
+    expect(steps).toEqual(["asked", "exit(0)", "asked", "exit(0)"]);
+  });
+});
+
+describe("a way out a window did not finish", () => {
+  beforeEach(() => {
+    steps.length = 0;
+    heldHere = false;
+    otherWindowHolds = false;
+    ownSettle = "settled";
+    othersDone = true;
+    resetLeaveFlushForTest();
+  });
+
+  it("is said to the native side when the central window's own wait ran out", async () => {
+    ownSettle = "cut";
+    expect(await leaveOrStay()).toEqual({ stay: false, cut: true });
+  });
+
+  it("is said when another window did not answer in time, or said its wait ran out", async () => {
+    othersDone = false;
+    expect(await leaveOrStay()).toEqual({ stay: false, cut: true });
+  });
+
+  it("is not said when every window was done", async () => {
+    expect(await leaveOrStay()).toEqual({ stay: false, cut: false });
   });
 });

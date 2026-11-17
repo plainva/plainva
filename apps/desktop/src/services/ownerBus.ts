@@ -787,8 +787,8 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("drafts-flushed", ({ id }, from) => {
-      noteDraftsFlushed(id, from);
+    await bus.handle("drafts-flushed", ({ id, cut }, from) => {
+      noteDraftsFlushed(id, from, cut === true);
     }),
   );
 

@@ -41,21 +41,27 @@ import i18n from "@plainva/ui/i18n";
  */
 export const LEAVE_SETTLE_MS = 2_500;
 
-/** Every window's part, this one's and the others'. True when this window's writes were done in time. */
+/** Every window's part, this one's and the others'. True when every window was done in time. */
 export async function settleEveryWindowBeforeLeaving(limitMs: number = LEAVE_SETTLE_MS): Promise<boolean> {
-  const [own] = await Promise.all([
+  const [own, others] = await Promise.all([
     settleBeforeLeaving(limitMs).catch(() => {
       // silent: the app is going; each write reports its own failure, and nobody is left to tell.
       return "settled" as const;
     }),
     flushWindowDrafts(null).catch(() => {
       // silent: the app is going; a window that cannot be reached cannot be helped.
+      return false;
     }),
   ]);
-  return own === "settled";
+  return own === "settled" && others;
 }
 
-/** Set once the person let this window's work go for the app to quit: the next way out does not ask again. */
+/**
+ * Set when the person let this window's work go for the app to quit: the way
+ * out that follows at once does not ask again. Used up by that way out, whether
+ * the app then goes or stays — a way out after that asks about what is there
+ * then.
+ */
 let letGo = false;
 
 /** Asks this window's own questions; quits once the person let the work go. */
@@ -72,20 +78,29 @@ function askHereThenQuit(): void {
     });
 }
 
+/** What the central window answers the native side. */
+export interface LeaveAnswer {
+  /** A window asks its question: the app stays. */
+  stay: boolean;
+  /** The app goes although a window was not done in time: said at the next start. */
+  cut: boolean;
+}
+
 /**
- * The central window's answer: true when the app stays, because a window asks
- * its question. `mayStay` is false for a termination signal: nobody is asked.
+ * The central window's answer: the app stays when a window asks its question.
+ * `mayStay` is false for a termination signal: nobody is asked.
  */
-export async function leaveOrStay(mayStay = true): Promise<boolean> {
+export async function leaveOrStay(mayStay = true): Promise<LeaveAnswer> {
+  const askedHere = letGo;
+  letGo = false;
   if (mayStay) {
-    if (!letGo && holdsUnsavedWork()) {
+    if (!askedHere && holdsUnsavedWork()) {
       askHereThenQuit();
-      return true;
+      return { stay: true, cut: false };
     }
-    if (await windowsStillHoldingWork()) return true;
+    if (await windowsStillHoldingWork()) return { stay: true, cut: false };
   }
-  await settleEveryWindowBeforeLeaving();
-  return false;
+  return { stay: false, cut: !(await settleEveryWindowBeforeLeaving()) };
 }
 
 /**
@@ -125,8 +140,8 @@ export async function installLeaveFlush(): Promise<() => void> {
   const unlisten = await listen<{ mayStay?: boolean } | null>("plainva-leaving", (event) => {
     const mayStay = event?.payload?.mayStay !== false;
     void leaveOrStay(mayStay)
-      .catch(() => false)
-      .then((stay) => invoke("leave_ready", { stay }))
+      .catch((): LeaveAnswer => ({ stay: false, cut: true }))
+      .then(({ stay, cut }) => invoke("leave_ready", { stay, cut }))
       .catch(() => {
         // silent: without the answer the native side goes on after its deadline (src-tauri/src/leave.rs).
       });

@@ -248,7 +248,8 @@ export interface RpcMap {
   /** Journal entries follow a move or rename made in the app (issue 113). */
   "draft-relocate": { args: { vaultPath: string; moves: Array<{ from: string; to: string }> }; result: void };
   /** The answer to `drafts-flush`: what this window had buffered has reached the owner. */
-  "drafts-flushed": { args: { id: string }; result: void };
+  /** `cut`: the window's own wait ran out before it was done (its writes kept coming, or one hung). */
+  "drafts-flushed": { args: { id: string; cut?: boolean }; result: void };
   /**
    * Another window listens for `drafts-flush` (A7): the way out of the app asks
    * it before going and waits for its answer. A window that never said so — a

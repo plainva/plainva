@@ -93,8 +93,9 @@ export async function installLeaveAnswer(): Promise<() => void> {
     void settleBeforeLeaving()
       .catch(() => {
         // silent: the window is about to go; the answer below still lets the central one go on.
+        return "settled" as const;
       })
-      .then(() => bus.request("drafts-flushed", { id }))
+      .then((settled) => bus.request("drafts-flushed", { id, cut: settled === "cut" }))
       .catch(() => {
         // silent: without the answer the central window goes on after its deadline (`windowDraftFlush.ts`).
       });

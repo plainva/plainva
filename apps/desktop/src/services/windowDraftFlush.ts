@@ -24,7 +24,7 @@ export const WINDOW_FLUSH_WAIT_MS = 2_500;
 /** Windows that said they listen (`leave-listening`), or handed the owner a draft snapshot. */
 const writers = new Set<string>();
 /** Flushes waiting for answers, by id: the windows that still owe one. */
-const waiting = new Map<string, { owed: Set<string>; done: () => void }>();
+const waiting = new Map<string, { owed: Set<string>; done: () => void; cut: boolean }>();
 let counter = 0;
 
 /** This window listens: it said so, or it sent a snapshot (the owner's `leave-listening` and `draft-record` handlers). */
@@ -43,10 +43,13 @@ export function forgetDraftWindow(label: string): void {
   }
 }
 
-/** A window answered `drafts-flush`: what it had buffered has reached the owner. */
-export function noteDraftsFlushed(id: string, label: string): void {
+/** A window answered `drafts-flush`: what it had buffered has reached the owner — all of it, unless `cut`. */
+export function noteDraftsFlushed(id: string, label: string, cut = false): void {
   const flush = waiting.get(id);
-  if (!flush || !flush.owed.delete(label) || flush.owed.size > 0) return;
+  if (!flush || !flush.owed.has(label)) return;
+  if (cut) flush.cut = true;
+  flush.owed.delete(label);
+  if (flush.owed.size > 0) return;
   waiting.delete(id);
   flush.done();
 }
@@ -55,24 +58,29 @@ export function noteDraftsFlushed(id: string, label: string): void {
  * Asks these windows (`null`: every one) to do what they do before going —
  * leave their field, save, write their journal (`beforeLeaving.ts`) — and
  * resolves once they did, or after `WINDOW_FLUSH_WAIT_MS`. A window that never
- * said it listens is not asked, so closing it waits for nothing.
+ * said it listens is not asked, so closing it waits for nothing. True when
+ * every window asked was done in time; false when one did not answer, or
+ * answered that its own wait ran out.
  */
-export async function flushWindowDrafts(labels: readonly string[] | null, waitMs = WINDOW_FLUSH_WAIT_MS): Promise<void> {
+export async function flushWindowDrafts(labels: readonly string[] | null, waitMs = WINDOW_FLUSH_WAIT_MS): Promise<boolean> {
   const owed = new Set((labels ?? [...writers]).filter((label) => writers.has(label)));
-  if (owed.size === 0) return;
+  if (owed.size === 0) return true;
   counter += 1;
   const id = `drafts-${counter}-${Math.random().toString(36).slice(2, 8)}`;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const answered = new Promise<void>((resolve) => {
-    waiting.set(id, { owed, done: resolve });
-    timer = setTimeout(resolve, waitMs);
+  const entry = { owed, done: () => {}, cut: false };
+  const answered = new Promise<boolean>((resolve) => {
+    entry.done = () => resolve(!entry.cut);
+    waiting.set(id, entry);
+    timer = setTimeout(() => resolve(false), waitMs);
   });
   try {
     const bus = await getWindowBus();
     await bus.broadcast("drafts-flush", { id, labels: [...owed] }, null);
-    await answered;
+    return await answered;
   } catch {
     // No bus: nobody to ask.
+    return true;
   } finally {
     if (timer !== undefined) clearTimeout(timer);
     waiting.delete(id);

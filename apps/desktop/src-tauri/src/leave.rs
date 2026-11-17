@@ -30,8 +30,10 @@
 //! and the app goes, within the same deadline. A second signal ends the
 //! process at once.
 //!
-//! When the deadline runs out before the central window answered, the app
-//! still goes, and says so at the next start (`leave_was_cut`).
+//! When the deadline runs out before the central window answered, or a window
+//! was not done in time and the app goes anyway (`leave_ready` with `cut`, the
+//! update's restart after its limit, `leave_mark_cut`), the app says so at the
+//! next start (`leave_was_cut`).
 //!
 //! An exit that arrives while a close is held is not lost: it is what happens
 //! once the hold ends. What is not held: a restart (the updater — Tauri ignores
@@ -102,7 +104,8 @@ pub struct Ended {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Answer {
     None,
-    Go,
+    /// Go on; `cut` when a window was not done in time.
+    Go { cut: bool },
     Stay,
 }
 
@@ -176,10 +179,11 @@ impl LeaveState {
         self.signals.load(Ordering::SeqCst) == 0
     }
 
-    /// The windows did what they had to; `stay` when one holds a mail or a remark not sent.
-    fn mark_ready(&self, stay: bool) {
+    /// The windows did what they had to; `stay` when one holds a mail or a remark
+    /// not sent; `cut` when one was not done in time and the app goes anyway.
+    fn mark_ready(&self, stay: bool, cut: bool) {
         let mut answer = self.answer.lock().unwrap_or_else(|e| e.into_inner());
-        *answer = if stay { Answer::Stay } else { Answer::Go };
+        *answer = if stay { Answer::Stay } else { Answer::Go { cut } };
         self.answered.notify_all();
     }
 
@@ -207,15 +211,29 @@ impl LeaveState {
             _ => Then::CloseMain,
         };
         *gate = Gate::Released;
-        Ended { then, cut: answer == Answer::None }
+        let cut = match answer {
+            Answer::None => true,
+            Answer::Go { cut } => cut,
+            Answer::Stay => false,
+        };
+        Ended { then, cut }
     }
 }
 
 /// The central window answers: every window did what it had to before leaving.
 /// `stay`: one holds a mail or a remark not sent, and asks its question.
+/// `cut`: one was not done in time (its writes kept coming, or one hung) — the
+/// app goes, and says so at the next start.
 #[tauri::command]
-pub fn leave_ready(state: tauri::State<'_, LeaveState>, stay: Option<bool>) {
-    state.mark_ready(stay.unwrap_or(false));
+pub fn leave_ready(state: tauri::State<'_, LeaveState>, stay: Option<bool>, cut: Option<bool>) {
+    state.mark_ready(stay.unwrap_or(false), cut.unwrap_or(false));
+}
+
+/// A way out the hold does not see went before every window was done — the
+/// update's restart after its limit: said at the next start, as a cut hold.
+#[tauri::command]
+pub fn leave_mark_cut<R: Runtime>(app: AppHandle<R>) {
+    write_cut_mark(&app);
 }
 
 /// The central window listens for `plainva-leaving` (true) — or no more.
@@ -247,6 +265,15 @@ fn cut_mark<R: Runtime>(app: &AppHandle<R>) -> Option<std::path::PathBuf> {
     app.path().app_local_data_dir().ok().map(|dir| dir.join(CUT_MARK))
 }
 
+fn write_cut_mark<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(mark) = cut_mark(app) {
+        if let Some(dir) = mark.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(mark, b"");
+    }
+}
+
 fn start<R: Runtime>(app: &AppHandle<R>) {
     let handle = app.clone();
     std::thread::spawn(move || loop {
@@ -254,12 +281,7 @@ fn start<R: Runtime>(app: &AppHandle<R>) {
         let _ = handle.emit_to(MAIN, "plainva-leaving", Leaving { may_stay: state.may_stay() });
         let ended = state.wait_and_release(LEAVE_WAIT);
         if ended.cut {
-            if let Some(mark) = cut_mark(&handle) {
-                if let Some(dir) = mark.parent() {
-                    let _ = std::fs::create_dir_all(dir);
-                }
-                let _ = std::fs::write(mark, b"");
-            }
+            write_cut_mark(&handle);
         }
         match ended.then {
             Then::Exit(code) => handle.exit(code),
@@ -403,7 +425,7 @@ mod tests {
         let state = armed();
         assert_eq!(state.hold_close(), Hold::Start);
         assert_eq!(state.hold_close(), Hold::Joined);
-        state.mark_ready(false);
+        state.mark_ready(false, false);
         assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::CloseMain);
         assert_eq!(state.hold_close(), Hold::LetGo);
         assert_eq!(state.hold_exit(0), Hold::LetGo);
@@ -414,7 +436,7 @@ mod tests {
         let state = armed();
         assert_eq!(state.hold_close(), Hold::Start);
         assert_eq!(state.hold_exit(0), Hold::Joined);
-        state.mark_ready(false);
+        state.mark_ready(false, false);
         assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Exit(0));
     }
 
@@ -437,7 +459,7 @@ mod tests {
         let answering = Arc::clone(&state);
         let answer = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(20));
-            answering.mark_ready(false);
+            answering.mark_ready(false, false);
         });
         let started = Instant::now();
         assert_eq!(state.wait_and_release(Duration::from_secs(30)).then, Then::CloseMain);
@@ -459,18 +481,28 @@ mod tests {
     fn a_window_holding_a_mail_keeps_the_app_open_and_the_next_quit_is_held_again() {
         let state = armed();
         assert_eq!(state.hold_exit(0), Hold::Start);
-        state.mark_ready(true);
+        state.mark_ready(true, false);
         assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Stay);
         assert_eq!(state.hold_exit(0), Hold::Start);
-        state.mark_ready(false);
+        state.mark_ready(false, false);
         assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Exit(0));
+    }
+
+    #[test]
+    fn a_window_that_was_not_done_in_time_is_a_cut_although_it_answered() {
+        let state = armed();
+        assert_eq!(state.hold_exit(0), Hold::Start);
+        state.mark_ready(false, true);
+        let ended = state.wait_and_release(Duration::from_secs(5));
+        assert_eq!(ended.then, Then::Exit(0));
+        assert!(ended.cut);
     }
 
     #[test]
     fn an_answer_in_time_is_no_cut() {
         let state = armed();
         assert_eq!(state.hold_exit(0), Hold::Start);
-        state.mark_ready(false);
+        state.mark_ready(false, false);
         assert!(!state.wait_and_release(Duration::from_secs(5)).cut);
     }
 
@@ -481,9 +513,9 @@ mod tests {
         assert!(!state.may_stay());
         assert_eq!(state.hold_exit(0), Hold::Start);
         // A window answered "stay" before it heard of the signal: asked again, without a question.
-        state.mark_ready(true);
+        state.mark_ready(true, false);
         assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::AskAgain);
-        state.mark_ready(false);
+        state.mark_ready(false, false);
         assert_eq!(state.wait_and_release(Duration::from_secs(5)).then, Then::Exit(0));
         assert_eq!(state.note_signal(), 2, "the second signal is counted, and ends the process at once");
     }
