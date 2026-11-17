@@ -50,6 +50,27 @@ describe("a deletion queued here, a change made there", () => {
     expect(await a.queue.getPendingOperations()).toEqual([]);
   });
 
+  it("deletes where only the server's marker moved and the bytes are the ones this device saw (F44)", async () => {
+    const { dav, remote } = world();
+    const a = await device(dav), b = await device(dav);
+    // Notes elsewhere, so that this deletion is no large share of the vault.
+    for (let i = 0; i < 30; i++) await a.put(`fill/F${i}.md`, `# F${i}\n`);
+    await a.put("Note.md", START);
+    await a.cycle();
+    await b.cycle();
+    // The same bytes under a new tag: a re-upload by another client, a change of the server's metadata.
+    const f = dav.files.get("Note.md")!;
+    dav.files.set("Note.md", { ...f, etag: `${f.etag}-touched` });
+    await a.remove("Note.md");
+    for (let i = 0; i < 3; i++) {
+      await a.cycle();
+      await b.cycle();
+    }
+    expect(remote("Note.md")).toBeNull();
+    expect(await a.exists("Note.md")).toBe(false);
+    expect(await b.exists("Note.md")).toBe(false);
+  });
+
   it("still deletes the version it saw last", async () => {
     const { dav, remote } = world();
     const a = await device(dav), b = await device(dav);

@@ -701,6 +701,7 @@ export class SyncEngine {
           op.expectedRemote = expectedDeletionOf(await this.stateRepo.getSyncState(op.file_path));
         }
         let result;
+        let deletedOnNewMarker = false;
         try {
           result = await this.target.push(op);
         } catch (err) {
@@ -711,7 +712,13 @@ export class SyncEngine {
           // It retires, and so does the row: the next listing brings that
           // version back here, as any new file of the remote, and nothing of
           // it is lost.
-          if (op.operation === "delete" && isRemoteChanged(err)) {
+          //
+          // Unless only the server's marker moved and the bytes are the ones
+          // this device saw (a re-upload of the same bytes, a change of the
+          // server's metadata): then the deletion goes on the new marker.
+          if (op.operation === "delete" && isRemoteChanged(err) && await this.deleteWhereOnlyTheMarkerMoved(op)) {
+            deletedOnNewMarker = true;
+          } else if (op.operation === "delete" && isRemoteChanged(err)) {
             console.warn(`[SyncEngine] not deleting ${op.file_path}: ${(err as Error).message}; it comes back here instead`);
             if (this.stateRepo) await this.stateRepo.deleteSyncState(op.file_path);
             await this.queue.markSynced(op.id, op.file_path, op.file_path);
@@ -757,7 +764,7 @@ export class SyncEngine {
             }
             continue;
           }
-          throw err;
+          if (!deletedOnNewMarker) throw err;
         }
 
         if (op.operation === "rename" && op.new_path && result && result.renameSourceMissing) {
@@ -922,4 +929,29 @@ export class SyncEngine {
       if (!refusedThisPass.has(path) && !(await this.queue.hasPendingOperation(path))) this.refusals.delete(path);
     }
   }
+
+  /**
+   * A deletion the remote refused because its marker moved (A1), asked once
+   * more: if the remote still holds the very bytes this device saw last — a
+   * re-upload of the same bytes, a change of the server's metadata — the
+   * file is deleted on the marker of that answer, and true is returned. Any
+   * other answer leaves the deletion refused (false), and the file comes
+   * back here (F44 no. 3).
+   */
+  private async deleteWhereOnlyTheMarkerMoved(op: SyncOperation): Promise<boolean> {
+    const base = this.stateRepo ? (await this.stateRepo.getSyncState(op.file_path))?.base_sha256 : null;
+    if (!base || !this.target.stat) return false;
+    const found = await this.target.stat(op.file_path);
+    if (!found?.etag) return false;
+    const bytes = await this.target.download(op.file_path);
+    if (!bytes || (await sha256Bytes(bytes)) !== base) return false;
+    try {
+      await this.target.push({ ...op, expectedRemote: { kind: "marker", marker: found.etag } });
+      return true;
+    } catch (err) {
+      if (isRemoteChanged(err)) return false;
+      throw err;
+    }
+  }
+
 }
