@@ -26,8 +26,10 @@ export function groundTitles(run: Pick<RunMeta, "sent" | "manifest">): string[] 
  * (plan Oberfläche O7, E2): the notes every run up to it sent or read — the
  * context of earlier turns goes on as text, and an unchanged note is not sent
  * again, so a follow-up that cites a note from the first turn cites a note
- * the model had. A run whose request reached no model gave it nothing. One
- * run that read more than it listed makes the whole unknown.
+ * the model had. A run whose request reached no model still counts: its
+ * message and its context stay in the conversation and go with the next
+ * request (review O7, second round). One run that read more than it listed
+ * makes the whole unknown.
  */
 export function conversationGrounding(runs: readonly RunMeta[], upTo: number, from?: string): AnswerGrounding {
   const sent: string[] = [];
@@ -35,7 +37,6 @@ export function conversationGrounding(runs: readonly RunMeta[], upTo: number, fr
   const titled: { path: string; title: string }[] = [];
   let readMore = false;
   for (const run of runs.slice(0, upTo + 1)) {
-    if (run.unreached) continue;
     sent.push(...run.sent);
     read.push(...(run.read ?? []));
     readMore ||= Boolean(run.readMore);

@@ -349,8 +349,13 @@ import {
   type RoutineDraft,
   type RoutineNeed,
   type RoutineRun,
+  type Turn,
+  type VaultLinkFile,
+  RUN_UNFOUNDED_CAP,
+  unfoundedNoteCitations,
 } from "@plainva/core";
 import { skillView } from "./aiSkills";
+import { conversationGrounding } from "./answerGrounds";
 import { logEntryText, logMaterial, type FolderLogHost, type LogMaterial } from "./folderLogRun";
 import type { NoteHintsHost } from "./noteHintsHost";
 import { EMPTY_NOTE_HINTS_PREFS, type NoteHintsPrefs, type NoteHintsStore } from "./noteHintsStore";
@@ -452,6 +457,12 @@ export interface AiVaultHost {
   candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
   /** Note sizes in bytes, as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
+  /**
+   * Every file of the vault as the link rule reads it (`VaultQueryService.linkTargets`): where the links of an answer
+   * lead, as in the editor (plan Oberfläche O7, E2). Absent, an answer's links are read against what the conversation
+   * had.
+   */
+  linkFiles?(): Promise<readonly VaultLinkFile[]>;
   policy: ContextPolicyHost;
   /**
    * The tools of a run for this recipient, optionally narrowed (the MCP
@@ -7617,6 +7628,24 @@ export class AiSession {
    * and the ledger — for a message typed in the composer and for an action at
    * a selection alike. The context and its approval come in ready.
    */
+  /**
+   * The notes a run's answer names as its source although the conversation never had them (plan Oberfläche O7, E2):
+   * the links of every text the run gave — one before a tool call as much as the last —, led where the editor leads
+   * them, against the whole vault where the shell lists it, and read from the note the conversation stood in. A vault
+   * whose files cannot be listed now is asked as if it had only what the conversation had.
+   */
+  private async unfoundedOf(vault: AiVaultHost, runs: readonly RunMeta[], turns: readonly Turn[], pack: ContextPackage): Promise<string[]> {
+    const answer = turns
+      .filter((turn) => turn.role === "assistant")
+      .flatMap((turn) => turn.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])))
+      .join("\n\n");
+    if (!answer.trim()) return [];
+    const files = vault.linkFiles ? await vault.linkFiles().catch(() => undefined) : undefined;
+    const from = pack.refs.find((ref) => ref.reasons.includes("active"))?.path;
+    const grounding = conversationGrounding(runs, runs.length - 1, from);
+    return unfoundedNoteCitations(answer, files ? { ...grounding, vault: files } : grounding).slice(0, RUN_UNFOUNDED_CAP);
+  }
+
   private async execute(input: {
     vault: AiVaultHost;
     choice: ModelChoice;
@@ -7823,6 +7852,10 @@ export class AiSession {
       ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length || input.writes.applied?.length) ? { writes: input.writes } : {}),
       ...(input.scriptLog?.runs.length ? { scripts: input.scriptLog } : {}),
     };
+    // The notes the answer names as its source that the conversation never had (plan Oberfläche O7, E2): checked once,
+    // as the run ends — every text the run gave, against the whole vault —, never while the screen draws.
+    const unfounded = await this.unfoundedOf(vault, [...input.record.runs, run], result.conversation.turns.slice(userTurn + 1), pack);
+    if (unfounded.length) run.unfounded = unfounded;
     // The conversation as the user has it now, with what this run brings (step 8). Until its end is decided, a choice
     // goes onto this — with the run's turns and record in it, whatever the screen shows meanwhile.
     const entry = this.running.get(record.id) ?? { vault, stored: null, choices: null };

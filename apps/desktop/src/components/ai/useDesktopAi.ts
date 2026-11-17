@@ -437,7 +437,11 @@ export function useDesktopAi(input: DesktopAiInput) {
     if (!session || !state?.loaded) return;
     const vault = vaultPath && vaultAdapter && queryService ? { path: vaultPath, name: vaultName(vaultPath) } : null;
     // An encrypted workspace takes no changes from an app (E32): no tool that writes is even listed there.
-    void configureMcp(mcpOn, vault, { sealed }).catch(() => undefined);
+    // The agents' tool line reads whether the helper runs: asked again once the switch took effect, not in the same
+    // commit — the view's own refresh is a child's effect and ran before this started or stopped it (review O7).
+    void configureMcp(mcpOn, vault, { sealed })
+      .catch(() => undefined)
+      .then(() => session.agents.refresh());
     // The prompts speak the app's language: a switch registers them again.
   }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language, sealed]);
 

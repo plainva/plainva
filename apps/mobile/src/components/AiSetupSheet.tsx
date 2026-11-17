@@ -67,10 +67,14 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
     return failed?.state === "failed" && failed.failure && info ? aiFailureText(t, failed.failure, failureRecipient(info)) : null;
   });
   const [choosingModel, setChoosingModel] = useState(false);
-  // A key or an address typed and not stored yet is asked about before the sheet goes.
-  const close = useSheetGuard("ai-setup", Boolean(key.trim() || address.trim()), onClose);
-
   const settings = state.settings;
+  /** The server this setup works on — the one it began with, or the one it added —, as stored. */
+  const server = providerId ? (settings.custom.find((c) => c.id === providerId) ?? null) : null;
+  // A key typed, or an address that is not the stored one, is asked about before the sheet goes (review O7, second
+  // round): a server's own address shown to be corrected is nothing unsaved.
+  const typedAddress = address.trim() ? (normalizeBaseUrl(address)?.baseUrl ?? address.trim()) : "";
+  const close = useSheetGuard("ai-setup", Boolean(key.trim() || (typedAddress && typedAddress !== server?.baseUrl)), onClose);
+
   const provider = providerId ? providerById(providerId, settings.custom) : null;
   const test = providerId ? state.tests[providerId] : undefined;
   const defaultChoice = settings.profiles[settings.defaultProfile];
@@ -115,17 +119,18 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
           setProblem(t("ai.add.invalidUrl"));
           return;
         }
-        // The server this setup began with, at the same address: asked again, not added a second time.
-        const same = settings.custom.find((c) => c.id === start.providerId && c.baseUrl === normalized.baseUrl);
-        if (same) {
-          await tested(same.id);
+        // The server this setup works on, at the same address: asked again, not added a second time.
+        if (server && server.baseUrl === normalized.baseUrl) {
+          await tested(server.id);
           return;
         }
-        const id = customEndpointId(settings.custom.map((c) => c.id));
+        // A corrected address replaces the server it corrects (review O7, second round): the broken one does not stay
+        // in the list beside a second.
+        const id = server?.id ?? customEndpointId(settings.custom.map((c) => c.id));
         // The system's own confirmation names the address before anything can go there (as on the settings page).
         const added = await session.addCustom(new URL(normalized.baseUrl).host, normalized.baseUrl, id, normalized.local);
         if (!added) return;
-        setAddress("");
+        // The address stays in the field: if the server cannot answer, it is there to be corrected.
         await tested(id);
       }
     } catch (error) {

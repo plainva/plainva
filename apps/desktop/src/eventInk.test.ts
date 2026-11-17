@@ -24,7 +24,7 @@ describe("eventInk", () => {
     expect(eventInk("#00000000")).toBe("text");
     expect(eventInk("#fff0")).toBe("text");
     // Nearly opaque, it is its colour: both grounds call for the same ink.
-    expect(eventInk("#1a73e8f0")).toBe("light");
+    expect(eventInk("#0b8043f0")).toBe("light");
     expect(eventInk("rgba(246, 191, 38, 0.95)")).toBe("dark");
     expect(eventColorVars("rgba(0,0,0,0.1)")).toEqual({ "--evt-color": "rgba(0,0,0,0.1)", "--evt-ink": "var(--text-main)", "--evt-hatch": "var(--bg-primary)" });
   });
@@ -38,5 +38,33 @@ describe("eventInk", () => {
   it("sets the calendar's colour and its ink together", () => {
     expect(eventColorVars("#2dd4bf")).toEqual({ "--evt-color": "#2dd4bf", "--evt-ink": "var(--evt-ink-dark)", "--evt-hatch": "var(--evt-hatch-dark-ink)" });
     expect(eventColorVars("#1a73e8")).toEqual({ "--evt-color": "#1a73e8", "--evt-ink": "var(--evt-ink-light)", "--evt-hatch": "var(--evt-hatch-light-ink)" });
+  });
+
+  // Review O7, second round: a grey half over white read 3.4:1 with the light theme's text.
+  it("the text reaches 4.5:1 on every ground of both themes, on any translucent fill", () => {
+    const lum = (rgb: number[]) => 0.2126 * lin(rgb[0]!) + 0.7152 * lin(rgb[1]!) + 0.0722 * lin(rgb[2]!);
+    const lin = (v: number) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+    const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    const themes = [
+      { grounds: [[255, 255, 255], [0xef, 0xf5, 0xf4]], text: [0x1b, 0x2b, 0x29] },
+      { grounds: [[0x0f, 0x1c, 0x1b], [0x15, 0x26, 0x25]], text: [0xd7, 0xe4, 0xe2] },
+    ];
+    const inks: Record<string, (text: number[]) => number[]> = { "var(--evt-ink-light)": () => [255, 255, 255], "var(--evt-ink-dark)": () => [0x10, 0x20, 0x1e], "var(--text-main)": (text) => text };
+    const rgba = (color: string) => {
+      const m = /^rgba\((\d+), ?(\d+), ?(\d+), ?([\d.]+)\)$/.exec(color.replace(/\s+/g, " "))!;
+      return [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
+    };
+    for (const fill of ["rgba(0,0,0,0.5)", "rgba(128,128,128,0.9)", "rgba(255,0,0,0.6)", "rgba(3,155,229,0.3)", "rgba(255,255,255,0.5)", "rgba(0,0,0,0.3)", "rgba(80,80,80,0.7)"]) {
+      const vars = eventColorVars(fill) as Record<string, string>;
+      const [r, g, b, a] = rgba(vars["--evt-color"]!);
+      for (const theme of themes) {
+        for (const ground of theme.grounds) {
+          const shown = ground.map((v, i) => [r, g, b][i]! * a! + v * (1 - a!));
+          expect(ratio(lum(shown), lum(inks[vars["--evt-ink"]!]!(theme.text))), `${fill} on ${ground.join(",")}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+    // A fill that reads already keeps its strength.
+    expect(eventColorVars("rgba(0,0,0,0.1)")["--evt-color" as never]).toBe("rgba(0,0,0,0.1)");
   });
 });

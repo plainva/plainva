@@ -1,6 +1,6 @@
 # Vaardigheden (Beta)
 
-Laatst bijgewerkt: 2026-11-16
+Laatst bijgewerkt: 2026-11-17
 
 Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er veertien mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
@@ -43,7 +43,7 @@ Een testuitvoering gebruikt nooit internet en vraagt nooit: e-mail die ze in dez
 
 ## Wijzigingen voorstellen
 
-Een eigen vaardigheid stelt alleen wijzigingen voor als haar `allowed-tools`-regel de hulpmiddelen daarvoor noemt: `propose_edit` en `set_property` voor voorstellen bij de tekst en de eigenschappen van een notitie, `create_note`, `create_entry`, `create_task` en `add_journal_entry` voor concepten, `rename_note`, `move_note` en `delete_note` voor plannen. **Controleren en goedkeuren** noemt ze dan elk afzonderlijk en zegt **Kan wijzigingen voorstellen, concepten klaarzetten en plannen voorleggen.** In de vault verandert niets voordat je overneemt, aanmaakt of bevestigt — behalve waar het gesprek **Direct toepassen** aan heeft of de notitie in een map met **Wijzigen zonder te vragen** staat: daar schrijft een vaardigheid die `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` of `add_journal_entry` noemt meteen, met eerst een versie en **Ongedaan maken** (zie **Direct toepassen** in [AI-assistent](AI_Assistant.md)). Een vaardigheid die geen hulpmiddelen noemt, stelt niets voor — ook een vaardigheid die je eerder hebt goedgekeurd, krijgt er niets bij —, en een testuitvoering laat niets achter. Wat de drie vormen zijn: **Wijzigingen voorstellen** in [AI-assistent](AI_Assistant.md).
+Een eigen vaardigheid stelt alleen wijzigingen voor als haar `allowed-tools`-regel de hulpmiddelen daarvoor noemt: `propose_edit` en `set_property` voor voorstellen bij de tekst en de eigenschappen van een notitie, `create_note`, `create_entry`, `create_task` en `add_journal_entry` voor concepten, `rename_note`, `move_note` en `delete_note` voor plannen. **Controleren en goedkeuren** noemt ze dan elk afzonderlijk en zegt **Kan wijzigingen voorstellen, concepten klaarzetten en plannen voorleggen — ze wachten tot je overneemt, aanmaakt of bevestigt.** en daaronder **Behalve met ‘Direct toepassen’ of in een map met ‘Wijzigen zonder te vragen’: daar wijzigt en maakt het notities meteen, met Ongedaan maken. Verwijderen, hernoemen en verplaatsen vragen nog steeds.** In de vault verandert niets voordat je overneemt, aanmaakt of bevestigt — behalve waar het gesprek **Direct toepassen** aan heeft of de notitie in een map met **Wijzigen zonder te vragen** staat: daar schrijft een vaardigheid die `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` of `add_journal_entry` noemt meteen, met eerst een versie en **Ongedaan maken** (zie **Direct toepassen** in [AI-assistent](AI_Assistant.md)). Een vaardigheid die geen hulpmiddelen noemt, stelt niets voor — ook een vaardigheid die je eerder hebt goedgekeurd, krijgt er niets bij —, en een testuitvoering laat niets achter. Wat de drie vormen zijn: **Wijzigingen voorstellen** in [AI-assistent](AI_Assistant.md).
 
 ## Je eigen vaardigheden
 

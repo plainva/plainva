@@ -1,6 +1,6 @@
 # Asistente de IA (Beta)
 
-Última actualización: 2026-11-16
+Última actualización: 2026-11-17
 
 Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó, abre notas y vistas por ti y propone cambios — como sugerencias en una nota, como borradores de algo nuevo o como un plan que tú confirmas. Solo cambia una nota por sí mismo donde tú lo permites (**Aplicar directamente**). El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
 
@@ -264,7 +264,7 @@ Una habilidad tiene estas capacidades solo cuando las nombra, y su revisión lo 
 
 Por defecto, el asistente no cambia ninguna nota por sí mismo: todo lo anterior es una sugerencia, un borrador o una pregunta. Para el trabajo rutinario («limpia los enlaces de estas diez notas») puedes dejar que aplique los cambios directamente, de dos maneras:
 
-- **Para una conversación:** el chip **Aplicar directamente**, en el pie de la conversación, junto a **Internet** y **Mi estilo**, lo activa solo para esa conversación, antes del primer mensaje o a mitad. Mientras está activado, la línea sobre la conversación dice: **La IA puede cambiar y crear notas en esta conversación. Eliminar, renombrar y mover siguen preguntando.** Tras reiniciar Plainva vuelve a estar desactivado en todas las conversaciones; el resumen previo al envío lo nombra bajo **Aplicar directamente**.
+- **Para una conversación:** el chip **Aplicar directamente**, en el pie de la conversación, junto a **Internet** y **Mi estilo**, lo activa solo para esa conversación, antes del primer mensaje o a mitad. Mientras está activado, la línea sobre la conversación dice: **La IA y los scripts que inicia pueden cambiar y crear notas en esta conversación. Eliminar, renombrar y mover siguen preguntando.** Tras reiniciar Plainva vuelve a estar desactivado en todas las conversaciones; el resumen previo al envío lo nombra bajo **Aplicar directamente**.
 - **Para una carpeta:** en **Configuración → IA en este vault**, en **Lo que puede salir de este vault**, cada regla de carpeta tiene la columna (en el teléfono, la línea) **Cambiar sin preguntar**. Con **permitido**, el asistente aplica allí los cambios directamente, sin el chip; en una nota de esa carpeta el chip dice entonces **Aplicar directamente · carpeta**. **no permitido** lo retira para una subcarpeta. La regla se guarda en `.agent/policy.yml` y viaja con el vault como las demás reglas.
 
 Se aplican directamente un cambio en una nota y en sus propiedades, una nota nueva, una entrada de base de datos, una tarea y una entrada de diario; esto vale también para lo que escribe un script que el asistente inició en la conversación (consulta [Scripts](AI_Scripts.md)), mientras que un script que inicias tú mismo con **Ejecutar** nunca escribe directamente. Renombrar, mover y eliminar siguen preguntando, y también las reglas de privacidad propias de una nota; un correo y una cita siguen siendo borradores. Lo que un agente externo entrega a Plainva, lo que una app de IA propone a través del servidor MCP y las acciones sobre una selección siguen siendo siempre sugerencias o borradores. Lo que un agente escribe por sí mismo, como programa propio, está en el vault de inmediato (consulta «Agentes externos» más arriba).

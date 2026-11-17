@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Ban, Check, ChevronDown, CircleAlert, Copy, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, MoreHorizontal, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square, Zap } from "lucide-react";
-import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, unfoundedNoteCitations, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core";
+import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -27,7 +27,7 @@ import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
 import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
 import { requestAiSettingsIntent } from "./aiSetup";
-import { conversationGrounding, GROUNDS_NAMED, groundTitles } from "./answerGrounds";
+import { GROUNDS_NAMED, groundTitles } from "./answerGrounds";
 import type { AiDress, AiSession } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
 import type { McpPromptReview } from "./mcpSession";
@@ -566,12 +566,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         const answer = answerBefore(index);
         // A picture is no note an answer could cite (plan P4-5): what counts is the text that went.
         const noteSources = manifest ? manifest.sources.filter((s) => !s.image) : [];
-        // A warning only where the answer names a note as its source that the run never had (plan Oberfläche O7, E2).
-        // What counts is what the model had in this conversation by then, not what this run packed — and a cut-off answer is checked too.
-        const unfounded =
-          answer !== null && active
-            ? unfoundedNoteCitations(answer, conversationGrounding(active.runs, active.runs.indexOf(item.run), activeNote?.path))
-            : [];
+        // A warning only where the answer names a note as its source that the conversation never had (plan Oberfläche
+        // O7, E2): checked once as the run ended, over every text it gave (`RunMeta.unfounded`) — never while drawing.
+        const unfounded = item.run.unfounded ?? [];
         // Coverage after the answer (plan P2b-5): only where notes went, so a statement could have named one.
         const coverage = noteSources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;
         // The pages the run read (plan P4), whatever the answer says of them: the app's own list, so no source goes unnamed.

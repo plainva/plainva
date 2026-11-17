@@ -1,6 +1,6 @@
 # Skills (Beta)
 
-Stand: 2026-11-16
+Stand: 2026-11-17
 
 Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt vierzehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
@@ -43,7 +43,7 @@ Ein Testlauf benutzt das Internet nie, und er fragt nie: E-Mails, die er in dies
 
 ## Änderungen vorschlagen
 
-Ein eigener Skill schlägt Änderungen nur vor, wenn seine Zeile `allowed-tools` die Werkzeuge dafür nennt: `propose_edit` und `set_property` für Vorschläge am Text und an den Eigenschaften einer Notiz, `create_note`, `create_entry`, `create_task` und `add_journal_entry` für Entwürfe, `rename_note`, `move_note` und `delete_note` für Pläne. **Prüfen und freigeben** nennt dann jedes von ihnen und sagt **Kann Änderungen vorschlagen, Entwürfe hinlegen und Pläne vorlegen.** Im Vault ändert sich nichts, bevor Du übernimmst, anlegst oder bestätigst — außer wo das Gespräch **Direkt übernehmen** an hat oder die Notiz in einem Ordner mit **Ohne Nachfrage ändern** liegt: dort schreibt ein Skill, der `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` oder `add_journal_entry` nennt, sofort, mit einer Version vorher und **Rückgängig** (siehe **Direkt übernehmen** in [KI-Assistent](AI_Assistant.md)). Ein Skill, der keine Werkzeuge nennt, schlägt nichts vor — auch einer, den Du früher freigegeben hast, gewinnt nichts dazu —, und ein Testlauf legt nichts hin. Was die drei Formen sind, steht unter **Änderungen vorschlagen** in [KI-Assistent](AI_Assistant.md).
+Ein eigener Skill schlägt Änderungen nur vor, wenn seine Zeile `allowed-tools` die Werkzeuge dafür nennt: `propose_edit` und `set_property` für Vorschläge am Text und an den Eigenschaften einer Notiz, `create_note`, `create_entry`, `create_task` und `add_journal_entry` für Entwürfe, `rename_note`, `move_note` und `delete_note` für Pläne. **Prüfen und freigeben** nennt dann jedes von ihnen und sagt **Kann Änderungen vorschlagen, Entwürfe hinlegen und Pläne vorlegen — sie warten, bis Du übernimmst, anlegst oder bestätigst.** und darunter **Außer mit „Direkt übernehmen“ oder in einem Ordner mit „Ohne Nachfrage ändern“: dort ändert und erstellt es Notizen sofort, mit Rückgängig. Löschen, Umbenennen und Verschieben fragen weiterhin.** Im Vault ändert sich nichts, bevor Du übernimmst, anlegst oder bestätigst — außer wo das Gespräch **Direkt übernehmen** an hat oder die Notiz in einem Ordner mit **Ohne Nachfrage ändern** liegt: dort schreibt ein Skill, der `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` oder `add_journal_entry` nennt, sofort, mit einer Version vorher und **Rückgängig** (siehe **Direkt übernehmen** in [KI-Assistent](AI_Assistant.md)). Ein Skill, der keine Werkzeuge nennt, schlägt nichts vor — auch einer, den Du früher freigegeben hast, gewinnt nichts dazu —, und ein Testlauf legt nichts hin. Was die drei Formen sind, steht unter **Änderungen vorschlagen** in [KI-Assistent](AI_Assistant.md).
 
 ## Eigene Skills
 

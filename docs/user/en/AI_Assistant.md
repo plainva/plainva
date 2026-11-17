@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-17
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It changes a note itself only where you let it (**Apply directly**). The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -264,7 +264,7 @@ A skill has these abilities only when it names them, and its review says so — 
 
 Out of the box the assistant changes no note itself — everything above is a suggestion, a draft or a question. For routine work ("clean up the links in these ten notes") you can let it apply changes directly, in two ways:
 
-- **For one conversation:** the chip **Apply directly** in the footer of the conversation, beside **Internet** and **My style**, switches it on for this one conversation — before the first message or in the middle of it. While it is on, the line above the conversation says: **The AI may change and create notes in this conversation. Deleting, renaming and moving still ask.** After Plainva restarts it is off again for every conversation; the overview before sending names it under **Apply directly**.
+- **For one conversation:** the chip **Apply directly** in the footer of the conversation, beside **Internet** and **My style**, switches it on for this one conversation — before the first message or in the middle of it. While it is on, the line above the conversation says: **The AI, and scripts it starts, may change and create notes in this conversation. Deleting, renaming and moving still ask.** After Plainva restarts it is off again for every conversation; the overview before sending names it under **Apply directly**.
 - **For a folder:** under **Settings → AI in this vault**, in **What may leave this vault**, every folder rule has the column (on the phone the line) **Change without asking**. Set to **allowed**, the assistant applies changes there directly, without the chip; on a note from that folder the chip then reads **Apply directly · folder**. **not allowed** takes it back for a subfolder. The rule is kept in `.agent/policy.yml` and travels with the vault like the other rules.
 
 Applied directly are a change to a note and to its properties, a new note, a database entry, a task and a journal entry; this also holds for what a script writes that the assistant started in the conversation (see [Scripts](AI_Scripts.md)), while a script you start yourself with **Run** never writes directly. Renaming, moving and deleting still ask, and so do a note's own privacy rules; an e-mail and an appointment stay drafts. What an external agent hands to Plainva, what an AI app proposes through the MCP server and the actions on a selection always stay suggestions or drafts. What an agent writes itself, as a program of its own, is in the vault at once (see “External agents” above).

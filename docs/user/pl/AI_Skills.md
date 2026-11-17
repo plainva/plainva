@@ -1,6 +1,6 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-11-16
+Stan na: 2026-11-17
 
 Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma czternaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
@@ -43,7 +43,7 @@ Uruchomienie testowe nigdy nie korzysta z internetu i nigdy nie pyta: e-maile, k
 
 ## Proponowanie zmian
 
-Własna umiejętność proponuje zmiany tylko wtedy, gdy jej wiersz `allowed-tools` wymienia przeznaczone do tego narzędzia: `propose_edit` i `set_property` dla propozycji w tekście i we właściwościach notatki, `create_note`, `create_entry`, `create_task` i `add_journal_entry` dla szkiców, `rename_note`, `move_note` i `delete_note` dla planów. **Sprawdź i zatwierdź** wymienia wtedy każde z nich i pokazuje: **Może proponować zmiany, zostawiać szkice i przedstawiać plany.** W vaulcie nic się nie zmienia, dopóki nie zaakceptujesz, nie utworzysz lub nie potwierdzisz — z wyjątkiem sytuacji, gdy rozmowa ma włączone **Zastosuj od razu** albo notatka leży w folderze z **Zmieniaj bez pytania**: tam umiejętność wymieniająca `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` lub `add_journal_entry` zapisuje od razu, z wersją przed zmianą i **Cofnij** (zob. **Zastosuj od razu** w [Asystent AI](AI_Assistant.md)). Umiejętność, która nie wymienia żadnych narzędzi, niczego nie proponuje — nic nie zyskuje też umiejętność zatwierdzona wcześniej — a uruchomienie testowe niczego nie zostawia. Czym są te trzy formy: **Proponowanie zmian** w [Asystent AI](AI_Assistant.md).
+Własna umiejętność proponuje zmiany tylko wtedy, gdy jej wiersz `allowed-tools` wymienia przeznaczone do tego narzędzia: `propose_edit` i `set_property` dla propozycji w tekście i we właściwościach notatki, `create_note`, `create_entry`, `create_task` i `add_journal_entry` dla szkiców, `rename_note`, `move_note` i `delete_note` dla planów. **Sprawdź i zatwierdź** wymienia wtedy każde z nich i pokazuje: **Może proponować zmiany, zostawiać szkice i przedstawiać plany — czekają, aż je zaakceptujesz, utworzysz lub potwierdzisz.**, a pod spodem **Chyba że włączone jest „Zastosuj od razu” albo folder ma „Zmieniaj bez pytania”: tam od razu zmienia i tworzy notatki, z opcją Cofnij. Usuwanie, zmiana nazwy i przenoszenie nadal pytają.** W vaulcie nic się nie zmienia, dopóki nie zaakceptujesz, nie utworzysz lub nie potwierdzisz — z wyjątkiem sytuacji, gdy rozmowa ma włączone **Zastosuj od razu** albo notatka leży w folderze z **Zmieniaj bez pytania**: tam umiejętność wymieniająca `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` lub `add_journal_entry` zapisuje od razu, z wersją przed zmianą i **Cofnij** (zob. **Zastosuj od razu** w [Asystent AI](AI_Assistant.md)). Umiejętność, która nie wymienia żadnych narzędzi, niczego nie proponuje — nic nie zyskuje też umiejętność zatwierdzona wcześniej — a uruchomienie testowe niczego nie zostawia. Czym są te trzy formy: **Proponowanie zmian** w [Asystent AI](AI_Assistant.md).
 
 ## Własne umiejętności
 

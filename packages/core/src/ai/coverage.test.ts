@@ -42,6 +42,16 @@ describe("answer coverage", () => {
 /** Plan Oberfläche O7, E2: a warning only where the answer names a note as its source that the run never had. */
 describe("unfounded note citations", () => {
   const grounding = { sent: ["Projects/Website relaunch.md"], read: ["Areas/Roadmap.md"] };
+  /** The vault the conversation stands in, as the index lists it: every link is read against all of it. */
+  const vault = [
+    { path: "Projects/Website relaunch.md", title: "Website relaunch" },
+    { path: "Areas/Roadmap.md", title: "Roadmap" },
+    { path: "Pricing 2026.md", title: "Pricing 2026" },
+    { path: "Node.js.md", title: "Node.js" },
+    { path: "Vue.config.md", title: "Vue.config" },
+    { path: "Q4: Plan.md", title: "Q4: Plan" },
+    { path: "diagram.png", mode: "attachment" },
+  ];
 
   it("finds nothing when every cited note went along or was read", () => {
     const answer = "The site gets three pages [[Website relaunch]].\n\n- Launch is in May [[Areas/Roadmap|the roadmap]].\n- Hero first [[Website relaunch#Goals]].";
@@ -86,7 +96,7 @@ describe("unfounded note citations", () => {
 
   it("checks Markdown links to notes too, and leaves addresses and other files alone", () => {
     const answer = "See [Pricing](Pricing%202026.md), [the plan](<Projects/Website relaunch.md>), [site](https://example.com), [pdf](plan.pdf).";
-    expect(unfoundedNoteCitations(answer, grounding)).toEqual(["Pricing 2026.md"]);
+    expect(unfoundedNoteCitations(answer, { ...grounding, vault: [...vault, { path: "plan.pdf", mode: "attachment" }] })).toEqual(["Pricing 2026.md"]);
   });
 
   it("a link with a folder leads where the app's rule says: a same-named note elsewhere is not the sent one", () => {
@@ -97,5 +107,42 @@ describe("unfounded note citations", () => {
   it("reads relative links from the note the conversation stands in", () => {
     expect(unfoundedNoteCitations("Same folder [[./Website relaunch]].", { ...grounding, from: "Projects/Today.md" })).toEqual([]);
     expect(unfoundedNoteCitations("Same folder [[./Website relaunch]].", { ...grounding, from: "Areas/Today.md" })).toEqual(["./Website relaunch"]);
+  });
+
+  // Review O7, second round: what is a link to a note comes from the app's own rule, not from a list of its own.
+  it("a name with a dot or a colon is a note, as the app reads it", () => {
+    const g = { ...grounding, vault };
+    expect(unfoundedNoteCitations("Runs on [[Node.js]], set in [[Vue.config]], as in [[Q4: Plan]].", g)).toEqual(["Node.js", "Vue.config", "Q4: Plan"]);
+    // Without the vault's list the same names are still notes: nothing is skipped by how it is spelled.
+    expect(unfoundedNoteCitations("Runs on [[Node.js]] and [[Q4: Plan]].", grounding)).toEqual(["Node.js", "Q4: Plan"]);
+  });
+
+  it("reads reference links and HTML links, and no wiki link inside an HTML code element", () => {
+    const g = { ...grounding, vault };
+    expect(unfoundedNoteCitations("See [Pricing][p].\n\n[p]: Pricing%202026.md", g)).toEqual(["Pricing 2026.md"]);
+    expect(unfoundedNoteCitations('See <a href="Pricing%202026.md">prices</a>.', g)).toEqual(["Pricing 2026.md"]);
+    expect(unfoundedNoteCitations("Write <code>[[Pricing 2026]]</code> to link [[Website relaunch]].", g)).toEqual([]);
+    expect(unfoundedNoteCitations("[See](https://example.com) and <a href=\"mailto:x@example.com\">mail</a>.", g)).toEqual([]);
+  });
+
+  it("a bare link leads where it leads in the editor: to the note the vault answers with, not to a sent one of that name", () => {
+    const files = [{ path: "Plan.md" }, { path: "Projects/Plan.md" }];
+    // `[[Plan]]` opens `Plan.md` (the shorter path); the conversation had `Projects/Plan.md`.
+    expect(unfoundedNoteCitations("x [[Plan]].", { sent: ["Projects/Plan.md"], from: "Areas/Today.md", vault: files })).toEqual(["Plan"]);
+    expect(unfoundedNoteCitations("x [[Plan]].", { sent: ["Plan.md"], from: "Areas/Today.md", vault: files })).toEqual([]);
+    // A Markdown link is read from the linking note's folder first.
+    const near = [...files, { path: "Areas/Plan.md" }];
+    expect(unfoundedNoteCitations("x [P](Plan.md).", { sent: ["Projects/Plan.md"], from: "Areas/Today.md", vault: near })).toEqual(["Plan.md"]);
+    expect(unfoundedNoteCitations("x [P](Plan.md).", { sent: ["Areas/Plan.md"], from: "Areas/Today.md", vault: near })).toEqual([]);
+  });
+
+  it("a link to a file that is no note names no source; a note that is not there is named", () => {
+    const g = { ...grounding, vault };
+    expect(unfoundedNoteCitations("The picture [[diagram.png]] and [the plan](diagram.png).", g)).toEqual([]);
+    expect(unfoundedNoteCitations("A note to come [[Ideas for 2027]].", g)).toEqual(["Ideas for 2027"]);
+  });
+
+  it("a title the vault lists counts like the note's path", () => {
+    expect(unfoundedNoteCitations("x [[Website relaunch]] [[Roadmap]].", { ...grounding, vault })).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-11-16
+Ultimo aggiornamento: 2026-11-17
 
 Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include quattordici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
@@ -43,7 +43,7 @@ Un'esecuzione di prova non usa mai Internet e non chiede mai: le e-mail che in q
 
 ## Proporre modifiche
 
-Una tua competenza propone modifiche solo quando la sua riga `allowed-tools` nomina gli strumenti adatti: `propose_edit` e `set_property` per le proposte sul testo e sulle proprietà di una nota, `create_note`, `create_entry`, `create_task` e `add_journal_entry` per le bozze, `rename_note`, `move_note` e `delete_note` per i piani. **Controlla e approva** allora li nomina uno per uno e dice **Può proporre modifiche, lasciare bozze e presentare piani.** Nel vault non cambia nulla prima che tu accetti, crei o confermi — tranne dove la conversazione ha **Applica direttamente** attivo o la nota si trova in una cartella con **Modifica senza chiedere**: lì una competenza che nomina `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` o `add_journal_entry` scrive subito, con una versione prima e **Annulla** (vedi **Applica direttamente** in [Assistente IA](AI_Assistant.md)). Una competenza che non nomina alcuno strumento non propone nulla — nemmeno una che avevi approvato prima ci guadagna qualcosa —, e un'esecuzione di prova non lascia nulla. Che cosa sono le tre forme: **Proporre modifiche** in [Assistente IA](AI_Assistant.md).
+Una tua competenza propone modifiche solo quando la sua riga `allowed-tools` nomina gli strumenti adatti: `propose_edit` e `set_property` per le proposte sul testo e sulle proprietà di una nota, `create_note`, `create_entry`, `create_task` e `add_journal_entry` per le bozze, `rename_note`, `move_note` e `delete_note` per i piani. **Controlla e approva** allora li nomina uno per uno e dice **Può proporre modifiche, lasciare bozze e presentare piani: aspettano che tu li accetti, crei o confermi.** e, sotto, **Tranne con «Applica direttamente» o in una cartella con «Modifica senza chiedere»: lì modifica e crea note subito, con Annulla. Eliminare, rinominare e spostare chiedono sempre.** Nel vault non cambia nulla prima che tu accetti, crei o confermi — tranne dove la conversazione ha **Applica direttamente** attivo o la nota si trova in una cartella con **Modifica senza chiedere**: lì una competenza che nomina `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` o `add_journal_entry` scrive subito, con una versione prima e **Annulla** (vedi **Applica direttamente** in [Assistente IA](AI_Assistant.md)). Una competenza che non nomina alcuno strumento non propone nulla — nemmeno una che avevi approvato prima ci guadagna qualcosa —, e un'esecuzione di prova non lascia nulla. Che cosa sono le tre forme: **Proporre modifiche** in [Assistente IA](AI_Assistant.md).
 
 ## Le tue competenze
 

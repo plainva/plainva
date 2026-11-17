@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-11-16
+Laatst bijgewerkt: 2026-11-17
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het alleen zelf waar jij dat toestaat (**Direct toepassen**). De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -264,7 +264,7 @@ Een vaardigheid heeft deze mogelijkheden alleen als ze die noemt, en haar contro
 
 Standaard wijzigt de assistent zelf geen notitie — alles hierboven is een voorstel, een concept of een vraag. Voor routinewerk (“ruim de links in deze tien notities op”) kun je hem wijzigingen direct laten toepassen, op twee manieren:
 
-- **Voor één gesprek:** de chip **Direct toepassen** onderaan het gesprek, naast **Internet** en **Mijn stijl**, zet dit aan voor dit ene gesprek — vóór het eerste bericht of halverwege. Zolang het aan staat, zegt de regel boven het gesprek: **De AI mag in dit gesprek notities wijzigen en aanmaken. Verwijderen, hernoemen en verplaatsen vragen nog steeds.** Na een herstart van Plainva staat het weer uit voor elk gesprek; het overzicht vóór het verzenden noemt het onder **Direct toepassen**.
+- **Voor één gesprek:** de chip **Direct toepassen** onderaan het gesprek, naast **Internet** en **Mijn stijl**, zet dit aan voor dit ene gesprek — vóór het eerste bericht of halverwege. Zolang het aan staat, zegt de regel boven het gesprek: **De AI en scripts die ze start mogen in dit gesprek notities wijzigen en aanmaken. Verwijderen, hernoemen en verplaatsen vragen nog steeds.** Na een herstart van Plainva staat het weer uit voor elk gesprek; het overzicht vóór het verzenden noemt het onder **Direct toepassen**.
 - **Voor een map:** onder **Instellingen → AI in deze vault**, in **Wat deze vault mag verlaten**, heeft elke mapregel de kolom (op de telefoon de regel) **Wijzigen zonder te vragen**. Staat die op **toegestaan**, dan past de assistent daar wijzigingen direct toe, zonder de chip; bij een notitie uit die map staat op de chip dan **Direct toepassen · map**. **niet toegestaan** neemt het weer terug voor een submap. De regel staat in `.agent/policy.yml` en reist met de vault mee, net als de andere regels.
 
 Direct toegepast worden een wijziging aan een notitie en aan haar eigenschappen, een nieuwe notitie, een database-item, een taak en een journaalitem; dat geldt ook voor wat een script schrijft dat de assistent in het gesprek heeft gestart (zie [Scripts](AI_Scripts.md)), terwijl een script dat je zelf met **Uitvoeren** start nooit direct schrijft. Hernoemen, verplaatsen en verwijderen vragen nog steeds, en ook de eigen privacyregels van een notitie gelden nog; een e-mail en een afspraak blijven concepten. Wat een externe agent aan Plainva overhandigt, wat een AI-app via de MCP-server voorstelt en de acties op een selectie blijven altijd voorstellen of concepten. Wat een agent zelf schrijft, als een eigen programma, staat meteen in de vault (zie ‘Externe agents’ hierboven).

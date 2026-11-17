@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-11-16
+Stan na: 2026-11-17
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama zmienia notatkę tylko tam, gdzie na to pozwolisz (**Zastosuj od razu**). Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -264,7 +264,7 @@ Umiejętność ma te możliwości tylko wtedy, gdy je wymienia, a jej sprawdzeni
 
 Domyślnie asystent sam nie zmienia żadnej notatki — wszystko powyżej to propozycja, szkic albo pytanie. Przy rutynowej pracy („uporządkuj linki w tych dziesięciu notatkach”) możesz pozwolić mu stosować zmiany od razu, na dwa sposoby:
 
-- **Dla jednej rozmowy:** chip **Zastosuj od razu** na dole rozmowy, obok **Internet** i **Mój styl**, włącza to dla tej jednej rozmowy — przed pierwszą wiadomością albo w trakcie. Dopóki jest włączony, wiersz nad rozmową mówi: **AI może w tej rozmowie zmieniać i tworzyć notatki. Usuwanie, zmiana nazwy i przenoszenie nadal pytają.** Po ponownym uruchomieniu Plainva jest znów wyłączony dla każdej rozmowy; przegląd przed wysłaniem wymienia go pod **Zastosuj od razu**.
+- **Dla jednej rozmowy:** chip **Zastosuj od razu** na dole rozmowy, obok **Internet** i **Mój styl**, włącza to dla tej jednej rozmowy — przed pierwszą wiadomością albo w trakcie. Dopóki jest włączony, wiersz nad rozmową mówi: **AI i uruchamiane przez nią skrypty mogą w tej rozmowie zmieniać i tworzyć notatki. Usuwanie, zmiana nazwy i przenoszenie nadal pytają.** Po ponownym uruchomieniu Plainva jest znów wyłączony dla każdej rozmowy; przegląd przed wysłaniem wymienia go pod **Zastosuj od razu**.
 - **Dla folderu:** w **Ustawienia → AI w tym vaulcie**, w sekcji **Co może opuścić ten vault**, każda reguła folderu ma kolumnę (na telefonie wiersz) **Zmieniaj bez pytania**. Ustawiona na **dozwolone**, sprawia, że asystent stosuje tam zmiany od razu, bez chipa; przy notatce z tego folderu chip brzmi wtedy **Zastosuj od razu · folder**. **niedozwolone** cofa to dla podfolderu. Reguła jest zapisana w `.agent/policy.yml` i podróżuje z vaultem tak jak pozostałe reguły.
 
 Od razu stosowane są zmiana notatki i jej właściwości, nowa notatka, wpis w bazie danych, zadanie i wpis w dzienniku; dotyczy to także tego, co zapisuje skrypt uruchomiony przez asystenta w rozmowie (zob. [Skrypty](AI_Scripts.md)), natomiast skrypt, który uruchamiasz sam przyciskiem **Uruchom**, nigdy nie zapisuje od razu. Zmiana nazwy, przenoszenie i usuwanie nadal pytają, podobnie jak własne zasady prywatności notatki; e-mail i spotkanie pozostają szkicami. To, co zewnętrzny agent przekazuje Plainva, to, co aplikacja AI proponuje przez serwer MCP, i akcje na zaznaczeniu zawsze pozostają propozycjami lub szkicami. To, co agent zapisuje sam, jako własny program, jest w vaulcie od razu (zob. wyżej „Agenci zewnętrzni”).

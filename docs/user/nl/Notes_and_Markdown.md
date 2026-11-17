@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-16
+Laatst bijgewerkt: 2026-11-17
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -112,7 +112,7 @@ Vijf optionele eigenschappen uit OKF 0.2 laten een notitie zeggen waar ze vandaa
 - **Vertrouwen en herkomst:** een eigen sectie in het eigenschappenpaneel vat `generated` (Gegenereerd), `verified` (Geverifieerd), `sources` (Bronnen, klikbaar), `status` en `stale_after` (Verouderd na) samen en leidt daaruit een niveau af — **Niet geverifieerd**, **Door de machine bevestigd** of **Door een persoon beoordeeld**. Ze verschijnt zolang de AI op dit apparaat aan staat, of als de notitie zulke velden draagt.
 - **Markeren als gecontroleerd:** de knop in die sectie voegt je naam met het huidige moment toe aan de verified-lijst (`human:<naam>`); Plainva vraagt de naam eenmaal per vault en bewaart hem alleen op dit apparaat (wijzigbaar onder **Instellingen → Vault → Notities en ordening → Opmerkingen → Je naam (opmerkingen en controles)**). Op de telefoon staat dezelfde actie in de contextkaart van de notitie.
 
-Plainva zet `generated` en `sources` alleen waar het zelf notities aanmaakt — in de import, bij e-mail vastleggen, in de takensynchronisatie en wanneer je een antwoord van de AI bewaart met **Bewaren als notitie**; de editor stempelt nooit, en bestaande notities krijgen geen stempel achteraf. Het veldcontract staat in de [Bestandsformaat-referentie](File_Format_Reference.md), de achtergrond onder [OKF](OKF.md).
+Plainva zet `generated` en `sources` alleen waar het zelf notities aanmaakt — in de import, bij e-mail vastleggen, in de takensynchronisatie wanneer je een antwoord van de AI bewaart met **Bewaren als notitie**, en wanneer de AI een notitie of een database-item aanmaakt — als concept dat jij aanmaakt, of meteen met **Direct toepassen**; een notitie die een externe agent aanmaakt, krijgt ook `generated`. De editor stempelt nooit, en bestaande notities krijgen geen stempel achteraf. Het veldcontract staat in de [Bestandsformaat-referentie](File_Format_Reference.md), de achtergrond onder [OKF](OKF.md).
 
 ## Documenticoon en headerkleur
 

@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-11-16
+Dernière mise à jour : 2026-11-17
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -112,7 +112,7 @@ Cinq propriétés facultatives de l'OKF 0.2 permettent à une note de dire d'où
 - **Confiance et provenance :** une section à part dans le panneau des propriétés résume `generated` (Générée), `verified` (Vérifiée), `sources` (Sources, cliquables), `status` (Statut) et `stale_after` (Périmée après) et en déduit un niveau — **Non vérifiée**, **Confirmée par la machine** ou **Relue par une personne**. Elle apparaît tant que l'IA est activée sur cet appareil, ou quand la note porte de tels champs.
 - **Marquer comme relue :** le bouton de cette section ajoute votre nom avec l'instant présent à la liste verified (`human:<nom>`) ; Plainva demande le nom une fois par vault et le garde uniquement sur cet appareil (modifiable sous **Paramètres → Vault → Notes et rangement → Annotations → Votre nom (annotations et relectures)**). Sur le téléphone, la même action se trouve dans la fiche contextuelle de la note.
 
-Plainva ne définit `generated` et `sources` que là où il crée les notes lui-même — dans l'importeur, dans la capture d'e-mails, dans la synchronisation des tâches et quand vous gardez une réponse de l'IA avec **Conserver comme note** ; l'éditeur ne tamponne jamais, et les notes existantes ne sont pas tamponnées après coup. Le contrat de champ se trouve dans la [Référence du format de fichier](File_Format_Reference.md), le contexte sous [OKF](OKF.md).
+Plainva ne définit `generated` et `sources` que là où il crée les notes lui-même — dans l'importeur, dans la capture d'e-mails, dans la synchronisation des tâches quand vous gardez une réponse de l'IA avec **Conserver comme note**, et quand l'IA crée une note ou une entrée de base de données — comme brouillon que vous créez, ou aussitôt avec **Appliquer directement** ; une note créée par un agent externe porte aussi `generated`. L'éditeur ne tamponne jamais, et les notes existantes ne sont pas tamponnées après coup. Le contrat de champ se trouve dans la [Référence du format de fichier](File_Format_Reference.md), le contexte sous [OKF](OKF.md).
 
 ## Icône du document et couleur d'en-tête
 

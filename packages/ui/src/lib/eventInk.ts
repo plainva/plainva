@@ -11,8 +11,9 @@ import type { CSSProperties } from "react";
  *
  * A colour with an alpha (`rgba(0,0,0,0.1)`, `#00000000`) is what it shows
  * over the ground (review O7, A1): it is laid over the light and the dark
- * theme's ground first. Where the two call for different inks, the fill is
- * close to the ground, and the theme's own text reads on it ("text").
+ * theme's ground first. Where one ink does not read on all of them, the
+ * theme's own text does ("text"), on a fill shown as faint as it needs:
+ * at least 4.5:1 on every ground (review O7, second round).
  */
 export type EventInk = "light" | "dark" | "text";
 
@@ -46,27 +47,59 @@ function luminance([r, g, b]: readonly number[]): number {
 /** The relative luminance of the two inks (`--evt-ink-light` #ffffff, `--evt-ink-dark` #10201e in `tokens.css`). */
 const LIGHT_INK = 1;
 const DARK_INK = luminance([0x10, 0x20, 0x1e]);
-/** The grounds a translucent fill lies on: `--bg-primary` of the light and of the dark theme (`base-colors.css`). */
-const GROUNDS: readonly (readonly number[])[] = [
-  [0xff, 0xff, 0xff],
-  [0x0f, 0x1c, 0x1b],
+const INK_LUMINANCE = { light: LIGHT_INK, dark: DARK_INK } as const;
+/**
+ * The grounds a translucent fill lies on, and the theme's own text on them: `--bg-primary`, `--bg-secondary` and
+ * `--text-main` of the light and of the dark theme (`base-colors.css`).
+ */
+const THEMES: readonly { grounds: readonly (readonly number[])[]; text: number }[] = [
+  { grounds: [[0xff, 0xff, 0xff], [0xef, 0xf5, 0xf4]], text: luminance([0x1b, 0x2b, 0x29]) },
+  { grounds: [[0x0f, 0x1c, 0x1b], [0x15, 0x26, 0x25]], text: luminance([0xd7, 0xe4, 0xe2]) },
 ];
+/** What the text on an appointment reaches at least on a translucent fill (WCAG AA for normal text, review O7, F31). */
+const MIN_CONTRAST = 4.5;
+
+const contrast = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+const over = (rgba: Rgba, ground: readonly number[], alpha = rgba[3]) => ground.map((g, i) => rgba[i]! * alpha + g * (1 - alpha));
 
 function inkOn(rgb: readonly number[]): "light" | "dark" {
   const l = luminance(rgb);
-  const onLight = (LIGHT_INK + 0.05) / (l + 0.05);
-  const onDark = (l + 0.05) / (DARK_INK + 0.05);
-  return onLight >= onDark ? "light" : "dark";
+  return contrast(LIGHT_INK, l) >= contrast(l, DARK_INK) ? "light" : "dark";
+}
+
+/** The ink and, for a translucent fill that had to give way, the strength it is shown at. */
+interface Surface {
+  ink: EventInk;
+  /** Present where the fill is shown fainter than given: its alpha, so the theme's text reads on it. */
+  alpha?: number;
+}
+
+function surface(fill: string): Surface | null {
+  const rgba = channels(fill);
+  if (!rgba) return null;
+  if (rgba[3] >= 1) return { ink: inkOn(rgba) };
+  // A translucent fill is what it shows over each theme's ground (review O7, A1): one ink only where it reads on all
+  // of them.
+  const all = THEMES.flatMap((theme) => theme.grounds.map((ground) => over(rgba, ground)));
+  const ink = inkOn(over(rgba, THEMES[0]!.grounds[0]!));
+  if (all.every((rgb) => contrast(luminance(rgb), INK_LUMINANCE[ink]) >= MIN_CONTRAST)) return { ink };
+  // Otherwise the theme's own text, and the fill as faint as that text needs it (review O7, second round): a grey
+  // half over white read 3.4:1 with the light theme's text.
+  const reads = (alpha: number) => THEMES.every((theme) => theme.grounds.every((ground) => contrast(luminance(over(rgba, ground, alpha)), theme.text) >= MIN_CONTRAST));
+  if (reads(rgba[3])) return { ink: "text" };
+  let low = 0;
+  let high = rgba[3];
+  for (let step = 0; step < 12; step++) {
+    const mid = (low + high) / 2;
+    if (reads(mid)) low = mid;
+    else high = mid;
+  }
+  return { ink: "text", alpha: Math.floor(low * 100) / 100 };
 }
 
 /** Which ink reads on a fill; null where the fill is no literal colour (then the accent pair holds). */
 export function eventInk(fill: string): EventInk | null {
-  const rgba = channels(fill);
-  if (!rgba) return null;
-  const alpha = rgba[3];
-  if (alpha >= 1) return inkOn(rgba);
-  const inks = GROUNDS.map((ground) => inkOn(ground.map((g, i) => rgba[i]! * alpha + g * (1 - alpha))));
-  return inks[0] === inks[1] ? inks[0]! : "text";
+  return surface(fill)?.ink ?? null;
 }
 
 const INK_VAR: Record<EventInk, string> = { light: "var(--evt-ink-light)", dark: "var(--evt-ink-dark)", text: "var(--text-main)" };
@@ -79,6 +112,8 @@ const HATCH_VAR: Record<EventInk, string> = { light: "var(--evt-hatch-light-ink)
 
 /** The custom properties an appointment's surface carries: its calendar's colour, the ink that reads on it, and its hatch. */
 export function eventColorVars(fill: string): CSSProperties {
-  const ink = eventInk(fill);
-  return { ["--evt-color" as string]: fill, ...(ink ? { ["--evt-ink" as string]: INK_VAR[ink], ["--evt-hatch" as string]: HATCH_VAR[ink] } : {}) } as CSSProperties;
+  const shown = surface(fill);
+  const rgba = shown?.alpha !== undefined ? channels(fill) : null;
+  const color = rgba ? `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${shown!.alpha})` : fill;
+  return { ["--evt-color" as string]: color, ...(shown ? { ["--evt-ink" as string]: INK_VAR[shown.ink], ["--evt-hatch" as string]: HATCH_VAR[shown.ink] } : {}) } as CSSProperties;
 }

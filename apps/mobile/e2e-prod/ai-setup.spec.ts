@@ -37,6 +37,8 @@ async function installSeam(context: BrowserContext, script: string[], lists: Arr
           const keys = (globalThis as unknown as { __keys: string[] }).__keys;
           if (method === "setKey" && options.providerId) keys.push(options.providerId);
           if (method === "hasKey") return { present: Boolean(options.providerId && keys.includes(options.providerId)) };
+          // The system's confirmation of a new address: said yes to.
+          if (method === "addEndpoint") return { added: true };
           return {};
         },
         nativeCallback(_plugin: string, _method: string, options: { method: string }, callback: (chunk: unknown) => void) {
@@ -151,6 +153,51 @@ test("AI setup on the phone: a key that was refused is fixed in the sheet the ne
     await sheet.getByTestId("ai-setup-next").click();
     await expect(current).toContainText("Try it");
     await expect(sheet.getByTestId("ai-setup-back")).toBeVisible();
+  } finally {
+    sql.close();
+  }
+});
+
+test("AI setup on the phone: an own server's address is no unsaved typing, and a corrected one replaces the server (review O7, second round)", async ({ page, context }) => {
+  test.setTimeout(90_000);
+  const sql = await installSqlBridge(context);
+  // An own server is set up already and has not been asked yet: the setup begins at the first hello.
+  await context.addInitScript(() => {
+    localStorage.setItem(
+      "CapacitorStorage.ai",
+      JSON.stringify({ enabled: true, providers: [], custom: [{ id: "custom-1", label: "192.168.1.5:11434", baseUrl: "http://192.168.1.5:11434/v1", api: "openai-chat", local: true }], profiles: {} }),
+    );
+  });
+  await installSeam(context, [], ["ok"]);
+  await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+  try {
+    await page.goto("/");
+    await waitForVaultDirectory(page);
+    await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+    await page.getByTestId("tab-areas").click();
+    await page.getByTestId("areas-ai").click();
+    const conversation = page.getByTestId("ai-screen");
+    await conversation.getByRole("button", { name: "Set up", exact: true }).click();
+    const sheet = page.getByTestId("ai-setup-sheet");
+    const current = sheet.getByTestId("ai-setup-steps").locator('li[aria-current="step"]');
+    await expect(current).toContainText("Try it");
+    // Put away at the first hello: nothing was typed, so nothing is asked.
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 8, y: 8 } });
+    await expect(sheet).toHaveCount(0);
+
+    // Begun again, back at the way in: the server's address stands there, and correcting it replaces that server.
+    await conversation.getByRole("button", { name: "Set up", exact: true }).click();
+    await sheet.getByTestId("ai-setup-back").click();
+    await expect(current).toContainText("Access");
+    await expect(sheet.getByTestId("ai-setup-address")).toHaveValue("http://192.168.1.5:11434/v1");
+    await sheet.getByTestId("ai-setup-address").fill("http://192.168.1.6:11434/v1");
+    await sheet.getByTestId("ai-setup-next").click();
+    await expect(current).toContainText("Try it");
+    const custom = await page.evaluate(() => (JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { custom?: { id: string; baseUrl: string }[] }).custom ?? []);
+    expect(custom.map((c) => [c.id, c.baseUrl])).toEqual([["custom-1", "http://192.168.1.6:11434/v1"]]);
+    // The address in the field is the stored one now: closing asks nothing.
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 8, y: 8 } });
+    await expect(sheet).toHaveCount(0);
   } finally {
     sql.close();
   }

@@ -34,10 +34,13 @@ describe("conversationGrounding", () => {
     expect(unfoundedNoteCitations("As said [[Website relaunch]], see [[Relaunch plan]], [[Ideas]] and [[Roadmap]].", grounding)).toEqual([]);
   });
 
-  it("counts no run after the one asked about, and none whose request reached no model", () => {
+  it("counts no run after the one asked about", () => {
     expect(unfoundedNoteCitations("[[Later]]", conversationGrounding(runs, 1))).toEqual(["Later"]);
+  });
+
+  it("a run whose request reached no model still counts: its context goes with the next request (review O7, second round)", () => {
     const unreached = [run({ sent: ["Ghost.md"], unreached: true }), run({ sent: [] })];
-    expect(unfoundedNoteCitations("[[Ghost]]", conversationGrounding(unreached, 1))).toEqual(["Ghost"]);
+    expect(unfoundedNoteCitations("[[Ghost]]", conversationGrounding(unreached, 1))).toEqual([]);
   });
 
   it("one run that read more than it listed makes the rest unknown", () => {

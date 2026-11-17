@@ -1,6 +1,6 @@
 # 技能（测试版）
 
-更新日期：2026-11-16
+更新日期：2026-11-17
 
 技能是一组用于重复性工作的指令：准备会议、整理任务、每周回顾。Plainva自带十四个技能，你也可以编写自己的技能。技能使用开放的Agent Skills格式（一个包含 `SKILL.md` 的文件夹），因此也能在其他读取该格式的AI应用中使用。
 
@@ -43,7 +43,7 @@
 
 ## 提出修改
 
-你自己的技能只有在`allowed-tools`一行列出相应工具时才会提出修改：`propose_edit`和`set_property`用于对笔记正文和属性的建议，`create_note`、`create_entry`、`create_task`和`add_journal_entry`用于草稿，`rename_note`、`move_note`和`delete_note`用于计划。此时**检查并批准**会逐一列出这些工具，并显示**可以提出修改建议、留下草稿并提交计划。** 在你采纳、创建或确认之前，仓库不会有任何改动——除非对话开启了**直接应用**，或笔记位于带有**无需询问即可修改**的文件夹中：在那里，列出`propose_edit`、`set_property`、`create_note`、`create_entry`、`create_task`或`add_journal_entry`的技能会立即写入，之前留有一个版本，并带有**撤销**（见[AI助手](AI_Assistant.md)中的**直接应用**）。没有列出任何工具的技能不会提出任何内容——你之前批准过的技能也不会因此多出什么——测试运行也不会留下任何内容。三种形式的说明见[AI助手](AI_Assistant.md)中的**提出修改**。
+你自己的技能只有在`allowed-tools`一行列出相应工具时才会提出修改：`propose_edit`和`set_property`用于对笔记正文和属性的建议，`create_note`、`create_entry`、`create_task`和`add_journal_entry`用于草稿，`rename_note`、`move_note`和`delete_note`用于计划。此时**检查并批准**会逐一列出这些工具，并显示**可以提出修改建议、留下草稿并提交计划——它们会等你采纳、创建或确认。**，下面还写着**但在开启“直接应用”时，或在设为“无需询问即可修改”的文件夹中，它会立即修改和创建笔记，可撤销。删除、重命名和移动仍会询问。** 在你采纳、创建或确认之前，仓库不会有任何改动——除非对话开启了**直接应用**，或笔记位于带有**无需询问即可修改**的文件夹中：在那里，列出`propose_edit`、`set_property`、`create_note`、`create_entry`、`create_task`或`add_journal_entry`的技能会立即写入，之前留有一个版本，并带有**撤销**（见[AI助手](AI_Assistant.md)中的**直接应用**）。没有列出任何工具的技能不会提出任何内容——你之前批准过的技能也不会因此多出什么——测试运行也不会留下任何内容。三种形式的说明见[AI助手](AI_Assistant.md)中的**提出修改**。
 
 ## 你自己的技能
 

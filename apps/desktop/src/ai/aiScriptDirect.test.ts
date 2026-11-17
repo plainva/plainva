@@ -63,17 +63,20 @@ return made;
 
 const find = { id: "c1", name: "find_tools", args: { query: "write" } };
 const callScript = (script: string, args: Record<string, unknown>, id = "c2") => ({ id, name: "call_tool", args: { name: script, args } });
-const one = (tool: string, args: Record<string, unknown>) => callScript("script_write_one", { tool, args: JSON.stringify(args) });
+const one = (tool: string, args: Record<string, unknown>, id?: string) => callScript("script_write_one", { tool, args: JSON.stringify(args) }, id);
 
-async function run(options: { chip?: boolean; policy?: string; unsaved?: string[]; script?: ScriptDraft; call: ReturnType<typeof callScript> }) {
+/** What the model does in a run: looks for the tools, calls the script, says it is done. */
+const scriptTurns = (call: ReturnType<typeof callScript>) => [turn({ calls: [find] }), turn({ calls: [call] }), turn({ text: "Done." })];
+
+async function run(options: { chip?: boolean; policy?: string; unsaved?: string[]; script?: ScriptDraft; call: ReturnType<typeof callScript>; then?: ReturnType<typeof turn>[] }) {
   const vault = await gateVault(NOTES, { scripts: true, ...(options.policy ? { policy: options.policy } : {}), direct: { unsaved: new Set(options.unsaved ?? []) } });
-  const { s } = await gateSession([turn({ calls: [find] }), turn({ calls: [options.call] }), turn({ text: "Done." })], vault, undefined, { scripts: true });
+  const { s, fake } = await gateSession([...scriptTurns(options.call), ...(options.then ?? [])], vault, undefined, { scripts: true });
   expect(await s.saveScript(options.script ?? WRITE_ONE)).toMatchObject({ ok: true, approved: true });
   if (options.chip) s.setDirect(true);
   expect(await s.send("Do it.")).toEqual({ kind: "answered" });
   const active = s.getState().active!;
   const run0 = active.runs[0]!;
-  return { vault, s, active, run: run0, writes: run0.writes, said: results(active).map((result) => result.content) };
+  return { vault, s, fake, active, run: run0, writes: run0.writes, said: results(active).map((result) => result.content) };
 }
 
 describe("the tools a script can write with", () => {
@@ -176,12 +179,58 @@ describe("a script started from the workshop", () => {
   });
 });
 
-describe("a conversation started again from an earlier turn (replay)", () => {
-  it("runs no script — a write the script made directly is not made a second time", async () => {
-    const { vault, s, active } = await run({ chip: true, call: one("create_note", { title: "Rates", content: "Once." }) });
+/**
+ * Runs started apart from the composer carry no script (`apart` in `runMessage`): a replay, a door — the "@AI" of a
+ * comment thread — and a skill's test run. In each the model asks for the script as it did in the conversation, and
+ * is told there is no such tool here; nothing is written. A routine carries neither `find_tools` nor `call_tool`, the
+ * only ways to a script (`aiRoutineGate.test.ts`, "NEVER").
+ */
+describe("a run started apart from the composer", () => {
+  const refusedHere = (said: readonly unknown[]) => said.some((content) => String(content).includes('No tool "script_write_one" can be called here.'));
+
+  it("a conversation started again from an earlier turn (replay) runs no script — what the script made is not made a second time", async () => {
+    const again = one("create_note", { title: "Rates", content: "Twice." }, "c9");
+    const { vault, s, fake, active } = await run({ chip: true, call: one("create_note", { title: "Rates", content: "Once." }), then: scriptTurns(again) });
     expect(await vault.disk("Inbox/Rates.md")).not.toBeNull();
     expect(await s.undoDirect(0)).toEqual({ undone: ["Inbox/Rates.md"], changed: [], failed: [] });
+    const asked = fake.sent.length;
     expect(await s.replay(active.id, 0, { providerId: "anthropic", model: "m-1" })).not.toBeNull();
+    // The replay reached the model and asked for the script, as the first run did.
+    expect(fake.sent.length).toBeGreaterThan(asked);
+    const replayed = s.getState().active!;
+    expect(replayed.id).not.toBe(active.id);
+    expect(refusedHere(results(replayed).map((result) => result.content))).toBe(true);
+    expect(replayed.runs[0]!.scripts).toBeUndefined();
     expect(await vault.disk("Inbox/Rates.md")).toBeNull();
+  });
+
+  it("the “@AI” of a comment thread (a door) runs no script", async () => {
+    const vault = await gateVault(NOTES, { scripts: true, direct: { unsaved: new Set() } });
+    const replies: string[] = [];
+    vault.host.reply = async (reply) => void replies.push(reply.body);
+    const { s, fake } = await gateSession([...scriptTurns(one("create_note", { title: "Rates", content: "From a thread." })), turn({ text: "Done." })], vault, undefined, { scripts: true });
+    expect(await s.saveScript(WRITE_ONE)).toMatchObject({ ok: true, approved: true });
+    s.setDirect(true);
+    const outcome = await s.replyInThread({ path: "Projects/Offer.md", rootCommentId: "n1", quote: null, thread: [], question: "Note the rates down." });
+    expect(fake.sent.length).toBeGreaterThan(0);
+    expect(outcome.kind).not.toBe("refused");
+    const record = s.getState().summaries.length ? await vault.host.conversations.load(s.getState().summaries[0]!.id) : null;
+    if (record) expect(record.runs.every((r) => r.scripts === undefined)).toBe(true);
+    expect(await vault.disk("Inbox/Rates.md")).toBeNull();
+  });
+
+  it("a skill's test run runs no script", async () => {
+    const vault = await gateVault(NOTES, { scripts: true, direct: { unsaved: new Set() } });
+    const calls = Array.from({ length: 6 }, (_, at) => scriptTurns(one("create_note", { title: "Rates", content: `From a test ${at}.` }, `c${at + 10}`))).flat();
+    const { s, fake } = await gateSession(calls, vault, undefined, { scripts: true });
+    expect(await s.saveScript(WRITE_ONE)).toMatchObject({ ok: true, approved: true });
+    s.setDirect(true);
+    const plan = await s.skillTestPlan(null);
+    const ran = plan!.targets.filter((target) => target.scenarios > target.notApplicable).map((target) => target.id);
+    expect(ran.length).toBeGreaterThan(0);
+    await s.testSkills(ran, { maxCostUsd: null });
+    expect(fake.sent.length).toBeGreaterThan(0);
+    expect(await vault.disk("Inbox/Rates.md")).toBeNull();
+    expect(Object.keys(await vault.notes()).filter((path) => path.startsWith("Inbox/"))).toEqual([]);
   });
 });
