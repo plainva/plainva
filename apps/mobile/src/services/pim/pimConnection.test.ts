@@ -20,7 +20,7 @@ vi.mock("@capacitor/preferences", () => ({ Preferences: { get: async () => ({ va
 vi.mock("../../platform/capacitorPlatform", () => ({ capacitorCredentialStore: {} }));
 vi.mock("../reminderScheduler", () => ({ rescheduleReminders: vi.fn() }));
 vi.mock("../vaultService", () => ({ getMobileVault: () => null }));
-vi.mock("../mobileSettingsSync", () => ({ noteAccountRemovedLocally: vi.fn() }));
+vi.mock("../mobileSettingsSync", () => ({ noteAccountRemovedLocally: vi.fn(), mobileSyncDeviceId: async () => "phone" }));
 vi.mock("./taskSyncRuntime", () => ({ startTaskSyncRuntime: vi.fn(), stopTaskSyncRuntime: vi.fn(), runMobileTaskSync: vi.fn(), runMobileEntryEventSync: vi.fn() }));
 vi.mock("../../platform/devicePim", () => ({ isDevicePimSupported: () => false }));
 vi.mock("../../adapters/webdavHttp", () => ({
@@ -45,7 +45,10 @@ vi.mock("@plainva/core", async (original) => {
       constructor(private creds: { url: string; user: string }) {}
       async listCalendars() { await state.probe(); return [{ id: "personal", name: "Personal" }]; }
       async listTaskLists() { return []; }
-      confirmedPrincipal() { return state.principalOf(this.creds); }
+      confirmedAccess() {
+        const principal = state.principalOf(this.creds);
+        return { url: this.creds.url, user: this.creds.user, ...(principal ? { principal } : {}) };
+      }
     },
     PimCacheRepository: class {
       constructor(private db: { name: string }) {}
@@ -252,7 +255,10 @@ describe("a CalDAV account that is already here", () => {
     const upper = await pim.addPimAccount("caldav", "Nextcloud", { ...nextcloud, user: "Anna" });
     const lower = await pim.addPimAccount("caldav", "Nextcloud", { ...nextcloud, user: "anna" });
     expect(lower).toBe(upper);
-    expect(state.rows.get("original")![0].config).toMatchObject({ confirmedPrincipal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" });
+    // Recorded as THIS device's confirmed access (GitHub issue 174).
+    expect(state.rows.get("original")![0].config.confirmedAccess).toEqual({
+      phone: { url: nextcloud.url, user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" },
+    });
   });
 
   it("lands in the row of the card it was started from, as on the desktop (adoptPreferenceForCard)", async () => {
@@ -269,7 +275,18 @@ describe("a CalDAV account that is already here", () => {
   it("writes the server and the user of a repair into the row (red before: the row kept the old ones)", async () => {
     const id = await pim.addPimAccount("caldav", "Nextcloud", nextcloud);
     await pim.reauthorizePimAccount(id, { ...nextcloud, url: "https://dav.example.com/", user: "bert", pass: "new" });
-    expect(state.rows.get("original")!.find(r => r.id === id)!.config).toEqual({ url: "https://dav.example.com/", user: "bert" });
+    expect(state.rows.get("original")!.find(r => r.id === id)!.config).toEqual({
+      url: "https://dav.example.com/",
+      user: "bert",
+      confirmedAccess: { phone: { url: "https://dav.example.com/", user: "bert" } },
+    });
+  });
+
+  it("a repair replaces only this device's confirmed access; another device's stays as it confirmed it", async () => {
+    const laptop = { url: "https://cloud.example.com/remote.php/dav", user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" };
+    state.rows.set("original", [{ id: "r1", provider: "caldav", label: "anna", config: { url: nextcloud.url, user: "anna", confirmedAccess: { laptop, phone: { url: nextcloud.url, user: "anna" } } }, enabled: true }]);
+    await pim.reauthorizePimAccount("r1", { ...nextcloud, url: "http://192.168.1.5/remote.php/dav", pass: "new" });
+    expect(state.rows.get("original")![0].config.confirmedAccess).toEqual({ laptop, phone: { url: "http://192.168.1.5/remote.php/dav", user: "anna" } });
   });
 
   it("adds a row for another server", async () => {

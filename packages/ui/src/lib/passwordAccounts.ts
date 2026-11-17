@@ -1,5 +1,11 @@
 import { trimEndChars } from "@plainva/core";
-import { CONFIRMED_PRINCIPAL_KEY, type PimAccountRow } from "@plainva/core";
+import {
+  CONFIRMED_ACCESS_KEY,
+  confirmedAccessOf,
+  overlayConfirmedAccess,
+  type ConfirmedAccess,
+  type PimAccountRow,
+} from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 
 /**
@@ -15,8 +21,13 @@ import type { CloudAccountRecord } from "./cloudAccounts.js";
  * Merged is only what is PROVEN to be one account — untidy is acceptable, wrong
  * is not, because a merge moves a password onto the other row:
  *
- * 1. Both rows carry the principal the server confirmed (`confirmedPrincipal`,
- *    recorded on connect and on every successful fetch): the same principal is
+ * A row is reached through one or more ACCESSES: its own address and user,
+ * and the access each device confirmed for it (`confirmedAccess`, recorded on
+ * connect and on every successful fetch, one entry per device — one Nextcloud
+ * can be the public name on one device and the LAN address on another). Two
+ * rows are one account when one access of each is, and two accesses are:
+ *
+ * 1. When both carry the principal the server confirmed: the same principal is
  *    the same account, another is another. The server decides, so "Anna" and
  *    "anna" are one account on a Nextcloud, which signs in without regard to
  *    case, and two on Radicale or Baïkal, which do not.
@@ -39,12 +50,9 @@ import type { CloudAccountRecord } from "./cloudAccounts.js";
  * password inside it, a query — has no identity: such an access is never
  * merged, which is the old behaviour, untidy but never wrong.
  *
- * The settings sync names a password by its own rule (`canonicalSecretId`),
- * which compares the user without regard to case and the path in full. That is
- * deliberately not changed here: renaming the secrets of a user with capitals
- * would retire their old names, and a device still on 0.8.7 applies the
- * retirement by deleting a working password (`passwordAccounts.test.ts` pins
- * where the two rules differ).
+ * The settings sync names a password by its own rule (`canonicalSecretId`):
+ * the user exactly, the path in full. It never joins two servers this rule
+ * keeps apart (`passwordAccounts.test.ts` pins that).
  */
 export function passwordAccountIdentity(url: unknown, user: unknown): string | null {
   if (typeof user !== "string") return null;
@@ -96,20 +104,55 @@ export function samePasswordAccount(a: PasswordAccess, b: PasswordAccess): boole
   return identity !== null && identity === passwordAccountIdentity(b.url, b.user);
 }
 
-/** The password access of a calendar row, or null when it has none (OAuth, device). */
-export function pimPasswordAccess(row: PasswordRowLike): PasswordAccess | null {
-  if (row.provider !== "caldav") return null;
-  return { url: row.config?.url, user: row.config?.user, principal: row.config?.[CONFIRMED_PRINCIPAL_KEY] };
+/**
+ * Every access a calendar row is reached through — its own address and user
+ * first, then each device's confirmed one — or [] when it has none (OAuth,
+ * device).
+ */
+export function pimPasswordAccesses(row: PasswordRowLike): PasswordAccess[] {
+  if (row.provider !== "caldav") return [];
+  const own: PasswordAccess = { url: row.config?.url, user: row.config?.user };
+  return [own, ...Object.values(confirmedAccessOf(row.config)).map((access) => ({ ...access }))];
 }
 
-/** Whether two calendar rows are proven to be the same password account. */
+/** Whether a row has any access the rule can read. */
+function hasReadableAccess(row: PasswordRowLike): boolean {
+  return pimPasswordAccesses(row).some((access) => passwordAccountIdentity(access.url, access.user) || confirmedPrincipalKey(access.principal));
+}
+
+/** Whether two calendar rows are proven to be the same password account (one access of each is). */
 export function samePimPasswordAccount(
   a: PasswordRowLike,
   b: PasswordRowLike,
 ): boolean {
-  const accessA = pimPasswordAccess(a);
-  const accessB = pimPasswordAccess(b);
-  return !!accessA && !!accessB && samePasswordAccount(accessA, accessB);
+  const accessesA = pimPasswordAccesses(a);
+  const accessesB = pimPasswordAccesses(b);
+  return accessesA.some((x) => accessesB.some((y) => samePasswordAccount(x, y)));
+}
+
+/** Whether a calendar row is reached through this access (a connect looking for its row). */
+export function pimRowHasAccess(row: PasswordRowLike, access: PasswordAccess): boolean {
+  return pimPasswordAccesses(row).some((x) => samePasswordAccount(x, access));
+}
+
+/**
+ * The config of a row a fresh connect is adopted into: the row's own, with the
+ * fresh connect's fields on top — and the confirmed accesses of both, the
+ * fresh one's own entry winning. Spreading the fresh config over the row
+ * dropped every other device's entry.
+ */
+export function adoptedPimConfig(target: Record<string, unknown> | undefined, fresh: Record<string, unknown> | undefined): Record<string, unknown> {
+  const access = overlayConfirmedAccess(confirmedAccessOf(target), confirmedAccessOf(fresh));
+  const out: Record<string, unknown> = { ...target, ...fresh };
+  if (Object.keys(access).length) out[CONFIRMED_ACCESS_KEY] = access;
+  else delete out[CONFIRMED_ACCESS_KEY];
+  return out;
+}
+
+/** This device's confirmed access as a config fragment for a fresh row: `{ confirmedAccess: { [device]: access } }`. */
+export function ownConfirmedAccessConfig(deviceId: string | null | undefined, access: ConfirmedAccess | undefined): Record<string, unknown> {
+  if (!deviceId || !access) return {};
+  return { [CONFIRMED_ACCESS_KEY]: confirmedAccessOf({ [CONFIRMED_ACCESS_KEY]: { [deviceId]: access } }) };
 }
 
 /**
@@ -153,7 +196,7 @@ export function adoptPreferenceForCard(cards: readonly CloudAccountRecord[], car
 
 /** Groups calendar rows into password accounts (`samePimPasswordAccount`), keeping rows without one out. */
 export function passwordAccountGroups<T extends PasswordRowLike & { id: string }>(rows: readonly T[]): T[][] {
-  const access = rows.filter((row) => pimPasswordAccess(row) && (pimPasswordIdentity(row) || confirmedPrincipalKey(row.config?.[CONFIRMED_PRINCIPAL_KEY])));
+  const access = rows.filter(hasReadableAccess);
   const parent = access.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
   for (let i = 0; i < access.length; i++) {
@@ -244,7 +287,7 @@ export interface EmptyPasswordDuplicatePorts {
  */
 export async function removeEmptyPasswordDuplicates(ports: EmptyPasswordDuplicatePorts): Promise<string[]> {
   const rows = await ports.listAccounts();
-  const candidates = rows.filter((row) => pimPasswordAccess(row));
+  const candidates = rows.filter((row) => row.provider === "caldav");
   if (candidates.length < 2) return [];
   const facts = new Map<string, PasswordRowFacts>();
   for (const row of candidates) facts.set(row.id, await rowFacts(ports, row.id));

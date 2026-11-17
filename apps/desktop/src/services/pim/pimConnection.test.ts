@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
   principalOf: (() => undefined) as (creds: { url: string; user: string }) => string | undefined,
 }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
-vi.mock("../settingsProfile", () => ({ noteAccountRemovedLocally: vi.fn() }));
+vi.mock("../settingsProfile", () => ({ noteAccountRemovedLocally: vi.fn(), getDeviceId: async () => "laptop" }));
 vi.mock("./pimAuth", () => ({ authorizeGooglePim: vi.fn(), authorizeMicrosoftPim: vi.fn(), buildPimAuthProvider: vi.fn() }));
 vi.mock("./pimCredentials", () => ({
   getPimCredentials: async (_v: string, id: string) => state.slots.get(id) ?? null,
@@ -23,7 +23,10 @@ vi.mock("@plainva/core", async (original) => ({
     constructor(private creds: { url: string; user: string }) {}
     async listCalendars() { await state.probe(); return [{ id: "calendar" }]; }
     async listTaskLists() { return []; }
-    confirmedPrincipal() { return state.principalOf(this.creds); }
+    confirmedAccess() {
+      const principal = state.principalOf(this.creds);
+      return { url: this.creds.url, user: this.creds.user, ...(principal ? { principal } : {}) };
+    }
   },
 }));
 
@@ -116,13 +119,24 @@ describe("connecting a CalDAV account that is already here", () => {
     const first = await connectCalDavAccount(runtime, "/original", { ...nextcloud, user: "Anna" });
     const again = await connectCalDavAccount(runtime, "/original", { ...nextcloud, user: "anna", pass: "second" });
     expect(again.id).toBe(first.id);
-    expect(state.rows[0].config).toMatchObject({ confirmedPrincipal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" });
+    // Recorded as THIS device's confirmed access (GitHub issue 174).
+    expect(state.rows[0].config.confirmedAccess).toEqual({
+      laptop: { url: nextcloud.url, user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" },
+    });
     // Radicale tells them apart: two principals, two rows.
     state.rows = []; state.slots.clear();
     state.principalOf = (creds) => `https://dav.example.com/${creds.user}/`;
     const upper = await connectCalDavAccount(runtime, "/original", { ...nextcloud, user: "Anna" });
     const lower = await connectCalDavAccount(runtime, "/original", { ...nextcloud, user: "anna" });
     expect(lower.id).not.toBe(upper.id);
+  });
+
+  it("keeps the access another device confirmed for the row it adopts into", async () => {
+    const phone = { url: "http://192.168.1.5/remote.php/dav", user: "anna", principal: "http://192.168.1.5/remote.php/dav/principals/users/anna/" };
+    state.rows = [{ id: "r1", provider: "caldav", label: "anna", config: { url: nextcloud.url, user: "anna", confirmedAccess: { phone } }, enabled: true }];
+    const again = await connectCalDavAccount(runtime, "/original", { ...nextcloud, pass: "again" });
+    expect(again.id).toBe("r1");
+    expect(state.rows[0].config.confirmedAccess).toEqual({ laptop: { url: nextcloud.url, user: "anna" }, phone });
   });
 
   it("lands in the row of the card it was started from (the phone's rule, adoptPreferenceForCard)", async () => {

@@ -1,7 +1,8 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
 import { classifySyncError, isSignInFailure, type SyncErrorKind } from "../sync/errorKind.js";
 import type { IPimTarget, PimCalendar, PimEvent, PimProviderId, PimTask, PimTaskList } from "./types.js";
-import { CONFIRMED_PRINCIPAL_KEY, eventCalendarsOf } from "./types.js";
+import { eventCalendarsOf } from "./types.js";
+import { CONFIRMED_ACCESS_KEY, confirmedAccessOf, sameConfirmedAccess, withOwnConfirmedAccess } from "./confirmedAccess.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
 import { decodeEventCursor, encodeEventCursor, needsFullRefresh } from "./eventCursor.js";
 
@@ -37,6 +38,12 @@ export interface PimWorkerOptions {
   /** Builds a ready-to-use target for the account (credentials live in the
    * shell's keychain — the worker never sees them). null = skip account. */
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
+  /**
+   * This device's stable id (the settings sync's). With it the worker records
+   * how this device reached a password account (`confirmedAccess`); without it
+   * nothing is recorded.
+   */
+  deviceId?: () => Promise<string>;
   /** Opaque sign-in revision, never a token or password. Refreshes retain it. */
   accountAuthRevision?: (account: PimAccountRow) => Promise<string | undefined>;
   onStatusChange?: (status: PimStatus, message?: string) => void;
@@ -459,13 +466,22 @@ export class PimWorker {
     const collections = await target.listCalendars();
     if (gen !== this.generation) return stoppedHere();
     await this.store(() => cache.replaceCalendars(account.id, eventCalendarsOf(collections)));
-    // The account's own address, as the server confirmed it (GitHub issue 174): a row
-    // connected before it was recorded gets it on its first successful fetch,
-    // and from then on it decides which rows are one account. Best effort —
-    // a row without it is only compared more strictly.
-    const principal = target.confirmedPrincipal?.();
-    if (principal && account.config?.[CONFIRMED_PRINCIPAL_KEY] !== principal) {
-      await Promise.resolve().then(() => cache.setAccountConfigValue(account.id, CONFIRMED_PRINCIPAL_KEY, principal)).catch(() => {});
+    // How THIS device reached the account (GitHub issue 174): a row connected
+    // before it was recorded gets it on its first successful fetch, and from
+    // then on it decides which rows are one account. Only this device's own
+    // entry is written, from the row's current value, so another device's
+    // entry and an import that ran meanwhile stay (see confirmedAccess.ts).
+    // Best effort — a row without it is only compared more strictly.
+    const access = target.confirmedAccess?.();
+    if (access && this.opts.deviceId) {
+      await Promise.resolve()
+        .then(() => this.opts.deviceId!())
+        .then((device) => cache.updateAccountConfigValue(account.id, CONFIRMED_ACCESS_KEY, (current) => {
+          const map = confirmedAccessOf({ [CONFIRMED_ACCESS_KEY]: current });
+          const next = withOwnConfirmedAccess(map, device, access);
+          return sameConfirmedAccess(map, next) ? undefined : next;
+        }))
+        .catch(() => {});
     }
     wrote = true;
 

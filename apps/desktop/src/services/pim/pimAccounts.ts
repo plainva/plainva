@@ -1,11 +1,11 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import { reportingTo } from "@plainva/ui";
-import { CONFIRMED_PRINCIPAL_KEY, CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow, type IPimTarget } from "@plainva/core";
+import { adoptedPimConfig, ownConfirmedAccessConfig, reportingTo } from "@plainva/ui";
+import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow, type IPimTarget } from "@plainva/core";
 import { calendarGrantProbe } from "../accountBroker";
 import { restartPimAccountAfterLogin, type PimRuntime } from "./pimRuntime";
 import { authorizeGooglePim, authorizeMicrosoftPim, buildPimAuthProvider } from "./pimAuth";
 import { savePimCredentials, clearPimCredentials, getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
-import { noteAccountRemovedLocally } from "../settingsProfile";
+import { getDeviceId, noteAccountRemovedLocally } from "../settingsProfile";
 import {
   accountToAdoptInto,
   adoptAccountInto,
@@ -92,7 +92,8 @@ async function adoptIfKnown(
 
   // Keep the target's identity, take the fresh label and config: a re-connect
   // is also how a renamed account gets its new name.
-  return { ...target, label: fresh.label, config: { ...target.config, ...fresh.config }, enabled: true };
+  // The accesses other devices confirmed for the row stay (`adoptedPimConfig`).
+  return { ...target, label: fresh.label, config: adoptedPimConfig(target.config, fresh.config), enabled: true };
 }
 
 /** The lane a calendar connect and the removal of empty duplicates share. */
@@ -134,9 +135,13 @@ async function finishConnect(
   if (!target) throw new Error("Calendar validation is unavailable");
   const calendars = await target.listCalendars();
   const lists = await target.listTaskLists();
-  // Whose account the server says this is (GitHub issue 174): it decides which rows are one.
-  const principal = target.confirmedPrincipal?.();
-  if (principal) account = { ...account, config: { ...account.config, [CONFIRMED_PRINCIPAL_KEY]: principal } };
+  // How THIS device reached the account and whose it is, as the server said
+  // (GitHub issue 174): it decides which rows are one, under this device's id.
+  const access = target.confirmedAccess?.();
+  if (access) {
+    const device = await Promise.resolve().then(() => getDeviceId()).catch(() => null);
+    account = { ...account, config: { ...account.config, ...ownConfirmedAccessConfig(device, access) } };
+  }
   assertPimRuntime(runtime);
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   // One lane with the removal of empty duplicate rows (`foldEmptyCalendarDuplicates`):

@@ -5,6 +5,7 @@ import { trimEndChars } from "../textScan.js";
 import ICAL from "ical.js";
 import { recurrenceToRRule } from "./recurrence.js";
 import type { FetchFn, WebDavCredentials } from "../sync/WebDavSyncTarget.js";
+import type { ConfirmedAccess } from "./confirmedAccess.js";
 import type {
   IPimTarget,
   PimAttendee,
@@ -48,8 +49,10 @@ const MAX_INSTANCES_PER_SERIES = 500;
 export class CalDavPimTarget implements IPimTarget {
   readonly provider = "caldav" as const;
   private base: URL;
-  /** The principal the server named during the last discovery (`confirmedPrincipal`). */
+  /** The principal the server named during the last discovery (`confirmedAccess`). */
   private principal: string | undefined;
+  /** Whether a `listCalendars` succeeded: only then is the access confirmed. */
+  private discovered = false;
 
   constructor(
     private creds: WebDavCredentials,
@@ -88,8 +91,9 @@ export class CalDavPimTarget implements IPimTarget {
    * calendar home → Depth:1 listing. Every step tolerates servers that answer
    * the richer question directly (a configured calendar URL short-circuits).
    */
-  confirmedPrincipal(): string | undefined {
-    return this.principal;
+  confirmedAccess(): ConfirmedAccess | undefined {
+    if (!this.discovered) return undefined;
+    return { url: this.creds.url, user: this.creds.user, ...(this.principal ? { principal: this.principal } : {}) };
   }
 
   async listCalendars(): Promise<PimCalendar[]> {
@@ -110,6 +114,7 @@ export class CalDavPimTarget implements IPimTarget {
        </d:propfind>`
     );
     const entries = parseCalDavMultistatus(xml);
+    this.discovered = true;
     const out: PimCalendar[] = [];
     for (const e of entries) {
       if (!e.href || !e.isCalendar) continue;

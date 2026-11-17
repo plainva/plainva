@@ -1,4 +1,4 @@
-import { CONFIRMED_PRINCIPAL_KEY, sameStoredValue } from "@plainva/core";
+import { confirmedAccessOf, sameStoredValue, withOwnConfirmedAccess, CONFIRMED_ACCESS_KEY } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { TaskListRuntime } from "@plainva/ui";
 import {
@@ -25,10 +25,10 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptPreferenceForCard, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, adoptPreferenceForCard, ownConfirmedAccessConfig, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
-import { noteAccountRemovedLocally } from "../mobileSettingsSync";
+import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
   accountToAdoptInto,
   adoptAccountInto,
@@ -136,6 +136,8 @@ export async function startPim(vault: MobileVault): Promise<void> {
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
     parkedMessage: i18n.t("pim.signInRequired"),
     onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
+    // Under it the worker records how this phone reached a password account (GitHub issue 174).
+    deviceId: () => mobileSyncDeviceId(),
     // The other half of "did a change made in Reminders arrive here" (T4).
     onDeviceChanged: () => logDiagnostic("device", "store changed, cycle requested"),
   });
@@ -458,9 +460,9 @@ async function addPimAccountInVault(
     // The address and the user are the account of a CalDAV row, as on the
     // desktop: without them in the row the settings of another device never
     // found it, and a further connect never found it either (GitHub issue 174).
-    // The principal the server confirmed decides once both rows carry one.
-    const principal = target.confirmedPrincipal?.();
-    config = { url: creds.url, user: creds.user, ...(principal ? { [CONFIRMED_PRINCIPAL_KEY]: principal } : {}) };
+    // How THIS device reached it, and the principal the server confirmed,
+    // under this device's id (see confirmedAccess.ts).
+    config = { url: creds.url, user: creds.user, ...ownConfirmedAccessConfig(await Promise.resolve().then(() => mobileSyncDeviceId()).catch(() => null), target.confirmedAccess?.()) };
   }
   assertCurrent();
   const known = await owner.cache.listAccounts();
@@ -508,7 +510,7 @@ async function addPimAccountInVault(
       const persisted = (await loadCloudAccounts(owner.vaultId)).find(r => r.id === source.id);
       if (!sameStoredValue(persisted, nextRecord)) throw new ServiceConnectionError("storageFailed");
       assertCurrent();
-      await owner.cache.upsertAccount({ id: connectedId, provider, label: resolvedLabel, config: { ...adoptInto?.config, ...config }, enabled: true });
+      await owner.cache.upsertAccount({ id: connectedId, provider, label: resolvedLabel, config: adoptedPimConfig(adoptInto?.config, config), enabled: true });
     } catch (error) {
       // Roll back only our own credential revision. A later sign-in belongs
       // to its caller; neither failure nor a vault switch may erase it.
@@ -542,7 +544,7 @@ async function addPimAccountInVault(
       { vault: owner.vaultId, freshId: id, targetId: adoptInto.id, validatedCreds: creds },
     );
     assertCurrent();
-    await owner.cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config: { ...adoptInto.config, ...config }, enabled: true });
+    await owner.cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config: adoptedPimConfig(adoptInto.config, config), enabled: true });
   } else {
     await savePimCredentials(owner.vaultId, id, creds);
     assertCurrent();
@@ -608,16 +610,22 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
     if (!(await caldav.listCalendars()).length) throw new Error("No calendars found on this server.");
     // The repair form can change the server and the user: the row names what
     // it now signs in to, or a later connect of the old access would adopt
-    // into it and overwrite this password (GitHub issue 174). The desktop has no such
-    // form; a reconnect there is a fresh connect that writes the same fields.
-    const principal = caldav.confirmedPrincipal?.();
-    caldavAccess = { url: creds.url, user: creds.user, [CONFIRMED_PRINCIPAL_KEY]: principal };
+    // into it and overwrite this password (GitHub issue 174). Only THIS
+    // device's entry of the confirmed accesses is replaced; another device's
+    // stays as that device confirmed it. The desktop has no such form; a
+    // reconnect there is a fresh connect that writes the same fields.
+    const access = caldav.confirmedAccess?.();
+    const device = await Promise.resolve().then(() => mobileSyncDeviceId()).catch(() => null);
+    caldavAccess = {
+      url: creds.url,
+      user: creds.user,
+      ...(access && device ? { [CONFIRMED_ACCESS_KEY]: withOwnConfirmedAccess(confirmedAccessOf(existing.config), device, access) } : {}),
+    };
   }
   assertCurrent();
   await savePimCredentials(target.vaultId, accountId, creds);
   assertCurrent();
   const config: Record<string, unknown> = { ...existing.config, ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}), ...(caldavAccess ?? {}) };
-  if (caldavAccess && !caldavAccess[CONFIRMED_PRINCIPAL_KEY]) delete config[CONFIRMED_PRINCIPAL_KEY];
   await target.cache.upsertAccount({ ...existing, label: profile?.label ?? existing.label, config, enabled: true });
   assertCurrent();
   await restartPimAccountAfterLogin(target.vaultId, accountId);

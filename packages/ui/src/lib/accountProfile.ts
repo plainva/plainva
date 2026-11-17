@@ -1,5 +1,5 @@
 import { reportingTo } from "../services/backgroundErrors.js";
-import { CONFIRMED_PRINCIPAL_KEY, sameStoredValue } from "@plainva/core";
+import { CONFIRMED_ACCESS_KEY, confirmedAccessOf, mergeConfirmedAccess, sameStoredValue } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
@@ -157,6 +157,13 @@ export interface AccountImportPorts {
   saveAccountMap(map: ProfileAccountMap): Promise<void>;
   /** Injectable so tests are deterministic. */
   newId?(): string;
+  /**
+   * This device's settings-sync id. With it the import keeps this device's own
+   * confirmed access of a password account and takes every other device's
+   * from the document (`mergeConfirmedAccess`); without it no entry the device
+   * already holds is replaced.
+   */
+  deviceId?(): Promise<string>;
 }
 
 export const emptyAccountMap = (): ProfileAccountMap => ({
@@ -634,6 +641,19 @@ const LOCAL_PIM_CONFIG_KEYS = [
 function sharedPimConfig(config: Record<string, unknown>): Record<string, unknown> {
   const out = { ...config };
   for (const key of LOCAL_PIM_CONFIG_KEYS) delete out[key];
+  // One shared document, one address per row: each device signs in through
+  // its own (kept locally, see the import), so the document names the access
+  // of the smallest device id — the same answer from every device once their
+  // entries have met, or the document would change with every writer.
+  const access = confirmedAccessOf(out);
+  const first = Object.keys(access)[0];
+  if (first) {
+    out[CONFIRMED_ACCESS_KEY] = access;
+    out.url = access[first].url;
+    out.user = access[first].user;
+  } else {
+    delete out[CONFIRMED_ACCESS_KEY];
+  }
   const verified = normalizeVerifiedProviderIdentity(out[VERIFIED_PROVIDER_IDENTITY_KEY]);
   if (verified) out[VERIFIED_PROVIDER_IDENTITY_KEY] = verified;
   else delete out[VERIFIED_PROVIDER_IDENTITY_KEY];
@@ -792,6 +812,7 @@ export async function importAccountMetadata(
   }
 
   if (Array.isArray(values.pimAccounts)) {
+    const ownDevice = ports.deviceId ? await ports.deviceId().catch(() => undefined) : undefined;
     const existing = await ports.listPimAccounts();
     const used = new Set(existing.map((a) => a.id));
     const localByLogical = new Map(
@@ -849,21 +870,21 @@ export async function importAccountMetadata(
       const keptIdentity = !imported.config[VERIFIED_PROVIDER_IDENTITY_KEY]
         ? verifiedProviderIdentityOf(same ?? { config: {} })
         : null;
-      // The same password access spelled another way on the other device
-      // (GitHub issue 174): this device keeps the spelling it connected with. Taking the
-      // other's made two devices write each other's spelling back on every
-      // import, and the document never settled. A different server under the
-      // same logical id (the other device moved the account) is taken over.
-      // The principal the server confirmed here is kept as well: it is only
-      // ever gained, like the verified identity above.
-      const keptAddress = same && imported.provider === "caldav" && sameMergeAccount(same, imported)
+      // A password account keeps the address and user THIS device signs in
+      // with (GitHub issue 174): another device may reach the same server
+      // under another name — the public one beside the LAN address — and taking
+      // its spelling made this row name an address this device never uses,
+      // written back by every import and every fetch, and a connect here did
+      // not find its own row in between. What each device confirmed travels
+      // in `confirmedAccess`, one entry per device; the import merges it and
+      // never overwrites this device's own entry.
+      const keptAddress = same && imported.provider === "caldav"
         && typeof same.config.url === "string" && typeof same.config.user === "string"
-        ? {
-          url: same.config.url,
-          user: same.config.user,
-          ...(typeof same.config[CONFIRMED_PRINCIPAL_KEY] === "string" ? { [CONFIRMED_PRINCIPAL_KEY]: same.config[CONFIRMED_PRINCIPAL_KEY] } : {}),
-        }
+        ? { url: same.config.url, user: same.config.user }
         : null;
+      const mergedAccess = imported.provider === "caldav"
+        ? mergeConfirmedAccess(confirmedAccessOf(same?.config), confirmedAccessOf(imported.config), ownDevice)
+        : {};
       await ports.upsertPimAccount({
         ...imported,
         id: localId,
@@ -871,6 +892,7 @@ export async function importAccountMetadata(
           ...imported.config,
           ...(keptIdentity ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: keptIdentity } : {}),
           ...(keptAddress ?? {}),
+          ...(Object.keys(mergedAccess).length ? { [CONFIRMED_ACCESS_KEY]: mergedAccess } : {}),
           ...deviceLocalPimConfig(same?.config ?? {}),
           ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
           ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),

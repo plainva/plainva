@@ -102,6 +102,10 @@ export function createPimRuntime(opts: {
     cache,
     buildTarget,
     accountAuthRevision: async (account) => (await getPimCredentials(opts.vaultPath, account.id))?.loginRevision,
+    // The settings sync's device id: under it the worker records how THIS
+    // device reached a password account (GitHub issue 174). Imported lazily,
+    // as main.tsx does, to keep the settings profile out of this module's graph.
+    deviceId: () => import("../settingsProfile").then((m) => m.getDeviceId()),
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: i18n.t("pim.signInRequired"),

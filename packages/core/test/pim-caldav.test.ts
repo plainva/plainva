@@ -196,15 +196,27 @@ describe("CalDavPimTarget discovery", () => {
     expect(cals[1]).toMatchObject({ name: "Arbeit", supportsTasks: false });
     // Auth went out as Basic on every hop.
     expect(calls.length).toBe(3);
-    // Whose account this is, as the server said it (GitHub issue 174), without a further request.
-    expect(t.confirmedPrincipal()).toBe("https://cloud.example.org/remote.php/dav/principals/users/marco/");
+    // How this device reached the account and whose it is, as the server
+    // said it (GitHub issue 174), without a further request.
+    expect(t.confirmedAccess()).toEqual({
+      url: CREDS.url,
+      user: "marco",
+      principal: "https://cloud.example.org/remote.php/dav/principals/users/marco/",
+    });
   });
 
-  it("names no principal before a discovery, or when the server states none", async () => {
-    const t = new CalDavPimTarget(CREDS, vi.fn(async () => new Response("nope", { status: 404 })));
-    expect(t.confirmedPrincipal()).toBeUndefined();
-    await t.listCalendars().catch(() => undefined);
-    expect(t.confirmedPrincipal()).toBeUndefined();
+  it("confirms no access before a discovery succeeded, and no principal when the server states none", async () => {
+    const failing = new CalDavPimTarget(CREDS, vi.fn(async () => new Response("nope", { status: 404 })));
+    expect(failing.confirmedAccess()).toBeUndefined();
+    await failing.listCalendars().catch(() => undefined);
+    expect(failing.confirmedAccess()).toBeUndefined();
+
+    const bare = new CalDavPimTarget(CREDS, vi.fn(async (_url: string, init?: RequestInit) =>
+      init?.method === "PROPFIND" && (init.headers as Record<string, string>)?.Depth === "0"
+        ? new Response("nope", { status: 404 })
+        : davRes(HOME_LIST)));
+    await bare.listCalendars();
+    expect(bare.confirmedAccess()).toEqual({ url: CREDS.url, user: "marco" });
   });
 
   it("task lists are the VTODO-capable calendars", async () => {

@@ -1,4 +1,5 @@
 import type { PimEventSubstance } from "./eventSubstance.js";
+import type { ConfirmedAccess } from "./confirmedAccess.js";
 
 /**
  * PIM object sync (Gesamtplan PIM-Ausbau 2026-07-17): calendars and tasks
@@ -383,22 +384,20 @@ export class PimConflictError extends Error {
  * per-provider delta cursors (personal calendars are small; deltas are a
  * later optimization, the cache schema already carries a cursor slot).
  */
-/** The account config key that holds `IPimTarget.confirmedPrincipal` (a server fact; it travels with the settings). */
-export const CONFIRMED_PRINCIPAL_KEY = "confirmedPrincipal";
-
 export interface IPimTarget {
   readonly provider: PimProviderId;
   /** Every collection of the account — event calendars AND (CalDAV) reminder
    * lists, told apart by `supportsEvents` / `supportsTasks`. */
   listCalendars(): Promise<PimCalendar[]>;
   /**
-   * The account's own address as the server stated it during the last
-   * `listCalendars` (CalDAV: the `current-user-principal`, resolved to an
-   * absolute URL), or undefined when it stated none. It names the account the
-   * credentials signed in to — what the user typed is only a way there, and
-   * whether "Anna" and "anna" are one account is the server's to say.
+   * How this device reached the account, after a successful `listCalendars`:
+   * the address and user it signed in with and, when the server stated one,
+   * the account's own address (CalDAV: the `current-user-principal`, resolved
+   * to an absolute URL). It names the account the credentials signed in to —
+   * whether "Anna" and "anna" are one account is the server's to say. Only a
+   * password target has one (see `confirmedAccess.ts`).
    */
-  confirmedPrincipal?(): string | undefined;
+  confirmedAccess?(): ConfirmedAccess | undefined;
   /** All event instances of the calendar overlapping [rangeStart, rangeEnd)
    * (UTC ms). Recurring series arrive EXPANDED (server-side for Google/Graph,
    * ical.js for CalDAV) plus one master row carrying `recurrence`. */

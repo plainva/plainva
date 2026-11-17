@@ -374,7 +374,8 @@ describe("two devices exchanging their settings", () => {
   const snapshot = (d: ReturnType<typeof device>) => JSON.stringify([...d.state.pim].sort((x, y) => x.id.localeCompare(y.id)));
 
   it("settle, and become one row once the phone writes the address", async () => {
-    const a = device([{ ...caldav("pA"), config: { url: BASE, user: "anna", confirmedPrincipal: P } }], []);
+    const access = { A: { url: BASE, user: "anna", principal: P } };
+    const a = device([{ ...caldav("pA"), config: { url: BASE, user: "anna", confirmedAccess: access } }], []);
     const b = device([{ ...caldav("pB"), config: {} }], []);
     await round(a, b);
     await round(a, b);
@@ -393,7 +394,7 @@ describe("two devices exchanging their settings", () => {
     await round(a, b);
     await round(a, b);
     expect(b.state.map.pimLocalToLogical.pB).toBe("pA");
-    expect(a.state.pim.find((row) => row.id === "pA")!.config).toMatchObject({ url: BASE, confirmedPrincipal: P });
+    expect(a.state.pim.find((row) => row.id === "pA")!.config).toMatchObject({ url: BASE, confirmedAccess: access });
     const doneA = snapshot(a);
     const doneB = snapshot(b);
     await round(a, b);

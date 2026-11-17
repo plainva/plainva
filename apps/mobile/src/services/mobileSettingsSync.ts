@@ -541,6 +541,8 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
       await s.set(accountMapKey(vaultId), map);
       await s.save();
     },
+    // Keeps this device's own confirmed access of a password account (GitHub issue 174).
+    deviceId,
   };
 }
 

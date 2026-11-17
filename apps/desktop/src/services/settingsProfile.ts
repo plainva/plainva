@@ -857,6 +857,8 @@ function desktopAccountPorts(store: ISettingsStore, vaultPath: string, pimRuntim
     mailSecretSlot: (accountId) => mailSecretKey(vaultPath, accountId),
     loadAccountMap: async () => normalizeAccountMap(await store.get<ProfileAccountMap>(profileAccountMapKey(vaultPath))),
     saveAccountMap: async (map) => store.set(profileAccountMapKey(vaultPath), map),
+    // Keeps this device's own confirmed access of a password account (GitHub issue 174).
+    deviceId: () => getDeviceId(store),
   };
 }
 
