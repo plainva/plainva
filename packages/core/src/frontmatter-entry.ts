@@ -1227,7 +1227,7 @@ function underTimestampTag(place: Place, before: Data, path: readonly string[], 
     if (!pair) return null;
     node = pair.value;
   }
-  if (!isScalar(node) || !node.tag) return null;
+  if (!isScalar(node) || !node.tag || !isCalendarTime(data)) return null;
   const edits = setEdits(place, path, data);
   const text = edits && withEdits(place.text, edits);
   if (text === null) return null;
@@ -1240,6 +1240,20 @@ function underTimestampTag(place: Place, before: Data, path: readonly string[], 
   if (!(read instanceof Date)) return null;
   const after = withPath(before, path, read);
   return sameData(before, after) ? place.content : made(place, edits, after);
+}
+
+/**
+ * Whether `text` is a time of the calendar as YAML writes a timestamp:
+ * `2024-02-03`, with a time of day behind it or not. A day the month has not
+ * (`2024-02-30`) is none — under the tag YAML would read the next month's
+ * day, so such a text is written as the text it is (Fehlerliste 0.9.0, B7).
+ */
+function isCalendarTime(text: string): boolean {
+  const parts = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:(?:[Tt]|[ \t]+)(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[ \t]*(?:Z|[-+]\d{1,2}(?::\d{2})?))?)?$/.exec(text);
+  if (!parts) return false;
+  const [year, month, day] = [Number(parts[1]), Number(parts[2]), Number(parts[3])];
+  if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) return false;
+  return parts[4] === undefined || (Number(parts[4]) < 24 && Number(parts[5]) < 60 && Number(parts[6]) < 60);
 }
 
 /**

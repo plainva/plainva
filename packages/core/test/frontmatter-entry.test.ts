@@ -786,6 +786,17 @@ describe("a date under its own tag", () => {
     const note = lf(["when: !!timestamp 2024-01-02", "x: 1"]);
     expect(set(note, ["when"], "next week")).toBe(lf(["when: next week", "x: 1"]));
   });
+
+  // Under the tag YAML reads a day the month has not as the next month's
+  // (`2024-02-30` as 1 March): such a date is written as the text it is.
+  it("writes a day the calendar has not as a text, without the tag", () => {
+    const note = lf(["when: !!timestamp 2024-01-02", "x: 1"]);
+    expect(set(note, ["when"], "2024-02-30")).toBe(lf(["when: 2024-02-30", "x: 1"]));
+    expect(set(note, ["when"], "2024-13-01")).toBe(lf(["when: 2024-13-01", "x: 1"]));
+    expect(set(note, ["when"], "2024-02-03T24:30:00Z")).toBe(lf(["when: 2024-02-03T24:30:00Z", "x: 1"]));
+    // A leap day is one.
+    expect(set(note, ["when"], "2024-02-29")).toBe(lf(["when: !!timestamp 2024-02-29", "x: 1"]));
+  });
 });
 
 /**
