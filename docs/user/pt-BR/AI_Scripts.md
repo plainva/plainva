@@ -1,8 +1,8 @@
 # Scripts (Beta)
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-16
 
-Um script é um pequeno programa para aquilo que um modelo faz mal e um programa faz sempre do mesmo jeito: contar, ordenar, comparar, somar. Você o escreve em JavaScript. Ele roda em uma caixa fechada dentro do Plainva: não consegue abrir um arquivo, alcançar a rede nem esperar até mais tarde. Ele só chama as ferramentas que você marcou para ele: elas leem o seu vault do mesmo jeito que as ferramentas da IA, ou deixam uma sugestão sobre a qual você decide. Um script não altera nada por conta própria.
+Um script é um pequeno programa para aquilo que um modelo faz mal e um programa faz sempre do mesmo jeito: contar, ordenar, comparar, somar. Você o escreve em JavaScript. Ele roda em uma caixa fechada dentro do Plainva: não consegue abrir um arquivo, alcançar a rede nem esperar até mais tarde. Ele só chama as ferramentas que você marcou para ele: elas leem o seu vault do mesmo jeito que as ferramentas da IA, ou deixam uma sugestão sobre a qual você decide. Um script que você inicia aqui não altera nada por conta própria; um que a IA inicia em uma conversa pode gravar diretamente onde você permitir (veja “Em uma conversa” abaixo).
 
 ## Executar um script
 
@@ -12,13 +12,13 @@ Uma execução que você inicia aqui fica neste dispositivo: nada dela vai para 
 
 ## Em uma conversa
 
-Em uma conversa comum, a IA pode encontrar os seus scripts ativos e executar um quando faz sentido; nesse caso, a etapa aparece como **Executando o script “word-count”**. O script lê apenas o que essa conversa pode ler: uma nota que você mantém fora da nuvem permanece fora, e cada nota que o script lê conta entre as que a execução leu. O que ele devolve vai para o modelo como dados, nunca como instruções. Nenhum script é oferecido a uma conversa iniciada por uma habilidade, nem a um app de IA conectado pelo servidor MCP.
+Em uma conversa comum, a IA pode encontrar os seus scripts ativos e executar um quando faz sentido; nesse caso, a etapa aparece como **Executando o script “word-count”**. O script lê apenas o que essa conversa pode ler: uma nota que você mantém fora da nuvem permanece fora, e cada nota que o script lê conta entre as que a execução leu. O que ele devolve vai para o modelo como dados, nunca como instruções. Uma rotina, a execução de teste de uma habilidade e os pontos de entrada **Explicar imagem** e **Transformar em nota** não executam nenhum script, e nenhum script é oferecido a uma conversa iniciada por uma habilidade, nem a um app de IA conectado pelo servidor MCP.
 
 ## Sugerir alterações
 
-Um script também pode receber ferramentas que sugerem. As ferramentas **Sugerindo alterações em uma nota** e **Sugerindo um valor de propriedade** deixam uma sugestão na margem de uma nota; as ferramentas **Preparando o rascunho de uma nota**, **Preparando o rascunho de uma entrada de banco de dados**, **Preparando o rascunho de uma tarefa** e **Preparando o rascunho de uma entrada de diário** deixam um rascunho. Ambos são assinados com o nome do script, e nada no seu vault muda antes de você aceitar uma sugestão ou criar um rascunho — exatamente como acontece com uma sugestão da IA. Depois de uma execução, o diálogo os lista em **Sugestões e rascunhos**; uma execução iniciada com **Execução de teste** não deixa nada.
+Um script também pode receber ferramentas que sugerem. As ferramentas **Sugerindo alterações em uma nota** e **Sugerindo um valor de propriedade** deixam uma sugestão na margem de uma nota; as ferramentas **Preparando o rascunho de uma nota**, **Preparando o rascunho de uma entrada de banco de dados**, **Preparando o rascunho de uma tarefa** e **Preparando o rascunho de uma entrada de diário** deixam um rascunho. Ambos são assinados com o nome do script. Um script que você inicia aqui com **Executar** não grava nada diretamente: nada no seu vault muda antes de você aceitar uma sugestão ou criar um rascunho — exatamente como acontece com uma sugestão da IA. Depois de uma execução, o diálogo os lista em **Sugestões e rascunhos**; uma execução iniciada com **Execução de teste** não deixa nada.
 
-O que um script leu decide onde ele pode escrever: uma sugestão ou um rascunho que se baseia em uma nota que você mantém fora da nuvem só pode ficar em um lugar onde vale a mesma regra. Em uma conversa, um script que sugere só é oferecido à IA quando a própria conversa pode sugerir, e o que o script deixa ali leva o nome do modelo da conversa.
+O que um script leu decide onde ele pode escrever: uma sugestão ou um rascunho que se baseia em uma nota que você mantém fora da nuvem só pode ficar em um lugar onde vale a mesma regra. Em uma conversa, um script que sugere só é oferecido à IA quando a própria conversa pode sugerir, e o que o script deixa ali leva o nome do modelo da conversa. Onde a conversa aplica alterações diretamente — com o chip **Aplicar diretamente** ou para um alvo em uma pasta que permite **Alterar sem perguntar** —, o que um script assim grava também entra diretamente: uma alteração em uma nota e em suas propriedades, uma nota nova, uma entrada de banco de dados, uma tarefa ou uma entrada de diário, com a mesma rede de proteção das alterações diretas do próprio assistente (veja “Aplicar diretamente” em [Assistente de IA](AI_Assistant.md)). Sem essa permissão, o script deixa sugestões e rascunhos, como acima.
 
 ## Escrever um script
 
@@ -62,8 +62,8 @@ A linguagem é JavaScript atual — ES2024 e a maior parte do ES2025 —, sem `I
 | `graph_neighborhood` — **Seguindo links** | `path`; opcionais: `depth` (1 ou 2), `limit` (até 50) | `path`; `notes`: uma lista de `{ title, path, fromHere, toHere, via }` |
 | `get_recent` — **Olhando notas recentes** | opcionais: `kind` (`opened` ou `edited`), `limit` (até 20) | `kind`; `notes`: uma lista de `{ title, path, at }` |
 | `get_changes` — **Olhando o que mudou** | `since` como `YYYY-MM-DD`; opcionais: `until`, `folder`, `limit` (até 20) | `since`, `until`; `notes`: uma lista de `{ path, title, kind, made, last, added, removed, gained }` |
-| `get_note_history` — **Acompanhando a evolução de uma nota** | `path`; opcionais: `since` e `until` como `YYYY-MM-DD` | `path`, `since`, `until`, `made`; `days`: uma lista de `{ day, added, removed, gained }` |
-| `get_calendar` — **Lendo compromissos** | `from` e `to` como `YYYY-MM-DD`; opcionais: `details`, `limit` (até 100) | `events`: uma lista de `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
+| `get_note_history` — **Acompanhando a evolução de uma nota** | `path`; opcionais: `since` e `until` como `YYYY-MM-DD`, com no máximo 31 dias de diferença | `path`, `since`, `until`, `made`; `days`: uma lista de `{ day, added, removed, gained }` |
+| `get_calendar` — **Lendo compromissos** | `from` e `to` como `YYYY-MM-DD`, com no máximo 31 dias de diferença; opcionais: `details`, `limit` (até 100) | `events`: uma lista de `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Usando o aplicativo** | `id`, um comando do app como `open-note`, `show-in-graph` ou `open-calendar`; opcional: `args` com `path`, `section` ou `date` | `done`, `command` |
 | `propose_edit` — **Sugerindo alterações em uma nota** | `path`; `edits`, uma lista de `{ find, replace }`, ou `append`; opcionais: `section`, `note` | `proposed`, `path`, `passages` |
 | `set_property` — **Sugerindo um valor de propriedade** | `path`, `key`, `value`; opcional: `note` | `proposed`, `path`, `property` |
@@ -82,7 +82,7 @@ Um script traz os limites no manifesto dele. O formulário define três deles:
 | **Chamadas de ferramentas** | 20 | 0 a 50 |
 | **Memória em MB** | 32 | 8 a 128 |
 
-Só conta o tempo em que um script calcula, não o tempo que uma ferramenta leva. Um script que ultrapassa um limite é encerrado, o diálogo diz qual limite foi, e um script encerrado não devolve nada. Os argumentos de uma chamada e o resultado podem ter, cada um, no máximo 64 KB.
+Só conta o tempo em que um script calcula, não o tempo que uma ferramenta leva. Um script que ultrapassa um limite — tempo, memória, passos, número de chamadas, tamanho dos argumentos de uma chamada ou tamanho do resultado do próprio script — é encerrado, o diálogo diz qual limite foi, e um script encerrado não devolve nada. A resposta de uma ferramenta maior que o limite de uma chamada não encerra o script: ele recebe um erro nessa chamada e continua rodando. Por padrão, os argumentos de uma chamada, o que uma chamada devolve e o resultado podem ter, cada um, no máximo 64 KB; um manifesto pode permitir até 256 KB.
 
 ## Nada roda antes da sua aprovação
 
@@ -92,4 +92,4 @@ Com **Aprovar**, este dispositivo assina exatamente estes arquivos. A chave para
 
 ## Limites da beta
 
-Um script sugere e deixa rascunhos; ele nunca renomeia, move nem exclui uma nota, e não escreve nenhum e-mail nem nenhum compromisso. Uma habilidade não pode iniciar um script, e a pasta `scripts/` de uma habilidade não é executada. O e-mail, a internet e as ferramentas de servidores externos não estão disponíveis para scripts.
+Um script sugere e deixa rascunhos, e só grava diretamente em uma conversa em que você permite que o assistente aplique alterações diretamente; ele nunca renomeia, move nem exclui uma nota, e não escreve nenhum e-mail nem nenhum compromisso. Uma habilidade não pode iniciar um script, e a pasta `scripts/` de uma habilidade não é executada. O e-mail, a internet e as ferramentas de servidores externos não estão disponíveis para scripts.

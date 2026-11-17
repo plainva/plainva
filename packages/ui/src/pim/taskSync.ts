@@ -275,6 +275,11 @@ async function reconcileAll(opts: TaskSyncOptions): Promise<TaskSyncResult> {
     return { ...result, blocked: "no-task-db" };
   }
 
+  // A task database is set: a "no task database" line an earlier run left is
+  // over, even while its file has not arrived yet - else the hint would go on
+  // offering to create a second database (review of issue 172).
+  await clearTaskListBlock(opts.cache, "no-task-db");
+
   const db = await readDbShape(opts);
   if (typeof db === "string") {
     if (!filling) await reportTaskListsBlocked(opts.cache, db);
@@ -353,9 +358,17 @@ async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: P
   keyed.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const known = new Set(opts.allNotePaths);
   for (const { account, listId, listName, task } of keyed) {
+    let notePath: string | null;
     try {
-      const notePath = await createTaskNote(opts, db, account, listId, task, known);
-      if (!notePath) continue;
+      notePath = await createTaskNote(opts, db, account, listId, task, known);
+    } catch (e) {
+      // The note itself could not be written: that is what the list says.
+      result.errors.push(`${account.label}/${listName}: ${e instanceof Error ? e.message : String(e)}`);
+      failed.add(`${account.id}\u0000${listId}`);
+      continue;
+    }
+    if (!notePath) continue;
+    try {
       known.add(notePath);
       result.createdNotes.push(notePath);
       // The file may be one an interrupted run left behind: whether it holds
@@ -371,8 +384,10 @@ async function createPendingNotes(opts: TaskSyncOptions, db: DbShape, creates: P
         baseFields: { ...fieldsOfTask(task), ...(db.dueKey && (createdDue !== null || task.due == null) ? { dueHeldIn: db.dueKey } : {}) },
       });
     } catch (e) {
+      // The note is there; only its state row was not stored. The next run
+      // finds the note by its anchor and reuses it (`availableTaskNotePath`),
+      // so no second note is made, and "could not be created" would be wrong.
       result.errors.push(`${account.label}/${listName}: ${e instanceof Error ? e.message : String(e)}`);
-      failed.add(`${account.id}\u0000${listId}`);
     }
   }
   return failed;
@@ -798,12 +813,31 @@ async function reportNotApplied(cache: PimCacheRepository, accountId: string, li
     if (reasons.length > 0) {
       // The most telling reason first: a missing column is the person's to fix.
       const reason = TASK_NOTE_REASON_ORDER.find((r) => reasons.includes(r))!;
-      await cache.recordScopeFailure(accountId, scope, { lastError: `${TASK_NOTE_PROBLEM_PREFIX}${reason}` });
+      const lastError = `${TASK_NOTE_PROBLEM_PREFIX}${reason}`;
+      // The same line again is no news: a calendar-only account with its task
+      // lists left on would otherwise write one row per list every cycle.
+      if ((await cache.getScopeState(accountId, scope))?.lastError === lastError) return;
+      await cache.recordScopeFailure(accountId, scope, { lastError });
       return;
     }
     // Only a row that says something is cleared: a write every cycle for
     // every list would be a write for nothing.
     if ((await cache.getScopeState(accountId, scope))?.lastError) await cache.setScopeState(accountId, scope, { lastError: null });
+  } catch {
+    /* a report must never cost the reconcile */
+  }
+}
+
+/** Clears the line `block` from every selected list that carries it, and only those. */
+async function clearTaskListBlock(cache: PimCacheRepository, block: TaskListBlock): Promise<void> {
+  const lastError = `${TASK_NOTE_PROBLEM_PREFIX}${block}`;
+  try {
+    for (const account of (await cache.listAccounts()).filter((a) => a.enabled)) {
+      for (const list of await cache.listTaskLists(account.id)) {
+        const scope = `tasknotes:${list.id}`;
+        if ((await cache.getScopeState(account.id, scope))?.lastError === lastError) await cache.setScopeState(account.id, scope, { lastError: null });
+      }
+    }
   } catch {
     /* a report must never cost the reconcile */
   }
