@@ -2645,15 +2645,20 @@ describe("the scheduled vault archive", () => {
     const svc = readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8");
     // Measured inside the function, not from the file start — the import line
     // names the pruner long before it is used.
-    const body = svc.slice(svc.indexOf("export async function runVaultBackup"));
-    expect(body.indexOf("writeFile")).toBeLessThan(body.indexOf("selectZipsToDelete"));
+    // The try itself lives in runOnce; runVaultBackup only holds the lock per vault.
+    const body = svc.slice(svc.indexOf("async function runOnce("));
+    // The archive is published (renamed into place) before anything old goes.
+    expect(body.indexOf("streamVaultZip(")).toBeGreaterThan(-1);
+    expect(body.indexOf("Filesystem.rename(")).toBeGreaterThan(body.indexOf("streamVaultZip("));
+    expect(body.indexOf("Filesystem.rename(")).toBeLessThan(body.indexOf("selectZipsToDelete"));
   });
 
   it("packs the same contents as the manual export", () => {
     const svc = stripComments(readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8"));
-    expect(svc).toMatch(/buildVaultZip\(/);
+    expect(svc).toMatch(/streamVaultZip\(/);
     const exp = stripComments(readFileSync(join(SRC, "services/vaultExport.ts"), "utf8"));
-    expect(exp).toMatch(/export async function buildVaultZipBytes\(/);
+    expect(exp).toMatch(/export async function streamVaultZip\(/);
+    expect(exp).toMatch(/await streamVaultZip\(v, sink\)/);
   });
 
   it("is a catch-up, not a clock", () => {

@@ -4,7 +4,7 @@ import { Archive, ChevronRight, Layers, Play } from "lucide-react";
 import { Banner, Button, choicesWith, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, Switch, ZIP_KEEP_CHOICES } from "@plainva/ui";
 import { mSelect } from "../services/mobileDialogs";
 import { applyVaultSettings } from "../services/mobileSettings";
-import { backupFolderFor, backupState, backupVaultNow, dismissUnreadableBackups, listBackups } from "../services/vaultBackup";
+import { BACKUP_STATE_EVENT, backupFolderFor, backupState, backupVaultNow, dismissUnreadableBackups, listBackups, loadBackupAttempt } from "../services/vaultBackup";
 import type { BackupListing } from "../services/backupListing";
 import { getVaultEntry } from "../services/vaultRegistry";
 import type { MobileVault } from "../services/vaultService";
@@ -27,6 +27,25 @@ export function ZipBackupGroup({ vault }: { vault: MobileVault }) {
   const [zipOn, setZipOn] = useState(() => backupState(vaultId).enabled);
   const [zipKeep, setZipKeep] = useState(() => backupState(vaultId).keep);
   const [zipLast, setZipLast] = useState(() => backupState(vaultId).lastRun);
+  // The last try ended without an archive (F51): said here, where the schedule lives. Never while one runs.
+  const [zipFailed, setZipFailed] = useState(() => backupState(vaultId).lastFailed);
+
+  useEffect(() => {
+    let alive = true;
+    const follow = () => {
+      if (!alive) return;
+      const state = backupState(vaultId);
+      setZipFailed(state.lastFailed);
+      setZipLast(state.lastRun);
+    };
+    // The durable mark decides: a try that ended the app is found here, and the screen's copy follows it.
+    void loadBackupAttempt(vaultId).then(follow);
+    window.addEventListener(BACKUP_STATE_EVENT, follow);
+    return () => {
+      alive = false;
+      window.removeEventListener(BACKUP_STATE_EVENT, follow);
+    };
+  }, [vaultId]);
 
   useEffect(() => {
     void getVaultEntry(vaultId).then((entry) => setName(entry?.name ?? ""));
@@ -69,12 +88,16 @@ export function ZipBackupGroup({ vault }: { vault: MobileVault }) {
             subtitle={
               !zipOn
                 ? t("mobile.backupZipOff")
-                : zipLast
-                  ? t("mobile.backupZipOn", {
-                      count: archives?.archives.length ?? 0,
-                      when: new Date(zipLast).toLocaleDateString(),
-                    })
-                  : t("mobile.backupZipNever")
+                : [
+                    // The last try failed (F51): said first, and the last good archive's date stays beside it.
+                    ...(zipFailed ? [t("mobile.backupZipLastFailed")] : []),
+                    zipLast
+                      ? t("mobile.backupZipOn", {
+                          count: archives?.archives.length ?? 0,
+                          when: new Date(zipLast).toLocaleDateString(),
+                        })
+                      : t("mobile.backupZipNever"),
+                  ].join(" · ")
             }
             title={t("settings.backupZipEnabled")}
           />
@@ -113,7 +136,10 @@ export function ZipBackupGroup({ vault }: { vault: MobileVault }) {
                 void backupVaultNow(vault, name)
                   // The sub-line reports the last run; leaving it stale right
                   // after a manual one would be the one moment it is wrong.
-                  .then(() => setZipLast(backupState(vaultId).lastRun))
+                  .then(() => {
+                    setZipLast(backupState(vaultId).lastRun);
+                    setZipFailed(backupState(vaultId).lastFailed);
+                  })
                   .finally(() => setBusy(false));
               }}
               title={t("settings.backupNowButton")}
