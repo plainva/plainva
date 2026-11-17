@@ -167,7 +167,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm2cpio dbus x11-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm rpm2cpio dbus x11-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -439,12 +439,15 @@ jobs:
       # extracted AppImage through AppRun (both under Xvfb, each in a D-Bus
       # session with its own HOME), the .app from the dmg through `open`, the
       # NSIS app installed silently and started by its shortcut — and pass
-      # when plainva-desktop shows its window (Linux: a mapped X window titled
-      # "Plainva"; macOS: an on-screen window in the window server's list;
-      # Windows: MainWindowHandle) within 45 s and still runs 3 s later. A
-      # slow start is waited for, not retried; a failure names what was
-      # missing and shows the program's last output lines. Read, not started:
-      # the rpm (no rpm-based runner) and the MSI (a per-machine install needs
+      # when the plainva-desktop this start launched shows its window (Linux:
+      # a mapped X window whose _NET_WM_PID is that process; macOS: an
+      # on-screen window in the window server's list; Windows:
+      # MainWindowHandle) within 45 s and still runs 3 s later. Only the
+      # start's own processes are counted and ended, by PID or path. A slow
+      # start is waited for, not retried; an early end is seen at once; a
+      # failure names what was missing, once, and shows the program's last
+      # output lines. Read, not started: the rpm (no rpm-based runner; its
+      # digests are verified) and the MSI (a per-machine install needs
       # administrator rights and outlives the step; Windows starts the NSIS
       # app). The window is evidence that it was created and mapped, not that
       # its content rendered. Logs the size of the app, the helper and ONNX
@@ -529,7 +532,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm2cpio dbus x11-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm rpm2cpio dbus x11-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -638,6 +641,7 @@ jobs:
           node apps/desktop/node_modules/@tauri-apps/cli/tauri.js build $TAURI_ARGS
 
       - name: Every release file was built
+        id: built
         run: node apps/desktop/scripts/expected-bundles-check.mjs ${{ matrix.platform }}
 
       - name: No embedded WebDriver server in the release binary
@@ -695,7 +699,11 @@ jobs:
 
       # The record of the rehearsal: what a release would have uploaded, by
       # name, size and SHA-256 — the files themselves stay on the runner.
+      # Also after a red check between here and the build: the list is the
+      # record a red rehearsal is read against. Only the build itself (every
+      # file there) is its condition.
       - name: List what a release would have uploaded
+        if: always() && steps.built.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
