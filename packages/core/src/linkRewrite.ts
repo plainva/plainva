@@ -519,9 +519,10 @@ export function rewriteNoteLinks(
   // once, and a note full of them is read a few times, not once per link
   // (Fehlerliste 0.9.0, B2: renamed to a name with a backtick, a note with
   // two thousand such lines was read two thousand times). Where one paragraph
-  // still loses links after `READ_BACK_ROUNDS` rounds, the links of that
-  // paragraph whose new name can pair are all left as they were — they still
-  // name the file they named — and the note is read once more.
+  // still loses links after `READ_BACK_ROUNDS` rounds, a round leaves out the
+  // first lost link and those behind it; after twice as many, the links of
+  // that paragraph whose new name can pair are all left as they were — they
+  // still name the file they named.
   let containers: InlineContainers | null = null;
   for (let round = 0; ; round++) {
     const { text, made } = withEdits(content, edits);
@@ -536,16 +537,27 @@ export function rewriteNoteLinks(
       edits.splice(edits.indexOf(edit), 1);
     };
     const lastLost = new Map<number, Edit>();
+    const firstLost = new Map<number, Edit>();
     for (const edit of lost) {
       const key = containers.of(retargeted.get(edit)!.link.start);
-      const known = lastLost.get(key);
-      if (!known || edit.from > known.from) lastLost.set(key, edit);
+      const last = lastLost.get(key);
+      if (!last || edit.from > last.from) lastLost.set(key, edit);
+      const first = firstLost.get(key);
+      if (!first || edit.from < first.from) firstLost.set(key, edit);
     }
     if (round < READ_BACK_ROUNDS) {
       for (const edit of lastLost.values()) leaveOut(edit);
       continue;
     }
-    for (const edit of [...retargeted.keys()]) if (lastLost.has(containers.of(retargeted.get(edit)!.link.start))) leaveOut(edit);
+    // From here on a round leaves out the first link that does not read back
+    // and every one behind it in its paragraph: the links in front of it read
+    // back with those behind it standing, so they stay renamed, as they did
+    // when the rounds left out one link at a time.
+    const final = round >= 2 * READ_BACK_ROUNDS;
+    for (const edit of [...retargeted.keys()]) {
+      const first = firstLost.get(containers.of(retargeted.get(edit)!.link.start));
+      if (first && (final || edit.from >= first.from)) leaveOut(edit);
+    }
   }
 }
 

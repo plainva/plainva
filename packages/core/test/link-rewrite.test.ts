@@ -586,4 +586,16 @@ describe("leaving out the links that would not read back, in linear time", () =>
     const note = "[[Alt]] ` [[Alt]]\n";
     expect(rename(note, { Alt: "Neu`x" })).toEqual({ content: "[[Neu`x]] ` [[Alt]]\n", renamed: 1, unplaced: 1 });
   });
+
+  // Past the rounds that leave out one link at a time (Fehlerliste 0.9.0,
+  // F45 no. 3): the links in front of the open backtick stay renamed, as
+  // they did when every round left out one.
+  it("still rewrites the links in front of an open backtick after a long run of them", () => {
+    for (const after of [17, 30, 200]) {
+      const tail = "[[Alt]] ".repeat(after);
+      expect(rename(`[[Alt]] \` ${tail}\n`, { Alt: "Neu`x" })).toEqual({ content: `[[Neu\`x]] \` ${tail}\n`, renamed: 1, unplaced: after });
+      expect(rename(`[[Alt]] a [[Alt]] b [[Alt]] \` ${tail}\n`, { Alt: "Neu`x" }).renamed).toBe(3);
+      expect(rename(`[[Other]] [[Alt]] \` ${tail}\n`, { Alt: "Neu`x", Other: "O`x" }).renamed).toBe(2);
+    }
+  });
 });
