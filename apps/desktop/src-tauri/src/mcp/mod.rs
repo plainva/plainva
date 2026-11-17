@@ -234,6 +234,10 @@ struct Inner {
     next_id: u64,
     /// Raised when the server stops or the vault changes: the connections of before end (ADR 0022).
     generation: u64,
+    /// The encrypted workspace of the vault is locked: nothing of it is answered, on any connection (`set_locked`).
+    locked: bool,
+    /// Raised each time the workspace locks: a call that was running then answers nothing.
+    lock_epoch: u64,
     /// Counts the listeners started: one that ends clears only what is its own.
     listener_run: u64,
     /// The run of the listener that holds the endpoint now; `None` while one waits for it, after it stopped and while
@@ -301,6 +305,10 @@ impl ListChange {
 
 /// What a connection of an earlier vault or setting is told: it answers nothing any more (ADR 0022).
 pub(crate) const CHANGED: &str = "Plainva's settings or its open vault changed. Restart the connection.";
+
+/// What a client is told while the encrypted workspace of the vault is locked: nothing of it is answered, and its
+/// connection stays — unlocked, the same connection answers again (`McpState::set_locked`).
+pub(crate) const LOCKED: &str = "The encrypted workspace of this vault is locked in Plainva. Nothing of it is answered until it is unlocked there; then ask again.";
 
 /// A call that waits for the main window, let go however the wait ends (R19 of the stability plan): the entry of a
 /// call whose future is dropped — its connection's task ended — goes with it, not only one that was answered or
@@ -385,6 +393,39 @@ impl McpState {
 
     pub(crate) fn generation(&self) -> u64 {
         self.lock().generation
+    }
+
+    /// Whether the encrypted workspace of the vault is locked now.
+    pub(crate) fn locked(&self) -> bool {
+        self.lock().locked
+    }
+
+    /// The encrypted workspace of the vault locked or unlocked (wave 2, § 3.2). Locked, every request of every
+    /// connection is refused in words (`LOCKED`), a call waiting for the main window is let go and answers nothing,
+    /// and a client waiting for the user's yes is not admitted. The connections stay: unlocked, they answer again,
+    /// and every client hears that its lists changed either way.
+    pub(crate) fn set_locked<R: Runtime>(&self, app: &AppHandle<R>, locked: bool) {
+        let mut inner = self.lock();
+        if inner.locked == locked {
+            return;
+        }
+        inner.locked = locked;
+        let mut ended = None;
+        if locked {
+            inner.lock_epoch += 1;
+            // What the main window finds for a call now is not handed on (`forward_call`).
+            inner.calls.clear();
+            inner.judging.clear();
+            ended = inner.pairing.take().map(|(request_id, _)| request_id);
+        }
+        let on = inner.enabled;
+        drop(inner);
+        if on {
+            self.announce(ListChange::everything());
+        }
+        if let Some(request_id) = ended {
+            let _ = app.emit_to("main", "mcp-pair-ended", request_id);
+        }
     }
 
     pub(crate) fn tools(&self) -> Vec<ToolSpec> {
@@ -589,11 +630,17 @@ impl McpState {
     ) -> Result<CallAnswer, String> {
         let request_id = self.next_id("call");
         let (tx, rx) = oneshot::channel();
+        let epoch;
         {
             let mut inner = self.lock();
             if inner.generation != from.generation {
                 return Err(CHANGED.into());
             }
+            // Locked, the main window is not asked at all.
+            if inner.locked {
+                return Err(LOCKED.into());
+            }
+            epoch = inner.lock_epoch;
             inner.calls.insert(request_id.clone(), tx);
             inner.judging.insert(request_id.clone(), Judging { root: from.root.to_path_buf(), folders: folders.to_vec() });
         }
@@ -615,7 +662,16 @@ impl McpState {
         if app.emit_to("main", "mcp-call", request).is_err() {
             return Err("Plainva could not reach its window.".into());
         }
-        match tokio::time::timeout(limit, rx).await {
+        let waited = tokio::time::timeout(limit, rx).await;
+        // Locked while the main window looked — and unlocked again, maybe —: what it found is not handed on.
+        let locked = {
+            let inner = self.lock();
+            inner.locked || inner.lock_epoch != epoch
+        };
+        if locked {
+            return Err(LOCKED.into());
+        }
+        match waited {
             Ok(Ok(answer)) => Ok(answer),
             // Taken from the calls while it waited: the vault or the settings changed (`configure`).
             Ok(Err(_)) => Err(CHANGED.into()),
@@ -797,9 +853,9 @@ where
     let state = app.state::<McpState>();
     // A connection belongs to the settings and the vault of the moment it was accepted, read together: a change of
     // either while its hello is read, while it is admitted or while it is served ends it (ADR 0022).
-    let (enabled, vault, generation) = {
+    let (enabled, vault, generation, locked) = {
         let inner = state.lock();
-        (inner.enabled, inner.vault.clone(), inner.generation)
+        (inner.enabled, inner.vault.clone(), inner.generation, inner.locked)
     };
     let mut generations = state.generation_watch();
     let (read_half, mut write_half) = tokio::io::split(stream);
@@ -838,6 +894,11 @@ where
         let _ = write_half.write_all(reply_line(&HelloReply::refuse("no-vault")).as_bytes()).await;
         return;
     };
+    // The encrypted workspace is locked: the helper says so to the client that starts it, and nobody is asked about it.
+    if locked {
+        let _ = write_half.write_all(reply_line(&HelloReply::refuse("locked")).as_bytes()).await;
+        return;
+    }
     // The folders a client is admitted with are not kept: every request asks what it may do now. A change after its
     // admission ends it before it is served (below).
     let (client, _folders, secret) = match state.admit(&app, &hello, &vault, generation).await {
@@ -847,6 +908,11 @@ where
             return;
         }
     };
+    // Locked while it was admitted: it is told now, not at its first request.
+    if state.locked() {
+        let _ = write_half.write_all(reply_line(&HelloReply::refuse("locked")).as_bytes()).await;
+        return;
+    }
     let ok = HelloReply { ok: true, secret, reason: None };
     if write_half.write_all(reply_line(&ok).as_bytes()).await.is_err() {
         return;
@@ -940,13 +1006,23 @@ pub fn mcp_configure(
     vault: Option<VaultBinding>,
     tools: Vec<ToolSpec>,
     prompts: Option<Vec<PromptSpec>>,
+    locked: Option<bool>,
 ) -> Result<(), String> {
     only_main(&window)?;
     // Fully local (ADR 0030): nothing listens — what an app does with what it reads, nobody here can see. The web
     // view asks for nothing else while the switch is on; this is the same answer once more.
     let enabled = enabled && !crate::ai_egress::local_only();
+    // The encrypted workspace locked: locked before anything is served for the new settings, unlocked only after —
+    // nothing of a locked workspace goes in between.
+    let locked = locked.unwrap_or(false);
+    if locked {
+        state.set_locked(&app, true);
+    }
     if state.configure(&app, enabled, vault, tools, prompts.unwrap_or_default()) {
         state.start_listener(&app, hello::endpoint_name(&app.config().identifier));
+    }
+    if !locked {
+        state.set_locked(&app, false);
     }
     Ok(())
 }
@@ -1540,6 +1616,18 @@ mod tests {
 
     fn names(list: &serde_json::Value) -> Vec<String> {
         list["result"]["tools"].as_array().map(|tools| tools.iter().map(|t| t["name"].as_str().unwrap_or("").to_string()).collect()).unwrap_or_default()
+    }
+
+    /// Sends a request and reads until its answer, past what the server tells meanwhile (a list that changed).
+    async fn answer_to(client: &mut DuplexStream, request: serde_json::Value) -> serde_json::Value {
+        let id = request["id"].clone();
+        send(client, request).await;
+        loop {
+            let message: serde_json::Value = serde_json::from_str(&line(client).await).unwrap();
+            if message["id"] == id {
+                return message;
+            }
+        }
     }
 
     fn old_call(id: u64, tool: &str, path: &str) -> serde_json::Value {
@@ -2809,6 +2897,63 @@ mod tests {
         }
         assert_eq!(got[&2], "text of Projects/a.md");
         assert_eq!(got[&3], "text of Projects/b.md");
+    }
+
+    /// While the encrypted workspace of the vault is locked, nothing of it goes to any app (wave 2, § 3.2): every
+    /// request is refused in words — a list, the prompts, the resource, a call —, a call that runs when it locks
+    /// answers nothing although the main window's answer comes after, the main window is not asked again, and a new
+    /// connection is told at its hello. Unlocked, the same connection answers again, without a restart.
+    #[tokio::test]
+    async fn a_locked_workspace_answers_nothing_and_the_same_connection_answers_again_once_unlocked() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        let app = mock_app(dir.path());
+        let handle = app.handle().clone();
+        let asked = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count = asked.clone();
+        app.listen_any("mcp-call", move |event| {
+            let request: serde_json::Value = serde_json::from_str(event.payload()).unwrap();
+            let state = handle.state::<McpState>();
+            // The user locks the workspace while the main window looks at the first call; its answer comes after.
+            if count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                state.set_locked(&handle, true);
+            }
+            let path = request["args"]["path"].as_str().unwrap_or("").to_string();
+            let tx = state.lock().calls.remove(request["requestId"].as_str().unwrap());
+            if let Some(tx) = tx {
+                let _ = tx.send(CallAnswer { content: format!("text of {path}"), is_error: false, paths: vec![path], pending: None, declined: false });
+            }
+        });
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        let running = answer_to(&mut client, old_call(2, "read_note", "Projects/a.md")).await;
+        assert_eq!(running["result"]["content"][0]["text"], LOCKED, "{running}");
+        assert_eq!(running["result"]["isError"], true, "{running}");
+        let requests = [
+            (3, "tools/list", serde_json::json!({})),
+            (4, "prompts/list", serde_json::json!({})),
+            (5, "prompts/get", serde_json::json!({ "name": "daily-orientation" })),
+            (6, "resources/list", serde_json::json!({})),
+            (7, "resources/read", serde_json::json!({ "uri": handler::FORMAT_URI })),
+        ];
+        for (id, method, params) in requests {
+            let refused = answer_to(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params })).await;
+            assert_eq!(refused["error"]["message"], LOCKED, "{method}: {refused}");
+        }
+        let again = answer_to(&mut client, old_call(8, "read_note", "Projects/a.md")).await;
+        assert_eq!(again["result"]["content"][0]["text"], LOCKED, "{again}");
+        assert_eq!(asked.load(std::sync::atomic::Ordering::SeqCst), 1, "the main window is not asked while it is locked");
+        let (reply, _other) = connect(&app, Some("s3cret")).await;
+        assert_eq!(reply, HelloReply::refuse("locked"));
+
+        app.state::<McpState>().set_locked(app.handle(), false);
+        let list = answer_to(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": 9, "method": "tools/list" })).await;
+        assert!(names(&list).contains(&"read_note".to_string()), "{list}");
+        let open = answer_to(&mut client, old_call(10, "read_note", "Projects/a.md")).await;
+        assert_eq!(open["result"]["content"][0]["text"], "text of Projects/a.md", "{open}");
+        assert!(app.state::<McpState>().lock().calls.is_empty());
     }
 
     #[tokio::test]

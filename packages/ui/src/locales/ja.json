@@ -1747,6 +1747,7 @@
       "pairBody": "起動元: {{program}}。読み取れる範囲を選んでください——それ以外は見えません。",
       "pairFolders": "フォルダー",
       "pairWhole": "保管庫全体",
+      "pairRenamed": "アクセスはフォルダー名に対して与えられます。あとで名前を変えると、もう一度許可するまで共有されません。",
       "pairAllow": "許可",
       "pairDeny": "拒否",
       "author": "{{client}}（AIアプリ）",

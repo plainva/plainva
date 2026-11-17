@@ -61,6 +61,8 @@ export interface DesktopAiInput {
   vaultAdapter: IVaultAdapter | null;
   queryService: VaultQueryService | null;
   encrypted: boolean;
+  /** The encrypted workspace is locked: no app over MCP gets anything of the vault (wave 2, § 3.2). */
+  locked: boolean;
   activePath: string | null;
   /** The panes of this window: their open tabs are part of the situation (plan §7). */
   layout: { panes: readonly { tabs: readonly { history: readonly string[]; historyIndex: number }[] }[] };
@@ -266,7 +268,7 @@ export function useDesktopAi(input: DesktopAiInput) {
     }),
   );
 
-  const { vaultPath, vaultAdapter, queryService, encrypted: sealed } = input;
+  const { vaultPath, vaultAdapter, queryService, encrypted: sealed, locked } = input;
   /** The vault host of the open vault: the MCP server's calls run on it too (plan §17.3). */
   const hostRef = useRef<AiVaultHost | null>(null);
   useEffect(() => {
@@ -374,7 +376,8 @@ export function useDesktopAi(input: DesktopAiInput) {
           toast.info(i18n.t("ai.mcp.left.draft", { client: what.client }), { label: i18n.t("ai.write.draft.show"), run: () => requestWaitingView() });
         }
       },
-    });
+      // Locked, the main window answers an app nothing of the vault either (wave 2, § 3.2).
+    }, () => latest.current.locked);
   }, [session]);
   // A plan of an app was asked of the vault that was open then: another vault, or none, and it waits no more.
   useEffect(() => () => mcpPlans.clear(), [vaultPath]);
@@ -412,9 +415,10 @@ export function useDesktopAi(input: DesktopAiInput) {
     if (!session || !state?.loaded) return;
     const vault = vaultPath && vaultAdapter && queryService ? { path: vaultPath, name: vaultName(vaultPath) } : null;
     // An encrypted workspace takes no changes from an app (E32): no tool that writes is even listed there.
-    void configureMcp(mcpOn, vault, { sealed }).catch(() => undefined);
+    // While it is locked, nothing of the vault goes to an app at all.
+    void configureMcp(mcpOn, vault, { sealed, locked }).catch(() => undefined);
     // The prompts speak the app's language: a switch registers them again.
-  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language, sealed]);
+  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language, sealed, locked]);
 
   // "Transcribe" at every voice note (plan P1.5): the door exists while the AI is on for the open vault.
   useEffect(() => {

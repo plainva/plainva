@@ -1811,6 +1811,7 @@
       "pairBody": "Gestartet von: {{program}}. Wähle, was sie lesen darf — anderes sieht sie nicht.",
       "pairFolders": "Ordner",
       "pairWhole": "Der ganze Vault",
+      "pairRenamed": "Die Freigabe gilt dem Namen eines Ordners: Benennst Du ihn später um, ist er nicht mehr freigegeben, bis Du ihn wieder erlaubst.",
       "pairAllow": "Erlauben",
       "pairDeny": "Ablehnen",
       "author": "{{client}} (KI-App)",

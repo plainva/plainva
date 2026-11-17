@@ -1,6 +1,6 @@
 # External agents (Beta)
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-17
 
 An external agent is an AI program of another maker — an agent you installed on your computer and signed in to yourself, with your own subscription or key. Plainva can start such an agent in the folder of a vault and show its session in the AI tab. This is part of the experimental AI features and works on the desktop only.
 
@@ -69,7 +69,7 @@ If the agent's program ends by itself, the session says so, and **Show its last 
 ## Limits
 
 - Desktop only, and in the main window only. On the phone there is Plainva's own assistant.
-- Not in an encrypted workspace.
+- Not in an encrypted workspace: no agent is started there, and while such a workspace is locked, Plainva's tools answer no agent and no app.
 - Not while **Fully local** is on: no agent starts and no sign-in runs, and a running session ends.
 - One session at a time, and no history: a session that ended cannot be opened again.
 - Pictures cannot be sent to an agent, and Plainva does not carry a mode or model chosen in a session over to the next one.

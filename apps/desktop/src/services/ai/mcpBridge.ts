@@ -270,6 +270,12 @@ function planNote(question: McpPlanQuestion, again: boolean): string {
 
 const stable = (value: unknown): string => JSON.stringify(value, (_key, item: unknown) => (item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : item));
 
+/**
+ * What a client is told while the encrypted workspace of the open vault is locked (wave 2, § 3.2): the words of the
+ * native side (`LOCKED`), which refuses the same requests before they reach this window.
+ */
+export const MCP_LOCKED = "The encrypted workspace of this vault is locked in Plainva. Nothing of it is answered until it is unlocked there; then ask again.";
+
 /** What a client is told when its call was made for a vault that is not the one open (ADR 0022). */
 export const MCP_VAULT_CHANGED = "Plainva's settings or its open vault changed. Restart the connection.";
 
@@ -414,11 +420,15 @@ export function listenQuietly<T>(event: string, handler: (payload: T) => void): 
   };
 }
 
-/** Answers forwarded calls in the main window; returns the stop function. */
-export function listenForMcpCalls(host: () => AiVaultHost | null, writing?: McpWriting): () => void {
+/**
+ * Answers forwarded calls in the main window; returns the stop function. While the encrypted workspace is `locked`,
+ * a call is answered with the refusal alone — also one that was running when it locked: nothing it found goes.
+ */
+export function listenForMcpCalls(host: () => AiVaultHost | null, writing?: McpWriting, locked: () => boolean = () => false): () => void {
   const quiet = writing?.left ? { ...writing, left: quietLeft(writing.left) } : writing;
   return listenQuietly<McpCallRequest>("mcp-call", (payload) => {
-    void runMcpCall(host(), payload, quiet).then((answer) => invoke("mcp_call_answer", { requestId: payload.requestId, answer }));
+    const answered = locked() ? Promise.resolve(failed(MCP_LOCKED)) : runMcpCall(host(), payload, quiet).then((answer) => (locked() ? failed(MCP_LOCKED) : answer));
+    void answered.then((answer) => invoke("mcp_call_answer", { requestId: payload.requestId, answer }));
   });
 }
 
@@ -432,9 +442,11 @@ export function vaultName(path: string): string {
  * Tells the native side what to serve: on or off, the open vault, the tools. In an encrypted workspace (`sealed`),
  * which takes no suggestion, draft or plan of anyone outside it yet (E32), only the tools that read: a tool that
  * would be refused at every call is not offered at all, as the assistant offers none there (`writeTools.ts`).
+ * While that workspace is `locked`, the native side answers nothing of the vault at all (wave 2, § 3.2).
  */
-export function configureMcp(enabled: boolean, vault: { path: string; name: string } | null, options: { sealed?: boolean } = {}): Promise<void> {
+export function configureMcp(enabled: boolean, vault: { path: string; name: string } | null, options: { sealed?: boolean; locked?: boolean } = {}): Promise<void> {
   return invoke("mcp_configure", {
+    locked: options.locked === true,
     enabled,
     vault: vault ? { key: aiVaultKey(vault.path), name: vault.name, root: vault.path } : null,
     tools: mcpToolSpecs().filter((spec) => !options.sealed || spec.kind === "read"),

@@ -1875,6 +1875,7 @@
       "pairBody": "Iniciado por: {{program}}. Elige qué puede leer: no ve nada más.",
       "pairFolders": "Carpetas",
       "pairWhole": "Todo el vault",
+      "pairRenamed": "El acceso va por el nombre de la carpeta: si luego le cambias el nombre, deja de estar compartida hasta que la vuelvas a permitir.",
       "pairAllow": "Permitir",
       "pairDeny": "Rechazar",
       "author": "{{client}} (app de IA)",

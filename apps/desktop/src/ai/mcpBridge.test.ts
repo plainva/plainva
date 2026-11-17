@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   }),
 }));
 
-const { MCP_JUDGE_BLOCK, MCP_LEFT_OUT, MCP_UNSURE, MCP_VAULT_CHANGED, configureMcp, mcpCallScope, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { MCP_JUDGE_BLOCK, MCP_LEFT_OUT, MCP_LOCKED, MCP_UNSURE, MCP_VAULT_CHANGED, configureMcp, listenForMcpCalls, mcpCallScope, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -307,6 +307,54 @@ describe("what the native side is told to serve", () => {
     expect(sealed.tools.length).toBeGreaterThan(0);
     expect(sealed.tools.every((tool) => tool.kind === "read")).toBe(true);
     expect(sealed.tools.map((tool) => tool.name)).toEqual(open.tools.filter((tool) => tool.kind === "read").map((tool) => tool.name));
+  });
+
+  it("says whether the encrypted workspace is locked: the native side then answers nothing of it", async () => {
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true, locked: true });
+    expect((served() as unknown as { locked: boolean }).locked).toBe(true);
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true });
+    expect((served() as unknown as { locked: boolean }).locked).toBe(false);
+  });
+});
+
+/** Wave 2, § 3.2: while the encrypted workspace is locked, the main window answers no call of an app either. */
+describe("a locked workspace", () => {
+  it("answers a forwarded call with the refusal, and a call it was locked during with nothing of what it found", async () => {
+    const answers = () =>
+      vi
+        .mocked(invoke)
+        .mock.calls.filter(([command]) => command === "mcp_call_answer")
+        .map(([, args]) => args as { requestId: string; answer: { content: string; isError: boolean; paths: string[] } });
+    const answerOf = (requestId: string) => answers().find((a) => a.requestId === requestId)?.answer;
+    let locked = true;
+    let looked = 0;
+    const plain = host();
+    // The workspace locks while the vault is read for the call.
+    const watched = {
+      ...plain,
+      tools: (...args: unknown[]) => {
+        looked += 1;
+        locked = true;
+        return (plain.tools as (...a: unknown[]) => unknown)(...args);
+      },
+    } as unknown as AiVaultHost;
+    const before = events.handlers.length;
+    const stop = listenForMcpCalls(() => watched, undefined, () => locked);
+    await vi.waitFor(() => expect(events.handlers).toHaveLength(before + 1));
+    const deliver = (requestId: string) =>
+      events.handlers[before]!({ payload: { requestId, clientId: "c1", client: "Test client", vaultKey: "vault-key", tool: "read_note", args: { path: "Projects/Plan.md" }, folders: ["Projects"] } });
+    deliver("locked-before");
+    await vi.waitFor(() => expect(answerOf("locked-before")).toBeDefined());
+    expect(answerOf("locked-before")).toEqual({ content: MCP_LOCKED, isError: true, paths: [] });
+    expect(looked).toBe(0);
+    locked = false;
+    deliver("locked-during");
+    await vi.waitFor(() => expect(answerOf("locked-during")).toBeDefined());
+    expect(looked).toBe(1);
+    expect(answerOf("locked-during")).toEqual({ content: MCP_LOCKED, isError: true, paths: [] });
+    stop();
+    // The mocked plugin keeps every handler: this one goes, so the tests after it count their own.
+    events.handlers.splice(before, 1);
   });
 });
 

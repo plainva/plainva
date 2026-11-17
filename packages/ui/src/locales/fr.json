@@ -1875,6 +1875,7 @@
       "pairBody": "Lancé par : {{program}}. Choisissez ce qu'elle peut lire — elle ne voit rien d'autre.",
       "pairFolders": "Dossiers",
       "pairWhole": "Tout le vault",
+      "pairRenamed": "L'accès suit le nom du dossier : si vous le renommez plus tard, il n'est plus partagé tant que vous ne l'autorisez pas à nouveau.",
       "pairAllow": "Autoriser",
       "pairDeny": "Refuser",
       "author": "{{client}} (app d'IA)",

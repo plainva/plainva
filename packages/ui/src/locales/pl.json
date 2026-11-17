@@ -1939,6 +1939,7 @@
       "pairBody": "Uruchomiona przez: {{program}}. Wybierz, co może czytać — nic więcej nie widzi.",
       "pairFolders": "Foldery",
       "pairWhole": "Cały vault",
+      "pairRenamed": "Dostęp dotyczy nazwy folderu: jeśli później zmienisz jego nazwę, przestanie być udostępniony, dopóki znów na niego nie zezwolisz.",
       "pairAllow": "Zezwól",
       "pairDeny": "Odmów",
       "author": "{{client}} (aplikacja AI)",

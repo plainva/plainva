@@ -1811,6 +1811,7 @@
       "pairBody": "Started by: {{program}}. Choose what it may read — it sees nothing else.",
       "pairFolders": "Folders",
       "pairWhole": "The whole vault",
+      "pairRenamed": "Access goes by a folder's name: if you rename a folder later, it is no longer shared until you allow it again.",
       "pairAllow": "Allow",
       "pairDeny": "Deny",
       "author": "{{client}} (AI app)",

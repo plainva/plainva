@@ -1747,6 +1747,7 @@
       "pairBody": "启动程序：{{program}}。选择它可以读取的内容——它看不到其他任何内容。",
       "pairFolders": "文件夹",
       "pairWhole": "整个仓库",
+      "pairRenamed": "访问权限按文件夹名称授予：之后重命名该文件夹，它就不再共享，直到你再次允许。",
       "pairAllow": "允许",
       "pairDeny": "拒绝",
       "author": "{{client}}（AI应用）",

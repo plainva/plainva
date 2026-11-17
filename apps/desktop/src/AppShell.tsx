@@ -587,6 +587,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     vaultAdapter,
     queryService,
     encrypted: workspaceSecurityStatus !== null,
+    locked: workspaceSecurityStatus?.phase === "locked",
     activePath,
     layout,
     openView,
