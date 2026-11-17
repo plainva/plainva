@@ -599,6 +599,8 @@ export async function applyProfileValues(
     window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
     window.dispatchEvent(new CustomEvent(BAR_LAYOUT_CHANGED_EVENT));
     window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT));
+    // The task database among them: its hint and the views read it again (useTaskDatabaseSetting).
+    window.dispatchEvent(new CustomEvent("plainva-features-saved"));
   }
 }
 

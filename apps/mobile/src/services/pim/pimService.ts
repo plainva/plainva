@@ -16,7 +16,7 @@ import {
 } from "@plainva/core";
 import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
 import { getMobileVault, type MobileVault } from "../vaultService";
-import { getActiveVaultEntry } from "../vaultRegistry";
+import { phoneTemplateVault } from "../templateVault";
 import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
@@ -886,7 +886,7 @@ export async function openMeetingNoteFor(
     // The pipeline adds the vault's pieces. `{{daily}}` in a meeting note is
     // the daily note of the MEETING's day: the note's `day` is that day.
     resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx),
-    templateContext: { vaultName: (await getActiveVaultEntry()).name || "Plainva" },
+    templateContext: { vaultName: (await phoneTemplateVault()).name },
     now,
   });
   if (!res) return null;

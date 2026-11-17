@@ -527,6 +527,39 @@ describe("CalDAV event pull + ics expansion", () => {
       href: "https://cloud.example.org/cal/todo-1.ics",
     });
   });
+
+  it("a recurring VTODO with exceptions is one task, read from its master — not one task per part with the same id", async () => {
+    const ics = (parts: string[][]) =>
+      ["BEGIN:VCALENDAR", "VERSION:2.0", ...parts.flatMap((p) => ["BEGIN:VTODO", ...p, "END:VTODO"]), "END:VCALENDAR"].join("\r\n");
+    const response = (name: string, body: string) => `<d:response>
+            <d:href>/cal/${name}.ics</d:href>
+            <d:propstat><d:prop><d:getetag>"${name}"</d:getetag><c:calendar-data>${body.replace(/</g, "&lt;")}</c:calendar-data></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+          </d:response>`;
+    const series = ics([
+      // The exception comes first in the file: the order decides nothing.
+      ["UID:weekly", "RECURRENCE-ID;VALUE=DATE:20261123", "SUMMARY:Moved instance", "DUE;VALUE=DATE:20261124", "STATUS:COMPLETED"],
+      ["UID:weekly", "SUMMARY:Water plants", "DUE;VALUE=DATE:20261116", "RRULE:FREQ=WEEKLY", "STATUS:NEEDS-ACTION"],
+      ["UID:weekly", "RECURRENCE-ID;VALUE=DATE:20261130", "SUMMARY:Another instance", "DUE;VALUE=DATE:20261130"],
+    ]);
+    // An object may carry instances without their master: the task is still there, once.
+    const orphan = ics([
+      ["UID:lonely", "RECURRENCE-ID;VALUE=DATE:20261201", "SUMMARY:Only an instance", "DUE;VALUE=DATE:20261201"],
+      ["UID:lonely", "RECURRENCE-ID;VALUE=DATE:20261208", "SUMMARY:Second instance", "DUE;VALUE=DATE:20261208"],
+    ]);
+    const fetchFn: FetchFn = vi.fn(async () =>
+      davRes(`<?xml version="1.0"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          ${response("weekly", series)}
+          ${response("lonely", orphan)}
+        </d:multistatus>`)
+    );
+    const t = new CalDavPimTarget(CREDS, fetchFn);
+    const { tasks } = await t.pullTasks("https://cloud.example.org/cal/");
+    expect(tasks.map((task) => [task.uid, task.title, task.due, task.completed])).toEqual([
+      ["weekly", "Water plants", "2026-11-16", false],
+      ["lonely", "Only an instance", "2026-12-01", false],
+    ]);
+  });
 });
 
 describe("CalDavPimTarget: when a VTODO is done (finding B2, 19.10.)", () => {
