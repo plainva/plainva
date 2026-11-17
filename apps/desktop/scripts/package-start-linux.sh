@@ -4,13 +4,19 @@
 # `dbus-run-session`, with its own HOME and XDG_RUNTIME_DIR, so the start
 # depends on nothing of the runner's session).
 #
-# Passes when a process named plainva-desktop shows a mapped top-level window
-# titled "Plainva" within $PLAINVA_START_TIMEOUT seconds (default 45; polled
-# every second, so a slow first start is waited for, not retried) and is
-# still running 3 seconds after that. On failure it says which of these went
-# wrong — never started, ended early (with its exit code), running under
-# another name, no window — and prints the last lines of the program's
-# output.
+# Passes when a process named plainva-desktop that this start launched (the
+# started command itself or one of its descendants) owns a mapped top-level
+# window within $PLAINVA_START_TIMEOUT seconds (default 45; polled every
+# second, so a slow first start is waited for, not retried) and still runs 3
+# seconds after that. The window is the start's by its _NET_WM_PID (GDK sets
+# it on every top-level window), not by its title: the app renames its window
+# after what it shows (windowTitle.ts). The title is reported, not judged.
+#
+# On failure it says which of these went wrong — never started, ended early
+# (with its exit code), running under another name, no window (with the
+# windows that were there) — and prints the last lines of the program's
+# output. Only processes of this start are ended, by their PID; another
+# Plainva on the same machine is never touched.
 #
 # Usage: package-start-linux.sh <label> <output-log> <command> [args...]
 set -uo pipefail
@@ -18,24 +24,72 @@ set -uo pipefail
 label="$1" log="$2"
 shift 2
 main=plainva-desktop
-title=Plainva
 timeout_s="${PLAINVA_START_TIMEOUT:-45}"
 
+# The parent of a process. /proc/<pid>/stat is "pid (comm) state ppid …",
+# and comm may hold spaces and parentheses: read after the last ")".
+parent() {
+  local stat
+  stat="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0
+  stat="${stat##*) }"
+  set -- $stat
+  echo "${2:-}"
+}
+
+# The plainva-desktop processes of this start: $pid itself or a descendant.
+# Once $pid is collected (`reaped`), its number may belong to another process:
+# only descendants still under it would count, and there are none to find.
+reaped=0
+ours() {
+  local p q
+  [ "$reaped" = 1 ] && return 0
+  for p in $(pgrep -x "$main"); do
+    q="$p"
+    while [ -n "$q" ] && [ "$q" -gt 1 ] 2>/dev/null; do
+      if [ "$q" = "$pid" ]; then echo "$p"; break; fi
+      q="$(parent "$q")"
+    done
+  done
+}
+
+# Ends the processes of this start; never a PID that was already collected.
+stop() {
+  local p
+  for p in $(ours); do kill "$p" 2>/dev/null; done
+  if [ "$reaped" = 0 ]; then
+    kill "$pid" 2>/dev/null
+    wait "$pid" 2>/dev/null
+    reaped=1
+  fi
+}
+
 fail() {
+  if [ -n "${PLAINVA_REPORTED:-}" ]; then : >"$PLAINVA_REPORTED"; fi
   echo "::error::$label: $1"
   echo "--- last lines of the program's output ($log) ---"
   tail -n 40 "$log" 2>/dev/null || echo "(no output)"
-  pkill -x "$main" 2>/dev/null
-  kill "$pid" 2>/dev/null
+  stop
   exit 1
 }
 
-# A mapped top-level window with the app's title, owned by any X client.
-window() {
-  local id
-  for id in $(xwininfo -root -children 2>/dev/null | awk -v t="\"$title\"" 'index($0, t) { print $1 }'); do
-    if xwininfo -id "$id" 2>/dev/null | grep -q 'Map State: IsViewable'; then echo "$id"; return; fi
+# The mapped top-level windows, one line each: id, owning PID, title.
+windows() {
+  local id owner title
+  for id in $(xwininfo -root -children 2>/dev/null | awk '$1 ~ /^0x/ { print $1 }'); do
+    xwininfo -id "$id" 2>/dev/null | grep -q 'Map State: IsViewable' || continue
+    owner="$(xprop -id "$id" _NET_WM_PID 2>/dev/null | sed -n 's/.* = \([0-9]*\)$/\1/p')"
+    title="$(xwininfo -id "$id" 2>/dev/null | sed -n 's/^xwininfo: Window id: [^ ]* "\(.*\)"$/\1/p')"
+    echo "$id ${owner:-?} ${title:-(no title)}"
   done
+}
+
+# The first mapped window owned by a process of this start.
+our_window() {
+  local procs id owner rest
+  procs=" $(ours | tr '\n' ' ') "
+  while read -r id owner rest; do
+    case "$procs" in *" $owner "*) echo "$id $rest"; return ;; esac
+  done < <(windows)
 }
 
 "$@" >"$log" 2>&1 &
@@ -44,12 +98,13 @@ seen=0
 found=""
 for _ in $(seq "$timeout_s"); do
   sleep 1
-  if pgrep -x "$main" >/dev/null; then seen=1; fi
-  found="$(window)"
-  [ -n "$found" ] && [ "$seen" = 1 ] && break
-  if ! kill -0 "$pid" 2>/dev/null && ! pgrep -x "$main" >/dev/null; then
+  if [ -n "$(ours)" ]; then seen=1; fi
+  found="$(our_window)"
+  [ -n "$found" ] && break
+  if ! kill -0 "$pid" 2>/dev/null && [ -z "$(ours)" ]; then
     wait "$pid"
     code=$?
+    reaped=1
     if [ "$seen" = 1 ]; then fail "$main started and ended before a window appeared (exit code $code)"; fi
     fail "no $main process was seen; the start command ($(basename "$1")) ended with exit code $code within $SECONDS s"
   fi
@@ -59,12 +114,13 @@ if [ "$seen" = 0 ]; then
   others="$(ps -o comm= --ppid "$pid" -p "$pid" 2>/dev/null | sort -u | tr '\n' ' ' | sed 's/ $//')"
   fail "no process named $main after ${timeout_s} s (running instead: ${others:-nothing})"
 fi
-[ -n "$found" ] || fail "$main runs, but no window titled \"$title\" was mapped within ${timeout_s} s"
+if [ -z "$found" ]; then
+  there="$(windows | awk '{ $1 = ""; sub(/^ /, ""); print "pid " $0 }' | paste -sd ';' - | sed 's/;/; /g')"
+  fail "$main runs (pid $(ours | paste -sd ' ' -)), but owns no mapped window after ${timeout_s} s (mapped windows: ${there:-none})"
+fi
 
 sleep 3
-pgrep -x "$main" >/dev/null || fail "$main ended within 3 s after its window appeared"
-echo "$label: $main is running with its window \"$title\" mapped ($found)"
-pkill -x "$main"
-kill "$pid" 2>/dev/null
-wait "$pid" 2>/dev/null
+[ -n "$(ours)" ] || fail "$main ended within 3 s after its window appeared"
+echo "$label: $main is running with its window mapped (${found%% *}, titled \"${found#* }\")"
+stop
 exit 0

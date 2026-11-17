@@ -102,6 +102,13 @@ Get-ChildItem $dir -Recurse -File |
   Where-Object { $_.Name -in @($main, $helper) -or $_.Name -like 'onnxruntime*.dll' } |
   ForEach-Object { Write-Host ("  {0}: {1} bytes ({2:N2} MiB)" -f $_.FullName.Substring($dir.Length + 1), $_.Length, ($_.Length / 1MB)) }
 
+# The plainva-desktop processes of this install, by their path: another
+# Plainva on the same machine is never counted and never ended.
+function Get-Ours {
+  Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($main)) -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and $_.Path.StartsWith("$dir\", [StringComparison]::OrdinalIgnoreCase) }
+}
+
 $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'Plainva.lnk'
 $started = $false
 try {
@@ -120,7 +127,7 @@ try {
       $seen = $false
       for ($i = 0; $i -lt $timeout; $i++) {
         Start-Sleep -Seconds 1
-        $running = @(Get-Process -Name $name -ErrorAction SilentlyContinue)
+        $running = @(Get-Ours)
         if ($running.Count) { $seen = $true }
         if ($running | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero }) { $window = $true; break }
         if ($proc.HasExited -and $running.Count -eq 0) {
@@ -129,7 +136,7 @@ try {
         }
       }
       if (-not $why -and -not $window) {
-        $running = @(Get-Process -Name $name -ErrorAction SilentlyContinue)
+        $running = @(Get-Ours)
         if ($running.Count -eq 0) {
           $other = if ($proc.HasExited) { "the started process ended with exit code $($proc.ExitCode)" } else { "the started process runs as $($proc.ProcessName)" }
           $why = "no process named $name after $timeout s ($other)"
@@ -137,14 +144,14 @@ try {
       }
       if (-not $why) {
         Start-Sleep -Seconds 3
-        if (@(Get-Process -Name $name -ErrorAction SilentlyContinue).Count -eq 0) { $why = "$main ended within 3 s after its window appeared" }
+        if (@(Get-Ours).Count -eq 0) { $why = "$main ended within 3 s after its window appeared" }
       }
       if ($why) { $problems.Add("${leaf}: $why") }
       else { $started = $true; Write-Host "${leaf}: $main is running with its main window" }
     }
   }
 } finally {
-  Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($main)) -ErrorAction SilentlyContinue | Stop-Process -Force
+  Get-Ours | Stop-Process -Force
   Start-Sleep -Seconds 2
   if (Test-Path $uninstaller) { Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait | Out-Null }
 }
