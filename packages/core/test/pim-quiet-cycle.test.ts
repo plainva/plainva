@@ -177,6 +177,49 @@ describe("PimWorker: a quiet cycle reports no data change, a real change does (F
     expect(changed).toBe(2);
   });
 
+  it("the account row changed between two cycles is reported, a re-save of the same row is not", async () => {
+    const w = worker();
+    await cycle(w);
+    // A profile import renames the account (desktop settingsProfile).
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Office", config: {}, enabled: true });
+    await cycle(w);
+    expect(changed).toBe(2);
+    // Every settings sync writes the row again as it is.
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Office", config: {}, enabled: true });
+    await cycle(w);
+    expect(changed).toBe(2);
+  });
+
+  it("an account deleted and made again with the same id between two cycles is reported", async () => {
+    const w = worker();
+    await cycle(w);
+    await cache.deleteAccount("a1");
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Work", config: {}, enabled: true });
+    await cycle(w);
+    expect(changed).toBe(2);
+  });
+
+  it("an account switched off and on again with no cycle between is reported", async () => {
+    const w = worker();
+    await cycle(w);
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Work", config: {}, enabled: false });
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Work", config: {}, enabled: true });
+    await cycle(w);
+    expect(changed).toBe(2);
+  });
+
+  it("the account row counts on the failure path, too", async () => {
+    const w = worker();
+    await cycle(w);
+    fail = true;
+    await cycle(w);
+    expect(changed).toBe(2);
+    clock += 10 * 60_000; // past the pause, still failing
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "Office", config: {}, enabled: true });
+    await cycle(w);
+    expect(changed).toBe(3);
+  });
+
   it("an idle cycle does not read the event cache", async () => {
     events.cal1 = Array.from({ length: 500 }, (_, i) => ev(`m${i}`, `Meeting ${i}`, i * 3600_000));
     const w = worker();

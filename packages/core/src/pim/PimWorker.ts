@@ -214,6 +214,24 @@ export class PimWorker {
 
   constructor(private opts: PimWorkerOptions) {}
 
+  /**
+   * The account row itself and its revision: a rename, an account made again
+   * under its old id (its cache emptied in between), one switched off and on
+   * again between two cycles - nothing the provider says shows any of these.
+   */
+  private async accountParts(account: PimAccountRow): Promise<Array<[string, string]>> {
+    let revision: string | null;
+    try {
+      revision = await this.opts.cache.accountRevision(account.id);
+    } catch {
+      revision = "?"; // never worth losing the account's cycle over
+    }
+    return [
+      ["account", JSON.stringify([account.provider, account.label, account.config, account.enabled])],
+      ["revision", revision ?? ""],
+    ];
+  }
+
   /** Stores what the account looks like now; true when any part differs from the last cycle. */
   private settle(accountId: string, parts: Map<string, string>): boolean {
     const before = this.seen.get(accountId);
@@ -467,7 +485,7 @@ export class PimWorker {
               errors.set(account.id, `${account.label}: ${msg}`);
               // The failure is now on the account's row: news once, not
               // every time the same failure comes back.
-              return this.settle(account.id, new Map([["failed", msg]]));
+              return this.settle(account.id, new Map([["failed", msg], ...(await this.accountParts(account))]));
             }
           })
         );
@@ -514,7 +532,7 @@ export class PimWorker {
     // A superseded cycle reports nothing: the cycle that replaces it does.
     const stoppedHere = () => ({ wrote: false, events: eventCount, calendarErrors, superseded: true });
     const before = this.seen.get(account.id);
-    const parts = new Map<string, string>();
+    const parts = new Map<string, string>(await this.accountParts(account));
     /** A part this cycle did not look at keeps what it was: the cache kept it too. */
     const keep = (key: string) => {
       const was = before?.get(key);

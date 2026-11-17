@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { shippedSources } from "./test-sourceTree";
 import type { PimCacheRepository, PimSyncProblem } from "@plainva/core";
 import { markTaskSyncInputChanged, taskSyncHasNews } from "@plainva/ui";
 import type { TaskSyncResult } from "@plainva/ui";
@@ -80,25 +80,50 @@ describe("taskSyncHasNews (F21)", () => {
 });
 
 /**
- * Every way the reconcile ends in either shell asks first (F21). Desktop: the
- * vault context; phone: its task sync runtime. A dispatch of the event on any
- * other line would bring the reload every two minutes back.
+ * Nothing in either shell announces "task sync done" without asking first
+ * (F21), except the places named below. The scan reads every shipped source
+ * of both shells and both packages and finds the event by its name, however
+ * the dispatch is written; a new place fails here until it asks or is named.
  */
+const EVENTS = ["plainva-task-sync-done", "m-task-sync-done"];
+/** Places that announce without asking, and why. Each must still exist. */
+const UNASKED: ReadonlyArray<{ file: string; why: string }> = [
+  {
+    file: "apps/mobile/src/services/pim/taskToProvider.ts",
+    why: "a task the person just sent to a provider list: their own action, once, never per cycle",
+  },
+];
+/** Places that name the event only to listen for it, in a form the scan does not read as a listener. */
+const LISTENING: ReadonlyArray<{ file: string; why: string }> = [
+  { file: "apps/mobile/src/services/widgetService.ts", why: "subscribes to a list of event names in a loop" },
+];
+
 describe("both shells announce the reconcile only when it is news (F21)", () => {
-  const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-  const shells = [
-    { name: "desktop", text: read("./contexts/VaultContext.tsx"), event: "plainva-task-sync-done" },
-    { name: "phone", text: read("../../mobile/src/services/pim/taskSyncRuntime.ts"), event: "m-task-sync-done" },
-  ];
-  for (const shell of shells) {
-    it(shell.name, () => {
-      const dispatches = shell.text.split("\n").filter((line) => line.includes(`new CustomEvent("${shell.event}")`));
-      expect(dispatches.length).toBeGreaterThan(0);
-      for (const line of dispatches) expect(line).toMatch(/if \(await taskSyncHasNews\(/);
-    });
-  }
+  const sources = shippedSources();
+  const mentions = sources.flatMap(({ rel, text }) =>
+    text.split("\n").flatMap((line, i) =>
+      EVENTS.some((name) => line.includes(`"${name}"`)) && !/\b(add|remove)EventListener\(/.test(line) ? [{ rel, line: i + 1, text: line }] : []
+    )
+  );
+
+  it("every place that names the event to send it asks taskSyncHasNews, or is named with its reason", () => {
+    const named = [...UNASKED, ...LISTENING];
+    const unasked = mentions.filter((m) => !/if \(await taskSyncHasNews\(/.test(m.text) && !named.some((u) => u.file === m.rel));
+    expect(unasked.map((m) => `${m.rel}:${m.line}: ${m.text.trim()}`)).toEqual([]);
+  });
+
+  it("the shells' reconciles are among the places that ask", () => {
+    const asking = new Set(mentions.filter((m) => /taskSyncHasNews/.test(m.text)).map((m) => m.rel));
+    expect([...asking].sort()).toEqual(["apps/desktop/src/contexts/VaultContext.tsx", "apps/mobile/src/services/pim/taskSyncRuntime.ts"]);
+  });
+
+  it("every named exception still names the event", () => {
+    for (const u of [...UNASKED, ...LISTENING]) expect(mentions.some((m) => m.rel === u.file), u.file).toBe(true);
+  });
+
   it("both mark a provider cycle that changed data", () => {
-    expect(read("./services/pim/pimRuntime.ts")).toMatch(/onDataChanged: \(\) => \{[^}]*markTaskSyncInputChanged\(cache\)/);
-    expect(read("../../mobile/src/services/pim/pimRuntime.ts")).toMatch(/onDataChanged: \(\) => \{[^}]*markPimDataChanged\(cache\)/);
+    const text = (rel: string) => sources.find((s) => s.rel === rel)?.text ?? "";
+    expect(text("apps/desktop/src/services/pim/pimRuntime.ts")).toMatch(/onDataChanged: \(\) => \{[^}]*markTaskSyncInputChanged\(cache\)/);
+    expect(text("apps/mobile/src/services/pim/pimRuntime.ts")).toMatch(/onDataChanged: \(\) => \{[^}]*markPimDataChanged\(cache\)/);
   });
 });
