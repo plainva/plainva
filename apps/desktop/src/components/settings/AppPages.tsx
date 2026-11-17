@@ -278,10 +278,10 @@ export interface EditorPageProps {
   onSpellcheck: (on: boolean) => void;
   /**
    * Why the switch checks nothing here, if it doesn't (Linux only: no
-   * dictionary loaded, or an AppImage whose Enchant finds no providers);
+   * dictionary loaded);
    * `null` everywhere else (services/spellcheck.ts, spellcheckHint).
    */
-  spellcheckHint?: "noDictionary" | "appImage" | null;
+  spellcheckHint?: "noDictionary" | null;
   /** Open a new note in a tab of its own (issue 135): device-local, off by default. */
   newNotesInNewTab: boolean;
   onNewNotesInNewTab: (on: boolean) => void;
@@ -326,13 +326,7 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
         <SettingRow
           label={t("settings.spellcheck")}
           info={`${t("settings.spellcheckDesc")}\n\n${t("settings.spellcheckMenuDesc")}`}
-          desc={
-            p.spellcheckHint === "appImage"
-              ? t("settings.spellcheckAppImage")
-              : p.spellcheckHint === "noDictionary"
-                ? t("settings.spellcheckNoDictionary")
-                : undefined
-          }
+          desc={p.spellcheckHint === "noDictionary" ? t("settings.spellcheckNoDictionary") : undefined}
         >
           <Switch checked={p.spellcheck} label={t("settings.spellcheck")} onChange={p.onSpellcheck} />
         </SettingRow>

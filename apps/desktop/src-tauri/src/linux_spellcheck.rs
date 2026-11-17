@@ -216,11 +216,6 @@ pub fn on_page_load(webview: &webkit2gtk::WebView) {
     }
 }
 
-/// Is this process an AppImage? Its runtime sets both.
-fn is_app_image() -> bool {
-    std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some()
-}
-
 /// A window read the switch, or it changed: every web view of the app
 /// follows. While on, says what WebKit loaded.
 pub async fn set_switch<R: Runtime>(app: &tauri::AppHandle<R>, on: bool) -> Option<crate::WebviewSpellStatus> {
@@ -247,7 +242,7 @@ pub async fn set_switch<R: Runtime>(app: &tauri::AppHandle<R>, on: bool) -> Opti
     } else if on {
         eprintln!("plainva: spell checking loaded {languages:?}");
     }
-    Some(crate::WebviewSpellStatus { languages, app_image: is_app_image() })
+    Some(crate::WebviewSpellStatus { languages })
 }
 
 #[cfg(test)]

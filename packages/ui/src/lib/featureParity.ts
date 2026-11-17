@@ -733,28 +733,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-29",
   },
   {
-    id: "spell-checking",
-    title: "Spell checking in the writing surfaces (AppImage)",
-    area: "editor",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "One device switch and one rule serve both shells (lib/spellcheck.ts); what " +
-      "checks the text is the platform: WebView2, WKWebView (src/macos_spellcheck.rs), " +
-      "WebKitGTK with the system's dictionaries through Enchant (src/linux_spellcheck.rs, " +
-      "B11 of release 0.9.0), the keyboard on a phone. The gap is the Linux AppImage only: " +
-      "it bundles usr/lib/libenchant-2.so.2 (from Ubuntu 22.04) but no provider module " +
-      "and no dictionary, and that library looks for its providers under the compiled-in " +
-      "path /usr/lib/x86_64-linux-gnu/enchant-2. On Fedora, Arch and openSUSE it finds " +
-      "none and checks nothing; on a Debian-like host it loads the host's modules, an " +
-      "untested mix. Leaving libenchant out of the bundle before 0.9.0 was ruled out (a " +
-      "host without it would not start the app). The settings page says so under the " +
-      "switch whenever nothing loaded (set_webview_spellcheck reports the dictionaries). " +
-      "Deferred after release 0.9.0: Sammelplan § 3.183 Nr. 1.",
-    mobile: "yes",
-    verified: "2026-11-16",
-  },
-  {
     id: "tag-pill-open-while-editing",
     title: "Opening a tag from its pill while the note is being edited",
     area: "editor",

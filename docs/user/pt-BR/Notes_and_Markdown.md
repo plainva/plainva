@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-11-16
+Última revisão: 2026-11-17
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -50,7 +50,7 @@ Digite `/` no início de uma linha para abrir o menu de inserção. Ele é agrup
 - **Dobrar listas** — um clique no marcador de um item com subitens os dobra; o marcador fica na cor de destaque e um “…” marca o lugar, um segundo clique desdobra. O arquivo nunca muda. Os marcadores alternam por nível (• ◦ ▪) e as linhas de continuação ficam exatamente sob o texto do item — também no celular, onde o marcador é o único controle de dobra.
 - **Posição de rolagem** — cada nota abre onde você a deixou; lembrada por dispositivo, não sincronizada.
 - **Localizar e substituir** dentro da nota atual: `Ctrl+F` (veja [Busca](Search.md)).
-- **Verificação ortográfica** — desativada por padrão. Ative-a em **Configurações → App → Editor e notas** e as palavras escritas incorretamente são sublinhadas em notas, células de tabela, e-mails, comentários, entradas do diário e tarefas; código, endereços da web, chaves e senhas nunca são verificados. O Plainva usa o corretor ortográfico do seu sistema e os idiomas dele e não traz dicionários próprios. Enquanto estiver ativada, um clique com o botão direito nesse texto abre o menu do sistema com as sugestões, em vez do menu do Plainva; uma célula de tabela mantém o menu da tabela. A configuração pertence a este dispositivo. No Linux, os dicionários vêm do sistema, nos idiomas configurados nele: se nada for sublinhado, instale o dicionário Hunspell do seu idioma (por exemplo o pacote `hunspell-pt-br`) e reinicie o Plainva. No AppImage, a verificação ortográfica depende dos módulos Enchant do sistema e só funciona no Debian e no Ubuntu; a página de configurações avisa quando nada é verificado.
+- **Verificação ortográfica** — desativada por padrão. Ative-a em **Configurações → App → Editor e notas** e as palavras escritas incorretamente são sublinhadas em notas, células de tabela, e-mails, comentários, entradas do diário e tarefas; código, endereços da web, chaves e senhas nunca são verificados. O Plainva usa o corretor ortográfico do seu sistema e os idiomas dele e não traz dicionários próprios. Enquanto estiver ativada, um clique com o botão direito nesse texto abre o menu do sistema com as sugestões, em vez do menu do Plainva; uma célula de tabela mantém o menu da tabela. A configuração pertence a este dispositivo. No Linux, os dicionários vêm do sistema, nos idiomas configurados nele: se nada for sublinhado, instale o dicionário Hunspell do seu idioma (por exemplo o pacote `hunspell-pt-br`) e reinicie o Plainva.
 
 ## Links e backlinks
 

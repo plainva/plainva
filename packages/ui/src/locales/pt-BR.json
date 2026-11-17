@@ -3148,7 +3148,6 @@
     "spellcheckDesc": "Sublinha palavras escritas incorretamente em notas, células de tabela, e-mails, comentários, entradas do diário e tarefas. O Plainva usa o corretor ortográfico do seu sistema e os idiomas dele; código, chaves e senhas nunca são verificados.",
     "spellcheckMenuDesc": "Enquanto estiver ativada, um clique com o botão direito nesse texto abre o menu do sistema com as sugestões, em vez do menu do Plainva.",
     "spellcheckNoDictionary": "Nada é verificado: nenhum dicionário está instalado para seus idiomas. Instale um (ex.: hunspell-pt-br) e reinicie o Plainva.",
-    "spellcheckAppImage": "Nada é verificado: no AppImage, a verificação depende dos módulos Enchant do sistema e só funciona no Debian e no Ubuntu.",
     "inboxFolder": "Pasta de entrada",
     "inboxFolderDesc": "Onde a captura rápida ＋ do seu celular guarda uma nota, onde cai o texto compartilhado de outro aplicativo e para onde vai uma resposta da IA que você mantém como nota — também no desktop. No mais, o desktop cria as notas onde você indicar.",
     "attachmentFolder": "Pasta de anexos",

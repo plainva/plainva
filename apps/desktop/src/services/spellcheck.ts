@@ -63,12 +63,11 @@ export async function setStoredSpellcheck(on: boolean): Promise<void> {
 
 /**
  * What the web view's checker said after it was switched on (Linux only): the
- * dictionaries it loaded and whether the app runs as an AppImage. `null` while
+ * dictionaries it loaded, empty when none. `null` while
  * off, on Windows and macOS, and when the host could not say.
  */
 export interface WebviewSpellStatus {
   languages: string[];
-  appImage: boolean;
 }
 
 let status: WebviewSpellStatus | null = null;
@@ -95,13 +94,12 @@ export function useWebviewSpellStatus(): WebviewSpellStatus | null {
 
 /**
  * The line under the switch, if one is due: only while the switch is on and
- * the checker loaded no dictionary - which only Linux reports. In an AppImage
- * installing a dictionary may not help (its Enchant looks for providers where
- * Debian keeps them), so it says that instead.
+ * the checker loaded no dictionary - which only Linux reports, in a package
+ * and in the AppImage alike.
  */
-export function spellcheckHint(on: boolean, s: WebviewSpellStatus | null): "noDictionary" | "appImage" | null {
+export function spellcheckHint(on: boolean, s: WebviewSpellStatus | null): "noDictionary" | null {
   if (!on || !s || s.languages.length > 0) return null;
-  return s.appImage ? "appImage" : "noDictionary";
+  return "noDictionary";
 }
 
 let reporting = false;

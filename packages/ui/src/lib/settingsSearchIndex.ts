@@ -26,7 +26,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsIndexEntry[] = [
   {"shell":"desktop","area":"editor","kind":"row","card":"settings.groupView","label":"settings.defaultViewMode","info":["settings.defaultViewModeDesc"]},
   {"shell":"desktop","area":"editor","kind":"row","card":"settings.groupView","label":"settings.newNotesInNewTab","info":["settings.newNotesInNewTabDesc"]},
   {"shell":"desktop","area":"editor","kind":"card","card":"settings.groupWriting"},
-  {"shell":"desktop","area":"editor","kind":"row","card":"settings.groupWriting","label":"settings.spellcheck","desc":["settings.spellcheckAppImage","settings.spellcheckNoDictionary"],"info":["settings.spellcheckDesc","settings.spellcheckMenuDesc"]},
+  {"shell":"desktop","area":"editor","kind":"row","card":"settings.groupWriting","label":"settings.spellcheck","desc":["settings.spellcheckNoDictionary"],"info":["settings.spellcheckDesc","settings.spellcheckMenuDesc"]},
   {"shell":"desktop","area":"editor","kind":"row","card":"settings.groupWriting","label":"settings.askBeforeCreateLink","info":["settings.askBeforeCreateLinkDesc"]},
   {"shell":"desktop","area":"editor","kind":"card","card":"settings.editorGroupJournal"},
   {"shell":"desktop","area":"editor","kind":"row","card":"settings.editorGroupJournal","label":"settings.placeStamp","info":["settings.placeStampDesc"]},

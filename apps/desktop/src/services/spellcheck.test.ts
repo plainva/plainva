@@ -106,13 +106,13 @@ describe("the spell-checking switch and the web view's checker", () => {
   it("keeps what the checker loaded while on, and forgets it when off", async () => {
     const { invoke, service } = await load();
     invoke.mockImplementation(async (_cmd: string, args?: unknown) =>
-      (args as { on: boolean }).on ? { languages: [], appImage: false } : null,
+      (args as { on: boolean }).on ? { languages: [] } : null,
     );
     service.initSpellcheck();
     await settle();
     await service.setStoredSpellcheck(true);
     await settle();
-    expect(service.getWebviewSpellStatus()).toEqual({ languages: [], appImage: false });
+    expect(service.getWebviewSpellStatus()).toEqual({ languages: [] });
     await service.setStoredSpellcheck(false);
     await settle();
     expect(service.getWebviewSpellStatus()).toBeNull();
@@ -122,17 +122,11 @@ describe("the spell-checking switch and the web view's checker", () => {
 describe("the line under the switch", () => {
   it("appears only while on and with no dictionary loaded", async () => {
     const { service } = await load();
-    const none = { languages: [], appImage: false };
+    const none = { languages: [] };
     expect(service.spellcheckHint(true, none)).toBe("noDictionary");
     expect(service.spellcheckHint(false, none)).toBeNull();
-    expect(service.spellcheckHint(true, { languages: ["de_DE"], appImage: false })).toBeNull();
+    expect(service.spellcheckHint(true, { languages: ["de_DE"] })).toBeNull();
     // Windows, macOS, the phone, an older binary: the host says nothing.
     expect(service.spellcheckHint(true, null)).toBeNull();
-  });
-
-  it("names the AppImage's limit instead of the dictionary", async () => {
-    const { service } = await load();
-    expect(service.spellcheckHint(true, { languages: [], appImage: true })).toBe("appImage");
-    expect(service.spellcheckHint(true, { languages: ["en_US"], appImage: true })).toBeNull();
   });
 });

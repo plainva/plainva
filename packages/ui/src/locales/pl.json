@@ -3236,7 +3236,6 @@
     "spellcheckDesc": "Podkreśla błędnie napisane słowa w notatkach, komórkach tabel, e-mailach, komentarzach, wpisach dziennika i zadaniach. Plainva korzysta ze sprawdzania pisowni Twojego systemu i jego języków; kod, klucze i hasła nigdy nie są sprawdzane.",
     "spellcheckMenuDesc": "Gdy jest włączone, kliknięcie prawym przyciskiem w takim tekście otwiera menu systemu z podpowiedziami zamiast menu Plainvy.",
     "spellcheckNoDictionary": "Nic nie jest sprawdzane: brak słownika dla Twoich języków. Zainstaluj go (np. hunspell-pl) i uruchom Plainva ponownie.",
-    "spellcheckAppImage": "Nic nie jest sprawdzane: w AppImage sprawdzanie zależy od modułów Enchant systemu i działa tylko w Debianie i Ubuntu.",
     "inboxFolder": "Folder skrzynki",
     "inboxFolderDesc": "Miejsce, gdzie szybkie przechwytywanie ＋ na Twoim telefonie zapisuje notatkę, gdzie trafia tekst udostępniony z innej aplikacji i dokąd idzie odpowiedź AI, którą zachowasz jako notatkę — także na komputerze. Poza tym na komputerze notatki są tworzone tam, gdzie wskażesz.",
     "attachmentFolder": "Folder załączników",

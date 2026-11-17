@@ -363,13 +363,12 @@ fn print_webview(webview_window: tauri::WebviewWindow) -> Result<(), String> {
 
 /// What `set_webview_spellcheck` tells the page after switching the checker
 /// on (Linux only): the dictionaries WebKit actually loaded - empty means
-/// nothing is checked - and whether the app runs as an AppImage, whose bundled
-/// Enchant finds dictionary providers only where a Debian-like host keeps them.
+/// nothing is checked. The AppImage carries its own relocatable Enchant with
+/// the Hunspell provider, so it reads the host's dictionaries like a package.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WebviewSpellStatus {
     pub languages: Vec<String>,
-    pub app_image: bool,
 }
 
 /// The device switch "Spell checking" for the web view's own checker. Only
