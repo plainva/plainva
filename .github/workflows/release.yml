@@ -167,7 +167,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm2cpio dbus x11-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -428,6 +428,40 @@ jobs:
         shell: pwsh
         run: ./apps/desktop/scripts/verify-windows-signatures.ps1
 
+      # What the built packages start. 0.9.0 is the first release with two
+      # programs in every package (the app and the MCP helper), and no
+      # installed package had been started before it. The CLI picks the main
+      # program from Cargo.toml's default-run; this checks the packages
+      # themselves: the helper is in each, every entry a user or the system
+      # starts (.desktop Exec, CFBundleExecutable, MSI and NSIS shortcuts)
+      # names plainva-desktop. Then the packages are started the way a user
+      # starts them — the deb installed and started by its menu entry, the
+      # extracted AppImage through AppRun (both under Xvfb, each in a D-Bus
+      # session with its own HOME), the .app from the dmg through `open`, the
+      # NSIS app installed silently and started by its shortcut — and pass
+      # when plainva-desktop shows its window (Linux: a mapped X window titled
+      # "Plainva"; macOS: an on-screen window in the window server's list;
+      # Windows: MainWindowHandle) within 45 s and still runs 3 s later. A
+      # slow start is waited for, not retried; a failure names what was
+      # missing and shows the program's last output lines. Read, not started:
+      # the rpm (no rpm-based runner) and the MSI (a per-machine install needs
+      # administrator rights and outlives the step; Windows starts the NSIS
+      # app). The window is evidence that it was created and mapped, not that
+      # its content rendered. Logs the size of the app, the helper and ONNX
+      # Runtime in each package (check-package-entry.sh/.ps1,
+      # package-start-linux.sh, window-count.swift, package-entry.mjs). The
+      # rehearsal runs the same.
+      - name: The packages start the main program
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = windows-latest ]; then
+            pwsh -NoProfile -File apps/desktop/scripts/check-package-entry.ps1
+          else
+            bash apps/desktop/scripts/check-package-entry.sh "${{ matrix.platform }}"
+          fi
+
   # Release rehearsal (manual input `rehearsal`): the three release legs exactly
   # as a tag push builds them — ONNX Runtime fetched and bundled, the Windows
   # installers signed through Azure with the MCP helper inside, the universal
@@ -495,7 +529,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm2cpio dbus x11-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -648,6 +682,16 @@ jobs:
           set -euo pipefail
           appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
           bash apps/desktop/scripts/check-appimage.sh "$appimage"
+
+      - name: The packages start the main program
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.platform }}" = windows-latest ]; then
+            pwsh -NoProfile -File apps/desktop/scripts/check-package-entry.ps1
+          else
+            bash apps/desktop/scripts/check-package-entry.sh "${{ matrix.platform }}"
+          fi
 
       # The record of the rehearsal: what a release would have uploaded, by
       # name, size and SHA-256 — the files themselves stay on the runner.
