@@ -1,7 +1,10 @@
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
-import { judgeSignatureJobs, SIGNATURE_JOBS, updaterSignatureGate } from "../scripts/updater-signature-gate.mjs";
+import { ApiError, githubApi, judgeSignatureJobs, SIGNATURE_JOBS, transient, updaterSignatureGate } from "../scripts/updater-signature-gate.mjs";
 
 /**
  * The fixed update manifest moves only when the signature counter-check of the
@@ -30,13 +33,20 @@ function fakeApi({ runs = [[releaseRun({ status: "completed" })]] as unknown[][]
 const quiet = { log: () => {}, sleep: async () => {}, pollMs: 1, maxWaitMs: 5 };
 
 describe("the updater signature gate", () => {
-  it("names the two jobs as the release run names them", () => {
-    expect(SIGNATURE_JOBS).toEqual(["native-smoke / updater signature (ubuntu-latest)", "native-smoke / updater signature (windows-latest)"]);
+  it("names the two jobs as the release run names them, both halves read from the workflow files", () => {
+    // A job of a called workflow is shown as "<caller> / <called>": the caller
+    // is the job of release.yml that uses native-smoke.yml, by its `name:` or,
+    // without one, its id; the called one is native-smoke.yml's job name per os.
+    const release = parse(read(".github/workflows/release.yml")) as { jobs: Record<string, { name?: string; uses?: string }> };
+    const callers = Object.entries(release.jobs).filter(([, job]) => job.uses === "./.github/workflows/native-smoke.yml");
+    expect(callers.map(([id]) => id)).toEqual(["native-smoke"]);
+    const [[callerId, callerJob]] = callers;
+    const caller = callerJob.name ?? callerId;
     const smoke = parse(read(".github/workflows/native-smoke.yml")) as { jobs: Record<string, { name?: string; strategy?: { matrix?: { os?: string[] } } }> };
-    expect(smoke.jobs["updater-signature"].name).toBe("updater signature (${{ matrix.os }})");
-    expect(smoke.jobs["updater-signature"].strategy!.matrix!.os).toEqual(["ubuntu-latest", "windows-latest"]);
-    const release = parse(read(".github/workflows/release.yml")) as { jobs: Record<string, { uses?: string }> };
-    expect(release.jobs["native-smoke"].uses).toBe("./.github/workflows/native-smoke.yml");
+    const called = smoke.jobs["updater-signature"];
+    expect(called.name).toMatch(/\$\{\{ matrix\.os \}\}/);
+    expect(SIGNATURE_JOBS).toEqual(called.strategy!.matrix!.os!.map((os) => `${caller} / ${called.name!.replace("${{ matrix.os }}", os)}`));
+    expect(SIGNATURE_JOBS).toEqual(["native-smoke / updater signature (ubuntu-latest)", "native-smoke / updater signature (windows-latest)"]);
   });
 
   it("passes when both jobs are green in the tag's release run", async () => {
@@ -87,6 +97,63 @@ describe("the updater signature gate", () => {
     }
   });
 
+  it("asks again after a passing API failure, at growing intervals, and stays green", async () => {
+    const waits: number[] = [];
+    let calls = 0;
+    const base = fakeApi();
+    const api = vi.fn(async (path: string) => {
+      calls++;
+      if (calls === 2) throw new ApiError("HTTP 502", { status: 502 });
+      if (calls === 3) throw new ApiError("network: fetch failed");
+      if (calls === 4) throw new ApiError("HTTP 429", { status: 429, retryAfterMs: 7 });
+      if (calls === 5) throw new ApiError("HTTP 403", { status: 403, retryAfterMs: 9 });
+      return base(path);
+    });
+    await expect(updaterSignatureGate({ api, tag, ...quiet, sleep: async (ms: number) => void waits.push(ms), pollMs: 2, maxWaitMs: 1000 })).resolves.toEqual({ sha, runId: 7 });
+    // 2, then 4 (doubled), then what the API asked for (Retry-After, the rate limit's reset).
+    expect(waits).toEqual([2, 4, 7, 9]);
+  });
+
+  it("goes red on a passing failure only when the wait is over", async () => {
+    const api = vi.fn(async () => {
+      throw new ApiError("HTTP 503", { status: 503 });
+    });
+    await expect(updaterSignatureGate({ api, tag, ...quiet, pollMs: 1, maxWaitMs: 5 })).rejects.toThrow(/kept failing .* HTTP 503/);
+  });
+
+  it("goes red at once on a lasting failure, and names the missing right", async () => {
+    const failing = (status: number) => async () => {
+      throw new ApiError(`HTTP ${status}`, { status });
+    };
+    await expect(updaterSignatureGate({ api: failing(403), tag, ...quiet })).rejects.toThrow(/403.*actions: read/);
+    await expect(updaterSignatureGate({ api: failing(401), tag, ...quiet })).rejects.toThrow(/refused the workflow token \(401\)/);
+    await expect(updaterSignatureGate({ api: failing(404), tag, ...quiet })).rejects.toThrow(/found nothing \(404\)/);
+    await expect(updaterSignatureGate({ api: failing(422), tag, ...quiet })).rejects.toThrow("HTTP 422");
+    // A malformed answer or a bug is not asked again either.
+    expect(transient(new TypeError("x is undefined"))).toBe(false);
+  });
+
+  it("turns fetch failures, Retry-After and an exhausted rate limit into the gate's errors", async () => {
+    const answer = (status: number, headers: Record<string, string> = {}) => async () => ({
+      ok: status < 300,
+      status,
+      headers: { get: (name: string) => headers[name] ?? null },
+      json: async () => ({ sha }),
+    });
+    const call = (fetchImpl: Parameters<typeof githubApi>[0]["fetchImpl"]) => githubApi({ repo: "o/r", token: "t", fetchImpl, now: () => 1_000_000 })("/x");
+    await expect(call(answer(200))).resolves.toEqual({ sha });
+    await expect(call(answer(503))).rejects.toMatchObject({ status: 503, retryAfterMs: undefined });
+    await expect(call(answer(429, { "retry-after": "30" }))).rejects.toMatchObject({ status: 429, retryAfterMs: 30_000 });
+    await expect(call(answer(403, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1060" }))).rejects.toMatchObject({ status: 403, retryAfterMs: 61_000 });
+    await expect(call(answer(403))).rejects.toMatchObject({ status: 403, retryAfterMs: undefined });
+    const offline = async () => {
+      throw new TypeError("fetch failed");
+    };
+    const error = await call(offline).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(transient(error)).toBe(true);
+  });
+
   it("judges a missing job as pending while the run goes on", () => {
     expect(judgeSignatureJobs({ status: "in_progress" }, [])).toEqual({ green: [], failed: [], pending: SIGNATURE_JOBS, missing: [] });
     expect(judgeSignatureJobs({ status: "completed" }, [])).toEqual({ green: [], failed: [], pending: [], missing: SIGNATURE_JOBS });
@@ -128,6 +195,23 @@ describe("in the Updater manifest workflow", () => {
     expect(gate.run).toContain("without_signature_check needs a reason");
     expect(gate.run).toMatch(/::warning::.*WITHOUT a green updater signature check/);
     expect(gate.run).toContain('>> "$GITHUB_STEP_SUMMARY"');
+  });
+
+  it("runs one at a time and never cancels a run in progress", () => {
+    expect((workflow as unknown as { concurrency: unknown }).concurrency).toEqual({ group: "updater-manifest", "cancel-in-progress": false });
+  });
+
+  it.skipIf(process.platform === "win32")("keeps a typed reason on one line, so it can never start a workflow command", () => {
+    const summary = join(mkdtempSync(join(tmpdir(), "gate-")), "summary.md");
+    const out = execFileSync("bash", ["-c", gate.run!], {
+      encoding: "utf8",
+      env: { ...process.env, WITHOUT_CHECK: "true", RELEASE_TAG: "v0.8.7", GITHUB_ACTOR: "someone", GITHUB_STEP_SUMMARY: summary, REASON: "tag before 0.9.0, 50%\n::stop-commands::x\r\n::error::fake" },
+    });
+    const lines = out.trim().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^::warning::v0\.8\.7: the manifest is copied WITHOUT .*Reason: tag before 0\.9\.0, 50%25 ::stop-commands::x {2}::error::fake$/);
+    expect(readFileSync(summary, "utf8").trim().split("\n")).toHaveLength(1);
+    expect(() => execFileSync("bash", ["-c", gate.run!], { env: { ...process.env, WITHOUT_CHECK: "true", RELEASE_TAG: "v0.8.7", REASON: " \n " }, stdio: "pipe" })).toThrow();
   });
 
   it("runs only for a published release or a manual run — nothing a rehearsal does reaches it", () => {

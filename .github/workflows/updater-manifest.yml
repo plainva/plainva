@@ -58,6 +58,17 @@ permissions:
   contents: write
   actions: read
 
+# One run at a time for the one fixed manifest: a run that waits for the
+# signature check (up to 90 minutes) and a repair run never overtake each
+# other, and an older run never rewrites the manifest after a newer one.
+# Never cancelled: a run in progress always finishes. (GitHub keeps one run
+# queued behind it per group and cancels an older queued one for a newer:
+# start a repair run only when no other manifest run is queued, or that one
+# is lost and must be started again.)
+concurrency:
+  group: updater-manifest
+  cancel-in-progress: false
+
 jobs:
   copy-manifest:
     runs-on: ubuntu-latest
@@ -115,12 +126,16 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$WITHOUT_CHECK" = "true" ]; then
-            if [ -z "${REASON//[[:space:]]/}" ]; then
+            # The reason is typed by hand: one line, and `%` escaped, so it
+            # can never start a workflow command of its own (a newline would
+            # put "::stop-commands::…" at the start of the next line).
+            reason="$(printf '%s' "$REASON" | tr '\r\n\t' '   ')"
+            if [ -z "${reason//[[:space:]]/}" ]; then
               echo "::error::without_signature_check needs a reason"
               exit 1
             fi
-            echo "::warning::$RELEASE_TAG: the manifest is copied WITHOUT a green updater signature check (repair run). Reason: $REASON"
-            echo "**$RELEASE_TAG: copied without the updater signature check** (repair run by ${GITHUB_ACTOR}). Reason: $REASON" >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::$RELEASE_TAG: the manifest is copied WITHOUT a green updater signature check (repair run). Reason: ${reason//%/%25}"
+            echo "**$RELEASE_TAG: copied without the updater signature check** (repair run by ${GITHUB_ACTOR}). Reason: $reason" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           node apps/desktop/scripts/updater-signature-gate.mjs
