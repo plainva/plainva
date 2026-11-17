@@ -5729,7 +5729,7 @@
     "legacyNamesNoLinks": "Links auf diese Notizen werden mit angepasst (hier: keine).",
     "legacyNamesClean": "Namen bereinigen …",
     "legacyNamesHide": "Ausblenden",
-    "taskDbHint": "Die Aufgabenlisten Deines Anbieters brauchen eine Standard-Aufgabendatenbank: ihre Aufgaben werden Notizen darin. „Neue Datenbank anlegen…“ legt eine an und setzt sie.",
+    "taskDbHint": "Aufgabenlisten vom Anbieter brauchen eine Standard-Aufgabendatenbank, um Notizen zu werden. „Neue Datenbank anlegen…“ legt eine an.",
     "taskDbHintHide": "Ausblenden",
     "legacyNamesConfirmTitle": "Namen bereinigen?",
     "legacyNamesConfirmMsg_one": "1 Aufgaben-Notiz bekommt ihren Titel als Namen; Links darauf werden angepasst. Deine anderen Geräte erhalten das als Verschiebung, sobald sie auf demselben Stand sind. Eine ältere Fassung sieht dort gelöschte und neue Notizen: Sie fragt womöglich, ob sie löschen soll, oder behält den alten Namen neben dem neuen — aktualisiere diese Geräte am besten vorher.",

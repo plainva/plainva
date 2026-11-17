@@ -5729,7 +5729,7 @@
     "legacyNamesNoLinks": "Links naar deze notities worden mee aangepast (hier: geen).",
     "legacyNamesClean": "Namen opschonen…",
     "legacyNamesHide": "Verbergen",
-    "taskDbHint": "De takenlijsten van je aanbieder hebben een standaard takendatabase nodig: hun taken worden daarin notities. ‘Nieuwe database maken…’ maakt er een en stelt die in.",
+    "taskDbHint": "Takenlijsten van je aanbieder hebben een standaard takendatabase nodig om notities te worden. ‘Nieuwe database maken…’ maakt er een.",
     "taskDbHintHide": "Verbergen",
     "legacyNamesConfirmTitle": "Namen opschonen?",
     "legacyNamesConfirmMsg_one": "1 taaknotitie krijgt haar titel als naam; links ernaar worden aangepast. Je andere apparaten ontvangen dit als een verplaatsing zodra ze dezelfde versie hebben. Een oudere versie ziet daar verwijderde en nieuwe notities: die vraagt misschien of ze moet verwijderen, of houdt de oude naam naast de nieuwe — werk die apparaten het liefst eerst bij.",
