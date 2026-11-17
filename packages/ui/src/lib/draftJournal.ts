@@ -183,16 +183,47 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
     if (timer !== undefined) clearTimeout(timer);
   }
 
+  /**
+   * What this journal last saw of a file — read or written —, so a snapshot
+   * while typing goes on does not read the whole file back first (maintainer
+   * 17.11.: a 1 MB note read and wrote about 160 MB a minute each). Only that
+   * hot path builds on it (`entriesForSnapshot`); a single record, clearing,
+   * offering, moving, pruning and reading read the disk as before, and refresh it. It holds
+   * because this journal is the only writer of its files: every operation on
+   * a file runs in its lane here, an editor's sessions and a split share this
+   * journal, and the desktop's auxiliary windows hand their snapshots to the
+   * owner window rather than writing (`draft-record`). A write that failed
+   * forgets the file — the disk may hold the old entries or the new ones —,
+   * and so does a file pruned; the next snapshot reads it again.
+   */
+  const seen = new Map<string, readonly DraftJournalEntry[]>();
+
   /** A file's entries: missing → []; unreadable → throws (and nothing is written over it). */
   async function entriesIn(file: string): Promise<DraftJournalEntry[]> {
+    const held = seen.delete(file);
     const raw = await storage.read(file);
-    return raw === null ? [] : decodeDraftJournal(raw);
+    const entries = raw === null ? [] : decodeDraftJournal(raw);
+    // Kept only for a file the snapshots write: a sweep over every file of the folder holds nothing.
+    if (held) seen.set(file, entries);
+    return [...entries];
+  }
+
+  /** The entries a snapshot builds on: what this journal last saw of the file, else the disk's. */
+  async function entriesForSnapshot(file: string): Promise<DraftJournalEntry[]> {
+    const held = seen.get(file);
+    if (held) return [...held];
+    const raw = await storage.read(file);
+    const entries = raw === null ? [] : decodeDraftJournal(raw);
+    seen.set(file, entries);
+    return [...entries];
   }
 
   /** Writes the entries, or removes the file when none are left. */
   async function store(file: string, entries: readonly DraftJournalEntry[]): Promise<void> {
+    seen.delete(file);
     if (entries.length === 0) await storage.remove(file);
     else await storage.write(file, encodeDraftJournal(entries));
+    seen.set(file, [...entries]);
   }
 
   const filesOf = (scope: S, notePath: string) => [layout.file(scope, notePath), ...(layout.olderFiles?.(scope, notePath) ?? [])];
@@ -222,7 +253,10 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
     const file = layout.file(scope, notePath);
     const owner = layout.owner(scope, notePath);
     const entry = { ...owner, text, revision, sessionId, savedAt: now() };
-    const entries = await entriesIn(file);
+    // The writer's snapshots while typing goes on build on what this journal
+    // last saw; a single record (a closing editor, a transfer, another
+    // window's snapshot over the bus) reads the file, as it always did.
+    const entries = latest ? await entriesForSnapshot(file) : await entriesIn(file);
     const next = latest ? [...withoutSessionDraft(entries, owner, sessionId, Infinity), entry] : withDraftEntry(entries, entry);
     if (next) await store(file, next);
   }
@@ -428,6 +462,7 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
             try {
               const entries = await entriesIn(file);
               if (pending(file) || entries.some((entry) => entry.savedAt >= cutoff)) return;
+              seen.delete(file);
               await storage.remove(file);
             } catch { /* retain what cannot be read */ }
           });
@@ -444,6 +479,21 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
  */
 export type DraftSink<S> = Pick<DraftJournal<S>, "serial" | "recordInLane" | "clear" | "adopt">;
 
+/**
+ * How long continuous typing goes between two snapshots of a note — and so the
+ * most text a crash can take (maintainer 17.11., release 0.9.0). Each snapshot
+ * is the whole note, written and fsynced; at 400 ms a 1 MB note wrote about
+ * 160 MB a minute. Leaving the note, the window or the app writes at once
+ * (`flush`, and each shell's ways out); this is only the pace while typing goes on.
+ * By characters, which for a note is its size within a few per cent.
+ */
+export function draftIntervalFor(length: number): number {
+  if (length <= 100_000) return 400;
+  if (length <= 1_000_000) return 2_000;
+  if (length <= 5_000_000) return 5_000;
+  return 10_000;
+}
+
 /** A snapshot waiting for its turn in the throttled writer. */
 interface PendingSnapshot<S> {
   scope: S;
@@ -457,7 +507,7 @@ interface PendingSnapshot<S> {
 
 /**
  * Snapshots while typing goes on (both shells): at most one write per note and
- * session every `throttleMs`, the newest text always buffered, so a crash
+ * session every interval (`draftIntervalFor`), the newest text always buffered, so a crash
  * loses at most that window — also while the typing never pauses. A failed
  * write keeps its buffer and tries again; a save that covered the buffered
  * revision takes it out of the buffer (`clear`), so a snapshot of a text the
@@ -465,12 +515,11 @@ interface PendingSnapshot<S> {
  * editors on one note (a split on the desktop) never take each other's place.
  */
 export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJournalLayout<S>, "file">, options: { throttleMs?: number; throttleFor?: (length: number) => number; retryMs?: number; now?: () => number } = {}) {
-  const throttleMs = options.throttleMs ?? 400;
-  // Each snapshot serialises the whole text and writes it as one fsynced step.
-  // Up to 1 MB every 400 ms; above it the interval grows with the size (2 MB:
-  // 800 ms, 10 MB: 4 s), so a large note costs about the same per minute as a
-  // 1 MB one — and continuous typing still keeps all but the last interval.
-  const throttleFor = options.throttleFor ?? ((length: number) => throttleMs * Math.max(1, Math.ceil(length / 1_000_000)));
+  // Each snapshot serialises the whole text and writes it as one fsynced step,
+  // so the interval is set by the note's size (`draftIntervalFor`); a fixed
+  // `throttleMs` stands in for it where a caller asks.
+  const fixed = options.throttleMs;
+  const throttleFor = options.throttleFor ?? (fixed !== undefined ? () => fixed : draftIntervalFor);
   const retryMs = options.retryMs ?? 2000;
   const now = options.now ?? Date.now;
   const pending = new Map<string, PendingSnapshot<S>>();
