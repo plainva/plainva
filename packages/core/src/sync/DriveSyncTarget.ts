@@ -699,6 +699,74 @@ export class DriveSyncTarget implements ISyncTarget {
     });
   }
 
+  /** Creates `op`'s file under its parent; "parent-gone" when that parent is in the trash or gone. */
+  private async createFile(op: SyncOperation, content: Uint8Array, mimeType: string): Promise<PushResult | "parent-gone"> {
+    // Create a new file inside its (resolved/created) parent folder.
+    const { folder, name } = this.splitPath(op.file_path);
+    const parentId = await this.resolveFolderId(folder);
+
+    if (op.contentRef && this.uploader) {
+      // Multipart puts the bytes in the MIDDLE of a composed body, which
+      // cannot be streamed. So create the file from metadata alone and then
+      // send the content through the same media PATCH the update path uses
+      // (issue #48). Deliberately not a resumable session: this reaches the
+      // goal — the bytes never enter the renderer — with the request shapes
+      // that already exist. If the upload dies in between, an empty file
+      // stays behind and the next cycle's reconcile fills it in.
+      const createRes = await this.authedFetch(
+        "POST",
+        `${DRIVE_API}/files?fields=id,trashed`,
+        {
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, parents: [parentId], mimeType }),
+        }
+      );
+      if (createRes.status === 404) return "parent-gone";
+      if (!createRes.ok) throw await driveResponseError("file creation", createRes);
+      const created = (await createRes.json()) as DriveFile;
+      if (created.trashed) return "parent-gone";
+      const mediaRes = await this.authedFetch(
+        "PATCH",
+        `${DRIVE_UPLOAD}/files/${created.id}?uploadType=media&fields=id,md5Checksum,modifiedTime,trashed`,
+        { headers: { "Content-Type": mimeType } },
+        false,
+        op.contentRef
+      );
+      if (!mediaRes.ok) throw await driveResponseError("file upload", mediaRes);
+      const f = (await mediaRes.json()) as DriveFile;
+      if (f.trashed) return "parent-gone";
+      this.cachePath(op.file_path, f.id);
+      return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
+    }
+
+    const boundary = `plainva-${name.length}-${op.file_path.length}`;
+    // When the file was edited, as the new file's `modifiedTime`: the next
+    // device to download it lists it by that time, not by this upload's. (An
+    // update keeps Drive's own time — a media upload sets it — and so does
+    // the streamed creation above, whose content arrives by media upload.)
+    const edited = op.localModifiedAt !== undefined && Number.isFinite(op.localModifiedAt) && op.localModifiedAt > 0
+      ? { modifiedTime: new Date(op.localModifiedAt).toISOString() }
+      : {};
+    const body = this.multipartBody({ name, parents: [parentId], mimeType, ...edited }, content, boundary, mimeType);
+    const res = await this.authedFetch(
+      "POST",
+      `${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,md5Checksum,modifiedTime,trashed`,
+      { headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body: body as any as BodyInit }
+    );
+    if (res.status === 404) return "parent-gone";
+    if (!res.ok) throw await driveResponseError("file creation", res);
+    const f = (await res.json()) as DriveFile;
+    if (f.trashed) return "parent-gone";
+    this.cachePath(op.file_path, f.id);
+    return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
+  }
+
+  /** Folder ids are looked up afresh: one of them went into the trash or away. */
+  private forgetFolders(): void {
+    this.folderToId.clear();
+    this.folderIdToPath.clear();
+  }
+
   public async push(op: SyncOperation): Promise<PushResult | void> {
     if (op.file_path.includes(".CONFLICT")) return;
 
@@ -730,67 +798,28 @@ export class DriveSyncTarget implements ISyncTarget {
             return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
           }
           // Its folder may be in the trash with it: the folders are looked up afresh.
-          this.folderToId.clear();
-          this.folderIdToPath.clear();
+          this.forgetFolders();
         } else if (res.status !== 404) throw await driveResponseError("file update", res);
         // 404 or trashed: the cached id is stale (file removed/moved on the remote). Drop it and fall
         // through to create a fresh file at this path.
         this.uncachePath(op.file_path);
       }
 
-      // Create a new file inside its (resolved/created) parent folder.
-      const { folder, name } = this.splitPath(op.file_path);
-      const parentId = await this.resolveFolderId(folder);
-
-      if (op.contentRef && this.uploader) {
-        // Multipart puts the bytes in the MIDDLE of a composed body, which
-        // cannot be streamed. So create the file from metadata alone and then
-        // send the content through the same media PATCH the update path uses
-        // (issue #48). Deliberately not a resumable session: this reaches the
-        // goal — the bytes never enter the renderer — with the request shapes
-        // that already exist. If the upload dies in between, an empty file
-        // stays behind and the next cycle's reconcile fills it in.
-        const createRes = await this.authedFetch(
-          "POST",
-          `${DRIVE_API}/files?fields=id`,
-          {
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, parents: [parentId], mimeType }),
-          }
-        );
-        if (!createRes.ok) throw await driveResponseError("file creation", createRes);
-        const created = (await createRes.json()) as DriveFile;
-        const mediaRes = await this.authedFetch(
-          "PATCH",
-          `${DRIVE_UPLOAD}/files/${created.id}?uploadType=media&fields=id,md5Checksum,modifiedTime`,
-          { headers: { "Content-Type": mimeType } },
-          false,
-          op.contentRef
-        );
-        if (!mediaRes.ok) throw await driveResponseError("file upload", mediaRes);
-        const f = (await mediaRes.json()) as DriveFile;
-        this.cachePath(op.file_path, f.id);
-        return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
+      // Create a new file inside its (resolved/created) parent folder. Its
+      // parent may have gone into the trash since this device looked — Drive
+      // marks what lies in a trashed folder `trashed` too, "either explicitly
+      // or from a trashed parent folder" (File resource, `trashed`,
+      // https://developers.google.com/drive/api/reference/rest/v3/files). What
+      // files.create does with a trashed parent is not documented, so every
+      // answer is asked: a file born in the trash, or a parent gone for good
+      // (404), sends the folders to be looked up afresh — a trashed folder is
+      // no folder — and the file is created once more where it is seen (F44).
+      for (let attempt = 0; ; attempt++) {
+        const created = await this.createFile(op, content, mimeType);
+        if (created !== "parent-gone") return created;
+        this.forgetFolders();
+        if (attempt > 0) throw new Error(`Google Drive put ${op.file_path} into a folder in the trash twice; trying again later`);
       }
-
-      const boundary = `plainva-${name.length}-${op.file_path.length}`;
-      // When the file was edited, as the new file's `modifiedTime`: the next
-      // device to download it lists it by that time, not by this upload's. (An
-      // update keeps Drive's own time — a media upload sets it — and so does
-      // the streamed creation above, whose content arrives by media upload.)
-      const edited = op.localModifiedAt !== undefined && Number.isFinite(op.localModifiedAt) && op.localModifiedAt > 0
-        ? { modifiedTime: new Date(op.localModifiedAt).toISOString() }
-        : {};
-      const body = this.multipartBody({ name, parents: [parentId], mimeType, ...edited }, content, boundary, mimeType);
-      const res = await this.authedFetch(
-        "POST",
-        `${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,md5Checksum,modifiedTime`,
-        { headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body: body as any as BodyInit }
-      );
-      if (!res.ok) throw await driveResponseError("file creation", res);
-      const f = (await res.json()) as DriveFile;
-      this.cachePath(op.file_path, f.id);
-      return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
     }
 
     if (op.operation === "delete") {
@@ -851,7 +880,7 @@ export class DriveSyncTarget implements ISyncTarget {
       }
       const from = this.splitPath(op.file_path);
       const to = this.splitPath(op.new_path);
-      const params = new URLSearchParams({ fields: "id,md5Checksum,modifiedTime" });
+      const params = new URLSearchParams({ fields: "id,md5Checksum,modifiedTime,trashed" });
       const metadata: Record<string, unknown> = {};
       if (from.name !== to.name) metadata.name = to.name;
       if (from.folder !== to.folder) {
@@ -869,6 +898,15 @@ export class DriveSyncTarget implements ISyncTarget {
       this.uncachePath(op.file_path);
       if (res.ok) {
         const f = (await res.json()) as DriveFile;
+        // In the trash — put there by another device since this one looked,
+        // or moved into a folder that went there: as at main after a
+        // permanent deletion (the 404 below), the source is missing, and the
+        // engine uploads this device's file at the new name, where it is seen
+        // (F44). What lies in the trash stays there.
+        if (f.trashed) {
+          this.forgetFolders();
+          return { renameSourceMissing: true };
+        }
         this.cachePath(op.new_path, f.id);
         return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
       }
@@ -1181,10 +1219,14 @@ export class DriveSyncTarget implements ISyncTarget {
     if (filePath.includes(".CONFLICT")) return null;
     const id = await this.findFileId(filePath);
     if (!id) return null;
-    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=md5Checksum,modifiedTime`);
+    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=md5Checksum,modifiedTime,trashed`);
     if (res.status === 404) return null;
     if (!res.ok) throw await driveResponseError("metadata lookup", res);
     const f = (await res.json()) as DriveFile;
+    if (f.trashed) {
+      this.uncachePath(filePath);
+      return null;
+    }
     return f.md5Checksum || f.modifiedTime || null;
   }
 
