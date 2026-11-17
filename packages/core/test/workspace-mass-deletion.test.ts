@@ -3,12 +3,13 @@ import { realSqlite } from "./helpers/realSqlite.ts";
 import { initializeSchema } from "../src/db/Schema.js";
 import {
   EncryptedWorkspaceWorker,
+  initializePersonalWorkspaceMigration,
   MemoryWorkspaceStateStore,
   SqlWorkspaceStateStore,
   WorkspaceQueueingVaultAdapter,
   type WorkspaceStateStore,
 } from "../src/index.js";
-import { live, ownerSecondDevice, queued, synced } from "./helpers/workspaceReconcile.ts";
+import { chainPermissions, live, ownerSecondDevice, queued, synced, workspaceMember } from "./helpers/workspaceReconcile.ts";
 
 /**
  * The encrypted workspace's mass-deletion guard (release 0.9.0 A4). The
@@ -261,5 +262,75 @@ describe("A4 after review: another device's mass deletion is held here until ans
     await phone.worker.runCycle();
     expect(asked).toBe(0);
     expect(names.slice(0, 3).some((name) => phone.vault.files.has(name))).toBe(false);
+  });
+});
+
+describe("A2 after review: another device's mass deletion is counted against what this device holds", () => {
+  const names = Array.from({ length: 60 }, (_, index) => `n${String(index).padStart(2, "0")}.md`);
+
+  it("edited first and then deleted, both arriving in one pull: held and asked, nothing goes", { timeout: 30_000 }, async () => {
+    const owner = await synced(names);
+    const phone = await ownerSecondDevice(owner);
+    for (const name of names.slice(0, 50)) {
+      await owner.vault.writeTextFile(name, `# ${name} edited\n`);
+      await owner.state.enqueue("write", name);
+    }
+    await owner.worker.runCycle();
+    for (const name of names.slice(0, 50)) {
+      await owner.vault.deleteItem(name);
+      await owner.state.enqueue("delete", name, null, { confirmed: true });
+    }
+    await owner.worker.runCycle();
+    const asked: number[] = [];
+    phone.worker.onDeletionMirroringSuspended = (info) => asked.push(info.missing);
+    await phone.worker.runCycle();
+    expect(asked).toEqual([50]);
+    expect(names.every((name) => phone.vault.files.has(name))).toBe(true);
+    expect(await phone.state.listQuarantine("pending")).toEqual([]);
+  });
+
+  it("asks as the workspace's question: another device deleted them, not a cloud that lost them", { timeout: 30_000 }, async () => {
+    const owner = await synced(names);
+    const phone = await ownerSecondDevice(owner);
+    for (const name of names.slice(0, 50)) {
+      await owner.vault.deleteItem(name);
+      await owner.state.enqueue("delete", name, null, { confirmed: true });
+    }
+    await owner.worker.runCycle();
+    const asked: unknown[] = [];
+    phone.worker.onDeletionMirroringSuspended = (info) => asked.push(info);
+    await phone.worker.runCycle();
+    expect(asked).toEqual([{ missing: 50, confirmed: 60, probed: 50, absent: 50, fromWorkspaceDevice: true, staysLocal: 0 }]);
+  });
+
+  it("on a device that may not upload, keeping means: here only, as its own version — and no list of refusals after it", { timeout: 30_000 }, async () => {
+    const member = await workspaceMember(names, "Reader");
+    for (const name of names.slice(0, 50)) {
+      await member.owner.vault.deleteItem(name);
+      await member.owner.state.enqueue("delete", name, null, { confirmed: true });
+    }
+    await member.owner.worker.runCycle();
+    const asked: Array<{ staysLocal?: number }> = [];
+    member.worker.onDeletionMirroringSuspended = (info) => asked.push(info);
+    const refused: string[][] = [];
+    member.worker.onChangesRefused = (paths) => refused.push(paths);
+    await member.worker.runCycle();
+    expect(asked.map((info) => info.staysLocal)).toEqual([50]);
+    expect(await member.worker.keepSuspendedDeletionsLocal()).toBe(50);
+    await member.worker.runCycle();
+    await member.worker.runCycle();
+    expect(names.every((name) => member.vault.files.has(name))).toBe(true);
+    expect(await queued(member.state)).toEqual([]);
+    expect(refused).toEqual([]);
+    const forks = await member.state.listLocalForks();
+    expect(forks.filter((fork) => fork.reason === "kept-local").length).toBe(50);
+    expect(forks.filter((fork) => fork.reason === "permission-denied")).toEqual([]);
+    // A start after it records no refusal either: the kept files are this device's own.
+    await initializePersonalWorkspaceMigration({ store: member.store, state: member.state, vault: member.vault, runtime: member.runtime, recoveryConfirmedAt: "2026-11-16T09:01:00.000Z", permissions: chainPermissions(member.vault, member.state, member.runtime) });
+    await member.worker.runCycle();
+    expect(refused).toEqual([]);
+    expect(await queued(member.state)).toEqual([]);
+    await member.owner.worker.runCycle();
+    expect(names.slice(0, 50).some((name) => member.owner.vault.files.has(name))).toBe(false);
   });
 });

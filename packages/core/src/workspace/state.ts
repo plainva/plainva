@@ -192,7 +192,12 @@ export interface WorkspaceLocalForkRecord {
   forkId: string;
   originalPath: string;
   forkPath: string;
-  reason: "permission-denied" | "parallel-write" | "path-collision";
+  /**
+   * `kept-local`: a file another device deleted, kept here by a member who
+   * may not put it back for the others — this device's own version, which
+   * nobody refused (review of release 0.9.0).
+   */
+  reason: "permission-denied" | "parallel-write" | "path-collision" | "kept-local";
   createdAt: string;
 }
 
@@ -400,6 +405,22 @@ export interface WorkspaceStateStore {
   getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null>;
   getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null>;
   listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]>;
+  /**
+   * The revision written to `path` with these bytes, when the worker wrote
+   * one there that is not its object's place: a conflict copy, which every
+   * device writes alike (`EncryptedWorkspaceWorker`, review of release 0.9.0).
+   */
+  findRevisionAt(path: string, plaintextSha256: string): Promise<WorkspaceRevisionRecord | null>;
+  /** Where a revision's bytes lie on this device, after the worker moved them to a conflict copy. */
+  setRevisionMaterializedPath(revisionId: string, path: string): Promise<void>;
+  /**
+   * Gives a living object another place without an operation: the path two
+   * objects claimed belongs to one of them on every device alike, and each
+   * device moves the other to its conflict copy by the same rule.
+   */
+  relocateObject(objectId: string, path: string): Promise<void>;
+  /** Retires a folder object that shares its folder with another one: one folder, one object, on every device alike. */
+  retireObject(objectId: string): Promise<void>;
   listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]>;
   /**
    * Every unresolved-marker-free comment of the workspace, for the vault-wide
@@ -540,6 +561,27 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   async getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null> { return clone(this.revisions.get(revisionId) ?? null); }
   async listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]> {
     return [...this.revisions.values()].filter((entry) => entry.objectId === objectId).map(clone).sort((a, b) => b.sequence - a.sequence || a.revisionId.localeCompare(b.revisionId));
+  }
+  async findRevisionAt(path: string, plaintextSha256: string): Promise<WorkspaceRevisionRecord | null> {
+    const found = [...this.revisions.values()].find((entry) => entry.materializedPath === path && entry.plaintextSha256 === plaintextSha256);
+    return found ? clone(found) : null;
+  }
+  async setRevisionMaterializedPath(revisionId: string, path: string): Promise<void> {
+    const revision = this.revisions.get(revisionId);
+    if (revision) revision.materializedPath = path;
+  }
+  async relocateObject(objectId: string, path: string): Promise<void> {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+    for (const other of this.objects.values()) {
+      if (other.deleted && other.path === path && other.objectId !== objectId) other.path = deletedObjectPath(other.objectId);
+    }
+    object.path = path;
+  }
+  async retireObject(objectId: string): Promise<void> {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+    Object.assign(object, { path: deletedObjectPath(objectId), deleted: true, currentRevisionId: null, payloadHash: null });
   }
   async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
     return (await this.listAllComments()).filter((entry) => entry.targetObjectId === targetObjectId);
@@ -1019,6 +1061,22 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]> {
     return (await this.db.query<RevisionRow>(`SELECT * FROM workspace_revision WHERE object_id = ? ORDER BY sequence DESC, revision_id`, [objectId])).map(revisionFromRow);
+  }
+  async findRevisionAt(path: string, plaintextSha256: string): Promise<WorkspaceRevisionRecord | null> {
+    const row = await this.db.queryOne<RevisionRow>(`SELECT * FROM workspace_revision WHERE materialized_path = ? AND plaintext_sha256 = ? LIMIT 1`, [path, plaintextSha256]);
+    return row ? revisionFromRow(row) : null;
+  }
+  async setRevisionMaterializedPath(revisionId: string, path: string): Promise<void> {
+    await this.db.execute(`UPDATE workspace_revision SET materialized_path = ? WHERE revision_id = ?`, [path, revisionId]);
+  }
+  async relocateObject(objectId: string, path: string): Promise<void> {
+    await runStatementsAtomic(this.db, [
+      { sql: `UPDATE workspace_object SET path = 'deleted-' || object_id WHERE path = ? AND object_id <> ? AND deleted = 1`, params: [path, objectId] },
+      { sql: `UPDATE workspace_object SET path = ? WHERE object_id = ?`, params: [path, objectId] },
+    ]);
+  }
+  async retireObject(objectId: string): Promise<void> {
+    await this.db.execute(`UPDATE workspace_object SET path = 'deleted-' || object_id, deleted = 1, current_revision_id = NULL, payload_hash = NULL WHERE object_id = ?`, [objectId]);
   }
   async getComment(commentId: string): Promise<WorkspaceCommentRecord | null> {
     const row = await this.db.queryOne<CommentRow>(`SELECT * FROM workspace_comment WHERE comment_id = ? LIMIT 1`, [commentId]);

@@ -50,6 +50,48 @@ export async function askMassDeletion(
   }
 }
 
+/**
+ * What the pull-side guard reports. The encrypted workspace's question is its
+ * own (`fromWorkspaceDevice`, review of release 0.9.0): another device of the
+ * workspace deleted the files — no cloud lost them, and nobody needs to look
+ * whether they are still there. Its protocol carries no confirmation of a
+ * deletion, so it asks even when that device confirmed it. `staysLocal`: how
+ * many of the files this member may not put back for the others; keeping
+ * those means here only, as the device's own version.
+ */
+export interface SuspendedDeletionInfo {
+  missing: number;
+  confirmed: number;
+  probed: number;
+  absent: number;
+  fromWorkspaceDevice?: true;
+  staysLocal?: number;
+}
+
+/** The pull-side question's texts, for both workers. */
+export function suspendedDeletionQuestion(info: SuspendedDeletionInfo): MassDeletionQuestion {
+  const { missing, confirmed, probed, absent } = info;
+  if (info.fromWorkspaceDevice) {
+    const local = info.staysLocal ?? 0;
+    return {
+      title: i18n.t("sync.workspacePullGuardTitle"),
+      message: local > 0
+        ? i18n.t("sync.workspacePullGuardBodyLocal", { n: missing, total: confirmed, local })
+        : i18n.t("sync.workspacePullGuardBody", { n: missing, total: confirmed }),
+      confirmLabel: i18n.t("sync.pullGuardApply"),
+      cancelLabel: local === 0 ? i18n.t("sync.pullGuardKeep") : local >= missing ? i18n.t("sync.workspacePullGuardKeepHere") : i18n.t("sync.workspacePullGuardKeepMixed"),
+    };
+  }
+  return {
+    title: i18n.t("sync.pullGuardTitle"),
+    message: absent > 0
+      ? i18n.t("sync.pullGuardBody", { n: missing, total: confirmed, absent, probed })
+      : i18n.t("sync.pullGuardBodyUnverified", { n: missing, total: confirmed }),
+    confirmLabel: i18n.t("sync.pullGuardApply"),
+    cancelLabel: i18n.t("sync.pullGuardKeep"),
+  };
+}
+
 /** A worker whose incoming deletions the pull-side guard can hold: the plain sync's and the encrypted workspace's. */
 export interface SuspendedDeletionAnswers {
   approveSuspendedDeletions(): void;
@@ -68,25 +110,20 @@ export interface SuspendedDeletionAnswers {
  */
 export async function askSuspendedDeletions(
   worker: SuspendedDeletionAnswers,
-  info: { missing: number; confirmed: number; probed: number; absent: number },
+  info: SuspendedDeletionInfo,
   confirm: (question: MassDeletionQuestion) => Promise<boolean>,
 ): Promise<void> {
-  const { missing, confirmed, probed, absent } = info;
-  const applyHere = await confirm({
-    title: i18n.t("sync.pullGuardTitle"),
-    message: absent > 0
-      ? i18n.t("sync.pullGuardBody", { n: missing, total: confirmed, absent, probed })
-      : i18n.t("sync.pullGuardBodyUnverified", { n: missing, total: confirmed }),
-    confirmLabel: i18n.t("sync.pullGuardApply"),
-    cancelLabel: i18n.t("sync.pullGuardKeep"),
-  });
+  const applyHere = await confirm(suspendedDeletionQuestion(info));
   if (applyHere) {
     worker.approveSuspendedDeletions();
     return;
   }
+  const staysLocal = info.fromWorkspaceDevice ? info.staysLocal ?? 0 : 0;
   try {
     const kept = await worker.keepSuspendedDeletionsLocal();
-    toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
+    toast.info(staysLocal > 0
+      ? i18n.t("sync.workspacePullGuardKeptLocal", { count: kept, local: Math.min(staysLocal, kept) })
+      : i18n.t("sync.pullGuardKept", { count: kept }));
   } catch (error) {
     console.error("[massDeletion] keeping the held deletions failed", error);
     toast.error(i18n.t("sync.pullGuardFailed"));

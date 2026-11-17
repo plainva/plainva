@@ -1,6 +1,6 @@
 # Sicherheit & Freigaben
 
-Stand: 2026-11-16
+Stand: 2026-11-17
 
 > **Experimentell — noch nicht unabhängig geprüft.** Verschlüsselte Workspaces sind eine Vorschau. Das kryptografische Design wurde noch nicht von unabhängiger Seite auditiert, und die Zwei-Geräte-Abnahme auf echter Android- und iOS-Hardware läuft noch. Probier es aus, aber halte von allem, was Du nicht verlieren darfst, eine Sicherung — und verlass Dich noch nicht darauf für Material, das wirklich geschützt sein muss.
 
@@ -28,7 +28,7 @@ Bestehender Klartext bleibt während der Migration beim Anbieter neben `.pvws/` 
 
 ## Im Alltag
 
-Offline-Änderungen bleiben in einer dauerhaften Queue. Jede Änderung ist signiert; bloßes Remote-Fehlen löscht lokal nichts, ein signierter Tombstone dagegen schon. Parallele Offline-Bearbeitungen bleiben als `.CONFLICT-…`-Kopien erhalten. **Sperren** löscht die Workspace-Schlüssel wirklich aus dem Speicher — den Signaturschlüssel, den Entschlüsselungsschlüssel und jeden Gruppenschlüssel, den die Sitzung geholt hat; **Entsperren** holt sie erneut aus Schlüsselbund oder lokaler Passphrase.
+Offline-Änderungen bleiben in einer dauerhaften Queue. Jede Änderung ist signiert; bloßes Remote-Fehlen löscht lokal nichts, ein signierter Tombstone dagegen schon. Parallele Offline-Bearbeitungen bleiben als `.CONFLICT-…`-Kopien erhalten. Jedes Gerät zeigt dieselbe Fassung unter dem Namen der Notiz und die andere als Kopie — auch wenn zwei Geräte gleichzeitig dieselbe neue Notiz anlegen oder eines eine Notiz löscht und neu anlegt, während ein anderes sie bearbeitet. **Sperren** löscht die Workspace-Schlüssel wirklich aus dem Speicher — den Signaturschlüssel, den Entschlüsselungsschlüssel und jeden Gruppenschlüssel, den die Sitzung geholt hat; **Entsperren** holt sie erneut aus Schlüsselbund oder lokaler Passphrase.
 
 ## Geräte und Wiederherstellung
 
@@ -62,7 +62,7 @@ Rückmeldungen erscheinen auf Desktop und Mobil bei der Originalnotiz, getrennt 
 
 **Versionsverlauf** liest die verschlüsselten Workspace-Revisionen und stellt eine ältere Revision als neue signierte Änderung oder als Kopie wieder her.
 
-Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**. Du kannst sie erneut prüfen, als Ciphertext exportieren, nach externer Reparatur als repariert markieren oder bewusst ignorieren. Eine fehlerhafte Datei hält gültige Synchronisationen nicht an; bloße Remote-Abwesenheit wird niemals als Löschung interpretiert. Änderungen eines lokalen Programms ohne Schreibrecht bleiben als private Fork-Kopie erhalten. Ein **lokaler Fork** — die Kopie, die dieses Gerät behält, wenn ein Schreiben abgelehnt wurde — trägt **Vergleichen**: dieselbe Vergleichsfläche wie bei einem Konflikt, mit den Ausgängen Übernehmen, Beide behalten und Verwerfen; danach verschwindet der Fork aus der Liste. Am Telefon genauso. Wird dort eine Änderung von Dir abgelehnt — Du darfst die Notiz nicht mehr bearbeiten, löschen oder verschieben, oder sie liegt außerhalb dessen, was Du ändern darfst —, nennt ein Hinweis sie einmal, und die Änderung bleibt als lokaler Fork auf diesem Gerät; eine Notiz, die Du nicht löschen oder verschieben durftest, kommt an ihren Platz zurück.
+Fehlerhafte Remote-Artefakte landen einzeln unter **Integrität & lokale Forks**. Du kannst sie erneut prüfen, als Ciphertext exportieren, nach externer Reparatur als repariert markieren oder bewusst ignorieren. Eine fehlerhafte Datei hält gültige Synchronisationen nicht an; bloße Remote-Abwesenheit wird niemals als Löschung interpretiert. Änderungen eines lokalen Programms ohne Schreibrecht bleiben als private Fork-Kopie erhalten. Ein **lokaler Fork** — die Kopie, die dieses Gerät behält, wenn ein Schreiben abgelehnt wurde — trägt **Vergleichen**: dieselbe Vergleichsfläche wie bei einem Konflikt, mit den Ausgängen Übernehmen, Beide behalten und Verwerfen; danach verschwindet der Fork aus der Liste. Am Telefon genauso. Wird dort eine Änderung von Dir abgelehnt — Du darfst die Notiz nicht mehr bearbeiten, löschen oder verschieben, oder sie liegt außerhalb dessen, was Du ändern darfst —, nennt ein Hinweis sie einmal, und die Änderung bleibt als lokaler Fork auf diesem Gerät; eine Notiz, die Du nicht löschen oder verschieben durftest, kommt an ihren Platz zurück. Lässt sich das Original noch nicht zurückholen, wartet die Änderung, der Hinweis sagt es, und Plainva versucht es bei jedem Abgleich wieder; alles andere geht in der Zeit hoch.
 
 ### Was **Integrität & lokale Forks** sagt
 

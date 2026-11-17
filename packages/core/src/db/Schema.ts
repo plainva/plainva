@@ -288,6 +288,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     );`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_object_path ON workspace_object(path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_revision_object ON workspace_revision(object_id);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_revision_materialized ON workspace_revision(materialized_path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_operation_device ON workspace_operation(device_id, sequence);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_queue_path ON workspace_queue(path, new_path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_comment_target ON workspace_comment(target_object_id, created_at);`,

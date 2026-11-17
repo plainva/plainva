@@ -196,7 +196,7 @@ async function workspaceHoldsPath(
     try {
       const object = await held.getObjectByPath(path);
       const there = await vault.exists(path);
-      if (!object || object.deleted || !object.currentRevisionId) return !there;
+      if (!object || object.deleted || !object.currentRevisionId) return !there || await heldWithoutObject(held, vault, path);
       if (!there) return false;
       if (object.contentKind === "directory") return (await vault.getFileInfo(path)).isDirectory;
       if (!object.plaintextSha256) return false;
@@ -205,6 +205,28 @@ async function workspaceHoldsPath(
       return false;
     }
   });
+}
+
+/**
+ * A file the workspace holds although no object lives at its path (review of
+ * release 0.9.0): a conflict copy the worker wrote — a version of a living
+ * object that lost its name, written alike by every device, so none needs to
+ * send it again — or a file another device deleted that this member kept
+ * here as its own (`kept-local`). Changed since, it is a change like any other.
+ */
+async function heldWithoutObject(held: WorkspaceStateStore, vault: IVaultAdapter, path: string): Promise<boolean> {
+  if ((await vault.getFileInfo(path)).isDirectory) return false;
+  const sha = sha256Hex(await vault.readBinaryFile(path));
+  const revision = await held.findRevisionAt(path, sha);
+  if (revision) {
+    const owner = await held.getObjectById(revision.objectId);
+    if (owner && !owner.deleted && owner.path !== path) return true;
+  }
+  for (const fork of await held.listLocalForks()) {
+    if (fork.reason !== "kept-local" || fork.originalPath !== path || !(await vault.exists(fork.forkPath))) continue;
+    if (sha256Hex(await vault.readBinaryFile(fork.forkPath)) === sha) return true;
+  }
+  return false;
 }
 
 /**

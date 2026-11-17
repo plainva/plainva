@@ -10,6 +10,7 @@ import { WorkspaceLocalProbe, WorkspaceObjectRecord, WorkspaceRuntimeMeta, Works
 import { refreshWorkspacePolicy } from "./worker.js";
 import { WorkspaceRevisionHistoryService } from "./collaboration.js";
 import { withPathMutation } from "../vault/pathMutation.js";
+import { baselineRefusalReports } from "./deniedFork.js";
 
 /**
  * The permission check of the vault's chain for a change made outside the
@@ -26,6 +27,9 @@ export interface PersonalWorkspaceMigrationResult {
   alreadyCompleted: number;
   queued: number;
 }
+
+/** The hash of no bytes: an empty file is no evidence of a move. */
+const EMPTY_SHA256 = sha256Hex(new Uint8Array());
 
 function initialMeta(runtime: PersonalWorkspaceRuntime, recoveryConfirmedAt: string): WorkspaceRuntimeMeta {
   return {
@@ -53,6 +57,7 @@ function initialMeta(runtime: PersonalWorkspaceRuntime, recoveryConfirmedAt: str
     operationHeads: {},
     needsPublication: true,
     pendingPublication: null,
+    refusalsReportedThrough: "",
   };
 }
 
@@ -87,6 +92,8 @@ export async function initializePersonalWorkspaceMigration(input: {
    */
   permissions?: WorkspaceExternalChangeCheck | null;
 }): Promise<PersonalWorkspaceMigrationResult> {
+  // Before anything is refused here: what was refused before the notice existed is not news.
+  await baselineRefusalReports(input.state);
   let meta = await input.state.loadMeta();
   if (!meta) {
     meta = initialMeta(input.runtime, input.recoveryConfirmedAt);
@@ -183,10 +190,15 @@ export async function initializePersonalWorkspaceMigration(input: {
   // closed looks like a new file here and a missing object there; when the new
   // place is refused, the move is (review of release 0.9.0): the missing
   // original is no deletion the person made, and it comes back from the
-  // workspace instead of going out as one. Read as a move whenever the bytes
-  // match — a copy made elsewhere and the original deleted is kept the same
-  // way, the safe side of the two.
+  // workspace instead of going out as one. Read as a move only when exactly one
+  // missing note and exactly one new file share their bytes, and the bytes are
+  // not empty: any empty file at a refused place, or two copies of a note,
+  // brought a deletion the person made back without a word, and it never
+  // went out. A copy made elsewhere and the original deleted is still kept,
+  // the safe side of the two.
   const refusedNewContent = new Set<string>();
+  /** Every new file's bytes (no object at its path), by how many new files hold them. */
+  const newContent = new Map<string, number>();
   let deferred = 0;
   for (const entry of inventory) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
@@ -219,6 +231,10 @@ export async function initializePersonalWorkspaceMigration(input: {
       }
       if (unchanged) { completed += 1; continue; }
     }
+    if (!entry.isDirectory && (!existing || existing.deleted) && permissions) {
+      sha ??= await readHash(entry.path);
+      if (sha) newContent.set(sha, (newContent.get(sha) ?? 0) + 1);
+    }
     const outcome = await verdict(entry.path, entry.isDirectory ? "folder" : "file", sha);
     if (outcome === "later") { deferred += 1; continue; }
     if (outcome === "kept") { completed += 1; continue; }
@@ -247,6 +263,9 @@ export async function initializePersonalWorkspaceMigration(input: {
       return false;
     }
   };
+  const missingContent = new Map<string, number>();
+  for (const object of missingObjects) if (object.contentKind !== "directory" && object.plaintextSha256) missingContent.set(object.plaintextSha256, (missingContent.get(object.plaintextSha256) ?? 0) + 1);
+  const movedFile = (sha: string) => sha !== EMPTY_SHA256 && refusedNewContent.has(sha) && newContent.get(sha) === 1 && missingContent.get(sha) === 1;
   const missingOrder = [...missingObjects].sort((left, right) =>
     Number(left.contentKind === "directory") - Number(right.contentKind === "directory") || right.path.split("/").length - left.path.split("/").length);
   for (const object of missingOrder) {
@@ -254,7 +273,7 @@ export async function initializePersonalWorkspaceMigration(input: {
     if (pendingPaths.has(object.path)) { queued += 1; continue; }
     const movedAway = object.contentKind === "directory"
       ? restoredPaths.some((path) => path.startsWith(`${object.path}/`))
-      : !!object.plaintextSha256 && refusedNewContent.has(object.plaintextSha256);
+      : !!object.plaintextSha256 && movedFile(object.plaintextSha256);
     if (movedAway && object.currentRevisionId) {
       await restore(object);
       completed += 1;

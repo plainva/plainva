@@ -257,3 +257,151 @@ describe("a queued file that cannot be read at the upload", () => {
     expect(await queued(state)).toEqual([]);
   });
 });
+
+/**
+ * A refused move whose original cannot be brought back (review of release
+ * 0.9.0): the read of its revision failed at every cycle, the push stopped
+ * there, and nothing behind it ever went up. The entry stays as a restore
+ * still owed, is tried once per cycle and named once; the rest goes up.
+ */
+describe("a refused change whose original cannot be brought back", () => {
+  it("stays queued and is named; the rest of the queue goes up", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/y.md", "Team/z.md"]);
+    const object = await team.state.getObjectByPath("Team/y.md");
+    const get = team.store.get.bind(team.store);
+    let lost = true;
+    team.store.get = async (key, options) => (lost && key.startsWith(`.pvws/objects/${object!.objectId}/`) ? null : get(key, options));
+    await team.vault.renameItem("Team/y.md", "Private/y.md");
+    await team.state.enqueue("rename", "Team/y.md", "Private/y.md");
+    await team.vault.writeTextFile("Team/z.md", "# z edited after\n");
+    await team.state.enqueue("write", "Team/z.md");
+    const pending: string[][] = [];
+    team.worker.onChangesRefused = (_paths, restorePending) => { if (restorePending?.length) pending.push(restorePending); };
+    await team.worker.runCycle();
+    await team.worker.runCycle();
+    expect(await queued(team.state)).toEqual(["rename Team/y.md"]);
+    expect(pending).toEqual([["Team/y.md"]]);
+    await team.owner.worker.runCycle();
+    expect(await team.owner.vault.readTextFile("Team/z.md")).toBe("# z edited after\n");
+    expect(team.owner.vault.files.has("Team/y.md")).toBe(true);
+    // Readable again: brought back, the moved copy a fork, the entry gone.
+    lost = false;
+    await team.worker.runCycle();
+    expect(await queued(team.state)).toEqual([]);
+    expect(await team.vault.readTextFile("Team/y.md")).toBe("# Team/y.md\n");
+    expect(await forksOf(team)).toContain("Private/y.md");
+  });
+
+  it("an original this device may no longer read is not brought back: it stays for the others, and the queue goes on", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/y.md", "Team/z.md"]);
+    await team.vault.renameItem("Team/y.md", "Private/y.md");
+    await team.state.enqueue("rename", "Team/y.md", "Private/y.md");
+    const keys = team.runtime.groupKeys;
+    team.runtime.groupKeys = [];
+    await team.worker.runCycle();
+    team.runtime.groupKeys = keys;
+    expect(await queued(team.state)).toEqual([]);
+    expect(team.vault.files.has("Team/y.md")).toBe(false);
+    expect(await forksOf(team)).toEqual(["Private/y.md"]);
+    await team.owner.worker.runCycle();
+    expect(team.owner.vault.files.has("Team/y.md")).toBe(true);
+  });
+
+  it("a restored original is the workspace's own: the app does not queue it again", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/y.md", "Team/z.md"]);
+    await team.vault.renameItem("Team/y.md", "Private/y.md");
+    await team.state.enqueue("rename", "Team/y.md", "Private/y.md");
+    await team.worker.runCycle();
+    expect(await team.vault.readTextFile("Team/y.md")).toBe("# Team/y.md\n");
+    expect(await team.permissions.judgeExternalChange("Team/y.md", true)).toBe("held");
+  });
+});
+
+/**
+ * A move made outside the app while it runs reaches the worker as a deletion
+ * and a new file (review of release 0.9.0). Into a place the member may not
+ * write, the new file was refused and the deletion went out: the note was
+ * gone for everyone. Read as the move it is, it is treated as one refused at
+ * the start: the original comes back, the moved copy stays a fork.
+ */
+describe("a note moved outside the app while it runs, into a place the member may not write", () => {
+  it("the original comes back and stays for everyone; the moved copy is a fork", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/y.md", "Team/z.md"]);
+    await team.vault.renameItem("Team/y.md", "Private/y.md");
+    await team.state.enqueue("delete", "Team/y.md");
+    await team.state.enqueue("write", "Private/y.md");
+    await team.worker.runCycle();
+    expect(await queued(team.state)).toEqual([]);
+    expect(await team.vault.readTextFile("Team/y.md")).toBe("# Team/y.md\n");
+    expect(await forksOf(team)).toEqual(["Private/y.md"]);
+    await team.owner.worker.runCycle();
+    expect(team.owner.vault.files.has("Team/y.md")).toBe(true);
+  });
+
+  it("a deletion beside a new file with other bytes stays a deletion", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/y.md", "Team/z.md"]);
+    await team.vault.deleteItem("Team/y.md");
+    await team.state.enqueue("delete", "Team/y.md");
+    await team.vault.writeTextFile("Private/other.md", "# something else\n");
+    await team.state.enqueue("write", "Private/other.md");
+    await team.worker.runCycle();
+    await team.owner.worker.runCycle();
+    expect(team.owner.vault.files.has("Team/y.md")).toBe(false);
+  });
+});
+
+/**
+ * Closed-app moves are recognised by their bytes (review of release 0.9.0):
+ * only when exactly one missing note and exactly one new file share the same,
+ * non-empty content. An empty file at a refused place made every deleted
+ * empty note come back, and the deletion never went out.
+ */
+describe("a deletion while the app was closed beside a new file with the same bytes", () => {
+  it("empty bytes are no move: the deletion goes out", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/empty.md", "Team/z.md"]);
+    await team.owner.vault.writeTextFile("Team/empty.md", "");
+    await team.owner.state.enqueue("write", "Team/empty.md");
+    await team.owner.worker.runCycle();
+    await team.worker.runCycle();
+    expect(await team.vault.readTextFile("Team/empty.md")).toBe("");
+    await team.vault.deleteItem("Team/empty.md");
+    await team.vault.writeTextFile("Private/blank.md", "");
+    await team.reconcile();
+    expect(team.vault.files.has("Team/empty.md")).toBe(false);
+    expect(await queued(team.state)).toEqual(["delete Team/empty.md"]);
+  });
+
+  it("two new files with the note's bytes are no move: the deletion goes out", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/y.md", "Team/z.md"]);
+    const bytes = await team.vault.readTextFile("Team/y.md");
+    await team.vault.deleteItem("Team/y.md");
+    await team.vault.writeTextFile("Private/one.md", bytes);
+    await team.vault.writeTextFile("Private/two.md", bytes);
+    await team.reconcile();
+    expect(team.vault.files.has("Team/y.md")).toBe(false);
+    expect(await queued(team.state)).toEqual(["delete Team/y.md"]);
+  });
+});
+
+/**
+ * A workspace state from before the refusal notice has no mark of what was
+ * said: its first cycle named every fork ever kept. Those were never news of
+ * this session; only what is refused from now on is said.
+ */
+describe("the first cycle after the update", () => {
+  it("does not name the forks kept before it", { timeout: 30_000 }, async () => {
+    const team = await teamEditor(["Team/z.md"]);
+    await team.state.saveLocalFork({ forkId: "old-fork", originalPath: "Private/old.md", forkPath: ".plainva/workspace/forks/old", reason: "permission-denied", createdAt: "2026-10-01T00:00:00.000Z" });
+    const meta = (await team.state.loadMeta())!;
+    delete meta.refusalsReportedThrough;
+    await team.state.saveMeta(meta);
+    const said: string[][] = [];
+    team.worker.onChangesRefused = (paths) => said.push(paths);
+    await team.worker.runCycle();
+    expect(said).toEqual([]);
+    await team.vault.writeTextFile("Private/new.md", "# new\n");
+    await team.state.enqueue("write", "Private/new.md");
+    await team.worker.runCycle();
+    expect(said).toEqual([["Private/new.md"]]);
+  });
+});

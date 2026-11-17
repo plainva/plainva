@@ -3805,6 +3805,13 @@
     "deletionsKeptLocalEdits_many": "{{count}} file sono stati eliminati nel cloud, ma qui avevano modifiche non ancora caricate. Plainva li ha conservati e li carica di nuovo; eliminali qui se vuoi che spariscano: {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} file sono stati eliminati nel cloud, ma qui avevano modifiche non ancora caricate. Plainva li ha conservati e li carica di nuovo; eliminali qui se vuoi che spariscano: {{names}}",
     "workspaceChangesRefused": "Non consentito in questo workspace: {{names}}. La modifica resta su questo dispositivo come fork locale e non arriva agli altri; la trovi in «Integrità e fork locali».",
+    "workspacePullGuardTitle": "Eliminati su un altro dispositivo",
+    "workspacePullGuardBody": "Un altro dispositivo di questo workspace ha eliminato {{n}} di {{total}} file. Eliminarli anche qui?",
+    "workspacePullGuardBodyLocal": "Un altro dispositivo di questo workspace ha eliminato {{n}} di {{total}} file. Eliminarli anche qui? {{local}} di essi non possono essere rimessi a disposizione degli altri da qui: se conservati, restano solo su questo dispositivo, come sua versione.",
+    "workspacePullGuardKeepHere": "Conserva solo su questo dispositivo",
+    "workspacePullGuardKeepMixed": "Conserva",
+    "workspacePullGuardKeptLocal": "Conservati: {{count}}, di cui {{local}} solo su questo dispositivo, come sua versione.",
+    "workspaceRestorePending": "Non consentito, e l'originale non è ancora tornato qui: {{names}}. Plainva riprova a ogni sincronizzazione; fino ad allora la modifica attende.",
     "downloading": "Download delle modifiche… {{current}}/{{total}}",
     "uploading": "Caricamento delle modifiche… {{current}}/{{total}}",
     "idle": "Sincronizza ora (incluso un nuovo tentativo)",
@@ -7500,7 +7507,8 @@
     "forkReason": {
       "permission-denied": "Scrivere non era consentito: la modifica sta accanto come copia.",
       "parallel-write": "Scritto nello stesso momento: le due versioni stanno una accanto all’altra.",
-      "path-collision": "Il percorso era occupato: la copia porta un nome proprio."
+      "path-collision": "Il percorso era occupato: la copia porta un nome proprio.",
+      "kept-local": "Eliminato su un altro dispositivo: conservato qui come versione propria di questo dispositivo."
     },
     "quarantineEntries_one": "1 voce",
     "quarantineEntries_many": "{{count}} voci",

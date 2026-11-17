@@ -1,6 +1,6 @@
 # Beveiliging en delen
 
-Laatst bijgewerkt: 2026-11-16
+Laatst bijgewerkt: 2026-11-17
 
 > **Experimenteel — nog niet onafhankelijk beoordeeld.** Versleutelde workspaces worden als preview uitgeleverd. Het cryptografische ontwerp is nog niet door een onafhankelijke beoordelaar geauditeerd, en het bewijs met twee apparaten op echte Android- en iOS-hardware wordt nog verzameld. Probeer het gerust, maar houd een back-up van alles wat je niet kwijt mag raken, en vertrouw er nog niet op voor materiaal dat echt beschermd moet zijn.
 
@@ -28,7 +28,7 @@ Oude platte tekst blijft tijdens migratie naast `.pvws/` staan. Pas bij **Beveil
 
 ## Dagelijks gebruik
 
-Offline wijzigingen blijven in een duurzame wachtrij staan. Elke wijziging wordt ondertekend; een verwijdering op afstand alleen wist nooit een lokaal bestand, een ondertekende grafsteen wel. Parallelle offline bewerkingen blijven bewaard als `.CONFLICT-…`-kopieën. **Vergrendelen** wist de workspace-sleutels echt uit het geheugen — de ondertekensleutel, de ontsleutelsleutel en elke groepssleutel die de sessie heeft opgehaald; **Ontgrendelen** haalt ze opnieuw op uit de systeemsleutelhanger of de lokale wachtwoordzin.
+Offline wijzigingen blijven in een duurzame wachtrij staan. Elke wijziging wordt ondertekend; een verwijdering op afstand alleen wist nooit een lokaal bestand, een ondertekende grafsteen wel. Parallelle offline bewerkingen blijven bewaard als `.CONFLICT-…`-kopieën. Elk apparaat toont dezelfde versie onder de naam van de notitie en de andere als kopie — ook als twee apparaten tegelijk dezelfde nieuwe notitie maken, of het ene een notitie verwijdert en opnieuw maakt terwijl een ander haar bewerkt. **Vergrendelen** wist de workspace-sleutels echt uit het geheugen — de ondertekensleutel, de ontsleutelsleutel en elke groepssleutel die de sessie heeft opgehaald; **Ontgrendelen** haalt ze opnieuw op uit de systeemsleutelhanger of de lokale wachtwoordzin.
 
 ## Apparaten en herstel
 
@@ -62,7 +62,7 @@ Feedback verschijnt bij de oorspronkelijke notitie op desktop en mobiel, per pub
 
 **Versiegeschiedenis** leest versleutelde workspace-revisies en herstelt een oudere revisie als nieuwe ondertekende wijziging of als kopie.
 
-Ongeldige externe artefacten worden afzonderlijk geïsoleerd onder **Integriteit en lokale forks**. Je kunt ze opnieuw proberen, hun ciphertext exporteren, een extern gerepareerd artefact als gerepareerd markeren, of het bewust negeren. Eén ongeldig bestand blokkeert de rest van een geldige synchronisatie niet, en externe afwezigheid alleen betekent nooit verwijdering. Een wijziging van een lokaal programma zonder schrijfrecht blijft bewaard als een privé-forkkopie. Een **lokale fork** — de kopie die dit apparaat bewaart als een schrijfactie werd geweigerd — heeft **Vergelijken**: dezelfde vergelijkingsweergave als bij een conflict, met de uitgangen Overnemen, Beide bewaren en Verwerpen; daarna verdwijnt de fork uit de lijst. Op de telefoon net zo. Wordt daar een wijziging van jou geweigerd — je mag de notitie niet meer bewerken, verwijderen of verplaatsen, of ze ligt buiten wat je mag wijzigen — dan noemt een melding haar één keer, en blijft de wijziging als lokale fork op dit apparaat; een notitie die je niet mocht verwijderen of verplaatsen, komt terug op haar plek.
+Ongeldige externe artefacten worden afzonderlijk geïsoleerd onder **Integriteit en lokale forks**. Je kunt ze opnieuw proberen, hun ciphertext exporteren, een extern gerepareerd artefact als gerepareerd markeren, of het bewust negeren. Eén ongeldig bestand blokkeert de rest van een geldige synchronisatie niet, en externe afwezigheid alleen betekent nooit verwijdering. Een wijziging van een lokaal programma zonder schrijfrecht blijft bewaard als een privé-forkkopie. Een **lokale fork** — de kopie die dit apparaat bewaart als een schrijfactie werd geweigerd — heeft **Vergelijken**: dezelfde vergelijkingsweergave als bij een conflict, met de uitgangen Overnemen, Beide bewaren en Verwerpen; daarna verdwijnt de fork uit de lijst. Op de telefoon net zo. Wordt daar een wijziging van jou geweigerd — je mag de notitie niet meer bewerken, verwijderen of verplaatsen, of ze ligt buiten wat je mag wijzigen — dan noemt een melding haar één keer, en blijft de wijziging als lokale fork op dit apparaat; een notitie die je niet mocht verwijderen of verplaatsen, komt terug op haar plek. Kan het origineel nog niet worden teruggehaald, dan wacht de wijziging, zegt de melding dat, en probeert Plainva het bij elke synchronisatie opnieuw; al het andere gaat intussen omhoog.
 
 ### Wat **Integriteit & lokale forks** zegt
 

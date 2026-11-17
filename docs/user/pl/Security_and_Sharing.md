@@ -1,6 +1,6 @@
 # Bezpieczeństwo i udostępnianie
 
-Stan na: 2026-11-16
+Stan na: 2026-11-17
 
 > **Eksperymentalne — jeszcze nie zweryfikowane niezależnie.** Zaszyfrowane workspace'y są udostępniane jako wersja zapoznawcza. Projekt kryptograficzny nie został jeszcze poddany niezależnemu audytowi, a testy na dwóch urządzeniach na prawdziwym sprzęcie z Androidem i iOS wciąż trwają. Wypróbuj tę funkcję, ale zachowaj kopię zapasową wszystkiego, czego nie możesz stracić, i nie polegaj na niej jeszcze w przypadku materiałów, które naprawdę muszą być chronione.
 
@@ -28,7 +28,7 @@ Stary tekst jawny pozostaje obok `.pvws/` podczas migracji. Można go jawnie usu
 
 ## W codziennej pracy
 
-Zmiany wprowadzone offline pozostają w trwałej kolejce. Każda zmiana jest podpisana; samo usunięcie po stronie zdalnej nigdy nie kasuje pliku lokalnego, ale podpisany nagrobek już tak. Równoległe zmiany offline są zachowywane jako kopie `.CONFLICT-…`. **Zablokuj** naprawdę usuwa klucze workspace’u z pamięci — klucz podpisujący, klucz odszyfrowujący i każdy klucz grupy pobrany w tej sesji; **Odblokuj** pobiera je ponownie z pęku kluczy systemu lub z lokalnego hasła.
+Zmiany wprowadzone offline pozostają w trwałej kolejce. Każda zmiana jest podpisana; samo usunięcie po stronie zdalnej nigdy nie kasuje pliku lokalnego, ale podpisany nagrobek już tak. Równoległe zmiany offline są zachowywane jako kopie `.CONFLICT-…`. Każde urządzenie pokazuje tę samą wersję pod nazwą notatki, a drugą jako kopię — także wtedy, gdy dwa urządzenia naraz tworzą tę samą nową notatkę albo jedno usuwa notatkę i tworzy ją od nowa, a inne ją edytuje. **Zablokuj** naprawdę usuwa klucze workspace’u z pamięci — klucz podpisujący, klucz odszyfrowujący i każdy klucz grupy pobrany w tej sesji; **Odblokuj** pobiera je ponownie z pęku kluczy systemu lub z lokalnego hasła.
 
 ## Urządzenia i odzyskiwanie
 
@@ -62,7 +62,7 @@ Opinie pojawiają się przy oryginalnej notatce na komputerze i telefonie, pogru
 
 **Historia wersji** odczytuje zaszyfrowane rewizje workspace'u i przywraca starszą rewizję jako nową podpisaną zmianę lub jako kopię.
 
-Nieprawidłowe artefakty zdalne są izolowane pojedynczo w **Integralność i lokalne forki**. Możesz je ponowić, wyeksportować ich ciphertext, oznaczyć naprawiony zewnętrznie artefakt jako naprawiony lub świadomie go zignorować. Jeden nieprawidłowy plik nie blokuje reszty prawidłowej synchronizacji, a sam zdalny brak nigdy nie oznacza usunięcia. Zmiana wprowadzona przez lokalny program bez prawa zapisu jest zachowywana jako prywatna kopia forka. **Lokalny fork** — kopia, którą to urządzenie zachowuje, gdy zapis został odrzucony — ma **Porównaj**: ten sam widok porównania co przy konflikcie, z wyjściami Przyjmij, Zachowaj oba i Odrzuć; potem fork znika z listy. Na telefonie tak samo. Jeśli Twoja zmiana zostanie tam odrzucona — nie możesz już edytować, usuwać ani przenosić notatki albo leży ona poza tym, co możesz zmieniać — powiadomienie nazwie ją raz, a zmiana zostanie na tym urządzeniu jako lokalny fork; notatka, której nie wolno było usunąć ani przenieść, wraca na swoje miejsce.
+Nieprawidłowe artefakty zdalne są izolowane pojedynczo w **Integralność i lokalne forki**. Możesz je ponowić, wyeksportować ich ciphertext, oznaczyć naprawiony zewnętrznie artefakt jako naprawiony lub świadomie go zignorować. Jeden nieprawidłowy plik nie blokuje reszty prawidłowej synchronizacji, a sam zdalny brak nigdy nie oznacza usunięcia. Zmiana wprowadzona przez lokalny program bez prawa zapisu jest zachowywana jako prywatna kopia forka. **Lokalny fork** — kopia, którą to urządzenie zachowuje, gdy zapis został odrzucony — ma **Porównaj**: ten sam widok porównania co przy konflikcie, z wyjściami Przyjmij, Zachowaj oba i Odrzuć; potem fork znika z listy. Na telefonie tak samo. Jeśli Twoja zmiana zostanie tam odrzucona — nie możesz już edytować, usuwać ani przenosić notatki albo leży ona poza tym, co możesz zmieniać — powiadomienie nazwie ją raz, a zmiana zostanie na tym urządzeniu jako lokalny fork; notatka, której nie wolno było usunąć ani przenieść, wraca na swoje miejsce. Jeśli oryginału nie da się jeszcze przywrócić, zmiana czeka, powiadomienie to mówi, a Plainva próbuje ponownie przy każdej synchronizacji; wszystko inne w tym czasie trafia do chmury.
 
 ### Co mówi **Integralność i lokalne rozgałęzienia**
 

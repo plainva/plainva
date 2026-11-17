@@ -1,6 +1,6 @@
 # Sécurité et partage
 
-Dernière mise à jour : 2026-11-16
+Dernière mise à jour : 2026-11-17
 
 > **Expérimental — pas encore audité de manière indépendante.** Les espaces de travail chiffrés sont proposés en avant-première. La conception cryptographique n’a pas encore été auditée par un examinateur indépendant, et les tests sur deux appareils avec du matériel Android et iOS réel sont encore en cours. Essayez-le, mais conservez une sauvegarde de tout ce que vous ne pouvez pas vous permettre de perdre, et ne vous y fiez pas encore pour du contenu qui doit impérativement être protégé.
 
@@ -28,7 +28,7 @@ L’ancien contenu en clair reste à côté de `.pvws/` pendant la migration. Il
 
 ## Au quotidien
 
-Les modifications hors ligne restent dans une file d’attente durable. Chaque modification est signée ; une suppression distante seule n’efface jamais un fichier local, alors qu’une pierre tombale signée le peut. Les modifications parallèles hors ligne sont conservées sous forme de copies `.CONFLICT-…`. **Verrouiller** supprime réellement les clés du workspace de la mémoire — la clé de signature, la clé de déchiffrement et toutes les clés de groupe récupérées pendant la session ; **Déverrouiller** les redemande au trousseau système ou à la phrase secrète locale.
+Les modifications hors ligne restent dans une file d’attente durable. Chaque modification est signée ; une suppression distante seule n’efface jamais un fichier local, alors qu’une pierre tombale signée le peut. Les modifications parallèles hors ligne sont conservées sous forme de copies `.CONFLICT-…`. Chaque appareil affiche la même version sous le nom de la note et l'autre comme copie — aussi lorsque deux appareils créent en même temps la même nouvelle note, ou que l'un supprime une note et la recrée pendant qu'un autre la modifie. **Verrouiller** supprime réellement les clés du workspace de la mémoire — la clé de signature, la clé de déchiffrement et toutes les clés de groupe récupérées pendant la session ; **Déverrouiller** les redemande au trousseau système ou à la phrase secrète locale.
 
 ## Appareils et récupération
 
@@ -62,7 +62,7 @@ Les retours apparaissent avec la note originale sur ordinateur et mobile, regrou
 
 **Historique des versions** lit les révisions chiffrées du workspace et restaure une révision plus ancienne comme nouvelle modification signée ou comme copie.
 
-Les artefacts distants invalides sont isolés individuellement sous **Intégrité et forks locaux**. Vous pouvez les réessayer, exporter leur ciphertext, marquer un artefact réparé en externe comme réparé, ou l’ignorer délibérément. Un fichier invalide ne bloque pas le reste de la synchronisation valide, et une absence distante seule ne vaut jamais suppression. Une modification apportée par un programme local sans droit d’écriture est conservée comme une copie de fork privée. Un **fork local** — la copie que cet appareil conserve lorsqu'une écriture a été refusée — porte **Comparer** : la même vue de comparaison qu'un conflit, avec les sorties Adopter, Garder les deux et Abandonner ; ensuite le fork disparaît de la liste. Pareil sur le téléphone. Si une de vos modifications y est refusée — vous ne pouvez plus modifier, supprimer ou déplacer la note, ou elle se trouve hors de ce que vous pouvez changer —, un avis la nomme une fois, et la modification reste sur cet appareil comme fork local ; une note que vous n'aviez pas le droit de supprimer ou de déplacer revient à sa place.
+Les artefacts distants invalides sont isolés individuellement sous **Intégrité et forks locaux**. Vous pouvez les réessayer, exporter leur ciphertext, marquer un artefact réparé en externe comme réparé, ou l’ignorer délibérément. Un fichier invalide ne bloque pas le reste de la synchronisation valide, et une absence distante seule ne vaut jamais suppression. Une modification apportée par un programme local sans droit d’écriture est conservée comme une copie de fork privée. Un **fork local** — la copie que cet appareil conserve lorsqu'une écriture a été refusée — porte **Comparer** : la même vue de comparaison qu'un conflit, avec les sorties Adopter, Garder les deux et Abandonner ; ensuite le fork disparaît de la liste. Pareil sur le téléphone. Si une de vos modifications y est refusée — vous ne pouvez plus modifier, supprimer ou déplacer la note, ou elle se trouve hors de ce que vous pouvez changer —, un avis la nomme une fois, et la modification reste sur cet appareil comme fork local ; une note que vous n'aviez pas le droit de supprimer ou de déplacer revient à sa place. Si l'original ne peut pas encore être récupéré, la modification attend, l'avis le dit, et Plainva réessaie à chaque synchronisation ; tout le reste est envoyé entre-temps.
 
 ### Ce que dit **Intégrité et bifurcations locales**
 

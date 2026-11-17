@@ -1,6 +1,6 @@
 # Segurança e compartilhamento
 
-Última revisão: 2026-11-16
+Última revisão: 2026-11-17
 
 > **Experimental — ainda sem revisão independente.** Workspaces criptografados são lançados como uma prévia. O design ainda não passou por uma revisão criptográfica independente, e evidências de dois dispositivos em hardware Android e iOS reais ainda estão sendo coletadas. Experimente, mas mantenha um backup de tudo que você não pode perder, e não confie nele para material que você precisa proteger.
 
@@ -28,7 +28,7 @@ O texto simples antigo permanece ao lado de `.pvws/` durante a migração. Só n
 
 ## No dia a dia
 
-As alterações feitas offline permanecem em uma fila durável. Toda alteração é assinada; uma exclusão remota sozinha nunca apaga um arquivo local, mas uma lápide assinada pode. Edições paralelas offline são preservadas como cópias `.CONFLICT-…`. **Bloquear** apaga de fato as chaves do workspace da memória — a chave de assinatura, a de descriptografia e toda chave de grupo que a sessão buscou; **Desbloquear** as pede novamente ao chaveiro do sistema ou à frase secreta local.
+As alterações feitas offline permanecem em uma fila durável. Toda alteração é assinada; uma exclusão remota sozinha nunca apaga um arquivo local, mas uma lápide assinada pode. Edições paralelas offline são preservadas como cópias `.CONFLICT-…`. Todo dispositivo mostra a mesma versão com o nome da nota e a outra como cópia — também quando dois dispositivos criam ao mesmo tempo a mesma nota nova, ou um exclui uma nota e a cria de novo enquanto outro a edita. **Bloquear** apaga de fato as chaves do workspace da memória — a chave de assinatura, a de descriptografia e toda chave de grupo que a sessão buscou; **Desbloquear** as pede novamente ao chaveiro do sistema ou à frase secreta local.
 
 ## Dispositivos e recuperação
 
@@ -62,7 +62,7 @@ Os comentários aparecem junto à nota original no desktop e no celular, agrupad
 
 **Histórico de versões** lê revisões criptografadas do workspace e restaura uma revisão anterior como uma nova alteração assinada ou como uma cópia.
 
-Artefatos remotos inválidos são isolados individualmente em **Integridade e forks locais**. Você pode tentar novamente, exportar o ciphertext, marcar como reparado um artefato reparado externamente, ou ignorá-lo deliberadamente. Um arquivo inválido não bloqueia o restante de uma sincronização válida, e a mera ausência remota nunca significa exclusão. Uma alteração de um programa local sem permissão de escrita é mantida como uma cópia privada de fork. Um **fork local** — a cópia que este dispositivo guarda quando uma gravação foi recusada — tem **Comparar**: a mesma visão de comparação de um conflito, com as saídas Adotar, Manter ambos e Descartar; depois o fork sai da lista. No telefone é igual. Se uma alteração sua for recusada ali — você não pode mais editar, excluir ou mover a nota, ou ela está fora do que você pode alterar —, um aviso a nomeia uma vez, e a alteração fica neste dispositivo como fork local; uma nota que você não podia excluir ou mover volta ao seu lugar.
+Artefatos remotos inválidos são isolados individualmente em **Integridade e forks locais**. Você pode tentar novamente, exportar o ciphertext, marcar como reparado um artefato reparado externamente, ou ignorá-lo deliberadamente. Um arquivo inválido não bloqueia o restante de uma sincronização válida, e a mera ausência remota nunca significa exclusão. Uma alteração de um programa local sem permissão de escrita é mantida como uma cópia privada de fork. Um **fork local** — a cópia que este dispositivo guarda quando uma gravação foi recusada — tem **Comparar**: a mesma visão de comparação de um conflito, com as saídas Adotar, Manter ambos e Descartar; depois o fork sai da lista. No telefone é igual. Se uma alteração sua for recusada ali — você não pode mais editar, excluir ou mover a nota, ou ela está fora do que você pode alterar —, um aviso a nomeia uma vez, e a alteração fica neste dispositivo como fork local; uma nota que você não podia excluir ou mover volta ao seu lugar. Se o original ainda não puder ser recuperado, a alteração espera, o aviso diz isso, e o Plainva tenta de novo a cada sincronização; enquanto isso, todo o resto é enviado.
 
 ### O que **Integridade e bifurcações locais** diz
 

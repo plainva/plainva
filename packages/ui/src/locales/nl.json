@@ -3715,6 +3715,13 @@
     "deletionsKeptLocalEdits_one": "‘{{names}}’ is in de cloud verwijderd, maar had hier wijzigingen die nog niet waren geüpload. Plainva heeft het bestand behouden en uploadt het opnieuw — verwijder het hier als je het kwijt wilt.",
     "deletionsKeptLocalEdits_other": "{{count}} bestanden zijn in de cloud verwijderd, maar hadden hier wijzigingen die nog niet waren geüpload. Plainva heeft ze behouden en uploadt ze opnieuw — verwijder ze hier als je ze kwijt wilt: {{names}}",
     "workspaceChangesRefused": "Niet toegestaan in deze workspace: {{names}}. De wijziging blijft als lokale fork op dit apparaat en gaat niet naar de andere — zie ‘Integriteit en lokale forks’.",
+    "workspacePullGuardTitle": "Verwijderd op een ander apparaat",
+    "workspacePullGuardBody": "Een ander apparaat van deze workspace heeft {{n}} van {{total}} bestanden verwijderd. Ook hier verwijderen?",
+    "workspacePullGuardBodyLocal": "Een ander apparaat van deze workspace heeft {{n}} van {{total}} bestanden verwijderd. Ook hier verwijderen? {{local}} daarvan kunnen van hieruit niet opnieuw voor de anderen beschikbaar worden gemaakt: bewaard blijven ze alleen op dit apparaat, als eigen versie ervan.",
+    "workspacePullGuardKeepHere": "Alleen op dit apparaat bewaren",
+    "workspacePullGuardKeepMixed": "Bewaren",
+    "workspacePullGuardKeptLocal": "Bewaard: {{count}}, waarvan {{local}} alleen op dit apparaat, als eigen versie ervan.",
+    "workspaceRestorePending": "Niet toegestaan, en het origineel is hier nog niet terug: {{names}}. Plainva probeert het bij elke synchronisatie opnieuw; tot die tijd wacht de wijziging.",
     "downloading": "Wijzigingen downloaden… {{current}}/{{total}}",
     "uploading": "Wijzigingen uploaden… {{current}}/{{total}}",
     "idle": "Nu synchroniseren (inclusief nieuwe poging)",
@@ -7356,7 +7363,8 @@
     "forkReason": {
       "permission-denied": "Schrijven was niet toegestaan — de wijziging ligt ernaast als kopie.",
       "parallel-write": "Tegelijk geschreven — beide versies liggen naast elkaar.",
-      "path-collision": "Het pad was bezet — de kopie draagt een eigen naam."
+      "path-collision": "Het pad was bezet — de kopie draagt een eigen naam.",
+      "kept-local": "Verwijderd op een ander apparaat — hier bewaard als eigen versie van dit apparaat."
     },
     "quarantineEntries_one": "1 item",
     "quarantineEntries_other": "{{count}} items",

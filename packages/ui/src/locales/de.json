@@ -3715,6 +3715,13 @@
     "deletionsKeptLocalEdits_one": "„{{names}}“ wurde in der Cloud gelöscht, hatte hier aber Änderungen, die noch nicht hochgeladen waren. Plainva hat die Datei behalten und lädt sie wieder hoch — lösche sie hier, wenn sie weg soll.",
     "deletionsKeptLocalEdits_other": "{{count}} Dateien wurden in der Cloud gelöscht, hatten hier aber Änderungen, die noch nicht hochgeladen waren. Plainva hat sie behalten und lädt sie wieder hoch — lösche sie hier, wenn sie weg sollen: {{names}}",
     "workspaceChangesRefused": "In diesem Workspace nicht erlaubt: {{names}}. Die Änderung bleibt als lokaler Fork auf diesem Gerät und geht nicht an die anderen — zu finden unter „Integrität & lokale Forks“.",
+    "workspacePullGuardTitle": "Auf einem anderen Gerät gelöscht",
+    "workspacePullGuardBody": "Ein anderes Gerät dieses Workspace hat {{n}} von {{total}} Dateien gelöscht. Sollen sie auch hier gelöscht werden?",
+    "workspacePullGuardBodyLocal": "Ein anderes Gerät dieses Workspace hat {{n}} von {{total}} Dateien gelöscht. Sollen sie auch hier gelöscht werden? {{local}} davon dürfen von hier aus nicht wieder für die anderen bereitgestellt werden: Behalten, bleiben sie nur auf diesem Gerät, als seine eigene Fassung.",
+    "workspacePullGuardKeepHere": "Nur auf diesem Gerät behalten",
+    "workspacePullGuardKeepMixed": "Behalten",
+    "workspacePullGuardKeptLocal": "Behalten: {{count}}, davon {{local}} nur auf diesem Gerät, als seine eigene Fassung.",
+    "workspaceRestorePending": "Nicht erlaubt, und das Original ist hier noch nicht zurück: {{names}}. Plainva versucht es bei jedem Abgleich wieder; bis dahin wartet die Änderung.",
     "downloading": "Änderungen werden geladen… {{current}}/{{total}}",
     "uploading": "Änderungen werden hochgeladen… {{current}}/{{total}}",
     "idle": "Jetzt synchronisieren (inkl. erneutem Versuch)",
@@ -7356,7 +7363,8 @@
     "forkReason": {
       "permission-denied": "Schreiben war nicht erlaubt — die Änderung liegt als Kopie daneben.",
       "parallel-write": "Gleichzeitig geschrieben — beide Fassungen liegen nebeneinander.",
-      "path-collision": "Der Pfad war belegt — die Kopie trägt einen eigenen Namen."
+      "path-collision": "Der Pfad war belegt — die Kopie trägt einen eigenen Namen.",
+      "kept-local": "Auf einem anderen Gerät gelöscht — hier als eigene Fassung dieses Geräts behalten."
     },
     "quarantineEntries_one": "1 Eintrag",
     "quarantineEntries_other": "{{count}} Einträge",

@@ -28,7 +28,7 @@ import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
-import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers } from "@plainva/ui";
+import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers, type SuspendedDeletionInfo } from "@plainva/ui";
 
 /**
  * The mass-deletion question for either worker (plain sync, encrypted
@@ -39,7 +39,7 @@ function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: nu
   void askMassDeletionWith(worker, info, (question) => appConfirm({ ...question, kind: "danger" }));
 }
 
-function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: { missing: number; confirmed: number; probed: number; absent: number }): void {
+function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: SuspendedDeletionInfo): void {
   void askSuspendedDeletionsWith(worker, info, (question) => appConfirm({ ...question, kind: "danger" }));
 }
 import i18n from "@plainva/ui/i18n";
@@ -1597,7 +1597,7 @@ export const VaultProvider: React.FC<{
                 // And the pull-side one: another device's mass deletion waits for an answer.
                 worker.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(worker, info);
                 // A change the workspace's policy refused stays here as a local fork: said, not only listed.
-                worker.onChangesRefused = (paths) => { const text = refusedChangesText(paths); if (text) toast.info(text); };
+                worker.onChangesRefused = (paths, restorePending) => { const text = refusedChangesText(paths, restorePending); if (text) toast.info(text); };
                 // The first cycle has looked: what the index found and an ended
                 // app never queued goes into the workspace's queue (R22).
                 worker.onFirstCycleComplete = () => sweepOwedToRemote("workspace");

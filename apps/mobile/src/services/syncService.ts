@@ -34,7 +34,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspa
 import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
-import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers } from "@plainva/ui";
+import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers, type SuspendedDeletionInfo } from "@plainva/ui";
 
 /**
  * The mass-deletion question for either worker (plain sync, encrypted
@@ -45,7 +45,7 @@ function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: nu
   void askMassDeletionWith(worker, info, (question) => mConfirm({ ...question, danger: true }));
 }
 
-function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: { missing: number; confirmed: number; probed: number; absent: number }): void {
+function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: SuspendedDeletionInfo): void {
   void askSuspendedDeletionsWith(worker, info, (question) => mConfirm({ ...question, danger: true }));
 }
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
@@ -1356,7 +1356,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // And the pull-side one: another device's mass deletion waits for an answer.
     encrypted.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(encrypted, info);
     // A change the workspace's policy refused stays here as a local fork: said, not only listed.
-    encrypted.onChangesRefused = (paths) => { const text = refusedChangesText(paths); if (text) toast.info(text); };
+    encrypted.onChangesRefused = (paths, restorePending) => { const text = refusedChangesText(paths, restorePending); if (text) toast.info(text); };
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     // The first cycle has looked: a file the index finds as new from now on
     // goes into the workspace queue at once, as with the plain worker (3.119).

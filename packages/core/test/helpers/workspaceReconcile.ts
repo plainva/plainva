@@ -188,3 +188,44 @@ export async function teamEditor(teamFiles: string[]) {
   };
   return { owner, runtime, state, vault, store, worker, permissions, reconcile, restart };
 }
+
+/**
+ * A member with `role` over the whole workspace, on a device of their own;
+ * the owner writes `names` after the member joined, so they are sealed for
+ * the member too.
+ */
+export async function workspaceMember(names: string[], role: "Reader" | "Contributor" | "Editor") {
+  const owner = await synced([]);
+  const invitation = await inviteWorkspaceMember({ runtime: owner.runtime, displayName: "Member", role, scopeKind: "workspace" });
+  await publishWorkspaceGovernanceUpdate(owner.store, invitation);
+  applyWorkspaceGovernanceUpdate(owner.runtime, invitation);
+  const created = await createWorkspacePairingRequest({ workspaceId: owner.runtime.workspaceId, workspaceFingerprint: workspaceDocumentHash(owner.runtime.genesis), memberId: invitation.memberId, deviceDisplayName: "Member's laptop", platform: "desktop", now: "2026-11-16T09:00:00.000Z" });
+  const previousPolicy = owner.runtime.policy;
+  const approval = await approveWorkspacePairing({ token: created.token, runtime: owner.runtime, now: "2026-11-16T09:00:00.000Z" });
+  await publishWorkspaceGovernanceUpdate(owner.store, approval);
+  owner.runtime.policy = approval.policy;
+  owner.runtime.grants = [...owner.runtime.grants, ...approval.grants];
+  const runtime = await acceptWorkspacePairing({ created, genesis: owner.runtime.genesis, previousPolicy, approval, now: "2026-11-16T09:00:00.000Z" });
+  for (const name of names) {
+    await owner.vault.writeTextFile(name, `# ${name}\n`);
+    await owner.state.enqueue("write", name);
+  }
+  await owner.worker.runCycle();
+  const state = new MemoryWorkspaceStateStore();
+  const vault = new MemoryVault();
+  const store = owner.store;
+  await initializePersonalWorkspaceMigration({ store, state, vault, runtime, recoveryConfirmedAt: "2026-11-16T09:01:00.000Z" });
+  const worker = new EncryptedWorkspaceWorker(store, state, vault, runtime);
+  await worker.runCycle();
+  for (const name of names) expect(vault.files.has(name)).toBe(true);
+  return { owner, runtime, state, vault, store, worker };
+}
+
+/** What a device shows: every file outside the app's own folder, with its text. */
+export function filesOf(vault: MemoryVault): Record<string, string> {
+  const shown: Record<string, string> = {};
+  for (const [path, bytes] of [...vault.files.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    if (!path.startsWith(".plainva/")) shown[path] = new TextDecoder().decode(bytes);
+  }
+  return shown;
+}

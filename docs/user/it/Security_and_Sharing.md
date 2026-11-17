@@ -1,6 +1,6 @@
 # Sicurezza e condivisione
 
-Ultimo aggiornamento: 2026-11-16
+Ultimo aggiornamento: 2026-11-17
 
 > **Sperimentale — non ancora verificato in modo indipendente.** Gli workspace cifrati vengono rilasciati come anteprima. Il design crittografico non è ancora stato sottoposto a un audit indipendente e le verifiche su due dispositivi con hardware Android e iOS reale sono ancora in corso. Provalo pure, ma conserva una copia di backup di tutto ciò che non puoi perdere e non affidargli ancora materiale che deve essere davvero protetto.
 
@@ -28,7 +28,7 @@ Il vecchio contenuto in chiaro resta accanto a `.pvws/` durante la migrazione. P
 
 ## Nell’uso quotidiano
 
-Le modifiche offline restano in una coda durevole. Ogni modifica è firmata; una cancellazione remota da sola non elimina mai un file locale, mentre una lapide firmata può farlo. Le modifiche parallele offline vengono conservate come copie `.CONFLICT-…`. **Blocca** cancella davvero le chiavi del workspace dalla memoria — la chiave di firma, quella di decifratura e tutte le chiavi di gruppo recuperate nella sessione; **Sblocca** le richiede di nuovo al portachiavi di sistema o alla passphrase locale.
+Le modifiche offline restano in una coda durevole. Ogni modifica è firmata; una cancellazione remota da sola non elimina mai un file locale, mentre una lapide firmata può farlo. Le modifiche parallele offline vengono conservate come copie `.CONFLICT-…`. Ogni dispositivo mostra la stessa versione con il nome della nota e l'altra come copia, anche quando due dispositivi creano insieme la stessa nuova nota, o uno elimina una nota e la ricrea mentre un altro la modifica. **Blocca** cancella davvero le chiavi del workspace dalla memoria — la chiave di firma, quella di decifratura e tutte le chiavi di gruppo recuperate nella sessione; **Sblocca** le richiede di nuovo al portachiavi di sistema o alla passphrase locale.
 
 ## Dispositivi e recupero
 
@@ -62,7 +62,7 @@ I riscontri compaiono accanto alla nota originale su desktop e mobile, raggruppa
 
 **Cronologia versioni** legge le revisioni cifrate del workspace e ripristina una revisione precedente come nuova modifica firmata o come copia.
 
-Gli artefatti remoti non validi vengono isolati singolarmente in **Integrità e fork locali**. Puoi riprovare, esportare il ciphertext, contrassegnare come riparato un artefatto riparato esternamente, oppure ignorarlo deliberatamente. Un file non valido non blocca il resto della sincronizzazione valida, e la sola assenza remota non equivale mai a eliminazione. Una modifica apportata da un programma locale senza permesso di scrittura viene conservata come una copia privata del fork. Un **fork locale** — la copia che questo dispositivo conserva quando una scrittura è stata rifiutata — ha **Confronta**: la stessa vista di confronto di un conflitto, con le uscite Adotta, Tieni entrambi e Scarta; poi il fork sparisce dall'elenco. Sul telefono allo stesso modo. Se lì una tua modifica viene rifiutata — non puoi più modificare, eliminare o spostare la nota, oppure è fuori da ciò che puoi cambiare — un avviso la nomina una volta e la modifica resta su questo dispositivo come fork locale; una nota che non potevi eliminare o spostare torna al suo posto.
+Gli artefatti remoti non validi vengono isolati singolarmente in **Integrità e fork locali**. Puoi riprovare, esportare il ciphertext, contrassegnare come riparato un artefatto riparato esternamente, oppure ignorarlo deliberatamente. Un file non valido non blocca il resto della sincronizzazione valida, e la sola assenza remota non equivale mai a eliminazione. Una modifica apportata da un programma locale senza permesso di scrittura viene conservata come una copia privata del fork. Un **fork locale** — la copia che questo dispositivo conserva quando una scrittura è stata rifiutata — ha **Confronta**: la stessa vista di confronto di un conflitto, con le uscite Adotta, Tieni entrambi e Scarta; poi il fork sparisce dall'elenco. Sul telefono allo stesso modo. Se lì una tua modifica viene rifiutata — non puoi più modificare, eliminare o spostare la nota, oppure è fuori da ciò che puoi cambiare — un avviso la nomina una volta e la modifica resta su questo dispositivo come fork locale; una nota che non potevi eliminare o spostare torna al suo posto. Se l'originale non si può ancora recuperare, la modifica attende, l'avviso lo dice e Plainva riprova a ogni sincronizzazione; nel frattempo tutto il resto viene caricato.
 
 ### Cosa dice **Integrità e fork locali**
 
