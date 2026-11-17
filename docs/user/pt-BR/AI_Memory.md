@@ -38,7 +38,7 @@ Como todas as instruções, o arquivo precisa ser aprovado em cada dispositivo a
 
 Uma memória que cresceu acaba se repetindo. Em **Arrumar**, a visualização da memória aponta o que este dispositivo notou por conta própria, sem consultar um modelo: duas entradas que dizem quase o mesmo, uma entrada com mais de um ano e entradas em **Sempre incluído** que não cabem mais. **Comparar** mostra as duas entradas juntas, cada uma com tudo o que o menu dela permite fazer.
 
-Para olhar mais de perto, há uma habilidade. **Cuidar da memória** lê as entradas com o modelo de uma conversa e prepara rascunhos do que pode ser unido e do que pode ser retirado; a linha **Pedir uma revisão da memória** a inicia. O que ela sugere são rascunhos como todos os outros: nada muda antes de você aceitar, e quando duas entradas se contradizem ela pergunta em vez de decidir.
+Para olhar mais de perto, há uma habilidade. **Cuidar da memória** lê as entradas com o modelo de uma conversa e prepara rascunhos do que pode ser unido e do que pode ser retirado; a linha **Pedir uma revisão da memória** a inicia — ela aparece em **Arrumar** sempre que algo é apontado ali. O que ela sugere são rascunhos como todos os outros: nada muda antes de você aceitar, e quando duas entradas se contradizem ela pergunta em vez de decidir.
 
 ## Estilo de escrita
 

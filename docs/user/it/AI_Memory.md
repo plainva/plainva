@@ -38,7 +38,7 @@ Come tutte le istruzioni, il file va approvato su ogni dispositivo prima di aver
 
 Una memoria che è cresciuta si ripete. Sotto **Riordino**, la vista della memoria segnala ciò che questo dispositivo ha notato da sé, senza chiedere a un modello: due voci che dicono quasi la stessa cosa, una voce che ha più di un anno e voci di **Sempre incluso** che non trovano più posto. **Confronta** mostra le due voci insieme, ciascuna con tutto ciò che il suo menu permette di fare.
 
-Per uno sguardo più attento c'è una competenza. **Curare la memoria** legge le voci con il modello di una conversazione e prepara bozze di ciò che va unito e di ciò che si può togliere; si avvia dalla riga **Far rileggere la memoria**. Ciò che propone sono bozze come tutte le altre: nulla cambia finché non lo accetti e, dove due voci si contraddicono, chiede invece di decidere.
+Per uno sguardo più attento c'è una competenza. **Curare la memoria** legge le voci con il modello di una conversazione e prepara bozze di ciò che va unito e di ciò che si può togliere; si avvia dalla riga **Far rileggere la memoria**, che compare sotto **Riordino** ogni volta che lì è segnalato qualcosa. Ciò che propone sono bozze come tutte le altre: nulla cambia finché non lo accetti e, dove due voci si contraddicono, chiede invece di decidere.
 
 ## Stile di scrittura
 

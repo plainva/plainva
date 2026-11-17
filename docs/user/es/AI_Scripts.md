@@ -12,7 +12,7 @@ Una ejecución que inicias aquí se queda en este dispositivo: nada de ello va a
 
 ## En una conversación
 
-En una conversación normal, la IA puede encontrar tus scripts activos y ejecutar uno cuando encaja; el paso dice entonces **Ejecutando el script «word-count»**. El script lee solo lo que esa conversación puede leer: una nota que mantienes fuera de la nube sigue sin salir de este dispositivo, y cada nota que lee el script cuenta entre lo que leyó la ejecución. Lo que devuelve va al modelo como datos, nunca como instrucciones. Una rutina, la ejecución de prueba de una habilidad y los accesos **Explicar imagen** y **Convertir en nota** no ejecutan ningún script, a una conversación iniciada con una habilidad no se le ofrece ninguno, y tampoco a una app de IA conectada mediante el servidor MCP.
+En una conversación normal, la IA puede encontrar tus scripts activos y ejecutar uno cuando encaja; el paso dice entonces **Ejecutando el script «word-count»**. El script lee solo lo que esa conversación puede leer: una nota que mantienes fuera de la nube sigue sin salir de este dispositivo, y cada nota que lee el script cuenta entre lo que leyó la ejecución. Lo que devuelve va al modelo como datos, nunca como instrucciones. Una rutina, la ejecución de prueba de una habilidad y los puntos de entrada **Explicar imagen** y **Convertir en nota** no ejecutan ningún script, a una conversación iniciada con una habilidad no se le ofrece ninguno, y tampoco a una app de IA conectada mediante el servidor MCP.
 
 ## Sugerir cambios
 

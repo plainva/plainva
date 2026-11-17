@@ -12,7 +12,7 @@ Une exécution que vous lancez ici reste sur cet appareil : rien n'en part vers 
 
 ## Dans une conversation
 
-Dans une conversation ordinaire, l'IA peut trouver vos scripts actifs et en exécuter un quand cela convient ; l'étape s'affiche alors ainsi : **Exécution du script « word-count »**. Le script ne lit que ce que cette conversation a le droit de lire : une note que vous tenez à l'écart du cloud le reste, et chaque note que le script lit compte parmi ce que l'exécution a lu. Ce qu'il renvoie va au modèle comme des données, jamais comme des instructions. Une routine, l'exécution de test d'une compétence et les accès **Expliquer l'image** et **En faire une note** n'exécutent aucun script, aucun n'est proposé à une conversation lancée avec une compétence, ni à une app d'IA connectée par le serveur MCP.
+Dans une conversation ordinaire, l'IA peut trouver vos scripts actifs et en exécuter un quand cela convient ; l'étape s'affiche alors ainsi : **Exécution du script « word-count »**. Le script ne lit que ce que cette conversation a le droit de lire : une note que vous tenez à l'écart du cloud le reste, et chaque note que le script lit compte parmi ce que l'exécution a lu. Ce qu'il renvoie va au modèle comme des données, jamais comme des instructions. Une routine, l'exécution de test d'une compétence et les points d'entrée **Expliquer l'image** et **En faire une note** n'exécutent aucun script, aucun n'est proposé à une conversation lancée avec une compétence, ni à une app d'IA connectée par le serveur MCP.
 
 ## Proposer des modifications
 

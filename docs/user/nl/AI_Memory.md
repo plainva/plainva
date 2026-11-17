@@ -38,7 +38,7 @@ Zoals alle instructies moet het bestand op elk apparaat worden goedgekeurd voord
 
 Een geheugen dat is gegroeid, herhaalt zichzelf. Onder **Opruimen** noemt de geheugenweergave wat dit apparaat zelf heeft opgemerkt, zonder een model te raadplegen: twee items die bijna hetzelfde zeggen, een item dat meer dan een jaar oud is, en items van **Altijd erbij** die niet meer passen. **Vergelijken** toont de twee items samen, elk met alles wat zijn menu kan.
 
-Voor een nadere blik is er een vaardigheid. **Geheugen onderhouden** leest de items met het model van een gesprek en stelt een concept op van wat bij elkaar hoort en wat weg kan; de rij **Het geheugen laten doornemen** start haar. Wat ze voorstelt, zijn concepten zoals alle andere: niets verandert voordat je het overneemt, en waar twee items elkaar tegenspreken, vraagt ze het je in plaats van te beslissen.
+Voor een nadere blik is er een vaardigheid. **Geheugen onderhouden** leest de items met het model van een gesprek en stelt een concept op van wat bij elkaar hoort en wat weg kan; de rij **Het geheugen laten doornemen** start haar — ze staat onder **Opruimen** zodra daar iets genoemd wordt. Wat ze voorstelt, zijn concepten zoals alle andere: niets verandert voordat je het overneemt, en waar twee items elkaar tegenspreken, vraagt ze het je in plaats van te beslissen.
 
 ## Schrijfstijl
 

@@ -38,7 +38,7 @@ Wie alle Anweisungen muss die Datei auf jedem Gerät freigegeben sein, bevor sie
 
 Ein Gedächtnis, das gewachsen ist, wiederholt sich. Unter **Aufräumen** nennt die Gedächtnis-Ansicht, was dieses Gerät von selbst bemerkt hat, ohne ein Modell zu fragen: zwei Einträge, die fast dasselbe sagen, einen Eintrag, der älter als ein Jahr ist, und Einträge von **Immer dabei**, die nicht mehr passen. **Vergleichen** zeigt die zwei Einträge zusammen, jeden mit allem, was sein Menü kann.
 
-Für einen genaueren Blick gibt es einen Skill. **Gedächtnis pflegen** liest die Einträge mit dem Modell eines Gesprächs und entwirft, was zusammengehört und was gehen kann; die Zeile **Das Gedächtnis durchsehen lassen** startet ihn. Was er vorschlägt, sind Entwürfe wie alle anderen: nichts ändert sich, bevor Du es annimmst, und wo zwei Einträge sich widersprechen, fragt er, statt zu entscheiden.
+Für einen genaueren Blick gibt es einen Skill. **Gedächtnis pflegen** liest die Einträge mit dem Modell eines Gesprächs und entwirft, was zusammengehört und was gehen kann; die Zeile **Das Gedächtnis durchsehen lassen** startet ihn — sie steht unter **Aufräumen**, sobald dort etwas genannt ist. Was er vorschlägt, sind Entwürfe wie alle anderen: nichts ändert sich, bevor Du es annimmst, und wo zwei Einträge sich widersprechen, fragt er, statt zu entscheiden.
 
 ## Schreibstil
 

@@ -38,7 +38,7 @@ Comme toutes les instructions, le fichier doit être approuvé sur chaque appare
 
 Une mémoire qui a grandi se répète. Sous **Ranger**, la vue de la mémoire signale ce que cet appareil a remarqué de lui-même, sans interroger de modèle : deux entrées qui disent presque la même chose, une entrée vieille de plus d'un an et des entrées de **Toujours inclus** qui ne tiennent plus. **Comparer** montre les deux entrées ensemble, chacune avec tout ce que son menu permet de faire.
 
-Pour y regarder de plus près, il existe une compétence. **Entretenir la mémoire** lit les entrées avec le modèle d'une conversation et prépare des brouillons de ce qui peut être regroupé et de ce qui peut disparaître ; la ligne **Faire examiner la mémoire** la lance. Ce qu'elle propose, ce sont des brouillons comme les autres : rien ne change avant que vous ne les acceptiez, et lorsque deux entrées se contredisent, elle pose la question au lieu de trancher.
+Pour y regarder de plus près, il existe une compétence. **Entretenir la mémoire** lit les entrées avec le modèle d'une conversation et prépare des brouillons de ce qui peut être regroupé et de ce qui peut disparaître ; la ligne **Faire examiner la mémoire** la lance — elle se trouve sous **Ranger** dès que quelque chose y est signalé. Ce qu'elle propose, ce sont des brouillons comme les autres : rien ne change avant que vous ne les acceptiez, et lorsque deux entrées se contredisent, elle pose la question au lieu de trancher.
 
 ## Style d'écriture
 
