@@ -89,6 +89,11 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
   const ui = { saving: vi.fn(), error: vi.fn(), content: vi.fn(), conflict: vi.fn(), notText: vi.fn(), toast: vi.fn() };
   const loadedPathRef = { current: path as string | null };
   const saveTimeoutRef = { current: null as number | null };
+  // The retry of a failed save (saveRetryTimer.ts): recorded, never fired here.
+  const saveRetry = {
+    failed: vi.fn((_error: unknown, _still: () => boolean, _retry: () => void) => true),
+    starting: vi.fn(), reset: vi.fn(), cancel: vi.fn(), planned: false,
+  };
   // A keep beside the file can be held or made to fail.
   const hooks = { beforeKeep: async () => {} };
   const deps = {
@@ -100,7 +105,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
     keepTextBeside: async (...args: Parameters<typeof keepTextBeside>) => { await hooks.beforeKeep(); return keepTextBeside(...args); },
     loadJournal: async () => ({ recordDraft, clearDraft, writeDraft, dropDraft }),
     setIsSaving: ui.saving, setSaveError: ui.error, setContent: ui.content, setConflictInfo: ui.conflict, setNotText: ui.notText, loadedPathRef,
-    saveTimeoutRef,
+    saveTimeoutRef, saveRetry,
     indexer: null, triggerFileTreeUpdate: vi.fn(), window, CustomEvent, crypto,
     console: { error: vi.fn() }, toast: { warning: ui.toast }, t: (key: string, values?: Record<string, string>) => (values ? `${key} ${JSON.stringify(values)}` : key),
   };
@@ -111,7 +116,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
     session.applyExternalText(text); contentRef.current = text;
     lifetime.dirty = true; lifetime.nextRevision(); dirtyStore.set(path, true, lifetime.id);
   }
-  return { persist, schedule, edit, hooks, lifetime, session, sessionRef, contentRef, journals, recordDraft, clearDraft, ui, loadedPathRef, saveTimeoutRef };
+  return { persist, schedule, edit, hooks, lifetime, session, sessionRef, contentRef, journals, recordDraft, clearDraft, ui, loadedPathRef, saveTimeoutRef, saveRetry };
 }
 
 describe("original desktop save completion", () => {
@@ -148,6 +153,40 @@ describe("original desktop save completion", () => {
     expect(h.journals.get(h.lifetime.id)?.text).toBe("my draft");
     expect(h.clearDraft).not.toHaveBeenCalled();
     expect(await raw.readTextFile("Note.md")).toBe("base\nmiddle\nend");
+  });
+
+  it("plans a retry of a failed save that reads the pane's text when it comes, and only while the pane holds the note (decided 2026-11-17)", async () => {
+    const h = harness(); h.edit("my draft");
+    vi.spyOn(raw, "writeTextFile").mockRejectedValueOnce(new Error("disk full"));
+    await expect(h.persist("my draft")).rejects.toThrow("disk full");
+    expect(h.saveRetry.starting).toHaveBeenCalledTimes(1);
+    expect(h.saveRetry.failed).toHaveBeenCalledTimes(1);
+    const [error, still, retry] = h.saveRetry.failed.mock.calls[0];
+    expect(String(error)).toContain("disk full");
+    expect(still()).toBe(true);
+    // The person typed on before the retry came: it writes that, not the text that failed.
+    h.edit("my draft, longer");
+    retry();
+    await vi.waitFor(async () => expect(await raw.readTextFile("Note.md")).toBe("my draft, longer"));
+    expect(h.saveRetry.reset).toHaveBeenCalled();
+    // The pane shows another note: a retry still to come does nothing.
+    h.edit("more");
+    h.loadedPathRef.current = "Other.md";
+    expect(still()).toBe(false);
+  });
+
+  it("plans no retry for a save that went through", async () => {
+    const h = harness(); h.edit("my draft");
+    await h.persist("my draft");
+    expect(h.saveRetry.failed).not.toHaveBeenCalled();
+    expect(h.saveRetry.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts the retry interval over when the person types", () => {
+    const h = harness();
+    h.schedule("typed");
+    expect(h.saveRetry.reset).toHaveBeenCalledTimes(1);
+    if (h.saveTimeoutRef.current !== null) window.clearTimeout(h.saveTimeoutRef.current);
   });
 
   // "Größe" and a line end in Windows-1252, laid down after the note was opened.

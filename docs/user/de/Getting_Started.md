@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-11-05
+Stand: 2026-11-17
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -70,7 +70,7 @@ Wähle einen neuen, leeren lokalen Ordner und bei einer Online-Neuanlage einen l
 - **Editor-Bereich** — hier liest und schreibst Du. Über das Tab-Menü (**Rechts teilen** / **Unten teilen**) oder die Kürzel `Strg+Alt+V` / `Strg+Alt+S` teilst Du den Editor in zwei Bereiche (Split), z. B. für Notiz + Datenbank nebeneinander.
 - **Weitere Fenster** — eine Notiz in einem eigenen Fenster zeigt rechts dieselbe Kontext-Seitenleiste (Gliederung, Graph, Datenbanken, Backlinks, Eigenschaften; der Kalender bleibt beim Hauptfenster), ein- und ausklappbar über die Titelleiste. Das **⋮**-Menü des Editors tut dort dasselbe wie im Hauptfenster: **Versionsverlauf…** und die Konfliktlösung öffnen im Fenster der Notiz, **Im Dateibaum anzeigen** holt das Fenster mit dem Dateibaum nach vorn und markiert die Datei, und ein Rechtsklick auf einen Tab bietet dasselbe Tab-Menü (ohne **In neuem Fenster öffnen** — der Tab ist schon in einem).
 - **Rechte Seitenleiste** — sieben Abschnitte, per Drag umsortierbar: **Kalender** (Tagesnotizen), **Journal** (die Journal-Einträge des Tages), **Gliederung** (Überschriften der aktiven Notiz), **Graph** (die Umgebung der Notiz), **Datenbanken** (die Datenbanken, zu denen die Notiz gehört), **Backlinks** (wer verlinkt hierher) und **Eigenschaften** (das Frontmatter der Notiz). Unter **Einstellungen → Vault → Leisten & Bereiche** blendest Du sie ein oder aus und ordnest sie an.
-- **Statusleiste** — Wortzahl/Zeichen, Sync-Status (Lokal/Online/Offline) und Speicherstatus (**Speichert...** / **Gespeichert**).
+- **Statusleiste** — Wortzahl/Zeichen, Sync-Status (Lokal/Online/Offline) und Speicherstatus (**Speichert...** / **Gespeichert**). Scheitert ein Speichern, steht dort **Nicht gespeichert — neuer Versuch folgt**, und Plainva versucht es nach einer Sekunde von selbst erneut, dann in wachsenden Abständen bis höchstens 30 Sekunden; Tippen oder `Strg+S` versucht es sofort. Nach einem Konflikt, bei einer Datei, die weg oder kein Text mehr ist, oder in einem Ordner ohne Schreibrecht steht dort **Speichern fehlgeschlagen!**, und Plainva wartet auf Dich — Dein Text bleibt im Editor. Das Telefon versucht es genauso erneut.
 - **Leere Listen** — eine Liste ohne Inhalt sagt, was sie erwartet, und bietet den ersten Schritt an: Dateibaum, Datenbanken, Graph, Post, Aufgaben.
 
 ## Die drei Editor-Modi

@@ -3528,6 +3528,7 @@
     "removeBookmark": "ブックマークを削除",
     "delete": "削除",
     "saveFailed": "保存に失敗しました！",
+    "saveRetrying": "未保存 — 再試行します",
     "split": "エディターを分割",
     "splitVertical": "垂直分割（左右に並べる）",
     "splitHorizontal": "水平分割（上下に並べる）",

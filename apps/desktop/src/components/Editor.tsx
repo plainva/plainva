@@ -89,6 +89,7 @@ import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
+import { createSaveRetryTimer, type SaveRetryTimer } from "../services/saveRetryTimer";
 
 /**
  * Text shown in the composer for a property comment, and the anchor quote.
@@ -731,6 +732,12 @@ export const Editor: React.FC<{
     kind: "header" | "body"; rowIndex: number; colIndex: number; align: TableAlignValue;
   } | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
+  // A failed save is tried again by itself, by the rule the phone keeps
+  // (`saveRetryTimer.ts`, decided 2026-11-17); the status says it is planned.
+  const [saveRetrying, setSaveRetrying] = useState(false);
+  const saveRetryRef = useRef<SaveRetryTimer | null>(null);
+  saveRetryRef.current ??= createSaveRetryTimer(setSaveRetrying);
+  const saveRetry = saveRetryRef.current;
   const contentSyncTimeoutRef = useRef<number | null>(null);
   // Every asynchronous save keeps the identity and refs of its original note.
   const saveState = useMemo(() => new EditorSaveLifetime(vaultPath, activePath, vaultAdapter), [vaultPath, activePath, vaultAdapter]);
@@ -812,8 +819,11 @@ export const Editor: React.FC<{
 
   useLayoutEffect(() => {
     saveState.activate();
-    return () => saveState.deactivate();
-  }, [saveState]);
+    return () => {
+      saveRetry.cancel();
+      saveState.deactivate();
+    };
+  }, [saveState, saveRetry]);
 
   // ---- Save pipeline (P2) --------------------------------------------------
   // The session reports real edits via onDocChanged; the text is read from the
@@ -897,6 +907,8 @@ export const Editor: React.FC<{
       }
       saveState.update({ activeWrites: saveState.activeWrites + 1 });
       if (current()) { setIsSaving(true); setSaveError(null); }
+      // This save takes the place of a retry still planned.
+      if (current()) saveRetry.starting();
       try {
         // One save, the phone's own (`writeEditorSave` in @plainva/ui,
         // stability plan R6): no write of an unchanged text (finding
@@ -908,6 +920,8 @@ export const Editor: React.FC<{
         const outcome = await writeEditorSave({
           files: vaultAdapter, path, text: val, base: saveState.baseInput, persisted: saveState.persisted, shape, kept: earlier, keep: keepTextBeside,
         });
+        // It went through: the next failure waits one second again.
+        if (current()) saveRetry.reset();
         if (outcome.kind === "kept-beside") {
           await adoptKept(outcome.kept, earlier);
           return;
@@ -977,6 +991,13 @@ export const Editor: React.FC<{
         console.error("Failed to save file", error);
         if (current()) {
           setSaveError(e.message || String(error));
+          // Tried again by itself — unless no retry can help (`isSaveFailureFinal`):
+          // then only the person's next keystroke or Ctrl+S tries once more.
+          saveRetry.failed(
+            error,
+            () => saveState.isActive() && loadedPathRef.current === path && saveState.dirty && !saveState.transferFrozen,
+            () => void persistText(sessionRef.current?.view.state.doc.toString() ?? contentRef.current).catch(() => {}),
+          );
           if (e.name === "ConflictError") {
             setConflictInfo({ conflictPath: e.conflictPath ?? "" });
             toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ? conflictCopyLabel(e.conflictPath, i18n.language) : ".CONFLICT" }));
@@ -993,6 +1014,8 @@ export const Editor: React.FC<{
   const scheduleSave = (text: string | (() => string)) => {
     const getText = typeof text === "string" ? () => text : text;
     if (saveState.transferFrozen) return;
+    // The person typed: their save comes in a second, and a failure after it waits one second again.
+    saveRetry.reset();
     if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
     if (!activePath || !vaultAdapter) return;
     const rev = saveState.nextRevision();
@@ -2589,6 +2612,9 @@ export const Editor: React.FC<{
       if (request.path !== activePath || (request.vaultPath !== undefined && request.vaultPath !== vaultPath)) return;
       const flush = async () => {
         if (saveState.transferFrozen) throw new Error("The note is being transferred to another window");
+        // Asked to save now (Ctrl+S, a step that needs the note on disk, the
+        // way out of the app): once at once, never behind a planned retry.
+        saveRetry.reset();
         while (current()) {
           if (saveTimeoutRef.current !== null) {
             window.clearTimeout(saveTimeoutRef.current);
@@ -2826,9 +2852,12 @@ export const Editor: React.FC<{
         setContent(text);
         contentRef.current = text;
       }
+      // The pane shows another note, or goes: a retry planned for this one does not come.
+      saveRetry.cancel();
       if (saveState.dirty && !saveState.transferFrozen) {
         if (saveTimeoutRef.current !== null) window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
+        // One last try with the final text; if it fails, the text stays in the journal.
         void persistText(text).catch(() => {});
       }
       // The journal's buffer for this note ends with the pane's hold on it: the
@@ -3295,6 +3324,7 @@ export const Editor: React.FC<{
     if (!activePath || !vaultPath || loadedPathRef.current !== activePath || !saveState.isActive() || saveState.transferFrozen) throw new Error("The source editor is unavailable");
     saveState.setTransferFrozen(true);
     sessionRef.current?.setEditable(false);
+    saveRetry.cancel();
     for (const timer of [saveTimeoutRef, contentSyncTimeoutRef, parkWriteTimer]) {
       if (timer.current !== null) window.clearTimeout(timer.current);
       timer.current = null;
@@ -3462,9 +3492,10 @@ export const Editor: React.FC<{
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {(() => {
             const label = saveLabelFor({ writing: isSaving, failed: !isSaving && !!saveError, dirty: !!activePath && dirtyPaths.has(activePath) });
+            const failedText = saveRetrying ? t("editor.saveRetrying") : t("editor.saveFailed");
             return (
               <span style={{ fontSize: "var(--text-ui)", color: label === "failed" ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""} data-testid="editor-save-state" data-state={label}>
-                {label === "saving" ? t("editor.saving") : label === "failed" ? t("editor.saveFailed") : t("editor.saved")}
+                {label === "saving" ? t("editor.saving") : label === "failed" ? failedText : t("editor.saved")}
               </span>
             );
           })()}

@@ -3528,6 +3528,7 @@
     "removeBookmark": "移除书签",
     "delete": "删除",
     "saveFailed": "保存失败！",
+    "saveRetrying": "未保存——将重试",
     "split": "分屏",
     "splitVertical": "垂直分屏（左右并排）",
     "splitHorizontal": "水平分屏（上下排列）",

@@ -3792,6 +3792,7 @@
     "removeBookmark": "Usuń zakładkę",
     "delete": "Usuń",
     "saveFailed": "Zapis nie powiódł się!",
+    "saveRetrying": "Nie zapisano — nastąpi ponowna próba",
     "split": "Podziel edytor",
     "splitVertical": "Podziel pionowo (obok siebie)",
     "splitHorizontal": "Podziel poziomo (jeden nad drugim)",

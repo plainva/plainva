@@ -3616,6 +3616,7 @@
     "removeBookmark": "Remove bookmark",
     "delete": "Delete",
     "saveFailed": "Save failed!",
+    "saveRetrying": "Not saved — trying again",
     "split": "Split editor",
     "splitVertical": "Split vertically (side by side)",
     "splitHorizontal": "Split horizontally (stacked)",

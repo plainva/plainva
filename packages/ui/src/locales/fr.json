@@ -3704,6 +3704,7 @@
     "removeBookmark": "Retirer le signet",
     "delete": "Supprimer",
     "saveFailed": "Échec de l'enregistrement !",
+    "saveRetrying": "Non enregistré — nouvel essai à venir",
     "split": "Scinder l'éditeur",
     "splitVertical": "Scinder verticalement (côte à côte)",
     "splitHorizontal": "Scinder horizontalement (superposé)",

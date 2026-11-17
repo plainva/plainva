@@ -3704,6 +3704,7 @@
     "removeBookmark": "Remover dos favoritos",
     "delete": "Excluir",
     "saveFailed": "Falha ao salvar!",
+    "saveRetrying": "Não salvo — tentando de novo",
     "split": "Dividir editor",
     "splitVertical": "Dividir verticalmente (lado a lado)",
     "splitHorizontal": "Dividir horizontalmente (empilhado)",

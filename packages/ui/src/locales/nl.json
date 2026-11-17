@@ -3616,6 +3616,7 @@
     "removeBookmark": "Bladwijzer verwijderen",
     "delete": "Verwijderen",
     "saveFailed": "Opslaan mislukt!",
+    "saveRetrying": "Niet opgeslagen — wordt opnieuw geprobeerd",
     "split": "Editor splitsen",
     "splitVertical": "Verticaal splitsen (naast elkaar)",
     "splitHorizontal": "Horizontaal splitsen (boven elkaar)",

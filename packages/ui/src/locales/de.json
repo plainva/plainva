@@ -3599,6 +3599,7 @@
     "removeBookmark": "Lesezeichen entfernen",
     "delete": "Löschen",
     "saveFailed": "Speichern fehlgeschlagen!",
+    "saveRetrying": "Nicht gespeichert — neuer Versuch folgt",
     "noActiveFileDesc": "Wähle eine Notiz aus, um sie anzusehen oder zu bearbeiten.",
     "loadingFile": "Lade Datei...",
     "missingFileTitle": "Diese Datei existiert nicht mehr",

@@ -3704,6 +3704,7 @@
     "removeBookmark": "Rimuovi segnalibro",
     "delete": "Elimina",
     "saveFailed": "Salvataggio non riuscito!",
+    "saveRetrying": "Non salvato — nuovo tentativo in arrivo",
     "split": "Dividi editor",
     "splitVertical": "Dividi verticalmente (affiancati)",
     "splitHorizontal": "Dividi orizzontalmente (sovrapposti)",
