@@ -458,11 +458,8 @@ export class PimWorker {
     // must never reach the calendar picker (issue #34).
     const collections = await target.listCalendars();
     if (gen !== this.generation) return stoppedHere();
-    // "Wrote" means the cache now holds something it did not (finding F21):
-    // every replace rewrites its rows on every cycle, and a quiet cycle that
-    // still said "data changed" rescheduled every reminder on the phone and
-    // reloaded the views of both shells, every two minutes.
-    wrote = await this.store(() => cache.replaceCalendars(account.id, eventCalendarsOf(collections)));
+    await this.store(() => cache.replaceCalendars(account.id, eventCalendarsOf(collections)));
+    wrote = true;
 
     // Pull the selected calendars CONCURRENTLY (network-bound), in small batches,
     // then apply the writes serially (SQLite is a single writer). A windowed full
@@ -580,10 +577,8 @@ export class PimWorker {
       // not reached keeps exactly what it had; going on would only wait out
       // the same lock once per calendar.
       await this.store(async () => {
-        const changed = r.full
-          ? await cache.replaceEventWindow(account.id, r.calId, startTs, endTs, r.events!)
-          : await cache.applyEventDelta(account.id, r.calId, r.events!, r.deletedUids ?? [], r.deletedHrefs ?? []);
-        wrote = changed || wrote;
+        if (r.full) await cache.replaceEventWindow(account.id, r.calId, startTs, endTs, r.events!);
+        else await cache.applyEventDelta(account.id, r.calId, r.events!, r.deletedUids ?? [], r.deletedHrefs ?? []);
         await cache.setScopeState(account.id, `events:${r.calId}`, { cursor: r.cursor, lastError: null });
       });
       eventCount += r.events!.length;
@@ -598,7 +593,6 @@ export class PimWorker {
     const tasks = await this.refreshTaskLists(account, target, collections, gen, askEveryone);
     if (tasks === null) return stoppedHere();
     signInError = signInError ?? tasks.signInError;
-    wrote = tasks.wrote || wrote;
 
     // A sign-in that died on a pull is the ACCOUNT's failure: every other
     // calendar and list would answer the same way next time. What did get
@@ -635,10 +629,9 @@ export class PimWorker {
     collections: PimCalendar[],
     gen: number,
     askEveryone: boolean
-  ): Promise<{ errors: string[]; signInError?: string; wrote: boolean } | null> {
+  ): Promise<{ errors: string[]; signInError?: string } | null> {
     const { cache } = this.opts;
     const errors: string[] = [];
-    let wrote = false;
     let signInError: string | undefined;
     // Task lists: a failure here used to be swallowed (`.catch(() => null)`),
     // which silently meant "this account has no task lists" — for good, and
@@ -670,10 +663,10 @@ export class PimWorker {
     }
     if (gen !== this.generation) return null;
     // A sign-in that the listing already refused refuses every list too.
-    if (signInError) return { errors, signInError, wrote };
+    if (signInError) return { errors, signInError };
     if (lists) {
       const fresh = lists;
-      wrote = (await this.store(() => cache.replaceTaskLists(account.id, fresh))) || wrote;
+      await this.store(() => cache.replaceTaskLists(account.id, fresh));
     }
     // Even when the listing failed: the lists known from before are still
     // selected, and their tasks can still be asked for.
@@ -700,11 +693,11 @@ export class PimWorker {
       }
       if (gen !== this.generation) return null;
       await this.store(async () => {
-        wrote = (await cache.replaceTasks(account.id, list.id, pulled)) || wrote;
+        await cache.replaceTasks(account.id, list.id, pulled);
         await cache.setScopeState(account.id, `tasks:${list.id}`, { lastError: null });
       });
       this.retries.delete(listKey(list.id));
     }
-    return { errors, wrote, ...(signInError ? { signInError } : {}) };
+    return { errors, ...(signInError ? { signInError } : {}) };
   }
 }
