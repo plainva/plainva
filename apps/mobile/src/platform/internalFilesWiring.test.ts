@@ -123,4 +123,14 @@ describe("the app's own files on iOS", () => {
     const names = (await listInternalFolder("drafts/v1/comment-operations")).map((entry) => entry.name).sort();
     expect(names).toEqual(["op-new.json", "op-old.json"]);
   });
+
+  it("lists what lies in Library when the old folder in Documents cannot be listed (fourth review)", async () => {
+    fs.library.set("PlainvaData/drafts/v1/comment-operations/op-new.json", "{}");
+    fs.documents.set("drafts/v1/comment-operations/op-old.json", "{}");
+    fs.failReaddir.add("DOCUMENTS:drafts");
+    fs.failReaddir.add("DOCUMENTS:drafts/v1/comment-operations");
+    const names = (await listInternalFolder("drafts/v1/comment-operations")).map((entry) => entry.name);
+    expect(names).toEqual(["op-new.json"]);
+  });
 });
+

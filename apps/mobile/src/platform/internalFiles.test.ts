@@ -16,7 +16,7 @@ vi.mock("@capacitor/core", () => ({ Capacitor: { getPlatform: () => platform.kin
 const { moveInternalFilesOutOfDocuments, internalPlace, resetInternalFilesForTests, IOS_INTERNAL_FOLDER } = await import("./internalFiles");
 type InternalFolders = import("./internalFiles").InternalFolders;
 
-interface Entry { data: string; mtime: number }
+interface Entry { data: string; mtime: number | null }
 
 class Trees implements InternalFolders {
   old = new Map<string, Entry>();
@@ -61,7 +61,8 @@ class Trees implements InternalFolders {
   }
 }
 
-const at = (data: string, mtime: number): Entry => ({ data, mtime });
+const at = (data: string, mtime: number | null): Entry => ({ data, mtime });
+const DRAFT_TEXT = JSON.stringify({ version: 2, entries: [{ notePath: "a.md", text: "draft", revision: 1, savedAt: 1, sessionId: "run-1" }] });
 const contents = (tree: Map<string, Entry>) => Object.fromEntries([...tree].map(([key, entry]) => [key, entry.data]));
 
 let trees: Trees;
@@ -73,14 +74,15 @@ beforeEach(() => {
 
 describe("moving the app's own files out of Documents", () => {
   it("renames each folder into place when only Documents holds it", async () => {
-    trees.old.set("drafts/v1/a.json", at("draft", 1)).set("drafts/v1/comment-operations/op.json", at("op", 1))
+    // A draft journal (a torn one would stay out, see the fourth review) and an unfinished comment operation.
+    trees.old.set("drafts/v1/a.json", at(DRAFT_TEXT, 1)).set("drafts/v1/comment-operations/op.json", at("op", 1))
       .set("ai/v1/chat.json", at("chat", 1)).set("okf-journal/v1.json", at("okf", 1)).set("profile-journal/v1.json", at("profile", 1))
       .set("vaults/v1/note.md", at("note", 1));
     const outcome = await moveInternalFilesOutOfDocuments(trees);
     expect(outcome.stayed.size).toBe(0);
     expect(contents(trees.old)).toEqual({ "vaults/v1/note.md": "note" });
     expect(contents(trees.new)).toEqual({
-      "drafts/v1/a.json": "draft", "drafts/v1/comment-operations/op.json": "op",
+      "drafts/v1/a.json": DRAFT_TEXT, "drafts/v1/comment-operations/op.json": "op",
       "ai/v1/chat.json": "chat", "okf-journal/v1.json": "okf", "profile-journal/v1.json": "profile",
     });
   });
@@ -303,3 +305,50 @@ describe("a draft journal is never decided by its time (F43, third round)", () =
     expect([...trees.new.keys()].filter((key) => key.startsWith(".joined/"))).toEqual([]);
   });
 });
+
+describe("the fourth review: the mark decides, a torn copy stays out, an unknown time deletes nothing", () => {
+  const DRAFT = "drafts/v1/Tm90ZS5tZA==.json";
+
+  it("a joined copy is not brought back after every draft of the note was discarded", async () => {
+    trees.old.set(DRAFT, at(entriesOf(["old-run", 3]), 5));
+    trees.new.set(DRAFT, at(entriesOf(["new-run", 7]), 9));
+    trees.failRemoveOld.add(DRAFT);
+    await moveInternalFilesOutOfDocuments(trees);
+    expect([...trees.new.keys()].some((key) => key.startsWith(".joined/"))).toBe(true);
+    // The person discards every draft of the note: the journal goes from the new place.
+    trees.new.delete(DRAFT);
+    trees.failRemoveOld.clear();
+    await moveInternalFilesOutOfDocuments(trees);
+    expect(trees.new.has(DRAFT)).toBe(false);
+    expect(trees.old.has(DRAFT)).toBe(false);
+    expect([...trees.new.keys()].filter((key) => key.startsWith(".joined/"))).toEqual([]);
+  });
+
+  it("a torn copy in Documents is never put in the journal's place", async () => {
+    trees.old.set(DRAFT, at("{ torn", 5));
+    // Every draft was discarded: nothing stands in the new place.
+    await moveInternalFilesOutOfDocuments(trees);
+    expect(trees.new.has(DRAFT)).toBe(false);
+    expect(trees.old.get(DRAFT)?.data).toBe("{ torn");
+    expect(await internalPlace(DRAFT, trees)).toEqual({ directory: "LIBRARY", path: `${IOS_INTERNAL_FOLDER}/${DRAFT}` });
+  });
+
+  it("a copy without a time is joined, never removed on a mark it cannot be told from", async () => {
+    trees.old.set(DRAFT, at(entriesOf(["old-run", 3]), null));
+    trees.new.set(DRAFT, at(entriesOf(["new-run", 7]), 9));
+    // A mark for "0" - what a missing time used to read as - must not count for this copy.
+    trees.new.set(`.joined/${DRAFT}`, at("0", 9));
+    await moveInternalFilesOutOfDocuments(trees);
+    expect(textsIn(trees.new.get(DRAFT)!.data)).toEqual(["new-run@7", "old-run@3"]);
+    expect(trees.old.size).toBe(0);
+  });
+
+  it("of two other files without a known time, neither goes", async () => {
+    trees.old.set("ai/v1/x.json", at("old", null));
+    trees.new.set("ai/v1/x.json", at("new", 9));
+    await moveInternalFilesOutOfDocuments(trees);
+    expect(trees.old.get("ai/v1/x.json")?.data).toBe("old");
+    expect(trees.new.get("ai/v1/x.json")?.data).toBe("new");
+  });
+});
+

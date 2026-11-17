@@ -65,7 +65,8 @@ export interface InternalPlace {
 /** A file found below a folder: its path relative to that folder, and when it was last written. */
 export interface FoundFile {
   rel: string;
-  mtime: number;
+  /** When it was last written; null where the platform does not say - unknown, never "oldest". */
+  mtime: number | null;
 }
 
 /** The file operations the move needs; `Documents` is "old", `Library/PlainvaData` "new". */
@@ -75,8 +76,8 @@ export interface InternalFolders {
   existsNew(path: string): Promise<boolean>;
   /** Every file below a folder, recursively. */
   listOld(folder: string): Promise<FoundFile[]>;
-  /** When a file in the new place was last written. */
-  mtimeNew(path: string): Promise<number>;
+  /** When a file in the new place was last written; null where the platform does not say. */
+  mtimeNew(path: string): Promise<number | null>;
   readOld(path: string): Promise<string>;
   readNew(path: string): Promise<string>;
   /** Replaces a file in the new place as one step (atomic). */
@@ -132,9 +133,12 @@ async function journalText(read: () => Promise<string>): Promise<string | null> 
  * or is no journal - both stay as they are, and the readable one is used in
  * this lifetime (`true`: the copy in `Documents`).
  */
-async function sortJournal(folders: InternalFolders, path: string, oldTime: number): Promise<boolean> {
+async function sortJournal(folders: InternalFolders, path: string, oldTime: number | null, newExists: boolean): Promise<boolean> {
   const mark = joinedMark(path);
-  if (await folders.existsNew(mark)) {
+  // The mark decides, whether or not a file stands in the new place now: a copy whose joining is
+  // marked is never brought in again - only removed, and the mark goes with it. (Every entry of
+  // the joined journal may have been discarded since, and the file in the new place with them.)
+  if (oldTime !== null && await folders.existsNew(mark)) {
     if ((await folders.readNew(mark)) === String(oldTime)) {
       await folders.removeOld(path);
       await folders.removeNew(mark);
@@ -144,6 +148,17 @@ async function sortJournal(folders: InternalFolders, path: string, oldTime: numb
     await folders.removeNew(mark);
   }
   const old = await journalText(() => folders.readOld(path));
+  if (!newExists) {
+    // Only in Documents. A copy that is no journal is never put in the journal's place, where it
+    // would refuse every new draft of the note: it stays where it is, and nothing waits on it.
+    if (old === null) {
+      console.warn(`[internal-files] ${path} in Documents is no draft journal; it stays there`);
+      return false;
+    }
+    await folders.makeNewFolder(parentOf(path));
+    await folders.moveToNew(path);
+    return false;
+  }
   const current = await journalText(() => folders.readNew(path));
   if (old === null || current === null) {
     console.warn(`[internal-files] ${path} is in both places and one copy cannot be read; both stay until the next start`);
@@ -152,14 +167,17 @@ async function sortJournal(folders: InternalFolders, path: string, oldTime: numb
   const both = mergeDraftJournals(old, current);
   if (both === null) return false;
   await folders.writeNew(path, both);
-  try {
-    await folders.writeNew(mark, String(oldTime));
-  } catch (error) {
-    // silent: without the mark a failed removal below is joined again at the next start - nothing is lost, a discarded draft may be offered once more.
-    console.warn(`[internal-files] the joined mark of ${path} could not be written`, error);
+  // Without a known time the mark could not tell this copy from a later one: joined again next time instead.
+  if (oldTime !== null) {
+    try {
+      await folders.writeNew(mark, String(oldTime));
+    } catch (error) {
+      // silent: without the mark a failed removal below is joined again at the next start - nothing is lost, a discarded draft may be offered once more.
+      console.warn(`[internal-files] the joined mark of ${path} could not be written`, error);
+    }
   }
   await folders.removeOld(path);
-  await folders.removeNew(mark);
+  if (oldTime !== null) await folders.removeNew(mark);
   return false;
 }
 
@@ -170,14 +188,20 @@ async function mergeFolder(folders: InternalFolders, folder: InternalFolder, pen
     // Whether the copy in Documents is the one to use if a step fails.
     let oldCounts = true;
     try {
+      if (DRAFT_JOURNAL.test(path)) {
+        oldCounts = false;
+        if (await sortJournal(folders, path, file.mtime, await folders.existsNew(path))) pending.add(path);
+        continue;
+      }
       if (await folders.existsNew(path)) {
-        if (DRAFT_JOURNAL.test(path)) {
+        const newTime = await folders.mtimeNew(path);
+        // Without both times nothing is known to be older: neither copy goes, the one in place is used.
+        if (file.mtime === null || newTime === null) {
           oldCounts = false;
-          if (await sortJournal(folders, path, file.mtime)) pending.add(path);
           continue;
         }
         // The one written last stays; on a tie, the one already in place.
-        if (file.mtime <= (await folders.mtimeNew(path))) {
+        if (file.mtime <= newTime) {
           oldCounts = false;
           await folders.removeOld(path);
           continue;
@@ -206,7 +230,9 @@ export async function moveInternalFilesOutOfDocuments(folders: InternalFolders):
   for (const folder of INTERNAL_FOLDERS) {
     try {
       if (!(await folders.existsOld(folder))) continue;
-      if (await folders.existsNew(folder)) {
+      // The drafts always go file by file: a journal is joined or brought in by its own rules (a torn
+      // copy stays out, a copy marked as joined is only removed), never moved in with its folder.
+      if (folder === "drafts" || await folders.existsNew(folder)) {
         await mergeFolder(folders, folder, pending);
         continue;
       }
@@ -241,7 +267,7 @@ async function listFiles(path: string, prefix = ""): Promise<FoundFile[]> {
   for (const entry of files) {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.type === "directory") found.push(...(await listFiles(`${path}/${entry.name}`, rel)));
-    else found.push({ rel, mtime: typeof entry.mtime === "number" ? entry.mtime : 0 });
+    else found.push({ rel, mtime: typeof entry.mtime === "number" && entry.mtime > 0 ? entry.mtime : null });
   }
   return found;
 }
@@ -253,7 +279,7 @@ export const capacitorInternalFolders: InternalFolders = {
   listOld: (folder) => listFiles(folder),
   async mtimeNew(path) {
     const info = await Filesystem.stat({ path: under(path), directory: Directory.Library });
-    return typeof info.mtime === "number" ? info.mtime : 0;
+    return typeof info.mtime === "number" && info.mtime > 0 ? info.mtime : null;
   },
   async readOld(path) {
     return String((await Filesystem.readFile({ path, directory: Directory.Documents, encoding: Encoding.UTF8 })).data);
@@ -357,7 +383,14 @@ export async function listInternalFolder(rel: string, folders: InternalFolders =
   const someInDocuments = split.has(folder) || [...pending].some((path) => path.startsWith(below));
   if (!someInDocuments) return listing(library);
   const inLibrary = await listing(library);
-  const inDocuments = await listing({ directory: Directory.Data, path: rel });
+  let inDocuments: InternalEntry[];
+  try {
+    inDocuments = await listing({ directory: Directory.Data, path: rel });
+  } catch (error) {
+    // What lies in Library is always listed; an old folder that cannot be listed costs only what it holds.
+    console.warn(`[internal-files] ${rel} in Documents could not be listed; only the new place is listed`, error);
+    return inLibrary;
+  }
   const entries = new Map<string, InternalEntry>();
   for (const entry of inLibrary) entries.set(entry.name, entry);
   for (const entry of inDocuments) {
