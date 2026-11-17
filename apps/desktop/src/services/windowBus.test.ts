@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { BROADCAST_SCOPE, RPC_SCOPE, createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
+import { BROADCAST_SCOPE, RPC_EFFECT, RPC_ONCE_KINDS, RPC_SCOPE, RPC_WRITE_KINDS, createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
+import { createAttempt } from "./attempt";
 
 /**
  * The wire every auxiliary window's mutation rides on (multi-window P0/P1).
@@ -412,12 +413,13 @@ describe("a request asked for again after it failed (A15)", () => {
         lines.push(text);
         return { ok: true as const };
       });
-      const first = aux.request("journal-capture", { text: "Call Anna", task: false });
+      const press = createAttempt();
+      const first = aux.request("journal-capture", { text: "Call Anna", task: false }, { attempt: press.for("Call Anna") });
       const failed = expect(first).rejects.toThrow(/may still land/);
       await vi.advanceTimersByTimeAsync(200);
       await failed;
       // The person presses "Add" once more; the first attempt is still running.
-      const second = aux.request("journal-capture", { text: "Call Anna", task: false });
+      const second = aux.request("journal-capture", { text: "Call Anna", task: false }, { attempt: press.for("Call Anna") });
       await vi.advanceTimersByTimeAsync(400);
       await expect(second).resolves.toEqual({ ok: true });
       expect(lines).toEqual(["Call Anna"]);
@@ -438,13 +440,14 @@ describe("a request asked for again after it failed (A15)", () => {
         lines.push(text);
         return { ok: true as const };
       });
-      const first = aux.request("journal-capture", { text: "Call Anna", task: true });
+      const press = createAttempt();
+      const first = aux.request("journal-capture", { text: "Call Anna", task: true }, { attempt: press.for("Call Anna") });
       const failed = expect(first).rejects.toThrow(/may still land/);
       await vi.advanceTimersByTimeAsync(200);
       await failed;
       await vi.advanceTimersByTimeAsync(400);
       expect(lines).toEqual(["Call Anna"]);
-      const again = aux.request("journal-capture", { text: "Call Anna", task: true });
+      const again = aux.request("journal-capture", { text: "Call Anna", task: true }, { attempt: press.for("Call Anna") });
       await vi.advanceTimersByTimeAsync(10);
       await expect(again).resolves.toEqual({ ok: true });
       expect(lines).toEqual(["Call Anna"]);
@@ -462,8 +465,10 @@ describe("a request asked for again after it failed (A15)", () => {
       lines.push(text);
       return { ok: true as const };
     });
-    await aux.request("journal-capture", { text: "Water", task: false });
-    await aux.request("journal-capture", { text: "Water", task: false });
+    const press = createAttempt();
+    await aux.request("journal-capture", { text: "Water", task: false }, { attempt: press.for("Water") });
+    press.succeeded();
+    await aux.request("journal-capture", { text: "Water", task: false }, { attempt: press.for("Water") });
     expect(lines).toEqual(["Water", "Water"]);
   });
 
@@ -477,8 +482,9 @@ describe("a request asked for again after it failed (A15)", () => {
       if (runs === 1) throw new Error("the server refused");
     });
     const req = { vaultPath: "/v", accountId: "a", mailbox: "Drafts", to: "x@example.org", subject: "S", body: "B", attachments: [] };
-    await expect(aux.request("mail-draft", req)).rejects.toThrow(/refused/);
-    await aux.request("mail-draft", req);
+    const press = createAttempt();
+    await expect(aux.request("mail-draft", req, { attempt: press.for("draft") })).rejects.toThrow(/refused/);
+    await aux.request("mail-draft", req, { attempt: press.for("draft") });
     expect(runs).toBe(2);
   });
 
@@ -494,11 +500,12 @@ describe("a request asked for again after it failed (A15)", () => {
         lines.push(text);
         return { ok: true as const };
       });
-      const first = aux.request("journal-capture", { text: "Call Ana", task: false });
+      const press = createAttempt();
+      const first = aux.request("journal-capture", { text: "Call Ana", task: false }, { attempt: press.for("Call Ana") });
       const failed = expect(first).rejects.toThrow(/may still land/);
       await vi.advanceTimersByTimeAsync(200);
       await failed;
-      const corrected = aux.request("journal-capture", { text: "Call Anna", task: false });
+      const corrected = aux.request("journal-capture", { text: "Call Anna", task: false }, { attempt: press.for("Call Anna") });
       await vi.advanceTimersByTimeAsync(500);
       await corrected;
       expect(lines).toEqual(["Call Ana", "Call Anna"]);
@@ -524,6 +531,61 @@ describe("a request asked for again after it failed (A15)", () => {
       expect(posts).toBe(1);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("runs two clicks on the star that arrive together as two toggles", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire.make(OWNER_LABEL));
+    const aux = createWindowBus(wire.make("aux-1"));
+    let marked = false;
+    let runs = 0;
+    await owner.handle("toggle-bookmark", async () => {
+      runs += 1;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      marked = !marked;
+      return [];
+    });
+    await Promise.all([
+      aux.request("toggle-bookmark", { path: "N.md", type: "file" }),
+      aux.request("toggle-bookmark", { path: "N.md", type: "file" }),
+    ]);
+    expect(runs).toBe(2);
+    expect(marked).toBe(false);
+  });
+
+  it("moves an event 10:00, 11:00, 10:00 and ends on 10:00", async () => {
+    const wire = createWire();
+    const owner = createWindowBus(wire.make(OWNER_LABEL));
+    const aux = createWindowBus(wire.make("aux-1"));
+    let at = "";
+    await owner.handle("pim-write", async ({ op }) => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      at = (op as unknown as { draft: { start: string } }).draft.start;
+      return { ok: true as const, etag: at };
+    });
+    const move = (start: string) => aux.request("pim-write", { accountId: "a", op: { kind: "updateEvent", ref: { calendarId: "c", uid: "u" }, draft: { start } } } as never);
+    await Promise.all([move("10:00"), move("11:00")]);
+    await move("10:00");
+    expect(at).toBe("10:00");
+  });
+});
+
+describe("every request says what it does (A15)", () => {
+  it("classifies every kind the bus knows", () => {
+    expect(Object.keys(RPC_EFFECT).sort()).toEqual(Object.keys(RPC_SCOPE).sort());
+  });
+
+  it("measures the central window's silence for every kind that changes something", () => {
+    for (const [kind, effect] of Object.entries(RPC_EFFECT)) {
+      expect(RPC_WRITE_KINDS.has(kind as never), kind).toBe(effect !== "read");
+      expect(RPC_ONCE_KINDS.has(kind as never), kind).toBe(effect === "once");
+    }
+  });
+
+  it("counts the remark, suggestion and bookmark writes among them", () => {
+    for (const kind of ["comment-resolve", "comment-retract", "comment-move", "comment-operation-run", "comment-retry", "comment-discard", "suggestion-park-write", "remove-bookmarks", "move-bookmark", "rename-bookmarks"] as const) {
+      expect(RPC_WRITE_KINDS.has(kind), kind).toBe(true);
     }
   });
 });

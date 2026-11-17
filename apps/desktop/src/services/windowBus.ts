@@ -31,7 +31,7 @@ import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
 import { currentWindowParams } from "./windowContext";
-import { SnapshotBeforeDeleteError, isSnapshotBeforeDeleteError, utf8Encode, workspaceSha256Hex } from "@plainva/core";
+import { SnapshotBeforeDeleteError, isSnapshotBeforeDeleteError } from "@plainva/core";
 import type { CommentOperation, CommentOperationInput, CommentOperationPhase, CommentPostInput } from "@plainva/core";
 
 /** Label of the window that owns the services. Tauri's own default label. */
@@ -576,6 +576,91 @@ const EV_RPC_ASK = "pv:rpc-ask";
 export const RPC_TIMEOUT_MS = 15_000;
 
 /**
+ * What each request does to the vault, a provider or the app's state — every
+ * kind, so a new one cannot be added without saying (A15; the record's type
+ * fails the typecheck otherwise, `windowBus.test.ts` the run):
+ *
+ *  - `read`: asks, opens or routes; nothing to lose when it fails.
+ *  - `write`: changes something, and running it twice lands the same way.
+ *  - `once`: changes something a second run would change a second time.
+ *
+ * `RPC_WRITE_KINDS` and `RPC_ONCE_KINDS` are read off this. Until 2026-11-16
+ * the writes were a hand-kept list, and ten of them — resolving, retracting,
+ * moving, retrying and discarding remarks, running a remark operation,
+ * parking a suggestion, removing, moving and renaming bookmarks — still
+ * failed after 15 s while the central window was at them.
+ */
+export const RPC_EFFECT: Record<RpcKind, "read" | "write" | "once"> = {
+  "suggestion-park-write": "write",
+  "suggestion-park-clear": "write",
+  "tab-transfer-begin": "read",
+  "tab-transfer-status": "read",
+  "tab-transfer-cancel": "read",
+  write: "write",
+  "editor-write": "write",
+  "update-read": "read",
+  "update-write": "write",
+  "conflict-read": "read",
+  "conflict-list": "read",
+  "conflict-diagnostics": "read",
+  "conflict-preserve": "write",
+  "conflict-resolve": "write",
+  "conflict-resolve-bytes": "write",
+  "write-binary": "write",
+  rename: "write",
+  delete: "write",
+  mkdir: "write",
+  "sync-control": "write",
+  reindex: "write",
+  "pim-write": "once",
+  "pim-refresh": "write",
+  "toggle-bookmark": "once",
+  "bookmarks-list": "read",
+  "remove-bookmarks": "write",
+  "move-bookmark": "write",
+  "rename-bookmarks": "write",
+  "comment-capabilities": "read",
+  "comment-list": "read",
+  "comment-list-publication": "read",
+  "comment-members": "read",
+  "comment-self": "read",
+  "comment-post": "once",
+  "comment-operation-prepare": "read",
+  "comment-operation-run": "write",
+  "comment-operation-pending": "read",
+  "comment-operation-read": "read",
+  "comment-resolve": "write",
+  "comment-retract": "write",
+  "comment-retry": "write",
+  "comment-discard": "write",
+  "comment-state": "read",
+  "comment-move": "write",
+  "workspace-status": "read",
+  "workspace-revisions": "read",
+  "workspace-revision-read": "read",
+  "focus-content": "read",
+  "open-content": "read",
+  "mail-send": "once",
+  "mail-draft": "once",
+  "mail-token": "read",
+  "compose-draft": "read",
+  "compose-popout": "read",
+  "window-bounds": "read",
+  "window-contents": "read",
+  "window-always-on-top": "read",
+  "window-close-hold": "read",
+  "hold-vault": "read",
+  "owner-surface": "read",
+  "reveal-in-tree": "read",
+  "journal-capture": "once",
+  "draft-record": "write",
+  "draft-clear": "write",
+  "draft-relocate": "write",
+  "drafts-flushed": "read",
+  "flush-pending": "write",
+};
+
+/**
  * The requests that change something on disk or at a provider (open-items
  * plan 3.117). For these the deadline measures the OWNER'S SILENCE, not the
  * write: the owner says "still at it" while the write runs (a write can wait
@@ -590,26 +675,9 @@ export const RPC_TIMEOUT_MS = 15_000;
  * landed anyway: the window's editor merged its next save against the old
  * text (a conflict copy), the quick capture wrote a line a second time.
  */
-export const RPC_WRITE_KINDS: ReadonlySet<RpcKind> = new Set<RpcKind>([
-  "write",
-  "editor-write",
-  "update-write",
-  "write-binary",
-  "rename",
-  "delete",
-  "mkdir",
-  "conflict-preserve",
-  "conflict-resolve",
-  "conflict-resolve-bytes",
-  "journal-capture",
-  "pim-write",
-  // What a person sends, files or toggles from another window (A15): until
-  // 2026-11-16 these failed after 15 s while the owner was still at them.
-  "comment-post",
-  "mail-send",
-  "mail-draft",
-  "toggle-bookmark",
-]);
+export const RPC_WRITE_KINDS: ReadonlySet<RpcKind> = new Set(
+  (Object.keys(RPC_EFFECT) as RpcKind[]).filter((kind) => RPC_EFFECT[kind] !== "read"),
+);
 
 /**
  * The writes a second run would do a second time (A15): a line appended to
@@ -617,23 +685,19 @@ export const RPC_WRITE_KINDS: ReadonlySet<RpcKind> = new Set<RpcKind>([
  * draft, a bookmark toggled. The others can be repeated — a whole text, a
  * merge against its base, a rename, a deletion land the same way twice.
  *
- * A request of these kinds carries a key (`RpcEnvelope.key`). The caller
- * keeps it for as long as the request has not succeeded: the same request
- * sent again after a failure — the person pressing "Add" once more after
- * "may still land" — carries the same key, and the owner does not run it a
- * second time. It joins the run still going, or answers with the outcome of
- * the one that landed. A request that succeeded gives its key up, so the
- * same change asked for again later is a new one; a run that failed on the
- * owner's side is forgotten there, so its repetition runs.
+ * A request of these kinds may carry an attempt (`RequestOptions.attempt`):
+ * one action of a person, the same for each try at it. The surface that took
+ * the action keeps it until a try succeeded — the person pressing "Add" once
+ * more after "may still land" sends the same attempt (`createAttempt`) — and
+ * the owner does not run it a second time: the try joins the run still going,
+ * or gets the outcome of the one that landed. A run that failed on the
+ * owner's side is forgotten there, so its repetition runs. Without an attempt
+ * every request is its own action: two clicks on the star are two toggles,
+ * even when they arrive together.
  */
-export const RPC_ONCE_KINDS: ReadonlySet<RpcKind> = new Set<RpcKind>([
-  "journal-capture",
-  "pim-write",
-  "comment-post",
-  "mail-send",
-  "mail-draft",
-  "toggle-bookmark",
-]);
+export const RPC_ONCE_KINDS: ReadonlySet<RpcKind> = new Set(
+  (Object.keys(RPC_EFFECT) as RpcKind[]).filter((kind) => RPC_EFFECT[kind] === "once"),
+);
 
 /** The longest a caller waits for a write the owner keeps saying it is at — a write that hangs for good. */
 export const RPC_WRITE_CEILING_MS = 10 * 60_000;
@@ -665,7 +729,7 @@ interface RpcEnvelope {
   args: unknown;
   /** A write (`RPC_WRITE_KINDS`): how often the owner says it is still at it. */
   aliveMs?: number;
-  /** `RPC_ONCE_KINDS`: the same for every attempt at the same request, until one succeeded. */
+  /** `RPC_ONCE_KINDS`: the caller's attempt (`RequestOptions.attempt`) — one action of a person, the same for each try at it. */
   key?: string;
 }
 
@@ -680,6 +744,14 @@ interface RpcReply {
    * for the deletion can put it — an error crosses the bus as its message only.
    */
   noNet?: { path: string; uncovered: string[]; total: number; net: SnapshotBeforeDeleteError["net"]; folder: boolean };
+}
+
+/** What a caller adds to a request. */
+export interface RequestOptions {
+  /** The vault the request is for; by default the one this window shows. */
+  vaultPath?: string | null;
+  /** `RPC_ONCE_KINDS`: the action this request is a try at (see there). */
+  attempt?: string;
 }
 
 export interface WindowBus {
@@ -703,7 +775,7 @@ export interface WindowBus {
     handler: (payload: BroadcastMap[C], from: string, vaultPath: string | null) => void,
   ): Promise<() => void>;
   /** Aux side: ask the owner to do something and wait for the outcome. */
-  request<K extends RpcKind>(kind: K, args: RpcMap[K]["args"], opts?: { vaultPath?: string | null }): Promise<RpcMap[K]["result"]>;
+  request<K extends RpcKind>(kind: K, args: RpcMap[K]["args"], opts?: RequestOptions): Promise<RpcMap[K]["result"]>;
   /**
    * Owner side: answer one request kind. Throwing rejects the caller's promise.
    *
@@ -749,12 +821,6 @@ export function createWindowBus(
     ceiling?: ReturnType<typeof setTimeout>;
   }
   const pending = new Map<string, Waiting>();
-  /**
-   * Caller side, `RPC_ONCE_KINDS`: the key of each request that has not
-   * succeeded yet, by what it asks for. Kept as long as the owner keeps an
-   * answer, so a repetition after a failure is known for that long.
-   */
-  const unsettledKeys = new Map<string, { key: string; expiry?: ReturnType<typeof setTimeout> }>();
   /** Writes the caller gave up on — a late answer is said, not swallowed. */
   const givenUp = new Map<string, string>();
   let replyListener: Promise<void> | null = null;
@@ -894,17 +960,10 @@ export function createWindowBus(
       const write = RPC_WRITE_KINDS.has(kind);
       const envelope: RpcEnvelope = { from: transport.label, id, kind, vaultPath, args };
       if (write) envelope.aliveMs = Math.max(1, Math.floor(timeoutMs / 3));
-      // The same request asked for again carries the key of the attempt that
-      // did not succeed (A15); the owner then does not run it twice.
-      let asked: string | null = null;
-      if (RPC_ONCE_KINDS.has(kind)) {
-        asked = workspaceSha256Hex(utf8Encode(JSON.stringify([kind, vaultPath, args])));
-        const earlier = unsettledKeys.get(asked);
-        if (earlier?.expiry !== undefined) clearTimeout(earlier.expiry);
-        const key = earlier?.key ?? `${id}-once`;
-        unsettledKeys.set(asked, { key });
-        envelope.key = key;
-      }
+      // One action of a person, tried again, carries the same attempt (A15);
+      // the owner then does not run it twice. Two requests that only look alike
+      // are two actions and both run.
+      if (opts?.attempt !== undefined && RPC_ONCE_KINDS.has(kind)) envelope.key = opts.attempt;
       const result = new Promise((resolve, reject) => {
         const waiting: Waiting = { resolve, reject, taken: false, timer: undefined as unknown as ReturnType<typeof setTimeout> };
         const timedOut = () => {
@@ -938,31 +997,8 @@ export function createWindowBus(
         }
         pending.set(id, waiting);
       });
-      if (asked === null) {
-        await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
-        return (await result) as never;
-      }
-      const sentKey = envelope.key;
-      const keep = (failed: boolean) => {
-        const entry = unsettledKeys.get(asked!);
-        if (!entry || entry.key !== sentKey) return;
-        if (!failed) {
-          unsettledKeys.delete(asked!);
-          return;
-        }
-        entry.expiry = setTimeout(() => {
-          if (unsettledKeys.get(asked!) === entry) unsettledKeys.delete(asked!);
-        }, RPC_ANSWER_KEEP_MS);
-      };
-      try {
-        await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
-        const value = await result;
-        keep(false);
-        return value as never;
-      } catch (e) {
-        keep(true);
-        throw e;
-      }
+      await transport.emitTo(OWNER_LABEL, EV_RPC, envelope);
+      return (await result) as never;
     },
 
     async handle(kind, handler, opts) {
@@ -1021,8 +1057,6 @@ export function createWindowBus(
           /* a listener that is already gone is not a problem */
         }
       }
-      for (const entry of unsettledKeys.values()) if (entry.expiry !== undefined) clearTimeout(entry.expiry);
-      unsettledKeys.clear();
       for (const waiting of pending.values()) {
         clearTimeout(waiting.timer);
         if (waiting.ceiling !== undefined) clearTimeout(waiting.ceiling);
