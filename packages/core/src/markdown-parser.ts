@@ -4,7 +4,7 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
-import { unified } from "unified";
+import { unified, type Pluggable } from "unified";
 import { boundMarkdownForParse, restoreBoundedTree } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
@@ -135,6 +135,18 @@ export function parseMarkdownAst(
  */
 export function parseMarkdownTree(text: string): MarkdownTreeNode {
   return parsedInText((source) => markdownParser.parse(source), text) as unknown as MarkdownTreeNode;
+}
+
+/**
+ * The tree of a note as a renderer with one more plugin reads it — the
+ * reading view with its formula plugin (remark-math): tables and task lists,
+ * the properties block, and what the plugin adds; wiki links stay text, as
+ * they are links in the text that renderer receives. Every position is a place
+ * in `text`.
+ */
+export function parseMarkdownTreeWith(text: string, plugin: Pluggable): MarkdownTreeNode {
+  const processor = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(plugin as never);
+  return parsedInText((source) => processor.parse(source), text) as unknown as MarkdownTreeNode;
 }
 
 /**

@@ -146,7 +146,7 @@ describe("the text between the brackets", () => {
 });
 
 describe("the reading view", () => {
-  const read = (text: string) => prepareReaderSource(text).text;
+  const read = (text: string) => prepareReaderSource(text, { tables: true }).text;
 
   it("shows these links as links: a name as it is written, an alias as the text around it is shown", () => {
     expect(read("[[_private_]] and [[Note|*the* alias]]")).toBe("[\\_private\\_](wiki://_private_) and [*the* alias](wiki://Note)");
@@ -191,9 +191,9 @@ describe("the reading view", () => {
     // A bare `|` in an alias is escaped: a table counts the cells of a line by
     // them — in a code span too, for it splits the line before it reads one.
     // The line under it, which a table would read as its delimiter row, stays
-    // a line of the paragraph (`|\---|`, Sammelplan § 3.133 Nr. 5).
-    expect(read("[[Note|a|b]]\n|---|---|\n")).toBe("[a\\|b](wiki://Note)\n|\\---|---|\n");
-    expect(read(`[[Note|run ${TICK}a|b${TICK} c]]\n|---|---|\n`)).toBe("[run &#96;a\\|b&#96; c](wiki://Note)\n|\\---|---|\n");
+    // a line of the paragraph (an empty comment behind its first `-`, Fehlerliste 0.9.0, B5).
+    expect(read("[[Note|a|b]]\n|---|---|\n")).toBe("[a\\|b](wiki://Note)\n|-<!---->--|---|\n");
+    expect(read(`[[Note|run ${TICK}a|b${TICK} c]]\n|---|---|\n`)).toBe("[run &#96;a\\|b&#96; c](wiki://Note)\n|-<!---->--|---|\n");
   });
 
   it("opens the file a link written with `\\|` names, and takes an embed's size from it", () => {

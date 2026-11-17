@@ -137,20 +137,19 @@ describe("the prepared text reads as the note", () => {
   });
 
   it("keeps a line under an alias link that a table would read as its delimiter row a line of the paragraph", () => {
-    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n").text).toBe("[b](wiki://a) | c\n|\\---|---|\n");
-    expect(prepareReaderSource("> [[a|b]] | c\n> :--|--\n").text).toBe("> [b](wiki://a) | c\n> :\\--|--\n");
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n", { tables: true }).text).toBe("[b](wiki://a) | c\n|-<!---->--|---|\n");
+    expect(prepareReaderSource("> [[a|b]] | c\n> :--|--\n", { tables: true }).text).toBe("> [b](wiki://a) | c\n> :-<!---->-|--\n");
     // A table the note has stays one.
-    expect(prepareReaderSource("| [[a\\|b]] | c |\n|---|---|\n").text).toBe("| [b](wiki://a) | c |\n|---|---|\n");
+    expect(prepareReaderSource("| [[a\\|b]] | c |\n|---|---|\n", { tables: true }).text).toBe("| [b](wiki://a) | c |\n|---|---|\n");
+    // Under a line without such a link the note reads as it is written,
+    // and in code nothing is touched.
+    expect(prepareReaderSource("a | c\n|---|\n", { tables: true }).text).toBe("a | c\n|---|\n");
+    expect(prepareReaderSource("[[a|b]] `x\n|---|---|` y\n", { tables: true }).text).toBe("[b](wiki://a) `x\n|---|---|` y\n");
+    // Without a renderer of tables, the line reads as it is written.
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n").text).toBe("[b](wiki://a) | c\n|---|---|\n");
   });
 
-  it("reads a `$` by the editor's rule where the renderer reads formulas", () => {
-    expect(prepareReaderSource("Preis $3 [[Notiz]] und $4", { formulas: true }).text).toBe("Preis \\$3 [Notiz](wiki://Notiz) und \\$4");
-    // A formula stays one, and a link in it is part of it.
-    expect(prepareReaderSource("Sei $a [[b]] c$ und $$x$$", { formulas: true }).text).toBe("Sei $a [[b]] c$ und $$x$$");
-    expect(prepareReaderSource("$$\nx = [[b]]\n$$\n", { formulas: true }).text).toBe("$$\nx = [[b]]\n$$\n");
-    // Code holds none, and an escaped `$` stays as it is.
-    expect(prepareReaderSource("`$a$` und \\$ und $ x $", { formulas: true }).text).toBe("`$a$` und \\$ und \\$ x \\$");
-    // Without formulas, nothing changes.
+  it("leaves every `$` as it is without the renderer's formula plugin", () => {
     expect(prepareReaderSource("Preis $3 [[Notiz]] und $4").text).toBe("Preis $3 [Notiz](wiki://Notiz) und $4");
   });
 });

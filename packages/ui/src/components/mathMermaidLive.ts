@@ -1,7 +1,6 @@
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { EditorState, Extension, RangeSetBuilder, Text } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { closesMathBlock, inlineMathPattern, opensMathBlock } from "@plainva/core";
 import { interactivityChanged, revealsRange } from "./LivePreviewPlugin";
 import { isEditorInteractive } from "./editorInteractive";
 import { fenceOpenerFor, fencedCodeRanges, fencedCodeRangesIn, findFencedBlocks, findFencedBlocksIn, type FencedBlock } from "./fencedBlocks";
@@ -156,6 +155,9 @@ class MathWidget extends WidgetType {
 // Inline math (single-line $…$ / $$…$$) — ViewPlugin over visible ranges
 // ---------------------------------------------------------------------------
 
+// Same boundary rules as the reader's gate (MarkdownReader hasMath): no
+// leading/trailing space inside, no $ digit confusion, escapes respected.
+const INLINE_MATH_RE = /\$\$([^\n$]+?)\$\$|(?<![\\$])\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g;
 
 /** Ranges the math scan must never touch: code, HTML, existing math in code. */
 function codeRanges(state: EditorState, from: number, to: number): Array<{ from: number; to: number }> {
@@ -234,12 +236,9 @@ export function mathInlinePlugin() {
       for (const { from, to } of view.visibleRanges) {
         const excluded = codeRanges(view.state, from, to);
         const text = view.state.sliceDoc(from, to);
-        // The core's rule (`mathSyntax.ts`), which the reading view reads by too:
-        // no leading/trailing space inside, no $ digit confusion, escapes
-        // respected. Made here, not at load time (moduleInitBoundary).
-        const pattern = inlineMathPattern();
+        INLINE_MATH_RE.lastIndex = 0;
         let match: RegExpExecArray | null;
-        while ((match = pattern.exec(text)) !== null) {
+        while ((match = INLINE_MATH_RE.exec(text)) !== null) {
           const display = match[1] !== undefined;
           const expr = (display ? match[1] : match[2]).trim();
           if (!expr) continue;
@@ -401,10 +400,15 @@ interface MathExtra {
   readonly stoppedAt: number | null;
 }
 
+const isMathOpener = (text: string) => {
+  const t = text.trim();
+  return t.startsWith("$$") && !(t.length > 2 && t.endsWith("$$"));
+};
+
 /** The first line from line number `from` on that ends in `$$`, or -1. */
 function mathClosing(doc: Text, from: number): number {
   for (let m = from; m <= doc.lines; m++) {
-    if (closesMathBlock(doc.line(m).text)) return m;
+    if (doc.line(m).text.trim().endsWith("$$")) return m;
   }
   return -1;
 }
@@ -429,7 +433,7 @@ function discoverAllMath(state: EditorState): KindState<MathInfo, MathExtra> {
   const blocks: BlockEntry<MathInfo>[] = [];
   for (let n = 1; n <= doc.lines; n++) {
     const line = doc.line(n);
-    if (!opensMathBlock(line.text)) continue;
+    if (!isMathOpener(line.text)) continue;
     if (overlaps(line.from, line.to, fences)) continue;
     const closing = mathClosing(doc, n + 1);
     if (closing === -1) return { blocks, extra: { stoppedAt: line.from } };
@@ -510,7 +514,7 @@ function discoverMath(state: EditorState, prev: KindState<MathInfo, MathExtra>, 
         return { blocks, extra: { stoppedAt: oldStop === null ? null : oldStop + plan.delta } };
       }
     }
-    if (!opensMathBlock(line.text)) continue;
+    if (!isMathOpener(line.text)) continue;
     if (inFence(line.from, line.to)) continue;
     const closing = mathClosing(doc, n + 1);
     if (closing === -1) return { blocks, extra: { stoppedAt: line.from } };
