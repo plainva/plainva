@@ -207,6 +207,27 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     await this.plugin.write({ handle: this.handle, path: await this.realPath(path), dataBase64: bytesToB64(content) });
   }
 
+  /**
+   * See `IVaultAdapter.removeEmptyDir`: the native delete without `recursive`
+   * refuses a folder with any child (VaultFolderPlugin, Android and iOS), and
+   * this asks the folder itself first.
+   */
+  async removeEmptyDir(path: string): Promise<boolean> {
+    const rel = await this.realPath(path);
+    const info = await this.statOrNull(rel);
+    if (!info) return true;
+    if (!info.isDirectory) return false;
+    try {
+      await this.plugin.delete({ handle: this.handle, path: rel, recursive: false });
+    } catch (err) {
+      // silent: a folder that holds something, or one the system will not remove, stays where it is — nothing is lost, and the sync weighs it again next cycle.
+      console.warn(`[ExternalVaultAdapter] could not remove the empty folder ${path}`, err);
+      return false;
+    }
+    this.spellings.forget(norm(path));
+    return true;
+  }
+
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
     const rel = await this.realPath(path);
     this.spellings.forget(norm(path));

@@ -2476,21 +2476,27 @@ export class SyncWorker {
           const listed = new Set(listedFolders);
           const gone = [...seenFolders].filter((f) => !listed.has(f) || deletedHere.some((d) => f === d || f.startsWith(d + "/")));
           // A folder seen here and on the remote that the remote no longer
-          // lists was deleted elsewhere: it goes here too once it holds no
-          // file (F44) — the files in it go one by one as the remote's
-          // deletions reach them, so it is weighed again until then. One that
-          // holds a file stays, and that file brings it back to the remote.
+          // lists was deleted elsewhere: it goes here too once it holds
+          // nothing at all (F44) — the files in it go one by one as the
+          // remote's deletions reach them, so it is weighed again until then.
+          // One that holds anything stays, and a file in it brings it back to
+          // the remote. Deepest first, so that emptied subfolders go before
+          // their parent is asked.
           const keptSeen = new Set<string>();
           for (const folder of [...gone].sort((x, y) => y.length - x.length)) {
             if (listed.has(folder) || !alive()) continue;
             if (awaitingDeletion(folder) || awaitingStructure(folder)) continue;
             try {
               if (!(await this.vault.exists(folder))) continue;
-              if ((await this.vault.listDir(folder, true)).some((entry) => !entry.isDirectory)) {
+              // Only a folder that holds nothing at all on the disk, never
+              // recursively: every listing of the app leaves something out
+              // (`.git`, a dot file on the phone), and what it leaves out
+              // would go with the folder. Without the adapter's own test the
+              // folder stays.
+              if (!this.vault.removeEmptyDir || !(await this.vault.removeEmptyDir(folder))) {
                 keptSeen.add(folder);
                 continue;
               }
-              await this.vault.deleteItem(folder, true);
               console.log(`[SyncWorker] removed an empty folder the remote deleted: ${folder}`);
             } catch (e) {
               keptSeen.add(folder);

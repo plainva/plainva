@@ -184,6 +184,23 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
     await atomicWriteBase64(this.full(await this.realPath(path)), bytesToB64(content));
   }
 
+  /** See `IVaultAdapter.removeEmptyDir`: `readdir` hides nothing, and `rmdir` without `recursive` refuses a folder that holds something. */
+  async removeEmptyDir(path: string): Promise<boolean> {
+    const raw = await this.realPath(path);
+    try {
+      const listed = await Filesystem.readdir({ path: this.full(raw), directory: Directory.Data });
+      if (listed.files.length > 0) return false;
+      await Filesystem.rmdir({ path: this.full(raw), directory: Directory.Data, recursive: false });
+    } catch (err) {
+      if (isMissingFile(err)) return true;
+      // silent: a folder that holds something, or one the system will not remove, stays where it is — nothing is lost, and the sync weighs it again next cycle.
+      console.warn(`[CapacitorVaultAdapter] could not remove the empty folder ${path}`, err);
+      return false;
+    }
+    this.spellings.forget(norm(path));
+    return true;
+  }
+
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
     const raw = await this.realPath(path);
     this.spellings.forget(norm(path));

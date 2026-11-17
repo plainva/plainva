@@ -268,6 +268,23 @@ export class TauriVaultAdapter implements IVaultAdapter {
     }
   }
 
+  /** See `IVaultAdapter.removeEmptyDir`: the raw listing hides nothing, and `remove` without `recursive` is rmdir. */
+  async removeEmptyDir(path: string): Promise<boolean> {
+    const raw = await this.realPath(path);
+    try {
+      const entries = await checkedReadDirectory(await this.rootId(), raw);
+      if (entries === null) return true;
+      if (entries.length > 0) return false;
+      await remove(await this.getAbsolutePath(raw), { recursive: false });
+    } catch (err) {
+      // silent: a folder that holds something, or one the system will not remove, stays where it is — nothing is lost, and the sync weighs it again next cycle.
+      console.warn(`[TauriVaultAdapter] could not remove the empty folder ${path}`, err);
+      return false;
+    }
+    this.spellings.forget(path);
+    return true;
+  }
+
   async deleteItem(path: string, recursive: boolean = false): Promise<void> {
     const raw = await this.realPath(path);
     this.spellings.forget(path);

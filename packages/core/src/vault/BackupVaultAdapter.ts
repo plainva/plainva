@@ -387,6 +387,11 @@ export class BackupVaultAdapter implements IVaultAdapter {
    * lies in another file. The deletion used to go on and say, on the phone,
    * that the file "was still saved" (Sammelplan § 3.175 no. 6).
    */
+  /** Nothing to keep a copy of: only a folder that holds nothing goes (`IVaultAdapter.removeEmptyDir`). */
+  async removeEmptyDir(path: string): Promise<boolean> {
+    return this.inner.removeEmptyDir ? this.inner.removeEmptyDir(path) : false;
+  }
+
   async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
     if (isPlainvaInternalPath(path)) return this.inner.deleteItem(path, recursive, confirmation);
     let info: VaultFileInfo | null;

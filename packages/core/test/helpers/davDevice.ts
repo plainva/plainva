@@ -14,6 +14,8 @@ import { SyncQueue } from "../../src/sync/SyncQueue.js";
 import { SyncEngine } from "../../src/sync/SyncEngine.js";
 import { SyncWorker } from "../../src/sync/SyncWorker.js";
 import { WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
+import type { ISyncTarget } from "../../src/sync/ISyncTarget.js";
+import type { VaultFileInfo } from "../../src/vault/IVaultAdapter.js";
 
 /**
  * One device of a two-device sync test: the real core (adapter chain,
@@ -44,6 +46,28 @@ export async function device(dav: ByteExactDav, options: {
   queueing?: ConstructorParameters<typeof QueueingVaultAdapter>[2];
   /** Acts as a remote that refuses to delete a folder holding a file (as S3 does). */
   deletesFolderOnlyWhileEmpty?: boolean;
+  hides?: (rel: string) => boolean;
+} = {}) {
+  const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, (input, init) => dav.fetch(input, init));
+  target.allowRootCreation = false;
+  if (options.deletesFolderOnlyWhileEmpty) (target as { deletesFolderOnlyWhileEmpty?: boolean }).deletesFolderOnlyWhileEmpty = true;
+  return deviceOn(target, options);
+}
+
+/** A local vault whose `listDir` leaves out what `hides` names, as the shells' listings do. */
+class HidingVaultAdapter extends LocalVaultAdapter {
+  constructor(root: string, private readonly hides: (rel: string) => boolean) { super(root); }
+  override async listDir(p = "", recursive = false): Promise<VaultFileInfo[]> {
+    const base = p ? p + "/" : "";
+    return (await super.listDir(p, recursive)).filter((e) => !this.hides(e.path.startsWith(base) ? e.path.slice(base.length) : e.path));
+  }
+}
+
+/** The same device against any target (a Drive fake, say). */
+export async function deviceOn(target: ISyncTarget, options: {
+  queueing?: ConstructorParameters<typeof QueueingVaultAdapter>[2];
+  /** Paths below a folder its listing leaves out (the phone: every dot-named entry). */
+  hides?: (rel: string) => boolean;
 } = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-dav-device-"));
   const db = await realSqlite();
@@ -51,7 +75,7 @@ export async function device(dav: ByteExactDav, options: {
     await db.close();
     await fs.rm(root, { recursive: true, force: true });
   });
-  const raw = new LocalVaultAdapter(root);
+  const raw = options.hides ? new HidingVaultAdapter(root, options.hides) : new LocalVaultAdapter(root);
   await raw.initialize();
   const backup = new BackupVaultAdapter(raw);
   const queue = new SyncQueue(db);
@@ -65,9 +89,6 @@ export async function device(dav: ByteExactDav, options: {
     onNewLocalFile: (p) => later(() => queue.queueWrite(p)),
     onLocalFileDeleted: (p) => later(() => queue.queueDelete(p)),
   });
-  const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, (input, init) => dav.fetch(input, init));
-  target.allowRootCreation = false;
-  if (options.deletesFolderOnlyWhileEmpty) (target as { deletesFolderOnlyWhileEmpty?: boolean }).deletesFolderOnlyWhileEmpty = true;
   const engine = new SyncEngine(queue, target, app, repo);
   const worker = new SyncWorker(engine, target, repo, backup, queue, 60_000);
   (worker as unknown as { isRunning: boolean }).isRunning = true;

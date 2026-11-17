@@ -723,8 +723,7 @@ export class SyncEngine {
             // queued too (F44): the shells queue the files and their folder
             // one by one, in no fixed order. The folder goes behind them, and
             // finds itself empty then — or holding a file of another device.
-            await this.queue.markSynced(op.id, op.file_path, op.file_path);
-            await this.queue.queueDeletePaths([op.file_path]);
+            await this.queue.requeueDeletionBehind(op);
             consecutiveFailures = 0;
             continue;
           } else if (op.operation === "delete" && isRemoteChanged(err)) {

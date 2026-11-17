@@ -184,11 +184,8 @@ describe("a folder the app moves while a full scan is under way", () => {
 
     // A synced folder whose MOVE no queue took (its entry given up, release
     // 0.9.0 A16): the old paths are reported gone and the new ones new, once —
-    // else the cloud kept the old files and never got the new ones. The old
-    // folder itself is reported after its files (F44): it goes from the
-    // cloud once they have, and does not come back empty.
-    expect([...gone].sort()).toEqual([...under("Projekt"), "Projekt"].sort());
-    expect([...gone].at(-1)).toBe("Projekt");
+    // else the cloud kept the old files and never got the new ones.
+    expect([...gone].sort()).toEqual(under("Projekt").sort());
     expect([...fresh].sort()).toEqual(under("Archiv/Projekt").sort());
     expect((await rows()).filter((r) => r.path !== "Keep.md").map((r) => [r.path, r.ctime])).toEqual(
       under("Archiv/Projekt").map((p) => [p, CREATED]),

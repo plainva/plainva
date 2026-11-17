@@ -481,6 +481,21 @@ export class SyncQueue {
   }
 
   /** Paths of all queued DELETE operations (regardless of backoff/manual-intervention state). */
+  /**
+   * Moves a deletion to the end of the queue, as it is: the person's
+   * confirmation stays with it (`delete_confirmed_at`), so the guard against
+   * mass deletions still counts it as confirmed (F44).
+   */
+  async requeueDeletionBehind(op: SyncOperation): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.execute(`DELETE FROM offline_queue WHERE id = ?`, [op.id]);
+      await tx.execute(
+        `INSERT INTO offline_queue (file_path, operation, queued_at, delete_confirmed_at) VALUES (?, 'delete', ?, ?)`,
+        [op.file_path, Date.now(), op.delete_confirmed_at ?? null]
+      );
+    });
+  }
+
   async getPendingDeletePaths(): Promise<string[]> {
     const rows = await this.db.query<{ file_path: string }>(
       `SELECT file_path FROM offline_queue WHERE operation = 'delete'`

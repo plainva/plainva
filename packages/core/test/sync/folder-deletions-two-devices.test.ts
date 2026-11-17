@@ -188,10 +188,13 @@ describe("a folder whose move the remote refused", () => {
   });
 });
 
+const GIVE_UP = { queueing: { giveUpAfterMs: 0, retryAtMs: [] } };
+const ATOMIC = { deletesFolderOnlyWhileEmpty: true };
+
 describe("a folder rename whose queue entry was given up", () => {
-  it("ends with the folder under its new name only — on the server and on both devices", async () => {
+  it("ends with the folder under its new name only, where the remote refuses to delete a folder holding a file", async () => {
     const { dav } = world();
-    const a = await device(dav, { queueing: { giveUpAfterMs: 0, retryAtMs: [] } }), b = await device(dav);
+    const a = await device(dav, { ...GIVE_UP, ...ATOMIC }), b = await device(dav, ATOMIC);
     await filled(a);
     await a.app.createDir("Alt");
     await a.app.writeTextFile("Alt/N.md", "# N\n");
@@ -315,9 +318,9 @@ describe("a folder deleted on another device", () => {
 });
 
 describe("a folder rename given up before its notes were uploaded", () => {
-  it("leaves no empty old folder behind, on the server or here", async () => {
+  it("leaves no empty old folder behind where the remote refuses to delete a folder holding a file", async () => {
     const { dav } = world();
-    const a = await device(dav, { queueing: { giveUpAfterMs: 0, retryAtMs: [] } });
+    const a = await device(dav, { ...GIVE_UP, ...ATOMIC });
     await filled(a);
     await a.app.createDir("Alt");
     await a.cycle();
@@ -337,5 +340,93 @@ describe("a folder rename given up before its notes were uploaded", () => {
     expect(dav.folders.has("Alt")).toBe(false);
     expect(await a.exists("Alt")).toBe(false);
     expect(await a.text("Neu/N.md")).toBe("# N\n");
+  });
+});
+
+describe("third review", () => {
+  it("a given-up folder rename sends no unconfirmed folder deletion: a note put into the old folder meanwhile stays", async () => {
+    const { dav, remote } = world();
+    const a = await device(dav, GIVE_UP), b = await device(dav);
+    await filled(a);
+    await a.app.createDir("Alt");
+    await a.cycle();
+    await a.cycle();
+    await b.cycle();
+    await b.cycle();
+    // A note in it, indexed but not uploaded yet.
+    await a.app.writeTextFile("Alt/N.md", "# N\n");
+    await a.indexer.indexVaultFull();
+
+    const { vi } = await import("vitest");
+    vi.spyOn(a.queue, "queueRename").mockRejectedValueOnce(new Error("database is locked"));
+    await expect(a.app.renameItem("Alt", "Neu")).rejects.toThrow("database is locked");
+    await a.indexer.relocatePathInIndex("Alt", "Neu");
+    // B's note, not uploaded yet, lands right before A's deletion of the old folder, if A sends one.
+    await b.app.writeTextFile("Alt/B.md", "# from B\n");
+    let hit = false;
+    onceBefore(dav, ["DELETE"], "Alt", async () => {
+      hit = true;
+      await b.cycle();
+    });
+    for (let i = 0; i < 3; i++) {
+      await a.cycle();
+      await b.cycle();
+    }
+
+    expect(hit).toBe(false);
+    expect(remote("Alt/B.md")).toBe("# from B\n");
+    expect(await a.text("Alt/B.md")).toBe("# from B\n");
+    expect(await b.text("Alt/B.md")).toBe("# from B\n");
+    expect(remote("Neu/N.md")).toBe("# N\n");
+  });
+
+  it("a folder deleted on another device does not take what this device keeps hidden in it", async () => {
+    const { dav, remote } = world();
+    // A's listing leaves dot-named entries out, as the phone's does.
+    const a = await device(dav, { hides: (rel) => rel.split("/").some((s) => s.startsWith(".")) }), b = await device(dav);
+    await filled(a);
+    await a.app.createDir("Projekt");
+    await a.app.writeTextFile("Projekt/a.md", "# a\n");
+    for (let i = 0; i < 2; i++) await a.cycle();
+    await b.cycle();
+    await b.cycle();
+    // Only on A, and never synced: a repository's own folder.
+    await a.put("Projekt/.git/config", "[core]\n");
+
+    await b.app.deleteItem("Projekt", true, { confirmed: true });
+    for (let i = 0; i < 3; i++) {
+      await b.cycle();
+      await a.cycle();
+    }
+
+    expect(remote("Projekt/a.md")).toBeNull();
+    expect(await a.exists("Projekt/a.md")).toBe(false);
+    expect(await a.text("Projekt/.git/config")).toBe("[core]\n");
+  });
+
+  it("a confirmed folder deletion queued again behind its files stays confirmed", async () => {
+    const { dav } = world();
+    const a = await device(dav);
+    await filled(a);
+    await a.app.createDir("Projekt");
+    await a.app.writeTextFile("Projekt/P1.md", "# P1\n");
+    await a.cycle();
+    await a.cycle();
+
+    await a.removeDir("Projekt");
+    await a.queue.queueDeletePaths(["Projekt"], { confirmed: true });
+    const requeued: Array<number | null | undefined> = [];
+    const original = a.queue.requeueDeletionBehind.bind(a.queue);
+    a.queue.requeueDeletionBehind = async (op) => {
+      await original(op);
+      const row = await a.db.queryOne<{ delete_confirmed_at: number | null }>(
+        "SELECT delete_confirmed_at FROM offline_queue WHERE file_path = ? AND operation = 'delete'", [op.file_path]);
+      requeued.push(row?.delete_confirmed_at);
+    };
+    for (let i = 0; i < 3; i++) await a.cycle();
+
+    expect(requeued.length).toBeGreaterThan(0);
+    expect(requeued.every((at) => typeof at === "number" && at > 0)).toBe(true);
+    expect(dav.folders.has("Projekt")).toBe(false);
   });
 });
