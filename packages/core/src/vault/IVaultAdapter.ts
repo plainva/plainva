@@ -378,8 +378,10 @@ export interface VaultWalkSkip {
   /**
    * `cycle` — a link target already visited in this walk (following it would loop).
    * `unreadable` — listing the entry failed (permissions, offline network share).
+   * `changing` — the index read the file again and again, and something
+   *   changed it during every reading; the next full scan reads it (`VaultIndexer`).
    */
-  reason: "cycle" | "unreadable";
+  reason: "cycle" | "unreadable" | "changing";
 }
 
 /** How a reporting directory walk goes (see `IVaultAdapter.listDirReport`). */

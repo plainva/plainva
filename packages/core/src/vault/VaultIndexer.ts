@@ -334,15 +334,15 @@ interface ScanReading {
   from: number;
   /** The change journal as the read began (`changesSince`). */
   mark: number;
-  /** A second reading: the first was set aside. */
-  again: boolean;
+  /** How many readings of the file this scan set aside before this one (`READS_PER_PATH`). */
+  asideBefore: number;
 }
 
-/** A file the full scan reads (again, where `again`: its first reading was set aside, `changesSince`). */
+/** A file the full scan reads (again, where `asideBefore`: that many of its readings were set aside, `changesSince`). */
 interface ScanWork {
   file: VaultFileInfo;
   attachment: boolean;
-  again?: boolean;
+  asideBefore?: number;
 }
 
 /**
@@ -355,8 +355,17 @@ interface ScanWork {
  */
 const SCAN_TRANSACTION_TEXT = 16 * 1024 * 1024;
 
-/** How often a single path reads a file whose reading was set aside (`changesSince`) before it leaves it to the next pass. */
-const SINGLE_PATH_READS = 3;
+/**
+ * How often a pass reads a file whose readings keep being set aside
+ * (`changesSince`) before it leaves the file out — the full scan and a single
+ * path alike. A reading is set aside only where its own path changed, or a
+ * folder it lies in moved; a folder that moved has nothing left at the old
+ * path, so a file left out is one somebody keeps changing while it is read.
+ * Left out, it is never left out in silence: the index is marked as owed a
+ * full scan (`indexComplete`), the scan names it in its report (`changing`),
+ * and the next full scan reads it. "Complete" never means that a file is missing.
+ */
+const READS_PER_PATH = 4;
 
 /**
  * How many changes the journal keeps before a full scan trims it (db/indexChanges.ts):
@@ -400,8 +409,9 @@ interface IndexPass {
 /**
  * The `meta` key that says this index is owed a full scan (`VaultIndexer.indexComplete`):
  * set with the first rows a scan writes into an empty index, or once a scan
- * that began on it empty failed, and taken away with the last rows of a scan
- * that goes through.
+ * that began on it empty failed, or where a pass left out a file that changed
+ * during every reading (`READS_PER_PATH`), and taken away with the last rows
+ * of a scan that goes through without leaving one out.
  */
 const INDEX_OWED_KEY = "index_scan_owed";
 
@@ -546,8 +556,8 @@ export class VaultIndexer {
    * sync queue (also one sent up since), placed or moved it in the encrypted
    * workspace — the journal's triggers do not ask who wrote — or this indexer
    * removed or moved a path it had no row for (`noteIndexChange`). Its pass
-   * reads the file again (the full scan once, at its end; a single path up to
-   * `SINGLE_PATH_READS` times) rather than leave the row as it was. Among this
+   * reads the file again (the full scan at its end, a single path at once; up
+   * to `READS_PER_PATH` readings) rather than leave the row as it was. Among this
    * indexer's own readings the order of the reads decides as before
    * (`claimWrite`): an older reading written first is written over by the newer.
    */
@@ -1496,8 +1506,12 @@ export class VaultIndexer {
         });
         // The hash of the bytes the row was written from, or null where a later reading stood.
         if (outcome === "wrote") return readingHash(reading);
-        // Whoever keeps changing it follows it with a pass of its own; the next scan reads it besides.
-        if (outcome === "stood" || reads >= SINGLE_PATH_READS) return null;
+        if (outcome === "stood") return null;
+        if (reads >= READS_PER_PATH) {
+          // Whoever keeps changing it follows it with a pass of its own; until a full scan has read it, the index is not complete.
+          await this.leaveOut([info.path]);
+          return null;
+        }
       } finally {
         release();
       }
@@ -2098,10 +2112,22 @@ export class VaultIndexer {
    * of a cold index exists to prevent. A scan that went through counts even
    * where it left out a folder it could not read: an index owed a scan until
    * that folder can be read would hold the task notes of a vault with one
-   * dead link back for good.
+   * dead link back for good. A file that changed during every reading
+   * (`READS_PER_PATH`) is no such folder: it is there to be read, the next
+   * scan reads it, and until then the index is not complete.
    */
   async indexComplete(): Promise<boolean> {
     return !(await this.indexOwed(this.dbAdapter));
+  }
+
+  /**
+   * A single path leaves out files whose every reading was set aside
+   * (`READS_PER_PATH`): until a full scan has read them, the index is owed one
+   * and says so (`indexComplete`).
+   */
+  private async leaveOut(paths: string[]): Promise<void> {
+    console.warn(`[VaultIndexer] left out of the index until the next full scan, changed during every reading: ${paths.join(", ")}`);
+    await this.dbAdapter.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, [INDEX_OWED_KEY]);
   }
 
   /** Whether the mark that this index is owed a full scan stands (read with `query`, not a write). */
@@ -2303,6 +2329,8 @@ export class VaultIndexer {
     let scannedCount = 0;
     // Files that are there and could not be read: left out and named (issue #125).
     const unreadable: VaultWalkSkip[] = [];
+    // Files whose every reading was set aside (`READS_PER_PATH`): left out, named, and owed to the next scan.
+    const leftOut: string[] = [];
     // The rows this scan removes: decided in its transaction (stillMine).
     let removedRows = new Set<string>();
     const report = (): IndexScanReport => {
@@ -2313,7 +2341,9 @@ export class VaultIndexer {
         added: addedCount,
         changed: scannedCount - addedCount,
         removed: removedRows.size,
-        skipped: unreadable.length > 0 ? [...skipped, ...unreadable] : skipped,
+        skipped: unreadable.length + leftOut.length > 0
+          ? [...skipped, ...unreadable, ...leftOut.map((path): VaultWalkSkip => ({ path, reason: "changing" }))]
+          : skipped,
         durationMs: Date.now() - startedAt,
         walked: candidates.length,
         foldersChanged,
@@ -2387,9 +2417,9 @@ export class VaultIndexer {
         const { mark, release } = await this.takeChangeMark();
         try {
           while (next < work.length && readings.length < LOOKUP_SLICE) {
-            const { attachment, again } = work[next];
+            const { attachment, asideBefore = 0 } = work[next];
             let file = work[next].file;
-            if (again) {
+            if (asideBefore > 0) {
               next++;
               // Read once more, as it is now: moved or removed meanwhile, whoever did it follows the path.
               const now = await this.lookAt(file.path).catch(() => null);
@@ -2417,11 +2447,11 @@ export class VaultIndexer {
               }
               attachmentsDone++;
             }
-            if (!again) next++;
+            if (asideBefore === 0) next++;
             // The read's place among this indexer's reads, taken as it begins (`claimWrite`).
             const from = this.readBegins();
             const reading = await this.readOrLeaveOut(file, unreadable);
-            readings.push({ file, attachment, reading, from, mark, again: !!again });
+            readings.push({ file, attachment, reading, from, mark, asideBefore });
             if (reading?.kind === "text") text += reading.read.text.length;
             if (Date.now() - began >= TRANSACTION_MS || text >= SCAN_TRANSACTION_TEXT) break;
           }
@@ -2482,16 +2512,17 @@ export class VaultIndexer {
             const changed = await this.changesSince(mark, tx);
             // Set aside in this transaction, to be read once more (`changesSince`); only when it goes through.
             const setAside: ScanWork[] = [];
-            for (const { file, attachment, reading, from, again } of readings) {
+            for (const { file, attachment, reading, from, asideBefore } of readings) {
               if (!reading) continue;
               // Changed in the database since the read began — saved, moved,
               // removed, by the app or the sync, the file or a folder it lies in:
               // written, the reading could bring back a row for a file that is
               // elsewhere or gone, or report the app's own save as a foreign
-              // change. Read once more at the end; a second time, whoever keeps
-              // changing it follows it, and the next scan besides.
+              // change. Read once more at the end, up to `READS_PER_PATH`
+              // readings; then it is left out, named, and owed to the next scan.
               if (changed(file.path, mark)) {
-                if (!again) setAside.push({ file, attachment, again: true });
+                if (asideBefore + 1 < READS_PER_PATH) setAside.push({ file, attachment, asideBefore: asideBefore + 1 });
+                else leftOut.push(file.path);
                 continue;
               }
               // A reading begun later by another pass and written already stands (`claimWrite`).
@@ -2553,8 +2584,10 @@ export class VaultIndexer {
                 await this.markRemoved(vanishedFromDisk.filter((path) => removedRows.has(path)), sink);
               }
 
-              // The scan has gone through once its last rows are in: the index owes no more.
-              if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
+              // The scan has gone through once its last rows are in: the index owes no more —
+              // unless it left out a file that kept changing as it was read.
+              if (leftOut.length > 0) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
+              else if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
               done = true;
             }
 
@@ -2578,6 +2611,7 @@ export class VaultIndexer {
       throw error;
     }
 
+    if (leftOut.length > 0) console.warn(`[VaultIndexer] left out of the index, changed during every reading: ${leftOut.join(", ")}`);
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest
     // inside it.
     this.flushCallbacks(pass);

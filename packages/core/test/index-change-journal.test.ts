@@ -49,13 +49,19 @@ describe("the index's change journal", () => {
     for (const table of JOURNALED_TABLES) expect(triggers, `a trigger journals ${table}`).toContain(table);
   });
 
-  it("notes a moved row at both ends and the folder it left, and a removed one", async () => {
+  it("notes a moved row at both ends, and a removed one — not the folder it lies in", async () => {
     await db.execute(`INSERT INTO files (id, path) VALUES ('1', 'A/x.md'), ('2', 'top.md')`);
     await db.execute(`UPDATE files SET path = 'B/x.md' WHERE path = 'A/x.md'`);
     await db.execute(`UPDATE files SET path = 'moved.md' WHERE path = 'top.md'`);
     await db.execute(`DELETE FROM files WHERE path = 'moved.md'`);
-    // The vault's own top level is no folder a reading lies "in".
-    expect(await journal()).toEqual(["A/x.md", "B/x.md", "A", "top.md", "moved.md", "moved.md"]);
+    expect(await journal()).toEqual(["A/x.md", "B/x.md", "top.md", "moved.md", "moved.md"]);
+  });
+
+  it("notes a workspace object's new revision at its own path, not at its folder", async () => {
+    await db.execute(`INSERT INTO workspace_object (object_id, path, plaintext_sha256, content_kind, created_at, modified_at) VALUES ('o', 'D/today.md', 'a', 'text', '', '')`);
+    await db.execute(`UPDATE workspace_object SET plaintext_sha256 = 'b' WHERE object_id = 'o'`);
+    await db.execute(`UPDATE workspace_object SET path = 'E/today.md' WHERE object_id = 'o'`);
+    expect(await journal()).toEqual(["D/today.md", "D/today.md", "D/today.md", "E/today.md"]);
   });
 
   it("notes a sync row that changes what it records, and not one that only records an upload", async () => {

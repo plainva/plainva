@@ -38,30 +38,38 @@ export const INDEX_CHANGES_TABLE = "index_changes";
  * The tables whose changes the journal follows, by the triggers below. What a
  * change of each means for a reading of the file at its path:
  *  - `files`: a row moved or removed — the app moved or removed the file, or
- *    another pass found it gone. Also the folder a moved row left: a move of
- *    a folder in the app moves the rows of the files the index holds, and
- *    the files it does not hold yet went with them.
+ *    another pass found it gone.
  *  - `sync_state`: the sync, or a save, recorded what the file holds now.
  *  - `offline_queue`, `workspace_queue`: a change the app queued for the
  *    remote, a move above all; the entry is gone again once it went up, the
  *    journal's row stays.
  *  - `workspace_object`: the encrypted workspace placed, moved or removed a file.
  *  - `conflicts`: a conflict was recorded for the file.
+ *
+ * Each change names the paths it changed, and no more. A folder is named
+ * where it moved or went as a whole: a move of a folder in the app names
+ * both its ends (`VaultIndexer.relocatePathInIndex`, the queue's move), and
+ * so sets aside every reading in it — also of a file the index holds no row
+ * for, which moved with its folder all the same. A change to one file names
+ * that file: a rename beside a new note, a revision the encrypted workspace
+ * records for a neighbour, does not set the readings of the whole folder
+ * aside — two such changes during a scan kept every new note of the folder
+ * out of the index.
  */
 export const JOURNALED_TABLES = ["files", "sync_state", "offline_queue", "workspace_queue", "workspace_object", "conflicts"] as const;
 
 const journal = (path: string) => `INSERT INTO ${INDEX_CHANGES_TABLE} (path) SELECT ${path} WHERE ${path} IS NOT NULL;`;
-
-/** The folder of a path, without its slash; NULL at the vault's top level (a reading is never set aside for a change of the vault itself). */
-const folderOf = (path: string) => `NULLIF(rtrim(rtrim(${path}, replace(${path}, '/', '')), '/'), '')`;
 
 export const INDEX_CHANGES_SCHEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS ${INDEX_CHANGES_TABLE} (
      seq  INTEGER PRIMARY KEY AUTOINCREMENT,
      path TEXT NOT NULL
    );`,
-  `CREATE TRIGGER IF NOT EXISTS index_changes_files_moved AFTER UPDATE OF path ON files WHEN OLD.path IS NOT NEW.path BEGIN
-     ${journal("OLD.path")} ${journal("NEW.path")} ${journal(folderOf("OLD.path"))}
+  // Triggers of earlier builds that also named the folder of every changed file.
+  `DROP TRIGGER IF EXISTS index_changes_files_moved`,
+  `DROP TRIGGER IF EXISTS index_changes_workspace_changed`,
+  `CREATE TRIGGER IF NOT EXISTS index_changes_files_moved_to AFTER UPDATE OF path ON files WHEN OLD.path IS NOT NEW.path BEGIN
+     ${journal("OLD.path")} ${journal("NEW.path")}
    END`,
   `CREATE TRIGGER IF NOT EXISTS index_changes_files_gone AFTER DELETE ON files BEGIN
      ${journal("OLD.path")}
@@ -85,9 +93,9 @@ export const INDEX_CHANGES_SCHEMA: readonly string[] = [
   `CREATE TRIGGER IF NOT EXISTS index_changes_workspace_placed AFTER INSERT ON workspace_object BEGIN
      ${journal("NEW.path")}
    END`,
-  `CREATE TRIGGER IF NOT EXISTS index_changes_workspace_changed AFTER UPDATE ON workspace_object
+  `CREATE TRIGGER IF NOT EXISTS index_changes_workspace_revised AFTER UPDATE ON workspace_object
      WHEN OLD.path IS NOT NEW.path OR OLD.plaintext_sha256 IS NOT NEW.plaintext_sha256 OR OLD.deleted IS NOT NEW.deleted BEGIN
-     ${journal("OLD.path")} ${journal("NULLIF(NEW.path, OLD.path)")} ${journal(folderOf("OLD.path"))}
+     ${journal("OLD.path")} ${journal("NULLIF(NEW.path, OLD.path)")}
    END`,
   `CREATE TRIGGER IF NOT EXISTS index_changes_workspace_gone AFTER DELETE ON workspace_object BEGIN
      ${journal("OLD.path")}
