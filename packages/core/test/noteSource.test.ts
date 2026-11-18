@@ -147,6 +147,14 @@ describe("the prepared text reads as the note", () => {
     expect(prepareReaderSource("[[a|b]] `x\n|---|---|` y\n", { tables: true }).text).toBe("[b](wiki://a) `x\n|---|---|` y\n");
     // Without a renderer of tables, the line reads as it is written.
     expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n").text).toBe("[b](wiki://a) | c\n|---|---|\n");
+    // A line with more or fewer cells than the row makes no table here either:
+    // nothing is written into it, where a formula may show it.
+    expect(prepareReaderSource("[[a|b]] | c | d\n|---|---|\n", { tables: true }).text).toBe("[b](wiki://a) | c | d\n|---|---|\n");
+  });
+
+  it("says where the wiki links and embeds stand in the text it prepares", () => {
+    const source = prepareReaderSource("a [[b]] c ![[d.png]] e");
+    expect(source.wikiLinks.map(([from, to]) => source.text.slice(from, to))).toEqual(["[b](wiki://b)", "![img](wiki-image://d.png)"]);
   });
 
   it("leaves every `$` as it is without the renderer's formula plugin", () => {

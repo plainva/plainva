@@ -4,7 +4,7 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
-import { unified, type Pluggable } from "unified";
+import { unified, type Processor } from "unified";
 import { boundMarkdownForParse, restoreBoundedTree } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
@@ -28,6 +28,21 @@ const obsidianPreservingMarkdownParser = unified()
 
 /** CommonMark alone: no tables, no bare addresses turned into links, no properties block, no wiki links. */
 const commonMarkParser = unified().use(remarkParse);
+
+/**
+ * The reading view's parse without its formulas: GFM, no properties block, no
+ * wiki links — the text it is handed has Markdown links for them.
+ */
+const readerTextParser = unified().use(remarkParse).use(remarkGfm);
+
+/** The same, reading every backtick as the sign it is. */
+const readerTextParserWithoutCodeSpans = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(function withoutCodeSpans(this: Processor) {
+    const data = this.data() as unknown as { micromarkExtensions?: unknown[] };
+    (data.micromarkExtensions ??= []).push({ disable: { null: ["codeText"] } });
+  });
 
 const BYTE_ORDER_MARK = 0xfeff;
 
@@ -138,22 +153,21 @@ export function parseMarkdownTree(text: string): MarkdownTreeNode {
 }
 
 /**
- * The tree of a note as a renderer with one more plugin reads it — the
- * reading view with its formula plugin (remark-math): tables and task lists,
- * the properties block, and what the plugin adds; wiki links stay text, as
- * they are links in the text that renderer receives. Every position is a place
- * in `text`.
- */
-export function parseMarkdownTreeWith(text: string, plugin: Pluggable): MarkdownTreeNode {
-  const processor = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(plugin as never);
-  return parsedInText((source) => processor.parse(source), text) as unknown as MarkdownTreeNode;
-}
-
-/**
  * The tree of a text that is CommonMark and nothing more — what another
  * program wrote before it was a note here; `[[` opens no wiki link in it.
  * Every position is a place in `text`.
  */
 export function parseCommonMarkTree(text: string): MarkdownTreeNode {
   return parsedInText((source) => commonMarkParser.parse(source), text) as unknown as MarkdownTreeNode;
+}
+
+/**
+ * A stretch of the text the reading view is handed, read as that view reads
+ * it without its formula plugin (`remarkFormulasYieldToLinks`): what stands
+ * between dollar signs once they open no formula. `codeSpans: false` reads
+ * every backtick as itself. Every position is a place in `text`.
+ */
+export function parseReaderTextTree(text: string, options: { codeSpans?: boolean } = {}): MarkdownTreeNode {
+  const parser = options.codeSpans === false ? readerTextParserWithoutCodeSpans : readerTextParser;
+  return parsedInText((source) => parser.parse(source), text) as unknown as MarkdownTreeNode;
 }

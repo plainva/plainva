@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
 import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
-import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
+import { markdownLinkTarget, prepareReaderSource, remarkFormulasYieldToLinks, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
@@ -319,6 +319,31 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
 export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, onToggleHtmlBox, anchors, onActivateAnchor, onEditAtLine }) => {
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
+  const source = useMemo(() => prepareReaderSource(content, {
+    formatDate: (date) => formatRelativeDate(date, new Date(), (i18n.language || "de").slice(0, 2)),
+    embedKind: (target) => embedKindOf(parseWikiImageTarget(target).target) ?? "note",
+    // A GFM renderer: it reads tables.
+    tables: true,
+  }), [content, i18n.language]);
+  const anchorPlugin = useMemo(() => {
+    if (!anchors?.length) return null;
+    return rehypeReadAnchors(anchors.map((a) => ({ ...a, from: source.toRendered(a.from), to: source.toRendered(a.to, "end") })));
+  }, [anchors, source]);
+  const sourcePlugin = useMemo(() => rehypeReaderSource(source, content), [source, content]);
+  // A formula over a wiki link is shown as what is written there, the link a link (Fehlerliste 0.9.0, B4).
+  const formulasYield = useMemo(() => remarkFormulasYieldToLinks(source), [source]);
+  // Right-to-left text (issue 111): each block gets the direction the editor
+  // gives its lines - one rule, read from the same source. Runs after the
+  // source plugin, whose line addresses it reads.
+  const directionPlugin = useMemo(() => rehypeReaderDirection(content), [content]);
+  // Unresolved-link styling in read mode (maintainer 2026-07-18): same resolver
+  // set as the editor, so a link to a not-yet-created note reads as muted here too.
+  const wikiResolver = useWikiResolver();
+
+  // Task checkboxes are matched back to the source by DOCUMENT ORDER; the
+  // ordinal is read from the DOM at click time (taskCheckboxOrdinal) rather
+  // than from a render-time counter, which drifted under StrictMode.
+
   // LaTeX math (P3.4): remark-math/rehype-katex/KaTeX CSS load lazily and
   // only when the note actually contains math syntax — the bundle stays out
   // of every math-free session. Until loaded, $…$ renders as plain text for
@@ -339,33 +364,6 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       alive = false;
     };
   }, [hasMath, mathPlugins]);
-
-  const source = useMemo(() => prepareReaderSource(content, {
-    formatDate: (date) => formatRelativeDate(date, new Date(), (i18n.language || "de").slice(0, 2)),
-    embedKind: (target) => embedKindOf(parseWikiImageTarget(target).target) ?? "note",
-    // The formulas are read as this renderer reads them, by its plugin: a
-    // formula over a wiki link is shown as text (Fehlerliste 0.9.0, B4).
-    formulas: mathPlugins ? mathPlugins.remark as never : undefined,
-    // A GFM renderer: it reads tables.
-    tables: true,
-  }), [content, i18n.language, mathPlugins]);
-  const anchorPlugin = useMemo(() => {
-    if (!anchors?.length) return null;
-    return rehypeReadAnchors(anchors.map((a) => ({ ...a, from: source.toRendered(a.from), to: source.toRendered(a.to, "end") })));
-  }, [anchors, source]);
-  const sourcePlugin = useMemo(() => rehypeReaderSource(source, content), [source, content]);
-  // Right-to-left text (issue 111): each block gets the direction the editor
-  // gives its lines - one rule, read from the same source. Runs after the
-  // source plugin, whose line addresses it reads.
-  const directionPlugin = useMemo(() => rehypeReaderDirection(content), [content]);
-  // Unresolved-link styling in read mode (maintainer 2026-07-18): same resolver
-  // set as the editor, so a link to a not-yet-created note reads as muted here too.
-  const wikiResolver = useWikiResolver();
-
-  // Task checkboxes are matched back to the source by DOCUMENT ORDER; the
-  // ordinal is read from the DOM at click time (taskCheckboxOrdinal) rather
-  // than from a render-time counter, which drifted under StrictMode.
-
 
   // A click on a link is the desktop's one opener's (`services/openLink`), as
   // in the editor: a Markdown link (generated index.md listings!) is read from
@@ -441,7 +439,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={mathPlugins
-          ? [bounded.remarkRestore, remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
+          ? [bounded.remarkRestore, formulasYield, remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
           : [bounded.remarkRestore, remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills]}
         rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}

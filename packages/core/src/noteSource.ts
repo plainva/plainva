@@ -1,5 +1,4 @@
-import { parseMarkdownTree, parseMarkdownTreeWith } from "./markdown-parser.js";
-import type { Pluggable } from "unified";
+import { parseMarkdownTree } from "./markdown-parser.js";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
 import { plainWikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 import { SOURCE_LINE_END } from "./sourceLines.js";
@@ -186,6 +185,8 @@ interface ReaderSpan { from: number; to: number; start: number; end: number; exa
 export interface ReaderSource {
   text: string;
   embeds: { from: number; to: number; target: string }[];
+  /** The wiki links and embeds as they stand in `text` (`[start, end)`, in order). */
+  wikiLinks: ReadonlyArray<readonly [number, number]>;
   toRendered(offset: number, edge?: "start" | "end"): number;
   toOriginal(offset: number, edge?: "start" | "end"): number;
 }
@@ -311,7 +312,7 @@ function* labelSpellings(label: string): Generator<{ at: number; text: string }>
  */
 export type ReaderEmbedKind = "image" | "audio" | "note";
 
-export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind; formulas?: Pluggable; tables?: boolean } = {}): ReaderSource {
+export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind; tables?: boolean } = {}): ReaderSource {
   const clean = stripAnchorMarkers(raw);
   const edits: ReaderEdit[] = [];
   const tree = treeFor(clean.text);
@@ -396,6 +397,18 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     }
     return false;
   };
+  // A line as the renderer is handed it, as far as its bars go: a wiki link's bars are gone.
+  const readLine = (from: number, to: number) => {
+    let text = "";
+    let at = from;
+    for (let n = lastStartingBefore(links, from); n < links.length; n++) {
+      if (n < 0 || links[n][1] <= at) continue;
+      if (links[n][0] >= to) break;
+      text += clean.text.slice(at, links[n][0]) + "x";
+      at = links[n][1];
+    }
+    return text + clean.text.slice(at, to);
+  };
   // A line under a line of a paragraph that a table would read as its
   // delimiter row stays a line of the paragraph: a link that hides the bar of
   // its alias (`[[a|b]] | c` over `|---|---|`) takes one cell from the line
@@ -413,7 +426,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
       const next = clean.text.indexOf("\n", brk + 1);
       const line = clean.text.slice(brk + 1, Math.min(end, next === -1 ? clean.text.length : next)).replace(/\r$/, "");
       const dash = delimiterRowDash(line);
-      if (dash >= 0 && linkWithBarIn(lineFrom, brk) && !inLiteral(literals, brk + 1 + dash)) {
+      if (dash >= 0 && linkWithBarIn(lineFrom, brk) && !inLiteral(literals, brk + 1 + dash) && cellsOf(readLine(lineFrom, brk)) === cellsOf(line)) {
         edits.push({ from: brk + 2 + dash, to: brk + 2 + dash, text: "<!---->" });
       }
       lineFrom = brk + 1;
@@ -453,25 +466,10 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     add(cursor, clean.text.length, clean.text.slice(cursor), true);
     return { text: parts.join(""), spans, visible, embeds, placed, length };
   };
-  let composed = compose(edits);
-  // A formula keeps no wiki link: where the renderer's formula plugin, reading
-  // the text it is handed, would read one over a link (`Preis $3 [[Notiz]]
-  // und $4`), the `$` that open and close it are shown as the signs they are,
-  // and the link is a link (Fehlerliste 0.9.0, B4). Where a sign cannot be
-  // taken out unseen — in an address, in code, behind a backslash, or written
-  // by this preparation —, the formula stays as it always was.
-  if (options.formulas && linkEdits.length > 0 && composed.text.includes("$")) {
-    const linked = linkEdits.map((edit) => composed.placed.get(edit)).filter((range): range is readonly [number, number] => range !== undefined);
-    const own = (at: number) => composed.spans.find((stretch) => stretch.exact && stretch.start <= at && at < stretch.end);
-    const signs = signsOfSwallowingFormulas(composed.text, linked, options.formulas, (at) => own(at) === undefined);
-    if (signs.length > 0) {
-      for (const at of signs) {
-        const span = own(at)!;
-        edits.push({ from: span.from + at - span.start, to: span.from + at - span.start + 1, text: "\\$" });
-      }
-      composed = compose(edits);
-    }
-  }
+  const composed = compose(edits);
+  // Where the wiki links stand in the text the renderer is handed: a formula
+  // over one gives way to it (`remarkFormulasYieldToLinks`, Fehlerliste 0.9.0, B4).
+  const wikiLinks = linkEdits.map((edit) => composed.placed.get(edit)).filter((range): range is readonly [number, number] => range !== undefined).sort((x, y) => x[0] - y[0]);
   const { spans, visible, embeds, length } = composed;
   const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => list.find((span) => {
     const a = original ? span.from : span.start, b = original ? span.to : span.end;
@@ -480,6 +478,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   return {
     text: composed.text,
     embeds,
+    wikiLinks,
     toRendered(offset, edge = "start") {
       const at = clean.toClean(Math.max(0, Math.min(raw.length, offset)));
       const span = choose(visible, at, true, edge) ?? choose(spans, at, true, edge);
@@ -492,6 +491,33 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
       return clean.toRaw(span.exact ? span.from + offset - span.start : edge === "start" ? span.from : span.to, edge === "start" ? "after" : "before");
     },
   };
+}
+
+/**
+ * How many cells a table reads in `line` — behind the marks of a quote and
+ * the blanks of a list, split at every bar a backslash does not stand in
+ * front of, the empty cell before a leading and behind a trailing bar not
+ * counted. A table is only one where its first line has as many as its
+ * delimiter row.
+ */
+function cellsOf(line: string): number {
+  let at = 0;
+  for (;;) {
+    while (line[at] === " " || line[at] === "\t") at++;
+    if (line[at] !== ">") break;
+    at++;
+  }
+  const cells: string[] = [""];
+  for (let i = at; i < line.length; i++) {
+    if (line[i] === "\\" && i + 1 < line.length) {
+      cells[cells.length - 1] += line[i] + line[i + 1];
+      i++;
+    } else if (line[i] === "|") cells.push("");
+    else cells[cells.length - 1] += line[i];
+  }
+  if (cells.length > 1 && cells[0].trim() === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
+  return cells.length;
 }
 
 /**
@@ -511,103 +537,6 @@ function delimiterRowDash(line: string): number {
   if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
   if (cells.length === 0 || !cells.every((cell) => /^:?-+:?$/.test(cell.trim()))) return -1;
   return line.indexOf("-", at);
-}
-
-/**
- * The `$` that open and close the formulas the renderer's formula `plugin`
- * reads over one of `links` in `text` — the text the renderer is handed, with
- * the places of its wiki links (in order). With those signs taken out, the
- * next `$` may pair anew: the text is read again, with the taken ones masked
- * by a sign of the same width and class, until no formula holds a link — or
- * the rounds are used up, as a long paragraph of `$` and links must not cost
- * a reading per pair. A formula whose sign cannot be taken out unseen stays
- * as it is: one behind a backslash (a second one would be shown), one this
- * preparation wrote (it has no place in the note to escape), and one
- * that, taken out, stands in an address, a link, code or HTML (it would
- * change the address, or be shown with its backslash).
- */
-function signsOfSwallowingFormulas(text: string, links: ReadonlyArray<readonly [number, number]>, plugin: Pluggable, written: (at: number) => boolean): number[] {
-  const MASK = "\u00a4";
-  const sorted = [...links].sort((x, y) => x[0] - y[0]);
-  const holdsLink = (from: number, to: number) => {
-    const n = lastStartingBefore(sorted, to);
-    return n >= 0 && sorted[n][1] > from;
-  };
-  const escaped = (at: number) => {
-    let slashes = 0;
-    while (at - slashes - 1 >= 0 && text[at - slashes - 1] === "\\") slashes++;
-    return slashes % 2 === 1;
-  };
-  /** The signs of each formula taken out, by its first sign. */
-  const taken = new Map<number, number[]>();
-  /** The first signs of formulas that stay as they are. */
-  const kept = new Set<number>();
-  const LITERAL = new Set(["link", "linkReference", "image", "imageReference", "definition", "inlineCode", "code", "html"]);
-  const read = (masked: string) => {
-    const literal: Array<[number, number]> = [];
-    const formulas: Array<[number, number]> = [];
-    const visit = (node: SourceNode) => {
-      if (node.position && (node.type === "inlineMath" || node.type === "math")) {
-        formulas.push([node.position.start.offset, node.position.end.offset]);
-        return;
-      }
-      if (node.position && LITERAL.has(node.type)) {
-        literal.push([node.position.start.offset, node.position.end.offset]);
-        return;
-      }
-      for (const child of node.children ?? []) visit(child);
-    };
-    visit(parseMarkdownTreeWith(masked, plugin) as unknown as SourceNode);
-    literal.sort((x, y) => x[0] - y[0]);
-    return { literal, formulas };
-  };
-  const signsOf = (masked: string, from: number, to: number): number[] => {
-    const signs: number[] = [];
-    let at = from;
-    while (at < to && (masked[at] === " " || masked[at] === "\t")) at++;
-    while (at < to && masked[at] === "$") signs.push(at++);
-    let end = to;
-    while (end > at && /\s/.test(masked[end - 1])) end--;
-    while (end > at && masked[end - 1] === "$") signs.push(--end);
-    return signs;
-  };
-  const maskedText = () => {
-    const chars = text.split("");
-    for (const signs of taken.values()) for (const at of signs) chars[at] = MASK;
-    return chars.join("");
-  };
-  for (let round = 0; round < 9; round++) {
-    const masked = maskedText();
-    const { literal, formulas } = read(masked);
-    // A taken sign that now stands in an address, a link or code: its
-    // formula is given back, and stays.
-    let given = false;
-    for (const [first, signs] of [...taken]) {
-      if (signs.some((at) => inLiteral(literal, at))) {
-        taken.delete(first);
-        kept.add(first);
-        given = true;
-      }
-    }
-    if (given) continue;
-    if (round === 8) break;
-    let found = false;
-    for (const [from, to] of formulas) {
-      if (!holdsLink(from, to)) continue;
-      const signs = signsOf(masked, from, to);
-      if (signs.length === 0 || kept.has(signs[0])) continue;
-      if (signs.some((at) => escaped(at) || written(at))) {
-        kept.add(signs[0]);
-        continue;
-      }
-      taken.set(signs[0], signs);
-      found = true;
-    }
-    if (!found) break;
-  }
-  const { literal } = read(maskedText());
-  for (const [first, signs] of [...taken]) if (signs.some((at) => inLiteral(literal, at))) taken.delete(first);
-  return [...taken.values()].flat().sort((x, y) => x - y);
 }
 
 /** Whether `at` stands in one of `stretches` (in order, without overlap). */

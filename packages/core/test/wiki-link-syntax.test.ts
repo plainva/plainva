@@ -191,9 +191,10 @@ describe("the reading view", () => {
     // A bare `|` in an alias is escaped: a table counts the cells of a line by
     // them — in a code span too, for it splits the line before it reads one.
     // The line under it, which a table would read as its delimiter row, stays
-    // a line of the paragraph (an empty comment behind its first `-`, Fehlerliste 0.9.0, B5).
-    expect(read("[[Note|a|b]]\n|---|---|\n")).toBe("[a\\|b](wiki://Note)\n|-<!---->--|---|\n");
-    expect(read(`[[Note|run ${TICK}a|b${TICK} c]]\n|---|---|\n`)).toBe("[run &#96;a\\|b&#96; c](wiki://Note)\n|-<!---->--|---|\n");
+    // a line of the paragraph as it is written: with the bar escaped, the line
+    // above has one cell and no table forms (Fehlerliste 0.9.0, B5).
+    expect(read("[[Note|a|b]]\n|---|---|\n")).toBe("[a\\|b](wiki://Note)\n|---|---|\n");
+    expect(read(`[[Note|run ${TICK}a|b${TICK} c]]\n|---|---|\n`)).toBe("[run &#96;a\\|b&#96; c](wiki://Note)\n|---|---|\n");
   });
 
   it("opens the file a link written with `\\|` names, and takes an embed's size from it", () => {

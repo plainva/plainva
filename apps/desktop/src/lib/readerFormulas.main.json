@@ -21,5 +21,21 @@
   "$a [[A]] \\$ b$": "<p><code class=\"language-math math-inline\">a [A](wiki://A) \\</code> b$</p>",
   "$x [[A]] https://x.y/?$f=1": "<p><code class=\"language-math math-inline\">x [A](wiki://A) https://x.y/?</code>f=1</p>",
   "$x [[A]] `$` y": "<p><code class=\"language-math math-inline\">x [A](wiki://A) `</code>` y</p>",
-  "`$x [[A]]` $y$": "<p><code>$x [[A]]</code> <code class=\"language-math math-inline\">y</code></p>"
+  "`$x [[A]]` $y$": "<p><code>$x [[A]]</code> <code class=\"language-math math-inline\">y</code></p>",
+  "$[[h]]\n$$[[A]]": "<p>$<a href=\"wiki://h\">h</a></p>\n<pre><code class=\"language-math math-display\"></code></pre>",
+  "$$\n[[g]]$a$": "<pre><code class=\"language-math math-display\">[g](wiki://g)$a$</code></pre>",
+  "Kosten $5 [[A]]\n$$ siehe <https://graph.microsoft.com/v1.0/me?$top=1>": "<p>Kosten <code class=\"language-math math-inline\">5 [A](wiki://A)\n$$ siehe &lt;https://graph.microsoft.com/v1.0/me?</code>top=1&gt;</p>",
+  "Preis $3 [[Notiz]] und $4, dazu $x^2$": "<p>Preis <code class=\"language-math math-inline\">3 [Notiz](wiki://Notiz) und </code>4, dazu <code class=\"language-math math-inline\">x^2</code></p>",
+  "$5 `$HOME` $5 [Graph](https://x/?$f=1) \\$ `$HOME` ![[A]] > `echo $PATH` $5 $x$": "<p><code class=\"language-math math-inline\">5 `</code>HOME<code>$5 [Graph](https://x/?$f=1) \\$</code><code class=\"language-math math-inline\">HOME` ![embed](wiki-embed://A) &gt; `echo </code>PATH` <code class=\"language-math math-inline\">5 </code>x$</p>",
+  "> $$\n> a = [[B]]\n> $$\n> next": "<blockquote>\n<pre><code class=\"language-math math-display\">a = [B](wiki://B)</code></pre>\n<p>next</p>\n</blockquote>",
+  "a $x\n- [[L]] y$ z": "<p>a $x</p>\n<ul>\n<li><a href=\"wiki://L\">L</a> y$ z</li>\n</ul>",
+  "$A[[1,2]]$": "<p><code class=\"language-math math-inline\">A[1,2](wiki://1%2C2)</code></p>",
+  "a $x ![[bild.png]] y$ b": "<p>a <code class=\"language-math math-inline\">x ![img](wiki-image://bild.png) y</code> b</p>",
+  "a $x ![[A]] y$ b": "<p>a <code class=\"language-math math-inline\">x ![embed](wiki-embed://A) y</code> b</p>",
+  "a $x [[A|alias]] y$ b": "<p>a <code class=\"language-math math-inline\">x [alias](wiki://A) y</code> b</p>",
+  "a $x [[A#h]] y$ b": "<p>a <code class=\"language-math math-inline\">x [A#h](wiki://A%23h) y</code> b</p>",
+  "a $x [[P $5]] y$ b": "<p>a <code class=\"language-math math-inline\">x [P &amp;#36;5](wiki://P%20%245) y</code> b</p>",
+  "a $x [[A|q $ r]] y$ b": "<p>a <code class=\"language-math math-inline\">x [q &amp;#36; r](wiki://A) y</code> b</p>",
+  "a $x [t](ziel.md) y$ b": "<p>a <code class=\"language-math math-inline\">x [t](ziel.md) y</code> b</p>",
+  "Vorher $a [[L]] b$ c $x$ nachher": "<p>Vorher <code class=\"language-math math-inline\">a [L](wiki://L) b</code> c <code class=\"language-math math-inline\">x</code> nachher</p>"
 }
