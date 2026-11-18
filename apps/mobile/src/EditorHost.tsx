@@ -72,6 +72,7 @@ import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResu
 import { pickDeviceFiles } from "./services/pickFiles";
 import { editedNoteProperties, recallScrollTop, rememberScrollTop, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { readSelectionVerbs, selectAll, SelectionToolbarSurface, type SelectionToolbarPosition } from "@plainva/ui";
+import { flushDraftOf } from "./services/draftJournal";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -516,7 +517,8 @@ export function EditorHost({
                 card.className = "pv-card pv-card--embed m-embed-card";
                 if (!resolved) {
                   card.classList.add("is-missing");
-                  card.textContent = t("noteEmbed." + resolvedTarget.status, { target });
+                  // Never "found" here (no path): narrowed so the checker sees the texts it reaches (F53).
+                  card.textContent = t("noteEmbed." + (resolvedTarget.status === "found" ? "missing" : resolvedTarget.status), { target });
                   container.appendChild(card);
                   return;
                 }
@@ -834,6 +836,9 @@ export function EditorHost({
       window.removeEventListener("m-editor-save-confirmed", onSaveConfirmed);
       unregisterCommentEditor();
       stopObservingRounds();
+      // The newest snapshot into the journal at once, then the save: leaving
+      // never waits for the journal's interval (maintainer 17.11.).
+      flushDraftOf(vault, path);
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path, vault).catch(() => {});

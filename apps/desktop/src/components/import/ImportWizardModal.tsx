@@ -16,6 +16,7 @@ import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';
 import { scaffoldVaultTemplate, isVaultFolderEmpty } from '../../services/vaultTemplates';
 import { buildImportLabels } from '@plainva/ui';
 import { extractArchive, discardExtractedArchive, readFolderAsFiles, type ExtractedArchive } from '../../services/importArchive';
+import { vaultFolderLabel } from '../../services/vaultNames';
 
 /**
  * Above this many notes, indexing and the first sync are a noticeable wait.
@@ -62,7 +63,7 @@ interface SelectedFileItem {
  * files. Saying that where they look beats saying it in a FAQ they will not
  * read (plan §5, E10).
  */
-const OBSIDIAN_ENTRY: ImportSourceId = 'obsidian';
+const OBSIDIAN_ENTRY = 'obsidian' satisfies ImportSourceId;
 
 /**
  * The letter on a source tile. Brand initials, not translations — a Notion
@@ -203,7 +204,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const sourceName = (id: ImportSourceId, fallback: string): string =>
     t(`import.sources.${id}`, { defaultValue: fallback }) as string;
 
-  const getSourceHint = (id: ImportSourceId): string =>
+  // Never asked for Obsidian: its card opens the vault instead (narrowed so the checker sees it, F53).
+  const getSourceHint = (id: Exclude<ImportSourceId, typeof OBSIDIAN_ENTRY>): string =>
     t(`import.hints.${id}`, { defaultValue: t('import.hints.generic_markdown') }) as string;
 
   const handleSelectFilesNative = async (mode: 'files' | 'folder') => {
@@ -420,9 +422,6 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
     return payload;
   };
 
-  /** Last path segment of an OS path — the vault's name. */
-  const basenameOf = (path: string): string => path.split(/[/\\]/).filter(Boolean).pop() || path;
-
   /** Vault path and subfolder the current target resolves to. */
   const resolvedTarget = (): { vaultPath: string; subfolder: string } =>
     target === 'newVault'
@@ -601,13 +600,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       // — an imported vault must be an OKF vault like any other.
       let writeAdapter: unknown = vaultAdapter;
       if (target === 'newVault') {
-        if (!(await isVaultFolderEmpty(newVaultPath))) throw new Error(t('splash.folderNotEmptyConfirm', { name: basenameOf(newVaultPath) }));
+        if (!(await isVaultFolderEmpty(newVaultPath))) throw new Error(t('splash.folderNotEmptyConfirm', { name: vaultFolderLabel(newVaultPath) }));
         const adapter = new TauriVaultAdapter(newVaultPath);
         await adapter.initialize();
         await scaffoldVaultTemplate({ isNewVault: true,
           adapter,
           template: null,
-          vaultName: basenameOf(newVaultPath),
+          // A new vault has no name of its own yet: its folder's (F7).
+          vaultName: vaultFolderLabel(newVaultPath),
           subfoldersHeading: t('indexMd.subfoldersHeading'),
         });
         writeAdapter = adapter;
@@ -933,7 +933,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 gap: 'var(--space-2)',
               }}
             >
-              {[...sources.map((x) => x.id), OBSIDIAN_ENTRY].map((id) => {
+              {([...sources.map((x) => x.id), OBSIDIAN_ENTRY] as ImportSourceId[]).map((id) => {
                 const on = id === selectedSourceId;
                 return (
                   <button
@@ -996,7 +996,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 );
               })}
             </div>
-            {!isObsidian && <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>}
+            {selectedSourceId !== OBSIDIAN_ENTRY && <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>}
           </div>
 
           {isObsidian && (

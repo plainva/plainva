@@ -59,6 +59,7 @@ import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
 import { VaultDetailsPage } from "./settings/VaultDetailsPage";
 import { useVaultLabels } from "../services/vaultNames";
+import { announceVaultFeaturesSaved } from "../services/vaultFeaturesRelay";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
@@ -86,7 +87,6 @@ interface SettingsModalProps {
 
 const GENERAL = "general";
 
-const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
 /* Every settings page stays mounted in one grid cell (.pv-setpages), so the
  * window is sized by the TALLEST page and never resizes between areas. Each
@@ -560,6 +560,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       featuresEventTimer.current = setTimeout(() => {
         featuresEventTimer.current = null;
         if (target === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
+        // Every other window with this vault reads them again too (F8).
+        announceVaultFeaturesSaved(target);
       }, 600);
     } catch (e) {
       settingFailed(e);
@@ -654,6 +656,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     if (featuresEventTimer.current) {
       clearTimeout(featuresEventTimer.current);
       if (featuresEventSection.current === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
+      if (featuresEventSection.current) announceVaultFeaturesSaved(featuresEventSection.current);
     }
   }, []);
 
@@ -1160,7 +1163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         <SyncFolderPickerModal
           // The vault root is a legitimate pick for both fields ("" = root).
           allowRoot
-          rootLabel={basename(section)}
+          rootLabel={vaultLabelOf(section)}
           listFolders={listVaultFolders}
           onSelect={(picked) => {
             // The browser lists `.plainva` as well: no folder setting may point there (3.127 no. 4).

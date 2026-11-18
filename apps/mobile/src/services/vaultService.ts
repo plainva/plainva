@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   type BackupVaultAdapter,
   ConflictError,
@@ -54,7 +54,7 @@ import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
-import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
+import { writeDraft, clearDraft, forgetDraftMemory, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { listMailAccounts } from "@plainva/ui/mail";
 import {
@@ -844,6 +844,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const ownDeletions = new OwnDeletionRegister();
   let indexer: VaultIndexer | null;
   let queryService: VaultQueryService | null;
+  /** Ends the following of the daily-note naming (`followDailyNaming`) with the vault. */
+  let stopFollowingNaming = (): void => {};
   let searchAvailable = false;
 
   /** Where this vault's conflict copies and diagnostics say they come from. */
@@ -968,7 +970,17 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // daily note tell every query which day a file name stands for. Set on the
     // service rather than per call - there are five call sites and they all
     // want the same answer.
-    queryService.setDayOfPath(dailyDayResolver({ folder: getMobileSettings().dailyFolder, format: getMobileSettings().dailyFormat }));
+    // A changed naming follows at once, and reloads what lists notes by it
+    // (followDailyNaming): before, the phone kept the naming it opened with.
+    const service = queryService;
+    const follow = followDailyNaming((resolver) => service.setDayOfPath(resolver));
+    const naming = () => ({ folder: getMobileSettings().dailyFolder, format: getMobileSettings().dailyFormat });
+    follow(naming());
+    const onSettings = () => {
+      if (follow(naming())) window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    };
+    window.addEventListener("m-settings-changed", onSettings);
+    stopFollowingNaming = () => window.removeEventListener("m-settings-changed", onSettings);
     // Warm index (P5): a vault that was indexed before boots straight from
     // the database — the full pass runs in the background and refreshes the
     // UI when done. A cold/empty index still blocks so the tree is never
@@ -1131,6 +1143,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       },
     }),
     dispose: async () => {
+      stopFollowingNaming();
+      // The journal's picture of this vault's files: they may be removed before it opens again.
+      forgetDraftMemory(entry.id);
       clearPinboardCache(queryService ?? files);
       indexAbort.abort();
       await indexer?.whenIdle();

@@ -122,6 +122,18 @@ if (isOwnerWindow) {
  * and mail tabs of the others (Sammelplan § 3.47 (d)). Every window that draws
  * mail installs it; without a bus the local event still works.
  */
+/**
+ * A vault's features saved in one window reach the others (F8 of release
+ * 0.9.0): the daily-note naming above all, which task lists and databases read.
+ */
+function installVaultFeaturesRelayQuietly(): void {
+  void import("./services/vaultFeaturesRelay")
+    .then(({ installVaultFeaturesRelay }) => installVaultFeaturesRelay())
+    .catch(() => {
+      /* no bus: one window, the local event is enough */
+    });
+}
+
 function installMailAccountsRelayQuietly(): void {
   void import("./services/mail/mailAccountsRelay")
     .then(({ installMailAccountsRelay }) => installMailAccountsRelay())
@@ -193,6 +205,7 @@ void i18nReady.then(async () => {
     const { registerClientMailPlatform } = await import("./services/mail/tauriMailTransport");
     registerClientMailPlatform();
     installMailAccountsRelayQuietly();
+    installVaultFeaturesRelayQuietly();
     root.render(
       <React.StrictMode>
         <ErrorBoundary>
@@ -212,6 +225,7 @@ void i18nReady.then(async () => {
   }
 
   installMailAccountsRelayQuietly();
+  installVaultFeaturesRelayQuietly();
   root.render(
     <React.StrictMode>
       <ErrorBoundary>

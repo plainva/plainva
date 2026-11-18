@@ -1,7 +1,9 @@
 import {
+  frontmatterSpan,
   generateIndexContent,
   inShapeOf,
   isExcludedFromOkfScan,
+  isPlainvaManagedIndex,
   isReservedOkfName,
   readRootOkfDeclaration,
   type VaultQueryService,
@@ -62,6 +64,26 @@ export async function backupIndexFile(
 }
 
 /**
+ * The heading that names the vault in a root listing, or null where it has
+ * none. It is the listing's first `# ` line, unless that line opens the
+ * subfolder section (F7, review 17.11.): a listing without a vault heading
+ * and with subfolders starts with `# <subfolders>`, followed by entries that
+ * point INTO a folder (`* [A](A/index.md)`) or name one without a link
+ * (`* A`); a file of the root is a link without a `/`. A heading of the list
+ * itself is never the vault's name.
+ */
+export function listingHeadingOf(text: string): string | null {
+  const fm = frontmatterSpan(text);
+  const lines = (fm ? text.slice(fm.end) : text.replace(/^\uFEFF/, "")).split(/\r\n|\n|\r/);
+  const first = lines.findIndex((line) => /^# /.test(line));
+  if (first < 0) return null;
+  const headings = lines.filter((line) => /^# /.test(line)).length;
+  const next = lines.slice(first + 1).find((line) => line.trim() !== "");
+  const opensSubfolders = headings === 1 && next !== undefined && /^\* (?!\[)|^\* \[[^\]]*\]\([^)/]*\//.test(next);
+  return opensSubfolders ? null : lines[first].slice(2).trimEnd();
+}
+
+/**
  * Generates (or regenerates) the spec-shaped index.md for a folder. An
  * existing index.md is backed up first — the caller confirms the overwrite.
  * The vault-root listing declares `okf_version` (SPEC §11) — the version a
@@ -115,10 +137,23 @@ export async function generateIndexForFolder(opts: {
   // Keep the declared bundle version of an existing root; only a root that
   // declares none (or a fresh one) gets the version Plainva writes.
   const okfVersion = bundleRoot && existing !== null ? readRootOkfDeclaration(existing) ?? undefined : undefined;
+  // The root's heading names the vault, and every name a shell has for it holds
+  // on one device only: the desktop's own name or folder, the phone's vault
+  // list entry, a translated label for an unnamed one (F7 of release 0.9.0).
+  // The root listing is synced, so writing the device's name over the one that
+  // is there made each device rewrite the others' heading on every refresh. A
+  // listing Plainva keeps keeps its vault heading, or its lack of one; only a
+  // new one is named. A
+  // subfolder's heading is its folder's name, the same everywhere, and follows
+  // a rename.
+  // A refresh of the root names nothing: it keeps the vault heading that is
+  // there, and where there is none it writes none — the name comes only from
+  // creating the listing.
+  const heading = bundleRoot && existing !== null && isPlainvaManagedIndex(existing) ? listingHeadingOf(existing) : opts.heading;
 
   const content = generateIndexContent({
     folder,
-    heading: opts.heading,
+    heading,
     files: directFiles.map((p) => ({
       path: p,
       title: titleMap.get(p) || undefined,

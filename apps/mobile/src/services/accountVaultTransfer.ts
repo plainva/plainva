@@ -18,6 +18,7 @@ import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import { readSyncRootFolder } from "./syncRootFolder";
 import { addVault, getActiveVaultEntry, getVaultEntry, listVaults, newVaultId } from "./vaultRegistry";
 import { discardPreparedContainer, noteSaver, openPreparedVaultDatabase, switchVault, type MobileVault } from "./vaultService";
+import { vaultEntryName } from "./vaultEntryName";
 
 /** Destination identity excludes tokens and local labels. */
 export function fileDestinationKey(p: MobileSyncProvider, identity?: VerifiedProviderIdentity): string | null {
@@ -187,7 +188,7 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   // says how many notes go up; a fresh vault goes on at once.
   if (plan.local.length > 0 || plan.collisions.length > 0) {
     // Shown as the content of the files step (plan "Verbinden-Assistent", E4).
-    const answer = await reviewVaultTransfer(plan, { source: (await getActiveVaultEntry()).name, target: existing?.name ?? name, folder: chosenFolder(p), existing: !!existing, runId: context.runId });
+    const answer = await reviewVaultTransfer(plan, { source: vaultEntryName((await getActiveVaultEntry()).name), target: vaultEntryName(existing?.name ?? name), folder: chosenFolder(p), existing: !!existing, runId: context.runId });
     if (answer !== "apply") {
       // The run forgets the destination of this pick, so another folder
       // prepares its own (review 2026-10-28) - also where it was a vault that
