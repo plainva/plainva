@@ -334,6 +334,7 @@ export * from "./base/pinboardEntry";
 export * from "./base/pinboardDraftLedger";
 export * from "./base/newItemPrefill";
 export * from "./base/pinboardSweep";
+export * from "./base/baseConfigChange";
 export * from "./base/propertyModel";
 export * from "./base/calendarRange";
 export * from "./base/fileDay";

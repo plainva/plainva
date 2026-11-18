@@ -122,6 +122,14 @@ function inputErrorText(message: string): string {
   return typeof translated === "string" && translated.trim() ? translated : message;
 }
 
+/** A refused database change (`BaseConfigChangeRefusedError`), told by its name: the class does not survive a window boundary. */
+function baseConfigRefusal(err: unknown): { reason: string; viewName: string } | null {
+  const e = err as { name?: unknown; reason?: unknown; viewName?: unknown } | null;
+  if (!e || typeof e !== "object" || e.name !== "BaseConfigChangeRefusedError") return null;
+  if (e.reason !== "viewGone" && e.reason !== "viewUnclear" && e.reason !== "fileChanging") return null;
+  return { reason: e.reason, viewName: typeof e.viewName === "string" ? e.viewName : "" };
+}
+
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
   // A deletion, rename or move refused while the index database is closed
@@ -130,6 +138,12 @@ export function errorText(err: unknown): string {
   // A damaged full-text index (SQLITE_CORRUPT_VTAB): noted where it was met,
   // made anew at the next open (`watchFullTextDamage`) — not a raw driver text.
   if (isDamagedFullText(err)) return i18n.t("errors.fullTextDamaged");
+  // A database change whose view cannot be found in the file with certainty (B20): by its reason, in the reader's language.
+  const refusal = baseConfigRefusal(err);
+  if (refusal) {
+    const key = refusal.reason === "viewGone" ? "writeFailed.databaseViewGone" : refusal.reason === "viewUnclear" ? "writeFailed.databaseViewUnclear" : "writeFailed.databaseFileChanging";
+    return i18n.t(key, { name: refusal.viewName });
+  }
   const connection = connectionErrorText(err);
   if (connection) return connection;
   if (typeof err === "string") return inputErrorText(err.trim() || "unknown error");

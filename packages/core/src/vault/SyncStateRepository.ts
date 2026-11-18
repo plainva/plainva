@@ -2,6 +2,7 @@ import { IDatabaseAdapter, SqlStatements } from "../db/IDatabaseAdapter.js";
 import { conflictSessionKey, decodeConflictSession, type ConflictDiagnostic, type ConflictEditSession } from "./conflictSession.js";
 import { ConflictFileStore } from "./ConflictFileStore.js";
 import type { IVaultAdapter } from "./IVaultAdapter.js";
+import { clearSeenFolders, forgetSeenFolders, listSeenFolders, rememberSeenFolders } from "../sync/seenFolders.js";
 import { clearHeldBackStarters, holdBackStarters, listHeldBackStarters, releaseHeldBackStarter } from "../sync/heldBackStarters.js";
 import { clearAllUnsyncablePaths, clearUnsyncablePath, listUnsyncablePaths, markUnsyncablePath, type UnsyncableEntry } from "../sync/unsyncablePaths.js";
 
@@ -70,6 +71,21 @@ export class SyncStateRepository {
     await clearAllUnsyncablePaths(this.db);
     // Which starter files stay here is decided again for the other folder.
     await clearHeldBackStarters(this.db);
+    // Which folders were seen here is a fact about the other folder.
+    await clearSeenFolders(this.db);
+  }
+
+  /** Folders seen both here and on the remote (see seenFolders.ts). */
+  async listSeenFolders(): Promise<Set<string>> {
+    return listSeenFolders(this.db);
+  }
+
+  async rememberSeenFolders(folders: ReadonlyArray<string>): Promise<void> {
+    await rememberSeenFolders(this.db, folders);
+  }
+
+  async forgetSeenFolders(folders: ReadonlyArray<string>): Promise<void> {
+    await forgetSeenFolders(this.db, folders);
   }
 
   /** Starter files kept on this device, by path, with the hash held back (see heldBackStarters.ts). */

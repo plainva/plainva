@@ -83,7 +83,16 @@ const BOTH = "---\nprio: 1\npriority: high\n---\nGamma\n";
 let indexRows: Record<string, unknown>[] = [];
 const vault = {
   vaultId: "vault-phone",
-  files: { exists: async (path: string) => files.has(path), writeTextFile: write },
+  files: {
+    exists: async (path: string) => files.has(path),
+    // The database's change is set on the file as it lies there (B20): read first.
+    readTextFile: async (path: string) => {
+      const text = files.get(path);
+      if (text === undefined) throw new Error(`not found: ${path}`);
+      return text;
+    },
+    writeTextFile: write,
+  },
   indexer: null,
   queryService: { queryDatabaseFiles: async () => indexRows },
   reindexPaths: async () => {},

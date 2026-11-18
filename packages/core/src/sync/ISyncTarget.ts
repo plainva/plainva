@@ -239,6 +239,17 @@ export interface ISyncTarget {
    */
   acceptsContentRef?: boolean;
   /**
+   * Does the remote itself refuse to delete a folder while a file lies in it?
+   * Only then does a folder deleted on this device outside the app go from
+   * the remote too (F44). A check before the DELETE is not enough: a note
+   * another device uploads between the check and the DELETE would go with
+   * the folder, on every device. S3 has no folders of its own — a folder
+   * there is its keys, and the target removes only the empty markers.
+   * WebDAV, OneDrive, Dropbox and Drive delete a folder with everything in
+   * it, unconditionally as far as their documentation goes.
+   */
+  deletesFolderOnlyWhileEmpty?: boolean;
+  /**
    * Pull the remote change set. `cursor` is an optional opaque token for adapters
    * that support incremental change detection (Drive); adapters without it (WebDAV)
    * ignore the argument and always return a full listing.
