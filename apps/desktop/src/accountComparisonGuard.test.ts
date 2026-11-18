@@ -19,7 +19,14 @@ import { CODE_ROOTS, sourceTexts } from "./test-sourceTree";
  * listed.
  */
 
-const ACCOUNT_FILES = /(account|secret|caldav|connect|auth|signin|credential|PimTarget|pimService|pimAccounts|mailRuntime|gmail|graphMail|settingsSecrets|connectionId)[^/]*$/i;
+/**
+ * The account files: by AREA — calendars and their accounts, the settings
+ * sync, both shells' calendar services (review 2026-11-18: `confirmedAccess.ts`
+ * fell through a list of file names) — and by name elsewhere.
+ */
+const ACCOUNT_AREAS = ["packages/core/src/pim/", "packages/core/src/settingsSync/", "apps/desktop/src/services/pim/", "apps/mobile/src/services/pim/"];
+const ACCOUNT_NAMES = /(account|secret|caldav|connect|auth|signin|credential|PimTarget|pimService|pimAccounts|mailRuntime|gmail|graphMail|settingsSecrets|connectionId)[^/]*$/i;
+const isAccountFile = (rel: string) => ACCOUNT_AREAS.some((area) => rel.startsWith(area)) || ACCOUNT_NAMES.test(rel);
 /** Every call that folds the case of a text: lower, upper, locale-aware, or a comparison that ignores it. */
 const FOLDING_CALL = /\.to(?:Locale)?(?:Lower|Upper)Case\(|sensitivity\s*:/g;
 const ROW_FIELD_COMPARE = /config\??\.(url|user)\s*[!=]==/;
@@ -58,6 +65,20 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, calls: nu
   ["packages/core/src/pim/GraphPimTarget.ts", "(body.contentType ?? \"\").toLowerCase() === \"html\"", 1, "a protocol keyword (HTTP method, iCalendar value, content type, token type), not an account"],
   ["packages/core/src/pim/GraphPimTarget.ts", "const organizerAddr = item.organizer?.emailAddress?.address?.toLowerCase()", 1, "an attendee or organizer address in an event, matched against the mailbox; decides no account"],
   ["packages/core/src/pim/GraphPimTarget.ts", "a.emailAddress?.address?.toLowerCase() === organizerAddr", 1, "an attendee or organizer address in an event, matched against the mailbox; decides no account"],
+  ["packages/core/src/pim/eventSubstance.ts", ".map((part) => part.trim().toUpperCase())", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlToMarkdown.ts", "const key = entity.toLowerCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlToMarkdown.ts", "entity[1].toLowerCase() === \"x\"", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlToMarkdown.ts", ".exec(value)?.[1]?.toLowerCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlToMarkdown.ts", "char.charCodeAt(0).toString(16).toUpperCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlToMarkdown.ts", "attribute(node, \"checked\").toLowerCase() === \"true\"", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlToMarkdown.ts", "map(value => value.trim().toLowerCase())", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlVisibleText.ts", "node.nodeName.toLowerCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlVisibleText.ts", "declaration.slice(0, colon).trim().toLowerCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/htmlVisibleText.ts", "declaration.slice(colon + 1).trim().toLowerCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/recurrence.ts", "`FREQ=${r.freq.toUpperCase()}`", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/recurrence.ts", "kv.slice(0, eq).trim().toUpperCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/recurrence.ts", "(map.get(\"FREQ\") ?? \"\").toUpperCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
+  ["packages/core/src/pim/recurrence.ts", "s.trim().toUpperCase()", 1, "the text of an event (HTML, a recurrence rule), not an account"],
   ["packages/core/src/settingsSync/connectionId.ts", "trimChars(remoteRoot.trim(), \"/\").toLowerCase()", 1, "the fingerprint of a files connection (provider and folder), not a password account"],
   ["packages/core/src/settingsSync/connectionId.ts", "provider.trim().toLowerCase()", 1, "the fingerprint of a files connection (provider and folder), not a password account"],
   ["packages/core/src/settingsSync/secretsBundle.ts", "parsed.protocol.toLowerCase()", 1, "scheme and host of an address are case-insensitive by definition"],
@@ -72,7 +93,7 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, calls: nu
   ["packages/ui/src/lib/accountRepair.ts", "const label = account.label.trim().toLocaleLowerCase()", 1, "only a question: a pair it finds is offered for review, never merged by itself"],
   ["packages/ui/src/lib/accountRepair.ts", "const label = row.label.trim().toLocaleLowerCase()", 1, "only a question: a pair it finds is offered for review, never merged by itself"],
   ["packages/ui/src/lib/authErrors.ts", "const text = message.toLowerCase();", 2, "an error message, matched against known wording"],
-  ["packages/ui/src/lib/cloudAccounts.ts", "const trimmed = (label ?? \"\").trim().toLowerCase()", 1, "identityKey: a card label as an e-mail address; open for password families (report 2026-11-18, cloudAccountCards)"],
+  ["packages/ui/src/lib/cloudAccounts.ts", "const trimmed = (label ?? \"\").trim().toLowerCase()", 1, "identityKey: an e-mail address in any case; it joins cards only for Google and Microsoft (cardIdentityKey), elsewhere it only asks whether a label is an address"],
   ["packages/ui/src/lib/cloudAccounts.ts", "isSimpleEmail(mail.user.trim().toLowerCase())", 2, "asks whether a mailbox user is an e-mail address, compares nothing"],
   ["packages/ui/src/lib/cloudAccountsLabels.ts", "label.toLocaleLowerCase() !== provider.toLocaleLowerCase()", 2, "search text or a display label; decides no account"],
   ["packages/ui/src/lib/commentAuthor.ts", "(first + second).toUpperCase()", 1, "search text or a display label; decides no account"],
@@ -104,7 +125,7 @@ interface FoldingLine {
 function foldingLines(): FoldingLine[] {
   const out: FoldingLine[] = [];
   for (const { rel, text } of sourceTexts(CODE_ROOTS, "shipped")) {
-    if (!ACCOUNT_FILES.test(rel) || rel === "packages/ui/src/lib/passwordAccounts.ts") continue;
+    if (!isAccountFile(rel) || rel === "packages/ui/src/lib/passwordAccounts.ts") continue;
     text.split("\n").forEach((line, index) => {
       const trimmed = line.trim();
       if (trimmed.startsWith("//") || trimmed.startsWith("*")) return;
@@ -118,7 +139,7 @@ function foldingLines(): FoldingLine[] {
 function rowFieldComparisons(): string[] {
   const out: string[] = [];
   for (const { rel, text } of sourceTexts(CODE_ROOTS, "shipped")) {
-    if (!ACCOUNT_FILES.test(rel) || rel === "packages/ui/src/lib/passwordAccounts.ts") continue;
+    if (!isAccountFile(rel) || rel === "packages/ui/src/lib/passwordAccounts.ts") continue;
     text.split("\n").forEach((line, index) => {
       const trimmed = line.trim();
       if (trimmed.startsWith("//") || trimmed.startsWith("*")) return;
