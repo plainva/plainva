@@ -51,15 +51,16 @@ for (const width of [343, 760] as const) {
 
 /**
  * The second measure (review of 2026-11-17, rule 3): ordinary newsletters,
- * which hide nothing, look as they do at `main` — measured in the engine the
- * test runs in, against what `main` measured in that engine
- * (`mailFrameCorpus.main.json`). For every element with words and every
+ * which hide nothing, look as they do at `main`. Frozen is the frame document
+ * `main` made of each case (`mailFrameCorpus.main.json`), not its sizes — a
+ * size hangs on the fonts of the machine; both frames are laid out and
+ * measured side by side, in the engine the test runs in. For every element with words and every
  * element that paints: the same box (width and height within 1 px), the same
  * computed colour and background, and words at least as readable as at main
  * (contrast at least the smaller of 4.5 and main's). An element the reader
  * shows otherwise on purpose is named with its reason in the case (`differs`).
  */
-type FrozenCorpus = { engines: Record<string, Record<string, Record<string, Measured[]>>> };
+type FrozenCorpus = { docs: Record<"false" | "true", Record<string, string>> };
 const MAIN_CORPUS = JSON.parse(readFileSync(new URL("./fixtures/mailFrameCorpus.main.json", import.meta.url), "utf8")) as FrozenCorpus;
 
 function corpusDeviations(name: string, main: Measured[], now: Measured[], differs: Record<string, string>): string[] {
@@ -89,19 +90,18 @@ function corpusDeviations(name: string, main: Measured[], now: Measured[], diffe
 
 for (const width of [343, 760] as const) {
   for (const pictures of [false, true]) {
-    test(`at ${width} px ${pictures ? "with" : "without"} pictures ordinary newsletters look as at main, and the assistant reads no more than they show`, async ({ page, browserName }) => {
+    test(`at ${width} px ${pictures ? "with" : "without"} pictures ordinary newsletters look as at main, and the assistant reads no more than they show`, async ({ page }) => {
       test.setTimeout(180_000);
       await page.setViewportSize({ width: 1000, height: 900 });
       await loadProbe(page);
-      const frozen = MAIN_CORPUS.engines[browserName]?.[`${width}/${pictures}`];
-      expect(frozen, `main measured in ${browserName}`).toBeTruthy();
+      const docs = MAIN_CORPUS.docs[String(pictures) as "false" | "true"];
       const cases = MAIL_CORPUS.map(({ name, html }) => ({ name, html }));
-      const results = await page.evaluate(([c, w, p]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.corpus(c, w, p), [cases, width, pictures] as const);
+      const results = await page.evaluate(([c, w, p, d]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.corpus(c, w, p, d), [cases, width, pictures, docs] as const);
       const wrong: string[] = [];
       results.forEach((result, index) => {
         for (const word of result.ai) if (!result.seen.includes(word)) wrong.push(`${result.name}: the assistant reads ${word}, the reader does not show it`);
-        const main = frozen![result.name];
-        if (!main) wrong.push(`${result.name}: not measured at main`);
+        const main = result.mainMeasured;
+        if (!main) wrong.push(`${result.name}: no frame of main frozen`);
         else wrong.push(...corpusDeviations(result.name, main, result.measured, MAIL_CORPUS[index].differs ?? {}));
       });
       expect(wrong).toEqual([]);

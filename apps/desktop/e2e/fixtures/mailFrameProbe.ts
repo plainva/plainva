@@ -8,7 +8,7 @@ import { frameScroll, runMailCorpus, runMailFrames, type MailCorpusResult, type 
 export interface MailFrameProbeWindow extends Window {
   mailFrameProbe: {
     run(cases: MailFrameCase[], width: number): Promise<MailFrameResult[]>;
-    corpus(cases: MailFrameCase[], width: number, pictures: boolean): Promise<MailCorpusResult[]>;
+    corpus(cases: MailFrameCase[], width: number, pictures: boolean, mainDocs: Record<string, string>): Promise<MailCorpusResult[]>;
     scroll(html: string, width: number): ReturnType<typeof frameScroll>;
   };
 }
@@ -16,5 +16,5 @@ export interface MailFrameProbeWindow extends Window {
 (window as unknown as MailFrameProbeWindow).mailFrameProbe = {
   run: (cases, width) => runMailFrames({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, cases, width),
   scroll: (html, width) => frameScroll({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, html, width),
-  corpus: (cases, width, pictures) => runMailCorpus({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, cases, width, pictures),
+  corpus: (cases, width, pictures, mainDocs) => runMailCorpus({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, cases, width, pictures, mainDocs),
 };

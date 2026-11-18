@@ -49,45 +49,66 @@ export async function runMailFrames(api: MailFrameApi, cases: readonly MailFrame
   return results;
 }
 
-/** What the reader lays out of a corpus case, and what the assistant reads of it against what the frame shows. */
+/** What the reader lays out of a corpus case, what main laid out of it in the same engine, and what the assistant reads of it against what the frame shows. */
 export interface MailCorpusResult {
   name: string;
   measured: Measured[];
+  /** The frame main gave the case, measured here: the same engine and the same fonts as the reader's. */
+  mainMeasured: Measured[] | null;
   ai: string[];
   seen: string[];
 }
 
+/** A frame of `width` with `doc` in it, once every picture has loaded or failed, fitted as the shells fit it. */
+async function openFrame(api: MailFrameApi, doc: string, width: number): Promise<HTMLIFrameElement> {
+  const frame = document.createElement("iframe");
+  frame.setAttribute("sandbox", "allow-same-origin");
+  frame.style.cssText = `width:${width}px;height:600px;border:0;display:block`;
+  const loaded = new Promise<void>((resolve) => frame.addEventListener("load", () => resolve(), { once: true }));
+  frame.srcdoc = doc;
+  document.body.append(frame);
+  await loaded;
+  const images = Array.from(frame.contentDocument!.images).filter((image) => !image.complete);
+  await Promise.race([
+    Promise.all(images.map((image) => new Promise((resolve) => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); }))),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]);
+  api.applyFrameFit(frame, { growHeight: true });
+  return frame;
+}
+
 /**
  * Renders each case as the reader shows it — with pictures or without — in a
- * frame of `width`, once every picture has loaded or failed, and measures it
- * (`measureFrame`). The assistant reads one view whatever the picture option;
- * its words are judged against this frame.
+ * frame of `width` and measures it (`measureFrame`), and beside it the frame
+ * document main made of the case (`mainDocs`, frozen), measured the same way.
+ * The assistant reads one view whatever the picture option; its words are
+ * judged against the reader's frame.
  */
-export async function runMailCorpus(api: MailFrameApi, cases: readonly MailFrameCase[], width: number, pictures: boolean): Promise<MailCorpusResult[]> {
+export async function runMailCorpus(api: MailFrameApi, cases: readonly MailFrameCase[], width: number, pictures: boolean, mainDocs?: Record<string, string>): Promise<MailCorpusResult[]> {
   const results: MailCorpusResult[] = [];
   for (const { name, html } of cases) {
     const options = { allowRemoteImages: pictures };
     const shown = api.mailBodyView ? api.mailBodyView({ html, text: null }, options)?.html ?? "" : api.sanitizeEmailHtml(html, options).html;
-    const frame = document.createElement("iframe");
-    frame.setAttribute("sandbox", "allow-same-origin");
-    frame.style.cssText = `width:${width}px;height:600px;border:0;display:block`;
-    const loaded = new Promise<void>((resolve) => frame.addEventListener("load", () => resolve(), { once: true }));
-    frame.srcdoc = api.buildMailFrameDoc(shown, options);
-    document.body.append(frame);
-    await loaded;
-    const images = Array.from(frame.contentDocument!.images).filter((image) => !image.complete);
-    await Promise.race([
-      Promise.all(images.map((image) => new Promise((resolve) => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); }))),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
-    ]);
-    api.applyFrameFit(frame, { growHeight: true });
+    const frame = await openFrame(api, api.buildMailFrameDoc(shown, options), width);
     const seen = judgeFrame(frame);
     const measured = measureFrame(frame);
     frame.remove();
+    let mainMeasured: Measured[] | null = null;
+    if (mainDocs?.[name] !== undefined) {
+      const before = await openFrame(api, mainDocs[name], width);
+      mainMeasured = measureFrame(before);
+      before.remove();
+    }
     const read = api.readableBody({ html }, 100_000);
-    results.push({ name, measured, ai: [...new Set(Array.from(read.text.matchAll(MARKER), (m) => m[0]))].sort(), seen: seen.seen });
+    results.push({ name, measured, mainMeasured, ai: [...new Set(Array.from(read.text.matchAll(MARKER), (m) => m[0]))].sort(), seen: seen.seen });
   }
   return results;
+}
+
+/** The frame document a version of the reader makes of each case, with pictures or without: what `mailFrameCorpus.main.json` freezes of main. */
+export function frameDocs(api: MailFrameApi, cases: readonly MailFrameCase[], pictures: boolean): Record<string, string> {
+  const options = { allowRemoteImages: pictures };
+  return Object.fromEntries(cases.map(({ name, html }) => [name, api.buildMailFrameDoc(api.sanitizeEmailHtml(html, options).html, options)]));
 }
 
 /** How a frame of `width` fits a mail wider than it: its scale, whether it scrolls sideways, and how far a sideways scroll moves it. */
