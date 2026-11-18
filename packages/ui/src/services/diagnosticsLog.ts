@@ -5,7 +5,7 @@
  * appear in messages; the export header says so.
  */
 import { formatBuildLine } from "../lib/buildInfo";
-import { readIndexDiagnostics, type IDatabaseAdapter } from "@plainva/core";
+import { countUnstampedFiles, readIndexDiagnostics, type IDatabaseAdapter } from "@plainva/core";
 
 export interface DiagEntry {
   ts: number;
@@ -82,10 +82,29 @@ export function logDiagnostic(source: string, message: string): void {
  * count, no path, no text), into this buffer — called by both shells right
  * after the vault's database is opened, so the export carries it.
  */
-export async function logIndexDiagnostics(db: IDatabaseAdapter): Promise<void> {
+export async function logIndexDiagnostics(db: IDatabaseAdapter, folderKind?: string): Promise<void> {
   for (const diagnostic of await readIndexDiagnostics(db)) {
     logDiagnostic("index", `${diagnostic.kind}: the full-text index was built anew after a failed numbering (${diagnostic.count}×)`);
   }
+  // How many files the folder gives no timestamp, and what kind of folder it
+  // is: whether a provider leaves every file without one, read from a report
+  // instead of guessed (`countUnstampedFiles`).
+  if (folderKind !== undefined) {
+    logDiagnostic("index", `files without a timestamp: ${await countUnstampedFiles(db)} (folder: ${folderKind})`);
+  }
+}
+
+/**
+ * What kind of folder a vault lies in, for the diagnostics export: on
+ * Android the authority of the document provider behind the chosen folder
+ * (`content://<authority>/tree/…`, e.g. `com.android.externalstorage.documents`)
+ * — never its path or a name in it —, else the platform's word for it.
+ */
+export function vaultFolderKind(folder: { handle: string; platform: "android" | "ios" } | null | undefined, fallback: string): string {
+  if (!folder) return fallback;
+  if (folder.platform === "ios") return "ios folder";
+  const authority = /^content:\/\/([A-Za-z0-9._-]{1,200})\//.exec(folder.handle)?.[1];
+  return authority ? `android provider ${authority}` : "android folder";
 }
 
 /** The line of each repeated report, by what it reports: the count goes on the line, not a new line. */

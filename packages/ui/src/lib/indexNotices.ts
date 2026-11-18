@@ -21,6 +21,18 @@ export function indexLeftOutText(skipped: ReadonlyArray<VaultWalkSkip>): string 
   return i18n.t("refresh.leftOut", { count: skipped.length, names: names.join(", ") + more });
 }
 
+/**
+ * What both shells say, in the same place, when files changed every time the
+ * index read them (`VaultWalkSkip` "changing"): they are in the index as last
+ * read, and the index reads them again — until it has, it is not complete.
+ */
+export function indexReadAgainText(skipped: ReadonlyArray<VaultWalkSkip>): string | null {
+  if (skipped.length === 0) return null;
+  const names = skipped.slice(0, LEFT_OUT_NAMES_SHOWN).map((s) => s.path || "/");
+  const more = skipped.length > LEFT_OUT_NAMES_SHOWN ? ", …" : "";
+  return i18n.t("refresh.readAgain", { count: skipped.length, names: names.join(", ") + more });
+}
+
 /** What both shells say when a full scan did not get through (issue 125). */
 export function indexScanFailedText(error: unknown): string {
   return i18n.t("refresh.indexFailed", { reason: errorText(error) });
@@ -71,6 +83,7 @@ export interface IndexNotices {
  */
 export function createIndexNotices(say: IndexNoticeSink): IndexNotices {
   let leftOut = "";
+  let readAgain = "";
   let failure = "";
   return {
     scanned(report) {
@@ -81,10 +94,18 @@ export function createIndexNotices(say: IndexNoticeSink): IndexNotices {
       // cut goes unannounced (Sammelplan 3.94, Restpunkte).
       const unread = report.skipped.filter((s) => s.reason === "unreadable");
       const key = JSON.stringify(unread.map((s) => s.path).sort());
-      if (key === leftOut) return;
-      leftOut = key;
-      const text = indexLeftOutText(unread);
-      if (text) say.warning(text);
+      if (key !== leftOut) {
+        leftOut = key;
+        const text = indexLeftOutText(unread);
+        if (text) say.warning(text);
+      }
+      // Files that changed every time they were read: in the index as last read, and read again.
+      const changing = report.skipped.filter((s) => s.reason === "changing");
+      const changingKey = JSON.stringify(changing.map((s) => s.path).sort());
+      if (changingKey === readAgain) return;
+      readAgain = changingKey;
+      const again = indexReadAgainText(changing);
+      if (again) say.warning(again);
     },
     failed(info) {
       const text = indexScanFailedText(info.error);
