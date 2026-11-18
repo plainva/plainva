@@ -1864,7 +1864,10 @@ export class VaultQueryService {
         const sha = entries[index]?.sha;
         const own = held.get(paths[index]!);
         const text = texts.get(paths[index]!);
-        // Tags and text of another text than the block's: the note is withheld (round 12).
+        // Tags and text of another text than the block's: the note is withheld (round 12). A block that kept its
+        // withheld link and changed its tags in between would otherwise show the tags of both texts at once — `[c, a]`
+        // where the reader is shown `[a]` before and `[c]` after (`vault-query-readers-together.test.ts`); the text is
+        // read after the tags, so its own hash catches a change between those two reads.
         if (!own || (sha && own.sha !== sha) || (text && sha && text.sha !== sha)) {
           views[index] = PROPERTIES_WITHHELD;
           continue;

@@ -191,10 +191,16 @@ describe("two readers at the same time (round 11 of the review of R19, wave 2)",
       "Projects/A/n1.md": `---\nowner: "[[Lead]]"\nup: [[Aaron]]\ntitle: "[[Aaron]] plan"\ntags: [a]\n---\n# n1\n`,
       "Projects/A/n2.md": `---\nowner: "[[Lead]]"\nmood: [[Team]]\ntags: [b]\n---\n# n2\n`,
       "Projects/B/n3.md": `---\nup: "[[Aaron]]"\nwith: [[Lead]]\n---\n# n3\n`,
-      "Projects/B/n4.md": `---\nrel: [[n1]]\n---\n# n4\n`,
+      // A link in quotes: a rollup reaches through it (`rel: [[n1]]` would be a list in a list).
+      "Projects/B/n4.md": `---\nrel: "[[n1]]"\n---\n# n4\n`,
     };
     const changes: { name: string; apply: (vault: MemoryVaultAdapter, kept: { back: string[] }) => Promise<void> }[] = [
       { name: "a block drops its withheld link", apply: (vault) => vault.writeTextFile("Projects/A/n1.md", `---\nowner: "[[Lead]]"\ntitle: "plain plan"\ntags: [a]\n---\n# n1\n`) },
+      // The block keeps its withheld link and changes its tags: the view's tags are of one text, never [a] of the old
+      // one beside [c] of the new (`_tagsOf` against the block's hash).
+      { name: "a withheld block changes its tags", apply: (vault) => vault.writeTextFile("Projects/A/n1.md", `---\nowner: "[[Lead]]"\nup: [[Aaron]]\ntitle: "[[Aaron]] plan"\ntags: [c]\n---\n# n1\n`) },
+      // The same with the tag also written in the text: the text behind the block is of the block's text too.
+      { name: "a withheld note moves its tag into its text", apply: (vault) => vault.writeTextFile("Projects/A/n1.md", `---\nowner: "[[Lead]]"\nup: [[Aaron]]\ntitle: "[[Aaron]] plan"\n---\n# n1 #c\n`) },
       { name: "a block gains a withheld link", apply: (vault) => vault.writeTextFile("Projects/A/n2.md", `---\nowner: "[[Lead]]"\nmood: [[Aaron]]\ntags: [b]\n---\n# n2\n`) },
       { name: "the withheld note moves into reach", apply: (vault) => vault.renameItem("Private/Aaron.md", "Projects/B/Aaron.md") },
       { name: "a linked note moves out of reach", apply: (vault) => vault.renameItem("Projects/A/Lead.md", "Private/Lead.md") },
@@ -229,7 +235,15 @@ describe("two readers at the same time (round 11 of the review of R19, wave 2)",
     const kinds: Record<string, unknown> = {
       rows: table,
       filter: { ...table, filters: { and: ['file.folder.startsWith("Projects")', 'contains(up, "Aaron")'] } },
-      rollup: { ...table, columns: { r: { rollup: { through: "rel", of: "up", aggregate: "list" } } } },
+      // Columns that exist (`normalizeRollup`): the linked note's values, and a count of a condition on them.
+      rollup: {
+        ...table,
+        columns: {
+          r: { rollup: { through: "rel", of: "up", fn: "unique" } },
+          c: { rollup: { through: "rel", of: "up", fn: "countWhere", where: { op: "contains", value: "Aaron" } } },
+          t: { rollup: { through: "rel", of: "file.name", fn: "countWhere", where: { op: "contains", value: "Aaron" } } },
+        },
+      },
     };
     const notes = ["Projects/A/n1.md", "Projects/A/n2.md", "Projects/B/n3.md", "Projects/B/n4.md"];
     async function world() {
@@ -256,10 +270,12 @@ describe("two readers at the same time (round 11 of the review of R19, wave 2)",
       const rows = await query.queryDatabaseFiles(kinds[kind] as never, reader as never);
       return new Map(rows.map((row: any) => [String(row["file.path"]), Object.fromEntries(Object.entries(row).filter(([key]) => !/mtime|ctime|revision|size/.test(key)))]));
     };
+    // The columns a rollup computes of the notes a row links to: checked on every row, withheld or not.
+    const computed = new Set(["r", "c", "t"]);
     const withheldWhole = (path: string, fields: Record<string, unknown>) => {
       const name = path.split("/").pop()!.replace(/\.md$/, "");
       if ("tags" in fields && "title" in fields && !("file.path" in fields)) return fields.title === name && (fields.tags as unknown[]).length === 0;
-      return Object.keys(fields).every((key) => key.startsWith("file.") || key === "r") && fields["file.name"] === name;
+      return Object.keys(fields).every((key) => key.startsWith("file.") || computed.has(key)) && fields["file.name"] === name;
     };
     const wrong: string[] = [];
     let runs = 0;
@@ -272,6 +288,8 @@ describe("two readers at the same time (round 11 of the review of R19, wave 2)",
           await alone.indexer.indexVaultFull();
           const after = await ask(alone, "A", kind, new VaultQueryService(new Hooked(alone.sqlite, false) as never));
           alone.sqlite.close();
+          // The rollup's columns exist and reach their note: a count of 0 is the withheld link, not a column nobody made.
+          if (kind === "rollup") expect([change.name, before.get("Projects/B/n4.md")?.r, before.get("Projects/B/n4.md")?.c]).toEqual([change.name, 1, 0]);
           // How many statements A's query waits on.
           const counting = await world();
           for (const who of warm) await ask(counting, who, kind);
@@ -308,8 +326,9 @@ describe("two readers at the same time (round 11 of the review of R19, wave 2)",
                 wrong.push(`${kind} / ${change.name} / at ${at}: ${path} is on neither state`);
                 continue;
               }
-              if (withheldWhole(path, fields)) continue;
+              const whole = withheldWhole(path, fields);
               for (const [key, value] of Object.entries(fields)) {
+                if (whole && !computed.has(key)) continue;
                 const text = JSON.stringify(value);
                 if ((was && JSON.stringify(was[key]) === text) || (is && JSON.stringify(is[key]) === text)) continue;
                 wrong.push(`${kind} / ${change.name} / at ${at}: ${path}.${key} = ${text} (before ${was ? JSON.stringify(was[key]) : "-"}, after ${is ? JSON.stringify(is[key]) : "-"})`);
