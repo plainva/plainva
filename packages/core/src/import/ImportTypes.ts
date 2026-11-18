@@ -30,7 +30,6 @@ export type ImportSourceId =
   | 'anytype'
   | 'standard_notes'
   | 'workflowy'
-  | 'dynalist'
   | 'roam_research'
   | 'trilium'
   | 'reflect'

@@ -4,6 +4,7 @@ import i18n from "@plainva/ui/i18n";
 import { vaultOps, switchVault, type MobileVault } from "./vaultService";
 import { getActiveVaultEntry, listVaults, type VaultEntry } from "./vaultRegistry";
 import { leaveThen } from "./leaveQuestion";
+import { vaultEntryName } from "./vaultEntryName";
 
 /**
  * Note links on the phone (F2, ADR 0037).
@@ -21,7 +22,7 @@ import { leaveThen } from "./leaveQuestion";
 
 /** The name a vault goes by in a link: its own, or the built-in vault's label. */
 export function phoneVaultName(entry: Pick<VaultEntry, "name"> | null | undefined): string {
-  return entry?.name?.trim() || i18n.t("mobile.vaultLocal");
+  return vaultEntryName(entry?.name);
 }
 
 /** The name of the vault that is open, for "Copy link". */

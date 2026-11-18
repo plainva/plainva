@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { realSqlite } from "./helpers/realSqlite.js";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
-import { VaultIndexer } from "../src/vault/VaultIndexer.js";
+import { MANUAL_REFRESH_TRIGGER, VaultIndexer } from "../src/vault/VaultIndexer.js";
 import type { VaultFileInfo } from "../src/vault/IVaultAdapter.js";
 import { noteIndexChange } from "../src/db/indexChanges.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
@@ -200,19 +200,57 @@ describe("a file system that gives no timestamp", () => {
     });
   }
 
-  it("is never vouched for: a change of the same size is found by the next full scan, and an unchanged file is not written again", async () => {
+  /** The stamp-less vault, counting the readings of each file. */
+  function countedStampless() {
+    const vault = stampless();
+    let reads = 0;
+    const counting = new Proxy(vault, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver);
+        if (typeof value !== "function") return value;
+        if (key !== "readBinaryFile" && key !== "readTextFile") return value.bind(target);
+        return async (...a: unknown[]) => { reads += 1; return (value as (...b: unknown[]) => Promise<unknown>).apply(target, a); };
+      },
+    });
+    return { vault: counting, reads: () => reads };
+  }
+
+  it("is read at the open and at a manual refresh, never by an automatic one: three of them read nothing", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    let steady = 1_000_000;
+    for (let i = 0; i < 20; i++) await raw.writeTextFile(`N${i}.md`, `# N${i}\n`);
+    await new VaultIndexer(stampless(), db, { monotonicNow: () => steady }).indexVaultFull("open, empty index");
+    // The next session: its first full scan compares every file without a timestamp once.
+    const { vault, reads } = countedStampless();
+    const indexer = new VaultIndexer(vault, db, { monotonicNow: () => steady, hearsNoChanges: true });
+    await indexer.indexVaultFull("open");
+    expect(reads(), "one reading each at the open").toBe(20);
+    for (let round = 0; round < 3; round++) {
+      steady += 60_000;
+      await indexer.indexVaultFull("automatic refresh");
+    }
+    expect(reads(), "nothing for three automatic refreshes").toBe(20);
+    await indexer.indexVaultFull(MANUAL_REFRESH_TRIGGER);
+    expect(reads(), "and each once more at a manual refresh").toBe(40);
+  });
+
+  it("a change of the same size is found at the next open or a manual refresh, and an unchanged file is not written again", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     let steady = 1_000_000;
     await raw.writeTextFile("N.md", "# N\n\nalpha\n");
     const indexer = new VaultIndexer(stampless(), db, { monotonicNow: () => steady });
     await indexer.indexVaultFull("open");
     steady += 60_000;
-    await indexer.indexVaultFull("automatic refresh");
-    steady += 60_000;
     // Another program writes the same number of bytes: no timestamp, no size to tell it by.
     await fs.writeFile(path.join(root, "N.md"), "# N\n\nomega\n");
     await indexer.indexVaultFull("automatic refresh");
-    expect((await new VaultQueryService(db).searchFullText("omega")).map((hit) => hit.path)).toEqual(["N.md"]);
+    const search = () => new VaultQueryService(db).searchFullText("omega").then((hits) => hits.map((hit) => hit.path));
+    expect(await search(), "an automatic refresh does not read it").toEqual([]);
+    await indexer.indexVaultFull(MANUAL_REFRESH_TRIGGER);
+    expect(await search()).toEqual(["N.md"]);
+    await fs.writeFile(path.join(root, "N.md"), "# N\n\ndelta\n");
+    await new VaultIndexer(stampless(), db, { monotonicNow: () => steady }).indexVaultFull("open");
+    expect((await new VaultQueryService(db).searchFullText("delta")).map((hit) => hit.path), "found at the next open").toEqual(["N.md"]);
     expect(Number((await db.queryOne<{ v: number }>(`SELECT stamp_vouched AS v FROM files WHERE path = 'N.md'`))?.v)).toBe(0);
   });
 });

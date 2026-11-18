@@ -1,9 +1,27 @@
 import type { TFunction } from "i18next";
-import { deleteEachWithNet, initialSelection, isBasePath, isLargeDeletion, noteDisplayName, planNeedsDialog, selectedPaths } from "@plainva/ui";
+import { deleteEachWithNet, initialSelection, isBasePath, isLargeDeletion, noteDisplayName, planNeedsDialog, selectedPaths, toast } from "@plainva/ui";
 import { mCascade, mConfirm } from "../services/mobileDialogs";
 import { buildMobileDeletionPlan, executeMobileCascade } from "../services/cascadeDelete";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { countVaultFiles } from "./folderDeletion";
+
+/**
+ * What did not go, said as the desktop says it (F6 of release 0.9.0). Every
+ * way here dropped it: a run in which each file failed did nothing and said
+ * nothing — in the database, in Files, Today, a note and the pinboard.
+ */
+function sayFailed(names: readonly string[], t: TFunction): void {
+  if (names.length > 0) toast.error(t("dialogs.bulkErrorsMsg", { count: names.length, names: names.join(", ") }));
+}
+
+const nameOf = (path: string) => path.split("/").pop() ?? path;
+
+/** Runs the cascade and says what failed; what went is returned. */
+async function runCascade(vault: MobileVault, plan: Parameters<typeof executeMobileCascade>[1], sel: Parameters<typeof executeMobileCascade>[2], t: TFunction): Promise<string[]> {
+  const result = await executeMobileCascade(vault, plan, sel);
+  sayFailed(result.errors, t);
+  return result.deleted;
+}
 
 /**
  * Confirm, then delete any vault file (note or `.base`) through the full sync
@@ -40,8 +58,10 @@ export async function confirmDeleteFile(
       });
       if (!sure) return false;
     }
-    const result = await executeMobileCascade(vault, plan, sel);
-    return result.deleted.length > 0;
+    // True only where THIS file went (review 17.11.): a cascade that deleted
+    // another target and not this one left the note there, and its screen
+    // closed over it.
+    return (await runCascade(vault, plan, sel, t)).includes(path);
   }
 
   const ok = await mConfirm({
@@ -54,11 +74,16 @@ export async function confirmDeleteFile(
   if (plan) {
     // Trivial plan: the same single delete as before, but user-confirmed
     // paths are reported to the sync guard via the shared executor.
-    const result = await executeMobileCascade(vault, plan, initialSelection(plan));
-    return result.deleted.length > 0;
+    return (await runCascade(vault, plan, initialSelection(plan), t)).includes(path);
   }
   // False where the person kept it at "Delete without a backup?" (D1).
-  return vaultOps.remove(vault, path, { confirmed: true });
+  try {
+    return await vaultOps.remove(vault, path, { confirmed: true });
+  } catch (error) {
+    console.error("mobile delete failed", path, error);
+    sayFailed([nameOf(path)], t);
+    return false;
+  }
 }
 
 /**
@@ -101,8 +126,7 @@ export async function confirmDeleteFiles(
       });
       if (!sure) return [];
     }
-    const result = await executeMobileCascade(vault, plan, sel);
-    return result.deleted;
+    return runCascade(vault, plan, sel, t);
   }
 
   const total = await countVaultFiles(vault.queryService);
@@ -114,13 +138,16 @@ export async function confirmDeleteFiles(
   });
   if (!ok) return [];
   if (plan) {
-    const result = await executeMobileCascade(vault, plan, initialSelection(plan));
-    return result.deleted;
+    return runCascade(vault, plan, initialSelection(plan), t);
   }
-  // One "Delete without a backup?" for all of them (A12). An error of one file
-  // is thrown once the others were tried.
+  // One "Delete without a backup?" for all of them (A12); what failed is said
+  // once the others were tried, as on every other way here.
   const outcomes = await deleteEachWithNet(paths, (p, ask) => vaultOps.remove(vault, p, { confirmed: true }, ask));
-  const failed = outcomes.find((o): o is Extract<typeof o, { error: unknown }> => "error" in o);
-  if (failed) throw failed.error;
+  const failed: string[] = [];
+  for (const o of outcomes) if ("error" in o) {
+    console.error("mobile delete failed", o.item, o.error);
+    failed.push(nameOf(o.item));
+  }
+  sayFailed(failed, t);
   return outcomes.flatMap((o) => ("deleted" in o && o.deleted ? [o.item] : []));
 }

@@ -1,11 +1,11 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
-import { dailyDayResolver, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
+import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
+import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
-import { flushDrafts, relocateDrafts } from "../services/draftJournal";
+import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
@@ -52,6 +52,7 @@ import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
 import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
+import { readDailyDayOfPath } from "../services/dailyNaming";
 import { getWindowBus } from "../services/windowBus";
 import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
@@ -476,22 +477,9 @@ function reportRootFolderCreated(name: string): void {
 export const syncIntervalKey = (vaultPath: string) =>
   `syncIntervalSeconds_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
-export const dailyNotesFolderKey = (vaultPath: string) => `dailyNotesFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-
-/**
- * Which day a daily note's name stands for in this vault (plan
- * Journal-Erweiterungen, X8), read from the two settings that name a daily
- * note. Handed to the query service as soon as it exists (it waits for the
- * answer), so the first task list after a start already knows a journal
- * stamp (plan Rückmeldungen 2026-11-05, § 3.177 Nr. 2).
- */
-export async function readDailyDayOfPath(vaultPath: string): Promise<((path: string) => string | null) | null> {
-  const store = await getSettingsStore();
-  const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) ?? "";
-  const format = (await store.get<string>(dailyNotesFormatKey(vaultPath))) ?? "YYYY-MM-DD";
-  return dailyDayResolver({ folder, format });
-}
+// The daily-note naming lives beside the window that may need it without this
+// context (an auxiliary window's vault, F8 of release 0.9.0).
+export { dailyNotesFolderKey, dailyNotesFormatKey, readDailyDayOfPath, readDailyNaming } from "../services/dailyNaming";
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Folder → template mapping (plan Vorlagen-Engine P4), a `FolderTemplateRule[]`. */
 export const folderTemplatesKey = (vaultPath: string) => `folderTemplates_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
@@ -864,7 +852,7 @@ export const VaultProvider: React.FC<{
       await perfMeasure("vault open: database pool", () => dbAdapter.initialize());
       await perfMeasure("vault open: database schema", () => initializeSchema(dbAdapter));
       // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
-      await logIndexDiagnostics(dbAdapter);
+      await logIndexDiagnostics(dbAdapter, "desktop folder");
 
       const syncQueue = new SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));
@@ -2543,6 +2531,8 @@ export const VaultProvider: React.FC<{
       // What the draft journal still buffers for this vault goes to disk first
       // (bounded): with the vault gone, nobody writes it later.
       if (path) await flushDrafts(path).catch(() => {});
+      // …and the journal's picture of its files goes: they may be removed before it opens again.
+      if (path) forgetDraftMemory(path);
       if (path) await settlePendingWrites(path);
       await worker?.stopAndDrain();
       await settingsOnly?.stopAndDrain();
@@ -2586,7 +2576,7 @@ export const VaultProvider: React.FC<{
           indexer,
           syncWorker: state.syncWorker,
           skipCloud: opts?.skipCloud,
-          trigger: opts?.silent ? "automatic refresh" : "manual refresh",
+          trigger: opts?.silent ? "automatic refresh" : MANUAL_REFRESH_TRIGGER,
         });
         // The automatic pass (window focus, the interval net) runs while
         // somebody may be typing: it reloads only what it found changed, and

@@ -16,6 +16,7 @@ import {
   type PreviewSegment,
 } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
+import { useVaultLabels } from "../services/vaultNames";
 
 /**
  * Vault-wide find & replace (B6): search every note (from the FTS index),
@@ -118,7 +119,8 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
   const selectedNotes = results ? results.filter((r) => selected.has(r.path)).length : 0;
   const allSelected = results !== null && results.length > 0 && selectedNotes === results.length;
   const toggleOpt = (key: keyof FindReplaceOptions) => setOpts((o) => ({ ...o, [key]: !o[key] }));
-  const vaultName = (vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "";
+  const vaultNameOf = useVaultLabels([vaultPath]);
+  const vaultName = vaultPath ? vaultNameOf(vaultPath) : "";
 
   const segments = (segs: PreviewSegment[]) =>
     segs.map((s, i) =>
