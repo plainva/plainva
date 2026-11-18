@@ -151,7 +151,8 @@ export function flushDraftOf(v: MobileVault, path: string): void {
  * reads the disk again.
  */
 export function forgetDraftMemory(vaultId: string): void {
-  made?.journal.forgetSeen(`drafts/${vaultId}`);
+  // Not awaited: a native write that never answers must not hold the way out up; the lanes keep the order.
+  void made?.journal.forgetSeen(`drafts/${vaultId}`);
 }
 
 /** Attempt all buffered journal snapshots before the OS suspends timers. */

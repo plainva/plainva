@@ -401,7 +401,8 @@ export async function pruneDrafts(vaultPath: string): Promise<void> {
  * drafts are removed past the journal. The next snapshot reads the disk.
  */
 export function forgetDraftMemory(vaultPath: string): void {
-  for (const dir of layout.dirs(vaultPath)) journalInstance?.forgetSeen(dir);
+  // Not awaited: a native write that never answers must not hold the way out up; the lanes keep the order.
+  for (const dir of layout.dirs(vaultPath)) void journalInstance?.forgetSeen(dir);
 }
 
 /**
@@ -439,5 +440,8 @@ export async function removeVaultDrafts(vaultPath: string): Promise<void> {
     if ((await readDir(legacyDir)).length === 0) await remove(legacyDir, { recursive: true });
   } catch {
     /* best-effort */
+  } finally {
+    // …and once more when the files are gone: a write that landed meanwhile left a picture of a file that is not there.
+    forgetDraftMemory(vaultPath);
   }
 }
