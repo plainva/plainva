@@ -89,6 +89,18 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     verified
       ? `${family}|verified:${verifiedProviderIdentityKey(verified)}`
       : `${family}|${cardIdentityKey(family, label) ?? `#${fallback}`}`;
+  // A card that has its registry record is that record's card, whatever its
+  // rows are labelled (review 2026-11-18, R1): one record never makes two
+  // cards — a calendar labelled "Alice@icloud.com" and a mailbox labelled
+  // "alice@icloud.com" of one record are one card — and two records never
+  // share one, since their ids differ.
+  const cardKey = (
+    record: CloudAccountRecord | undefined,
+    family: CloudProviderFamily,
+    label: string,
+    fallback: string,
+    verified?: VerifiedProviderIdentity,
+  ) => (record ? `record:${record.id}` : keyOf(family, label, fallback, verified));
   const recordFor = (family: CloudProviderFamily, label: string, verified?: VerifiedProviderIdentity) => {
     if (verified) {
       const key = verifiedProviderIdentityKey(verified);
@@ -144,7 +156,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       await filesViaBrokerToken(entry.id, entry.provider),
     );
     add({
-      key: keyOf(family, label, entry.id, stored?.verifiedProviderIdentity),
+      key: cardKey(stored, family, label, entry.id, stored?.verifiedProviderIdentity),
       family,
       label,
       ...(entry.name && entry.name !== label ? { subtitle: entry.name } : {}),
@@ -164,7 +176,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     const verified = verifiedProviderIdentityOf(a) ?? undefined;
     const bound = records.find(r => r.services.calendar?.pimAccountId === a.id) ?? recordFor(family, a.label, verified);
     add({
-      key: keyOf(family, a.label, a.id, verified ?? bound?.verifiedProviderIdentity),
+      key: cardKey(bound, family, a.label, a.id, verified ?? bound?.verifiedProviderIdentity),
       family,
       label: a.label,
       services: ["calendar"],
@@ -178,7 +190,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     const family = familyOfMailAccount({ kind: mailAccountKind(a), user: a.user, host: a.host });
     const bound = records.find(r => r.services.mail?.mailAccountId === a.id) ?? recordFor(family, a.label);
     add({
-      key: keyOf(family, a.label, a.id, bound?.verifiedProviderIdentity),
+      key: cardKey(bound, family, a.label, a.id, bound?.verifiedProviderIdentity),
       family,
       label: a.label,
       services: ["mail"],
@@ -226,7 +238,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     }
     add({
       // Its own card where the address does not say which account it is.
-      key: recordIdentity || addressIsTheAccount ? keyOf(record.family, record.label, record.id, record.verifiedProviderIdentity) : `${record.family}|#${record.id}`,
+      key: `record:${record.id}`,
       family: record.family,
       label: record.label,
       services: [...services],

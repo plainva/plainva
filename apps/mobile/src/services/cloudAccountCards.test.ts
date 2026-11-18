@@ -228,4 +228,29 @@ describe("loadAccountCards", () => {
 
     expect(cards.map((card) => card.pimAccountId).sort()).toEqual(["pim-lower", "pim-upper"]);
   });
+
+  it("makes one card of one record whose calendar and mailbox labels differ only in case (review 2026-11-18, R1)", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    pimRows.push({ id: "pim-1", provider: "caldav", label: "Alice@icloud.com", config: { url: "https://caldav.icloud.com", user: "Alice@icloud.com" } });
+    mailRows.push({ id: "mail-1", label: "alice@icloud.com", user: "alice@icloud.com", host: "imap.mail.me.com", port: 993, kind: "imap" });
+    records = [
+      { id: "acc", family: "apple", label: "Alice@icloud.com", services: { calendar: { pimAccountId: "pim-1" }, mail: { mailAccountId: "mail-1" } } } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => [card.record?.id, card.pimAccountId, card.mailAccountId])).toEqual([["acc", "pim-1", "mail-1"]]);
+  });
+
+  it("never lets two records share a card, also with the same label", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    records = [
+      { id: "acc-1", family: "apple", label: "alice@icloud.com", services: {} } as unknown as CloudAccountRecord,
+      { id: "acc-2", family: "apple", label: "alice@icloud.com", services: {} } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => card.record?.id).sort()).toEqual(["acc-1", "acc-2"]);
+  });
 });
