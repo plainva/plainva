@@ -2718,6 +2718,8 @@
     "diagExitMemory": "Android ended the app over memory",
     "diagExitCrash": "Crashed",
     "diagExitAnr": "Stopped responding (ANR)",
+    "diagExitHang": "Stopped responding",
+    "diagExitDay": "Counted by the system: {{memory}}× for memory, {{other}}× for another reason",
     "diagTitle": "What the sync last did",
     "explainer": "Carries vault settings and your accounts (calendars, mailboxes) — but no passwords and no device-specific paths. If several devices change something, the most recently saved version wins.",
     "lockedHere": "This device is locked — settings and accounts only travel once you enter the sync passphrase.",

@@ -1167,7 +1167,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "process-exit-diagnostics",
-    title: "Why the system ended the app, in the sync diagnostics",
+    title: "Why the system ended the app, in the sync diagnostics and in the diagnostics export",
     area: "platform",
     kind: "decision",
     desktop: null,
@@ -1175,10 +1175,12 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "A desktop OS has no per-app memory limiter and keeps no per-package exit " +
       "record the app could read; the entry exists for Android 17's limiter, " +
       "which kills without a trace the user could see (plan 2026-09-04, P1). " +
-      "iOS is covered by the same mobile screen showing nothing: it has no " +
-      "comparable list either.",
+      "The phone's export carries the exits with their frames (release list " +
+      "F51: Android from ApplicationExitInfo and the app's own crash handler, " +
+      "iOS from MetricKit, where a memory kill is only a daily count); the " +
+      "desktop export has no such section, because the platform keeps nothing to read.",
     mobile: "yes",
-    verified: "2026-09-04",
+    verified: "2026-11-17",
   },
   {
     id: "recent-list-by-day",
