@@ -12,10 +12,57 @@ import { DEFAULT_IMPORT_LABELS, type ImportLabels } from '@plainva/core';
  * resolved them from its own copy would leave a differently-worded report next
  * to the desktop's in the same folder.
  */
+/** The report's keys (`import.report.*`): a closed list, so every one is checked in all ten languages (F53). */
+type ReportKey =
+  | "title"
+  | "date"
+  | "duration"
+  | "notes"
+  | "attachments"
+  | "databases"
+  | "degraded"
+  | "skipped"
+  | "limitsHeading"
+  | "incompleteHeading"
+  | "filesHeading"
+  | "statusImported"
+  | "statusSkipped"
+  | "statusDegraded"
+  | "renamed"
+  | "noAvailableName"
+  | "reservedPathOccupied"
+  | "renamedForSystem"
+  | "refusedInternalPath"
+  | "entryFailed"
+  | "runStopped"
+  | "runCancelled"
+  | "skippedDuplicate"
+  | "skippedTrashed"
+  | "undoHeading"
+  | "undoFolder"
+  | "undoVault";
+/** The limits' keys (`import.limits.*`), closed for the same reason. */
+type LimitKey =
+  | "skippedAttachment"
+  | "tiddlyNonNote"
+  | "binaryInZip"
+  | "evernoteAttachments"
+  | "notionFileRows"
+  | "logseqVerbatim"
+  | "simplenoteTrashed"
+  | "keepAttachments"
+  | "keepTrashed"
+  | "notionBlockLimit"
+  | "notionNestedBlocks"
+  | "notionRowsTruncated"
+  | "roamBlockRefs"
+  | "htmlStructure"
+  | "baseSerializer";
+
 export function buildImportLabels(t: TFunction): ImportLabels {
-  const pick = (key: string, fallback: string): string =>
+  const pick = (key: ReportKey, fallback: string): string =>
     t(`import.report.${key}`, { defaultValue: fallback }) as string;
-  const limit = (key: string, fallback: string): string =>
+  const limit = (key: LimitKey, fallback: string): string =>
     t(`import.limits.${key}`, { defaultValue: fallback }) as string;
 
   const d = DEFAULT_IMPORT_LABELS;

@@ -174,8 +174,10 @@ export class GraphStateStore {
 
   private persistSoon(): void {
     if (this.writeTimer) clearTimeout(this.writeTimer);
+    waiting.add(this);
     this.writeTimer = setTimeout(() => {
       this.writeTimer = null;
+      waiting.delete(this);
       void this.write().catch(() => {
         /* state is a cache — a failed write must never break the view */
       });
@@ -187,6 +189,7 @@ export class GraphStateStore {
     if (!this.writeTimer) return;
     clearTimeout(this.writeTimer);
     this.writeTimer = null;
+    waiting.delete(this);
     try {
       await this.write();
     } catch {
@@ -260,6 +263,18 @@ export class GraphStateStore {
 }
 
 const stores = new WeakMap<IVaultAdapter, GraphStateStore>();
+/** Stores with a write still to come: the pins a person placed are not a cache. */
+const waiting = new Set<GraphStateStore>();
+
+/**
+ * Writes every store's pending state now — the desktop before a window or the
+ * app goes, the phone when it goes to the background. Pins and dismissed
+ * suggestions are the person's own; until 2026-11-16 a quit within 800 ms of
+ * placing one lost it.
+ */
+export async function flushGraphStates(): Promise<void> {
+  await Promise.all([...waiting].map((store) => store.flush()));
+}
 
 /** One store per vault adapter (i.e. per open vault). */
 export function getGraphState(adapter: IVaultAdapter): GraphStateStore {

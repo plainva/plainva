@@ -1,9 +1,10 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
+import { countWrites, uncounted } from "../services/inflightWrites";
 import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
+import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, vaultFolderIsThere } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
@@ -408,7 +409,8 @@ function clientComments(vaultPath: string | null): Pick<VaultContextType, "postW
   listPublicationComments: (path) => getWindowBus().then((bus) => bus.request("comment-list-publication", { path }, scope)),
   listWorkspaceMembers: () => getWindowBus().then((bus) => bus.request("comment-members", {}, scope)),
   getCommentSelfId: () => getWindowBus().then((bus) => bus.request("comment-self", {}, scope)),
-  postWorkspaceCommentInput: (input) => getWindowBus().then((bus) => bus.request("comment-post", input, scope)),
+  // A remark with its operation's identity is that operation, however often it is tried (A15).
+  postWorkspaceCommentInput: (input) => getWindowBus().then((bus) => bus.request("comment-post", input, input.identity ? { ...scope, attempt: `comment-${input.identity.commentId}` } : scope)),
   postWorkspaceComment: (path, body, parentCommentId = null, anchor = null, suggestion = null, batch = null) =>
     getWindowBus().then((bus) => bus.request("comment-post", { path, body, parentCommentId, anchor, suggestion, batch }, scope)),
   resolveWorkspaceComment: (path, commentId, suggestionOutcome = null) => getWindowBus().then((bus) => bus.request("comment-resolve", { path, commentId, suggestionOutcome }, scope)),
@@ -833,7 +835,10 @@ export const VaultProvider: React.FC<{
 
       if (currentAbortSignal.aborted) return;
 
-      const tauriVaultAdapter = new TauriVaultAdapter(path);
+      // Counted, so the way out waits for a write on its way (`inflightWrites.ts`):
+      // every write of the chain above ends here. Whose it is, is counted at the
+      // top (`personVaultAdapter` below); here it is the sync's as much as the person's.
+      const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path), "background");
       await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());
       await tauriVaultAdapter.createDir(".plainva");
 
@@ -900,6 +905,16 @@ export const VaultProvider: React.FC<{
       const permissionedWorkspaceAdapter = chain.permissions;
       const syncRepo = chain.syncRepo!;
       const vaultAdapter = chain.files;
+      // What the surfaces write through — the editor, a field, a remark, another
+      // window by way of the owner bus: the person's writes. A write of theirs
+      // the way out did not see land is said at the next start; the sync and the
+      // index, which take `vaultAdapter` itself, are not (review 2026-11-17).
+      const personVaultAdapter = countWrites(vaultAdapter, "person");
+      // The same for the lowest writable link: remarks, the workspace's steps
+      // and a restored version write there for the person; the sync, the
+      // settings sync and the deletion journal take `backupVaultAdapter` itself.
+      // Every handoff of a link of the chain is named in `writeOwners.test.ts`.
+      const personBelowChain = countWrites(backupVaultAdapter, "person");
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below. The five
@@ -1008,7 +1023,7 @@ export const VaultProvider: React.FC<{
       const sweepOwedToRemote = (kind: "plain" | "workspace") => {
         if (!queuesChanges) return;
         const handlers = {
-          vaultIsThere: () => vaultAdapter.exists("").catch(() => false),
+          vaultIsThere: () => vaultFolderIsThere(vaultAdapter).then((there) => there === true),
           stillGone: async (p: string) => !(await vaultAdapter.exists(p)),
           remove: queueLocalDeletion,
           removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
@@ -1245,7 +1260,8 @@ export const VaultProvider: React.FC<{
       // is poked so the provider deletion happens the moment the window closes
       // instead of waiting for the next poll.
       initTaskDeletion({
-        writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+        // "Undo" is the person's: a write of theirs, also when the way out cuts it short.
+        writeTextFile: (p, c) => personVaultAdapter.writeTextFile(p, c),
         runTaskSync: () => void runTaskSyncNow(),
         onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
@@ -1851,9 +1867,9 @@ export const VaultProvider: React.FC<{
       setState(s => ({
         ...s,
         vaultPath: path,
-        vaultAdapter,
-        backupAdapter: backupVaultAdapter,
-        belowChainAdapter: backupVaultAdapter,
+        vaultAdapter: personVaultAdapter,
+        backupAdapter: personBelowChain,
+        belowChainAdapter: personBelowChain,
         dbAdapter,
         indexer,
         queryService,
@@ -2268,7 +2284,8 @@ export const VaultProvider: React.FC<{
     // the same snapshot folder from two sides.
     if (isClient) return;
     if (!state.vaultPath || !state.vaultAdapter) return;
-    const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: state.vaultAdapter });
+    // Clearing out old snapshots is no work of the person's: the next start does it again (`uncounted`).
+    const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: uncounted(state.vaultAdapter) });
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.vaultAdapter]);
@@ -2379,7 +2396,7 @@ export const VaultProvider: React.FC<{
         void loadVault(state.vaultPath);
         return;
       }
-      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.belowChainAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
+      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
           if (step) worker.triggerImmediate();

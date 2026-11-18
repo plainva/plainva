@@ -38,10 +38,11 @@ import { currentWindowParams } from "./windowContext";
  * `AppContext`), and "cancel" leaves the vault and the composer as they are.
  * This is why the central window holds its questions too.
  *
- * The central window's own CLOSE is still not covered. Nobody created it and
- * nobody is asked when it closes: that is the app's own way out (or, with a
- * tray icon, a hide that loses nothing), and that way has no question on the
- * phone either. So it reports nothing and listens for nothing.
+ * The central window's own close is the app's way out (or, with a tray icon,
+ * a hide that loses nothing). Nobody created it, so it reports nothing and
+ * listens for nothing here; the way out puts its held questions first
+ * (`leaveFlush.ts`, since 2026-11-17), except on a termination signal, where
+ * nobody may be there to answer.
  */
 
 /** Puts the question to the person. Resolves true once the work may go. */

@@ -140,9 +140,59 @@ export function describeUpdateFailure(error: unknown, step: "check" | "install",
   }
 }
 
-/** Downloads, installs and relaunches. Rejects on failure — caller shows it. */
-export async function downloadAndInstallUpdate(update: Update): Promise<void> {
-  await update.downloadAndInstall();
+/** The longest the drafts and writes of every window are waited for before the update installs. */
+export const UPDATE_SETTLE_MS = 5_000;
+/** How long the wait goes on before the person is told what it waits for. */
+export const UPDATE_WAIT_WORD_MS = 700;
+
+/**
+ * Downloads, installs and relaunches. Rejects on failure — caller shows it.
+ *
+ * Between download and install the drafts every window still buffers are
+ * written, and the writes on their way are waited for (A7): installing ends
+ * the process on Windows, and a restart is the one way out the native side
+ * cannot hold (`src-tauri/src/leave.rs`). At most `UPDATE_SETTLE_MS`: writes
+ * that keep coming (a sync pull) or one that hangs do not keep the update
+ * from installing. When the wait goes on past a moment, `onWaiting` gets the
+ * limit in seconds, for the person to see why nothing happens yet, and
+ * `onInstalling` when the wait is over and the installation starts. When the
+ * limit ran out, the next start says that Plainva went before every window was
+ * done (`leave_mark_cut`, as for a quit cut short) — unless the installation
+ * failed and the app stays open (`leave_clear_cut`).
+ */
+export async function downloadAndInstallUpdate(update: Update, onWaiting?: (seconds: number) => void, onInstalling?: () => void): Promise<void> {
+  await update.download();
+  const { settleEveryWindowBeforeLeaving } = await import("./leaveFlush");
+  let said = false;
+  const word = setTimeout(() => {
+    said = true;
+    onWaiting?.(Math.ceil(UPDATE_SETTLE_MS / 1000));
+  }, UPDATE_WAIT_WORD_MS);
+  let done: boolean;
+  try {
+    done = await settleEveryWindowBeforeLeaving(UPDATE_SETTLE_MS);
+  } finally {
+    clearTimeout(word);
+  }
+  if (said) onInstalling?.();
+  const { invoke } = await import("@tauri-apps/api/core");
+  if (!done) {
+    await Promise.resolve(invoke("leave_mark_cut")).catch(() => {
+      // silent: without the mark the next start says nothing; the update still installs.
+    });
+  }
+  try {
+    await update.install();
+  } catch (error) {
+    // The app stays open and its writes go on landing: the next start, after
+    // an ordinary quit, has nothing to say (review 2026-11-17).
+    if (!done) {
+      await Promise.resolve(invoke("leave_clear_cut")).catch(() => {
+        // silent: an older native side keeps the mark; the next start then says it once.
+      });
+    }
+    throw error;
+  }
   await relaunch();
 }
 
@@ -186,8 +236,16 @@ export function scheduleStartupUpdateCheck(): void {
               // Persistent toast: the download/install can take a while and ends
               // in a relaunch, so it must not vanish after a few seconds — it
               // stays up (through the restart) or is replaced by an error.
-              const installingId = toast.progress(i18n.t("settings.installingUpdate"));
-              void downloadAndInstallUpdate(update).catch((e) => {
+              let installingId = toast.progress(i18n.t("settings.installingUpdate"));
+              const onWaiting = (seconds: number) => {
+                toast.dismiss(installingId);
+                installingId = toast.progress(i18n.t("settings.updateWaitingForWrites", { seconds }));
+              };
+              const onInstalling = () => {
+                toast.dismiss(installingId);
+                installingId = toast.progress(i18n.t("settings.installingUpdate"));
+              };
+              void downloadAndInstallUpdate(update, onWaiting, onInstalling).catch((e) => {
                 toast.dismiss(installingId);
                 logDiagnostic("update.install", String(e));
                 toast.error(describeUpdateFailure(e, "install", (key, options) => i18n.t(key, options)));
