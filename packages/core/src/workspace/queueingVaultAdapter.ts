@@ -115,9 +115,11 @@ export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
     // One owed entry for the whole deletion. Tried again, it goes on from the
     // path that failed; that one may have landed before its answer was lost,
     // and the store takes it as the same entry (`enqueue`).
+    // A deletion the person confirmed is no mass deletion to ask about (A4).
     let next = 0;
+    const options = confirmation?.confirmed ? { confirmed: true } : {};
     await this.enqueue("delete", deleted, null, async () => {
-      for (; next < deleted.length; next += 1) await this.state.enqueue("delete", deleted[next]);
+      for (; next < deleted.length; next += 1) await this.state.enqueue("delete", deleted[next], null, options);
     });
   }
 

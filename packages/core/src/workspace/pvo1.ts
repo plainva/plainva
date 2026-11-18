@@ -545,6 +545,22 @@ function validateChunkManifest(manifest: Pvo1ChunkManifest, frame: ParsedPvo1Fra
   protocolAssert(total === frame.plaintextLength, "integrity", "chunk manifest lengths do not sum to plaintext length");
 }
 
+/**
+ * Only an object's metadata (its path, kind and plaintext hash), without
+ * opening its content: what the worker needs to know where an incoming object
+ * goes before it applies it, without holding its plaintext.
+ */
+export async function openPvo1Metadata(bytes: Uint8Array, readerKeys: Pvo1ReaderKey[]): Promise<Pvo1ObjectMetadata> {
+  const frame = parsePvo1Frame(bytes);
+  const dataKey = await unwrapDataKey(frame, readerKeys);
+  const metadataKey = deriveWorkspaceSubkey(dataKey, "object-metadata", frame.workspaceId, frame.objectId, frame.revisionId);
+  const metadataPlaintext = openBlock(metadataKey, frame.metadataBlock, blockAad(frame.headerBytes, frame.envelopeBytes, "object-metadata"), "PVO1 metadata");
+  protocolAssert(metadataPlaintext.length <= MAX_METADATA_PLAINTEXT_BYTES, "bounds", "PVO1 metadata plaintext exceeds limit");
+  const metadata = parseCanonicalJson<Pvo1ObjectMetadata>(metadataPlaintext, "PVO1 metadata");
+  validateMetadata(metadata);
+  return metadata;
+}
+
 export async function openPvo1Frame(bytes: Uint8Array, readerKeys: Pvo1ReaderKey[]): Promise<OpenedPvo1Frame> {
   const frame = parsePvo1Frame(bytes);
   const dataKey = await unwrapDataKey(frame, readerKeys);

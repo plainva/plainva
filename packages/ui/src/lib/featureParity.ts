@@ -733,28 +733,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-29",
   },
   {
-    id: "spell-checking",
-    title: "Spell checking in the writing surfaces",
+    id: "save-retry-after-leaving-note",
+    title: "A failed save of a note the person has left is tried again by itself",
     area: "editor",
     kind: "gap",
     desktop: "partial",
     desktopReason:
-      "One device switch and one rule serve both shells (lib/spellcheck.ts); what " +
-      "checks the text is the platform. On Windows (WebView2) and macOS (WKWebView) " +
-      "the WebView checks with the system's languages, on a phone the keyboard and " +
-      "the system do. macOS needs one step of its own: WKWebView marks nothing " +
-      "until the app's \"Check Spelling While Typing\" is on, which src-tauri sets " +
-      "at start (src/macos_spellcheck.rs, issue #135 - until then nothing was " +
-      "marked on a Mac either). On Linux nothing checks: wry 0.57 never switches WebKitGTK's " +
-      "spell checker on (no call in its source), and WebKitGTK has it off until an " +
-      "application enables it on the WebKitWebContext and names the languages. " +
-      "Closing this needs a Linux-only step in src-tauri (enable it and pass the " +
-      "system's languages) plus a check that the AppImage finds the system's " +
-      "dictionaries - neither could be built or run on the machine this was " +
-      "written on, so the settings page says so on Linux instead of pretending " +
-      "(plan Befunde 2026-10-06, S1).",
+      "Both shells try a failed save again by one rule (lib/saveRetry.ts) while " +
+      "the note is open. The phone's saver keeps a note's text after its screen " +
+      "is left and tries it again, and when the app returns (noteSaver.wake). " +
+      "The desktop's retry timer belongs to the editor pane: when the pane shows " +
+      "another note or closes, it makes one last try, and if that fails the text " +
+      "stays in the draft journal, offered when the note is opened again " +
+      "(review 2026-11-18). Closing this means a saver beside the pane on the " +
+      "desktop that outlives it, as the phone's does.",
     mobile: "yes",
-    verified: "2026-10-06",
+    verified: "2026-11-18",
   },
   {
     id: "tag-pill-open-while-editing",
@@ -1180,6 +1174,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "iOS from MetricKit, where a memory kill is only a daily count); the " +
       "desktop export has no such section, because the platform keeps nothing to read.",
     mobile: "yes",
+    verified: "2026-11-17",
+  },
+  {
+    id: "quit-hold",
+    title: "Quitting the app waits for what was typed, asks about a mail not sent, and says a cut-short quit at the next start",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "A phone app is never quit by the person: the system sends it to the background and " +
+      "ends it there without a word. The phone writes what it holds on that step " +
+      "(appLifecycle.ts: drafts, graph pins, task filters), which is the same result; a " +
+      "question about an unsent mail has nobody to answer it there, and there is no " +
+      "deadline that could run out, so nothing to say at the next start (decided 2026-11-17, " +
+      "desktop windows A7).",
     verified: "2026-11-17",
   },
   {

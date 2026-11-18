@@ -86,6 +86,8 @@ export async function forgetVaultFiles(vaultId: string): Promise<void> {
   const drafts = removeInternalFolder(`drafts/${vaultId}`).then(() => null, (error: unknown) => error);
   const journal = removeInternalFile(profileJournalPath(vaultId)).then(() => null, (error: unknown) => error);
   const failed = (await drafts) ?? (await journal);
+  // …and once more when the files are gone: a write that landed meanwhile left a picture of a file that is not there.
+  forgetDraftMemory(vaultId);
   if (failed) throw failed;
 }
 

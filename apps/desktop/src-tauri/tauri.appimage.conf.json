@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "linux": {
+      "appimage": {
+        "files": {
+          "/usr/lib": "target/appimage-enchant/lib",
+          "/usr/share/doc": "target/appimage-enchant/doc"
+        }
+      }
+    }
+  }
+}

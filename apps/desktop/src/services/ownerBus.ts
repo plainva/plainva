@@ -6,7 +6,7 @@ import { getWindowBus, OWNER_LABEL, type BroadcastMap, type RpcMap, type WindowB
 import { enqueueSend, appendDraftFor, releaseRefusedSend } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
-import { parkTreeReveal, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk } from "@plainva/ui";
+import { parkTreeReveal, toggleBookmarkOnDisk, setBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk } from "@plainva/ui";
 import {
   findWindowForContent,
   focusAuxWindow,
@@ -22,6 +22,7 @@ import {
 } from "./windowManager";
 import { holdersOf, setHolderVault } from "./vaultRuntimes";
 import { clearDraft, recordDraft, relocateDrafts } from "./draftJournal";
+import { noteDraftWindow, noteDraftsFlushed } from "./windowDraftFlush";
 import { syncStatusStore, type SyncStatusSnapshot } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { withPendingWrite } from "./pendingWrites";
@@ -574,14 +575,15 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       const entries = await renameBookmarksOnDisk(deps.vaultAdapter, from, to);
       publishBookmarks(deps.vaultPath, entries); return entries;
     }, { vaultPath: deps.vaultPath }),
-    await bus.handle("toggle-bookmark", async ({ path, type }) => {
+    await bus.handle("toggle-bookmark", async ({ path, type, on }) => {
       // The write belongs to the vault this handler is bound to, never to the
       // vault the owner window happens to SHOW (multi-window D6). Since stage D
       // the two can differ: an auxiliary window on vault B addresses B's
       // handler while the owner draws A. Doing the read-modify-write here means
       // the star can never land in the wrong vault's list -- and a vault that
       // nobody is looking at still gets it.
-      const bookmarks = await toggleBookmarkOnDisk(deps.vaultAdapter, path, type);
+      // The state the window asked for, read off what it showed; toggled only for a window that names none.
+      const bookmarks = on === undefined ? await toggleBookmarkOnDisk(deps.vaultAdapter, path, type) : await setBookmarkOnDisk(deps.vaultAdapter, path, on, type);
       publishBookmarks(deps.vaultPath, bookmarks);
       return bookmarks;
     }, { vaultPath: deps.vaultPath }),
@@ -813,10 +815,25 @@ export async function installOwnerAppBus(): Promise<() => void> {
   );
 
   offs.push(
-    await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision, sessionId }) => {
+    await bus.handle("draft-record", async ({ vaultPath, notePath, text, revision, sessionId }, from) => {
       // The journal lives on disk next to the owner's own drafts; an auxiliary
       // window has no write access to it (aux capability) and needs none.
+      // The sender is remembered: before it (or the app) goes, it is asked to
+      // write what it still buffers (A7, `windowDraftFlush.ts`).
+      noteDraftWindow(from);
       await recordDraft(vaultPath, notePath, text, revision, sessionId);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("drafts-flushed", ({ id, cut }, from) => {
+      noteDraftsFlushed(id, from, cut === true);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("leave-listening", (_args, from) => {
+      noteDraftWindow(from);
     }),
   );
 

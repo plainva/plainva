@@ -1,4 +1,4 @@
-import { flushTaskViewStates } from "@plainva/ui";
+import { flushGraphStates, flushTaskViewStates } from "@plainva/ui";
 import { foregroundSync } from "./syncService";
 import { pimForegroundSync } from "./pim/pimService";
 
@@ -39,6 +39,9 @@ export function onAppForeground(): void {
   // app's own one (issue 110, E9). EVERY vault is re-read on return,
   // throttled to once a minute.
   void import("./vaultService").then((m) => m.rereadVaultOnResume()).catch(() => {});
+  // A note whose save rested after its last retry (`saveRetry.ts`) is tried
+  // again now — the drive or the right may be back.
+  void import("./vaultService").then(({ noteSaver }) => noteSaver.wake()).catch(() => {});
   // ...and so are the remarks (N2): another device's comment file may have
   // arrived through a foreign sync, which no cycle of ours announces. "*" is
   // every note; the open surfaces re-read.
@@ -67,6 +70,8 @@ export function onAppForeground(): void {
  */
 export function onAppBackground(): void {
   flushTaskViewStates();
+  // Graph pins a person just placed (written 800 ms later otherwise).
+  void flushGraphStates();
   void import("./draftJournal").then(({ flushDrafts }) => flushDrafts()).catch(() => {});
   void import("./vaultService")
     .then(({ noteSaver }) => noteSaver.flushAll())

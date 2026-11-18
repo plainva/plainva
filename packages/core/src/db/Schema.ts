@@ -182,7 +182,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       queued_at     INTEGER NOT NULL,
       retry_count   INTEGER NOT NULL DEFAULT 0,
       last_error    TEXT,
-      prepared_json TEXT
+      prepared_json TEXT,
+      confirmed_at  INTEGER
     );`,
     `CREATE TABLE IF NOT EXISTS workspace_checkpoint (
       checkpoint_hash TEXT PRIMARY KEY,
@@ -288,6 +289,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     );`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_object_path ON workspace_object(path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_revision_object ON workspace_revision(object_id);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_revision_materialized ON workspace_revision(materialized_path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_operation_device ON workspace_operation(device_id, sequence);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_queue_path ON workspace_queue(path, new_path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_comment_target ON workspace_comment(target_object_id, created_at);`,
@@ -674,6 +676,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   }
   if (!queueColumns.has("delete_journaled")) {
     await db.execute(`ALTER TABLE offline_queue ADD COLUMN delete_journaled INTEGER NOT NULL DEFAULT 0`);
+  }
+  // The encrypted workspace's queue the same (release 0.9.0 A4): a deletion
+  // the person confirmed in the app carries when. A row from before has none
+  // and counts as unconfirmed — the guard may ask about it, never the reverse.
+  // An older build ignores the column; what it queues is unconfirmed.
+  const workspaceQueueColumns = new Set((await db.query<{ name: string }>(`PRAGMA table_info(workspace_queue)`)).map((row) => row.name));
+  if (!workspaceQueueColumns.has("confirmed_at")) {
+    await db.execute(`ALTER TABLE workspace_queue ADD COLUMN confirmed_at INTEGER`);
   }
 
   // Must run after the ALTER above: on pre-existing databases the links table

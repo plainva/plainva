@@ -146,10 +146,14 @@ jobs:
     # cap stays for the manual dry run, which still does.
     timeout-minutes: 120
     steps:
+      # No token in .git/config: the AppImage step builds a third-party
+      # tarball (build-appimage-enchant.sh), and nothing in this job pushes —
+      # tauri-action takes its token from the environment.
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
+          persist-credentials: false
 
       - name: Verify the exact build source
         shell: bash
@@ -167,7 +171,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm rpm2cpio dbus x11-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libhunspell-dev patchelf xvfb rpm rpm2cpio dbus x11-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -273,6 +277,21 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
         run: node apps/desktop/node_modules/@tauri-apps/cli/tauri.js --version
 
+      # Spell checking in the AppImage (Sammelplan § 3.183 Nr. 1): the bundler
+      # carries the build image's libenchant without its provider modules, and
+      # that library looks for them only at Debian's compiled-in path — so
+      # Fedora, Arch, openSUSE and any system without Enchant checked nothing.
+      # The AppImage now carries a relocatable build of the same Enchant
+      # release with its Hunspell provider; the dictionaries stay the host's.
+      # src-tauri/tauri.appimage.conf.json maps it into the AppDir; the two
+      # AppImage builds below pass it.
+      # The .deb and .rpm are unaffected: they use the system's WebKitGTK and
+      # Enchant. The step "The AppImage starts on the distributions" proves
+      # the result on each distribution.
+      - name: Build the AppImage's spell-checking library
+        if: matrix.platform == 'ubuntu-22.04' && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage)
+        run: bash apps/desktop/scripts/build-appimage-enchant.sh
+
       - name: Build Tauri App
         # Tag pushes allocate a draft; explicit Windows recovery only reuses
         # the draft and exact source validated by the prepare job.
@@ -346,7 +365,7 @@ jobs:
           # exactly that base directory — measured, not assumed.
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
-            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json') }}
+            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json --config apps/desktop/src-tauri/tauri.appimage.conf.json') }}
 
       # Every file this leg uploads is there and not empty
       # (apps/desktop/scripts/expected-bundles.mjs, the assets of 0.8.7).
@@ -388,7 +407,7 @@ jobs:
           VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
           VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID }}
           VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET }}
-        run: pnpm --filter desktop tauri build --bundles appimage --config src-tauri/tauri.onnxruntime.conf.json
+        run: pnpm --filter desktop tauri build --bundles appimage --config src-tauri/tauri.onnxruntime.conf.json --config src-tauri/tauri.appimage.conf.json
 
       # Measure every AppImage we build (release or test): extract it, assert
       # the binary and AppRun are there, and list the infrastructure libraries
@@ -403,7 +422,25 @@ jobs:
           appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
           bash apps/desktop/scripts/check-appimage.sh "$appimage"
 
-      - name: Upload the Linux AppImage (manual test build)
+      # The AppImage on six distributions (appimage-distros.sh): it has to
+      # start on each and check spelling with the host's Hunspell dictionary
+      # (Sammelplan § 3.183 Nr. 1). Here on the runner that built it, in one
+      # container per distribution, so the file never leaves the runner on the
+      # tag path before the draft is published, and the containers get neither
+      # the checkout nor a token. A red distribution turns the release run red.
+      # The rehearsal runs the same.
+      - name: The AppImage starts on the distributions
+        if: matrix.platform == 'ubuntu-22.04' && (github.event_name != 'workflow_dispatch' || inputs.linux_appimage)
+        run: |
+          set -euo pipefail
+          appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
+          bash apps/desktop/scripts/appimage-distros.sh "$appimage"
+
+      # Only the manual test build hands the AppImage out as a workflow
+      # artifact. On the tag path it exists only in the draft until the
+      # maintainer publishes it: an artifact of this public repository can be
+      # downloaded by any signed-in GitHub user.
+      - name: Upload the Linux AppImage (manual test build only)
         if: matrix.platform == 'ubuntu-22.04' && github.event_name == 'workflow_dispatch' && inputs.linux_appimage
         uses: actions/upload-artifact@v7
         with:
@@ -529,14 +566,17 @@ jobs:
           echo "::error::rehearsal and rebuild_windows_tag exclude each other"
           exit 1
 
+      # No token in .git/config, as on the tag path.
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb rpm rpm2cpio dbus x11-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libhunspell-dev patchelf xvfb rpm rpm2cpio dbus x11-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -599,6 +639,11 @@ jobs:
       - name: Fetch ONNX Runtime
         run: node apps/desktop/scripts/fetch-onnxruntime.mjs
 
+      # The AppImage's relocatable Enchant, as in the release legs.
+      - name: Build the AppImage's spell-checking library
+        if: matrix.platform == 'ubuntu-22.04'
+        run: bash apps/desktop/scripts/build-appimage-enchant.sh
+
       - name: Tauri CLI version
         shell: bash
         run: |
@@ -618,7 +663,7 @@ jobs:
         env:
           TAURI_ARGS: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
-            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json') }}
+            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json --config apps/desktop/src-tauri/tauri.appimage.conf.json') }}
           # What tauri-action adds to the environment of the CLI (execCommand
           # in src/utils.ts; TAURI_BUNDLER_DMG_IGNORE_CI on macOS only, below).
           FORCE_COLOR: '0'
@@ -690,6 +735,13 @@ jobs:
           set -euo pipefail
           appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
           bash apps/desktop/scripts/check-appimage.sh "$appimage"
+
+      - name: The AppImage starts on the distributions
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          set -euo pipefail
+          appimage="$(ls apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage | head -n 1)"
+          bash apps/desktop/scripts/appimage-distros.sh "$appimage"
 
       - name: The packages start the main program
         shell: bash

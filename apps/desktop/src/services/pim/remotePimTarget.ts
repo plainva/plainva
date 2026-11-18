@@ -38,9 +38,9 @@ function unavailable(what: string): never {
   throw new Error(`${what} runs in the central window only`);
 }
 
-async function send(accountId: string, op: PimWriteOp) {
+async function send(accountId: string, op: PimWriteOp, attempt?: string) {
   const bus = await getWindowBus();
-  const res = await bus.request("pim-write", { accountId, op });
+  const res = attempt === undefined ? await bus.request("pim-write", { accountId, op }) : await bus.request("pim-write", { accountId, op }, { attempt });
   if ("conflict" in res) {
     // PimConflictError cannot survive JSON; the caller's `instanceof` check is
     // what decides between "re-pull and reopen" and "show an error". The etag
@@ -55,9 +55,54 @@ async function send(accountId: string, op: PimWriteOp) {
  * purpose (see above) — the views in an aux window read the cache, never a
  * provider.
  */
+/** The remote targets, by what `withWriteAttempt` needs to make one that names its action. */
+const remoteAccounts = new WeakMap<IPimTarget, string>();
+
+/** A short, stable name for a text (FNV-1a): which create of an action this is. */
+function nameOf(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/**
+ * The target for one action of the person — the event a form created, an
+ * event moved to another calendar ("create there, delete here"), a time
+ * block, an entry put in the calendar — which names it in every create it
+ * sends (`RequestOptions.attempt`, A15). Pressing "Try again" after "it may
+ * still land" is that action again: the central window does not create the
+ * event a second time, it gives the earlier outcome, and the action goes on
+ * with the leg still missing (for a move, the delete here). A new action is
+ * a new name, however alike its event.
+ *
+ * Each create of the action has a name of its own — the action and what it
+ * creates where — so two creates of one action are never taken for one.
+ * Updates, deletions and answers set a state and are sent as they are; a
+ * target of the central window itself is given back as it is.
+ */
+export function withWriteAttempt(target: IPimTarget | null, attempt: string): IPimTarget | null {
+  const id = target ? remoteAccounts.get(target) : undefined;
+  if (!target || id === undefined) return target;
+  return {
+    ...target,
+    async createEvent(calendarId: string, draft: PimEventDraft) {
+      const res = await send(id, { kind: "createEvent", calendarId, draft }, `${attempt}:${nameOf(JSON.stringify([calendarId, draft]))}`);
+      return { uid: res.uid ?? "", etag: res.etag, href: res.href };
+    },
+  } as IPimTarget;
+}
+
+/** A new action of the person, for `withWriteAttempt`. */
+export function newWriteAction(what: string): string {
+  return `${what}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function createRemotePimTarget(account: PimAccountRow): IPimTarget {
   const id = account.id;
-  return {
+  const target = {
     provider: account.provider,
     listCalendars: () => unavailable("listCalendars"),
     pullEvents: () => unavailable("pullEvents"),
@@ -83,6 +128,8 @@ export function createRemotePimTarget(account: PimAccountRow): IPimTarget {
       return { etag: res.etag };
     },
   } as IPimTarget;
+  remoteAccounts.set(target, id);
+  return target;
 }
 
 /**
