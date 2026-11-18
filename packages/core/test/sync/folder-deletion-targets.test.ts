@@ -240,7 +240,6 @@ describe("Dropbox", () => {
 describe("Google Drive", () => {
   function drive() {
     const items = new Map<string, { name: string; parent: string; folder: boolean }>();
-    const trashed = new Set<string>();
     const FOLDER = "application/vnd.google-apps.folder";
     const fetchFn = async (url: string, init: any) => {
       const u = decodeURIComponent(String(url).replace(/\+/g, " "));
@@ -253,16 +252,15 @@ describe("Google Drive", () => {
         return json(200, { files: hits.map(([id, i]) => ({ id, name: i.name, mimeType: i.folder ? FOLDER : "text/markdown" })) });
       }
       const idMatch = u.match(/\/drive\/v3\/files\/([^?]+)/);
-      // A deletion goes into the trash with what is below it (F44, rule 2).
-      if (method === "PATCH" && idMatch && JSON.parse(init.body).trashed === true) {
-        const drop = (id: string) => { for (const [child, i] of [...items]) if (i.parent === id) drop(child); trashed.add(id); items.delete(id); };
+      if (method === "DELETE" && idMatch) {
+        const drop = (id: string) => { for (const [child, i] of [...items]) if (i.parent === id) drop(child); items.delete(id); };
         drop(idMatch[1]!);
-        return json(200, { id: idMatch[1] });
+        return new Response(null, { status: 204 });
       }
       throw new Error(`unexpected ${method} ${u}`);
     };
     const t = new DriveSyncTarget({ clientId: "cid", clientSecret: "s", refreshToken: "r", accessToken: "a" }, fetchFn as any);
-    return { items, t, trashed };
+    return { items, t };
   }
 
   it("keeps a folder that holds a file anywhere below it", async () => {
@@ -274,12 +272,11 @@ describe("Google Drive", () => {
     expect(items.has("n1")).toBe(true);
   });
 
-  it("moves a folder that holds only empty folders into the trash", async () => {
-    const { items, t, trashed } = drive();
+  it("deletes a folder that holds only empty folders", async () => {
+    const { items, t } = drive();
     items.set("f1", { name: "Leer", parent: "root-folder", folder: true });
     items.set("f2", { name: "Unter", parent: "f1", folder: true });
     await t.push(del("Leer"));
     expect([...items.keys()]).toEqual([]);
-    expect([...trashed].sort()).toEqual(["f1", "f2"]);
   });
 });

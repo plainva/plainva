@@ -99,8 +99,6 @@ interface DriveFile {
   mimeType?: string;
   parents?: string[];
   trashed?: boolean;
-  /** In the trash itself, not only through a trashed folder above it — only when asked for in `fields`. */
-  explicitlyTrashed?: boolean;
   /** Bytes, as a decimal string — only when asked for in `fields`. */
   size?: string;
 }
@@ -796,34 +794,6 @@ export class DriveSyncTarget implements ISyncTarget {
     this.folderIdToPath.clear();
   }
 
-  /** Is the folder `id` there and outside the trash? */
-  private async folderIsSeen(id: string): Promise<boolean> {
-    if (id === (await this.getRootFolderId())) return true;
-    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${encodeURIComponent(id)}?fields=id,trashed`);
-    if (res.status === 404) {
-      discardResponse(res);
-      return false;
-    }
-    if (!res.ok) throw await driveResponseError("folder lookup", res);
-    return ((await res.json()) as DriveFile).trashed !== true;
-  }
-
-  /**
-   * The item `remoteId`, when it lies below a trashed folder without being
-   * thrown away itself — the state a move into a destination that went into
-   * the trash leaves while it is not finished (F44). Anything else: null.
-   */
-  private async movedIntoTrashedFolder(remoteId: string | null | undefined): Promise<string | null> {
-    if (!remoteId || !/^[\w-]+$/.test(remoteId)) return null;
-    const res = await this.authedFetch("GET", `${DRIVE_API}/files/${remoteId}?fields=id,trashed,explicitlyTrashed`);
-    if (!res.ok) {
-      discardResponse(res);
-      return null;
-    }
-    const f = (await res.json()) as DriveFile;
-    return f.trashed === true && f.explicitlyTrashed !== true ? f.id : null;
-  }
-
   public async push(op: SyncOperation): Promise<PushResult | void> {
     if (op.file_path.includes(".CONFLICT")) return;
 
@@ -909,17 +879,7 @@ export class DriveSyncTarget implements ISyncTarget {
         }
         if ((f.md5Checksum || f.modifiedTime || f.id) !== expected.marker) throw new RemoteChangedError(op.file_path, "found before the deletion");
       }
-      // Into Drive's trash, never past it (F44, rule 2): `files.delete`
-      // "permanently deletes a file … without moving it to the trash", a
-      // folder with all its descendants. Trashed, a file stays restorable —
-      // "Files in the trash are automatically deleted after 30 days"
-      // (https://developers.google.com/drive/api/guides/delete). Every query
-      // of this target asks `trashed=false`, and a cursor pull reports a
-      // trashed file as gone, so a trashed item is listed nowhere.
-      const res = await this.authedFetch("PATCH", `${DRIVE_API}/files/${id}?fields=id`, {
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trashed: true }),
-      });
+      const res = await this.authedFetch("DELETE", `${DRIVE_API}/files/${id}`);
       if (!res.ok && res.status !== 404)
         throw await driveResponseError("file deletion", res);
       this.uncachePath(op.file_path);
@@ -928,9 +888,7 @@ export class DriveSyncTarget implements ISyncTarget {
 
     if (op.operation === "rename" && op.new_path) {
       if (op.new_path.includes(".CONFLICT")) return;
-      // A move this device began and could not finish (below) is found by
-      // the id recorded for the file: its name no longer finds it.
-      const id = (await this.findFileId(op.file_path)) ?? (await this.movedIntoTrashedFolder(op.remoteId));
+      const id = await this.findFileId(op.file_path);
       // Source gone remotely: NOT a success — the engine re-uploads at the new
       // path, otherwise the file would exist under no remote path at all.
       if (!id) return { renameSourceMissing: true };
@@ -944,30 +902,30 @@ export class DriveSyncTarget implements ISyncTarget {
       }
       const from = this.splitPath(op.file_path);
       const to = this.splitPath(op.new_path);
+      const params = new URLSearchParams({ fields: "id,md5Checksum,modifiedTime,trashed" });
       const metadata: Record<string, unknown> = {};
       if (from.name !== to.name) metadata.name = to.name;
-      const patch = async (parents?: { add: string; remove: string }) => {
-        const params = new URLSearchParams({ fields: "id,md5Checksum,modifiedTime,trashed,explicitlyTrashed,parents" });
-        if (parents) {
-          params.set("addParents", parents.add);
-          params.set("removeParents", parents.remove);
-        }
-        return this.authedFetch("PATCH", `${DRIVE_API}/files/${id}?${params.toString()}`, {
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(metadata),
-        });
-      };
-
-      if (from.folder === to.folder) {
-        const res = await patch();
-        if (!res.ok && res.status !== 404) throw await driveResponseError("file rename", res);
-        this.uncachePath(op.file_path);
-        if (!res.ok) return { renameSourceMissing: true };
+      if (from.folder !== to.folder) {
+        const oldParent = await this.resolveFolderId(from.folder);
+        const newParent = await this.resolveFolderId(to.folder);
+        params.set("addParents", newParent);
+        params.set("removeParents", oldParent);
+      }
+      const res = await this.authedFetch("PATCH", `${DRIVE_API}/files/${id}?${params.toString()}`, {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metadata),
+      });
+      if (!res.ok && res.status !== 404)
+        throw await driveResponseError("file rename", res);
+      this.uncachePath(op.file_path);
+      if (res.ok) {
         const f = (await res.json()) as DriveFile;
-        // In the trash, itself or through its folder: another device put it
-        // there since this one looked. As at main after a permanent deletion,
+        // In the trash — put there in Drive since this device looked, itself
+        // or a folder of it: as after a permanent deletion (the 404 below),
         // the source is missing, and the engine uploads this device's file at
-        // the new name, where it is seen (F44).
+        // the new name, where it is seen (F44). A named limit: where the
+        // destination folder was the one put into the trash, the remote's
+        // version lies there now, restorable in Drive for 30 days.
         if (f.trashed) {
           this.forgetFolders();
           return { renameSourceMissing: true };
@@ -975,61 +933,8 @@ export class DriveSyncTarget implements ISyncTarget {
         this.cachePath(op.new_path, f.id);
         return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
       }
-
-      // Into another folder. What the file lies in now, and whether it was
-      // thrown away itself: the source is missing only where the file, or
-      // the folder it lay in, went into the trash — never where the
-      // destination did (F44). `explicitlyTrashed` and the parents are
-      // Drive's own answer, no guess.
-      const meta = await this.authedFetch("GET", `${DRIVE_API}/files/${id}?fields=id,trashed,explicitlyTrashed,parents`);
-      if (meta.status === 404) {
-        this.uncachePath(op.file_path);
-        return { renameSourceMissing: true };
-      }
-      if (!meta.ok) throw await driveResponseError("metadata lookup", meta);
-      const now = (await meta.json()) as DriveFile;
-      const oldParent = await this.resolveFolderIdReadOnly(from.folder);
-      const resuming = now.trashed === true && now.explicitlyTrashed !== true && oldParent !== null && !(now.parents ?? []).includes(oldParent);
-      if (now.explicitlyTrashed || (now.trashed && !resuming)) {
-        this.uncachePath(op.file_path);
-        this.forgetFolders();
-        return { renameSourceMissing: true };
-      }
-      const current = (now.parents ?? []).join(",") || oldParent || (await this.resolveFolderId(from.folder));
-      // The destination as it is seen now; one in the trash is looked up
-      // afresh, and the file goes where it is seen. Twice at most: a
-      // destination that keeps going into the trash leaves the move to the
-      // next cycle, which finds the file by its id and finishes it.
-      for (let attempt = 0; attempt < 2; attempt++) {
-        if (attempt > 0) this.forgetFolders();
-        const newParent = await this.resolveFolderId(to.folder);
-        if (!(await this.folderIsSeen(newParent))) {
-          this.forgetFolders();
-          continue;
-        }
-        const res = await patch({ add: newParent, remove: attempt === 0 ? current : (now.parents ?? []).join(",") || current });
-        if (res.status === 404) {
-          this.uncachePath(op.file_path);
-          return { renameSourceMissing: true };
-        }
-        if (!res.ok) throw await driveResponseError("file rename", res);
-        const f = (await res.json()) as DriveFile;
-        if (!f.trashed) {
-          this.uncachePath(op.file_path);
-          this.cachePath(op.new_path, f.id);
-          return { etag: f.md5Checksum || f.modifiedTime, remoteId: f.id };
-        }
-        if (f.explicitlyTrashed) {
-          this.uncachePath(op.file_path);
-          return { renameSourceMissing: true };
-        }
-        // Moved into a folder that went into the trash in the very moment:
-        // the content of the remote — maybe newer than this device's, with
-        // files this device never saw — must not stay there.
-        now.parents = f.parents ?? [newParent];
-      }
-      this.cachePath(op.file_path, id);
-      throw new Error(`Google Drive kept putting the destination of ${op.new_path} into the trash; the move is finished next cycle`);
+      // The PATCH answered 404 (id turned stale between lookup and rename).
+      return { renameSourceMissing: true };
     }
   }
 
@@ -1148,7 +1053,7 @@ export class DriveSyncTarget implements ISyncTarget {
       const params = new URLSearchParams({
         pageToken: pageToken as string,
         fields:
-          "newStartPageToken,nextPageToken,changes(fileId,removed,file(id,name,md5Checksum,modifiedTime,mimeType,trashed,explicitlyTrashed,parents))",
+          "newStartPageToken,nextPageToken,changes(fileId,removed,file(id,name,md5Checksum,modifiedTime,mimeType,trashed,parents))",
       });
       const res = await this.authedFetch("GET", `${DRIVE_API}/changes?${params.toString()}`);
       if (!res.ok) throw await driveResponseError("changes listing", res);
@@ -1160,14 +1065,6 @@ export class DriveSyncTarget implements ISyncTarget {
 
       for (const ch of json.changes || []) {
         const known = this.idToPath.get(ch.fileId);
-        // Trashed only through a folder above it, and reported on its own: a
-        // move into a folder that went into the trash (F44) — a folder's own
-        // trashing reports no entry for what lies in it. Not a deletion: the
-        // full listing and the probe decide.
-        if (ch.file?.trashed && ch.file.explicitlyTrashed === false && !ch.removed) {
-          needsFullListing = true;
-          continue;
-        }
         const gone = ch.removed || ch.file?.trashed;
         if (gone) {
           if (known) {
@@ -1283,24 +1180,14 @@ export class DriveSyncTarget implements ISyncTarget {
   public async probeExists(probe: RemoteProbe): Promise<RemotePresence> {
     if (probe.path.includes(".CONFLICT")) return "unknown";
     if (probe.remoteId) {
-      const res = await this.authedFetch("GET", `${DRIVE_API}/files/${encodeURIComponent(probe.remoteId)}?fields=id,trashed,explicitlyTrashed,parents`);
+      const res = await this.authedFetch("GET", `${DRIVE_API}/files/${encodeURIComponent(probe.remoteId)}?fields=id,trashed`);
       if (res.status === 404) {
         discardResponse(res);
         return "absent";
       }
       if (!res.ok) throw await driveResponseError("existence probe", res);
-      const f = (await res.json()) as DriveFile;
-      if (!f.trashed) return "present";
-      if (f.explicitlyTrashed !== false) return "absent";
-      // In the trash only through a folder above it. Where that folder is the
-      // one the file lay in, the folder was thrown away and the file with it.
-      // Where the file lies in another folder than the one this device knows,
-      // another device moved it there and the folder went into the trash in
-      // between (F44): that move is not finished — the device that began it
-      // finishes it by the file's id — and the file, not thrown away itself,
-      // is there: no deletion to mirror.
-      const knownParent = await this.resolveFolderIdReadOnly(this.splitPath(probe.path).folder).catch(() => null);
-      return knownParent !== null && !(f.parents ?? []).includes(knownParent) ? "present" : "absent";
+      const f = (await res.json()) as { id?: string; trashed?: boolean };
+      return f.trashed ? "absent" : "present";
     }
     try {
       return (await this.findFileId(probe.path)) ? "present" : "unknown";

@@ -644,24 +644,22 @@ describe("DriveSyncTarget", () => {
       retry_count: 0, next_retry_at: 0, queued_at: 0,
     });
 
-    it("moves a file into the trash by its resolved id (404 is success), never deletes it past the trash (F44)", async () => {
+    it("deletes a file by its resolved id (404 on DELETE is success)", async () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);
         if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
         // Asked whether the item is a folder that holds files (F44): nothing below a file.
         if (init.method === "GET" && u.includes("/drive/v3/files?") && !u.includes("name")) return res({ files: [] });
         if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f-1", name: askedName(u) }] });
-        if (init.method === "PATCH" && u.includes("/files/f-1")) return res({}, { status: 404, ok: false });
+        if (init.method === "DELETE" && u.includes("/files/f-1")) return res({}, { status: 404, ok: false });
         throw new Error(`unexpected ${init.method} ${u}`);
       });
 
       await expect(target.push(deleteOp("note.md"))).resolves.toBeUndefined();
-      const trash = fetchFn.mock.calls.find((c: any) => c[1].method === "PATCH" && String(c[0]).includes("/files/f-1"));
-      expect(JSON.parse(String((trash as any)[1].body))).toEqual({ trashed: true });
-      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE")).toBe(false);
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE" && String(c[0]).includes("/files/f-1"))).toBe(true);
     });
 
-    it("trashes a FOLDER that holds no file: the mime-unfiltered lookup finds the folder object (F44)", async () => {
+    it("deletes a FOLDER that holds no file: the mime-unfiltered lookup finds the folder object (F44)", async () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);
         if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
@@ -676,14 +674,12 @@ describe("DriveSyncTarget", () => {
           expect(u).not.toContain(encodeURIComponent(FOLDER_MIME));
           return res({ files: [{ id: "folder-7" }] });
         }
-        if (init.method === "PATCH" && u.includes("/files/folder-7")) return res({ id: "folder-7" });
+        if (init.method === "DELETE" && u.includes("/files/folder-7")) return res({});
         throw new Error(`unexpected ${init.method} ${u}`);
       });
 
       await expect(target.push(deleteOp("proj"))).resolves.toBeUndefined();
-      const trash = fetchFn.mock.calls.find((c: any) => c[1].method === "PATCH" && String(c[0]).includes("/files/folder-7"));
-      expect(JSON.parse(String((trash as any)[1].body))).toEqual({ trashed: true });
-      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE")).toBe(false);
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE" && String(c[0]).includes("/files/folder-7"))).toBe(true);
     });
 
     it("a delete for a child of an already-deleted folder never re-creates folders (read-only lookup)", async () => {

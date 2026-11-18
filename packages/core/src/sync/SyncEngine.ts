@@ -704,7 +704,6 @@ export class SyncEngine {
         if (op.operation === "rename" && this.stateRepo) {
           // The row may have moved with the file already (the app moves it at once).
           const before = (await this.stateRepo.getSyncState(op.file_path)) ?? (op.new_path ? await this.stateRepo.getSyncState(op.new_path) : null);
-          op.remoteId = before?.remote_id ?? null;
           knownBeforeMove = before?.remote_etag ?? null;
         }
         let result;
@@ -857,7 +856,22 @@ export class SyncEngine {
           await this.stateRepo.deleteSyncState(op.file_path);
         }
 
-        if (this.stateRepo) {
+        // A folder has no sync row (F60): the listing never carries one, and a
+        // row the move of a folder recorded counted as a missing file in every
+        // listing from then on — the listing looked incomplete, and no
+        // deletion was mirrored any more.
+        const folderMoved = (op.operation === "rename" || op.operation === "mkdir") && this.stateRepo
+          && (await (async () => {
+            try {
+              return (await this.vault.getFileInfo?.(syncedPath))?.isDirectory === true;
+            } catch {
+              // silent: a path that cannot be asked about is no folder here; its state is recorded as before.
+              return false;
+            }
+          })());
+        if (folderMoved && this.stateRepo) {
+          await this.stateRepo.deleteSyncState(syncedPath);
+        } else if (this.stateRepo) {
            const etag = result && result.etag ? result.etag : null;
            // Persist the remote id/etag for providers that return one (Drive always; many
            // WebDAV servers omit the ETag header on PUT). Only touch remote_etag when we

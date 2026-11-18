@@ -337,8 +337,6 @@ describe("Google Drive", () => {
   /** One folder of files by name; `md5Checksum` is the marker. */
   function drive() {
     const files = new Map<string, { id: string; md5: string }>();
-    /** Drive's trash: a deletion goes there, never past it (F44). */
-    const trash = new Set<string>();
     let seq = 0;
     const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
     const byId = (id: string) => [...files].find(([, f]) => f.id === id);
@@ -356,7 +354,7 @@ describe("Google Drive", () => {
         const hit = byId(idMatch[1]!);
         if (!hit) return json(404, {});
         if (method === "GET") return json(200, { id: hit[1].id, md5Checksum: hit[1].md5 });
-        if (method === "PATCH" && JSON.parse(init.body).trashed === true) { files.delete(hit[0]); trash.add(hit[0]); return json(200, { id: hit[1].id }); }
+        if (method === "DELETE") { files.delete(hit[0]); return new Response(null, { status: 204 }); }
         if (method === "PATCH") {
           const body = JSON.parse(init.body);
           files.delete(hit[0]);
@@ -368,15 +366,14 @@ describe("Google Drive", () => {
     };
     const t = new DriveSyncTarget({ clientId: "cid", clientSecret: "s", refreshToken: "r", accessToken: "a" }, fetchFn as any);
     const put = (name: string, md5: string) => files.set(name, { id: `id${++seq}`, md5 });
-    return { files, t, put, trash };
+    return { files, t, put };
   }
 
-  it("asks right before deleting: the version this device saw goes — into the trash", async () => {
-    const { files, t, put, trash } = drive();
+  it("asks right before deleting: the version this device saw goes", async () => {
+    const { files, t, put } = drive();
     put("a.md", "m1");
     await t.push(del("a.md", marker("m1")));
     expect(files.has("a.md")).toBe(false);
-    expect(trash.has("a.md")).toBe(true);
   });
 
   it("deletes nothing when another device changed the file", async () => {

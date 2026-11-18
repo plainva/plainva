@@ -1642,6 +1642,16 @@ export class SyncWorker {
     }
   }
 
+  /** Is `path` a folder on this device? Anything that cannot say counts as no. */
+  private async isLocalFolder(path: string): Promise<boolean> {
+    try {
+      return typeof this.vault.getFileInfo === "function" && (await this.vault.getFileInfo(path))?.isDirectory === true;
+    } catch {
+      // silent: a path that cannot be asked about is no folder here; it is weighed as a file, as before.
+      return false;
+    }
+  }
+
   /** The files the remote does not report any more and could not be asked about (see `onUnverifiedFiles`). */
   public getUnverifiedFiles(): string[] {
     return [...this.unverifiedPaths].sort();
@@ -2751,6 +2761,16 @@ export class SyncWorker {
         const missing: Array<{ path: string; state: SyncState }> = [];
         for (const candidate of confirmed) {
           if (remotePaths.has(candidate.path)) continue;
+          // A row for a FOLDER — the move of a folder recorded one before
+          // (F60) — is no missing file: the listing never carries folders
+          // there. It goes, and does not count.
+          if (await this.isLocalFolder(candidate.path)) {
+            await this.stateRepo.deleteSyncState(candidate.path).catch((e) => {
+              // silent: the row is skipped this cycle all the same and dropped again next cycle; nothing of the user's is touched.
+              console.warn(`[SyncWorker] could not drop the folder row ${candidate.path}`, e);
+            });
+            continue;
+          }
           const twin = findCollidingPath(candidate.path, remotePaths);
           if (twin) {
             nameCollisions.push({ path: candidate.path, twin });
