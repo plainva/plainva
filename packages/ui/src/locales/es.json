@@ -3208,7 +3208,7 @@
     "spellcheck": "Corrección ortográfica",
     "spellcheckDesc": "Subraya las palabras mal escritas en notas, celdas de tabla, correos, comentarios, entradas del diario y tareas. Plainva usa el corrector ortográfico de tu sistema y sus idiomas; el código, las claves y las contraseñas nunca se revisan.",
     "spellcheckMenuDesc": "Mientras está activada, un clic derecho en ese texto abre el menú del sistema con las sugerencias en lugar del de Plainva.",
-    "spellcheckLinux": "En Linux aún no tiene efecto.",
+    "spellcheckNoDictionary": "No revisa nada: no hay ningún diccionario instalado para tus idiomas. Instala uno (p. ej., hunspell-es) y reinicia Plainva.",
     "inboxFolder": "Carpeta de entrada",
     "inboxFolderDesc": "Donde la captura rápida ＋ de tu teléfono coloca una nota, donde aterriza el texto compartido desde otra aplicación y adonde va una respuesta de la IA que conservas como nota — también en el escritorio. Por lo demás, el escritorio crea las notas donde tú indiques.",
     "attachmentFolder": "Carpeta de adjuntos",

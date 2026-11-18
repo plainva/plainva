@@ -3829,6 +3829,7 @@ dependencies = [
  "trash",
  "unicode-normalization",
  "walkdir",
+ "webkit2gtk",
  "webpki-roots",
  "windows-sys 0.61.2",
  "zip",
