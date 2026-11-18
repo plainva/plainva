@@ -1,5 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
-import { countWrites } from "../services/inflightWrites";
+import { countWrites, uncounted } from "../services/inflightWrites";
 import { dailyDayResolver, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
@@ -2322,7 +2322,8 @@ export const VaultProvider: React.FC<{
     // the same snapshot folder from two sides.
     if (isClient) return;
     if (!state.vaultPath || !state.vaultAdapter) return;
-    const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: state.vaultAdapter });
+    // Clearing out old snapshots is no work of the person's: the next start does it again (`uncounted`).
+    const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: uncounted(state.vaultAdapter) });
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.vaultAdapter]);

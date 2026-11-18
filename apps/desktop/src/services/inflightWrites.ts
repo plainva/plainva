@@ -36,9 +36,12 @@ function settled(): void {
 /** Whose writes an adapter carries: the person's, or work the next start does again by itself. */
 export type WriteOwner = "person" | "background";
 
+/** Each counting adapter, to the adapter it counts for (`uncounted`). */
+const countedFor = new WeakMap<object, object>();
+
 /** The adapter, counting its writes. Its methods run on the adapter itself, as before. */
 export function countWrites<T extends object>(adapter: T, owner: WriteOwner = "person"): T {
-  return new Proxy(adapter, {
+  const counting = new Proxy(adapter, {
     get(target, key) {
       const value = Reflect.get(target, key, target) as unknown;
       if (typeof value !== "function") return value;
@@ -62,6 +65,8 @@ export function countWrites<T extends object>(adapter: T, owner: WriteOwner = "p
       };
     },
   });
+  countedFor.set(counting, adapter);
+  return counting;
 }
 
 /**
@@ -109,6 +114,18 @@ export async function settleInflightWrites(quietMs: number, limitMs: number): Pr
   } finally {
     clearTimeout(limit);
   }
+}
+
+/**
+ * The adapter under a counting one, for work the next start does again by
+ * itself — clearing out old snapshots — whose writes are no reason to say the
+ * last way out was cut short (review 2026-11-18). Any other adapter as it is.
+ */
+export function uncounted<T extends object>(adapter: T): T;
+export function uncounted<T extends object>(adapter: T | null): T | null;
+export function uncounted<T extends object>(adapter: T | null): T | null {
+  if (adapter === null) return null;
+  return (countedFor.get(adapter) as T | undefined) ?? adapter;
 }
 
 /** Writes of the person still on their way. */

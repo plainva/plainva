@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("./windowBus", () => ({ getWindowBus: async () => { throw new Error("no bus here"); } }));
 
 import { onBeforeLeaving, settleBeforeLeaving } from "./beforeLeaving";
-import { countWrites, resetInflightWritesForTest } from "./inflightWrites";
+import { countWrites, personWritesInFlight, resetInflightWritesForTest, uncounted } from "./inflightWrites";
 
 /**
  * What a window does before it goes (A3, O3): a field in progress takes its
@@ -121,5 +121,13 @@ describe("before a window goes", () => {
     } finally {
       off();
     }
+  });
+  it("does not count work the next start does again, such as clearing out old snapshots (review 2026-11-18)", async () => {
+    const lowest = { deleteItem: () => new Promise<never>(() => {}) };
+    const top = countWrites(lowest, "person");
+    void uncounted(top).deleteItem();
+    expect(personWritesInFlight()).toBe(0);
+    await expect(settleBeforeLeaving(200)).resolves.toBe("settled");
+    expect(uncounted(lowest)).toBe(lowest);
   });
 });
