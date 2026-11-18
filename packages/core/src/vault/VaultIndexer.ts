@@ -1,4 +1,4 @@
-import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
+import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip, vaultFolderIsThere } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter, SqlStatements } from "../db/IDatabaseAdapter.js";
 import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
 import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules, contentPathRefusal, contentPathIsReal, checkedContentPath, foldSegment, isWindowsDeviceSegment, isShortNameAlias } from "./internalPath.js";
@@ -1979,8 +1979,11 @@ export class VaultIndexer {
    * point left behind empty, still answers "not found" in a folder that is
    * there. Nothing here can tell that from a deletion.
    */
-  private vaultIsThere(): Promise<boolean> {
-    return this.vaultAdapter.exists("").catch(() => false);
+  private async vaultIsThere(): Promise<boolean> {
+    // And the place it was opened at: the mount point a drive leaves behind
+    // on Linux and macOS is a folder that is there, on another device
+    // (`vaultFolderIsThere`, review 2026-11-18, F62). Unknown counts as away.
+    return (await vaultFolderIsThere(this.vaultAdapter)) === true;
   }
 
   /**
@@ -2775,7 +2778,10 @@ export class VaultIndexer {
     // Reporting the latter as a deletion would queue thousands of remote
     // deletes for a venv and trip the mass-deletion guard on an existing vault.
     const vanishedFromDisk: string[] = [];
-    for (const dbPath of dbFileMap.keys()) {
+    // A listing of a folder that is no longer the vault's place (the mount
+    // point a drive left, F62) proves no deletion: nothing indexed goes.
+    const judged = dbFileMap.size === 0 || (await this.vaultIsThere());
+    for (const dbPath of judged ? dbFileMap.keys() : []) {
       const p = pause();
       if (p) await p;
       if (!diskFilePaths.has(dbPath)) {

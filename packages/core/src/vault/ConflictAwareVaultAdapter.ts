@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, VaultUnreachableError, vaultFolderIsThere, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
@@ -282,6 +282,19 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         wasWrittenByUs: disk !== null && this.wasWrittenByUs(path, await sha256Hash(disk)) }) });
   }
 
+  /** Whether the storage under the chain is still the place the vault was opened at (`IVaultAdapter.sameRootAsOpened`). */
+  private rootCheck: (() => Promise<boolean | null>) | null = null;
+
+  /** The storage's own answer, handed on by `buildVaultChain`. */
+  setRootCheck(check: (() => Promise<boolean | null>) | null): void {
+    this.rootCheck = check;
+  }
+
+  /** The chain's top answers for its storage: `vaultFolderIsThere` asks it before "Save here again". */
+  async sameRootAsOpened(): Promise<boolean | null> {
+    return this.rootCheck ? this.rootCheck() : null;
+  }
+
   /** The editor's ancestry travels with its request, including across windows. */
   async writeEditorText(path: string, text: string, baseText: string | null): Promise<EditorWriteResult> {
     const requestedState = await this.syncRepo.getSyncState(path);
@@ -300,6 +313,15 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         // would recreate it at its old place, a duplicate of a moved note or
         // a deletion undone, and sync would carry either on. The editor keeps
         // the text (and its journal) and decides where it goes.
+        // Unless the vault's own folder is not there: then every path in it
+        // answers "not found" (a network drive that dropped), nothing was
+        // moved or deleted, and the save is tried again once it is back.
+        // Asked only here, where a file is missing, never on a save that finds
+        // its file — and "there" is the place the vault was opened at: the
+        // mount point a drive leaves behind is not (`vaultFolderIsThere`). An
+        // empty folder is: a vault whose one note was deleted. An adapter that
+        // cannot answer for its folder keeps the refusal as it was.
+        if ((await vaultFolderIsThere({ exists: (p) => this.inner.exists(p), sameRootAsOpened: this.rootCheck ?? undefined })) === false) throw new VaultUnreachableError(path);
         throw new VaultFileNotFoundError(path);
       }
       let candidate = text;
