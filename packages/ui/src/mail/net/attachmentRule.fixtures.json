@@ -169,6 +169,16 @@
           "mime": "image/png"
         }
       ]
+    },
+    {
+      "name": "an attached image whose file name is a next-line character (U+0085, a blank to Rust, not to trim)",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=\"\u0085\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
     }
   ]
 }

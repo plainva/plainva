@@ -577,7 +577,7 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
     const fileName = parseParams(partHeaders.get("content-disposition") ?? "").get("filename");
     const typeName = parseParams(partHeaders.get("content-type") ?? "").get("name");
     const asked = fileName || typeName;
-    const shown = [fileName, typeName].find((value) => value !== undefined && value.trim() !== "")?.trim() ?? null;
+    const shown = [fileName, typeName].map((value) => (value === undefined ? "" : trimBlank(value))).find((value) => value !== "") ?? null;
     const name = asked !== undefined && asked !== "" ? (shown ?? "") : null;
     const wholeWords = depth === 0 && wordsOfAWholeMessage(partHeaders);
     const isText = wholeWords || (type.startsWith("text/") && disposition !== "attachment");
@@ -821,4 +821,16 @@ export function headerDate(value: string | undefined): number {
   if (!value) return 0;
   const t = Date.parse(decodeWords(value));
   return Number.isFinite(t) ? t : 0;
+}
+
+/** A blank of a file name: what `trim` takes away and what Rust's `is_whitespace` does (U+0085 besides), as the desktop reads it. */
+const BLANK = /[\s\u0085]/;
+
+/** A file name without the blanks around it (`shown_file_name` in `mail_imap.rs`). */
+function trimBlank(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && BLANK.test(value[start])) start++;
+  while (end > start && BLANK.test(value[end - 1])) end--;
+  return value.slice(start, end);
 }
