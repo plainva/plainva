@@ -62,6 +62,7 @@ const DATABASE_LAYER = [
   "packages/core/src/sync/SyncQueue.ts",
   "packages/core/src/vault/SyncStateRepository.ts",
   "packages/core/src/vault/VaultIndexer.ts",
+  "packages/core/src/vault/indexerCalledOff.ts",
   "packages/core/src/workspace/state.ts",
   "packages/ui/src/mail/mailCache.ts",
 ];

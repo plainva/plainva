@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -339,7 +339,7 @@ describe("ordinary changes beside a reading do not keep it out of the index", ()
   });
 });
 
-describe("a reading set aside again and again is read again, or the index says it is not complete", () => {
+describe("a reading set aside again and again is read again; the last one is written, and the file stays owed", () => {
   it("a note changed during its first two readings stands with its third", async () => {
     await raw.writeTextFile("keep.md", "# keep\n");
     await new VaultIndexer(raw, db).indexVaultFull();
@@ -354,7 +354,7 @@ describe("a reading set aside again and again is read again, or the index says i
     expect(await indexer.indexComplete()).toBe(true);
   });
 
-  it("a note changed during every reading of the scan is named, and the index is not complete until a scan gets it", async () => {
+  it("a new note changed during every reading of the scan has its row and is announced, is named, and is owed until a quiet look reads it", async () => {
     await raw.writeTextFile("keep.md", "# keep\n");
     await new VaultIndexer(raw, db).indexVaultFull();
     await raw.writeTextFile("N.md", "# N\n\nbusy\n");
@@ -362,18 +362,23 @@ describe("a reading set aside again and again is read again, or the index says i
     const { vault } = eventsOnReads(async (p) => {
       if (busy && p === "N.md") await noteIndexChange(["N.md"], db);
     });
-    const indexer = new VaultIndexer(vault, db);
+    const news: string[] = [];
+    const indexer = new VaultIndexer(vault, db, { onNewLocalFile: (p) => news.push(p) });
     const report = await indexer.indexVaultFull();
-    expect(await rows()).toEqual(["keep.md"]);
-    expect(report.skipped, "the scan names what it left out").toEqual([{ path: "N.md", reason: "changing" }]);
-    expect(await indexer.indexComplete(), "and does not call the index complete").toBe(false);
+    expect(await rows(), "nothing is left out that a reading found").toEqual(["N.md", "keep.md"]);
+    expect((await new VaultQueryService(db).searchFullText("busy")).map((hit) => hit.path)).toEqual(["N.md"]);
+    expect(news, "a new note goes to the sync once, as any other").toEqual(["N.md"]);
+    expect(report.skipped, "the scan names it").toEqual([{ path: "N.md", reason: "changing" }]);
+    expect(await indexer.indexComplete(), "and the index is not complete").toBe(false);
     busy = false;
-    await indexer.indexVaultFull();
-    expect(await rows()).toEqual(["N.md", "keep.md"]);
+    // A look at the path, not only a full scan, reads it and settles it.
+    await indexer.indexPath("N.md");
     expect(await indexer.indexComplete()).toBe(true);
+    expect((await indexer.indexVaultFull()).skipped).toEqual([]);
+    expect(news).toEqual(["N.md"]);
   });
 
-  it("a single path whose every reading is set aside leaves the index not complete", async () => {
+  it("a single path whose every reading is set aside has its row and leaves the index owed until a quiet look", async () => {
     await raw.writeTextFile("keep.md", "# keep\n");
     await new VaultIndexer(raw, db).indexVaultFull();
     await raw.writeTextFile("N.md", "# N\n\nbusy\n");
@@ -383,11 +388,114 @@ describe("a reading set aside again and again is read again, or the index says i
     });
     const indexer = new VaultIndexer(vault, db);
     await indexer.indexPath("N.md");
-    expect(await rows()).toEqual(["keep.md"]);
+    expect(await rows()).toEqual(["N.md", "keep.md"]);
     expect(await indexer.indexComplete()).toBe(false);
     busy = false;
-    await indexer.indexVaultFull();
-    expect(await rows()).toEqual(["N.md", "keep.md"]);
+    await indexer.indexPath("N.md");
     expect(await indexer.indexComplete()).toBe(true);
+  });
+
+  it("an owed file is read again by the indexer itself once it is quiet", async () => {
+    await raw.writeTextFile("N.md", "# N\n\nbusy\n");
+    let busy = true;
+    const { vault } = eventsOnReads(async (p) => {
+      if (busy && p === "N.md") await noteIndexChange(["N.md"], db);
+    });
+    const indexer = new VaultIndexer(vault, db, { comesBackByItself: true });
+    await indexer.indexPath("N.md");
+    expect(await indexer.indexComplete()).toBe(false);
+    busy = false;
+    await vi.waitFor(async () => expect(await indexer.indexComplete()).toBe(true));
+  });
+
+  it.each(["app-delete", "app-move"] as const)("a note the app takes away during the last reading is no row, owes nothing and is not named (%s)", async (op) => {
+    await raw.writeTextFile("keep.md", "# keep\n");
+    await new VaultIndexer(raw, db).indexVaultFull();
+    await raw.writeTextFile("A/n.md", "# n\n");
+    let indexer!: VaultIndexer;
+    const { vault } = eventsOnReads(async (p, n) => {
+      if (p !== "A/n.md") return;
+      if (n < 4) await noteIndexChange(["A/n.md"], db);
+      else if (op === "app-delete") {
+        await raw.deleteItem("A/n.md");
+        await indexer.removePathFromIndex("A/n.md");
+      } else {
+        await raw.renameItem("A/n.md", "B/n.md");
+        await indexer.relocatePathInIndex("A/n.md", "B/n.md");
+      }
+    });
+    indexer = new VaultIndexer(vault, db);
+    const report = await indexer.indexVaultFull();
+    expect(await rows()).not.toContain("A/n.md");
+    expect(report.skipped).toEqual([]);
+    expect(await indexer.indexComplete()).toBe(true);
+  });
+
+  it("a file left owed by a single path while a full scan runs keeps the index owed after the scan", async () => {
+    await raw.writeTextFile("keep.md", "# keep\n");
+    await raw.writeTextFile("N.md", "# N\n\nold\n");
+    await new VaultIndexer(raw, db).indexVaultFull();
+    // An earlier first scan had not gone through: the index is owed a full scan.
+    await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('index_scan_owed', '1')`);
+    await raw.writeTextFile("slow.md", "# slow\n");
+    let busy = false;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let reached!: () => void;
+    const reading = new Promise<void>((resolve) => { reached = resolve; });
+    let held = true;
+    const { vault } = eventsOnReads(async (p) => {
+      if (busy && p === "N.md") await noteIndexChange(["N.md"], db);
+      if (p === "slow.md" && held) { held = false; reached(); await gate; }
+    });
+    const indexer = new VaultIndexer(vault, db);
+    const scan = indexer.indexVaultFull();
+    await reading;
+    // While the scan reads, N.md changes, and keeps changing while its own pass reads it.
+    await raw.writeTextFile("N.md", "# N\n\nnew text\n");
+    busy = true;
+    await indexer.indexPath("N.md");
+    busy = false;
+    release();
+    await scan;
+    expect((await new VaultQueryService(db).searchFullText("new")).map((hit) => hit.path)).toEqual(["N.md"]);
+    expect(await indexer.indexComplete(), "complete only where nothing is owed").toBe(false);
+  });
+
+  it.each(["ext-delete", "ext-move"] as const)("without a watcher, a file taken away from outside between its read and its row is looked at once more (%s)", async (op) => {
+    await raw.writeTextFile("keep.md", "# keep\n");
+    await new VaultIndexer(raw, db).indexVaultFull();
+    await raw.writeTextFile("A/n.md", "# n\n");
+    let done = false;
+    const { vault } = eventsOnReads(async (p) => {
+      if (p !== "A/n.md" || done) return;
+      done = true;
+      if (op === "ext-delete") await fs.rm(path.join(root, "A/n.md"));
+      else {
+        await fs.mkdir(path.join(root, "B"), { recursive: true });
+        await fs.rename(path.join(root, "A/n.md"), path.join(root, "B/n.md"));
+      }
+    });
+    const indexer = new VaultIndexer(vault, db, { hearsNoChanges: true });
+    await indexer.indexVaultFull();
+    expect(await rows()).toEqual(op === "ext-delete" ? ["keep.md"] : ["B/n.md", "keep.md"]);
+  });
+});
+
+describe("the indexer's own look back never takes a move for a deletion", () => {
+  it("a folder the app moved on the disk and not yet in the index: no row removed, nothing reported gone", async () => {
+    await raw.writeTextFile("Projects/Beta.md", "# Beta\n");
+    const deleted: string[] = [];
+    // Its timestamp is not confirmed: the reading came right after the listing.
+    const indexer = new VaultIndexer(raw, db, { comesBackByItself: true, onLocalFileDeleted: (p) => deleted.push(p) });
+    await indexer.indexVaultFull();
+    // The app moves the folder; the index hears of it a moment later.
+    await fs.rename(path.join(root, "Projects"), path.join(root, "Done"));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(await rows(), "the row waits for the app's own move").toEqual(["Projects/Beta.md"]);
+    await indexer.relocatePathInIndex("Projects", "Done");
+    await indexer.indexVaultFull();
+    expect(await rows()).toEqual(["Done/Beta.md"]);
+    expect(deleted).toEqual([]);
   });
 });
