@@ -62,4 +62,24 @@ describe("the desktop editor tries a failed save again", () => {
     expect(editor).toMatch(/saveRetryState === "resting" && saveError \? t\("editor\.saveFailedWhy", \{ reason: saveError \}\)/);
     expect(editor).toMatch(/data-tip=\{failedTip\} data-testid="editor-save-state"/);
   });
+
+  it("looks for a vanished note only after a save that said the file is gone (review 2026-11-18)", () => {
+    expect(editor).toMatch(/saveFailedVanishedRef\.current = isVanishedFileFailure\(error\);\s*setSaveError\(/);
+    expect(editor).toMatch(/if \(!saveError \|\| !saveFailedVanishedRef\.current \|\| !path \|\| !vaultAdapter\) return;/);
+    expect(between("const lookForVanishedFile = useStableHandler(", "if (!saveState.dirty)")).toMatch(/if \(\(await vaultFolderIsThere\(vaultAdapter\)\) === false\) return;/);
+  });
+
+  it("writes no note back into a vault folder that is not there", () => {
+    expect(between("const restoreHere = useStableHandler(", "withPendingWrite(")).toMatch(/if \(\(await vaultFolderIsThere\(vaultAdapter\)\) === false\) \{\s*toast\.error/);
+  });
+});
+
+describe("the phone keeps to the same rule", () => {
+  const screen = readFileSync(fileURLToPath(new URL("../../mobile/src/screens/NoteScreen.tsx", import.meta.url)), "utf8");
+  const part = (from: string, until: string) => screen.slice(screen.indexOf(from), screen.indexOf(until, screen.indexOf(from)));
+
+  it("writes no note back into a vault folder that is not there, and does not look for one", () => {
+    expect(part("const restoreHere = useStableHandler(", "vaultOps.saveEditorText(")).toMatch(/if \(\(await vaultFolderIsThere\(vault\.files\)\) === false\) \{\s*toast\.error/);
+    expect(part("const lookForVanishedFile = useStableHandler(", "const text = liveText();")).toMatch(/if \(\(await vaultFolderIsThere\(vault\.files\)\) === false\) return;/);
+  });
 });

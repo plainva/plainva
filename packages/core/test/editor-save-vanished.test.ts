@@ -64,6 +64,27 @@ describe("an editor save never recreates a note that vanished under it", () => {
     expect(await files.readTextFile("4 blog/link-50.md")).toBe("# Link 50\n\nback\n");
   });
 
+  it("calls a note gone from a vault that is left empty a vanished note: the vault is there", async () => {
+    // The vault's one note, deleted from outside while it is open.
+    await files.deleteItem("4 blog", true);
+    expect(await files.listDir("")).toEqual([]);
+    await expect(adapter.writeEditorText("4 blog/link-50.md", "unsaved\n", "# Link 50\n")).rejects.toBeInstanceOf(VaultFileNotFoundError);
+  });
+
+  it("calls a vault folder that is no longer the place it was opened at out of reach — the mount point a drive left", async () => {
+    await files.deleteItem("4 blog/link-50.md");
+    adapter.setRootCheck(async () => false);
+    await expect(adapter.writeEditorText("4 blog/link-50.md", "unsaved\n", "# Link 50\n")).rejects.toBeInstanceOf(VaultUnreachableError);
+    expect(await files.exists("4 blog/link-50.md")).toBe(false);
+    expect(await adapter.sameRootAsOpened()).toBe(false);
+  });
+
+  it("keeps a missing file a vanished note where the storage cannot tell the place", async () => {
+    await files.deleteItem("4 blog/link-50.md");
+    adapter.setRootCheck(async () => null);
+    await expect(adapter.writeEditorText("4 blog/link-50.md", "unsaved\n", "# Link 50\n")).rejects.toBeInstanceOf(VaultFileNotFoundError);
+  });
+
   it("asks for the vault folder only where a file is missing, never on a save that finds its file", async () => {
     const asked: string[] = [];
     const exists = files.exists.bind(files);

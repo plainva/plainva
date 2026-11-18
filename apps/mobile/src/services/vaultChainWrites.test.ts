@@ -22,7 +22,7 @@ import { phoneSqlite, type PhonePlatform } from "../../../../packages/core/test/
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
 import { resetDatabasesForTests } from "../adapters/sqliteConnections";
 import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
-import { saveFailureReason } from "../../../../packages/ui/src/lib/saveRetry";
+import { createSaveFailureTeller, saveFailureReason } from "../../../../packages/ui/src/lib/saveRetry";
 import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
 
@@ -191,7 +191,7 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   } as unknown as MobileVault;
   const syncSoon = () => { kicks += 1; };
   services = run<PhoneServices>(serviceCode, "{ vaultOps, noteSaver, rememberPersistedText }", {
-    createSaveCoordinator, saveFailureReason, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, updateVaultText,
+    createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, updateVaultText,
     writeDraft: () => {}, clearDraft: () => {}, noteConflict: () => {}, conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon, toast: { warning: () => {}, error: () => {} }, i18n: { t: (key: string) => key }, window: new EventTarget(), CustomEvent,
     console: { error: () => {}, warn: () => {} },

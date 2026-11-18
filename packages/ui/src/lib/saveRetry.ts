@@ -70,6 +70,19 @@ export function isSaveFailureFinal(error: unknown): boolean {
 }
 
 /**
+ * True when a save failed because the file is gone while the vault's folder is
+ * there — the one failure that starts the search for a moved or deleted note.
+ * A vault folder out of reach (`VaultUnreachableError`) is not it, nor is any
+ * other failure (review 2026-11-18).
+ */
+export function isVanishedFileFailure(error: unknown): boolean {
+  const known = (error ?? {}) as { name?: unknown; code?: unknown; message?: unknown };
+  if (known.name === "VaultFileNotFoundError" || known.code === "FILE_NOT_FOUND") return true;
+  const message = typeof error === "string" ? error : typeof known.message === "string" ? known.message : "";
+  return /^File or directory not found: /.test(message);
+}
+
+/**
  * When the next try comes after failure number `attempt` (1 for the first):
  * the delay in milliseconds, or null when none comes by itself — the failure
  * is final, or the saver rests after `SAVE_RETRY_LIMIT` retries.
@@ -85,4 +98,38 @@ export function saveFailureReason(error: unknown): string {
   if (typeof error === "string" && error) return error;
   const message = (error as { message?: unknown } | null)?.message;
   return typeof message === "string" && message ? message : String(error);
+}
+
+/**
+ * What a save that keeps failing tells the person, and when (review
+ * 2026-11-18): a run of failures speaks once. Typing starts the retries at one
+ * second again; it does not make the same failure news again. A new word comes
+ * when the reason changes, when the saver goes to rest (that it stopped trying
+ * by itself, once), and after a save went through in between.
+ */
+export interface SaveFailureTeller {
+  /** A save of `key` failed: what to say now — "retrying", "resting", or nothing. */
+  failed(key: string, error: unknown, retryIn: number | null): "retrying" | "resting" | null;
+  /** A save of `key` went through: the next failure is news again. */
+  saved(key: string): void;
+}
+
+export function createSaveFailureTeller(): SaveFailureTeller {
+  const told = new Map<string, { reason: string; resting: boolean }>();
+  return {
+    failed(key, error, retryIn) {
+      const reason = saveFailureReason(error);
+      const before = told.get(key);
+      const same = before?.reason === reason;
+      if (retryIn === null) {
+        told.set(key, { reason, resting: true });
+        return same && before.resting ? null : "resting";
+      }
+      told.set(key, { reason, resting: same ? before.resting : false });
+      return same ? null : "retrying";
+    },
+    saved(key) {
+      told.delete(key);
+    },
+  };
 }

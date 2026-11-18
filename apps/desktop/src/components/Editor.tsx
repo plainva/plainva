@@ -24,7 +24,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, writeEditorSave, KeepBesideFailedError, type KeptText, type LinkKind } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, writeEditorSave, isVanishedFileFailure, KeepBesideFailedError, type KeptText, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor, copyLineLink, type LineLinkMode } from "@plainva/ui";
 import { copyDesktopNoteLink, desktopVaultLinkName } from "../services/noteLinkReceiver";
 import { registerLineLinkEditor } from "../services/editorLineLinks";
@@ -84,7 +84,7 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { frontmatterSpan, isNotTextFileError, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
+import { frontmatterSpan, isNotTextFileError, readIndexedIdentity, vaultFolderIsThere, type MissingFileOutcome } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
@@ -169,6 +169,10 @@ export const Editor: React.FC<{
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Whether the last failed save said the file is gone while the vault folder
+  // is there (`isVanishedFileFailure`) — the one failure that starts the
+  // search for a moved or deleted note (review 2026-11-18).
+  const saveFailedVanishedRef = useRef(false);
   // The tab strip's dirty dot reads this store; the save label reads it too.
   const dirtyPaths = useDirtyPaths();
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
@@ -989,6 +993,7 @@ export const Editor: React.FC<{
         const e = error as Error & { conflictPath?: string };
         console.error("Failed to save file", error);
         if (current()) {
+          saveFailedVanishedRef.current = isVanishedFileFailure(error);
           setSaveError(e.message || String(error));
           // Tried again by itself (`saveRetry.ts`) — not after a failure that is
           // surely final, and after about five minutes the timer rests until the
@@ -2380,6 +2385,13 @@ export const Editor: React.FC<{
   const restoreHere = useStableHandler(async () => {
     const path = activePath;
     if (!vaultAdapter || !path) return;
+    // Not into a vault folder that is not there: on Linux and macOS a drive
+    // that went leaves its empty mount point, and a note written there would
+    // lie hidden under the drive once it is back (review 2026-11-18).
+    if ((await vaultFolderIsThere(vaultAdapter)) === false) {
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
     const shape = saveState.shape;
     const draft = liveText();
     try {
@@ -2412,6 +2424,8 @@ export const Editor: React.FC<{
     // Another program's atomic save deletes and writes again — the file may
     // simply be back.
     if (await vaultAdapter.exists(path).catch(() => true)) return;
+    // A vault folder out of reach is no vanished note (review 2026-11-18).
+    if ((await vaultFolderIsThere(vaultAdapter)) === false) return;
     if (!aliveRef.current || path !== activePath) return;
     if (!saveState.dirty) {
       // Nothing unsaved: the load's own way — it fails, and looks.
@@ -2462,10 +2476,11 @@ export const Editor: React.FC<{
   });
   useEffect(() => { vanishCheckRef.current = noticeVanished; return () => { vanishCheckRef.current = null; }; }, [noticeVanished]);
   // A save that failed because the file is gone hands over to the vanish
-  // check: the editor save refuses to write it back at the old place.
+  // check: the editor save refuses to write it back at the old place. Only
+  // that failure: a vault folder out of reach is tried again, not looked for.
   useEffect(() => {
     const path = activePath;
-    if (!saveError || !path || !vaultAdapter) return;
+    if (!saveError || !saveFailedVanishedRef.current || !path || !vaultAdapter) return;
     let stale = false;
     void vaultAdapter.exists(path).then((there) => { if (!stale && !there) noticeVanished(path); }).catch(() => {});
     return () => { stale = true; };
@@ -2594,7 +2609,7 @@ export const Editor: React.FC<{
         // (issue 110, E9). That is not a failed save; the vanish check takes
         // over. Asked by existence, because a client window's error comes
         // over the bus without its class.
-        if (!(await vaultAdapter.exists(path).catch(() => true))) {
+        if (!(await vaultAdapter.exists(path).catch(() => true)) && (await vaultFolderIsThere(vaultAdapter)) !== false) {
           vanishCheckRef.current?.(path);
           return;
         }

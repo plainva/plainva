@@ -27,6 +27,27 @@ export class VaultUnreachableError extends VaultError {
   }
 }
 
+/**
+ * Whether a vault's own folder is there to judge a missing file by (review
+ * 2026-11-18): true when it is the place the vault was opened at, false when
+ * it is not there, cannot be read, or is no longer the same place — on Linux
+ * and macOS a drive that went leaves its mount point behind, a folder of the
+ * file system above it (`sameRootAsOpened`) — and null when the adapter
+ * cannot say. An empty folder is there: a vault whose one note was deleted is
+ * a vault. Where an adapter cannot tell the place (the phone's container, a
+ * picked folder), a folder that exists is there, as before.
+ */
+export async function vaultFolderIsThere(adapter: Pick<IVaultAdapter, "exists" | "sameRootAsOpened">): Promise<boolean | null> {
+  try {
+    if (!(await adapter.exists(""))) return false;
+  } catch {
+    return null;
+  }
+  if (!adapter.sameRootAsOpened) return true;
+  const same = await adapter.sameRootAsOpened().catch(() => false);
+  return same !== false;
+}
+
 export class VaultPermissionDeniedError extends VaultError {
   constructor(path: string) {
     super(`Permission denied: ${path}`, "PERMISSION_DENIED");
@@ -315,6 +336,14 @@ export interface IVaultAdapter {
    * answer `true` for a vault that is there, and never for one that is not.
    */
   exists(path: string): Promise<boolean>;
+
+  /**
+   * Whether the vault's folder is still the place it was opened at — the same
+   * file system (on Linux and macOS the device of its folder): false when a
+   * drive went and left its mount point, null when this adapter cannot tell
+   * (`vaultFolderIsThere`). Optional; the chain's top passes its storage's on.
+   */
+  sameRootAsOpened?(): Promise<boolean | null>;
 
   /**
    * Gets metadata for a specific file or directory.

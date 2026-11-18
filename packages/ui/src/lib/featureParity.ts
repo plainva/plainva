@@ -733,6 +733,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-29",
   },
   {
+    id: "save-retry-after-leaving-note",
+    title: "A failed save of a note the person has left is tried again by itself",
+    area: "editor",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "Both shells try a failed save again by one rule (lib/saveRetry.ts) while " +
+      "the note is open. The phone's saver keeps a note's text after its screen " +
+      "is left and tries it again, and when the app returns (noteSaver.wake). " +
+      "The desktop's retry timer belongs to the editor pane: when the pane shows " +
+      "another note or closes, it makes one last try, and if that fails the text " +
+      "stays in the draft journal, offered when the note is opened again " +
+      "(review 2026-11-18). Closing this means a saver beside the pane on the " +
+      "desktop that outlives it, as the phone's does.",
+    mobile: "yes",
+    verified: "2026-11-18",
+  },
+  {
     id: "spell-checking",
     title: "Spell checking in the writing surfaces",
     area: "editor",

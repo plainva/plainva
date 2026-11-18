@@ -51,7 +51,7 @@ import { takeScreen } from "./screenStep";
 import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
-import { createSaveCoordinator, saveFailureReason, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
+import { createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
@@ -2056,6 +2056,9 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
   // Made on first use, not while this module loads: the coordinator lives in
   // another package (C20, moduleInitBoundary.test.ts).
   let made: SaveCoordinator<MobileVault> | null = null;
+  // What a failing save has told the person, by note (`createSaveFailureTeller`); made on first use as well.
+  let failureTellerMade: ReturnType<typeof createSaveFailureTeller> | null = null;
+  const failureTeller = () => (failureTellerMade ??= createSaveFailureTeller());
   const saver = () => (made ??= createSaveCoordinator<MobileVault>({
     contextKey: (vault) => vault.vaultId,
     write: async (vault, path, text, revision) => {
@@ -2106,6 +2109,7 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
       // Only up to the revision that was written: typing on while the save was in
       // flight journals a newer text, and that one has to survive.
       clearDraft(vault, path, revision);
+      failureTeller().saved(JSON.stringify([vault.vaultId, path]));
       syncSoon();
     },
     // S5: a conflict is not a transient failure. The adapter has already written
@@ -2142,9 +2146,11 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
         noteConflict(path, err.conflictPath ?? conflictCopyPath(path), vault.vaultId);
         return;
       }
-      // Said only while a try is really planned; once the saver rests, why.
-      if (retryIn === null) toast.error(i18n.t("mobile.saveFailedWhy", { reason: saveFailureReason(err) }));
-      else if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));
+      // Said only while a try is really planned; once the saver rests, why. A
+      // run of failures speaks once, however often the person pauses typing.
+      const say = failureTeller().failed(JSON.stringify([vault.vaultId, path]), err, retryIn);
+      if (say === "resting") toast.error(i18n.t("mobile.saveFailedWhy", { reason: saveFailureReason(err) }));
+      else if (say === "retrying") toast.warning(i18n.t("mobile.saveRetry"));
     },
   }));
   return {

@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import ts from "typescript";
 import { EditorState } from "@codemirror/state";
 import { ConflictError, containsTextChanges, isNotTextFileError, mergeEditorText } from "@plainva/core";
-import { applyTextShape, conflictCopyLabel, createDraftWriter, editorTextOf, keepTextBeside, KeepBesideFailedError, openEditorText, readTextShape, writeEditorSave } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, createDraftWriter, editorTextOf, isVanishedFileFailure, keepTextBeside, KeepBesideFailedError, openEditorText, readTextShape, writeEditorSave } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
 import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
@@ -105,7 +105,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
     keepTextBeside: async (...args: Parameters<typeof keepTextBeside>) => { await hooks.beforeKeep(); return keepTextBeside(...args); },
     loadJournal: async () => ({ recordDraft, clearDraft, writeDraft, dropDraft }),
     setIsSaving: ui.saving, setSaveError: ui.error, setContent: ui.content, setConflictInfo: ui.conflict, setNotText: ui.notText, loadedPathRef,
-    saveTimeoutRef, saveRetry,
+    saveTimeoutRef, saveRetry, saveFailedVanishedRef: { current: false }, isVanishedFileFailure,
     indexer: null, triggerFileTreeUpdate: vi.fn(), window, CustomEvent, crypto,
     console: { error: vi.fn() }, toast: { warning: ui.toast }, t: (key: string, values?: Record<string, string>) => (values ? `${key} ${JSON.stringify(values)}` : key),
   };

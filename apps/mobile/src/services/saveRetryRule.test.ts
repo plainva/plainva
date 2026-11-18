@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { ConflictError, VaultFileNotFoundError, VaultUnreachableError } from "@plainva/core";
 import { createSaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
 import { KeepBesideFailedError } from "../../../../packages/ui/src/lib/editorSave";
-import { SAVE_RETRY_LIMIT, isSaveFailureFinal, saveRetryAfter, saveRetryDelay } from "../../../../packages/ui/src/lib/saveRetry";
+import { SAVE_RETRY_LIMIT, createSaveFailureTeller, isSaveFailureFinal, isVanishedFileFailure, saveRetryAfter, saveRetryDelay } from "../../../../packages/ui/src/lib/saveRetry";
 
 /**
  * The one rule both shells retry a failed note save by (saveRetry.ts): the
@@ -164,12 +164,64 @@ describe("the phone's saver keeps to the rule", () => {
   });
 });
 
+describe("a run of failures speaks once (review 2026-11-18)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("says \"retrying\" once over 30 bursts of typing against a lasting failure (P1)", async () => {
+    const teller = createSaveFailureTeller();
+    const said: string[] = [];
+    const saver = createSaveCoordinator<string>({
+      contextKey: (vault) => vault,
+      debounceMs: 800,
+      write: async () => { throw Object.assign(new Error("open failed: EACCES (Permission denied)"), { code: "EACCES" }); },
+      onError: (path, error, _attempt, vault, _revision, retryIn) => {
+        const say = teller.failed(JSON.stringify([vault, path]), error, retryIn);
+        if (say) said.push(say);
+      },
+      onSaved: (path, vault) => teller.saved(JSON.stringify([vault, path])),
+    });
+    for (let burst = 0; burst < 30; burst++) {
+      saver.schedule("v", "Note.md", `text ${burst}`);
+      await vi.advanceTimersByTimeAsync(2_000);
+    }
+    expect(said).toEqual(["retrying"]);
+  });
+
+  it("speaks again for another reason, once at rest, and after a save that went through", () => {
+    const teller = createSaveFailureTeller();
+    const full = new Error("No space left on device (os error 28)");
+    const held = new Error("Access is denied. (os error 5)");
+    expect(teller.failed("n", full, 1_000)).toBe("retrying");
+    expect(teller.failed("n", full, 2_000)).toBeNull();
+    expect(teller.failed("n", held, 1_000)).toBe("retrying");
+    expect(teller.failed("n", held, null)).toBe("resting");
+    expect(teller.failed("n", held, 1_000)).toBeNull();
+    expect(teller.failed("n", held, null)).toBeNull();
+    teller.saved("n");
+    expect(teller.failed("n", held, 1_000)).toBe("retrying");
+    expect(teller.failed("other", held, 1_000)).toBe("retrying");
+  });
+});
+
+describe("the one failure that looks for a vanished note", () => {
+  it("is a file gone while the vault folder is there, and no other", () => {
+    expect(isVanishedFileFailure(new VaultFileNotFoundError("Note.md"))).toBe(true);
+    expect(isVanishedFileFailure(new Error("File or directory not found: Note.md"))).toBe(true);
+    expect(isVanishedFileFailure(new VaultUnreachableError("Note.md"))).toBe(false);
+    expect(isVanishedFileFailure(new Error("Access is denied. (os error 5)"))).toBe(false);
+    expect(isVanishedFileFailure(new ConflictError("conflict", "Note.CONFLICT.md"))).toBe(false);
+  });
+});
+
 describe("the phone's message says what really happens", () => {
   const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
   const onError = source.slice(source.indexOf("onError: (path, err, attempt, vault, _revision, retryIn) => {"), source.indexOf("  }));", source.indexOf("onError: (path, err, attempt, vault")));
 
   it("announces a try only while one is planned, and says why once the saver rests", () => {
-    expect(onError).toMatch(/if \(retryIn === null\) toast\.error\(i18n\.t\("mobile\.saveFailedWhy", \{ reason: saveFailureReason\(err\) \}\)\);\s*else if \(attempt === 1\) toast\.warning\(i18n\.t\("mobile\.saveRetry"\)\);/);
+    expect(onError).toMatch(/const say = failureTeller\(\)\.failed\(JSON\.stringify\(\[vault\.vaultId, path\]\), err, retryIn\);/);
+    expect(onError).toMatch(/if \(say === "resting"\) toast\.error\(i18n\.t\("mobile\.saveFailedWhy", \{ reason: saveFailureReason\(err\) \}\)\);\s*else if \(say === "retrying"\) toast\.warning\(i18n\.t\("mobile\.saveRetry"\)\);/);
+    expect(source).toMatch(/clearDraft\(vault, path, revision\);\s*failureTeller\(\)\.saved\(JSON\.stringify\(\[vault\.vaultId, path\]\)\);/);
   });
 
   it("wakes the resting saver when the app comes back", () => {

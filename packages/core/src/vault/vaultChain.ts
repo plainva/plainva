@@ -90,6 +90,11 @@ export interface VaultChainWorkspace {
   authorize: WorkspaceMutationAuthorizer;
 }
 
+/** The storage's answer to "is this still the place the vault was opened at", where it has one. */
+function rootCheckOf(storage: IVaultAdapter): (() => Promise<boolean | null>) | null {
+  return storage.sameRootAsOpened ? () => storage.sameRootAsOpened!() : null;
+}
+
 export interface VaultChainPorts {
   /** The files themselves. Initialized by the caller. */
   storage: IVaultAdapter;
@@ -167,6 +172,7 @@ export function buildVaultChain(ports: VaultChainPorts): VaultChain {
     // (R5). A workspace vault in this state gets the same chain (see the header).
     const refusing = ports.remote ? new StructureRefusingVaultAdapter(versions) : null;
     const files = new ConflictAwareVaultAdapter(refusing ?? versions, conflictFiles, ports.onAutoMerged, versions, ports.kind, ports.onLineEndsConverted);
+    files.setRootCheck(rootCheckOf(ports.storage));
     return { files, belowChain: versions, queueing: null, permissions: null, syncRepo: null, links: refusing ? UNINDEXED_VAULT_CHAIN : UNINDEXED_LOCAL_VAULT_CHAIN };
   }
 
@@ -179,5 +185,6 @@ export function buildVaultChain(ports: VaultChainPorts): VaultChain {
     : new QueueingVaultAdapter(versions, ports.index.queue, queueOptions);
   const syncRepo = new SyncStateRepository(ports.index.db, versions, ports.deviceId);
   const files = new ConflictAwareVaultAdapter(queueing, syncRepo, ports.onAutoMerged, workspace?.state ?? syncRepo, ports.kind, ports.onLineEndsConverted);
+  files.setRootCheck(rootCheckOf(ports.storage));
   return { files, belowChain: versions, queueing, permissions, syncRepo, links: workspace ? WORKSPACE_VAULT_CHAIN : PLAIN_VAULT_CHAIN };
 }
