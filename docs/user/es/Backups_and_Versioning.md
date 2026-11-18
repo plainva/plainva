@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-11-06
+Última actualización: 2026-11-17
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -71,7 +71,7 @@ En el teléfono, **Copias ZIP** es el primer grupo de la página **Copias de seg
 
 En móvil, si falla el guardado de una nota, se detiene el cambio, la recarga o la eliminación del vault. El texto queda pendiente de otro intento. Las notas con el mismo nombre en distintos vaults mantienen guardados y borradores independientes. Un conflicto conserva la versión afectada; el texto escrito después se guarda por separado o en otra copia de conflicto. Ambas interfaces ordenan las escrituras y eliminaciones del registro de borradores para que una operación tardía no borre una copia más reciente. Si falla la copia de conflicto, el texto del editor móvil se conserva.
 
-Una copia ZIP solo se considera correcta si se han podido leer todos los archivos seleccionados y guardar el archivo completo. Un intento fallido no elimina copias anteriores ni cambia la fecha de la última copia correcta. En móvil, los errores automáticos indican el vault; **Crear copia de seguridad ahora** en **Copias de seguridad y versionado** → **Copias ZIP** permite reintentar. La configuración oculta del usuario, como `.obsidian`, se incluye en ambas plataformas. Se excluyen los directorios `.plainva`, `.git`, `.trash` y `node_modules` a cualquier profundidad. Si se crean varias copias en el mismo segundo, el nuevo nombre recibe un sufijo como `_001`.
+Una copia ZIP solo se considera correcta si se han podido leer todos los archivos seleccionados y guardar el archivo completo. Un intento fallido no elimina copias anteriores ni cambia la fecha de la última copia correcta. En móvil, los errores automáticos indican el vault; **Crear copia de seguridad ahora** en **Copias de seguridad y versionado** → **Copias ZIP** permite reintentar. La configuración oculta del usuario, como `.obsidian`, se incluye en ambas plataformas. Se excluyen los directorios `.plainva`, `.git`, `.trash` y `node_modules` a cualquier profundidad. Si se crean varias copias en el mismo segundo, el nuevo nombre recibe un sufijo como `_001`. Tras un fallo, la copia automática en el teléfono espera un día, después cada vez el doble, como máximo una semana, en lugar de volver a intentarlo en cada inicio; un archivo que desaparece durante la copia se omite.
 
 El guardado solo se indica como completado cuando se confirma la escritura. El texto introducido durante un guardado permanece pendiente hasta que se escribe su propia versión. Los borradores de escritorio pertenecen a su sesión del editor: finalizar una sesión anterior no elimina el borrador de un editor recién abierto. Si llegan cambios externos al mismo tiempo, Plainva combina los cambios compatibles; el texto en conflicto se conserva como borrador y como copia de conflicto.
 

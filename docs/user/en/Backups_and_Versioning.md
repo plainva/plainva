@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-17
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -71,7 +71,7 @@ On the phone, **ZIP backups** is the first group of the **Backup & version histo
 
 On mobile, a failed note save stops switching, reloading or removing the vault. Your input remains queued for another attempt. Notes with the same name in different vaults keep separate pending saves and drafts. A save conflict preserves the affected text; input typed afterwards is then saved separately or preserved in another conflict copy. Both shells order draft-journal writes and removals so a late completion cannot remove a newer snapshot. A failed conflict-copy write does not replace the mobile editor's text.
 
-A ZIP backup counts as successful only after all selected files were readable and the complete archive was saved. A failed run does not remove earlier archives or change the last successful backup time. On mobile, automatic failures name the vault; **Back up now** under **Backup & version history** → **ZIP backups** starts another attempt. Hidden user configuration such as `.obsidian` is included on both platforms. The directories `.plainva`, `.git`, `.trash` and `node_modules` are excluded at every depth. When several archives are created in the same second, a new filename receives a suffix such as `_001`.
+A ZIP backup counts as successful only after all selected files were readable and the complete archive was saved. A failed run does not remove earlier archives or change the last successful backup time. On mobile, automatic failures name the vault; **Back up now** under **Backup & version history** → **ZIP backups** starts another attempt. Hidden user configuration such as `.obsidian` is included on both platforms. The directories `.plainva`, `.git`, `.trash` and `node_modules` are excluded at every depth. When several archives are created in the same second, a new filename receives a suffix such as `_001`. After a failure, the automatic backup on the phone waits a day, then twice as long each time, at most a week, instead of trying again at every start; a file that disappears during the backup is left out.
 
 A save is reported as complete only after the write has been confirmed. Text entered during an ongoing save remains unsaved until its own version is written. Desktop drafts belong to their editor session: completing an old session does not delete a draft from a newly opened editor. When external changes arrive at the same time, Plainva merges compatible changes; conflicting text remains available as a draft and a conflict copy.
 

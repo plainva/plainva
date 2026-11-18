@@ -29,6 +29,7 @@ import { localNameRefusal } from "./localNameRefusal.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { isMassDeletion as isMassDeletionOf, MASS_DELETE_MIN, MASS_DELETE_SHARE } from "./massDeletion.js";
+import { contentSha256Of } from "../vault/localText.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
 import { isAppleDoubleCompanion, isSystemJunkPath } from "../vault/systemJunk.js";
 import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
@@ -1281,8 +1282,10 @@ export class SyncWorker {
     let localShaAtRead: string | null = null;
 
     if (localExists) {
-      const localBytes = await this.vault.readBinaryFile(path);
-      const localSha = await sha256Bytes(localBytes);
+      // The hash where the file lies; its bytes only on the branches that keep them (a phone
+      // would carry a whole picture across the WebView bridge for nothing).
+      const localSha = await contentSha256Of(this.vault, path);
+      const localBytes = () => this.vault.readBinaryFile(path);
       localShaAtRead = localSha;
       if (localSha === remoteSha) {
         writeNeeded = false; // identical content
@@ -1324,15 +1327,17 @@ export class SyncWorker {
         // — in all likelihood the incoming version is a decode of this one,
         // changed or not. It is adopted like any other version, and the file
         // that cannot be rebuilt from it stays next to it.
-        if (isTextFile(path) && mergeableText(path, localBytes) === null
-          && (mergeableText(path, contentBytes)?.includes(REPLACEMENT_CHARACTER) ?? false)) {
-          console.warn(`[SyncWorker] ${path}: the incoming version carries replacement characters; the local file in another encoding is kept as a copy`);
-          await this.keepByteCopy(path, localBytes, localSha, changedPaths);
+        if (isTextFile(path) && (mergeableText(path, contentBytes)?.includes(REPLACEMENT_CHARACTER) ?? false)) {
+          const bytes = await localBytes();
+          if (mergeableText(path, bytes) === null) {
+            console.warn(`[SyncWorker] ${path}: the incoming version carries replacement characters; the local file in another encoding is kept as a copy`);
+            await this.keepByteCopy(path, bytes, localSha, changedPaths);
+          }
         }
       } else {
         // Diverged (both changed, or no reliable base): keep local as .CONFLICT, adopt remote.
         console.warn(`[SyncWorker] CONFLICT (binary): ${path} diverged (localSha=${localSha.slice(0, 8)}, remoteSha=${remoteSha.slice(0, 8)}, base=${state?.base_sha256?.slice(0, 8) ?? "none"})`);
-        await this.keepByteCopy(path, localBytes, localSha, changedPaths);
+        await this.keepByteCopy(path, await localBytes(), localSha, changedPaths);
         writeNeeded = true;
       }
     }
