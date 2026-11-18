@@ -423,6 +423,28 @@ describe("the journal's pace and its reads (maintainer 17.11., release 0.9.0)", 
     expect(storage.entries(file).map((e) => e.sessionId).sort()).toEqual(["aux-window", "split-right"]);
   });
 
+  it("drafts removed past the journal stay gone: forgetting app data and closing the vault clear its picture (review 17.11.)", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout, { now });
+    const file = layout.file(VAULT, "Note.md");
+    await journal.record(VAULT, "Note.md", "older draft of another session", 1, "OLD");
+    writer.write(VAULT, "Note.md", "typing 1", 1, "S");
+    await settle();
+    // "Forget app data" removes the files past the journal, which is told.
+    storage.files.clear();
+    journal.forgetSeen(VAULT);
+    clock += 400;
+    writer.write(VAULT, "Note.md", "typing 2", 2, "S");
+    await settle(400);
+    expect(storage.entries(file).map((e) => `${e.sessionId}:${e.text}`)).toEqual(["S:typing 2"]);
+    // Both shells tell it: the removal of a vault's drafts and the vault closing.
+    const read = (rel: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", rel), "utf8");
+    expect(read("apps/desktop/src/services/draftJournal.ts")).toMatch(/export async function removeVaultDrafts\(vaultPath: string\): Promise<void> \{[\s\S]{0,200}forgetDraftMemory\(vaultPath\);/);
+    expect(read("apps/desktop/src/contexts/VaultContext.tsx")).toMatch(/await flushDrafts\(path\)[\s\S]{0,300}forgetDraftMemory\(path\);/);
+    expect(read("apps/mobile/src/services/vaultForget.ts")).toMatch(/forgetDraftMemory\(vaultId\);\s*const drafts = removeInternalFolder/);
+    expect(read("apps/mobile/src/services/vaultService.ts")).toMatch(/dispose: async \(\) => \{[\s\S]{0,300}forgetDraftMemory\(entry\.id\);/);
+  });
+
   it("a write that failed reads the file again: the disk may hold either version", async () => {
     const writer = createDraftWriter(journalOf(), layout, { now, retryMs: 400 });
     const file = layout.file(VAULT, "Note.md");

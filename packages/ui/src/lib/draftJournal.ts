@@ -192,9 +192,14 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
    * because this journal is the only writer of its files: every operation on
    * a file runs in its lane here, an editor's sessions and a split share this
    * journal, and the desktop's auxiliary windows hand their snapshots to the
-   * owner window rather than writing (`draft-record`). A write that failed
-   * forgets the file — the disk may hold the old entries or the new ones —,
-   * and so does a file pruned; the next snapshot reads it again.
+   * owner window rather than writing (`draft-record`). A second journal on
+   * the same files would lose entries here, and the app has none: one
+   * instance of the program, and the auxiliary windows write through the
+   * owner. A write that failed forgets the file — the disk may hold the old
+   * entries or the new ones —, and so does a file pruned; the next snapshot
+   * reads it again. It is never more than a picture of the disk: whoever
+   * removes files past the journal ("forget app data") and a vault that
+   * closes clear it (`forgetSeen`).
    */
   const seen = new Map<string, readonly DraftJournalEntry[]>();
 
@@ -267,6 +272,17 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
   return {
     serial,
     recordInLane,
+
+    /**
+     * Forgets what this journal saw of the files under `dir`, or of all: they
+     * were removed past it ("forget app data"), or their vault closed. A
+     * snapshot afterwards reads the disk again and never writes back an entry
+     * that is gone (review 17.11.).
+     */
+    forgetSeen(dir?: string): void {
+      if (dir === undefined) { seen.clear(); return; }
+      for (const file of [...seen.keys()]) if (file.startsWith(`${dir}/`)) seen.delete(file);
+    },
 
     /** The session's snapshot of the note. Rejects where the file is there and unreadable: an older draft is never written over. */
     record(scope: S, notePath: string, text: string, revision: number, sessionId: string): Promise<void> {

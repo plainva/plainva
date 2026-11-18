@@ -5,7 +5,7 @@ import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
-import { flushDrafts, relocateDrafts } from "../services/draftJournal";
+import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
@@ -2525,6 +2525,8 @@ export const VaultProvider: React.FC<{
       // What the draft journal still buffers for this vault goes to disk first
       // (bounded): with the vault gone, nobody writes it later.
       if (path) await flushDrafts(path).catch(() => {});
+      // …and the journal's picture of its files goes: they may be removed before it opens again.
+      if (path) forgetDraftMemory(path);
       if (path) await settlePendingWrites(path);
       await worker?.stopAndDrain();
       await settingsOnly?.stopAndDrain();

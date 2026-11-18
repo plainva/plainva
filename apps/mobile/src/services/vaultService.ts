@@ -54,7 +54,7 @@ import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
-import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
+import { writeDraft, clearDraft, forgetDraftMemory, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { listMailAccounts } from "@plainva/ui/mail";
 import {
@@ -1147,6 +1147,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     }),
     dispose: async () => {
       stopFollowingNaming();
+      // The journal's picture of this vault's files: they may be removed before it opens again.
+      forgetDraftMemory(entry.id);
       clearPinboardCache(queryService ?? files);
       indexAbort.abort();
       await indexer?.whenIdle();

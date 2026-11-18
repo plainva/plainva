@@ -146,6 +146,15 @@ export function flushDraftOf(v: MobileVault, path: string): void {
   });
 }
 
+/**
+ * Forgets what the journal saw of this vault's files: the vault closed, or its
+ * drafts were removed past the journal ("forget app data"). The next snapshot
+ * reads the disk again.
+ */
+export function forgetDraftMemory(vaultId: string): void {
+  made?.journal.forgetSeen(`drafts/${vaultId}`);
+}
+
 /** Attempt all buffered journal snapshots before the OS suspends timers. */
 export async function flushDrafts(v?: MobileVault): Promise<void> {
   await writer().flush((scope) => !v || scope.vaultId === v.vaultId);
