@@ -209,8 +209,10 @@ export class ExternalVaultAdapter implements IVaultAdapter {
 
   /**
    * See `IVaultAdapter.removeEmptyDir`: the native delete without `recursive`
-   * refuses a folder with any child (VaultFolderPlugin, Android and iOS), and
-   * this asks the folder itself first.
+   * refuses a folder with any child (VaultFolderPlugin) — on iOS in the same
+   * step as the removal (rmdir), on Android by asking the folder first: the
+   * Storage Access Framework has no "delete only if empty", so a file another
+   * app puts there in that moment goes with it (a limit, named).
    */
   async removeEmptyDir(path: string): Promise<boolean> {
     const rel = await this.realPath(path);

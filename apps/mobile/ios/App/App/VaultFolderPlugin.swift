@@ -261,15 +261,20 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
             }
             let recursive = call.getBool("recursive") ?? false
             let entry = try describe(url)
-            if entry["isDirectory"] as? Bool == true && !recursive {
-                let children = try FileManager.default.contentsOfDirectory(atPath: url.path)
-                if !children.isEmpty {
-                    throw NSError(domain: "VaultFolder", code: 5, userInfo: [NSLocalizedDescriptionKey: "directory not empty: \(path)"])
-                }
-            }
+            // A folder without `recursive` goes by rmdir(2), which refuses one
+            // that holds anything, in the same step as the removal: a file put
+            // into it after a check would otherwise go with it (F44).
+            let onlyIfEmpty = entry["isDirectory"] as? Bool == true && !recursive
             var coordinatorError: NSError?
             var removeError: Error?
             NSFileCoordinator().coordinate(writingItemAt: url, options: [.forDeleting], error: &coordinatorError) { delURL in
+                if onlyIfEmpty {
+                    if rmdir(delURL.path) != 0 {
+                        let code = errno
+                        removeError = NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSLocalizedDescriptionKey: code == ENOTEMPTY ? "directory not empty: \(path)" : "could not remove \(path): \(String(cString: strerror(code)))"])
+                    }
+                    return
+                }
                 do { try FileManager.default.removeItem(at: delURL) } catch { removeError = error }
             }
             if let e = coordinatorError { throw e }

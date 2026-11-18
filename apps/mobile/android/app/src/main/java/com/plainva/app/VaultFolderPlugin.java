@@ -275,6 +275,11 @@ public class VaultFolderPlugin extends Plugin {
             if (id == null) { call.reject("not found: " + path, "ENOENT"); return; }
             Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, id);
             JSObject entry = describe(tree, id, lastSegment(path));
+            // A limit, named (F44): the Storage Access Framework has no
+            // "delete only if empty" — deleteDocument takes a folder with what
+            // it holds. So the folder is asked first; a file another app puts
+            // into it between the question and the deletion goes with it. On
+            // iOS the same call is atomic (rmdir).
             if (entry != null && Boolean.TRUE.equals(entry.getBool("isDirectory")) && !recursive && hasChildren(tree, id)) {
                 call.reject("directory not empty: " + path);
                 return;
