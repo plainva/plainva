@@ -1,4 +1,4 @@
-import { accountLoginBinding, beginPasswordChange, createPasswordChangeJournal, createPasswordCredentialTarget, keychainSlotName, passwordServicesOf, PasswordChangeError, type CloudAccountRecord, type PasswordChangePorts, type PasswordChangeStatus, type PasswordChangeTarget } from "@plainva/ui";
+import { accountLoginBinding, beginPasswordChange, confirmationEndpoint, confirmEndpointsIn, mailboxEndpoints, createPasswordChangeJournal, createPasswordCredentialTarget, keychainSlotName, passwordServicesOf, PasswordChangeError, type CloudAccountRecord, type PasswordChangePorts, type PasswordChangeStatus, type PasswordChangeTarget } from "@plainva/ui";
 import { getMailPassword, listMailAccounts, mailAccountKind, mailSecretKey, checkMailLogin, type MailAccountConfig } from "@plainva/ui/mail";
 import { credentialManager } from "./CredentialManager";
 import { protectedSecrets } from "./protectedSecrets";
@@ -38,7 +38,9 @@ export function desktopPasswordChangePorts(vaultPath: string, record: CloudAccou
           },
           readBinding: async () => ({ provider: "s3" }),
           withPassword: (value, secretAccessKey) => ({ ...value, secretAccessKey }),
-          verify: (value, _binding, secretAccessKey) => buildS3Target({ ...value, secretAccessKey, forcePathStyle: value.forcePathStyle ?? true }).listFolders("").then(() => {}),
+          // A new password typed for this account here repairs it: its address counts as confirmed (F57).
+          verify: (value, _binding, secretAccessKey) => confirmEndpointsIn(vaultPath, [confirmationEndpoint(value.endpoint)])
+            .then(() => buildS3Target({ ...value, secretAccessKey, forcePathStyle: value.forcePathStyle ?? true }).listFolders("")).then(() => {}),
         }));
         else if (service === "files") targets.push(createPasswordCredentialTarget({
           service, key: slot.files(vaultPath, "webdav"), store: protectedSecrets,
@@ -56,7 +58,8 @@ export function desktopPasswordChangePorts(vaultPath: string, record: CloudAccou
             return { provider: "webdav" };
           },
           withPassword: (value, pass) => ({ ...value, pass }),
-          verify: (value, _binding, pass) => buildWebDavTarget({ ...value, pass }).listFolders("").then(() => {}),
+          verify: (value, _binding, pass) => confirmEndpointsIn(vaultPath, [confirmationEndpoint(value.url)])
+            .then(() => buildWebDavTarget({ ...value, pass }).listFolders("")).then(() => {}),
         }));
         else if (service === "calendar") {
           const id = record.services.calendar!.pimAccountId;
@@ -71,7 +74,7 @@ export function desktopPasswordChangePorts(vaultPath: string, record: CloudAccou
             withPassword: (value, pass) => ({ ...value, pass, loginRevision: crypto.randomUUID() }),
             verify: (value, _binding, pass) => {
               if (value.kind !== "caldav") throw new PasswordChangeError("changed", service);
-              return checkCalDavLogin({ ...value, pass });
+              return confirmEndpointsIn(vaultPath, [confirmationEndpoint(value.url)]).then(() => checkCalDavLogin({ ...value, pass }));
             },
           }));
         } else {
@@ -90,7 +93,7 @@ export function desktopPasswordChangePorts(vaultPath: string, record: CloudAccou
               return mailEndpoint(account);
             },
             withPassword: (value, pass) => ({ ...value, pass }),
-            verify: (_value, endpoint, pass) => checkMailLogin(endpoint, pass).then(() => {}),
+            verify: (_value, endpoint, pass) => confirmEndpointsIn(vaultPath, mailboxEndpoints(endpoint)).then(() => checkMailLogin(endpoint, pass)).then(() => {}),
           }));
         }
       }

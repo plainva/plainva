@@ -5,7 +5,7 @@ import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, MoreHorizontal, Pencil, Plus } from "lucide-react";
-import { AreaBoundary, accountInputProps, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
+import { AreaBoundary, accountInputProps, confirmEndpointsIn, mailboxEndpoints, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, pickDefaultMailAccount, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -375,6 +375,9 @@ export function MailAccountsScreen({
       // account behind (the same guarantee the Microsoft path gives) — and an
       // edit must not break a mailbox that worked a moment ago.
       const oldPassword = existing ? await getMailPassword(vault, existing.id) : null;
+      // The servers were entered in this form on this phone: they count as
+      // confirmed (F57) — also an edit that keeps the stored password.
+      await confirmEndpointsIn(vault, mailboxEndpoints(account));
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
       if (mailVaultId() !== vault) throw new ServiceConnectionError("accountChanged");
       // The form edits a mailbox from its page, or connects one (fifth review, 1).

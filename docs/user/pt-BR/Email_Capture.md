@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-18
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -19,6 +19,8 @@ Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para
 **Entrar em um segundo dispositivo.** Quando uma caixa de correio chega pela sincronização de configurações, a senha dela não vem junto automaticamente — os logins só são transferidos se você mesmo ativar a sincronização de credenciais. Essa caixa mostra o botão **Entrar** na área **E-mail**: digite a senha e o Plainva a verifica com o provedor antes de guardá-la no chaveiro. Em uma caixa Microsoft, o mesmo botão leva a **Contas na nuvem**, porque é lá que o login acontece no navegador. Se isso deixar a lista de mensagens vazia, o mesmo aviso com o botão **Entrar** aparece ali também — você não precisa procurar as configurações sozinho.
 
 **Contas de e-mail sem senha.** Uma configuração que falhou ao salvar podia deixar uma entrada sem senha (Plainva 0.8.3 no desktop). A área **E-mail** aponta uma vez as contas que não têm senha neste dispositivo e nunca baixaram e-mails aqui. **Ver** mostra a lista. Se você usa uma dessas contas em outro dispositivo, escolha **Entrar** — esse é então o caminho certo. **Remover** apaga a entrada depois de perguntar, em todos os dispositivos que sincronizam as configurações deste vault, nunca e-mails ou arquivos. **Depois** oculta o aviso. O Plainva nunca remove nada por conta própria.
+
+Um servidor de e-mail em uma rede local só recebe a senha de um dispositivo depois que o endereço dele for confirmado nele: [Endereços sem criptografia e locais](Sync_Setup.md#endereços-sem-criptografia-e-locais).
 
 ## Lendo e-mails
 

@@ -1,4 +1,4 @@
-import { filesRunState, filesStoppedStatus, getPlatformServices, isSignedOutSlot } from "@plainva/ui";
+import { confirmationEndpoint, filesRunState, filesStoppedStatus, getPlatformServices, isSignedOutSlot } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 
@@ -85,12 +85,15 @@ export function mobileSyncStart(input: {
   filesOff: boolean;
   entryProvider?: string;
   stored: MobileSyncProvider | null;
+  /** The stored WebDAV or S3 address has no TLS or is in a private network, and this phone never confirmed it (F57). */
+  unconfirmed?: boolean;
 }): MobileSyncStart {
   // A vault with a provider keeps queueing what changes on this phone while
   // its sync stands still, so turning it on again sends what changed in the
   // meantime (review finding 4); a vault without one has nothing to send to.
   const queueLocalChanges = !!input.entryProvider;
-  const signedOut = !!input.stored && isSignedOutSlot(input.stored, "creds");
+  // Unconfirmed reads as signed out, as on the desktop: nothing of the vault goes there, the settings profile included.
+  const signedOut = !!input.stored && (isSignedOutSlot(input.stored, "creds") || !!input.unconfirmed);
   const run = filesRunState({ filesOff: input.filesOff, pausedHere: !!input.pausedHere, signedOut });
   if (run === "stopped") {
     // The same answer the desktop gives (third review, finding 3).
@@ -117,4 +120,11 @@ export async function readStoredProvider(vaultId: string): Promise<MobileSyncPro
     .credentials.readSecret<MobileSyncProvider>(syncProviderSlot(vaultId))
     .catch(() => null);
   return stored && stored.provider ? stored : null;
+}
+
+/** The address a stored WebDAV or S3 slot sends its password to, as `endpointConfirmation.ts` keys it; null for the others. */
+export function storedProviderEndpoint(stored: MobileSyncProvider | null): string | null {
+  if (stored?.provider === "s3") return confirmationEndpoint(stored.creds.endpoint);
+  if (stored?.provider === "webdav") return confirmationEndpoint(stored.creds.url);
+  return null;
 }

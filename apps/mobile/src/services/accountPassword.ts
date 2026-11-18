@@ -1,5 +1,5 @@
 import { CalDavPimTarget, S3SyncTarget, WebDavSyncTarget } from "@plainva/core";
-import { accountLoginBinding, createPasswordChangeJournal, createPasswordCredentialTarget, getPlatformServices, passwordServicesOf, PasswordChangeError, type CloudAccountRecord, type PasswordChangePorts, type PasswordChangeStatus, type PasswordChangeTarget } from "@plainva/ui";
+import { accountLoginBinding, confirmationEndpoint, confirmEndpointsIn, createPasswordChangeJournal, mailboxEndpoints, createPasswordCredentialTarget, getPlatformServices, passwordServicesOf, PasswordChangeError, type CloudAccountRecord, type PasswordChangePorts, type PasswordChangeStatus, type PasswordChangeTarget } from "@plainva/ui";
 import { getMailPassword, listMailAccounts, mailAccountKind, mailSecretKey, checkMailLogin } from "@plainva/ui/mail";
 import { protectedSecrets } from "../platform/protectedSecrets";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
@@ -39,6 +39,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
           readBinding: async () => ({ provider: "s3" }),
           withPassword: (value, secretAccessKey) => ({ ...value, creds: { ...value.creds, secretAccessKey } }),
           verify: async (value, _binding, secretAccessKey) => {
+            await confirmEndpointsIn(vaultId, [confirmationEndpoint(value.creds.endpoint)]);
             void allowHttpOrigin(value.creds.endpoint);
             await new S3SyncTarget({ ...value.creds, secretAccessKey }, webdavFetch).listFolders("");
           },
@@ -56,6 +57,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
           readBinding: async () => ({ provider: "webdav" }),
           withPassword: (value, pass) => ({ ...value, creds: { ...value.creds, pass } }),
           verify: async (value, _binding, pass) => {
+            await confirmEndpointsIn(vaultId, [confirmationEndpoint(value.creds.url)]);
             void allowHttpOrigin(value.creds.url);
             await new WebDavSyncTarget({ ...value.creds, pass }, webdavFetch).listFolders("");
           },
@@ -75,6 +77,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             readBinding: async () => ({ pimAccountId: id }),
             withPassword: (value, pass) => ({ ...value, pass, loginRevision: crypto.randomUUID() }),
             verify: async (value, _binding, pass) => {
+              await confirmEndpointsIn(vaultId, [confirmationEndpoint(value.url)]);
               void allowHttpOrigin(value.url);
               const calendars = await new CalDavPimTarget({ ...value, pass }, webdavFetch).listCalendars();
               if (!calendars.length) throw new PasswordChangeError("verification", service);
@@ -97,7 +100,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
                 smtpHost: account.smtpHost, smtpPort: account.smtpPort, sieveHost: account.sieveHost, sievePort: account.sievePort };
             },
             withPassword: (value, pass) => ({ ...value, pass }),
-            verify: (_value, endpoint, pass) => checkMailLogin(endpoint, pass).then(() => {}),
+            verify: (_value, endpoint, pass) => confirmEndpointsIn(vaultId, mailboxEndpoints(endpoint)).then(() => checkMailLogin(endpoint, pass)).then(() => {}),
           }));
         }
       }

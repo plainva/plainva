@@ -1,5 +1,5 @@
 import { CONFIRMED_ACCESS_KEY, sameStoredValue, type DriveSyncTarget } from "@plainva/core";
-import { reportingTo } from "@plainva/ui";
+import { assertEndpointConfirmedIn, confirmationEndpoint, confirmEndpointsIn, mailboxEndpoints, reportingTo } from "@plainva/ui";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
@@ -111,6 +111,22 @@ export interface ConnectRequest {
   webdav?: { filesUrl: string; caldavUrl: string; user: string; pass: string };
   s3?: S3TargetCreds & { prefix?: string };
   imap?: { email: string; host: string; port: number; smtpHost?: string; smtpPort?: number; pass: string; label?: string };
+  /**
+   * The password was taken from a stored slot of this account, not typed here
+   * (the account page switching on another service). It goes only to
+   * addresses this device already confirmed; a typed one confirms the
+   * addresses it is sent to (F57, `endpointConfirmation.ts`).
+   */
+  reusesStoredPassword?: boolean;
+}
+
+/** Every address a connect request sends its password to that needs this device's confirmation. */
+export function connectRequestEndpoints(req: ConnectRequest): Array<string | null> {
+  return [
+    ...(req.webdav ? [confirmationEndpoint(req.webdav.filesUrl), confirmationEndpoint(req.webdav.caldavUrl)] : []),
+    ...(req.s3 ? [confirmationEndpoint(req.s3.endpoint)] : []),
+    ...(req.imap ? mailboxEndpoints({ host: req.imap.host, port: req.imap.port, smtpHost: req.imap.smtpHost, smtpPort: req.imap.smtpPort }) : []),
+  ];
 }
 
 export interface ConnectResult {
@@ -281,6 +297,11 @@ export async function runConnectSequence(
   const result: ConnectResult = {};
   const selected = SERVICE_ORDER.filter((s) => req.services.includes(s));
   if (req.context && req.context.vaultId !== vaultPath) throw new ServiceConnectionError("accountChanged");
+  // F57: a typed password confirms the addresses it is sent to here; a stored
+  // one is sent only to addresses this device already confirmed.
+  const endpoints = connectRequestEndpoints(req);
+  if (req.reusesStoredPassword) await assertEndpointConfirmedIn(vaultPath, ...endpoints);
+  else await confirmEndpointsIn(vaultPath, endpoints);
   for (const service of selected) {
     onStatus(service, { state: "pending" });
     try {
@@ -436,11 +457,13 @@ export async function syncTargetFromSlots(vaultPath: string, provider: SyncProvi
   if (provider === "webdav") {
     const creds = await credentialManager.getWebDavCredentials(vaultPath);
     if (!creds) throw noFileAccessError();
+    await assertEndpointConfirmedIn(vaultPath, confirmationEndpoint(creds.url));
     return buildWebDavTarget(creds);
   }
   if (provider === "s3") {
     const creds = await credentialManager.getS3Credentials(vaultPath);
     if (!creds) throw noFileAccessError();
+    await assertEndpointConfirmedIn(vaultPath, confirmationEndpoint(creds.endpoint));
     return buildS3Target({ ...creds, forcePathStyle: creds.forcePathStyle ?? true });
   }
   if (provider === "drive") {

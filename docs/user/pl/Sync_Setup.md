@@ -227,6 +227,13 @@ Podczas dodawania plików na telefonie Plainva pokazuje źródło, cel i kolizje
 
 Android ufa również urzędom certyfikacji zainstalowanym w ustawieniach systemu. Dotyczy to wszystkich połączeń Plainva korzystających z tej konfiguracji, nie tylko jednego serwera WebDAV. Na komputerze HTTP używa urzędów systemowych i publicznych certyfikatów głównych; iOS korzysta z własnych ustawień zaufania. Ważność i nazwa serwera są nadal sprawdzane. Popraw certyfikaty wygasłe, jeszcze nieważne lub dotyczące innego serwera. Plainva nigdy nie pozwala akceptować wszystkich certyfikatów. Jeśli system nie podaje dokładnej przyczyny, Plainva zgłasza błąd weryfikacji bez zgadywania. Diagnostyka HTTP na urządzeniu mobilnym zawiera metodę i kod błędu, bez danych logowania, nazw certyfikatów ani prywatnych ścieżek.
 
+<!-- endpoint-confirmation-2026-11-18 -->
+## Adresy bez szyfrowania i lokalne
+
+Gdy hasło konta trafia na adres z `http` albo w sieci lokalnej (na przykład `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` lub nazwę bez kropki), Plainva wysyła je z urządzenia dopiero wtedy, gdy ten adres zostanie tam potwierdzony. Jeśli skonfigurowałeś konto na tym urządzeniu albo już tu działało, adres liczy się jako potwierdzony. Jeśli konto trafiło na urządzenie tylko przez synchronizację, jego karta w **Konta w chmurze** pokazuje wiersz **Potwierdź adres** z adresem; dopóki nie wybierzesz **Potwierdź**, żadne hasło nie trafia tam z tego urządzenia — dla kalendarza i zadań, poczty i plików. Potwierdzenie zostaje na tym urządzeniu i nie jest synchronizowane.
+
+Ograniczenia: publiczna nazwa wskazująca na adres lokalny nie jest rozpoznawana. Potwierdzenie dotyczy adresu, nie sieci: na tym samym urządzeniu w cudzej sieci z tym samym zakresem adresów nie chroni Cię.
+
 <!-- workspace-retry-2026-09-14 -->
 ## Automatyczne ponawianie i brakująca historia synchronizacji
 

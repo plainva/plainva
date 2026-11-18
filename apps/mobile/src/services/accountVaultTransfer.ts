@@ -1,6 +1,7 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { assertConnectionIdentity, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, mailboxEndpoints, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { storedProviderEndpoint } from "./fileSyncAccess";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -249,6 +250,17 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     // Known before the vault is bound: a kill between the two must not leave a
     // bound vault that does not know it sits on a workspace (R8).
     if (encrypted) await markEncryptedRemote(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), id));
+    // F57: the files address was typed here; a calendar or mailbox that moves
+    // along keeps what this phone had confirmed for it, and no more.
+    const carried: Array<string | null> = [];
+    for (const row of accounts) {
+      const creds = await getPimCredentials(v.vaultId, row.id);
+      if (creds?.kind === "caldav") carried.push(confirmationEndpoint(creds.url));
+    }
+    for (const mail of mailAccounts) carried.push(...mailboxEndpoints(mail));
+    const kept: Array<string | null> = [];
+    for (const endpoint of carried) if (endpoint && await isEndpointConfirmedIn(v.vaultId, endpoint)) kept.push(endpoint);
+    await confirmEndpointsIn(id, [storedProviderEndpoint(p), ...kept]);
     await secrets.writeSecret(syncProviderSlot(id), p);
     if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
     await bindRunTokenToAccount(id, run.family, runServices(run));

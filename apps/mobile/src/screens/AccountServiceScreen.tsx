@@ -29,8 +29,10 @@ import { AreaBoundary,
   TextArea,
   toast,
   withCalendarColor,
+  isEndpointConfirmedIn,
   type CloudServiceId,
 } from "@plainva/ui";
+import { storedProviderEndpoint } from "../services/fileSyncAccess";
 import { listMailAccounts, listMailboxesFor, normalizeSenderAddress, senderOptions, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
 import type { PimCalendar, PimSyncProblem } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
@@ -201,6 +203,9 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
       .then(async (stored) => {
         if (!stored || stored.provider === "webdav") return;
         if (stored.provider === "drive") { setDrivePicker(await openDriveDestination(vaultId)); return; }
+        // The stored keys browse only an address this phone confirmed (F57);
+        // until then the account page carries **Confirm address**.
+        if (!(await isEndpointConfirmedIn(vaultId, storedProviderEndpoint(stored)))) return;
         setFolderPick(stored);
       })
       .catch((error) => toast.warning(String(error)))

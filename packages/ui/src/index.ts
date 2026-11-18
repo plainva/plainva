@@ -17,6 +17,7 @@ export * from "./lib/attachmentPath";
 export * from "./lib/recoveryChallenge";
 export * from "./lib/importAttachment";
 export * from "./lib/insecureUrl";
+export * from "./lib/endpointConfirmation";
 export * from "./lib/dailyNotePath";
 export * from "./lib/today";
 export * from "./lib/dateLocale";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoreHorizontal, Users } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, mailboxesSwitchedOn, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, mailboxesSwitchedOn, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, confirmEndpointsIn, mailboxEndpoints, type CloudServiceId, InfoTip } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
@@ -71,6 +71,9 @@ function MailAccountRow({
       // Verify BEFORE storing: a wrong password that lands in the keychain
       // looks exactly like a working one until the next fetch fails, and the
       // failure then reads as a server problem rather than a typo.
+      // The password typed here for this mailbox repairs it on this device:
+      // its servers count as confirmed (F57).
+      await confirmEndpointsIn(vaultPath, mailboxEndpoints(account));
       await checkMailLogin(
         { kind: account.kind, host: account.host, port: account.port, user: account.user, smtpHost: account.smtpHost, smtpPort: account.smtpPort },
         pass

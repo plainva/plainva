@@ -227,6 +227,13 @@ Wenn Du mobil Dateien ergänzt, zeigt Plainva Quelle, Ziel und Kollisionen vor d
 
 Android vertraut zusätzlich den Zertifizierungsstellen, die Du in den Systemeinstellungen installierst. Das gilt für alle Plainva-Verbindungen, die Androids Plattformkonfiguration verwenden, und nicht nur für einen WebDAV-Server. Desktop-HTTP-Verbindungen berücksichtigen System-Zertifizierungsstellen zusätzlich zu öffentlichen Stammzertifikaten; iOS verwendet seine Systemeinstellungen für das Vertrauen. Gültigkeitszeitraum und Servername werden weiterhin geprüft. Ein abgelaufenes, noch nicht gültiges oder zum falschen Host gehörendes Zertifikat musst Du auf dem Server beziehungsweise in der eingetragenen Adresse korrigieren. Plainva bietet keine Option, alle Zertifikate zu akzeptieren. Benennt das Betriebssystem die genaue Ursache nicht, meldet Plainva die fehlgeschlagene Verifizierung ohne Vermutung. Native mobile HTTP-Fehler erscheinen im Diagnoseexport als Methode und Fehlercode, ohne Zugangsdaten, Zertifikatsnamen oder private Serverpfade.
 
+<!-- endpoint-confirmation-2026-11-18 -->
+## Adressen ohne Verschlüsselung oder im lokalen Netz
+
+Geht das Passwort eines Kontos an eine Adresse mit `http` oder im lokalen Netz (zum Beispiel `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` oder einen Namen ohne Punkt), sendet Plainva es auf einem Gerät erst, wenn diese Adresse dort einmal bestätigt ist. Hast Du das Konto auf diesem Gerät eingerichtet, oder hat es hier schon funktioniert, gilt sie als bestätigt. Kam das Konto nur über den Sync auf ein Gerät, zeigt seine Karte unter **Cloud-Konten** die Zeile **Adresse bestätigen** mit der Adresse; bis Du **Bestätigen** wählst, geht von diesem Gerät kein Passwort dorthin — für Kalender und Aufgaben, E-Mail und Dateien. Die Bestätigung bleibt auf diesem Gerät und reist nicht mit.
+
+Grenzen: Ein öffentlicher Name, der auf eine Adresse im lokalen Netz zeigt, wird nicht erkannt. Die Bestätigung gilt der Adresse, nicht dem Netz: Bist Du mit demselben Gerät in einem fremden Netz mit demselben Adressbereich, schützt sie nicht.
+
 <!-- workspace-retry-2026-09-14 -->
 ## Automatische Wiederholung und fehlender Sync-Verlauf
 

@@ -90,6 +90,18 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
   return candidates;
 }
 
+/**
+ * The keychain slots whose password came through the settings sync from
+ * another device (`meta.imported`) — not typed here. The one-time switch-over
+ * of F57 (`endpointConfirmationSettle.ts`) takes every other one as this
+ * device's own.
+ */
+export async function importedSecretSlots(vaultPath: string, cache: Pick<PimRuntime["cache"], "listAccounts"> | null): Promise<Set<string>> {
+  const meta = await metaStore(vaultPath).readMeta().catch(() => null);
+  const candidates = await localCandidates(vaultPath, cache ? ({ cache } as PimRuntime) : null);
+  return new Set(candidates.filter((candidate) => meta?.imported[candidate.logicalId]).map((candidate) => candidate.slot));
+}
+
 function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
   return {
     readMeta: async () =>

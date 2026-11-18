@@ -38,7 +38,11 @@ import { AreaBoundary,
   type CloudProviderFamily,
   type CloudServiceId,
   type ServiceCheck,
+  confirmEndpointsIn,
+  type UnconfirmedEndpoint,
 } from "@plainva/ui";
+import { restartSyncIfActive } from "../services/syncService";
+import { restartPimAccountAfterLogin } from "../services/pim/pimService";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { mobilePasswordChangePorts } from "../services/accountPassword";
@@ -256,6 +260,18 @@ export function CloudAccountDetailScreen({
         setSigningIn(false);
       }
     })();
+  }
+
+  /**
+   * **Confirm address** (F57): the person lets this phone send the stored
+   * password to an address without TLS or in a private network; the sync and
+   * the calendar start again, mail asks the list on its next request.
+   */
+  async function confirmAddress(entry: UnconfirmedEndpoint) {
+    await confirmEndpointsIn(entry.vaultKey, [entry.endpoint]);
+    if (card?.services.includes("files")) await restartSyncIfActive(entry.vaultKey).catch(() => undefined);
+    if (card?.pimAccountId) await restartPimAccountAfterLogin(entry.vaultKey, card.pimAccountId).catch(() => undefined);
+    reload();
   }
 
   /** Section 3's password entry - and "Sign in" of a password account. */
@@ -486,6 +502,17 @@ export function CloudAccountDetailScreen({
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                     onClick={openPassword}
                   />
+                  {facts?.unconfirmed.map((entry) => (
+                    <Row
+                      key={`${entry.vaultKey}|${entry.endpoint}`}
+                      data-testid="cloudacct-confirm-address"
+                      icon={<Server size={ICON.ui} />}
+                      title={t("cloudAccounts.confirmAddress", { address: entry.endpoint })}
+                      subtitle={t("cloudAccounts.confirmAddressHint")}
+                      wrap
+                      end={<Button variant="secondary" size="sm" onClick={() => void confirmAddress(entry)}>{t("cloudAccounts.confirmAddressAction")}</Button>}
+                    />
+                  ))}
                 </>
               )}
               {model.access.kind === "permission" && (

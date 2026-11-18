@@ -17,6 +17,7 @@ vi.mock("@plainva/core", async (importOriginal) => ({
   },
 }));
 
+import { confirmationEndpoint, confirmEndpointsIn, getPlatformServices, setPlatformServices } from "@plainva/ui";
 import { createPimRuntime, restartPimAccountAfterLogin } from "./pimRuntime";
 
 /**
@@ -107,5 +108,29 @@ describe("building a target for an account", () => {
   it("still skips a CalDAV account without stored credentials", async () => {
     getPimCredentials.mockResolvedValue(null);
     expect(await runtime().buildTarget(row("caldav"))).toBeNull();
+  });
+  // F57 (maintainer, 2026-11-18): a stored password goes to an address without
+  // TLS or in a private network only once this device confirmed it.
+  it("builds no target for an unconfirmed address without TLS or in a private network, and one once it is confirmed", async () => {
+    const settings = new Map<string, unknown>();
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({
+      ...previous,
+      loadSettings: async () => ({
+        get: async (key: string) => settings.get(key),
+        set: async (key: string, value: unknown) => void settings.set(key, value),
+        delete: async (key: string) => void settings.delete(key),
+        keys: async () => [...settings.keys()],
+        save: async () => undefined,
+      }),
+    } as unknown as Parameters<typeof setPlatformServices>[0]);
+    for (const url of ["http://cloud.example.com/remote.php/dav", "https://192.168.1.5/remote.php/dav", "https://nas.home.arpa/dav"]) {
+      getPimCredentials.mockResolvedValue({ kind: "caldav", url, user: "anna", pass: "pw" });
+      expect(await runtime().buildTarget(row("caldav")), url).toBeNull();
+      await confirmEndpointsIn("/vault", [confirmationEndpoint(url)]);
+      expect(await runtime().buildTarget(row("caldav")), url).not.toBeNull();
+    }
+    if (previous) setPlatformServices(previous);
   });
 });

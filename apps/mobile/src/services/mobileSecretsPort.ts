@@ -98,6 +98,22 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
   return out;
 }
 
+/**
+ * Whether a calendar's or a mailbox's password came through the settings sync
+ * from another device (`meta.imported`) — not typed here. The one-time
+ * switch-over of F57 (`endpointConfirmationSettle.ts`) takes every other one
+ * as this phone's own. Works without the calendar runtime, from what the
+ * caller read.
+ */
+export async function importedSecretOf(vaultId: string): Promise<{ caldav(url: string, user: string): boolean; imap(account: { host: string; port: number; user: string }): boolean }> {
+  const meta = await metaStore(vaultId).readMeta().catch(() => null);
+  const imported = (binding: Parameters<typeof canonicalSecretId>[0]) => !!meta?.imported[canonicalSecretId(binding)];
+  return {
+    caldav: (url, user) => imported(calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user)),
+    imap: (account) => imported(imapSecretBinding(familyOfImapHost(account.host) ?? "imap", account.host, account.port, account.user)),
+  };
+}
+
 function metaStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
   return {
     readMeta: async () =>

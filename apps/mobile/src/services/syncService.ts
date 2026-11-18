@@ -24,14 +24,14 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
+import { assertEndpointConfirmedIn, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspaceSyncFailureText } from "@plainva/ui";
-import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
+import { mobileSyncStart, storedProviderEndpoint, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
 import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers, type SuspendedDeletionInfo } from "@plainva/ui";
@@ -400,7 +400,8 @@ async function decideStart(v: MobileVault): Promise<{ decision: MobileSyncStart;
   const entry = await getVaultEntry(v.vaultId);
   const filesOff = await filesOffForVault(v.vaultId);
   const stored = entry?.pausedHere ? null : await getStoredProvider(v.vaultId);
-  return { decision: mobileSyncStart({ pausedHere: entry?.pausedHere, filesOff, entryProvider: entry?.provider, stored }), stored };
+  const unconfirmed = !(await isEndpointConfirmedIn(v.vaultId, storedProviderEndpoint(stored)));
+  return { decision: mobileSyncStart({ pausedHere: entry?.pausedHere, filesOff, entryProvider: entry?.provider, stored, unconfirmed }), stored };
 }
 
 /** What the status says while nothing runs, as the decision has it. */
@@ -547,6 +548,8 @@ export async function connectProvider(
   const id = newVaultId();
   // No probe here (R8): the new vault's first listing shows a workspace's
   // genesis before its worker writes anything, and records it.
+  // Typed here for this vault: its address counts as confirmed (F57).
+  await confirmEndpointsIn(id, [storedProviderEndpoint(p)]);
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await adoptOrForget(id, adopt);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
@@ -588,6 +591,7 @@ export async function createProviderVault(
     // Made for this new cloud folder: the template is what it is to hold.
     recordStarter: false,
   });
+  await confirmEndpointsIn(id, [storedProviderEndpoint(p)]);
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await adoptOrForget(id, adopt);
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
@@ -1015,6 +1019,9 @@ function reportRootFolderCreated(name: string): void {
 }
 
 async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string, context?: ServiceConnectionContext): Promise<ISyncTarget> {
+  // A stored sign-in goes only to an address this phone confirmed (F57); a
+  // probe before saving (`credKey === null`) sends what was typed here.
+  if (credKey !== null && vaultId) await assertEndpointConfirmedIn(vaultId, storedProviderEndpoint(p));
   // Confirm rotations before using the new access token. A stale runtime must
   // never overwrite a newer sign-in or a source already adopted by the broker.
   const persistRotation = async (refreshToken: string) => {

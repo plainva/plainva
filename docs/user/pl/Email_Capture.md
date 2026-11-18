@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-11-06
+Stan na: 2026-11-18
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -19,6 +19,8 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 **Logowanie na drugim urządzeniu.** Gdy skrzynka przyjeżdża przez synchronizację ustawień, jej hasło nie wędruje automatycznie — logowania są przenoszone tylko wtedy, gdy sam włączysz synchronizację danych logowania. Taka skrzynka pokazuje w obszarze **E-mail** przycisk **Zaloguj się**: wpisz hasło, a Plainva sprawdzi je u dostawcy i dopiero potem zapisze w pęku kluczy. W przypadku skrzynki Microsoft ten sam przycisk prowadzi do **Konta w chmurze**, bo tam odbywa się logowanie w przeglądarce. Jeśli przez to lista wiadomości pozostaje pusta, ta sama wskazówka z tym samym przyciskiem znajduje się także tam — nie musisz sam szukać ustawień.
 
 **Konta e-mail bez hasła.** Konfiguracja, która nie powiodła się przy zapisie, mogła pozostawić wpis bez hasła (Plainva 0.8.3 na komputerze). Obszar **E-mail** jeden raz wskazuje konta, które na tym urządzeniu nie mają hasła i nigdy nie pobrały tu wiadomości. **Pokaż** wyświetla listę. Jeśli takie konto działa na innym urządzeniu, należy wybrać **Zaloguj się** — to wtedy właściwa droga. **Usuń** po potwierdzeniu kasuje wpis na wszystkich urządzeniach synchronizujących ustawienia tego vaultu, nigdy wiadomości ani pliki. **Później** ukrywa komunikat. Plainva nigdy nie usuwa niczego samodzielnie.
+
+Serwer poczty w sieci lokalnej dostaje hasło z urządzenia dopiero wtedy, gdy jego adres zostanie tam potwierdzony: [Adresy bez szyfrowania i lokalne](Sync_Setup.md#adresy-bez-szyfrowania-i-lokalne).
 
 ## Czytanie poczty
 

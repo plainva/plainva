@@ -25,7 +25,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptedPimConfig, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -114,6 +114,9 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
   const creds = await pimTargetCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
+    // Unconfirmed address without TLS or in a private network: no target, the
+    // password stays here and the card asks to confirm it (F57).
+    if (!(await isEndpointConfirmedIn(vaultId, confirmationEndpoint(creds.url)))) return null;
     void allowHttpOrigin(creds.url);
     return new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch);
   }
@@ -455,6 +458,8 @@ async function addPimAccountInVault(
       config = { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity };
     }
   } else {
+    // Typed here (the CalDAV form): its address counts as confirmed (F57).
+    await confirmEndpointsIn(owner.vaultId, [confirmationEndpoint(creds.url)]);
     await allowHttpOrigin(creds.url);
     assertCurrent();
     const target = new CalDavPimTarget(creds, webdavFetch);
@@ -617,6 +622,8 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
     await providerTarget.listCalendars();
     await providerTarget.listTaskLists();
   } else {
+    // The repair form, typed here: its address counts as confirmed (F57).
+    await confirmEndpointsIn(target.vaultId, [confirmationEndpoint(creds.url)]);
     await allowHttpOrigin(creds.url);
     const caldav = new CalDavPimTarget(creds, webdavFetch);
     if (!(await caldav.listCalendars()).length) throw new Error("No calendars found on this server.");

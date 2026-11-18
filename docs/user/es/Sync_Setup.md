@@ -227,6 +227,13 @@ Al añadir archivos en el móvil, Plainva muestra origen, destino y colisiones a
 
 Android también confía en las autoridades de certificación instaladas en los ajustes del sistema. Esto afecta a todas las conexiones de Plainva que usan esa configuración, no solo a un servidor WebDAV. En escritorio, HTTP usa las autoridades del sistema y las raíces públicas; iOS usa su configuración de confianza. Se siguen verificando la validez y el nombre del servidor. Corrige los certificados caducados, aún no válidos o de otro servidor. Plainva nunca permite aceptar todos los certificados. Si el sistema no indica la causa exacta, Plainva informa del fallo de verificación sin adivinarla. El diagnóstico HTTP móvil incluye método y código de error, sin credenciales, nombres de certificados ni rutas privadas.
 
+<!-- endpoint-confirmation-2026-11-18 -->
+## Direcciones sin cifrar y locales
+
+Cuando la contraseña de una cuenta va a una dirección con `http` o en una red local (por ejemplo `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` o un nombre sin punto), Plainva solo la envía desde un dispositivo una vez que esa dirección se ha confirmado allí. Si configuraste la cuenta en este dispositivo, o ya ha funcionado aquí, la dirección cuenta como confirmada. Si la cuenta llegó a un dispositivo solo a través de la sincronización, su tarjeta en **Cuentas en la nube** muestra la fila **Confirmar dirección** con la dirección; hasta que elijas **Confirmar**, ninguna contraseña va allí desde este dispositivo — para calendario y tareas, correo y archivos. La confirmación se queda en este dispositivo y no viaja.
+
+Límites: un nombre público que apunta a una dirección local no se reconoce. La confirmación es para la dirección, no para la red: con el mismo dispositivo en la red de otra persona con el mismo rango de direcciones, no te protege.
+
 <!-- workspace-retry-2026-09-14 -->
 ## Reintentos automáticos e historial de sincronización ausente
 

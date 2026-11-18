@@ -227,6 +227,13 @@ Bij het toevoegen van bestanden op mobiel toont Plainva eerst de bron, bestemmin
 
 Android vertrouwt ook certificeringsinstanties die je in de systeeminstellingen installeert. Dit geldt voor alle Plainva-verbindingen die deze configuratie gebruiken, niet alleen voor één WebDAV-server. Op desktop gebruikt HTTP systeeminstanties naast publieke roots; iOS gebruikt de eigen vertrouwensinstellingen. Geldigheid en servernaam blijven gecontroleerd. Herstel verlopen, nog niet geldige of voor een andere server bedoelde certificaten. Plainva biedt nooit een optie om alle certificaten te accepteren. Als het systeem de precieze oorzaak niet meldt, geeft Plainva alleen aan dat de verificatie is mislukt. De mobiele HTTP-diagnose bevat methode en foutcode, zonder inloggegevens, certificaatnamen of privé-serverpaden.
 
+<!-- endpoint-confirmation-2026-11-18 -->
+## Onversleutelde en lokale adressen
+
+Gaat het wachtwoord van een account naar een adres met `http` of in een lokaal netwerk (bijvoorbeeld `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` of een naam zonder punt), dan stuurt Plainva het vanaf een apparaat pas als dat adres daar is bevestigd. Heb je het account op dit apparaat ingesteld, of werkte het hier al, dan geldt het adres als bevestigd. Kwam het account alleen via de synchronisatie op een apparaat, dan toont zijn kaart onder **Cloudaccounts** de regel **Adres bevestigen** met het adres; tot je **Bevestigen** kiest, gaat er vanaf dit apparaat geen wachtwoord daarheen — voor agenda en taken, e-mail en bestanden. De bevestiging blijft op dit apparaat en reist niet mee.
+
+Grenzen: een openbare naam die naar een lokaal adres wijst, wordt niet herkend. De bevestiging geldt voor het adres, niet voor het netwerk: met hetzelfde apparaat in het netwerk van iemand anders met hetzelfde adresbereik beschermt ze je niet.
+
 <!-- workspace-retry-2026-09-14 -->
 ## Automatische herhaling en ontbrekende synchronisatiegeschiedenis
 

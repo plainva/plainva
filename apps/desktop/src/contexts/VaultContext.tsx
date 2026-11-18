@@ -18,7 +18,8 @@ import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider, settleOwedAccountSignIns } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
-import { resolveFileSyncAccess } from "../services/fileSyncAccess";
+import { resolveFileSyncAccess, unconfirmedSyncSlots } from "../services/fileSyncAccess";
+import { settleVaultEndpointConfirmations } from "../services/endpointConfirmationSettle";
 import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
@@ -916,6 +917,12 @@ export const VaultProvider: React.FC<{
       // Every handoff of a link of the chain is named in `writeOwners.test.ts`.
       const personBelowChain = countWrites(backupVaultAdapter, "person");
 
+      // F57: the one-time switch-over takes what already worked here as
+      // confirmed, before the sync, the calendar or mail send a password.
+      await settleVaultEndpointConfirmations(path, dbAdapter).catch((e) =>
+        console.error("[VaultContext] confirming the addresses in use failed", e),
+      );
+
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below. The five
       // slots are independent keychain entries: read side by side, not one
@@ -937,7 +944,8 @@ export const VaultProvider: React.FC<{
       const filesViaBroker = { drive: !!driveTokenProvider, onedrive: !!oneDriveTokenProvider };
       const fileAccess = resolveFileSyncAccess(
         { drive: driveCreds, onedrive: oneDriveCreds, dropbox: dropboxCreds, s3: s3Creds, webdav: webdavCreds },
-        filesViaBroker
+        filesViaBroker,
+        await unconfirmedSyncSlots(path, { s3: s3Creds, webdav: webdavCreds }),
       );
       // Files switched off for the vault (E3) or paused on this device: the
       // vault opens without a target and queues nothing (plan "Verbinden", V2/V3).

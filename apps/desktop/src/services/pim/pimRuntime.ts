@@ -11,7 +11,7 @@ import {
   type PimAccountRow,
   type PimStatus,
 } from "@plainva/core";
-import { formatPimCycle, isSignedOutSlot, logDiagnostic, markTaskSyncInputChanged } from "@plainva/ui";
+import { confirmationEndpoint, formatPimCycle, isEndpointConfirmedIn, isSignedOutSlot, logDiagnostic, markTaskSyncInputChanged } from "@plainva/ui";
 import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 
@@ -92,6 +92,10 @@ export function createPimRuntime(opts: {
     const creds = stored ?? brokerBackedCredentials(account);
     if (!creds) return null;
     if (creds.kind === "caldav") {
+      // An address without TLS or in a private network that this device never
+      // confirmed gets no target, like a sign-out: the stored password stays
+      // here, and the card asks to confirm the address (F57).
+      if (!(await isEndpointConfirmedIn(opts.vaultPath, confirmationEndpoint(creds.url)))) return null;
       return new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, httpFetch);
     }
     const auth = buildPimAuthProvider(opts.vaultPath, account.id, creds);
