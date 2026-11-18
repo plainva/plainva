@@ -108,6 +108,22 @@ interface Pass {
   withoutPictures: MailHtmlView;
 }
 
+/** Elements whose text a reader never shows as words of the mail (the sanitizer takes most of them away). */
+const NOT_WORDS = new Set(["STYLE", "SCRIPT", "NOSCRIPT", "TEMPLATE", "TITLE", "XMP", "NOEMBED", "NOFRAMES", "IFRAME"]);
+/** Blanks, no-break spaces and the characters of no width: a spacer cell's `&nbsp;` is no word. */
+const NO_WORD = /^[\s\u200b-\u200d\u2060\u00ad]*$/;
+
+/** Whether words stand anywhere inside an element of the tree being sanitized (`ShapeAccess.holdsText`). */
+function holdsText(node: Node): boolean {
+  const doc = node.ownerDocument;
+  if (!doc) return true;
+  const walker = doc.createTreeWalker(node, 4 /* NodeFilter.SHOW_TEXT */);
+  for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+    if (!NO_WORD.test((text as Text).data) && !NOT_WORDS.has(text.parentNode?.nodeName.toUpperCase() ?? "")) return true;
+  }
+  return false;
+}
+
 function makePass(raw: string): Pass {
   const read = treeAccess();
   if (!read) throw new Error("no DOM to sanitize mail with");
@@ -129,6 +145,7 @@ function makePass(raw: string): Pass {
         if (now !== null) read.removeAttribute(node, name);
       } else if (now !== value) read.setAttribute(node, name, value);
     },
+    holdsText,
   });
 
   const record = (node: Node, name: string, value: string): void => {
@@ -353,10 +370,8 @@ export function buildMailFrameDoc(sanitizedHtml: string, options?: MailFrameOpti
     mailCanvasRules(options?.canvas, sanitizedHtml) +
     // -webkit-touch-callout: a held link shows the APP's sheet with its target
     // (mailLinks.ts), not the system's link preview — which would load the page.
-    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer;-webkit-touch-callout:none}` +
-    // Lines always wrap: a line that runs past the frame is clipped there, and
-    // nobody sees its end (`MailShaper`). Preformatted text keeps its lines.
-    `pre,listing{white-space:pre-wrap}nobr{white-space:normal}</style>` +
+    // A line that runs past the frame stays as the mail sets it: the frame scrolls to it (`frameFit.ts`).
+    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer;-webkit-touch-callout:none}</style>` +
     `</head><body>${sanitizedHtml}</body></html>`
   );
 }

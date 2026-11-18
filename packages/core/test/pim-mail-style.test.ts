@@ -79,10 +79,10 @@ describe("the inline styles a mail keeps", () => {
       "display:n\\one", "display:\\6e one", "opacity:-1", "opacity:calc(0)", "opacity:2", "overflow:scroll", "overflow:hidden hidden",
       "overflow-y:auto", "text-overflow:clip", "position:absolute", "left:-9999px", "top:-100px", "z-index:-1", "transform:scale(0)",
       "clip:rect(0 0 0 0)", "clip-path:inset(50%)", "mask:none", "filter:opacity(0)", "content-visibility:hidden", "color:canvas",
-      "color:currentcolor", "color:var(--x)", "color:rgb(1,2)", "background:url(x) #fff left/cover magic", "text-indent:-9999px", "margin:-1px", "margin-left:-5000px", "letter-spacing:-1em",
+      "color:rgb(1,2)", "background:url(x) #fff left/cover magic", "text-indent:-9999px", "margin:-1px", "margin-left:-5000px", "letter-spacing:-1em",
       "line-height:0", "vertical-align:-9999px", "width:99999px", "font-size:-12px", "font-size:12furlongs", "font-size:var(--x)", "font-size:constructor", "font-size:__proto__",
       "display:table-column", "font-size:calc(1px * 1px)", "font-size:calc(10)", "font-size:min(10px)x", "line-height:0.5ex", "mso-hide:all", "background:url(x)", "display:none !importan",
-      "font:16px", "font:caption", "border:2000px solid red", "white-space:nowrap", "letter-spacing:1000px", "word-spacing:2000px",
+      "font:16px", "font:caption", "border:2000px solid red", "letter-spacing:1000px", "word-spacing:2000px",
     ];
     for (const style of dropped) expect(keptMailStyle(style), style).toBe("");
     // An open quote cannot carry the next declaration away: the reader is given
@@ -102,11 +102,20 @@ describe("the inline styles a mail keeps", () => {
     expect(keptMailStyle("background-image:url(x)")).toBe("");
   });
 
-  it("keep colours with alpha, sizes worked out and preformatted lines that wrap", () => {
+  it("keep colours with alpha, inherited colours, variables with a fallback, sizes worked out and lines as the mail sets them", () => {
     for (const style of ["color:rgba(255,255,255,0.85)", "color:rgb(255 255 255 / 90%)", "color:#ffffffe6", "color:hsl(210 50% 40% / .5)", "color:transparent", "font-size:calc(14px + 0.2vw)", "font-size:clamp(14px,2vw,18px)", "font-size:max(1em, 12px)", "font-size:2ex"]) {
       expect(keptMailStyle(style), style).toBe(style.replace(/:\s*/, ":"));
     }
-    expect(keptMailStyle("white-space:pre")).toBe("white-space:pre-wrap");
+    // A line that runs past the frame stays as set: the frame scrolls to it (review of 2026-11-17, rule 1).
+    for (const style of ["white-space:pre", "white-space:nowrap", "word-break:keep-all", "word-break:normal"]) expect(keptMailStyle(style), style).toBe(style);
+    // The colour around it is a colour understood (rule 2): `currentColor` and `unset` are `inherit`.
+    for (const style of ["color:inherit", "color:currentColor", "color:unset", "color:var(--x)"]) expect(keptMailStyle(style), style).toBe("color:inherit");
+    // No custom property is ever given: a variable is its fallback.
+    expect(keptMailStyle("color:var(--c, #333)")).toBe("color:#333");
+    expect(keptMailStyle("background-color:var(--a, var(--b, #000))")).toBe("background-color:#000");
+    expect(keptMailStyle("background-color:var(--b)")).toBe("");
+    // A size from a bare variable stays unread: the reader gives its own where that leaves none.
+    expect(keptMailStyle("font-size:var(--x)")).toBe("");
   });
 
   it("keep what a newsletter lays out with, written anew", () => {

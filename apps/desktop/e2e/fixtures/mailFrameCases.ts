@@ -1,7 +1,7 @@
 /**
  * The mails of the review rounds of 2026-11-16 and 2026-11-17 (Fehlerliste
  * 0.9.0 C9/F23) and ordinary newsletter forms, each with the marker words the
- * reader of `main` (f9e91bad8, 2026-11-17) showed at a phone width
+ * reader of `main` (f9e91bad8; the cases of review 4 ee8f2a950, 2026-11-17) showed at a phone width
  * (343 px) and a desktop width (760 px), judged in Chromium by
  * `mailFrameJudge.ts`. Frozen: every word `main` showed is one the reader
  * shows now (`mailFrameEquality.spec.ts`). A word marked SECRET may be hidden;
@@ -1798,5 +1798,83 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
    "343": [],
    "760": []
   }
+ },
+ {
+  "name": "review 4 · p24 bgcolor div with font white",
+  "html": "<div bgcolor=\"#000000\"><font color=\"#ffffff\">SECRET24</font></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  }
+ },
+ {
+  "name": "review 4 · p25 height fixed bg box two lines",
+  "html": "<div style=\"background-color:#000;color:#fff;height:16px\">line1<br>SECRET25</div>",
+  "mainSeen": {
+   "343": [
+    "SECRET25"
+   ],
+   "760": [
+    "SECRET25"
+   ]
+  }
+ },
+ {
+  "name": "review 4 · p35 r13 display none bg url",
+  "html": "<div style=\"display:none;background-image:url(https://t.example.com/p.gif)\">SECRETPRE</div><p>VISIBLEp35</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEp35"
+   ],
+   "760": [
+    "VISIBLEp35"
+   ]
+  },
+  "note": "main shows SECRETPRE because it drops the whole style of a box that names a picture, display:none with it; the reader keeps display:none (r13, agreed 2026-11-17 as no regression)."
+ },
+ {
+  "name": "review 4 · p36 hidden div with display:contents",
+  "html": "<div hidden style=\"display:contents\">SECRET36</div>",
+  "mainSeen": {
+   "343": [
+    "SECRET36"
+   ],
+   "760": [
+    "SECRET36"
+   ]
+  }
+ },
+ {
+  "name": "review 4 · p37 -webkit-box line clamp hidden",
+  "html": "<div style=\"display:-webkit-box;overflow:hidden;height:0\">SECRET37</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  }
+ },
+ {
+  "name": "review 4 · p38 float in bg h0",
+  "html": "<div style=\"background-color:#000;color:#fff;height:0\"><span style=\"float:left\">SECRET38</span></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  }
+ },
+ {
+  "name": "review 4 · p39 inline-block h0 overflow hidden bg",
+  "html": "<span style=\"display:inline-block;height:0;overflow:hidden;background-color:#000;color:#fff\">SECRET39</span>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  }
+ },
+ {
+  "name": "review 4 · p40 max-height 0 overflow hidden bg",
+  "html": "<div style=\"max-height:0;overflow:hidden;background-color:#fff;color:#000\">SECRET40</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "A painted block folded away on purpose (max-height:0;overflow:hidden) opens for the reader and the assistant alike: when in doubt, visible to both (agreed 2026-11-17)."
  }
 ];

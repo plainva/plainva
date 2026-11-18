@@ -82,8 +82,19 @@ function unseen(frame: HTMLIFrameElement, range: Range, element: Element): strin
   if (opacity < MIN_OPACITY) return "faint";
   const px = parseFloat(style.fontSize) * scaleOf(doc);
   if (px < MIN_TEXT_PX) return `tiny ${px.toFixed(1)}`;
+  const k = textContrast(frame, range, boxes[0]);
+  return k < MIN_CONTRAST ? `contrast ${k.toFixed(2)}` : null;
+}
+
+/** The contrast of the words of `range` against what the engine paints behind them, at the box `first` of them. */
+export function textContrast(frame: HTMLIFrameElement, range: Range, first: DOMRect): number {
+  const doc = frame.contentDocument!;
+  const win = frame.contentWindow!;
+  const root = doc.documentElement;
+  const element = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement) as Element;
+  const style = win.getComputedStyle(element);
+  const rects = () => Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
   // What is painted behind the words, at the words: scroll there and ask the engine.
-  const first = boxes[0];
   win.scrollTo(Math.max(0, first.left + win.scrollX - 20), Math.max(0, first.top + win.scrollY - 20));
   const at = rects()[0] ?? first;
   const x = Math.min(Math.max((at.left + at.right) / 2, 1), frame.clientWidth - 2);
@@ -111,12 +122,47 @@ function unseen(frame: HTMLIFrameElement, range: Range, element: Element): strin
   let behind: Rgba = [255, 255, 255, 1];
   for (const layer of layers.reverse()) behind = over(layer, behind);
   const colour = rgba((style as CSSStyleDeclaration & { webkitTextFillColor?: string }).webkitTextFillColor || style.color) ?? [0, 0, 0, 1];
-  // A gradient covers its box: the words stand on its colours.
-  for (const background of stops.length > 0 ? stops.map((stop) => over(stop, behind)) : [behind]) {
-    const k = contrast(over(colour, background), background);
-    if (k < MIN_CONTRAST) return `contrast ${k.toFixed(2)}`;
-  }
-  return null;
+  // A gradient covers its box: the words stand on its colours, the least of them counts.
+  let least = Infinity;
+  for (const background of stops.length > 0 ? stops.map((stop) => over(stop, behind)) : [behind]) least = Math.min(least, contrast(over(colour, background), background));
+  return least;
+}
+
+/** One element of a frame as the engine lays it out and colours it: where it is in the tree, its box, its colours, and for words the contrast. */
+export type Measured = [path: string, tag: string, width: number, height: number, colour: string, background: string, contrast: number | null];
+
+/**
+ * What a frame lays out, for the comparison with main (review of 2026-11-17,
+ * rule 3): every element with words of its own and every element that paints
+ * (a background, a gradient, a border, a picture), with its box and its
+ * computed colours, and for words the contrast against what lies behind them.
+ */
+export function measureFrame(frame: HTMLIFrameElement): Measured[] {
+  const doc = frame.contentDocument!;
+  const win = frame.contentWindow!;
+  const out: Measured[] = [];
+  const visit = (element: Element, path: string) => {
+    const style = win.getComputedStyle(element);
+    const words = Array.from(element.childNodes).find((node) => node.nodeType === 3 && /\S/.test((node as Text).data.replace(/\u00a0/g, " "))) as Text | undefined;
+    const fill = rgba(style.backgroundColor);
+    const paints = (fill !== null && fill[3] > 0) || style.backgroundImage !== "none" || parseFloat(style.borderTopWidth) > 0 || parseFloat(style.borderBottomWidth) > 0 || element.localName === "img";
+    if (words || paints) {
+      const box = element.getBoundingClientRect();
+      let k: number | null = null;
+      if (words) {
+        const range = doc.createRange();
+        range.selectNodeContents(words);
+        const first = Array.from(range.getClientRects()).find((r) => r.width > 0 && r.height > 0);
+        k = first && style.display !== "none" ? Number(textContrast(frame, range, first).toFixed(2)) : null;
+      }
+      const colour = (style as CSSStyleDeclaration & { webkitTextFillColor?: string }).webkitTextFillColor || style.color;
+      out.push([path, element.localName, Math.round(box.width * 10) / 10, Math.round(box.height * 10) / 10, colour, style.backgroundColor, k]);
+    }
+    Array.from(element.children).forEach((child, index) => visit(child, `${path}/${index}`));
+  };
+  visit(doc.body, "body");
+  win.scrollTo(0, 0);
+  return out;
 }
 
 /** What a person sees in a fitted reader frame. */

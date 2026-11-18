@@ -114,6 +114,8 @@ const spacing = (capPx: number, capEm: number) => (tokens: string[]) => {
 };
 
 const anyColour = (token: string): boolean => readColour(token) !== null;
+/** Values of `color` that take the colour of the letters around: `currentColor` is that colour, `unset` inherits it. */
+export const INHERITED_COLOUR = new Set(["inherit", "currentcolor", "unset"]);
 
 /** The words of the first argument of a gradient: a direction, an angle, a shape and where it stands. */
 const GRADIENT = /^(?:repeating-)?(?:linear|radial)-gradient\((.*)\)$/;
@@ -392,14 +394,15 @@ export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
   visibility: { kind: "judged", accepts: oneOf("visible", "hidden", "collapse") },
   opacity: { kind: "judged", accepts: (t) => t.length === 1 && readOpacity(t[0]) !== null },
   "font-size": { kind: "judged", accepts: (t) => t.length === 1 && fontSizeToken(t[0]) },
-  // Text that does not wrap runs past the frame, where nothing shows it: lines
-  // always wrap in the reader, and preformatted text keeps its lines.
-  "white-space": {
+  // Text that does not wrap may run past the frame: the frame scrolls there
+  // (`frameFit.ts`), so a line is kept as the mail sets it, as at main.
+  "white-space": { kind: "judged", accepts: oneOf("normal", "nowrap", "pre", "pre-wrap", "pre-line", "break-spaces") },
+  // The colour of the letters around it (`inherit`, `currentColor`, `unset`) is a colour understood.
+  color: {
     kind: "judged",
-    accepts: oneOf("normal", "nowrap", "pre", "pre-wrap", "pre-line", "break-spaces"),
-    write: (t) => (t[0] === "nowrap" ? null : t[0] === "pre" ? "pre-wrap" : t[0]),
+    accepts: (t) => t.length === 1 && (anyColour(t[0]) || INHERITED_COLOUR.has(t[0])),
+    write: (t) => (INHERITED_COLOUR.has(t[0]) ? "inherit" : t[0]),
   },
-  color: { kind: "judged", accepts: (t) => t.length === 1 && anyColour(t[0]) },
   "background-color": { kind: "judged", accepts: (t) => t.length === 1 && anyColour(t[0]) },
   "background-image": { kind: "judged", accepts: (_t, value) => gradients(value.toLowerCase()) },
   overflow: { kind: "judged", accepts: oneOf("hidden") },
@@ -427,8 +430,8 @@ export const MAIL_STYLE: Readonly<Record<string, PropertyRule>> = {
   },
   "word-spacing": { kind: "layout", accepts: spacing(40, 2) },
   "text-indent": { kind: "layout", accepts: lengthOr() },
-  // Lines break wherever they must (the frame's own rule): a word never runs past the frame.
-  "word-break": { kind: "layout", accepts: oneOf("break-all", "break-word") },
+  // Lines break as the mail asks (Korean keeps its words whole with `keep-all`); what runs past the frame, the frame scrolls to.
+  "word-break": { kind: "layout", accepts: oneOf("normal", "keep-all", "break-all", "break-word") },
   "overflow-wrap": { kind: "layout", accepts: oneOf("break-word", "anywhere") },
   "word-wrap": { kind: "layout", accepts: oneOf("break-word", "anywhere") },
   direction: { kind: "layout", accepts: oneOf("ltr", "rtl") },
@@ -615,6 +618,37 @@ function splitTokens(value: string): string[] {
   return tokens;
 }
 
+/**
+ * A style with its `var()` read as a browser reads it in the reader: no
+ * custom property is ever given (none is on the list), so `var(--x, value)` is
+ * its fallback and `var(--x)` is `bare` — `unset`, as a browser has it (a
+ * colour then inherits, a background is none); `null` leaves it unread.
+ * Innermost first, so a fallback may itself hold a `var()`.
+ */
+function withoutVariables(value: string, bare: string | null): string {
+  let out = value;
+  for (let round = 0; round < 8; round++) {
+    const at = out.toLowerCase().lastIndexOf("var(");
+    if (at < 0) return out;
+    let depth = 0;
+    let comma = -1;
+    let end = -1;
+    for (let index = at + 3; index < out.length; index++) {
+      const c = out[index];
+      if (c === "(") depth++;
+      else if (c === ")" && --depth === 0) {
+        end = index;
+        break;
+      } else if (c === "," && depth === 1 && comma < 0) comma = index;
+    }
+    if (end < 0) return out;
+    const fallback = comma < 0 ? bare : out.slice(comma + 1, end).trim() || bare;
+    if (fallback === null) return out;
+    out = out.slice(0, at) + fallback + out.slice(end + 1);
+  }
+  return out;
+}
+
 /** A style read once is read again unchanged: a newsletter writes the same few hundred times. */
 const READ = new Map<string, MailStyle>();
 const READ_MAX = 4096;
@@ -634,10 +668,13 @@ export function readMailStyle(style: string): MailStyle {
   let lostColour = false;
   let askedFontSize = false;
   const text = style.replace(/\/\*[\s\S]*?(?:\*\/|$)/g, " ");
-  for (const declaration of text.split(";")) {
-    const colon = declaration.indexOf(":");
+  for (const written of text.split(";")) {
+    let colon = written.indexOf(":");
     if (colon < 0) continue;
-    const name = declaration.slice(0, colon).trim().toLowerCase();
+    const name = written.slice(0, colon).trim().toLowerCase();
+    // A size from a variable without a fallback stays unread, and the reader gives its own size where that leaves none.
+    const declaration = name + ":" + withoutVariables(written.slice(colon + 1), name === "font-size" || name === "font" ? null : "unset");
+    colon = name.length;
     if (name === "font-size" || name === "font") askedFontSize = true;
     let keptBefore = kept.length;
     const lose = (): void => {

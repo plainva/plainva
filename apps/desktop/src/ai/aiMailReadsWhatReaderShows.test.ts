@@ -82,7 +82,8 @@ const NOT_KEPT: Array<[string, string, string]> = [
   ["a box of no height that scrolls", "height:0;overflow:scroll", "height:0"],
   ["a box of no height that clips", "overflow:hidden hidden;max-height:0", "max-height:0"],
   ["a box moved off the page", "position:absolute;left:-9999px", ""],
-  ["a line indented off the page", "text-indent:-9999px;overflow:hidden;white-space:nowrap", ""],
+  // The line keeps itself whole, as at main: what runs past the frame, the frame scrolls to.
+  ["a line indented off the page", "text-indent:-9999px;overflow:hidden;white-space:nowrap", "white-space:nowrap"],
   ["a box clipped to nothing", "position:absolute;clip:rect(0 0 0 0)", ""],
   ["a clip path", "clip-path:inset(50%)", ""],
   ["a box scaled to nothing", "transform:scale(0)", ""],
@@ -269,7 +270,7 @@ describe("the reader shows what the assistant reads, in every engine (review of 
     expect(mailDocument(message(html)).text).toContain(SECRET);
   });
 
-  it("lays nothing past the frame, where it would be clipped", () => {
+  it("lays no words where a person does not get to: margins that push them past the frame go, what the frame scrolls to stays", () => {
     const off: Array<[string, string]> = [
       ["margins that add up", `<div style="margin-left:2000px"><div style="margin-left:2000px"><div id="x" style="margin-left:2000px;white-space:nowrap">${SECRET}</div></div></div>`],
       ["a margin of five widths", `<div id="x" style="margin-left:500%;white-space:nowrap">${SECRET}</div>`],
@@ -280,12 +281,14 @@ describe("the reader shows what the assistant reads, in every engine (review of 
       const frame = new DOMParser().parseFromString(sanitizeEmailHtml(html).html, "text/html");
       for (const element of Array.from(frame.body.querySelectorAll("*"))) {
         const style = element.getAttribute("style") ?? "";
-        expect(style, name).not.toMatch(/margin-left:(?:2000px|500%)|width:2000px|nowrap/);
-        expect(element.getAttribute("width"), name).not.toBe("3000");
+        expect(style, name).not.toMatch(/margin-left:(?:2000px|500%)/);
       }
       // The reader shows the words where a person sees them, and the assistant reads them.
       expect(mailDocument(message(html)).text, name).toContain(SECRET);
     }
+    // A cell without words and a table's width stay as at main (rule 1): the frame holds a table to its width, and scrolls to the rest.
+    expect(given(`<table><tr><td id="x" style="width:2000px">&nbsp;</td><td>${SECRET}</td></tr></table>`)?.getAttribute("style")).toBe("width:2000px");
+    expect(given(`<table id="x" width="3000"><tr><td>${SECRET}</td></tr></table>`)?.getAttribute("width")).toBe("3000");
     // A newsletter of 600 px with two columns keeps its layout.
     const columns = `<table width="600" style="margin:0 auto"><tr><td id="x" width="300" style="padding:0 20px">a</td><td width="300" style="padding:0 20px">b</td></tr></table>`;
     expect(given(columns)?.getAttribute("width")).toBe("300");

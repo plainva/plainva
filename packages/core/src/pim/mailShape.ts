@@ -1,6 +1,6 @@
 import { colourHex, readAttributeColour, readColour, type Rgba } from "./mailColour.js";
 import {
-  appliedMailStyle, fontSizePx, lengthPx, namedFontSize, readLength, readMailStyle, writeMailStyle, type MailDeclaration,
+  appliedMailStyle, backgroundImageColours, fontSizePx, lengthPx, namedFontSize, readLength, readMailStyle, writeMailStyle, type MailDeclaration,
 } from "./mailStyle.js";
 
 /**
@@ -37,8 +37,6 @@ import {
 export const READER_PX = 14;
 /** Below this size in pixels a text is not one a person reads. */
 export const MIN_TEXT_PX = 4;
-/** The largest font size kept: a letter wider than the frame is past it. */
-const MAX_FONT_PX = 96;
 /**
  * The narrowest frame the reader has (a 320 px phone) scaled down to its least
  * (0.4) shows 800 px of a mail: no box reaches past `REACH_MAX`, and no content
@@ -72,8 +70,6 @@ const BGCOLOR_PAINTS = new Set(["body", "table", "thead", "tbody", "tfoot", "tr"
 /** A table's parts grow to their content, whatever size they are given. */
 const TABLE_PARTS = new Set(["table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption"]);
 const TABLE_DISPLAY = new Set(["table", "inline-table", "table-row", "table-cell", "table-row-group", "table-header-group", "table-footer-group", "table-caption"]);
-/** A painted box narrower than this may be narrower than one of its letters. */
-const MIN_PAINTED_WIDTH = 40;
 
 /** A colour as a style writes it. */
 function colourCss(colour: Rgba): string {
@@ -232,6 +228,8 @@ export interface ShapeState {
   readonly row: Row | null;
   /** The colour the mail gives its letters here, where it is understood. */
   readonly intended: Rgba | null;
+  /** Whether a ground the reader shows lies behind it: one of the mail's own, or the reader's pair (not the bare sheet). */
+  readonly grounded: boolean;
   /** Makes the nearest painted box above hold the floats inside it. */
   readonly holdFloats?: () => void;
 }
@@ -247,6 +245,12 @@ export interface ShapeAccess<N> {
   written(node: N): ReadonlyMap<string, string> | undefined;
   /** Gives the reader this value of the attribute; `null` takes it away. */
   give(node: N, name: string, value: string | null): void;
+  /**
+   * Whether words stand anywhere inside the element (blanks and no-break
+   * spaces are none). An element without is shaped only as far as writing it
+   * as the mail wrote it (`MailShaper.element`); without this, every element counts as one with words.
+   */
+  holdsText?(node: N): boolean;
 }
 
 const NONE: ReadonlyMap<string, string> = new Map();
@@ -282,7 +286,7 @@ export class MailShaper<N> {
   constructor(private readonly access: ShapeAccess<N>) {}
 
   root(): ShapeState {
-    return { font: { px: READER_PX, keyword: false }, left: BODY_MARGIN, dropColours: false, row: null, intended: STANDARD_TEXT_RGBA };
+    return { font: { px: READER_PX, keyword: false }, left: BODY_MARGIN, dropColours: false, row: null, intended: STANDARD_TEXT_RGBA, grounded: false };
   }
 
   /**
@@ -303,6 +307,24 @@ export class MailShaper<N> {
     }
 
     const read = readMailStyle(written("style") ?? "");
+    if (name !== "body" && name !== "html" && this.access.holdsText && !this.access.holdsText(node)) {
+      // Nothing to hide and nothing to read (review of 2026-11-17, rule 1): a
+      // picture, a dividing line, a bar, a dot, a spacer keeps the size and the
+      // colour it has at main — written as the mail wrote it, nothing taken.
+      this.plainAttributes(attributes, give);
+      const bgcolor = written("bgcolor");
+      const fill = bgcolor !== null && BGCOLOR_PAINTS.has(name) ? readAttributeColour(bgcolor) : null;
+      if (bgcolor !== null) give("bgcolor", null);
+      if (fill && !read.declarations.some((d) => d.name === "background-color")) {
+        give("style", writeMailStyle([{ name: "background-color", value: colourHex(fill), important: false }, ...read.declarations]));
+      }
+      // A cell without words still takes its room in the row.
+      if ((name === "td" || name === "th") && parent.row) {
+        const own = applyOnce(read.declarations);
+        parent.row.used += Math.max(widthReach(own.get("width"), parent.font.px), attributeReach(written("width")));
+      }
+      return parent.row === null ? parent : { ...parent, row: null };
+    }
     if (name === "body" || name === "html") {
       // The page itself is not given to the reader, only what it holds: a
       // background it set is lost, and the colours set on it go with it.
@@ -312,17 +334,7 @@ export class MailShaper<N> {
     // The list as read, until a rule below changes it (then a copy).
     let declarations: MailDeclaration[] = read.declarations;
 
-    // Plain attributes, written as they are read.
-    for (const [attr, value] of attributes) {
-      if (attr === "hidden") give("hidden", "");
-      else if (attr === "width" || attr === "height") {
-        const size = attributeWidth(value);
-        give(attr, size ? ("px" in size ? String(size.px) : `${size.percent}%`) : null);
-      } else if (Object.prototype.hasOwnProperty.call(CAPPED_ATTRIBUTES, attr)) {
-        const n = /^\s*(\d+)\s*$/.exec(value);
-        give(attr, n && parseInt(n[1], 10) <= CAPPED_ATTRIBUTES[attr] ? String(parseInt(n[1], 10)) : null);
-      }
-    }
+    this.plainAttributes(attributes, give);
 
     // One pair of colours, never half of one (review of 2026-11-17): the
     // letters stand in the colours the mail gave them on the background that
@@ -339,15 +351,33 @@ export class MailShaper<N> {
     }
     const applied0 = applyOnce(declarations);
     const fill = applied0.get("background-color");
-    const paintsOwn =
-      (fill !== undefined && (readColour(fill)?.[3] ?? 0) > 0) || applied0.has("background-image") || name === "mark";
-    const lostPicture = (read.lostBackground || written("background") !== null) && !paintsOwn;
+    const fillColour = fill === undefined ? null : readColour(fill);
+    const image = applied0.get("background-image");
+    const stops = image === undefined ? [] : backgroundImageColours(image);
+    // A ground of its own covers what lies behind; a see-through one (a glass
+    // card, a shading over a picture) lies over it, and the letters stand on both.
+    const ownGround = (fillColour !== null && fillColour[3] >= 1) || (stops.length > 0 && stops.every((stop) => stop[3] >= 1)) || name === "mark";
+    const paintsOwn = ownGround || (fillColour !== null && fillColour[3] > 0) || stops.some((stop) => stop[3] > 0);
+    const lostPicture = (read.lostBackground || written("background") !== null) && !ownGround;
     const ownColour = applied0.get("color");
     const fontColour = name === "font" ? written("color") : null;
-    let intended: Rgba | null = read.lostColour ? null : ownColour !== undefined ? readColour(ownColour) : fontColour !== null ? (readAttributeColour(fontColour) ?? parent.intended) : parent.intended;
+    let intended: Rgba | null = read.lostColour
+      ? null
+      : ownColour === "inherit"
+        ? parent.intended
+        : ownColour !== undefined
+          ? readColour(ownColour)
+          : fontColour !== null
+            ? (readAttributeColour(fontColour) ?? parent.intended)
+            : parent.intended;
     let dropColours: boolean;
-    let standardPair = lostPicture || read.lostColour;
-    if (!standardPair && paintsOwn && parent.dropColours && ownColour === undefined && fontColour === null) {
+    // A ground that is not shown takes the words that had only it to the
+    // reader's pair: a colour set for it on this element, or one set above
+    // where nothing but the sheet lies behind. A colour set above a ground the
+    // reader shows stands on that ground.
+    const ownLetters = (ownColour !== undefined && ownColour !== "inherit") || fontColour !== null;
+    let standardPair = (lostPicture && (ownLetters || !parent.grounded)) || read.lostColour;
+    if (!standardPair && ownGround && parent.dropColours && (ownColour === undefined || ownColour === "inherit") && fontColour === null) {
       // A background of its own under a colour that fell away above: the
       // letters take the colour the mail meant for them, or the reader's pair.
       if (parent.intended) declarations = [...declarations, { name: "color", value: colourCss(parent.intended), important: false }];
@@ -364,7 +394,8 @@ export class MailShaper<N> {
       // `intended` stays the colour the mail meant, for a background of its own below.
       dropColours = true;
     } else {
-      dropColours = paintsOwn ? false : parent.dropColours;
+      // Under a picture not shown, the colours set against it fall away too.
+      dropColours = lostPicture || (ownGround ? false : parent.dropColours);
       if (dropColours && declarations.some((d) => d.name === "color")) declarations = declarations.filter((d) => d.name !== "color");
       if (fontColour !== null) {
         const value = dropColours ? null : readAttributeColour(fontColour);
@@ -380,37 +411,28 @@ export class MailShaper<N> {
       declarations = [...declarations, { name: "font-size", value: `${READER_PX}px`, important: false }];
       font = { px: READER_PX, keyword: false };
     }
-    if (font.px > MAX_FONT_PX) {
-      declarations = [...declarations.filter((d) => d.name !== "font-size"), { name: "font-size", value: `${MAX_FONT_PX}px`, important: false }];
-      font = { px: MAX_FONT_PX, keyword: false };
-    }
     const px = font.px;
     applied = applyOnce(declarations);
 
     // A background lies behind every word of its box: a painted box keeps no
-    // size it could be smaller than its words (a table's parts grow to theirs).
+    // size it could be smaller than its words — no height they outgrow, no
+    // width narrower than a letter (a table's parts grow to theirs).
     const block = BLOCK.has(name) || (applied.has("display") && applied.get("display") !== "inline");
     if (paints && !TABLE_PARTS.has(name) && !TABLE_DISPLAY.has(applied.get("display") ?? "")) {
-      const narrow = (value: string | undefined) => value !== undefined && value !== "auto" && value !== "none" && (lengthPx(value, px, REACH_MAX) ?? 0) < MIN_PAINTED_WIDTH;
+      const narrow = (value: string | undefined) => value !== undefined && value !== "auto" && value !== "none" && (lengthPx(value, px, REACH_MAX) ?? 0) < px;
+      // A size it asked for stays its least size: the box grows to its words, never smaller than it was.
       const before = declarations;
-      declarations = declarations.filter((d) => !(d.name === "height" || d.name === "max-height" || ((d.name === "width" || d.name === "max-width") && narrow(d.value))));
-      if (declarations.length !== before.length) applied = applyOnce(declarations);
+      const least = (property: string) => applied.has(property);
+      declarations = declarations.flatMap((d): MailDeclaration[] => {
+        if (d.name === "max-height" || (d.name === "max-width" && narrow(d.value))) return [];
+        if (d.name === "height") return least("min-height") ? [] : [{ ...d, name: "min-height" }];
+        if (d.name === "width" && narrow(d.value)) return least("min-width") ? [] : [{ ...d, name: "min-width" }];
+        return [d];
+      });
+      if (declarations.some((d, index) => d !== before[index]) || declarations.length !== before.length) applied = applyOnce(declarations);
     }
     // A float in a painted box stands on that box's background: the box holds it.
     if (applied.get("float") === "left" || applied.get("float") === "right") parent.holdFloats?.();
-    // A picture never wider than its box (the frame sets that; `max-width:none` would undo it) nor than the frame.
-    if (name === "img") {
-      const before = declarations;
-      declarations = declarations.filter((d) => !(d.name === "max-width" && (d.value === "none" || widthReach(d.value, px) > 0)));
-      const pictureWidth = Math.max(widthReach(applied.get("width"), px), widthReach(applied.get("min-width"), px), attributeReach(written("width")));
-      if (parent.left + pictureWidth > REACH_MAX) {
-        declarations = declarations.filter((d) => d.name !== "width" && d.name !== "min-width" && d.name !== "height");
-        give("width", null);
-        give("height", null);
-      }
-      if (declarations !== before) applied = applyOnce(declarations);
-    }
-
     // Where the box stands and how far it reaches.
     const row = parent.row;
     const cell = (name === "td" || name === "th") && row !== null;
@@ -431,7 +453,9 @@ export class MailShaper<N> {
     const attrReach = !attrSize ? 0 : "px" in attrSize ? attrSize.px : attrSize.percent <= 100 ? 0 : ((attrSize.percent - 100) / 100) * REACH_MAX;
     const startSide = length(marginLeft) + length(paddingLeft) + (ua && !(marginLeft || paddingLeft) ? ua[0] : 0);
     const endSide = length(marginRight) + length(paddingRight) + (ua && !(marginRight || paddingRight) ? ua[1] : 0);
-    const widthOf = name === "img" ? 0 : Math.max(widthReach(applied.get("width"), px), widthReach(applied.get("min-width"), px), attrReach);
+    // The frame holds a table to its width (`table{max-width:100%}`): its parts' widths give, only a least width does not.
+    const fluid = name === "img" || TABLE_PARTS.has(name) || TABLE_DISPLAY.has(applied.get("display") ?? "");
+    const widthOf = fluid ? widthReach(applied.get("min-width"), px) : Math.max(widthReach(applied.get("width"), px), widthReach(applied.get("min-width"), px), attrReach);
     let contentLeft = start + startSide;
     const reach = contentLeft + widthOf + endSide;
     const indent = contentLeft + length(applied.get("text-indent"));
@@ -478,9 +502,26 @@ export class MailShaper<N> {
       left: contentLeft,
       dropColours,
       intended,
+      grounded: standardPair || ownGround || parent.grounded,
       holdFloats,
       row: name === "tr" ? { left: contentLeft, used: 0, takeBack: [] } : null,
     };
+  }
+
+  /** Plain attributes, written as they are read. */
+  private plainAttributes(attributes: ReadonlyMap<string, string>, give: (attr: string, value: string | null) => void): void {
+    for (const [attr, value] of attributes) {
+      if (attr === "hidden") give("hidden", "");
+      // A cell that keeps its line, as at main; what runs past the frame, the frame scrolls to.
+      else if (attr === "nowrap") give("nowrap", "");
+      else if (attr === "width" || attr === "height") {
+        const size = attributeWidth(value);
+        give(attr, size ? ("px" in size ? String(size.px) : `${size.percent}%`) : null);
+      } else if (Object.prototype.hasOwnProperty.call(CAPPED_ATTRIBUTES, attr)) {
+        const n = /^\s*(\d+)\s*$/.exec(value);
+        give(attr, n && parseInt(n[1], 10) <= CAPPED_ATTRIBUTES[attr] ? String(parseInt(n[1], 10)) : null);
+      }
+    }
   }
 
   /** The declarations without the horizontal lengths; a margin or padding shorthand keeps its top and bottom. */

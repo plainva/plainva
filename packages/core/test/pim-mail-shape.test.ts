@@ -11,6 +11,11 @@ type ParentNode = DefaultTreeAdapterMap["parentNode"];
 /** The attributes the sanitizer hands the shaper (`SHAPED_ATTRS` in `mailSanitize.ts`). */
 const SHAPED = new Set(["style", "hidden", "nowrap", "bgcolor", "background", "width", "height", "cellpadding", "cellspacing", "hspace", "vspace", "border"]);
 
+/** Whether words stand anywhere inside (`holdsText` in `mailSanitize.ts`): blanks and no-break spaces are none. */
+function holdsText(node: ParentNode): boolean {
+  return node.childNodes.some((child) => ("value" in child && child.nodeName === "#text" ? /[^\s\u200b-\u200d\u2060\u00ad]/.test(child.value) : "childNodes" in child && holdsText(child)));
+}
+
 /**
  * The shaper run the way the sanitizer runs it, over parse5's tree: each
  * element in document order, the attributes it reads taken off and handed to
@@ -25,6 +30,7 @@ function shape(html: string): string {
       node.attrs = node.attrs.filter((attr) => attr.name !== name);
       if (value !== null) node.attrs.push({ name, value });
     },
+    holdsText: (node) => holdsText(node),
   });
   const visit = (parent: ParentNode, state: ShapeState) => {
     for (const child of parent.childNodes) {
@@ -50,17 +56,17 @@ describe("the mail shaper (review of 2026-11-17)", () => {
       '<div style="margin-left:300px"><div style="margin-top:4px"><p>x</p></div></div>'
     );
     expect(shape('<div style="padding:10px 2000px">x</div>')).toBe('<div style="padding-top:10px;padding-bottom:10px">x</div>');
-    expect(shape('<table width="3000"><tbody><tr><td>x</td></tr></tbody></table>')).toBe("<table><tbody><tr><td>x</td></tr></tbody></table>");
+    // The frame holds a table to its width (`table{max-width:100%}`): its width stays, as at main.
+    expect(shape('<table width="3000"><tbody><tr><td>x</td></tr></tbody></table>')).toBe('<table width="3000"><tbody><tr><td>x</td></tr></tbody></table>');
     // A list nested too deep loses the indent a browser gives it.
     const deep = `${"<ul>".repeat(16)}<li>x</li>${"</ul>".repeat(16)}`;
     expect(shape(deep)).toContain('<ul style="padding-left:0 !important;padding-right:0 !important">');
     expect(LEFT_MAX).toBeLessThan(REACH_MAX);
   });
 
-  it("takes back the widths of a row whose cells reach too far together", () => {
-    // The third would begin past the frame's middle: the two before it give up their widths, and it begins at the row.
+  it("keeps the widths of a row's cells: the frame holds the table to its width", () => {
     const row = '<table><tbody><tr><td width="300">a</td><td width="300">b</td><td style="width:300px">c</td></tr></tbody></table>';
-    expect(shape(row)).toBe('<table><tbody><tr><td>a</td><td>b</td><td style="width:300px">c</td></tr></tbody></table>');
+    expect(shape(row)).toBe('<table><tbody><tr><td width="300">a</td><td width="300">b</td><td style="width:300px">c</td></tr></tbody></table>');
     // Two columns of a 600 px newsletter stay as they are.
     const two = '<table width="600"><tbody><tr><td width="300" style="padding:0 20px">a</td><td width="300">b</td></tr></tbody></table>';
     expect(shape(two)).toBe('<table width="600"><tbody><tr><td style="padding:0 20px" width="300">a</td><td width="300">b</td></tr></tbody></table>');
@@ -72,6 +78,10 @@ describe("the mail shaper (review of 2026-11-17)", () => {
     expect(shape('<div style="background:url(x)"><p style="color:#fff;margin:0">a</p><font color="white">b</font></div>')).toBe(
       `<div style="${PAIR}"><p style="margin:0">a</p><font>b</font></div>`
     );
+    // A colour set for the picture on its own box takes that box to the reader's pair.
+    expect(shape('<div style="background:url(x);color:#fff">a</div>')).toBe(`<div style="${PAIR}">a</div>`);
+    // A colour set above a ground the reader shows stands on that ground; the colours set against the picture go (review 4, p18).
+    expect(shape('<div style="color:#fff;background-color:#000"><div style="background-image:url(x)"><p style="color:#333">a</p></div></div>')).toBe('<div style="color:#fff;background-color:#000"><div><p>a</p></div></div>');
     // `none` is no background lost: the colour stays on what lies behind.
     expect(shape('<td style="background:none;color:#fff">a</td>')).toBe('<td style="color:#fff">a</td>');
     expect(shape('<td style="background-image:none;color:#fff">a</td>')).toBe('<td style="color:#fff">a</td>');
@@ -87,6 +97,19 @@ describe("the mail shaper (review of 2026-11-17)", () => {
     );
     // Under a background of its own the colours stand again.
     expect(shape('<td background="x.png"><div style="background-color:#000"><p style="color:#fff">a</p></div></td>')).toContain('<p style="color:#fff">');
+    // A see-through ground lies over what is behind it: over a picture that is not shown, the glass card keeps the reader's pair (R1).
+    expect(shape('<div style="background:url(x);color:#fff"><p style="background-color:rgba(0,0,0,0.05)">a</p></div>')).toBe(
+      `<div style="${PAIR}"><p style="background-color:rgba(0,0,0,0.05)">a</p></div>`
+    );
+    expect(shape('<div style="background-image:url(x);color:#fff"><div style="background-image:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0.1))">a</div></div>')).toBe(
+      `<div style="${PAIR}"><div style="background-image:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0.1))">a</div></div>`
+    );
+    // Over a ground that is shown, it stays as the mail set it.
+    expect(shape('<td style="background-color:#000;color:#fff"><div style="background-color:rgba(255,255,255,0.1)">a</div></td>')).toBe('<td style="background-color:#000;color:#fff"><div style="background-color:rgba(255,255,255,0.1)">a</div></td>');
+    // The colour around it is a colour understood (R4): `inherit`, `currentColor`, a variable with a fallback.
+    expect(shape('<td style="background-color:#333;color:#fff"><a href="u" style="color:inherit">a</a><span style="color:currentColor">b</span><span style="color:var(--c, #eee)">c</span></td>')).toBe(
+      '<td style="background-color:#333;color:#fff"><a href="u" style="color:inherit">a</a><span style="color:inherit">b</span><span style="color:#eee">c</span></td>'
+    );
     // The page's own background is not given to the reader.
     expect(shape('<p style="color:#ffffff">a</p>')).toBe('<p style="color:#ffffff">a</p>');
   });
@@ -95,16 +118,21 @@ describe("the mail shaper (review of 2026-11-17)", () => {
     expect(shape('<div style="font-size:0"><span style="font-size:var(--x)">a</span><span style="font-size:13px">b</span></div>')).toBe(
       '<div style="font-size:0"><span style="font-size:14px">a</span><span style="font-size:13px">b</span></div>'
     );
+    // A large size stays: a word too wide breaks, or the frame scrolls to it.
     // Inheriting a size somebody reads, a lost one is just lost.
     expect(shape('<span style="font-size:var(--x)">a</span>')).toBe("<span>a</span>");
-    expect(shape('<span style="font-size:100em">a</span>')).toBe('<span style="font-size:96px">a</span>');
+    expect(shape('<span style="font-size:160px">a</span>')).toBe('<span style="font-size:160px">a</span>');
   });
 
   it("lets a background lie behind every word of its box", () => {
-    expect(shape('<div style="background-color:#000;color:#fff;height:0">a</div>')).toBe('<div style="background-color:#000;color:#fff">a</div>');
-    expect(shape('<span style="display:inline-block;width:0;background-color:#000;color:#fff">a</span>')).toBe('<span style="display:inline-block;background-color:#000;color:#fff">a</span>');
+    // A size it asked for stays its least: the box grows to its words, never smaller than it was.
+    expect(shape('<div style="background-color:#000;color:#fff;height:0">a</div>')).toBe('<div style="background-color:#000;color:#fff;min-height:0">a</div>');
+    expect(shape('<div style="background-color:#222;color:#fff;height:40px;line-height:40px">a</div>')).toBe('<div style="background-color:#222;color:#fff;min-height:40px;line-height:40px">a</div>');
+    expect(shape('<span style="display:inline-block;width:0;background-color:#000;color:#fff">a</span>')).toBe('<span style="display:inline-block;min-width:0;background-color:#000;color:#fff">a</span>');
+    // A width of at least a letter stays: the words wrap inside it.
+    expect(shape('<div style="background-color:#06c;color:#fff;width:30px">a</div>')).toBe('<div style="background-color:#06c;color:#fff;width:30px">a</div>');
     expect(shape('<div style="background-color:#000;color:#fff;height:0"><span style="float:left">a</span></div>')).toBe(
-      '<div style="background-color:#000;color:#fff;display:flow-root"><span style="float:left">a</span></div>'
+      '<div style="background-color:#000;color:#fff;min-height:0;display:flow-root"><span style="float:left">a</span></div>'
     );
     // A table's parts grow to their words: their sizes stay.
     expect(shape('<td style="background-color:#000;color:#fff;height:20px">a</td>')).toBe('<td style="background-color:#000;color:#fff;height:20px">a</td>');
@@ -112,9 +140,19 @@ describe("the mail shaper (review of 2026-11-17)", () => {
     expect(shape('<div style="height:20px">a</div>')).toBe('<div style="height:20px">a</div>');
   });
 
-  it("keeps a picture inside its box and the frame", () => {
-    expect(shape('<img src="x" width="2000" style="max-width:none;min-width:2000px">')).toBe('<img src="x">');
-    expect(shape('<img src="x" width="600" style="max-width:100%">')).toBe('<img src="x" width="600" style="max-width:100%">');
+  it("leaves what holds no words as it is at main (review of 2026-11-17, rule 1)", () => {
+    // A picture keeps its size: a fluid logo, an icon, a hero held to 600, one wider than the frame (the frame scrolls to it).
+    expect(shape('<img src="x" width="200" style="display:block;width:100%;max-width:200px;height:auto">')).toBe('<img src="x" style="display:block;width:100%;max-width:200px;height:auto" width="200">');
+    expect(shape('<img src="x" width="1200" height="600" style="width:100%;max-width:600px;height:auto">')).toBe('<img src="x" style="width:100%;max-width:600px;height:auto" width="1200" height="600">');
+    expect(shape('<img src="x" width="2000" style="max-width:none;min-width:2000px">')).toBe('<img src="x" style="max-width:none;min-width:2000px" width="2000">');
+    // A dividing line, a bar, a dot keep their size and colour.
+    expect(shape('<div style="height:1px;background-color:#e0e0e0"></div>')).toBe('<div style="height:1px;background-color:#e0e0e0"></div>');
+    expect(shape('<div style="height:4px;background-color:#f60;max-width:600px;margin:0 auto"></div>')).toBe('<div style="height:4px;background-color:#f60;max-width:600px;margin:0 auto"></div>');
+    expect(shape('<span style="display:inline-block;width:8px;height:8px;background-color:#f00"></span> x')).toBe('<span style="display:inline-block;width:8px;height:8px;background-color:#f00"></span> x');
+    // A spacer cell's no-break space is no word; its colour attribute is given as the colour it is.
+    expect(shape('<table><tbody><tr><td bgcolor="#eeeeee" height="2" style="font-size:0;line-height:0">&nbsp;</td></tr></tbody></table>')).toBe(
+      '<table><tbody><tr><td height="2" style="background-color:#eeeeee;font-size:0">&nbsp;</td></tr></tbody></table>'
+    );
   });
 
   it("keeps overflow only where it clips a box to nothing", () => {
@@ -127,7 +165,7 @@ describe("the mail shaper (review of 2026-11-17)", () => {
   it("writes attributes the way they are read", () => {
     expect(shape('<div hidden="until-found">a</div>')).toBe('<div hidden="">a</div>');
     // A colour attribute as the legacy rule reads it — the colour a browser shows — given as a style.
-    expect(shape('<table bgcolor="ffffff" cellpadding="600"><tbody><tr><td nowrap="">a</td></tr></tbody></table>')).toBe('<table style="background-color:#ffffff"><tbody><tr><td>a</td></tr></tbody></table>');
+    expect(shape('<table bgcolor="ffffff" cellpadding="600"><tbody><tr><td nowrap="">a</td></tr></tbody></table>')).toBe('<table style="background-color:#ffffff"><tbody><tr><td nowrap="">a</td></tr></tbody></table>');
     expect(shape('<table bgcolor="chucknorris"><tbody><tr><td>a</td></tr></tbody></table>')).toBe('<table style="background-color:#c00000"><tbody><tr><td>a</td></tr></tbody></table>');
     expect(shape('<font color="fff">a</font>')).toBe('<font color="#0f0f0f">a</font>');
     // `bgcolor` paints only on a page and a table's parts.
@@ -184,6 +222,8 @@ describe("the walk on the reader's white sheet", () => {
     // On a gradient, against every one of its colours.
     expect(read('<div style="background-image:linear-gradient(#000,#333)"><span style="color:#fff">a</span></div>')).toBe("a");
     expect(read('<div style="background-image:linear-gradient(#fff,#000)"><span style="color:#fff">a</span></div>')).toBe("");
+    // A colour the letters inherit is the colour around them, a link's too (R4).
+    expect(read('<table bgcolor="#1a1a1a"><tr><td style="color:#fff"><a href="u" style="color:inherit">a</a><span style="color:var(--c, #eee)">b</span></td></tr></table>')).toBe("ab");
     // A link and a mark have colours of their own.
     expect(read('<div style="color:#fff"><a href="x">l</a><mark>m</mark>w</div>')).toBe("lm");
     // Without the white sheet the colours are the theme's: nothing is compared.

@@ -410,6 +410,8 @@ export function visibleDocumentOf<N>(root: N, reader: MarkupReader<N>, options: 
       const stops = backgroundImageColours(image);
       if (stops.length > 0) backgrounds = paint(stops, backgrounds);
     }
+    // `color: inherit` (as the list writes `currentColor` and `unset`) is the colour around it, a link's too.
+    if (declared.get("color") === "inherit") return { colour: before.colour, backgrounds, outsideTable };
     const own =
       readColour(declared.get("color") ?? "") ??
       (name === "font" ? readAttributeColour(reader.attribute(node, "color") ?? "") : null) ??
