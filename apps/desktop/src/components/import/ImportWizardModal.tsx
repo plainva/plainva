@@ -63,7 +63,7 @@ interface SelectedFileItem {
  * files. Saying that where they look beats saying it in a FAQ they will not
  * read (plan §5, E10).
  */
-const OBSIDIAN_ENTRY: ImportSourceId = 'obsidian';
+const OBSIDIAN_ENTRY = 'obsidian' satisfies ImportSourceId;
 
 /**
  * The letter on a source tile. Brand initials, not translations — a Notion
@@ -204,7 +204,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
   const sourceName = (id: ImportSourceId, fallback: string): string =>
     t(`import.sources.${id}`, { defaultValue: fallback }) as string;
 
-  const getSourceHint = (id: ImportSourceId): string =>
+  // Never asked for Obsidian: its card opens the vault instead (narrowed so the checker sees it, F53).
+  const getSourceHint = (id: Exclude<ImportSourceId, typeof OBSIDIAN_ENTRY>): string =>
     t(`import.hints.${id}`, { defaultValue: t('import.hints.generic_markdown') }) as string;
 
   const handleSelectFilesNative = async (mode: 'files' | 'folder') => {
@@ -932,7 +933,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 gap: 'var(--space-2)',
               }}
             >
-              {[...sources.map((x) => x.id), OBSIDIAN_ENTRY].map((id) => {
+              {([...sources.map((x) => x.id), OBSIDIAN_ENTRY] as ImportSourceId[]).map((id) => {
                 const on = id === selectedSourceId;
                 return (
                   <button
@@ -995,7 +996,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
                 );
               })}
             </div>
-            {!isObsidian && <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>}
+            {selectedSourceId !== OBSIDIAN_ENTRY && <p style={hintStyle}>{getSourceHint(selectedSourceId)}</p>}
           </div>
 
           {isObsidian && (

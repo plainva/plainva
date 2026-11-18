@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronRight, FolderClosed, Search } from "lucide-react";
 import { EmptyState, familyLabel, GroupCard, ICON, isServiceOff, Row, RowList, SearchField, searchSettings, SectionLabel, type CloudServiceId, type SettingsAreaDef, type SettingsSearchHit, settingsAreas } from "@plainva/ui";
 import { loadAccountCards, type AccountCard } from "./services/cloudAccountCards";
-import { getMobileWorkspaceStatus } from "./services/mobileWorkspaceSecurity";
+import { getMobileWorkspaceStatus, type MobileWorkspaceStatus } from "./services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry, type VaultEntry } from "./services/vaultRegistry";
 import { getSyncStatus, subscribeSyncStatus } from "./services/syncService";
 import { syncStateLabel } from "./components/syncSubtitle";
@@ -61,7 +61,8 @@ export function SettingsScreen({
   const [query, setQueryState] = useState(lastQuery);
   const setQuery = (next: string) => { rememberQuery(next); setQueryState(next); };
   const hits = useMemo(() => (query.trim() ? searchSettings(query, { shell: "mobile", t }) : []), [query, t]);
-  const [securityPhase, setSecurityPhase] = useState<string | null>(null);
+  // Typed as the status says it, so its words can be checked (F53: "pairing" had none).
+  const [securityPhase, setSecurityPhase] = useState<MobileWorkspaceStatus["phase"] | null>(null);
   useEffect(() => {
     const reload = () => void getActiveVaultEntry().then((e) => {
       setVaultEntry(e);

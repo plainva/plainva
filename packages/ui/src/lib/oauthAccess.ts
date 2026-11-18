@@ -72,11 +72,16 @@ export function plainvaGoogleClient(env: Record<string, unknown>, platform: Acce
   return { clientId, clientSecret: secret.trim() };
 }
 
+/** The type of Google client this platform needs: the domain of `accountAccess.ownTypeMismatch.<type>`. */
+export function googleClientType(platform: AccessPlatform): "desktop" | "ios" {
+  return platform === "desktop" ? "desktop" : "ios";
+}
+
 /** What a user's own client of this family must carry on this platform. */
 export function ownAccessRequirements(family: AccessFamily, platform: AccessPlatform): { secret: boolean; clientType: "desktop" | "ios" | "microsoft" | "dropbox" } {
   if (family === "microsoft") return { secret: false, clientType: "microsoft" };
   if (family === "dropbox") return { secret: false, clientType: "dropbox" };
-  return platform === "desktop" ? { secret: true, clientType: "desktop" } : { secret: false, clientType: "ios" };
+  return { secret: platform === "desktop", clientType: googleClientType(platform) };
 }
 
 /** Dropbox app keys are short lowercase tokens ("v21xhqs8g6o8tww"); a pasted secret or URL is not one. */

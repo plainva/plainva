@@ -517,7 +517,8 @@ export function EditorHost({
                 card.className = "pv-card pv-card--embed m-embed-card";
                 if (!resolved) {
                   card.classList.add("is-missing");
-                  card.textContent = t("noteEmbed." + resolvedTarget.status, { target });
+                  // Never "found" here (no path): narrowed so the checker sees the texts it reaches (F53).
+                  card.textContent = t("noteEmbed." + (resolvedTarget.status === "found" ? "missing" : resolvedTarget.status), { target });
                   container.appendChild(card);
                   return;
                 }

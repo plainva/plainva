@@ -329,6 +329,17 @@ describe("locale parity", () => {
 const VERBATIM_THRESHOLD = 6;
 
 const VERBATIM_ALLOWED = new Set<string>([
+  // Import sources and their formats (F53 of release 0.9.0): product names and file formats, the same in every language.
+  "import.sources.bear",
+  "import.sources.notesnook",
+  "import.sources.tana",
+  "import.sources.workflowy",
+  "import.formats.bear",
+  "import.formats.joplin",
+  "import.formats.roam_research",
+  "import.formats.tana",
+  "import.formats.tiddlywiki",
+  "import.formats.workflowy",
   // Who an AI notice comes from (plan KI-Oberflächen K10): "Plainva" is the product's name in every language.
   "ai.error.sender.plainva",
   // The internet chip of a conversation (plan KI-Oberflächen K7): "Internet" is the word in most languages.
