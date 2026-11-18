@@ -136,8 +136,20 @@ describe("the mail shaper (review of 2026-11-17)", () => {
     );
     // A table's parts grow to their words: their sizes stay.
     expect(shape('<td style="background-color:#000;color:#fff;height:20px">a</td>')).toBe('<td style="background-color:#000;color:#fff;height:20px">a</td>');
-    // A box without a background of its own may be any size.
-    expect(shape('<div style="height:20px">a</div>')).toBe('<div style="height:20px">a</div>');
+    // A box with words is never smaller than its words, painted or not (round 5): a later box would paint over what runs out.
+    expect(shape('<div style="height:20px">a</div>')).toBe('<div style="min-height:20px">a</div>');
+    expect(shape('<div style="height:0">a</div><div style="max-height:2px">b</div>')).toBe('<div style="min-height:0">a</div><div>b</div>');
+    // Lines on top of each other get the engine's own height; a usual tight heading keeps its own.
+    expect(shape('<div style="line-height:4px;font-size:14px">a</div>')).toBe('<div style="font-size:14px;line-height:normal">a</div>');
+    expect(shape('<div style="line-height:4px"><p>a</p></div>')).toBe('<div style="line-height:normal"><p>a</p></div>');
+    expect(shape('<h1 style="line-height:1.1">a</h1>')).toBe('<h1 style="line-height:1.1">a</h1>');
+    // A line that keeps itself whole is never held to a width it runs past.
+    expect(shape('<span style="display:inline-block;width:10px;white-space:nowrap">a</span>')).toBe('<span style="display:inline-block;min-width:10px;white-space:nowrap">a</span>');
+    expect(shape('<div style="white-space:nowrap"><div style="max-width:10px">a</div></div>')).toBe('<div style="white-space:nowrap"><div>a</div></div>');
+    // A word that does not break breaks where it would run past a fixed width, and only there: Korean set with `keep-all` wraps as at main.
+    expect(shape('<div style="word-break:keep-all;width:300px">a</div>')).toBe('<div style="word-break:keep-all;width:300px;overflow-wrap:anywhere">a</div>');
+    // A box that clips itself to nothing (a preview line) keeps its size: the reader and the walk both leave its words out.
+    expect(shape('<div style="max-height:0;overflow:hidden">a</div>')).toBe('<div style="max-height:0;overflow:hidden">a</div>');
   });
 
   it("leaves what holds no words as it is at main (review of 2026-11-17, rule 1)", () => {
@@ -157,9 +169,9 @@ describe("the mail shaper (review of 2026-11-17)", () => {
 
   it("keeps overflow only where it clips a box to nothing", () => {
     expect(shape('<div style="max-height:0;overflow:hidden">a</div>')).toBe('<div style="max-height:0;overflow:hidden">a</div>');
-    expect(shape('<div style="height:40px;overflow:hidden">a</div>')).toBe('<div style="height:40px">a</div>');
-    expect(shape('<span style="height:0;overflow:hidden">a</span>')).toBe('<span style="height:0">a</span>');
-    expect(shape('<div style="height:0;padding:8px;overflow:hidden">a</div>')).toBe('<div style="height:0;padding:8px">a</div>');
+    expect(shape('<div style="height:40px;overflow:hidden">a</div>')).toBe('<div style="min-height:40px">a</div>');
+    expect(shape('<span style="height:0;overflow:hidden">a</span>')).toBe('<span style="min-height:0">a</span>');
+    expect(shape('<div style="height:0;padding:8px;overflow:hidden">a</div>')).toBe('<div style="min-height:0;padding:8px">a</div>');
   });
 
   it("writes attributes the way they are read", () => {

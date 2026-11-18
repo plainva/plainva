@@ -152,7 +152,7 @@ export * from "./mailText.js";
 export * from "./vault/filterComparison.js";
 export * from "./linkScan.js";
 export { htmlToPlainText } from "./pim/htmlToMarkdown.js";
-export { htmlToVisibleDocument, htmlToVisibleText, JUDGED_BY_THE_WALK, MARKUP_NODES, MIN_OPACITY, MIN_TEXT_PX, visibleDocumentOf, WHITE_SHEET, type MarkupNode, type MarkupReader, type ReaderCanvas, type VisibleDocument, type VisibleLink, type VisibleOptions } from "./pim/htmlVisibleText.js";
+export { htmlToVisibleDocument, htmlToVisibleText, JUDGED_BY_THE_WALK, MARKUP_NODES, MIN_OPACITY, MIN_TEXT_PX, visibleDocumentOf, visibleDocumentSteps, WHITE_SHEET, type MarkupNode, type MarkupReader, type ReaderCanvas, type VisibleDocument, type VisibleLink, type VisibleOptions } from "./pim/htmlVisibleText.js";
 export { keptMailStyle, MAIL_STYLE, mailStyleDeclarations, readMailStyle, type MailDeclaration, type MailStyle, type MailStyleKind } from "./pim/mailStyle.js";
 export { MailShaper, LEFT_MAX, REACH_MAX, type ShapeAccess, type ShapeState } from "./pim/mailShape.js";
 export { readColour, type Rgba } from "./pim/mailColour.js";

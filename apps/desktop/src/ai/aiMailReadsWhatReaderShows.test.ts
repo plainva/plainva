@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { mailDocument, readableBody } from "@plainva/ui";
-import { mailBodyHtml, mailBodyView, mailMessageText, sanitizeEmailHtml, type MailMessage } from "@plainva/ui/mail";
+import { mailBodyHtml, mailBodyView, mailHtmlViewSoon, mailMessageText, sanitizeEmailHtml, type MailMessage } from "@plainva/ui/mail";
 
 /**
  * What the assistant reads of a mail is what the reader shows of it
@@ -79,8 +79,9 @@ const NOT_KEPT: Array<[string, string, string]> = [
   ["escaped display in hex", "display:\\6e one", ""],
   ["negative opacity", "opacity:-1", ""],
   ["opacity worked out", "opacity:calc(0)", ""],
-  ["a box of no height that scrolls", "height:0;overflow:scroll", "height:0"],
-  ["a box of no height that clips", "overflow:hidden hidden;max-height:0", "max-height:0"],
+  // A box with words is never smaller than its words (round 5): its height is its least.
+  ["a box of no height that scrolls", "height:0;overflow:scroll", "min-height:0"],
+  ["a box of no height that clips", "overflow:hidden hidden;max-height:0", ""],
   ["a box moved off the page", "position:absolute;left:-9999px", ""],
   // The line keeps itself whole, as at main: what runs past the frame, the frame scrolls to.
   ["a line indented off the page", "text-indent:-9999px;overflow:hidden;white-space:nowrap", "white-space:nowrap"],
@@ -256,9 +257,9 @@ describe("a newsletter reads as it did, and the assistant reads what it shows (r
     expect(given(html)?.getAttribute("style")).toBe("display:block;max-height:0;overflow:hidden");
     expect(mailDocument(message(html)).text).toContain(WORDS);
     expect(mailDocument(message(html)).text).not.toContain(SECRET);
-    // A clip that does not take the box to nothing is not given: the reader shows all of it.
+    // A clip that does not take the box to nothing is not given, and the box grows to its words: the reader shows all of them.
     const clipped = `<div id="x" style="height:20px;overflow:hidden">${WORDS}</div>`;
-    expect(given(clipped)?.getAttribute("style")).toBe("height:20px");
+    expect(given(clipped)?.getAttribute("style")).toBe("min-height:20px");
   });
 });
 
@@ -334,7 +335,8 @@ describe("one pass over a message (review of 2026-11-17)", () => {
       const without = mailBodyView({ ...message(html), text: "Plain." });
       expect(without?.html).not.toContain("cdn.example.org");
       expect(without?.blockedRemote).toBe(1);
-      expect(parse).toHaveBeenCalledTimes(1);
+      // The message is parsed once (the sanitizer's own empty documents for its steps aside).
+      expect(parse.mock.calls.filter(([text]) => String(text).includes("Hello there.")).length).toBe(1);
     } finally {
       parse.mockRestore();
     }
@@ -350,9 +352,72 @@ describe("one pass over a message (review of 2026-11-17)", () => {
       expect(mailBodyView(both)).toBe(shown);
       expect(readableBody(both, 40000).text).toBe("Hello there.");
       expect(mailMessageText({ text: null, html })).toBe("Hello there.");
-      expect(parse).toHaveBeenCalledTimes(1);
+      // The message is parsed once (the sanitizer's own empty documents for its steps aside).
+      expect(parse.mock.calls.filter(([text]) => String(text).includes("Hello there.")).length).toBe(1);
     } finally {
       parse.mockRestore();
     }
   });
 });
+
+describe("the assistant reads a mail nobody opened in steps (review of 2026-11-17, round 5)", () => {
+  /** A newsletter of many stories, each a table of its own, inside one wrapper — larger than one step of the sanitizer. */
+  const newsletter = (stories: number, tag: string) =>
+    `<table width="100%"><tr><td><div style="max-width:600px">${Array.from(
+      { length: stories },
+      (_, i) => `<table style="background-color:#fff"><tr><td style="padding:20px;color:#333"><h2 style="margin:0">Story ${i}</h2><p>Words of story ${i}. <a href="https://news.example.com/${i}">More</a></p><img src="https://cdn.example.com/${i}.jpg" width="540" height="300"></td></tr></table>`,
+    ).join("")}</div></td></tr></table><!-- ${tag} -->`;
+
+  it("gives the same markup and the same reading as the pass made at once", async () => {
+    const mails = [
+      newsletter(120, `a${Math.random()}`),
+      // A large element the sanitizer takes away with its content, and one it takes away keeping it.
+      `<p>before</p><form>${"<p>in a form</p>".repeat(400)}</form><style>${"p{}".repeat(10)}</style><noembed>${"<b>x</b>".repeat(400)}</noembed><p>after ${Math.random()}</p>`,
+      // A message that names its elements like the tree's own questions.
+      `<p>A</p><img name="body" src="cid:x"><form name="body"><input name="childNodes"><input name="firstChild">${"<p>Formular</p>".repeat(300)}</form><p>B ${Math.random()}</p>`,
+      // A large box without words beside words, and a table row whose cells come in steps.
+      `<table><tr>${Array.from({ length: 200 }, (_, i) => `<td width="300" style="padding:0 20px">cell ${i}</td>`).join("")}</tr></table><div style="height:1px;background-color:#eee">${"<span></span>".repeat(300)}</div><p>end ${Math.random()}</p>`,
+    ];
+    for (const html of mails) {
+      const soon = await mailHtmlViewSoon(html);
+      const markup = soon.html;
+      const reading = soon.document();
+      // A pass made at once over the same mail, apart from the one kept for it.
+      const atOnce = sanitizeEmailHtml(`${html} `);
+      expect(markup).toBe(atOnce.html.replace(/ $/, ""));
+      expect(reading).toEqual(mailBodyView({ html: `${html} `, text: null })!.document());
+    }
+  });
+
+  it("lets the interface in between its steps, and the reading after it finds the pass made", async () => {
+    const html = newsletter(200, `b${Math.random()}`);
+    let turns = 0;
+    let on = true;
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      turns++;
+      if (on) channel.port2.postMessage(null);
+    };
+    channel.port2.postMessage(null);
+    const now = vi.spyOn(performance, "now");
+    // Every step seems to take longer than a slice: the pass hands over after each.
+    let clock = 0;
+    now.mockImplementation(() => (clock += 10));
+    try {
+      await mailHtmlViewSoon(html);
+    } finally {
+      now.mockRestore();
+      on = false;
+      channel.port1.close();
+    }
+    expect(turns).toBeGreaterThan(5);
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
+    try {
+      expect(readableBody({ html, text: null }, 40000).text).toContain("Words of story 199.");
+      expect(parse).not.toHaveBeenCalled();
+    } finally {
+      parse.mockRestore();
+    }
+  });
+});
+

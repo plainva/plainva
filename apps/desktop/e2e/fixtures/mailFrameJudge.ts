@@ -7,8 +7,9 @@
  * A word counts as seen when the engine renders it (it is in the body's
  * `innerText`), it has a box, the box lies where a person gets to (inside the
  * frame, or where the frame scrolls to; not clipped by a box above it), it is
- * not hidden, not too faint and not too small (after the frame's scale), and
- * its colour stands out from what is painted behind it at that point. No
+ * not hidden, not too faint and not too small (after the frame's scale), no
+ * other element paints over it (asked of the engine at three points along
+ * it), and its colour stands out from what is painted behind it. No
  * other code: this file imports nothing.
  */
 
@@ -82,8 +83,49 @@ function unseen(frame: HTMLIFrameElement, range: Range, element: Element): strin
   if (opacity < MIN_OPACITY) return "faint";
   const px = parseFloat(style.fontSize) * scaleOf(doc);
   if (px < MIN_TEXT_PX) return `tiny ${px.toFixed(1)}`;
+  const cover = coveredBy(frame, range, boxes[0]);
+  if (cover) return `covered by <${cover}>`;
   const k = textContrast(frame, range, boxes[0]);
   return k < MIN_CONTRAST ? `contrast ${k.toFixed(2)}` : null;
+}
+
+/** Whether an element paints anything: a picture, a background colour, a background image. */
+function paintsAnything(win: Window, element: Element): boolean {
+  if (element.localName === "img") return true;
+  const style = win.getComputedStyle(element);
+  const fill = rgba(style.backgroundColor);
+  return (fill !== null && fill[3] > 0) || style.backgroundImage !== "none";
+}
+
+/**
+ * The element that paints over the words of `range` at each of three points
+ * along them (review of 2026-11-17, round 5): asked of the engine, which
+ * lists what lies at a point from the top down. Words under a cover at every
+ * point are not seen, whatever their contrast; `null` where they show.
+ */
+export function coveredBy(frame: HTMLIFrameElement, range: Range, first: DOMRect): string | null {
+  const doc = frame.contentDocument!;
+  const win = frame.contentWindow!;
+  const text = range.startContainer;
+  const element = (text.nodeType === 1 ? text : text.parentElement) as Element;
+  win.scrollTo(Math.max(0, first.left + win.scrollX - 20), Math.max(0, first.top + win.scrollY - 20));
+  const at = Array.from(range.getClientRects()).find((r) => r.width > 0 && r.height > 0) ?? first;
+  let cover: string | null = null;
+  for (const share of [0.2, 0.5, 0.8]) {
+    const x = Math.min(Math.max(at.left + (at.right - at.left) * share, 1), frame.clientWidth - 2);
+    const y = Math.min(Math.max((at.top + at.bottom) / 2, 1), (frame.clientHeight || doc.documentElement.clientHeight) - 2);
+    let over: string | null = null;
+    for (const above of doc.elementsFromPoint(x, y)) {
+      if (above === element || above.contains(text)) break;
+      if (paintsAnything(win, above)) {
+        over = above.localName;
+        break;
+      }
+    }
+    if (over === null) return null;
+    cover = over;
+  }
+  return cover;
 }
 
 /** The contrast of the words of `range` against what the engine paints behind them, at the box `first` of them. */

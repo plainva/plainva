@@ -1,7 +1,7 @@
 /**
  * The mails of the review rounds of 2026-11-16 and 2026-11-17 (Fehlerliste
  * 0.9.0 C9/F23) and ordinary newsletter forms, each with the marker words the
- * reader of `main` (f9e91bad8; the cases of review 4 ee8f2a950, 2026-11-17) showed at a phone width
+ * reader of `main` (f9e91bad8; the cases of review 4 ee8f2a950, of review 5 0cc093f20) showed at a phone width
  * (343 px) and a desktop width (760 px), judged in Chromium by
  * `mailFrameJudge.ts`. Frozen: every word `main` showed is one the reader
  * shows now (`mailFrameEquality.spec.ts`). A word marked SECRET may be hidden;
@@ -1875,6 +1875,706 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
    "343": [],
    "760": []
   },
-  "note": "A painted block folded away on purpose (max-height:0;overflow:hidden) opens for the reader and the assistant alike: when in doubt, visible to both (agreed 2026-11-17)."
+  "note": "A painted block folded away on purpose (max-height:0;overflow:hidden) stays folded for the reader and the assistant alike, as at main: a box that clips itself to nothing keeps its size (round 5; in round 4 it opened for both, which was agreed too)."
+ },
+ {
+  "name": "review 5 · a1 h0 text, wordless opacity cover",
+  "html": "<p>VISIBLEa1</p><div style=\"height:0\">SECRETa1</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEa1b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa1",
+    "VISIBLEa1b"
+   ],
+   "760": [
+    "VISIBLEa1",
+    "VISIBLEa1b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a2 h0 text, wordless inline-block cover",
+  "html": "<p>VISIBLEa2</p><div style=\"height:0\">SECRETa2</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa2"
+   ],
+   "760": [
+    "VISIBLEa2"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a3 h0 text, wordless white img cover",
+  "html": "<p>VISIBLEa3</p><div style=\"height:0\">SECRETa3</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\">",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa3"
+   ],
+   "760": [
+    "VISIBLEa3"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a4 h0 text, wordless cell cover",
+  "html": "<p>VISIBLEa4</p><div style=\"height:0\">SECRETa4</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#fff\"></td></tr></table>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa4"
+   ],
+   "760": [
+    "VISIBLEa4"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a5 h0 text, cover with a word and padding (opacity)",
+  "html": "<p>VISIBLEa5</p><div style=\"height:0\">SECRETa5</div><div style=\"opacity:0.99;background-color:#ffffff;padding:20px 0\">x</div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa5"
+   ],
+   "760": [
+    "VISIBLEa5"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a6 h0 text, inline-block cover with a word",
+  "html": "<p>VISIBLEa6</p><div style=\"height:0\">SECRETa6</div><div><span style=\"display:inline-block;width:600px;padding:12px 0;background-color:#ffffff\">&#8203;x</span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa6"
+   ],
+   "760": [
+    "VISIBLEa6"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a7 line-height 4px text, wordless covers",
+  "html": "<div style=\"opacity:0.99;background-color:#fff;height:30px\"></div><div style=\"line-height:4px;font-size:14px\">SECRETa7</div><div style=\"opacity:0.99;background-color:#fff;height:30px;margin-top:0\"></div><p>VISIBLEa7</p>",
+  "mainSeen": {
+   "343": [
+    "SECRETa7",
+    "VISIBLEa7"
+   ],
+   "760": [
+    "SECRETa7",
+    "VISIBLEa7"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a8 cover inline-block after text on same line",
+  "html": "<p>VISIBLEa8 <span style=\"display:inline-block;width:0;height:0\"></span></p><div style=\"height:0;white-space:nowrap\">SECRETa8 SECRETa8 SECRETa8</div><span style=\"display:inline-block;width:900px;height:30px;background-color:#fff\"></span>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa8"
+   ],
+   "760": [
+    "VISIBLEa8"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a9 cover with nbsp only",
+  "html": "<div style=\"height:0\">SECRETa9</div><div style=\"opacity:0.99;background-color:#fff;height:40px\">&nbsp;&nbsp;</div><p>VISIBLEa9</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa9"
+   ],
+   "760": [
+    "VISIBLEa9"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · a10 cover is a td of spacer table with height",
+  "html": "<div style=\"height:0\">SECRETa10</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEa10</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEa10"
+   ],
+   "760": [
+    "VISIBLEa10"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h0 under opacity",
+  "html": "<p>VISIBLEf1</p><div style=\"font-size:14px;height:0\">SECRETf1</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf1b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf1",
+    "VISIBLEf1b"
+   ],
+   "760": [
+    "VISIBLEf1",
+    "VISIBLEf1b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h0 under inlineblock",
+  "html": "<p>VISIBLEf2</p><div style=\"font-size:14px;height:0\">SECRETf2</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf2b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf2",
+    "VISIBLEf2b"
+   ],
+   "760": [
+    "VISIBLEf2",
+    "VISIBLEf2b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h0 under picture",
+  "html": "<p>VISIBLEf3</p><div style=\"font-size:14px;height:0\">SECRETf3</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf3b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf3",
+    "VISIBLEf3b"
+   ],
+   "760": [
+    "VISIBLEf3",
+    "VISIBLEf3b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h0 under cell",
+  "html": "<p>VISIBLEf4</p><div style=\"font-size:14px;height:0\">SECRETf4</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf4b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf4",
+    "VISIBLEf4b"
+   ],
+   "760": [
+    "VISIBLEf4",
+    "VISIBLEf4b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h0 under table",
+  "html": "<p>VISIBLEf5</p><div style=\"font-size:14px;height:0\">SECRETf5</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf5b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf5",
+    "VISIBLEf5b"
+   ],
+   "760": [
+    "VISIBLEf5",
+    "VISIBLEf5b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h4 under opacity",
+  "html": "<p>VISIBLEf6</p><div style=\"font-size:14px;height:4px\">SECRETf6</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf6b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf6",
+    "VISIBLEf6b"
+   ],
+   "760": [
+    "VISIBLEf6",
+    "VISIBLEf6b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h4 under inlineblock",
+  "html": "<p>VISIBLEf7</p><div style=\"font-size:14px;height:4px\">SECRETf7</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf7b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf7",
+    "VISIBLEf7b"
+   ],
+   "760": [
+    "VISIBLEf7",
+    "VISIBLEf7b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h4 under picture",
+  "html": "<p>VISIBLEf8</p><div style=\"font-size:14px;height:4px\">SECRETf8</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf8b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf8",
+    "VISIBLEf8b"
+   ],
+   "760": [
+    "VISIBLEf8",
+    "VISIBLEf8b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h4 under cell",
+  "html": "<p>VISIBLEf9</p><div style=\"font-size:14px;height:4px\">SECRETf9</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf9b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf9",
+    "VISIBLEf9b"
+   ],
+   "760": [
+    "VISIBLEf9",
+    "VISIBLEf9b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family h4 under table",
+  "html": "<p>VISIBLEf10</p><div style=\"font-size:14px;height:4px\">SECRETf10</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf10b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf10",
+    "VISIBLEf10b"
+   ],
+   "760": [
+    "VISIBLEf10",
+    "VISIBLEf10b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh0 under opacity",
+  "html": "<p>VISIBLEf11</p><div style=\"font-size:14px;max-height:0\">SECRETf11</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf11b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf11",
+    "VISIBLEf11b"
+   ],
+   "760": [
+    "VISIBLEf11",
+    "VISIBLEf11b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh0 under inlineblock",
+  "html": "<p>VISIBLEf12</p><div style=\"font-size:14px;max-height:0\">SECRETf12</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf12b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf12",
+    "VISIBLEf12b"
+   ],
+   "760": [
+    "VISIBLEf12",
+    "VISIBLEf12b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh0 under picture",
+  "html": "<p>VISIBLEf13</p><div style=\"font-size:14px;max-height:0\">SECRETf13</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf13b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf13",
+    "VISIBLEf13b"
+   ],
+   "760": [
+    "VISIBLEf13",
+    "VISIBLEf13b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh0 under cell",
+  "html": "<p>VISIBLEf14</p><div style=\"font-size:14px;max-height:0\">SECRETf14</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf14b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf14",
+    "VISIBLEf14b"
+   ],
+   "760": [
+    "VISIBLEf14",
+    "VISIBLEf14b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh0 under table",
+  "html": "<p>VISIBLEf15</p><div style=\"font-size:14px;max-height:0\">SECRETf15</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf15b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf15",
+    "VISIBLEf15b"
+   ],
+   "760": [
+    "VISIBLEf15",
+    "VISIBLEf15b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh4 under opacity",
+  "html": "<p>VISIBLEf16</p><div style=\"font-size:14px;max-height:4px\">SECRETf16</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf16b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf16",
+    "VISIBLEf16b"
+   ],
+   "760": [
+    "VISIBLEf16",
+    "VISIBLEf16b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh4 under inlineblock",
+  "html": "<p>VISIBLEf17</p><div style=\"font-size:14px;max-height:4px\">SECRETf17</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf17b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf17",
+    "VISIBLEf17b"
+   ],
+   "760": [
+    "VISIBLEf17",
+    "VISIBLEf17b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh4 under picture",
+  "html": "<p>VISIBLEf18</p><div style=\"font-size:14px;max-height:4px\">SECRETf18</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf18b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf18",
+    "VISIBLEf18b"
+   ],
+   "760": [
+    "VISIBLEf18",
+    "VISIBLEf18b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh4 under cell",
+  "html": "<p>VISIBLEf19</p><div style=\"font-size:14px;max-height:4px\">SECRETf19</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf19b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf19",
+    "VISIBLEf19b"
+   ],
+   "760": [
+    "VISIBLEf19",
+    "VISIBLEf19b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mh4 under table",
+  "html": "<p>VISIBLEf20</p><div style=\"font-size:14px;max-height:4px\">SECRETf20</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf20b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf20",
+    "VISIBLEf20b"
+   ],
+   "760": [
+    "VISIBLEf20",
+    "VISIBLEf20b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh4 under opacity",
+  "html": "<p>VISIBLEf21</p><div style=\"font-size:14px;line-height:4px\">SECRETf21</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf21b</p>",
+  "mainSeen": {
+   "343": [
+    "SECRETf21",
+    "VISIBLEf21",
+    "VISIBLEf21b"
+   ],
+   "760": [
+    "SECRETf21",
+    "VISIBLEf21",
+    "VISIBLEf21b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh4 under inlineblock",
+  "html": "<p>VISIBLEf22</p><div style=\"font-size:14px;line-height:4px\">SECRETf22</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf22b</p>",
+  "mainSeen": {
+   "343": [
+    "SECRETf22",
+    "VISIBLEf22",
+    "VISIBLEf22b"
+   ],
+   "760": [
+    "SECRETf22",
+    "VISIBLEf22",
+    "VISIBLEf22b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh4 under picture",
+  "html": "<p>VISIBLEf23</p><div style=\"font-size:14px;line-height:4px\">SECRETf23</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf23b</p>",
+  "mainSeen": {
+   "343": [
+    "SECRETf23",
+    "VISIBLEf23",
+    "VISIBLEf23b"
+   ],
+   "760": [
+    "SECRETf23",
+    "VISIBLEf23",
+    "VISIBLEf23b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh4 under cell",
+  "html": "<p>VISIBLEf24</p><div style=\"font-size:14px;line-height:4px\">SECRETf24</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf24b</p>",
+  "mainSeen": {
+   "343": [
+    "SECRETf24",
+    "VISIBLEf24",
+    "VISIBLEf24b"
+   ],
+   "760": [
+    "SECRETf24",
+    "VISIBLEf24",
+    "VISIBLEf24b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh4 under table",
+  "html": "<p>VISIBLEf25</p><div style=\"font-size:14px;line-height:4px\">SECRETf25</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf25b</p>",
+  "mainSeen": {
+   "343": [
+    "SECRETf25",
+    "VISIBLEf25",
+    "VISIBLEf25b"
+   ],
+   "760": [
+    "SECRETf25",
+    "VISIBLEf25",
+    "VISIBLEf25b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh01 under opacity",
+  "html": "<p>VISIBLEf26</p><div style=\"font-size:14px;line-height:0.1\">SECRETf26</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf26b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf26",
+    "VISIBLEf26b"
+   ],
+   "760": [
+    "VISIBLEf26",
+    "VISIBLEf26b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh01 under inlineblock",
+  "html": "<p>VISIBLEf27</p><div style=\"font-size:14px;line-height:0.1\">SECRETf27</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf27b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf27",
+    "VISIBLEf27b"
+   ],
+   "760": [
+    "VISIBLEf27",
+    "VISIBLEf27b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh01 under picture",
+  "html": "<p>VISIBLEf28</p><div style=\"font-size:14px;line-height:0.1\">SECRETf28</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf28b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf28",
+    "VISIBLEf28b"
+   ],
+   "760": [
+    "VISIBLEf28",
+    "VISIBLEf28b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh01 under cell",
+  "html": "<p>VISIBLEf29</p><div style=\"font-size:14px;line-height:0.1\">SECRETf29</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf29b</p>",
+  "mainSeen": {
+   "343": [
+    "SECRETf29",
+    "VISIBLEf29",
+    "VISIBLEf29b"
+   ],
+   "760": [
+    "SECRETf29",
+    "VISIBLEf29",
+    "VISIBLEf29b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family lh01 under table",
+  "html": "<p>VISIBLEf30</p><div style=\"font-size:14px;line-height:0.1\">SECRETf30</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf30b</p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf30",
+    "VISIBLEf30b"
+   ],
+   "760": [
+    "VISIBLEf30",
+    "VISIBLEf30b"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wnw beside opacity",
+  "html": "<p>VISIBLEf31</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf31longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf31"
+   ],
+   "760": [
+    "VISIBLEf31"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wnw beside inlineblock",
+  "html": "<p>VISIBLEf32</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf32longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf32"
+   ],
+   "760": [
+    "VISIBLEf32"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wnw beside picture",
+  "html": "<p>VISIBLEf33</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf33longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf33"
+   ],
+   "760": [
+    "VISIBLEf33"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mwnw beside opacity",
+  "html": "<p>VISIBLEf34</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf34longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf34"
+   ],
+   "760": [
+    "VISIBLEf34"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mwnw beside inlineblock",
+  "html": "<p>VISIBLEf35</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf35longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf35"
+   ],
+   "760": [
+    "VISIBLEf35"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family mwnw beside picture",
+  "html": "<p>VISIBLEf36</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf36longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf36"
+   ],
+   "760": [
+    "VISIBLEf36"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wwb beside opacity",
+  "html": "<p>VISIBLEf37</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf37longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf37"
+   ],
+   "760": [
+    "VISIBLEf37"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wwb beside inlineblock",
+  "html": "<p>VISIBLEf38</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf38longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf38"
+   ],
+   "760": [
+    "VISIBLEf38"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wwb beside picture",
+  "html": "<p>VISIBLEf39</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf39longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf39"
+   ],
+   "760": [
+    "VISIBLEf39"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wka beside opacity",
+  "html": "<p>VISIBLEf40</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf40longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf40"
+   ],
+   "760": [
+    "VISIBLEf40"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wka beside inlineblock",
+  "html": "<p>VISIBLEf41</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf41longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf41"
+   ],
+   "760": [
+    "VISIBLEf41"
+   ]
+  }
+ },
+ {
+  "name": "review 5 · family wka beside picture",
+  "html": "<p>VISIBLEf42</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf42longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEf42"
+   ],
+   "760": [
+    "VISIBLEf42"
+   ]
+  }
  }
 ];

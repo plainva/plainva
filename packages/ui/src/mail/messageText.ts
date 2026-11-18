@@ -1,5 +1,5 @@
 import { htmlToVisibleDocument, type VisibleDocument } from "@plainva/core";
-import { mailHtmlView, type MailHtmlView, type SanitizeEmailOptions } from "./mailSanitize";
+import { mailHtmlView, mailHtmlViewSoon, type MailHtmlView, type SanitizeEmailOptions } from "./mailSanitize";
 import type { MailMessage } from "./types";
 
 /** The two parts of a message its text can come from. */
@@ -52,6 +52,22 @@ export function mailBodyView(message: MailBodyParts, options?: SanitizeEmailOpti
   const view = viewOf(html, options);
   if (!(message.text ?? "").trim()) return view;
   return view.shows() ? view : null;
+}
+
+/**
+ * Makes the pass over an HTML part in steps that let the interface in
+ * between (`mailHtmlViewSoon`), for a reader that is not on screen — the
+ * assistant reading mails nobody opened (review of 2026-11-17, round 5). What
+ * reads the part afterwards finds the pass made. Nothing where there is no
+ * HTML or no DOM.
+ */
+export async function prepareMailHtml(html: string | null | undefined): Promise<void> {
+  if (!html) return;
+  try {
+    await mailHtmlViewSoon(html);
+  } catch {
+    // No DOM: the part is read by the portable parser when it is asked for.
+  }
 }
 
 /** The HTML part the reader shows as the body (`mailBodyView`), as the mail wrote it; `null` for the text part. */
