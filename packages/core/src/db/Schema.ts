@@ -7,7 +7,7 @@ import { runStatementsAtomic } from "./batch.js";
 import { FIRST_ROWID_BEFORE, FULL_TEXT_SENTINEL, fullTextRowOf, UNNUMBERED_FLAG } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 import { INDEX_CHANGES_SCHEMA } from "./indexChanges.js";
-import { FULL_TEXT_DAMAGED_MARK, fullTextDamageNoted, isDamagedFullText } from "./fullTextDamage.js";
+import { FULL_TEXT_DAMAGED_MARK, fullTextDamageNoted, isDamagedFullText, noteFullTextRebuildFailed } from "./fullTextDamage.js";
 
 export { isDamagedFullText };
 
@@ -41,7 +41,15 @@ const FTS_NOTES_COLUMNS = `content,
 export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   if (await fullTextDamageNoted(db)) {
     console.error("[index] a damaged full-text index was noted; it is built anew");
-    await runStatementsAtomic(db, await fullTextAnew(db));
+    try {
+      await runStatementsAtomic(db, await fullTextAnew(db));
+    } catch (error) {
+      // A note never keeps the vault from opening: it opens as it would
+      // without one, without search, and the note keeps the failed attempt
+      // (the next open tries again; the search names the way that helps).
+      const failures = await noteFullTextRebuildFailed(db, error).catch(() => 0);
+      if (failures <= 1) console.error("[index] building the noted full-text index anew failed; the vault opens without it", error);
+    }
   }
   try {
     await bringSchemaUp(db);

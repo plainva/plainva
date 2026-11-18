@@ -12,6 +12,7 @@ import { parkTemplateCaret } from "@plainva/ui";
 import { toast } from "@plainva/ui";
 import { virtualTabMeta } from "./graph/virtualPaths";
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
+import { FullTextDamageNotice } from "./FullTextDamageNotice";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -306,7 +307,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                 );
               })}
               {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-          {searchPage.damaged ? <p role="status">{t("errors.fullTextDamaged")}</p> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+          {searchPage.damaged ? <FullTextDamageNotice damaged /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
           {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
           {showCreateRow && (
                 <div

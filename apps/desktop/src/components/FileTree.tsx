@@ -53,6 +53,7 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_FOLDER_SORT, type FolderSort, type SearchSort } from "@plainva/ui";
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
 import { useVaultLabels, vaultAppName } from "../services/vaultNames";
+import { FullTextDamageNotice } from "./FullTextDamageNotice";
 
 // The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
 // elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.
@@ -1270,7 +1271,7 @@ export const FileTree: React.FC<{
               : undefined
         }
       >
-        {isSearching ? (searchPage.loading ? t("searchResults.loading") : searchPage.damaged ? t("errors.fullTextDamaged") : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
+        {isSearching ? (searchPage.loading ? t("searchResults.loading") : searchPage.damaged ? <FullTextDamageNotice damaged /> : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
       </EmptyState>
     );
   } else if (isSearching) {
@@ -1403,7 +1404,7 @@ export const FileTree: React.FC<{
         {showGroupHeaders && groupHeader("gh-content", t("sidebar.matchesContent"), searchGroups.content.length)}
         {searchGroups.content.map(renderHit)}
         {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-        {searchPage.damaged ? <p role="status">{t("errors.fullTextDamaged")}</p> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+        {searchPage.damaged ? <FullTextDamageNotice damaged /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
         {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
         <ActiveSemanticCoverage />
       </div>

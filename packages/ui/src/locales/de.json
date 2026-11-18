@@ -5166,6 +5166,8 @@
     "areaReload": "Diesen Bereich neu laden",
     "structureNeedsIndex": "Das geht gerade nicht: Der Suchindex ließ sich auf diesem Gerät nicht öffnen, deshalb könnte die Synchronisation ein Löschen, Umbenennen, Verschieben oder einen neuen Ordner nicht an Deine anderen Geräte weitergeben. Starte die App neu, um es erneut zu versuchen; Deine Notizen selbst sind unberührt.",
     "fullTextDamaged": "Der Suchindex ist beschädigt. Plainva baut ihn beim nächsten Öffnen neu auf; bis dahin findet die Suche nichts. Deine Notizen selbst sind unberührt.",
+    "fullTextRebuildFailed": "Der Suchindex ist beschädigt, und Plainva konnte ihn nicht von selbst neu aufbauen; die Suche findet nichts. Abhilfe schafft „{{action}}“: Plainva legt die Indexdatenbank beiseite und baut sie neu. Deine Notizen selbst sind unberührt.",
+    "fullTextRebuildFailedWorkspace": "Der Suchindex ist beschädigt, und Plainva konnte ihn nicht von selbst neu aufbauen; die Suche findet nichts. In einem verschlüsselten Workspace baut Plainva die Datenbank nicht neu auf, weil sie Änderungen hält, die Deine anderen Geräte noch nicht haben. Alles andere arbeitet weiter, und Deine Notizen selbst sind unberührt.",
     "indexClosedNotice": "Der Suchindex ließ sich auf diesem Gerät nicht öffnen. Du kannst Notizen lesen, schreiben und anlegen; Löschen, Umbenennen, Verschieben und neue Ordner bleiben aus, bis er sich öffnen lässt. Starte die App neu, um es erneut zu versuchen; Deine Notizen sind unberührt.",
     "background": {
       "aiKeyNotRemoved": "Der Schlüssel für {{provider}} ließ sich nicht von diesem Gerät entfernen, deshalb bleibt {{provider}} in der Liste: {{reason}}",

@@ -7,6 +7,7 @@ import type { StreamEvent } from "./streams.js";
 import { DISPATCH_TOOL, dispatchedArgs, FIND_TOOL, META_TOOL_NAMES, parseToolInput, toolByName, type ToolManifest } from "./tools.js";
 import { fenceUntrusted, payload, type PayloadOrigin } from "./trust.js";
 import { fitsWindow } from "./window.js";
+import { toolFailureText } from "./toolFailure.js";
 
 /**
  * The orchestrator (§20): model call → tool calls → results → model call …
@@ -396,7 +397,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           try {
             outcome = await input.executor.execute(tool, parsed.value, meant, input.signal);
           } catch (error) {
-            outcome = { content: `The tool failed: ${error instanceof Error ? error.message : String(error)}`, isError: true };
+            outcome = { content: toolFailureText(error), isError: true };
           }
         }
       }
