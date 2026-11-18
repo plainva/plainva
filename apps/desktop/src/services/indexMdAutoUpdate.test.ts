@@ -178,7 +178,7 @@ describe("the root overview's heading (F7 of release 0.9.0)", () => {
     }
   });
 
-  it("so does updating every overview, and a root without a heading gets the vault's name", async () => {
+  it("so does updating every overview, and a root without a vault heading keeps having none", async () => {
     const v = makeVault({ "index.md": root("Mein Wiki"), "P/index.md": `${PLAINVA_INDEX_MARKER}\n`, "P/a.md": "# a\n" });
     await updateAllManagedIndexes(deps(v, { vaultName: () => "wiki_dev" }));
     expect(headingOf(v.store.get("index.md"))).toBe("# Mein Wiki");
@@ -186,7 +186,23 @@ describe("the root overview's heading (F7 of release 0.9.0)", () => {
     expect(headingOf(v.store.get("P/index.md"))).toBe("# P");
     const bare = makeVault({ "index.md": `---\nokf_version: "0.2"\n---\n\n${PLAINVA_INDEX_MARKER}\n`, "A.md": "# A\n" });
     await updateAllManagedIndexes(deps(bare, { vaultName: () => "wiki_dev" }));
-    expect(headingOf(bare.store.get("index.md"))).toBe("# wiki_dev");
+    // The name comes only from creating the listing.
+    expect(headingOf(bare.store.get("index.md"))).toBeUndefined();
+    expect(bare.store.get("index.md")).toContain("* [A](A.md)");
+  });
+
+  it("a heading of the list itself is never the vault's name (review 17.11.)", async () => {
+    // No vault heading, subfolders only: the listing opens with its subfolder section.
+    const text = `---\nokf_version: "0.2"\n---\n\n# Unterordner\n\n* [P](P/index.md)\n* Q\n\n${PLAINVA_INDEX_MARKER}\n`;
+    const v = makeVault({ "index.md": text, "P/index.md": `${PLAINVA_INDEX_MARKER}\n`, "P/a.md": "# a\n", "Q/b.md": "# b\n" });
+    for (let i = 0; i < 2; i++) await updateAllManagedIndexes(deps(v, { vaultName: () => "wiki_dev" }));
+    const after = v.store.get("index.md")!;
+    expect(after.split("\n").filter((line) => line.startsWith("# "))).toEqual(["# Unterordner"]);
+    expect(after).toContain("* [P](P/index.md)");
+    // With a vault heading and subfolders only, the first heading is the vault's.
+    const named = makeVault({ "index.md": `---\nokf_version: "0.2"\n---\n\n# Mein Wiki\n\n# Unterordner\n\n* Q\n\n${PLAINVA_INDEX_MARKER}\n`, "Q/b.md": "# b\n" });
+    await updateAllManagedIndexes(deps(named, { vaultName: () => "wiki_dev" }));
+    expect(named.store.get("index.md")!.split("\n").filter((line) => line.startsWith("# "))).toEqual(["# Mein Wiki", "# Unterordner"]);
   });
 
   it("keeps a heading behind properties written with CRLF", async () => {

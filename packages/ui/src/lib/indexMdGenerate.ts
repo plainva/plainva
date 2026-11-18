@@ -63,15 +63,24 @@ export async function backupIndexFile(
   return backupPath;
 }
 
-/** The first `# ` heading of a listing, behind its properties — null when it has none. */
+/**
+ * The heading that names the vault in a root listing, or null where it has
+ * none. It is the listing's first `# ` line, unless that line opens the
+ * subfolder section (F7, review 17.11.): a listing without a vault heading
+ * and with subfolders starts with `# <subfolders>`, followed by entries that
+ * point INTO a folder (`* [A](A/index.md)`) or name one without a link
+ * (`* A`); a file of the root is a link without a `/`. A heading of the list
+ * itself is never the vault's name.
+ */
 export function listingHeadingOf(text: string): string | null {
   const fm = frontmatterSpan(text);
-  const rest = fm ? text.slice(fm.end) : text.replace(/^\uFEFF/, "");
-  for (const line of rest.split(/\r\n|\n|\r/)) {
-    const m = /^# (.*)$/.exec(line);
-    if (m) return m[1].trimEnd();
-  }
-  return null;
+  const lines = (fm ? text.slice(fm.end) : text.replace(/^\uFEFF/, "")).split(/\r\n|\n|\r/);
+  const first = lines.findIndex((line) => /^# /.test(line));
+  if (first < 0) return null;
+  const headings = lines.filter((line) => /^# /.test(line)).length;
+  const next = lines.slice(first + 1).find((line) => line.trim() !== "");
+  const opensSubfolders = headings === 1 && next !== undefined && /^\* (?!\[)|^\* \[[^\]]*\]\([^)/]*\//.test(next);
+  return opensSubfolders ? null : lines[first].slice(2).trimEnd();
 }
 
 /**
@@ -133,11 +142,14 @@ export async function generateIndexForFolder(opts: {
   // list entry, a translated label for an unnamed one (F7 of release 0.9.0).
   // The root listing is synced, so writing the device's name over the one that
   // is there made each device rewrite the others' heading on every refresh. A
-  // listing Plainva keeps keeps its heading; only a new one is named. A
+  // listing Plainva keeps keeps its vault heading, or its lack of one; only a
+  // new one is named. A
   // subfolder's heading is its folder's name, the same everywhere, and follows
   // a rename.
-  const kept = bundleRoot && existing !== null && isPlainvaManagedIndex(existing) ? listingHeadingOf(existing) : null;
-  const heading = kept ?? opts.heading;
+  // A refresh of the root names nothing: it keeps the vault heading that is
+  // there, and where there is none it writes none — the name comes only from
+  // creating the listing.
+  const heading = bundleRoot && existing !== null && isPlainvaManagedIndex(existing) ? listingHeadingOf(existing) : opts.heading;
 
   const content = generateIndexContent({
     folder,
