@@ -3,6 +3,7 @@ import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Capacitor } from "@capacitor/core";
 import { mimeTypeForPath } from "@plainva/core";
 import type { MobileVault } from "./vaultService";
+import { PartFileSink } from "./vaultExport";
 
 /**
  * Hands a vault file to another app (S42).
@@ -47,13 +48,15 @@ async function shareBytes(name: string, bytes: Uint8Array, mime: string): Promis
     return;
   }
 
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
   const staged = `share/${name}`;
   await Filesystem.mkdir({ path: "share", directory: Directory.Cache, recursive: true }).catch(() => {
     // silent: it exists already, or the write below fails and says why.
   });
-  await Filesystem.writeFile({ path: staged, data: btoa(binary), directory: Directory.Cache });
+  // In parts, as the export's archive: a picture or a PDF in one call is the
+  // message Android parses on its UI thread (release list F54, the class of F51).
+  const sink = new PartFileSink(staged, Directory.Cache);
+  await sink.write(bytes);
+  await sink.close();
   const { uri } = await Filesystem.getUri({ path: staged, directory: Directory.Cache });
   try {
     await Share.share({ title: name, url: uri });

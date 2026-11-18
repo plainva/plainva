@@ -50,7 +50,7 @@ import { getStoredAppFonts, setStoredAppFonts, defaultAppFontSettings, type AppF
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/linkCreatePrompt";
-import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK } from "../services/spellcheck";
+import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK, spellcheckHint, useWebviewSpellStatus } from "../services/spellcheck";
 import { DEFAULT_NEW_NOTES_IN_NEW_TAB, getStoredNewNotesInNewTab, setStoredNewNotesInNewTab } from "../services/newNoteTab";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, classifyUpdateFailure, describeUpdateFailure, downloadAndInstallUpdate, getAutoUpdateCheck, getUpdatesManagedBy, setAutoUpdateCheck } from "../services/appUpdate";
@@ -149,6 +149,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getAskBeforeCreateLink().then(setAskBeforeCreateLinkState).catch(() => {}); }, []);
   const [spellcheck, setSpellcheck] = useState(DEFAULT_SPELLCHECK);
   useEffect(() => { getStoredSpellcheck().then(setSpellcheck).catch(() => {}); }, []);
+  const webviewSpellStatus = useWebviewSpellStatus();
   const [newNotesInNewTab, setNewNotesInNewTab] = useState(DEFAULT_NEW_NOTES_IN_NEW_TAB);
   useEffect(() => { getStoredNewNotesInNewTab().then(setNewNotesInNewTab).catch(() => {}); }, []);
   const [uiZoom, setUiZoom] = useState<number>(DEFAULT_UI_ZOOM);
@@ -688,7 +689,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     try {
       setIsUpdating(true);
       setUpdateStatus(t("settings.installingUpdate", "Lade Update herunter und installiere..."));
-      await downloadAndInstallUpdate(updateAvailable);
+      await downloadAndInstallUpdate(
+        updateAvailable,
+        (seconds) => setUpdateStatus(t("settings.updateWaitingForWrites", { seconds })),
+        () => setUpdateStatus(t("settings.installingUpdate", "Lade Update herunter und installiere...")),
+      );
     } catch (e) {
       setIsUpdating(false);
       logDiagnostic("update.install", String(e));
@@ -888,6 +893,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       askBeforeCreateLink={askBeforeCreateLink}
                       onAskBeforeCreateLink={(v) => { setAskBeforeCreateLinkState(v); void setAskBeforeCreateLink(v); }}
                       spellcheck={spellcheck}
+                      spellcheckHint={spellcheckHint(spellcheck, webviewSpellStatus)}
                       onSpellcheck={(v) => { setSpellcheck(v); void setStoredSpellcheck(v); }}
                       newNotesInNewTab={newNotesInNewTab}
                       onNewNotesInNewTab={(v) => { setNewNotesInNewTab(v); void setStoredNewNotesInNewTab(v); }}

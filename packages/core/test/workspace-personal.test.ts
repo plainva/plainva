@@ -436,15 +436,18 @@ describe("personal encrypted workspace P3", () => {
     await worker1.runCycle();
     await worker2.runCycle();
     await worker1.runCycle();
+    // Device two waited with device one's version until its own had gone up.
+    await worker2.runCycle();
 
-    expect(await vault1.readTextFile("note.md")).toBe("device one");
-    expect(await vault2.readTextFile("note.md")).toBe("device two");
+    // Both versions stay, and both devices show the same one under the name
+    // (review of release 0.9.0: each used to keep its own there, for good).
     const conflicts1 = (await vault1.listDir("", true)).filter((entry) => entry.path.includes(".CONFLICT-"));
     const conflicts2 = (await vault2.listDir("", true)).filter((entry) => entry.path.includes(".CONFLICT-"));
     expect(conflicts1).toHaveLength(1);
-    expect(conflicts2).toHaveLength(1);
-    expect(await vault1.readTextFile(conflicts1[0].path)).toBe("device two");
-    expect(await vault2.readTextFile(conflicts2[0].path)).toBe("device one");
+    expect(conflicts2.map((entry) => entry.path)).toEqual(conflicts1.map((entry) => entry.path));
+    expect(await vault2.readTextFile("note.md")).toBe(await vault1.readTextFile("note.md"));
+    expect(await vault2.readTextFile(conflicts2[0].path)).toBe(await vault1.readTextFile(conflicts1[0].path));
+    expect([await vault1.readTextFile("note.md"), await vault1.readTextFile(conflicts1[0].path)].sort()).toEqual(["device one", "device two"]);
   });
 
   it("skips re-reading unchanged files on the open-time reconcile via the mtime probe cache (A1 2026-07-22)", async () => {

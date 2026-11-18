@@ -1,6 +1,7 @@
 import { buildWindowQuery, windowStatePrefix, type VaultWindowRole, type WindowPreset } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
 import { getWindowBus } from "./windowBus";
+import { flushWindowDrafts, forgetDraftWindow } from "./windowDraftFlush";
 import { setPendingSearchJump } from "@plainva/ui";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
@@ -120,6 +121,20 @@ const closeAnswers = new Map<string, { answer: Promise<boolean>; settle: (held: 
  * closed: after it the close goes ahead as if nothing were held.
  */
 export const CLOSE_ANSWER_TIMEOUT_MS = 2_000;
+
+/**
+ * The way out of the app (A2): does a window still hold a mail or a remark
+ * not sent? Each window that said so is asked now; one that still does comes
+ * to the front and asks its question — the same as when it is closed by
+ * itself. True when one does: the app stays, and the person decides there.
+ */
+export async function windowsStillHoldingWork(): Promise<boolean> {
+  const holding = (await Promise.all([...holdsWork].map(async (label) => ((await stillHoldsWork(label)) ? label : null)))).filter(
+    (label): label is string => label !== null,
+  );
+  for (const label of holding) await focusAuxWindow(label);
+  return holding.length > 0;
+}
 
 /** A client window reports whether closing it now would lose something. */
 export function noteWindowCloseHold(label: string, held: boolean): void {
@@ -398,6 +413,11 @@ export async function openAuxWindow(params: {
       await win.setFocus().catch(() => {});
       return;
     }
+    // What its editors typed in the last moments is still in the window's
+    // buffer, not yet in the journal (A7): written first, then the window goes.
+    // Bounded, and only for a window that ever buffered a draft.
+    await flushWindowDrafts([label]);
+    forgetDraftWindow(label);
     holdsWork.delete(label);
     // Its CURRENT vault, not the one it opened with: since stage D a window can
     // switch, and persisting the old list would leave the record it just lost

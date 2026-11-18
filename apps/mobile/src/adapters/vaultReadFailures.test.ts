@@ -12,7 +12,7 @@ vi.mock("@capacitor/filesystem", () => ({
     readFile: native.read, stat: native.stat, mkdir: native.mkdir, readdir: native.list,
   },
 }));
-vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn(), atomicWriteBytes: vi.fn(), nativeReadBytes: async (path: string) => Uint8Array.from(atob(((await native.read({ path })) as { data: string }).data), (c) => c.charCodeAt(0)), nativeFileDigest: vi.fn(), sweepAtomicTemps: vi.fn(async () => {}) }));
+vi.mock("../platform/atomicFile", () => ({ atomicWriteText: vi.fn(), atomicWriteBase64: vi.fn(), atomicWriteBytes: vi.fn(), nativeReadBytes: async (path: string) => Uint8Array.from(atob(((await native.read({ path })) as { data: string }).data), (c) => c.charCodeAt(0)), nativeFileDigest: vi.fn(), sweepAtomicTemps: vi.fn(async () => {}), BRIDGE_PART_BYTES: 256 * 1024, withReadTurn: (_lane: string, run: () => Promise<unknown>) => run() }));
 // A phone: the container adapter reads a text file's bytes there, in parts through the atomic file plugin (one part here, base64).
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios" }, registerPlugin: () => ({}) }));
 

@@ -3208,7 +3208,7 @@
     "spellcheck": "Verificação ortográfica",
     "spellcheckDesc": "Sublinha palavras escritas incorretamente em notas, células de tabela, e-mails, comentários, entradas do diário e tarefas. O Plainva usa o corretor ortográfico do seu sistema e os idiomas dele; código, chaves e senhas nunca são verificados.",
     "spellcheckMenuDesc": "Enquanto estiver ativada, um clique com o botão direito nesse texto abre o menu do sistema com as sugestões, em vez do menu do Plainva.",
-    "spellcheckLinux": "Ainda sem efeito no Linux.",
+    "spellcheckNoDictionary": "Nada é verificado: nenhum dicionário está instalado para seus idiomas. Instale um (ex.: hunspell-pt-br) e reinicie o Plainva.",
     "inboxFolder": "Pasta de entrada",
     "inboxFolderDesc": "Onde a captura rápida ＋ do seu celular guarda uma nota, onde cai o texto compartilhado de outro aplicativo e para onde vai uma resposta da IA que você mantém como nota — também no desktop. No mais, o desktop cria as notas onde você indicar.",
     "attachmentFolder": "Pasta de anexos",
@@ -3320,6 +3320,7 @@
     "groupView": "Visualização",
     "groupZipBackups": "Backups ZIP",
     "installingUpdate": "Baixando e instalando a atualização...",
+    "updateWaitingForWrites": "O Plainva está terminando de gravar — a atualização será instalada em no máximo {{seconds}} segundos.",
     "installUpdate": "Instalar agora e reiniciar",
     "keychainChecking": "Verificando...",
     "keychainFallback": "Indisponível (usando armazenamento alternativo)",
@@ -3865,6 +3866,14 @@
     "deletionsKeptLocalEdits_one": "“{{names}}” foi excluído na nuvem, mas tinha alterações aqui que ainda não tinham sido enviadas. O Plainva o manteve e está enviando de novo — exclua-o aqui se quiser que ele suma.",
     "deletionsKeptLocalEdits_many": "{{count}} arquivos foram excluídos na nuvem, mas tinham alterações aqui que ainda não tinham sido enviadas. O Plainva os manteve e está enviando de novo — exclua-os aqui se quiser que sumam: {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} arquivos foram excluídos na nuvem, mas tinham alterações aqui que ainda não tinham sido enviadas. O Plainva os manteve e está enviando de novo — exclua-os aqui se quiser que sumam: {{names}}",
+    "workspaceChangesRefused": "Não permitido neste workspace: {{names}}. A alteração fica neste dispositivo como fork local e não vai para os outros — veja “Integridade e forks locais”.",
+    "workspacePullGuardTitle": "Excluídos em outro dispositivo",
+    "workspacePullGuardBody": "Outro dispositivo deste workspace excluiu {{n}} de {{total}} arquivos. Excluí-los aqui também?",
+    "workspacePullGuardBodyLocal": "Outro dispositivo deste workspace excluiu {{n}} de {{total}} arquivos. Excluí-los aqui também? {{local}} deles não podem ser disponibilizados de novo para os outros a partir daqui: mantidos, ficam só neste dispositivo, como versão própria dele.",
+    "workspacePullGuardKeepHere": "Manter só neste dispositivo",
+    "workspacePullGuardKeepMixed": "Manter",
+    "workspacePullGuardKeptLocal": "Mantidos: {{count}}, dos quais {{local}} só neste dispositivo, como versão própria dele.",
+    "workspaceRestorePending": "Não permitido, e o original ainda não voltou aqui: {{names}}. O Plainva tenta de novo a cada sincronização; até lá, a alteração espera.",
     "downloading": "Baixando alterações… {{current}}/{{total}}",
     "uploading": "Enviando alterações… {{current}}/{{total}}",
     "idle": "Sincronizar agora (inclui nova tentativa)",
@@ -7562,7 +7571,8 @@
     "forkReason": {
       "permission-denied": "Gravar não era permitido — a alteração fica ao lado como cópia.",
       "parallel-write": "Gravado ao mesmo tempo — as duas versões ficam lado a lado.",
-      "path-collision": "O caminho estava ocupado — a cópia tem nome próprio."
+      "path-collision": "O caminho estava ocupado — a cópia tem nome próprio.",
+      "kept-local": "Excluído em outro dispositivo — mantido aqui como versão própria deste dispositivo."
     },
     "quarantineEntries_one": "1 entrada",
     "quarantineEntries_many": "{{count}} entradas",
@@ -7930,6 +7940,7 @@
     "verifierPlaceholder": "Seu nome"
   },
   "window": {
+    "closedBeforeSaved": "Da última vez, o Plainva fechou antes de todas as janelas terminarem de salvar. Confira as notas que você editou por último.",
     "openInNewWindow": "Abrir em nova janela",
     "popOutCompose": "Abrir em janela própria",
     "pinOnTop": "Sempre visível",

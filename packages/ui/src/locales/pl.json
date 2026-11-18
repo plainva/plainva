@@ -3296,7 +3296,7 @@
     "spellcheck": "Sprawdzanie pisowni",
     "spellcheckDesc": "Podkreśla błędnie napisane słowa w notatkach, komórkach tabel, e-mailach, komentarzach, wpisach dziennika i zadaniach. Plainva korzysta ze sprawdzania pisowni Twojego systemu i jego języków; kod, klucze i hasła nigdy nie są sprawdzane.",
     "spellcheckMenuDesc": "Gdy jest włączone, kliknięcie prawym przyciskiem w takim tekście otwiera menu systemu z podpowiedziami zamiast menu Plainvy.",
-    "spellcheckLinux": "W systemie Linux jeszcze nie działa.",
+    "spellcheckNoDictionary": "Nic nie jest sprawdzane: brak słownika dla Twoich języków. Zainstaluj go (np. hunspell-pl) i uruchom Plainva ponownie.",
     "inboxFolder": "Folder skrzynki",
     "inboxFolderDesc": "Miejsce, gdzie szybkie przechwytywanie ＋ na Twoim telefonie zapisuje notatkę, gdzie trafia tekst udostępniony z innej aplikacji i dokąd idzie odpowiedź AI, którą zachowasz jako notatkę — także na komputerze. Poza tym na komputerze notatki są tworzone tam, gdzie wskażesz.",
     "attachmentFolder": "Folder załączników",
@@ -3408,6 +3408,7 @@
     "groupView": "Widok",
     "groupZipBackups": "Backupy ZIP",
     "installingUpdate": "Pobieranie i instalowanie aktualizacji...",
+    "updateWaitingForWrites": "Plainva kończy zapisywanie — aktualizacja zainstaluje się najpóźniej za {{seconds}} s.",
     "installUpdate": "Zainstaluj teraz i uruchom ponownie",
     "keychainChecking": "Sprawdzanie...",
     "keychainFallback": "Niedostępny (używany jest magazyn zastępczy)",
@@ -3955,6 +3956,14 @@
     "deletionsKeptLocalEdits_few": "{{count}} pliki usunięto w chmurze, ale miały tu zmiany, które nie zostały jeszcze wysłane. Plainva je zachowała i wysyła ponownie — usuń je tutaj, jeśli mają zniknąć: {{names}}",
     "deletionsKeptLocalEdits_many": "{{count}} plików usunięto w chmurze, ale miały tu zmiany, które nie zostały jeszcze wysłane. Plainva je zachowała i wysyła ponownie — usuń je tutaj, jeśli mają zniknąć: {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} pliku usunięto w chmurze, ale miał tu zmiany, które nie zostały jeszcze wysłane. Plainva zachowała go i wysyła ponownie — usuń go tutaj, jeśli ma zniknąć: {{names}}",
+    "workspaceChangesRefused": "Niedozwolone w tym obszarze roboczym: {{names}}. Zmiana zostaje na tym urządzeniu jako lokalny fork i nie trafia do innych — zobacz „Integralność i lokalne forki”.",
+    "workspacePullGuardTitle": "Usunięte na innym urządzeniu",
+    "workspacePullGuardBody": "Inne urządzenie tego obszaru roboczego usunęło {{n}} z {{total}} plików. Usunąć je także tutaj?",
+    "workspacePullGuardBodyLocal": "Inne urządzenie tego obszaru roboczego usunęło {{n}} z {{total}} plików. Usunąć je także tutaj? Liczby {{local}} z nich nie można stąd ponownie udostępnić innym: zachowane zostają tylko na tym urządzeniu, jako jego własna wersja.",
+    "workspacePullGuardKeepHere": "Zachowaj tylko na tym urządzeniu",
+    "workspacePullGuardKeepMixed": "Zachowaj",
+    "workspacePullGuardKeptLocal": "Zachowano: {{count}}, w tym {{local}} tylko na tym urządzeniu, jako jego własna wersja.",
+    "workspaceRestorePending": "Niedozwolone, a oryginał jeszcze tu nie wrócił: {{names}}. Plainva próbuje ponownie przy każdej synchronizacji; do tego czasu zmiana czeka.",
     "downloading": "Pobieranie zmian… {{current}}/{{total}}",
     "uploading": "Wysyłanie zmian… {{current}}/{{total}}",
     "idle": "Synchronizuj teraz (z ponowieniem)",
@@ -7706,7 +7715,8 @@
     "forkReason": {
       "permission-denied": "Zapis nie był dozwolony — zmiana leży obok jako kopia.",
       "parallel-write": "Zapisano w tym samym czasie — obie wersje leżą obok siebie.",
-      "path-collision": "Ścieżka była zajęta — kopia ma własną nazwę."
+      "path-collision": "Ścieżka była zajęta — kopia ma własną nazwę.",
+      "kept-local": "Usunięte na innym urządzeniu — zachowane tutaj jako własna wersja tego urządzenia."
     },
     "quarantineEntries_one": "1 wpis",
     "quarantineEntries_few": "{{count}} wpisy",
@@ -8090,6 +8100,7 @@
     "verifierPlaceholder": "Twoje imię"
   },
   "window": {
+    "closedBeforeSaved": "Ostatnio Plainva zamknęła się, zanim każde okno skończyło zapisywać. Sprawdź notatki, które edytowałeś jako ostatnie.",
     "openInNewWindow": "Otwórz w nowym oknie",
     "popOutCompose": "Otwórz we własnym oknie",
     "pinOnTop": "Zawsze na wierzchu",

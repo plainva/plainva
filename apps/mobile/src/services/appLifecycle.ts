@@ -1,4 +1,4 @@
-import { flushTaskViewStates } from "@plainva/ui";
+import { flushGraphStates, flushTaskViewStates } from "@plainva/ui";
 import { foregroundSync } from "./syncService";
 import { pimForegroundSync } from "./pim/pimService";
 
@@ -67,6 +67,8 @@ export function onAppForeground(): void {
  */
 export function onAppBackground(): void {
   flushTaskViewStates();
+  // Graph pins a person just placed (written 800 ms later otherwise).
+  void flushGraphStates();
   void import("./draftJournal").then(({ flushDrafts }) => flushDrafts()).catch(() => {});
   void import("./vaultService")
     .then(({ noteSaver }) => noteSaver.flushAll())
