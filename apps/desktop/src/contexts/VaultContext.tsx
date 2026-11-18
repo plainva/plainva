@@ -1,11 +1,12 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
-import { dailyDayResolver, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
+import { countWrites, uncounted } from "../services/inflightWrites";
+import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
+import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
-import { flushDrafts, relocateDrafts } from "../services/draftJournal";
+import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
@@ -28,8 +29,22 @@ import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
 import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
+import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers, type SuspendedDeletionInfo } from "@plainva/ui";
+
+/**
+ * The mass-deletion question for either worker (plain sync, encrypted
+ * workspace — release 0.9.0 A4). Cancel/Escape takes the safe branch: the
+ * deletions are discarded and the files restored.
+ */
+function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: number; syncedTotal: number }): void {
+  void askMassDeletionWith(worker, info, (question) => appConfirm({ ...question, kind: "danger" }));
+}
+
+function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: SuspendedDeletionInfo): void {
+  void askSuspendedDeletionsWith(worker, info, (question) => appConfirm({ ...question, kind: "danger" }));
+}
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -52,6 +67,7 @@ import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
 import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
+import { readDailyDayOfPath } from "../services/dailyNaming";
 import { getWindowBus } from "../services/windowBus";
 import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
@@ -393,7 +409,8 @@ function clientComments(vaultPath: string | null): Pick<VaultContextType, "postW
   listPublicationComments: (path) => getWindowBus().then((bus) => bus.request("comment-list-publication", { path }, scope)),
   listWorkspaceMembers: () => getWindowBus().then((bus) => bus.request("comment-members", {}, scope)),
   getCommentSelfId: () => getWindowBus().then((bus) => bus.request("comment-self", {}, scope)),
-  postWorkspaceCommentInput: (input) => getWindowBus().then((bus) => bus.request("comment-post", input, scope)),
+  // A remark with its operation's identity is that operation, however often it is tried (A15).
+  postWorkspaceCommentInput: (input) => getWindowBus().then((bus) => bus.request("comment-post", input, input.identity ? { ...scope, attempt: `comment-${input.identity.commentId}` } : scope)),
   postWorkspaceComment: (path, body, parentCommentId = null, anchor = null, suggestion = null, batch = null) =>
     getWindowBus().then((bus) => bus.request("comment-post", { path, body, parentCommentId, anchor, suggestion, batch }, scope)),
   resolveWorkspaceComment: (path, commentId, suggestionOutcome = null) => getWindowBus().then((bus) => bus.request("comment-resolve", { path, commentId, suggestionOutcome }, scope)),
@@ -476,22 +493,9 @@ function reportRootFolderCreated(name: string): void {
 export const syncIntervalKey = (vaultPath: string) =>
   `syncIntervalSeconds_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 
-export const dailyNotesFolderKey = (vaultPath: string) => `dailyNotesFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-export const dailyNotesFormatKey = (vaultPath: string) => `dailyNotesFormat_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
-
-/**
- * Which day a daily note's name stands for in this vault (plan
- * Journal-Erweiterungen, X8), read from the two settings that name a daily
- * note. Handed to the query service as soon as it exists (it waits for the
- * answer), so the first task list after a start already knows a journal
- * stamp (plan Rückmeldungen 2026-11-05, § 3.177 Nr. 2).
- */
-export async function readDailyDayOfPath(vaultPath: string): Promise<((path: string) => string | null) | null> {
-  const store = await getSettingsStore();
-  const folder = (await store.get<string>(dailyNotesFolderKey(vaultPath))) ?? "";
-  const format = (await store.get<string>(dailyNotesFormatKey(vaultPath))) ?? "YYYY-MM-DD";
-  return dailyDayResolver({ folder, format });
-}
+// The daily-note naming lives beside the window that may need it without this
+// context (an auxiliary window's vault, F8 of release 0.9.0).
+export { dailyNotesFolderKey, dailyNotesFormatKey, readDailyDayOfPath, readDailyNaming } from "../services/dailyNaming";
 export const templateFolderKey = (vaultPath: string) => `templateFolder_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
 /** Folder → template mapping (plan Vorlagen-Engine P4), a `FolderTemplateRule[]`. */
 export const folderTemplatesKey = (vaultPath: string) => `folderTemplates_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
@@ -787,8 +791,9 @@ export const VaultProvider: React.FC<{
     }
 
     activeLoadPathRef.current = path;
-    loadAbortRef.current = new AbortController();
-    const currentAbortSignal = loadAbortRef.current.signal;
+    const loadController = new AbortController();
+    loadAbortRef.current = loadController;
+    const currentAbortSignal = loadController.signal;
     // What this load starts on its way; a load that is called off stops it
     // again instead of leaving it running for a vault nobody has open (3.120).
     const loadStarts = new LoadStarts(path, currentAbortSignal);
@@ -830,7 +835,10 @@ export const VaultProvider: React.FC<{
 
       if (currentAbortSignal.aborted) return;
 
-      const tauriVaultAdapter = new TauriVaultAdapter(path);
+      // Counted, so the way out waits for a write on its way (`inflightWrites.ts`):
+      // every write of the chain above ends here. Whose it is, is counted at the
+      // top (`personVaultAdapter` below); here it is the sync's as much as the person's.
+      const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path), "background");
       await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());
       await tauriVaultAdapter.createDir(".plainva");
 
@@ -863,7 +871,7 @@ export const VaultProvider: React.FC<{
       await perfMeasure("vault open: database pool", () => dbAdapter.initialize());
       await perfMeasure("vault open: database schema", () => initializeSchema(dbAdapter));
       // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
-      await logIndexDiagnostics(dbAdapter);
+      await logIndexDiagnostics(dbAdapter, "desktop folder");
 
       const syncQueue = new SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));
@@ -897,6 +905,16 @@ export const VaultProvider: React.FC<{
       const permissionedWorkspaceAdapter = chain.permissions;
       const syncRepo = chain.syncRepo!;
       const vaultAdapter = chain.files;
+      // What the surfaces write through — the editor, a field, a remark, another
+      // window by way of the owner bus: the person's writes. A write of theirs
+      // the way out did not see land is said at the next start; the sync and the
+      // index, which take `vaultAdapter` itself, are not (review 2026-11-17).
+      const personVaultAdapter = countWrites(vaultAdapter, "person");
+      // The same for the lowest writable link: remarks, the workspace's steps
+      // and a restored version write there for the person; the sync, the
+      // settings sync and the deletion journal take `backupVaultAdapter` itself.
+      // Every handoff of a link of the chain is named in `writeOwners.test.ts`.
+      const personBelowChain = countWrites(backupVaultAdapter, "person");
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below. The five
@@ -1025,6 +1043,8 @@ export const VaultProvider: React.FC<{
       const ownDeletions = new OwnDeletionRegister();
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
         scanSignal: currentAbortSignal,
+        // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
+        comesBackByItself: true,
         onExternalModification: (path) => {
           console.log(`VaultContext: External modification detected for ${path}`);
           window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
@@ -1240,7 +1260,8 @@ export const VaultProvider: React.FC<{
       // is poked so the provider deletion happens the moment the window closes
       // instead of waiting for the next poll.
       initTaskDeletion({
-        writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+        // "Undo" is the person's: a write of theirs, also when the way out cuts it short.
+        writeTextFile: (p, c) => personVaultAdapter.writeTextFile(p, c),
         runTaskSync: () => void runTaskSyncNow(),
         onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
@@ -1537,6 +1558,9 @@ export const VaultProvider: React.FC<{
                     runtime,
                     recoveryConfirmedAt: activeSecurityStatus.recoveryConfirmedAt,
                     signal: currentAbortSignal,
+                    // What changed while Plainva was closed is asked like a
+                    // change from outside while it runs (release 0.9.0 A3).
+                    permissions: permissionedWorkspaceAdapter,
                     onProgress: deferWorkspaceReconcile
                       ? undefined
                       : (done, total) => setState((s) => s.loadingPath === path
@@ -1576,6 +1600,12 @@ export const VaultProvider: React.FC<{
                   });
                 };
                 worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
+                // The plain sync's question, word for word (release 0.9.0 A4).
+                worker.onMassDeletionPending = (info) => askMassDeletion(worker, info);
+                // And the pull-side one: another device's mass deletion waits for an answer.
+                worker.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(worker, info);
+                // A change the workspace's policy refused stays here as a local fork: said, not only listed.
+                worker.onChangesRefused = (paths, restorePending) => { const text = refusedChangesText(paths, restorePending); if (text) toast.info(text); };
                 // The first cycle has looked: what the index found and an ended
                 // app never queued goes into the workspace's queue (R22).
                 worker.onFirstCycleComplete = () => sweepOwedToRemote("workspace");
@@ -1739,67 +1769,12 @@ export const VaultProvider: React.FC<{
               }
             };
             const guardedWorker = fileWorker;
-            fileWorker.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
-              // The push-side mass-deletion guard tripped: a large share of the
-              // synced files is queued for REMOTE deletion (typically the local
-              // vault folder was emptied or moved while Plainva knew the vault).
-              // Never execute that silently — ask. Cancel/Escape takes the safe
-              // branch: the deletes are discarded and the files restored from the
-              // remote on the next cycle.
-              void (async () => {
-                const confirmed = await appConfirm({
-                  title: i18n.t("sync.massDeleteTitle"),
-                  message: i18n.t("sync.massDeleteBody", { n: pendingDeletes, total: syncedTotal }),
-                  kind: "danger",
-                  confirmLabel: i18n.t("sync.massDeleteConfirm"),
-                  cancelLabel: i18n.t("sync.massDeleteRestore"),
-                });
-                if (confirmed) {
-                  guardedWorker.approveMassDeletion();
-                } else {
-                  try {
-                    const discarded = await guardedWorker.discardMassDeletion();
-                    toast.info(i18n.t("sync.massDeleteRestored", { n: discarded }));
-                  } catch (e) {
-                    console.error("[VaultContext] discardMassDeletion failed", e);
-                    toast.error(i18n.t("sync.massDeleteRestoreFailed"));
-                  }
-                }
-              })();
-            };
-            fileWorker.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
-              // The pull-side guard tripped and the journal does not explain the
-              // absences. Since 2026-09-20 the worker has ASKED the remote about a
-              // sample of them first: had one been alive, there would be no
-              // question at all (onListingIncomplete). So the dialog can say what
-              // was checked instead of offering "deleted elsewhere — or the cloud
-              // answered incompletely" and leaving the person to guess. Without a
-              // definitive answer (a provider that cannot be asked, or rows
-              // without an id) it says that, too. Cancel/Escape and the focus sit
-              // on the safe branch: keep the local copies.
-              void (async () => {
-                const applyHere = await appConfirm({
-                  title: i18n.t("sync.pullGuardTitle"),
-                  message: absent > 0
-                    ? i18n.t("sync.pullGuardBody", { n: missing, total: confirmed, absent, probed })
-                    : i18n.t("sync.pullGuardBodyUnverified", { n: missing, total: confirmed }),
-                  kind: "danger",
-                  confirmLabel: i18n.t("sync.pullGuardApply"),
-                  cancelLabel: i18n.t("sync.pullGuardKeep"),
-                });
-                if (applyHere) {
-                  guardedWorker.approveSuspendedDeletions();
-                } else {
-                  try {
-                    const kept = await guardedWorker.keepSuspendedDeletionsLocal();
-                    toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
-                  } catch (e) {
-                    console.error("[VaultContext] keepSuspendedDeletionsLocal failed", e);
-                    toast.error(i18n.t("sync.pullGuardFailed"));
-                  }
-                }
-              })();
-            };
+            fileWorker.onMassDeletionPending = (info) => askMassDeletion(guardedWorker, info);
+            // The pull-side guard tripped and the journal does not explain the
+            // absences; the shared question says what was checked
+            // (`askSuspendedDeletions`). Cancel/Escape and the focus sit on the
+            // safe branch: keep the local copies.
+            fileWorker.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(guardedWorker, info);
             fileWorker.onDeletionReport = (report) => {
               // A remote deletion the worker did NOT mirror because the local
               // copy carries unsynced edits used to be silent — and silence is
@@ -1892,9 +1867,9 @@ export const VaultProvider: React.FC<{
       setState(s => ({
         ...s,
         vaultPath: path,
-        vaultAdapter,
-        backupAdapter: backupVaultAdapter,
-        belowChainAdapter: backupVaultAdapter,
+        vaultAdapter: personVaultAdapter,
+        backupAdapter: personBelowChain,
+        belowChainAdapter: personBelowChain,
         dbAdapter,
         indexer,
         queryService,
@@ -1924,7 +1899,10 @@ export const VaultProvider: React.FC<{
         return;
       }
       // A load that failed leaves no open vault behind either: nothing it
-      // started may keep running.
+      // started may keep running — its index included, which is called off
+      // like a closed vault's, so the drain does not wait for a read of it
+      // that never answers (indexerCalledOff.ts).
+      loadController.abort();
       void loadStarts.abandon();
       console.error("Failed to load vault", error);
       setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
@@ -2306,7 +2284,8 @@ export const VaultProvider: React.FC<{
     // the same snapshot folder from two sides.
     if (isClient) return;
     if (!state.vaultPath || !state.vaultAdapter) return;
-    const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: state.vaultAdapter });
+    // Clearing out old snapshots is no work of the person's: the next start does it again (`uncounted`).
+    const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: uncounted(state.vaultAdapter) });
     return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.vaultPath, state.vaultAdapter]);
@@ -2417,7 +2396,7 @@ export const VaultProvider: React.FC<{
         void loadVault(state.vaultPath);
         return;
       }
-      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.belowChainAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
+      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
           if (step) worker.triggerImmediate();
@@ -2537,6 +2516,8 @@ export const VaultProvider: React.FC<{
       // What the draft journal still buffers for this vault goes to disk first
       // (bounded): with the vault gone, nobody writes it later.
       if (path) await flushDrafts(path).catch(() => {});
+      // …and the journal's picture of its files goes: they may be removed before it opens again.
+      if (path) forgetDraftMemory(path);
       if (path) await settlePendingWrites(path);
       await worker?.stopAndDrain();
       await settingsOnly?.stopAndDrain();
@@ -2580,7 +2561,7 @@ export const VaultProvider: React.FC<{
           indexer,
           syncWorker: state.syncWorker,
           skipCloud: opts?.skipCloud,
-          trigger: opts?.silent ? "automatic refresh" : "manual refresh",
+          trigger: opts?.silent ? "automatic refresh" : MANUAL_REFRESH_TRIGGER,
         });
         // The automatic pass (window focus, the interval net) runs while
         // somebody may be typing: it reloads only what it found changed, and

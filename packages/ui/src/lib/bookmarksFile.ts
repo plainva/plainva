@@ -76,6 +76,20 @@ export function toggleBookmarkOnDisk(io: BookmarksIO, path: string, type: Bookma
   return updateBookmarksOnDisk(io, (current) => current.some((e) => bookmarkKey(e) === key)
     ? current.filter((e) => bookmarkKey(e) !== key) : [...current, entry]);
 }
+/**
+ * Sets the star of `path` to `on`, whatever it was (2026-11-17): what a window
+ * asks for when it shows the star, so a try that comes twice lands once and a
+ * second click asks for the other state.
+ */
+export function setBookmarkOnDisk(io: BookmarksIO, path: string, on: boolean, type: BookmarkEntry["type"] = "file"): Promise<BookmarkEntry[]> {
+  if (!validBookmarkPath(path) || (type !== "file" && type !== "folder")) return Promise.reject(new Error("Invalid bookmark path"));
+  const entry = { path, type }, key = bookmarkKey(entry);
+  return updateBookmarksOnDisk(io, (current) => {
+    const has = current.some((e) => bookmarkKey(e) === key);
+    if (has === on) return current;
+    return on ? [...current, entry] : current.filter((e) => bookmarkKey(e) !== key);
+  });
+}
 export function removeBookmarksOnDisk(io: BookmarksIO, paths: readonly string[]): Promise<BookmarkEntry[]> {
   const gone = new Set(paths); return updateBookmarksOnDisk(io, (current) => current.filter((e) => !gone.has(e.path)));
 }

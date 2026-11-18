@@ -33,6 +33,7 @@ import {
   type TaskBlockValues,
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
+import { newWriteAction, withWriteAttempt } from "../../services/pim/remotePimTarget";
 import { calendarDay, checkboxTextOfCapture, subtaskProgress } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
@@ -331,6 +332,10 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     };
   }, [pimRuntime, vaultPath, refreshTick]);
 
+  // One open dialog is one action of the person (A15): pressing its button
+  // again after "it may still land" does not block the time twice in another
+  // window; the next dialog is a new action.
+  const blockAction = useRef<{ target: unknown; id: string } | null>(null);
   const submitBlock = useCallback(
     async (values: TaskBlockValues, calendarKey: string) => {
       const target = blockTarget;
@@ -338,7 +343,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       const accountId = calendarKey.split(" ")[0] ?? "";
       const accounts = await pimRuntime.cache.listAccounts();
       const account = accounts.find((a) => a.id === accountId);
-      const provider = account ? await pimRuntime.buildTarget(account) : null;
+      if (blockAction.current?.target !== target) blockAction.current = { target, id: newWriteAction("time-block") };
+      const provider = account ? withWriteAttempt(await pimRuntime.buildTarget(account), blockAction.current.id) : null;
       if (!provider) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
       const allPaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [target.linkPath];
       const res = await createTaskTimeBlock({
@@ -352,6 +358,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         allPaths,
       });
       setBlockTarget(null);
+      blockAction.current = null;
       if (target.notePath && !res.anchored) {
         toast.info(t("pim.blockNotAnchored", { defaultValue: "Termin angelegt — die Notiz konnte nicht verknüpft werden." }));
       } else {

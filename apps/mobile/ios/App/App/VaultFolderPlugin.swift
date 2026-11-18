@@ -34,6 +34,12 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         CAPPluginMethod(name: "stat", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readPart", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "closeRead", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "begin", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "append", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "commit", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "abort", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "delete", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "rename", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "mkdir", returnType: CAPPluginReturnPromise)
@@ -219,17 +225,139 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         }
     }
 
+    /** The most one message carries, in bytes before base64 (`BRIDGE_PART_BYTES` in JS). */
+    private static let maxPart = 256 * 1024
+    /** A read or a write in parts nobody finished (its page went away) is dropped after this long without a call. */
+    private static let idleSeconds: TimeInterval = 120
+
+    /** A read in parts: the copy of the one version that was opened, in the app's caches. */
+    private final class OpenRead {
+        let copy: URL
+        let handle: FileHandle
+        let size: Int
+        var lastUsed = Date()
+        init(copy: URL, handle: FileHandle, size: Int) { self.copy = copy; self.handle = handle; self.size = size }
+    }
+
+    /** A write in parts: what was sent so far, in the app's caches, and where it goes. */
+    private final class OpenWrite {
+        let parts: URL
+        let handle: FileHandle
+        let folder: String
+        let path: String
+        var lastUsed = Date()
+        init(parts: URL, handle: FileHandle, folder: String, path: String) { self.parts = parts; self.handle = handle; self.folder = folder; self.path = path }
+    }
+
+    private var reads: [String: OpenRead] = [:]
+    private var writes: [String: OpenWrite] = [:]
+
+    private func partsFolder() throws -> URL {
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("vault-folder-parts", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    private func dropIdle() {
+        let cutoff = Date().addingTimeInterval(-VaultFolderPlugin.idleSeconds)
+        lock.lock()
+        let staleReads = reads.filter { $0.value.lastUsed < cutoff }.map { $0.key }
+        let staleWrites = writes.filter { $0.value.lastUsed < cutoff }.map { $0.key }
+        lock.unlock()
+        staleReads.forEach(dropRead)
+        staleWrites.forEach(dropWrite)
+    }
+
+    private func dropRead(_ id: String) {
+        lock.lock()
+        let read = reads.removeValue(forKey: id)
+        lock.unlock()
+        guard let read = read else { return }
+        try? read.handle.close()
+        try? FileManager.default.removeItem(at: read.copy)
+    }
+
+    private func dropWrite(_ id: String) {
+        lock.lock()
+        let write = writes.removeValue(forKey: id)
+        lock.unlock()
+        guard let write = write else { return }
+        try? write.handle.close()
+        try? FileManager.default.removeItem(at: write.parts)
+    }
+
+    /// Empties the parts folder once per process: what a killed process left there - the
+    /// whole copy of a note, or the parts of a write that never committed - belongs to no
+    /// read or write of this one.
+    override public func load() {
+        super.load()
+        DispatchQueue.global(qos: .utility).async {
+            guard let dir = try? self.partsFolder(),
+                  let left = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+            for file in left { try? FileManager.default.removeItem(at: file) }
+        }
+    }
+
+    /**
+     * A file in one answer, up to `maxBytes` (one part when left out): a whole
+     * picture in one answer is the message that froze the app on Android
+     * (release list F54, the class of F51) - the same rule on both platforms.
+     * A larger file is copied, under the same coordinated read, into the app's
+     * caches - the one version every part comes from - and the answer is
+     * `tooLarge` with the read's id and size.
+     */
     @objc func read(_ call: CAPPluginCall) {
+        dropIdle()
         withFolder(call) { base in
             guard let path = call.getString("path"), let url = target(base, path) else { throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path required"]) }
+            let asked = call.getInt("maxBytes") ?? VaultFolderPlugin.maxPart
+            let limit = max(0, min(asked, VaultFolderPlugin.maxPart))
+            let copy = try partsFolder().appendingPathComponent("read-" + UUID().uuidString)
             var coordinatorError: NSError?
             var data: Data?
+            var copied = false
             var readError: Error?
             NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinatorError) { readURL in
-                do { data = try Data(contentsOf: readURL) } catch { readError = error }
+                do {
+                    let handle = try FileHandle(forReadingFrom: readURL)
+                    defer { try? handle.close() }
+                    let head = try handle.read(upToCount: limit + 1) ?? Data()
+                    if head.count <= limit {
+                        data = head
+                        return
+                    }
+                    // On from the same handle into the copy: one version of the file.
+                    guard FileManager.default.createFile(atPath: copy.path, contents: nil) else {
+                        throw NSError(domain: "VaultFolder", code: 8, userInfo: [NSLocalizedDescriptionKey: "could not create the read copy"])
+                    }
+                    let out = try FileHandle(forWritingTo: copy)
+                    defer { try? out.close() }
+                    try out.write(contentsOf: head)
+                    while let chunk = try handle.read(upToCount: 64 * 1024), !chunk.isEmpty {
+                        try out.write(contentsOf: chunk)
+                    }
+                    copied = true
+                } catch { readError = error }
             }
-            if let e = coordinatorError { throw e }
-            if let e = readError { throw e }
+            if let e = coordinatorError ?? readError {
+                try? FileManager.default.removeItem(at: copy)
+                throw e
+            }
+            if copied {
+                do {
+                    let handle = try FileHandle(forReadingFrom: copy)
+                    let size = Int(try handle.seekToEnd())
+                    let id = UUID().uuidString
+                    lock.lock()
+                    reads[id] = OpenRead(copy: copy, handle: handle, size: size)
+                    lock.unlock()
+                    call.resolve(["tooLarge": true, "id": id, "size": size])
+                } catch {
+                    try? FileManager.default.removeItem(at: copy)
+                    throw error
+                }
+                return
+            }
             guard let content = data else {
                 throw NSError(domain: "VaultFolder", code: 7, userInfo: [NSLocalizedDescriptionKey: "file coordinator returned no content"])
             }
@@ -237,21 +365,132 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         }
     }
 
+    /** At most `length` bytes (never more than one part) from `offset` of an open read, base64. */
+    @objc func readPart(_ call: CAPPluginCall) {
+        lock.lock()
+        let read = call.getString("id").flatMap { reads[$0] }
+        lock.unlock()
+        guard let read = read, let offset = call.getInt("offset"), let length = call.getInt("length"), offset >= 0, length >= 0 else {
+            call.reject("no such read, or no offset and length")
+            return
+        }
+        do {
+            read.lastUsed = Date()
+            let want = max(0, min(min(length, VaultFolderPlugin.maxPart), read.size - offset))
+            var bytes = Data()
+            if want > 0 {
+                try read.handle.seek(toOffset: UInt64(offset))
+                bytes = try read.handle.read(upToCount: want) ?? Data()
+            }
+            call.resolve(["data": bytes.base64EncodedString()])
+        } catch {
+            call.reject("read failed: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func closeRead(_ call: CAPPluginCall) {
+        if let id = call.getString("id") { dropRead(id) }
+        call.resolve()
+    }
+
     @objc func write(_ call: CAPPluginCall) {
         withFolder(call) { base in
             guard let path = call.getString("path"), let url = target(base, path), let b64 = call.getString("dataBase64"), let data = Data(base64Encoded: b64) else {
                 throw NSError(domain: "VaultFolder", code: 2, userInfo: [NSLocalizedDescriptionKey: "path and dataBase64 required"])
             }
-            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            var coordinatorError: NSError?
-            var writeError: Error?
-            NSFileCoordinator().coordinate(writingItemAt: url, options: [.forReplacing], error: &coordinatorError) { writeURL in
-                do { try data.write(to: writeURL, options: [.atomic]) } catch { writeError = error }
-            }
-            if let e = coordinatorError { throw e }
-            if let e = writeError { throw e }
+            try writeCoordinated(data, to: url)
             call.resolve()
         }
+    }
+
+    /** Coordinated and atomic, as a sync client in the same folder expects. */
+    private func writeCoordinated(_ data: Data, to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var coordinatorError: NSError?
+        var writeError: Error?
+        NSFileCoordinator().coordinate(writingItemAt: url, options: [.forReplacing], error: &coordinatorError) { writeURL in
+            do { try data.write(to: writeURL, options: [.atomic]) } catch { writeError = error }
+        }
+        if let e = coordinatorError { throw e }
+        if let e = writeError { throw e }
+    }
+
+    /** A write in parts: they gather in the app's caches; the folder's file is touched only at `commit`. */
+    @objc func begin(_ call: CAPPluginCall) {
+        dropIdle()
+        guard let folder = call.getString("handle"), let path = call.getString("path") else {
+            call.reject("handle and path required")
+            return
+        }
+        do {
+            let parts = try partsFolder().appendingPathComponent("write-" + UUID().uuidString)
+            guard FileManager.default.createFile(atPath: parts.path, contents: nil) else {
+                throw NSError(domain: "VaultFolder", code: 8, userInfo: [NSLocalizedDescriptionKey: "could not create the parts file"])
+            }
+            let handle = try FileHandle(forWritingTo: parts)
+            let id = UUID().uuidString
+            lock.lock()
+            writes[id] = OpenWrite(parts: parts, handle: handle, folder: folder, path: path)
+            lock.unlock()
+            call.resolve(["id": id])
+        } catch {
+            call.reject("write failed: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func append(_ call: CAPPluginCall) {
+        lock.lock()
+        let id = call.getString("id")
+        let write = id.flatMap { writes[$0] }
+        lock.unlock()
+        guard let write = write, let id = id, let b64 = call.getString("data"), let data = Data(base64Encoded: b64) else {
+            call.reject("no such write")
+            return
+        }
+        do {
+            write.lastUsed = Date()
+            try write.handle.write(contentsOf: data)
+            call.resolve()
+        } catch {
+            dropWrite(id)
+            call.reject("write failed: \(error.localizedDescription)")
+        }
+    }
+
+    /** Writes the gathered parts over the folder's file, exactly as `write` does with one message. */
+    @objc func commit(_ call: CAPPluginCall) {
+        lock.lock()
+        let write = call.getString("id").flatMap { writes.removeValue(forKey: $0) }
+        lock.unlock()
+        guard let write = write else {
+            call.reject("no such write")
+            return
+        }
+        defer {
+            try? write.handle.close()
+            try? FileManager.default.removeItem(at: write.parts)
+        }
+        guard let resolved = folder(for: write.folder) else {
+            call.reject("folder access expired")
+            return
+        }
+        do {
+            try write.handle.close()
+            guard let url = target(resolved.url, write.path) else {
+                throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path escapes the folder"])
+            }
+            // Mapped, not loaded: the parts stay on disk until the atomic write copies them.
+            try writeCoordinated(try Data(contentsOf: write.parts, options: [.alwaysMapped]), to: url)
+            call.resolve()
+        } catch {
+            let nsError = error as NSError
+            call.reject(error.localizedDescription, "\(nsError.domain):\(nsError.code)")
+        }
+    }
+
+    @objc func abort(_ call: CAPPluginCall) {
+        if let id = call.getString("id") { dropWrite(id) }
+        call.resolve()
     }
 
     @objc func delete(_ call: CAPPluginCall) {

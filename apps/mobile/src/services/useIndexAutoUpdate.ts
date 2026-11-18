@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { createIndexAutoUpdater, type FileOp } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import { phoneTemplateVault } from "./templateVault";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -24,10 +25,14 @@ import type { MobileVault } from "./vaultService";
 export function useIndexAutoUpdate(vault: MobileVault | null, vaultName: string): void {
   useEffect(() => {
     if (!vault?.queryService) return;
+    // The root overview's heading is the vault's name as the app shows it
+    // (`templateVaultName`, as on the desktop); `vaultName` stands in until it is read.
+    let heading = vaultName;
+    void phoneTemplateVault().then((v) => (heading = v.name), () => {});
     const updater = createIndexAutoUpdater({
       adapter: vault.files,
       queryService: vault.queryService,
-      vaultName: () => vaultName,
+      vaultName: () => heading,
       subfoldersHeading: () => i18n.t("indexMd.subfoldersHeading"),
       onWritten: (indexPath) => {
         // The listing changed on disk; a note screen showing it reloads, and

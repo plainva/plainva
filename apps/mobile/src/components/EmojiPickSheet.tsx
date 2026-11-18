@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { ACCENT_PALETTE, DocIcon, docIconValue, EMOJI_CATEGORIES, ICON, loadRecentPicks, LUCIDE_CATEGORY_TABS, LUCIDE_ICONS, lucideIconsByCategory, RECENT_EMOJI_KEY, RECENT_ICON_KEY, saveRecentPick, searchEmoji, SearchField, searchLucideIcons, Segmented } from "@plainva/ui";
+import { ACCENT_PALETTE, capitalize, DocIcon, docIconValue, EMOJI_CATEGORIES, ICON, loadRecentPicks, LUCIDE_CATEGORY_TABS, LUCIDE_ICONS, lucideIconsByCategory, RECENT_EMOJI_KEY, RECENT_ICON_KEY, saveRecentPick, searchEmoji, SearchField, searchLucideIcons, Segmented } from "@plainva/ui";
 import type { EmojiCategoryId, LucideIconCategory } from "@plainva/ui";
 import { Trash2 } from "lucide-react";
 import { MobileSwatchGrid } from "./MobileSwatchGrid";
@@ -91,10 +91,7 @@ export function EmojiPickSheet({
       : t(`emojiPicker.iconCategories.${iconCat}`)
     : emojiCat === "recent"
       ? t("emojiPicker.recent")
-      : t(
-          `emojiPicker.cat${emojiCat.charAt(0).toUpperCase()}${emojiCat.slice(1)}` as
-            | "emojiPicker.catSmileys",
-        );
+      : t(`emojiPicker.cat${capitalize(emojiCat)}`);
 
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>

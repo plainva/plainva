@@ -1,8 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NotebookPen, X } from "lucide-react";
 import { Banner, ICON, IconButton, JournalCaptureField } from "@plainva/ui";
 import { getWindowBus } from "./services/windowBus";
+import { createAttempt } from "./services/attempt";
 
 /**
  * The quick-capture window of the global shortcut (plan Journal, J7): the
@@ -21,6 +22,7 @@ export function QuickCaptureApp() {
   const [asTask, setAsTask] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const attempt = useRef(createAttempt());
 
   const close = useCallback(async () => {
     try {
@@ -38,7 +40,10 @@ export function QuickCaptureApp() {
     void (async () => {
       try {
         const bus = await getWindowBus();
-        const result = await bus.request("journal-capture", { text: value, task: asTask });
+        // Pressed again after "may still land": the same line, written once (A15).
+        const result = await bus.request("journal-capture", { text: value, task: asTask }, { attempt: attempt.current.for(JSON.stringify([value, asTask])) });
+        // An answer, either way: the central window ran it, and the next press is a new one.
+        attempt.current.succeeded();
         if (result.ok) await close();
         else setError(result.message);
       } catch {

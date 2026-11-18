@@ -157,6 +157,8 @@ export function TasksScreen({
       setTick((x) => x + 1);
       syncSoon();
     },
+    // Said as a deletion says it (F4): the copies that stayed, by name.
+    onFailed: (paths) => toast.error(t("dialogs.bulkErrorsMsg", { count: paths.length, names: paths.map(noteDisplayName).join(", ") })),
     onError: (e) => toast.error(errorText(e)),
   });
   const ptrRef = useRef<HTMLDivElement>(null);

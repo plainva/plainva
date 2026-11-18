@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-11-16
+Ultimo aggiornamento: 2026-11-17
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -50,7 +50,7 @@ Digita `/` all'inizio di una riga per aprire il menu di inserimento. È suddivis
 - **Ripiegare gli elenchi**: un clic sul punto di una voce con sottovoci le ripiega; il punto assume il colore di accento e un «…» segna il punto, un secondo clic le riapre. Il file non cambia mai. I punti si alternano per livello (• ◦ ▪) e le righe di continuazione stanno esattamente sotto il testo della voce, anche sul telefono, dove il punto è l’unico comando di ripiegatura.
 - **Posizione di scorrimento**: ogni nota si apre dove l’avevi lasciata; ricordata per dispositivo, non sincronizzata.
 - **Trova e sostituisci** all'interno della nota corrente: `Ctrl+F` (vedi [Ricerca](Search.md)).
-- **Controllo ortografico** — disattivato per impostazione predefinita. Attivalo in **Impostazioni → App → Editor e note** e le parole scritte in modo errato vengono sottolineate in note, celle di tabella, e-mail, commenti, voci del diario e attività; codice, indirizzi web, chiavi e password non vengono mai controllati. Plainva usa il correttore ortografico del tuo sistema e le sue lingue e non porta dizionari propri. Finché è attivo, un clic destro in quel testo apre il menu del sistema con i suggerimenti invece di quello di Plainva; una cella di tabella mantiene il suo menu della tabella. L'impostazione appartiene a questo dispositivo. Su Linux Plainva non attiva ancora il correttore della WebView di sistema, quindi lì non ha effetto.
+- **Controllo ortografico** — disattivato per impostazione predefinita. Attivalo in **Impostazioni → App → Editor e note** e le parole scritte in modo errato vengono sottolineate in note, celle di tabella, e-mail, commenti, voci del diario e attività; codice, indirizzi web, chiavi e password non vengono mai controllati. Plainva usa il correttore ortografico del tuo sistema e le sue lingue e non porta dizionari propri. Finché è attivo, un clic destro in quel testo apre il menu del sistema con i suggerimenti invece di quello di Plainva; una cella di tabella mantiene il suo menu della tabella. L'impostazione appartiene a questo dispositivo. Su Linux i dizionari vengono dal sistema, nelle lingue impostate nel sistema: se non viene sottolineato nulla, installa il dizionario Hunspell della tua lingua (per esempio il pacchetto `hunspell-it`) e riavvia Plainva.
 
 ## Link e backlink
 

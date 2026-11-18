@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { templateVaultName } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { notifyAppearanceChanged } from "./appearanceSync";
 
@@ -54,6 +55,21 @@ function load(vaultPath: string): void {
 /** The vault's name: its own where it has one, else the folder's. */
 export function vaultLabel(vaultPath: string): string {
   return names.get(vaultPath) ?? vaultFolderLabel(vaultPath);
+}
+
+/**
+ * The vault's name, read now — for what is written or said once rather than
+ * shown and kept: the heading of the vault's own overview, `{{vault}}`. The
+ * same rule as the phone's (`templateVaultName`); a store that cannot be read
+ * leaves the name this window knows.
+ */
+export async function vaultAppName(vaultPath: string): Promise<string> {
+  try {
+    const store = await getSettingsStore();
+    return templateVaultName(await store.get<string>(vaultNameKey(vaultPath)), vaultFolderLabel(vaultPath));
+  } catch {
+    return vaultLabel(vaultPath);
+  }
 }
 
 /** Whether the vault has a name of its own (the rename row shows the folder beside it). */

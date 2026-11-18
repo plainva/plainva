@@ -59,7 +59,7 @@ const CALLS: Record<string, { count: number; kind: Kind; why: string }> = {
   "packages/ui/src/lib/deletionNet.ts": { count: 1, kind: "asks", why: "deleteWithNet: the one way a person's deletion is put" },
   "packages/core/src/sync/SyncWorker.ts": { count: 1, kind: "background", why: "mirrors another device's deletion through the backup adapter; refused without a net, the file stays and the next cycle tries again" },
   "packages/core/src/sync/nameTwins.ts": { count: 2, kind: "background", why: "a twin spelling, through the backup adapter; refused without a net, the resolution step fails and says so — and the emptied twin-spelled folder it leaves, only when empty and its composed folder stands beside it" },
-  "packages/core/src/workspace/worker.ts": { count: 2, kind: "background", why: "applies the workspace's deletions through the chain; refused without a net, the entry stays" },
+  "packages/core/src/workspace/worker.ts": { count: 5, kind: "background", why: "applies the workspace's deletions through the chain, only where the file still holds its recorded state (a file, an empty folder, an emptied folder, an original whose identical copy exists) and a staging folder; refused without a net, the entry stays" },
   "apps/desktop/src/contexts/VaultContext.tsx": { count: 1, kind: "background", why: "a task the provider deleted, through the chain; refused without a net, the note stays" },
   "apps/mobile/src/services/pim/taskSyncRuntime.ts": { count: 1, kind: "background", why: "the same, on the phone" },
   "apps/desktop/src/services/pinboardDrafts.ts": { count: 1, kind: "background", why: "the sweep of empty drafts at the vault's opening; a draft it cannot delete with a net stays remembered" },

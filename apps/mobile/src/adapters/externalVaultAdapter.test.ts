@@ -421,3 +421,136 @@ describe("a walk over a picked folder (issue #125)", () => {
     expect(packed).toEqual(["A/x.md", "B/y.md"]);
   });
 });
+
+/**
+ * No file crosses the bridge whole (release list F54, the class of F51): every
+ * call's text is parsed on Android's UI thread, and a 3 MB picture in a picked
+ * folder was one 4 MB string there, both ways.
+ */
+describe("a picked folder's files cross the bridge in parts", () => {
+  const PART = 256 * 1024;
+  const picture = (n: number) => Uint8Array.from({ length: n }, (_, i) => (i * 31 + 7) & 0xff);
+
+  it("reads a large file in parts, byte for byte, and a small one in one call", async () => {
+    const files = new Map<string, string | Uint8Array>([["big.png", picture(3 * 1024 * 1024 + 5)], ["small.md", "# Hi\n"]]);
+    const fake = fakePlugin(files);
+    const a = new ExternalVaultAdapter(fake.plugin, "folder");
+    expect([...(await a.readBinaryFile("big.png"))]).toEqual([...picture(3 * 1024 * 1024 + 5)]);
+    expect(await a.readTextFile("small.md")).toBe("# Hi\n");
+    expect(Math.max(...fake.sizes)).toBeLessThanOrEqual(PART);
+    // One open of each file: a cloud provider that fetches a file to open it fetches it once.
+    expect(fake.calls.filter((c) => c.startsWith("read:"))).toEqual(["read:big.png", "read:small.md"]);
+    expect(fake.openReads()).toBe(0);
+  });
+
+  it("reads one version of a file another app replaces while it is read", async () => {
+    const files = new Map<string, string | Uint8Array>([["big.png", picture(PART * 3)]]);
+    const fake = fakePlugin(files);
+    const readPart = fake.plugin.readPart.bind(fake.plugin);
+    fake.plugin.readPart = async (opts) => {
+      // A sync client writes a new version of the same size between two parts.
+      files.set("big.png", new Uint8Array(PART * 3).fill(9));
+      return readPart(opts);
+    };
+    const read = await new ExternalVaultAdapter(fake.plugin, "folder").readBinaryFile("big.png");
+    expect([...read]).toEqual([...picture(PART * 3)]);
+  });
+
+  it("writes a large file in parts, and a failed part leaves the old file", async () => {
+    const files = new Map<string, string | Uint8Array>([["big.png", "old"]]);
+    const fake = fakePlugin(files);
+    const a = new ExternalVaultAdapter(fake.plugin, "folder");
+    await a.writeBinaryFile("big.png", picture(PART * 4 + 1));
+    expect(Math.max(...fake.sizes)).toBeLessThanOrEqual(PART);
+    expect([...(files.get("big.png") as Uint8Array)]).toEqual([...picture(PART * 4 + 1)]);
+
+    fake.failAppendWhen((_path, n) => n === 2);
+    await expect(a.writeBinaryFile("big.png", picture(PART * 5))).rejects.toThrow("append failed");
+    expect([...(files.get("big.png") as Uint8Array)]).toEqual([...picture(PART * 4 + 1)]);
+    expect(fake.openWrites()).toBe(0);
+    // A long note in parts as well, read back as the same text.
+    const long = "ä".repeat(PART);
+    await a.writeTextFile("long.md", long);
+    expect(await a.readTextFile("long.md")).toBe(long);
+    expect(Math.max(...fake.sizes)).toBeLessThanOrEqual(PART);
+  });
+});
+
+/**
+ * Writes to one path land in the order they began, as over the sandbox (first
+ * review of F54, R1): a large file goes in several calls, and a write begun
+ * after it used to reach the folder first - the older file's commit then
+ * overwrote the newer one. The fake runs one call at a time, in arrival
+ * order, as the native side does.
+ */
+describe("a picked folder keeps the order of writes to one path", () => {
+  const K = 1024;
+  const older = "A".repeat(600 * K);
+  const newer = "B".repeat(400 * K);
+  const setup = () => {
+    const files = new Map<string, string | Uint8Array>([["note.md", "start"]]);
+    return { files, a: new ExternalVaultAdapter(fakePlugin(files).plugin, "folder") };
+  };
+  const at = (files: Map<string, string | Uint8Array>, path: string) => text(files.get(path) ?? "");
+
+  it("a large write and a large one after it: the newer stays", async () => {
+    const { files, a } = setup();
+    await Promise.all([a.writeTextFile("note.md", older), a.writeTextFile("note.md", newer)]);
+    expect(at(files, "note.md")).toBe(newer);
+  });
+
+  it("a large write and a small one after it: the newer stays", async () => {
+    const { files, a } = setup();
+    await Promise.all([a.writeTextFile("note.md", older), a.writeTextFile("note.md", "B small")]);
+    expect(at(files, "note.md")).toBe("B small");
+  });
+
+  it("a delete or a rename begun during a large write waits for it", async () => {
+    const { files, a } = setup();
+    await Promise.all([a.writeTextFile("note.md", older), a.deleteItem("note.md")]);
+    expect(files.has("note.md")).toBe(false);
+    await a.writeTextFile("moved.md", "x");
+    await Promise.all([a.writeTextFile("note.md", older), a.renameItem("note.md", "renamed.md")]);
+    expect(files.has("note.md")).toBe(false);
+    expect(at(files, "renamed.md")).toBe(older);
+  });
+
+  it("writes to different paths do not wait for each other", async () => {
+    const { files, a } = setup();
+    let oneDone = false;
+    const one = a.writeTextFile("one.md", older).then(() => { oneDone = true; });
+    // The small file is in while the large one is still being written: no lock over the whole folder.
+    await a.writeTextFile("two.md", "small");
+    expect(oneDone).toBe(false);
+    expect(at(files, "two.md")).toBe("small");
+    await one;
+    expect(at(files, "one.md")).toBe(older);
+  });
+
+  it("a folder renamed during a large write below it takes the newer file along (second review)", async () => {
+    const { files, a } = setup();
+    files.set("dir/x.md", "old");
+    await Promise.all([a.writeTextFile("dir/x.md", older), a.renameItem("dir", "dir2")]);
+    expect(at(files, "dir2/x.md")).toBe(older);
+    expect([...files.keys()].filter((k) => k.startsWith("dir/"))).toEqual([]);
+  });
+
+  it("a folder deleted during a large write below it stays deleted", async () => {
+    const { files, a } = setup();
+    files.set("dir/x.md", "old");
+    await Promise.all([a.writeTextFile("dir/x.md", older), a.deleteItem("dir", true)]);
+    expect([...files.keys()].filter((k) => k.startsWith("dir/"))).toEqual([]);
+  });
+
+  it("a write begun below a folder after its rename waits for it, and lands at the new place", async () => {
+    const { files, a } = setup();
+    files.set("dir/x.md", "old");
+    files.set("dir2/y.md", "y");
+    await a.deleteItem("dir2", true);
+    // The rename first, then a write into the folder it goes to and one into the folder it leaves.
+    await Promise.all([a.renameItem("dir", "dir2"), a.writeTextFile("dir2/x.md", newer), a.writeTextFile("dir/z.md", "z")]);
+    expect(at(files, "dir2/x.md")).toBe(newer);
+    expect(at(files, "dir/z.md")).toBe("z");
+    expect(files.has("dir/x.md")).toBe(false);
+  });
+});
