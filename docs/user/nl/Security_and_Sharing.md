@@ -1,6 +1,6 @@
 # Beveiliging en delen
 
-Laatst bijgewerkt: 2026-11-17
+Laatst bijgewerkt: 2026-11-18
 
 > **Experimenteel — nog niet onafhankelijk beoordeeld.** Versleutelde workspaces worden als preview uitgeleverd. Het cryptografische ontwerp is nog niet door een onafhankelijke beoordelaar geauditeerd, en het bewijs met twee apparaten op echte Android- en iOS-hardware wordt nog verzameld. Probeer het gerust, maar houd een back-up van alles wat je niet kwijt mag raken, en vertrouw er nog niet op voor materiaal dat echt beschermd moet zijn.
 
@@ -28,7 +28,7 @@ Oude platte tekst blijft tijdens migratie naast `.pvws/` staan. Pas bij **Beveil
 
 ## Dagelijks gebruik
 
-Offline wijzigingen blijven in een duurzame wachtrij staan. Elke wijziging wordt ondertekend; een verwijdering op afstand alleen wist nooit een lokaal bestand, een ondertekende grafsteen wel. Parallelle offline bewerkingen blijven bewaard als `.CONFLICT-…`-kopieën. Geen tekst gaat verloren door een wijziging die tegelijk op een ander apparaat is gemaakt: waar twee versies blijven, ligt de andere als conflictkopie naast de notitie — ook als het ene apparaat een notitie of map verwijdert terwijl een ander erin bewerkt. **Vergrendelen** wist de workspace-sleutels echt uit het geheugen — de ondertekensleutel, de ontsleutelsleutel en elke groepssleutel die de sessie heeft opgehaald; **Ontgrendelen** haalt ze opnieuw op uit de systeemsleutelhanger of de lokale wachtwoordzin.
+Offline wijzigingen blijven in een duurzame wachtrij staan. Elke wijziging wordt ondertekend; een verwijdering op afstand alleen wist nooit een lokaal bestand, een ondertekende grafsteen wel. Parallelle offline bewerkingen blijven bewaard als `.CONFLICT-…`-kopieën. Geen tekst gaat verloren door een wijziging die tegelijk op een ander apparaat is gemaakt: waar twee versies blijven, ligt de andere als conflictkopie naast de notitie — ook als het ene apparaat een notitie of map verwijdert terwijl een ander erin bewerkt. Een notitie die een ander apparaat naar een map verplaatst die net wordt verwijderd, blijft daarin, op elk apparaat. **Vergrendelen** wist de workspace-sleutels echt uit het geheugen — de ondertekensleutel, de ontsleutelsleutel en elke groepssleutel die de sessie heeft opgehaald; **Ontgrendelen** haalt ze opnieuw op uit de systeemsleutelhanger of de lokale wachtwoordzin.
 
 ## Apparaten en herstel
 

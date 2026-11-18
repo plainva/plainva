@@ -1,6 +1,6 @@
 # Security & Sharing
 
-Last reviewed: 2026-11-17
+Last reviewed: 2026-11-18
 
 > **Experimental — not yet independently reviewed.** Encrypted workspaces ship as a preview. The cryptographic design has not been audited by an independent reviewer, and two-device evidence on real Android and iOS hardware is still being collected. Try it, but keep a backup of anything you cannot lose, and do not rely on it for material you must protect.
 
@@ -28,7 +28,7 @@ Existing plaintext at the provider remains beside `.pvws/` during migration. Onl
 
 ## Everyday use
 
-Offline changes stay in a durable queue. Every change is signed; remote deletion alone never deletes a local file, while a signed tombstone can. Parallel offline edits are preserved as `.CONFLICT-…` copies. No text is lost to a change made at the same time on another device: where two versions remain, the other one lies beside the note as a conflict copy — also when one device deletes a note or folder while another edits it. **Lock** really deletes the workspace keys from memory — the signing key, the decryption key, and every group key the session fetched; **Unlock** fetches them again from the system keychain or local passphrase.
+Offline changes stay in a durable queue. Every change is signed; remote deletion alone never deletes a local file, while a signed tombstone can. Parallel offline edits are preserved as `.CONFLICT-…` copies. No text is lost to a change made at the same time on another device: where two versions remain, the other one lies beside the note as a conflict copy — also when one device deletes a note or folder while another edits it. A note another device moves into a folder that is being deleted stays in it, on every device. **Lock** really deletes the workspace keys from memory — the signing key, the decryption key, and every group key the session fetched; **Unlock** fetches them again from the system keychain or local passphrase.
 
 ## Devices and recovery
 

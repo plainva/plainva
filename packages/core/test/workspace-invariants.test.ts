@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryWorkspaceStateStore, SqlWorkspaceStateStore, type IDatabaseAdapter, type WorkspaceObjectStore, type WorkspaceStateStore } from "../src/index.js";
 import { sha256Hex } from "../src/workspace/encoding.js";
-import { filesOf, MemoryVault, ownerSecondDevice, queued, synced } from "./helpers/workspaceReconcile.ts";
+import { chainPermissions, filesOf, MemoryVault, ownerSecondDevice, queued, synced } from "./helpers/workspaceReconcile.ts";
 import { realSqlite } from "./helpers/realSqlite.js";
 
 type Device = { state: WorkspaceStateStore; vault: MemoryVault; worker: { runCycle(): Promise<void> }; runtime: { device: { publicIdentity: { deviceId: string } } } };
@@ -151,39 +151,180 @@ describe.each(["memory", "sql"] as const)("no text is lost to another device's c
 });
 
 /**
- * A new note waiting here makes the worker read the path of every incoming
- * new object before applying it (`waitingForOwnChanges`). Each is fetched
- * once per cycle, not once for the look and once more for the apply.
+ * A move is a change at its source and at its target (review of release
+ * 0.9.0): a note moved into a folder whose deletion waits for an answer waits
+ * with it, and a folder's deletion takes what the deleting device deleted —
+ * what another device put, moved or changed in it stays. At the end every
+ * device has the text.
+ */
+describe.each(["memory", "sql"] as const)("a move into a folder another device deletes (%s state)", (kind) => {
+  const databases: IDatabaseAdapter[] = [];
+  afterEach(async () => { for (const db of databases.splice(0)) await db.close(); });
+  const makeState = async () => {
+    if (kind === "memory") return new MemoryWorkspaceStateStore();
+    const db = await realSqlite();
+    databases.push(db);
+    return new SqlWorkspaceStateStore(db);
+  };
+  const settle = async (...devices: Device[]) => { for (let round = 0; round < 4; round += 1) for (const device of devices) await device.worker.runCycle(); };
+
+  it("moved in by the deleting device after its deletion, while the question is open here: after the answer, every device has it", { timeout: 120_000 }, async () => {
+    const team = Array.from({ length: 30 }, (_, index) => `Team/n${String(index).padStart(2, "0")}.md`);
+    const owner = await synced([...team, "r1.md", "r2.md"], makeState);
+    const two = await ownerSecondDevice(owner, makeState);
+    let asked = false;
+    two.worker.onDeletionMirroringSuspended = () => { asked = true; };
+    await owner.vault.deleteItem("Team", true);
+    await owner.state.enqueue("delete", "Team", null, { confirmed: true });
+    await owner.worker.runCycle();
+    await two.worker.runCycle();
+    expect(asked).toBe(true);
+    await owner.vault.renameItem("r1.md", "Team/r1.md");
+    await owner.state.enqueue("rename", "r1.md", "Team/r1.md");
+    await owner.vault.writeTextFile("Team/new.md", "# new in Team\n");
+    await owner.state.enqueue("write", "Team/new.md");
+    await owner.vault.writeTextFile("r2.md", "# r2 edited\n");
+    await owner.state.enqueue("write", "r2.md");
+    await owner.worker.runCycle();
+    await two.worker.runCycle();
+    // While the question is open the move waits with the deletion; the unrelated edit arrives.
+    expect(filesOf(two.vault)["r2.md"]).toBe("# r2 edited\n");
+    expect(filesOf(two.vault)["r1.md"]).toBe("# r1.md\n");
+    two.worker.approveSuspendedDeletions();
+    await settle(two, owner);
+    for (const device of [owner, two]) {
+      const shown = filesOf(device.vault);
+      expect(shown["Team/r1.md"]).toBe("# r1.md\n");
+      expect(shown["Team/new.md"]).toBe("# new in Team\n");
+      expect(Object.keys(shown).filter((path) => /^Team\/n\d\d\.md$/.test(path))).toEqual([]);
+      expect(await queued(device.state)).toEqual([]);
+    }
+  });
+
+  it.each([["the deleting device first", false], ["the deleting device first", true], ["the moving device first", false], ["the moving device first", true]] as const)("moved in by another device at the same time, %s (and edited: %s): every device has its text", { timeout: 120_000 }, async (order, edited) => {
+    const owner = await synced(["T/a.md", "T/b.md", "r1.md", "z.md"], makeState);
+    const x = await ownerSecondDevice(owner, makeState);
+    const y = await ownerSecondDevice(owner, makeState);
+    await x.worker.runCycle();
+    await y.worker.runCycle();
+    await owner.vault.deleteItem("T", true);
+    await owner.state.enqueue("delete", "T", null, { confirmed: true });
+    await x.vault.renameItem("r1.md", "T/r1.md");
+    await x.state.enqueue("rename", "r1.md", "T/r1.md");
+    const text = edited ? "# r1 moved and edited on x\n" : "# r1.md\n";
+    if (edited) {
+      await x.vault.writeTextFile("T/r1.md", text);
+      await x.state.enqueue("write", "T/r1.md");
+    }
+    for (const device of order === "the deleting device first" ? [owner, x] : [x, owner]) await device.worker.runCycle();
+    await settle(owner, x, y);
+    for (const device of [owner, x, y]) {
+      const shown = filesOf(device.vault);
+      expect(shown["T/r1.md"]).toBe(text);
+      expect(shown["T/a.md"]).toBeUndefined();
+      expect(shown["T/b.md"]).toBeUndefined();
+      expect(await queued(device.state)).toEqual([]);
+    }
+    expect(filesOf(x.vault)).toEqual(filesOf(owner.vault));
+    expect(filesOf(y.vault)).toEqual(filesOf(owner.vault));
+  });
+});
+
+/**
+ * A device that moves one note around offline — a.md to c.md, back to a.md,
+ * then to b.md — sends one move, and its queue goes up (review of release
+ * 0.9.0: "workspace rename queue contains a cycle", and every later change of
+ * that device, to any note, hung for good).
+ */
+describe("a chain of moves of one note", () => {
+  it.each([false, true])("is one move, and the rest of the queue goes up (edited between: %s)", { timeout: 60_000 }, async (edited) => {
+    const owner = await synced(["a.md", "z.md"]);
+    const two = await ownerSecondDevice(owner);
+    await owner.vault.renameItem("a.md", "c.md");
+    await owner.state.enqueue("rename", "a.md", "c.md");
+    await owner.vault.renameItem("c.md", "a.md");
+    await owner.state.enqueue("rename", "c.md", "a.md");
+    if (edited) {
+      await owner.vault.writeTextFile("a.md", "# a edited\n");
+      await owner.state.enqueue("write", "a.md");
+    }
+    await owner.vault.renameItem("a.md", "b.md");
+    await owner.state.enqueue("rename", "a.md", "b.md");
+    await owner.vault.writeTextFile("z.md", "# z edited\n");
+    await owner.state.enqueue("write", "z.md");
+    await owner.worker.runCycle();
+    expect(await queued(owner.state)).toEqual([]);
+    await two.worker.runCycle();
+    expect(filesOf(two.vault)).toEqual({ "b.md": edited ? "# a edited\n" : "# a.md\n", "z.md": "# z edited\n" });
+  });
+
+  it("back to where it began is no move at all", { timeout: 60_000 }, async () => {
+    const owner = await synced(["a.md"]);
+    const two = await ownerSecondDevice(owner);
+    await owner.vault.renameItem("a.md", "c.md");
+    await owner.state.enqueue("rename", "a.md", "c.md");
+    await owner.vault.renameItem("c.md", "a.md");
+    await owner.state.enqueue("rename", "c.md", "a.md");
+    await owner.worker.runCycle();
+    expect(await queued(owner.state)).toEqual([]);
+    await two.worker.runCycle();
+    expect(filesOf(two.vault)).toEqual({ "a.md": "# a.md\n" });
+  });
+});
+
+/** The bytes the worker keeps in its own maps and sets, by a walk of its fields (the vault, the store and the state are not its own). */
+function bytesHeldBy(worker: object): { objects: number; bytes: number } {
+  let objects = 0;
+  let bytes = 0;
+  const seen = new Set<unknown>();
+  const visit = (value: unknown, depth: number) => {
+    if (!value || typeof value !== "object" || seen.has(value) || depth > 4) return;
+    seen.add(value);
+    if (value instanceof Uint8Array) { if (value.length >= 64 * 1024) { objects += 1; bytes += value.length; } return; }
+    const items = value instanceof Map ? [...value.values()] : value instanceof Set || Array.isArray(value) ? [...value] : Object.values(value);
+    for (const item of items) visit(item, depth + 1);
+  };
+  for (const field of Object.values(worker)) if (field instanceof Map || field instanceof Set) visit(field, 0);
+  return { objects, bytes };
+}
+
+/**
+ * A phone that pulls many new files while a note of its own waits (review of
+ * release 0.9.0): the worker looks at where each new file goes, and keeps no
+ * file's bytes for that — it holds at most the one it is applying, however
+ * many come. Kept until the pull ended, thirty attachments of a megabyte
+ * were sixty megabytes at once, the pattern of the phone's crash of 17.11.
  */
 describe("the look at incoming new objects while a note of this device waits", () => {
-  it("fetches each object once", { timeout: 60_000 }, async () => {
+  it("holds no object's bytes past its apply", { timeout: 120_000 }, async () => {
     const owner = await synced(["b.md"]);
     const phone = await ownerSecondDevice(owner);
-    for (let index = 0; index < 20; index += 1) {
-      await owner.vault.writeTextFile(`new${index}.md`, `# new ${index}\n`);
-      await owner.state.enqueue("write", `new${index}.md`);
+    for (let index = 0; index < 30; index += 1) {
+      const bytes = new Uint8Array(1024 * 1024);
+      for (let offset = 0; offset < bytes.length; offset += 4096) bytes[offset] = (index * 7 + offset) & 255;
+      bytes[0] = index;
+      await owner.vault.writeBinaryFile(`img${index}.png`, bytes);
+      await owner.state.enqueue("write", `img${index}.png`);
     }
     await owner.worker.runCycle();
     await phone.vault.writeTextFile("mine.md", "# waiting here\n");
     await phone.state.enqueue("write", "mine.md");
-    const fetched = new Map<string, number>();
-    const get = owner.store.get.bind(owner.store);
-    owner.store.get = async (key, options) => {
-      if (key.endsWith(".pvobj")) fetched.set(key, (fetched.get(key) ?? 0) + 1);
-      return get(key, options);
-    };
+    const worker = phone.worker as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+    const verify = worker.verifyRemoteHeads.bind(phone.worker);
+    let held = { objects: -1, bytes: -1 };
+    worker.verifyRemoteHeads = async (...args: unknown[]) => { held = bytesHeldBy(phone.worker); return verify(...args); };
     await phone.worker.runCycle();
-    owner.store.get = get;
-    expect(fetched.size).toBeGreaterThanOrEqual(20);
-    expect(Math.max(...fetched.values())).toBe(1);
+    expect(held).toEqual({ objects: 0, bytes: 0 });
+    expect([...phone.vault.files.keys()].filter((path) => path.startsWith("img")).length).toBe(30);
   });
 });
 
 /**
  * Random changes on two and three devices of one workspace, one of them now
- * and then offline (review of release 0.9.0). Whatever they do: no text
- * written is nowhere afterwards — on no device and in no history — the
- * conflict copies stay few, and no queue is left hanging.
+ * and then offline, with and without the app's watcher (review of release
+ * 0.9.0). Whatever they do: no cycle throws, no text written is nowhere
+ * afterwards — on no device and in no history — the conflict copies stay
+ * few, and no queue is left hanging.
  */
 describe("random concurrent changes", () => {
   const POOL = ["a.md", "b.md", "c.md", "F/x.md", "F/y.md"];
@@ -191,13 +332,33 @@ describe("random concurrent changes", () => {
     let x = (seed * 2654435761) >>> 0 || 1;
     return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
   }
-  async function run(seed: number, deviceCount: number, offline: boolean) {
+  async function run(seed: number, deviceCount: number, offline: boolean, watch: boolean) {
     const next = random(seed);
     const pick = <T,>(items: T[]) => items[Math.floor(next() * items.length)];
     const owner = await synced(["a.md", "b.md", "F/x.md"]);
     const devices: Device[] = [owner];
     for (let index = 1; index < deviceCount; index += 1) devices.push(await ownerSecondDevice(owner));
     for (const device of devices) await device.worker.runCycle();
+    // A cycle that throws is a failure: these are the owner's devices, nothing they do is refused.
+    const errors: string[] = [];
+    // The app's watcher: what the worker wrote comes back as a change from outside, judged by the chain.
+    const changed = devices.map(() => [] as string[]);
+    devices.forEach((device, index) => { (device.worker as { onFilesChanged?: (paths: string[]) => void }).onFilesChanged = (paths) => changed[index].push(...paths); });
+    const permissions = devices.map((device) => chainPermissions(device.vault, device.state, (device as unknown as { runtime: Parameters<typeof chainPermissions>[2] }).runtime));
+    const cycle = async (index: number) => {
+      try {
+        await devices[index].worker.runCycle();
+      } catch (error) {
+        errors.push(`seed ${seed} device ${index}: ${(error as Error).message}`);
+      }
+      const paths = [...new Set(changed[index].splice(0))];
+      if (!watch) return;
+      for (const path of paths) {
+        if (devices[index].vault.directories.has(path)) continue;
+        const exists = devices[index].vault.files.has(path);
+        if (await permissions[index].authorizeExternalChange(path, exists)) await devices[index].state.enqueue(exists ? "write" : "delete", path);
+      }
+    };
     const written = new Map<string, boolean>([["# a.md\n", false], ["# b.md\n", false], ["# F/x.md\n", false]]);
     const replace = (device: Device, path: string) => { const bytes = device.vault.files.get(path); if (bytes) written.set(new TextDecoder().decode(bytes), true); };
     const away = offline ? 1 + Math.floor(next() * (deviceCount - 1)) : -1;
@@ -210,7 +371,7 @@ describe("random concurrent changes", () => {
       const roll = next();
       if (roll < 0.45) {
         if (index === away && step >= steps * 0.2 && step < steps * 0.6) continue;
-        await device.worker.runCycle().catch(() => {});
+        await cycle(index);
         continue;
       }
       const text = `# t${++made} by d${index}\n`;
@@ -241,17 +402,20 @@ describe("random concurrent changes", () => {
         await device.state.enqueue("rename", path, target);
       }
     }
-    for (let round = 0; round < 8; round += 1) for (const device of devices) await device.worker.runCycle().catch(() => {});
+    for (let round = 0; round < 8; round += 1) for (let index = 0; index < devices.length; index += 1) await cycle(index);
     const { shown, history } = await everyText(devices);
     const nowhere = [...written].filter(([text, replaced]) => !replaced && !shown.has(text) && !history.has(sha(text))).map(([text]) => text.trim());
     const copies = Math.max(...devices.map((device) => Object.keys(filesOf(device.vault)).filter((path) => path.includes("CONFLICT")).length));
     const queues = await Promise.all(devices.map(async (device) => (await device.state.listQueue(1000)).length));
-    return { nowhere, copies, queues };
+    return { nowhere, copies, queues, errors };
   }
   const SEEDS = [138, 1, 5, 12, 23, 29, 41, 57, 77, 99];
-  it.each([[2, false], [3, false], [3, true]] as const)("on %i devices (one offline at times: %s): nothing nowhere, few copies, no queue left", { timeout: 300_000 }, async (deviceCount, offline) => {
-    for (const seed of SEEDS) {
-      const outcome = await run(seed, deviceCount, offline);
+  // 314: a device moved a note around offline and its queue hung on "a cycle"; with the watcher and offline phases.
+  const WATCHED = [314, 301, 303, 307, 309, 2, 17];
+  it.each([[2, false, false, SEEDS], [3, false, false, SEEDS], [3, true, false, SEEDS], [3, true, true, WATCHED]] as const)("on %i devices (one offline at times: %s, the watcher on: %s): no cycle throws, nothing nowhere, few copies, no queue left", { timeout: 300_000 }, async (deviceCount, offline, watch, seeds) => {
+    for (const seed of seeds) {
+      const outcome = await run(seed, deviceCount, offline, watch);
+      expect(outcome.errors).toEqual([]);
       expect({ seed, nowhere: outcome.nowhere }).toEqual({ seed, nowhere: [] });
       expect(outcome.copies, `seed ${seed}`).toBeLessThanOrEqual(12);
       expect(outcome.queues.every((length) => length === 0), `seed ${seed}`).toBe(true);

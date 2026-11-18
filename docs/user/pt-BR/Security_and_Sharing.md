@@ -1,6 +1,6 @@
 # Segurança e compartilhamento
 
-Última revisão: 2026-11-17
+Última revisão: 2026-11-18
 
 > **Experimental — ainda sem revisão independente.** Workspaces criptografados são lançados como uma prévia. O design ainda não passou por uma revisão criptográfica independente, e evidências de dois dispositivos em hardware Android e iOS reais ainda estão sendo coletadas. Experimente, mas mantenha um backup de tudo que você não pode perder, e não confie nele para material que você precisa proteger.
 
@@ -28,7 +28,7 @@ O texto simples antigo permanece ao lado de `.pvws/` durante a migração. Só n
 
 ## No dia a dia
 
-As alterações feitas offline permanecem em uma fila durável. Toda alteração é assinada; uma exclusão remota sozinha nunca apaga um arquivo local, mas uma lápide assinada pode. Edições paralelas offline são preservadas como cópias `.CONFLICT-…`. Nenhum texto se perde por uma alteração feita ao mesmo tempo em outro dispositivo: onde ficam duas versões, a outra fica ao lado da nota como cópia de conflito — também quando um dispositivo exclui uma nota ou pasta enquanto outro a edita. **Bloquear** apaga de fato as chaves do workspace da memória — a chave de assinatura, a de descriptografia e toda chave de grupo que a sessão buscou; **Desbloquear** as pede novamente ao chaveiro do sistema ou à frase secreta local.
+As alterações feitas offline permanecem em uma fila durável. Toda alteração é assinada; uma exclusão remota sozinha nunca apaga um arquivo local, mas uma lápide assinada pode. Edições paralelas offline são preservadas como cópias `.CONFLICT-…`. Nenhum texto se perde por uma alteração feita ao mesmo tempo em outro dispositivo: onde ficam duas versões, a outra fica ao lado da nota como cópia de conflito — também quando um dispositivo exclui uma nota ou pasta enquanto outro a edita. Uma nota que outro dispositivo move para uma pasta que está sendo excluída fica nela, em todos os dispositivos. **Bloquear** apaga de fato as chaves do workspace da memória — a chave de assinatura, a de descriptografia e toda chave de grupo que a sessão buscou; **Desbloquear** as pede novamente ao chaveiro do sistema ou à frase secreta local.
 
 ## Dispositivos e recuperação
 

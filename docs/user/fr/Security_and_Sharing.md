@@ -1,6 +1,6 @@
 # Sécurité et partage
 
-Dernière mise à jour : 2026-11-17
+Dernière mise à jour : 2026-11-18
 
 > **Expérimental — pas encore audité de manière indépendante.** Les espaces de travail chiffrés sont proposés en avant-première. La conception cryptographique n’a pas encore été auditée par un examinateur indépendant, et les tests sur deux appareils avec du matériel Android et iOS réel sont encore en cours. Essayez-le, mais conservez une sauvegarde de tout ce que vous ne pouvez pas vous permettre de perdre, et ne vous y fiez pas encore pour du contenu qui doit impérativement être protégé.
 
@@ -28,7 +28,7 @@ L’ancien contenu en clair reste à côté de `.pvws/` pendant la migration. Il
 
 ## Au quotidien
 
-Les modifications hors ligne restent dans une file d’attente durable. Chaque modification est signée ; une suppression distante seule n’efface jamais un fichier local, alors qu’une pierre tombale signée le peut. Les modifications parallèles hors ligne sont conservées sous forme de copies `.CONFLICT-…`. Aucun texte n'est perdu à cause d'une modification faite en même temps sur un autre appareil : là où deux versions subsistent, l'autre se trouve à côté de la note comme copie de conflit — aussi lorsqu'un appareil supprime une note ou un dossier pendant qu'un autre y modifie quelque chose. **Verrouiller** supprime réellement les clés du workspace de la mémoire — la clé de signature, la clé de déchiffrement et toutes les clés de groupe récupérées pendant la session ; **Déverrouiller** les redemande au trousseau système ou à la phrase secrète locale.
+Les modifications hors ligne restent dans une file d’attente durable. Chaque modification est signée ; une suppression distante seule n’efface jamais un fichier local, alors qu’une pierre tombale signée le peut. Les modifications parallèles hors ligne sont conservées sous forme de copies `.CONFLICT-…`. Aucun texte n'est perdu à cause d'une modification faite en même temps sur un autre appareil : là où deux versions subsistent, l'autre se trouve à côté de la note comme copie de conflit — aussi lorsqu'un appareil supprime une note ou un dossier pendant qu'un autre y modifie quelque chose. Une note qu'un autre appareil déplace dans un dossier en cours de suppression y reste, sur chaque appareil. **Verrouiller** supprime réellement les clés du workspace de la mémoire — la clé de signature, la clé de déchiffrement et toutes les clés de groupe récupérées pendant la session ; **Déverrouiller** les redemande au trousseau système ou à la phrase secrète locale.
 
 ## Appareils et récupération
 

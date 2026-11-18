@@ -1,6 +1,6 @@
 # Seguridad y uso compartido
 
-Última actualización: 2026-11-17
+Última actualización: 2026-11-18
 
 > **Experimental — aún no revisado de forma independiente.** Los espacios de trabajo cifrados se ofrecen como vista previa. El diseño criptográfico todavía no ha sido auditado por un revisor independiente, y todavía se están recopilando pruebas con dos dispositivos en hardware real de Android e iOS. Pruébalo, pero conserva una copia de seguridad de todo lo que no puedas permitirte perder, y no confíes en él para material que debas proteger.
 
@@ -28,7 +28,7 @@ El texto sin cifrar existente permanece junto a `.pvws/` durante la migración. 
 
 ## Uso diario
 
-Los cambios sin conexión permanecen en una cola duradera. Cada cambio va firmado; una eliminación remota por sí sola nunca borra un archivo local, pero una lápida firmada sí puede hacerlo. Las ediciones paralelas sin conexión se conservan como copias `.CONFLICT-…`. Ningún texto se pierde por un cambio hecho al mismo tiempo en otro dispositivo: donde quedan dos versiones, la otra queda junto a la nota como copia de conflicto, también cuando un dispositivo elimina una nota o una carpeta mientras otro la edita. **Bloquear** borra realmente las claves del workspace de la memoria — la clave de firma, la de descifrado y todas las claves de grupo que la sesión haya obtenido; **Desbloquear** las vuelve a pedir al llavero del sistema o a la frase de contraseña local.
+Los cambios sin conexión permanecen en una cola duradera. Cada cambio va firmado; una eliminación remota por sí sola nunca borra un archivo local, pero una lápida firmada sí puede hacerlo. Las ediciones paralelas sin conexión se conservan como copias `.CONFLICT-…`. Ningún texto se pierde por un cambio hecho al mismo tiempo en otro dispositivo: donde quedan dos versiones, la otra queda junto a la nota como copia de conflicto, también cuando un dispositivo elimina una nota o una carpeta mientras otro la edita. Una nota que otro dispositivo mueve a una carpeta que se está eliminando se queda en ella, en todos los dispositivos. **Bloquear** borra realmente las claves del workspace de la memoria — la clave de firma, la de descifrado y todas las claves de grupo que la sesión haya obtenido; **Desbloquear** las vuelve a pedir al llavero del sistema o a la frase de contraseña local.
 
 ## Dispositivos y recuperación
 

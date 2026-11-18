@@ -1,6 +1,6 @@
 # Sicherheit & Freigaben
 
-Stand: 2026-11-17
+Stand: 2026-11-18
 
 > **Experimentell — noch nicht unabhängig geprüft.** Verschlüsselte Workspaces sind eine Vorschau. Das kryptografische Design wurde noch nicht von unabhängiger Seite auditiert, und die Zwei-Geräte-Abnahme auf echter Android- und iOS-Hardware läuft noch. Probier es aus, aber halte von allem, was Du nicht verlieren darfst, eine Sicherung — und verlass Dich noch nicht darauf für Material, das wirklich geschützt sein muss.
 
@@ -28,7 +28,7 @@ Bestehender Klartext bleibt während der Migration beim Anbieter neben `.pvws/` 
 
 ## Im Alltag
 
-Offline-Änderungen bleiben in einer dauerhaften Queue. Jede Änderung ist signiert; bloßes Remote-Fehlen löscht lokal nichts, ein signierter Tombstone dagegen schon. Parallele Offline-Bearbeitungen bleiben als `.CONFLICT-…`-Kopien erhalten. Kein Text geht durch eine gleichzeitige Änderung auf einem anderen Gerät verloren: Wo zwei Fassungen bleiben, liegt die andere als Konfliktkopie neben der Notiz — auch wenn ein Gerät eine Notiz oder einen Ordner löscht, während ein anderes darin bearbeitet. **Sperren** löscht die Workspace-Schlüssel wirklich aus dem Speicher — den Signaturschlüssel, den Entschlüsselungsschlüssel und jeden Gruppenschlüssel, den die Sitzung geholt hat; **Entsperren** holt sie erneut aus Schlüsselbund oder lokaler Passphrase.
+Offline-Änderungen bleiben in einer dauerhaften Queue. Jede Änderung ist signiert; bloßes Remote-Fehlen löscht lokal nichts, ein signierter Tombstone dagegen schon. Parallele Offline-Bearbeitungen bleiben als `.CONFLICT-…`-Kopien erhalten. Kein Text geht durch eine gleichzeitige Änderung auf einem anderen Gerät verloren: Wo zwei Fassungen bleiben, liegt die andere als Konfliktkopie neben der Notiz — auch wenn ein Gerät eine Notiz oder einen Ordner löscht, während ein anderes darin bearbeitet. Eine Notiz, die ein anderes Gerät in einen Ordner verschiebt, der gerade gelöscht wird, bleibt darin, auf jedem Gerät. **Sperren** löscht die Workspace-Schlüssel wirklich aus dem Speicher — den Signaturschlüssel, den Entschlüsselungsschlüssel und jeden Gruppenschlüssel, den die Sitzung geholt hat; **Entsperren** holt sie erneut aus Schlüsselbund oder lokaler Passphrase.
 
 ## Geräte und Wiederherstellung
 

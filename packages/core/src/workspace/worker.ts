@@ -31,6 +31,7 @@ import { WorkspaceObjectStore } from "./objectStore.js";
 import {
   openPvc1Chunk,
   openPvo1Frame,
+  openPvo1Metadata,
   parsePvo1Frame,
   sealChunkedPvo1,
   sealInlinePvo1,
@@ -321,11 +322,14 @@ export class EncryptedWorkspaceWorker {
    * is not taken as observed yet.
    */
   private heldDeviceIds = new Set<string>();
-  /** New objects opened in this pull to learn their place (`incomingTargetPath`), kept for the apply. */
-  private readonly openedThisPull = new Map<string, { bytes: Uint8Array; opened: Awaited<ReturnType<typeof openPvo1Frame>> }>();
-  private readonly unopenableThisPull = new Set<string>();
-  /** The objects each device deleted one by one, as far as this pull lists it (`materializeDelete`). */
-  private readonly deletedByDevice = new Map<string, Set<string>>();
+  /**
+   * The place each incoming object revision gives its object, as far as this
+   * pull looked (`incomingTargetPath`): only the path, never the object's bytes
+   * or plaintext — those are fetched again for the one object being applied.
+   * Holding them until the pull ended took a phone's memory on its first sync
+   * with attachments (review of release 0.9.0, the pattern of F51).
+   */
+  private readonly targetPathsThisPull = new Map<string, string | null>();
   private readonly foldersToClear = new Set<string>();
   /** Each device's operations this pull applied or found applied, by sequence (`advanceHead`). */
   private readonly appliedThisPull = new Map<string, Map<number, string>>();
@@ -976,16 +980,8 @@ export class EncryptedWorkspaceWorker {
     // operation that waited (below) is applied after later ones of its device,
     // and the head this device keeps of that chain stays below it until it is
     // (`advanceHead`).
-    this.openedThisPull.clear();
-    this.unopenableThisPull.clear();
+    this.targetPathsThisPull.clear();
     this.appliedThisPull.clear();
-    this.deletedByDevice.clear();
-    for (const { document } of operations) {
-      if (document.payload.operation !== "delete") continue;
-      const deleted = this.deletedByDevice.get(document.payload.deviceId) ?? new Set<string>();
-      deleted.add(document.payload.objectId);
-      this.deletedByDevice.set(document.payload.deviceId, deleted);
-    }
     const chained = await this.validateDeviceChains(operations, meta.operationHeads);
     const fresh: typeof operations = [];
     for (const operation of chained) {
@@ -1021,7 +1017,7 @@ export class EncryptedWorkspaceWorker {
           // so its fresh object may appear in the operation stream first. The
           // clear PVO1 envelope headers let intended readers discover that
           // delta without exposing metadata or plaintext to other groups.
-          const objectBytes = this.openedThisPull.get(`.pvws/objects/${entry.document.payload.objectId}/${payloadHash}.pvobj`)?.bytes ?? await this.objectStore.get(`.pvws/objects/${entry.document.payload.objectId}/${payloadHash}.pvobj`, { signal });
+          const objectBytes = await this.objectStore.get(`.pvws/objects/${entry.document.payload.objectId}/${payloadHash}.pvobj`, { signal });
           if (!objectBytes) { index += 1; continue; }
           try {
             const frame = parsePvo1Frame(objectBytes);
@@ -1049,8 +1045,7 @@ export class EncryptedWorkspaceWorker {
     if (waiting.size === 0) for (const entry of pending) await this.quarantineArtifact("operation", entry.key, entry.bytes, new WorkspaceProtocolError("integrity", "operation graph contains missing revision parents"));
     await this.clearDeletedFolders();
     await this.verifyRemoteHeads(meta, policy, signal);
-    this.openedThisPull.clear();
-    this.unopenableThisPull.clear();
+    this.targetPathsThisPull.clear();
     return changed;
   }
 
@@ -1077,13 +1072,21 @@ export class EncryptedWorkspaceWorker {
     return waiting;
   }
 
-  /** The paths an incoming operation touches here: its object's place (a deleted one's too), and the place it gives a new object. */
+  /**
+   * The paths an incoming operation touches here: its object's place (a
+   * deleted one's too), and the place it gives the object — a new object's,
+   * and the target of a move (review of release 0.9.0: a note moved into a
+   * folder whose deletion waited for an answer did not wait with it, and the
+   * deletion took it once answered). A folder around either is met by
+   * `pathsMeet`. Only a move and a new object can change the place: a write
+   * of a known object goes out under its own path (`prepareMutationLocked`).
+   */
   private async pathsTouched(operation: WorkspaceOperationPayload): Promise<string[]> {
     const current = await this.state.getObjectById(operation.objectId);
     const paths = current && !current.path.startsWith("deleted-") ? [current.path] : [];
-    if (!current && operation.operation !== "delete" && operation.operation !== "comment") {
+    if (operation.operation !== "delete" && operation.operation !== "comment" && (!current || operation.operation === "rename" || operation.operation === "resolve")) {
       const target = await this.incomingTargetPath(operation);
-      if (target) paths.push(target);
+      if (target && !paths.includes(target)) paths.push(target);
     }
     return paths;
   }
@@ -1137,26 +1140,31 @@ export class EncryptedWorkspaceWorker {
     return waiting;
   }
 
-  /** The path an incoming content operation gives its object, or null when it cannot be read here. */
+  /**
+   * The path an incoming content operation gives its object, or null when it
+   * cannot be read here. Only the metadata is opened, and only the path is
+   * kept (`targetPathsThisPull`).
+   */
   private async incomingTargetPath(operation: WorkspaceOperationPayload): Promise<string | null> {
     if (!operation.payloadHash) return null;
     const key = `.pvws/objects/${operation.objectId}/${operation.payloadHash}.pvobj`;
-    const known = this.openedThisPull.get(key);
-    if (known) return assertCanonicalVaultPath(known.opened.metadata.path);
-    if (this.unopenableThisPull.has(key)) return null;
-    this.unopenableThisPull.add(key);
+    if (this.targetPathsThisPull.has(key)) return this.targetPathsThisPull.get(key)!;
+    let path: string | null = null;
     try {
       const bytes = await this.objectStore.get(key);
-      if (!bytes || sha256Hex(bytes) !== operation.payloadHash) return null;
-      const frame = parsePvo1Frame(bytes);
-      if (!frame.envelopes.some((envelope) => this.runtime.groupKeys.some((key) => key.groupId === envelope.groupId && key.keyEpoch === envelope.keyEpoch))) return null;
-      const opened = await openPvo1Frame(bytes, this.runtime.groupKeys.map((key) => ({ groupId: key.groupId, keyEpoch: key.keyEpoch, privateKey: key.hpke.privateKey })));
-      this.openedThisPull.set(key, { bytes, opened });
-      this.unopenableThisPull.delete(key);
-      return assertCanonicalVaultPath(opened.metadata.path);
+      if (bytes && sha256Hex(bytes) === operation.payloadHash) {
+        const frame = parsePvo1Frame(bytes);
+        if (frame.envelopes.some((envelope) => this.runtime.groupKeys.some((key) => key.groupId === envelope.groupId && key.keyEpoch === envelope.keyEpoch))) {
+          const metadata = await openPvo1Metadata(bytes, this.runtime.groupKeys.map((key) => ({ groupId: key.groupId, keyEpoch: key.keyEpoch, privateKey: key.hpke.privateKey })));
+          path = assertCanonicalVaultPath(metadata.path);
+        }
+      }
     } catch {
-      return null;
+      // silent: an object this device cannot open here has no place to wait on; the apply judges it on its own
+      path = null;
     }
+    this.targetPathsThisPull.set(key, path);
+    return path;
   }
 
   /**
@@ -1304,7 +1312,7 @@ export class EncryptedWorkspaceWorker {
       // Where this member may not create it, the file stays here only: its own version, which nobody refused.
       if (keep && current && !this.mayCreateAt(current.path, current.contentKind === "directory")) await recordWorkspaceDeniedChange(this.vault, this.state, current.path, current.contentKind !== "directory", "kept-local");
       else if (keep && current) await this.state.enqueue(current.contentKind === "directory" ? "mkdir" : "write", current.path);
-      else if (setCurrent && current) await this.materializeDelete(current, operation.deviceId);
+      else if (setCurrent && current) await this.materializeDelete(current);
       const object: WorkspaceObjectRecord = current
         ? { ...current, currentRevisionId: null, payloadHash: null, deleted: true, modifiedAt: operation.createdAt }
         : { objectId: operation.objectId, path: deletedObjectPath(operation.objectId), currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, authorMemberId: "", createdAt: operation.createdAt, modifiedAt: operation.createdAt };
@@ -1316,15 +1324,14 @@ export class EncryptedWorkspaceWorker {
 
     protocolAssert(operation.payloadHash !== null && operation.revisionId !== null, "integrity", "content operation is missing payload references");
     const objectKey = `.pvws/objects/${operation.objectId}/${operation.payloadHash}.pvobj`;
-    const seen = this.openedThisPull.get(objectKey);
-    const objectBytes = seen?.bytes ?? await this.objectStore.get(objectKey, { signal });
+    const objectBytes = await this.objectStore.get(objectKey, { signal });
     protocolAssert(objectBytes !== null && sha256Hex(objectBytes) === operation.payloadHash, "integrity", "operation payload object is missing or changed");
     const frame = parsePvo1Frame(objectBytes);
     const canRead = frame.envelopes.some((envelope) => this.runtime.groupKeys.some((key) => key.groupId === envelope.groupId && key.keyEpoch === envelope.keyEpoch));
     if (!canRead) return [];
     let opened: Awaited<ReturnType<typeof openPvo1Frame>>;
     try {
-      opened = seen?.opened ?? await openPvo1Frame(objectBytes, this.runtime.groupKeys.map((key) => ({ groupId: key.groupId, keyEpoch: key.keyEpoch, privateKey: key.hpke.privateKey })));
+      opened = await openPvo1Frame(objectBytes, this.runtime.groupKeys.map((key) => ({ groupId: key.groupId, keyEpoch: key.keyEpoch, privateKey: key.hpke.privateKey })));
     } catch (error) {
       await this.quarantineArtifact("object", objectKey, objectBytes, error);
       throw error;
@@ -1579,23 +1586,18 @@ export class EncryptedWorkspaceWorker {
    * Carries out a deletion here. Only what is this object's recorded state is
    * removed; a file changed or queued here stays where it is — it goes up
    * again as a note of its own, nothing anyone wrote is gone. A folder's
-   * deletion removes the files in it that are what this device recorded, as
-   * far as the deleting device did not delete them one by one itself (a
-   * current device does; their own deletions decide, an edit made meanwhile
-   * wins). The folder goes when nothing is left in it.
+   * deletion removes the folder alone: the files in it go by the deletions
+   * the deleting device made of each of them (`expandFolderDeletion`), and
+   * what another device put, moved or changed in it meanwhile stays, and the
+   * folder with it (review of release 0.9.0: the folder's deletion took a
+   * note another device had just moved into it, from every device but the
+   * one that deleted). The folder goes once nothing is left in it.
    */
-  private async materializeDelete(current: WorkspaceObjectRecord, deviceId: string): Promise<void> {
+  private async materializeDelete(current: WorkspaceObjectRecord): Promise<void> {
     if (!(await this.vault.exists(current.path))) return;
     if (current.contentKind !== "directory") {
       if (await this.holdsRecordedState(current, current.path)) await this.vault.deleteItem(current.path);
       return;
-    }
-    const decided = this.deletedByDevice.get(deviceId) ?? new Set<string>();
-    const inside = (await this.state.listObjects(false)).filter((object) => object.path.startsWith(`${current.path}/`) && object.contentKind !== "directory" && !decided.has(object.objectId));
-    for (const object of inside) {
-      if (!(await this.holdsRecordedState(object, object.path))) continue;
-      await this.vault.deleteItem(object.path);
-      await this.state.retireObject(object.objectId);
     }
     if ((await this.vault.listDir(current.path, true)).some((entry) => !entry.isDirectory)) { this.foldersToClear.add(current.path); return; }
     await this.vault.deleteItem(current.path, true);
@@ -1891,10 +1893,11 @@ export class EncryptedWorkspaceWorker {
     if (item.operation !== "rename" || !item.newPath) return { item, absorbedQueueIds: [] };
     let destination = item.newPath;
     const absorbedQueueIds: number[] = [];
-    const seen = new Set([item.path]);
+    // A chain of moves of one file (a.md -> c.md -> a.md -> b.md, made
+    // offline) is one move from its first place to its last, or none: a
+    // place passed twice is no cycle (review of release 0.9.0, the queue of
+    // such a device hung for good). Each step is absorbed once, so it ends.
     while (!(await this.vault.exists(destination))) {
-      protocolAssert(!seen.has(destination), "conflict", "workspace rename queue contains a cycle");
-      seen.add(destination);
       const next = queue.find((candidate) =>
         candidate.id > item.id && !candidate.prepared && !absorbedQueueIds.includes(candidate.id) &&
         candidate.path === destination && (candidate.operation === "rename" || candidate.operation === "delete")

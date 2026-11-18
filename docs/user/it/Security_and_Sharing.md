@@ -1,6 +1,6 @@
 # Sicurezza e condivisione
 
-Ultimo aggiornamento: 2026-11-17
+Ultimo aggiornamento: 2026-11-18
 
 > **Sperimentale — non ancora verificato in modo indipendente.** Gli workspace cifrati vengono rilasciati come anteprima. Il design crittografico non è ancora stato sottoposto a un audit indipendente e le verifiche su due dispositivi con hardware Android e iOS reale sono ancora in corso. Provalo pure, ma conserva una copia di backup di tutto ciò che non puoi perdere e non affidargli ancora materiale che deve essere davvero protetto.
 
@@ -28,7 +28,7 @@ Il vecchio contenuto in chiaro resta accanto a `.pvws/` durante la migrazione. P
 
 ## Nell’uso quotidiano
 
-Le modifiche offline restano in una coda durevole. Ogni modifica è firmata; una cancellazione remota da sola non elimina mai un file locale, mentre una lapide firmata può farlo. Le modifiche parallele offline vengono conservate come copie `.CONFLICT-…`. Nessun testo va perso per una modifica fatta nello stesso momento su un altro dispositivo: dove restano due versioni, l'altra sta accanto alla nota come copia di conflitto, anche quando un dispositivo elimina una nota o una cartella mentre un altro la modifica. **Blocca** cancella davvero le chiavi del workspace dalla memoria — la chiave di firma, quella di decifratura e tutte le chiavi di gruppo recuperate nella sessione; **Sblocca** le richiede di nuovo al portachiavi di sistema o alla passphrase locale.
+Le modifiche offline restano in una coda durevole. Ogni modifica è firmata; una cancellazione remota da sola non elimina mai un file locale, mentre una lapide firmata può farlo. Le modifiche parallele offline vengono conservate come copie `.CONFLICT-…`. Nessun testo va perso per una modifica fatta nello stesso momento su un altro dispositivo: dove restano due versioni, l'altra sta accanto alla nota come copia di conflitto, anche quando un dispositivo elimina una nota o una cartella mentre un altro la modifica. Una nota che un altro dispositivo sposta in una cartella che viene eliminata resta lì, su ogni dispositivo. **Blocca** cancella davvero le chiavi del workspace dalla memoria — la chiave di firma, quella di decifratura e tutte le chiavi di gruppo recuperate nella sessione; **Sblocca** le richiede di nuovo al portachiavi di sistema o alla passphrase locale.
 
 ## Dispositivi e recupero
 
