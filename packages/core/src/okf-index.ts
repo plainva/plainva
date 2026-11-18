@@ -43,8 +43,12 @@ export interface IndexSubfolderEntry {
 export interface GenerateIndexOptions {
   /** Folder the index.md lives in ("" for the vault root). */
   folder: string;
-  /** Section heading (usually the folder or vault name — caller localizes). */
-  heading: string;
+  /**
+   * Section heading (usually the folder or vault name — caller localizes).
+   * `null` writes none: a root listing that has no heading naming the vault
+   * keeps having none when it is refreshed (F7 of release 0.9.0).
+   */
+  heading: string | null;
   files: IndexFileEntry[];
   subfolders: IndexSubfolderEntry[];
   /** Heading for the subfolder section (only rendered when subfolders exist). */
@@ -90,7 +94,7 @@ export function generateIndexContent(options: GenerateIndexOptions): string {
   if (options.bundleRoot) {
     lines.push("---", `okf_version: "${options.okfVersion ?? OKF_VERSION}"`, "---", "");
   }
-  lines.push(`# ${options.heading}`, "");
+  if (options.heading !== null) lines.push(`# ${options.heading}`, "");
 
   const sortedFiles = [...options.files].sort((a, b) =>
     displayTitle(a).localeCompare(displayTitle(b), undefined, { sensitivity: "base" })

@@ -1,4 +1,4 @@
-import { quarantineReasonFamilyOf, QUARANTINE_HINTED_FAMILIES, type QuarantineReasonFamily, type WorkspaceQuarantineRecord } from "@plainva/core";
+import { isQuarantineHintedFamily, quarantineReasonFamilyOf, type QuarantineReasonFamily, type WorkspaceQuarantineRecord } from "@plainva/core";
 
 /**
  * The quarantine list as groups (finding 2026-09-03), for both shells.
@@ -102,7 +102,7 @@ export function quarantineReasonKeys(family: QuarantineReasonFamily): { title: s
   return {
     title: `workspaceSecurity.quarantineReason.${family}.title`,
     explain: `workspaceSecurity.quarantineReason.${family}.explain`,
-    hint: QUARANTINE_HINTED_FAMILIES.includes(family) ? `workspaceSecurity.quarantineReason.${family}.hint` : null,
+    hint: isQuarantineHintedFamily(family) ? `workspaceSecurity.quarantineReason.${family}.hint` : null,
   };
 }
 

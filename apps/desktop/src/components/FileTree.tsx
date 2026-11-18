@@ -52,6 +52,7 @@ import { detectMac } from "./WindowControls";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_FOLDER_SORT, type FolderSort, type SearchSort } from "@plainva/ui";
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
+import { useVaultLabels, vaultAppName } from "../services/vaultNames";
 
 // The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
 // elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.
@@ -384,6 +385,7 @@ export const FileTree: React.FC<{
   const { t } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder } = useVault();
+  const vaultNameOf = useVaultLabels([vaultPath]);
   const docIcons = useDocumentIcons();
   const [treeFiles, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null; occurrence?: SearchOccurrence; found?: SearchResult["found"] }[]>([]);
   const [pendingPaths, setPendingPaths] = useState<Set<string>>(new Set());
@@ -1218,7 +1220,7 @@ export const FileTree: React.FC<{
         if (pins.failed) toast.warning(t("indexMd.pinFailed"));
         pinned = pins.pinned;
       }
-      const heading = folder ? folder.split("/").pop()! : (vaultPath?.split(/[/\\]/).pop() ?? "Vault");
+      const heading = folder ? folder.split("/").pop()! : (vaultPath ? await vaultAppName(vaultPath) : "Vault");
       const result = await generateIndexForFolder({
         adapter: vaultAdapter,
         queryService,
@@ -1545,7 +1547,7 @@ export const FileTree: React.FC<{
         <SyncFolderPickerModal
           allowRoot
           title={t("fileTree.moveTitle")}
-          rootLabel={(vaultPath ?? "").split(/[/\\]/).filter(Boolean).pop() ?? "Vault"}
+          rootLabel={vaultPath ? vaultNameOf(vaultPath) : "Vault"}
           listFolders={(path) => listVaultFolders(vaultAdapter, path)}
           onSelect={(picked) => {
             const sources = moveSources;

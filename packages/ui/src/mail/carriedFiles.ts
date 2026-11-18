@@ -419,7 +419,9 @@ export function leftBehindText(left: readonly LeftBehind[], t: Translate): strin
 export function carriedFailureText(rows: readonly CarriedRow[], t: Translate): string | null {
   const failed = rows.find((row) => row.state === "failed");
   if (!failed) return null;
-  const failure = failed.file.failure ?? "failed";
+  // A file that is no file is a row "left" (`carriedRows`), never a failed
+  // one: its value is not one this sentence is built from (F53, review 17.11.).
+  const failure = failed.file.failure === undefined || failed.file.failure === "notAFile" ? "failed" : failed.file.failure;
   const sentence = t(`mail.fileFailure.${failure}`);
   return failure === "failed" && failed.file.detail ? `${sentence} (${mailFailureWords(failed.file.detail, t)})` : sentence;
 }
