@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adoptFilesSignIn,
+  adoptFilesSignInUndoable,
   bindSignedInAccount,
   completeSignIn,
   grantedServices,
@@ -416,5 +417,80 @@ describe("a sign-in made before its vault existed becomes a card (plan K4b)", ()
     }, ports);
     expect(state.cards[0]).toMatchObject({ verifiedProviderIdentity: { subject: ALICE.subject }, services: { files: { provider: "drive" } } });
     expect(provider.log.filter((entry) => entry.kind === "refresh")).toHaveLength(0);
+  });
+});
+
+describe("a vault's sign-in that does not end in a vault takes back what it made (fifth review of O8)", () => {
+  /** The desktop's wiring of `adoptOnlineVaultSignIn`, in memory: cards, grants per card, the files binding. */
+  function vaultWorld(provider: FakeOAuthProvider, initial: { cards?: CloudAccountRecord[]; grants?: Record<string, unknown> } = {}) {
+    const state = { cards: structuredClone(initial.cards ?? []), grants: new Map<string, unknown>(Object.entries(initial.grants ?? {})), reported: [] as unknown[] };
+    const fail = { bindFiles: false, saveCards: false, clearGrant: false };
+    let id = 0;
+    const ports = {
+      fetch: provider.fetch,
+      loadCards: async () => structuredClone(state.cards),
+      saveGrant: async (cardId: string, token: StoredAccountToken) => { state.grants.set(cardId, token); },
+      loadGrant: async (cardId: string) => state.grants.get(cardId) ?? null,
+      clearGrant: async (cardId: string) => { if (fail.clearGrant) throw new Error("keychain locked"); state.grants.delete(cardId); },
+      newCardId: () => `card-${++id}`,
+      saveCards: async (records: CloudAccountRecord[]) => { if (fail.saveCards) throw new Error("store full"); state.cards = structuredClone(records); },
+      setPending: () => undefined,
+      bindFiles: async () => { if (fail.bindFiles) throw new Error("network down"); return { provider: "drive" as const }; },
+      bindCalendar: () => Promise.reject(new Error("no calendar here")),
+      bindMail: () => Promise.reject(new Error("no mail here")),
+      afterBinding: async () => undefined,
+      describeFailure: (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    };
+    const adopt = () => adoptFilesSignInUndoable(
+      { vaultId: "/Docs/New vault", family: "google", access: OWN_DESKTOP, grant: { refreshToken: consentWith(provider, unionScope("google", ["files"])).refreshToken } },
+      ports,
+      { notGranted: "files were not granted", report: (error) => state.reported.push(error) },
+    );
+    return { state, fail, adopt };
+  }
+
+  it("binding the files fails: no grant with its refresh token and no card stay", async () => {
+    const w = vaultWorld(google());
+    w.fail.bindFiles = true;
+    await expect(w.adopt()).rejects.toThrow("network down");
+    expect(w.state.cards).toEqual([]);
+    expect(w.state.grants.size).toBe(0);
+  });
+
+  it("the card cannot be written: the grant written before it goes", async () => {
+    const w = vaultWorld(google());
+    w.fail.saveCards = true;
+    await expect(w.adopt()).rejects.toThrow("store full");
+    expect(w.state.grants.size).toBe(0);
+    expect(w.state.reported).toHaveLength(0);
+  });
+
+  it("a step after the sign-in fails (the writing, the listing): takeBack leaves nothing of it", async () => {
+    const w = vaultWorld(google());
+    const { record, takeBack } = await w.adopt();
+    expect(w.state.cards.map((c) => c.id)).toEqual([record.id]);
+    expect(w.state.grants.has(record.id)).toBe(true);
+    await takeBack();
+    expect(w.state.cards).toEqual([]);
+    expect(w.state.grants.size).toBe(0);
+  });
+
+  it("a card and a grant that were there before stay as they were", async () => {
+    const other = card({ id: "card-old", label: BOB.email, verifiedProviderIdentity: { issuer: "google", subject: BOB.subject }, services: { calendar: { pimAccountId: "pim-b" } } });
+    const w = vaultWorld(google(), { cards: [other], grants: { "card-old": { refreshToken: "bob" } } });
+    w.fail.bindFiles = true;
+    await expect(w.adopt()).rejects.toThrow("network down");
+    expect(w.state.cards).toEqual([other]);
+    expect([...w.state.grants]).toEqual([["card-old", { refreshToken: "bob" }]]);
+  });
+
+  it("a take-back that cannot be done is reported, and the sign-in's own error is the one thrown", async () => {
+    const w = vaultWorld(google());
+    w.fail.bindFiles = true;
+    w.fail.clearGrant = true;
+    await expect(w.adopt()).rejects.toThrow("network down");
+    expect(w.state.reported).toHaveLength(1);
+    expect(String((w.state.reported[0] as Error).message)).toContain("could not be taken back");
+    expect(w.state.cards).toEqual([]);
   });
 });

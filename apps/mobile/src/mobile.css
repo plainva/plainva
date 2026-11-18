@@ -2319,7 +2319,7 @@ textarea {
 .m-onboarding {
   position: fixed;
   inset: 0;
-  z-index: var(--z-m-overlay);
+  z-index: var(--z-m-onboarding);
   background: var(--surface);
   display: flex;
   flex-direction: column;
@@ -2347,6 +2347,15 @@ textarea {
 .m-onboarding-desc {
   color: var(--text-muted);
   font-size: var(--text-ui);
+}
+/* The links under the cards (O8): quieter than a card, reachable by thumb. */
+.m-onboarding-more {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.m-onboarding-more .pv-linkbtn {
+  min-height: var(--touch-sm);
 }
 
 /* P2 editor popovers on small viewports */

@@ -62,6 +62,29 @@ export function collectPerVaultLocalStorageKeys(vaultPath: string, allKeys: stri
   return allKeys.filter((k) => k === taskViewStateKey(vaultPath) || prefixes.some((p) => k === p || k.startsWith(p)));
 }
 
+/**
+ * Whether Plainva still holds settings or view state for a vault at this path
+ * — a vault removed from the recent list keeps them unless it was forgotten.
+ * A new vault made at that place would inherit them (review of O8,
+ * 2026-11-17), so the tour skips such a place. Reads only.
+ */
+export async function vaultHasAppData(vaultPath: string): Promise<boolean> {
+  try {
+    const all: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k !== null) all.push(k);
+    }
+    if (collectPerVaultLocalStorageKeys(vaultPath, all).length > 0) return true;
+  } catch { /* no localStorage: the settings store still answers */ }
+  try {
+    const suffix = perVaultStoreSuffix(vaultPath);
+    return (await (await getSettingsStore()).keys()).some((key) => key.endsWith(suffix));
+  } catch {
+    return false;
+  }
+}
+
 export interface ForgetVaultResult {
   ok: boolean;
   errors: string[];

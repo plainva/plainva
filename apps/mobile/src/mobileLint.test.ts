@@ -1442,7 +1442,7 @@ describe("a vault switch the program starts is offered, not taken", () => {
     // An existing folder connected, and a new vault created in the cloud — whose
     // template settings are written into it before it is opened or offered, so
     // nothing of it waits in memory for the person.
-    expect(sync).toMatch(/await addVault\(\{ id, name: providerVaultName\(p\), provider: p\.provider \}\);\s*await enterMadeVault\(id\);/);
+    expect(sync).toMatch(/await adoptAndList\(id, adopt, \(\) => addVault\(\{ id, name: providerVaultName\(p\), provider: p\.provider \}\)\);\s*await enterMadeVault\(id\);/);
     expect(sync).toMatch(/await applyTemplateSettingsTo\(id, opts\.template\?\.settings\);\s*await enterMadeVault\(id\);/);
     expect(sync.match(/enterMadeVault\(/g)).toHaveLength(2);
   });

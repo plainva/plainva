@@ -52,7 +52,12 @@ export async function readStarterManifest(vault: Pick<StarterManifestStore, "exi
 
 export async function writeStarterManifest(vault: Omit<StarterManifestStore, "readTextFile">, files: Record<string, string>): Promise<void> {
   if (vault.createDir && !(await vault.exists(".plainva"))) await vault.createDir(".plainva");
-  await vault.writeTextFile(STARTER_MANIFEST_PATH, JSON.stringify({ version: 1, files } satisfies StarterManifest, null, 2) + "\n");
+  await vault.writeTextFile(STARTER_MANIFEST_PATH, starterManifestText(files));
+}
+
+/** The text of the starter record for `files` — what `writeStarterManifest` writes. */
+export function starterManifestText(files: Record<string, string>): string {
+  return JSON.stringify({ version: 1, files } satisfies StarterManifest, null, 2) + "\n";
 }
 
 export function starterHash(content: string | Uint8Array): string {

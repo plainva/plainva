@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { ensureOkfFrontmatter, generateIndexContent, isSystemJunkName, starterHash, upsertFrontmatterKeys, writeStarterManifest } from "@plainva/core";
+import { ensureOkfFrontmatter, generateIndexContent, isSystemJunkName, STARTER_MANIFEST_PATH, starterHash, starterManifestText, upsertFrontmatterKeys } from "@plainva/core";
 import { serializeBaseConfig } from "../base/baseFormat";
 import type { VaultTemplateDefinition, VaultTemplateNote } from "./types";
 
@@ -63,7 +63,9 @@ export function interpolateNote(note: VaultTemplateNote, now: Date): VaultTempla
 
 /** The minimal adapter surface the scaffolder needs (subset of IVaultAdapter). */
 export interface ScaffoldAdapter {
-  listDir(path?: string): Promise<{ name: string }[]>;
+  listDir(path?: string): Promise<{ name: string; isDirectory?: boolean }[]>;
+  /** Read only for a file a failed attempt may have left (`scaffoldObstacle`); without it such a file is an obstacle. */
+  readTextFile?(path: string): Promise<string>;
   exists(path: string): Promise<boolean>;
   createDir(path: string): Promise<void>;
   writeTextFile(path: string, content: string): Promise<void>;
@@ -81,14 +83,8 @@ export function buildTemplateNoteContent(note: VaultTemplateNote): string {
   return ensureOkfFrontmatter(content, { type: note.type ?? DEFAULT_SCAFFOLD_NOTE_TYPE }).content;
 }
 
-/**
- * Writes the template structure (or, with `template: null`, just the bundle
- * root index.md) into the vault folder.
- */
-export async function scaffoldVaultTemplate(opts: {
-  adapter: ScaffoldAdapter;
-  /** Creation-flow intent, never inferred from missing template files. */
-  isNewVault: boolean;
+/** What a scaffold is told: the template and the names it writes with. */
+export interface ScaffoldOptions {
   template: VaultTemplateDefinition | null;
   /** Heading of the root index.md (the vault folder's name). */
   vaultName: string;
@@ -103,64 +99,47 @@ export async function scaffoldVaultTemplate(opts: {
    * what the person asked that new folder to hold.
    */
   recordStarter?: boolean;
-}): Promise<void> {
-  const { adapter, template, vaultName, subfoldersHeading } = opts;
-  const written: Record<string, string> = {};
-  const write = async (path: string, content: string) => {
-    await adapter.writeTextFile(path, content);
-    written[path] = starterHash(content);
-  };
-  // Check before ANY write, including settings in the callers. A missing or
-  // unreadable listing is not permission to fill gaps in a user's vault.
-  // Operating-system bookkeeping does not count as content (the core's one
-  // list, E10). An AppleDouble `._x` does: it only exists beside an `x`,
-  // and that `x` already makes the folder non-empty.
-  if (!opts.isNewVault || (await adapter.listDir("")).some((entry) => !isSystemJunkName(entry.name))) {
-    throw new Error("Vault templates can only be used when creating a new, empty vault.");
-  }
+}
+
+/**
+ * Everything a scaffold writes, in the order it writes it: the template's
+ * folders, then each file with its exact text — notes, databases,
+ * attachments, the managed index.md of every folder, the starter record last.
+ */
+export interface ScaffoldPlan {
+  folders: string[];
+  files: Array<{ path: string; content: string }>;
+}
+
+/** The plan of `scaffoldVaultTemplate` for these options — the one place its output is decided. */
+export function planVaultScaffold(opts: ScaffoldOptions): ScaffoldPlan {
+  const { template, vaultName, subfoldersHeading } = opts;
   const now = opts.now ?? new Date();
   const folders = template?.folders ?? [];
   // Resolved once, up front: the listings below must show the SAME paths and
-  // descriptions that were written to disk.
+  // descriptions that are written to disk.
   const notes = (template?.notes ?? []).map((n) => interpolateNote(n, now));
-  const bases = template?.bases ?? [];
-  const rawFiles = template?.rawFiles ?? [];
-
-  for (const folder of folders) {
-    if (!(await adapter.exists(folder))) await adapter.createDir(folder);
-  }
-
-  for (const note of notes) {
-    if (await adapter.exists(note.path)) continue;
-    await write(note.path, buildTemplateNoteContent(note));
-  }
-
+  const files: Array<{ path: string; content: string }> = [];
+  const add = (path: string, content: string) => {
+    if (!files.some((f) => f.path === path)) files.push({ path, content });
+  };
+  for (const note of notes) add(note.path, buildTemplateNoteContent(note));
   // `.base` databases: serialized to Obsidian-native YAML, byte-identical to
   // an app save. `.base` files are not notes, so they never appear in the
-  // index.md listings below. Never overwrite.
-  for (const base of bases) {
-    if (await adapter.exists(base.path)) continue;
-    await write(base.path, serializeBaseConfig(base.config));
-  }
-
+  // index.md listings below.
+  for (const base of template?.bases ?? []) add(base.path, serializeBaseConfig(base.config));
   // Attachments (SVG illustrations): written verbatim, no frontmatter, no
   // interpolation. They are not notes, so — like `.base` files — they never
   // appear in the index.md listings below; the app's own index generator lists
   // Markdown only, so a scaffold that listed them would be rewritten by the
-  // first auto-update. Never overwrite.
-  for (const file of rawFiles) {
-    if (await adapter.exists(file.path)) continue;
-    await write(file.path, file.content);
-  }
-
+  // first auto-update.
+  for (const file of template?.rawFiles ?? []) add(file.path, file.content);
   // Managed index.md for the bundle root and every template folder (SPEC §11:
   // only the root carries okf_version; all listings get the managed marker).
   for (const folder of ["", ...folders]) {
     const indexPath = folder ? `${folder}/index.md` : "index.md";
-    if (await adapter.exists(indexPath)) continue;
-
     const prefix = folder ? `${folder}/` : "";
-    const files = notes
+    const listed = notes
       .filter((n) => n.path.startsWith(prefix) && !n.path.slice(prefix.length).includes("/"))
       .map((n) => ({ path: n.path, description: n.description }));
     const subfolders = folders
@@ -168,19 +147,114 @@ export async function scaffoldVaultTemplate(opts: {
       // Every template folder gets its own managed index.md (loop above), so
       // each listed subfolder always has one to link to (Issue #9).
       .map((f) => ({ name: f.slice(prefix.length), hasIndex: true }));
-
-    const content = generateIndexContent({
+    add(indexPath, generateIndexContent({
       folder,
       heading: folder ? folder.split("/").pop()! : vaultName,
-      files,
+      files: listed,
       subfolders,
       subfoldersHeading,
       bundleRoot: folder === "",
       managedMarker: true,
-    });
-    await write(indexPath, content);
+    }));
   }
   // An empty record for a vault made to go online: nothing in it is held back,
   // and it is not recognised as starter content later either.
-  await writeStarterManifest(adapter, opts.recordStarter === false ? {} : written);
+  const record: Record<string, string> = {};
+  if (opts.recordStarter !== false) for (const f of files) record[f.path] = starterHash(f.content);
+  files.push({ path: STARTER_MANIFEST_PATH, content: starterManifestText(record) });
+  return { folders, files };
+}
+
+/** The two reads `scaffoldObstacle` needs — any vault adapter has them. */
+export interface ScaffoldReader {
+  listDir(path?: string): Promise<{ name: string; isDirectory?: boolean }[]>;
+  /** Without it, every file already there is an obstacle. */
+  readTextFile?(path: string): Promise<string>;
+}
+
+/**
+ * What stands in the way of writing `plan` into a vault, or null when nothing
+ * does (fourth review of O8): a folder the plan makes holds nothing but what
+ * the plan writes. A file with exactly the text the plan gives it is a file a
+ * failed attempt left behind — no obstacle, so a new attempt goes through
+ * where the take-back could not remove everything. Anything else is: a file
+ * of someone else's, a file whose text differs, a folder the plan does not
+ * make, a folder or file that cannot be read. Operating-system bookkeeping
+ * does not count (the core's one list, E10). The root's own listing failing
+ * throws: an unreadable destination is not permission to write.
+ */
+export async function scaffoldObstacle(reader: ScaffoldReader, plan: ScaffoldPlan): Promise<string | null> {
+  const files = new Map(plan.files.map((f) => [f.path, f.content]));
+  const folders = new Set<string>(plan.folders);
+  for (const f of plan.files) for (let i = f.path.indexOf("/"); i > 0; i = f.path.indexOf("/", i + 1)) folders.add(f.path.slice(0, i));
+  const walk = async (dir: string, entries: { name: string; isDirectory?: boolean }[]): Promise<string | null> => {
+    for (const entry of entries) {
+      if (isSystemJunkName(entry.name)) continue;
+      const path = dir ? `${dir}/${entry.name}` : entry.name;
+      if (folders.has(path) && entry.isDirectory !== false) {
+        let inner: { name: string; isDirectory?: boolean }[];
+        try {
+          inner = await reader.listDir(path);
+        } catch {
+          // silent: a folder that cannot be listed is not known to hold only the plan's files — it stands in the way
+          return path;
+        }
+        const found = await walk(path, inner);
+        if (found !== null) return found;
+        continue;
+      }
+      const planned = files.get(path);
+      if (planned === undefined || entry.isDirectory === true) return path;
+      if (!reader.readTextFile) return path;
+      try {
+        if ((await reader.readTextFile(path)) !== planned) return path;
+      } catch {
+        // silent: a file that cannot be read is not known to be the plan's — it stands in the way
+        return path;
+      }
+    }
+    return null;
+  };
+  return walk("", await reader.listDir(""));
+}
+
+/** The scaffolder refuses a vault that holds anything but what it would write. */
+export class VaultNotEmptyError extends Error {
+  constructor(readonly obstacle: string | null) {
+    super("Vault templates can only be used when creating a new, empty vault.");
+    this.name = "VaultNotEmptyError";
+  }
+}
+
+/**
+ * Writes the template structure (or, with `template: null`, just the bundle
+ * root index.md) into the vault folder.
+ */
+export async function scaffoldVaultTemplate(opts: ScaffoldOptions & {
+  adapter: ScaffoldAdapter;
+  /** Creation-flow intent, never inferred from missing template files. */
+  isNewVault: boolean;
+}): Promise<void> {
+  const { adapter } = opts;
+  const plan = planVaultScaffold(opts);
+  // Check before ANY write, including settings in the callers. A missing or
+  // unreadable listing is not permission to fill gaps in a user's vault. What
+  // a failed attempt left with exactly the text this one writes is no
+  // obstacle (`scaffoldObstacle`); anything else is.
+  if (!opts.isNewVault) throw new VaultNotEmptyError(null);
+  const obstacle = await scaffoldObstacle(adapter, plan);
+  if (obstacle !== null) throw new VaultNotEmptyError(obstacle);
+
+  for (const folder of plan.folders) {
+    if (!(await adapter.exists(folder))) await adapter.createDir(folder);
+  }
+  // The starter record is written last and always: it says what the files before it are.
+  const record = plan.files[plan.files.length - 1]!;
+  for (const file of plan.files.slice(0, -1)) {
+    // There already means: left by a failed attempt, with exactly this text (checked above).
+    if (await adapter.exists(file.path)) continue;
+    await adapter.writeTextFile(file.path, file.content);
+  }
+  if (!(await adapter.exists(".plainva"))) await adapter.createDir(".plainva");
+  await adapter.writeTextFile(record.path, record.content);
 }
