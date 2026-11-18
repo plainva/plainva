@@ -304,13 +304,35 @@ public class LocalModelPlugin extends Plugin {
         return file;
     }
 
+    /** The most one answer carries, in bytes before base64 (`BRIDGE_PART_BYTES` in JS). */
+    private static final int MAX_PART = 256 * 1024;
+
+    /**
+     * At most one part of a checked package file from `offset`, base64, with
+     * the file's size. A tokenizer is 11 to 33 MB: as one answer it was a
+     * string Android parses on its UI thread at every start (release list F54,
+     * the class of F51), so the page asks for it part by part.
+     */
     @PluginMethod
-    public void readText(PluginCall call) {
+    public void readPart(PluginCall call) {
+        Long offset = JsNumbers.whole(call, "offset");
+        Long length = JsNumbers.whole(call, "length");
         downloads.execute(() -> {
             try {
+                if (offset == null || length == null || offset < 0 || length < 0) throw new IOException("no offset and length");
                 File file = checked(call.getString("model"), call.getString("name"));
+                byte[] bytes;
+                long size;
+                try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "r")) {
+                    size = raf.length();
+                    int want = (int) Math.max(0, Math.min(Math.min(length, MAX_PART), size - offset));
+                    bytes = new byte[want];
+                    raf.seek(offset);
+                    raf.readFully(bytes);
+                }
                 JSObject result = new JSObject();
-                result.put("text", new String(readAll(file), StandardCharsets.UTF_8));
+                result.put("data", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP));
+                result.put("size", size);
                 call.resolve(result);
             } catch (Exception e) {
                 call.reject(e.getMessage());

@@ -20,7 +20,22 @@ const boundary = vi.hoisted(() => ({
   pieces: new Map<string, Uint8Array[]>(),
   /** Files outside Documents, keyed `<directory>:<path>`: the try's mark, the export's file. */
   other: new Map<string, string>(),
+  /** A file outside Documents written in more than one part (the archive being made, F56): its parts. */
+  otherPieces: new Map<string, Uint8Array[]>(),
 }));
+const decode = (data: string) => Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+/** What lies at `<directory>:<path>` outside Documents, as bytes. */
+function otherBytes(key: string): Uint8Array | undefined {
+  const pieces = boundary.otherPieces.get(key);
+  if (pieces) {
+    const whole = new Uint8Array(pieces.reduce((n, piece) => n + piece.length, 0));
+    let at = 0;
+    for (const piece of pieces) { whole.set(piece, at); at += piece.length; }
+    return whole;
+  }
+  const data = boundary.other.get(key);
+  return data === undefined ? undefined : decode(data);
+}
 /** What lies at a path in Documents, as bytes. */
 function bytesAt(path: string): Uint8Array | undefined {
   const pieces = boundary.pieces.get(path);
@@ -37,7 +52,7 @@ function bytesAt(path: string): Uint8Array | undefined {
 vi.mock("../platform/atomicFile", async (importOriginal) => ({
   ...await importOriginal<typeof import("../platform/atomicFile")>(),
   nativeFileDigest: vi.fn(async (path: string, directory?: string) => {
-    const bytes = directory === "CACHE" ? (boundary.other.has(`CACHE:${path}`) ? Uint8Array.from(atob(boundary.other.get(`CACHE:${path}`)!), (c) => c.charCodeAt(0)) : undefined) : bytesAt(path);
+    const bytes = directory === "CACHE" ? otherBytes(`CACHE:${path}`) : bytesAt(path);
     if (bytes === undefined) throw Object.assign(new Error("missing"), { code: "OS-PLUG-FILE-0008" });
     const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
     return { sha256: Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""), size: bytes.length };
@@ -50,7 +65,7 @@ vi.mock("@capacitor/core", () => ({
 }));
 vi.mock("@capacitor/share", () => ({ Share: { share: vi.fn() } }));
 vi.mock("@capacitor/filesystem", () => ({
-  Directory: { Data: "DATA", Documents: "DOCS", Cache: "CACHE" },
+  Directory: { Data: "DATA", Documents: "DOCS", Cache: "CACHE", Library: "LIBRARY" },
   Encoding: { UTF8: "utf8" },
   Filesystem: {
     mkdir: vi.fn(async () => {}),
@@ -82,21 +97,44 @@ vi.mock("@capacitor/filesystem", () => ({
     }),
     writeFile: vi.fn(async ({ path, data, directory }: { path: string; data: string; directory: string }) => {
       // The app's own folders (the try's mark, the export's file) are kept apart from Documents.
-      if (directory !== "DOCS") { boundary.other.set(`${directory}:${path}`, data); return; }
-      boundary.documents.set(path, data); boundary.messages.push(data.length);
+      boundary.messages.push(data.length);
+      if (directory !== "DOCS") { boundary.other.set(`${directory}:${path}`, data); boundary.otherPieces.delete(`${directory}:${path}`); return; }
+      boundary.documents.set(path, data);
     }),
     // The archive is written in parts (F51): each part is appended as base64, kept as bytes.
     appendFile: vi.fn(async ({ path, data, directory }: { path: string; data: string; directory: string }) => {
-      if (directory !== "DOCS") { boundary.other.set(`${directory}:${path}`, btoa(atob(boundary.other.get(`${directory}:${path}`) ?? "") + atob(data))); return; }
       boundary.messages.push(data.length);
+      if (directory !== "DOCS") {
+        const key = `${directory}:${path}`;
+        const pieces = boundary.otherPieces.get(key) ?? [decode(boundary.other.get(key) ?? "")];
+        pieces.push(decode(data));
+        boundary.otherPieces.set(key, pieces);
+        boundary.other.set(key, "");
+        return;
+      }
       const pieces = boundary.pieces.get(path) ?? [Uint8Array.from(atob(boundary.documents.get(path) ?? ""), (c) => c.charCodeAt(0))];
       pieces.push(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
       boundary.pieces.set(path, pieces);
       boundary.documents.set(path, "");
     }),
     deleteFile: vi.fn(async ({ path, directory }: { path: string; directory: string }) => {
-      if (directory !== "DOCS") { if (!boundary.other.delete(`${directory}:${path}`)) throw missing(); return; }
+      if (directory !== "DOCS") { boundary.otherPieces.delete(`${directory}:${path}`); if (!boundary.other.delete(`${directory}:${path}`)) throw missing(); return; }
       boundary.documents.delete(path);
+    }),
+    // The finished archive into Documents (F56): one native call, no part over the bridge.
+    copy: vi.fn(async ({ from, to, directory, toDirectory }: { from: string; to: string; directory: string; toDirectory: string }) => {
+      const bytes = otherBytes(`${directory}:${from}`);
+      if (bytes === undefined) throw missing();
+      if (toDirectory !== "DOCS") throw new Error("only into Documents here");
+      let binary = "";
+      for (let at = 0; at < bytes.length; at += 0x8000) binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+      boundary.documents.set(to, btoa(binary));
+      boundary.pieces.delete(to);
+    }),
+    rmdir: vi.fn(async ({ path, directory }: { path: string; directory: string }) => {
+      for (const key of [...boundary.other.keys()]) {
+        if (key.startsWith(`${directory}:${path}/`)) { boundary.other.delete(key); boundary.otherPieces.delete(key); }
+      }
     }),
     rename: vi.fn(async ({ from, to, directory }: { from: string; to: string; directory: string }) => {
       if (directory !== "DOCS") {
@@ -104,6 +142,8 @@ vi.mock("@capacitor/filesystem", () => ({
         if (data === undefined) throw missing();
         boundary.other.set(`${directory}:${to}`, data);
         boundary.other.delete(`${directory}:${from}`);
+        const pieces = boundary.otherPieces.get(`${directory}:${from}`);
+        if (pieces) { boundary.otherPieces.set(`${directory}:${to}`, pieces); boundary.otherPieces.delete(`${directory}:${from}`); }
         return;
       }
       if (!boundary.documents.has(from)) throw missing();
@@ -124,7 +164,7 @@ vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string, values: { name?
 vi.mock("./mobileSettings", () => ({ getMobileSettings: () => ({ backupZipEnabled: boundary.enabled, backupZipKeep: boundary.keep }) }));
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { toast } from "@plainva/ui";
-import { buildZipFileName } from "../../../../packages/ui/src/lib/zipBackup";
+import { buildZipFileName, sanitizeFileName } from "../../../../packages/ui/src/lib/zipBackup";
 import { buildVaultZipBytes } from "./vaultExport";
 import { backupIfDue, backupState, backupVaultNow, loadBackupAttempt, readBackupAttempt, runVaultBackup } from "./vaultBackup";
 import { nativeFileDigest } from "../platform/atomicFile";
@@ -174,6 +214,7 @@ beforeEach(async () => {
   boundary.enabled = true;
   boundary.messages.length = 0;
   boundary.pieces.clear();
+  boundary.otherPieces.clear();
   boundary.other.clear();
   root = await mkdtemp(join(tmpdir(), "plainva-mobile-backup-"));
   raw = new LocalVaultAdapter(root);
@@ -246,10 +287,10 @@ describe("mobile archive publication and retry", () => {
       const write = originalWrite;
       let failed = false;
       vi.spyOn(Filesystem, "writeFile").mockImplementation(async (opts) => {
-        // The archive's first part fails; the try's mark (outside Documents) is written as always.
-        if (opts.directory === Directory.Documents && !failed) {
+        // The archive's first part fails where it is made (F56: the app's own folder); the try's mark is written as always.
+        if (opts.path.endsWith(".zip.part") && !failed) {
           failed = true;
-          boundary.documents.set(opts.path, btoa("partial"));
+          boundary.other.set(`${opts.directory}:${opts.path}`, btoa("partial"));
           throw new Error("archive write failed");
         }
         return write(opts);
@@ -329,6 +370,34 @@ describe("an archive that never crosses the bridge whole (F51)", () => {
     expect(Object.keys(files)).toHaveLength(31);
     expect(files["Bilder/shot-7.png"]).toEqual(noise(3 * 1024 * 1024, 8));
   }, 120_000);
+
+  it("makes the archive in the app's own folder and puts it into Documents once (F56)", async () => {
+    // A try that ended the app left its half archive in the app's folder.
+    boundary.other.set(`DATA:backup-parts/${sanitizeFileName(vault.vaultId)}/dead.zip.part`, btoa("half"));
+    for (let i = 0; i < 4; i += 1) await raw.writeBinaryFile(`Bilder/shot-${i}.png`, noise(512 * 1024, i + 1));
+    vi.mocked(Filesystem.writeFile).mockClear();
+    vi.mocked(Filesystem.appendFile).mockClear();
+    vi.mocked(Filesystem.copy).mockClear();
+    const name = await runVaultBackup(vault, "Vault");
+    // Every write into public Documents is a media scan on Android: none per part, the archive is copied once.
+    const intoDocuments = [...vi.mocked(Filesystem.writeFile).mock.calls, ...vi.mocked(Filesystem.appendFile).mock.calls]
+      .filter(([opts]) => opts.directory === Directory.Documents);
+    expect(intoDocuments.map(([opts]) => opts.path)).toEqual([]);
+    expect(vi.mocked(Filesystem.appendFile).mock.calls.length).toBeGreaterThan(4);
+    expect(vi.mocked(Filesystem.copy).mock.calls).toHaveLength(1);
+    expect(vi.mocked(Filesystem.copy).mock.calls[0]?.[0]).toMatchObject({ directory: Directory.Data, toDirectory: Directory.Documents });
+    expect(Object.keys(readZip(bytesAt("Plainva Backups/Vault/" + name)!))).toHaveLength(5);
+    // Nothing is left in the app's folder: neither this try's part nor the dead one.
+    expect([...boundary.other.keys()].filter((key) => key.includes("backup-parts/"))).toEqual([]);
+    expect([...boundary.documents.keys()].filter((key) => key.endsWith(".part"))).toEqual([]);
+  });
+
+  it("checks the copy in Documents, and a short copy is no archive (F56)", async () => {
+    vi.spyOn(Filesystem, "copy").mockImplementationOnce(async ({ to }) => { boundary.documents.set(to, btoa("short")); return { uri: to }; });
+    await expect(runVaultBackup(vault, "Vault")).rejects.toThrow("verification");
+    expect([...boundary.documents.keys()]).toEqual([oldName]);
+    expect([...boundary.other.keys()].filter((key) => key.includes("backup-parts/"))).toEqual([]);
+  });
 
   it("marks the try before it begins, so one that ends the app counts as failed", async () => {
     let seen: ReturnType<typeof readBackupAttempt> = null;

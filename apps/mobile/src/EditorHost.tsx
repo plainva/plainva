@@ -41,7 +41,6 @@ import {
 import { copyPhoneLineLink } from "./services/noteLinkRoute";
 import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
-import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
@@ -1407,7 +1406,7 @@ export function EditorHost({
               quality: 85,
             })).results[0];
         if (!photo) return;
-        const bytes = await mediaResultBytes(photo, (uri) => Filesystem.readFile({ path: uri }));
+        const bytes = await mediaResultBytes(photo);
         const name = await availablePhotoPath((candidate) => vault.files.exists(candidate), photo);
         await vault.files.writeBinaryFile(name, bytes);
         void vault.reindexPaths([name]);

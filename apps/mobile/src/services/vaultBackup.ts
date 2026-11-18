@@ -60,10 +60,21 @@ import { classifyBackupListing, type BackupListing, type UnreadableMark } from "
  * longer each time, and the vault screen says the last one failed. "Back up
  * now" always runs. The automatic one waits until the app is quiet: after the
  * first frame and the start-up index pass.
+ *
+ * **Made in the app's own folder, then placed (release list F56).** Every
+ * write into Android's public Documents asks the system to scan the file
+ * for its media index - once per part, some 2 000 scans for a 500 MB vault.
+ * So the archive is made in the app's own folder (Library on iOS, where the
+ * Files app does not show it), copied into Documents once it is whole, and
+ * there checked and renamed into its name: no half archive is ever an
+ * archive, and the part in the app's folder goes either way.
  */
 
 const DIR = Directory.Documents;
 const ROOT = "Plainva Backups";
+/** Where an archive is made before it is placed: the app's own folder, one subfolder per vault. */
+const STAGE_ROOT = "backup-parts";
+const stageDirectory = (): Directory => (Capacitor.getPlatform() === "ios" ? Directory.Library : Directory.Data);
 
 const lastRunKey = (vaultId: string) => `m-backup-zip-last-${vaultId}`;
 /** The last try that has not ended in an archive: `{ at, failures, error }` (see the module comment). */
@@ -244,28 +255,38 @@ async function runOnce(vault: MobileVault, name: string, automatic: boolean): Pr
     };
     const fileName = await availableZipFileName(name, new Date(), (file) => present(folder + "/" + file));
     const destination = folder + "/" + fileName;
-    const partial = destination + "." + crypto.randomUUID() + ".part";
+    const id = crypto.randomUUID();
+    const partial = destination + "." + id + ".part";
     // A part file a try that ended the app left (it died between two parts): never an archive, removed now.
     await removeLeftoverParts(folder);
-    const sink = new PartFileSink(partial, DIR);
+    const stageFolder = `${STAGE_ROOT}/${sanitizeFileName(vault.vaultId)}`;
+    await removeLeftoverStage(stageFolder);
+    const stage = `${stageFolder}/${id}.zip.part`;
+    const sink = new PartFileSink(stage, stageDirectory());
+    let copied = false;
     try {
       // The automatic one, switched off while it runs, stops before the next file, and the part
       // file goes. One the person asked for runs whatever the switch says.
       await streamVaultZip(vault, sink, () => automatic && !getMobileSettings().backupZipEnabled);
       const written = await sink.close();
-      // Check the file on disk before publication or retention: its size and the
+      if (await present(destination)) throw new Error("Backup destination already exists");
+      // Into Documents once, whole (F56), under a part name until it is checked.
+      copied = true;
+      await Filesystem.copy({ from: stage, directory: stageDirectory(), to: partial, toDirectory: DIR });
+      // Check the file where it lies before publication or retention: its size and the
       // hash the system takes of it, against what was written. A resolved native
-      // write alone must not turn a truncated archive into a success.
+      // write or copy alone must not turn a truncated archive into a success.
       const checked = await nativeFileDigest(partial, "DOCUMENTS");
       if (!checked || checked.size !== sink.size || checked.sha256 !== written) {
         throw new Error("Backup verification failed");
       }
-      if (await present(destination)) throw new Error("Backup destination already exists");
       await Filesystem.rename({ from: partial, to: destination, directory: DIR, toDirectory: DIR });
     } catch (error) {
       // A partial archive left behind takes room until the next run; the failure itself is thrown.
-      if (sink.started) await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
+      if (copied) await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
       throw error;
+    } finally {
+      if (sink.started) await Filesystem.deleteFile({ path: stage, directory: stageDirectory() }).catch(reportingTo("backup:stage"));
     }
 
     // Prune only AFTER the new archive exists: deleting first would leave a
@@ -353,6 +374,13 @@ async function removeLeftoverParts(folder: string): Promise<void> {
   for (const name of names.filter((entry) => entry.endsWith(".part"))) {
     await Filesystem.deleteFile({ path: `${folder}/${name}`, directory: DIR }).catch(reportingTo("backup:partial"));
   }
+}
+
+/** Removes what a try that ended the app left in the app's own folder: only this vault's, one run at a time each. */
+async function removeLeftoverStage(folder: string): Promise<void> {
+  await Filesystem.rmdir({ path: folder, directory: stageDirectory(), recursive: true }).catch(() => {
+    // silent: a folder that does not exist holds no leftovers; one that cannot go is tried at the next run.
+  });
 }
 
 export async function backupIfDue(vault: MobileVault, name: string): Promise<void> {

@@ -72,8 +72,32 @@ export interface VaultFolderNative {
   /** Only a confirmed absence returns null (or rejects with code ENOENT).
    * Permission, provider and I/O failures reject and must stay failures. */
   stat(opts: { handle: string; path: string }): Promise<{ entry: VaultFolderEntry | null }>;
-  read(opts: { handle: string; path: string }): Promise<{ dataBase64: string }>;
+  /**
+   * A whole file in one answer - only up to `maxBytes` (the plugin's own
+   * limit, one part, when left out). A larger file answers `tooLarge` with its
+   * size and nothing else: it is read in parts (`openRead`). Every call's text
+   * is parsed on Android's UI thread, so no file crosses the bridge whole
+   * (release list F54).
+   */
+  read(opts: { handle: string; path: string; maxBytes?: number }): Promise<{ dataBase64: string; tooLarge?: undefined } | { tooLarge: true; size: number; dataBase64?: undefined }>;
+  /** A file small enough for one message (`BRIDGE_PART_BYTES`); a larger one goes through `begin`. */
   write(opts: { handle: string; path: string; dataBase64: string }): Promise<void>;
+  /**
+   * Opens a file for a read in parts: the native side takes one version of it
+   * (a copy in the app's cache, so a sync client writing the file meanwhile
+   * never gives the front of one version and the end of another) and answers
+   * its size.
+   */
+  openRead(opts: { handle: string; path: string }): Promise<{ id: string; size: number }>;
+  /** At most `length` bytes (never more than one part) from `offset` of an open read, base64. */
+  readPart(opts: { id: string; offset: number; length: number }): Promise<{ data: string }>;
+  closeRead(opts: { id: string }): Promise<void>;
+  /** A write in parts: they gather in the app's cache, and the folder's file changes only at `commit`. */
+  begin(opts: { handle: string; path: string }): Promise<{ id: string }>;
+  append(opts: { id: string; data: string }): Promise<void>;
+  /** Writes what was gathered over the file, as `write` does with one message. */
+  commit(opts: { id: string }): Promise<void>;
+  abort(opts: { id: string }): Promise<void>;
   delete(opts: { handle: string; path: string; recursive: boolean }): Promise<void>;
   rename(opts: { handle: string; from: string; to: string }): Promise<void>;
   mkdir(opts: { handle: string; path: string }): Promise<void>;

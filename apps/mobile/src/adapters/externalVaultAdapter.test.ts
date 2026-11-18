@@ -421,3 +421,56 @@ describe("a walk over a picked folder (issue #125)", () => {
     expect(packed).toEqual(["A/x.md", "B/y.md"]);
   });
 });
+
+/**
+ * No file crosses the bridge whole (release list F54, the class of F51): every
+ * call's text is parsed on Android's UI thread, and a 3 MB picture in a picked
+ * folder was one 4 MB string there, both ways.
+ */
+describe("a picked folder's files cross the bridge in parts", () => {
+  const PART = 256 * 1024;
+  const picture = (n: number) => Uint8Array.from({ length: n }, (_, i) => (i * 31 + 7) & 0xff);
+
+  it("reads a large file in parts, byte for byte, and a small one in one call", async () => {
+    const files = new Map<string, string | Uint8Array>([["big.png", picture(3 * 1024 * 1024 + 5)], ["small.md", "# Hi\n"]]);
+    const fake = fakePlugin(files);
+    const a = new ExternalVaultAdapter(fake.plugin, "folder");
+    expect([...(await a.readBinaryFile("big.png"))]).toEqual([...picture(3 * 1024 * 1024 + 5)]);
+    expect(await a.readTextFile("small.md")).toBe("# Hi\n");
+    expect(Math.max(...fake.sizes)).toBeLessThanOrEqual(PART);
+    expect(fake.calls.filter((c) => c.startsWith("openRead:"))).toEqual(["openRead:big.png"]);
+    expect(fake.openReads()).toBe(0);
+  });
+
+  it("reads one version of a file another app replaces while it is read", async () => {
+    const files = new Map<string, string | Uint8Array>([["big.png", picture(PART * 3)]]);
+    const fake = fakePlugin(files);
+    const readPart = fake.plugin.readPart.bind(fake.plugin);
+    fake.plugin.readPart = async (opts) => {
+      // A sync client writes a new version of the same size between two parts.
+      files.set("big.png", new Uint8Array(PART * 3).fill(9));
+      return readPart(opts);
+    };
+    const read = await new ExternalVaultAdapter(fake.plugin, "folder").readBinaryFile("big.png");
+    expect([...read]).toEqual([...picture(PART * 3)]);
+  });
+
+  it("writes a large file in parts, and a failed part leaves the old file", async () => {
+    const files = new Map<string, string | Uint8Array>([["big.png", "old"]]);
+    const fake = fakePlugin(files);
+    const a = new ExternalVaultAdapter(fake.plugin, "folder");
+    await a.writeBinaryFile("big.png", picture(PART * 4 + 1));
+    expect(Math.max(...fake.sizes)).toBeLessThanOrEqual(PART);
+    expect([...(files.get("big.png") as Uint8Array)]).toEqual([...picture(PART * 4 + 1)]);
+
+    fake.failAppendWhen((_path, n) => n === 2);
+    await expect(a.writeBinaryFile("big.png", picture(PART * 5))).rejects.toThrow("append failed");
+    expect([...(files.get("big.png") as Uint8Array)]).toEqual([...picture(PART * 4 + 1)]);
+    expect(fake.openWrites()).toBe(0);
+    // A long note in parts as well, read back as the same text.
+    const long = "ä".repeat(PART);
+    await a.writeTextFile("long.md", long);
+    expect(await a.readTextFile("long.md")).toBe(long);
+    expect(Math.max(...fake.sizes)).toBeLessThanOrEqual(PART);
+  });
+});

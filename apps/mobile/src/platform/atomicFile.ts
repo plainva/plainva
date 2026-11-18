@@ -127,6 +127,16 @@ async function readSlot(lane: ReadLane): Promise<() => void> {
   };
 }
 
+/** `run` in a turn of `lane`: what reads a whole file elsewhere (the picked folder) shares the same limit. */
+export async function withReadTurn<T>(lane: ReadLane, run: () => Promise<T>): Promise<T> {
+  const release = await readSlot(lane);
+  try {
+    return await run();
+  } finally {
+    release();
+  }
+}
+
 /**
  * A file's bytes through the native plugin, one part per call. A file that
  * changes size while it is read is read again, so the answer is one version
