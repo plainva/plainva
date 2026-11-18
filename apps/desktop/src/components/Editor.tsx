@@ -14,7 +14,7 @@ import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
-  adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, vaultDisplayName, type KnownFileIdentity, type MissingFileSearch,
+  adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, type KnownFileIdentity, type MissingFileSearch,
   type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
@@ -90,6 +90,7 @@ import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
+import { vaultAppName, vaultLabel } from "../services/vaultNames";
 
 /**
  * Text shown in the composer for a property comment, and the anchor quote.
@@ -496,7 +497,7 @@ export const Editor: React.FC<{
     if (!activePath || !vaultAdapter || !queryService) return;
     try {
       const folder = activePath.includes("/") ? activePath.slice(0, activePath.lastIndexOf("/")) : "";
-      const heading = folder ? folder.split("/").pop()! : (vaultPath?.split(/[/\\]/).pop() ?? "Vault");
+      const heading = folder ? folder.split("/").pop()! : (vaultPath ? await vaultAppName(vaultPath) : "Vault");
       await generateIndexForFolder({ adapter: vaultAdapter, queryService, folder, heading, subfoldersHeading: t("indexMd.subfoldersHeading"), skipBackup: true });
       // Only the folder's index.md changed — reindex just that (Issue #9).
       if (indexer) applyIndexChanges(indexer, { added: [folder ? `${folder}/index.md` : "index.md"] }).then(() => triggerFileTreeUpdate()).catch(() => {});
@@ -2239,7 +2240,7 @@ export const Editor: React.FC<{
     // A move the sync made here is no move outside Plainva: the tab shows the new name.
     if (movedOutside) toast.info(t("editor.movedFileFollowed", {
       defaultValue: "Moved outside Plainva. The tab now shows the file in {{folder}}.",
-      folder: movedFolderLabel(to, vaultDisplayName(vaultPath ?? "")),
+      folder: movedFolderLabel(to, vaultLabel(vaultPath ?? "")),
     }));
     // A surface without tab retargeting (the peek window, an auxiliary
     // window's pane) opens the file where it lives now instead.

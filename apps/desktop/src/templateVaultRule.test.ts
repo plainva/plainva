@@ -46,7 +46,8 @@ describe("whoever fills {{vault}}", () => {
   });
 
   it("and both sources go through the shared rule", () => {
-    expect(read("apps/mobile/src/services/templateVault.ts")).toMatch(/templateVaultName\(/);
+    expect(read("apps/mobile/src/services/templateVault.ts")).toMatch(/vaultEntryName\(/);
+    expect(read("apps/mobile/src/services/vaultEntryName.ts")).toMatch(/templateVaultName\(/);
     expect(read("apps/desktop/src/services/dailyNotes.ts")).toMatch(/templateVaultName\(/);
   });
 });

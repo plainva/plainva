@@ -5,6 +5,7 @@ import { listVaults, type VaultEntry } from "../services/vaultRegistry";
 import { switchVault } from "../services/vaultService";
 import { GroupCard, ICON, IconButton, Row, RowList, SectionLabel } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
+import { vaultEntryName } from "../services/vaultEntryName";
 
 /**
  * Vault management inside the settings (redesign 2026-07-18, P4): the list of
@@ -72,7 +73,7 @@ export function VaultsScreen({
                   subtitle={v.external ? t("mobile.vaultExternalSubtitle", { label: v.external.label }) : undefined}
                   // The active vault has nothing to switch to.
                   onClick={active ? undefined : () => void switchVault(v.id)}
-                  title={v.name || t("mobile.vaultLocal")}
+                  title={vaultEntryName(v.name)}
                 />
               );
             })}

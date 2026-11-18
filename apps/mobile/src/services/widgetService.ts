@@ -19,6 +19,7 @@ import { getMobileSettings } from "./mobileSettings";
 import { isMobileWorkspaceLocked } from "./mobileWorkspaceLock";
 import { listPimEvents } from "./pim/pimService";
 import { getActiveVaultEntry } from "./vaultRegistry";
+import { vaultEntryName } from "./vaultEntryName";
 
 /**
  * What the home-screen widgets get to see, and when (plan Widgets, W2/E7).
@@ -159,8 +160,8 @@ export async function refreshWidgets(): Promise<void> {
 async function writeOnce(): Promise<void> {
   try {
     const entry = await getActiveVaultEntry();
-    // The same fallback the shell shows in its header.
-    const vaultName = entry.name || "Plainva";
+    // The name the shell's header shows (F7 of release 0.9.0).
+    const vaultName = vaultEntryName(entry.name);
     const settings = getMobileSettings();
     const now = new Date();
     // A sealed workspace goes out empty — not full-and-hidden.

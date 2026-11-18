@@ -7,6 +7,7 @@ import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { RemoteVaultAdapter } from "../adapters/RemoteVaultAdapter";
 import { indexDbFileName } from "./indexDbPath";
 import type { WindowBus } from "./windowBus";
+import { readDailyDayOfPath } from "./dailyNaming";
 
 /**
  * Opening a vault in an auxiliary window (multi-window P0, client mode).
@@ -77,6 +78,10 @@ export async function openClientVault(vaultPath: string, bus: WindowBus): Promis
   // it) belongs to the window that owns the writes. A client that ran them
   // would race the owner on the very first open of a new vault.
   const queryService = new VaultQueryService(dbAdapter);
+  // Which day a daily note's name stands for, as in the owner (F8 of release
+  // 0.9.0): without it this window's first task lists had no journal stamps
+  // and its databases no `file.day`. The service waits for the answer.
+  queryService.setDayOfPath(readDailyDayOfPath(vaultPath));
   const graphService = new GraphService(dbAdapter);
   // Counted, so the way out waits for a write on its way (`inflightWrites.ts`).
   const vaultAdapter = countWrites(new RemoteVaultAdapter(readAdapter, bus, vaultPath));
