@@ -51,6 +51,24 @@ function bytesAt(path: string): Uint8Array | undefined {
 // The system's hash of the file where it lies (F51): taken here from the stored bytes.
 vi.mock("../platform/atomicFile", async (importOriginal) => ({
   ...await importOriginal<typeof import("../platform/atomicFile")>(),
+  // Android writes the archive's parts natively into Documents, with no media scan per part (F56).
+  // Kept as the Filesystem plugin's write and append are kept below: the first part whole, the rest as pieces.
+  appendDocumentPart: vi.fn(async (path: string, bytes: Uint8Array, first: boolean) => {
+    boundary.messages.push(Math.ceil(bytes.length / 3) * 4);
+    if (first) {
+      let binary = "";
+      for (let at = 0; at < bytes.length; at += 0x8000) binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+      boundary.pieces.delete(path);
+      boundary.documents.set(path, btoa(binary));
+      return;
+    }
+    if (bytes.length === 0) return;
+    const pieces = boundary.pieces.get(path) ?? [Uint8Array.from(atob(boundary.documents.get(path) ?? ""), (c) => c.charCodeAt(0))];
+    pieces.push(bytes.slice());
+    boundary.pieces.set(path, pieces);
+    boundary.documents.set(path, "");
+  }),
+  scanDocumentFiles: vi.fn(async () => {}),
   nativeFileDigest: vi.fn(async (path: string, directory?: string) => {
     const bytes = directory === "CACHE" ? otherBytes(`CACHE:${path}`) : bytesAt(path);
     if (bytes === undefined) throw Object.assign(new Error("missing"), { code: "OS-PLUG-FILE-0008" });
@@ -68,6 +86,8 @@ vi.mock("@capacitor/filesystem", () => ({
   Directory: { Data: "DATA", Documents: "DOCS", Cache: "CACHE", Library: "LIBRARY" },
   Encoding: { UTF8: "utf8" },
   Filesystem: {
+    checkPermissions: vi.fn(async () => ({ publicStorage: "granted" })),
+    requestPermissions: vi.fn(async () => ({ publicStorage: "granted" })),
     mkdir: vi.fn(async () => {}),
     getUri: vi.fn(async ({ path }: { path: string }) => ({ uri: path })),
     readdir: vi.fn(async ({ directory, path }: { directory: string; path: string }) => {
@@ -131,11 +151,6 @@ vi.mock("@capacitor/filesystem", () => ({
       boundary.documents.set(to, btoa(binary));
       boundary.pieces.delete(to);
     }),
-    rmdir: vi.fn(async ({ path, directory }: { path: string; directory: string }) => {
-      for (const key of [...boundary.other.keys()]) {
-        if (key.startsWith(`${directory}:${path}/`)) { boundary.other.delete(key); boundary.otherPieces.delete(key); }
-      }
-    }),
     rename: vi.fn(async ({ from, to, directory }: { from: string; to: string; directory: string }) => {
       if (directory !== "DOCS") {
         const data = boundary.other.get(`${directory}:${from}`);
@@ -164,10 +179,10 @@ vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string, values: { name?
 vi.mock("./mobileSettings", () => ({ getMobileSettings: () => ({ backupZipEnabled: boundary.enabled, backupZipKeep: boundary.keep }) }));
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { toast } from "@plainva/ui";
-import { buildZipFileName, sanitizeFileName } from "../../../../packages/ui/src/lib/zipBackup";
+import { buildZipFileName } from "../../../../packages/ui/src/lib/zipBackup";
 import { buildVaultZipBytes } from "./vaultExport";
 import { backupIfDue, backupState, backupVaultNow, loadBackupAttempt, readBackupAttempt, runVaultBackup } from "./vaultBackup";
-import { nativeFileDigest } from "../platform/atomicFile";
+import { appendDocumentPart, nativeFileDigest, scanDocumentFiles } from "../platform/atomicFile";
 
 const originalRead = vi.mocked(Filesystem.readFile).getMockImplementation()!;
 const originalList = vi.mocked(Filesystem.readdir).getMockImplementation()!;
@@ -284,16 +299,10 @@ describe("complete mobile backup inventory", () => {
 describe("mobile archive publication and retry", () => {
   it.each(["write", "verify", "rename"] as const)("does not rotate or advance lastRun after a %s failure", async (stage) => {
     if (stage === "write") {
-      const write = originalWrite;
-      let failed = false;
-      vi.spyOn(Filesystem, "writeFile").mockImplementation(async (opts) => {
-        // The archive's first part fails where it is made (F56: the app's own folder); the try's mark is written as always.
-        if (opts.path.endsWith(".zip.part") && !failed) {
-          failed = true;
-          boundary.other.set(`${opts.directory}:${opts.path}`, btoa("partial"));
-          throw new Error("archive write failed");
-        }
-        return write(opts);
+      // The archive's first part fails (written natively on Android, F56); the try's mark is written as always.
+      vi.mocked(appendDocumentPart).mockImplementationOnce(async (path) => {
+        boundary.documents.set(path, btoa("partial"));
+        throw new Error("archive write failed");
       });
     }
     if (stage === "verify") {
@@ -371,32 +380,38 @@ describe("an archive that never crosses the bridge whole (F51)", () => {
     expect(files["Bilder/shot-7.png"]).toEqual(noise(3 * 1024 * 1024, 8));
   }, 120_000);
 
-  it("makes the archive in the app's own folder and puts it into Documents once (F56)", async () => {
-    // A try that ended the app left its half archive in the app's folder.
-    boundary.other.set(`DATA:backup-parts/${sanitizeFileName(vault.vaultId)}/dead.zip.part`, btoa("half"));
+  it("writes the archive's parts into Documents with no media scan each, and indexes it once (F56)", async () => {
     for (let i = 0; i < 4; i += 1) await raw.writeBinaryFile(`Bilder/shot-${i}.png`, noise(512 * 1024, i + 1));
     vi.mocked(Filesystem.writeFile).mockClear();
     vi.mocked(Filesystem.appendFile).mockClear();
-    vi.mocked(Filesystem.copy).mockClear();
+    vi.mocked(appendDocumentPart).mockClear();
+    vi.mocked(scanDocumentFiles).mockClear();
     const name = await runVaultBackup(vault, "Vault");
-    // Every write into public Documents is a media scan on Android: none per part, the archive is copied once.
+    // Every Filesystem write into public Documents is a media scan on Android: none for the archive.
     const intoDocuments = [...vi.mocked(Filesystem.writeFile).mock.calls, ...vi.mocked(Filesystem.appendFile).mock.calls]
       .filter(([opts]) => opts.directory === Directory.Documents);
     expect(intoDocuments.map(([opts]) => opts.path)).toEqual([]);
-    expect(vi.mocked(Filesystem.appendFile).mock.calls.length).toBeGreaterThan(4);
-    expect(vi.mocked(Filesystem.copy).mock.calls).toHaveLength(1);
-    expect(vi.mocked(Filesystem.copy).mock.calls[0]?.[0]).toMatchObject({ directory: Directory.Data, toDirectory: Directory.Documents });
+    const parts = vi.mocked(appendDocumentPart).mock.calls;
+    expect(parts.length).toBeGreaterThan(4);
+    // Written where it will lie (no copy: the room is taken once); the first part starts the file, only the last syncs.
+    expect(parts.every(([path]) => path.startsWith("Plainva Backups/Vault/") && path.endsWith(".part"))).toBe(true);
+    expect(parts.map(([, , first]) => first)).toEqual([true, ...parts.slice(1).map(() => false)]);
+    expect(parts.map(([, , , last]) => last)).toEqual([...parts.slice(1).map(() => false), true]);
+    expect(vi.mocked(Filesystem.copy)).not.toHaveBeenCalled();
+    expect(vi.mocked(scanDocumentFiles).mock.calls).toEqual([[["Plainva Backups/Vault/" + name, parts[0]![0]]]]);
     expect(Object.keys(readZip(bytesAt("Plainva Backups/Vault/" + name)!))).toHaveLength(5);
-    // Nothing is left in the app's folder: neither this try's part nor the dead one.
-    expect([...boundary.other.keys()].filter((key) => key.includes("backup-parts/"))).toEqual([]);
     expect([...boundary.documents.keys()].filter((key) => key.endsWith(".part"))).toEqual([]);
   });
 
-  it("checks the copy in Documents, and a short copy is no archive (F56)", async () => {
-    vi.spyOn(Filesystem, "copy").mockImplementationOnce(async ({ to }) => { boundary.documents.set(to, btoa("short")); return { uri: to }; });
-    await expect(runVaultBackup(vault, "Vault")).rejects.toThrow("verification");
-    expect([...boundary.documents.keys()]).toEqual([oldName]);
-    expect([...boundary.other.keys()].filter((key) => key.includes("backup-parts/"))).toEqual([]);
+  it("on iOS writes as before, through the Filesystem plugin (F56 is Android's)", async () => {
+    const { Capacitor } = await import("@capacitor/core");
+    const platform = vi.spyOn(Capacitor, "getPlatform").mockReturnValue("ios");
+    vi.mocked(appendDocumentPart).mockClear();
+    const name = await runVaultBackup(vault, "Vault");
+    expect(vi.mocked(appendDocumentPart)).not.toHaveBeenCalled();
+    expect(vi.mocked(scanDocumentFiles)).not.toHaveBeenCalled();
+    expect(Object.keys(readZip(bytesAt("Plainva Backups/Vault/" + name)!))).toEqual(["Note.md"]);
+    platform.mockRestore();
   });
 
   it("marks the try before it begins, so one that ends the app counts as failed", async () => {

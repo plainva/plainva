@@ -265,10 +265,32 @@ public class VaultFolderPlugin extends Plugin {
     }
 
     /**
-     * A file in one answer, up to `maxBytes` (one part when left out). A larger
-     * one answers `tooLarge` with what it read so far as its size, and no data:
-     * every call's text is parsed on this app's UI thread, and a whole picture
-     * in one answer froze the app (release list F54, the class of F51).
+     * Empties the parts folder once per process: what a killed process left
+     * there - the whole copy of a note, in clear text, or the parts of a write
+     * that never committed - belongs to no read or write of this one. Off the
+     * plugin thread, as `AtomicFile.sweep`.
+     */
+    @Override
+    public void load() {
+        super.load();
+        final File dir = new File(getContext().getCacheDir(), "vault-folder-parts");
+        new Thread(() -> {
+            File[] left = dir.listFiles();
+            if (left == null) return;
+            for (File file : left) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+        }, "plainva-folder-parts-sweep").start();
+    }
+
+    /**
+     * A file in one answer, up to `maxBytes` (one part when left out): every
+     * call's text is parsed on this app's UI thread, and a whole picture in one
+     * answer froze the app (release list F54, the class of F51). A larger file
+     * is read on, from the same open stream, into a copy in the app's cache -
+     * the one version every part comes from, and a cloud provider fetches the
+     * file once - and the answer is `tooLarge` with the read's id and size.
      */
     @PluginMethod
     public void read(PluginCall call) {
@@ -277,6 +299,8 @@ public class VaultFolderPlugin extends Plugin {
         if (handle == null || path == null) { call.reject("handle and path required"); return; }
         Long asked = JsNumbers.whole(call, "maxBytes");
         long max = asked == null || asked < 0 ? MAX_PART : Math.min(asked, MAX_PART);
+        dropIdle();
+        File copy = null;
         try {
             Uri tree = Uri.parse(handle);
             String id = docIdFor(tree, handle, path);
@@ -289,53 +313,26 @@ public class VaultFolderPlugin extends Plugin {
                 int n;
                 while ((n = in.read(chunk)) > 0) {
                     buf.write(chunk, 0, n);
-                    if (buf.size() > max) {
-                        JSObject out = new JSObject();
-                        out.put("tooLarge", true);
-                        out.put("size", buf.size());
-                        call.resolve(out);
-                        return;
-                    }
+                    if (buf.size() > max) break;
                 }
-                JSObject out = new JSObject();
-                out.put("dataBase64", Base64.encodeToString(buf.toByteArray(), Base64.NO_WRAP));
-                call.resolve(out);
-            }
-        } catch (Exception e) {
-            call.reject("read failed: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Opens a file for a read in parts. The document is copied into the app's
-     * cache first: a provider hands out a stream, often a pipe that cannot
-     * seek, and a sync client may write the file meanwhile - the copy is the
-     * one version every part comes from.
-     */
-    @PluginMethod
-    public void openRead(PluginCall call) {
-        String handle = call.getString("handle");
-        String path = call.getString("path");
-        if (handle == null || path == null) { call.reject("handle and path required"); return; }
-        dropIdle();
-        File copy = null;
-        try {
-            Uri tree = Uri.parse(handle);
-            String id = docIdFor(tree, handle, path);
-            if (id == null) { call.reject("not found: " + path, "ENOENT"); return; }
-            Uri doc = DocumentsContract.buildDocumentUriUsingTree(tree, id);
-            copy = File.createTempFile("read-", null, partsFolder());
-            try (InputStream in = getContext().getContentResolver().openInputStream(doc);
-                 FileOutputStream out = new FileOutputStream(copy)) {
-                if (in == null) throw new IllegalStateException("not readable: " + path);
-                byte[] chunk = new byte[64 * 1024];
-                int n;
-                while ((n = in.read(chunk)) > 0) out.write(chunk, 0, n);
+                if (buf.size() <= max) {
+                    JSObject out = new JSObject();
+                    out.put("dataBase64", Base64.encodeToString(buf.toByteArray(), Base64.NO_WRAP));
+                    call.resolve(out);
+                    return;
+                }
+                copy = File.createTempFile("read-", null, partsFolder());
+                try (FileOutputStream out = new FileOutputStream(copy)) {
+                    buf.writeTo(out);
+                    buf = null;
+                    while ((n = in.read(chunk)) > 0) out.write(chunk, 0, n);
+                }
             }
             RandomAccessFile file = new RandomAccessFile(copy, "r");
             String readId = UUID.randomUUID().toString();
             reads.put(readId, new OpenRead(copy, file));
             JSObject out = new JSObject();
+            out.put("tooLarge", true);
             out.put("id", readId);
             out.put("size", file.length());
             call.resolve(out);

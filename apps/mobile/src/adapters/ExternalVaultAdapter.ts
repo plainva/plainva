@@ -197,9 +197,11 @@ export class ExternalVaultAdapter implements IVaultAdapter {
    */
   private async readBytes(rel: string): Promise<Uint8Array> {
     return withReadTurn("foreground", async () => {
+      // One open of the file: a larger one goes on into the native side's copy, read below in parts.
+      // A provider that fetches a file to open it (a cloud folder) fetches it once.
       const small = await this.plugin.read({ handle: this.handle, path: rel, maxBytes: BRIDGE_PART_BYTES });
       if (!small.tooLarge) return b64ToBytes(small.dataBase64);
-      const { id, size } = await this.plugin.openRead({ handle: this.handle, path: rel });
+      const { id, size } = small;
       try {
         const bytes = new Uint8Array(size);
         let filled = 0;
@@ -219,11 +221,32 @@ export class ExternalVaultAdapter implements IVaultAdapter {
   }
 
   async writeTextFile(path: string, content: string): Promise<void> {
-    await this.writeBytes(await this.realPath(path), new TextEncoder().encode(content));
+    const bytes = new TextEncoder().encode(content);
+    await this.inOrder([path], async () => this.writeBytes(await this.realPath(path), bytes));
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
-    await this.writeBytes(await this.realPath(path), content);
+    await this.inOrder([path], async () => this.writeBytes(await this.realPath(path), content));
+  }
+
+  /** The tail of each path's lane: what last began to write, delete or rename there. */
+  private readonly lanes = new Map<string, Promise<void>>();
+
+  /**
+   * Runs `run` after everything begun on `paths` before it, so the last begun
+   * is the one that stays - as over the sandbox (`atomicFile.ts`). A large
+   * file goes in several calls; without a lane a smaller write begun after it
+   * reached its end first, and the older file's `commit` overwrote the newer
+   * one. A delete or a rename of the path waits its turn the same way.
+   */
+  private inOrder<T>(paths: string[], run: () => Promise<T>): Promise<T> {
+    const keys = [...new Set(paths.map(norm))];
+    const before = Promise.all(keys.map((key) => this.lanes.get(key) ?? Promise.resolve()));
+    const mine = before.then(run);
+    const settled = mine.then(() => undefined, () => undefined);
+    for (const key of keys) this.lanes.set(key, settled);
+    void settled.then(() => { for (const key of keys) if (this.lanes.get(key) === settled) this.lanes.delete(key); });
+    return mine;
   }
 
   /**
@@ -250,21 +273,25 @@ export class ExternalVaultAdapter implements IVaultAdapter {
   }
 
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
-    const rel = await this.realPath(path);
-    this.spellings.forget(norm(path));
-    const info = await this.statOrNull(rel);
-    if (!info) throw new VaultFileNotFoundError(path);
-    await this.plugin.delete({ handle: this.handle, path: rel, recursive: recursive ?? false });
+    await this.inOrder([path], async () => {
+      const rel = await this.realPath(path);
+      this.spellings.forget(norm(path));
+      const info = await this.statOrNull(rel);
+      if (!info) throw new VaultFileNotFoundError(path);
+      await this.plugin.delete({ handle: this.handle, path: rel, recursive: recursive ?? false });
+    });
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    const from = await this.realPath(oldPath);
-    const to = await this.realPath(newPath);
-    if (!(await this.statOrNull(from))) throw new VaultFileNotFoundError(oldPath);
-    if (await this.statOrNull(to)) throw new VaultFileExistsError(newPath);
-    this.spellings.forget(norm(oldPath));
-    this.spellings.forget(norm(newPath));
-    await this.plugin.rename({ handle: this.handle, from, to });
+    await this.inOrder([oldPath, newPath], async () => {
+      const from = await this.realPath(oldPath);
+      const to = await this.realPath(newPath);
+      if (!(await this.statOrNull(from))) throw new VaultFileNotFoundError(oldPath);
+      if (await this.statOrNull(to)) throw new VaultFileExistsError(newPath);
+      this.spellings.forget(norm(oldPath));
+      this.spellings.forget(norm(newPath));
+      await this.plugin.rename({ handle: this.handle, from, to });
+    });
   }
 
   async exists(path: string): Promise<boolean> {

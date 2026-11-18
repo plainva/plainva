@@ -404,6 +404,81 @@ public class AtomicFilePlugin extends Plugin {
         }
     }
 
+    /** The public Documents folder, as the Filesystem plugin resolves Directory.Documents. */
+    private static File publicDocuments() {
+        return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+    }
+
+    /** The file below public Documents that `rel` names; null when it would leave it. */
+    private static File inDocuments(String rel) throws java.io.IOException {
+        File root = publicDocuments().getCanonicalFile();
+        File file = new File(root, rel).getCanonicalFile();
+        return file.getPath().startsWith(root.getPath() + File.separator) ? file : null;
+    }
+
+    /**
+     * One part of a file in the public Documents folder (`first`: the file is
+     * created or emptied, then written; `last`: synced to the disk), with no media scan: the Filesystem
+     * plugin asks the system to scan the file at every write there, and the
+     * ZIP backup writes some 2 000 parts for a 500 MB vault (release list
+     * F56). The file is scanned once, when it is finished (`scanDocuments`).
+     * It is written where it will lie, so the archive takes its room once.
+     */
+    @PluginMethod
+    public void appendDocument(PluginCall call) {
+        String rel = call.getString("path");
+        String data = call.getString("data");
+        boolean first = Boolean.TRUE.equals(call.getBoolean("first", false));
+        boolean last = Boolean.TRUE.equals(call.getBoolean("last", false));
+        if (rel == null || data == null) {
+            call.reject("path and data required");
+            return;
+        }
+        try {
+            File target = inDocuments(rel);
+            if (target == null) {
+                call.reject("path escapes the Documents folder");
+                return;
+            }
+            File parent = target.getParentFile();
+            if (parent == null || (!parent.exists() && !parent.mkdirs() && !parent.exists())) {
+                call.reject("mkdir failed");
+                return;
+            }
+            try (FileOutputStream out = new FileOutputStream(target, !first)) {
+                out.write(Base64.decode(data, Base64.DEFAULT));
+                out.flush();
+                // The last part is on the disk before the archive is checked and renamed; the others
+                // need no sync of their own - the plugin thread every call waits on stays free.
+                if (last) out.getFD().sync();
+            }
+            call.resolve(new JSObject());
+        } catch (Exception e) {
+            call.reject("write failed: " + e.getMessage(), e);
+        }
+    }
+
+    /** Asks the system once to index files of the public Documents folder (a gone one leaves its index). */
+    @PluginMethod
+    public void scanDocuments(PluginCall call) {
+        com.getcapacitor.JSArray paths = call.getArray("paths");
+        if (paths == null) {
+            call.reject("paths required");
+            return;
+        }
+        try {
+            java.util.List<String> files = new java.util.ArrayList<>();
+            for (int i = 0; i < paths.length(); i += 1) {
+                File file = inDocuments(paths.getString(i));
+                if (file != null) files.add(file.getPath());
+            }
+            if (!files.isEmpty()) android.media.MediaScannerConnection.scanFile(getContext(), files.toArray(new String[0]), null, null);
+            call.resolve(new JSObject());
+        } catch (Exception e) {
+            call.reject("scan failed: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Content hash of a vault file, computed while streaming it (issue #48).
      *

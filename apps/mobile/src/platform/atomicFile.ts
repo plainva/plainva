@@ -27,6 +27,10 @@ interface AtomicFilePluginApi {
   /** At most `length` bytes (and never more than one part) from `offset` of an open read, base64. */
   readPart(opts: { id: string; offset: number; length: number }): Promise<{ data: string; size?: number }>;
   closeRead(opts: { id: string }): Promise<void>;
+  /** Android only: one part of a file in the public Documents folder, without a media scan (F56). */
+  appendDocument(opts: { path: string; data: string; first: boolean; last: boolean }): Promise<void>;
+  /** Android only: the system indexes these files of the public Documents folder, once. */
+  scanDocuments(opts: { paths: string[] }): Promise<void>;
   /** Removes the temp files a killed process left below `path`. */
   sweep(opts: { path: string; directory?: "DATA" | "LIBRARY" }): Promise<{ removed: number }>;
 }
@@ -286,3 +290,18 @@ export async function nativeFileDigest(path: string, directory?: "DATA" | "DOCUM
   if (!Capacitor.isNativePlatform()) return null;
   return AtomicFile.sha256({ path, ...(directory ? { directory } : {}) });
 }
+
+/**
+ * Android only: one part of a file in the public Documents folder, written
+ * natively without the media scan the Filesystem plugin asks for at every
+ * write there (release list F56). `scanDocumentFiles` indexes it once.
+ */
+export async function appendDocumentPart(path: string, bytes: Uint8Array, first: boolean, last: boolean): Promise<void> {
+  await AtomicFile.appendDocument({ path, data: partToBase64(bytes), first, last });
+}
+
+/** Android only: the system indexes these files of the public Documents folder, once. */
+export async function scanDocumentFiles(paths: string[]): Promise<void> {
+  await AtomicFile.scanDocuments({ paths });
+}
+

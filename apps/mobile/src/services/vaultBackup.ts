@@ -4,7 +4,7 @@ import { availableZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZi
 import i18n from "@plainva/ui/i18n";
 import { isMissingFile } from "../adapters/fileErrors";
 import { getMobileSettings } from "./mobileSettings";
-import { atomicWriteInternalText, nativeFileDigest } from "../platform/atomicFile";
+import { appendDocumentPart, atomicWriteInternalText, nativeFileDigest, scanDocumentFiles } from "../platform/atomicFile";
 import { internalPlace } from "../platform/internalFiles";
 import { PartFileSink, streamVaultZip, ZipStoppedError } from "./vaultExport";
 import type { MobileVault } from "./vaultService";
@@ -61,20 +61,18 @@ import { classifyBackupListing, type BackupListing, type UnreadableMark } from "
  * now" always runs. The automatic one waits until the app is quiet: after the
  * first frame and the start-up index pass.
  *
- * **Made in the app's own folder, then placed (release list F56).** Every
- * write into Android's public Documents asks the system to scan the file
- * for its media index - once per part, some 2 000 scans for a 500 MB vault.
- * So the archive is made in the app's own folder (Library on iOS, where the
- * Files app does not show it), copied into Documents once it is whole, and
- * there checked and renamed into its name: no half archive is ever an
- * archive, and the part in the app's folder goes either way.
+ * **No media scan per part (release list F56).** On Android the Filesystem
+ * plugin asks the system to index a file at every write into the public
+ * Documents folder - once per part, some 2 000 scans for a 500 MB vault. So
+ * there the parts are written natively without one (`appendDocumentPart`),
+ * and the finished archive is indexed once. It is written where it will lie:
+ * made elsewhere and copied, it took its room twice for a moment, and a vault
+ * whose archive fits the free space once would no longer be backed up.
  */
 
 const DIR = Directory.Documents;
 const ROOT = "Plainva Backups";
-/** Where an archive is made before it is placed: the app's own folder, one subfolder per vault. */
-const STAGE_ROOT = "backup-parts";
-const stageDirectory = (): Directory => (Capacitor.getPlatform() === "ios" ? Directory.Library : Directory.Data);
+const onAndroid = (): boolean => Capacitor.getPlatform() === "android";
 
 const lastRunKey = (vaultId: string) => `m-backup-zip-last-${vaultId}`;
 /** The last try that has not ended in an archive: `{ at, failures, error }` (see the module comment). */
@@ -255,39 +253,32 @@ async function runOnce(vault: MobileVault, name: string, automatic: boolean): Pr
     };
     const fileName = await availableZipFileName(name, new Date(), (file) => present(folder + "/" + file));
     const destination = folder + "/" + fileName;
-    const id = crypto.randomUUID();
-    const partial = destination + "." + id + ".part";
+    const partial = destination + "." + crypto.randomUUID() + ".part";
     // A part file a try that ended the app left (it died between two parts): never an archive, removed now.
     await removeLeftoverParts(folder);
-    const stageFolder = `${STAGE_ROOT}/${sanitizeFileName(vault.vaultId)}`;
-    await removeLeftoverStage(stageFolder);
-    const stage = `${stageFolder}/${id}.zip.part`;
-    const sink = new PartFileSink(stage, stageDirectory());
-    let copied = false;
+    if (onAndroid()) await allowPublicDocuments();
+    const sink = new PartFileSink(partial, DIR, onAndroid() ? (bytes, first, last) => appendDocumentPart(partial, bytes, first, last) : undefined);
     try {
       // The automatic one, switched off while it runs, stops before the next file, and the part
       // file goes. One the person asked for runs whatever the switch says.
       await streamVaultZip(vault, sink, () => automatic && !getMobileSettings().backupZipEnabled);
       const written = await sink.close();
-      if (await present(destination)) throw new Error("Backup destination already exists");
-      // Into Documents once, whole (F56), under a part name until it is checked.
-      copied = true;
-      await Filesystem.copy({ from: stage, directory: stageDirectory(), to: partial, toDirectory: DIR });
-      // Check the file where it lies before publication or retention: its size and the
+      // Check the file on disk before publication or retention: its size and the
       // hash the system takes of it, against what was written. A resolved native
-      // write or copy alone must not turn a truncated archive into a success.
+      // write alone must not turn a truncated archive into a success.
       const checked = await nativeFileDigest(partial, "DOCUMENTS");
       if (!checked || checked.size !== sink.size || checked.sha256 !== written) {
         throw new Error("Backup verification failed");
       }
+      if (await present(destination)) throw new Error("Backup destination already exists");
       await Filesystem.rename({ from: partial, to: destination, directory: DIR, toDirectory: DIR });
     } catch (error) {
       // A partial archive left behind takes room until the next run; the failure itself is thrown.
-      if (copied) await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
+      if (sink.started) await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
       throw error;
-    } finally {
-      if (sink.started) await Filesystem.deleteFile({ path: stage, directory: stageDirectory() }).catch(reportingTo("backup:stage"));
     }
+    // Indexed once, under its name; the part's name leaves the index (F56).
+    if (onAndroid()) await scanDocumentFiles([destination, partial]).catch(reportingTo("backup:scan"));
 
     // Prune only AFTER the new archive exists: deleting first would leave a
     // window in which a failed write means one fewer backup than promised.
@@ -376,10 +367,15 @@ async function removeLeftoverParts(folder: string): Promise<void> {
   }
 }
 
-/** Removes what a try that ended the app left in the app's own folder: only this vault's, one run at a time each. */
-async function removeLeftoverStage(folder: string): Promise<void> {
-  await Filesystem.rmdir({ path: folder, directory: stageDirectory(), recursive: true }).catch(() => {
-    // silent: a folder that does not exist holds no leftovers; one that cannot go is tried at the next run.
+/**
+ * Android before 10 asks the person once for the shared folders, as the
+ * Filesystem plugin did at its first write there; from Android 11 on it is
+ * granted. A refusal is the write's failure, named by the native side.
+ */
+async function allowPublicDocuments(): Promise<void> {
+  const state = await Filesystem.checkPermissions().catch(() => null);
+  if (state && state.publicStorage !== "granted") await Filesystem.requestPermissions().catch(() => {
+    // silent: the native write below fails and says why.
   });
 }
 

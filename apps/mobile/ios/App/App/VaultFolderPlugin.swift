@@ -34,7 +34,6 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         CAPPluginMethod(name: "stat", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "openRead", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readPart", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "closeRead", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "begin", returnType: CAPPluginReturnPromise),
@@ -287,77 +286,82 @@ public class VaultFolderPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDel
         try? FileManager.default.removeItem(at: write.parts)
     }
 
+    /// Empties the parts folder once per process: what a killed process left there - the
+    /// whole copy of a note, or the parts of a write that never committed - belongs to no
+    /// read or write of this one.
+    override public func load() {
+        super.load()
+        DispatchQueue.global(qos: .utility).async {
+            guard let dir = try? self.partsFolder(),
+                  let left = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+            for file in left { try? FileManager.default.removeItem(at: file) }
+        }
+    }
+
     /**
-     * A file in one answer, up to `maxBytes` (one part when left out). A
-     * larger one answers `tooLarge` with its size and no data: a whole picture
-     * in one answer is the message that froze the app on Android (release list
-     * F54, the class of F51) - the same rule on both platforms.
+     * A file in one answer, up to `maxBytes` (one part when left out): a whole
+     * picture in one answer is the message that froze the app on Android
+     * (release list F54, the class of F51) - the same rule on both platforms.
+     * A larger file is copied, under the same coordinated read, into the app's
+     * caches - the one version every part comes from - and the answer is
+     * `tooLarge` with the read's id and size.
      */
     @objc func read(_ call: CAPPluginCall) {
+        dropIdle()
         withFolder(call) { base in
             guard let path = call.getString("path"), let url = target(base, path) else { throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path required"]) }
             let asked = call.getInt("maxBytes") ?? VaultFolderPlugin.maxPart
             let limit = max(0, min(asked, VaultFolderPlugin.maxPart))
+            let copy = try partsFolder().appendingPathComponent("read-" + UUID().uuidString)
             var coordinatorError: NSError?
             var data: Data?
-            var tooLarge: Int?
+            var copied = false
             var readError: Error?
             NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinatorError) { readURL in
                 do {
                     let handle = try FileHandle(forReadingFrom: readURL)
                     defer { try? handle.close() }
                     let head = try handle.read(upToCount: limit + 1) ?? Data()
-                    if head.count > limit {
-                        tooLarge = Int(try handle.seekToEnd())
-                    } else {
+                    if head.count <= limit {
                         data = head
+                        return
                     }
+                    // On from the same handle into the copy: one version of the file.
+                    guard FileManager.default.createFile(atPath: copy.path, contents: nil) else {
+                        throw NSError(domain: "VaultFolder", code: 8, userInfo: [NSLocalizedDescriptionKey: "could not create the read copy"])
+                    }
+                    let out = try FileHandle(forWritingTo: copy)
+                    defer { try? out.close() }
+                    try out.write(contentsOf: head)
+                    while let chunk = try handle.read(upToCount: 64 * 1024), !chunk.isEmpty {
+                        try out.write(contentsOf: chunk)
+                    }
+                    copied = true
                 } catch { readError = error }
             }
-            if let e = coordinatorError { throw e }
-            if let e = readError { throw e }
-            if let size = tooLarge {
-                call.resolve(["tooLarge": true, "size": size])
+            if let e = coordinatorError ?? readError {
+                try? FileManager.default.removeItem(at: copy)
+                throw e
+            }
+            if copied {
+                do {
+                    let handle = try FileHandle(forReadingFrom: copy)
+                    let size = Int(try handle.seekToEnd())
+                    let id = UUID().uuidString
+                    lock.lock()
+                    reads[id] = OpenRead(copy: copy, handle: handle, size: size)
+                    lock.unlock()
+                    call.resolve(["tooLarge": true, "id": id, "size": size])
+                } catch {
+                    try? FileManager.default.removeItem(at: copy)
+                    throw error
+                }
                 return
             }
             guard let content = data else {
                 throw NSError(domain: "VaultFolder", code: 7, userInfo: [NSLocalizedDescriptionKey: "file coordinator returned no content"])
             }
             call.resolve(["dataBase64": content.base64EncodedString()])
-        }
-    }
-
-    /**
-     * Opens a file for a read in parts. The file is copied into the app's
-     * caches under the coordinator first: a sync client may write it
-     * meanwhile, and the copy is the one version every part comes from.
-     */
-    @objc func openRead(_ call: CAPPluginCall) {
-        dropIdle()
-        withFolder(call) { base in
-            guard let path = call.getString("path"), let url = target(base, path) else { throw NSError(domain: "VaultFolder", code: 1, userInfo: [NSLocalizedDescriptionKey: "path required"]) }
-            let copy = try partsFolder().appendingPathComponent("read-" + UUID().uuidString)
-            var coordinatorError: NSError?
-            var copyError: Error?
-            NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinatorError) { readURL in
-                do { try FileManager.default.copyItem(at: readURL, to: copy) } catch { copyError = error }
-            }
-            if let e = coordinatorError ?? copyError {
-                try? FileManager.default.removeItem(at: copy)
-                throw e
-            }
-            do {
-                let handle = try FileHandle(forReadingFrom: copy)
-                let size = Int(try handle.seekToEnd())
-                let id = UUID().uuidString
-                lock.lock()
-                reads[id] = OpenRead(copy: copy, handle: handle, size: size)
-                lock.unlock()
-                call.resolve(["id": id, "size": size])
-            } catch {
-                try? FileManager.default.removeItem(at: copy)
-                throw error
-            }
         }
     }
 

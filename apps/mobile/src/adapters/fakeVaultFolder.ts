@@ -58,8 +58,13 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
       if (v === undefined) throw new Error("ENOENT");
       const bytes = asBytes(v);
       calls.push(`read:${path}`);
-      // As both native plugins: a file over the limit is named, not sent.
-      if (bytes.length > (maxBytes ?? PART)) return { tooLarge: true as const, size: bytes.length };
+      // As both native plugins: a file over the limit is not sent; it is read on into a copy -
+      // one version, taken now: what the map holds later is another program's write.
+      if (bytes.length > (maxBytes ?? PART)) {
+        const id = `r${++clock}`;
+        reads.set(id, bytes.slice());
+        return { tooLarge: true as const, id, size: bytes.length };
+      }
       sizes.push(bytes.length);
       return { dataBase64: b64(bytes) };
     },
@@ -68,15 +73,6 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
       sizes.push(bytes.length);
       files.set(path, bytes);
       mtimes.set(path, ++clock);
-    },
-    async openRead({ path }) {
-      const v = files.get(path);
-      if (v === undefined) throw new Error("ENOENT");
-      // One version, taken now: what the map holds later is another program's write.
-      const id = `r${++clock}`;
-      reads.set(id, asBytes(v).slice());
-      calls.push(`openRead:${path}`);
-      return { id, size: reads.get(id)!.length };
     },
     async readPart({ id, offset, length }) {
       const bytes = reads.get(id);
@@ -130,6 +126,17 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
     },
     async mkdir({ path }) { dirs.add(path); },
   };
+  // One call at a time, in the order they arrive - as on the plugin's thread (Android) or queue (iOS).
+  let queue: Promise<unknown> = Promise.resolve();
+  const serial = plugin as unknown as Record<string, (opts: unknown) => Promise<unknown>>;
+  for (const name of Object.keys(serial)) {
+    const call = serial[name]!;
+    serial[name] = (opts: unknown) => {
+      const answer = queue.then(() => call(opts));
+      queue = answer.catch(() => {});
+      return answer;
+    };
+  }
   return {
     plugin, calls, dirs, sizes,
     openReads: () => reads.size,

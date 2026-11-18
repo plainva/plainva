@@ -74,21 +74,21 @@ export interface VaultFolderNative {
   stat(opts: { handle: string; path: string }): Promise<{ entry: VaultFolderEntry | null }>;
   /**
    * A whole file in one answer - only up to `maxBytes` (the plugin's own
-   * limit, one part, when left out). A larger file answers `tooLarge` with its
-   * size and nothing else: it is read in parts (`openRead`). Every call's text
-   * is parsed on Android's UI thread, so no file crosses the bridge whole
-   * (release list F54).
+   * limit, one part, when left out). A larger file answers `tooLarge` and no
+   * data: every call's text is parsed on Android's UI thread, so no file
+   * crosses the bridge whole (release list F54). Instead the native side
+   * reads such a file on, from the same open, into a copy in the
+   * app's cache - the one version every part (`readPart`) comes from, so a
+   * sync client writing it meanwhile never gives the front of one version and
+   * the end of another, and a cloud provider fetches the file once - and
+   * answers that read's `id` with the size; the caller closes it (`closeRead`).
    */
-  read(opts: { handle: string; path: string; maxBytes?: number }): Promise<{ dataBase64: string; tooLarge?: undefined } | { tooLarge: true; size: number; dataBase64?: undefined }>;
+  read(opts: { handle: string; path: string; maxBytes?: number }): Promise<
+    | { dataBase64: string; tooLarge?: undefined }
+    | { tooLarge: true; id: string; size: number; dataBase64?: undefined }
+  >;
   /** A file small enough for one message (`BRIDGE_PART_BYTES`); a larger one goes through `begin`. */
   write(opts: { handle: string; path: string; dataBase64: string }): Promise<void>;
-  /**
-   * Opens a file for a read in parts: the native side takes one version of it
-   * (a copy in the app's cache, so a sync client writing the file meanwhile
-   * never gives the front of one version and the end of another) and answers
-   * its size.
-   */
-  openRead(opts: { handle: string; path: string }): Promise<{ id: string; size: number }>;
   /** At most `length` bytes (never more than one part) from `offset` of an open read, base64. */
   readPart(opts: { id: string; offset: number; length: number }): Promise<{ data: string }>;
   closeRead(opts: { id: string }): Promise<void>;
