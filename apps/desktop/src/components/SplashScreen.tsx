@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { FolderOpen, Cloud, Folder, Laptop, Plus, X, FilePlus2, Database, Download, SquareArrowOutUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -8,7 +8,6 @@ import { Checkbox, ICON, Switch } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
-import { errorText, indexDatabaseRebuildOffered } from "@plainva/ui";
 import { forgetVaultEverywhere } from "../services/vaultForget";
 import { useVaultLabels } from "../services/vaultNames";
 import { ImportWizardModal } from "./import/ImportWizardModal";
@@ -26,6 +25,9 @@ import {
   isVaultFolderEmpty,
   type VaultTemplateDefinition,
 } from "../services/vaultTemplates";
+
+// Loaded only when a vault's index database failed: the start's entry file carries none of it.
+const SplashRebuildIndex = lazy(() => import("./SplashRebuildIndex").then((m) => ({ default: m.SplashRebuildIndex })));
 
 /** Brand mark geometry (not an icon role - the logo scales freely). */
 const SPLASH_LOGO_SIZE = 76;
@@ -45,23 +47,7 @@ interface SplashScreenProps {
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirstRunDismiss }) => {
-  const { selectVault, openVault, recentVaults, error, removeRecentVault, autoOpenLastVault, setAutoOpenLastVault, indexDatabaseFailure, rebuildIndexDatabase } = useVault();
-  // The start's "Rebuild index" for a damaged index database: asked first, one at a time.
-  const [rebuildAsked, setRebuildAsked] = useState(false);
-  const [rebuilding, setRebuilding] = useState(false);
-  const rebuildOffered = !!indexDatabaseFailure && indexDatabaseRebuildOffered(indexDatabaseFailure.kind, indexDatabaseFailure.workspace);
-  const runRebuild = async () => {
-    if (rebuilding) return;
-    setRebuilding(true);
-    try {
-      await rebuildIndexDatabase();
-      setRebuildAsked(false);
-    } catch (e) {
-      toast.error(t("indexDatabase.rebuildFailed", { reason: errorText(e) }));
-    } finally {
-      setRebuilding(false);
-    }
-  };
+  const { selectVault, openVault, recentVaults, error, removeRecentVault, autoOpenLastVault, setAutoOpenLastVault, indexDatabaseFailure } = useVault();
   const { t, i18n } = useTranslation();
   // Two-button model (2026-07-13): the ACTION (new/open) comes first, the
   // PLACE (local/online) is the second step — order: place -> template ->
@@ -214,12 +200,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
             <strong>{t("dialogs.errorTitle")}:</strong> {error || createError}
           </div>
         )}
-        {rebuildOffered && !createError && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "-1rem", marginBottom: "1.5rem" }}>
-            <Button variant="primary" onClick={() => setRebuildAsked(true)} disabled={rebuilding} data-testid="splash-rebuild-index">
-              {t("settings.rebuildIndexAction")}
-            </Button>
-          </div>
+        {indexDatabaseFailure && !createError && (
+          <Suspense fallback={null}>
+            <SplashRebuildIndex />
+          </Suspense>
         )}
 
         {showOnlineChooser ? (
@@ -492,26 +476,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
           onNewVault={() => { onFirstRunDismiss?.(); setCreateError(null); setShowCreateWhere(true); }}
           onImport={() => { onFirstRunDismiss?.(); setShowImport(true); }}
         />
-      )}
-
-      {rebuildAsked && rebuildOffered && (
-        <Modal
-          title={t("indexDatabase.rebuildTitle")}
-          onClose={() => { if (!rebuilding) setRebuildAsked(false); }}
-          size="md"
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setRebuildAsked(false)} disabled={rebuilding}>
-                {t("common.cancel")}
-              </Button>
-              <Button variant="primary" onClick={() => { void runRebuild(); }} disabled={rebuilding} data-testid="splash-rebuild-confirm">
-                {t("settings.rebuildIndexAction")}
-              </Button>
-            </>
-          }
-        >
-          <p style={{ margin: 0, lineHeight: 1.5 }}>{t("indexDatabase.rebuildConfirm")}</p>
-        </Modal>
       )}
 
       {removeTarget !== null && (
