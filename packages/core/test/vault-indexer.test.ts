@@ -198,6 +198,8 @@ describe("VaultIndexer", () => {
     // never re-index it and the stale content would stick in search/links.
     await vaultAdapter.writeTextFile("restored.md", "old content restored");
     db.mockedResults.push([{ path: "restored.md", mtime_local: 9_000_000_000_000_000 }]);
+    // The row as the scan's transaction reads it: still at its path.
+    db.mockedResults.push([{ path: "restored.md", sync_state: "synced", ctime: null }]);
 
     await indexer.indexVaultFull();
 
@@ -523,7 +525,8 @@ describe("VaultIndexer", () => {
 
       await indexer.indexPath("50%_off");
 
-      const childQuery = db.queries.filter((q) => q.query !== "COMMIT").at(-1)!;
+      // The child-prefix probe; a new file that went is noted in the change journal after it.
+      const childQuery = db.queries.filter((q) => q.query.includes("LIKE ?")).at(-1)!;
       expect((childQuery.params as any[])[0]).toBe("50\\%\\_off/%");
     });
   });

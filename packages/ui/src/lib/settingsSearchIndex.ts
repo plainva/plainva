@@ -510,7 +510,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsIndexEntry[] = [
   {"shell":"mobile","area":"backup","kind":"row","card":"versions.title","label":"settings.versionMaxAge","desc":["settings.versionMaxAgeDesc"]},
   {"shell":"mobile","area":"backup","kind":"row","card":"versions.title","label":"versions.deletedTitle","info":["settings.deletedFilesDesc"]},
   {"shell":"mobile","area":"backup","kind":"card","card":"settings.groupZipBackups"},
-  {"shell":"mobile","area":"backup","kind":"row","card":"settings.groupZipBackups","label":"settings.backupZipEnabled","desc":["mobile.backupZipOff","mobile.backupZipOn","mobile.backupZipNever"],"info":["settings.backupZipEnabledDesc"]},
+  {"shell":"mobile","area":"backup","kind":"row","card":"settings.groupZipBackups","label":"settings.backupZipEnabled","desc":["mobile.backupZipOff","mobile.backupZipLastFailed","mobile.backupZipOn","mobile.backupZipNever"],"info":["settings.backupZipEnabledDesc"]},
   {"shell":"mobile","area":"backup","kind":"row","card":"settings.groupZipBackups","label":"settings.backupZipKeep","desc":["settings.backupZipKeepDesc"]},
   {"shell":"mobile","area":"backup","kind":"row","card":"settings.groupZipBackups","label":"settings.backupNowButton"},
   {"shell":"mobile","area":"maintenance","kind":"card","card":"settings.vaultStats"},

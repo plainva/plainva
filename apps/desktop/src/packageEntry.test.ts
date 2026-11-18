@@ -1,9 +1,9 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { checkLinuxTree, checkMacApp, desktopExec, HELPER, MAIN, partSizes, plistString } from "../scripts/package-entry.mjs";
+import { checkLinuxTree, checkMacApp, desktopCommand, desktopExec, HELPER, MAIN, partSizes, plistString } from "../scripts/package-entry.mjs";
 
 // 0.9.0 is the first release with two programs in every package: the app and
 // the MCP helper. Review of the rehearsal, 2026-11-16: the AppImage check
@@ -50,12 +50,7 @@ describe("the names", () => {
     expect(ps1).toContain(`$helper = '${HELPER}.exe'`);
     expect(read("apps/desktop/scripts/check-appimage.sh")).toContain(`for program in ${MAIN} ${HELPER}; do`);
     expect(read("apps/desktop/scripts/check-package-entry.sh")).toContain(`main=${MAIN}\n`);
-    expect(read("apps/desktop/scripts/package-start-linux.sh")).toContain(`main=${MAIN}\ntitle=Plainva\n`);
-  });
-
-  it("looks for the window title the app sets", () => {
-    const conf = JSON.parse(read("apps/desktop/src-tauri/tauri.conf.json")) as { app: { windows: { title: string }[] } };
-    expect(conf.app.windows[0].title).toBe("Plainva");
+    expect(read("apps/desktop/scripts/package-start-linux.sh")).toContain(`main=${MAIN}\n`);
   });
 });
 
@@ -67,9 +62,33 @@ describe("reading an entry", () => {
     expect(desktopExec("[Desktop Entry]\nName=x\n")).toBeUndefined();
   });
 
+  it("reads an Exec key as a launcher does", () => {
+    // Only the [Desktop Entry] group; a desktop action has an Exec of its own.
+    expect(desktopExec("[Desktop Action new]\nExec=plainva-mcp\n[Desktop Entry]\nExec = plainva-desktop %U\n")).toBe("plainva-desktop");
+    expect(desktopExec("[Desktop Entry]\r\nExec=plainva-desktop\r\n")).toBe("plainva-desktop");
+    expect(desktopExec("[Desktop Action new]\nExec=plainva-desktop\n")).toBeUndefined();
+    // A launcher's own env prefix is read through.
+    expect(desktopCommand(desktop("env GDK_BACKEND=x11 -u FOO -i /usr/bin/plainva-desktop %U"))).toEqual({ words: ["/usr/bin/plainva-desktop", "%U"] });
+    // Quoted words with escapes, and the \s string escape.
+    expect(desktopCommand(desktop('"/opt/My App/plainva-desktop" "a \\\\"b\\\\""'))).toEqual({ words: ["/opt/My App/plainva-desktop", 'a "b"'] });
+    expect(desktopCommand(desktop("/opt/plainva\\sdesktop"))).toEqual({ words: ["/opt/plainva", "desktop"] });
+  });
+
+  it("says why it does not read an Exec key, instead of guessing", () => {
+    expect(desktopCommand("[Desktop Entry]\nName=x\n")).toEqual({ error: "no Exec key in its [Desktop Entry] group" });
+    expect(desktopCommand(desktop('"/opt/plainva-desktop'))).toEqual({ error: 'its Exec value has an unclosed quote: "/opt/plainva-desktop' });
+    expect(desktopCommand(desktop("env -C /opt plainva-desktop"))).toEqual({ error: "its Exec runs env with the option -C, which this check does not read" });
+    expect(desktopCommand(desktop("env FOO=1"))).toEqual({ error: "its Exec runs env without a program" });
+    expect(desktopCommand(desktop(""))).toEqual({ error: "its Exec value is empty" });
+  });
+
   it("takes a string of a property list", () => {
     expect(plistString(plist("plainva-desktop"), "CFBundleExecutable")).toBe("plainva-desktop");
     expect(plistString(plist("plainva-desktop"), "CFBundleIconFile")).toBeUndefined();
+    // The value as written (a plist string keeps its spaces), entities decoded; an impossible code point stays as written.
+    expect(plistString("<dict><key>CFBundleExecutable</key>\n<string> a&amp;b&#x41;&#99999999; </string></dict>", "CFBundleExecutable")).toBe(" a&bA&#99999999; ");
+    expect(plistString("<dict><key> CFBundleExecutable </key><string>x</string></dict>", "CFBundleExecutable")).toBeUndefined();
+    expect(plistString("<dict><key>CFBundleExecutable</key><string/></dict>", "CFBundleExecutable")).toBe("");
   });
 });
 
@@ -102,6 +121,15 @@ onPosix("a Linux package", () => {
     ]);
   });
 
+  it("names an entry it cannot read or does not understand, and does not crash", () => {
+    const dir = tree(good);
+    symlinkSync(join(dir, "nowhere.desktop"), join(dir, "usr/share/applications/Broken.desktop"));
+    expect(checkLinuxTree(dir)).toEqual(["usr/share/applications/Broken.desktop cannot be read (ENOENT)"]);
+    expect(checkLinuxTree(tree({ ...good, "usr/share/applications/Plainva.desktop": desktop("env -C /opt plainva-desktop") }))).toEqual([
+      "usr/share/applications/Plainva.desktop: its Exec runs env with the option -C, which this check does not read",
+    ]);
+  });
+
   it("fails a program that is not executable", () => {
     expect(checkLinuxTree(tree({ ...good, "usr/bin/plainva-desktop": "#!/bin/sh\n" }))).toEqual(["usr/bin/plainva-desktop is missing or not executable"]);
   });
@@ -119,6 +147,21 @@ onPosix("a macOS app", () => {
     const { "Contents/MacOS/plainva-mcp": _helper, ...noHelper } = good;
     expect(checkMacApp(tree(noHelper))).toEqual(["Contents/MacOS/plainva-mcp is missing or not executable"]);
     expect(checkMacApp(tree({}))).toEqual(["Contents/Info.plist is missing"]);
+    expect(checkMacApp(tree({ ...good, "Contents/Info.plist": "<dict><key>CFBundleExecutable</key><string/></dict>" }))).toEqual([
+      "CFBundleExecutable is empty, not plainva-desktop",
+    ]);
+  });
+
+  it("reads a binary Info.plist through plutil, and says so where it cannot", () => {
+    const binary = { ...good, "Contents/Info.plist": "bplist00\u0000\u0001" };
+    expect(checkMacApp(tree(binary), { convert: () => plist("plainva-desktop") })).toEqual([]);
+    expect(checkMacApp(tree(binary), { convert: () => plist("plainva-mcp") })).toEqual(["CFBundleExecutable is plainva-mcp, not plainva-desktop"]);
+    const problems = checkMacApp(tree(binary), {
+      convert: () => {
+        throw new Error("plutil: not found");
+      },
+    });
+    expect(problems).toEqual(["Contents/Info.plist is a binary property list and plutil could not read it (plutil: not found)"]);
   });
 });
 
@@ -161,9 +204,14 @@ describe("in the release workflow", () => {
     expect(named("rehearsal", "The packages start the main program")!.if).toBeUndefined();
   });
 
-  it("has rpm2cpio, Xvfb, D-Bus and xwininfo on the Linux runner of both paths", () => {
+  it("has rpm, rpm2cpio, Xvfb, D-Bus and xwininfo/xprop on the Linux runner of both paths", () => {
     for (const job of ["release", "rehearsal"]) {
-      expect(named(job, "Install dependencies (ubuntu only)")!.run).toMatch(/apt-get install -y .*\bxvfb rpm2cpio dbus x11-utils$/m);
+      expect(named(job, "Install dependencies (ubuntu only)")!.run).toMatch(/apt-get install -y .*\bxvfb rpm rpm2cpio dbus x11-utils$/m);
     }
+  });
+
+  it("keeps the rehearsal's file list after a red check, as long as the build made every file", () => {
+    expect(named("rehearsal", "List what a release would have uploaded")!.if).toBe("always() && steps.built.outcome == 'success'");
+    expect((steps("rehearsal").find((s) => s.name === "Every release file was built") as Step & { id?: string }).id).toBe("built");
   });
 });

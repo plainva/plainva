@@ -7,6 +7,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Early, so the crash and hang diagnostics of the last run are taken in (ProcessExitPlugin.swift).
+        ExitDiagnostics.shared.start()
         installQuickActions(application)
         // `true` on purpose: a quick action that launched the app is then delivered to
         // `performActionFor` below, the one place that handles it.

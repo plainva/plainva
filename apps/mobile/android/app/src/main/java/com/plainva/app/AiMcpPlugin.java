@@ -236,7 +236,7 @@ public class AiMcpPlugin extends Plugin {
         boolean delete = "DELETE".equals(call.getString("method", "POST"));
         String body = call.getString("body", "");
         JSObject headers = call.getObject("headers", new JSObject());
-        int timeoutMs = Math.max(1000, Math.min(300000, call.getInt("timeoutMs", 30000)));
+        int timeoutMs = Math.max(1000, Math.min(300000, (int) JsNumbers.wholeOr(call, "timeoutMs", 30000L)));
         if (requestId == null || serverId == null) {
             call.reject("requestId and serverId required");
             return;

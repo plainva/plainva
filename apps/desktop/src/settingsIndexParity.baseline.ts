@@ -19,7 +19,7 @@ export const SETTINGS_INDEX_ASYMMETRY: Record<string, { desktopOnly: readonly st
   },
   "backup": {
     desktopOnly: ["settings.backupNow","settings.backupZipDest"],
-    mobileOnly: ["mobile.backupZipNever","mobile.backupZipOff","mobile.backupZipOn","settings.backupNowButton"],
+    mobileOnly: ["mobile.backupZipLastFailed","mobile.backupZipNever","mobile.backupZipOff","mobile.backupZipOn","settings.backupNowButton"],
   },
   "behavior": {
     desktopOnly: ["background.autostart","background.note","background.reminders","background.remindersClosed","background.remindersRunning","background.section","background.tray","background.trayInvisibleWhy","quickCapture.enable","quickCapture.enableDesc","quickCapture.enableLimit","quickCapture.recording","quickCapture.section","quickCapture.shortcut","settings.autoOpenLastVaultDesc","settings.showCompatWarning","settings.showWelcomeDesc","settings.startViewInfo","splash.autoOpenLastVault","window.restoreWindows","window.restoreWindowsDesc","window.restoreWindowsDrafts"],
