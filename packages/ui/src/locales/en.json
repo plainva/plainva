@@ -7542,6 +7542,8 @@
     "skippedLine": "Skipped: {{paths}}",
     "leftOut_one": "“{{names}}” could not be read and is left out of the search index; the rest of the vault is indexed. Usually this is a link to a place that does not exist on this device.",
     "leftOut_other": "{{count}} files or folders could not be read and are left out of the search index; the rest of the vault is indexed. Usually this is a link to a place that does not exist on this device: {{names}}",
+    "readAgain_one": "“{{names}}” changed every time it was read; it is in the search index as last read and is read again shortly.",
+    "readAgain_other": "{{count}} files changed every time they were read; they are in the search index as last read and are read again shortly: {{names}}",
     "indexFailed": "The search index could not be updated: {{reason}}. Search, tags and databases may be incomplete until the vault is read again.",
     "indexUnavailable": "The search index could not be opened on this device: {{reason}}. Search, tags, databases, the sync and the calendar stay off until it opens — restarting the app tries again.",
     "cloudRequested": "Cloud: full sync requested",
