@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, CalendarDays, ChevronRight, Cloud, ListChecks, Mail, Pause, RefreshCw } from "lucide-react";
 import { AreaBoundary,
@@ -37,7 +37,7 @@ import { AppBar } from "../components/AppBar";
 import { CloudFolderPickerSheet } from "../components/CloudFolderPickerSheet";
 import { ColorPickSheet } from "../components/ColorPickSheet";
 import { syncStateLabel } from "../components/syncSubtitle";
-import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
+import { findAccountCard, loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { setMobileServiceOff } from "../services/accountPageFacts";
 import { mSelect } from "../services/mobileDialogs";
 import { getMobileSettings, applyVaultSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -87,13 +87,23 @@ export function AccountServiceScreen({
 }) {
   const { t } = useTranslation();
   const [card, setCard] = useState<AccountCard | null>(null);
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const reload = useCallback(() => {
     // The card by its key - or by the calendar or mailbox it carries, for the way in from the Calendar and E-Mail pages.
     void loadAccountCards()
-      .then(({ cards }) => setCard(cards.find((entry) => entry.key === accountKey || entry.pimAccountId === accountKey || entry.mailAccountId === accountKey) ?? null))
-      .catch(() => setCard(null));
+      .then(({ cards }) => setCard(findAccountCard(cards, accountKey)))
+      .catch(() => setCard(null))
+      .finally(() => setReady(true));
   }, [accountKey]);
+  // No card by that key (gone, or a page saved before an update): back, never an empty page (review 2026-11-18, R2).
+  const missing = ready && !card;
+  const wentBack = useRef(false);
+  useEffect(() => {
+    if (!missing || wentBack.current) return;
+    wentBack.current = true;
+    onBack();
+  }, [missing, onBack]);
   useEffect(() => {
     reload();
     window.addEventListener("m-pim-changed", reload);
@@ -111,6 +121,7 @@ export function AccountServiceScreen({
     void setMobileServiceOff(card.recordVaultId, card, service, !on).then(reload).catch((e) => toast.error(String(e))).finally(() => setBusy(false));
   };
   const Icon = service === "files" ? Cloud : service === "calendar" ? CalendarDays : Mail;
+  if (missing) return null;
 
   return (
     <div className="m-page" data-testid={`account-service-${service}`}>

@@ -29,7 +29,7 @@ vi.mock("./fileSyncAccess", () => ({
   resolveMobileFileAccess: () => ({ ready: filesReachable, blocked: !filesReachable }),
 }));
 
-import { loadAccountCards } from "./cloudAccountCards";
+import { findAccountCard, loadAccountCards } from "./cloudAccountCards";
 
 /**
  * Cards fold on the verified identity, and the files card names the ACCOUNT.
@@ -252,5 +252,27 @@ describe("loadAccountCards", () => {
     const { cards } = await loadAccountCards();
 
     expect(cards.map((card) => card.record?.id).sort()).toEqual(["acc-1", "acc-2"]);
+  });
+
+  it("finds the card of a page saved before the update by the key it had then; never another (review 2026-11-18, R2)", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    pimRows.push({ id: "pim-1", provider: "caldav", label: "Alice@icloud.com", config: { url: "https://caldav.icloud.com", user: "Alice@icloud.com" } });
+    records = [
+      { id: "acc", family: "apple", label: "Alice@icloud.com", services: { calendar: { pimAccountId: "pim-1" } } } as unknown as CloudAccountRecord,
+      { id: "acc-2", family: "apple", label: "bob@icloud.com", services: {} } as unknown as CloudAccountRecord,
+      { id: "acc-3", family: "apple", label: "bob@icloud.com", services: {} } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(findAccountCard(cards, "record:acc")?.record?.id).toBe("acc");
+    // The key of the builds up to 0.8.7, and the one before the record became the key.
+    expect(findAccountCard(cards, "apple|alice@icloud.com")?.record?.id).toBe("acc");
+    expect(findAccountCard(cards, "apple|Alice@icloud.com")?.record?.id).toBe("acc");
+    expect(findAccountCard(cards, "pim-1")?.record?.id).toBe("acc");
+    // Two cards had that key: neither is guessed, the page goes back to the list.
+    expect(findAccountCard(cards, "apple|bob@icloud.com")).toBeNull();
+    expect(findAccountCard(cards, "apple|#acc-2")?.record?.id).toBe("acc-2");
+    expect(findAccountCard(cards, "nothing")).toBeNull();
   });
 });
