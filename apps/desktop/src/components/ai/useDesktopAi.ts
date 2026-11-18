@@ -63,6 +63,8 @@ export interface DesktopAiInput {
   encrypted: boolean;
   /** The encrypted workspace is not open on this device — locked, or no key here: no app over MCP gets anything of the vault (wave 2, § 3.2). */
   closed: McpWorkspaceClosed;
+  /** `closed` as it is the moment it is asked — a call of an app looks at the keys themselves, not at the last render (round 11). */
+  closedNow?: () => McpWorkspaceClosed;
   activePath: string | null;
   /** The panes of this window: their open tabs are part of the situation (plan §7). */
   layout: { panes: readonly { tabs: readonly { history: readonly string[]; historyIndex: number }[] }[] };
@@ -377,7 +379,7 @@ export function useDesktopAi(input: DesktopAiInput) {
         }
       },
       // Closed, the main window answers an app nothing of the vault either (wave 2, § 3.2).
-    }, () => latest.current.closed);
+    }, () => (latest.current.closedNow ? latest.current.closedNow() : latest.current.closed));
   }, [session]);
   // A plan of an app was asked of the vault that was open then: another vault, or none, and it waits no more.
   useEffect(() => () => mcpPlans.clear(), [vaultPath]);

@@ -33,7 +33,7 @@ import { mayHoldAWithheldLink, redactDeniedLinksIn } from "../ai/egressGate.js";
 import type { LinkRule } from "../ai/chat.js";
 import { ReaderView } from "../ai/readerView.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
-import { BlockMemo, cutToKeys, linkTargetsOfBlock, PROPERTIES_AS_HELD, propertiesBlockOf, propertiesInView, tagsInView, tagsNeedTheText, withValuesAsWritten, type PropertiesView } from "./propertiesInView.js";
+import { BlockMemo, cutToKeys, linkTargetsOfBlock, PROPERTIES_AS_HELD, PROPERTIES_WITHHELD, propertiesBlockOf, propertiesInView, tagsInView, tagsNeedTheText, withValuesAsWritten, type PropertiesView } from "./propertiesInView.js";
 import { frontmatterSpan } from "../frontmatter-block.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -1746,13 +1746,22 @@ export class VaultQueryService {
       }
     };
     await read(unread);
+    // A note asked about whose block was not to be had any more is withheld, never taken for one without links (round
+    // 11 of the review of R19, wave 2): the index changed between the two looks.
+    for (const index of unread) if (!entries[index]) views[index] = PROPERTIES_WITHHELD;
     // The block each answer is read of: the note's, or cut to the keys asked — kept with the note by those keys, so a
     // link in another key is asked about by nobody, and a block is cut once per text.
     const asKey = cut ? [...cut].sort().join("\u0000") : null;
     if (cut && asKey) {
       await read(unread.length === paths.length ? [] : entries.flatMap((entry, index) => (entry && entry.block === undefined && !entry.cuts?.has(asKey) ? [index] : [])));
-      for (const entry of entries) {
-        if (!entry || typeof entry.block !== "string" || entry.cuts?.has(asKey)) continue;
+      for (let index = 0; index < entries.length; index++) {
+        const entry = entries[index];
+        if (!entry || entry.cuts?.has(asKey)) continue;
+        if (typeof entry.block !== "string") {
+          // Let go and not to be had again: withheld (round 11).
+          if (entry.block === undefined) views[index] = PROPERTIES_WITHHELD;
+          continue;
+        }
         entry.memo ??= new BlockMemo();
         const block = cutToKeys(entry.block, cut, entry.memo);
         (entry.cuts ??= new Map()).set(asKey, { block, targets: block === null ? [] : linkTargetsOfBlock(block, entry.memo) });
@@ -1788,18 +1797,23 @@ export class VaultQueryService {
         continue;
       }
       views[index] = PROPERTIES_AS_HELD;
-      if (!asKey) {
-        const entry = entries[index]!;
-        entry.block = undefined;
-        entry.memo = null;
-        entry.cuts = undefined;
-      }
+      // Let go for the queries to come, never for one that runs: another reader's query may have judged this note to
+      // withhold a link from its reader and not read its view yet (round 11 of the review of R19, wave 2). So the
+      // kept entry is replaced by one without the block, never changed — what a query holds stays as it found it.
+      const entry = entries[index]!;
+      const path = paths[index]!;
+      if (!asKey && entry.block !== undefined && kept.get(path) === entry) kept.set(path, { sha: entry.sha, block: undefined, memo: null, targets: entry.targets, meant: entry.meant });
     }
-    await read(withheld.filter((index) => entries[index]!.block === undefined));
+    // Read again where it was let go; a block cut to the keys asked is kept with its cut.
+    await read(withheld.filter((index) => answerOf(entries[index]!).block === undefined));
     for (const index of withheld) {
       const entry = entries[index]!;
       const block = answerOf(entry).block;
-      if (typeof block !== "string") continue;
+      // Judged to withhold a link and its block not to be had: withheld, never shown as held (round 11).
+      if (typeof block !== "string") {
+        views[index] = PROPERTIES_WITHHELD;
+        continue;
+      }
       entry.memo ??= new BlockMemo();
       const from = paths[index]!;
       views[index] = propertiesInView(block, (target) => denied(from, target), entry.memo);
@@ -2661,6 +2675,12 @@ export class VaultQueryService {
             if (sha) noLink.set(path, sha);
             continue;
           }
+        }
+        // A note of which the index holds no values has no block to view: its name is withheld below as it stands. Every
+        // other note asked about has a view — one missing is withheld (`PROPERTIES_WITHHELD`).
+        if (!propsByFileId[row.id]) {
+          unheldRows.add(row);
+          continue;
         }
         reading.push(path);
         revisions.push(row.sha256 ?? "");

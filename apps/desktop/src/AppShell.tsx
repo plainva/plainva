@@ -3,12 +3,12 @@ import { useTabTransferSource, useTabTransferTarget } from "./hooks/useTabTransf
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
 import { PATH_RENAMED_EVENT, type FileMovedDetail } from "./services/fileMoved";
 const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
-import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
 import { onTrayJournal, onTrayNewTask } from "./services/background";
 import { copyDesktopNoteLink, hasNoteLink, useDesktopNoteLinks } from "./services/noteLinkReceiver";
-import { workspaceClosedHere } from "./services/workspaceSecurity/workspaceClosed";
+import { onWorkspaceClosedChange, workspaceClosedHere } from "./services/workspaceSecurity/workspaceClosed";
 import { openAttachmentExternally } from "./services/openAttachment";
 import { useVault } from "./contexts/VaultContext";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
@@ -586,12 +586,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const gists = useDesktopGists({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
   // The AI harness (plan KI-Harness P1a): one session of the central window;
   // the companion, the AI tab and the palette all show and drive it.
+  // Whether the encrypted workspace is open on this device, told by its keys and followed as they change (round 11).
+  const workspaceClosed = useSyncExternalStore(onWorkspaceClosedChange, () => workspaceClosedHere(vaultPath, workspaceSecurityStatus));
   const ai = useDesktopAi({
     vaultPath,
     vaultAdapter,
     queryService,
     encrypted: workspaceSecurityStatus !== null,
-    closed: workspaceClosedHere(workspaceSecurityStatus),
+    closed: workspaceClosed,
+    closedNow: () => workspaceClosedHere(vaultPath, workspaceSecurityStatus),
     activePath,
     layout,
     openView,

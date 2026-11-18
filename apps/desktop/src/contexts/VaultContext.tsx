@@ -58,7 +58,7 @@ import type { FileOp } from "@plainva/ui";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { workspaceActivationStore } from "../services/workspaceActivationStore";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
-import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, beginWorkspaceLock, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { WORKSPACE_KEY_BUNDLE_MISSING } from "../services/workspaceSecurity/workspaceClosed";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
@@ -2799,7 +2799,15 @@ export const VaultProvider: React.FC<{
 
   const lockWorkspace = async (): Promise<void> => {
     if (!state.vaultPath || !state.workspaceSecurityStatus) throw new Error("workspace-not-configured");
-    await state.syncWorker?.stopAndDrain();
+    // Closed for every app from the moment the lock begins, while the sync still drains with the keys (round 11 of the
+    // review of wave 2, § 3.2); undone only where the lock does not go through.
+    const lock = beginWorkspaceLock(state.vaultPath);
+    try {
+      await state.syncWorker?.stopAndDrain();
+    } catch (error) {
+      lock.undo();
+      throw error;
+    }
     lockWorkspaceRuntime(state.vaultPath);
     await saveWorkspaceSecurityStatus(state.vaultPath, { ...state.workspaceSecurityStatus, phase: "locked", lastError: null });
     await reloadVault();

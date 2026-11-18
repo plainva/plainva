@@ -349,6 +349,13 @@ function withheldWritten(written: Map<string, unknown> | null, isDenied: (target
 export const PROPERTIES_AS_HELD: PropertiesView = Object.freeze({ data: null, title: null, tags: null, blockTags: null, goneTags: new Set<string>(), seen: null, written: () => null });
 
 /**
+ * The view of a note none could be formed of for its reader — its block was not to be had when the query looked again
+ * (round 11 of the review of R19, wave 2): every value, its title and its tags withheld. A note without a view is never
+ * one that withholds nothing.
+ */
+export const PROPERTIES_WITHHELD: PropertiesView = Object.freeze({ data: Object.freeze({}) as Record<string, unknown>, title: null, tags: new Set<string>() as ReadonlySet<string>, blockTags: Object.freeze([]) as readonly string[], goneTags: new Set<string>() as ReadonlySet<string>, seen: "", written: () => new Map<string, unknown>() });
+
+/**
  * Whether the text behind a note's block must be read for its tags in the view: only where a tag the view takes away
  * could also stand in that text as an inline tag (`#name`) — the index holds a tag once, wherever it stands.
  */
