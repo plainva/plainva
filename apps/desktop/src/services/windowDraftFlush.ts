@@ -32,6 +32,11 @@ export function noteDraftWindow(label: string): void {
   writers.add(label);
 }
 
+/** How many other windows listen: each may still owe what it buffered. */
+export function draftWindowsListening(): number {
+  return writers.size;
+}
+
 /** This window is gone: nothing to ask it any more, and nothing to wait for. */
 export function forgetDraftWindow(label: string): void {
   writers.delete(label);

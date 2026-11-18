@@ -587,6 +587,7 @@ pub fn run() {
             leave::leave_armed,
             leave::leave_was_cut,
             leave::leave_mark_cut,
+            leave::leave_clear_cut,
             session::desktop_session_kind,
             app_identity::app_updates_managed_by,
             note_links::note_links_take,

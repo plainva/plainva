@@ -157,7 +157,8 @@ export const UPDATE_WAIT_WORD_MS = 700;
  * limit in seconds, for the person to see why nothing happens yet, and
  * `onInstalling` when the wait is over and the installation starts. When the
  * limit ran out, the next start says that Plainva went before every window was
- * done (`leave_mark_cut`, as for a quit cut short).
+ * done (`leave_mark_cut`, as for a quit cut short) — unless the installation
+ * failed and the app stays open (`leave_clear_cut`).
  */
 export async function downloadAndInstallUpdate(update: Update, onWaiting?: (seconds: number) => void, onInstalling?: () => void): Promise<void> {
   await update.download();
@@ -174,13 +175,24 @@ export async function downloadAndInstallUpdate(update: Update, onWaiting?: (seco
     clearTimeout(word);
   }
   if (said) onInstalling?.();
+  const { invoke } = await import("@tauri-apps/api/core");
   if (!done) {
-    const { invoke } = await import("@tauri-apps/api/core");
     await Promise.resolve(invoke("leave_mark_cut")).catch(() => {
       // silent: without the mark the next start says nothing; the update still installs.
     });
   }
-  await update.install();
+  try {
+    await update.install();
+  } catch (error) {
+    // The app stays open and its writes go on landing: the next start, after
+    // an ordinary quit, has nothing to say (review 2026-11-17).
+    if (!done) {
+      await Promise.resolve(invoke("leave_clear_cut")).catch(() => {
+        // silent: an older native side keeps the mark; the next start then says it once.
+      });
+    }
+    throw error;
+  }
   await relaunch();
 }
 

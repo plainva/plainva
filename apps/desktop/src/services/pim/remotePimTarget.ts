@@ -58,13 +58,30 @@ async function send(accountId: string, op: PimWriteOp, attempt?: string) {
 /** The remote targets, by what `withWriteAttempt` needs to make one that names its action. */
 const remoteAccounts = new WeakMap<IPimTarget, string>();
 
+/** A short, stable name for a text (FNV-1a): which create of an action this is. */
+function nameOf(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 /**
- * The target for one action of the person — the event a form created — which
- * names it in the create it sends (`RequestOptions.attempt`, A15): pressing
- * "Try again" after "it may still land" is that action again, and the central
- * window does not create the event twice. A new form is a new action, however
- * alike its event. Updates, deletions and answers set a state and repeat
- * harmlessly; a target of the central window itself is given back as it is.
+ * The target for one action of the person — the event a form created, an
+ * event moved to another calendar ("create there, delete here"), a time
+ * block, an entry put in the calendar — which names it in every create it
+ * sends (`RequestOptions.attempt`, A15). Pressing "Try again" after "it may
+ * still land" is that action again: the central window does not create the
+ * event a second time, it gives the earlier outcome, and the action goes on
+ * with the leg still missing (for a move, the delete here). A new action is
+ * a new name, however alike its event.
+ *
+ * Each create of the action has a name of its own — the action and what it
+ * creates where — so two creates of one action are never taken for one.
+ * Updates, deletions and answers set a state and are sent as they are; a
+ * target of the central window itself is given back as it is.
  */
 export function withWriteAttempt(target: IPimTarget | null, attempt: string): IPimTarget | null {
   const id = target ? remoteAccounts.get(target) : undefined;
@@ -72,10 +89,15 @@ export function withWriteAttempt(target: IPimTarget | null, attempt: string): IP
   return {
     ...target,
     async createEvent(calendarId: string, draft: PimEventDraft) {
-      const res = await send(id, { kind: "createEvent", calendarId, draft }, attempt);
+      const res = await send(id, { kind: "createEvent", calendarId, draft }, `${attempt}:${nameOf(JSON.stringify([calendarId, draft]))}`);
       return { uid: res.uid ?? "", etag: res.etag, href: res.href };
     },
   } as IPimTarget;
+}
+
+/** A new action of the person, for `withWriteAttempt`. */
+export function newWriteAction(what: string): string {
+  return `${what}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function createRemotePimTarget(account: PimAccountRow): IPimTarget {

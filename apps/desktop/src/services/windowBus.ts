@@ -709,12 +709,21 @@ export const RPC_WRITE_KINDS: ReadonlySet<RpcKind> = new Set(
  * the owner does not run it a second time: the try joins the run still going,
  * or gets the outcome of the one that landed. A run that failed on the
  * owner's side is forgotten there, so its repetition runs, and the outcome
- * of one that landed is given once: a later try runs again. Without an attempt
+ * of one that landed is given to every further try while it is kept. Without an attempt
  * every request is its own action, however alike: two clicks on the star are
  * two toggles, a second "+1" is a second remark. What a request asks is never
  * taken for which action it is (until 2026-11-17 it was, and a wanted second
  * remark, or the star taken off again, was swallowed).
  */
+/**
+ * True for a request that failed with "it may still land": the owner took it
+ * and fell silent, so whether it was done is not known. Anything else the
+ * owner refused, or it never reached the owner.
+ */
+export function mayStillLand(error: unknown): boolean {
+  return error instanceof Error && /; it may still land$/.test(error.message);
+}
+
 export const RPC_ONCE_KINDS: ReadonlySet<RpcKind> = new Set(
   (Object.keys(RPC_EFFECT) as RpcKind[]).filter((kind) => RPC_EFFECT[kind] === "once"),
 );
@@ -728,7 +737,7 @@ const RPC_ANSWER_KEEP_MS = 2 * 60_000;
 /**
  * `RPC_ONCE_KINDS`: how long the owner keeps the outcome of a run that landed
  * for the same attempt's next try — also after it loaded again
- * (`keptForAWhile.ts`). Given once, then gone.
+ * (`keptForAWhile.ts`). Given to every try of that attempt until then.
  */
 export const RPC_ONCE_KEEP_MS = 30 * 60_000;
 
@@ -935,11 +944,10 @@ export function createWindowBus(
     if (typeof env.key !== "string" || !RPC_ONCE_KINDS.has(env.kind as RpcKind)) return Promise.resolve(run());
     const at = JSON.stringify([env.from, env.kind, env.key]);
     const done = onceDone.get(at);
-    if (done) {
-      // Given once: a try after this one is the attempt's next run.
-      onceDone.delete(at);
-      return Promise.resolve(done.value);
-    }
+    // The attempt is one action: as long as its outcome is kept, every further
+    // try gets it — the third after two lost answers too. A new action brings
+    // a new attempt (`createAttempt`'s `succeeded`, a new form, a new remark).
+    if (done) return Promise.resolve(done.value);
     const going = onceRuns.get(at);
     if (going) return going;
     const started = Promise.resolve().then(run);

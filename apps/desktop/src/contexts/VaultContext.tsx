@@ -833,8 +833,9 @@ export const VaultProvider: React.FC<{
       if (currentAbortSignal.aborted) return;
 
       // Counted, so the way out waits for a write on its way (`inflightWrites.ts`):
-      // every write of the chain above ends here.
-      const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path));
+      // every write of the chain above ends here. Whose it is, is counted at the
+      // top (`personVaultAdapter` below); here it is the sync's as much as the person's.
+      const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path), "background");
       await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());
       await tauriVaultAdapter.createDir(".plainva");
 
@@ -901,6 +902,11 @@ export const VaultProvider: React.FC<{
       const permissionedWorkspaceAdapter = chain.permissions;
       const syncRepo = chain.syncRepo!;
       const vaultAdapter = chain.files;
+      // What the surfaces write through — the editor, a field, a remark, another
+      // window by way of the owner bus: the person's writes. A write of theirs
+      // the way out did not see land is said at the next start; the sync and the
+      // index, which take `vaultAdapter` itself, are not (review 2026-11-17).
+      const personVaultAdapter = countWrites(vaultAdapter, "person");
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below. The five
@@ -1896,7 +1902,7 @@ export const VaultProvider: React.FC<{
       setState(s => ({
         ...s,
         vaultPath: path,
-        vaultAdapter,
+        vaultAdapter: personVaultAdapter,
         backupAdapter: backupVaultAdapter,
         belowChainAdapter: backupVaultAdapter,
         dbAdapter,

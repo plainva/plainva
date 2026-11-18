@@ -21,7 +21,8 @@ vi.mock("../windowBus", () => ({
   getWindowBus: async () => ({ request }),
 }));
 
-const { createRemotePimTarget, createClientPimRuntime, withWriteAttempt } = await import("./remotePimTarget");
+const { createRemotePimTarget, createClientPimRuntime, newWriteAction, withWriteAttempt } = await import("./remotePimTarget");
+const { updateCalendarEvent } = await import("@plainva/ui");
 
 const account = { id: "acc-1", provider: "google" } as unknown as PimAccountRow;
 const ref = { calendarId: "cal", uid: "u1", etag: "e1" } as never;
@@ -102,7 +103,7 @@ describe("the target of one form's event (A15)", () => {
     const target = withWriteAttempt(createRemotePimTarget(account), "event-form-1")!;
     await target.createEvent!("cal", draft);
     await target.updateEvent!(ref, draft);
-    expect(request.mock.calls[0]).toEqual(["pim-write", { accountId: "acc-1", op: { kind: "createEvent", calendarId: "cal", draft } }, { attempt: "event-form-1" }]);
+    expect(request.mock.calls[0]).toEqual(["pim-write", { accountId: "acc-1", op: { kind: "createEvent", calendarId: "cal", draft } }, { attempt: expect.stringMatching(/^event-form-1:/) }]);
     expect(request.mock.calls[1]).toEqual(["pim-write", { accountId: "acc-1", op: { kind: "updateEvent", ref, draft } }]);
   });
 
@@ -110,5 +111,55 @@ describe("the target of one form's event (A15)", () => {
     const own = { provider: "google" } as never;
     expect(withWriteAttempt(own, "event-form-1")).toBe(own);
     expect(withWriteAttempt(null, "event-form-1")).toBeNull();
+  });
+});
+
+describe("an event moved to another calendar, tried again (review 2026-11-17, O1)", () => {
+  /** The central window: runs an attempt once and gives its outcome to every further try; the first answer goes missing. */
+  function centralWindow() {
+    const calendars = new Map<string, string[]>([["home", ["u1"]], ["work", []]]);
+    const kept = new Map<string, unknown>();
+    let lose = true;
+    request.mockImplementation(async (_kind: string, { op }: { op: { kind: string; calendarId?: string; ref?: { calendarId: string; uid: string } } }, options?: { attempt?: string }) => {
+      if (options?.attempt && kept.has(options.attempt)) return kept.get(options.attempt);
+      let answer: unknown = { ok: true };
+      if (op.kind === "createEvent") {
+        const uid = `new-${calendars.get(op.calendarId!)!.length + 1}`;
+        calendars.get(op.calendarId!)!.push(uid);
+        answer = { ok: true, uid };
+      }
+      if (op.kind === "deleteEvent") calendars.set(op.ref!.calendarId, calendars.get(op.ref!.calendarId)!.filter((uid) => uid !== op.ref!.uid));
+      if (options?.attempt) kept.set(options.attempt, answer);
+      if (lose) {
+        lose = false;
+        throw new Error('window RPC "pim-write" got no answer after the owner took it; it may still land');
+      }
+      return answer;
+    });
+    return calendars;
+  }
+
+  it("creates it there once and then deletes it here, however often it is tried", async () => {
+    const calendars = centralWindow();
+    const action = newWriteAction("event-move");
+    const targets = { targetFor: async () => withWriteAttempt(createRemotePimTarget(account), action) };
+    const event = { accountId: "acc-1", calendarId: "home", uid: "u1", etag: "e1" } as never;
+    const move = () => updateCalendarEvent(targets, event, draft, { accountId: "acc-1", calendarId: "work" });
+    await expect(move()).rejects.toThrow(/may still land/);
+    await move();
+    await move();
+    expect(calendars.get("work")).toEqual(["new-1"]);
+    expect(calendars.get("home")).toEqual([]);
+  });
+
+  it("gives two creates of one action a name each", async () => {
+    request.mockResolvedValue({ ok: true, uid: "x" });
+    const target = withWriteAttempt(createRemotePimTarget(account), "event-move-1")!;
+    await target.createEvent!("work", draft);
+    await target.createEvent!("other", draft);
+    await target.createEvent!("work", draft);
+    const names = request.mock.calls.map((call) => (call[2] as { attempt: string }).attempt);
+    expect(names[0]).not.toBe(names[1]);
+    expect(names[2]).toBe(names[0]);
   });
 });

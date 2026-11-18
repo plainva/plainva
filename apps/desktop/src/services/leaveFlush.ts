@@ -1,5 +1,7 @@
 import { settleBeforeLeaving } from "./beforeLeaving";
-import { flushWindowDrafts } from "./windowDraftFlush";
+import { draftWindowsListening, flushWindowDrafts } from "./windowDraftFlush";
+import { personWritesInFlight } from "./inflightWrites";
+import { dirtyStore } from "./dirtyStore";
 import { windowsStillHoldingWork } from "./windowManager";
 import { askHeldWork, holdsUnsavedWork } from "./windowCloseGuard";
 import { toast } from "@plainva/ui";
@@ -90,7 +92,16 @@ export interface LeaveAnswer {
  * The central window's answer: the app stays when a window asks its question.
  * `mayStay` is false for a termination signal: nobody is asked.
  */
-export async function leaveOrStay(mayStay = true): Promise<LeaveAnswer> {
+/**
+ * Something of the person's is not on disk yet as the hold begins: a note with
+ * unsaved changes, a write of theirs on its way, or another window that may
+ * still owe what it buffered.
+ */
+function somethingOwed(): boolean {
+  return dirtyStore.get().size > 0 || personWritesInFlight() > 0 || draftWindowsListening() > 0;
+}
+
+export async function leaveOrStay(mayStay = true, markOwed?: () => Promise<unknown>): Promise<LeaveAnswer> {
   const askedHere = letGo;
   letGo = false;
   if (mayStay) {
@@ -99,6 +110,15 @@ export async function leaveOrStay(mayStay = true): Promise<LeaveAnswer> {
       return { stay: true, cut: false };
     }
     if (await windowsStillHoldingWork()) return { stay: true, cut: false };
+  }
+  // The mark goes down before the wait, while something is owed (review
+  // 2026-11-17): an end that comes harder than the deadline — a second
+  // termination signal — then leaves it standing, and the next start says so.
+  // The native side takes it back when everything was done (`leave.rs`).
+  if (markOwed && somethingOwed()) {
+    await markOwed().catch(() => {
+      // silent: without the mark only a hard end goes unsaid; the deadline's cut still writes it.
+    });
   }
   return { stay: false, cut: !(await settleEveryWindowBeforeLeaving()) };
 }
@@ -139,7 +159,7 @@ export async function installLeaveFlush(): Promise<() => void> {
   const [{ listen }, { invoke }] = await Promise.all([import("@tauri-apps/api/event"), import("@tauri-apps/api/core")]);
   const unlisten = await listen<{ mayStay?: boolean } | null>("plainva-leaving", (event) => {
     const mayStay = event?.payload?.mayStay !== false;
-    void leaveOrStay(mayStay)
+    void leaveOrStay(mayStay, () => invoke("leave_mark_cut"))
       .catch((): LeaveAnswer => ({ stay: false, cut: true }))
       .then(({ stay, cut }) => invoke("leave_ready", { stay, cut }))
       .catch(() => {

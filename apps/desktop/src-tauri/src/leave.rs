@@ -33,7 +33,11 @@
 //! When the deadline runs out before the central window answered, or a window
 //! was not done in time and the app goes anyway (`leave_ready` with `cut`, the
 //! update's restart after its limit, `leave_mark_cut`), the app says so at the
-//! next start (`leave_was_cut`).
+//! next start (`leave_was_cut`). The central window puts the mark down as the
+//! hold begins while something of the person's is not on disk yet, and the
+//! hold takes it back when everything was done or the app stays: so an end
+//! harder than the deadline (the second signal) is said as well. A sync pull
+//! that runs on is no cut — the next start pulls again.
 //!
 //! An exit that arrives while a close is held is not lost: it is what happens
 //! once the hold ends. What is not held: a restart (the updater — Tauri ignores
@@ -229,11 +233,21 @@ pub fn leave_ready(state: tauri::State<'_, LeaveState>, stay: Option<bool>, cut:
     state.mark_ready(stay.unwrap_or(false), cut.unwrap_or(false));
 }
 
-/// A way out the hold does not see went before every window was done — the
-/// update's restart after its limit: said at the next start, as a cut hold.
+/// The mark goes down: as a hold begins while something of the person's is
+/// not on disk yet (taken back when everything was done, see `start`), and
+/// before the update's restart after its limit. An end harder than the
+/// deadline — a second termination signal — leaves it standing, and the next
+/// start says that Plainva went before every window was done.
 #[tauri::command]
 pub fn leave_mark_cut<R: Runtime>(app: AppHandle<R>) {
     write_cut_mark(&app);
+}
+
+/// The mark comes up again: the update's installation failed and the app
+/// stays open, its writes go on landing.
+#[tauri::command]
+pub fn leave_clear_cut<R: Runtime>(app: AppHandle<R>) {
+    clear_cut_mark(&app);
 }
 
 /// The central window listens for `plainva-leaving` (true) — or no more.
@@ -274,14 +288,29 @@ fn write_cut_mark<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+fn clear_cut_mark<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(mark) = cut_mark(app) {
+        let _ = std::fs::remove_file(mark);
+    }
+}
+
+/// What a hold that ended does with the mark: it stands for a cut, and goes
+/// for everything else — every window done, or the app stays open. Read at the
+/// start (`leave_was_cut`) before any hold, so the mark is always this run's.
+fn keeps_mark(ended: &Ended) -> bool {
+    ended.cut
+}
+
 fn start<R: Runtime>(app: &AppHandle<R>) {
     let handle = app.clone();
     std::thread::spawn(move || loop {
         let state = handle.state::<LeaveState>();
         let _ = handle.emit_to(MAIN, "plainva-leaving", Leaving { may_stay: state.may_stay() });
         let ended = state.wait_and_release(LEAVE_WAIT);
-        if ended.cut {
+        if keeps_mark(&ended) {
             write_cut_mark(&handle);
+        } else {
+            clear_cut_mark(&handle);
         }
         match ended.then {
             Then::Exit(code) => handle.exit(code),
@@ -410,7 +439,7 @@ mod tests {
     //! The state machine around the hold; the window and the app handle are
     //! Tauri's and need a running app.
 
-    use super::{Hold, LeaveState, Then};
+    use super::{keeps_mark, Ended, Hold, LeaveState, Then};
     use std::sync::Arc;
     use std::time::{Duration, Instant};
 
@@ -496,6 +525,15 @@ mod tests {
         let ended = state.wait_and_release(Duration::from_secs(5));
         assert_eq!(ended.then, Then::Exit(0));
         assert!(ended.cut);
+    }
+
+    #[test]
+    fn the_mark_stands_for_a_cut_and_goes_when_everything_was_done_or_the_app_stays() {
+        assert!(keeps_mark(&Ended { then: Then::CloseMain, cut: true }));
+        assert!(!keeps_mark(&Ended { then: Then::CloseMain, cut: false }));
+        assert!(!keeps_mark(&Ended { then: Then::Exit(0), cut: false }));
+        assert!(!keeps_mark(&Ended { then: Then::Stay, cut: false }));
+        assert!(!keeps_mark(&Ended { then: Then::AskAgain, cut: false }));
     }
 
     #[test]

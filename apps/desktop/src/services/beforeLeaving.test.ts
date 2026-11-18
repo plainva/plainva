@@ -71,15 +71,36 @@ describe("before a window goes", () => {
     }
   });
 
-  it("does not wait past its limit for writes that keep coming, as during a sync pull", async () => {
-    const disk = countWrites({ writeTextFile: () => later(20, null) });
+  it("does not wait past its limit for writes that keep coming, as during a sync pull — and calls that no cut", async () => {
+    // A pull writes through the lowest link only; nothing of the person's is on its way.
+    const disk = countWrites({ writeTextFile: () => later(40, null) }, "background");
     let going = true;
     const pull = () => {
       if (!going) return;
       void disk.writeTextFile();
-      setTimeout(pull, 50);
+      setTimeout(pull, 25);
     };
     pull();
+    const started = Date.now();
+    try {
+      await expect(settleBeforeLeaving(300)).resolves.toBe("settled");
+      expect(Date.now() - started).toBeGreaterThanOrEqual(280);
+    } finally {
+      going = false;
+    }
+  });
+
+  it("calls a write of the person that is still on its way at the limit a cut, under a sync pull too", async () => {
+    const lowest = countWrites({ writeTextFile: () => later(40, null) }, "background");
+    const top = countWrites({ writeTextFile: () => new Promise<never>(() => {}) }, "person");
+    let going = true;
+    const pull = () => {
+      if (!going) return;
+      void lowest.writeTextFile();
+      setTimeout(pull, 25);
+    };
+    pull();
+    void top.writeTextFile();
     try {
       await expect(settleBeforeLeaving(300)).resolves.toBe("cut");
     } finally {

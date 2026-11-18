@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { bookmarkKey, moveBookmark as moveBookmarkEntries, moveBookmarkOnDisk, removeBookmarksOnDisk, toggleBookmarkOnDisk, toast, type BookmarkEntry, type BookmarksIO } from "@plainva/ui";
-import { getWindowBus } from "../services/windowBus";
+import { getWindowBus, mayStillLand } from "../services/windowBus";
 import { isOwnerWindow } from "../services/windowContext";
 import { loadDesktopBookmarks, publishBookmarks } from "../services/bookmarks";
 
@@ -60,7 +60,15 @@ export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | n
           : (await getWindowBus()).request("remove-bookmarks", { paths }, { vaultPath }));
       if (isOwnerWindow()) publishBookmarks(vaultPath, next);
       if (generation.current === epoch) setBookmarks(next);
-    } catch { if (generation.current === epoch) toast.error(t("sidebar.bookmarkSaveFailed")); }
+    } catch (error) {
+      if (generation.current !== epoch) return;
+      toast.error(t("sidebar.bookmarkSaveFailed"));
+      // The star turned at once (`askForStar`). Refused, or never at the central
+      // window: the window shows what the file says again, as a failed move
+      // does. Only a request that may still land keeps its star, until the
+      // answer or the next broadcast replaces it.
+      if (kind === "toggle" && !isOwnerWindow() && !mayStillLand(error)) window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
+    }
   };
   /** One entry in front of another, or to the end (plan Befunde 2026-10-06, W6). The owner writes; every window follows. */
   const moveBookmark = async (key: string, beforeKey: string | null) => {

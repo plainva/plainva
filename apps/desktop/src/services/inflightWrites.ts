@@ -6,15 +6,26 @@
  * that says "done" while it is in flight takes it along. Every write of a
  * window goes through its vault adapter (the chain's top in the central
  * window, the bus in another one), so that is where they are counted.
+ *
+ * Whose they are matters for what the next start says (review 2026-11-17): a
+ * write of the person — a note, a field, a remark, anything a surface or
+ * another window asked for — that did not land is a reason for "look at the
+ * notes you edited last"; a sync pull that ran on is not, the next start pulls
+ * again. The central window counts the lowest link as `"background"` and the
+ * chain's top, where the surfaces write, as `"person"`.
  */
 
 /** Calls that change something; everything else an adapter does is a read. */
 const WRITES = /^(write|update|create|rename|delete|remove|move|copy|trash|append)/;
 
 let inflight = 0;
+/** Of those, the person's (`countWrites(…, "person")`). */
+let inflightOfPerson = 0;
 /** Grows with every write that starts: a quiet moment is one in which it stood still. */
 let started = 0;
 const idle = new Set<() => void>();
+/** Grows with every reset: a write started before one does not count down after it. */
+let epoch = 0;
 
 function settled(): void {
   inflight -= 1;
@@ -22,8 +33,11 @@ function settled(): void {
   for (const wake of [...idle]) wake();
 }
 
+/** Whose writes an adapter carries: the person's, or work the next start does again by itself. */
+export type WriteOwner = "person" | "background";
+
 /** The adapter, counting its writes. Its methods run on the adapter itself, as before. */
-export function countWrites<T extends object>(adapter: T): T {
+export function countWrites<T extends object>(adapter: T, owner: WriteOwner = "person"): T {
   return new Proxy(adapter, {
     get(target, key) {
       const value = Reflect.get(target, key, target) as unknown;
@@ -35,7 +49,14 @@ export function countWrites<T extends object>(adapter: T): T {
         if (result instanceof Promise) {
           inflight += 1;
           started += 1;
-          result.then(settled, settled);
+          const counted = epoch;
+          if (owner === "person") inflightOfPerson += 1;
+          const done = () => {
+            if (counted !== epoch) return;
+            if (owner === "person") inflightOfPerson -= 1;
+            settled();
+          };
+          result.then(done, done);
         }
         return result;
       };
@@ -90,9 +111,16 @@ export async function settleInflightWrites(quietMs: number, limitMs: number): Pr
   }
 }
 
+/** Writes of the person still on their way. */
+export function personWritesInFlight(): number {
+  return inflightOfPerson;
+}
+
 /** Test seam — the app never resets this. */
 export function resetInflightWritesForTest(): void {
+  epoch += 1;
   inflight = 0;
+  inflightOfPerson = 0;
   started = 0;
   idle.clear();
 }

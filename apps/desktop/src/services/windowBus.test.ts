@@ -1,7 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { BROADCAST_SCOPE, RPC_EFFECT, RPC_ONCE_KINDS, RPC_SCOPE, RPC_WRITE_KINDS, createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
+import { BROADCAST_SCOPE, RPC_EFFECT, RPC_ONCE_KINDS, RPC_SCOPE, RPC_WRITE_KINDS, createWindowBus, mayStillLand, OWNER_LABEL, type BusTransport } from "./windowBus";
 import { createAttempt } from "./attempt";
 import { resetKeptForAWhileForTest } from "./keptForAWhile";
 
@@ -663,14 +663,36 @@ describe("the same request again, without an attempt, is a new action (A15, revi
     expect(created).toEqual(["Dentist"]);
   });
 
-  it("gives the outcome of a landed try once: a third try of the same attempt runs again", async () => {
+  it("runs one action once however often it is tried: K1 lost, K1 lost, K1 (review 2026-11-17)", async () => {
+    const created: string[] = [];
+    const create = { accountId: "a", op: { kind: "createEvent", calendarId: "c", draft: { title: "Dentist" } } };
+    const out = await sequence("pim-write", (() => { created.push("Dentist"); return { ok: true, uid: "e1" }; }) as never, [
+      { args: create, lost: true, attempt: "event-form-1" },
+      { args: create, lost: true, attempt: "event-form-1" },
+      { args: create, attempt: "event-form-1" },
+    ]);
+    expect(out).toEqual(["may still land", "may still land", "ok"]);
+    expect(created).toEqual(["Dentist"]);
+  });
+
+  it("gives every further try of a landed attempt its outcome, and runs a new attempt", async () => {
     let runs = 0;
     await sequence("journal-capture" as never, (() => { runs += 1; return { ok: true }; }) as never, [
       { args: { text: "Call Anna", task: false }, lost: true, attempt: "capture-1" },
       { args: { text: "Call Anna", task: false }, attempt: "capture-1" },
       { args: { text: "Call Anna", task: false }, attempt: "capture-1" },
+      { args: { text: "Call Anna", task: false }, attempt: "capture-2" },
     ]);
     expect(runs).toBe(2);
+  });
+
+  it("tells \"it may still land\" from a refusal", async () => {
+    const out = await sequence("comment-post", (() => { throw new Error("refused"); }) as never, [
+      { args: { path: "N.md", body: "x", parentCommentId: null, anchor: null } },
+    ]);
+    expect(out).toEqual(["failed"]);
+    expect(mayStillLand(new Error('window RPC "comment-post" got no answer after the owner took it; it may still land'))).toBe(true);
+    expect(mayStillLand(new Error("refused"))).toBe(false);
   });
 });
 

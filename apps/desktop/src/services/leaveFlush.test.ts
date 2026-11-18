@@ -41,7 +41,8 @@ vi.mock("./beforeLeaving", () => ({
     return ownSettle;
   },
 }));
-vi.mock("./windowDraftFlush", () => ({ flushWindowDrafts: async () => othersDone }));
+let windowsListening = 0;
+vi.mock("./windowDraftFlush", () => ({ flushWindowDrafts: async () => othersDone, draftWindowsListening: () => windowsListening }));
 vi.mock("./windowManager", () => ({ windowsStillHoldingWork: async () => otherWindowHolds }));
 vi.mock("./windowCloseGuard", () => ({
   holdsUnsavedWork: () => heldHere,
@@ -57,6 +58,8 @@ vi.mock("@tauri-apps/plugin-process", () => ({
 }));
 
 const { installLeaveFlush, leaveOrStay, resetLeaveFlushForTest } = await import("./leaveFlush");
+const { dirtyStore } = await import("./dirtyStore");
+const { countWrites, resetInflightWritesForTest } = await import("./inflightWrites");
 
 /** The effect in `AppContext`, as it is written there. */
 function effect(): () => void {
@@ -213,5 +216,53 @@ describe("a way out a window did not finish", () => {
 
   it("is not said when every window was done", async () => {
     expect(await leaveOrStay()).toEqual({ stay: false, cut: false });
+  });
+});
+
+describe("the mark for an end harder than the deadline (review 2026-11-17)", () => {
+  beforeEach(() => {
+    steps.length = 0;
+    heldHere = false;
+    otherWindowHolds = false;
+    ownSettle = "settled";
+    othersDone = true;
+    windowsListening = 0;
+    dirtyStore.clearAll();
+    resetInflightWritesForTest();
+    resetLeaveFlushForTest();
+  });
+  const mark = () => {
+    steps.push("mark");
+    return Promise.resolve();
+  };
+
+  it("goes down before the wait while a note has unsaved changes", async () => {
+    dirtyStore.set("Note.md", true, "pane-1");
+    await leaveOrStay(false, mark);
+    expect(steps).toEqual(["mark", "settled"]);
+  });
+
+  it("goes down while a write of the person is on its way, or another window may still owe its drafts", async () => {
+    const disk = countWrites({ writeTextFile: () => new Promise<never>(() => {}) }, "person");
+    void disk.writeTextFile();
+    await leaveOrStay(false, mark);
+    resetInflightWritesForTest();
+    windowsListening = 1;
+    await leaveOrStay(false, mark);
+    expect(steps).toEqual(["mark", "settled", "mark", "settled"]);
+  });
+
+  it("does not go down when nothing of the person's is owed — a sync pull on its way included", async () => {
+    const pull = countWrites({ writeTextFile: () => new Promise<never>(() => {}) }, "background");
+    void pull.writeTextFile();
+    await leaveOrStay(false, mark);
+    expect(steps).toEqual(["settled"]);
+  });
+
+  it("does not go down when the app stays", async () => {
+    dirtyStore.set("Note.md", true, "pane-1");
+    otherWindowHolds = true;
+    expect(await leaveOrStay(true, mark)).toEqual({ stay: true, cut: false });
+    expect(steps).toEqual([]);
   });
 });

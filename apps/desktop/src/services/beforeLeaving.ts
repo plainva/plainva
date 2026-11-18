@@ -1,4 +1,4 @@
-import { settleInflightWrites } from "./inflightWrites";
+import { personWritesInFlight, settleInflightWrites } from "./inflightWrites";
 import { flushGraphStates, flushTaskViewStates } from "@plainva/ui";
 import { getWindowBus } from "./windowBus";
 
@@ -48,8 +48,11 @@ if (typeof window !== "undefined") {
 
 /**
  * Leaves the field in progress, has every surface write now, and waits for
- * this window's writes — at most `limitMs`. "cut" when something was still
- * going at the limit: writes that keep coming (a sync pull), or one that hangs.
+ * this window's writes — at most `limitMs`. "cut" when something of the
+ * person's was still going at the limit: a surface's work (a draft, a note's
+ * save) or one of their writes that hangs. Writes that keep coming from a sync
+ * pull are waited for up to the limit too, but are no cut: the next start pulls
+ * again (review 2026-11-17).
  */
 export async function settleBeforeLeaving(limitMs: number = SETTLE_LIMIT_MS): Promise<"settled" | "cut"> {
   if (typeof document === "undefined" || typeof window === "undefined") return "settled";
@@ -70,7 +73,8 @@ export async function settleBeforeLeaving(limitMs: number = SETTLE_LIMIT_MS): Pr
     }, Math.max(0, until - Date.now()))),
   ]);
   if (cut) return "cut";
-  return (await settleInflightWrites(QUIET_MS, Math.max(0, until - Date.now()))) ? "settled" : "cut";
+  const quiet = await settleInflightWrites(QUIET_MS, Math.max(0, until - Date.now()));
+  return quiet || personWritesInFlight() === 0 ? "settled" : "cut";
 }
 
 /** A surface's part: `work` runs when the window is about to go. Returns the way to take it out. */

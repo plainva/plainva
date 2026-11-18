@@ -226,6 +226,25 @@ describe("installing an update (A7)", () => {
     }
   });
 
+  it("takes the mark back when the installation fails and the app stays open (review 2026-11-17)", async () => {
+    settleDone = false;
+    invoke.mockReset();
+    try {
+      const update = { download: vi.fn(async () => {}), install: vi.fn(async () => { throw new Error("install failed"); }) };
+      await expect(downloadAndInstallUpdate(update as never)).rejects.toThrow("install failed");
+      expect(invoke.mock.calls.map(([cmd]) => cmd)).toEqual(["leave_mark_cut", "leave_clear_cut"]);
+    } finally {
+      settleDone = true;
+    }
+  });
+
+  it("writes no mark, and takes none back, when the writes were done and the installation fails", async () => {
+    invoke.mockReset();
+    const update = { download: vi.fn(async () => {}), install: vi.fn(async () => { throw new Error("install failed"); }) };
+    await expect(downloadAndInstallUpdate(update as never)).rejects.toThrow("install failed");
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("says nothing when the writes are done at once", async () => {
     const said: number[] = [];
     const update = { download: vi.fn(async () => {}), install: vi.fn(async () => {}) };
