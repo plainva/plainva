@@ -30,6 +30,7 @@ import {
   type IVaultAdapter,
   type LinkNameIndex,
   type NamedFile,
+  type VaultLinkFile,
   type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
@@ -64,6 +65,13 @@ export const AI_POLICY_FILE = ".agent/policy.yml";
 export interface VaultPolicyHost extends ContextPolicyHost {
   /** The parsed folder rules, re-read at most every few seconds. */
   rules(): Promise<ParsedPolicyFile>;
+  /**
+   * The files of the vault these link targets can lead to, as the link rule
+   * reads them (`VaultQueryService.linkTargetsNamed`): asked when an answer's
+   * links are checked (`unfoundedAmongShown`), for those links alone — one
+   * read of the list and a pass over it. Absent in a host that was given none.
+   */
+  filesNamed?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   /** Forget the cached rules (after the settings wrote the file). */
   invalidate(): void;
 }
@@ -83,6 +91,8 @@ export function createVaultPolicy(opts: {
    * rules keep back. Without it only `resolveLink` is asked.
    */
   fileNames?(): Promise<readonly NamedFile[]>;
+  /** The files these link targets can lead to; without it, a link is read against what the conversation had. */
+  filesNamed?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   /** True inside an encrypted workspace: the cloud is off unless the rules say otherwise. */
   encrypted(): boolean;
   now?: () => number;
@@ -121,6 +131,7 @@ export function createVaultPolicy(opts: {
   };
   return {
     rules,
+    ...(opts.filesNamed ? { filesNamed: opts.filesNamed } : {}),
     invalidate() {
       cached = null;
       names = null;
@@ -452,6 +463,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.agents ? { agents: { ...input.agents, store: createAcpVaultStore(input.files, input.vaultKey) } } : {}),
     activeNote: input.activeNote,
     readNote: input.readNote,
+    ...(input.policy.filesNamed ? { linkFilesFor: input.policy.filesNamed } : {}),
     situation: input.situation,
     candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
     ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),

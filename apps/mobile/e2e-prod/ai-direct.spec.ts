@@ -131,7 +131,7 @@ test("AI apply directly on the phone: “Change without asking” is a third que
     const row = page.getByText("Journal/", { exact: true });
     await expect(row).toBeVisible();
     await expect(page.getByText(/Change without asking: allowed/)).toBeVisible();
-    await expect(page.getByText("“Change without asking” lets the AI change and create notes there, routines included. Deleting, renaming and moving always ask.")).toBeVisible();
+    await expect(page.getByText("“Change without asking” lets the AI change and create notes there, in routines and scripts too. Deleting, renaming and moving always ask.")).toBeVisible();
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-direct-folder-mobile.png") });
   } finally {
     sql.close();

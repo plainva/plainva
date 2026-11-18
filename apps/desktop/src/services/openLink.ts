@@ -23,6 +23,11 @@ export interface DesktopLinkContext {
   /** A place in the note the link stands in — where the surface can scroll there itself. */
   onSameNoteAnchor?: (anchor: string) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
+  /**
+   * A missing note the link names is created (Obsidian parity). False where the link is not the user's own text — an
+   * AI answer's: there a click on it does nothing, as it always did (review O7, fifth round).
+   */
+  createMissing?: boolean;
 }
 
 const noDisk = { fileExists: async () => false, folderExists: async () => false };
@@ -59,6 +64,7 @@ export async function openLink(link: LinkToOpen, ctx: DesktopLinkContext): Promi
       toast.warning(ctx.t("dialogs.linkNotFoundMsg", { target: outcome.target }));
       return;
     case "create":
+      if (ctx.createMissing === false) return;
       // The app owns the write, the index and the open, and asks first where
       // the setting says so (maintainer 2026-07-18, Obsidian parity).
       // The place travels with it: a Markdown link's name keeps every character

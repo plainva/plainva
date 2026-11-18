@@ -12,6 +12,7 @@ const stored = new Map<string, unknown>();
 let mailboxes: { id: string; label: string; user: string; host: string; kind: "microsoft" }[] = [];
 let calendars: { id: string; provider: "microsoft"; label: string; config: Record<string, unknown> }[] = [];
 let activeVault = { id: "v1", provider: undefined as string | undefined };
+let heldAfterRebuild = false;
 
 vi.mock("@plainva/ui", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@plainva/ui")>()),
@@ -28,7 +29,7 @@ vi.mock("@plainva/ui/mail", () => ({
   listMailAccounts: async () => mailboxes,
   mailAccountKind: (account: { kind?: string }) => account.kind ?? "imap",
 }));
-vi.mock("./pim/pimService", () => ({ listPimAccounts: async () => calendars }));
+vi.mock("./pim/pimService", () => ({ listPimAccounts: async () => calendars, pimAccountsHeldAfterRebuild: async () => heldAfterRebuild }));
 vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: async () => activeVault }));
 
 import { loadCloudAccounts, refreshCloudAccounts, startCloudAccountsReconcile } from "./cloudAccountsStore";
@@ -44,6 +45,7 @@ describe("the phone reconciles its account cards (Sammelplan § 3.105)", () => {
     mailboxes = [];
     calendars = [];
     activeVault = { id: "v1", provider: undefined };
+    heldAfterRebuild = false;
     vi.stubGlobal("window", new EventTarget());
     vi.stubGlobal("CustomEvent", class extends Event { constructor(type: string) { super(type); } });
   });
@@ -95,6 +97,24 @@ describe("the phone reconciles its account cards (Sammelplan § 3.105)", () => {
     await settle();
 
     expect((await loadCloudAccounts("v1"))[0].services).toEqual({ calendar: { pimAccountId: "pim-1" } });
+  });
+
+  it("keeps the calendar references while a rebuilt index database has none of its accounts back yet", async () => {
+    // Rebuilt at the start: the calendar rows went with the database, and the settings sync has not brought them yet.
+    heldAfterRebuild = true;
+    stored.set(cardsKey, [card("card-a", { calendar: { pimAccountId: "pim-1" } })]);
+    stop = startCloudAccountsReconcile("v1", () => true);
+    await settle();
+    expect(await loadCloudAccounts("v1")).toEqual([card("card-a", { calendar: { pimAccountId: "pim-1" } })]);
+  });
+
+  it("one of two accounts back after the rebuild: the other's card keeps its reference too", async () => {
+    heldAfterRebuild = true;
+    calendars = [{ id: "pim-1", provider: "microsoft", label: "anna@example.com", config: {} }];
+    stored.set(cardsKey, [card("card-a", { calendar: { pimAccountId: "pim-1" } }), { ...card("card-b", { calendar: { pimAccountId: "pim-2" } }), label: "ben@example.com" }]);
+    stop = startCloudAccountsReconcile("v1", () => true);
+    await settle();
+    expect((await loadCloudAccounts("v1")).map((c) => [c.id, c.services.calendar?.pimAccountId])).toEqual([["card-a", "pim-1"], ["card-b", "pim-2"]]);
   });
 
   it("keeps a files reference when another vault is the open one", async () => {

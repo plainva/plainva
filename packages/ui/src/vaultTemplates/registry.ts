@@ -36,3 +36,18 @@ export function getVaultTemplates(language: string): VaultTemplateDefinition[] {
   const set = TEMPLATES_BY_LANGUAGE[matchAppLanguage(language)];
   return (set ?? templatesEn)();
 }
+
+/**
+ * The template the first start leads with (plan Oberfläche, O8 / E5): the
+ * tour shows what Plainva can do instead of explaining it, so it is the main
+ * way in on the desktop's welcome and the recommended entry of the phone's
+ * template sheet. One id for both shells.
+ */
+export const TOUR_TEMPLATE_ID = "plainva" as const;
+
+/** The tour in the app language — always present in every language set. */
+export function getTourTemplate(language: string): VaultTemplateDefinition {
+  const tour = getVaultTemplates(language).find((d) => d.id === TOUR_TEMPLATE_ID);
+  if (!tour) throw new Error("The tour template is missing from the template set");
+  return tour;
+}

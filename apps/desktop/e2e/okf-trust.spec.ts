@@ -253,7 +253,9 @@ test('a task database status is not a lifecycle: no badge, the status stays an o
   await expect(page.getByTestId('okf-stale-banner')).toHaveCount(0);
 
   await revealProperties(page);
-  await expect(page.getByTestId('okf-trust-level')).toHaveAttribute('data-level', 'unverified', { timeout: 10000 });
+  // A task's own status is no trust field, and the AI is off here: no trust group (plan Oberfläche O7, D11).
+  await expect(page.locator('.pv-props')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('okf-trust-section')).toHaveCount(0);
   // `Offen` stays an ordinary, renamable property row (its name textbox is the
   // only enabled one — the pinned lifecycle rows lock their names), and the
   // value is the task's own word, not swallowed by the lifecycle select.

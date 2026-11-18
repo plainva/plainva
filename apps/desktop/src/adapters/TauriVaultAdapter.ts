@@ -143,6 +143,45 @@ export class TauriVaultAdapter implements IVaultAdapter {
     if (!isExist) {
       await mkdir(this.rootPath, { recursive: true });
     }
+    const opened = await this.rootPlace().catch(() => null);
+    this.openedDevice = opened?.device ?? null;
+    this.openedBirth = opened?.birth ?? null;
+  }
+
+  /** The file system the vault's folder was on when it was opened (`stat`'s `dev`, Linux and macOS), or null. */
+  private openedDevice: number | null = null;
+  /** When the vault's folder came to be (`stat`'s `birthtime`), as it was at opening; null where the file system names none. */
+  private openedBirth: number | null = null;
+
+  private async rootPlace(): Promise<{ device: number | null; birth: number | null }> {
+    const info = await stat(this.rootPath);
+    const birth = info.birthtime instanceof Date ? info.birthtime.getTime() : null;
+    return { device: typeof info.dev === "number" ? info.dev : null, birth: birth !== null && Number.isFinite(birth) ? birth : null };
+  }
+
+  /**
+   * Whether the vault's folder is still the place it was opened at (review
+   * 2026-11-18). A drive that went on Linux or macOS leaves its mount point, a
+   * folder of the file system above — another device, and another folder.
+   * A drive that comes back may come back under another device number (a USB
+   * disk plugged in again, a FUSE or NFS mount mounted anew): the folder it
+   * brings is the vault's when it came to be at the same moment as the one
+   * opened (`birthtime`), and the new number is taken on. The mount point,
+   * and a folder a stray write made there, came to be at another moment.
+   *
+   * Where the file system names no birth time, a folder on another device
+   * stays "not the same place" until the vault is opened again — the named
+   * limit of this check. Null where the platform names no device (Windows:
+   * there the folder goes with the drive). A folder that cannot be read is
+   * not the same place.
+   */
+  async sameRootAsOpened(): Promise<boolean | null> {
+    if (this.openedDevice === null) return null;
+    const now = await this.rootPlace();
+    if (now.device === this.openedDevice) return true;
+    if (this.openedBirth === null || now.birth !== this.openedBirth) return false;
+    this.openedDevice = now.device;
+    return true;
   }
 
   async dispose(): Promise<void> {
@@ -266,6 +305,23 @@ export class TauriVaultAdapter implements IVaultAdapter {
       this.trashRefused.add(path.replace(/\\/g, "/"));
       return false;
     }
+  }
+
+  /** See `IVaultAdapter.removeEmptyDir`: the raw listing hides nothing, and `remove` without `recursive` is rmdir. */
+  async removeEmptyDir(path: string): Promise<boolean> {
+    const raw = await this.realPath(path);
+    try {
+      const entries = await checkedReadDirectory(await this.rootId(), raw);
+      if (entries === null) return true;
+      if (entries.length > 0) return false;
+      await remove(await this.getAbsolutePath(raw), { recursive: false });
+    } catch (err) {
+      // silent: a folder that holds something, or one the system will not remove, stays where it is — nothing is lost, and the sync weighs it again next cycle.
+      console.warn(`[TauriVaultAdapter] could not remove the empty folder ${path}`, err);
+      return false;
+    }
+    this.spellings.forget(path);
+    return true;
   }
 
   async deleteItem(path: string, recursive: boolean = false): Promise<void> {

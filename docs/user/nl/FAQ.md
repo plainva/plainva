@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-11-12
+Laatst bijgewerkt: 2026-11-17
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -111,6 +111,8 @@ Daarnaast gelijkt Plainva automatisch af zodra je vanuit een ander programma ter
 Bij het inlezen volgt Plainva links zoals het systeem dat doet: een link naar een map wordt gelezen als die map, een link naar een bestand als dat bestand — op de desktop en in een map die je op de iPhone hebt gekozen. Wat het niet kan lezen, laat het weg en noemt het: een link naar een plek die op dit apparaat niet bestaat (bijvoorbeeld een map die alleen op een andere computer staat en hier als link is aangekomen) of een map zonder toegang. Een melding noemt ze één keer — **ontbreekt in de zoekindex** — en de rest van de vault wordt zoals gewoonlijk geïndexeerd. Niets onder zo'n item geldt als verwijderd, niet voor de index en niet voor de synchronisatie van een versleutelde workspace.
 
 Kan de index helemaal niet worden bijgewerkt, dan zegt de melding waarom (**De zoekindex kon niet worden bijgewerkt: …**); de vault blijft open met wat de index al bevat, en bij het volgende inlezen probeert Plainva het opnieuw. Op de telefoon wordt ook een zoekindex genoemd die niet kan worden geopend: zoeken, tags, databases, de synchronisatie en de kalender blijven dan uit tot Plainva hem kan openen. Intussen kun je notities lezen, schrijven en aanmaken, en ze bereiken de synchronisatie bij de volgende start die de index opent; in een vault die synchroniseert blijven verwijderen, hernoemen, verplaatsen en nieuwe mappen tot dan uit, en de strook bovenaan meldt het.
+
+Is de indexdatabase zelf beschadigd, dan opent de vault niet; het startscherm zegt dat en biedt **Index opnieuw opbouwen** aan (op de telefoon in de strook bovenaan). Plainva vraagt eerst, zet het beschadigde bestand dan opzij en bouwt de index opnieuw op. Er wordt geen notitie verwijderd, maar Plainva vergeet hoe ver de synchronisatie was: waar een notitie op dit apparaat en op de server verschilt, staat daarna de versie van de server in de notitie en die van jou ernaast als conflictkopie. Verwijderde notities kunnen terugkomen, ook notities die je op een ander apparaat hebt verwijderd, zolang ze hier nog staan; een hernoemde notitie kan dubbel verschijnen. Plainva herstelt agenda- en takenaccounts uit de instellingensynchronisatie; accounts die daar ontbreken, verbind je opnieuw. Taken die je bewust niet had overgenomen, kunnen daarna weer als notities verschijnen. Het beschadigde bestand blijft naast het nieuwe staan, met `.broken-` en de datum in de naam: in de app-datamap van Plainva of, waar de index in de map `.plainva` van de vault staat, daar. Plainva bewaart de twee nieuwste, opent ze nooit meer en verwijdert ze wanneer je de vault op dit apparaat vergeet. In een versleutelde workspace bouwt Plainva de database niet opnieuw op, omdat er wijzigingen in staan die je andere apparaten nog niet hebben bereikt; ook niet wanneer niet is vast te stellen of de vault er een is. Een database die alleen door een ander programma is vergrendeld, een volle schijf of ontbrekende rechten worden in woorden genoemd, met wat je kunt doen.
 
 Verwijder of herstel het item dat de melding noemt en kies daarna **Vault opnieuw inlezen** (op de telefoon: trek een lijst omlaag).
 

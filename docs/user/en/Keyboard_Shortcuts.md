@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Last reviewed: 2026-10-22
+Last reviewed: 2026-11-16
 
 Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shortcuts window at any time. It groups every shortcut and mouse gesture into areas you switch with the chips along the top, has a search box that spans all areas, and detects your platform automatically: it shows `Ctrl`/`Alt` on Windows and Linux and `⌘`/`⌥` on macOS. In the tables below, `Ctrl` therefore means `⌘` on macOS and `Alt` means `⌥`.
 
@@ -10,7 +10,7 @@ Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shor
 |---|---|
 | `Ctrl+P` (or `Ctrl+Shift+P`) | Open the command palette |
 | `Ctrl+O` | Quick switcher – search and open files |
-| `Ctrl+J` | Ask AI – open the companion (only while the AI is switched on, see [AI Assistant](AI_Assistant.md)) |
+| `Ctrl+J` | Ask AI – open the conversation in the right sidebar (only while the AI is switched on, see [AI Assistant](AI_Assistant.md)) |
 | `Ctrl+,` | Open settings |
 | `Ctrl+Plus` / `Ctrl+Minus` | Zoom the interface in / out (80–150 %) |
 | `Ctrl+0` | Reset zoom to 100 % |

@@ -1,4 +1,5 @@
 import { RemoteChangedError, type ExpectedRemote, type RemoteStat } from "./ISyncTarget.js";
+import { foldPathForCollision } from "./pathIdentity.js";
 
 /** How many refusals against an unchanged remote — on one connection, not necessarily in a row — turn its conditions off. */
 const MISREADS_BEFORE_FALLBACK = 3;
@@ -47,10 +48,44 @@ export class ConditionalWrites {
    */
   async refused(path: string, expected: ExpectedRemote, stat: () => Promise<RemoteStat | null>, answer: string): Promise<void> {
     if (!ConditionalWrites.holds(expected, await stat())) throw new RemoteChangedError(path, answer);
-    if (expected.kind === "absent" || this.unevaluated) return;
+    if (expected.kind === "absent") return;
+    this.misread(answer);
+  }
+
+  /** A refusal against an unchanged remote: counted, and after a few the conditions go off for this connection. */
+  private misread(answer: string): void {
+    if (this.unevaluated) return;
     if (++this.misreads < MISREADS_BEFORE_FALLBACK) return;
-    console.warn(`[${this.provider}] the server answered ${answer} to conditional uploads although it holds the expected version; asking before each upload from now on`);
+    console.warn(`[${this.provider}] the server answered ${answer} to conditional requests although it holds the expected version; asking before each from now on`);
     this.unevaluated = true;
+  }
+
+  /**
+   * Deletions (Fehlerliste 0.9.0 A1): a DELETE removes only the version this
+   * device saw last. Without the service's condition, ask right before: a
+   * remote that moved throws `RemoteChangedError` — the file is not deleted
+   * but compared again. A file that is gone already is no refusal: `false`,
+   * nothing is left to delete.
+   */
+  async askBeforeDelete(path: string, expected: ExpectedRemote, stat: () => Promise<RemoteStat | null>): Promise<boolean> {
+    const current = await stat();
+    if (current === null) return false;
+    if (!ConditionalWrites.holds(expected, current)) throw new RemoteChangedError(path, "found before the deletion");
+    return true;
+  }
+
+  /**
+   * The service refused a conditional DELETE: as `refused`, but a file that
+   * is gone meanwhile means there is nothing left to delete (`false`). `true`:
+   * the remote, asked, still holds the expected version — delete once more
+   * without the condition.
+   */
+  async refusedDelete(path: string, expected: ExpectedRemote, stat: () => Promise<RemoteStat | null>, answer: string): Promise<boolean> {
+    const current = await stat();
+    if (current === null) return false;
+    if (!ConditionalWrites.holds(expected, current)) throw new RemoteChangedError(path, answer);
+    this.misread(answer);
+    return true;
   }
 
   /** Without the service's condition: ask right before writing. */
@@ -63,4 +98,13 @@ export class ConditionalWrites {
     if (!this.unevaluated) console.warn(`[${this.provider}] the server does not support conditional uploads (${answer}); asking before each upload from now on`);
     this.unevaluated = true;
   }
+}
+
+/**
+ * A move between two spellings of one name (letter case, accents): on a
+ * store that folds names the destination IS the source, so "the destination
+ * exists" says nothing there, and no move asks for it (Fehlerliste 0.9.0 A1).
+ */
+export function foldsToSameName(from: string, to: string): boolean {
+  return from !== to && foldPathForCollision(from) === foldPathForCollision(to);
 }

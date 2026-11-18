@@ -145,8 +145,12 @@ describe("the skills workshop", () => {
     expect((await factsOf("allowed-tools: read_note propose_edit create_note rename_note delete_note\n")).may).toEqual([
       "Uses: Reading a note · Suggesting changes to a note · Drafting a note · Laying out a plan to rename · Asking to delete a note",
       "Notes in the whole vault, as far as your rules allow",
-      "May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.",
+      "May suggest changes, leave drafts and lay out plans — they wait for you to accept, create or confirm.",
+      // True in every state the dialog shows in (review O7, F32): "Apply directly" and a folder's "Change without asking" write at once.
+      "Except with “Apply directly” or in a folder with “Change without asking”: there it changes and creates notes at once, with Undo. Deleting, renaming and moving still ask.",
     ]);
+    // A skill that only plans — rename, move, delete — is never written at once: no line about it.
+    expect((await factsOf("allowed-tools: read_note rename_note\n")).may).not.toContainEqual(expect.stringMatching(/Apply directly/));
     // A skill that names nothing gained no writing tool when those arrived: what was approved before still says what it said.
     const everything = (await factsOf("")).may;
     expect(everything[0]).not.toMatch(/Suggesting|Drafting|Laying out|Asking to delete/);
@@ -158,7 +162,8 @@ describe("the skills workshop", () => {
     }
     const care = approvalFacts(t, app.find((entry) => entry.source.id === "plainva:memory-care")!, "en").may;
     expect(care[0]).toBe(`Uses: ${t("ai.tool.search_memory")} · ${t("ai.tool.remember")} · ${t("ai.tool.forget")}`);
-    expect(care[care.length - 1]).toBe("May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.");
+    // Memory care writes the memory, never a note: what "Apply directly" does is not its to say.
+    expect(care[care.length - 1]).toBe("May suggest changes, leave drafts and lay out plans — they wait for you to accept, create or confirm.");
   });
 
   it("shows the app's own skills read only, and an invalid one with its problems", async () => {

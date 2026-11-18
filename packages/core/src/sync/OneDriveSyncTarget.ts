@@ -2,7 +2,7 @@ import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { folderIdentity } from "./folderIdentity.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
-import { ConditionalWrites } from "./conditionalWrite.js";
+import { ConditionalWrites, foldsToSameName } from "./conditionalWrite.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
 import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
@@ -538,7 +538,27 @@ export class OneDriveSyncTarget implements ISyncTarget {
     }
 
     if (op.operation === "delete") {
-      const res = await this.authedFetch("DELETE", this.itemUrl(op.file_path));
+      // A deletion removes only the version this device saw last
+      // (Fehlerliste 0.9.0 A1): asked for the item first, then deleted on its
+      // `eTag` — Graph answers 412 when it changed in between.
+      const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      let ifMatch: string | undefined;
+      // A folder's DELETE takes everything below it: it goes only while
+      // OneDrive holds no file in it (F44) — another device may have put a
+      // note there since this one last looked, and that note decides on its own.
+      if (!expected && await this.folderHoldsFiles(op.file_path)) throw new RemoteChangedError(op.file_path, "the folder holds files");
+      if (expected) {
+        const item = await this.statItem(op.file_path);
+        if (!item) return;
+        if (!this.holds(expected, item)) throw new RemoteChangedError(op.file_path, "found before the deletion");
+        if (this.conditions.conditionsHold) ifMatch = item.eTag;
+      }
+      let res = await this.authedFetch("DELETE", this.itemUrl(op.file_path), ifMatch ? { headers: { "if-match": ifMatch } } : undefined);
+      if (expected && ifMatch && res.status === 412) {
+        discardResponse(res);
+        if (!(await this.conditions.refusedDelete(op.file_path, expected, () => this.statFor(op.file_path, expected), "412"))) return;
+        res = await this.authedFetch("DELETE", this.itemUrl(op.file_path));
+      }
       if (!res.ok && res.status !== 404) {
         throw syncHttpError(`OneDrive delete failed: ${res.status} ${res.statusText}`, res);
       }
@@ -551,6 +571,16 @@ export class OneDriveSyncTarget implements ISyncTarget {
       const newParent = this.parentFolderOf(op.new_path);
       const newName = op.new_path.substring(op.new_path.lastIndexOf("/") + 1);
 
+      // A move never replaces what lies at its destination (A1). Not for a
+      // change of letter case only, where that name is the item itself.
+      const caseOnly = foldsToSameName(op.file_path, op.new_path);
+      // The request is the one OneDrive has always had from Plainva: the
+      // move and update pages (driveitem-move, driveitem-update) name no
+      // `@microsoft.graph.conflictBehavior`, and the driveItem resource
+      // defines it only "for actions that create a new item" (F44, rule 3).
+      // So the destination is asked right before — the window of one
+      // request, as on Drive — and a 409 `nameAlreadyExists` is a refusal.
+      if (!caseOnly && await this.itemExists(op.new_path)) throw new RemoteChangedError(op.new_path, "the destination exists");
       const body: Record<string, unknown> = { name: newName };
       if (oldParent !== newParent) {
         await this.ensureFolder(newParent);
@@ -563,6 +593,11 @@ export class OneDriveSyncTarget implements ISyncTarget {
       // Source gone remotely: NOT a success — the engine re-uploads at the new
       // path, otherwise the file would exist under no remote path at all.
       if (res.status === 404) return { renameSourceMissing: true };
+      if (res.status === 409 && !caseOnly) {
+        const code = await res.json().then((j: { error?: { code?: string } }) => j?.error?.code, () => undefined);
+        if (code === "nameAlreadyExists") throw new RemoteChangedError(op.new_path, "409 nameAlreadyExists: the destination exists");
+        throw new Error(`OneDrive rename failed: 409 ${code ?? ""}`.trim());
+      }
       if (!res.ok) throw syncHttpError(`OneDrive rename failed: ${res.status} ${res.statusText}`, res);
       const item = (await res.json()) as GraphItem;
       return { etag: this.itemEtag(item), remoteId: item.id };
@@ -686,7 +721,40 @@ export class OneDriveSyncTarget implements ISyncTarget {
     return item ? this.statOf(item) : null;
   }
 
+  /**
+   * True when `path` is a folder on OneDrive with a file anywhere below it —
+   * any file, conflict copies included, which the sync's listing leaves out.
+   */
+  private async folderHoldsFiles(path: string): Promise<boolean> {
+    let url: string | undefined = this.itemUrl(path, "children") + "?$select=name,folder,file";
+    while (url) {
+      const res: Response = await this.authedFetch("GET", url);
+      // No folder there (404), or a file (Graph refuses its children): nothing below.
+      if (res.status === 404 || res.status === 400) {
+        discardResponse(res);
+        return false;
+      }
+      if (!res.ok) throw syncHttpError(`OneDrive list failed: ${res.status} ${res.statusText}`, res);
+      const json = (await res.json()) as { value?: GraphItem[]; "@odata.nextLink"?: string };
+      for (const item of json.value ?? []) {
+        if (!item.folder) return true;
+        if (await this.folderHoldsFiles(path ? `${path}/${item.name}` : item.name)) return true;
+      }
+      url = json["@odata.nextLink"];
+    }
+    return false;
+  }
+
   /** The file's item as Graph answers it, or null (no file, a folder, a conflict copy). */
+  /** Is there an item — file or folder — at `filePath`? */
+  private async itemExists(filePath: string): Promise<boolean> {
+    const res = await this.authedFetch("GET", `${this.itemUrl(filePath)}?select=id`);
+    if (res.status === 404) return false;
+    if (!res.ok) throw syncHttpError(`OneDrive metadata lookup failed: ${res.status} ${res.statusText}`, res);
+    discardResponse(res);
+    return true;
+  }
+
   private async statItem(filePath: string): Promise<GraphItem | null> {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.authedFetch("GET", `${this.itemUrl(filePath)}?select=id,name,cTag,eTag,lastModifiedDateTime,size,folder,file`);

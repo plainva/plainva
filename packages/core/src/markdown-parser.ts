@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified, type Processor } from "unified";
-import { boundMarkdownForParse, restoreBoundedTree } from "./inlineParseBudget.ts";
+import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type BoundedRange, type MarkdownReading } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
@@ -99,15 +99,16 @@ interface PlacedNode {
  * place. (Cutting the mark off before the parse would hand the parser that
  * second one to skip.)
  */
-function parsedInText<Tree>(parse: (text: string) => Tree, text: string): Tree {
+function parsedInText<Tree>(parse: (text: string) => Tree, text: string, reading: MarkdownReading = NOTE_READING, rowLinks = false): Tree {
   // What is no text is the parser's to answer for, as it always was.
   if (typeof text !== "string") return parse(text);
   // A stretch whose inline syntax would cost the parser more than the budget
   // is read as written (`inlineParseBudget.ts`); every place stays where it is.
-  const bounded = boundMarkdownForParse(text);
+  const bounded = boundMarkdownForParse(text, reading);
   if (text.charCodeAt(0) !== BYTE_ORDER_MARK) {
     const tree = parse(bounded.text);
     restoreBoundedTree(tree, bounded.ranges);
+    if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading);
     return tree;
   }
   const tree = parse(bounded.text);
@@ -126,7 +127,121 @@ function parsedInText<Tree>(parse: (text: string) => Tree, text: string): Tree {
   };
   walk(tree as unknown as PlacedNode);
   restoreBoundedTree(tree, bounded.ranges);
+  if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading);
   return tree;
+}
+
+/** What the index and a rename read of a line: wiki and Markdown links, images, and their references. */
+const LINK_TYPES = new Set(["wikiLink", "link", "image", "linkReference", "imageReference"]);
+
+interface LinkNode {
+  type: string;
+  children?: LinkNode[];
+  position?: { start: MarkdownTreePoint; end: MarkdownTreePoint };
+}
+
+/**
+ * A table over the parse budget is text for the reading view, but its links
+ * are the note's links (review, 2026-11-17): without them a backlink and the
+ * graph lose them, and a rename of the note they lead to leaves them behind.
+ * So for the index and a rename each row of such a table is read on its own,
+ * under the table's own header and delimiter row — the reader of every other
+ * table, one row at a time — and of each row only its links are kept. They
+ * join the node the table stands in as text, at their places in `text`.
+ */
+function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly BoundedRange[], parse: (text: string) => Tree, reading: MarkdownReading): void {
+  let counted = 0;
+  let line = 1;
+  // The line of `at`, counted on from the last one asked: the ranges come in the order of the text.
+  const lineOf = (at: number): number => {
+    for (let i = text.indexOf("\n", counted); i >= 0 && i < at; i = text.indexOf("\n", i + 1)) line++;
+    counted = Math.max(counted, at);
+    return line;
+  };
+  const endOf = (at: number): number => {
+    const end = text.indexOf("\n", at);
+    return end < 0 ? text.length : end;
+  };
+  for (const range of ranges) {
+    if (!range.table) continue;
+    const headStart = text.lastIndexOf("\n", range.from - 1) + 1;
+    const headEnd = endOf(headStart);
+    if (headEnd + 1 >= range.to) continue;
+    const head = text.slice(headStart, headEnd);
+    const delimiter = text.slice(headEnd + 1, endOf(headEnd + 1));
+    const found: LinkNode[] = [];
+    // One row in its table: what of it the parser makes a link, moved to the row's place in `text`.
+    const take = (row: string, rowStart: number, rowLine: number, alone: boolean) => {
+      const mini = alone ? `${head}\n${delimiter}` : `${head}\n${delimiter}\n${row}`;
+      const at = alone ? 0 : head.length + delimiter.length + 2;
+      const miniLine = alone ? 1 : 3;
+      const parsed = parsedInText(parse, mini, reading) as unknown as LinkNode;
+      const shift = (node: LinkNode) => {
+        for (const point of [node.position?.start, node.position?.end]) {
+          if (!point) continue;
+          point.offset += rowStart - at;
+          point.line += rowLine - miniLine;
+        }
+        for (const child of node.children ?? []) shift(child);
+      };
+      const open = [parsed];
+      for (let node = open.pop(); node; node = open.pop()) {
+        const from = node.position?.start.offset;
+        if (LINK_TYPES.has(node.type) && from !== undefined && from >= at && from < at + row.length) {
+          shift(node);
+          found.push(node);
+          continue;
+        }
+        for (const child of node.children ?? []) open.push(child);
+      }
+    };
+    const headLine = lineOf(headStart);
+    take(head, headStart, headLine, true);
+    let rowLine = headLine + 1;
+    for (let rowStart = endOf(headEnd + 1) + 1; rowStart < range.to && rowStart <= text.length; ) {
+      const rowEnd = endOf(rowStart);
+      take(text.slice(rowStart, rowEnd), rowStart, ++rowLine, false);
+      rowStart = rowEnd + 1;
+    }
+    if (found.length === 0) continue;
+    found.sort((a, b) => (a.position?.start.offset ?? 0) - (b.position?.start.offset ?? 0));
+    // The node the table stands in as text: the deepest one around its first character.
+    let holder = tree;
+    for (let deeper = true; deeper; ) {
+      deeper = false;
+      for (const child of holder.children ?? []) {
+        const from = child.position?.start.offset;
+        const to = child.position?.end.offset;
+        if (child.children && from !== undefined && to !== undefined && from <= range.from && range.from < to) {
+          holder = child;
+          deeper = true;
+          break;
+        }
+      }
+    }
+    // What the parse of the table as text made a link (an autolink literal: a URL, an e-mail address)
+    // is a link the rows give again: it gives up its place to its text, so that no link counts twice
+    // (review, 2026-11-18: each URL of such a table stood in the index twice).
+    unwrapLinksIn(holder, range.from, range.to);
+    holder.children = [...(holder.children ?? []), ...found];
+  }
+}
+
+/** Each link under `node` that starts in `from`..`to` replaced by its children (an image, which has none, goes). */
+function unwrapLinksIn(node: LinkNode, from: number, to: number): void {
+  if (!node.children) return;
+  const kept: LinkNode[] = [];
+  for (const child of node.children) {
+    const at = child.position?.start.offset;
+    if (LINK_TYPES.has(child.type) && at !== undefined && at >= from && at < to) {
+      unwrapLinksIn(child, from, to);
+      kept.push(...(child.children ?? []));
+      continue;
+    }
+    unwrapLinksIn(child, from, to);
+    kept.push(child);
+  }
+  node.children = kept;
 }
 
 export function parseMarkdownAst(
@@ -136,7 +251,8 @@ export function parseMarkdownAst(
   const processor = options.preserveObsidianSyntax
     ? obsidianPreservingMarkdownParser
     : markdownParser;
-  const tree = parsedInText((text) => processor.parse(text), markdown);
+  // With the links of a table over the budget, read row by row (`readRowLinks`): the index and a rename read them.
+  const tree = parsedInText((text) => processor.parse(text), markdown, NOTE_READING, true);
   const transformedTree = options.preserveObsidianSyntax ? processor.runSync(tree) : tree;
 
   return markdownAstSchema.parse(transformedTree);
@@ -158,7 +274,8 @@ export function parseMarkdownTree(text: string): MarkdownTreeNode {
  * Every position is a place in `text`.
  */
 export function parseCommonMarkTree(text: string): MarkdownTreeNode {
-  return parsedInText((source) => commonMarkParser.parse(source), text) as unknown as MarkdownTreeNode;
+  // Weighed for CommonMark: its tables are paragraphs, and the measure of a paragraph must see their lines.
+  return parsedInText((source) => commonMarkParser.parse(source), text, COMMONMARK_READING) as unknown as MarkdownTreeNode;
 }
 
 /**

@@ -165,12 +165,28 @@ describe("propertyPanelModel — what the properties panel shows", () => {
     expect(propertyPanelModel({ sources: "irgendwas" }).genericKeys).toEqual(["sources"]);
   });
 
-  it("is total: no frontmatter is no rows of the user's, only the pinned ones", () => {
+  it("is total: no frontmatter is no rows of the user's — the pinned ones only while the AI is on (plan Oberfläche O7, D11)", () => {
     for (const nothing of [null, undefined, {}]) {
-      const model = propertyPanelModel(nothing as never);
-      expect(model.userKeys).toEqual([]);
-      expect(model.shownCount).toBe(2);
+      const off = propertyPanelModel(nothing as never);
+      expect(off.userKeys).toEqual([]);
+      expect(off.trustShown).toBe(false);
+      expect(off.shownCount).toBe(0);
+      const on = propertyPanelModel(nothing as never, { aiOn: true });
+      expect(on.trustShown).toBe(true);
+      expect(on.shownCount).toBe(2);
     }
+  });
+
+  it("shows the trust group without the AI where the note carries trust fields, and only then (D11)", () => {
+    expect(propertyPanelModel({ owner: "Kim" }).trustShown).toBe(false);
+    // A task database's own status is no trust field.
+    expect(propertyPanelModel({ status: "Offen" }).trustShown).toBe(false);
+    expect(propertyPanelModel({ status: "draft" }).trustShown).toBe(true);
+    expect(propertyPanelModel({ stale_after: "2027-01-01" }).trustShown).toBe(true);
+    expect(propertyPanelModel({ verified: [{ by: "human:Kim", at: "2026-11-01T10:00:00Z" }] }).trustShown).toBe(true);
+    // Hidden, the lifecycle rows are neither drawn nor counted.
+    const plain = propertyPanelModel({ owner: "Kim" });
+    expect([plain.showStatusRow, plain.showStaleRow, plain.shownCount]).toEqual([false, false, 1]);
   });
 
   it("one rule for the hidden namespace on both shells", () => {

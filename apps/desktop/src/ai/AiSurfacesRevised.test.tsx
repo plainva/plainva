@@ -104,10 +104,26 @@ describe("under an answer", () => {
     expect(q("ai-run-actions")).not.toBeNull();
     await click(q("ai-copy"));
     expect(writeText).toHaveBeenCalledWith("The offer stands in [[Offer]].");
-    expect(text(q("ai-run-actions"))).toContain("To Anthropic");
+    // One calm line of what it rests on and where it went, above the actions (plan Oberfläche O7, M6).
+    expect(text(q("ai-grounds"))).toContain("To Anthropic");
+    expect(text(q("ai-run-actions"))).not.toContain("To Anthropic");
     expect(q("ai-run-full")).toBeNull();
     await click(q("ai-run-details"));
     expect(text(q("ai-run-full"))).toContain("sent to Anthropic");
+  });
+
+  it("says in the details that its sources could not be checked, and warns of nothing (review O7, fourth round)", async () => {
+    const { s, vault } = await mcpSession([turn({ text: "See [[Pricing 2026]]." })]);
+    vault.host.linkFilesFor = async () => {
+      throw new Error("index closed");
+    };
+    await show(s, conversation());
+    await act(async () => void (await s.send("And the prices?")));
+    await settle();
+    expect(q("ai-unfounded")).toBeNull();
+    expect(text(q("ai-grounds"))).not.toContain("could not be checked");
+    await click(q("ai-run-details"));
+    expect(text(q("ai-run-full"))).toContain("Whether the notes this answer names as sources were sent or read could not be checked.");
   });
 });
 

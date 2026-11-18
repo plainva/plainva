@@ -1,5 +1,5 @@
 import type { markdown } from "@codemirror/lang-markdown";
-import { boundMarkdownForParse, exceedsInlineParseBudget, restoreBoundedTree, type BoundedMarkdown } from "@plainva/core";
+import { boundMarkdownInRanges, exceedsInlineParseBudget, overBudgetInlineRanges, READER_READING, restoreBoundedTree, unitedRanges, type BoundedMarkdown, type ReaderSource } from "@plainva/core";
 
 /**
  * The parse budget (`inlineParseBudget.ts` in core) for the two parsers that
@@ -7,8 +7,8 @@ import { boundMarkdownForParse, exceedsInlineParseBudget, restoreBoundedTree, ty
  * the editor's (Lezer). Core's own parses — the index, the note source behind
  * outline, journal and embedded sections — bound themselves.
  *
- * A paragraph, table row or table whose inline syntax would cost a parser
- * more than the budget is read as written, the same stretch in all three:
+ * A paragraph, table row or table that would cost a parser more than its
+ * budget is read as written, the same stretch in all three:
  * open-items plan 3.133 no. 4 (a line of 100 000 `]` held the reading view
  * for minutes).
  */
@@ -19,8 +19,17 @@ import { boundMarkdownForParse, exceedsInlineParseBudget, restoreBoundedTree, ty
  * FIRST, before any plugin reads a value; every place in the text stays where
  * it was, so the reader's source mapping holds.
  */
-export function boundReaderMarkdown(text: string): BoundedMarkdown & { remarkRestore: () => (tree: unknown) => void } {
-  const bounded = boundMarkdownForParse(text);
+export function boundReaderMarkdown(text: string, from?: { original: string; source: Pick<ReaderSource, "toRendered"> }): BoundedMarkdown & { remarkRestore: () => (tree: unknown) => void } {
+  // Weighed for the reading view's own parser: GFM without the properties
+  // block (MarkdownReader.tsx), which opens quotes and lists behind an
+  // unclosed `---`. And what the note's parsers read as written in the
+  // original (the index, the outline) is read as written here as well, at its
+  // place in the shown text: one decision for every reader, the heavier one.
+  const own = overBudgetInlineRanges(text, undefined, READER_READING);
+  const theirs = from
+    ? overBudgetInlineRanges(from.original).map((range) => ({ ...range, from: from.source.toRendered(range.from), to: from.source.toRendered(range.to, "end") }))
+    : [];
+  const bounded = boundMarkdownInRanges(text, unitedRanges(own, theirs.filter((range) => range.to > range.from)));
   const { ranges } = bounded;
   return {
     ...bounded,
