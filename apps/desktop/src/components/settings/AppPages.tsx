@@ -276,6 +276,12 @@ export interface EditorPageProps {
   /** The device's spell-checking switch (plan Befunde 2026-10-06, E3): device-local, off by default. */
   spellcheck: boolean;
   onSpellcheck: (on: boolean) => void;
+  /**
+   * Why the switch checks nothing here, if it doesn't (Linux only: no
+   * dictionary loaded);
+   * `null` everywhere else (services/spellcheck.ts, spellcheckHint).
+   */
+  spellcheckHint?: "noDictionary" | null;
   /** Open a new note in a tab of its own (issue 135): device-local, off by default. */
   newNotesInNewTab: boolean;
   onNewNotesInNewTab: (on: boolean) => void;
@@ -283,13 +289,6 @@ export interface EditorPageProps {
   placeStamp: boolean;
   onPlaceStamp: (v: boolean) => void;
 }
-
-/**
- * wry never switches WebKitGTK's spell checker on, and it is off by default
- * there, so on Linux the switch changes the attribute and nothing checks. The
- * page says so instead of offering a control that silently does nothing.
- */
-const IS_LINUX_DESKTOP = typeof navigator !== "undefined" && /Linux/.test(navigator.userAgent || "") && !/Android/.test(navigator.userAgent || "");
 
 export const EditorPage: React.FC<EditorPageProps> = (p) => {
   const { t } = useTranslation();
@@ -321,13 +320,13 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
 
       {/* "Writing" and "Links" were two cards of one row each; one card now
           (settings plan 2026-10-29, appendix 2.3 B1). What spell checking
-          covers and what the right-click does are behind its ⓘ; that the
-          switch does nothing on Linux stays visible. */}
+          covers and what the right-click does are behind its ⓘ; that it
+          checks nothing on this Linux system, and what to do, stays visible. */}
       <SettingCard label={t("settings.groupWriting")} testId="editor-writing">
         <SettingRow
           label={t("settings.spellcheck")}
           info={`${t("settings.spellcheckDesc")}\n\n${t("settings.spellcheckMenuDesc")}`}
-          desc={IS_LINUX_DESKTOP ? t("settings.spellcheckLinux") : undefined}
+          desc={p.spellcheckHint === "noDictionary" ? t("settings.spellcheckNoDictionary") : undefined}
         >
           <Switch checked={p.spellcheck} label={t("settings.spellcheck")} onChange={p.onSpellcheck} />
         </SettingRow>

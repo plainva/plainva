@@ -30,10 +30,24 @@ import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspaceSyncFailureText } from "@plainva/ui";
 import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
+import { askMassDeletion as askMassDeletionWith, askSuspendedDeletions as askSuspendedDeletionsWith, type MassDeletionAnswers, type SuspendedDeletionAnswers, type SuspendedDeletionInfo } from "@plainva/ui";
+
+/**
+ * The mass-deletion question for either worker (plain sync, encrypted
+ * workspace — release 0.9.0 A4), on the app's own sheet: the safe branch
+ * has a name and carries the emphasis, dismissing it takes that branch.
+ */
+function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: number; syncedTotal: number }): void {
+  void askMassDeletionWith(worker, info, (question) => mConfirm({ ...question, danger: true }));
+}
+
+function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: SuspendedDeletionInfo): void {
+  void askSuspendedDeletionsWith(worker, info, (question) => mConfirm({ ...question, danger: true }));
+}
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
@@ -1306,7 +1320,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // large vault; surface it as determinate sync progress instead of a silent
     // freeze (package F1, Punkt 14).
     setState({ status: "syncing", message: null });
-    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
+    // What changed while Plainva was closed is asked like a change from
+    // outside while it runs (release 0.9.0 A3).
+    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }), permissions: v.workspacePermissions });
     if (generation !== startGeneration) {
       // Stopped meanwhile (finding 4): no worker, and no "syncing" left standing.
       await settleCancelledStart(v);
@@ -1335,6 +1351,12 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       errorKind: failureKind === "integrity" ? "workspace-integrity" : failureKind === "authentication" ? "authentication" : undefined,
     });
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
+    // The plain sync's question, word for word (release 0.9.0 A4).
+    encrypted.onMassDeletionPending = (info) => askMassDeletion(encrypted, info);
+    // And the pull-side one: another device's mass deletion waits for an answer.
+    encrypted.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(encrypted, info);
+    // A change the workspace's policy refused stays here as a local fork: said, not only listed.
+    encrypted.onChangesRefused = (paths, restorePending) => { const text = refusedChangesText(paths, restorePending); if (text) toast.info(text); };
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     // The first cycle has looked: a file the index finds as new from now on
     // goes into the workspace queue at once, as with the plain worker (3.119).
@@ -1456,64 +1478,11 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // cannot do this (S45).
     notifyPulledFiles(paths);
   };
-  w.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
-    // The app's own sheet since 2026-09-20 (it was the native two-button
-    // dialog): the safe branch has a NAME and carries the emphasis, the
-    // destructive one is styled as such. Dismissing the sheet takes the safe
-    // restore branch. Localized with the shared sync.massDelete* strings (P5).
-    void (async () => {
-      const value = await mConfirm({
-        title: i18n.t("sync.massDeleteTitle"),
-        message: i18n.t("sync.massDeleteBody", { n: pendingDeletes, total: syncedTotal }),
-        danger: true,
-        confirmLabel: i18n.t("sync.massDeleteConfirm"),
-        cancelLabel: i18n.t("sync.massDeleteRestore"),
-      });
-      if (value) {
-        w.approveMassDeletion();
-        return;
-      }
-      // The user chose "restore", so they must learn whether it worked
-      // (desktop rule, carried over 2026-08-19). Going quiet here means
-      // believing the files are back while the deletions still stand.
-      try {
-        const discarded = await w.discardMassDeletion();
-        toast.info(i18n.t("sync.massDeleteRestored", { n: discarded }));
-      } catch (e) {
-        console.error("[syncService] discardMassDeletion failed", e);
-        toast.error(i18n.t("sync.massDeleteRestoreFailed"));
-      }
-    })();
-  };
-  w.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
-    // Pull-side guard with an exit (P1): the journal does not explain these
-    // absences, so a person decides. Since 2026-09-20 the worker has asked the
-    // remote about a sample first — had one been alive there would be no
-    // question (onListingIncomplete) — so the sheet says what was checked, or
-    // that nothing could be. Dismissing keeps the local copies.
-    void (async () => {
-      const value = await mConfirm({
-        title: i18n.t("sync.pullGuardTitle"),
-        message: absent > 0
-          ? i18n.t("sync.pullGuardBody", { n: missing, total: confirmed, absent, probed })
-          : i18n.t("sync.pullGuardBodyUnverified", { n: missing, total: confirmed }),
-        danger: true,
-        confirmLabel: i18n.t("sync.pullGuardApply"),
-        cancelLabel: i18n.t("sync.pullGuardKeep"),
-      });
-      if (value) {
-        w.approveSuspendedDeletions();
-        return;
-      }
-      try {
-        const kept = await w.keepSuspendedDeletionsLocal();
-        toast.info(i18n.t("sync.pullGuardKept", { count: kept }));
-      } catch (e) {
-        console.error("[syncService] keepSuspendedDeletionsLocal failed", e);
-        toast.error(i18n.t("sync.pullGuardFailed"));
-      }
-    })();
-  };
+  w.onMassDeletionPending = (info) => askMassDeletion(w, info);
+  // Pull-side guard with an exit (P1): the journal does not explain these
+  // absences, so a person decides — the shared question, as on the desktop.
+  // Dismissing keeps the local copies.
+  w.onDeletionMirroringSuspended = (info) => askSuspendedDeletions(w, info);
   w.onDeletionReport = (report) => {
     // Same rule as the desktop: a deletion kept back because of unsynced local
     // edits is said, not swallowed — with the names of the files and what

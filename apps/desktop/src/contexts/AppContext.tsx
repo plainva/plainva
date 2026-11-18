@@ -17,6 +17,7 @@ import {
 } from "../services/vaultRuntimes";
 import { vaultNestingConflict, vaultNestingMessage } from "../services/vaultNesting";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
+import { isTauriRuntime } from "../components/WindowControls";
 
 /**
  * What the APP knows, as opposed to what a vault knows (multi-window stage D).
@@ -181,6 +182,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         else stop = off;
       })
       .catch((e) => console.warn("[AppContext] no window bus in this window", e));
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [isOwner]);
+
+  // The way out of the app (A7): the native side holds a close or a quit for a
+  // moment, and the drafts every window still buffers are written first.
+  useEffect(() => {
+    if (!isTauriRuntime) return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    // The central window answers the native side; every other window answers the central one.
+    void (isOwner
+      ? import("../services/leaveFlush").then(({ installLeaveFlush }) => installLeaveFlush())
+      : import("../services/beforeLeaving").then(({ installLeaveAnswer }) => installLeaveAnswer()))
+      .then((off) => {
+        if (cancelled) off();
+        else stop = off;
+      })
+      .catch((e) => console.warn("[AppContext] this window is not settled on the way out", e));
     return () => {
       cancelled = true;
       stop?.();

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { onBeforeLeaving } from "../../services/beforeLeaving";
 import { useTranslation } from "react-i18next";
 import { settingNotSaved } from "../../services/settingNotSaved";
 import { ArrowLeft, RefreshCw } from "lucide-react";
@@ -110,7 +111,7 @@ export const AccountServicePage: React.FC<{
 /** The vault's sync interval, saved once the typing stops and on leaving the page. */
 function useSyncInterval(vaultPath: string) {
   const [value, setValue] = useState(String(defaultSyncIntervalSeconds()));
-  const pending = useRef<(() => void) | null>(null);
+  const pending = useRef<(() => Promise<void>) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     let alive = true;
@@ -122,9 +123,14 @@ function useSyncInterval(vaultPath: string) {
     return () => {
       alive = false;
       if (timer.current) clearTimeout(timer.current);
-      pending.current?.();
+      void pending.current?.();
     };
   }, [vaultPath]);
+  // The way out of the window or the app (A7): the interval typed a moment ago is saved now.
+  useEffect(() => onBeforeLeaving(async () => {
+    if (timer.current) clearTimeout(timer.current);
+    await pending.current?.();
+  }), []);
   const change = (raw: string) => {
     setValue(raw);
     const run = () => {
@@ -132,7 +138,7 @@ function useSyncInterval(vaultPath: string) {
       timer.current = null;
       const parsed = parseInt(raw, 10);
       const seconds = Number.isFinite(parsed) ? Math.max(MIN_SYNC_INTERVAL_SECONDS, parsed) : defaultSyncIntervalSeconds();
-      void getSettingsStore().then(async (store) => {
+      return getSettingsStore().then(async (store) => {
         await store.set(syncIntervalKey(vaultPath), seconds);
         await store.save();
         // Reloading the vault restarts its worker with the new interval.
@@ -141,7 +147,7 @@ function useSyncInterval(vaultPath: string) {
     };
     if (timer.current) clearTimeout(timer.current);
     pending.current = run;
-    timer.current = setTimeout(run, 800);
+    timer.current = setTimeout(() => void run(), 800);
   };
   const normalize = () => {
     const parsed = parseInt(value, 10);

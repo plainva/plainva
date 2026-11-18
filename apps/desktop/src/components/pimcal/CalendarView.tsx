@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { reportingTo } from "@plainva/ui";
+import { newWriteAction, withWriteAttempt } from "../../services/pim/remotePimTarget";
 import { useTranslation } from "react-i18next";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Users } from "lucide-react";
@@ -832,13 +833,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // A retry calls the write it belongs to — and a callback cannot name itself.
   // The current set of writes is kept here and read when the user asks again.
   const retryWrites = useRef<{
-    save(e: PimEventRow, values: EventFormValues): void;
-    reschedule(e: PimEventRow, startMs: number, endMs: number): void;
+    save(e: PimEventRow, values: EventFormValues, action?: string): void;
+    reschedule(e: PimEventRow, startMs: number, endMs: number, action?: string): void;
     color(e: PimEventRow, color: string): void;
     remove(e: PimEventRow, blockers: readonly ResolvedBlocker[]): void;
     /** The reverse of a write that took blockers along (K3): no second "undo" for the undo. */
-    apply(e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form"): void;
-    write(e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form"): void;
+    apply(e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form", action?: string): void;
+    write(e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form", action?: string): void;
   } | null>(null);
 
   // What the blocker rules need from this view (K3): the targets and two
@@ -851,6 +852,16 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       busyLabel: t("pim.busyTitle", { defaultValue: "Beschäftigt" }),
     }),
     [targetFor, pimRuntime, t]
+  );
+  /**
+   * The same, for ONE action of the person (A15): every create it sends names
+   * the action — a move is "create there, delete here" — so "Try again" after
+   * "it may still land" does not create the event twice in another window. A
+   * retry passes the action it repeats; anything else is a new one.
+   */
+  const depsFor = useCallback(
+    (action: string): BlockFollowDeps => ({ ...followDeps, targets: { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) } }),
+    [followDeps, targetFor]
   );
   // The loaded rows as a write finds them: read when it starts, never in render.
   const loadedEvents = useRef<readonly PimEventRow[]>([]);
@@ -867,6 +878,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     shape: "time" | "form";
     /** The overlay that keeps the blocker where it was put until the answer. */
     hold: number;
+    /** The action the answer goes on with. */
+    action: string;
   } | null>(null);
   /** An event with blockers that is about to be deleted. */
   const [deletePrompt, setDeletePrompt] = useState<{ event: PimEventRow; blockers: ResolvedBlocker[] } | null>(null);
@@ -906,8 +919,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * shared rule decides what a blocker takes over and writes the event's list.
    */
   const applyEventWrite = useCallback(
-    async (e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form", announce: boolean) => {
-      const out = await updateEventWithBlockers(followDeps, e, draft, { moveTo, loaded: loadedEvents.current });
+    async (e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form", announce: boolean, action: string) => {
+      const out = await updateEventWithBlockers(depsFor(action), e, draft, { moveTo, loaded: loadedEvents.current });
       if (out.kind === "conflict") {
         toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
         refresh();
@@ -935,7 +948,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       );
       refreshAfterWrite();
     },
-    [followDeps, reportBlockers, refresh, refreshAfterWrite, t, i18n.language]
+    [depsFor, reportBlockers, refresh, refreshAfterWrite, t, i18n.language]
   );
 
   /**
@@ -944,18 +957,18 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * was put while the question is open, instead of springing back.
    */
   const writeEvent = useCallback(
-    async (e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form") => {
+    async (e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form", action: string) => {
       if (e.blockOf) {
         const hold = pendingEventWrites.begin({ kind: "update", ref: e, patch: { start: draft.start, end: draft.end, allDay: draft.allDay } });
         const source = await sourceOfBlocker(followDeps, e).catch(() => null);
         if (source) {
-          setBlockerPrompt({ blocker: e, source, draft, moveTo, shape, hold });
+          setBlockerPrompt({ blocker: e, source, draft, moveTo, shape, hold, action });
           return;
         }
         // Its event is gone or out of reach: an ordinary entry as far as anyone can tell.
         pendingEventWrites.drop(hold);
       }
-      await applyEventWrite(e, draft, moveTo, shape, true);
+      await applyEventWrite(e, draft, moveTo, shape, true, action);
     },
     [followDeps, applyEventWrite]
   );
@@ -967,7 +980,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * form ever opened.
    */
   const writeEventForm = useCallback(
-    async (e: PimEventRow, values: EventFormValues) => {
+    async (e: PimEventRow, values: EventFormValues, action: string) => {
       const draft = eventFormToDraft(values);
       // The rules around the provider calls (move = create+delete, a moved
       // remote means re-pull, a written event shows at once, blockers follow)
@@ -992,7 +1005,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // event itself, and a refusal comes back as a message with a retry.
       setEditState(null);
       setCreateInitial(null);
-      await writeEvent(e, writeDraft, moveTo, "form");
+      await writeEvent(e, writeDraft, moveTo, "form", action);
     },
     [writeEvent]
   );
@@ -1018,8 +1031,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   /** `writeEventForm` in the background: the form is already closed. */
   const saveEventForm = useCallback(
-    (e: PimEventRow, values: EventFormValues) => {
-      void writeEventForm(e, values).catch((error) => reportWriteFailure(error, () => retryWrites.current?.save(e, values)));
+    (e: PimEventRow, values: EventFormValues, action: string = newWriteAction("event-save")) => {
+      void writeEventForm(e, values, action).catch((error) => reportWriteFailure(error, () => retryWrites.current?.save(e, values, action)));
     },
     [writeEventForm, reportWriteFailure]
   );
@@ -1056,13 +1069,18 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // Whoever handed this appointment over hears of it once the calendar took it — not before, and not on a failure.
       const seeded = seedSaved.current;
       seedSaved.current = null;
+      // One action of the person: this form's event. "Try again" on a failed
+      // write is the same action — in another window the central one then
+      // does not create it twice (A15) — and the next form is a new one.
+      const action = newWriteAction("event-create");
+      const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
       const create = () => {
         const id = pendingEventWrites.reserve();
         const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
         void writeEventOptimistically(
           pendingEventWrites,
           { kind: "create", row: pendingEventRow(id, shown) },
-          () => createCalendarEvent({ targetFor }, accountId, calId, draft),
+          () => createCalendarEvent(actionTargets, accountId, calId, draft),
           (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
           id,
         ).then(
@@ -1091,7 +1109,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   );
 
   const rescheduleEvent = useCallback(
-    async (e: PimEventRow, newStartMs: number, newEndMs: number) => {
+    async (e: PimEventRow, newStartMs: number, newEndMs: number, action: string = newWriteAction("event-time")) => {
       // Direct draft from the event's current fields with new times; the
       // adapter GET-modify-PUTs, so attendees/alarms/color are preserved.
       const draft: PimEventDraft = {
@@ -1109,9 +1127,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         // The block lands at its new time with the drop — before anything is
         // awaited — and so do the blockers that mirror it (K3). A blocker that
         // is dragged asks first; a moved remote is said inside.
-        await writeEvent(e, draft, null, "time");
+        await writeEvent(e, draft, null, "time", action);
       } catch (err) {
-        reportWriteFailure(err, () => retryWrites.current?.reschedule(e, newStartMs, newEndMs));
+        reportWriteFailure(err, () => retryWrites.current?.reschedule(e, newStartMs, newEndMs, action));
       }
     },
     [writeEvent, reportWriteFailure]
@@ -1277,13 +1295,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   useEffect(() => {
     retryWrites.current = {
       save: saveEventForm,
-      reschedule: (e, startMs, endMs) => void rescheduleEvent(e, startMs, endMs),
+      reschedule: (e, startMs, endMs, action) => void rescheduleEvent(e, startMs, endMs, action),
       color: (e, color) => void setEventColor(e, color),
       remove: (e, blockers) => void performDelete(e, blockers),
-      apply: (e, draft, moveTo, shape) =>
-        void applyEventWrite(e, draft, moveTo, shape, false).catch((error) => reportWriteFailure(error, () => retryWrites.current?.apply(e, draft, moveTo, shape))),
-      write: (e, draft, moveTo, shape) =>
-        void writeEvent(e, draft, moveTo, shape).catch((error) => reportWriteFailure(error, () => retryWrites.current?.write(e, draft, moveTo, shape))),
+      // Called for an undo (a new action) or for "Try again" (the action it repeats).
+      apply: (e, draft, moveTo, shape, action = newWriteAction("event-undo")) =>
+        void applyEventWrite(e, draft, moveTo, shape, false, action).catch((error) => reportWriteFailure(error, () => retryWrites.current?.apply(e, draft, moveTo, shape, action))),
+      write: (e, draft, moveTo, shape, action = newWriteAction("event-write")) =>
+        void writeEvent(e, draft, moveTo, shape, action).catch((error) => reportWriteFailure(error, () => retryWrites.current?.write(e, draft, moveTo, shape, action))),
     };
   }, [saveEventForm, rescheduleEvent, setEventColor, performDelete, applyEventWrite, writeEvent, reportWriteFailure]);
 
@@ -1320,17 +1339,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const prompt = blockerPrompt;
       setBlockerPrompt(null);
       if (!prompt) return;
-      const { blocker, source, draft, moveTo, shape, hold } = prompt;
+      const { blocker, source, draft, moveTo, shape, hold, action } = prompt;
       try {
         if (choice === "source") {
           // The event takes the change and every blocker — this one included —
           // follows it. Started before the hold is let go, so nothing flickers.
-          const run = applyEventWrite(source, sourceDraftFromBlockerEdit(source, blocker, draft), null, shape, true);
+          const run = applyEventWrite(source, sourceDraftFromBlockerEdit(source, blocker, draft), null, shape, true, action);
           pendingEventWrites.drop(hold);
           await run;
           return;
         }
-        const run = detachBlockerAndUpdate(followDeps, blocker, draft, { moveTo, source });
+        const run = detachBlockerAndUpdate(depsFor(action), blocker, draft, { moveTo, source });
         pendingEventWrites.drop(hold);
         const out = await run;
         if (out.kind === "conflict") {
@@ -1340,10 +1359,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         }
         refreshAfterWrite();
       } catch (error) {
-        reportWriteFailure(error, () => retryWrites.current?.write(blocker, draft, moveTo, shape));
+        reportWriteFailure(error, () => retryWrites.current?.write(blocker, draft, moveTo, shape, action));
       }
     },
-    [blockerPrompt, followDeps, applyEventWrite, refreshAfterWrite, reportWriteFailure, t]
+    [blockerPrompt, depsFor, applyEventWrite, refreshAfterWrite, reportWriteFailure, t]
   );
 
   const cancelBlockerPrompt = useCallback(() => {

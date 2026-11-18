@@ -26,3 +26,23 @@ function fileName(path: string): string {
   const name = path.slice(path.lastIndexOf("/") + 1);
   return name.toLowerCase().endsWith(".md") ? name.slice(0, -3) : name;
 }
+
+/**
+ * Changes the encrypted workspace's policy refused, each kept on this device
+ * as a local fork (`EncryptedWorkspaceWorker.onChangesRefused`) — named as the
+ * kept deletions are, and pointing to where the forks are listed. And the
+ * refused moves and deletions whose original is not back yet
+ * (`restorePending`): they wait, and are tried again at every sync.
+ */
+export function refusedChangesText(paths: ReadonlyArray<string>, restorePending: ReadonlyArray<string> = []): string | null {
+  const said = [
+    ...(paths.length > 0 ? [i18n.t("sync.workspaceChangesRefused", { names: namesOf(paths) })] : []),
+    ...(restorePending.length > 0 ? [i18n.t("sync.workspaceRestorePending", { names: namesOf(restorePending) })] : []),
+  ];
+  return said.length > 0 ? said.join(" ") : null;
+}
+
+function namesOf(paths: ReadonlyArray<string>): string {
+  const names = paths.slice(0, KEPT_DELETIONS_NAMES_SHOWN).map(fileName);
+  return names.join(", ") + (paths.length > KEPT_DELETIONS_NAMES_SHOWN ? ", …" : "");
+}

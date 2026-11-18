@@ -24,7 +24,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, writeEditorSave, KeepBesideFailedError, type KeptText, type LinkKind } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, writeEditorSave, isVanishedFileFailure, KeepBesideFailedError, type KeptText, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor, copyLineLink, type LineLinkMode } from "@plainva/ui";
 import { copyDesktopNoteLink, desktopVaultLinkName } from "../services/noteLinkReceiver";
 import { registerLineLinkEditor } from "../services/editorLineLinks";
@@ -71,6 +71,7 @@ import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush, type SaveFlushRequest } from "../services/saveFlush";
+import { onBeforeLeaving } from "../services/beforeLeaving";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, type FormatAction, type SelectionToolbarPosition } from "@plainva/ui";
 import { BlockMenu } from "./BlockMenu";
@@ -84,11 +85,12 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { frontmatterSpan, isNotTextFileError, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
+import { frontmatterSpan, isNotTextFileError, readIndexedIdentity, vaultFolderIsThere, type MissingFileOutcome } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
+import { createSaveRetryTimer, type SaveRetryState } from "../services/saveRetryTimer";
 import { vaultAppName, vaultLabel } from "../services/vaultNames";
 
 /**
@@ -169,6 +171,10 @@ export const Editor: React.FC<{
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Whether the last failed save said the file is gone while the vault folder
+  // is there (`isVanishedFileFailure`) — the one failure that starts the
+  // search for a moved or deleted note (review 2026-11-18).
+  const saveFailedVanishedRef = useRef(false);
   // The tab strip's dirty dot reads this store; the save label reads it too.
   const dirtyPaths = useDirtyPaths();
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
@@ -210,17 +216,34 @@ export const Editor: React.FC<{
    * Writes the copy to the vault database, debounced (C34). Persisting is what
    * lets the copy outlive the app; the in-memory park stays the fast path.
    */
+  /** The copy the timer below will write, so the way out can write it at once (O3). */
+  const parkPending = useRef<(() => Promise<void>) | null>(null);
   const schedulePark = (path: string, base: string | null, copy: string, note: string) => {
     if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
-    parkWriteTimer.current = window.setTimeout(() => {
+    const write = async () => {
       parkWriteTimer.current = null;
+      parkPending.current = null;
       const db = vaultContext.queryService?.db;
       if (!db || base === null) return;
-      void parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
-    }, 500);
+      await parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
+    };
+    parkPending.current = write;
+    parkWriteTimer.current = window.setTimeout(() => void write(), 500);
   };
+  // The way out of the window or the app (A7, O3): the save due a second after
+  // the last keystroke and the parked copy due half a second after the last
+  // change happen now, and the window waits for them (`beforeLeaving.ts`).
+  useEffect(() => onBeforeLeaving(async () => {
+    const park = parkPending.current;
+    if (park) {
+      if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
+      await park();
+    }
+    if (activePath) await requestSaveFlush(activePath, vaultPath ?? undefined);
+  }), [activePath, vaultPath]);
   const forgetPark = (path: string) => {
     if (parkWriteTimer.current !== null) { window.clearTimeout(parkWriteTimer.current); parkWriteTimer.current = null; }
+    parkPending.current = null;
     const db = vaultContext.queryService?.db;
     if (db) void clearEditorSuggestion(db, path, vaultPath).catch(reportingTo("suggestions:unpark"));
   };
@@ -732,6 +755,11 @@ export const Editor: React.FC<{
     kind: "header" | "body"; rowIndex: number; colIndex: number; align: TableAlignValue;
   } | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
+  // A failed save is tried again by itself, by the rule the phone keeps
+  // (`saveRetryTimer.ts`, decided 2026-11-17); the status says it is planned.
+  const [saveRetryState, setSaveRetryState] = useState<SaveRetryState>("idle");
+  // One timer for the pane's whole life (a lazy state, so it is made once).
+  const [saveRetry] = useState(() => createSaveRetryTimer(setSaveRetryState));
   const contentSyncTimeoutRef = useRef<number | null>(null);
   // Every asynchronous save keeps the identity and refs of its original note.
   const saveState = useMemo(() => new EditorSaveLifetime(vaultPath, activePath, vaultAdapter), [vaultPath, activePath, vaultAdapter]);
@@ -813,8 +841,11 @@ export const Editor: React.FC<{
 
   useLayoutEffect(() => {
     saveState.activate();
-    return () => saveState.deactivate();
-  }, [saveState]);
+    return () => {
+      saveRetry.cancel();
+      saveState.deactivate();
+    };
+  }, [saveState, saveRetry]);
 
   // ---- Save pipeline (P2) --------------------------------------------------
   // The session reports real edits via onDocChanged; the text is read from the
@@ -898,6 +929,8 @@ export const Editor: React.FC<{
       }
       saveState.update({ activeWrites: saveState.activeWrites + 1 });
       if (current()) { setIsSaving(true); setSaveError(null); }
+      // This save takes the place of a retry still planned.
+      if (current()) saveRetry.starting();
       try {
         // One save, the phone's own (`writeEditorSave` in @plainva/ui,
         // stability plan R6): no write of an unchanged text (finding
@@ -909,6 +942,8 @@ export const Editor: React.FC<{
         const outcome = await writeEditorSave({
           files: vaultAdapter, path, text: val, base: saveState.baseInput, persisted: saveState.persisted, shape, kept: earlier, keep: keepTextBeside,
         });
+        // It went through: the next failure waits one second again.
+        if (current()) saveRetry.reset();
         if (outcome.kind === "kept-beside") {
           await adoptKept(outcome.kept, earlier);
           return;
@@ -977,7 +1012,16 @@ export const Editor: React.FC<{
         const e = error as Error & { conflictPath?: string };
         console.error("Failed to save file", error);
         if (current()) {
+          saveFailedVanishedRef.current = isVanishedFileFailure(error);
           setSaveError(e.message || String(error));
+          // Tried again by itself (`saveRetry.ts`) — not after a failure that is
+          // surely final, and after about five minutes the timer rests until the
+          // person types, saves or comes back to the window.
+          saveRetry.failed(
+            error,
+            () => saveState.isActive() && loadedPathRef.current === path && saveState.dirty && !saveState.transferFrozen,
+            () => void persistText(sessionRef.current?.view.state.doc.toString() ?? contentRef.current).catch(() => {}),
+          );
           if (e.name === "ConflictError") {
             setConflictInfo({ conflictPath: e.conflictPath ?? "" });
             toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ? conflictCopyLabel(e.conflictPath, i18n.language) : ".CONFLICT" }));
@@ -994,6 +1038,8 @@ export const Editor: React.FC<{
   const scheduleSave = (text: string | (() => string)) => {
     const getText = typeof text === "string" ? () => text : text;
     if (saveState.transferFrozen) return;
+    // The person typed: their save comes in a second, and a failure after it waits one second again.
+    saveRetry.reset();
     if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
     if (!activePath || !vaultAdapter) return;
     const rev = saveState.nextRevision();
@@ -2358,6 +2404,13 @@ export const Editor: React.FC<{
   const restoreHere = useStableHandler(async () => {
     const path = activePath;
     if (!vaultAdapter || !path) return;
+    // Not into a vault folder that is not there: on Linux and macOS a drive
+    // that went leaves its empty mount point, and a note written there would
+    // lie hidden under the drive once it is back (review 2026-11-18).
+    if ((await vaultFolderIsThere(vaultAdapter)) === false) {
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
     const shape = saveState.shape;
     const draft = liveText();
     try {
@@ -2390,6 +2443,8 @@ export const Editor: React.FC<{
     // Another program's atomic save deletes and writes again — the file may
     // simply be back.
     if (await vaultAdapter.exists(path).catch(() => true)) return;
+    // A vault folder out of reach is no vanished note (review 2026-11-18).
+    if ((await vaultFolderIsThere(vaultAdapter)) === false) return;
     if (!aliveRef.current || path !== activePath) return;
     if (!saveState.dirty) {
       // Nothing unsaved: the load's own way — it fails, and looks.
@@ -2440,10 +2495,11 @@ export const Editor: React.FC<{
   });
   useEffect(() => { vanishCheckRef.current = noticeVanished; return () => { vanishCheckRef.current = null; }; }, [noticeVanished]);
   // A save that failed because the file is gone hands over to the vanish
-  // check: the editor save refuses to write it back at the old place.
+  // check: the editor save refuses to write it back at the old place. Only
+  // that failure: a vault folder out of reach is tried again, not looked for.
   useEffect(() => {
     const path = activePath;
-    if (!saveError || !path || !vaultAdapter) return;
+    if (!saveError || !saveFailedVanishedRef.current || !path || !vaultAdapter) return;
     let stale = false;
     void vaultAdapter.exists(path).then((there) => { if (!stale && !there) noticeVanished(path); }).catch(() => {});
     return () => { stale = true; };
@@ -2572,7 +2628,7 @@ export const Editor: React.FC<{
         // (issue 110, E9). That is not a failed save; the vanish check takes
         // over. Asked by existence, because a client window's error comes
         // over the bus without its class.
-        if (!(await vaultAdapter.exists(path).catch(() => true))) {
+        if (!(await vaultAdapter.exists(path).catch(() => true)) && (await vaultFolderIsThere(vaultAdapter)) !== false) {
           vanishCheckRef.current?.(path);
           return;
         }
@@ -2590,6 +2646,9 @@ export const Editor: React.FC<{
       if (request.path !== activePath || (request.vaultPath !== undefined && request.vaultPath !== vaultPath)) return;
       const flush = async () => {
         if (saveState.transferFrozen) throw new Error("The note is being transferred to another window");
+        // Asked to save now (Ctrl+S, a step that needs the note on disk, the
+        // way out of the app): once at once, never behind a planned retry.
+        saveRetry.reset();
         while (current()) {
           if (saveTimeoutRef.current !== null) {
             window.clearTimeout(saveTimeoutRef.current);
@@ -2827,9 +2886,12 @@ export const Editor: React.FC<{
         setContent(text);
         contentRef.current = text;
       }
+      // The pane shows another note, or goes: a retry planned for this one does not come.
+      saveRetry.cancel();
       if (saveState.dirty && !saveState.transferFrozen) {
         if (saveTimeoutRef.current !== null) window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
+        // One last try with the final text; if it fails, the text stays in the journal.
         void persistText(text).catch(() => {});
       }
       // The journal's buffer for this note ends with the pane's hold on it: the
@@ -3292,10 +3354,24 @@ export const Editor: React.FC<{
     sessionRef.current?.setMode(viewMode === 'source' ? 'source' : 'live');
   }, [viewMode, isReadMode]);
 
+  // Coming back to the window tries a save that rested after its last retry
+  // (`saveRetry.ts`): the drive, the right or the other program may be gone.
+  const wakeRestingSave = useStableHandler(() => {
+    if (!saveRetry.resting || !activePath || loadedPathRef.current !== activePath) return;
+    if (!saveState.isActive() || !saveState.dirty || saveState.transferFrozen) return;
+    saveRetry.reset();
+    void persistText(sessionRef.current?.view.state.doc.toString() ?? contentRef.current).catch(() => {});
+  });
+  useEffect(() => {
+    window.addEventListener("focus", wakeRestingSave);
+    return () => window.removeEventListener("focus", wakeRestingSave);
+  }, [wakeRestingSave]);
+
   const captureTabDocument = useStableHandler(async () => {
     if (!activePath || !vaultPath || loadedPathRef.current !== activePath || !saveState.isActive() || saveState.transferFrozen) throw new Error("The source editor is unavailable");
     saveState.setTransferFrozen(true);
     sessionRef.current?.setEditable(false);
+    saveRetry.cancel();
     for (const timer of [saveTimeoutRef, contentSyncTimeoutRef, parkWriteTimer]) {
       if (timer.current !== null) window.clearTimeout(timer.current);
       timer.current = null;
@@ -3463,9 +3539,12 @@ export const Editor: React.FC<{
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {(() => {
             const label = saveLabelFor({ writing: isSaving, failed: !isSaving && !!saveError, dirty: !!activePath && dirtyPaths.has(activePath) });
+            // "Trying again" only while a try is planned; once the retries rest, why.
+            const failedText = saveRetryState === "planned" ? t("editor.saveRetrying") : t("editor.saveFailed");
+            const failedTip = saveRetryState === "resting" && saveError ? t("editor.saveFailedWhy", { reason: saveError }) : saveError || "";
             return (
-              <span style={{ fontSize: "var(--text-ui)", color: label === "failed" ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""} data-testid="editor-save-state" data-state={label}>
-                {label === "saving" ? t("editor.saving") : label === "failed" ? t("editor.saveFailed") : t("editor.saved")}
+              <span style={{ fontSize: "var(--text-ui)", color: label === "failed" ? "var(--error-text)" : "var(--text-muted)" }} data-tip={failedTip} data-testid="editor-save-state" data-state={label}>
+                {label === "saving" ? t("editor.saving") : label === "failed" ? failedText : t("editor.saved")}
               </span>
             );
           })()}
