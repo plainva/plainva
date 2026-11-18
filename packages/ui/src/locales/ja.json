@@ -3686,6 +3686,14 @@
     "journalCheckEmpty": "削除ログに確認する項目はありません。",
     "journalCheckFailed": "削除ログを確認できませんでした。",
     "deletionsKeptLocalEdits_other": "クラウドで削除された {{count}} 件のファイルには、この端末でまだアップロードされていない変更がありました。Plainva はファイルを保持し、再アップロードしています。不要な場合はここで削除してください: {{names}}",
+    "workspaceChangesRefused": "このワークスペースでは許可されていません: {{names}}。変更はローカルforkとしてこの端末に残り、ほかの端末には送られません。「整合性とローカルfork」で確認できます。",
+    "workspacePullGuardTitle": "別の端末で削除されました",
+    "workspacePullGuardBody": "このワークスペースの別の端末が、{{total}} 件のうち {{n}} 件のファイルを削除しました。この端末でも削除しますか？",
+    "workspacePullGuardBodyLocal": "このワークスペースの別の端末が、{{total}} 件のうち {{n}} 件のファイルを削除しました。この端末でも削除しますか？そのうち {{local}} 件は、ここからほかの端末へ再び提供できません。保持すると、この端末だけに、この端末自身の版として残ります。",
+    "workspacePullGuardKeepHere": "この端末だけに保持",
+    "workspacePullGuardKeepMixed": "保持",
+    "workspacePullGuardKeptLocal": "保持: {{count}} 件（うち {{local}} 件はこの端末だけに、この端末自身の版として）。",
+    "workspaceRestorePending": "許可されておらず、元のファイルもまだここに戻っていません: {{names}}。Plainva は同期のたびに再試行します。それまで変更は待機します。",
     "downloading": "変更をダウンロード中… {{current}}/{{total}}",
     "uploading": "変更をアップロード中… {{current}}/{{total}}",
     "idle": "今すぐ同期（再試行を含む）",
@@ -7275,7 +7283,8 @@
     "forkReason": {
       "permission-denied": "書き込みが許可されていなかったため、変更はコピーとして隣に置かれています。",
       "parallel-write": "同時に書き込まれたため、両方の版が並んでいます。",
-      "path-collision": "パスが使用中だったため、コピーには独自の名前が付いています。"
+      "path-collision": "パスが使用中だったため、コピーには独自の名前が付いています。",
+      "kept-local": "別の端末で削除 — この端末自身の版としてここに保持しています。"
     },
     "quarantineEntries_other": "{{count}} 件",
     "quarantineShowEntries_other": "{{count}} 件を表示",

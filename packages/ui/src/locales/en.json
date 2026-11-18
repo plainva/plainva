@@ -3776,6 +3776,14 @@
     "journalCheckFailed": "The deletion log could not be checked.",
     "deletionsKeptLocalEdits_one": "“{{names}}” was deleted in the cloud but had changes here that were not uploaded yet. Plainva kept it and is uploading it again — delete it here if you want it gone.",
     "deletionsKeptLocalEdits_other": "{{count}} files were deleted in the cloud but had changes here that were not uploaded yet. Plainva kept them and is uploading them again — delete them here if you want them gone: {{names}}",
+    "workspaceChangesRefused": "Not allowed in this workspace: {{names}}. The change stays on this device as a local fork and does not go to the others — see “Integrity & local forks”.",
+    "workspacePullGuardTitle": "Deleted on another device",
+    "workspacePullGuardBody": "Another device of this workspace deleted {{n}} of {{total}} files. Delete them here as well?",
+    "workspacePullGuardBodyLocal": "Another device of this workspace deleted {{n}} of {{total}} files. Delete them here as well? {{local}} of them cannot be made available to the others again from here: kept, they stay on this device only, as its own version.",
+    "workspacePullGuardKeepHere": "Keep on this device only",
+    "workspacePullGuardKeepMixed": "Keep",
+    "workspacePullGuardKeptLocal": "Kept: {{count}}, of which {{local}} on this device only, as its own version.",
+    "workspaceRestorePending": "Not allowed, and the original is not back here yet: {{names}}. Plainva tries again at every sync; until then the change waits.",
     "downloading": "Downloading changes… {{current}}/{{total}}",
     "uploading": "Uploading changes… {{current}}/{{total}}",
     "idle": "Sync now (including retry)",
@@ -7419,7 +7427,8 @@
     "forkReason": {
       "permission-denied": "Writing was not permitted — the change lies beside it as a copy.",
       "parallel-write": "Written at the same time — both versions lie side by side.",
-      "path-collision": "The path was taken — the copy carries its own name."
+      "path-collision": "The path was taken — the copy carries its own name.",
+      "kept-local": "Deleted on another device — kept here as this device's own version."
     },
     "quarantineEntries_one": "1 entry",
     "quarantineEntries_other": "{{count}} entries",

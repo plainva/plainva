@@ -3866,6 +3866,14 @@
     "deletionsKeptLocalEdits_one": "« {{names}} » a été supprimé dans le cloud, mais contenait ici des modifications pas encore envoyées. Plainva l'a conservé et l'envoie à nouveau ; supprimez-le ici si vous n'en voulez plus.",
     "deletionsKeptLocalEdits_many": "{{count}} fichiers ont été supprimés dans le cloud, mais contenaient ici des modifications pas encore envoyées. Plainva les a conservés et les envoie à nouveau ; supprimez-les ici si vous n'en voulez plus : {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} fichiers ont été supprimés dans le cloud, mais contenaient ici des modifications pas encore envoyées. Plainva les a conservés et les envoie à nouveau ; supprimez-les ici si vous n'en voulez plus : {{names}}",
+    "workspaceChangesRefused": "Non autorisé dans cet espace : {{names}}. La modification reste sur cet appareil comme fork local et ne part pas vers les autres — voir « Intégrité et forks locaux ».",
+    "workspacePullGuardTitle": "Supprimés sur un autre appareil",
+    "workspacePullGuardBody": "Un autre appareil de cet espace a supprimé {{n}} des {{total}} fichiers. Les supprimer ici aussi ?",
+    "workspacePullGuardBodyLocal": "Un autre appareil de cet espace a supprimé {{n}} des {{total}} fichiers. Les supprimer ici aussi ? {{local}} d'entre eux ne peuvent pas être remis à disposition des autres depuis ici : conservés, ils restent sur cet appareil uniquement, comme sa propre version.",
+    "workspacePullGuardKeepHere": "Conserver sur cet appareil uniquement",
+    "workspacePullGuardKeepMixed": "Conserver",
+    "workspacePullGuardKeptLocal": "Conservés : {{count}}, dont {{local}} sur cet appareil uniquement, comme sa propre version.",
+    "workspaceRestorePending": "Non autorisé, et l'original n'est pas encore revenu ici : {{names}}. Plainva réessaie à chaque synchronisation ; d'ici là, la modification attend.",
     "downloading": "Téléchargement des modifications… {{current}}/{{total}}",
     "uploading": "Envoi des modifications… {{current}}/{{total}}",
     "idle": "Synchroniser maintenant (nouvelle tentative incluse)",
@@ -7563,7 +7571,8 @@
     "forkReason": {
       "permission-denied": "L’écriture n’était pas autorisée — la modification est posée à côté, en copie.",
       "parallel-write": "Écrit en même temps — les deux versions sont côte à côte.",
-      "path-collision": "Le chemin était pris — la copie porte son propre nom."
+      "path-collision": "Le chemin était pris — la copie porte son propre nom.",
+      "kept-local": "Supprimé sur un autre appareil — conservé ici comme version propre de cet appareil."
     },
     "quarantineEntries_one": "1 entrée",
     "quarantineEntries_many": "{{count}} entrées",

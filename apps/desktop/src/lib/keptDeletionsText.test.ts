@@ -45,10 +45,13 @@ describe("the notice about files kept although the cloud deleted them", () => {
   it("is said through the shared function in both shells, with a count for the plural", () => {
     const desktop = readFileSync(join(REPO, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
     const mobile = readFileSync(join(REPO, "apps/mobile/src/services/syncService.ts"), "utf8");
+    const question = readFileSync(join(REPO, "packages/ui/src/lib/massDeletionQuestion.ts"), "utf8");
     for (const source of [desktop, mobile]) {
       expect(source).toContain("keptDeletionsText(report.keptLocalEdits)");
-      expect(source).toContain('i18n.t("sync.pullGuardKept", { count: kept })');
+      // The pull-side question is the shared one, for the plain and the encrypted worker.
+      expect(source).toMatch(/onDeletionMirroringSuspended = \(info\) => askSuspendedDeletions\(/);
       expect(source).not.toContain('"sync.deletionsKeptLocalEdits"');
     }
+    expect(question).toContain('i18n.t("sync.pullGuardKept", { count: kept })');
   });
 });
