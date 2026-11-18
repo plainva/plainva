@@ -142,19 +142,13 @@ describe("two password accounts that differ only in the case of the user", () =>
     }
   });
 
-  it("a password changed on a device on 0.8.7 reaches the new device, and the other way round, for the one account its name can mean (review 2026-11-18)", async () => {
+  it("a password changed on a device on 0.8.7 reaches the new device; one changed on the new device waits for the update and is never undone (review 2026-11-18, s2n)", async () => {
     remote = null;
-    // The password was typed on a third device; both of these got it through
-    // the sync (a password a device typed itself is never overwritten by
-    // another device's, on any version — that rule is not this one).
-    const origin = device("C-new", () => [{ id: "c-Alice", user: "Alice" }], new Map([["c-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw1" }]]));
-    const old = device("A-087", () => [{ id: "a-Alice", user: "Alice" }], undefined, true);
+    const old = device("A-087", () => [{ id: "a-Alice", user: "Alice" }], new Map([["a-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw1" }]]), true);
     const fresh = device("B-new", () => [{ id: "b-Alice", user: "Alice" }]);
-    await round(origin);
     await round(old);
     await round(fresh);
     await round(fresh);
-    expect(passOf(old.slots)).toEqual({ "a-Alice": "Alice:pw1" });
     expect(passOf(fresh.slots)).toEqual({ "b-Alice": "Alice:pw1" });
 
     old.slots.set("a-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw2" });
@@ -162,14 +156,19 @@ describe("two password accounts that differ only in the case of the user", () =>
     await round(fresh);
     expect(passOf(fresh.slots)).toEqual({ "b-Alice": "Alice:pw2" });
 
+    // Changed on the updated device: the old name is never exported, so the
+    // device on 0.8.7 keeps its password until it is updated (F36) — and its
+    // unchanged old-name entry never puts pw2 back over pw3 anywhere.
     fresh.slots.set("b-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw3" });
     await round(fresh);
     await round(old);
-    expect(passOf(old.slots)).toEqual({ "a-Alice": "Alice:pw3" });
-
-    // Settled: three more rounds move no revision.
-    await round(fresh);
-    await round(old);
+    expect(passOf(old.slots)).toEqual({ "a-Alice": "Alice:pw2" });
+    const legacyId = canonicalSecretId(legacyBinding("Alice"));
+    const exactId = canonicalSecretId(calDavSecretBinding("webdav", URL_, "Alice"));
+    for (let i = 0; i < 2; i++) {
+      await round(fresh);
+      await round(old);
+    }
     const settled = JSON.stringify(remote!.entries);
     for (let i = 0; i < 3; i++) {
       await round(fresh);
@@ -177,6 +176,30 @@ describe("two password accounts that differ only in the case of the user", () =>
     }
     expect(JSON.stringify(remote!.entries)).toBe(settled);
     expect(passOf(fresh.slots)).toEqual({ "b-Alice": "Alice:pw3" });
+    expect(remote!.entries[exactId]?.secret).toEqual({ pass: "pw3" });
+    expect(remote!.entries[legacyId]?.secret).toEqual({ pass: "pw2" });
+    expect(remote!.entries[legacyId]?.deviceId).toBe("A-087");
+  });
+
+  it("after \"alice\" is removed, its old entries never reach \"Alice\" (review 2026-11-18, t2)", async () => {
+    let rows: Row[] = [{ id: "r-alice", user: "alice" }, { id: "r-Alice", user: "Alice" }];
+    const d = device("B", () => rows, new Map([["r-alice", { kind: "caldav", url: URL_, user: "alice", pass: "alice-pw" }]]));
+    // "Alice" got its password from another device, as on a second phone.
+    const AliceBinding = calDavSecretBinding("webdav", URL_, "Alice");
+    await d.port.importBundle(bundleOf([[canonicalSecretId(AliceBinding), { entryRev: 1, updatedAt: "2026-11-17T00:00:00.000Z", deviceId: "laptop", binding: AliceBinding, secret: { pass: "Alice-pw" } }]]));
+    expect(passOf(d.slots)).toEqual({ "r-alice": "alice:alice-pw", "r-Alice": "Alice:Alice-pw" });
+    await d.port.exportBundle();
+    await retireSecret(d.host, calDavSecretBinding("webdav", URL_, "alice"));
+    rows = [{ id: "r-Alice", user: "Alice" }];
+    d.slots.delete("r-alice");
+    const after = await d.port.exportBundle();
+    const aliceId = canonicalSecretId(calDavSecretBinding("webdav", URL_, "alice"));
+    expect(after.entries[aliceId]?.tombstone).toBe(true);
+    // A device on 0.8.7 that still has "alice" changes its password later.
+    const [, late] = legacyEntry("alice-new-pw", "alice");
+    const result = await d.port.importBundle(bundleOf([[aliceId, { ...late, entryRev: 9, updatedAt: "2026-11-30T00:00:00.000Z" }]]));
+    expect(result.imported).toEqual([]);
+    expect(passOf(d.slots)).toEqual({ "r-Alice": "Alice:Alice-pw" });
   });
 
   it("\"Remove account\" tombstones exactly that account, also beside \"alice\" and when it was the last one", async () => {
@@ -204,17 +227,19 @@ describe("two password accounts that differ only in the case of the user", () =>
     expect(last.entries[alice]?.tombstone).toBe(true);
   });
 
-  it("\"Remove account\" of the only \"Alice\" tombstones the name a device on 0.8.7 knows it by too", async () => {
+  it("the name a device on 0.8.7 knows a password by is never exported, not even as a tombstone of a removed account", async () => {
     let rows: Row[] = [{ id: "r-Alice", user: "Alice" }];
     const d = device("A", () => rows, new Map([["r-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw" }]]));
-    const first = await d.port.exportBundle();
+    // It was read once from a device on 0.8.7.
+    await d.port.importBundle(bundleOf([legacyEntry("pw")]));
     const legacyId = canonicalSecretId(legacyBinding("Alice"));
-    expect(first.entries[legacyId]?.secret).toEqual({ pass: "pw" });
+    const first = await d.port.exportBundle();
+    expect(first.entries).not.toHaveProperty(legacyId);
     await retireSecret(d.host, calDavSecretBinding("webdav", URL_, "Alice"));
     rows = [];
     d.slots.clear();
     const after = await d.port.exportBundle();
-    expect(after.entries[legacyId]?.tombstone).toBe(true);
+    expect(after.entries).not.toHaveProperty(legacyId);
     expect(after.entries[canonicalSecretId(calDavSecretBinding("webdav", URL_, "Alice"))]?.tombstone).toBe(true);
   });
 });
