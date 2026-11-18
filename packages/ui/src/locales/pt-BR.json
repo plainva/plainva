@@ -5379,6 +5379,7 @@
     "defaultHint": "O padrão vale em todo cofre que não tenha o seu próprio."
   },
   "reader": {
+    "mathLeftAsSource": "Esta nota contém mais fórmulas do que o modo de leitura consegue exibir de uma vez. As demais aparecem como código-fonte; o editor mostra todas.",
     "mermaidError": "Não foi possível renderizar o diagrama Mermaid",
     "mermaidLoading": "Carregando diagrama…"
   },

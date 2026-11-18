@@ -39,7 +39,7 @@ import * as path from "node:path";
 import { readFileSync } from "node:fs";
 import { READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, overBudgetInlineRanges, boundMarkdownInRanges, unitedRanges, tableLineStart, tableMarkerCost, tableMarkerCount, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
 import { prepareReaderSource } from "../../src/noteSource.js";
-import { remarkReaderMathBudget } from "../../src/readerMathBudget.js";
+import { rehypeReaderMath } from "../../src/readerMathBudget.js";
 import { toHast } from "mdast-util-to-hast";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
@@ -715,9 +715,9 @@ const unbounded = {
     const text = prepared ? input : prepareReaderSource(input).text;
     // With math, as the reading view runs it: remark-math in the parse, KaTeX for the page.
     if (HAS_MATH.test(text)) {
-      // Bounded, as the app runs it: the formulas over their budget stay as source (`remarkReaderMathBudget`).
+      // Bounded, as the app runs it: KaTeX lays the formulas out until they made their budget, the rest stay as source (`rehypeReaderMath`).
       const processor = mathBudget
-        ? unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkReaderMathBudget as never).use(remarkRehype as never).use(rehypeKatex as never)
+        ? unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use((() => rehypeReaderMath({ layout: (rehypeKatex as () => never)() })) as never)
         : unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use(rehypeKatex as never);
       const tree = processor.parse(text);
       processor.runSync(tree);

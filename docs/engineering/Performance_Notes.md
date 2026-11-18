@@ -611,35 +611,81 @@ link, and a row of 1.5 MB whose link holds `[[x` over and over ran it out of mem
 pieces in one join and walks a label's spellings one by one; a stretch read as written is made
 safe by one replace, not a string grown by a character.
 
-**Formulas (since the tenth review, 2026-11-17).** Weighed before the parse, by hand and then with
+**Formulas (since the eleventh review, 2026-11-17).** Weighed before the parse, by hand and then with
 a parser of their own, formulas came out wrong or expensive in every review: a price (`$5 per
 month`) weighed everything behind it, a `$` in a code span paired with one outside it, a `$` in an
 HTML tag left the formula behind it unweighed, a reference definition below a table made a link of
 what the row alone read as a formula, a padded `$ x $` that remark-math reads once it is loaded
 stayed out, and parsing each row cost a table of 60 KB a second and of 1 MB 4.5 s at every pause in
-typing. The table budget now weighs a table's structure alone — a `$` is a character of inline
-syntax and nothing more — and the reading view bounds its formulas where it makes them:
-`remarkReaderMathBudget` (`readerMathBudget.ts` in packages/core) runs behind remark-math and ahead
-of rehype-katex, weighs each `inlineMath` and `math` node of the tree it really parsed in the order
-of the note at 600 a character of its source (`MATH_CHAR_WEIGHT`), and leaves every formula past
-`MATH_BUDGET` (6 970 000) as its source, as code, which KaTeX never sees. The memory is KaTeX's:
-without it every formula shape of the calibration reads at three times its limit under 128 MB
-(`$a$` × 100 at 264 rows, forty fractions in one formula at 222, a matrix of sixty cells at 315,
-thirty `\overbrace` at 159, an integral per row at 2 190), with it each runs out there. The weight
-comes from those limits: the matrix of sixty cells (105 rows of 149 characters) weighs 1.35 × the
-budget, a hundred `$a$` per row 2.3 ×, the others more. The index never lost a link to a formula
-and never will: it lays none out. `readerTableBudget.test.tsx` holds 40 random notes — tables,
-quotes, paragraphs, prices, code with `$`, reference definitions and footnotes with a `$`, padded
-formulas — against the reading view: every formula within the budget is laid out by KaTeX, every
-one past it is not, and every table is a table. Not covered: a table at its budget and formulas at
-theirs in one note (L14 weighs the whole note), and the editor's live preview, which lays out
-formulas as they scroll into view.
+typing. Weighed by their source after the parse (the tenth review), at the dearest shape's weight
+a character, they cut ordinary lecture notes to a third of what `main` laid out: a matrix and an
+ordinary sum of the same length differ by three times and more in what KaTeX makes of them. The
+table budget weighs a table's structure alone — a `$` is a character of inline syntax and nothing
+more — and the reading view charges each formula by what KaTeX made of it: `rehypeReaderMath`
+(`readerMathBudget.ts` in packages/core) stands in for `rehype-katex`, lays the formulas of the
+tree out one at a time in the order of the note with KaTeX's own step, counts the nodes each one
+made, and once they hold more than `MATH_NODE_BUDGET` (132 000) leaves the formula that crossed it
+and every later one as its source, as code; the note says so once, at its top. The measure holds
+across shapes: the most formulas `main` lays out under 128 MB (`scripts/perf/reader-math.ts
+calibrate`) made 123 860 to 128 289 nodes inline, in display, in table cells, in footnotes and in
+a list. `main` holds every class name and style KaTeX writes as often as it writes it; held once
+(`countAndLighten`), the same formulas cost less, so at the budget every formula `main` lays out
+under 128 MB is laid out, and a note of three times as many stays under 128 MB, in each shape.
+
+`main`'s limits (`reader-math.ts calibrate` at `main` ee8f2a950, 2026-11-17: the most formulas of
+each shape KaTeX laid out in a process capped at 128 MB, and the nodes it made of them):
+
+| Shape | Formulas | Nodes |
+|---|---:|---:|
+| inline, 35 characters each | 1 010 | 128 289 |
+| inline, 20 characters each | 1 454 | 126 289 |
+| display, 500 characters each | 78 | 123 860 |
+| in table cells, 40 characters each | 780 | 126 230 |
+| in footnotes, 40 characters each | 770 | 124 586 |
+| in list items, 40 characters each | 790 | 127 818 |
+
+Where that limit lies is itself noisy: at it `main` runs through once and out of memory the next
+time. A budget at `main`'s limit with `main`'s memory (129 000) ran out there in turn and at one
+and a half times as many formulas; one a sixteenth below (120 000) stayed under 128 MB at three
+times as many and cost the notes at the edge their last 4 to 9 % of formulas. With each string held
+once, 132 000 nodes keep every formula of the table and stay under 128 MB at three times as many in
+each shape, and is the budget.
+
+One estimate stays, ahead of the layout: KaTeX's memory while it lays out one formula is spent
+before anything can be counted, and a matrix of one row (`a&a&…`) of 11 397 characters held
+246 MB. A formula whose source, at 17 nodes a character (`MATH_WORST_NODES_PER_CHAR`, from that
+matrix, which `main` lays out alone up to 7 704 characters; an array of 400 columns up to 8 169),
+would not fit into what is left of the budget is not laid out; the next one may be. The index never
+lost a link to a formula and never will: it lays none out. `reader-math-budget.test.ts` holds
+`main`'s limits, frozen, and the review's ordinary notes (300 and 400 formulas of 35 characters, 50
+display formulas of 500, 1 000 of 20, 600 list items and 400 cells of 40): each is laid out in full
+under 128 MB, three times `main`'s limit stays under it, and so do the dearest single formulas.
+`readerTableBudget.test.tsx` holds 40 random notes — tables, quotes, paragraphs, prices, code with
+`$`, reference definitions and footnotes with a `$`, padded formulas — against the reading view:
+KaTeX lays out exactly the formulas the rule admits, the notice stands where one is left, and
+every table is a table. Only the desktop's reading view needs the budget: the phone reads a note
+in the editor, which lays out the formulas in view (parity entry `reader-math-budget`). Not
+covered: a table at its budget and formulas at theirs in one note (L14 weighs the whole note), and
+the editor's live preview, which lays out formulas as they scroll into view.
+
+**Tables over the budget keep their links in the index (2026-11-17).** A table over the budget is
+text for the reading view; the index read it as text too, and a price table of 2 000 rows gave it
+2 links where `main` gave 2 002 — lost to the backlinks and the graph, and left behind by a rename
+of the notes they lead to. `parseMarkdownAst`, which the index, a rename and the workspace index
+read, reads each row of such a table on its own, under the table's header and delimiter row (the
+reader of every other table, one row at a time), and keeps of it only its links, at their places;
+tags were never lost, they are read from the text. A price table of 5 000 rows gives its 10 000
+links under 128 MB (61 MB), and 2 000 rows take 1.8 s where `main`, reading them as a table, takes
+2.8 s and 135 MB (`table-row-links.test.ts`).
 
 **What the scan costs.** The scan runs at every pause in typing (the properties panel, the status
-bar), so it is held to twice what `main`'s takes at most. It reads characters by their codes with a
-table of what to do with each, and it keeps the parts of the table rows it weighed in the latest two
-scans, by the row and the characters around it: a pause re-weighs only the rows that changed, and
-what it keeps is the rows of at most two texts.
+bar), so it is held to twice what `main`'s takes at most there. It reads characters by their codes
+with a table of what to do with each, and it keeps the parts of the table rows it weighed in the
+latest two scans, by the row and the characters around it: a pause re-weighs only the rows that
+changed, and what it keeps is the rows of at most two texts. Measured in the review of 2026-11-17:
+at a pause in typing 19 to 37 ms for a note of 1 MB against 8.5 to 19 ms at `main`; the first scan
+of a note, with nothing kept, 57 to 145 ms a MB against 8 to 9 ms, linear in the size; in the
+index under 5 % of the parse.
 
 **What the criterion covers, and what not.** Covered: one table alone in an otherwise empty
 note, read by the index parse, the note-source parse and the reading view as the core can run it

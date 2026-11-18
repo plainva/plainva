@@ -5268,6 +5268,7 @@
     "defaultHint": "Der Standard gilt in jedem Vault, der nichts Eigenes gesetzt hat."
   },
   "reader": {
+    "mathLeftAsSource": "Diese Notiz enthält mehr Formeln, als der Lesemodus auf einmal darstellen kann. Die übrigen stehen als Quelltext da; im Editor erscheinen alle.",
     "mermaidError": "Mermaid-Diagramm konnte nicht gerendert werden",
     "mermaidLoading": "Diagramm wird geladen…"
   },

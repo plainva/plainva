@@ -5268,6 +5268,7 @@
     "defaultHint": "The default applies in every vault that has not set its own."
   },
   "reader": {
+    "mathLeftAsSource": "This note holds more formulas than the reading view can lay out at once. The rest are shown as their source; the editor shows all of them.",
     "mermaidError": "Mermaid diagram could not be rendered",
     "mermaidLoading": "Loading diagram…"
   },

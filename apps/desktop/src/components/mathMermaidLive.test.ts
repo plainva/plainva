@@ -277,3 +277,32 @@ describe("mathMermaidLive — the inline plugin rebuilds on parse progress", () 
     }
   });
 });
+
+// The reading view lays the formulas of a note out until what KaTeX made
+// reaches its budget, and says the editor shows all of them (review,
+// 2026-11-17): the live preview lays out every formula it shows, however many
+// the note holds — one widget for each formula in view, wherever the view is.
+describe("mathMermaidLive — a note with more formulas than the reading view lays out", () => {
+  it("lays out every formula in view, at the top, the middle and the end of the note", async () => {
+    // KaTeX makes 73 nodes of each of these formulas: 3 000 of them are 1.7 × the reading view's budget (`MATH_NODE_BUDGET`).
+    const count = 3_000;
+    const doc = "# Formeln\n\n" + Array.from({ length: count }, (_, i) => `Schritt ${i}: $x_{${i}} + \\frac{a}{b}$ und weiter.`).join("\n\n") + "\n";
+    const s = makeSession(doc);
+    // KaTeX is loaded on demand; a widget shows its formula once it is.
+    await vi.waitFor(() => expect(s.view.dom.querySelector(".pv-math-widget .katex")).not.toBeNull(), { timeout: 15_000 });
+    const formulasInView = () => {
+      let n = 0;
+      for (const { from, to } of s.view.visibleRanges) n += (s.view.state.sliceDoc(from, to).match(/\$x_\{\d+\} \+ \\frac\{a\}\{b\}\$/g) ?? []).length;
+      return n;
+    };
+    for (const at of [0, Math.floor(doc.length / 2), doc.length - 1]) {
+      s.view.dispatch({ effects: EditorView.scrollIntoView(at, { y: "center" }) });
+      forceFullParse(s.view);
+      s.view.dispatch({});
+      const shown = formulasInView();
+      expect(shown, `formulas in view at ${at}`).toBeGreaterThan(0);
+      expect(mathWidgets(s), `widgets at ${at}`).toBe(shown);
+      await vi.waitFor(() => expect(s.view.dom.querySelectorAll(".pv-math-widget .katex").length).toBe(shown), { timeout: 15_000 });
+    }
+  });
+});

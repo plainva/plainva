@@ -5379,6 +5379,7 @@
     "defaultHint": "Il valore predefinito vale in ogni vault che non ne ha uno proprio."
   },
   "reader": {
+    "mathLeftAsSource": "Questa nota contiene più formule di quante la modalità lettura possa mostrarne insieme. Le altre appaiono come sorgente; l’editor le mostra tutte.",
     "mermaidError": "Impossibile renderizzare il diagramma Mermaid",
     "mermaidLoading": "Caricamento del diagramma…"
   },

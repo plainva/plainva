@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-11-16
+Dernière mise à jour : 2026-11-18
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -170,7 +170,7 @@ Une note quotidienne peut aussi contenir un **journal** : de courtes entrées av
 - **Cases à cocher de tâches** : `- [ ] tâche` se rend comme une case à cocher partout — et en **mode lecture**, vous pouvez cliquer dessus : Plainva réécrit `[x]` ou `[ ]` dans le fichier. Une tâche terminée s'affiche atténuée et barrée — dans la note comme dans la vue des tâches.
 - **Callouts** : une citation qui commence par `> [!tip] Titre` (ou l'une des 13 variantes du menu slash) s'affiche comme une seule carte — un trait fin dans la couleur du callout, une teinte légère et le titre dans cette couleur ; sans titre, la carte affiche le nom de sa variante. L'aspect est le même dans l'aperçu en direct, en mode lecture et sur le téléphone ; une citation ordinaire garde sa barre.
 - **Listes imbriquées** : à partir du deuxième niveau, un trait fin sous chaque puce parente montre quels éléments vont ensemble — dans l'aperçu en direct et en mode lecture.
-- **Formules mathématiques (LaTeX)** : `$E = mc^2$` en ligne et `$$…$$` en bloc se rendent comme des formules en mode lecture ET dans l'aperçu en direct (KaTeX). Quand le curseur se trouve dans une formule, la syntaxe est visible ; cliquer sur une formule rendue l'ouvre pour la modifier. Seul le mode source affiche toujours la syntaxe brute. Inutile de retenir par cœur le bloc `$$…$$` — la commande slash **Formule (LaTeX)** (`/katex`) l'insère et y place le curseur.
+- **Formules mathématiques (LaTeX)** : `$E = mc^2$` en ligne et `$$…$$` en bloc se rendent comme des formules en mode lecture ET dans l'aperçu en direct (KaTeX). Quand le curseur se trouve dans une formule, la syntaxe est visible ; cliquer sur une formule rendue l'ouvre pour la modifier. Seul le mode source affiche toujours la syntaxe brute. Inutile de retenir par cœur le bloc `$$…$$` — la commande slash **Formule (LaTeX)** (`/katex`) l'insère et y place le curseur. Si une note contient un très grand nombre de formules, le mode lecture sur ordinateur en affiche autant qu’il peut à la fois, laisse les autres sous forme de source et le signale en haut de la note ; l’éditeur les affiche toutes.
 - **Diagrammes Mermaid** : un bloc de code avec le langage `mermaid` (le plus rapide via la commande slash **Diagramme Mermaid**, `/mermaid`) se dessine comme un diagramme en mode lecture et dans l'aperçu en direct — cliquer sur le diagramme affiche le code pour le modifier :
 
   ````markdown
