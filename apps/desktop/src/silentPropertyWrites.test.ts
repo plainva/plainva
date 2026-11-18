@@ -666,7 +666,7 @@ const STRETCHES: Stretch[] = [
   },
   {
     file: "apps/mobile/src/services/cascadeDelete.ts", at: "export async function executeMobileCascade(", span: 2200, calls: { removeRelationLinksToNoteShared: 1 },
-    how: "counted in errors, which the deletion's host says", says: [/errors\+\+;/],
+    how: "collected in errors, which the deletion's confirmation says (F6)", says: [/errors\.push\(ref\.source\.split\(/],
   },
   {
     file: "packages/ui/src/services/graphRelationTargets.ts", at: "export async function removeRelationLink(", calls: { [upsert]: 1 },

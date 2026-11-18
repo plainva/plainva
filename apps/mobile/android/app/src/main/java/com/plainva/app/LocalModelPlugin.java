@@ -144,8 +144,10 @@ public class LocalModelPlugin extends Plugin {
         String name = call.getString("name");
         String url = call.getString("url");
         String sha256 = call.getString("sha256");
-        Long bytesValue = call.getLong("bytes");
-        long bytes = bytesValue == null ? 0 : bytesValue;
+        // JsNumbers, not getLong: a size that fits an int arrives as an Integer, which getLong
+        // answers with null - every file under 2 GB was refused as "download_not_allowed".
+        Long bytesArg = JsNumbers.whole(call, "bytes");
+        long bytes = bytesArg == null ? 0 : bytesArg;
         if (!LocalModelRules.validSha256(sha256) || bytes <= 0 || !LocalModelRules.allowedUrl(url, name)) {
             call.reject("download_not_allowed");
             return;
@@ -302,13 +304,35 @@ public class LocalModelPlugin extends Plugin {
         return file;
     }
 
+    /** The most one answer carries, in bytes before base64 (`BRIDGE_PART_BYTES` in JS). */
+    private static final int MAX_PART = 256 * 1024;
+
+    /**
+     * At most one part of a checked package file from `offset`, base64, with
+     * the file's size. A tokenizer is 11 to 33 MB: as one answer it was a
+     * string Android parses on its UI thread at every start (release list F54,
+     * the class of F51), so the page asks for it part by part.
+     */
     @PluginMethod
-    public void readText(PluginCall call) {
+    public void readPart(PluginCall call) {
+        Long offset = JsNumbers.whole(call, "offset");
+        Long length = JsNumbers.whole(call, "length");
         downloads.execute(() -> {
             try {
+                if (offset == null || length == null || offset < 0 || length < 0) throw new IOException("no offset and length");
                 File file = checked(call.getString("model"), call.getString("name"));
+                byte[] bytes;
+                long size;
+                try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "r")) {
+                    size = raf.length();
+                    int want = (int) Math.max(0, Math.min(Math.min(length, MAX_PART), size - offset));
+                    bytes = new byte[want];
+                    raf.seek(offset);
+                    raf.readFully(bytes);
+                }
                 JSObject result = new JSObject();
-                result.put("text", new String(readAll(file), StandardCharsets.UTF_8));
+                result.put("data", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP));
+                result.put("size", size);
                 call.resolve(result);
             } catch (Exception e) {
                 call.reject(e.getMessage());
@@ -359,8 +383,8 @@ public class LocalModelPlugin extends Plugin {
             try {
                 OrtSession session = sessions.get(call.getString("handle", ""));
                 if (session == null) throw new IOException("model_not_loaded");
-                int batch = call.getInt("batch", 0);
-                int seq = call.getInt("seq", 0);
+                int batch = (int) JsNumbers.wholeOr(call, "batch", 0L);
+                int seq = (int) JsNumbers.wholeOr(call, "seq", 0L);
                 String pooling = call.getString("pooling", LocalModelRules.POOL_CLS);
                 byte[] idBytes = Base64.decode(call.getString("ids", ""), Base64.DEFAULT);
                 byte[] mask = Base64.decode(call.getString("mask", ""), Base64.DEFAULT);

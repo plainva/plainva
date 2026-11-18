@@ -11,11 +11,13 @@ import { BookOpenCheck, CalendarCheck, CalendarClock, CalendarRange, Feather, Fo
  */
 const FILES = import.meta.glob<string>("./skills/*/SKILL.md", { query: "?raw", import: "default", eager: true });
 
-export interface AppSkill {
+interface AppSkillEntry {
   /** The folder, and the skill's `name`. */
   name: string;
   /** Its texts in the locales: `ai.skills.<key>.title`, `.description`, `.prompt`. */
   key: string;
+  /** It takes an argument (`plainva.argument` in its SKILL.md): its texts `.promptFor` and `.argument` too. */
+  argument?: true;
   icon: LucideIcon;
   /** A chip of an empty conversation. */
   featured?: boolean;
@@ -31,13 +33,13 @@ export interface AppSkill {
  * only useful as something the user can accept — and a draft changes nothing
  * before they do. `aiSkills.test.ts` holds the exception to exactly that.
  */
-export const APP_SKILLS: readonly AppSkill[] = [
+const APP_SKILL_LIST = [
   { name: "daily-orientation", key: "daily", icon: CalendarCheck, featured: true, mcp: true },
   { name: "weekly-review", key: "weekly", icon: CalendarRange, featured: true, mcp: true },
-  { name: "project-status", key: "project", icon: FolderKanban, featured: true, mcp: true },
+  { name: "project-status", key: "project", icon: FolderKanban, featured: true, mcp: true, argument: true },
   // How notes developed (plan P9-1): from the index and the version history of this device, so no prompt of the MCP server.
   { name: "history-analysis", key: "history", icon: History },
-  { name: "meeting-prep", key: "meeting", icon: CalendarClock, mcp: true },
+  { name: "meeting-prep", key: "meeting", icon: CalendarClock, mcp: true, argument: true },
   { name: "task-triage", key: "triage", icon: ListOrdered, mcp: true },
   // The one skill that names the internet's tools (plan P4-6): started by the user, it brings them along where the vault allows the internet.
   // Not a prompt of the MCP server: a client there has its own way onto the web.
@@ -52,7 +54,23 @@ export const APP_SKILLS: readonly AppSkill[] = [
   // Meant for a model on this device (a hint in the send overview, never a block): they read what is most private.
   { name: "privacy-check", key: "privacy", icon: ShieldCheck },
   { name: "reflection", key: "reflection", icon: Feather },
-];
+] as const satisfies readonly AppSkillEntry[];
+
+/** The key of an app skill: the domain of `ai.skills.<key>.*` (F53 of release 0.9.0). */
+export type AppSkillKey = (typeof APP_SKILL_LIST)[number]["key"];
+/** The key of an app skill that takes an argument. */
+export type AppSkillArgumentKey = Extract<(typeof APP_SKILL_LIST)[number], { argument: true }>["key"];
+
+export interface AppSkill extends Omit<AppSkillEntry, "key"> {
+  key: AppSkillKey;
+}
+
+export const APP_SKILLS: readonly AppSkill[] = APP_SKILL_LIST;
+
+/** Whether the skill takes an argument — the one way to its `.promptFor` and `.argument` texts. */
+export function takesArgument(skill: AppSkill): skill is AppSkill & { key: AppSkillArgumentKey } {
+  return skill.argument === true;
+}
 
 /** The bundled folders — a guard checks that each has its entry above and the other way round. */
 export const APP_SKILL_FOLDERS: readonly string[] = Object.keys(FILES).map((path) => path.split("/")[2]!);

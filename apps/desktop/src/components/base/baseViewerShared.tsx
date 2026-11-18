@@ -1,7 +1,7 @@
 import type React from "react";
 import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, StickyNote, Waypoints } from "lucide-react";
 import type { TFunction } from "i18next";
-import { baseColumnLabel, capitalizeFirst, formatByteSize, ICON, type RowDueTone } from "@plainva/ui";
+import { baseColumnLabel, capitalize, capitalizeFirst, formatByteSize, ICON, type RowDueTone } from "@plainva/ui";
 // Co-located with the module that owns the base-*/base-cfg-* classes, so every
 // surface using them is styled — including the create wizard, which opens
 // without a BaseViewer (and therefore without the old inline <style>) anywhere.
@@ -16,7 +16,11 @@ import "./base.css";
 export const formatBytes = formatByteSize;
 
 export const EXTENDED_TYPES = ["board", "calendar", "timeline", "graph", "pinboard"];
-export const ALL_VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline", "graph", "pinboard"];
+const VIEW_TYPE_NAMES = ["table", "list", "gallery", "board", "calendar", "timeline", "graph", "pinboard"] as const;
+/** A view's type: the domain of `database.view<Type>` (F53 of release 0.9.0). */
+export type ViewTypeName = (typeof VIEW_TYPE_NAMES)[number];
+export const ALL_VIEW_TYPES: readonly ViewTypeName[] = VIEW_TYPE_NAMES;
+const isViewTypeName = (type: string): type is ViewTypeName => (ALL_VIEW_TYPES as readonly string[]).includes(type);
 
 /**
  * The ONE list of `.base` column input types with their localized labels —
@@ -69,9 +73,8 @@ export function columnLabel(col: string, t: TFunction, dbConfig?: any): string {
 export { capitalizeFirst };
 
 export const defaultViewName = (t: TFunction, type: string): string => {
-  const key = ALL_VIEW_TYPES.includes(type) ? type : "table";
-  const cap = key.charAt(0).toUpperCase() + key.slice(1);
-  return t(`database.view${cap}`, cap);
+  const key: ViewTypeName = isViewTypeName(type) ? type : "table";
+  return t(`database.view${capitalize(key)}`, capitalize(key));
 };
 
 export const viewLabel = (t: TFunction, view: any): string => view?.name || defaultViewName(t, view?.type || "table");

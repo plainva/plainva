@@ -61,10 +61,11 @@ export async function executeMobileCascade(
   v: MobileVault,
   plan: DeletionPlan,
   selection: CascadeSelection
-): Promise<{ deleted: string[]; errors: number }> {
+): Promise<{ deleted: string[]; errors: string[] }> {
   const paths = selectedPaths(plan, selection);
   const pathSet = new Set(paths);
-  let errors = 0;
+  /** What failed, by name — as the desktop's cascade says it (F6 of release 0.9.0). */
+  const errors: string[] = [];
 
   // S2: a cascade rewrites SURVIVING notes (the reference cleanup below), and
   // any of them may be open with pending keystrokes. A save settling afterwards
@@ -93,7 +94,7 @@ export async function executeMobileCascade(
         if (res.changed && v.indexer) await v.reindexPaths([ref.source]);
       } catch (e) {
         console.error("mobile cascade cleanup failed", ref, e);
-        errors++;
+        errors.push(ref.source.split("/").pop() ?? ref.source);
       }
     }
   }
@@ -131,7 +132,7 @@ export async function executeMobileCascade(
   for (const outcome of await deleteEachWithNet(paths, (p, ask) => vaultOps.remove(v, p, { confirmed: true }, ask))) {
     if ("error" in outcome) {
       console.error("mobile cascade delete failed", outcome.item, outcome.error);
-      errors++;
+      errors.push(outcome.item.split("/").pop() ?? outcome.item);
     } else if (outcome.deleted) deleted.push(outcome.item);
   }
 

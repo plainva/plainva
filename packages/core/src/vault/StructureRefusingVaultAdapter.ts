@@ -1,4 +1,5 @@
 import { DeletionConfirmation, IVaultAdapter, VaultError, VaultFileInfo, VaultListing, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { contentSha256Of } from "./localText.js";
 import { isQueueLocalOnlyPath } from "./QueueingVaultAdapter.js";
 
 /** A deletion, rename or move refused because the vault's index database is closed (`StructureRefusingVaultAdapter`). */
@@ -58,6 +59,11 @@ export class StructureRefusingVaultAdapter implements IVaultAdapter {
 
   readBinaryFile(path: string): Promise<Uint8Array> {
     return this.inner.readBinaryFile(path);
+  }
+
+  /** The inner adapter's hash, without the bytes where it can (`contentSha256Of`): this one hands them out unchanged. */
+  contentSha256(path: string): Promise<string> {
+    return contentSha256Of(this.inner, path);
   }
 
   writeTextFile(path: string, content: string): Promise<void> {

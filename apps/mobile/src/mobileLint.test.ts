@@ -2645,15 +2645,20 @@ describe("the scheduled vault archive", () => {
     const svc = readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8");
     // Measured inside the function, not from the file start — the import line
     // names the pruner long before it is used.
-    const body = svc.slice(svc.indexOf("export async function runVaultBackup"));
-    expect(body.indexOf("writeFile")).toBeLessThan(body.indexOf("selectZipsToDelete"));
+    // The try itself lives in runOnce; runVaultBackup only holds the lock per vault.
+    const body = svc.slice(svc.indexOf("async function runOnce("));
+    // The archive is published (renamed into place) before anything old goes.
+    expect(body.indexOf("streamVaultZip(")).toBeGreaterThan(-1);
+    expect(body.indexOf("Filesystem.rename(")).toBeGreaterThan(body.indexOf("streamVaultZip("));
+    expect(body.indexOf("Filesystem.rename(")).toBeLessThan(body.indexOf("selectZipsToDelete"));
   });
 
   it("packs the same contents as the manual export", () => {
     const svc = stripComments(readFileSync(join(SRC, "services/vaultBackup.ts"), "utf8"));
-    expect(svc).toMatch(/buildVaultZip\(/);
+    expect(svc).toMatch(/streamVaultZip\(/);
     const exp = stripComments(readFileSync(join(SRC, "services/vaultExport.ts"), "utf8"));
-    expect(exp).toMatch(/export async function buildVaultZipBytes\(/);
+    expect(exp).toMatch(/export async function streamVaultZip\(/);
+    expect(exp).toMatch(/await streamVaultZip\(v, sink\)/);
   });
 
   it("is a catch-up, not a clock", () => {
@@ -3513,9 +3518,14 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
   it("says whether restoring a mass deletion worked", () => {
     // The user chose "restore" — going quiet means believing the files are
     // back while the deletions still stand.
+    // One question for both workers since release 0.9.0 (A4): the sync
+    // service hands the plain and the workspace worker to it.
     const sync = read("src/services/syncService.ts");
-    expect(sync).toMatch(/massDeleteRestored/);
-    expect(sync).toMatch(/massDeleteRestoreFailed/);
+    expect(sync).toMatch(/w\.onMassDeletionPending = \(info\) => askMassDeletion\(w, info\)/);
+    expect(sync).toMatch(/encrypted\.onMassDeletionPending = \(info\) => askMassDeletion\(encrypted, info\)/);
+    const shared = stripComments(readFileSync(join(SRC, "../../../packages/ui/src/lib/massDeletionQuestion.ts"), "utf8"));
+    expect(shared).toMatch(/massDeleteRestored/);
+    expect(shared).toMatch(/massDeleteRestoreFailed/);
   });
 
   it("tells a configured-but-unreachable file provider apart from no sync", () => {

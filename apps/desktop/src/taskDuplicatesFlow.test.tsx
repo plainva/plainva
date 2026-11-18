@@ -51,7 +51,7 @@ describe("removeTaskCopies", () => {
     const deleted: string[] = [];
     const result = await removeTaskCopies(shown, opts, async (p) => void deleted.push(p));
     expect(deleted).toEqual(["T/Blumen 2.md"]);
-    expect(result).toEqual({ removed: ["T/Blumen 2.md"], skipped: ["T/Blumen 3.md"] });
+    expect(result).toEqual({ removed: ["T/Blumen 2.md"], skipped: ["T/Blumen 3.md"], failed: [] });
   });
 
   it("never offers the kept note, and a failing delete is skipped without stopping the rest", async () => {
@@ -63,6 +63,8 @@ describe("removeTaskCopies", () => {
     });
     expect(result.removed).toEqual(["a 3.md"]);
     expect(result.skipped).toEqual(["a 2.md"]);
+    // …and said as such: the one the device refused, not the ones that changed or were kept (F4).
+    expect(result.failed).toEqual(["a 2.md"]);
   });
 
   it("copies without a net are one question for the whole clean-up, not one per copy (A12)", async () => {
@@ -83,11 +85,11 @@ describe("removeTaskCopies", () => {
       const kept = await removeTaskCopies(shown, opts, (path, ask) => deleteWithNet(adapter, path, false, undefined, ask));
       expect(asked).toBe(1);
       // What the person did not want deleted is what was skipped.
-      expect(kept).toEqual({ removed: [], skipped: ["a 2.md", "a 3.md", "a 4.md"] });
+      expect(kept).toEqual({ removed: [], skipped: ["a 2.md", "a 3.md", "a 4.md"], failed: [] });
       answer = true;
       const gone = await removeTaskCopies(shown, opts, (path, ask) => deleteWithNet(adapter, path, false, undefined, ask));
       expect(asked).toBe(2);
-      expect(gone).toEqual({ removed: ["a 2.md", "a 3.md", "a 4.md"], skipped: [] });
+      expect(gone).toEqual({ removed: ["a 2.md", "a 3.md", "a 4.md"], skipped: [], failed: [] });
       expect(Object.keys(files)).toEqual(["a.md"]);
     } finally {
       registerDeletionNetQuestion(null);
@@ -159,6 +161,7 @@ describe("useTaskDuplicates", () => {
         return files[p];
       },
       deleteNote,
+      onFailed: () => { throw new Error("nothing should fail here"); },
       onError: (e) => { throw e; },
     };
     return { state, deleteNote, base };
@@ -185,6 +188,28 @@ describe("useTaskDuplicates", () => {
 
     await render({ ...deps, reloadKey: 1 });
     expect(current.visible).toBe(false);
+  });
+
+  it("says which copies the device would not delete (F4)", async () => {
+    const files: Record<string, string> = { "T/Blumen.md": note("Blumen", "Offen"), "T/Blumen 2.md": note("Blumen", "Erledigt"), "T/Blumen 3.md": note("Blumen", "Erledigt") };
+    const { base } = setup(files);
+    const failed: string[][] = [];
+    const removedSeen: string[][] = [];
+    await render({
+      ...base,
+      deleteNote: async (p) => {
+        if (p === "T/Blumen 3.md") throw new Error("locked");
+        delete files[p];
+      },
+      onFailed: (paths) => void failed.push(paths),
+      onRemoved: (r) => void removedSeen.push(r),
+    });
+    await act(() => current.review());
+    let removed = 0;
+    await act(async () => { removed = await current.remove(); });
+    expect(removed).toBe(1);
+    expect(removedSeen).toEqual([["T/Blumen 2.md"]]);
+    expect(failed).toEqual([["T/Blumen 3.md"]]);
   });
 
   it("can be put away when every copy stays - and comes back when the set changes", async () => {

@@ -11,7 +11,7 @@ import {
   type DraftJournalStorage,
 } from "@plainva/ui";
 import { atomicWriteInternalText } from "../platform/atomicFile";
-import { internalPlace } from "../platform/internalFiles";
+import { internalPlace, listInternalFolder } from "../platform/internalFiles";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -92,9 +92,8 @@ const storage: DraftJournalStorage = {
   },
   async list(dir) {
     try {
-      const place = await internalPlace(dir);
-      const listed = await Filesystem.readdir({ path: place.path, directory: place.directory });
-      return listed.files.map((f) => ({ name: f.name, isFile: f.type === "file", mtimeMs: typeof f.mtime === "number" ? f.mtime : null }));
+      const listed = await listInternalFolder(dir);
+      return listed.map((f) => ({ name: f.name, isFile: f.type === "file", mtimeMs: f.mtime }));
     } catch {
       return [];
     }
@@ -133,6 +132,27 @@ const identityOf = (draft: { ts: number; revision?: number; sessionId?: string }
 /** Throttled per vault/document, independently of editor lifetime. */
 export function writeDraft(v: MobileVault, path: string, text: string, revision = 0): void {
   writer().write(v, path, text, revision, RUN_SESSION);
+}
+
+/**
+ * The note's buffered snapshot, written now: its editor goes — another note,
+ * the screen closing. The interval only paces continuous typing (maintainer
+ * 17.11.); a way out never waits for it.
+ */
+export function flushDraftOf(v: MobileVault, path: string): void {
+  void writer().flush((scope) => scope.vaultId === v.vaultId, { notes: (notePath) => notePath === path }).catch(() => {
+    // silent: best-effort like every journal write; the save the editor starts next keeps the text.
+  });
+}
+
+/**
+ * Forgets what the journal saw of this vault's files: the vault closed, or its
+ * drafts were removed past the journal ("forget app data"). The next snapshot
+ * reads the disk again.
+ */
+export function forgetDraftMemory(vaultId: string): void {
+  // Not awaited: a native write that never answers must not hold the way out up; the lanes keep the order.
+  void made?.journal.forgetSeen(`drafts/${vaultId}`);
 }
 
 /** Attempt all buffered journal snapshots before the OS suspends timers. */
