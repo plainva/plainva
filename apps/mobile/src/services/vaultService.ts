@@ -640,7 +640,7 @@ export async function createLocalVault(name: string, template: VaultTemplateDefi
   // back — its files, then the folders it made, the container last — and the
   // person is asked whether to try again (third review of O8, as on the desktop).
   let id = "";
-  const made = await writeWithRetry(async () => {
+  const made = await writeWithRetry(async (onTakenBack) => {
     id = newVaultId();
     const root = `vaults/${id}`;
     const adapter = new CapacitorVaultAdapter(root);
@@ -649,7 +649,7 @@ export async function createLocalVault(name: string, template: VaultTemplateDefi
     await writeNewVault(root, sandboxNewVaultPorts, async (track) => {
       await adapter.initialize();
       await scaffoldVaultTemplate({ adapter: track(adapter), isNewVault: true, template, vaultName: name, subfoldersHeading: i18n.t("indexMd.subfoldersHeading") });
-    }, { makeFolder: true });
+    }, { makeFolder: true, onTakenBack });
   });
   if (!made) return null;
   await addVault({ id, name });

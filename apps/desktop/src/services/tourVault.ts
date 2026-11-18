@@ -1,6 +1,7 @@
 import { documentDir, homeDir, join } from "@tauri-apps/api/path";
 import { exists } from "@tauri-apps/plugin-fs";
-import { isVaultFolderEmpty } from "./vaultTemplates";
+import { isVaultFolderFreeFor } from "./vaultTemplates";
+import type { ScaffoldPlan } from "@plainva/ui";
 import { vaultHasAppData } from "./vaultForget";
 
 /**
@@ -16,8 +17,10 @@ import { vaultHasAppData } from "./vaultForget";
  * "Plainva-Tour", …) inside the user's Documents — the home folder when the
  * system has none. A name that is taken by something with content gets a
  * number ("Plainva Tour 2"); an existing EMPTY folder of that name that no
- * vault uses is taken as it is. A vault's folder is never reused: scaffolding
- * only ever writes into an empty, unknown folder (`isVaultFolderEmpty`) — and
+ * vault uses is taken as it is, and so is one holding nothing but what a
+ * failed tour left (fourth review of O8). A vault's folder is never reused:
+ * scaffolding only ever writes into an unknown folder that holds nothing else
+ * (`isVaultFolderFreeFor`) — and
  * the PLACE of a vault Plainva still knows is skipped even when its folder is
  * gone: a tour made there would inherit that vault's settings, layout and
  * index (review of O8, 2026-11-17).
@@ -93,11 +96,15 @@ function samePath(a: string, b: string): boolean {
   return norm(a) === norm(b);
 }
 
-/** The Tauri implementation; `recent` is the splash's list of recent vaults. */
-export const tauriTourFolderProbe = (recent: readonly string[]): TourFolderProbe => ({
+/**
+ * The Tauri implementation; `recent` is the splash's list of recent vaults,
+ * `planFor` what the tour writes into a folder — a folder holding nothing but
+ * what a failed tour left there is free for the next (fourth review of O8).
+ */
+export const tauriTourFolderProbe = (recent: readonly string[], planFor: (path: string) => ScaffoldPlan): TourFolderProbe => ({
   parent: tourParentFolder,
   isKnownVault: async (path) => recent.some((r) => samePath(r, path)) || (await vaultHasAppData(path)),
   join: (parent, name) => join(parent, name),
   exists: (path) => exists(path),
-  isEmptyUnknownFolder: (path) => isVaultFolderEmpty(path),
+  isEmptyUnknownFolder: (path) => isVaultFolderFreeFor(path, planFor(path)),
 });

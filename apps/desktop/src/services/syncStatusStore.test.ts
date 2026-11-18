@@ -144,6 +144,15 @@ describe("isFirstPullPending (O8: a cloud vault arriving is not an empty one)", 
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
   });
 
+  it("the watchdog's notice keeps \"being loaded\" and is not a failure (fourth review of O8)", () => {
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    syncStatusStore.set(V, { status: "retrying", message: "sync cycle appears stuck", reason: "stalled" });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+    syncStatusStore.set(V, { status: "syncing", message: null, reason: undefined });
+    expect(syncStatusStore.get(V).firstPullFailed).toBe(false);
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+  });
+
   it("a first pull that failed is not pending: the ordinary start shows", () => {
     syncStatusStore.set(V, { status: "error", message: "offline", provider: "drive", firstPullDone: false });
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);

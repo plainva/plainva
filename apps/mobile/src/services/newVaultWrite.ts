@@ -1,4 +1,4 @@
-import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { logDiagnostic, type NewVaultFolderPorts } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { isExistingDirectory } from "../adapters/fileErrors";
@@ -14,6 +14,11 @@ import { mConfirm } from "./mobileDialogs";
 export const sandboxNewVaultPorts: NewVaultFolderPorts = {
   makeDir: async (path) => {
     await Filesystem.mkdir({ path, directory: Directory.Data, recursive: false });
+  },
+  readText: async (path) => {
+    const res = await Filesystem.readFile({ path, directory: Directory.Data, encoding: Encoding.UTF8 });
+    if (typeof res.data !== "string") throw new Error("the file could not be read as text");
+    return res.data;
   },
   removeFile: async (path) => {
     await Filesystem.deleteFile({ path, directory: Directory.Data });
@@ -36,23 +41,27 @@ export async function ensureVaultsFolder(): Promise<void> {
 }
 
 /**
- * Writes a new vault's structure, and says it when that fails (third review of
- * O8): the attempt has taken back what it wrote, so a second one starts from
- * the same empty place and gives a whole structure. The person decides whether
- * to try again; the raw error goes to the diagnostics, never on the screen.
- * True once an attempt went through, false when the person stopped.
+ * Writes a new vault's structure, and says it when that fails (third and
+ * fourth review of O8): the attempt takes back what it wrote, and a second one
+ * starts from that place and gives a whole structure — what a take-back could
+ * not remove does not stand in its way, as it carries exactly the text the
+ * structure writes (`scaffoldObstacle`). "What had been written is removed"
+ * is said only when the take-back removed everything. The person decides
+ * whether to try again; the raw error goes to the diagnostics, never on the
+ * screen. True once an attempt went through, false when the person stopped.
  */
-export async function writeWithRetry(attempt: () => Promise<void>): Promise<boolean> {
+export async function writeWithRetry(attempt: (onTakenBack: (complete: boolean) => void) => Promise<void>): Promise<boolean> {
   for (;;) {
+    let complete = false;
     try {
-      await attempt();
+      await attempt((done) => { complete = done; });
       return true;
     } catch (error) {
       console.error("[newVault] the structure could not be written:", error);
       logDiagnostic("vault", `the structure of a new vault could not be written: ${error instanceof Error ? error.message : String(error)}`);
       const again = await mConfirm({
         title: i18n.t("mobile.vaultTemplateFailedTitle"),
-        message: i18n.t("mobile.vaultTemplateFailed"),
+        ...(complete ? { message: i18n.t("mobile.vaultTemplateFailed") } : {}),
         confirmLabel: i18n.t("mobile.vaultTemplateRetry"),
       });
       if (!again) return false;

@@ -72,7 +72,18 @@ export interface FirstPullState {
   firstPullDone?: boolean | null;
   firstPullFailed?: boolean | null;
   status: string;
+  /** The worker's reason beside the status — `stalled` is a notice, not a failure. */
+  reason?: string | null;
 }
+
+/**
+ * Reasons beside an `error` or `retrying` that say nothing failed (fourth
+ * review of O8): the watchdog's notice that a cycle has been quiet for a while
+ * (it goes on), and a folder held back as an encrypted workspace this device
+ * has not joined (joining opens the vault again, and its first pull starts
+ * afresh).
+ */
+const NOT_A_FAILED_PULL = new Set(["stalled", "encrypted-workspace"]);
 
 /**
  * Whether the start of an empty vault says "being loaded" — the one rule both
@@ -89,17 +100,22 @@ export interface FirstPullState {
  * pull that gets through later brings the content as at any other time.
  */
 export function isFirstPullPending(s: FirstPullState): boolean {
-  return s.firstPullDone === false && s.firstPullFailed !== true && s.status !== "error" && s.status !== "retrying" && s.status !== "off";
+  if (s.firstPullDone !== false || s.firstPullFailed === true) return false;
+  // A quiet cycle is still a cycle: the watchdog's notice keeps "being loaded".
+  if (s.status === "retrying" && s.reason === "stalled") return true;
+  return s.status !== "error" && s.status !== "retrying" && s.status !== "off";
 }
 
 /**
  * The `firstPullFailed` a shell keeps after its worker reported `status`: a
  * failure during the first pull — `error`, or `retrying` (a failed cycle, a
- * file that could not be pulled, a cycle given up as stuck) — is remembered;
+ * file that could not be pulled, a cycle given up as stuck) — is remembered,
+ * but not a notice or a hold (`NOT_A_FAILED_PULL`);
  * nothing ever clears it but the end of the session. Without a worker there is
  * no first pull to fail.
  */
-export function firstPullFailedAfter(s: Omit<FirstPullState, "status">, status: string): boolean {
+export function firstPullFailedAfter(s: Omit<FirstPullState, "status" | "reason">, status: string, reason?: string | null): boolean {
   if (s.firstPullFailed === true) return true;
+  if (reason && NOT_A_FAILED_PULL.has(reason)) return false;
   return s.firstPullDone === false && (status === "error" || status === "retrying");
 }

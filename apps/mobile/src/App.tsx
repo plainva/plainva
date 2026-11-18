@@ -501,7 +501,7 @@ export default function App() {
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
       const root = vault.containerRoot; // a freshly seeded vault is always a container
-      const made = await writeWithRetry(() => (root ? writeNewVault(root, sandboxNewVaultPorts, write) : write((a) => a)));
+      const made = await writeWithRetry((onTakenBack) => (root ? writeNewVault(root, sandboxNewVaultPorts, write, { onTakenBack }) : write((a) => a)));
       if (!made) return;
       await applyTemplateSettings(def?.settings);
       await vault.indexer?.indexVaultFull("vault template");

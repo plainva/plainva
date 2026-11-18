@@ -93,6 +93,8 @@ export interface BroadcastMap {
     firstPullDone?: boolean | null;
     /** The first pull failed once since the vault was opened (third review of O8). */
     firstPullFailed?: boolean | null;
+    /** The worker's reason beside the status: `stalled` keeps "being loaded" (fourth review of O8). */
+    reason?: string | null;
   };
   /** Calendar/task data changed (PIM worker cycle finished). */
   "pim-changed": Record<string, never>;

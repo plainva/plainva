@@ -10,7 +10,7 @@ import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { forgetVaultEverywhere } from "../services/vaultForget";
-import { writeNewVault } from "@plainva/ui";
+import { planVaultScaffold, writeNewVault } from "@plainva/ui";
 import { newVaultFolderPorts } from "../services/newVaultFolderDisk";
 import { useVaultLabels } from "../services/vaultNames";
 import { ImportWizardModal } from "./import/ImportWizardModal";
@@ -26,7 +26,7 @@ import {
   templatePreviewBases,
   scaffoldVaultTemplate,
   applyVaultTemplateSettings,
-  isVaultFolderEmpty,
+  isVaultFolderFreeFor,
   type VaultTemplateDefinition,
 } from "../services/vaultTemplates";
 
@@ -150,11 +150,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
    * `makeFolder`: the folder is to be made here (the tour); a folder picked
    * in the dialog is the person's and stays.
    */
+  /** What scaffolding `template` into `folder` writes — the check of a folder before it is the same rule. */
+  const planFor = (folder: string, template: VaultTemplateDefinition | null) =>
+    planVaultScaffold({ template, vaultName: getBasename(folder), subfoldersHeading: t("indexMd.subfoldersHeading") });
+
   const scaffoldAndOpen = async (selected: string, template: VaultTemplateDefinition | null, options: { makeFolder?: boolean } = {}) => {
     // A folder the tour is about to make does not exist yet; one that
-    // exists must be empty and unknown — the scaffolder never writes into
-    // anybody's notes.
-    if ((await exists(selected)) && !(await isVaultFolderEmpty(selected))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
+    // exists must be unknown and hold nothing but what a failed attempt of
+    // this very structure left — the scaffolder never writes into anybody's
+    // notes (fourth review of O8).
+    if ((await exists(selected)) && !(await isVaultFolderFreeFor(selected, planFor(selected, template)))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
     await writeNewVault(
       selected,
       newVaultFolderPorts,
@@ -215,7 +220,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     let place = parent ?? tourFolder ?? "";
     try {
       place = parent ?? (await tourParentFolder());
-      const folder = await findTourFolder(tour.name, tauriTourFolderProbe(recentVaults), parent);
+      const folder = await findTourFolder(tour.name, tauriTourFolderProbe(recentVaults, (path) => planFor(path, tour)), parent);
       if (!folder) throw new Error("no free name for the tour");
       await scaffoldAndOpen(folder, tour, { makeFolder: true });
       setTourProgress({ kind: "idle" });

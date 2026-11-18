@@ -30,7 +30,8 @@ import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText, writeNewVault } from "@plainva/ui";
+import { ensureVaultsFolder, sandboxNewVaultPorts } from "./newVaultWrite";
 import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
@@ -163,9 +164,11 @@ interface SyncState {
    * `firstPullFailedAfter`; a worker for another opened vault starts it afresh.
    */
   firstPullFailed: boolean;
+  /** The worker's reason beside the status: `stalled` is the watchdog's notice, not a failure (fourth review of O8). */
+  reason: string | null;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false, firstPullDone: null, firstPullFailed: false };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false, firstPullDone: null, firstPullFailed: false, reason: null };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -210,6 +213,7 @@ function setState(next: {
   errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out";
   retryAt?: number;
   rootMissing?: boolean;
+  reason?: string;
 }): void {
   if (next.message) next = { ...next, message: connectionErrorText(next.message) ?? next.message };
   const finished = state.status === "syncing" && next.status === "idle";
@@ -236,7 +240,9 @@ function setState(next: {
     listingIncomplete: next.status === "off" ? null : state.listingIncomplete,
     rootMissing: next.rootMissing ?? false,
     firstPullDone: next.status === "off" ? null : state.firstPullDone,
-    firstPullFailed: firstPullFailedAfter(state, next.status),
+    // A folder held for pairing is a hold, not a failed pull (fourth review of O8).
+    firstPullFailed: firstPullFailedAfter(state, next.status, next.reason ?? (next.errorKind === "pair-required" ? "encrypted-workspace" : null)),
+    reason: next.reason ?? null,
   };
   for (const l of listeners) l();
 }
@@ -270,7 +276,7 @@ function setFirstPullDone(firstPullDone: boolean | null): void {
  * once is not "pending" again in this session: Home shows the vault as it is,
  * and the sync line says what broke.
  */
-export function isFirstPullPending(s: Pick<SyncState, "status" | "firstPullDone" | "firstPullFailed">): boolean {
+export function isFirstPullPending(s: Pick<SyncState, "status" | "firstPullDone" | "firstPullFailed" | "reason">): boolean {
   return isCoreFirstPullPending(s);
 }
 
@@ -610,20 +616,27 @@ export async function createProviderVault(
   // destination, never a root left in the settings by an earlier probe.
   await assertEmptyRemoteVault(await buildTarget(p, null));
   const id = newVaultId();
-  const adapter = new CapacitorVaultAdapter(`vaults/${id}`);
+  const root = `vaults/${id}`;
+  const adapter = new CapacitorVaultAdapter(root);
   if (await adapter.exists("")) throw new Error("Vault container already exists");
-  await adapter.initialize();
-  await scaffoldVaultTemplate({
-    adapter,
-    isNewVault: true,
-    template: opts.template,
-    vaultName: opts.vaultName,
-    subfoldersHeading: opts.subfoldersHeading,
-    // Made for this new cloud folder: the template is what it is to hold.
-    recordStarter: false,
-  });
-  await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
-  await adoptOrForget(id, adopt);
+  await ensureVaultsFolder();
+  // The whole attempt, sign-in included: what a failed one wrote into its
+  // container is taken back, and nothing of it stays unregistered (fourth
+  // review of O8 — the desktop's twin is OnlineVaultSetup).
+  await writeNewVault(root, sandboxNewVaultPorts, async (track) => {
+    await adapter.initialize();
+    await scaffoldVaultTemplate({
+      adapter: track(adapter),
+      isNewVault: true,
+      template: opts.template,
+      vaultName: opts.vaultName,
+      subfoldersHeading: opts.subfoldersHeading,
+      // Made for this new cloud folder: the template is what it is to hold.
+      recordStarter: false,
+    });
+    await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+    await adoptOrForget(id, adopt);
+  }, { makeFolder: true });
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
   // The template's settings are the new vault's own: written into it now, they
   // are there whether it opens at once or waits at its offer (`flowVault.ts`)
@@ -1462,7 +1475,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       }, delay);
       return;
     }
-    setState({ status, message: errorMsg ?? null, retryAt, rootMissing: reason === "root-missing" });
+    setState({ status, message: errorMsg ?? null, retryAt, rootMissing: reason === "root-missing", reason });
   };
   // The listing contradicts itself: facts for the sync screen, null once a
   // listing holds again (finding 2026-09-20). Never a question.

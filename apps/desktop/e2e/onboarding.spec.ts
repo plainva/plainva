@@ -88,7 +88,7 @@ function firstRunShell(page: any, opts: FirstRunOptions = {}) {
             throw 'No space left on device';
           }
           calls.push({ cmd: 'write', path });
-          fs[path] = { isFile: true };
+          fs[path] = { isFile: true, text: args.encoding === 'utf8' ? String(args.contents) : undefined };
           return null;
         }
         if (cmd === 'plugin:fs|remove') {
@@ -111,6 +111,12 @@ function firstRunShell(page: any, opts: FirstRunOptions = {}) {
           const dir = String(args.path).replace(/\/$/, '');
           const kids = (fs[dir] && fs[dir].children) || [];
           return kids.map((name: string) => ({ name, isDirectory: false, isFile: true, isSymlink: false }));
+        }
+        // Read back as the plugin hands it over: the bytes, for the take-back to compare.
+        if (cmd === 'plugin:fs|read_text_file') {
+          const entry = fs[String(args.path).replace(/\/$/, '')];
+          if (typeof entry?.text !== 'string') throw 'No such file or directory (os error 2)';
+          return Array.from(new TextEncoder().encode(entry.text));
         }
         if (cmd === 'plugin:fs|watch') return 1;
         return null;
@@ -163,6 +169,12 @@ function updatedShell(page: any) {
         if (cmd === 'plugin:sql|select_one') return null;
         if (cmd === 'plugin:fs|exists') return false;
         if (cmd === 'plugin:fs|read_dir') return [];
+        // Read back as the plugin hands it over: the bytes, for the take-back to compare.
+        if (cmd === 'plugin:fs|read_text_file') {
+          const entry = fs[String(args.path).replace(/\/$/, '')];
+          if (typeof entry?.text !== 'string') throw 'No such file or directory (os error 2)';
+          return Array.from(new TextEncoder().encode(entry.text));
+        }
         if (cmd === 'plugin:fs|watch') return 1;
         return null;
       },

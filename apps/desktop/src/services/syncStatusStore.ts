@@ -143,7 +143,7 @@ export const syncStatusStore = {
     // survives (round 3, R4).
     const wasFailure = (snapshot.status === "error" || snapshot.status === "retrying") && snapshot.message;
     const merged = { ...snapshot, ...next };
-    if (next.status !== undefined) merged.firstPullFailed = firstPullFailedAfter(merged, next.status);
+    if (next.status !== undefined) merged.firstPullFailed = firstPullFailedAfter(merged, next.status, next.reason);
     // `authRecoverable` belongs to ONE failure. Merging would carry it into the
     // next status, so a long-resolved sign-in problem would keep sending later
     // network errors to the settings instead of offering a retry.

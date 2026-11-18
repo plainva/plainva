@@ -6,6 +6,8 @@
 export interface NewVaultFolderPorts {
   /** Makes ONE folder; rejects when anything is at that path already, and never makes a parent. */
   makeDir(path: string): Promise<void>;
+  /** Reads one file as text — to see that it still holds what the attempt wrote. */
+  readText(path: string): Promise<string>;
   /** Removes one file. */
   removeFile(path: string): Promise<void>;
   /** Removes one folder, and only an empty one: rejects when anything is in it. */
@@ -43,7 +45,9 @@ export type TrackWrites = <A extends NewVaultWrites>(adapter: A) => A;
  * - The take-back removes exactly the files this attempt wrote, then the
  *   folders it made, deepest first, each with a delete that fails at a folder
  *   that is not empty. Anything else that is in one of them stays, and with it
- *   the folder.
+ *   the folder. A file of the attempt that no longer holds what it wrote — a
+ *   sync client or an editor changed it meanwhile — is not the attempt's any
+ *   more and stays too (fourth review of O8).
  * - When the scaffolder refuses a folder that is not empty, nothing was
  *   written, and nothing is removed.
  *
@@ -55,11 +59,15 @@ export async function writeNewVault(
   folder: string,
   ports: NewVaultFolderPorts,
   write: (track: TrackWrites) => Promise<void>,
-  options: { makeFolder?: boolean } = {},
+  options: {
+    makeFolder?: boolean;
+    /** After a failure: whether everything the attempt wrote is gone again. */
+    onTakenBack?: (complete: boolean) => void;
+  } = {},
 ): Promise<void> {
   const root = trimSlashes(folder, false);
   const at = (rel: string) => (root ? `${root}/${rel}` : rel);
-  const files: string[] = [];
+  const files: Array<{ path: string; content: string }> = [];
   const dirs: string[] = [];
   // Folders already decided on: made here, or found there.
   const known = new Set<string>([""]);
@@ -97,7 +105,7 @@ export async function writeNewVault(
             const rel = clean(path);
             await ensureDir(parentOf(rel));
             await target.writeTextFile(path, content);
-            files.push(rel);
+            files.push({ path: rel, content });
           };
         }
         if (key === "createDir") {
@@ -114,7 +122,8 @@ export async function writeNewVault(
   try {
     await write(track);
   } catch (e) {
-    await takeBack(root, ports, files.map(at), dirs.map(at), rootMade);
+    const complete = await takeBack(root, ports, files.map((f) => ({ path: at(f.path), content: f.content })), dirs.map(at), rootMade);
+    options.onTakenBack?.(complete);
     throw e;
   }
 }
@@ -129,14 +138,40 @@ function trimSlashes(path: string, leading: boolean): string {
   return path.slice(start, end);
 }
 
-/** Removes what one attempt wrote, file by file and empty folder by empty folder. */
-async function takeBack(root: string, ports: NewVaultFolderPorts, files: string[], dirs: string[], rootMade: boolean): Promise<void> {
-  for (const file of [...files].reverse()) {
+/** Removes what one attempt wrote, file by file and empty folder by empty folder; true when nothing of it is left. */
+async function takeBack(
+  root: string,
+  ports: NewVaultFolderPorts,
+  files: Array<{ path: string; content: string }>,
+  dirs: string[],
+  rootMade: boolean,
+): Promise<boolean> {
+  let complete = true;
+  // Written twice (a file written again in one attempt): the last text counts.
+  const last = new Map<string, string>();
+  for (const f of files) last.set(f.path, f.content);
+  for (const [file, content] of [...last].reverse()) {
+    let now: string;
+    try {
+      now = await ports.readText(file);
+    } catch (e) {
+      // silent: gone already, or not readable — either way it is not removed blind; a file left is a file, never a loss.
+      console.warn("[newVaultFolder] a file of the failed attempt could not be read back; it stays:", file, e);
+      complete = false;
+      continue;
+    }
+    if (now !== content) {
+      // silent: changed since the attempt wrote it — no longer the attempt's, so it stays (named in the log).
+      console.warn("[newVaultFolder] a file of the failed attempt was changed meanwhile; it stays:", file);
+      complete = false;
+      continue;
+    }
     try {
       await ports.removeFile(file);
     } catch (e) {
       // silent: logged only — the attempt's own error is the one the person sees; a file left is a file, never a loss.
       console.error("[newVaultFolder] a file of the failed attempt could not be removed:", file, e);
+      complete = false;
     }
   }
   // Made top-down, removed bottom-up: a folder's own folders go before it.
@@ -157,7 +192,10 @@ async function takeBack(root: string, ports: NewVaultFolderPorts, files: string[
       kept.push(root);
     }
   }
-  if (kept.length) console.warn("[newVaultFolder] kept folders that are not empty:", kept);
+  if (kept.length) {
+    console.warn("[newVaultFolder] kept folders that are not empty:", kept);
+    complete = false;
+  }
   if (rootMade && !kept.includes(root)) {
     try {
       await ports.forget(root);
@@ -166,4 +204,5 @@ async function takeBack(root: string, ports: NewVaultFolderPorts, files: string[
       console.error("[newVaultFolder] the half-made vault's app data could not be forgotten:", root, e);
     }
   }
+  return complete;
 }

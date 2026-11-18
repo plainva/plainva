@@ -19,7 +19,7 @@ import {
 } from "../services/syncTargets";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
-import { writeNewVault } from "@plainva/ui";
+import { planVaultScaffold, writeNewVault } from "@plainva/ui";
 import { newVaultFolderPorts } from "../services/newVaultFolderDisk";
 import {
   Banner,
@@ -56,7 +56,7 @@ import type { ServiceRunStatus } from "../services/cloudAccountsActions";
 import {
   scaffoldVaultTemplate,
   applyVaultTemplateSettings,
-  isVaultFolderEmpty,
+  isVaultFolderFreeFor,
   type VaultTemplateDefinition,
 } from "../services/vaultTemplates";
 import { AccountMark, SERVICE_ICONS, familyLabel } from "./settings/cloudAccountsShared";
@@ -258,8 +258,37 @@ export const OnlineVaultSetup: React.FC<Props> = ({ mode = "open", template = nu
     setBusy(true);
     setError(null);
     try {
+      const bindCredentials = async () => {
+        const folder = cloudFolder?.trim() || undefined;
+        if (c.provider === "webdav") {
+          const base = trimEndChars(c.url, "/");
+          const url = folder ? `${base}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url;
+          await credentialManager.saveWebDavCredentials(localDir, { url, user: c.user, pass: c.pass });
+        } else if (c.provider === "drive") {
+          await credentialManager.saveDriveCredentials(localDir, { clientId: c.clientId, clientSecret: c.clientSecret, refreshToken: c.refreshToken, rootFolderName: folder });
+        } else if (c.provider === "onedrive") {
+          await credentialManager.saveOneDriveCredentials(localDir, { clientId: c.clientId, refreshToken: c.refreshToken, rootFolderName: folder });
+        } else if (c.provider === "dropbox") {
+          await credentialManager.saveDropboxCredentials(localDir, { appKey: c.appKey, refreshToken: c.refreshToken, rootPath: folder ? `/${folder.replace(/^\/+/, "")}` : undefined });
+        } else {
+          await credentialManager.saveS3Credentials(localDir, { ...c.s3, prefix: folder });
+        }
+        // Google and Microsoft: the sign-in becomes the card's, with its identity,
+        // before the vault opens (K4b). Nothing half-bound stays behind.
+        if ((c.provider === "drive" || c.provider === "onedrive") && (family === "google" || family === "microsoft") && access?.ok && "mail" in access.access) {
+          try {
+            await adoptOnlineVaultSignIn(localDir, family, access as Extract<AccessResolution, { ok: true }>, c.refreshToken);
+          } catch (error) {
+            if (c.provider === "drive") await credentialManager.clearDriveCredentials(localDir);
+            else await credentialManager.clearOneDriveCredentials(localDir);
+            throw new Error(oauthErrorText(error), { cause: error });
+          }
+        }
+      };
       if (mode === "create") {
-        if (!(await isVaultFolderEmpty(localDir))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(localDir) }));
+        // A folder holding only what a failed attempt left (exactly the text this one writes) is free (fourth review of O8).
+        const plan = planVaultScaffold({ template, vaultName: getBasename(localDir), subfoldersHeading: t("indexMd.subfoldersHeading"), recordStarter: false });
+        if (!(await isVaultFolderFreeFor(localDir, plan))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(localDir) }));
         const folder = cloudFolder?.trim() || undefined;
         const remote = c.provider === "webdav" ? buildWebDavTarget({ ...c, url: folder ? `${trimEndChars(c.url, "/")}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url })
           : c.provider === "drive" ? buildDriveTarget({ ...c, rootFolderName: folder })
@@ -267,8 +296,9 @@ export const OnlineVaultSetup: React.FC<Props> = ({ mode = "open", template = nu
           : c.provider === "dropbox" ? buildDropboxTarget({ ...c, rootPath: folder ? `/${folder.replace(/^\/+/, "")}` : undefined }, token => { c.refreshToken = token; })
           : buildS3Target({ ...c.s3, prefix: folder });
         await assertEmptyRemoteVault(remote);
-        // The folder was picked in the dialog and stays; what a failed attempt
-        // wrote into it goes again, so a retry finds it empty (third review of O8).
+        // The folder was picked in the dialog and stays. The whole attempt —
+        // structure, credentials, sign-in — is taken back when any of it
+        // fails, so a retry finds the folder as it was (third and fourth review of O8).
         await writeNewVault(localDir, newVaultFolderPorts, async (track) => {
           const adapter = track(new TauriVaultAdapter(localDir));
           await adapter.initialize();
@@ -281,32 +311,10 @@ export const OnlineVaultSetup: React.FC<Props> = ({ mode = "open", template = nu
             recordStarter: false,
           });
           await applyVaultTemplateSettings(localDir, template);
+          await bindCredentials();
         });
-      }
-      const folder = cloudFolder?.trim() || undefined;
-      if (c.provider === "webdav") {
-        const base = trimEndChars(c.url, "/");
-        const url = folder ? `${base}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url;
-        await credentialManager.saveWebDavCredentials(localDir, { url, user: c.user, pass: c.pass });
-      } else if (c.provider === "drive") {
-        await credentialManager.saveDriveCredentials(localDir, { clientId: c.clientId, clientSecret: c.clientSecret, refreshToken: c.refreshToken, rootFolderName: folder });
-      } else if (c.provider === "onedrive") {
-        await credentialManager.saveOneDriveCredentials(localDir, { clientId: c.clientId, refreshToken: c.refreshToken, rootFolderName: folder });
-      } else if (c.provider === "dropbox") {
-        await credentialManager.saveDropboxCredentials(localDir, { appKey: c.appKey, refreshToken: c.refreshToken, rootPath: folder ? `/${folder.replace(/^\/+/, "")}` : undefined });
       } else {
-        await credentialManager.saveS3Credentials(localDir, { ...c.s3, prefix: folder });
-      }
-      // Google and Microsoft: the sign-in becomes the card's, with its identity,
-      // before the vault opens (K4b). Nothing half-bound stays behind.
-      if ((c.provider === "drive" || c.provider === "onedrive") && (family === "google" || family === "microsoft") && access?.ok && "mail" in access.access) {
-        try {
-          await adoptOnlineVaultSignIn(localDir, family, access as Extract<AccessResolution, { ok: true }>, c.refreshToken);
-        } catch (error) {
-          if (c.provider === "drive") await credentialManager.clearDriveCredentials(localDir);
-          else await credentialManager.clearOneDriveCredentials(localDir);
-          throw new Error(oauthErrorText(error), { cause: error });
-        }
+        await bindCredentials();
       }
       window.dispatchEvent(new CustomEvent("plainva-credentials-saved", { detail: { isNewConnection: true } }));
       // Register the connection as a cloud account (files service) so the new

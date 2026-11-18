@@ -1,5 +1,5 @@
 import { getSettingsStore } from "../settingsStore";
-import { readDir } from "@tauri-apps/plugin-fs";
+import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import { isSystemJunkName } from "@plainva/core";
 import {
   dailyNotesFolderKey,
@@ -8,7 +8,7 @@ import {
   taskDatabaseKey,
   folderTemplatesKey,
 } from "../../contexts/VaultContext";
-import type { VaultTemplateDefinition } from "@plainva/ui";
+import { scaffoldObstacle, type ScaffoldPlan, type VaultTemplateDefinition } from "@plainva/ui";
 import { trimEndChars } from "@plainva/core";
 
 /**
@@ -32,17 +32,49 @@ export type { ScaffoldAdapter } from "@plainva/ui";
 export type { VaultTemplateBase, VaultTemplateDefinition, VaultTemplateId, VaultTemplateNote } from "@plainva/ui";
 
 
-/** Emptiness check before scaffolding (absolute path — the vault is not open yet). */
-export async function isVaultFolderEmpty(absolutePath: string): Promise<boolean> {
+/** Whether Plainva knows `absolutePath` as a vault: a recent one, or one it set up. Unreadable settings: known. */
+async function isKnownVaultFolder(absolutePath: string): Promise<boolean> {
   try {
     const store = await getSettingsStore();
     const known = [...(await store.get<string[]>("recentVaults") ?? []), ...(await store.get<string[]>("initializedVaultPaths") ?? [])];
     const normalize = (path: string) => trimEndChars(path.replace(/\\/g, "/"), "/").toLowerCase();
-    if (known.some(path => normalize(path) === normalize(absolutePath))) return false;
+    return known.some(path => normalize(path) === normalize(absolutePath));
+  } catch {
+    // silent: settings that cannot be read are not evidence of an unknown folder — the folder counts as known
+    return true;
+  }
+}
+
+/** Emptiness check before scaffolding (absolute path — the vault is not open yet). */
+export async function isVaultFolderEmpty(absolutePath: string): Promise<boolean> {
+  try {
+    if (await isKnownVaultFolder(absolutePath)) return false;
     const entries = await readDir(absolutePath);
     // OS junk does not count as "the folder already has content" (the core's
     // one list, E10).
     return entries.every((e) => isSystemJunkName(e.name ?? ""));
+  } catch {
+    // An unreadable destination is not evidence of an empty folder.
+    return false;
+  }
+}
+
+/**
+ * Whether `plan` may be written into `absolutePath` (fourth review of O8): an
+ * unknown folder that is empty, or holds nothing but what a failed attempt of
+ * the same plan left — files with exactly the text it writes, in folders it
+ * makes (`scaffoldObstacle`). A retry then goes through where a take-back
+ * could not remove everything.
+ */
+export async function isVaultFolderFreeFor(absolutePath: string, plan: ScaffoldPlan): Promise<boolean> {
+  try {
+    if (await isKnownVaultFolder(absolutePath)) return false;
+    const at = (rel = "") => (rel ? `${absolutePath}/${rel}` : absolutePath);
+    const reader = {
+      listDir: async (rel?: string) => (await readDir(at(rel))).map((e) => ({ name: e.name ?? "", isDirectory: e.isDirectory })),
+      readTextFile: (rel: string) => readTextFile(at(rel)),
+    };
+    return (await scaffoldObstacle(reader, plan)) === null;
   } catch {
     // An unreadable destination is not evidence of an empty folder.
     return false;

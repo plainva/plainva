@@ -103,12 +103,13 @@ describe("isFirstPullPending — one rule for both shells", () => {
 
 describe("the first failure ends \"being loaded\" for the session (third review of O8)", () => {
   /** What a shell keeps over a sequence of worker statuses, read at each step. */
-  function loadingOver(statuses: Array<string | { done: true }>): string {
-    let st: { firstPullDone: boolean | null; firstPullFailed: boolean; status: string } = { firstPullDone: false, firstPullFailed: false, status: "idle" };
+  function loadingOver(statuses: Array<string | { status: string; reason: string } | { done: true }>): string {
+    let st: { firstPullDone: boolean | null; firstPullFailed: boolean; status: string; reason?: string | null } = { firstPullDone: false, firstPullFailed: false, status: "idle" };
     let out = "";
     for (const next of statuses) {
-      if (typeof next === "string") st = { ...st, status: next, firstPullFailed: firstPullFailedAfter(st, next) };
-      else st = { ...st, firstPullDone: true, status: "idle" };
+      if (typeof next === "string") st = { ...st, status: next, reason: null, firstPullFailed: firstPullFailedAfter(st, next) };
+      else if ("status" in next) st = { ...st, status: next.status, reason: next.reason, firstPullFailed: firstPullFailedAfter(st, next.status, next.reason) };
+      else st = { ...st, firstPullDone: true, status: "idle", reason: null };
       out += isFirstPullPending(st) ? "L" : "-";
     }
     return out;
@@ -128,6 +129,18 @@ describe("the first failure ends \"being loaded\" for the session (third review 
 
   it("a first pull that gets through is loading until it is done", () => {
     expect(loadingOver(["syncing", "idle", "syncing", { done: true }])).toBe("LLL-");
+  });
+
+  it("the watchdog's notice is not a failure: a quiet first pull keeps \"being loaded\" (fourth review of O8)", () => {
+    const quiet = { status: "retrying", reason: "stalled" };
+    expect(loadingOver(["syncing", quiet, "syncing", "idle", { done: true }])).toBe("LLLL-");
+    // A cycle the watchdog then gives up on is a failure like any other.
+    expect(loadingOver(["syncing", quiet, "retrying", "syncing"])).toBe("LL--");
+  });
+
+  it("a folder held back as an encrypted workspace is a hold, not a failed pull (fourth review of O8)", () => {
+    expect(firstPullFailedAfter({ firstPullDone: false }, "error", "encrypted-workspace")).toBe(false);
+    expect(firstPullFailedAfter({ firstPullDone: false }, "error", "root-missing")).toBe(true);
   });
 
   it("without a worker no status counts as a failed first pull", () => {

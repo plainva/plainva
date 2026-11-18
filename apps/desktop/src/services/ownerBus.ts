@@ -204,6 +204,7 @@ export function syncStatusPayload(s: SyncStatusSnapshot): BroadcastMap["sync-sta
     progress: s.progress ?? null,
     firstPullDone: s.firstPullDone ?? null,
     firstPullFailed: s.firstPullFailed ?? null,
+    reason: s.reason ?? null,
   };
 }
 
@@ -224,6 +225,7 @@ export function applyMirroredSyncStatus(vault: string, s: BroadcastMap["sync-sta
     progress: s.progress ?? null,
     firstPullDone: s.firstPullDone ?? undefined,
     firstPullFailed: s.firstPullFailed ?? undefined,
+    reason: (s.reason ?? undefined) as SyncStatusSnapshot["reason"],
   });
 }
 
@@ -258,7 +260,7 @@ export function installSyncStatusMirror(vaultPath: string): () => void {
     const s = syncStatusStore.get(vaultPath);
     // Cheap equality: the store also emits for fields no other window draws
     // (error history, authRecoverable), and every emit here is an IPC message.
-    const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total, s.firstPullDone, s.firstPullFailed].join("|");
+    const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total, s.firstPullDone, s.firstPullFailed, s.reason].join("|");
     if (key === last) return;
     last = key;
     void getWindowBus()

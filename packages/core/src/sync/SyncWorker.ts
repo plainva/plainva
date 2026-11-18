@@ -43,7 +43,12 @@ export { classifySyncError, syncErrorMessage, type SyncErrorKind };
  * plus the one state that needs a different way out than "retry": the remote
  * folder of a vault that has synced before is gone (finding 2026-09-20).
  */
-export type SyncErrorReason = FatalSyncProtocolError["reason"] | "root-missing";
+/**
+ * `stalled`: not a failure — the watchdog's notice that a cycle has shown no
+ * activity for a while; the cycle goes on (fourth review of O8: the start of
+ * an empty vault keeps saying "being loaded" through it).
+ */
+export type SyncErrorReason = FatalSyncProtocolError["reason"] | "root-missing" | "stalled";
 
 /**
  * The structured reason of a fatal protocol error, or undefined for ordinary
@@ -1111,7 +1116,7 @@ export class SyncWorker {
         console.warn(`[SyncWorker] sync cycle has shown no activity for ${Math.round(idleMs / 60000)} min`);
         // "Appears stuck, will be abandoned if it stays unresponsive" is a
         // warning about a possible problem, not a failed sync.
-        this.setStatus("retrying", "sync cycle appears stuck; it will be abandoned if it stays unresponsive");
+        this.setStatus("retrying", "sync cycle appears stuck; it will be abandoned if it stays unresponsive", "stalled");
       }
       this.watchdogId = setTimeout(tick, WATCHDOG_TICK_MS);
     };

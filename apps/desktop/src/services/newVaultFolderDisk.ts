@@ -1,4 +1,4 @@
-import { mkdir, remove } from "@tauri-apps/plugin-fs";
+import { mkdir, readTextFile, remove } from "@tauri-apps/plugin-fs";
 import type { NewVaultFolderPorts } from "@plainva/ui";
 import { forgetVaultData } from "./vaultForget";
 
@@ -10,6 +10,7 @@ import { forgetVaultData } from "./vaultForget";
  */
 export const newVaultFolderPorts: NewVaultFolderPorts = {
   makeDir: (path) => mkdir(path),
+  readText: (path) => readTextFile(path),
   removeFile: (path) => remove(path),
   removeEmptyDir: (path) => remove(path),
   forget: async (path) => {
