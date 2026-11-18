@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { migrateFiltersToPerView, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
+import { composeLineage, lineageBetween, migrateFiltersToPerView, parseBaseConfig, serializeBaseConfig } from "@plainva/ui";
 
 const loadBaseConfigText = (text: string) => migrateFiltersToPerView(parseBaseConfig(text));
 
@@ -122,5 +122,18 @@ describe("a database change on the phone lands on the file as it lies there (B20
     await deleteBaseProperty(vault, PATH, shown, "prio", [], false);
     expect(view("Table").coverImage).toBe("note.cover");
     expect(loadBaseConfigText(files.get(PATH)!).columns?.prio).toBeUndefined();
+  });
+});
+
+describe("a view removed on the phone and a new one added under its name are two views (B20)", () => {
+  it("the change that waited for both is refused where another device changed the old view, and nothing is written", async () => {
+    const shown = loadBaseConfigText(TEXT);
+    const mid = { ...shown, views: shown.views.filter((_: any, i: number) => i !== 0) };
+    const next = { ...mid, views: [...mid.views, { type: "table", name: "Table" }] };
+    const lineage = composeLineage(lineageBetween(shown, mid, { remove: 0 }), lineageBetween(mid, next, { add: 1 }));
+    const theirs = TEXT.replace("    name: Table\n", "    name: Table\n    limit: 9\n");
+    files.set(PATH, theirs);
+    await expect(saveBaseConfig(vault, PATH, next, { shown, lineage })).rejects.toMatchObject({ reason: "viewUnclear" });
+    expect(files.get(PATH)).toBe(theirs);
   });
 });

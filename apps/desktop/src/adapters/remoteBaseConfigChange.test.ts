@@ -58,4 +58,27 @@ describe("a database change from a second window (B20)", () => {
     expect(w.file()).toContain("f2: b * 2");
     expect(w.writes()).toBe(1);
   });
+
+  it("at an open conflict the user's own version takes the change as well, from the same reading", async () => {
+    const own = START.replace("limit: 5", "limit: 6");
+    let next: TextFileChange | null = null;
+    const bus = {
+      request: async (type: string, payload: any) => {
+        if (type === "update-read") return { text: START, workingCopy: own } satisfies TextFileState;
+        if (type === "update-write") {
+          next = (payload as { next: TextFileChange }).next;
+          return { before: START, text: next.text ?? START, changed: true, conflict: null };
+        }
+        throw new Error(`unexpected request ${type}`);
+      },
+    } as unknown as WindowBus;
+    const remote = new RemoteVaultAdapter({ readTextFile: async () => START } as unknown as IVaultAdapter, bus, "/vault");
+    const shown = loadBaseConfigText(START);
+    await writeBaseConfigChange(remote, "Tasks.base", shown, { ...shown, views: [...shown.views, { type: "list", name: "Neu" }] });
+    const made = next as TextFileChange | null;
+    expect(loadBaseConfigText(made?.text ?? "").views.map((v: any) => v.name)).toEqual(["Offen", "Karten", "Neu"]);
+    expect(made?.workingCopy).not.toBeNull();
+    expect(loadBaseConfigText(made?.workingCopy ?? "").views.map((v: any) => v.name)).toEqual(["Offen", "Karten", "Neu"]);
+    expect(made?.workingCopy).toContain("limit: 6");
+  });
 });

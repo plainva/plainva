@@ -9,7 +9,7 @@ import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository,
   VaultIndexer, VersionHistoryService, isOpenTaskState, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type SqlStatements, type TaskRecord,
 } from "@plainva/core";
-import { BaseConfigChangeRefusedError, TaskMutationGate, bulkSetProperty, errorText, loadBaseConfigText, serializeBaseConfig, toggleTaskAtIndex, writeBaseConfigChange, writeNoteProperty, type BulkSetResult } from "@plainva/ui";
+import { BaseConfigChangeRefusedError, TaskMutationGate, bulkSetProperty, composeLineage, errorText, lineageBetween, loadBaseConfigText, serializeBaseConfig, toggleTaskAtIndex, writeBaseConfigChange, writeNoteProperty, type BulkSetResult } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../packages/core/test/helpers/realSqlite";
 import { sourceFile } from "./test-sourceTree";
@@ -317,10 +317,10 @@ const saveSource = declared(viewer, "saveConfig");
 if (!saveSource || !ts.isArrowFunction(saveSource)) throw new Error("the database view's config save moved — re-point this harness");
 const saveCode = `const saveConfig = ${saveSource.getText(viewer)};`;
 /** The view's save of a configuration, with what it names there. */
-function saveConfig(config: unknown, scope: Record<string, unknown> = {}, options?: { park?: boolean }): Promise<boolean> {
-  return run<(config: unknown, options?: { park?: boolean }) => Promise<boolean>>(saveCode, "saveConfig", {
+function saveConfig(config: unknown, scope: Record<string, unknown> = {}, options?: { park?: boolean; views?: unknown }): Promise<boolean> {
+  return run<(config: unknown, options?: { park?: boolean; views?: unknown }) => Promise<boolean>>(saveCode, "saveConfig", {
     vaultAdapter, activePath: BASE, embedded: false, indexer: null, queryService: null, activeViewIndex: 0, dbConfig: null, content: "",
-    serializeBaseConfig, writeBaseConfigChange, BaseConfigChangeRefusedError, setReloadTick: () => {}, setActiveViewIndex: () => {},
+    serializeBaseConfig, writeBaseConfigChange, BaseConfigChangeRefusedError, lineageBetween, composeLineage, setReloadTick: () => {}, setActiveViewIndex: () => {},
     setContent: () => {}, setDbConfig: () => {}, setPendingConfig: () => {}, setDbData: () => {},
     assertFileStillThere: async () => {}, isFileNotFound: () => false, lookForFile: () => {}, applyIndexChanges: async () => ({ leftBehind: [] }), rememberFile: () => {},
     queryForActiveView: async () => [], errorText, saveTurn: { current: 0 }, showViewLayout: () => true, ...surface, ...scope,
@@ -488,6 +488,15 @@ describe("a database view's change lands on the file as it lies there, at an ope
     expect(await saveConfig(withFirstView(shownConfig, { name: "Renamed" }), { ...rename.scope, ...gone }, { park: false })).toBe(false);
     expect(rename.state).toMatchObject({ config: shownConfig, text: baseText("Table"), pending: null, lookedFor: 1 });
     expect(await raw.readTextFile(BASE)).toBe(baseText("Table"));
+    // Changes that wait one after the other keep which view is which (B20): a
+    // view removed and a new one added under its name are two views.
+    const two = loaded(twoViews("Table"));
+    const parked = viewState(two, twoViews("Table"));
+    const mid = { ...two, views: [two.views[1]] };
+    expect(await saveConfig(mid, { ...parked.scope, ...gone }, { views: { remove: 0 } })).toBe(false);
+    const again = { ...mid, views: [...mid.views, { type: "table", name: "Table" }] };
+    expect(await saveConfig(again, { ...parked.scope, dbConfig: mid, ...gone }, { views: { add: 1 } })).toBe(false);
+    expect(parked.state.pending).toMatchObject({ shown: two, next: again, lineage: [1, null] });
   });
 });
 

@@ -1,6 +1,9 @@
 import { applyTextShape, editorTextOf, readTextShape, updateVaultText, type TextFileUpdate, type TextUpdateFiles } from "@plainva/core";
 import { fromPropId, parseBaseConfig, serializeBaseConfig, toPropId } from "./baseFormat";
 import { migrateFiltersToPerView } from "./filterExpr";
+import { fittingLineage, type ViewLineage } from "./viewLineage";
+// Which view is which, as the screens say it: part of this building block's interface.
+export * from "./viewLineage";
 
 /**
  * A change to a database's config (a view's columns, sort, filters,
@@ -52,11 +55,15 @@ import { migrateFiltersToPerView } from "./filterExpr";
  * - A view the screen removed goes, even where the other side changed it: the
  *   user's own action wins. Where both sides removed views until none would
  *   be left, the user's own stay: a database keeps a view.
- * - Which of the screen's views a view of `next` is, is told by the screen's
- *   objects (an untouched view is the same object or equal data, a changed
- *   one keeps its name, a renamed one its data). Both shells save one action
- *   at a time; a view renamed AND changed in one save counts as removed and
- *   added.
+ * - Which of the screen's views a view of `next` is, the screen says where
+ *   it knows (`lineage`, `viewLineage.ts`): what it added, removed and moved,
+ *   over every change that waits for a moved file. A view removed here and a
+ *   new one added under its name are two views — removed AND added — never
+ *   the old one changed. Where the screen does not say, it is told by the
+ *   screen's objects (an untouched view is the same object or equal data, a
+ *   changed one keeps its name, a renamed one its data). Both shells save one
+ *   action at a time; a view renamed AND changed in one save counts as
+ *   removed and added.
  * - At a database with an open conflict the vault's chain applies the change
  *   to the file and to the user's own version, each as it lies there (as for
  *   a cell, Sammelplan § 3.87); the screen goes on with the file's.
@@ -437,8 +444,10 @@ interface ViewsMerged {
 }
 
 /** The views of the file now, with the screen's change to its views applied. */
-function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextRead: any[], current: any[]): ViewsMerged {
-  const pair = pairViews(shownNamed, nextNamed, shownRead, nextRead);
+function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextRead: any[], current: any[], lineage?: number[]): ViewsMerged {
+  // The screen said which view is which (a view deleted here and one added
+  // under its name are two views): taken as it says. Otherwise judged from the views.
+  const pair = lineage ?? pairViews(shownNamed, nextNamed, shownRead, nextRead);
   const inFile = findInFile(shownNamed, shownRead, current);
   const known = new Set(inFile.filter((c) => c >= 0));
   /** Views of the file that none of `shown`'s was found as: one of them may be a view not found. */
@@ -587,6 +596,12 @@ function withoutRemovedProperties(rest: Record<string, any>, shownRead: any, nex
 const viewsOf = (cfg: any): any[] => (isPlainObject(cfg) && Array.isArray(cfg.views) ? cfg.views : []);
 const unchangedPlaces = (cfg: any): number[] => viewsOf(cfg).map((_, j) => j);
 
+/** What the screen says about its change beside the configs. */
+export interface BaseConfigChangeOptions {
+  /** Which of `next`'s views is which of `shown`'s (`viewLineage.ts`); without it, judged from the views. */
+  lineage?: ViewLineage;
+}
+
 /** A database change applied to a file's text. */
 export interface BaseConfigRebased {
   config: any;
@@ -606,7 +621,7 @@ export interface BaseConfigRebased {
  * serializer before they are compared with the file. Where the file is what
  * the screen loaded or last wrote, `next` is written as it is.
  */
-export function rebaseBaseConfigText(shownGiven: any, next: any, currentText: string): BaseConfigRebased {
+export function rebaseBaseConfigText(shownGiven: any, next: any, currentText: string, { lineage }: BaseConfigChangeOptions = {}): BaseConfigRebased {
   // A screen that never had a config (an empty `.base`) showed a database without views.
   const shown = isPlainObject(shownGiven) ? shownGiven : loadBaseConfigText("");
   const unchanged = (): BaseConfigRebased => {
@@ -637,9 +652,10 @@ export function rebaseBaseConfigText(shownGiven: any, next: any, currentText: st
   // Which view is which is told by the screen's own objects (an untouched view
   // is the same object, or equal data), where reading back kept their number.
   const sameCount = viewsOf(shown).length === viewsOf(s).length && viewsOf(next).length === viewsOf(n).length;
+  const told = sameCount ? fittingLineage(lineage, viewsOf(s).length, viewsOf(n).length) : undefined;
   const merged: ViewsMerged = same(viewsOf(n), viewsOf(s))
     ? { views: viewsOf(c), placeOf: findInFile(sameCount ? viewsOf(shown) : viewsOf(s), viewsOf(s), viewsOf(c)) }
-    : mergeViews(sameCount ? viewsOf(shown) : viewsOf(s), viewsOf(s), sameCount ? viewsOf(next) : viewsOf(n), viewsOf(n), viewsOf(c));
+    : mergeViews(sameCount ? viewsOf(shown) : viewsOf(s), viewsOf(s), sameCount ? viewsOf(next) : viewsOf(n), viewsOf(n), viewsOf(c), told);
   const config: Record<string, any> = {};
   let placed = false;
   for (const k of Object.keys(n)) {
@@ -702,14 +718,14 @@ function holdsAnything(cfg: any): boolean {
  * next one must read the file only once that one is written — or it would
  * take the change before for one undone elsewhere.
  */
-export function writeBaseConfigChange(files: TextUpdateFiles, path: string, shown: any, next: any): Promise<BaseConfigWritten> {
+export function writeBaseConfigChange(files: TextUpdateFiles, path: string, shown: any, next: any, options: BaseConfigChangeOptions = {}): Promise<BaseConfigWritten> {
   let byPath = inFlight.get(files);
   if (!byPath) inFlight.set(files, (byPath = new Map()));
   const before = byPath.get(path) ?? Promise.resolve();
   const run = before.catch(() => {}).then(async () => {
     for (let attempt = 1; ; attempt++) {
       try {
-        return await writeOnce(files, path, shown, next);
+        return await writeOnce(files, path, shown, next, options);
       } catch (e) {
         if (!(e instanceof FileUnsettled)) throw e;
         if (attempt >= SETTLE_ATTEMPTS) throw new BaseConfigChangeRefusedError("fileChanging", "");
@@ -722,7 +738,7 @@ export function writeBaseConfigChange(files: TextUpdateFiles, path: string, show
   return run;
 }
 
-async function writeOnce(files: TextUpdateFiles, path: string, shown: any, next: any): Promise<BaseConfigWritten> {
+async function writeOnce(files: TextUpdateFiles, path: string, shown: any, next: any, options: BaseConfigChangeOptions): Promise<BaseConfigWritten> {
   // The text the screen knows: the one it loaded or last wrote.
   let knownText: string | undefined;
   const known = () => (knownText ??= (isPlainObject(shown) ? textOf.get(shown) : undefined) ?? serializeBaseConfig(isPlainObject(shown) ? shown : loadBaseConfigText("")));
@@ -755,7 +771,7 @@ async function writeOnce(files: TextUpdateFiles, path: string, shown: any, next:
     if (!m) {
       m = plain === known() && text === settled
         ? (() => { const t = serializeBaseConfig(next); remember(next, t); return { config: next, text: t, placeOf: unchangedPlaces(next), merged: false }; })()
-        : rebaseBaseConfigText(shown, next, plain);
+        : rebaseBaseConfigText(shown, next, plain, options);
       made.set(text, m);
     }
     return m.text === plain ? text : applyTextShape(m.text, shape);

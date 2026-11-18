@@ -12,7 +12,7 @@ import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
 import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
-import { BaseConfigChangeRefusedError, buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, loadBaseConfigText, useStableHandler, writeBaseConfigChange } from "@plainva/ui";
+import { BaseConfigChangeRefusedError, composeLineage, lineageBetween, type ViewLineage, type ViewsChange, buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, loadBaseConfigText, useStableHandler, writeBaseConfigChange } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
@@ -161,10 +161,10 @@ export function BaseViewer({
   // proven move — with bookmarks and pinboard places — or asks "Moved?", or
   // shows the missing state. A config change that found its file gone waits
   // here (`pendingConfig`: the config shown before the first change that waits,
-  // and the config now) and goes with the file once it is found, set on the
-  // file as it lies there (B20); it never recreates the file at its old place
-  // unless the reader says so.
-  const [pendingConfig, setPendingConfig] = useState<{ shown: any; next: any } | null>(null);
+  // and the config now, and which view of the one is which of the other) and
+  // goes with the file once it is found, set on the file as it lies there
+  // (B20); it never recreates the file at its old place unless the reader says so.
+  const [pendingConfig, setPendingConfig] = useState<{ shown: any; next: any; lineage?: ViewLineage } | null>(null);
   const missing = useOpenFileLookup(activePath, {
     enabled: !embedded,
     onRenamed,
@@ -173,7 +173,7 @@ export function BaseViewer({
       if (pendingConfig === null || !vaultAdapter) return true;
       try {
         await assertFileStillThere(vaultAdapter, to);
-        await writeBaseConfigChange(vaultAdapter, to, pendingConfig.shown, pendingConfig.next);
+        await writeBaseConfigChange(vaultAdapter, to, pendingConfig.shown, pendingConfig.next, { lineage: pendingConfig.lineage });
         if (indexer) await applyIndexChanges(indexer, { added: [to] }).catch(() => {});
         return true;
       } catch (e) {
@@ -1030,7 +1030,7 @@ export function BaseViewer({
     const views = [...ensureViews(dbConfig)];
     views.push({ type, name: defaultViewName(t, type) });
     setActiveViewIndex(views.length - 1);
-    void saveConfig({ ...dbConfig, views });
+    void saveConfig({ ...dbConfig, views }, { views: { add: views.length - 1 } });
   };
   // The name comes from the inline rename input in the view tabs — native
   // window.prompt is unreliable in WebView2 (plan W6).
@@ -1048,7 +1048,7 @@ export function BaseViewer({
     const next = [...views];
     next.splice(i + 1, 0, copy);
     setActiveViewIndex(i + 1);
-    void saveConfig({ ...dbConfig, views: next });
+    void saveConfig({ ...dbConfig, views: next }, { views: { add: i + 1 } });
   };
   /** Set or clear a column footer on the ACTIVE view (Obsidian-native). */
   const setSummary = (col: string, name: string | null) => {
@@ -1070,7 +1070,7 @@ export function BaseViewer({
     if (views.length <= 1) return; // always keep at least one view
     const next = views.filter((_: any, idx: number) => idx !== i);
     setActiveViewIndex((prev) => Math.max(0, Math.min(prev >= i ? prev - 1 : prev, next.length - 1)));
-    void saveConfig({ ...dbConfig, views: next });
+    void saveConfig({ ...dbConfig, views: next }, { views: { remove: i } });
   };
   const reorderView = (from: number, to: number) => {
     if (from === to || !dbConfig) return;
@@ -1083,7 +1083,7 @@ export function BaseViewer({
       if (from > prev && to <= prev) return prev + 1;
       return prev;
     });
-    void saveConfig({ ...dbConfig, views });
+    void saveConfig({ ...dbConfig, views }, { views: { move: [from, to] } });
   };
 
   // --- Table column order/width persistence (views[i].order / views[i].widths) ---
@@ -1688,11 +1688,14 @@ export function BaseViewer({
   // it since. `park: false` is for a change other files follow (a property
   // renamed or removed across the notes, a relation's other database): it is
   // not kept for a file that has moved, because what follows it would not wait.
-  const saveConfig = async (newConfig: any, { park = true, shown }: { park?: boolean; shown?: any } = {}): Promise<boolean> => {
+  // `views` says what the change did to the list of views (added, removed or
+  // moved one); a change that says nothing kept them where they were.
+  const saveConfig = async (newConfig: any, { park = true, shown, views: viewsChange }: { park?: boolean; shown?: any; views?: ViewsChange } = {}): Promise<boolean> => {
     if (!vaultAdapter) return false;
     const newText = serializeBaseConfig(newConfig);
     // What `newConfig` was made from: the database as shown, unless the caller read the file anew.
     const shownConfig = shown ?? dbConfig;
+    const lineage = lineageBetween(shownConfig, newConfig, viewsChange);
     const shownText = content;
     const save = ++saveTurn.current;
     let saved = newConfig;
@@ -1709,7 +1712,7 @@ export function BaseViewer({
       // Onto the file as it lies there (finding B20): what this view changed
       // against the config it showed is set on the file's current config, so a
       // change another device or window made meanwhile stays.
-      const written = await writeBaseConfigChange(vaultAdapter, activePath, shownConfig, newConfig);
+      const written = await writeBaseConfigChange(vaultAdapter, activePath, shownConfig, newConfig, { lineage });
       if (written.config !== newConfig) {
         setDbConfig((shown: any) => (shown === newConfig ? written.config : shown));
         setContent((shown) => (shown === newText ? written.update.text : shown));
@@ -1724,7 +1727,11 @@ export function BaseViewer({
       if (moved && park) {
         // The change stays here and goes with the file once it is found —
         // measured from what was shown before the first change that waits.
-        setPendingConfig((waiting) => ({ shown: waiting ? waiting.shown : shownConfig, next: newConfig }));
+        setPendingConfig((waiting) => ({
+          shown: waiting ? waiting.shown : shownConfig,
+          next: newConfig,
+          lineage: waiting ? composeLineage(waiting.lineage, lineage) : lineage,
+        }));
         lookForFile();
         return false;
       }
@@ -1767,7 +1774,7 @@ export function BaseViewer({
       // refuses to recreate a vanished file; this is the reader saying it
       // should. Where a file stands there again, the change goes onto it as
       // it lies there (B20).
-      if (await vaultAdapter.exists(activePath)) await writeBaseConfigChange(vaultAdapter, activePath, pendingConfig.shown, pendingConfig.next);
+      if (await vaultAdapter.exists(activePath)) await writeBaseConfigChange(vaultAdapter, activePath, pendingConfig.shown, pendingConfig.next, { lineage: pendingConfig.lineage });
       else await vaultAdapter.writeTextFile(activePath, serializeBaseConfig(pendingConfig.next));
       if (indexer) await applyIndexChanges(indexer, { added: [activePath] }).catch(() => {});
     } catch (e) {

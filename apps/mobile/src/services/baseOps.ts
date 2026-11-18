@@ -33,6 +33,7 @@ import {
   viewPrefill,
   writeNoteProperty,
   writeBaseConfigChange,
+  type ViewLineage,
   loadBaseConfigText,
   bulkSetProperty,
   convertDateColumns,
@@ -105,7 +106,7 @@ export async function saveBaseConfig(
   v: MobileVault,
   path: string,
   config: any,
-  { recreate = false, shown }: { recreate?: boolean; shown?: any } = {},
+  { recreate = false, shown, lineage }: { recreate?: boolean; shown?: any; lineage?: ViewLineage } = {},
 ): Promise<{ config: any; placeOf: number[] }> {
   let saved = { config, placeOf: (Array.isArray(config?.views) ? config.views : []).map((_: unknown, i: number) => i) };
   // Onto the file as it lies there (finding B20): what changed against the
@@ -114,7 +115,7 @@ export async function saveBaseConfig(
   // writes the whole config only where no file stands there any more.
   if (shown !== undefined && (!recreate || (await v.files.exists(path)))) {
     await assertFileStillThere(v.files, path);
-    const written = await writeBaseConfigChange(v.files, path, shown, config);
+    const written = await writeBaseConfigChange(v.files, path, shown, config, { lineage });
     saved = { config: written.config, placeOf: written.placeOf };
   } else {
     if (!recreate) await assertFileStillThere(v.files, path);

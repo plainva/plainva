@@ -1,4 +1,4 @@
-import { BaseConfigChangeRefusedError, readContentBinary, reportingTo } from "@plainva/ui";
+import { BaseConfigChangeRefusedError, composeLineage, lineageBetween, readContentBinary, reportingTo, type ViewLineage, type ViewsChange } from "@plainva/ui";
 import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
@@ -197,14 +197,15 @@ export function BaseScreen({
   // lookup: the file is there but could not be read — the screen used to
   // show an empty database then, whose next change would have overwritten it.
   // What waits: the config shown before the first change that waits, and the config now (B20).
-  const [pendingConfig, setPendingConfig] = useState<{ shown: any; next: any } | null>(null);
+  // With which view of the one is which of the other (`viewLineage.ts`).
+  const [pendingConfig, setPendingConfig] = useState<{ shown: any; next: any; lineage?: ViewLineage } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const missing = useOpenFileLookup(vault, path, {
     onRenamed,
     carry: async (to) => {
       if (pendingConfig === null) return true;
       try {
-        await saveBaseConfig(vault, to, pendingConfig.next, { shown: pendingConfig.shown });
+        await saveBaseConfig(vault, to, pendingConfig.next, { shown: pendingConfig.shown, lineage: pendingConfig.lineage });
         return true;
       } catch (e) {
         console.error("[BaseScreen] carrying the database change to the moved file failed", e);
@@ -450,14 +451,15 @@ export function BaseScreen({
    * Writes the config of this database — never to a place its file has left
    * (issue 110, E9): the change then waits and goes with the file once found.
    * Answers whether it was written; `shown` is the config the screen showed
-   * before `next`.
+   * before `next`, `change` what the change did to its list of views.
    */
-  const persistConfig = useStableHandler(async (next: any, shown?: any): Promise<boolean> => {
+  const persistConfig = useStableHandler(async (next: any, shown?: any, change?: ViewsChange): Promise<boolean> => {
+    const lineage = shown !== undefined ? lineageBetween(shown, next, change) : undefined;
     try {
       // Onto the file as it lies there (finding B20): only what changed against
       // the config shown is set, a change made elsewhere meanwhile stays — and
       // is shown from now on.
-      const saved = await saveBaseConfig(vault, path, next, { shown });
+      const saved = await saveBaseConfig(vault, path, next, { shown, lineage });
       if (saved.config !== next) {
         setLoaded((now) => (now && now.config === next ? { ...now, config: saved.config } : now));
         // The active view follows its view, not its place: the file may have moved, added or removed views.
@@ -469,7 +471,7 @@ export function BaseScreen({
     } catch (e) {
       if (isFileNotFound(e)) {
         // Measured from what was shown before the first change that waits.
-        setPendingConfig((waiting) => ({ shown: waiting ? waiting.shown : shown, next }));
+        setPendingConfig((waiting) => ({ shown: waiting ? waiting.shown : shown, next, lineage: waiting ? composeLineage(waiting.lineage, lineage) : lineage }));
         lookForFile();
         return false;
       }
@@ -492,7 +494,7 @@ export function BaseScreen({
     if (pendingConfig === null) return;
     let saved: { config: any; placeOf: number[] };
     try {
-      saved = await saveBaseConfig(vault, path, pendingConfig.next, { recreate: true, shown: pendingConfig.shown });
+      saved = await saveBaseConfig(vault, path, pendingConfig.next, { recreate: true, shown: pendingConfig.shown, lineage: pendingConfig.lineage });
     } catch (e) {
       console.error("[BaseScreen] saving the database back failed", e);
       toast.error(t("editor.saveFailed"));
@@ -508,13 +510,13 @@ export function BaseScreen({
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   });
 
-  /** Clone-mutate-save-requery — the single write path for config changes. */
-  const mutateConfig = (mutate: (cfg: any) => void) => {
+  /** Clone-mutate-save-requery — the single write path for config changes; `change` says what it did to the list of views. */
+  const mutateConfig = (mutate: (cfg: any) => void, change?: ViewsChange) => {
     if (!loaded) return;
     const next = JSON.parse(JSON.stringify(loaded.config));
     mutate(next);
     setLoaded({ ...loaded, config: next });
-    void persistConfig(next, loaded.config);
+    void persistConfig(next, loaded.config, change);
   };
 
   /**

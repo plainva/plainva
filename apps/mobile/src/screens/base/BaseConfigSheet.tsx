@@ -8,7 +8,7 @@ import { getMobileSettings } from "../../services/mobileSettings";
 import { useSettingsState } from "../../hooks/useSettingsState";
 import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
-import { AreaBoundary, ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
+import { AreaBoundary, ColumnSummarySelect, useFilterRuleDraft, type ViewsChange } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
 import { addFilterRules, FilterInWords, filterSchemaOf, inferColumnType, type BaseAi } from "@plainva/ui";
@@ -94,7 +94,8 @@ export function BaseConfigSheet({
   columnLabel: (col: string) => string;
   vault: MobileVault;
   /** Clone-mutate-save: the callback owns persistence + re-query. */
-  onMutate: (mutate: (cfg: any) => void) => void;
+  /** `change`: what the mutation does to the list of views (one added, removed or moved); without it, it keeps them where they are. */
+  onMutate: (mutate: (cfg: any) => void, change?: ViewsChange) => void;
   onSelectView: (idx: number) => void;
   /** Opens the property schema sheet (E3). */
   onEditProperty: (col: string) => void;
@@ -414,9 +415,12 @@ export function BaseConfigSheet({
       });
       const name = value?.trim();
       if (cancelled || !name) return;
-      onMutate((cfg) => {
-        cfg.views.push({ type: "table", name, order: ["file.name", ...shown.map((c) => c)] });
-      });
+      onMutate(
+        (cfg) => {
+          cfg.views.push({ type: "table", name, order: ["file.name", ...shown.map((c) => c)] });
+        },
+        { add: views.length },
+      );
       onSelectView(views.length);
     })();
   };
@@ -441,19 +445,25 @@ export function BaseConfigSheet({
   const duplicateView = () => {
     const copy = JSON.parse(JSON.stringify(view));
     copy.name = `${String(view.name || viewTypeLabel(view.type ?? "table"))} ${t("database.copySuffix")}`;
-    onMutate((cfg) => {
-      cfg.views.splice(viewIndex + 1, 0, copy);
-    });
+    onMutate(
+      (cfg) => {
+        cfg.views.splice(viewIndex + 1, 0, copy);
+      },
+      { add: viewIndex + 1 },
+    );
     onSelectView(viewIndex + 1);
   };
 
   const moveView = (idx: number, delta: -1 | 1) => {
     const to = idx + delta;
     if (to < 0 || to >= views.length) return;
-    onMutate((cfg) => {
-      const [moved] = cfg.views.splice(idx, 1);
-      cfg.views.splice(to, 0, moved);
-    });
+    onMutate(
+      (cfg) => {
+        const [moved] = cfg.views.splice(idx, 1);
+        cfg.views.splice(to, 0, moved);
+      },
+      { move: [idx, to] },
+    );
     if (idx === viewIndex) onSelectView(to);
     else if (to === viewIndex) onSelectView(idx);
   };
@@ -468,9 +478,12 @@ export function BaseConfigSheet({
         confirmLabel: t("common.delete"),
       });
       if (!ok) return;
-      onMutate((cfg) => {
-        cfg.views.splice(viewIndex, 1);
-      });
+      onMutate(
+        (cfg) => {
+          cfg.views.splice(viewIndex, 1);
+        },
+        { remove: viewIndex },
+      );
       onSelectView(Math.max(0, viewIndex - 1));
     })();
   };

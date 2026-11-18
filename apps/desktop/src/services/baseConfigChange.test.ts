@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   BaseConfigChangeRefusedError,
+  composeLineage,
   deletePropertyFromConfig,
+  lineageBetween,
+  lineageOfChange,
   renamePropertyInConfig,
   loadBaseConfigText,
   rebaseBaseConfigText,
@@ -900,5 +903,92 @@ describe("several actions in one save — a change parked for a moved file (B20)
     expect(made.config.views.map((v: any) => v.name)).toEqual(["A", "A", "B"]);
     expect(made.config.views[0].sort).toEqual(sortBy("note.a"));
     expect(made.text).toContain("f: 1 + 1");
+  });
+});
+
+// --- Fifth review of B20 (18.11.): the screen says which view is which; each check of a reading on its own ---
+
+describe("which view is which, as the screen says it (B20)", () => {
+  it("follows what a change did to the list of views, and what several changes did one after the other", () => {
+    expect(lineageOfChange(3, 3)).toEqual([0, 1, 2]);
+    expect(lineageOfChange(2, 3, { add: 1 })).toEqual([0, null, 1]);
+    expect(lineageOfChange(3, 2, { remove: 0 })).toEqual([1, 2]);
+    expect(lineageOfChange(3, 3, { move: [0, 2] })).toEqual([1, 2, 0]);
+    // What the change says does not add up to the views now: unknown, judged from the views.
+    expect(lineageOfChange(2, 2, { add: 2 })).toBeUndefined();
+    expect(lineageOfChange(2, 3)).toBeUndefined();
+    expect(composeLineage([1], [0, null])).toEqual([1, null]);
+    expect(composeLineage([2, 0, null], [2, 0])).toEqual([null, 2]);
+    expect(composeLineage(undefined, [0])).toBeUndefined();
+  });
+});
+
+describe("a view removed here and a new one added under its name are two views (B20)", () => {
+  // The desktop names a new view by its type ("Tabelle"): removed and added again, it reads like the old one.
+  const T0 = ["views:", "  - type: table", "    name: Tabelle", "    order:", "      - note.a", "    sort:", "      - property: note.a", "        direction: DESC", "  - type: cards", "    name: Karten", ""].join("\n");
+  const withLimit = T0.replace("    name: Tabelle\n", "    name: Tabelle\n    limit: 9\n");
+  /** Two changes parked for a moved file: the first view removed, then a new one added at the end. */
+  const removedThenAdded = (type: string) => {
+    const shown = loadBaseConfigText(T0);
+    const mid = { ...shown, views: shown.views.filter((_: any, i: number) => i !== 0) };
+    const next = { ...mid, views: [...mid.views, { type, name: "Tabelle" }] };
+    return { shown, next, lineage: composeLineage(lineageBetween(shown, mid, { remove: 0 }), lineageBetween(mid, next, { add: 1 })) };
+  };
+  const refused = (f: () => unknown) => {
+    try { f(); return null; } catch (e) { return e instanceof BaseConfigChangeRefusedError ? e.reason : String(e); }
+  };
+
+  it("where the other side changed the old view, refused: what it set there never lands on the new view of that name", () => {
+    const same = removedThenAdded("table");
+    expect(refused(() => rebaseBaseConfigText(same.shown, same.next, withLimit, { lineage: same.lineage }))).toBe("viewUnclear");
+    const other = removedThenAdded("cards");
+    expect(refused(() => rebaseBaseConfigText(other.shown, other.next, withLimit, { lineage: other.lineage }))).toBe("viewUnclear");
+  });
+
+  it("through the write as well: nothing written", async () => {
+    const c = removedThenAdded("table");
+    let now = withLimit;
+    const files = { readTextFile: async () => now, writeTextFile: async (_p: string, t: string) => { now = t; } };
+    await expect(writeBaseConfigChange(files, "Tasks.base", c.shown, c.next, { lineage: c.lineage })).rejects.toMatchObject({ reason: "viewUnclear" });
+    expect(now).toBe(withLimit);
+  });
+
+  it("where the file left its views alone, the screen's views stand as a whole save writes them", () => {
+    const c = removedThenAdded("table");
+    const made = rebaseBaseConfigText(c.shown, c.next, "formulas:\n  f: 1 + 1\n" + T0, { lineage: c.lineage });
+    expect(made.config.views.map((v: any) => v.name)).toEqual(["Karten", "Tabelle"]);
+    // The new view as the screen made it: nothing of the removed one's sort.
+    expect(made.text).not.toContain("DESC");
+    expect(made.text).toContain("f: 1 + 1");
+  });
+
+  it("a view the screen kept and changed is still the file's view of that name", () => {
+    const shown = loadBaseConfigText(T0);
+    const next = { ...shown, views: shown.views.map((v: any, i: number) => (i === 0 ? { ...v, sort: [{ property: "a", direction: "ASC" }] } : v)) };
+    const made = rebaseBaseConfigText(shown, next, withLimit, { lineage: lineageBetween(shown, next) });
+    expect(made.config.views.map((v: any) => v.name)).toEqual(["Tabelle", "Karten"]);
+    expect(made.text).toContain("limit: 9");
+    expect(made.text).toContain("direction: ASC");
+  });
+});
+
+describe("each text the change is handed for the file is the reading that held still (B20)", () => {
+  const FULL = ["formulas:", "  f1: a + 1", "views:", "  - type: table", "    name: Offen", "    order:", "      - note.a", "  - type: cards", "    name: Karten", "    limit: 5", ""].join("\n");
+
+  it("over a storage without the chain's halves: a text read again for the write that is not the settled one starts the change over", async () => {
+    const whole = FULL.replace("limit: 5", "limit: 9");
+    const cut = whole.slice(0, whole.indexOf("  - type: cards"));
+    let reads = 0;
+    let written: string | null = null;
+    // The text the screen knows first; another writer starts as the change reads again — cut, then whole.
+    const at = (n: number) => (n <= 1 ? FULL : n === 2 ? cut : whole);
+    const files = {
+      readTextFile: async () => { reads += 1; return written ?? at(reads); },
+      writeTextFile: async (_p: string, t: string) => { written = t; },
+    };
+    const shown = loadBaseConfigText(FULL);
+    await writeBaseConfigChange(files, "Tasks.base", shown, { ...shown, views: [...shown.views, { type: "list", name: "Neu" }] });
+    expect(loadBaseConfigText(written ?? "").views.map((v: any) => v.name)).toEqual(["Offen", "Karten", "Neu"]);
+    expect(written).toContain("limit: 9");
   });
 });
