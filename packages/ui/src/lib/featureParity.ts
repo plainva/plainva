@@ -1201,6 +1201,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-11-17",
   },
   {
+    id: "quit-hold",
+    title: "Quitting the app waits for what was typed, asks about a mail not sent, and says a cut-short quit at the next start",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "A phone app is never quit by the person: the system sends it to the background and " +
+      "ends it there without a word. The phone writes what it holds on that step " +
+      "(appLifecycle.ts: drafts, graph pins, task filters), which is the same result; a " +
+      "question about an unsent mail has nobody to answer it there, and there is no " +
+      "deadline that could run out, so nothing to say at the next start (decided 2026-11-17, " +
+      "desktop windows A7).",
+    verified: "2026-11-17",
+  },
+  {
     id: "recent-list-by-day",
     title: "The recently opened notes as a list under day headings, with the time of each open",
     area: "platform",

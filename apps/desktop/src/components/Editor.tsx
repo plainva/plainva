@@ -14,7 +14,7 @@ import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
-  adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, vaultDisplayName, type KnownFileIdentity, type MissingFileSearch,
+  adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, type KnownFileIdentity, type MissingFileSearch,
   type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
@@ -71,6 +71,7 @@ import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush, type SaveFlushRequest } from "../services/saveFlush";
+import { onBeforeLeaving } from "../services/beforeLeaving";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, type FormatAction, type SelectionToolbarPosition } from "@plainva/ui";
 import { BlockMenu } from "./BlockMenu";
@@ -90,6 +91,7 @@ import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 import { createSaveRetryTimer, type SaveRetryState } from "../services/saveRetryTimer";
+import { vaultAppName, vaultLabel } from "../services/vaultNames";
 
 /**
  * Text shown in the composer for a property comment, and the anchor quote.
@@ -214,17 +216,34 @@ export const Editor: React.FC<{
    * Writes the copy to the vault database, debounced (C34). Persisting is what
    * lets the copy outlive the app; the in-memory park stays the fast path.
    */
+  /** The copy the timer below will write, so the way out can write it at once (O3). */
+  const parkPending = useRef<(() => Promise<void>) | null>(null);
   const schedulePark = (path: string, base: string | null, copy: string, note: string) => {
     if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
-    parkWriteTimer.current = window.setTimeout(() => {
+    const write = async () => {
       parkWriteTimer.current = null;
+      parkPending.current = null;
       const db = vaultContext.queryService?.db;
       if (!db || base === null) return;
-      void parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
-    }, 500);
+      await parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
+    };
+    parkPending.current = write;
+    parkWriteTimer.current = window.setTimeout(() => void write(), 500);
   };
+  // The way out of the window or the app (A7, O3): the save due a second after
+  // the last keystroke and the parked copy due half a second after the last
+  // change happen now, and the window waits for them (`beforeLeaving.ts`).
+  useEffect(() => onBeforeLeaving(async () => {
+    const park = parkPending.current;
+    if (park) {
+      if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
+      await park();
+    }
+    if (activePath) await requestSaveFlush(activePath, vaultPath ?? undefined);
+  }), [activePath, vaultPath]);
   const forgetPark = (path: string) => {
     if (parkWriteTimer.current !== null) { window.clearTimeout(parkWriteTimer.current); parkWriteTimer.current = null; }
+    parkPending.current = null;
     const db = vaultContext.queryService?.db;
     if (db) void clearEditorSuggestion(db, path, vaultPath).catch(reportingTo("suggestions:unpark"));
   };
@@ -483,7 +502,7 @@ export const Editor: React.FC<{
     if (!activePath || !vaultAdapter || !queryService) return;
     try {
       const folder = activePath.includes("/") ? activePath.slice(0, activePath.lastIndexOf("/")) : "";
-      const heading = folder ? folder.split("/").pop()! : (vaultPath?.split(/[/\\]/).pop() ?? "Vault");
+      const heading = folder ? folder.split("/").pop()! : (vaultPath ? await vaultAppName(vaultPath) : "Vault");
       await generateIndexForFolder({ adapter: vaultAdapter, queryService, folder, heading, subfoldersHeading: t("indexMd.subfoldersHeading"), skipBackup: true });
       // Only the folder's index.md changed — reindex just that (Issue #9).
       if (indexer) applyIndexChanges(indexer, { added: [folder ? `${folder}/index.md` : "index.md"] }).then(() => triggerFileTreeUpdate()).catch(() => {});
@@ -2249,7 +2268,7 @@ export const Editor: React.FC<{
     // A move the sync made here is no move outside Plainva: the tab shows the new name.
     if (movedOutside) toast.info(t("editor.movedFileFollowed", {
       defaultValue: "Moved outside Plainva. The tab now shows the file in {{folder}}.",
-      folder: movedFolderLabel(to, vaultDisplayName(vaultPath ?? "")),
+      folder: movedFolderLabel(to, vaultLabel(vaultPath ?? "")),
     }));
     // A surface without tab retargeting (the peek window, an auxiliary
     // window's pane) opens the file where it lives now instead.

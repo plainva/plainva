@@ -1,6 +1,6 @@
 import { nameOf, type InstructionEntry } from "@plainva/core";
 import { ScrollText, type LucideIcon } from "lucide-react";
-import { APP_SKILL_SOURCES, APP_SKILLS, appSkillOf } from "./appSkills";
+import { APP_SKILL_SOURCES, APP_SKILLS, appSkillOf, takesArgument } from "./appSkills";
 
 /**
  * How a skill shows where a person starts it (plan KI-Harness P3): a chip in
@@ -80,7 +80,8 @@ export function mcpSkillPrompts(t: Translate): McpPromptSpec[] {
   return APP_SKILLS.filter((skill) => skill.mcp).map((skill) => {
     const base = { name: skill.name, title: t(`ai.skills.${skill.key}.title`), description: t(`ai.skills.${skill.key}.description`) };
     const argument = APP_SKILL_SOURCES.find((s) => s.id === `plainva:${skill.name}`)?.skill?.plainva.argument;
-    if (!argument) return { ...base, text: t(`ai.skills.${skill.key}.prompt`) };
+    // The flag in the list says it, so the key's words can be checked (`aiSkills.test.ts` holds it to SKILL.md).
+    if (!argument || !takesArgument(skill)) return { ...base, text: t(`ai.skills.${skill.key}.prompt`) };
     return {
       ...base,
       // The placeholder goes to the server as it is: interpolating it with itself keeps it.

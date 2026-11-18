@@ -2,6 +2,7 @@ import { getConflict, noteConflict, subscribeConflicts } from "../services/confl
 import { useReaderChrome } from "../hooks/useReaderChrome";
 import { listMobilePublicationFeedback } from "../services/mobileComments";
 import { phoneTemplateVault } from "../services/templateVault";
+import { vaultEntryName } from "../services/vaultEntryName";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -633,7 +634,7 @@ export function NoteScreen({
   const followMoved = useStableHandler((to: string, movedOutside = true) => {
     // A move the sync made here is no move outside the app: the bar shows the new name.
     if (movedOutside) void getVaultEntry(vault.vaultId).catch(() => null).then((entry) => {
-      toast.info(t("mobile.noteMovedFollowed", { folder: movedFolderLabel(to, entry?.name || t("mobile.vaultLocal")) }));
+      toast.info(t("mobile.noteMovedFollowed", { folder: movedFolderLabel(to, vaultEntryName(entry?.name)) }));
     });
     onRenamed(to);
   });

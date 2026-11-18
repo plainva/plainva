@@ -166,7 +166,17 @@ export function useFileRowSheet({
         });
         if (!sure) return;
       }
-      await vaultOps.removeFolder(vault, target.path, { confirmed: true });
+      try {
+        await vaultOps.removeFolder(vault, target.path, { confirmed: true });
+      } catch (error) {
+        // Said as every other deletion says it (F6 of release 0.9.0, review
+        // 17.11.): it went to the diagnostics only, as an unhandled rejection.
+        console.error("mobile folder delete failed", target.path, error);
+        toast.error(t("dialogs.bulkErrorsMsg", { count: 1, names: target.title }));
+        // Part of the folder may be gone: the index and the views look again.
+        void vault.indexer?.indexVaultFull("folder delete failed in the app").catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed) */ });
+        window.dispatchEvent(new CustomEvent("m-vault-changed"));
+      }
     })();
   };
 

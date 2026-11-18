@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Banner, Button, Modal, TaskDuplicatesList, deleteWithNet, errorText, toast, useTaskDuplicates, type TaskCompletionModel } from "@plainva/ui";
+import { Banner, Button, Modal, TaskDuplicatesList, deleteWithNet, errorText, noteDisplayName, toast, useTaskDuplicates, type TaskCompletionModel } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
@@ -43,6 +43,8 @@ export function TaskDuplicatesNotice({
       notifyFileOps(removed.map((path) => ({ type: "delete" as const, path })));
       onChanged();
     },
+    // Said as a deletion says it (F4): the copies that stayed, by name.
+    onFailed: (paths) => toast.error(t("dialogs.bulkErrorsMsg", { count: paths.length, names: paths.map(noteDisplayName).join(", ") })),
     onError: (e) => {
       console.error("[TaskDuplicatesNotice]", e);
       toast.error(errorText(e));

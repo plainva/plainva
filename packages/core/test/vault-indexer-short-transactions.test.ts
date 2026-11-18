@@ -89,7 +89,12 @@ async function dump(db: IDatabaseAdapter): Promise<Record<string, unknown[]>> {
   for (const table of ["files", "links", "tags", "properties", "sync_state", "meta", "offline_queue", "fts_notes"]) {
     const rows = await db.query<Record<string, unknown>>(`SELECT * FROM ${table}`).catch(() => null);
     if (!rows) continue;
-    out[table] = rows.map((row) => JSON.stringify(row)).sort();
+    // Whether a reading vouched for a file's timestamp depends on how long after the listing it began, not on what was read.
+    out[table] = rows.map((row) => {
+      const copy = { ...row };
+      delete copy.stamp_vouched;
+      return JSON.stringify(copy);
+    }).sort();
   }
   return out;
 }

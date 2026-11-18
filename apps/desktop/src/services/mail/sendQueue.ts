@@ -3,6 +3,8 @@ import { HeldSends, UndoSendQueue, secondsLeft, listMailAccounts, mailErrorText,
 import i18n from "@plainva/ui/i18n";
 import { isOwnerWindow } from "../windowContext";
 import { getWindowBus } from "../windowBus";
+import type { Attempt } from "../attempt";
+import { onBeforeLeaving } from "../beforeLeaving";
 import type { ComposeSnapshot } from "./composeHandoff";
 
 /**
@@ -172,6 +174,8 @@ function undoQueue(): UndoSendQueue<QueuedSend> {
   });
   // Closing Plainva must not lose a message someone asked to send.
   if (typeof window !== "undefined") window.addEventListener("beforeunload", () => void queue?.flush());
+  // The way out that waits (A7): a page that is destroyed never sees `beforeunload`.
+  if (typeof window !== "undefined") onBeforeLeaving(async () => { await queue?.flush(); });
   return queue;
 }
 
@@ -245,16 +249,27 @@ export async function appendDraftFor(req: MailDraftRequest): Promise<void> {
  * window that is not the owner, all this side learns is that the owner's queue
  * has the message, and that is when it is told.
  */
-export async function submitSend(req: MailSendRequest, delivered?: () => void): Promise<void> {
+export async function submitSend(req: MailSendRequest, delivered?: () => void, attempt?: Attempt): Promise<void> {
   if (isOwnerWindow()) return enqueueSend(req, delivered);
   const bus = await getWindowBus();
-  await bus.request("mail-send", req);
+  await bus.request("mail-send", req, { attempt: attempt?.for(mailAttemptWhat(req)) });
+  attempt?.succeeded();
   delivered?.();
 }
 
 /** Save as draft from wherever the writer is (same routing as `submitSend`). */
-export async function submitDraft(req: MailDraftRequest): Promise<void> {
+export async function submitDraft(req: MailDraftRequest, attempt?: Attempt): Promise<void> {
   if (isOwnerWindow()) return appendDraftFor(req);
   const bus = await getWindowBus();
-  await bus.request("mail-draft", req);
+  await bus.request("mail-draft", req, { attempt: attempt?.for(mailAttemptWhat(req)) });
+  attempt?.succeeded();
+}
+
+/**
+ * What a send or a draft sends, for telling a second press of the same
+ * message from a changed one (A15, `createAttempt`). A file stands in with its
+ * name, type and length: comparing megabytes of base64 for that is waste.
+ */
+export function mailAttemptWhat(req: MailSendRequest | MailDraftRequest): string {
+  return JSON.stringify({ ...req, attachments: req.attachments.map((a) => [a.name, a.mime, a.contentBase64.length]) });
 }

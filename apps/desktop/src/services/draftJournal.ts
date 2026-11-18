@@ -16,6 +16,7 @@ import {
 } from "@plainva/ui";
 import { isOwnerWindow } from "./windowContext";
 import { getWindowBus } from "./windowBus";
+import { onBeforeLeaving } from "./beforeLeaving";
 import { checkedReadTextFile } from "../adapters/checkedFilesystem";
 
 /**
@@ -293,6 +294,10 @@ export function flushDraftsOnLeave(page: LeaveEvents, document?: LeaveEvents & {
 }
 
 if (typeof window !== "undefined" && typeof document !== "undefined") flushDraftsOnLeave(window, document);
+// And the way out that waits (A7): the window or the app going asks every
+// surface first (`beforeLeaving.ts`), the journal's buffer among them.
+if (typeof window !== "undefined") onBeforeLeaving(() => flushDrafts());
+
 
 /** What an editor buffered for the note is let go unwritten (its text went to another window). */
 export function dropDraft(vaultPath: string, notePath: string, sessionId: string): void {
@@ -397,12 +402,22 @@ export async function pruneDrafts(vaultPath: string): Promise<void> {
 }
 
 /**
+ * Forgets what the journal saw of this vault's files: the vault closed, or its
+ * drafts are removed past the journal. The next snapshot reads the disk.
+ */
+export function forgetDraftMemory(vaultPath: string): void {
+  for (const dir of layout.dirs(vaultPath)) journalInstance?.forgetSeen(dir);
+}
+
+/**
  * Removes ALL drafts of a vault — wired into "forget app data". The current
  * folder goes whole. The folder of the old name can be shared with another
  * vault whose path hashed alike: there only this vault's entries go, and the
  * old comment-operation queue in it stays for `removeLegacyCommentOperations`.
  */
 export async function removeVaultDrafts(vaultPath: string): Promise<void> {
+  // The journal's picture of these files goes with them, whatever the removal reaches.
+  forgetDraftMemory(vaultPath);
   try {
     const base = await join(await appDataDir(), "drafts");
     const dir = await join(base, draftPathKey(vaultPath));

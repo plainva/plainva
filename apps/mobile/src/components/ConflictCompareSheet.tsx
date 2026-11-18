@@ -9,6 +9,7 @@ import { mConfirm } from "../services/mobileDialogs";
 import { clearConflict } from "../services/conflictState";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
 import { syncSoon } from "../services/syncService";
+import { vaultEntryName } from "../services/vaultEntryName";
 
 /**
  * The phone's conflict surface (feedback round 2026-09-01, P2): one sheet,
@@ -76,7 +77,7 @@ export function ConflictCompareSheet({
       setCopy(null);
       try {
         const entry = await getVaultEntry(vault.vaultId);
-        if (!stale) setVaultName(entry?.name || i18n.t("mobile.vaultLocal"));
+        if (!stale) setVaultName(vaultEntryName(entry?.name));
       } catch {
         /* the details name the vault by its id */
       }

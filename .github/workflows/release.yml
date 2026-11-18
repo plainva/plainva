@@ -248,8 +248,12 @@ jobs:
           NODE
 
       # The ONNX Runtime the app bundles for local embeddings (plan KI-Harness P2a-3,
-      # ADR 0021): Microsoft's release archives, pinned by size and SHA-256 in the script.
-      # macOS joins the arm64 library of 1.30 and the x86_64 one of 1.23.2 with lipo.
+      # ADR 0021): Microsoft's release archives on GitHub, or, when GitHub cannot deliver
+      # them (404, 5xx, no answer — the whole repository answered 404 on 2026-11-18),
+      # Microsoft's NuGet package Microsoft.ML.OnnxRuntime; the log names the source. Both
+      # ways end at the pinned size and SHA-256 of the library itself (archives and
+      # packages are pinned too). macOS joins the arm64 library of 1.30 and the x86_64 one
+      # of 1.23.2 with lipo.
       - name: Fetch ONNX Runtime
         run: node apps/desktop/scripts/fetch-onnxruntime.mjs
 

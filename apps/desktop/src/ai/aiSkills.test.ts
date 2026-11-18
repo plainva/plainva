@@ -21,6 +21,13 @@ describe("the app's own skills", () => {
     }
   });
 
+  it("take an argument exactly where the list says so: the key's argument texts follow the flag (F53)", () => {
+    for (const skill of APP_SKILLS) {
+      const declared = APP_SKILL_SOURCES.find((s) => s.id === `plainva:${skill.name}`)?.skill?.plainva.argument;
+      expect({ skill: skill.name, argument: Boolean(declared) }).toEqual({ skill: skill.name, argument: skill.argument === true });
+    }
+  });
+
   it("only memory care names tools that draft, and only the memory's own: what it suggests waits for the user", () => {
     const care = APP_SKILL_SOURCES.find((source) => source.id === "plainva:memory-care")!.skill!;
     // A skill has a tool that drafts only by naming it; the cap `plainva.risk` knows reading and showing, so it sets none.

@@ -20,6 +20,7 @@ mod embedding;
 mod linux_appimage;
 #[cfg(target_os = "macos")]
 mod macos_spellcheck;
+mod leave;
 mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
@@ -437,6 +438,7 @@ pub fn run() {
         .manage(vault_watch::VaultWatchers::default())
         .manage(vault_walk::VaultWalks::default())
         .manage(tray::TrayState::default())
+        .manage(leave::LeaveState::default())
         .manage(ai_egress::AiEgress::default())
         .manage(mcp::McpState::default())
         .manage(mcp_client::McpClientState::default())
@@ -467,6 +469,11 @@ pub fn run() {
             // Started by a note link (Windows, Linux): it waits until the
             // window takes it (src/note_links.rs).
             note_links::arrive(app.handle(), note_links::note_link_args(std::env::args().skip(1)));
+            // The ways out the hold sees, beyond Tauri's own (src/leave.rs).
+            #[cfg(target_os = "macos")]
+            leave::install_quit_menu(app.handle())?;
+            #[cfg(unix)]
+            leave::watch_termination(app.handle());
             Ok(())
         })
         // A webview that loads a page has lost the JavaScript that knew its
@@ -474,6 +481,8 @@ pub fn run() {
         .on_page_load(|webview, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Started {
                 db_tx::release_owner_later(webview.app_handle(), webview.label().to_string(), "its page loaded");
+                // And it no longer listens for the way out (src/leave.rs).
+                leave::page_loading(webview.app_handle(), webview.label());
             }
         })
         .on_window_event(|window, event| {
@@ -485,6 +494,10 @@ pub fn run() {
             // src/tray.rs. Without one, closing quits as it always has.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if tray::hide_instead_of_quit(window) {
+                    api.prevent_close();
+                } else if leave::hold_main_close(window) {
+                    // The central window closes once every window wrote the
+                    // drafts it still buffers, or after a moment (src/leave.rs).
                     api.prevent_close();
                 }
             }
@@ -570,6 +583,11 @@ pub fn run() {
             tray::tray_enable,
             tray::tray_disable,
             tray::tray_set_next,
+            leave::leave_ready,
+            leave::leave_armed,
+            leave::leave_was_cut,
+            leave::leave_mark_cut,
+            leave::leave_clear_cut,
             session::desktop_session_kind,
             app_identity::app_updates_managed_by,
             note_links::note_links_take,
@@ -625,8 +643,13 @@ pub fn run() {
         .run(|app, event| {
             // Quitting from the tray (`app.exit`) closes no window first, so
             // no close request writes the window's place: it is written here.
-            if let tauri::RunEvent::ExitRequested { .. } = event {
+            if let tauri::RunEvent::ExitRequested { code, api, .. } = &event {
                 window_state::flush(app);
+                // The same hold as the central window's close: what the
+                // windows buffer is written before the process goes.
+                if leave::hold_exit(app, *code) {
+                    api.prevent_exit();
+                }
             }
             // macOS hands a note link to the running process — also the one
             // the link started (src/note_links.rs).

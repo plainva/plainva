@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   type BackupVaultAdapter,
   ConflictError,
@@ -27,7 +27,7 @@ import {
   scanChangedNothing,
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
-import { buildVaultChain, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
+import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
 import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -54,7 +54,7 @@ import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
-import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
+import { writeDraft, clearDraft, forgetDraftMemory, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { listMailAccounts } from "@plainva/ui/mail";
 import {
@@ -100,6 +100,7 @@ import { noteConflict } from "./conflictState";
 import { mobileChainPorts } from "./mobileChainPorts";
 import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
 import { afterFirstPaint } from "./bootStagger";
+import { retiredBoot } from "./bootRetirement";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -149,6 +150,12 @@ export interface MobileVault {
   ownDeletions: OwnDeletionRegister;
   workspaceRuntime: PersonalWorkspaceRuntime | null;
   workspaceState: SqlWorkspaceStateStore | null;
+  /**
+   * The encrypted workspace's permission link of the chain, or null: what the
+   * start-up reconcile asks before it queues a change made while the app was
+   * closed (release 0.9.0 A3), the desktop's `permissionedWorkspaceAdapter`.
+   */
+  workspacePermissions: PermissionedVaultAdapter | null;
   /** Raw index DB (also carries the pim_* tables) — the calendar/PIM runtime. */
   db: IDatabaseAdapter | null;
   indexer: VaultIndexer | null;
@@ -321,23 +328,15 @@ const ABANDON_BOOT_AFTER_MS = 2_000;
 /**
  * The vault of the boot that is running, or null — and the boot is over when
  * this returns. A boot that is still running is told to stop its scan and
- * given a moment; one that does not answer by then is left behind, and its
- * vault is closed whenever it does arrive. Waiting for it here was a switch
+ * given a moment; whatever it brings then is closed, in time or late
+ * (`bootRetirement.ts`): its index was called off, and a vault left open with
+ * it would sync and take edits without one. Waiting for it here was a switch
  * that hung as long as the boot did.
  */
-async function retireBoot(): Promise<MobileVault | null> {
+function retireBoot(): Promise<MobileVault | null> {
   const pending = bootPromise;
-  if (!pending) return null;
-  if (bootSettled) return pending.catch(() => null);
-  bootAbort?.abort();
-  const late = Symbol("late");
-  const outcome = await Promise.race([
-    pending.catch(() => null),
-    new Promise<typeof late>((resolve) => setTimeout(() => resolve(late), ABANDON_BOOT_AFTER_MS)),
-  ]);
-  if (outcome !== late) return outcome;
-  void pending.then((v) => v.dispose()).catch(() => {});
-  return null;
+  if (!pending) return Promise.resolve(null);
+  return retiredBoot(pending, bootSettled, () => bootAbort?.abort(), ABANDON_BOOT_AFTER_MS);
 }
 
 /**
@@ -732,7 +731,7 @@ export async function rereadVaultOnResume(now: number = Date.now()): Promise<boo
 export async function rereadVault(folder?: string): Promise<void> {
   const v = bootPromise ? await bootPromise.catch(() => null) : null;
   if (!v || !v.indexer) return;
-  if (folder === undefined) await v.indexer.indexVaultFull("manual refresh");
+  if (folder === undefined) await v.indexer.indexVaultFull(MANUAL_REFRESH_TRIGGER);
   else await v.indexer.reconcileFolder(folder);
 }
 
@@ -851,6 +850,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const ownDeletions = new OwnDeletionRegister();
   let indexer: VaultIndexer | null;
   let queryService: VaultQueryService | null;
+  /** Ends the following of the daily-note naming (`followDailyNaming`) with the vault. */
+  let stopFollowingNaming = (): void => {};
   let searchAvailable = false;
 
   /** Where this vault's conflict copies and diagnostics say they come from. */
@@ -861,7 +862,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     await db.initialize();
     await initializeSchema(db);
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
-    await logIndexDiagnostics(db);
+    await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
 
     // Retention comes from the global mobile settings (package G); the
     // desktop keeps this per vault, mobile applies one policy to the active
@@ -921,6 +922,10 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     const indexNotices = createIndexNotices(toast);
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
+      // No watcher here: what changes from outside while a scan reads is looked at once more.
+      hearsNoChanges: true,
+      // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
+      comesBackByItself: true,
       // Counted only while the first index is built (services/indexBuild.ts).
       onProgress: (done, total) => reportIndexBuild(entry.id, done, total),
       // One line per full scan (issue 122), the same one the desktop writes:
@@ -971,7 +976,17 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // daily note tell every query which day a file name stands for. Set on the
     // service rather than per call - there are five call sites and they all
     // want the same answer.
-    queryService.setDayOfPath(dailyDayResolver({ folder: getMobileSettings().dailyFolder, format: getMobileSettings().dailyFormat }));
+    // A changed naming follows at once, and reloads what lists notes by it
+    // (followDailyNaming): before, the phone kept the naming it opened with.
+    const service = queryService;
+    const follow = followDailyNaming((resolver) => service.setDayOfPath(resolver));
+    const naming = () => ({ folder: getMobileSettings().dailyFolder, format: getMobileSettings().dailyFormat });
+    follow(naming());
+    const onSettings = () => {
+      if (follow(naming())) window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    };
+    window.addEventListener("m-settings-changed", onSettings);
+    stopFollowingNaming = () => window.removeEventListener("m-settings-changed", onSettings);
     // Warm index (P5): a vault that was indexed before boots straight from
     // the database — the full pass runs in the background and refreshes the
     // UI when done. A cold/empty index still blocks so the tree is never
@@ -1089,6 +1104,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     ownDeletions,
     workspaceRuntime,
     workspaceState,
+    workspacePermissions: permissioned,
     db,
     indexer,
     queryService,
@@ -1134,6 +1150,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       },
     }),
     dispose: async () => {
+      stopFollowingNaming();
+      // The journal's picture of this vault's files: they may be removed before it opens again.
+      forgetDraftMemory(entry.id);
       clearPinboardCache(queryService ?? files);
       indexAbort.abort();
       await indexer?.whenIdle();
