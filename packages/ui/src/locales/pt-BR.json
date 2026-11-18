@@ -6428,6 +6428,7 @@
     "loadMore": "Carregar mais",
     "pickMessage": "Selecione uma mensagem.",
     "viewer": "Conteúdo do e-mail",
+    "bodyUnreadable": "Esta mensagem não pode ser exibida com segurança, por isso o Plainva não mostra o conteúdo dela.",
     "remoteBlocked": "Conteúdo remoto bloqueado ({{n}})",
     "remoteBlockedJunk": "Na pasta de spam, o Plainva não carrega imagens remotas, mesmo que normalmente sejam sempre carregadas. {{n}} bloqueadas.",
     "captured": "E-mail salvo: {{name}}",

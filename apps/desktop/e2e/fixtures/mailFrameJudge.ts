@@ -7,10 +7,14 @@
  * A word counts as seen when the engine renders it (it is in the body's
  * `innerText`), it has a box, the box lies where a person gets to (inside the
  * frame, or where the frame scrolls to; not clipped by a box above it), it is
- * not hidden, not too faint and not too small (after the frame's scale), no
- * other element paints over it (asked of the engine at three points along
- * it), and its colour stands out from what is painted behind it. No
- * other code: this file imports nothing.
+ * not hidden, not too faint and not too small (after the frame's scale), and
+ * its colour stands out from what is painted behind it — and, for a marker
+ * word, when at least half of its ink reaches the screen (review of
+ * 2026-11-18): the pixels that change when the word alone turns transparent,
+ * against the pixels it leaves alone, in its own colour on its own ground (`markWords`, `markMode`,
+ * `inkCounts`; the screenshots are the test's). Whatever lies over a word —
+ * a picture, a box, a cell, a later line — takes ink away, however it got
+ * there. No other code: this file imports nothing.
  */
 
 /** The marker words of the cases: what is meant to be read, and what may be hidden. */
@@ -18,6 +22,10 @@ export const MARKER = /\b(?:SECRET|VISIBLE)[A-Za-z0-9_]*/g;
 export const MIN_TEXT_PX = 4;
 export const MIN_OPACITY = 0.1;
 export const MIN_CONTRAST = 1.3;
+/** A pixel changes when one of its channels moves by this much: about the step of the least contrast (`MIN_CONTRAST`) from white. */
+const INK_STEP = 16;
+/** The share of a word's ink that must reach the screen for the word to count as seen. */
+export const MIN_INK_SHARE = 0.5;
 
 type Rgba = [number, number, number, number];
 
@@ -83,53 +91,12 @@ function unseen(frame: HTMLIFrameElement, range: Range, element: Element): strin
   if (opacity < MIN_OPACITY) return "faint";
   const px = parseFloat(style.fontSize) * scaleOf(doc);
   if (px < MIN_TEXT_PX) return `tiny ${px.toFixed(1)}`;
-  const cover = coveredBy(frame, range, boxes[0]);
-  if (cover) return `covered by <${cover}>`;
   const k = textContrast(frame, range, boxes[0]);
   return k < MIN_CONTRAST ? `contrast ${k.toFixed(2)}` : null;
 }
 
-/** Whether an element paints anything: a picture, a background colour, a background image. */
-function paintsAnything(win: Window, element: Element): boolean {
-  if (element.localName === "img") return true;
-  const style = win.getComputedStyle(element);
-  const fill = rgba(style.backgroundColor);
-  return (fill !== null && fill[3] > 0) || style.backgroundImage !== "none";
-}
-
-/**
- * The element that paints over the words of `range` at each of three points
- * along them (review of 2026-11-17, round 5): asked of the engine, which
- * lists what lies at a point from the top down. Words under a cover at every
- * point are not seen, whatever their contrast; `null` where they show.
- */
-export function coveredBy(frame: HTMLIFrameElement, range: Range, first: DOMRect): string | null {
-  const doc = frame.contentDocument!;
-  const win = frame.contentWindow!;
-  const text = range.startContainer;
-  const element = (text.nodeType === 1 ? text : text.parentElement) as Element;
-  win.scrollTo(Math.max(0, first.left + win.scrollX - 20), Math.max(0, first.top + win.scrollY - 20));
-  const at = Array.from(range.getClientRects()).find((r) => r.width > 0 && r.height > 0) ?? first;
-  let cover: string | null = null;
-  for (const share of [0.2, 0.5, 0.8]) {
-    const x = Math.min(Math.max(at.left + (at.right - at.left) * share, 1), frame.clientWidth - 2);
-    const y = Math.min(Math.max((at.top + at.bottom) / 2, 1), (frame.clientHeight || doc.documentElement.clientHeight) - 2);
-    let over: string | null = null;
-    for (const above of doc.elementsFromPoint(x, y)) {
-      if (above === element || above.contains(text)) break;
-      if (paintsAnything(win, above)) {
-        over = above.localName;
-        break;
-      }
-    }
-    if (over === null) return null;
-    cover = over;
-  }
-  return cover;
-}
-
-/** The contrast of the words of `range` against what the engine paints behind them, at the box `first` of them. */
-export function textContrast(frame: HTMLIFrameElement, range: Range, first: DOMRect): number {
+/** The colour of the words of `range` and what the engine paints behind them, at the box `first` of them (a gradient's stops, where one lies behind). */
+function groundOf(frame: HTMLIFrameElement, range: Range, first: DOMRect): { colour: Rgba; behind: Rgba; stops: Rgba[] } {
   const doc = frame.contentDocument!;
   const win = frame.contentWindow!;
   const root = doc.documentElement;
@@ -164,9 +131,15 @@ export function textContrast(frame: HTMLIFrameElement, range: Range, first: DOMR
   let behind: Rgba = [255, 255, 255, 1];
   for (const layer of layers.reverse()) behind = over(layer, behind);
   const colour = rgba((style as CSSStyleDeclaration & { webkitTextFillColor?: string }).webkitTextFillColor || style.color) ?? [0, 0, 0, 1];
+  return { colour, behind, stops: stops.map((stop) => over(stop, behind)) };
+}
+
+/** The contrast of the words of `range` against what the engine paints behind them, at the box `first` of them. */
+export function textContrast(frame: HTMLIFrameElement, range: Range, first: DOMRect): number {
+  const { colour, behind, stops } = groundOf(frame, range, first);
   // A gradient covers its box: the words stand on its colours, the least of them counts.
   let least = Infinity;
-  for (const background of stops.length > 0 ? stops.map((stop) => over(stop, behind)) : [behind]) least = Math.min(least, contrast(over(colour, background), background));
+  for (const background of stops.length > 0 ? stops : [behind]) least = Math.min(least, contrast(over(colour, background), background));
   return least;
 }
 
@@ -250,4 +223,161 @@ export function judgeFrame(frame: HTMLIFrameElement): FrameSeen {
     if (shows) links.push((anchor as HTMLAnchorElement).href);
   }
   return { seen: [...seen].sort(), hidden, links };
+}
+
+/** A box on the page, in CSS pixels from its top left. */
+export interface PageBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** A marker word of a frame, wrapped for the pixel judge: where it lies on the page, and whether it must be shot on its own. */
+export interface MarkedWord {
+  k: number;
+  word: string;
+  /** Its box on the page, cut to the frame; `null` where none of it lies in the frame as it stands. */
+  box: PageBox | null;
+  /** Shot on its own: it lies where the frame scrolls to, or across another marker word. */
+  alone: boolean;
+}
+
+const WORD_ATTR = "data-pv-ink";
+
+/** The box of the word `k` on the page, cut to the frame (`null` where none of it is in the frame as it stands). */
+export function wordBox(frame: HTMLIFrameElement, k: number): { box: PageBox | null; whole: boolean } {
+  const doc = frame.contentDocument!;
+  const span = doc.querySelector(`[${WORD_ATTR}="${k}"]`);
+  const rects = span ? Array.from(span.getClientRects()).filter((r) => r.width > 0 && r.height > 0) : [];
+  if (rects.length === 0) return { box: null, whole: false };
+  const l = Math.min(...rects.map((r) => r.left));
+  const t = Math.min(...rects.map((r) => r.top));
+  const r = Math.max(...rects.map((r) => r.right));
+  const b = Math.max(...rects.map((r) => r.bottom));
+  const at = frame.getBoundingClientRect();
+  const cl = Math.max(l, 0);
+  const ct = Math.max(t, 0);
+  const cr = Math.min(r, frame.clientWidth);
+  const cb = Math.min(b, frame.clientHeight);
+  if (cr - cl < 1 || cb - ct < 1) return { box: null, whole: false };
+  const box = { x: Math.floor(at.left + window.scrollX + cl), y: Math.floor(at.top + window.scrollY + ct), width: Math.ceil(cr - cl) + 1, height: Math.ceil(cb - ct) + 1 };
+  return { box, whole: cl === l && cr === r && ct === t && cb === b };
+}
+
+/**
+ * Wraps every marker word of the frame in a span of its own, for the pixel
+ * judge. Call after `judgeFrame`: a span splits the text nodes it judged.
+ */
+export function markWords(frame: HTMLIFrameElement): MarkedWord[] {
+  const doc = frame.contentDocument!;
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node as Text);
+  const words: MarkedWord[] = [];
+  let k = 0;
+  for (const text of nodes) {
+    for (const m of Array.from(text.data.matchAll(MARKER)).reverse()) {
+      const range = doc.createRange();
+      range.setStart(text, m.index!);
+      range.setEnd(text, m.index! + m[0].length);
+      // The word as it stands, in its own colour on its own ground: the sheet its ink is measured on.
+      const first = Array.from(range.getClientRects()).find((r) => r.width > 0 && r.height > 0);
+      const ground = first ? groundOf(frame, range, first) : null;
+      const span = doc.createElement("span");
+      span.setAttribute(WORD_ATTR, String(k));
+      if (ground) {
+        const css = (c: Rgba) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
+        // On a gradient, the stop the words stand out from most: the contrast judges the least of them.
+        const grounds = ground.stops.length > 0 ? ground.stops : [ground.behind];
+        const best = grounds.reduce((a, b) => (contrast(over(ground.colour, b), b) > contrast(over(ground.colour, a), a) ? b : a));
+        span.setAttribute("data-pv-ink-colour", css(over(ground.colour, best)));
+        span.setAttribute("data-pv-ink-ground", css(best));
+      }
+      range.surroundContents(span);
+      words.push({ k: k++, word: m[0], box: null, alone: false });
+    }
+  }
+  frame.contentWindow!.scrollTo(0, 0);
+  for (const word of words) {
+    const { box, whole } = wordBox(frame, word.k);
+    word.box = box;
+    word.alone = !whole;
+  }
+  const meets = (a: PageBox, b: PageBox) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  for (const word of words) {
+    if (word.box && words.some((other) => other !== word && other.box && meets(word.box!, other.box))) word.alone = true;
+  }
+  return words;
+}
+
+/**
+ * Sets the marker words (all, or the word `k`) as a shot needs them: as the
+ * mail draws them (`shown`), turned transparent (`gone`), alone on a sheet of
+ * their own ground in their own colour (`ink`), or alone and transparent
+ * (`none`). Whether the colour stands out from the ground is the contrast's
+ * question (`textContrast`); the ink asks how much of the word reaches the screen.
+ */
+export function markMode(frame: HTMLIFrameElement, mode: "shown" | "gone" | "ink" | "none", k?: number): void {
+  const doc = frame.contentDocument!;
+  doc.getElementById("pv-ink-sheet")?.remove();
+  const which = k === undefined ? `[${WORD_ATTR}]` : `[${WORD_ATTR}="${k}"]`;
+  const rules: string[] = [];
+  if (mode === "ink" || mode === "none") rules.push(`*{visibility:hidden!important}${which}{visibility:visible!important}`);
+  if (mode === "ink" || mode === "none") {
+    for (const span of Array.from(doc.querySelectorAll(which))) {
+      const colour = span.getAttribute("data-pv-ink-colour") ?? "rgb(0,0,0)";
+      const ground = span.getAttribute("data-pv-ink-ground") ?? "rgb(255,255,255)";
+      const own = `[${WORD_ATTR}="${span.getAttribute(WORD_ATTR)}"]`;
+      rules.push(`${own}{background-color:${ground}!important;background-image:none!important${mode === "ink" ? `;color:${colour}!important;-webkit-text-fill-color:${colour}!important` : ""}}`);
+    }
+  }
+  if (mode === "gone" || mode === "none") rules.push(`${which}{color:transparent!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important}`);
+  if (rules.length === 0) return;
+  const sheet = doc.createElement("style");
+  sheet.id = "pv-ink-sheet";
+  sheet.textContent = rules.join("");
+  (doc.head ?? doc.documentElement).append(sheet);
+}
+
+/** Scrolls the frame so that the word `k` is in it, as a person scrolls to it; its box on the page then. */
+export function scrollToWord(frame: HTMLIFrameElement, k: number): PageBox | null {
+  const doc = frame.contentDocument!;
+  const win = frame.contentWindow!;
+  const span = doc.querySelector(`[${WORD_ATTR}="${k}"]`);
+  const first = span ? Array.from(span.getClientRects()).find((r) => r.width > 0 && r.height > 0) : undefined;
+  if (!first) return null;
+  win.scrollTo(Math.max(0, first.left + win.scrollX - 10), Math.max(0, first.top + win.scrollY - 10));
+  return wordBox(frame, k).box;
+}
+
+/** Of two screenshots of the same place (PNG, base64), the pixels that differ inside each box (relative to the shot). */
+export async function inkCounts(a: string, b: string, boxes: Array<{ x: number; y: number; width: number; height: number }>): Promise<number[]> {
+  const load = (data: string) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = `data:image/png;base64,${data}`;
+    });
+  const [first, second] = await Promise.all([load(a), load(b)]);
+  const canvas = document.createElement("canvas");
+  canvas.width = first.width;
+  canvas.height = first.height;
+  const g = canvas.getContext("2d", { willReadFrequently: true })!;
+  g.drawImage(first, 0, 0);
+  const one = g.getImageData(0, 0, canvas.width, canvas.height).data;
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.drawImage(second, 0, 0);
+  const two = g.getImageData(0, 0, canvas.width, canvas.height).data;
+  return boxes.map((box) => {
+    let n = 0;
+    for (let y = Math.max(0, box.y); y < Math.min(canvas.height, box.y + box.height); y++) {
+      for (let x = Math.max(0, box.x); x < Math.min(canvas.width, box.x + box.width); x++) {
+        const i = (y * canvas.width + x) * 4;
+        if (Math.max(Math.abs(one[i] - two[i]), Math.abs(one[i + 1] - two[i + 1]), Math.abs(one[i + 2] - two[i + 2])) >= INK_STEP) n++;
+      }
+    }
+    return n;
+  });
 }

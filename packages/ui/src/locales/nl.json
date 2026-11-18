@@ -6298,6 +6298,7 @@
     "loadMore": "Meer laden",
     "pickMessage": "Selecteer een bericht.",
     "viewer": "E-mailinhoud",
+    "bodyUnreadable": "Dit bericht kan niet veilig worden weergegeven, daarom toont Plainva de inhoud niet.",
     "remoteBlocked": "Externe inhoud geblokkeerd ({{n}})",
     "remoteBlockedJunk": "In de spammap laadt Plainva geen externe afbeeldingen, ook als ze anders altijd worden geladen. {{n}} geblokkeerd.",
     "captured": "E-mail vastgelegd: {{name}}",

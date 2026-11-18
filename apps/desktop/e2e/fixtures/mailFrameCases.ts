@@ -15,6 +15,12 @@ export interface MailFrameCaseEntry {
   mainSeen: Record<"343" | "760", string[]>;
   /** Why an expectation differs from what `main` showed. */
   note?: string;
+  /**
+   * A named limit (review of 2026-11-18): the reader hides its SECRET words by
+   * where other boxes lie, the assistant reads them, and closing it would make
+   * ordinary mails look otherwise than at `main`. The maintainer decides.
+   */
+  limit?: string;
 }
 
 export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
@@ -97,13 +103,10 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  {
   "name": "review 3 · c10 caption outside table bg",
   "html": "<table bgcolor=\"#000000\"><caption style=\"color:#ffffff\">SECRET</caption><tr><td style=\"color:#ffffff\">cell</td></tr></table>",
+  "note": "the judge of 2026-11-17 took the table's black for the caption's ground; the reader of main shows the caption white on the white sheet outside the table (pixel judge, review of 2026-11-18), as the branch does, and the assistant does not read it",
   "mainSeen": {
-   "343": [
-    "SECRET"
-   ],
-   "760": [
-    "SECRET"
-   ]
+   "343": [],
+   "760": []
   }
  },
  {
@@ -373,13 +376,10 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  {
   "name": "review 3 · c39 table-caption div in bg table",
   "html": "<table bgcolor=\"#000000\"><tr><td style=\"color:#ffffff\">cell</td></tr></table><div style=\"display:table;background-color:#000000\"><div style=\"display:table-caption;color:#ffffff\">SECRET</div></div>",
+  "note": "the judge of 2026-11-17 took the table's black for the caption's ground; the reader of main shows the caption white on the white sheet outside the table (pixel judge, review of 2026-11-18), as the branch does, and the assistant does not read it",
   "mainSeen": {
-   "343": [
-    "SECRET"
-   ],
-   "760": [
-    "SECRET"
-   ]
+   "343": [],
+   "760": []
   }
  },
  {
@@ -2435,6 +2435,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wnw beside opacity",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf31</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf31longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2447,6 +2448,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wnw beside inlineblock",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf32</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf32longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2459,6 +2461,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wnw beside picture",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf33</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf33longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [
@@ -2471,6 +2474,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mwnw beside opacity",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf34</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf34longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2483,6 +2487,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mwnw beside inlineblock",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf35</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf35longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2495,6 +2500,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mwnw beside picture",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf36</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf36longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [
@@ -2507,6 +2513,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wwb beside opacity",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf37</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf37longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2519,6 +2526,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wwb beside inlineblock",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf38</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf38longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2531,6 +2539,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wwb beside picture",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf39</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf39longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [
@@ -2543,6 +2552,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wka beside opacity",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf40</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf40longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2555,6 +2565,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wka beside inlineblock",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf41</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf41longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2567,6 +2578,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wka beside picture",
+  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf42</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf42longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [

@@ -281,21 +281,6 @@ export function htmlToVisibleDocument(html: string, parse: (html: string) => Mar
  * message's.
  */
 export function visibleDocumentOf<N>(root: N, reader: MarkupReader<N>, options: VisibleOptions = {}): VisibleDocument {
-  const steps = visibleDocumentSteps(root, reader, options);
-  let step = steps.next();
-  while (!step.done) step = steps.next();
-  return step.value;
-}
-
-/** Nodes the walk reads in one step of `visibleDocumentSteps`. */
-const WALK_STEP = 2000;
-
-/**
- * `visibleDocumentOf` in steps of `WALK_STEP` nodes, for a reader that lets
- * the interface in between (the mail sanitizer's `mailHtmlViewSoon`, review
- * of 2026-11-17, round 5): the same walk, paused between steps.
- */
-export function* visibleDocumentSteps<N>(root: N, reader: MarkupReader<N>, options: VisibleOptions = {}): Generator<void, VisibleDocument, void> {
   const canvas = options.canvas ?? null;
   const links: VisibleLink[] = [];
   /** The links being read, innermost last, each with whether it shows anything yet. */
@@ -442,10 +427,8 @@ export function* visibleDocumentSteps<N>(root: N, reader: MarkupReader<N>, optio
   };
   judge();
   push(reader.children(root));
-  let read = 0;
   while (stack.length > 0) {
     if (options.untilShown && (worded || picture)) break;
-    if (++read % WALK_STEP === 0) yield;
     const step = stack.pop()!;
     if (step instanceof Closing) {
       if (step.name === "a") {

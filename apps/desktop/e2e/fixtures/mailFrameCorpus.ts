@@ -80,6 +80,50 @@ const REVIEW_4: MailCorpusCase[] = [
   { name: "review 4 · body 5", html: "<table bgcolor=\"#1a1a1a\"><tr><td style=\"color:#ffffff\"><span style=\"color:inherit\">VISIBLEb_5</span> <a href=\"https://x.example.com/u\" style=\"color:inherit!important\">VISIBLEb_5b</a></td></tr></table>" },
 ];
 
+/**
+ * The reviewer's ordinary mails of 2026-11-18 (review 6, `ordinary6.mjs`): fixed heights and
+ * max-heights, fixed widths with `nowrap`, tight line heights, `word-break` — nothing hidden. The
+ * gate of rule 3: they look as at main.
+ */
+const ORDINARY_TEXT = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+const ORDINARY_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+/** Why the reader shows a card or a preview of fixed size otherwise than main (coordination, 2026-11-18): main cuts off or overlays words the assistant reads, the branch shows them on the element itself. */
+const GROWS_TO_ITS_WORDS = "main keeps the painted box at its height and its words run out of it, past its ground and over what follows; the branch lets the box grow to its words (round 4, a painted box keeps no height its words outgrow)";
+const SHOWS_THE_CUT = "main cuts the preview at its max-height with overflow:hidden, and the assistant reads the words cut off; the branch gives no clip that does not take a box to nothing, so the reader shows all of it";
+const LINE_NOT_CUT = "main cuts the line at the box's width with overflow:hidden and an ellipsis, and the assistant reads the words cut off; the branch gives no clip, the whole line shows and the frame fits it";
+const ORDINARY_6: MailCorpusCase[] = [
+  { name: "ordinary 6 · b1 button inline-block height = line-height", html: `<p><a href="https://x.example.com/b1" style="display:inline-block;height:44px;line-height:44px;padding:0 24px;background-color:#0a66c2;color:#ffffff;border-radius:4px;text-decoration:none">VISIBLEb1 Jetzt ansehen</a></p>` },
+  { name: "ordinary 6 · b2 header bar height 60 line-height 60", html: `<div style="height:60px;line-height:60px;background-color:#222222;color:#ffffff;padding:0 16px;font-size:18px">VISIBLEb2 Brand Weekly</div><p>${ORDINARY_TEXT}</p>` },
+  { name: "ordinary 6 · b3 two equal-height cards, text fits", html: `<div style="width:100%"><div style="display:inline-block;width:45%;height:120px;vertical-align:top;background-color:#eeeeee;padding:8px">VISIBLEb3a Kurz</div> <div style="display:inline-block;width:45%;height:120px;vertical-align:top;background-color:#eeeeee;padding:8px">VISIBLEb3b Auch kurz</div></div>` },
+  { name: "ordinary 6 · b4 equal-height cards, one text longer than the card", html: `<div><div style="display:inline-block;width:45%;height:60px;vertical-align:top;background-color:#eeeeee">VISIBLEb4a ${ORDINARY_TEXT}</div> <div style="display:inline-block;width:45%;height:60px;vertical-align:top;background-color:#dddddd">VISIBLEb4b</div></div><p>VISIBLEb4c after</p>`, differs: { body: GROWS_TO_ITS_WORDS, "body/0/0": GROWS_TO_ITS_WORDS } },
+  { name: "ordinary 6 · b5 preview cut with max-height + overflow hidden", html: `<div style="max-height:42px;line-height:21px;overflow:hidden;background-color:#fafafa">VISIBLEb5 ${ORDINARY_TEXT} ${ORDINARY_TEXT}</div><p>VISIBLEb5b after</p>`, differs: { body: SHOWS_THE_CUT, "body/0": SHOWS_THE_CUT } },
+  { name: "ordinary 6 · b6 one-line ellipsis with nowrap and a fixed width", html: `<div style="width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background-color:#f0f0f0">VISIBLEb6 Sehr langer Produktname mit vielen Wörtern und noch mehr</div><p>VISIBLEb6b after</p>`, differs: { body: LINE_NOT_CUT, "body/0": LINE_NOT_CUT, "body/1": LINE_NOT_CUT } },
+  { name: "ordinary 6 · b7 painted nav block 600 wide, nowrap, centred", html: `<div style="width:600px;white-space:nowrap;margin:0 auto;text-align:center;background-color:#333333;color:#ffffff">VISIBLEb7 Home | Shop | Blog</div>` },
+  { name: "ordinary 6 · b8 cell with nowrap and width", html: `<table><tr><td style="white-space:nowrap;width:120px;background-color:#eef">VISIBLEb8 12.11.2026</td><td>${ORDINARY_TEXT}</td></tr></table>` },
+  { name: "ordinary 6 · b9 label inline-block 80 wide nowrap, short text", html: `<p><span style="display:inline-block;width:80px;white-space:nowrap;background-color:#e0f0ff">VISIBLEb9</span> Neu</p>` },
+  { name: "ordinary 6 · b10 painted block 300 wide nowrap, short text", html: `<div style="width:300px;white-space:nowrap;background-color:#fafafa;border:1px solid #ddd">VISIBLEb10 Datum: 12.11.</div>` },
+  { name: "ordinary 6 · b11 painted block max-width 300 nowrap", html: `<div style="max-width:300px;white-space:nowrap;background-color:#fafafa;border:1px solid #ddd">VISIBLEb11 Kurz</div>` },
+  { name: "ordinary 6 · b12 tight headline 48/36", html: `<h1 style="font-size:48px;line-height:36px;margin:0;color:#111">VISIBLEb12 Große Schlagzeile über zwei Zeilen</h1><p>VISIBLEb12b</p>` },
+  { name: "ordinary 6 · b13 price bigger than the cell's px line height", html: `<table><tr><td style="font-size:14px;line-height:18px;background-color:#fff8e0;padding:4px">Nur <span style="font-size:32px;font-weight:bold">VISIBLEb13 49,99 €</span></td></tr></table>` },
+  { name: "ordinary 6 · b14 bold word bigger in a paragraph", html: `<p style="font-size:12px;line-height:16px">VISIBLEb14 Text <strong style="font-size:24px">GROSS</strong> und weiter ${ORDINARY_TEXT}</p>` },
+  { name: "ordinary 6 · b15 Korean keep-all in a 300 px box", html: `<div style="width:300px;word-break:keep-all;background-color:#f6f6f6">VISIBLEb15 한국어 문장은 단어 사이에서만 줄을 바꿉니다 그래서 이렇게 씁니다 한국어 문장은 단어 사이에서만</div>` },
+  { name: "ordinary 6 · b16 long address with word-break normal in 300 box", html: `<div style="width:300px;word-break:normal;background-color:#f6f6f6">VISIBLEb16 https://www.example.com/very/long/path/that/goes/on/and/on/without/any/break/at/all</div>` },
+  { name: "ordinary 6 · b17 divider nbsp", html: `<p>VISIBLEb17</p><div style="height:1px;background-color:#dddddd;font-size:1px;line-height:1px">&nbsp;</div><p>after</p>` },
+  { name: "ordinary 6 · b18 avatar circle", html: `<div style="width:40px;height:40px;line-height:40px;border-radius:20px;background-color:#0099ff;color:#ffffff;text-align:center;font-size:16px">MK</div><p>VISIBLEb18</p>` },
+  { name: "ordinary 6 · b19 badge nowrap", html: `<p>VISIBLEb19 Nachrichten <span style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:12px;background-color:#e00;color:#fff;text-align:center;white-space:nowrap">12</span></p>` },
+  { name: "ordinary 6 · b20 nav items fixed width nowrap, one longer", html: `<div><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#eee">VISIBLEb20 Start</span><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#ddd">Sonderangebote der Woche</span><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#ccc">Kontakt</span></div>` },
+  { name: "ordinary 6 · b21 hybrid columns in font-size 0 / line-height 0 cell", html: `<table width="100%"><tr><td style="font-size:0;line-height:0" align="center"><div style="display:inline-block;max-width:300px;width:100%;vertical-align:top"><table width="100%"><tr><td style="font-size:14px;line-height:20px;padding:8px">VISIBLEb21a ${ORDINARY_TEXT}</td></tr></table></div><div style="display:inline-block;max-width:300px;width:100%;vertical-align:top"><table width="100%"><tr><td style="font-size:14px;line-height:20px;padding:8px">VISIBLEb21b ${ORDINARY_TEXT}</td></tr></table></div></td></tr></table>` },
+  { name: "ordinary 6 · b22 hero stage with fixed height and gradient", html: `<div style="height:200px;background-image:linear-gradient(#1d3557,#457b9d);color:#ffffff;padding:20px;font-size:24px">VISIBLEb22 Sommer</div>` },
+  { name: "ordinary 6 · b23 mobile-only block clipped to nothing", html: `<div style="display:none;max-height:0;overflow:hidden">Mobil-Text</div><p>VISIBLEb23</p>` },
+  { name: "ordinary 6 · b24 fixed-height list item", html: `<ul><li style="height:24px;line-height:24px">VISIBLEb24a Eins</li><li style="height:24px;line-height:24px">Zwei</li></ul>` },
+  { name: "ordinary 6 · b25 footer nowrap 560 wide", html: `<div style="width:560px;white-space:nowrap;font-size:11px;color:#999999">VISIBLEb25 © 2026 Musterfirma · Impressum · Datenschutz</div>` },
+  { name: "ordinary 6 · b26 line-height 1 on big heading", html: `<h2 style="font-size:32px;line-height:1;margin:0">VISIBLEb26 Überschrift mit Zeilenhöhe eins</h2>` },
+  { name: "ordinary 6 · b27 font shorthand tight", html: `<p style="font:bold 30px/22px Georgia,serif">VISIBLEb27 Zitat in großer Schrift über zwei Zeilen hinweg</p>` },
+  { name: "ordinary 6 · b28 inherited px line height into h1 child", html: `<td><div style="font-size:14px;line-height:20px"><h1 style="font-size:30px">VISIBLEb28 Titel mit geerbter Zeilenhöhe</h1></div></td>` },
+  { name: "ordinary 6 · b29 card with fixed height and image + caption", html: `<div style="width:260px;height:220px;background-color:#ffffff;border:1px solid #eee"><img src="${ORDINARY_PNG}" width="260" height="150" style="display:block"><div style="height:70px;padding:8px;font-size:13px">VISIBLEb29 Bildunterschrift kurz</div></div>`, differs: { body: GROWS_TO_ITS_WORDS, "body/0": GROWS_TO_ITS_WORDS } },
+  { name: "ordinary 6 · b30 pre code block with fixed width", html: `<pre style="width:300px;background-color:#f4f4f4;padding:8px">VISIBLEb30 const a = 1;\nconsole.log(a);</pre>` },
+];
+
 export const MAIL_CORPUS: MailCorpusCase[] = [
   // Heroes, shadings, glass cards (R1).
   { name: "R1 glass card over a hero picture", html: `<div style="background:url(${REMOTE}/dark.jpg);color:#fff"><p style="background-color:rgba(0,0,0,0.05)">VISIBLEa1 ${LINE}</p></div>`, differs: { "body/0": PICTURE_BOX } },
@@ -122,4 +166,5 @@ export const MAIL_CORPUS: MailCorpusCase[] = [
   { name: "price that keeps its line", html: `<table width="600"><tr><td>VISIBLEn1 Artikel</td><td style="white-space:nowrap" align="right">19,99 €</td></tr></table>` },
   { name: "two columns of 600", html: `<table width="600" cellpadding="0" cellspacing="0"><tr><td width="290" valign="top" style="padding:0 10px 0 0">VISIBLEc1 ${LINE}</td><td width="290" valign="top" style="padding:0 0 0 10px">VISIBLEc2 ${LINE}</td></tr></table>` },
   ...REVIEW_4,
+  ...ORDINARY_6,
 ];

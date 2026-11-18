@@ -1,4 +1,4 @@
-import { judgeFrame, MARKER, measureFrame, type FrameSeen, type Measured } from "./mailFrameJudge";
+import { inkCounts, judgeFrame, markMode, markWords, MARKER, measureFrame, scrollToWord, type FrameSeen, type MarkedWord, type Measured, type PageBox } from "./mailFrameJudge";
 
 /** The parts of the mail code the run needs — the branch's, or another version's for the expectations. */
 export interface MailFrameApi {
@@ -48,6 +48,48 @@ export async function runMailFrames(api: MailFrameApi, cases: readonly MailFrame
   }
   return results;
 }
+
+/** A case left open in its frame for the pixel judge: what the assistant reads, what the frame shows, and its words. */
+export interface MarkedFrameResult extends MailFrameResult {
+  /** The frame on the page. */
+  clip: PageBox;
+  words: MarkedWord[];
+}
+
+const MARKED_FRAME = "pv-marked-frame";
+const marked = () => document.getElementById(MARKED_FRAME) as HTMLIFrameElement;
+
+/**
+ * Renders a case as `runMailFrames` does and leaves its frame on the page, its
+ * marker words wrapped for the pixel judge (`markWords`); the test shoots it.
+ */
+export async function openMarked(api: MailFrameApi, html: string, width: number): Promise<MarkedFrameResult> {
+  document.getElementById(MARKED_FRAME)?.remove();
+  window.scrollTo(0, 0);
+  const shown = api.mailBodyView ? api.mailBodyView({ html, text: null })?.html ?? "" : api.sanitizeEmailHtml(html).html;
+  const read = api.readableBody({ html }, 100_000);
+  const frame = await openFrame(api, api.buildMailFrameDoc(shown, {}), width);
+  frame.id = MARKED_FRAME;
+  const seen = judgeFrame(frame);
+  const words = markWords(frame);
+  const at = frame.getBoundingClientRect();
+  return {
+    name: "",
+    ai: [...new Set(Array.from(read.text.matchAll(MARKER), (m) => m[0]))].sort(),
+    aiLinks: read.links.map((link) => link.url),
+    frame: seen,
+    clip: { x: Math.floor(at.left + window.scrollX), y: Math.floor(at.top + window.scrollY), width: Math.ceil(at.width), height: Math.ceil(at.height) },
+    words,
+  };
+}
+
+/** The pixel judge's handles on the open frame (`openMarked`). */
+export const markedFrame = {
+  mode: (mode: Parameters<typeof markMode>[1], k?: number) => markMode(marked(), mode, k),
+  scrollTo: (k: number) => scrollToWord(marked(), k),
+  ink: inkCounts,
+  close: () => marked()?.remove(),
+};
 
 /** What the reader lays out of a corpus case, what main laid out of it in the same engine, and what the assistant reads of it against what the frame shows. */
 export interface MailCorpusResult {

@@ -6168,6 +6168,7 @@
     "loadMore": "加载更多",
     "pickMessage": "请选择一封邮件。",
     "viewer": "邮件内容",
+    "bodyUnreadable": "此邮件无法安全显示，因此 Plainva 不显示其内容。",
     "remoteBlocked": "已拦截外部内容（{{n}}）",
     "remoteBlockedJunk": "在垃圾邮件文件夹中，即使已设为始终加载，Plainva 也不会加载外部图片。已拦截 {{n}} 项。",
     "captured": "已保存邮件：{{name}}",

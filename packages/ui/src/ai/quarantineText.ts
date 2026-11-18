@@ -60,9 +60,13 @@ export function looksLikeHtml(text: string): boolean {
   return /<\/(p|div|span|a|b|i|u|ul|ol|li|table|tr|td|body|html|h[1-6]|strong|em|font)\s*>|<br\s*\/?>/i.test(text);
 }
 
+/** What the assistant reads of a body the readers could not make safe and do not show (`mailBodyView`). */
+export const UNREADABLE_BODY = "[Plainva could not display this message safely and shows none of its content.]";
+
 export function readableBody(input: { html?: string | null; text?: string | null }, max: number): ReadableBody {
   // The part the reader shows: an HTML part that shows nothing leaves the text part (`mailBodyView`).
   const view = mailBodyView({ html: input.html ?? null, text: input.text ?? null });
+  if (view?.unreadable) return { text: UNREADABLE_BODY, links: [], truncated: false };
   if (view) {
     // Read as the mail reader shows it — the same way as a quote or a filed
     // note, off the tree the reader is given (finding 2026-11-16), in the one

@@ -2778,8 +2778,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             )}
 
             <div className="pv-mail-bodywrap">
-            <div className={`pv-mail-body${sanitized ? " pv-mail-body--frame" : ""}`}>
-              {sanitized ? (
+            <div className={`pv-mail-body${sanitized && !sanitized.unreadable ? " pv-mail-body--frame" : ""}`}>
+              {sanitized && !sanitized.unreadable ? (
                 <iframe
                   title={t("mail.viewer", { defaultValue: "E-Mail-Inhalt" })}
                   // allow-same-origin WITHOUT allow-scripts: the mail HTML still
@@ -2793,7 +2793,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   className="pv-mail-frame"
                 />
               ) : (
-                <MailPlainText text={message.text ?? ""} events={linkEvents} data-testid="mail-text" />
+                <MailPlainText
+                  // A part the pass could not make safe is never shown as it came (`mailBodyView`).
+                  text={sanitized?.unreadable ? t("mail.bodyUnreadable") : (message.text ?? "")}
+                  events={linkEvents}
+                  data-testid="mail-text"
+                />
               )}
             </div>
             {/* Where the link leads — bottom-left of the message, where every

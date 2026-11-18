@@ -1,22 +1,33 @@
-import { htmlToVisibleDocument, type VisibleDocument } from "@plainva/core";
-import { mailHtmlView, mailHtmlViewSoon, type MailHtmlView, type SanitizeEmailOptions } from "./mailSanitize";
+import type { VisibleDocument } from "@plainva/core";
+import { mailHtmlView, type MailHtmlView, type SanitizeEmailOptions } from "./mailSanitize";
 import type { MailMessage } from "./types";
 
 /** The two parts of a message its text can come from. */
 export type MailBodyParts = Pick<MailMessage, "text" | "html">;
 
+/** What the readers and the assistant are given of an HTML part the pass could not make safe: none of it. */
+const UNREADABLE: MailHtmlView = {
+  html: "",
+  blockedRemote: 0,
+  unreadable: true,
+  document: () => ({ text: "", links: [], shows: false }),
+  shows: () => false,
+};
+
 /**
  * The HTML part as the reader is given it and what the reader shows of it
- * (`mailHtmlView`). Where there is no DOM for the sanitizer to work on, the
- * markup stays as it came and the portable parser reads it.
+ * (`mailHtmlView`). Where the pass cannot make it safe — no DOM, a sanitizer
+ * or shaper that throws, a parse with no body — nobody is given the markup as
+ * it came: not the reader, not the assistant, not a quote (review of
+ * 2026-11-18: a pass that threw handed the reader's frame the raw mail, with
+ * its style sheet, its form and its refresh).
  */
 function viewOf(html: string, options?: SanitizeEmailOptions): MailHtmlView {
   try {
-    return mailHtmlView(html, options);
+    const view = mailHtmlView(html, options);
+    return view.unreadable ? UNREADABLE : view;
   } catch {
-    let document: VisibleDocument | undefined;
-    const read = () => (document ??= htmlToVisibleDocument(html));
-    return { html, blockedRemote: 0, document: read, shows: () => read().shows };
+    return UNREADABLE;
   }
 }
 
@@ -50,29 +61,16 @@ export function mailBodyView(message: MailBodyParts, options?: SanitizeEmailOpti
   const html = message.html;
   if (!html) return null;
   const view = viewOf(html, options);
+  // A part that could not be made safe leaves the text part where there is
+  // one; where there is none, the reader shows a sentence instead of the mail.
   if (!(message.text ?? "").trim()) return view;
   return view.shows() ? view : null;
 }
 
-/**
- * Makes the pass over an HTML part in steps that let the interface in
- * between (`mailHtmlViewSoon`), for a reader that is not on screen — the
- * assistant reading mails nobody opened (review of 2026-11-17, round 5). What
- * reads the part afterwards finds the pass made. Nothing where there is no
- * HTML or no DOM.
- */
-export async function prepareMailHtml(html: string | null | undefined): Promise<void> {
-  if (!html) return;
-  try {
-    await mailHtmlViewSoon(html);
-  } catch {
-    // No DOM: the part is read by the portable parser when it is asked for.
-  }
-}
-
-/** The HTML part the reader shows as the body (`mailBodyView`), as the mail wrote it; `null` for the text part. */
+/** The HTML part the reader shows as the body (`mailBodyView`), as the mail wrote it; `null` for the text part, and for a part the pass could not make safe. */
 export function mailBodyHtml(message: MailBodyParts): string | null {
-  return mailBodyView(message) ? message.html! : null;
+  const view = mailBodyView(message);
+  return view && !view.unreadable ? message.html! : null;
 }
 
 function htmlPartText(html: string): string {

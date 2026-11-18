@@ -1,10 +1,14 @@
 import createDOMPurify from "dompurify";
-import { keptMailStyle, MailShaper, visibleDocumentOf, visibleDocumentSteps, WHITE_SHEET, type ShapeState, type VisibleDocument } from "@plainva/core";
+import { keptMailStyle, MailShaper, visibleDocumentOf, WHITE_SHEET, type ShapeState, type VisibleDocument } from "@plainva/core";
 import { domReader, treeAccess } from "./mailTree";
 
-// The package's default export is a FACTORY in module environments: each pass
-// binds its own to the window (desktop + jsdom tests both have one at call
-// time), so a pass in steps and one made at once never share hooks.
+// The package's default export is a FACTORY in module environments — bind it
+// lazily to the window (desktop + jsdom tests both have one at call time).
+let purifierInstance: ReturnType<typeof createDOMPurify> | null = null;
+function purifier(): ReturnType<typeof createDOMPurify> {
+  purifierInstance ??= createDOMPurify(window);
+  return purifierInstance;
+}
 
 /**
  * E-mail HTML sanitizer (PIM stage 5): the sandbox viewer renders FOREIGN,
@@ -68,6 +72,12 @@ export interface MailHtmlView extends SanitizedEmail {
   document(): VisibleDocument;
   /** Whether the reader shows anything at all — a word or a picture. */
   shows(): boolean;
+  /**
+   * Set where the pass could not make the HTML part safe — it threw, or the
+   * parse left no body (a `<frameset>`): nothing of the part is given to
+   * anyone, the readers show a sentence instead (`mailBodyView`).
+   */
+  unreadable?: true;
 }
 
 /** Passes made last: the reader, the quote and the assistant ask about the same message. */
@@ -87,91 +97,21 @@ export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): 
  * assistant seconds). The pass does not hang on the remote-image choice: it
  * keeps the address of a picture beside the tree, and each choice is a view of
  * it — the reader with pictures and the assistant without share one pass.
- * Throws where there is no DOM.
+ * Throws where there is no DOM, or where the sanitizer or the shaper throws.
  */
 export function mailHtmlView(raw: string, options?: SanitizeEmailOptions): MailHtmlView {
   let pass = PASSES.get(raw);
-  if (!pass) {
-    const steps = passSteps(raw);
-    let step = steps.next();
-    while (!step.done) step = steps.next();
-    pass = step.value;
-  }
-  return keep(raw, pass, options);
-}
-
-/** Keeps the pass of `raw` as the one made last, and gives the view asked for. */
-function keep(raw: string, pass: Pass, options?: SanitizeEmailOptions): MailHtmlView {
-  PASSES.delete(raw);
+  if (pass) PASSES.delete(raw);
+  else pass = makePass(raw);
   PASSES.set(raw, pass);
   while (PASSES.size > PASSES_MAX) PASSES.delete(PASSES.keys().next().value as string);
   return options?.allowRemoteImages === true ? pass.withPictures : pass.withoutPictures;
 }
 
-/**
- * A turn for the interface: a message to itself rather than a timer, which a
- * browser holds back by some milliseconds once timers nest.
- */
-function nextTurn(): Promise<void> {
-  if (typeof MessageChannel !== "function") return new Promise((resolve) => setTimeout(resolve, 0));
-  return new Promise((resolve) => {
-    const channel = new MessageChannel();
-    channel.port1.onmessage = () => {
-      channel.port1.close();
-      resolve();
-    };
-    channel.port2.postMessage(null);
-  });
-}
-
-/** The longest the pass works at a stretch when it lets the interface in between (`mailHtmlViewSoon`). */
-const SLICE_MS = 6;
-
-/**
- * `mailHtmlView` for a reader that is not on screen — the assistant reading
- * mails nobody opened (review of 2026-11-17, round 5): the same pass, step for
- * step, but it hands the interface its turn whenever it has worked
- * `SLICE_MS`, so no mail blocks the app longer than one step of it. Its view
- * is the reader's: the pass is kept for both.
- */
-export async function mailHtmlViewSoon(raw: string, options?: SanitizeEmailOptions): Promise<MailHtmlView> {
-  let pass = PASSES.get(raw);
-  if (!pass) {
-    // The pass begins in a turn of its own, and the reading of what it leaves has one too.
-    await nextTurn();
-    const steps = passSteps(raw);
-    let since = performance.now();
-    let step = steps.next();
-    while (!step.done) {
-      if (performance.now() - since > SLICE_MS) {
-        await nextTurn();
-        since = performance.now();
-      }
-      step = steps.next();
-    }
-    pass = PASSES.get(raw) ?? step.value;
-    since = performance.now();
-    const reading = pass.readSteps();
-    for (let next = reading.next(); !next.done; next = reading.next()) {
-      if (performance.now() - since > SLICE_MS) {
-        await nextTurn();
-        since = performance.now();
-      }
-    }
-    await nextTurn();
-  }
-  return keep(raw, pass, options);
-}
-
-/** What an empty mail shows. */
-const NOTHING: VisibleDocument = { text: "", links: [], shows: false };
-
 /** One pass over a mail and its two views. */
 interface Pass {
   withPictures: MailHtmlView;
   withoutPictures: MailHtmlView;
-  /** What the reader shows of it read in steps, for `mailHtmlViewSoon`; afterwards `document()` has it. */
-  readSteps(): Generator<void, void, void>;
 }
 
 /** Elements whose text a reader never shows as words of the mail (the sanitizer takes most of them away). */
@@ -179,127 +119,20 @@ const NOT_WORDS = new Set(["STYLE", "SCRIPT", "NOSCRIPT", "TEMPLATE", "TITLE", "
 /** Blanks, no-break spaces and the characters of no width: a spacer cell's `&nbsp;` is no word. */
 const NO_WORD = /^[\s\u200b-\u200d\u2060\u00ad]*$/;
 
-/**
- * How the pass asks the tree it is given — the mail's own, before the
- * sanitizer: through the prototypes, never the nodes, since a mail names its
- * elements as it likes (`<img name="body">` answers `document.body`, an input
- * named `childNodes` answers its form's).
- */
-interface RawTree {
-  read: NonNullable<ReturnType<typeof treeAccess>>;
-  body(doc: Document): Element;
-  ownerDocument(node: Node): Document | null;
-  firstChild(node: Node): Node | null;
-  nextSibling(node: Node): Node | null;
-  cloneShallow(node: Node): Node;
-  append(parent: Node, child: Node): void;
-  remove(parent: Node, child: Node): void;
-  fragment(doc: Document): DocumentFragment;
-  element(doc: Document, name: string): Element;
-  textNode(doc: Document, text: string): Text;
-  walker(doc: Document, root: Node): TreeWalker;
-}
-
-let rawTree: RawTree | undefined;
-function rawAccess(): RawTree {
-  if (rawTree) return rawTree;
-  const read = treeAccess();
-  if (!read) throw new Error("no DOM to sanitize mail with");
-  const getter = (prototype: object, name: string): ((this: unknown) => unknown) => {
-    for (let at: object | null = prototype; at; at = Object.getPrototypeOf(at)) {
-      const descriptor = Object.getOwnPropertyDescriptor(at, name);
-      if (descriptor?.get) return descriptor.get;
-    }
-    throw new Error(`no ${name} to sanitize mail with`);
-  };
-  const body = getter(Document.prototype, "body");
-  const ownerDocument = getter(Node.prototype, "ownerDocument");
-  const firstChild = getter(Node.prototype, "firstChild");
-  const nextSibling = getter(Node.prototype, "nextSibling");
-  const { cloneNode, appendChild, removeChild } = Node.prototype;
-  const { createDocumentFragment, createElement, createTextNode, createTreeWalker } = Document.prototype;
-  rawTree = {
-    read,
-    body: (doc) => body.call(doc) as Element,
-    ownerDocument: (node) => (ownerDocument.call(node) as Document | null) ?? null,
-    firstChild: (node) => (firstChild.call(node) as Node | null) ?? null,
-    nextSibling: (node) => (nextSibling.call(node) as Node | null) ?? null,
-    cloneShallow: (node) => cloneNode.call(node, false),
-    append: (parent, child) => void appendChild.call(parent, child),
-    remove: (parent, child) => void removeChild.call(parent, child),
-    fragment: (doc) => createDocumentFragment.call(doc),
-    element: (doc, name) => createElement.call(doc, name),
-    textNode: (doc, text) => createTextNode.call(doc, text),
-    walker: (doc, root) => createTreeWalker.call(doc, root, 4 /* NodeFilter.SHOW_TEXT */),
-  };
-  return rawTree;
-}
-
 /** Whether words stand anywhere inside an element of the tree being sanitized (`ShapeAccess.holdsText`). */
 function holdsText(node: Node): boolean {
-  const tree = rawAccess();
-  const doc = tree.ownerDocument(node);
+  const doc = node.ownerDocument;
   if (!doc) return true;
-  const walker = tree.walker(doc, node);
+  const walker = doc.createTreeWalker(node, 4 /* NodeFilter.SHOW_TEXT */);
   for (let text = walker.nextNode(); text; text = walker.nextNode()) {
-    const parent = tree.read.parentNode(text);
-    if (!NO_WORD.test(tree.read.text(text)) && !NOT_WORDS.has(parent ? tree.read.nodeName(parent).toUpperCase() : "")) return true;
+    if (!NO_WORD.test((text as Text).data) && !NOT_WORDS.has(text.parentNode?.nodeName.toUpperCase() ?? "")) return true;
   }
   return false;
 }
 
-/** Elements one call of the sanitizer takes at most: a step of the pass. */
-const BATCH = 150;
-
-/** The sanitizer's settings, for every step of every pass. */
-const PURIFY = {
-  // <style> blocks can url()-fetch; forms/meta/base have no business in
-  // a read-only viewer. A canvas shows its inner text only where scripts
-  // do not run, a marquee moves its words off the screen, and an option
-  // outside a list is drawn by one engine and not by another: their words
-  // stand as plain text.
-  FORBID_TAGS: ["style", "link", "form", "input", "button", "select", "textarea", "meta", "base", "canvas", "marquee", "option", "optgroup"],
-  USE_PROFILES: { html: true },
-  ALLOWED_URI_REGEXP: MAIL_ALLOWED_URI,
-  FORBID_ATTR: ["class"],
-  ALLOW_DATA_ATTR: false,
-  // Each step is sanitized where it stands, in the tree the pass parsed: no copy into a document of its own.
-  IN_PLACE: true,
-};
-
-/** The number of elements of each element's subtree, the element counted. */
-function subtreeSizes(tree: RawTree, root: Node): Map<Node, number> {
-  const sizes = new Map<Node, number>();
-  const order: Node[] = [];
-  const stack: Node[] = [root];
-  while (stack.length > 0) {
-    const element = stack.pop()!;
-    order.push(element);
-    for (let child = tree.firstChild(element); child; child = tree.nextSibling(child)) if (tree.read.nodeType(child) === 1) stack.push(child);
-  }
-  for (let index = order.length - 1; index >= 0; index--) {
-    const element = order[index];
-    let size = 1;
-    for (let child = tree.firstChild(element); child; child = tree.nextSibling(child)) size += sizes.get(child) ?? 0;
-    sizes.set(element, size);
-  }
-  return sizes;
-}
-
-/**
- * The pass over a mail, in steps (round 5): the mail is parsed once, in the
- * mode the reader's frame is (`<!doctype html>`; without a doctype the parser
- * reads by the old rules, and `<p><table>` nests the table in the paragraph
- * there but not in the frame), and the sanitizer takes it in document order,
- * at most `BATCH` elements a call. A subtree larger than that goes first on
- * its own — the element, sanitized and shaped as it stands — and its children
- * after it, each with the state of the element they stand in. The reader and
- * the assistant run the same steps; only the assistant, reading in the
- * background, lets the interface in between (`mailHtmlViewSoon`).
- */
-function* passSteps(mail: string): Generator<void, Pass, void> {
-  const tree = rawAccess();
-  const read = tree.read;
+function makePass(raw: string): Pass {
+  const read = treeAccess();
+  if (!read) throw new Error("no DOM to sanitize mail with");
   /** Fetches held back in either view, and https pictures the opt-in lets load. */
   let blockedRemote = 0;
   let pictures = 0;
@@ -309,13 +142,6 @@ function* passSteps(mail: string): Generator<void, Pass, void> {
   /** Images whose picture was held back. */
   const heldBack = new WeakSet<Node>();
   const states = new WeakMap<Node, ShapeState>();
-  /** Whether words stand inside an element that goes on its own, read off the whole subtree before. */
-  const holdsWords = new WeakMap<Node, boolean>();
-  /** The mark carrying that answer to the sanitized copy: a name no mail can know. */
-  const mark = `data-pv${Math.random().toString(36).slice(2)}`;
-  /** The state of the element a step's top elements stand in, and the box that holds a step while it is sanitized. */
-  let stepParent: ShapeState | null = null;
-  let holder: Node | null = null;
   const shaper = new MailShaper<Node>({
     written: (node) => written.get(node),
     // Only what changes is written: setting a style makes the engine read it again.
@@ -325,8 +151,7 @@ function* passSteps(mail: string): Generator<void, Pass, void> {
         if (now !== null) read.removeAttribute(node, name);
       } else if (now !== value) read.setAttribute(node, name, value);
     },
-    // A subtree that goes in steps is not whole when its element is shaped: whether it holds words is read beforehand.
-    holdsText: (node) => holdsWords.get(node) ?? holdsText(node),
+    holdsText,
   });
 
   const record = (node: Node, name: string, value: string): void => {
@@ -339,11 +164,6 @@ function* passSteps(mail: string): Generator<void, Pass, void> {
     const name = data.attrName.toLowerCase();
     const value = data.attrValue ?? "";
     const element = node as Node;
-    if (name === mark) {
-      holdsWords.set(element, value === "1");
-      data.keepAttr = false;
-      return;
-    }
     const tag = (): string => read.nodeName(element).toLowerCase();
     if (FETCHING_ATTRS.has(name)) {
       // Only self-contained data: images may load; everything else is a
@@ -387,13 +207,8 @@ function* passSteps(mail: string): Generator<void, Pass, void> {
   const root = shaper.root();
   const afterAttributes = (node: Node) => {
     if (read.nodeType(node) !== 1) return;
-    // The box that holds a step is not the mail's: what stands in it stands in the element the step goes into.
-    if (node === holder) {
-      states.set(node, stepParent ?? root);
-      return;
-    }
     const parent = read.parentNode(node);
-    const above = (parent && states.get(parent)) || stepParent || root;
+    const above = (parent && states.get(parent)) || root;
     states.set(node, shaper.element(node, read.nodeName(node).toLowerCase(), above));
     // Whether the mail paints itself, read off the tree as `mailHtmlPaintsItself` reads the markup.
     if (!paints) {
@@ -406,93 +221,30 @@ function* passSteps(mail: string): Generator<void, Pass, void> {
     }
   };
 
-  const dp = createDOMPurify(window);
-  dp.setConfig(PURIFY);
+  const dp = purifier();
   dp.addHook("uponSanitizeAttribute", onAttribute);
   dp.addHook("afterSanitizeAttributes", afterAttributes);
-
-  const doc = new DOMParser().parseFromString(`<!doctype html>${mail}`, "text/html");
-  const docBody = tree.body(doc);
-  yield;
-  const sizes = subtreeSizes(tree, docBody);
-  yield;
-  /**
-   * Sanitizes `input` (a node or a run of siblings) as the content of the
-   * element whose state is `parent`, in a box of its own; what the sanitizer
-   * leaves stands in that box.
-   */
-  const sanitize = (input: Node, parent: ShapeState | null): Node => {
-    const box = tree.element(doc, "div");
-    tree.append(box, input);
-    stepParent = parent;
-    holder = box;
-    try {
-      dp.sanitize(box, PURIFY);
-    } finally {
-      stepParent = null;
-      holder = null;
-    }
-    return box;
-  };
-  /** One element on its own, without its children: its sanitized copy, or whether its content stays in its place. */
-  const PROBE = "\u0001";
-  const isProbe = (node: Node | null): node is Text => node !== null && read.nodeType(node) === 3 && read.text(node) === PROBE;
-  const alone = (element: Node, parent: ShapeState | null): { copy: Node | null; contentStays: boolean } => {
-    const shallow = tree.cloneShallow(element);
-    read.setAttribute(shallow, mark, holdsText(element) ? "1" : "0");
-    // A word of its own shows whether the sanitizer keeps the content of an element it takes away.
-    tree.append(shallow, tree.textNode(doc, PROBE));
-    const out = sanitize(shallow, parent);
-    let copy: Node | null = null;
-    let contentStays = false;
-    for (let child = tree.firstChild(out); child; child = tree.nextSibling(child)) {
-      if (read.nodeType(child) === 1) copy = child;
-      else if (isProbe(child)) contentStays = true;
-    }
-    const probe = copy ? tree.firstChild(copy) : null;
-    if (copy && isProbe(probe)) tree.remove(copy, probe);
-    return { copy, contentStays };
-  };
-
-  // The page first: it is the walk's root, which the sanitizer never takes away.
-  const page = tree.cloneShallow(docBody);
-  stepParent = null;
-  dp.sanitize(page, PURIFY);
-  const body: Node | null = page;
-  yield;
-  /** Runs of siblings still to go, each into the element it stands in. */
-  const frames: Array<{ into: Node; nodes: Node[]; at: number }> = [{ into: page, nodes: Array.from(read.childNodes(docBody)), at: 0 }];
-  while (frames.length > 0) {
-    const frame = frames[frames.length - 1];
-    if (frame.at >= frame.nodes.length) {
-      frames.pop();
-      continue;
-    }
-    const parent = states.get(frame.into) ?? root;
-    const first = frame.nodes[frame.at];
-    if ((sizes.get(first) ?? 0) > BATCH) {
-      // Too large for one step: the element, then its children.
-      frame.at++;
-      const { copy, contentStays } = alone(first, parent);
-      if (copy) tree.append(frame.into, copy);
-      if (copy || contentStays) frames.push({ into: copy ?? frame.into, nodes: Array.from(read.childNodes(first)), at: 0 });
-      yield;
-      continue;
-    }
-    // A run of siblings that fits one step.
-    const run = tree.fragment(doc);
-    let count = 0;
-    while (frame.at < frame.nodes.length) {
-      const node = frame.nodes[frame.at];
-      const size = sizes.get(node) ?? 0;
-      if (size > BATCH || (count > 0 && count + size > BATCH)) break;
-      tree.append(run, node);
-      count += size;
-      frame.at++;
-    }
-    const out = sanitize(run, parent);
-    for (let child = tree.firstChild(out); child; child = tree.firstChild(out)) tree.append(frame.into, child);
-    yield;
+  let body: Node | null;
+  try {
+    // Read in the mode the reader's frame is (`<!doctype html>`): without a
+    // doctype the parser reads by the old rules, and `<p><table>` nests the
+    // table in the paragraph there but not in the frame (review of 2026-11-17).
+    body = dp.sanitize(`<!doctype html>${raw}`, {
+      // <style> blocks can url()-fetch; forms/meta/base have no business in
+      // a read-only viewer. A canvas shows its inner text only where scripts
+      // do not run, a marquee moves its words off the screen, and an option
+      // outside a list is drawn by one engine and not by another: their words
+      // stand as plain text.
+      FORBID_TAGS: ["style", "link", "form", "input", "button", "select", "textarea", "meta", "base", "canvas", "marquee", "option", "optgroup"],
+      USE_PROFILES: { html: true },
+      ALLOWED_URI_REGEXP: MAIL_ALLOWED_URI,
+      RETURN_DOM: true,
+      FORBID_ATTR: ["class"],
+      ALLOW_DATA_ATTR: false,
+    }) as Node | null;
+  } finally {
+    dp.removeHook("uponSanitizeAttribute");
+    dp.removeHook("afterSanitizeAttributes");
   }
   const reader = domReader(read, heldBack);
   /** The markup with the addresses of the pictures, and without them. */
@@ -531,27 +283,18 @@ function* passSteps(mail: string): Generator<void, Pass, void> {
     // a mail that sets none reads in the theme's colours, all of them readable.
     const canvas = () => (paints ? WHITE_SHEET : null);
     return {
+      ...(body ? {} : { unreadable: true as const }),
       get html() {
         return shown();
       },
       blockedRemote: blockedRemote + (withPictures ? 0 : pictures),
       // One reading for both views, the one without pictures: a picture that
       // may not show makes no link visible, so the assistant reads no more than either shows.
-      document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : NOTHING),
+      document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false }),
       shows: () => (shows ??= document ? document.shows : body ? visibleDocumentOf(body, reader, { canvas: canvas(), untilShown: true }).shows : false),
     };
   };
-  function* readSteps(): Generator<void, void, void> {
-    if (document || !body) return;
-    const read = visibleDocumentSteps(body, reader, { canvas: paints ? WHITE_SHEET : null });
-    let next = read.next();
-    while (!next.done) {
-      yield;
-      next = read.next();
-    }
-    document ??= next.value;
-  }
-  return { withPictures: view(true), withoutPictures: view(false), readSteps };
+  return { withPictures: view(true), withoutPictures: view(false) };
 }
 
 /**

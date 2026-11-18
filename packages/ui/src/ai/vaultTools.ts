@@ -67,8 +67,6 @@ import { notePropertiesOf, type SituationEventInput } from "./aiSituation";
 import { eventFields, eventHandle, eventLine, eventReport, parseEventHandle, type EventFields } from "./eventDetails";
 import { mailToolOutcome, type MailSource } from "./mailTools";
 import { pimDraftReady, writeToolNames, writeToolOutcome, type VaultWriteDeps, type WriteRun } from "./writeTools";
-import { prepareMailHtml } from "../mail/messageText";
-import { looksLikeHtml } from "./quarantineText";
 
 /**
  * The vault tools of the chat (ADR 0019), one implementation for both shells:
@@ -869,9 +867,6 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const event = (await deps.events(from, end)).find((e) => eventHandle(e) === `${at.day}/${at.id}`);
           if (!event) return { content: NO_EVENT, isError: true };
           // The description is not this model's to read: it is handed over, and a reader without tools reports on it.
-          // A description in HTML is read in steps that let the interface in between, as a mail is (`prepareMailHtml`).
-          const description = event.details?.description?.trim();
-          if (description && looksLikeHtml(description)) await prepareMailHtml(description);
           const report = eventReport(event, typeof a.question === "string" ? a.question : "");
           return { content: await withhold(report.lines.join("\n"), "", true), origin: { kind: "calendar" }, ...(report.quarantine ? { quarantine: report.quarantine } : {}) };
         }

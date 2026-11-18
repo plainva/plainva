@@ -6298,6 +6298,7 @@
     "loadMore": "Mehr laden",
     "pickMessage": "Nachricht auswählen.",
     "viewer": "E-Mail-Inhalt",
+    "bodyUnreadable": "Diese Nachricht lässt sich nicht sicher darstellen, deshalb zeigt Plainva ihren Inhalt nicht an.",
     "remoteBlocked": "Externe Inhalte blockiert ({{n}})",
     "remoteBlockedJunk": "Im Spam-Ordner lädt Plainva keine externen Bilder, auch wenn sie sonst immer geladen werden. {{n}} blockiert.",
     "captured": "E-Mail abgelegt: {{name}}",

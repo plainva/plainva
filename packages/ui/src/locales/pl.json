@@ -6558,6 +6558,7 @@
     "loadMore": "Wczytaj więcej",
     "pickMessage": "Wybierz wiadomość.",
     "viewer": "Treść e-maila",
+    "bodyUnreadable": "Tej wiadomości nie da się bezpiecznie wyświetlić, dlatego Plainva nie pokazuje jej treści.",
     "remoteBlocked": "Zablokowano zdalną zawartość ({{n}})",
     "remoteBlockedJunk": "W folderze spamu Plainva nie wczytuje zdalnych obrazów, nawet jeśli zwykle są zawsze wczytywane. Zablokowano: {{n}}.",
     "captured": "Zapisano e-mail: {{name}}",

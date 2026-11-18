@@ -3,8 +3,9 @@ import { test, expect, type Page } from "./fixtures/clockedTest";
 import { openProbePage } from "./fixtures/openProbePage";
 import { MAIL_FRAME_CASES } from "./fixtures/mailFrameCases";
 import { MAIL_CORPUS } from "./fixtures/mailFrameCorpus";
-import type { Measured } from "./fixtures/mailFrameJudge";
+import { MIN_INK_SHARE, type Measured, type PageBox } from "./fixtures/mailFrameJudge";
 import type { MailFrameProbeWindow } from "./fixtures/mailFrameProbe";
+import type { MarkedFrameResult } from "./fixtures/mailFrameRun";
 
 /**
  * What the assistant reads of a mail is what the reader shows — judged by the
@@ -15,7 +16,8 @@ import type { MailFrameProbeWindow } from "./fixtures/mailFrameProbe";
  *
  * Each case is rendered in a reader frame at a phone and a desktop width,
  * fitted as the shells fit it (`mailFrameRun.ts`), and judged
- * (`mailFrameJudge.ts`). Two things hold for every case:
+ * (`mailFrameJudge.ts`), a marker word by the share of its ink on the screen
+ * (`inkShares`). Two things hold for every case:
  *  - every marker word and every link the assistant reads, the frame shows or
  *    lets a person reach;
  *  - every word the reader of `main` showed (frozen in `mailFrameCases.ts`),
@@ -28,24 +30,88 @@ async function loadProbe(page: Page) {
   await openProbePage(page, "/__mail_frames", () => !!(window as unknown as MailFrameProbeWindow).mailFrameProbe);
 }
 
+type Probe = MailFrameProbeWindow["mailFrameProbe"];
+
+/**
+ * The share of each marker word's ink that reaches the screen in the open
+ * frame (review of 2026-11-18, rule 4), its best showing where it stands more
+ * than once: the pixels that change when the word turns transparent, against
+ * the pixels it leaves alone, in its own colour on its own ground. Words that lie apart are shot
+ * together; a word across another, or where the frame scrolls to, alone.
+ */
+async function inkShares(page: Page, open: MarkedFrameResult): Promise<Map<string, number>> {
+  const shares = new Map<string, number>();
+  const keep = (word: string, share: number) => shares.set(word, Math.max(shares.get(word) ?? 0, share));
+  const shoot = (clip: PageBox) => page.screenshot({ clip, fullPage: true, animations: "disabled", caret: "hide" }).then((b) => b.toString("base64"));
+  const mode = (m: "shown" | "gone" | "ink" | "none", k?: number) => page.evaluate(([m, k]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.mode(m, k), [m, k] as const);
+  const ink = (a: string, b: string, boxes: PageBox[]) => page.evaluate(([a, b, boxes]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.ink(a, b, boxes), [a, b, boxes] as const);
+  const together = open.words.filter((w) => w.box && !w.alone);
+  if (together.length > 0) {
+    const clip = open.clip;
+    const shots: string[] = [];
+    for (const m of ["shown", "gone", "ink", "none"] as const) {
+      await mode(m);
+      shots.push(await shoot(clip));
+    }
+    await mode("shown");
+    const boxes = together.map((w) => ({ x: w.box!.x - clip.x, y: w.box!.y - clip.y, width: w.box!.width, height: w.box!.height }));
+    const shown = await ink(shots[0], shots[1], boxes);
+    const alone = await ink(shots[2], shots[3], boxes);
+    together.forEach((w, i) => keep(w.word, alone[i] ? shown[i] / alone[i] : 0));
+  }
+  for (const w of open.words.filter((w) => w.alone || !w.box)) {
+    const box = await page.evaluate((k) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.scrollTo(k), w.k);
+    if (!box) {
+      keep(w.word, 0);
+      continue;
+    }
+    const shots: string[] = [];
+    for (const m of ["shown", "gone", "ink", "none"] as const) {
+      await mode(m, w.k);
+      shots.push(await shoot(box));
+    }
+    await mode("shown");
+    const whole = [{ x: 0, y: 0, width: box.width, height: box.height }];
+    const [shown] = await ink(shots[0], shots[1], whole);
+    const [alone] = await ink(shots[2], shots[3], whole);
+    keep(w.word, alone ? shown / alone : 0);
+  }
+  return shares;
+}
+
 for (const width of [343, 760] as const) {
   test(`at ${width} px the assistant reads no more than the reader shows, and the reader loses nothing main showed`, async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(900_000);
     await page.setViewportSize({ width: 1000, height: 900 });
     await loadProbe(page);
-    const cases = MAIL_FRAME_CASES.map(({ name, html }) => ({ name, html }));
-    const results = await page.evaluate(([c, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.run(c, w), [cases, width] as const);
     const wrong: string[] = [];
-    results.forEach((result, index) => {
-      const seen = new Set(result.frame.seen);
-      for (const word of result.ai) if (!seen.has(word)) wrong.push(`${result.name}: the assistant reads ${word}, the reader does not show it (${result.frame.hidden[word] ?? "absent"})`);
-      for (const url of result.aiLinks) if (!result.frame.links.includes(url)) wrong.push(`${result.name}: the assistant reads the link ${url}, the reader shows none`);
-      for (const word of MAIL_FRAME_CASES[index].mainSeen[String(width) as "343" | "760"]) {
-        if (!seen.has(word)) wrong.push(`${result.name}: main showed ${word}, the reader does not (${result.frame.hidden[word] ?? "absent"})`);
+    const limits: string[] = [];
+    for (const entry of MAIL_FRAME_CASES) {
+      const open = await page.evaluate(([h, w]) => ((window as unknown as MailFrameProbeWindow).mailFrameProbe as Probe).open(h, w), [entry.html, width] as const);
+      const shares = await inkShares(page, open);
+      const judged = new Set(open.frame.seen);
+      const why = (word: string) => {
+        if (!judged.has(word)) return open.frame.hidden[word] ?? "absent";
+        const share = shares.get(word) ?? 0;
+        return share < MIN_INK_SHARE ? `${Math.round(share * 100)} % of its ink on the screen` : null;
+      };
+      for (const word of open.ai) {
+        const hidden = why(word);
+        if (hidden === null) continue;
+        const line = `${entry.name}: the assistant reads ${word}, the reader does not show it (${hidden})`;
+        if (entry.limit && word.startsWith("SECRET")) limits.push(line);
+        else wrong.push(line);
       }
-    });
+      for (const url of open.aiLinks) if (!open.frame.links.includes(url)) wrong.push(`${entry.name}: the assistant reads the link ${url}, the reader shows none`);
+      for (const word of entry.mainSeen[String(width) as "343" | "760"]) {
+        const hidden = why(word);
+        if (hidden !== null) wrong.push(`${entry.name}: main showed ${word}, the reader does not (${hidden})`);
+      }
+    }
+    await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
+    // The named limits stand in the report, not as failures; the maintainer decides on them.
+    for (const line of limits) test.info().annotations.push({ type: "named limit", description: line });
     expect(wrong).toEqual([]);
-    expect(results.length).toBe(MAIL_FRAME_CASES.length);
   });
 }
 

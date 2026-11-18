@@ -16,8 +16,8 @@ import {
  *    they laid words where nobody sees them. A box whose content would begin
  *    past `LEFT_MAX`, or which would reach past `REACH_MAX`, loses its
  *    horizontal lengths; a table row whose cells would, loses its cell widths.
- *    Text always wraps (`white-space: nowrap` is not kept), so what stands in a
- *    box stays in it.
+ *    Text wraps, except a line that keeps itself whole (`nowrap`, `pre`): the
+ *    frame scrolls sideways to it.
  *  - **A colour is never kept without the background it was set on.** Where a
  *    background is not given to the reader (an image from an address, a value
  *    not read), the text colours set on it and under it fall away too, so the
@@ -82,8 +82,13 @@ function attributeReach(value: string | null): number {
   return !size ? 0 : "px" in size ? size.px : size.percent <= 100 ? 0 : ((size.percent - 100) / 100) * REACH_MAX;
 }
 
-/** A line height below this share of the font size lays lines on top of each other, and words run out of their line. */
-const MIN_LINE_SHARE = 0.8;
+/**
+ * A line height below this share of the font size lays lines on top of each
+ * other, and words run out of their line. Below the tight headlines and prices
+ * of ordinary mails (48/36, a 32 px price in a 14/18 cell: 0.56), which keep
+ * theirs as at main (review of 2026-11-18, rule 3).
+ */
+const MIN_LINE_SHARE = 0.5;
 
 /** A `line-height` as the element hands it down: a share of the font size (a number) or pixels (anything else). */
 function readLine(value: string, px: number, parent: { factor: number } | { px: number } | null): { factor: number } | { px: number } | null {
@@ -244,9 +249,6 @@ export interface ShapeState {
   readonly grounded: boolean;
   /** The line height it hands down: a share of the font size, a length in pixels, or `null` for the engine's own. */
   readonly line?: { factor: number } | { px: number } | null;
-  /** Whether its lines do not wrap (`white-space: nowrap` or `pre`), and whether its words do not break (`word-break: normal` or `keep-all`). */
-  readonly nowrap?: boolean;
-  readonly unbroken?: boolean;
   /** Makes the nearest painted box above hold the floats inside it. */
   readonly holdFloats?: () => void;
 }
@@ -434,22 +436,19 @@ export class MailShaper<N> {
     // A box that holds words is never smaller than its words (review of
     // 2026-11-17, round 5), whether it paints or not: words that ran out of
     // their box would lie where a later box paints over them, or on a ground
-    // not theirs. So no height they outgrow, no lines on top of each other,
-    // and no width a line that keeps itself whole runs past — or, painted, a
-    // width narrower than a letter. A table's parts grow to their words; a
+    // not theirs. So no height they outgrow, no lines that lie on top of each
+    // other, and, painted, no width narrower than a letter. A line that keeps
+    // itself whole keeps its width, and a line height a headline sets tight
+    // stays: an ordinary mail looks as at main wherever main hides no word
+    // (review of 2026-11-18, rule 3). A table's parts grow to their words; a
     // box that clips itself to nothing (a preview line) hides its words from
     // the reader and the walk alike.
     const block = BLOCK.has(name) || (applied.has("display") && applied.get("display") !== "inline");
     const lineValue = applied.get("line-height");
     let line = lineValue === undefined ? parent.line ?? null : readLine(lineValue, px, parent.line ?? null);
-    const space = applied.get("white-space");
-    const breaks = applied.get("word-break");
-    const nowrap = space === undefined ? (parent.nowrap ?? false) : space === "nowrap" || space === "pre";
-    const unbroken = breaks === undefined ? (parent.unbroken ?? false) : breaks === "normal" || breaks === "keep-all";
     if (!TABLE_PARTS.has(name) && !TABLE_DISPLAY.has(applied.get("display") ?? "") && !clipsToNothing(name, applied, px)) {
       const narrow = (value: string | undefined) => value !== undefined && value !== "auto" && value !== "none" && (lengthPx(value, px, REACH_MAX) ?? 0) < px;
-      const fixed = (value: string | undefined) => value !== undefined && value !== "auto" && value !== "none" && !value.endsWith("%");
-      const confines = (value: string | undefined) => (nowrap ? fixed(value) : paints && narrow(value));
+      const confines = (value: string | undefined) => paints && narrow(value);
       // A size it asked for stays its least size: the box grows to its words, never smaller than it was.
       const before = declarations;
       const least = (property: string) => applied.has(property);
@@ -459,10 +458,6 @@ export class MailShaper<N> {
         if (d.name === "width" && confines(d.value)) return least("min-width") ? [] : [{ ...d, name: "min-width" }];
         return [d];
       });
-      // Words that do not break in a box of a fixed width break where one would run past it, and only there.
-      if (unbroken && !nowrap && (fixed(applied.get("width")) || fixed(applied.get("max-width"))) && !applied.has("overflow-wrap") && !applied.has("word-wrap")) {
-        declarations = [...declarations, { name: "overflow-wrap", value: "anywhere", important: false }];
-      }
       const lineHeightPx = line === null ? null : "px" in line ? line.px : line.factor * px;
       if (lineHeightPx !== null && lineHeightPx < px * MIN_LINE_SHARE) {
         declarations = [...declarations.filter((d) => d.name !== "line-height"), { name: "line-height", value: "normal", important: false }];
@@ -543,8 +538,6 @@ export class MailShaper<N> {
       intended,
       grounded: standardPair || ownGround || parent.grounded,
       line,
-      nowrap,
-      unbroken,
       holdFloats,
       row: name === "tr" ? { left: contentLeft, used: 0, takeBack: [] } : null,
     };
