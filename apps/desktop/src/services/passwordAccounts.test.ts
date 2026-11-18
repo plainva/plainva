@@ -99,7 +99,7 @@ describe("the principal the server confirmed", () => {
  * other's slot; `secretsUserCase.test.ts` drives the whole exchange).
  */
 describe("the identity and the settings sync's name for a password", () => {
-  const secretName = (url: string, user: string) => canonicalSecretId({ service: "calendar", secretType: "caldav-password", user, endpoint: url });
+  const secretName = (url: string, user: string) => canonicalSecretId({ service: "calendar", secretType: "caldav-password-2", user, endpoint: url });
   it("the secret name never joins what the identity keeps apart (red before: the user in capitals)", () => {
     const joinedOnlyBySecret = CASES
       .filter(([urlA, userA, urlB, userB]) => secretName(urlA, userA) === secretName(urlB, userB))

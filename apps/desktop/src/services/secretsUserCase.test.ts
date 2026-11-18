@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalSecretId, canonicalizeEndpoint, mergeSecretsBundles, stableStringify, type SecretBinding, type SecretsBundle } from "@plainva/core";
 import { calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 /**
  * Two calendar rows the account rule keeps apart — "alice" and "Alice" on a
@@ -36,7 +37,8 @@ function device(name: string, rows: () => Row[], slots = new Map<string, { kind:
         apply: (secret) => ({ kind: "caldav", url: URL_, user: row.user, pass: secret.pass ?? "" }),
       };
     });
-  const port = createSecretsPort({
+  // A device on 0.8.7 runs the code of that tag (`secretsV087`), not today's.
+  const port = (legacy ? (v087.createSecretsPort as unknown as typeof createSecretsPort) : createSecretsPort)({
     deviceId: async () => name,
     readMeta: async () => meta,
     writeMeta: async (m) => {
@@ -49,21 +51,19 @@ function device(name: string, rows: () => Row[], slots = new Map<string, { kind:
     now: () => new Date(Date.parse("2026-11-17T00:00:00.000Z") + 1000 * clock++).toISOString(),
   });
   const host = { readMeta: async () => meta, writeMeta: async (m: SecretsPortMeta) => { meta = structuredClone(m); } };
-  // A device up to 0.8.7 writes its entries without `exactUser` (review 2026-11-18, O1).
-  const exportBundle = legacy
-    ? async () => {
-        const bundle = await port.exportBundle();
-        return { ...bundle, entries: Object.fromEntries(Object.entries(bundle.entries).map(([id, { exactUser: _mark, ...entry }]) => [id, entry])) };
-      }
-    : port.exportBundle;
-  return { port: { ...port, exportBundle }, slots, meta: () => meta, host };
+  return { port, slots, meta: () => meta, host, legacy };
 }
 
 /** One settings round of a device against the shared bundle, as SecretsSyncStep runs it. */
 let remote: SecretsBundle | null = null;
 async function round(d: ReturnType<typeof device>): Promise<void> {
+  const at = new Date(Date.parse("2026-11-17T01:00:00.000Z") + 1000 * clock++).toISOString();
+  if (d.legacy) {
+    remote = (await v087.runV087Round(d.port as never, remote as never, at)).remote as SecretsBundle;
+    return;
+  }
   const local = await d.port.exportBundle();
-  const merged = mergeSecretsBundles(local, remote, new Date(Date.parse("2026-11-17T01:00:00.000Z") + 1000 * clock++).toISOString());
+  const merged = mergeSecretsBundles(local, remote, at);
   if (stableStringify(merged.entries) !== stableStringify(local.entries)) await d.port.importBundle(merged);
   remote = merged;
 }
@@ -86,14 +86,16 @@ const bundleOf = (entries: Array<[string, SecretsBundle["entries"][string]]>): S
 });
 
 describe("two password accounts that differ only in the case of the user", () => {
-  it("each has its own secret name; a user in lower case keeps the name it always had", () => {
+  it("each has its own secret name in the current type; the old name of an account is the lower-cased one of 0.8.7", () => {
     const lower = calDavSecretBinding("webdav", URL_, " alice ");
     const upper = calDavSecretBinding("webdav", URL_, "Alice");
     expect(lower.user).toBe("alice");
     expect(upper.user).toBe("Alice");
-    expect(canonicalSecretId(lower)).toBe(`s1:calendar:caldav-password:alice@${encodeURIComponent(ENDPOINT)}`);
-    expect(canonicalSecretId(upper)).not.toBe(canonicalSecretId(lower));
-    // A mailbox is one account in any case of its address: its name is unchanged.
+    expect(canonicalSecretId(lower)).toBe(`s1:calendar:caldav-password-2:alice@${encodeURIComponent(ENDPOINT)}`);
+    expect(canonicalSecretId(upper)).toBe(`s1:calendar:caldav-password-2:Alice@${encodeURIComponent(ENDPOINT)}`);
+    expect(canonicalSecretId(legacyBinding("Alice"))).toBe(v087.canonicalSecretId(legacyBinding("Alice") as never));
+    expect(canonicalSecretId(legacyBinding("Alice"))).toBe(`s1:calendar:caldav-password:alice@${encodeURIComponent(ENDPOINT)}`);
+    // A mailbox is one account in any case of its address.
     expect(imapSecretBinding("imap", "imap.example.com", 993, "Marco@Example.com").user).toBe("marco@example.com");
   });
 
@@ -204,7 +206,7 @@ describe("two password accounts that differ only in the case of the user", () =>
     expect(after.entries[aliceId]?.tombstone).toBe(true);
     // A device on 0.8.7 that still has "alice" changes its password later.
     const [, late] = legacyEntry("alice-new-pw", "alice");
-    const result = await d.port.importBundle(bundleOf([[aliceId, { ...late, entryRev: 9, updatedAt: "2026-11-30T00:00:00.000Z" }]]));
+    const result = await d.port.importBundle(bundleOf([[canonicalSecretId(late.binding), { ...late, entryRev: 9, updatedAt: "2026-11-30T00:00:00.000Z" }]]));
     expect(result.imported).toEqual([]);
     expect(passOf(d.slots)).toEqual({ "r-Alice": "Alice:Alice-pw" });
   });
@@ -250,9 +252,10 @@ describe("two password accounts that differ only in the case of the user", () =>
     expect(after.entries[canonicalSecretId(calDavSecretBinding("webdav", URL_, "Alice"))]?.tombstone).toBe(true);
   });
 
-  // Review 2026-11-18, O1: whether an entry is an account's old name is said by
-  // the entry (no `exactUser`: written by a device up to 0.8.7), never by the
-  // spelling of its user. Every password ends in its own slot or none.
+  // Review 2026-11-18, O1 and round six: whether an entry is an account's old
+  // name is said by its type — its place in the document, which a device on
+  // 0.8.7 keeps when it writes an entry back — never by the spelling of its
+  // user. Every password ends in its own slot or none.
   const twinRows = (): Row[] => [{ id: "rA", user: "Alice" }, { id: "ra", user: "alice" }];
   const caldav = (user: string, pass: string) => ({ kind: "caldav", url: URL_, user, pass });
 

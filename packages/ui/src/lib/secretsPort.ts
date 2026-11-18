@@ -4,8 +4,9 @@ import {
   bindingMatches,
   bindingMatchesExceptFamily,
   canonicalSecretId,
-  isLegacyLowerCaseUser,
-  isOldNameEntry,
+  bridgeSecretTypeOf,
+  currentSecretTypeOf,
+  isBridgeSecretType,
   isLegacySecretType,
   isShareableSecretType,
   canonicalizeEndpoint,
@@ -43,8 +44,9 @@ import {
  *  - **Bindings must match.** An entry is only ever applied to an account with
  *    the same service, secret type, user and endpoint — so a password cannot
  *    land on a different server that happens to share an id. The user is
- *    compared exactly; an entry written lower-cased by a client up to 0.8.7
- *    reaches the single account it can mean, and none when two could. The provider
+ *    compared exactly; an entry of a client up to 0.8.7 (an old type, the user
+ *    lower-cased) reaches the single account it can mean, and none when two
+ *    could. The provider
  *    family is compared too, but a family-only difference is tolerated (see
  *    bindingMatchesExceptFamily): it is a catalog label, not an address.
  *  - **An account this device does not know yet is SKIPPED, not fatal.** That is
@@ -143,7 +145,7 @@ export function calDavSecretBinding(family: string, url: string, user: string): 
   return {
     family,
     service: "calendar",
-    secretType: "caldav-password",
+    secretType: "caldav-password-2",
     user: secretBindingUser(user),
     endpoint: canonicalizeEndpoint(url),
   };
@@ -151,15 +153,14 @@ export function calDavSecretBinding(family: string, url: string, user: string): 
 
 /**
  * The binding of an IMAP password. A mailbox is one account in any case of its
- * address (`mailIdentity`), so its user stays lower-cased and its secret keeps
- * the name it always had.
+ * address (`mailIdentity`), so its user stays lower-cased.
  */
 export function imapSecretBinding(family: string, host: string, port: number, user: string): SecretBinding {
   const scheme = port === 993 ? "imaps" : "imap+starttls";
   return {
     family,
     service: "mail",
-    secretType: "imap-password",
+    secretType: "imap-password-2",
     user: secretBindingUser(user).toLowerCase(),
     endpoint: canonicalizeEndpoint(`${scheme}://${host}:${port}`),
   };
@@ -184,8 +185,8 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
 
 /**
  * "Remove account" took this account out (review 2026-11-18): its entry is
- * tombstoned by the next export, under its exact name and — where no other
- * account here can mean it — the old name a device up to 0.8.7 reads it by.
+ * tombstoned by the next export, under its name in the current type. Its old
+ * name, under which a device up to 0.8.7 may still hold it, is never written.
  * An account that comes back before then keeps its entry.
  */
 export async function retireSecret(host: Pick<SecretsPortHost, "readMeta" | "writeMeta">, binding: SecretBinding): Promise<void> {
@@ -287,24 +288,23 @@ export function migrateSecretsMetaToCanonicalIds<T extends SecretsPortMeta | nul
 }
 
 /**
- * The name a device up to 0.8.7 knows this account's password by, when it is
- * another than the exact one and can mean nothing else here: a calendar user
- * in capitals, with no second account of the same kind on the same server
- * whose user differs only in case. The bridge is ONE-WAY (review 2026-11-18,
- * fourth round): this name is never exported — a mirror under it undid a
- * newer password everywhere and, once a twin was gone, handed one account's
- * password to the other. An entry a device up to 0.8.7 wrote under it is read
- * for this one account, when it is newer than the exact entry or there is none,
- * and never after a tombstone for the old name. A password changed on an
- * updated device therefore reaches a device on 0.8.7 only once that device is
- * updated too (named limit, release texts F36). "Newer" compares `updatedAt`,
- * the clocks of two devices: a device on 0.8.7 whose clock runs ahead can
- * cover a password changed on an updated device, for the other devices on
- * 0.8.7 and for updated ones (named limit, review 2026-11-18). Only an entry
- * without `exactUser` is read as an old name (`isOldNameEntry`).
+ * The name a device up to 0.8.7 knows this account's password by: the old
+ * type, the user lower-cased (`BRIDGE_SECRET_TYPES`) — unless a second account
+ * of the same kind on the same server has a user that differs only in case;
+ * then that name can mean either and is read for neither. The bridge is
+ * ONE-WAY (review 2026-11-18, fourth and sixth round): this name is never
+ * written — a mirror under it undid a newer password everywhere and, once a
+ * twin was gone, handed one account's password to the other. An entry a device
+ * up to 0.8.7 wrote under it is read for this one account, when it is newer
+ * than the entry in the current type or there is none, and never after a
+ * tombstone for the old name. A password changed on an updated device does not
+ * reach a device on 0.8.7 (named limit, release texts). "Newer" compares
+ * `updatedAt`, the clocks of two devices: a device on 0.8.7 whose clock runs
+ * ahead can cover a password changed on an updated device, for the other
+ * devices on 0.8.7 and for updated ones (named limit, review 2026-11-18).
  */
 function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSecretCandidate[]): string | null {
-  if (candidate.binding.service !== "calendar" || isLegacyLowerCaseUser(candidate.binding)) return null;
+  if (!isShareableSecretType(candidate.binding.secretType)) return null;
   const twin = candidates.some(
     (other) =>
       other !== candidate &&
@@ -312,8 +312,7 @@ function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSe
       bindingMatchesExceptFamily(other.binding, candidate.binding, "fold"),
   );
   if (twin) return null;
-  const id = canonicalSecretId({ ...candidate.binding, user: candidate.binding.user.toLowerCase() });
-  return id === candidate.logicalId ? null : id;
+  return canonicalSecretId({ ...candidate.binding, secretType: bridgeSecretTypeOf(candidate.binding.secretType), user: candidate.binding.user.toLowerCase() });
 }
 
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
@@ -361,8 +360,6 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           deviceId: changed ? deviceId : previous.deviceId,
           binding: candidate.binding,
           secret: candidate.secret,
-          // The user is this account's exact spelling: never an old name (O1).
-          exactUser: true,
         };
         meta.entries[candidate.logicalId] = {
           hash,
@@ -383,12 +380,24 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // booted yet, and the cost of being wrong is a destroyed password.
       // What "Remove account" took out here is tombstoned whatever the lists
       // say — it is known, not inferred (`retireSecret`).
+      // An account in lower case had ONE name until the current types (its
+      // old name was its name): what removed it here also closes its old name
+      // here, so a value a device on 0.8.7 writes under it later reaches no
+      // other account ("Alice" beside a removed "alice"). Remembered on this
+      // device only (`oldNameTombstones`), never written.
+      const closeOldName = (binding: SecretBinding) => {
+        if (!isShareableSecretType(binding.secretType) || binding.user !== binding.user.toLowerCase()) return;
+        const old = canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType) });
+        meta.oldNameTombstones = { ...(meta.oldNameTombstones ?? {}), [old]: stamp };
+      };
       const tombstone = (id: string) => {
         const previous = meta.entries[id];
         if (!previous || previous.tombstone || currentIds.has(id)) return;
+        if (!isShareableSecretType(previous.binding.secretType)) return;
         const entryRev = previous.entryRev + 1;
-        entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true, exactUser: true };
+        entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
         meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
+        closeOldName(previous.binding);
       };
       for (const id of Object.keys(meta.retired ?? {})) {
         delete meta.retired![id];
@@ -429,14 +438,17 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           if (candidates.some((candidate) => bindingMatchesExceptFamily(previous.binding, candidate.binding, "fold"))) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
-          entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true, exactUser: true };
+          entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };
           meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt, deviceId, tombstone: true };
+          if (!previous.tombstone) closeOldName(previous.binding);
         }
       } else {
         // Re-publish what we still know unchanged, so this cycle neither deletes
         // nor resurrects anything while the device is still coming up.
         for (const [id, previous] of Object.entries(meta.entries)) {
           if (currentIds.has(id) || entries[id]) continue;
+          // An entry of an old type is never written, not as a tombstone either.
+          if (!isShareableSecretType(previous.binding.secretType)) continue;
           if (previous.tombstone) {
             entries[id] = { entryRev: previous.entryRev, updatedAt: previous.updatedAt, deviceId: previous.deviceId, binding: previous.binding, tombstone: true };
           }
@@ -509,7 +521,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           recordImportResult(result, logicalId, "rejected", "legacy-secret-type");
           continue;
         }
-        if (!isShareableSecretType(entry.binding.secretType)) {
+        const bridged = isBridgeSecretType(entry.binding.secretType);
+        if (!isShareableSecretType(entry.binding.secretType) && !bridged) {
           recordImportResult(result, logicalId, "rejected", "unsupported-secret-type");
           continue;
         }
@@ -534,27 +547,27 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           }
         }
 
+        // The type of a local account this entry may speak for: its own, or —
+        // for an entry of a client up to 0.8.7 — the current one of that kind.
+        const localType = bridged ? currentSecretTypeOf(entry.binding.secretType as Parameters<typeof currentSecretTypeOf>[0]) : entry.binding.secretType;
+        const sameType = (item: LocalSecretCandidate) => item.binding.secretType === localType;
         // An id match is never sufficient by itself: type and endpoint binding
         // must still agree. Family alone may differ because it is a catalog
         // label rather than a credential destination.
-        const direct = byId.get(logicalId);
-        const sameType = (item: LocalSecretCandidate) => item.binding.secretType === entry.binding.secretType;
-        const exactCandidate =
-          (direct && sameType(direct) && bindingMatchesExceptFamily(entry.binding, direct.binding) ? direct : undefined) ??
-          candidates.find((item) => sameType(item) && bindingMatches(entry.binding, item.binding)) ??
-          candidates.find((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding));
-        // An entry from a device up to 0.8.7 carries the user lower-cased,
-        // whatever its spelling was. It still reaches the account it names
-        // when exactly one account here could be meant — never one of two
-        // that differ only in case, and never an account an entry with its
-        // exact spelling already speaks for (that one is current; the
-        // lower-cased one would put an older password back).
-        // Whether this entry can be an old name is said by the entry itself —
-        // no `exactUser`, so a device up to 0.8.7 wrote it — never by the
-        // spelling of its user alone: "alice" is also the exact name of an
-        // account of its own (review 2026-11-18, O1).
-        const oldNameShaped = isOldNameEntry(entry);
-        const foldMatches = oldNameShaped
+        const direct = bridged ? undefined : byId.get(logicalId);
+        const exactCandidate = bridged
+          ? undefined
+          : (direct && sameType(direct) && bindingMatchesExceptFamily(entry.binding, direct.binding) ? direct : undefined) ??
+            candidates.find((item) => sameType(item) && bindingMatches(entry.binding, item.binding)) ??
+            candidates.find((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding));
+        // An entry of a client up to 0.8.7 carries the user lower-cased,
+        // whatever its spelling was. It reaches the account it names when
+        // exactly one account here could be meant — never one of two that
+        // differ only in case. Whether an entry is old is said by its type,
+        // its place in the document, never by the spelling of its user: an
+        // old client keeps the type of every entry it writes back, and a
+        // current one never writes an old type (review 2026-11-18, round six).
+        const foldMatches = bridged
           ? candidates.filter((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding, "fold"))
           : [];
         // Two accounts here that differ only in case: an entry from 0.8.7
@@ -565,17 +578,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           recordImportResult(result, logicalId, "unchanged", "old-name-not-taken");
           continue;
         }
-        const legacyCandidate = !exactCandidate && foldMatches.length === 1 ? foldMatches[0] : undefined;
+        const legacyCandidate = foldMatches.length === 1 ? foldMatches[0] : undefined;
         // ...and only as its old name, one way (`oldNameId`): never a
         // tombstone, never after a tombstone for that name was seen here, and
-        // only when it is newer than the exact entry of that account.
+        // only when it is newer than the current entry of that account. On a
+        // tie the current entry stands.
         if (legacyCandidate) {
-          const exact = Object.entries(bundle.entries).find(
-            ([otherId, other]) =>
-              otherId !== logicalId &&
-              other.binding.secretType === entry.binding.secretType &&
-              bindingMatchesExceptFamily(other.binding, legacyCandidate.binding),
-          )?.[1];
+          const exact = bundle.entries[legacyCandidate.logicalId];
           const retiredName = meta.entries[logicalId]?.tombstone === true || !!meta.oldNameTombstones?.[logicalId];
           if (entry.tombstone) rememberOldNameTombstone(logicalId, entry);
           if (entry.tombstone || retiredName || (exact && !(entry.updatedAt > exact.updatedAt))) {
@@ -583,13 +592,14 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             continue;
           }
         }
-        // The exact entry of an account whose old name carries a NEWER
+        // The current entry of an account whose old name carries a NEWER
         // password (a device up to 0.8.7 changed it): that one is read.
         const oldName = exactCandidate ? oldNameId(exactCandidate, candidates) : null;
-        const oldEntry = oldName && oldName !== logicalId ? bundle.entries[oldName] : undefined;
+        const oldEntry = oldName ? bundle.entries[oldName] : undefined;
         if (
-          oldEntry && isOldNameEntry(oldEntry) && !oldEntry.tombstone && meta.entries[oldName!]?.tombstone !== true && !meta.oldNameTombstones?.[oldName!] &&
-          oldEntry.binding.secretType === entry.binding.secretType && oldEntry.updatedAt > entry.updatedAt
+          oldEntry && isBridgeSecretType(oldEntry.binding.secretType) && !oldEntry.tombstone &&
+          meta.entries[oldName!]?.tombstone !== true && !meta.oldNameTombstones?.[oldName!] &&
+          oldEntry.updatedAt > entry.updatedAt
         ) {
           recordImportResult(result, logicalId, "unchanged", "superseded-by-later-entry");
           continue;
@@ -606,7 +616,14 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           continue;
         }
         if (!candidate) {
-          result.unknownAccounts.push(logicalId);
+          // An entry of a client up to 0.8.7 beside the current one of the
+          // same account waits with it, not as a second account.
+          const waitsWithCurrent =
+            bridged &&
+            Object.values(bundle.entries).some(
+              (other) => other.binding.secretType === localType && bindingMatchesExceptFamily(other.binding, entry.binding, "fold"),
+            );
+          if (!waitsWithCurrent) result.unknownAccounts.push(logicalId);
           recordImportResult(
             result,
             logicalId,

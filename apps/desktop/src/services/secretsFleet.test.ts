@@ -1,0 +1,252 @@
+import { describe, expect, it } from "vitest";
+import {
+  assertShareable,
+  canonicalSecretId,
+  canonicalizeEndpoint,
+  mergeSecretsBundles,
+  stableStringify,
+  type SecretBinding,
+  type SecretEntry,
+  type SecretsBundle,
+} from "@plainva/core";
+import { calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
+
+/**
+ * Mixed fleets of updated devices and devices on 0.8.7 (review 2026-11-18,
+ * round six). A device on 0.8.7 runs the code of that tag, frozen in
+ * `secretsV087`; an updated one runs today's. Both shells build their bindings
+ * with `calDavSecretBinding` / `imapSecretBinding` and run the shared port, so
+ * this holds for both.
+ *
+ * The rules held here:
+ *  1. Whether an entry is old or new is told by its place — its type — which a
+ *     device on 0.8.7 keeps when it writes an entry back. An updated device
+ *     never writes an old type.
+ *  2. A device publishes an entry it did not make only as it found it.
+ *  3. A round without a change uploads nothing, in every mix.
+ */
+
+const CAL = "https://cloud.example.com/remote.php/dav";
+const IMAP = { host: "imap.example.com", port: 993 };
+type Row = { id: string; user: string; kind?: "calendar" | "mail" };
+
+let clock = 0;
+const tick = () => new Date(Date.parse("2026-11-18T00:00:00.000Z") + 1000 * clock++).toISOString();
+
+/** How a device up to 0.8.7 built its bindings: the old types, every user lower-cased. */
+const oldBinding = (row: Row): SecretBinding =>
+  row.kind === "mail"
+    ? { family: "imap", service: "mail", secretType: "imap-password", user: row.user.trim().toLowerCase(), endpoint: canonicalizeEndpoint(`imaps://${IMAP.host}:${IMAP.port}`) }
+    : { family: "webdav", service: "calendar", secretType: "caldav-password", user: row.user.trim().toLowerCase(), endpoint: canonicalizeEndpoint(CAL) };
+const newBinding = (row: Row): SecretBinding =>
+  row.kind === "mail" ? imapSecretBinding("imap", IMAP.host, IMAP.port, row.user) : calDavSecretBinding("webdav", CAL, row.user);
+
+interface Device {
+  name: string;
+  legacy: boolean;
+  rows: Row[];
+  slots: Map<string, string>;
+  meta: SecretsPortMeta | null;
+  pushes: number;
+  /** Switches a device on 0.8.7 to today's code, keeping its slots and metadata (the update). */
+  update(): void;
+  host: { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> };
+}
+
+function device(name: string, legacy: boolean, rows: Row[], passwords: Record<string, string> = {}): Device {
+  const d: Device = {
+    name,
+    legacy,
+    rows,
+    slots: new Map(Object.entries(passwords)),
+    meta: null,
+    pushes: 0,
+    update: () => {
+      d.legacy = false;
+    },
+    host: {
+      readMeta: async () => d.meta,
+      writeMeta: async (meta) => {
+        d.meta = structuredClone(meta);
+      },
+    },
+  };
+  return d;
+}
+
+function portOf(d: Device) {
+  const candidates = (): LocalSecretCandidate[] =>
+    d.rows.map((row) => {
+      const binding = d.legacy ? oldBinding(row) : newBinding(row);
+      const pass = d.slots.get(row.id);
+      return { logicalId: canonicalSecretId(binding), slot: row.id, binding, secret: pass ? { pass } : null, apply: (secret) => secret.pass };
+    });
+  const make = d.legacy ? (v087.createSecretsPort as unknown as typeof createSecretsPort) : createSecretsPort;
+  return make({
+    deviceId: async () => d.name,
+    ...d.host,
+    candidates: async () => candidates(),
+    readSlot: async (slot) => d.slots.get(slot) ?? null,
+    writeSlot: async (slot, value) => void d.slots.set(slot, value as string),
+    removeSlot: async (slot) => void d.slots.delete(slot),
+    now: tick,
+  });
+}
+
+/** The shared document, and one settings round of a device against it — as each version's SecretsSyncStep runs it. */
+let remote: SecretsBundle | null = null;
+async function round(d: Device): Promise<void> {
+  const port = portOf(d);
+  if (d.legacy) {
+    const next = await v087.runV087Round(port as never, remote as never, tick());
+    if (next.pushed) d.pushes++;
+    remote = next.remote as SecretsBundle;
+    return;
+  }
+  const local = await port.exportBundle();
+  for (const entry of Object.values(local.entries)) if (!entry.tombstone) assertShareable(entry);
+  const merged = mergeSecretsBundles(local, remote, tick());
+  if (stableStringify(merged.entries) !== stableStringify(local.entries)) await port.importBundle(merged);
+  if (!remote || stableStringify(merged.entries) !== stableStringify(remote.entries)) {
+    d.pushes++;
+    remote = merged;
+  }
+}
+
+async function rounds(fleet: Device[], times: number): Promise<void> {
+  for (let i = 0; i < times; i++) for (const d of fleet) await round(d);
+}
+
+const oldEntries = () => Object.entries(remote?.entries ?? {}).filter(([, entry]) => entry.binding.secretType === "caldav-password" || entry.binding.secretType === "imap-password");
+
+function start(): void {
+  remote = null;
+  clock = 0;
+}
+
+describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
+  const fleets: Array<[string, () => Device[]]> = [
+    ["L1: a user in lower case, one updated device and one on 0.8.7", () => [device("N1", false, [{ id: "r", user: "anna" }], { r: "P1" }), device("O", true, [{ id: "r", user: "anna" }])]],
+    ["L2: the same with two updated devices", () => [device("N1", false, [{ id: "r", user: "anna" }], { r: "P1" }), device("N2", false, [{ id: "r", user: "anna" }]), device("O", true, [{ id: "r", user: "anna" }])]],
+    ["a user in capitals", () => [device("N1", false, [{ id: "r", user: "Anna" }], { r: "P1" }), device("N2", false, [{ id: "r", user: "Anna" }]), device("O", true, [{ id: "r", user: "Anna" }])]],
+    ["the password held by the device on 0.8.7", () => [device("O", true, [{ id: "r", user: "Anna" }], { r: "P0" }), device("N1", false, [{ id: "r", user: "Anna" }]), device("N2", false, [{ id: "r", user: "Anna" }])]],
+    ["both versions holding a password", () => [device("O", true, [{ id: "r", user: "anna" }], { r: "P0" }), device("N1", false, [{ id: "r", user: "anna" }], { r: "P1" }), device("O2", true, [{ id: "r", user: "anna" }])]],
+    ["twins \"Alice\" and \"alice\" beside a device on 0.8.7", () => [
+      device("N1", false, [{ id: "rA", user: "Alice" }, { id: "ra", user: "alice" }], { rA: "pA", ra: "pa" }),
+      device("N2", false, [{ id: "rA", user: "Alice" }, { id: "ra", user: "alice" }]),
+      device("O", true, [{ id: "rA", user: "Alice" }], { rA: "pO" }),
+    ]],
+    ["a mailbox", () => [device("N1", false, [{ id: "m", user: "Anna@Example.com", kind: "mail" }], { m: "M1" }), device("O", true, [{ id: "m", user: "anna@example.com", kind: "mail" }], { m: "M0" }), device("N2", false, [{ id: "m", user: "anna@example.com", kind: "mail" }])]],
+  ];
+
+  for (const [name, make] of fleets) {
+    it(`uploads nothing once settled — ${name}`, async () => {
+      start();
+      const fleet = make();
+      await rounds(fleet, 4);
+      for (const d of fleet) d.pushes = 0;
+      const settled = stableStringify(remote);
+      await rounds(fleet, 4);
+      expect(Object.fromEntries(fleet.map((d) => [d.name, d.pushes]))).toEqual(Object.fromEntries(fleet.map((d) => [d.name, 0])));
+      expect(stableStringify(remote)).toBe(settled);
+      // An updated device never writes an old type (rule 1).
+      for (const [, entry] of oldEntries()) expect(fleet.find((d) => d.name === entry.deviceId)?.legacy).toBe(true);
+    });
+  }
+
+  it("an updated device without the two accounts never makes a tombstone of 0.8.7 its own (forge case)", async () => {
+    start();
+    const twins = (): Row[] => [{ id: "rA", user: "Alice" }, { id: "ra", user: "alice" }];
+    const n1 = device("N1", false, twins(), { rA: "pA", ra: "pa" });
+    const n3 = device("N3", false, twins());
+    const old = device("O-087", true, [{ id: "oA", user: "Alice" }, { id: "oc", user: "carl" }], { oc: "pc" });
+    const n4 = device("zN4", false, [{ id: "rb", user: "bob" }], { rb: "pb" });
+    await rounds([n1, n3], 2);
+    expect(Object.fromEntries(n3.slots)).toEqual({ rA: "pA", ra: "pa" });
+    await rounds([old], 2);
+    // The device on 0.8.7 removes its "Alice": a tombstone under the old name.
+    old.rows = [{ id: "oc", user: "carl" }];
+    old.slots.delete("oA");
+    await round(old);
+    const written = new Map(oldEntries().map(([id, entry]) => [id, stableStringify(entry)]));
+    await round(n3);
+    await rounds([n4], 2);
+    await rounds([n3, n1, n3], 1);
+    await rounds([n1, n3, n4, old], 2);
+    expect(Object.fromEntries(n3.slots)).toEqual({ rA: "pA", ra: "pa" });
+    expect(Object.fromEntries(n1.slots)).toEqual({ rA: "pA", ra: "pa" });
+    // Every old entry is as the device on 0.8.7 wrote it (rule 2).
+    for (const [id, entry] of oldEntries()) {
+      expect(entry.deviceId).toBe("O-087");
+      if (written.has(id)) expect(stableStringify(entry)).toBe(written.get(id));
+    }
+  });
+
+  it("a device updated from 0.8.7 publishes the passwords it holds in the current types, and leaves its old entries as they are", async () => {
+    start();
+    const rows: Row[] = [{ id: "r1", user: "anna" }, { id: "r2", user: "Bert" }, { id: "m", user: "carl@example.com", kind: "mail" }];
+    const up = device("U", true, rows, { r1: "P1", r2: "P2", m: "M1" });
+    const other = device("O", true, rows.map((row) => ({ ...row })));
+    await rounds([up, other], 3);
+    const before = stableStringify(oldEntries());
+    expect(oldEntries()).toHaveLength(3);
+
+    up.update();
+    await round(up);
+    expect(stableStringify(oldEntries())).toBe(before);
+    for (const row of rows) {
+      const entry = remote!.entries[canonicalSecretId(newBinding(row))];
+      expect(entry?.deviceId).toBe("U");
+      expect(entry?.secret).toEqual({ pass: up.slots.get(row.id) });
+    }
+    // ...without the user doing anything, and nothing moves after that.
+    up.pushes = 0;
+    other.pushes = 0;
+    await rounds([up, other], 3);
+    expect([up.pushes, other.pushes]).toEqual([0, 0]);
+    expect(stableStringify(oldEntries())).toBe(before);
+  });
+
+  it("between the two places of one account the later password counts; on a tie the current place; an old tombstone never", async () => {
+    const row: Row = { id: "r", user: "Anna" };
+    const current = (pass: string, updatedAt: string): [string, SecretEntry] => [canonicalSecretId(newBinding(row)), { entryRev: 1, updatedAt, deviceId: "N", binding: newBinding(row), secret: { pass } }];
+    const old = (updatedAt: string, pass?: string): [string, SecretEntry] => [
+      canonicalSecretId(oldBinding(row)),
+      { entryRev: 1, updatedAt, deviceId: "O", binding: oldBinding(row), ...(pass ? { secret: { pass } } : { tombstone: true }) },
+    ];
+    const bundle = (entries: Array<[string, SecretEntry]>): SecretsBundle => ({ format: "plainva-secrets", version: 1, bundleRev: 1, updatedAt: "t", entries: Object.fromEntries(entries) });
+    const cases: Array<[string, Array<[string, SecretEntry]>, string | undefined]> = [
+      ["the old place later", [current("new", "2026-11-18T00:00:01.000Z"), old("2026-11-18T00:00:02.000Z", "old")], "old"],
+      ["the current place later", [old("2026-11-18T00:00:01.000Z", "old"), current("new", "2026-11-18T00:00:02.000Z")], "new"],
+      ["a tie", [old("2026-11-18T00:00:01.000Z", "old"), current("new", "2026-11-18T00:00:01.000Z")], "new"],
+      ["only the old place", [old("2026-11-18T00:00:01.000Z", "old")], "old"],
+      ["an old tombstone, later", [current("new", "2026-11-18T00:00:01.000Z"), old("2026-11-18T00:00:02.000Z")], "new"],
+    ];
+    for (const [what, entries, expected] of cases) {
+      for (const order of [entries, [...entries].reverse()]) {
+        const d = device("B", false, [row]);
+        await portOf(d).importBundle(bundle(order));
+        expect(d.slots.get("r"), what).toBe(expected);
+      }
+    }
+    // An old tombstone is remembered: a later value under the old name puts nothing back.
+    const d = device("B", false, [row]);
+    await portOf(d).importBundle(bundle([old("2026-11-18T00:00:03.000Z")]));
+    await portOf(d).importBundle(bundle([old("2026-11-18T00:00:04.000Z", "late")]));
+    expect(d.slots.has("r")).toBe(false);
+  });
+
+  it("\"Remove account\" of a user in lower case closes its old name here, so a later value of 0.8.7 reaches no other account", async () => {
+    start();
+    const n = device("N", false, [{ id: "ra", user: "alice" }, { id: "rA", user: "Alice" }], { ra: "pa", rA: "pA" });
+    await round(n);
+    await retireSecret(n.host, calDavSecretBinding("webdav", CAL, "alice"));
+    n.rows = [{ id: "rA", user: "Alice" }];
+    n.slots.delete("ra");
+    await round(n);
+    const old = device("O", true, [{ id: "o", user: "alice" }], { o: "late" });
+    await rounds([old, n], 2);
+    expect(Object.fromEntries(n.slots)).toEqual({ rA: "pA" });
+  });
+});

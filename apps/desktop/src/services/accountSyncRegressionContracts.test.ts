@@ -288,7 +288,7 @@ describe("cross-shell account-sync regression contracts", () => {
     const secretIdFor = (account: MailAccountConfig) =>
       canonicalSecretId({
         service: "mail",
-        secretType: "imap-password",
+        secretType: "imap-password-2",
         user: account.user,
         endpoint: `imaps://${account.host}:${account.port}`,
       });
@@ -323,7 +323,7 @@ describe("cross-shell account-sync regression contracts", () => {
     const binding = {
       family: "imap",
       service: "mail",
-      secretType: "imap-password",
+      secretType: "imap-password-2",
       user: "person@example.invalid",
       endpoint: canonicalizeEndpoint("imaps://imap.example.invalid:993"),
     } as const;
@@ -447,9 +447,11 @@ describe("cross-shell account-sync regression contracts", () => {
         apply: (secret) => secret,
       },
       {
-        logicalId: V060_LOGICAL_IDS.mail,
+        // This device names the mailbox in the current type; the entry of
+        // v0.6.0 reaches it as the old name of that one account.
+        logicalId: canonicalSecretId({ ...bundle.entries[V060_LOGICAL_IDS.mail].binding, secretType: "imap-password-2" }),
         slot: "fixture-mail-slot",
-        binding: bundle.entries[V060_LOGICAL_IDS.mail].binding,
+        binding: { ...bundle.entries[V060_LOGICAL_IDS.mail].binding, secretType: "imap-password-2" },
         secret: null,
         apply: (secret) => secret,
       },

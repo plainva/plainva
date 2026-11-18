@@ -15,7 +15,7 @@ import { createSecretsPort, type LocalSecretCandidate, type SecretsPortMeta } fr
 const binding = (over: Partial<SecretBinding> = {}): SecretBinding => ({
   family: "webdav",
   service: "calendar",
-  secretType: "caldav-password",
+  secretType: "caldav-password-2",
   user: "marco@example.com",
   endpoint: canonicalizeEndpoint("https://cloud.example.com/remote.php/dav"),
   ...over,
@@ -66,7 +66,7 @@ describe("shared secrets port (H2c)", () => {
     const bundle = await source.port.exportBundle();
     const mailBinding = binding({
       service: "mail",
-      secretType: "imap-password",
+      secretType: "imap-password-2",
       endpoint: canonicalizeEndpoint("imaps://mail.example.com:993"),
     });
     bundle.entries["acc-2"] = {
@@ -128,7 +128,7 @@ describe("shared secrets port (H2c)", () => {
   it("applies the accounts it knows and reports the ones it does not", async () => {
     const source = makeDevice("phone", () => [
       candidate(),
-      candidate({ logicalId: "acc-2", slot: "mail_acc-2", binding: binding({ service: "mail", secretType: "imap-password" }), secret: { pass: "second" } }),
+      candidate({ logicalId: "acc-2", slot: "mail_acc-2", binding: binding({ service: "mail", secretType: "imap-password-2" }), secret: { pass: "second" } }),
     ]);
     const bundle = await source.port.exportBundle();
 

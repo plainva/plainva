@@ -19,12 +19,46 @@ import type { MasterKeyBundle } from "../crypto/keyfile.js";
 import { utf8Decode, utf8Encode } from "../crypto/cryptoPrimitives.js";
 import { trimEndChars } from "../textScan.js";
 
-/** The static, shareable secret types. Everything else is refused. */
-export const SHAREABLE_SECRET_TYPES = ["caldav-password", "imap-password"] as const;
+/**
+ * The static, shareable secret types a current device writes. Everything else
+ * is refused for an export.
+ *
+ * They are their own types, not the ones clients up to 0.8.7 write (review
+ * 2026-11-18, round six): such a client lower-cases every user and writes an
+ * entry it reads back unchanged, but without anything a newer device adds to
+ * it — so whether an entry is old or new can only be told by its PLACE, which
+ * an old client neither removes nor adds. An old client passes an entry of a
+ * type it does not know through unchanged: it never applies it, never keeps it
+ * and never writes a tombstone for it (it counts it as "rejected" in its
+ * diagnostics). A current device in turn reads the old types
+ * (`BRIDGE_SECRET_TYPES`) and never writes them. The cost, named for the
+ * release texts: a device on 0.8.7 receives no password from an updated one.
+ */
+export const SHAREABLE_SECRET_TYPES = ["caldav-password-2", "imap-password-2"] as const;
 export type ShareableSecretType = (typeof SHAREABLE_SECRET_TYPES)[number];
 
 export function isShareableSecretType(type: string): type is ShareableSecretType {
   return (SHAREABLE_SECRET_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * The types clients up to 0.8.7 wrote, with the user lower-cased. A current
+ * device reads them for the single account each can mean and never writes one
+ * — not as a value, not as a tombstone.
+ */
+export const BRIDGE_SECRET_TYPES = ["caldav-password", "imap-password"] as const;
+export type BridgeSecretType = (typeof BRIDGE_SECRET_TYPES)[number];
+
+export function isBridgeSecretType(type: string): type is BridgeSecretType {
+  return (BRIDGE_SECRET_TYPES as readonly string[]).includes(type);
+}
+
+/** The type an entry of a client up to 0.8.7 has for a current device, and back. */
+export function currentSecretTypeOf(type: BridgeSecretType): ShareableSecretType {
+  return type === "caldav-password" ? "caldav-password-2" : "imap-password-2";
+}
+export function bridgeSecretTypeOf(type: ShareableSecretType): BridgeSecretType {
+  return type === "caldav-password-2" ? "caldav-password" : "imap-password";
 }
 
 /**
@@ -34,7 +68,7 @@ export function isShareableSecretType(type: string): type is ShareableSecretType
  */
 export const LEGACY_SECRET_TYPES = ["google-pim-client"] as const;
 export type LegacySecretType = (typeof LEGACY_SECRET_TYPES)[number];
-export type SecretType = ShareableSecretType | LegacySecretType;
+export type SecretType = ShareableSecretType | BridgeSecretType | LegacySecretType;
 
 export function isLegacySecretType(type: string): type is LegacySecretType {
   return (LEGACY_SECRET_TYPES as readonly string[]).includes(type);
@@ -47,8 +81,8 @@ export interface SecretBinding {
   secretType: SecretType;
   /**
    * The user/login exactly as the account signs in with it, only trimmed
-   * (`secretBindingUser`). Clients up to 0.8.7 wrote it lower-cased; such an
-   * entry is still read (see `isLegacyLowerCaseUser`).
+   * (`secretBindingUser`); a mail user lower-cased. Clients up to 0.8.7 wrote
+   * every user lower-cased, in the old types (`BRIDGE_SECRET_TYPES`).
    */
   user: string;
   /** Canonical endpoint fingerprint (see canonicalizeEndpoint). */
@@ -64,16 +98,6 @@ export interface SecretEntry {
   binding: SecretBinding;
   /** The actual secret payload (e.g. {pass} or {clientId, clientSecret}). Absent for tombstones. */
   secret?: Record<string, string>;
-  /**
-   * Written by a device that names the user by its exact spelling (review
-   * 2026-11-18, O1). An entry without it comes from a device up to 0.8.7,
-   * which lower-cased every user: only such an entry can be the OLD name of
-   * an account (`isLegacyLowerCaseUser`). The spelling alone never says so —
-   * "alice" is also the exact name of an account of its own. A device up to
-   * 0.8.7 passes the field on unchanged (`mergeSecretEntries` keeps entries
-   * whole).
-   */
-  exactUser?: boolean;
 }
 
 export interface SecretsBundle {
@@ -156,17 +180,15 @@ export function canonicalSecretId(
   } catch {
     endpoint = binding.endpoint.trim();
   }
-  const user = bindingUserKey(binding.service, binding.user);
-  const folded = user.toLowerCase();
-  // A user written in lower case keeps the name it always had, so nothing a
-  // device on 0.8.7 knows is renamed — and renaming would retire the old name,
-  // which such a device applies by deleting a working password. Any other
-  // spelling gets its own name beside it ("#" never occurs in an encoded
-  // component): "Alice" and "alice" are two accounts on a server that tells
-  // them apart, and one name for both let the second password overwrite the
-  // first in the bundle and land in the other row's slot (GitHub issue 174).
-  const exact = user === folded ? "" : `#${encodeURIComponent(user)}`;
-  return `s1:${binding.service}:${binding.secretType}:${encodeURIComponent(folded)}${exact}@${encodeURIComponent(endpoint)}`;
+  // An old type is named as clients up to 0.8.7 name it, the user
+  // lower-cased. A current type names the user as the account signs in with
+  // it: "Alice" and "alice" are two accounts on a server that tells them
+  // apart, and one name for both let the second password overwrite the first
+  // and land in the other row's slot (GitHub issue 174).
+  const user = isBridgeSecretType(binding.secretType)
+    ? binding.user.trim().toLowerCase()
+    : bindingUserKey(binding.service, binding.user);
+  return `s1:${binding.service}:${binding.secretType}:${encodeURIComponent(user)}@${encodeURIComponent(endpoint)}`;
 }
 
 /** The user as a binding carries it: exactly as the account signs in with it, only trimmed. */
@@ -183,24 +205,6 @@ export function secretBindingUser(user: string): string {
 function bindingUserKey(service: SecretBinding["service"], user: string): string {
   const exact = secretBindingUser(user);
   return service === "mail" ? exact.toLowerCase() : exact;
-}
-
-/**
- * Whether a binding's user is in lower case, the only form clients up to 0.8.7
- * wrote. Such an entry may stand for a user in any case; it is applied to a
- * local account whose user is not lower case only when that account is the
- * single one it could mean.
- */
-export function isLegacyLowerCaseUser(binding: Pick<SecretBinding, "user">): boolean {
-  return binding.user === binding.user.toLowerCase();
-}
-
-/**
- * Whether an entry can be an account's OLD name: written by a device up to
- * 0.8.7 (no `exactUser`), with the user as it wrote every user — lower-cased.
- */
-export function isOldNameEntry(entry: Pick<SecretEntry, "binding" | "exactUser">): boolean {
-  return !entry.exactUser && isLegacyLowerCaseUser(entry.binding);
 }
 
 /** True when a synced entry's binding matches an observed local account. */
@@ -300,7 +304,6 @@ export function assertSecretsBundleStructure(value: unknown): asserts value is S
       !isNonEmptyString(candidate.updatedAt) ||
       !isNonEmptyString(candidate.deviceId) ||
       (candidate.tombstone !== undefined && typeof candidate.tombstone !== "boolean") ||
-      (candidate.exactUser !== undefined && typeof candidate.exactUser !== "boolean") ||
       !isRecord(candidate.binding)
     ) {
       throw new SecretPolicyError("secrets bundle entry metadata is malformed");

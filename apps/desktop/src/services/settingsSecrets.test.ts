@@ -63,13 +63,13 @@ const CALDAV_URL = "https://cloud.example.com/remote.php/dav";
 /** Entries are named after the credential now (P4c), not the local account. */
 const MAIL_ID = canonicalSecretId({
   service: "mail",
-  secretType: "imap-password",
+  secretType: "imap-password-2",
   user: "marco@example.com",
   endpoint: "imaps://imap.gmail.com:993",
 });
 const CALDAV_ID = canonicalSecretId({
   service: "calendar",
-  secretType: "caldav-password",
+  secretType: "caldav-password-2",
   user: "marco",
   endpoint: CALDAV_URL,
 });
@@ -174,10 +174,12 @@ describe("desktop secrets port names entries by binding (P4c)", () => {
 
     const bundle = await createDesktopSecretsPort(VAULT, null).exportBundle();
 
-    // One entry, under the canonical name, continuing the old revision rather
-    // than starting over at 1 (which would lose to every other device).
+    // One entry, under the canonical name in the current type. The old entry
+    // is of the type a device up to 0.8.7 writes: it is never written again,
+    // so its revision is not continued — the current type starts at 1, where
+    // no device on 0.8.7 competes (review 2026-11-18, round six).
     expect(Object.keys(bundle.entries)).toEqual([MAIL_ID]);
-    expect(bundle.entries[MAIL_ID]?.entryRev).toBe(8);
+    expect(bundle.entries[MAIL_ID]?.entryRev).toBe(1);
     expect(bundle.entries["mail-1"]).toBeUndefined();
   });
 });
