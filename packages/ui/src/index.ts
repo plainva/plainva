@@ -86,6 +86,7 @@ export * from "./lib/accountPage";
 export * from "./lib/syncStateBinding";
 export * from "./lib/encryptedRemoteGate";
 export * from "./lib/workspaceWriteGate";
+export * from "./lib/massDeletionQuestion";
 export * from "./lib/googleAuthorization";
 export * from "./components/accounts/OAuthAccessEditor";
 export * from "./components/accounts/AccountFailureNote";

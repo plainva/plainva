@@ -6,13 +6,30 @@ import { WorkspaceObjectStore } from "./objectStore.js";
 import { PersonalWorkspaceRuntime } from "./personal.js";
 import { isWorkspaceLocalOnlyPath } from "./queueingVaultAdapter.js";
 import { protocolAssert } from "./errors.js";
-import { WorkspaceLocalProbe, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
+import { WorkspaceLocalProbe, WorkspaceObjectRecord, WorkspaceRuntimeMeta, WorkspaceStateStore } from "./state.js";
+import { refreshWorkspacePolicy } from "./worker.js";
+import { WorkspaceRevisionHistoryService } from "./collaboration.js";
+import { withPathMutation } from "../vault/pathMutation.js";
+import { baselineRefusalReports } from "./deniedFork.js";
+
+/**
+ * The permission check of the vault's chain for a change made outside the
+ * app (`PermissionedVaultAdapter`): its verdict without a side effect, and
+ * the local fork that keeps a refused change.
+ */
+export interface WorkspaceExternalChangeCheck {
+  judgeExternalChange(path: string, exists: boolean): Promise<"held" | "allowed" | "denied">;
+  keepDeniedExternalChange(path: string, exists: boolean): Promise<void>;
+}
 
 export interface PersonalWorkspaceMigrationResult {
   total: number;
   alreadyCompleted: number;
   queued: number;
 }
+
+/** The hash of no bytes: an empty file is no evidence of a move. */
+const EMPTY_SHA256 = sha256Hex(new Uint8Array());
 
 function initialMeta(runtime: PersonalWorkspaceRuntime, recoveryConfirmedAt: string): WorkspaceRuntimeMeta {
   return {
@@ -40,6 +57,7 @@ function initialMeta(runtime: PersonalWorkspaceRuntime, recoveryConfirmedAt: str
     operationHeads: {},
     needsPublication: true,
     pendingPublication: null,
+    refusalsReportedThrough: "",
   };
 }
 
@@ -58,7 +76,24 @@ export async function initializePersonalWorkspaceMigration(input: {
   /** Reports queue-building progress over the vault inventory so the first-run
    * setup UI can show a determinate bar while every file is hashed. */
   onProgress?: (done: number, total: number) => void;
+  /**
+   * The chain's permission link, asked before each change the reconcile finds
+   * goes into the queue (release 0.9.0 A3) — the same question a change from
+   * outside the app gets while the app runs. Without it a write the member may
+   * not make went into the queue and failed only at its push ("local mutation
+   * is not permitted by the active workspace policy"), again at every cycle,
+   * instead of staying here as a local fork. Every start of a running vault
+   * passes it; the conversion of one's own vault and a recovery, where the
+   * device acts as the owner, do without.
+   *
+   * Every start asks anew: a change refused at an earlier start and allowed
+   * since (a right granted meanwhile) goes into the queue; only the same
+   * refusal is not recorded a second time.
+   */
+  permissions?: WorkspaceExternalChangeCheck | null;
 }): Promise<PersonalWorkspaceMigrationResult> {
+  // Before anything is refused here: what was refused before the notice existed is not news.
+  await baselineRefusalReports(input.state);
   let meta = await input.state.loadMeta();
   if (!meta) {
     meta = initialMeta(input.runtime, input.recoveryConfirmedAt);
@@ -95,12 +130,84 @@ export async function initializePersonalWorkspaceMigration(input: {
   const pendingPaths = new Set(await input.state.listQueuedPaths());
   const probesByPath = new Map((await input.state.listLocalProbes()).map((probe) => [probe.path, probe]));
   const probeUpserts: WorkspaceLocalProbe[] = [];
+  const permissions = input.permissions ?? null;
+  // A change refused once is a local fork already (`workspaceDeniedFork`).
+  // The reconcile meets it again at every start — the file still differs
+  // from what the workspace holds, the object is still missing here — and a
+  // second copy of the same refusal is nothing the person needs.
+  const deniedForks = permissions
+    ? (await input.state.listLocalForks()).filter((fork) => fork.reason === "permission-denied")
+    : [];
+  // A file's refusal kept a copy of its bytes; a deletion's, or a folder's,
+  // kept none.
+  const refusedBefore = async (path: string, sha: string | null): Promise<boolean> => {
+    for (const fork of deniedForks) {
+      if (fork.originalPath !== path) continue;
+      const kept = await input.vault.exists(fork.forkPath);
+      if (sha === null ? !kept : kept && sha256Hex(await input.vault.readBinaryFile(fork.forkPath)) === sha) return true;
+    }
+    return false;
+  };
+  // The policy is brought up to date before the first change is judged
+  // (`refreshWorkspacePolicy`). The device starts with the policy of its key
+  // bundle — the one of its pairing or of its own last governance change —
+  // and a right withdrawn or granted since is only known once the remote
+  // policy chain has been read. Into the runtime, which the app's permission
+  // check reads too. Once, and only when something differs.
+  let policyFresh = false;
+  /** A file that could not be read is left for the next start; the rest of the vault goes on. */
+  const readHash = async (path: string): Promise<string | null> => {
+    try {
+      return sha256Hex(await input.vault.readBinaryFile(path));
+    } catch (error) {
+      console.warn(`[workspace] ${path} could not be read; it is looked at again at the next start`, error);
+      return null;
+    }
+  };
+  /**
+   * "queue" when the change goes into the queue; "kept" when it stays here
+   * (held already, or refused — then a local fork, recorded once); "later"
+   * when it could not be judged now. `sha` is the file's hash where it is
+   * known, `kind` what the change is.
+   */
+  const verdict = async (path: string, kind: "file" | "folder" | "deletion", sha: string | null): Promise<"queue" | "kept" | "later"> => {
+    if (!permissions) return "queue";
+    if (!policyFresh) {
+      await refreshWorkspacePolicy({ store: input.store, state: input.state, vault: input.vault, runtime: input.runtime, signal: input.signal });
+      policyFresh = true;
+    }
+    const exists = kind !== "deletion";
+    const judged = await permissions.judgeExternalChange(path, exists);
+    if (judged === "allowed") return "queue";
+    if (judged === "held") return "kept";
+    if (kind === "file" && sha === null) sha = await readHash(path);
+    if (kind === "file" && sha === null) return "later";
+    if (kind === "file" && sha && !objectsByPath.get(path)) refusedNewContent.add(sha);
+    if (!(await refusedBefore(path, kind === "file" ? sha : null))) await permissions.keepDeniedExternalChange(path, exists);
+    return "kept";
+  };
+  // What a refused new file holds (its hash). A file moved while the app was
+  // closed looks like a new file here and a missing object there; when the new
+  // place is refused, the move is (review of release 0.9.0): the missing
+  // original is no deletion the person made, and it comes back from the
+  // workspace instead of going out as one. Read as a move only when exactly one
+  // missing note and exactly one new file share their bytes, and the bytes are
+  // not empty: any empty file at a refused place, or two copies of a note,
+  // brought a deletion the person made back without a word, and it never
+  // went out. A copy made elsewhere and the original deleted is still kept,
+  // the safe side of the two.
+  const refusedNewContent = new Set<string>();
+  /** Every new file's bytes (no object at its path), by how many new files hold them. */
+  const newContent = new Map<string, number>();
+  let deferred = 0;
   for (const entry of inventory) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     processed += 1;
     if (processed === inventory.length || processed % progressStep === 0) input.onProgress?.(processed, inventory.length);
     const existing = objectsByPath.get(entry.path);
     if (pendingPaths.has(entry.path)) { queued += 1; continue; }
+    // The file's hash, where it was taken; what the refusal check compares.
+    let sha: string | null = null;
     if (existing && !existing.deleted) {
       let unchanged: boolean;
       if (entry.isDirectory) {
@@ -113,17 +220,24 @@ export async function initializePersonalWorkspaceMigration(input: {
         // so unchanged files cost no read. Anything else falls back to hashing
         // once and refreshes the probe for the next open.
         const probe = probesByPath.get(entry.path);
-        let sha: string;
         if (probe && entry.mtime > 0 && probe.mtime === entry.mtime && probe.size === entry.size) {
           sha = probe.plaintextSha256;
         } else {
-          sha = sha256Hex(await input.vault.readBinaryFile(entry.path));
+          sha = await readHash(entry.path);
+          if (sha === null) { deferred += 1; continue; }
           probeUpserts.push({ path: entry.path, mtime: entry.mtime, size: entry.size, plaintextSha256: sha });
         }
         unchanged = existing.plaintextSha256 === sha;
       }
       if (unchanged) { completed += 1; continue; }
     }
+    if (!entry.isDirectory && (!existing || existing.deleted) && permissions) {
+      sha ??= await readHash(entry.path);
+      if (sha) newContent.set(sha, (newContent.get(sha) ?? 0) + 1);
+    }
+    const outcome = await verdict(entry.path, entry.isDirectory ? "folder" : "file", sha);
+    if (outcome === "later") { deferred += 1; continue; }
+    if (outcome === "kept") { completed += 1; continue; }
     await input.state.enqueue(entry.isDirectory ? "mkdir" : "write", entry.path);
     queued += 1;
   }
@@ -131,16 +245,50 @@ export async function initializePersonalWorkspaceMigration(input: {
   // the durable object map against the startup inventory so offline edits and
   // deletions enter the same signed queue before the first pull.
   const missingObjects = [...objectsByPath.values()].filter((object) => !object.deleted && !localPaths.has(object.path) && !unjudged(object.path));
-  for (const object of missingObjects) {
+  // Files first, then folders from the deepest: a folder whose file came back is no folder that went.
+  const restoredPaths: string[] = [];
+  const restore = async (object: WorkspaceObjectRecord): Promise<boolean> => {
+    try {
+      const history = new WorkspaceRevisionHistoryService(input.store, input.state, input.runtime.groupKeys);
+      return await withPathMutation(input.state, [object.path], async () => {
+        if (await input.vault.exists(object.path)) return true;
+        if (object.contentKind === "directory") await input.vault.createDir(object.path);
+        else await input.vault.writeBinaryFile(object.path, await history.read(object.currentRevisionId!));
+        restoredPaths.push(object.path);
+        return true;
+      });
+    } catch (error) {
+      // Not brought back now; neither is it deleted. The next start looks again.
+      console.warn(`[workspace] ${object.path} was moved to a place this member may not write and could not be put back`, error);
+      return false;
+    }
+  };
+  const missingContent = new Map<string, number>();
+  for (const object of missingObjects) if (object.contentKind !== "directory" && object.plaintextSha256) missingContent.set(object.plaintextSha256, (missingContent.get(object.plaintextSha256) ?? 0) + 1);
+  const movedFile = (sha: string) => sha !== EMPTY_SHA256 && refusedNewContent.has(sha) && newContent.get(sha) === 1 && missingContent.get(sha) === 1;
+  const missingOrder = [...missingObjects].sort((left, right) =>
+    Number(left.contentKind === "directory") - Number(right.contentKind === "directory") || right.path.split("/").length - left.path.split("/").length);
+  for (const object of missingOrder) {
     if (input.signal?.aborted) throw new DOMException("Encrypted workspace migration aborted", "AbortError");
     if (pendingPaths.has(object.path)) { queued += 1; continue; }
+    const movedAway = object.contentKind === "directory"
+      ? restoredPaths.some((path) => path.startsWith(`${object.path}/`))
+      : !!object.plaintextSha256 && movedFile(object.plaintextSha256);
+    if (movedAway && object.currentRevisionId) {
+      await restore(object);
+      completed += 1;
+      continue;
+    }
+    if ((await verdict(object.path, "deletion", null)) === "kept") { completed += 1; continue; }
+    // Unconfirmed: nobody deleted these in the app. Many of them at once are
+    // held by the worker's mass-deletion guard until the person answers (A4).
     await input.state.enqueue("delete", object.path);
     queued += 1;
   }
   const staleProbes = [...probesByPath.keys()].filter((path) => !localPaths.has(path) && !unjudged(path));
   if (probeUpserts.length) await input.state.upsertLocalProbes(probeUpserts);
   if (staleProbes.length) await input.state.deleteLocalProbes(staleProbes);
-  meta.migrationTotal = inventory.length + missingObjects.length;
+  meta.migrationTotal = inventory.length + missingObjects.length - deferred;
   meta.migrationCompleted = completed;
   meta.migrationInventoryComplete = true;
   meta.lastError = null;

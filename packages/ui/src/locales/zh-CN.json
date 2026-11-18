@@ -3685,6 +3685,14 @@
     "journalCheckEmpty": "删除日志中没有需要检查的内容。",
     "journalCheckFailed": "无法检查删除日志。",
     "deletionsKeptLocalEdits_other": "云端已删除的 {{count}} 个文件在此处有尚未上传的更改。Plainva 已保留这些文件并正在重新上传；如不再需要，请在此处删除：{{names}}",
+    "workspaceChangesRefused": "此工作区不允许：{{names}}。更改作为本地分支保留在此设备上，不会发送到其他设备——见“完整性与本地分支”。",
+    "workspacePullGuardTitle": "已在另一台设备上删除",
+    "workspacePullGuardBody": "此工作区的另一台设备删除了 {{total}} 个文件中的 {{n}} 个。是否也在此处删除？",
+    "workspacePullGuardBodyLocal": "此工作区的另一台设备删除了 {{total}} 个文件中的 {{n}} 个。是否也在此处删除？其中 {{local}} 个无法从此处重新提供给其他设备：保留后只留在此设备上，作为它自己的版本。",
+    "workspacePullGuardKeepHere": "仅在此设备上保留",
+    "workspacePullGuardKeepMixed": "保留",
+    "workspacePullGuardKeptLocal": "已保留：{{count}} 个，其中 {{local}} 个仅在此设备上，作为它自己的版本。",
+    "workspaceRestorePending": "不允许，而且原文件尚未回到此处：{{names}}。Plainva 每次同步都会重试；在此之前，更改会等待。",
     "downloading": "正在下载更改… {{current}}/{{total}}",
     "uploading": "正在上传更改… {{current}}/{{total}}",
     "idle": "立即同步(含重试)",
@@ -7274,7 +7282,8 @@
     "forkReason": {
       "permission-denied": "当时不允许写入——变更作为副本放在旁边。",
       "parallel-write": "同时写入——两个版本并列存放。",
-      "path-collision": "路径已被占用——副本使用了自己的名称。"
+      "path-collision": "路径已被占用——副本使用了自己的名称。",
+      "kept-local": "已在另一台设备上删除——作为此设备自己的版本保留在此处。"
     },
     "quarantineEntries_other": "{{count}} 个条目",
     "quarantineShowEntries_other": "显示 {{count}} 个条目",
