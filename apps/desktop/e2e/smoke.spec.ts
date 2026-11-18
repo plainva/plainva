@@ -900,7 +900,7 @@ test('AI in the selection toolbar: the button opens its menu, and an action show
   await page.waitForTimeout(300);
   await expect(menu).toBeVisible();
   await menu.getByRole('menuitem', { name: /^(Ask|Fragen)/ }).click();
-  await expect(page.getByTestId('ai-companion')).toBeVisible();
+  await expect(page.getByTestId('ai-dock')).toBeVisible();
 });
 
 // Befunde 06.11., B7: "Open settings" in the AI's surfaces opened the first page of the vault's settings, not the AI's.
@@ -913,7 +913,7 @@ test('AI settings from a conversation: "Set up" opens the page "AI", not the fir
   await page.goto('/');
   await expect(page.getByTestId('file-tree')).toBeVisible();
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await expect(companion).toBeVisible();
   await companion.getByRole('button', { name: /^(Set up|Einrichten)$/ }).click();
   await expect(page.getByTestId('ai-beta-switch')).toBeVisible();
@@ -4607,7 +4607,8 @@ test('AI scripts: a script runs for nobody until this device signed it, then in 
   // Its review says what a writing tool means.
   await addLine.getByTestId('ai-skill-more').click();
   await page.getByTestId('ai-skill-action-showInstructions').click();
-  await expect(approval).toContainText('It can suggest changes and leave drafts, signed with its name.');
+  await expect(approval).toContainText('It can suggest changes and leave drafts, signed with its name — they wait for you to accept or create.');
+  await expect(approval).toContainText('Started by the AI in a conversation with “Apply directly”, or in a folder with “Change without asking”, it changes notes at once, with Undo.');
   await page.keyboard.press('Escape');
   await expect(approval).toHaveCount(0);
 
@@ -4704,7 +4705,7 @@ test('AI internet: a fresh vault has none; switched on, a page is read only afte
 
   // 1. A vault nobody decided about: the conversation shows nothing of the internet and carries none of its tools.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await expect(companion.getByTestId('ai-input')).toBeVisible();
   await expect(companion.getByTestId('ai-web-toggle')).toHaveCount(0);
   await companion.getByTestId('ai-input').fill(`Read ${URL} for me.`);
@@ -4744,7 +4745,7 @@ test('AI internet: a fresh vault has none; switched on, a page is read only afte
   //    and its marking line says nothing of the internet (plan KI-Oberflächen K7).
   await expect(companion.getByTestId('ai-web-toggle')).toHaveCount(0);
   await expect(companion.getByTestId('ai-web-marking')).toHaveCount(0);
-  await companion.getByTestId('ai-companion-new').click();
+  await companion.getByTestId('right-ai-new').click();
   await companion.getByTestId('ai-web-toggle').click();
   await expect(companion.getByTestId('ai-web-toggle')).toHaveAttribute('aria-pressed', 'true');
   await companion.getByTestId('ai-input').fill(`What does ${URL} say about day rates?`);
@@ -4829,7 +4830,7 @@ test('AI app commands: the assistant opens a view through the palette, and canno
   const before = await notes();
 
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Show me my journal, and make a new note.');
   await companion.getByTestId('ai-send').click();
   // The overview names the tool search with the tools, and mail as within reach — not as approved.
@@ -4939,7 +4940,7 @@ test('AI writes: a proposal and a draft change nothing until the reader decides;
   };
 
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Raise the day rate in the offer to 1,900 euros, draft a kick-off note, remind me to call the roofer and note that I met Anna.');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -5161,7 +5162,7 @@ test('AI writes: a link that leads nowhere is said under the answer and on the d
   const versions = async () => (await files()).filter((file) => file.path.startsWith('/test-vault/.plainva/backups/') && file.path.includes('Offer'));
 
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Add the references to the offer and draft a kick-off note.');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -5204,7 +5205,7 @@ test('AI writes: a link that leads nowhere is said under the answer and on the d
   //    replaced is a version of the note. (The companion floats over the margin; it is closed for the look at the note.)
   await companion.getByTestId('ai-proposed').click();
   await expect(page.getByText('The day rate is 1,800 euros.')).toBeVisible();
-  if (await companion.count()) await companion.getByTestId('ai-companion-close').click();
+  if (await companion.count()) await companion.getByTestId('ai-dock-close').click();
   await expect(companion).toHaveCount(0);
   const toggle = page.getByTestId('editor-comments-toggle');
   await expect(toggle).toBeVisible({ timeout: 10000 });
@@ -5287,7 +5288,7 @@ test('AI writes a property: the value waits as a suggestion that names the prope
   };
 
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Mark the brief as sent with effort 3, and note that I verified it.');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -5309,7 +5310,7 @@ test('AI writes a property: the value waits as a suggestion that names the prope
 
   // 3. On the note they read as properties: the name, what it says struck, what it would say — not a line of YAML.
   //    (The companion floats over the margin; it is closed for the look at the note and opened again afterwards.)
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   await expect(companion).toHaveCount(0);
   await page.getByText('Brief', { exact: true }).first().click();
   await expect(page.getByText('A short brief.')).toBeVisible();
@@ -5453,7 +5454,7 @@ test('AI writes into a database: proposed values stand in their cells and are de
   };
 
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Fill in the industry of my clients, and add Werft 9 from Kiel as a client.');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -5475,7 +5476,7 @@ test('AI writes into a database: proposed values stand in their cells and are de
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-base-draft-desktop.png'), animations: 'disabled' });
 
   // 3. In the database each proposed value stands in the cell of its entry and its property; the line above says how many.
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   await expect(companion).toHaveCount(0);
   await page.getByTestId('file-tree').getByText('Customers', { exact: true }).click();
   const bar = page.getByTestId('base-proposed-bar');
@@ -5612,7 +5613,7 @@ test('AI writes a column of a database: a run proposes a value for each empty en
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
   const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
   const noteAt = (path: string) => page.evaluate((p) => ((window as any).mockFs[`/test-vault/${p}`] ?? null) as string | null, path);
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
 
   await page.getByTestId('file-tree').getByText('Customers', { exact: true }).click();
   const rowOf = (name: string) => page.locator('tr', { hasText: name });
@@ -5641,7 +5642,7 @@ test('AI writes a column of a database: a run proposes a value for each empty en
   const progress = page.getByTestId('base-fill-progress');
   await expect(progress).toBeVisible();
   await expect(progress).toContainText(/(of|von) 3/);
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   const chipOf = (name: string) => rowOf(name).getByTestId('cell-proposed-industry');
   await expect(page.getByTestId('cell-proposed-industry').first()).toBeVisible({ timeout: 10000 });
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-fill-running-desktop.png'), animations: 'disabled' });
@@ -5692,7 +5693,7 @@ test('AI writes a column of a database: a run proposes a value for each empty en
   await expect(result.getByTestId('base-filter-words-count')).toContainText(/2 (of|von) 4/);
   // Shown, not applied: every entry is still there.
   await expect(rowOf('Hafenkante')).toBeVisible();
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-filter-words-desktop.png'), animations: 'disabled' });
   const asked = (await requests())[3]!;
   expect(asked).toContain('The sentence:\\nclients in Kiel');
@@ -6005,7 +6006,7 @@ test('AI explain image: the picture goes drawn anew and only after the overview 
   await page.getByTestId('image-explain').click();
 
   // 2. The companion comes with the overview: the picture as it would go, its size, and nothing sent yet.
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   const overview = companion.getByTestId('ai-consent');
   await expect(overview).toBeVisible();
   const shown = overview.getByTestId('ai-overview-pictures').locator('img');
@@ -6114,7 +6115,7 @@ test('AI research and keep as a note: the skill reaches the internet only where 
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
   await page.getByTestId('ai-tab-chats').click();
   const tab = page.getByTestId('ai-tab');
-  await tab.getByTestId('ai-skills-all').click();
+  await tab.getByTestId('ai-skills-open').click();
   await page.getByTestId('ai-skill-menu-research').click();
   await tab.getByTestId('ai-consent-send').click();
   await expect(tab.getByText('I could not look anything up on the web here.')).toBeVisible();
@@ -6136,7 +6137,7 @@ test('AI research and keep as a note: the skill reaches the internet only where 
   // 3. Started again, the skill brings the two tools of the web — nobody pressed the globe — and the overview says so.
   //    The quick start belongs to an empty conversation (plan KI-Oberflächen K7): a new one first.
   await tab.getByTestId('ai-tab-new').click();
-  await tab.getByTestId('ai-skills-all').click();
+  await tab.getByTestId('ai-skills-open').click();
   await page.getByTestId('ai-skill-menu-research').click();
   await expect(tab.getByTestId('ai-overview-web')).toBeVisible();
   await tab.getByTestId('ai-consent-send').click();
@@ -6233,7 +6234,7 @@ test('AI keep as a note: an answer a model on this computer made from a note kep
   await page.locator('[data-tree-path="Private/Client.md"]').click();
   await expect(page.locator('.cm-content').first()).toContainText('Northwind pays 2,400 euros a day.');
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('What does this client pay?');
   await companion.getByTestId('ai-send').click();
   await expect(companion.locator('.pv-ai-answer').filter({ hasText: 'Northwind pays 2,400 euros a day.' })).toBeVisible();
@@ -6394,7 +6395,7 @@ test('AI external tools: a server is added, reviewed and granted; a call asks fi
 
   // 4. A conversation: the overview names the server, and the provider's tool list does not hold its tool.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Which issues mention the login?');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-overview-more').click();
@@ -6440,7 +6441,7 @@ test('AI external tools: a server is added, reviewed and granted; a call asks fi
   // The step of the first run keeps its name: a server that is blocked is still the server that was asked.
   await expect(companion.getByText('Tracker · Search issues', { exact: true })).toBeVisible();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-after-block-desktop.png') });
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   await expect(companion).toHaveCount(0);
 
   // 8. The settings show it, and the review says what differs — with what the server lists now.
@@ -6554,7 +6555,7 @@ test('AI external tools: a tool that changes something at its service is ticked 
   // 2. The call waits for its answer under another head, with the sentence that Plainva cannot take it back — and the
   //    button that sends it is not the one the eye lands on. Nothing went out yet.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Close issue 12, it is done.');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -6695,7 +6696,7 @@ test('AI external tools: a server the vault lets ask asks through Plainva\'s car
 
   // 2. A form. The call is asked first, as every call; then the server's question stands as Plainva's card, its words a quote.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Which mixing issues are open?');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -6903,7 +6904,7 @@ test('AI external tools: a server\'s skill waits under "From servers", is approv
 
   // 4. A conversation: the catalog carries the skill in its own fence, the model loads it, and its file — each checked.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill("Review yesterday's diff.");
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -7457,7 +7458,7 @@ test('AI memory: a conversation is started with what a cloud may have; the reade
 
   // 1. A conversation. The overview names the memory before anything leaves: how much of it goes, never which entry.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Remember that I prefer short offers.');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-overview-more').click();
@@ -7499,7 +7500,7 @@ test('AI memory: a conversation is started with what a cloud may have; the reade
   await expect.poll(() => fileAt('/test-vault/AGENTS.md')).toBe('# Instructions for assistants\n\n- Answer in German.\n');
   // The memory files do not hold it.
   expect(await fileAt('/test-vault/.agent/active_memory.md')).not.toContain('German');
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
 
   // 4. The memory in the AI tab (the settings' "Open memory" sends the same event): both groups, the budget, the
   //    rule an entry carries.
@@ -7631,10 +7632,21 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   await tab.getByTestId('ai-consent-send').click();
   await expect(tab.getByText('Checked: every rate matches last year.')).toBeVisible();
 
-  // From the floating companion the dialog opens too — and the companion, which is drawn above a dialog, makes room
-  // for it and comes back when it is closed.
+  // From the docked conversation the dialog opens too; the column lies under a dialog and stays where it is.
   await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-run-more').last().click();
+  await page.getByTestId('ai-learn-open').click();
+  await expect(page.getByTestId('ai-learn')).toBeVisible();
+  await expect(dock).toBeVisible();
+  await page.getByTestId('ai-learn').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByTestId('ai-learn')).toHaveCount(0);
+  // Popped out (plan Oberfläche O7), the same conversation is the floating window, which is drawn above a dialog: it
+  // makes room for it and comes back when it is closed.
+  await dock.getByTestId('ai-dock-popout').click();
   const companion = page.getByTestId('ai-companion');
+  await expect(companion).toBeVisible();
+  await expect(dock).toHaveCount(0);
   await companion.getByTestId('ai-run-more').last().click();
   await page.getByTestId('ai-learn-open').click();
   await expect(page.getByTestId('ai-learn')).toBeVisible();
@@ -8005,7 +8017,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
 
   // 1. As it is set up, a provider answers. The conversation says who.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Where do you run?');
   await companion.getByTestId('ai-send').click();
   const consent = companion.getByTestId('ai-consent-send');
@@ -8015,7 +8027,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   expect((await requests()).map((request) => request.endpoint)).toEqual(['anthropic']);
   await expect(companion.getByTestId('ai-local-marking')).toHaveCount(0);
   // The companion floats above everything else: it is put away while the settings are read.
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   await expect(companion).toHaveCount(0);
 
   // 2. The settings name the state these choices amount to — a line, not a control: a provider answers, and this
@@ -8087,7 +8099,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-answer-desktop.png'), animations: 'disabled' });
 
   // 7. Switched off again, everything is as it was set up: the provider answers new conversations.
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   await expect(companion).toHaveCount(0);
   dialog = await openAppAi();
   app = dialog.getByTestId('settings-ai');
@@ -8152,7 +8164,7 @@ test('AI capture: a picture becomes a note the reader keeps — named by the ans
   await page.getByTestId('image-note').click();
 
   // 2. The same overview as for an explanation: the picture as it would go, and nothing sent before the yes.
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   const overview = companion.getByTestId('ai-consent');
   await expect(overview.getByTestId('ai-overview-pictures').locator('img')).toHaveCount(1);
   expect(await requests()).toEqual([]);
@@ -8184,7 +8196,7 @@ test('AI capture: a picture becomes a note the reader keeps — named by the ans
   expect(note.text).toContain('to: “Make a note of this image.”');
 
   // 5. The summary of transcripts is a switch of this device, with the gists — off until chosen.
-  await companion.getByTestId('ai-companion-close').click();
+  await companion.getByTestId('ai-dock-close').click();
   await expect(companion).toHaveCount(0);
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
@@ -8352,7 +8364,7 @@ test('AI routines: one is set up in two steps and confirmed for a run nobody wat
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await expect(companion.getByTestId('ai-routine-ready')).toContainText('“Morning brief” is ready.');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-routine-ready-desktop.png'), animations: 'disabled' });
   await companion.getByTestId('ai-routine-open').click();
@@ -8637,7 +8649,7 @@ test('AI history analysis: a look back lists what changed from the index — a n
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
   await page.getByTestId('ai-tab-chats').click();
   const tab = page.getByTestId('ai-tab');
-  await tab.getByTestId('ai-skills-all').click();
+  await tab.getByTestId('ai-skills-open').click();
   await page.getByTestId('ai-skill-menu-history').click();
   await tab.getByTestId('ai-consent-send').click();
   await expect(tab.getByText(/the kick-off for Monday was planned/)).toBeVisible();
@@ -8712,7 +8724,7 @@ test('AI snapshot: an answer keeps the version of what it read and says what cha
 
   // 1. A question; the model reads the offer with a tool and answers.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('What day rate does the offer name?');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -8843,7 +8855,7 @@ test('AI writing style: measured from notes the user chose, carried only where "
 
   // 4. A conversation chooses it: "My style" beside the globe, the send overview names it, the request carries the lines.
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   const toggle = companion.getByTestId('ai-style-toggle');
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await toggle.click();
@@ -9239,7 +9251,7 @@ async function directVault(page: Page, script: string[], extra: Record<string, s
 }
 
 async function directAsk(page: Page, text: string) {
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill(text);
   await companion.getByTestId('ai-send').click();
   const consent = companion.getByTestId('ai-consent-send');
@@ -9252,19 +9264,19 @@ test('AI apply directly: the chip writes a change at once, with a version marked
     directSays('I raised the rate and wrote down the rates.'),
   ]);
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   // Off by default; on, the marking line says what it lets the AI do.
   const chip = companion.getByTestId('ai-direct-toggle');
   await expect(chip).toHaveAttribute('aria-pressed', 'false');
   await chip.click();
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
-  await expect(companion.getByTestId('ai-direct-marking')).toHaveText('The AI may change and create notes in this conversation. Deleting, renaming and moving still ask.');
+  await expect(companion.getByTestId('ai-direct-marking')).toHaveText('The AI, and scripts it starts, may change and create notes in this conversation. Deleting, renaming and moving still ask.');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-chip-desktop.png') });
 
   const { consent } = await directAsk(page, 'Raise the day rate to 1,900 euros and note the rates.');
   // The overview before sending names it.
   await expect(consent).toBeVisible();
-  await expect(companion.getByTestId('ai-overview-direct')).toHaveText('The AI may change and create notes; deleting still asks.');
+  await expect(companion.getByTestId('ai-overview-direct')).toHaveText('The AI, and scripts it starts, may change and create notes; deleting still asks.');
   await consent.click();
   await expect(companion.getByText('I raised the rate and wrote down the rates.')).toBeVisible();
 
@@ -9311,7 +9323,7 @@ test('AI apply directly: a folder with "Change without asking" takes changes wit
 test('AI apply directly: a note open with unsaved keystrokes gets a suggestion instead, and the answer says why', async ({ page }) => {
   const { fileAt } = await directVault(page, [directCalls(['c1', 'propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }] }]), directSays('It waits as a suggestion.')]);
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-direct-toggle').click();
   // The editor of the note holds keystrokes it has not saved yet: its dirty mark, as the tab's dot shows it.
   await page.evaluate(async () => {
@@ -9365,4 +9377,348 @@ test('Code block in the live preview: one card in monospace, the language as a l
   await block.first().click();
   await expect(block.first()).toContainText('```js');
   await expect(page.locator('.cm-line.cm-md-codeblock')).toHaveCount(4);
+});
+
+// ---------------------------------------------------------------------------
+/**
+ * Plan Oberfläche O7 (mockup M6): the AI conversation opens docked in the right column — the calendar above it as
+ * one week, the conversation in the rest of the height — and not as a window over the note. "Pop out" makes it the
+ * floating window, remembered on this device, and "Dock in the column" brings it back. Under an answer one calm line
+ * names what it rests on; a warning stands only where the answer cites a note the run never had (E2). Skills wait
+ * behind one button. "Trust & provenance" shows only while the AI is on or the note carries such fields (D11).
+ */
+
+const o7Sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+const o7Says = (text: string) => o7Sse([
+  ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+  ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+  ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+  ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+  ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+  ['message_stop', { type: 'message_stop' }],
+]);
+
+async function o7WithAi(page: Page, script: string[] = [], ai: Record<string, unknown> = {}) {
+  await page.addInitScript(({ script, ai }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } }, ...ai } };
+    (window as any).mockFs['/test-vault/Website relaunch.md'] = '# Website relaunch\n\nThe new site explains what Plainva is, with real screenshots.\n\n- Three feature pages instead of six\n- Screenshots are missing\n';
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, ai });
+}
+
+async function o7OpenRelaunch(page: Page) {
+  await page.goto('/');
+  await expect(page.getByText('Website relaunch', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.getByText('Website relaunch', { exact: true }).click();
+  await expect(page.locator('.cm-content').first()).toContainText('Three feature pages');
+}
+
+test('the conversation opens in the right column with the week above it; Pop out and Dock move it, remembered', async ({ page }) => {
+  await o7WithAi(page);
+  await o7OpenRelaunch(page);
+  const sections = page.locator('aside[aria-label="Right Sidebar"] .pv-side-section');
+  await expect(sections.first()).toBeVisible();
+
+  await page.keyboard.press('Control+j');
+  const column = page.getByTestId('right-ai-column');
+  const dock = page.getByTestId('ai-dock');
+  await expect(column).toBeVisible();
+  await expect(column.getByTestId('right-week-strip')).toBeVisible();
+  await expect(dock.getByTestId('ai-input')).toBeVisible();
+  // Never a window over the note, and no second copy of the conversation among the sections.
+  await expect(page.getByTestId('ai-companion')).toHaveCount(0);
+  await expect(sections).toHaveCount(0);
+  // The week is one row of seven days; the conversation fills the column below it to the bottom.
+  await expect(column.locator('[data-testid^="sidecal-day-"]')).toHaveCount(7);
+  const box = await column.boundingBox();
+  const dockBox = await dock.boundingBox();
+  expect(Math.round(dockBox!.y + dockBox!.height)).toBeGreaterThanOrEqual(Math.round(box!.y + box!.height) - 1);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-column-docked.png') });
+
+  // Pop out: the same conversation as the floating window — and so it opens from now on, after a reload too.
+  await dock.getByTestId('ai-dock-popout').click();
+  const companion = page.getByTestId('ai-companion');
+  await expect(companion).toBeVisible();
+  await expect(column).toHaveCount(0);
+  await expect(sections.first()).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('plainva-ai-placement'))).toBe('window');
+  await companion.getByTestId('ai-companion-close').click();
+  await page.keyboard.press('Control+j');
+  await expect(companion).toBeVisible();
+  await expect(column).toHaveCount(0);
+
+  // Dock in the column: back, and remembered as well.
+  await companion.getByTestId('ai-companion-dock').click();
+  await expect(companion).toHaveCount(0);
+  await expect(dock).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('plainva-ai-placement'))).toBe('dock');
+
+  // Close gives the column its sections back.
+  await dock.getByTestId('ai-dock-close').click();
+  await expect(column).toHaveCount(0);
+  await expect(sections.first()).toBeVisible();
+
+  // The section "AI" among them is the way in: its head opens the conversation in the column, it unfolds nothing.
+  await page.locator('.pv-side-section-header').filter({ hasText: /^AI$/ }).click();
+  await expect(dock).toBeVisible();
+});
+
+test('a collapsed column shows while the conversation is open and folds away when it closes', async ({ page }) => {
+  await o7WithAi(page);
+  await o7OpenRelaunch(page);
+  const toggle = page.getByRole('button', { name: /Toggle right sidebar|Rechte Seitenleiste umschalten/ });
+  await toggle.click();
+  await expect(page.locator('aside[aria-label="Right Sidebar"]')).toHaveCount(0);
+
+  await page.keyboard.press('Control+j');
+  await expect(page.getByTestId('ai-dock')).toBeVisible();
+  // Hiding the column puts the conversation away, and the column keeps the user's own choice: collapsed.
+  await toggle.click();
+  await expect(page.getByTestId('ai-dock')).toHaveCount(0);
+  await expect(page.locator('aside[aria-label="Right Sidebar"]')).toHaveCount(0);
+  await page.keyboard.press('Control+j');
+  await page.getByTestId('ai-dock').getByTestId('ai-dock-close').click();
+  await expect(page.locator('aside[aria-label="Right Sidebar"]')).toHaveCount(0);
+});
+
+test('under an answer one calm line names what it rests on; a warning only for a cited note the run never had', async ({ page }) => {
+  await o7WithAi(page, [
+    o7Says('Short summary of [[Website relaunch]]:\n\n- Three feature pages instead of six\n- Screenshots are still missing'),
+    o7Says('The prices are settled in [[Pricing 2026]], and the pages follow [[Website relaunch]].'),
+  ]);
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+
+  // Before the first message: the skills behind one button at the foot, no rows of chips above the field.
+  await expect(dock.getByTestId('ai-skills-open')).toBeVisible();
+  await expect(dock.locator('.pv-ai-composer .pv-chip').filter({ hasText: /Daily orientation|Tagesorientierung/ })).toHaveCount(0);
+  await dock.getByTestId('ai-skills-open').click();
+  const menu = page.getByRole('menu', { name: /^Skills$/ });
+  await expect(menu.getByRole('menuitem').first()).toHaveText(/Daily orientation|Tagesorientierung/);
+  await page.keyboard.press('Escape');
+
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  // The send overview's buttons stay at its foot in the column (D1: they were cut off in the window).
+  await expect(dock.getByTestId('ai-consent-send')).toBeInViewport();
+  await dock.getByTestId('ai-consent-send').click();
+  await expect(dock.getByText('Three feature pages instead of six')).toBeVisible();
+  const grounds = dock.getByTestId('ai-grounds').last();
+  await expect(grounds).toContainText(/Based on Website relaunch|Grundlage: Website relaunch/);
+  await expect(grounds).toContainText(/To Anthropic|An Anthropic/);
+  // No warning of any kind: the answer cites only the note that went.
+  await expect(dock.locator('.pv-ai-nocite')).toHaveCount(0);
+  // The coverage is in the details.
+  await grounds.getByTestId('ai-run-details').click();
+  await expect(dock.getByTestId('ai-run-full')).toContainText(/coverage|Abdeckung/i);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-column-answer.png') });
+
+  await dock.getByTestId('ai-input').fill('And the prices?');
+  await dock.getByTestId('ai-send').click();
+  const consent = dock.getByTestId('ai-consent-send');
+  if (await consent.isVisible().catch(() => false)) await consent.click();
+  await expect(dock.getByText(/The prices are settled in/)).toBeVisible();
+  const warning = dock.getByTestId('ai-unfounded');
+  await expect(warning).toHaveCount(1);
+  await expect(warning).toContainText('Pricing 2026');
+  await expect(warning).not.toContainText('Website relaunch');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-column-warning.png') });
+});
+
+test('a follow-up that cites the note of the first turn earns no warning, although this turn did not send it again (review O7, R1)', async ({ page }) => {
+  await o7WithAi(page, [
+    o7Says('Short summary of [[Website relaunch]]: three feature pages.'),
+    o7Says('As said, the pages follow [[Website relaunch]].'),
+  ]);
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  await dock.getByTestId('ai-consent-send').click();
+  await expect(dock.getByText(/three feature pages/)).toBeVisible();
+  // The second turn leaves the open note out: what the model has of it is the first turn's.
+  await dock.locator('.pv-ai-chips').getByRole('button', { name: /Remove from context|Aus dem Kontext entfernen/ }).first().click();
+  await dock.getByTestId('ai-input').fill('And the pages?');
+  await dock.getByTestId('ai-send').click();
+  const consent = dock.getByTestId('ai-consent-send');
+  if (await consent.isVisible().catch(() => false)) await consent.click();
+  await expect(dock.getByText(/As said, the pages follow/)).toBeVisible();
+  await expect(dock.getByTestId('ai-unfounded')).toHaveCount(0);
+});
+
+test('hiding the column with a question waiting puts the conversation away, and the question is still there (review O7, R3)', async ({ page }) => {
+  await o7WithAi(page, [o7Says('Short summary of [[Website relaunch]].'), o7Says('Second answer.')]);
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  await expect(dock.getByTestId('ai-consent-send')).toBeVisible();
+
+  // Collapse the column: no answer to the question — it waits, and the ribbon's AI button carries the dot.
+  const toggle = page.getByRole('button', { name: /Toggle right sidebar|Rechte Seitenleiste umschalten/ });
+  await toggle.click();
+  await expect(dock).toHaveCount(0);
+  await expect(page.getByTestId('ribbon-ai-dot')).toBeVisible();
+  await page.keyboard.press('Control+j');
+  await expect(dock.getByTestId('ai-consent-send')).toBeVisible();
+
+  // Focus mode is no answer either.
+  await page.keyboard.press('Control+p');
+  await page.locator('.pv-palette-input').fill('Toggle focus mode');
+  await page.keyboard.press('Enter');
+  await expect(dock).toHaveCount(0);
+  await page.keyboard.press('Control+j');
+  await dock.getByTestId('ai-consent-send').click();
+  await expect(dock.getByText('Short summary of')).toBeVisible();
+});
+
+test('"Open properties" in the stale banner shows the properties while the conversation holds the column (review O7, R2)', async ({ page }) => {
+  await o7WithAi(page);
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Stale.md'] = '---\ntype: Note\nstale_after: 2000-01-01\n---\n\n# Stale\n\nOld.\n';
+  });
+  await page.goto('/');
+  await page.getByText('Stale', { exact: true }).click();
+  await expect(page.getByTestId('okf-stale-banner')).toBeVisible();
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await expect(dock).toBeVisible();
+  await page.getByTestId('okf-stale-banner').getByRole('button').click();
+  const beside = page.getByTestId('right-beside-properties');
+  await expect(beside).toBeVisible();
+  await expect(beside.getByTestId('okf-trust-section')).toBeVisible();
+  // The conversation stays where it is, below them.
+  await expect(dock).toBeVisible();
+  await beside.locator('.pv-side-section-header').click();
+  await expect(beside).toHaveCount(0);
+  await expect(dock).toBeVisible();
+});
+
+test('focus goes into the docked conversation and back to where it came from (review O7, R4)', async ({ page }) => {
+  await o7WithAi(page);
+  await o7OpenRelaunch(page);
+  await page.locator('.cm-content').first().click();
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await expect(dock.getByTestId('ai-input')).toBeFocused();
+  await dock.getByTestId('ai-dock-close').click();
+  await expect(page.locator('.cm-content').first()).toBeFocused();
+
+  // From the column's "AI" head, which the conversation takes the place of: back to that head.
+  const head = page.locator('[data-section-head="ai"]');
+  await head.focus();
+  await page.keyboard.press('Enter');
+  await expect(dock.getByTestId('ai-input')).toBeFocused();
+  await dock.getByTestId('ai-dock-close').focus();
+  await page.keyboard.press('Enter');
+  await expect(head).toBeFocused();
+});
+
+test('the column\'s "AI" head opens the conversation there once and leaves the device\'s choice "window" as it is (review O7, O5)', async ({ page }) => {
+  await o7WithAi(page);
+  await page.addInitScript(() => localStorage.setItem('plainva-ai-placement', 'window'));
+  await o7OpenRelaunch(page);
+  await page.locator('[data-section-head="ai"]').click();
+  await expect(page.getByTestId('ai-dock')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('plainva-ai-placement'))).toBe('window');
+  await page.getByTestId('ai-dock').getByTestId('ai-dock-close').click();
+  await page.keyboard.press('Control+j');
+  await expect(page.getByTestId('ai-companion')).toBeVisible();
+});
+
+test('in the narrowest column the week strip shows seven days and a waiting question keeps its buttons on solid ground (review O7)', async ({ page }) => {
+  await o7WithAi(page, [o7Says('Short summary of [[Website relaunch]].')]);
+  await page.addInitScript(() => {
+    localStorage.setItem('plainva-right-sidebar-width', '200');
+    localStorage.setItem('plainva-right-sidebar-width-chosen', '1');
+  });
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const column = page.getByTestId('right-ai-column');
+  const width = (await column.boundingBox())!.width;
+  expect(width).toBeLessThan(240);
+  await expect(column).toHaveAttribute('data-side-step', 'minimal');
+  await expect(column.locator('[data-testid^="sidecal-day-"]')).toHaveCount(7);
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  const send = dock.getByTestId('ai-consent-send');
+  await expect(send).toBeInViewport();
+  const foot = await send.evaluate((el) => {
+    const actions = el.closest('.pv-ai-overview-actions') as HTMLElement;
+    return { position: getComputedStyle(actions).position, bg: getComputedStyle(actions).backgroundColor };
+  });
+  expect(foot.position).toBe('sticky');
+  expect(foot.bg).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-column-narrow.png') });
+});
+
+test('"Trust & provenance" shows while the AI is on, or when the note carries trust fields', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Plain.md'] = '---\nowner: Kim\n---\n\nPlain body\n';
+    (window as any).mockFs['/test-vault/Reviewed.md'] = '---\nverified:\n  - by: human:Kim\n    at: 2026-11-01T10:00:00Z\n---\n\nReviewed body\n';
+  });
+  await page.goto('/');
+  const reveal = () => page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-reveal-properties')));
+  await page.getByText('Plain', { exact: true }).click();
+  await expect(page.locator('.cm-content').first()).toContainText('Plain body');
+  await reveal();
+  await expect(page.locator('.pv-props')).toBeVisible();
+  await expect(page.getByTestId('okf-trust-section')).toHaveCount(0);
+
+  await page.getByText('Reviewed', { exact: true }).click();
+  await expect(page.locator('.cm-content').first()).toContainText('Reviewed body');
+  await expect(page.getByTestId('okf-trust-section')).toBeVisible();
+});
+
+test('"Trust & provenance" is offered on every note while the AI is on', async ({ page }) => {
+  await o7WithAi(page);
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Plain.md'] = '---\nowner: Kim\n---\n\nPlain body\n';
+  });
+  await page.goto('/');
+  await page.getByText('Plain', { exact: true }).click();
+  await expect(page.locator('.cm-content').first()).toContainText('Plain body');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-reveal-properties')));
+  await expect(page.getByTestId('okf-trust-section')).toBeVisible();
+});
+
+test('on a dark ground the popped-out window is lifted by its surface and edge, not by a shadow alone (D15)', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await o7WithAi(page);
+  await o7OpenRelaunch(page);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.keyboard.press('Control+j');
+  await page.getByTestId('ai-dock').getByTestId('ai-dock-popout').click();
+  const card = page.getByTestId('ai-companion');
+  await expect(card).toBeVisible();
+  const look = await card.evaluate((el) => {
+    const s = getComputedStyle(el);
+    const probe = document.createElement('div');
+    probe.style.background = 'var(--bg-primary)';
+    probe.style.borderColor = 'var(--border-color)';
+    probe.style.borderStyle = 'solid';
+    document.body.appendChild(probe);
+    const p = getComputedStyle(probe);
+    const out = { bg: s.backgroundColor, edge: s.borderTopColor, ground: p.backgroundColor, border: p.borderTopColor };
+    probe.remove();
+    return out;
+  });
+  expect(look.bg).not.toBe(look.ground);
+  expect(look.edge).not.toBe(look.border);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-window-dark.png') });
 });

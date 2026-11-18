@@ -1,7 +1,8 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import {
-  adoptFilesSignIn,
+  adoptFilesSignInUndoable,
+  reportBackground,
   adoptedDropboxAccess,
   resolveDropboxAccess,
   bindSignedInAccount,
@@ -45,7 +46,7 @@ import { authorizeDrive } from "./driveAuth";
 import { authorizeOneDrive } from "./oneDriveAuth";
 import { oauthErrorText } from "./oauthLoopback";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
-import { claimPendingMailbox, getAccountBroker, getAccountToken, saveAccountToken, setPendingBrokerAccount } from "./accountBroker";
+import { claimPendingMailbox, clearAccountToken, getAccountBroker, getAccountToken, saveAccountToken, setPendingBrokerAccount } from "./accountBroker";
 import { announceCredentials, clearOtherSyncSlots, connectMicrosoftMailAccount } from "./cloudAccountsActions";
 import { connectGoogleAccount, connectMicrosoftAccount } from "./pim/pimAccounts";
 import { getPimCredentials } from "./pim/pimCredentials";
@@ -263,11 +264,15 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
  * like every other sign-in - before the vault opens, so the first sync already
  * renews through the card.
  */
-export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFamily, access: AccessResolution & { ok: true }, refreshToken: string): Promise<CloudAccountRecord> {
-  const finished = await adoptFilesSignIn({ vaultId: vaultPath, family, access: access.access, grant: { refreshToken } }, {
+export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFamily, access: AccessResolution & { ok: true }, refreshToken: string): Promise<{ record: CloudAccountRecord; takeBack: () => Promise<void> }> {
+  // A failure on the way takes back the grant and the card this attempt made
+  // (fifth review of O8); the caller takes them back for a failure after it.
+  return adoptFilesSignInUndoable({ vaultId: vaultPath, family, access: access.access, grant: { refreshToken } }, {
     fetch: httpFetch,
     loadCards: () => loadCloudAccounts(vaultPath),
     saveGrant: (cardId, token) => saveAccountToken(vaultPath, cardId, token),
+    loadGrant: (cardId) => getAccountToken(vaultPath, cardId),
+    clearGrant: (cardId) => clearAccountToken(vaultPath, cardId),
     newCardId: () => crypto.randomUUID(),
     saveCards: (records) => saveCloudAccounts(vaultPath, records),
     setPending: (cardId, fam) => setPendingBrokerAccount(cardId ? { vaultPath, accountId: cardId, family: fam } : null),
@@ -277,10 +282,7 @@ export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFam
     // The caller opens the vault next; that is its one load.
     afterBinding: async () => undefined,
     describeFailure: (error) => oauthErrorText(error),
-  });
-  const files = finished.rows.find((row) => row.service === "files");
-  if (files?.state !== "active") throw new Error(files?.detail ?? "files were not granted");
-  return finished.record;
+  }, { notGranted: "files were not granted", report: (error) => reportBackground("signin:take-back", error) });
 }
 
 async function bindFiles(vaultPath: string, cardId: string, completed: CompletedSignIn, clientSecret: string | undefined): Promise<{ provider: "drive" | "onedrive" }> {

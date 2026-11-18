@@ -3657,7 +3657,7 @@ describe("a conversation changed while a run of it is on its way", () => {
       node.getChildren(file).some((child) => holdsTrue(child, name));
     // What a run gets is the count its action took, `since` — never one counted where the call is made.
     const kinds = runs.map((run) => {
-      if (run.arguments.map((arg) => arg.getText(file)).join(", ") === "message, vault, choice") return "message";
+      if (run.arguments.slice(0, 3).map((arg) => arg.getText(file)).join(", ") === "message, vault, choice") return "message";
       const options = run.arguments[3];
       if (!options || !ts.isObjectLiteralExpression(options)) return "missing";
       if (holdsTrue(options, "preview")) return "preview";

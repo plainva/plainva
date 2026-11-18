@@ -248,7 +248,8 @@ test("a script runs for nobody until this phone signed it, then in its box — a
     // Its review says what a writing tool means.
     await row("add-line").click();
     await page.getByTestId("ai-skill-action-showInstructions").click();
-    await expect(approval).toContainText("It can suggest changes and leave drafts, signed with its name.");
+    await expect(approval).toContainText("It can suggest changes and leave drafts, signed with its name — they wait for you to accept or create.");
+    await expect(approval).toContainText("Started by the AI in a conversation with “Apply directly”, or in a folder with “Change without asking”, it changes notes at once, with Undo.");
     await approval.getByRole("button", { name: "Close", exact: true }).click();
     await expect(approval).toHaveCount(0);
 

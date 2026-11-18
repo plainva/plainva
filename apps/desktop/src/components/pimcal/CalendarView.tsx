@@ -43,7 +43,7 @@ import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { usePageWheel } from "./pageWheel";
 import { calendarDay, consumePendingNew, checkboxJumpTerm, setPendingSearchJump, TaskStateIcon, CALENDAR_GOTO_EVENT, consumeEventSeed, consumePendingCalendarDay, eventFormFromSeed } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
-import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
+import { eventColorVars, eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
 import { appConfirm } from "../../services/appDialogs";
 import { activeDocument } from "../../services/activeDocument";
@@ -1687,7 +1687,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       data-state={eventVisualState(e)}
       className={`pv-rowhover ${eventStateClass("pv-evt", eventVisualState(e), e)}`}
       style={{
-        ["--evt-color" as string]: colorOf(e),
+        ...eventColorVars(colorOf(e)),
         display: "grid",
         gridTemplateColumns: "58px 1fr auto",
         gap: 12,
@@ -2173,7 +2173,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         background: "transparent",
                         backgroundImage: "none",
                         boxShadow: "none",
-                        ["--evt-color" as string]: colorOf(e),
+                        ...eventColorVars(colorOf(e)),
                         padding: 0,
                         textAlign: "left",
                         cursor: "pointer",
@@ -2302,7 +2302,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                     marginInline: 3,
                     border: "none",
                     height: MONTH_BAR_H - 3,
-                    ["--evt-color" as string]: colorOf(bar.event),
+                    ...eventColorVars(colorOf(bar.event)),
                     // A clipped edge is cut straight — that is how the reader
                     // sees "this continues" without the title being repeated.
                     borderStartStartRadius: bar.clippedStart ? 0 : "var(--radius-xs)",
@@ -2420,7 +2420,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                                 fontWeight: 600,
                                 border: "none",
                                 cursor: "pointer",
-                                ["--evt-color" as string]: colorOf(e),
+                                ...eventColorVars(colorOf(e)),
                                 opacity: isPast(e) ? 0.55 : 1,
                                 maxWidth: "100%",
                                 overflow: "hidden",

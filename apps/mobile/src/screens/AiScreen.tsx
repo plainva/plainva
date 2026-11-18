@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { History, SquarePen } from "lucide-react";
 import { AiConversation, AiSessionContext, GroupCard, ICON, IconButton, openWritesCount, Row, RowList, SectionLabel, startAiConversation, useOpenProposals, waitingCount } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
+import { useAiSetupDoor } from "../hooks/useAiSetupDoor";
 import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";
 
 /** The views of the AI's second screen (plan KI-Oberflächen K11): its segments, as the desktop's AI tab has them. */
@@ -26,11 +27,13 @@ export function AiScreen({
   onBack?: () => void;
   onMenu?: () => void;
   onHistory: (view?: AiHistoryView) => void;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   onOpenSettings: () => void;
 }) {
   const { t } = useTranslation();
   const session = getMobileAiSession();
+  // "Set up" opens the three-step setup while a step is missing (plan Oberfläche O7, T9).
+  const setup = useAiSetupDoor(onOpenSettings);
   return (
     <AiSessionContext.Provider value={session}>
       <div className="m-page m-ai-page" data-testid="ai-screen">
@@ -55,10 +58,11 @@ export function AiScreen({
           activeNote={null}
           onOpenNote={onOpenNote}
           onOpenUrl={openAiLink}
-          onOpenSettings={onOpenSettings}
+          onOpenSettings={setup.open}
           onPickNote={() => openAiNotePick("pin")}
           start={<AiStartPage onHistory={onHistory} />}
         />
+        {setup.sheet}
       </div>
     </AiSessionContext.Provider>
   );

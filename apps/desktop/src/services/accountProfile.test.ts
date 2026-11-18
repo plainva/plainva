@@ -133,6 +133,16 @@ describe("shared account import", () => {
     });
   });
 
+  it("brings an account whose row is gone back under the id this device knew it by — its sign-in hangs off that id", async () => {
+    // The row went with the index database (rebuilt at the start); the map,
+    // in the settings store, still ties this device's id to the logical one.
+    const { state, api } = ports({ map: { ...emptyAccountMap(), pimLocalToLogical: { "local-xyz": "remote-1" } } });
+    const idMap = await importAccountMetadata({ pimAccounts: [pim({ id: "remote-1" })] }, api);
+    expect(state.pim.map((a) => a.id)).toEqual(["local-xyz"]);
+    expect(idMap.pim.get("remote-1")).toBe("local-xyz");
+    expect(state.map.secretLocalToLogical).toEqual({ "pim-slot:local-xyz": "remote-1" });
+  });
+
   it("merges OAuth rows only by verified provider identity and preserves the local client", async () => {
     const verified = { issuer: "google", subject: "provider-user-1" };
     const local = pim({

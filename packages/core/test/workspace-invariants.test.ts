@@ -231,6 +231,109 @@ describe.each(["memory", "sql"] as const)("a move into a folder another device d
 });
 
 /**
+ * Two devices answer another device's mass deletion with "keep" (review of
+ * release 0.9.0, F63): each uploads the kept files anew. A file whose text
+ * is the same on both is one file afterwards, with no conflict copy, and
+ * every device shows the same; where the texts differ, the copy stays.
+ */
+describe.each(["memory", "sql"] as const)("a mass deletion answered on two devices (%s state)", (kind) => {
+  const databases: IDatabaseAdapter[] = [];
+  afterEach(async () => { for (const db of databases.splice(0)) await db.close(); });
+  const makeState = async () => {
+    if (kind === "memory") return new MemoryWorkspaceStateStore();
+    const db = await realSqlite();
+    databases.push(db);
+    return new SqlWorkspaceStateStore(db);
+  };
+  const team = Array.from({ length: 30 }, (_, index) => `T/n${String(index).padStart(2, "0")}.md`);
+  async function deletedOnOwner() {
+    const owner = await synced([...team, "z.md"], makeState);
+    const two = await ownerSecondDevice(owner, makeState);
+    const three = await ownerSecondDevice(owner, makeState);
+    await two.worker.runCycle();
+    await three.worker.runCycle();
+    await owner.vault.deleteItem("T", true);
+    await owner.state.enqueue("delete", "T", null, { confirmed: true });
+    await owner.worker.runCycle();
+    return { owner, two, three };
+  }
+  const settle = async (...devices: Device[]) => { for (let round = 0; round < 5; round += 1) for (const device of devices) await device.worker.runCycle(); };
+  const copies = (device: Device) => Object.keys(filesOf(device.vault)).filter((path) => path.includes("CONFLICT"));
+
+  it("both keep: every file once, no copy, every device alike", { timeout: 120_000 }, async () => {
+    const { owner, two, three } = await deletedOnOwner();
+    await two.worker.runCycle();
+    await three.worker.runCycle();
+    await two.worker.keepSuspendedDeletionsLocal();
+    await three.worker.keepSuspendedDeletionsLocal();
+    await settle(two, three, owner);
+    for (const device of [owner, two, three]) {
+      expect(copies(device)).toEqual([]);
+      expect(Object.keys(filesOf(device.vault)).filter((path) => path.startsWith("T/")).length).toBe(30);
+      expect(await queued(device.state)).toEqual([]);
+    }
+    expect(filesOf(two.vault)).toEqual(filesOf(owner.vault));
+    expect(filesOf(three.vault)).toEqual(filesOf(owner.vault));
+  });
+
+  it("one keeps, one deletes: the kept files come back everywhere, no copy", { timeout: 120_000 }, async () => {
+    const { owner, two, three } = await deletedOnOwner();
+    await two.worker.runCycle();
+    await three.worker.runCycle();
+    await two.worker.keepSuspendedDeletionsLocal();
+    three.worker.approveSuspendedDeletions();
+    await settle(two, three, owner);
+    for (const device of [owner, two, three]) {
+      expect(copies(device)).toEqual([]);
+      expect(Object.keys(filesOf(device.vault)).filter((path) => path.startsWith("T/")).length).toBe(30);
+      expect(await queued(device.state)).toEqual([]);
+    }
+    expect(filesOf(two.vault)).toEqual(filesOf(owner.vault));
+    expect(filesOf(three.vault)).toEqual(filesOf(owner.vault));
+  });
+
+  it("both keep, one of them had edited a file before: the edit is the note's text everywhere, its earlier text in the history, no copy", { timeout: 120_000 }, async () => {
+    const { owner, two, three } = await deletedOnOwner();
+    await two.worker.runCycle();
+    await three.worker.runCycle();
+    await two.vault.writeTextFile("T/n05.md", "# n05 edited on two\n");
+    await two.state.enqueue("write", "T/n05.md");
+    await two.worker.keepSuspendedDeletionsLocal();
+    await three.worker.keepSuspendedDeletionsLocal();
+    await settle(two, three, owner);
+    for (const device of [owner, two, three]) {
+      expect(filesOf(device.vault)["T/n05.md"]).toBe("# n05 edited on two\n");
+      expect(copies(device)).toEqual([]);
+      expect(await queued(device.state)).toEqual([]);
+    }
+    expect((await everyText([owner, two, three])).history.has(sha("# T/n05.md\n"))).toBe(true);
+    expect(filesOf(two.vault)).toEqual(filesOf(owner.vault));
+    expect(filesOf(three.vault)).toEqual(filesOf(owner.vault));
+  });
+
+  it("both keep, the kept texts of one file differ: that file keeps both texts as note and copy, the others are one file each", { timeout: 120_000 }, async () => {
+    const { owner, two, three } = await deletedOnOwner();
+    await two.worker.runCycle();
+    await three.worker.runCycle();
+    await two.worker.keepSuspendedDeletionsLocal();
+    await three.worker.keepSuspendedDeletionsLocal();
+    await three.vault.writeTextFile("T/n07.md", "# n07 edited on three\n");
+    await three.state.enqueue("write", "T/n07.md");
+    await settle(two, three, owner);
+    for (const device of [owner, two, three]) {
+      const shown = Object.values(filesOf(device.vault));
+      expect(shown).toContain("# n07 edited on three\n");
+      expect(shown).toContain("# T/n07.md\n");
+      expect(copies(device).length).toBe(1);
+      expect(copies(device)[0]).toMatch(/^T\/n07\.CONFLICT-/);
+      expect(await queued(device.state)).toEqual([]);
+    }
+    expect(filesOf(two.vault)).toEqual(filesOf(owner.vault));
+    expect(filesOf(three.vault)).toEqual(filesOf(owner.vault));
+  });
+});
+
+/**
  * A device that moves one note around offline — a.md to c.md, back to a.md,
  * then to b.md — sends one move, and its queue goes up (review of release
  * 0.9.0: "workspace rename queue contains a cycle", and every later change of

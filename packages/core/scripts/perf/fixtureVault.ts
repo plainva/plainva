@@ -36,9 +36,10 @@ export interface FixtureOptions {
   seed?: number;
   /**
    * The long note with 80 tables (default true). The core measurement leaves
-   * it out: reading it is a measurement of its own (the Markdown parser takes
-   * minutes for it — see Performance_Notes.md), and it would be the whole of
-   * the cold index instead of one note in 10 000.
+   * it out: reading it is a measurement of its own (`many-tables.ts`, and
+   * `gfm-table-parse.test.ts` bounds it; until GFM tables 2.1.2 it took
+   * minutes — see Performance_Notes.md), and the recorded baselines were
+   * measured without it.
    */
   longTableNote?: boolean;
 }

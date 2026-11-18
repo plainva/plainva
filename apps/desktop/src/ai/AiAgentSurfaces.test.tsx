@@ -174,9 +174,14 @@ describe("before an agent is started", () => {
     expect(m.h.native.processes).toEqual([]);
   });
 
-  it("says whether Plainva's tools will be offered", async () => {
-    const m = await mount(undefined, { mcpEnabled: true });
+  it("says whether Plainva's tools will be offered — what a start would hand over, not the switch alone", async () => {
+    const helper = { name: "plainva", command: "/usr/lib/plainva/plainva-mcp", args: ["--app", "com.plainva.app"], env: [] };
+    const m = await mount(undefined, { mcpEnabled: true, harness: { toolbox: helper } });
     expect(find(m.container, "ai-agent-tools")!.textContent).toBe("Plainva's tools are offered to the agent. The first time, Plainva asks you which folders it may read.");
+    act(() => root?.unmount());
+    // Switched on, and the helper does not serve this vault (not started, or failed): the agent would get no tools.
+    const waiting = await mount(undefined, { mcpEnabled: true });
+    expect(find(waiting.container, "ai-agent-tools")!.textContent).toBe(t("ai.agent.start.toolsNotReady"));
   });
 
   it("leads to the settings where no agent was added, and starts nothing without a vault or inside an encrypted workspace", async () => {

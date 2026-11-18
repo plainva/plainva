@@ -1,6 +1,6 @@
 # Atalhos de Teclado
 
-Última revisão: 2026-10-22
+Última revisão: 2026-11-16
 
 Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para abrir a janela de atalhos a qualquer momento. Ela agrupa todos os atalhos e gestos do mouse em áreas que você alterna pelos chips na parte superior, tem um campo de busca que abrange todas as áreas e detecta automaticamente a sua plataforma: mostra `Ctrl`/`Alt` no Windows e no Linux, e `⌘`/`⌥` no macOS. Nas tabelas abaixo, portanto, `Ctrl` significa `⌘` no macOS, e `Alt` significa `⌥`.
 
@@ -10,7 +10,7 @@ Pressione `F1` (ou **Paleta de comandos → Mostrar atalhos de teclado**) para a
 |---|---|
 | `Ctrl+P` (ou `Ctrl+Shift+P`) | Abrir a paleta de comandos |
 | `Ctrl+O` | Alternador rápido – buscar e abrir arquivos |
-| `Ctrl+J` | Perguntar à IA – abre o assistente (somente enquanto a IA estiver ativada, veja [Assistente de IA](AI_Assistant.md)) |
+| `Ctrl+J` | Perguntar à IA – abre a conversa na barra lateral direita (somente enquanto a IA estiver ativada, veja [Assistente de IA](AI_Assistant.md)) |
 | `Ctrl+,` | Abrir configurações |
 | `Ctrl+Plus` / `Ctrl+Minus` | Aumentar / diminuir o zoom da interface (80–150 %) |
 | `Ctrl+0` | Redefinir o zoom para 100 % |

@@ -1,6 +1,6 @@
 # Sneltoetsen
 
-Laatst bijgewerkt: 2026-10-22
+Laatst bijgewerkt: 2026-11-16
 
 Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het venster met sneltoetsen te openen. Het groepeert elke sneltoets en muisgebaar in gebieden waartussen je bovenaan met de chips wisselt, heeft een zoekveld dat over alle gebieden werkt, en herkent je platform automatisch: het toont `Ctrl`/`Alt` onder Windows en Linux en `⌘`/`⌥` onder macOS. In de tabellen hieronder betekent `Ctrl` daarom `⌘` op macOS en `Alt` betekent `⌥`.
 
@@ -10,7 +10,7 @@ Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het
 |---|---|
 | `Ctrl+P` (of `Ctrl+Shift+P`) | Opdrachtenpalet openen |
 | `Ctrl+O` | Snelkiezer – bestanden zoeken en openen |
-| `Ctrl+J` | AI vragen – open de begeleider (alleen zolang de AI is ingeschakeld, zie [AI-assistent](AI_Assistant.md)) |
+| `Ctrl+J` | AI vragen – open het gesprek in de rechterzijbalk (alleen zolang de AI is ingeschakeld, zie [AI-assistent](AI_Assistant.md)) |
 | `Ctrl+,` | Instellingen openen |
 | `Ctrl+Plus` / `Ctrl+Minus` | Interface in- / uitzoomen (80–150 %) |
 | `Ctrl+0` | Zoom terugzetten naar 100 % |

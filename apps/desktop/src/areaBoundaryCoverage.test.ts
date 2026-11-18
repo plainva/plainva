@@ -79,6 +79,7 @@ const FRAME: Record<string, string> = {
   IconButton: "primitive",
   Button: "primitive",
   EmptyState: "primitive",
+  FirstNotePrompt: "an EmptyState with one fixed sentence and one button (O8); it reads no data",
   ShortcutHints: "primitive of fixed key hints",
   AiCommandSourceLink: "registers the palette's commands with the AI; draws nothing",
   AppShell: "the shell, whose every area carries its own boundary",

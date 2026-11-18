@@ -1,12 +1,12 @@
 # Habilidades (Beta)
 
-Última actualización: 2026-11-16
+Última actualización: 2026-11-17
 
 Una habilidad es un conjunto de instrucciones para un trabajo que se repite: preparar una reunión, ordenar tus tareas, un repaso semanal. Plainva incluye catorce y puedes escribir las tuyas. Las habilidades usan el formato abierto Agent Skills —una carpeta con un `SKILL.md`—, así que también funcionan en otras apps de IA que leen ese formato.
 
 ## Usar una habilidad
 
-Inicia una habilidad con un clic: como una de las habilidades destacadas justo encima del campo de entrada (**Todas las habilidades…** las muestra todas), en **Habilidades** en la pestaña de IA, en el teléfono en la pantalla de IA, en las habilidades, o desde la paleta de comandos. La conversación funciona entonces con la habilidad: sus instrucciones van incluidas y solo usa las herramientas y carpetas que la habilidad nombra — una habilidad que no nombra herramientas recibe las que solo leen o muestran.
+Inicia una habilidad con un clic: en **Habilidades** bajo el campo de entrada de una conversación vacía (las destacadas primero), en **Habilidades** en la pestaña de IA, en el teléfono en la pantalla de IA, en las habilidades, o desde la paleta de comandos. La conversación funciona entonces con la habilidad: sus instrucciones van incluidas y solo usa las herramientas y carpetas que la habilidad nombra — una habilidad que no nombra herramientas recibe las que solo leen o muestran.
 
 También puedes simplemente preguntar. En una conversación con herramientas la IA conoce los nombres y las descripciones de tus habilidades activas — tantas como quepan en 6.000 caracteres; las demás se pueden seguir iniciando a mano — y carga una cuando tu pregunta encaja: basta con «prepara mi próxima reunión».
 
@@ -43,7 +43,7 @@ Una ejecución de prueba nunca usa Internet y nunca pregunta: el correo que no t
 
 ## Proponer cambios
 
-Una habilidad propia propone cambios solo cuando su línea `allowed-tools` nombra las herramientas para ello: `propose_edit` y `set_property` para sugerencias en el texto y en las propiedades de una nota, `create_note`, `create_entry`, `create_task` y `add_journal_entry` para borradores, `rename_note`, `move_note` y `delete_note` para planes. **Revisar y aprobar** nombra entonces cada una y dice **Puede sugerir cambios, dejar borradores y presentar planes.** Nada cambia en el vault antes de que aceptes, crees o confirmes — salvo donde la conversación tiene **Aplicar directamente** activado o la nota está en una carpeta con **Cambiar sin preguntar**: allí una habilidad que nombra `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` o `add_journal_entry` escribe de inmediato, con una versión antes y **Deshacer** (consulta **Aplicar directamente** en [Asistente de IA](AI_Assistant.md)). Una habilidad que no nombra herramientas no propone nada — tampoco gana nada una que aprobaste antes —, y una ejecución de prueba no deja nada. Qué son las tres formas: **Proponer cambios** en [Asistente de IA](AI_Assistant.md).
+Una habilidad propia propone cambios solo cuando su línea `allowed-tools` nombra las herramientas para ello: `propose_edit` y `set_property` para sugerencias en el texto y en las propiedades de una nota, `create_note`, `create_entry`, `create_task` y `add_journal_entry` para borradores, `rename_note`, `move_note` y `delete_note` para planes. **Revisar y aprobar** nombra entonces cada una y dice **Puede sugerir cambios, dejar borradores y presentar planes: esperan a que los aceptes, crees o confirmes.** y, debajo, **Salvo con «Aplicar directamente» o en una carpeta con «Cambiar sin preguntar»: allí cambia y crea notas al instante, con Deshacer. Eliminar, renombrar y mover siguen preguntando.** Nada cambia en el vault antes de que aceptes, crees o confirmes — salvo donde la conversación tiene **Aplicar directamente** activado o la nota está en una carpeta con **Cambiar sin preguntar**: allí una habilidad que nombra `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` o `add_journal_entry` escribe de inmediato, con una versión antes y **Deshacer** (consulta **Aplicar directamente** en [Asistente de IA](AI_Assistant.md)). Una habilidad que no nombra herramientas no propone nada — tampoco gana nada una que aprobaste antes —, y una ejecución de prueba no deja nada. Qué son las tres formas: **Proponer cambios** en [Asistente de IA](AI_Assistant.md).
 
 ## Tus propias habilidades
 

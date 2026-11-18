@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, NameCollisionCase, WorkspaceSyncFailureKind, ListingIncompleteInfo } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { connectionErrorText, logDiagnostic } from "@plainva/ui";
+import { firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 
 /**
  * Sync status as a tiny external store (Gesamtplan Editor-Stabilitaet
@@ -72,6 +73,20 @@ export interface SyncStatusSnapshot {
    * a retry of something that did not fail. Null once a listing holds again.
    */
   listingIncomplete?: ListingIncompleteInfo | null;
+  /**
+   * `false` from the moment a sync worker exists until its first cycle has
+   * finished (`onFirstCycleComplete`), `true` after it; absent while no worker
+   * runs. Before the first cycle an empty vault is a vault still arriving
+   * (O8, review 2026-11-17). Mirrored to the other windows with the status.
+   */
+  firstPullDone?: boolean;
+  /**
+   * The first pull failed at least once since the vault was opened (third
+   * review of O8): from then on an empty vault shows as it is, and the status
+   * says what is wrong. Kept by `set` itself (core's `firstPullFailedAfter`),
+   * so every writer of a status keeps it alike; cleared only by `reset`.
+   */
+  firstPullFailed?: boolean;
 }
 
 const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null };
@@ -128,6 +143,7 @@ export const syncStatusStore = {
     // survives (round 3, R4).
     const wasFailure = (snapshot.status === "error" || snapshot.status === "retrying") && snapshot.message;
     const merged = { ...snapshot, ...next };
+    if (next.status !== undefined) merged.firstPullFailed = firstPullFailedAfter(merged, next.status, next.reason);
     // `authRecoverable` belongs to ONE failure. Merging would carry it into the
     // next status, so a long-resolved sign-in problem would keep sending later
     // network errors to the settings instead of offering a retry.
@@ -212,6 +228,23 @@ export function captureSyncErrorSnapshot(vaultPath: string | null): SyncErrorSna
 /** Authentication failures are the only errors for which reconnect is useful. */
 export function isSyncAuthenticationError(message: string): boolean {
   return /(?:\b401\b|unauthori[sz]ed|invalid[_ -]?grant|invalid[_ -]?token|token.*(?:expired|revoked)|refresh token|authentication|authentifizierung|anmeldung.*abgelaufen)/i.test(message);
+}
+
+/**
+ * The shared rule (`isFirstPullPending` in core) over this store's snapshot:
+ * `firstPullDone` is `false` from the worker's creation until its first cycle
+ * is done, and absent while no worker runs — so a held folder that says
+ * "retrying" with a provider is not "being loaded" (second review of O8) —
+ * and `firstPullFailed` ends it at the first failure (third review).
+ */
+export function isFirstPullPending(snap: SyncStatusSnapshot): boolean {
+  return isCoreFirstPullPending(snap);
+}
+
+/** `isFirstPullPending` for the open vault; re-renders only when it flips. */
+export function useFirstPullPending(vaultPath: string | null): boolean {
+  const read = useCallback(() => isFirstPullPending(syncStatusStore.get(vaultPath)), [vaultPath]);
+  return useSyncExternalStore(syncStatusStore.subscribe, read);
 }
 
 export function useSyncStatus(vaultPath: string | null): SyncStatusSnapshot {
