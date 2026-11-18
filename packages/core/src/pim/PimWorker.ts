@@ -2,7 +2,7 @@ import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js"
 import { classifySyncError, isSignInFailure, type SyncErrorKind } from "../sync/errorKind.js";
 import type { IPimTarget, PimCalendar, PimEvent, PimProviderId, PimTask, PimTaskList } from "./types.js";
 import { eventCalendarsOf } from "./types.js";
-import { CONFIRMED_ACCESS_KEY, confirmedAccessOf, sameConfirmedAccess, withOwnConfirmedAccess } from "./confirmedAccess.js";
+import { CONFIRMED_ACCESS_KEY, confirmedAccessOf, sameConfirmedAccess, withOwnConfirmedAccess, type ConfirmedAccess } from "./confirmedAccess.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
 import { decodeEventCursor, encodeEventCursor, needsFullRefresh } from "./eventCursor.js";
 
@@ -44,6 +44,17 @@ export interface PimWorkerOptions {
    * nothing is recorded.
    */
   deviceId?: () => Promise<string>;
+  /**
+   * A password account whose own address stopped answering (review
+   * 2026-11-18): the shell builds a target over an access another device
+   * confirmed LATER, with this device's own sign-in, and — once the server
+   * confirmed there the principal that device recorded — makes it this
+   * device's (sign-in and row). Without it a device stays on its own address.
+   */
+  otherAccess?: {
+    target(account: PimAccountRow, access: ConfirmedAccess): Promise<IPimTarget | null>;
+    adopt(account: PimAccountRow, access: ConfirmedAccess): Promise<void>;
+  };
   /** Opaque sign-in revision, never a token or password. Refreshes retain it. */
   accountAuthRevision?: (account: PimAccountRow) => Promise<string | undefined>;
   onStatusChange?: (status: PimStatus, message?: string) => void;
@@ -521,6 +532,45 @@ export class PimWorker {
   }
 
   /**
+   * The server moved (review 2026-11-18): this device's own address no longer
+   * answers, and another device has since confirmed a different one. Each such
+   * access — the latest first, never one confirmed before this device's own —
+   * is tried with this device's sign-in, and taken over only when the server
+   * names there the very principal the other device recorded. A refused
+   * sign-in is an answer, not a move, and is never tried elsewhere. Two
+   * addresses that both answer (the public name and the LAN) stay as they are:
+   * nothing is tried while the own one works.
+   */
+  private async laterAccess(account: PimAccountRow, error: unknown): Promise<{ target: IPimTarget; collections: PimCalendar[] } | null> {
+    const other = this.opts.otherAccess;
+    if (account.provider !== "caldav" || !other || !this.opts.deviceId) return null;
+    if (error instanceof PimCacheWriteError || isSignInFailure(error)) return null;
+    const device = await this.opts.deviceId().catch(() => null);
+    if (!device) return null;
+    const map = confirmedAccessOf(account.config);
+    const own = map[device];
+    const ownUrl = own?.url ?? (typeof account.config.url === "string" ? account.config.url : "");
+    const ownUser = own?.user ?? (typeof account.config.user === "string" ? account.config.user : "");
+    const ownSince = own?.since ?? "";
+    const tried = new Set<string>([ownUrl]);
+    const later = Object.entries(map)
+      .filter(([id, access]) => id !== device && access.user === ownUser && !!access.principal && (access.since ?? "") > ownSince)
+      .sort(([, a], [, b]) => ((a.since ?? "") > (b.since ?? "") ? -1 : 1));
+    for (const [, access] of later) {
+      if (tried.has(access.url)) continue;
+      tried.add(access.url);
+      const candidate = await other.target(account, access).catch(() => null);
+      if (!candidate) continue;
+      const collections = await candidate.listCalendars().catch(() => null);
+      if (!collections) continue;
+      if (candidate.confirmedAccess?.()?.principal !== access.principal) continue;
+      await other.adopt(account, access);
+      return { target: candidate, collections };
+    }
+    return null;
+  }
+
+  /**
    * One account's cycle. THROWS for a failure of the account itself — the
    * listing, a write to the cache, a sign-in that died mid-cycle; the caller
    * records the verdict. Failures of single calendars come back in
@@ -549,7 +599,14 @@ export class PimWorker {
     // ONE collection listing per cycle. CalDAV reminder lists arrive in the same
     // listing as the calendars and are told apart here — a VTODO-only collection
     // must never reach the calendar picker (issue #34).
-    const collections = await target.listCalendars();
+    let collections: PimCalendar[];
+    try {
+      collections = await target.listCalendars();
+    } catch (error) {
+      const moved = await this.laterAccess(account, error);
+      if (!moved) throw error;
+      ({ target, collections } = moved);
+    }
     if (gen !== this.generation) return stoppedHere();
     await this.store(() => cache.replaceCalendars(account.id, eventCalendarsOf(collections)));
     // How THIS device reached the account (GitHub issue 174): a row connected

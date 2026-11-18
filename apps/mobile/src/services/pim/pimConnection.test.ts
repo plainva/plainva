@@ -257,7 +257,7 @@ describe("a CalDAV account that is already here", () => {
     expect(lower).toBe(upper);
     // Recorded as THIS device's confirmed access (GitHub issue 174).
     expect(state.rows.get("original")![0].config.confirmedAccess).toEqual({
-      phone: { url: nextcloud.url, user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" },
+      phone: { url: nextcloud.url, user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/", since: expect.any(String) },
     });
   });
 
@@ -278,7 +278,7 @@ describe("a CalDAV account that is already here", () => {
     expect(state.rows.get("original")!.find(r => r.id === id)!.config).toEqual({
       url: "https://dav.example.com/",
       user: "bert",
-      confirmedAccess: { phone: { url: "https://dav.example.com/", user: "bert" } },
+      confirmedAccess: { phone: { url: "https://dav.example.com/", user: "bert", since: expect.any(String) } },
     });
   });
 
@@ -286,7 +286,7 @@ describe("a CalDAV account that is already here", () => {
     const laptop = { url: "https://cloud.example.com/remote.php/dav", user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" };
     state.rows.set("original", [{ id: "r1", provider: "caldav", label: "anna", config: { url: nextcloud.url, user: "anna", confirmedAccess: { laptop, phone: { url: nextcloud.url, user: "anna" } } }, enabled: true }]);
     await pim.reauthorizePimAccount("r1", { ...nextcloud, url: "http://192.168.1.5/remote.php/dav", pass: "new" });
-    expect(state.rows.get("original")![0].config.confirmedAccess).toEqual({ laptop, phone: { url: "http://192.168.1.5/remote.php/dav", user: "anna" } });
+    expect(state.rows.get("original")![0].config.confirmedAccess).toEqual({ laptop, phone: { url: "http://192.168.1.5/remote.php/dav", user: "anna", since: expect.any(String) } });
   });
 
   it("does not give a card's row the sign-in of another user whose name differs only in case (red before: the card's label said yes to every row)", async () => {

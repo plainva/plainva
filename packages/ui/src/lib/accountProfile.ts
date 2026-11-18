@@ -1,5 +1,5 @@
 import { reportingTo } from "../services/backgroundErrors.js";
-import { CONFIRMED_ACCESS_KEY, confirmedAccessOf, mergeConfirmedAccess, sameStoredValue } from "@plainva/core";
+import { CONFIRMED_ACCESS_KEY, carriesConfirmedAccess, confirmedAccessOf, latestConfirmedAccess, mergeConfirmedAccess, sameStoredValue } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
@@ -643,17 +643,19 @@ function sharedPimConfig(config: Record<string, unknown>): Record<string, unknow
   for (const key of LOCAL_PIM_CONFIG_KEYS) delete out[key];
   // One shared document, one address per row: each device signs in through
   // its own (kept locally, see the import), so the document names the access
-  // of the smallest device id — the same answer from every device once their
-  // entries have met, or the document would change with every writer.
+  // confirmed LAST (`latestConfirmedAccess`) — the same answer from every
+  // device once their entries have met, and after a server move repaired on
+  // one device the new address, even while another still names the old one
+  // (review 2026-11-18). A row that carries the key keeps it, empty too: an
+  // entry its owner took out has to leave the other devices as well.
   const access = confirmedAccessOf(out);
-  const first = Object.keys(access)[0];
-  if (first) {
-    out[CONFIRMED_ACCESS_KEY] = access;
-    out.url = access[first].url;
-    out.user = access[first].user;
-  } else {
-    delete out[CONFIRMED_ACCESS_KEY];
+  const latest = latestConfirmedAccess(access);
+  if (latest) {
+    out.url = latest[1].url;
+    out.user = latest[1].user;
   }
+  if (latest || carriesConfirmedAccess(out)) out[CONFIRMED_ACCESS_KEY] = access;
+  else delete out[CONFIRMED_ACCESS_KEY];
   const verified = normalizeVerifiedProviderIdentity(out[VERIFIED_PROVIDER_IDENTITY_KEY]);
   if (verified) out[VERIFIED_PROVIDER_IDENTITY_KEY] = verified;
   else delete out[VERIFIED_PROVIDER_IDENTITY_KEY];
@@ -882,8 +884,9 @@ export async function importAccountMetadata(
         && typeof same.config.url === "string" && typeof same.config.user === "string"
         ? { url: same.config.url, user: same.config.user }
         : null;
-      const mergedAccess = imported.provider === "caldav"
-        ? mergeConfirmedAccess(confirmedAccessOf(same?.config), confirmedAccessOf(imported.config), ownDevice)
+      const keepsAccessKey = imported.provider === "caldav" && (carriesConfirmedAccess(imported.config) || carriesConfirmedAccess(same?.config));
+      const mergedAccess = keepsAccessKey
+        ? mergeConfirmedAccess(confirmedAccessOf(same?.config), confirmedAccessOf(imported.config), ownDevice, carriesConfirmedAccess(imported.config))
         : {};
       await ports.upsertPimAccount({
         ...imported,
@@ -892,7 +895,7 @@ export async function importAccountMetadata(
           ...imported.config,
           ...(keptIdentity ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: keptIdentity } : {}),
           ...(keptAddress ?? {}),
-          ...(Object.keys(mergedAccess).length ? { [CONFIRMED_ACCESS_KEY]: mergedAccess } : {}),
+          ...(keepsAccessKey ? { [CONFIRMED_ACCESS_KEY]: mergedAccess } : {}),
           ...deviceLocalPimConfig(same?.config ?? {}),
           ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
           ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),

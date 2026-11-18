@@ -1,8 +1,11 @@
 import { trimEndChars } from "@plainva/core";
 import {
   CONFIRMED_ACCESS_KEY,
+  carriesConfirmedAccess,
   confirmedAccessOf,
   overlayConfirmedAccess,
+  withOwnConfirmedAccess,
+  withoutOwnConfirmedAccess,
   type ConfirmedAccess,
   type PimAccountRow,
 } from "@plainva/core";
@@ -144,15 +147,28 @@ export function pimRowHasAccess(row: PasswordRowLike, access: PasswordAccess): b
 export function adoptedPimConfig(target: Record<string, unknown> | undefined, fresh: Record<string, unknown> | undefined): Record<string, unknown> {
   const access = overlayConfirmedAccess(confirmedAccessOf(target), confirmedAccessOf(fresh));
   const out: Record<string, unknown> = { ...target, ...fresh };
-  if (Object.keys(access).length) out[CONFIRMED_ACCESS_KEY] = access;
+  if (Object.keys(access).length || carriesConfirmedAccess(target) || carriesConfirmedAccess(fresh)) out[CONFIRMED_ACCESS_KEY] = access;
   else delete out[CONFIRMED_ACCESS_KEY];
   return out;
 }
 
-/** This device's confirmed access as a config fragment for a fresh row: `{ confirmedAccess: { [device]: access } }`. */
-export function ownConfirmedAccessConfig(deviceId: string | null | undefined, access: ConfirmedAccess | undefined): Record<string, unknown> {
+/**
+ * For `updateAccountConfigValue(…, CONFIRMED_ACCESS_KEY, …)` on "Sign out on
+ * this device" (review 2026-11-18): this device's entry goes, every other
+ * device's stays; no write when there is none.
+ */
+export function droppingOwnConfirmedAccess(deviceId: string | null | undefined): (current: unknown) => unknown {
+  return (current) => {
+    const map = confirmedAccessOf({ [CONFIRMED_ACCESS_KEY]: current });
+    if (!deviceId || !map[deviceId]) return undefined;
+    return withoutOwnConfirmedAccess(map, deviceId);
+  };
+}
+
+/** This device's confirmed access as a config fragment for a fresh row, confirmed now: `{ confirmedAccess: { [device]: access } }`. */
+export function ownConfirmedAccessConfig(deviceId: string | null | undefined, access: ConfirmedAccess | undefined, now?: string): Record<string, unknown> {
   if (!deviceId || !access) return {};
-  return { [CONFIRMED_ACCESS_KEY]: confirmedAccessOf({ [CONFIRMED_ACCESS_KEY]: { [deviceId]: access } }) };
+  return { [CONFIRMED_ACCESS_KEY]: withOwnConfirmedAccess({}, deviceId, access, now) };
 }
 
 /**

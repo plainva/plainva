@@ -5,7 +5,7 @@ import { clearAccountToken, owedSignInResources } from "./accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { clearNativeGoogleTokens } from "./googleNativeAuthorization";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { pimSyncNow, removePimAccount } from "./pim/pimService";
+import { forgetOwnPimAccess, pimSyncNow, removePimAccount } from "./pim/pimService";
 import { removeMobileMailAccount } from "./mail/mailRuntime";
 import { syncProviderSlot } from "./syncSlot";
 
@@ -52,6 +52,8 @@ export async function signOutMobileAccountHere(vaultId: string, recordId: string
     clearCardGrant: async () => { if (recordId) await clearAccountToken(vaultId, recordId); },
   });
   await clearNativeGoogleTokens();
+  const pimAccountId = card.pimAccountId;
+  if (pimAccountId) await Promise.resolve().then(() => forgetOwnPimAccess(pimAccountId)).catch(() => undefined);
   await restartServices(card);
 }
 

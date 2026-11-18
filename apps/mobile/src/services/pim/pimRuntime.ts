@@ -1,4 +1,4 @@
-import { PimCacheRepository, PimWorker, type IPimTarget, type PimAccountRow, type PimCycleInfo, type PimStatus } from "@plainva/core";
+import { PimCacheRepository, PimWorker, type IPimTarget, type PimAccountRow, type PimCycleInfo, type PimStatus, type PimWorkerOptions } from "@plainva/core";
 import { isDevicePimSupported, onDevicePimChanged } from "../../platform/devicePim";
 import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync, runMobileEntryEventSync, markPimDataChanged } from "./taskSyncRuntime";
 import type { MobileVault } from "../vaultService";
@@ -39,6 +39,8 @@ export interface PimRuntimeWiring {
    * runtime does not load the settings sync.
    */
   deviceId?(): Promise<string>;
+  /** Following a server move another device confirmed (review 2026-11-18), for this vault's cache. */
+  otherAccess?(vaultId: string, cache: PimCacheRepository): PimWorkerOptions["otherAccess"];
 }
 
 type PimUiStatus = "off" | "idle" | "syncing" | "error";
@@ -95,6 +97,7 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
     accountAuthRevision: (account) => wiring.accountAuthRevision(vault.vaultId, account),
     // The settings sync's device id, as on the desktop (GitHub issue 174).
     ...(wiring.deviceId ? { deviceId: () => wiring.deviceId!() } : {}),
+    ...(wiring.otherAccess ? { otherAccess: wiring.otherAccess(vault.vaultId, cache) } : {}),
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: wiring.parkedMessage,

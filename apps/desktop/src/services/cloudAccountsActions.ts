@@ -1,4 +1,4 @@
-import { sameStoredValue, type DriveSyncTarget } from "@plainva/core";
+import { CONFIRMED_ACCESS_KEY, sameStoredValue, type DriveSyncTarget } from "@plainva/core";
 import { reportingTo } from "@plainva/ui";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
@@ -19,6 +19,7 @@ import {
   oweSignInDeletion,
   removeAccountCard,
   signOutAccountHere,
+  droppingOwnConfirmedAccess,
   withServiceOff,
   type ServiceSignInSlot,
 } from "@plainva/ui";
@@ -649,6 +650,13 @@ export async function signOutCloudAccountHere(
     slots.push({ keys: [mailSecretKey(vaultPath, mail), legacyMailSecretKey(vaultPath, mail)] });
   }
   await signOutAccountHere({ store: accountCredentialStore, serviceSlots: slots, clearCardGrant: () => clearAccountToken(vaultPath, record.id) });
+  // This device no longer reaches the account: its confirmed access leaves
+  // the row, and with the next settings round every other device (review
+  // 2026-11-18). A row that is not there has nothing to give up.
+  if (pim && runtime) {
+    const device = await import("./settingsProfile").then((m) => m.getDeviceId()).catch(() => null);
+    await runtime.cache.updateAccountConfigValue(pim, CONFIRMED_ACCESS_KEY, droppingOwnConfirmedAccess(device)).catch(reportingTo("pim:sign-out-access"));
+  }
   // The calendar says what it now is at once, not at its next turn.
   if (pim) await restartPimAccountAfterLogin(runtime, pim).catch(() => undefined);
   return refreshCloudAccounts(vaultPath, runtime);

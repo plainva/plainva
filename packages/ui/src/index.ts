@@ -69,6 +69,7 @@ export * from "./lib/accountRepair";
 export * from "./lib/accountRepairCleanup";
 export * from "./lib/passwordAccounts";
 export * from "./lib/owedSignInDeletions";
+export * from "./lib/passwordAccessMove";
 export * from "./lib/profileNotice";
 export * from "./lib/eventVisualState";
 export * from "./lib/iconPickerModel";

@@ -125,7 +125,7 @@ describe("PimWorker", () => {
     const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW, deviceId: async () => "laptop" });
     await worker.triggerImmediate();
     const [row] = await cache.listAccounts();
-    expect(row.config).toEqual({ url: "https://cloud.example.com", user: "anna", confirmedAccess: { laptop: mine, phone: other } });
+    expect(row.config).toEqual({ url: "https://cloud.example.com", user: "anna", confirmedAccess: { laptop: { ...mine, since: expect.any(String) }, phone: other } });
     expect(row.label).toBe("NC");
 
     // The next fetch finds its entry in place: no write, nothing that could
@@ -142,6 +142,74 @@ describe("PimWorker", () => {
     const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
     await worker.triggerImmediate();
     expect((await cache.listAccounts())[0].config).toEqual({ url: "https://cloud.example.com", user: "anna" });
+  });
+
+  // Review 2026-11-18: the server moved, another device was repaired to the
+  // new address; this device's own address no longer answers.
+  describe("an account whose own address stopped answering", () => {
+    const OLD_URL = "https://cloud.example.com/remote.php/dav";
+    const NEW_URL = "https://cloud.new-domain.example/remote.php/dav";
+    const principalAt = (base: string) => new URL("/remote.php/dav/principals/users/anna/", base + "/").toString();
+    const mine = { url: OLD_URL, user: "anna", principal: principalAt(OLD_URL), since: "2026-11-01T00:00:00.000Z" };
+    const theirs = { url: NEW_URL, user: "anna", principal: principalAt(NEW_URL), since: "2026-11-10T00:00:00.000Z" };
+    const unreachable = () => ({ ...fakeTarget([]), listCalendars: async () => { throw new TypeError("fetch failed: getaddrinfo ENOTFOUND cloud.example.com"); } });
+
+    function setup(opts: { answer?: string; failure?: () => IPimTarget } = {}) {
+      const adopted: string[] = [];
+      const tried: string[] = [];
+      const worker = new PimWorker({
+        cache,
+        buildTarget: async () => (opts.failure ?? unreachable)(),
+        now: () => NOW,
+        deviceId: async () => "laptop",
+        otherAccess: {
+          target: async (_account, access) => {
+            tried.push(access.url);
+            return { ...fakeTarget([]), confirmedAccess: () => ({ url: access.url, user: access.user, principal: opts.answer ?? access.principal }) };
+          },
+          adopt: async (account, access) => {
+            adopted.push(access.url);
+            await cache.updateAccountConfigValue(account.id, "url", () => access.url);
+          },
+        },
+      });
+      return { worker, adopted, tried };
+    }
+
+    beforeEach(async () => {
+      await cache.upsertAccount({ id: "a1", provider: "caldav", label: "NC", config: { url: OLD_URL, user: "anna", confirmedAccess: { laptop: mine, phone: theirs } }, enabled: true });
+    });
+
+    it("follows the address another device confirmed later, once the server names the same principal there", async () => {
+      const { worker, adopted } = setup();
+      await worker.triggerImmediate();
+      expect(adopted).toEqual([NEW_URL]);
+      const [row] = await cache.listAccounts();
+      expect(row.config.url).toBe(NEW_URL);
+      expect((row.config.confirmedAccess as Record<string, { url: string }>).laptop.url).toBe(NEW_URL);
+      expect((await cache.listCalendars("a1")).length).toBeGreaterThan(0);
+    });
+
+    it("stays where it is when the server names another principal there", async () => {
+      const { worker, adopted, tried } = setup({ answer: "https://cloud.new-domain.example/remote.php/dav/principals/users/someone-else/" });
+      await worker.triggerImmediate();
+      expect(tried).toEqual([NEW_URL]);
+      expect(adopted).toEqual([]);
+      expect((await cache.listAccounts())[0].config.url).toBe(OLD_URL);
+    });
+
+    it("never takes a refused sign-in elsewhere", async () => {
+      const refused = () => ({ ...fakeTarget([]), listCalendars: async () => { throw Object.assign(new Error("caldav propfind 401 Unauthorized"), { status: 401 }); } });
+      const { worker, tried } = setup({ failure: refused });
+      await worker.triggerImmediate();
+      expect(tried).toEqual([]);
+    });
+
+    it("never tries another address while its own answers (the public name beside the LAN)", async () => {
+      const { worker, tried } = setup({ failure: () => fakeTarget([]) });
+      await worker.triggerImmediate();
+      expect(tried).toEqual([]);
+    });
   });
 
   // S8: the choke point every provider's rows pass through. A series occurrence
