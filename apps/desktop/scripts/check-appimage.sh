@@ -82,7 +82,9 @@ while IFS= read -r rel; do
   if [ "$dir" != . ] && { compgen -G "$root/usr/lib/$dir/LICENSE*" || compgen -G "$root/usr/lib/$dir/COPYING*"; } >/dev/null; then
     licensed+=("$dir"); continue
   fi
-  soname="$(objdump -p "$root/usr/lib/$rel" 2>/dev/null | awk '$1 == "SONAME" { print $2 }')"
+  # A *.so* that is no ELF (a linker script) has no SONAME; it is looked up by
+  # its path and name like a module, instead of ending the check unannounced.
+  soname="$(objdump -p "$root/usr/lib/$rel" 2>/dev/null | awk '$1 == "SONAME" { print $2 }' || true)"
   owners=""
   for query in ${soname:+"*/$soname"} "*/$rel" "*/$(basename "$rel")"; do
     owners="$(dpkg -S "$query" 2>/dev/null || true)"
