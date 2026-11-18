@@ -41,6 +41,15 @@ export const CONFIRMED_ACCESS_KEY = "confirmedAccess";
 /** The most devices one account row remembers an access for. */
 export const MAX_CONFIRMED_ACCESS = 8;
 
+/**
+ * The highest number a confirmation can carry (review 2026-11-18, O2). A row
+ * gains one per changed access — no honest row comes near it. A `seq` outside
+ * 1…MAX_CONFIRMED_SEQ, or no whole number, counts as none: a document that
+ * carries 2^53 − 1 would otherwise win for ever and leave the next number
+ * unsafe for every honest entry.
+ */
+export const MAX_CONFIRMED_SEQ = 1_000_000_000;
+
 export interface ConfirmedAccess {
   /** The address this device signs in with, as it typed it. */
   url: string;
@@ -62,7 +71,7 @@ function validAccess(value: unknown): ConfirmedAccess | null {
     url: v.url,
     user: v.user,
     ...(typeof v.principal === "string" && v.principal.trim() ? { principal: v.principal } : {}),
-    ...(typeof v.seq === "number" && Number.isSafeInteger(v.seq) && v.seq > 0 ? { seq: v.seq } : {}),
+    ...(typeof v.seq === "number" && Number.isInteger(v.seq) && v.seq > 0 && v.seq <= MAX_CONFIRMED_SEQ ? { seq: v.seq } : {}),
   };
 }
 
@@ -82,6 +91,22 @@ function byRecency([deviceA, a]: [string, ConfirmedAccess], [deviceB, b]: [strin
 /** The next number of this row: its highest plus one. */
 function nextSeq(map: ConfirmedAccessMap): number {
   return Math.max(0, ...Object.values(map).map((access) => access.seq ?? 0)) + 1;
+}
+
+/**
+ * The map with `device` confirmed as the LATEST access: the next number, and
+ * at the top of the range the top itself, every other entry one below at most
+ * (review 2026-11-18, O2) — a repair on this device wins against every entry
+ * of the document, also one that sits at the upper edge.
+ */
+function asLatest(map: ConfirmedAccessMap, device: string, access: ConfirmedAccess): ConfirmedAccessMap {
+  const others = Object.entries(map).filter(([id]) => id !== device);
+  const next = nextSeq(Object.fromEntries(others));
+  if (next <= MAX_CONFIRMED_SEQ) return { ...Object.fromEntries(others), [device]: { ...access, seq: next } };
+  return {
+    ...Object.fromEntries(others.map(([id, other]) => [id, { ...other, seq: Math.min(other.seq ?? 0, MAX_CONFIRMED_SEQ - 1) || undefined }])),
+    [device]: { ...access, seq: MAX_CONFIRMED_SEQ },
+  };
 }
 
 function bounded(entries: Iterable<[string, ConfirmedAccess]>): ConfirmedAccessMap {
@@ -124,9 +149,11 @@ export function withOwnConfirmedAccess(map: ConfirmedAccessMap, deviceId: string
   const fresh = validAccess(access);
   if (!deviceId || !fresh) return bounded(Object.entries(map));
   const previous = map[deviceId];
-  const seq = previous && sameAccessValue(previous, fresh) && previous.seq ? previous.seq : nextSeq(map);
-  const own: ConfirmedAccess = { url: fresh.url, user: fresh.user, ...(fresh.principal ? { principal: fresh.principal } : {}), seq };
-  return bounded([...Object.entries(map).filter(([device]) => device !== deviceId), [deviceId, own]]);
+  const own: ConfirmedAccess = { url: fresh.url, user: fresh.user, ...(fresh.principal ? { principal: fresh.principal } : {}) };
+  if (previous && sameAccessValue(previous, fresh) && previous.seq) {
+    return bounded([...Object.entries(map).filter(([device]) => device !== deviceId), [deviceId, { ...own, seq: previous.seq }]]);
+  }
+  return bounded(Object.entries(asLatest(map, deviceId, own)));
 }
 
 /** The map without THIS device's entry ("Remove account", "Sign out on this device"). */
@@ -163,8 +190,9 @@ export function overlayConfirmedAccess(base: ConfirmedAccessMap, over: Confirmed
   let out: ConfirmedAccessMap = { ...base };
   for (const [device, access] of Object.entries(over)) {
     const previous = base[device];
-    const seq = previous && sameAccessValue(previous, access) && previous.seq ? previous.seq : nextSeq(out);
-    out = { ...out, [device]: { ...access, seq } };
+    out = previous && sameAccessValue(previous, access) && previous.seq
+      ? { ...out, [device]: { ...access, seq: previous.seq } }
+      : asLatest(out, device, access);
   }
   return bounded(Object.entries(out));
 }

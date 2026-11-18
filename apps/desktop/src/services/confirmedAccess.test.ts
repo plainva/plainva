@@ -7,6 +7,7 @@ import {
   withoutOwnConfirmedAccess,
   latestConfirmedAccess,
   MAX_CONFIRMED_ACCESS,
+  MAX_CONFIRMED_SEQ,
   type ConfirmedAccess,
   type PimAccountRow,
 } from "@plainva/core";
@@ -239,4 +240,21 @@ describe("one password account reached through two addresses", () => {
     await importAccountMetadata(laptop.publish(), phone.ports);
     expect(Object.keys(confirmedAccessOf(phone.state.pim[0].config))).toEqual(["phone"]);
   });
+
+  it("a seq out of range counts as none, and the next repair here wins against any entry of the document, also at the top (review 2026-11-18, O2)", () => {
+    const evil = { url: "http://evil.example/dav", user: "anna" };
+    const honest = { url: "https://cloud.example.com/remote.php/dav", user: "anna" };
+    for (const seq of [Number.MAX_SAFE_INTEGER, 2 ** 60, 1.5, -3, MAX_CONFIRMED_SEQ + 1]) {
+      const read = confirmedAccessOf({ confirmedAccess: { evil: { ...evil, seq }, laptop: { ...honest, seq: 4 } } });
+      expect(read.evil.seq, String(seq)).toBeUndefined();
+      expect(read.laptop.seq).toBe(4);
+      expect(latestConfirmedAccess(read)?.[0]).toBe("laptop");
+    }
+    const atTop = confirmedAccessOf({ confirmedAccess: { aaa: { ...evil, seq: MAX_CONFIRMED_SEQ }, laptop: { ...honest, seq: 4 } } });
+    const repaired = withOwnConfirmedAccess(atTop, "phone", { url: "https://cloud.example.com/dav", user: "anna" });
+    expect(latestConfirmedAccess(repaired)?.[0]).toBe("phone");
+    expect(Object.values(repaired).every((access) => (access.seq ?? 0) <= MAX_CONFIRMED_SEQ)).toBe(true);
+    expect(latestConfirmedAccess(confirmedAccessOf({ confirmedAccess: repaired }))?.[0]).toBe("phone");
+  });
 });
+
