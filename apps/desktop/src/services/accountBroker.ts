@@ -92,6 +92,15 @@ export function owedSignInResources(vaultPath: string): OwedSignInResources {
   };
 }
 
+/**
+ * Whether the card's sign-in is owed a deletion here — then nothing may copy,
+ * move or use it (review 2026-11-18): the repair, the grant migration, the
+ * move to the readable names. An unreadable list counts as owed nothing.
+ */
+export async function isAccountSignInOwed(vaultPath: string, cardId: string): Promise<boolean> {
+  return isSignInDeletionOwed(owedSignInResources(vaultPath), cardId);
+}
+
 /** Tries the vault's owed sign-in deletions again (when the vault opens, before every new sign-in). */
 export async function settleOwedAccountSignIns(vaultPath: string): Promise<string[]> {
   return settleOwedSignInDeletions(owedSignInResources(vaultPath));

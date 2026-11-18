@@ -41,7 +41,7 @@ vi.mock("./settingsStore", () => ({
 vi.mock("./authFetch", () => ({ microsoftAuthFetch: vi.fn() }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
 
-import { oweSignInDeletion, removeAccountCard, resetOwedSignInReports } from "@plainva/ui";
+import { cleanupRepairedAccount, isSignInDeletionOwed, oweSignInDeletion, removeAccountCard, resetOwedSignInReports, settleOwedSignInDeletions, type OwedSignInResources } from "@plainva/ui";
 import { accountSecretKey, clearAccountToken, getAccountToken, owedSignInResources, saveAccountToken, settleOwedAccountSignIns } from "./accountBroker";
 import { legacySlot } from "./keychainSlots";
 
@@ -110,5 +110,60 @@ describe("a sign-in \"Remove account\" could not delete (desktop)", () => {
 
     expect(await settleOwedAccountSignIns(VAULT)).toEqual([]);
     expect(await getAccountToken(VAULT, CARD.id)).toMatchObject({ refreshToken: "new-refresh" });
+  });
+
+  it("is never copied: a repair of two cards puts no owed sign-in into the card that stays (review 2026-11-18)", async () => {
+    state.failRemove = true;
+    await removeCard();
+    state.failRemove = false;
+    const store = {
+      get: async (key: string) => state.settings.get(key),
+      set: async (key: string, value: unknown) => void state.settings.set(key, structuredClone(value)),
+      delete: async (key: string) => state.settings.delete(key),
+      keys: async () => [...state.settings.keys()],
+      save: async () => undefined,
+    };
+    await cleanupRepairedAccount({
+      store: store as never,
+      credentials: {
+        readSecret: async <T,>(key: string) => (state.secrets.get(key) ?? null) as T | null,
+        writeSecret: async (key: string, value: unknown) => void state.secrets.set(key, structuredClone(value)),
+        removeSecret: async (key: string) => void state.secrets.delete(key),
+      } as never,
+      journalKey: "repair-journal",
+      backupSlot: "repair-backup",
+      pimCache: null,
+      db: null,
+      listMailAccounts: async () => [],
+      replaceMailAccounts: async () => undefined,
+      accountSecretSlot: (id) => accountSecretKey(VAULT, id),
+      owedSignIn: (id) => isSignInDeletionOwed(owedSignInResources(VAULT), id),
+      pimSecretSlot: (id) => `pim:${id}`,
+      mailSecretSlot: (id) => `mail:${id}`,
+    }, { targetAccountId: "card-b", accountIds: [CARD.id], pimAccountIds: [], mailAccountIds: [] });
+    expect(state.secrets.has(accountSecretKey(VAULT, "card-b"))).toBe(false);
+  });
+
+  it("a debt written while a retry runs is a new one and stays", async () => {
+    let tick = 0;
+    const resources: OwedSignInResources = {
+      store: {
+        get: async (key: string) => state.settings.get(key),
+        set: async (key: string, value: unknown) => void state.settings.set(key, structuredClone(value)),
+        delete: async (key: string) => state.settings.delete(key),
+        keys: async () => [...state.settings.keys()],
+        save: async () => undefined,
+      } as never,
+      storeKey: "owed-test",
+      now: () => new Date(Date.parse("2026-11-18T00:00:00.000Z") + 1000 * tick++).toISOString(),
+      deleteSignIn: async (cardId) => {
+        // The same card is removed once more (it came back, and its new
+        // sign-in again could not be deleted) while this retry runs.
+        await oweSignInDeletion(resources, cardId, new Error("keychain refused"));
+      },
+    };
+    await oweSignInDeletion(resources, CARD.id, new Error("keychain refused"));
+    expect(await settleOwedSignInDeletions(resources)).toEqual([CARD.id]);
+    expect(await isSignInDeletionOwed(resources, CARD.id)).toBe(true);
   });
 });

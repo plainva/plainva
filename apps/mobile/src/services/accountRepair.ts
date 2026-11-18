@@ -24,7 +24,7 @@ import {
   mailSecretKey,
   replaceMailAccounts,
 } from "@plainva/ui/mail";
-import { accountSecretKey, getAccountToken } from "./accountBroker";
+import { accountSecretKey, getAccountToken, isAccountSignInOwed } from "./accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { filesViaBrokerToken, readStoredProvider, resolveMobileFileAccess } from "./fileSyncAccess";
@@ -136,6 +136,7 @@ async function mobileCleanupResources(
     listMailAccounts: () => listMailAccounts(vaultId),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultId, accounts),
     accountSecretSlot: (accountId) => accountSecretKey(vaultId, accountId),
+    owedSignIn: (accountId) => Promise.resolve().then(() => isAccountSignInOwed(vaultId, accountId)).catch(() => false),
     pimSecretSlot: (accountId) => pimSecretKey(vaultId, accountId),
     mailSecretSlot: (accountId) => mailSecretKey(vaultId, accountId),
   };

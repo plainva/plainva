@@ -78,11 +78,12 @@ function say(resources: OwedSignInResources, cardId: string, error: unknown): vo
 
 /** Writes the card's deletion down as owed, and says once that the sign-in is still here. */
 export async function oweSignInDeletion(resources: OwedSignInResources, cardId: string, error: unknown): Promise<void> {
-  const list = await load(resources);
-  if (!list.some((entry) => entry.cardId === cardId)) {
-    list.push({ cardId, since: resources.now ? resources.now() : new Date().toISOString() });
-    await persist(resources, list);
-  }
+  // A debt of a card already on the list is a new one: it takes the new
+  // moment, so a retry that started before it cannot take it off.
+  const since = resources.now ? resources.now() : new Date().toISOString();
+  const list = (await load(resources)).filter((entry) => entry.cardId !== cardId);
+  list.push({ cardId, since });
+  await persist(resources, list);
   say(resources, cardId, error);
 }
 
@@ -121,9 +122,14 @@ export async function settleOwedSignInDeletions(resources: OwedSignInResources):
       say(resources, entry.cardId, error);
     }
   }
-  // Read again before writing: a sign-in that forgave a card meanwhile wins.
+  // Read again before writing: a sign-in that forgave a card meanwhile wins,
+  // and a debt written meanwhile — the same card removed again while this ran
+  // (review 2026-11-18) — is a new one: only the very entry that was deleted
+  // here, card AND moment, is taken off.
   const now = await load(resources);
-  const still = now.filter((entry) => left.some((l) => l.cardId === entry.cardId) || !list.some((l) => l.cardId === entry.cardId));
+  const settled = (entry: OwedSignInDeletion) =>
+    list.some((l) => l.cardId === entry.cardId && l.since === entry.since) && !left.some((l) => l.cardId === entry.cardId && l.since === entry.since);
+  const still = now.filter((entry) => !settled(entry));
   if (still.length !== now.length) await persist(resources, still);
   return still.map((entry) => entry.cardId);
 }
