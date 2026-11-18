@@ -229,23 +229,31 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     await this.inOrder([path], async () => this.writeBytes(await this.realPath(path), content));
   }
 
-  /** The tail of each path's lane: what last began to write, delete or rename there. */
-  private readonly lanes = new Map<string, Promise<void>>();
+  /** What began to write, delete or rename and has not ended: the paths it works on, and its end. */
+  private readonly running: Array<{ keys: string[]; done: Promise<void> }> = [];
 
   /**
-   * Runs `run` after everything begun on `paths` before it, so the last begun
-   * is the one that stays - as over the sandbox (`atomicFile.ts`). A large
-   * file goes in several calls; without a lane a smaller write begun after it
-   * reached its end first, and the older file's `commit` overwrote the newer
-   * one. A delete or a rename of the path waits its turn the same way.
+   * Runs `run` after everything begun before it on `paths`, on a folder above
+   * them or on anything below them - so the last begun is the one that stays,
+   * as over the sandbox (`atomicFile.ts`), across folders too. A large file
+   * goes in several calls; without this a smaller write begun after it reached
+   * its end first and the older file's `commit` overwrote the newer one, and a
+   * folder deleted or renamed while a file below it was still being written
+   * came back at its old place with that file in it (the native commit makes
+   * the folders it needs). Paths that are neither the same nor one inside the
+   * other do not wait for each other.
    */
   private inOrder<T>(paths: string[], run: () => Promise<T>): Promise<T> {
     const keys = [...new Set(paths.map(norm))];
-    const before = Promise.all(keys.map((key) => this.lanes.get(key) ?? Promise.resolve()));
-    const mine = before.then(run);
-    const settled = mine.then(() => undefined, () => undefined);
-    for (const key of keys) this.lanes.set(key, settled);
-    void settled.then(() => { for (const key of keys) if (this.lanes.get(key) === settled) this.lanes.delete(key); });
+    const related = (a: string, b: string) => a === b || a === "" || b === "" || a.startsWith(b + "/") || b.startsWith(a + "/");
+    const before = this.running.filter((op) => op.keys.some((k) => keys.some((key) => related(k, key))));
+    const mine = Promise.all(before.map((op) => op.done)).then(run);
+    const entry = { keys, done: mine.then(() => undefined, () => undefined) };
+    this.running.push(entry);
+    void entry.done.then(() => {
+      const at = this.running.indexOf(entry);
+      if (at >= 0) this.running.splice(at, 1);
+    });
     return mine;
   }
 

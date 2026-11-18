@@ -120,7 +120,19 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
     },
     async rename({ from, to }) {
       const v = files.get(from);
-      if (v === undefined) throw new Error("ENOENT");
+      if (v === undefined) {
+        // A folder moves with everything below it, as the native move does.
+        if (!folders().has(from)) throw new Error("ENOENT");
+        for (const f of [...files.keys()].filter((k) => k.startsWith(from + "/"))) {
+          files.set(to + f.slice(from.length), files.get(f)!);
+          files.delete(f);
+        }
+        for (const d of [...dirs].filter((k) => k === from || k.startsWith(from + "/"))) {
+          dirs.delete(d);
+          dirs.add(to + d.slice(from.length));
+        }
+        return;
+      }
       files.delete(from);
       files.set(to, v);
     },

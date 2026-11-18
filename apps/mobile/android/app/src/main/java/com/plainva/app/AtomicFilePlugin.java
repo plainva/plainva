@@ -404,6 +404,9 @@ public class AtomicFilePlugin extends Plugin {
         }
     }
 
+    /** Where the last part of a Documents file is synced: one at a time, never on the plugin thread. */
+    private final java.util.concurrent.ExecutorService documentSync = java.util.concurrent.Executors.newSingleThreadExecutor();
+
     /** The public Documents folder, as the Filesystem plugin resolves Directory.Documents. */
     private static File publicDocuments() {
         return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
@@ -445,14 +448,28 @@ public class AtomicFilePlugin extends Plugin {
                 call.reject("mkdir failed");
                 return;
             }
-            try (FileOutputStream out = new FileOutputStream(target, !first)) {
-                out.write(Base64.decode(data, Base64.DEFAULT));
-                out.flush();
-                // The last part is on the disk before the archive is checked and renamed; the others
-                // need no sync of their own - the plugin thread every call waits on stays free.
-                if (last) out.getFD().sync();
+            byte[] bytes = Base64.decode(data, Base64.DEFAULT);
+            if (!last) {
+                try (FileOutputStream out = new FileOutputStream(target, !first)) {
+                    out.write(bytes);
+                    out.flush();
+                }
+                call.resolve(new JSObject());
+                return;
             }
-            call.resolve(new JSObject());
+            // The last part with its sync off the plugin thread: until the archive's pages are on
+            // the disk, every plugin call - a note's save among them - would wait behind it.
+            documentSync.execute(() -> {
+                try (FileOutputStream out = new FileOutputStream(target, !first)) {
+                    out.write(bytes);
+                    out.flush();
+                    // On the disk before the archive is checked and renamed.
+                    out.getFD().sync();
+                    call.resolve(new JSObject());
+                } catch (Exception e) {
+                    call.reject("write failed: " + e.getMessage(), e);
+                }
+            });
         } catch (Exception e) {
             call.reject("write failed: " + e.getMessage(), e);
         }

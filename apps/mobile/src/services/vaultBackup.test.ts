@@ -403,6 +403,15 @@ describe("an archive that never crosses the bridge whole (F51)", () => {
     expect([...boundary.documents.keys()].filter((key) => key.endsWith(".part"))).toEqual([]);
   });
 
+  it("syncs the last part on a thread of its own, not on the plugin thread every call waits on", async () => {
+    const { readFileSync } = await import("node:fs");
+    const java = readFileSync("android/app/src/main/java/com/plainva/app/AtomicFilePlugin.java", "utf8");
+    const method = java.slice(java.indexOf("public void appendDocument("), java.indexOf("public void scanDocuments("));
+    expect(method).toMatch(/documentSync\.execute\(\(\) -> \{[\s\S]*getFD\(\)\.sync\(\)/);
+    // Outside that thread, no sync at all.
+    expect(method.slice(0, method.indexOf("documentSync.execute("))).not.toMatch(/\.sync\(\)/);
+  });
+
   it("on iOS writes as before, through the Filesystem plugin (F56 is Android's)", async () => {
     const { Capacitor } = await import("@capacitor/core");
     const platform = vi.spyOn(Capacitor, "getPlatform").mockReturnValue("ios");
