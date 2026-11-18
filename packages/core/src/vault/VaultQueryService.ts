@@ -396,6 +396,11 @@ interface BlockEntry {
   cuts?: Map<string, { block: string | null; targets: readonly string[]; meant?: Meant }>;
   /** What each of its links could mean (`_blocksDenied`). */
   meant?: Meant;
+  /**
+   * Some reader's query found a link of it withheld: its block is kept for as long as its text is the same, whoever
+   * else asks and sees all of it (round 12 of the review of R19, wave 2 — two readers taking turns read nothing anew).
+   */
+  withheldFrom?: true;
 }
 const BLOCKS = new WeakMap<object, Map<string, BlockEntry>>();
 
@@ -1715,9 +1720,9 @@ export class VaultQueryService {
    * withheld links (`propertiesInView`). `tags`: whether the caller reads the notes' tags. `revisions`: the hash of
    * each note's text where the caller read it with the note already, else asked here.
    */
-  private async _viewsOfProperties(paths: readonly string[], reach: Reach, rule: LinkRule, keys?: ReadonlySet<string>, tags = false): Promise<Map<string, PropertiesView>> {
+  private async _viewsOfProperties(paths: readonly string[], reach: Reach, rule: LinkRule, keys?: ReadonlySet<string>, tags = false, shas: readonly unknown[] | null = null): Promise<Map<string, PropertiesView>> {
     const views = new Map<string, PropertiesView>();
-    const inOrder = await this._viewsInOrder(paths, null, reach, rule, keys, tags);
+    const inOrder = await this._viewsInOrder(paths, shas, reach, rule, keys, tags);
     for (let index = 0; index < paths.length; index++) if (inOrder[index]) views.set(paths[index]!, inOrder[index]!);
     return views;
   }
@@ -1765,6 +1770,11 @@ export class VaultQueryService {
         // Kept only where the index says which text it holds: a row without a hash is read anew each time.
         if (entry.sha) kept.set(paths[index]!, entry);
         else kept.delete(paths[index]!);
+        // The values a note is answered with and the view of it are of one text (round 12 of the review of R19, wave
+        // 2): a block of another text than the one the values were read of is no view of them — the note is withheld
+        // below, never shown as held.
+        const sha = shaOf(index);
+        if (typeof sha === "string" && sha && entry.sha !== sha) continue;
         entries[index] = entry;
       }
     };
@@ -1817,6 +1827,7 @@ export class VaultQueryService {
       const index = asked[k]!;
       if (any(k)) {
         withheld.push(index);
+        entries[index]!.withheldFrom = true;
         continue;
       }
       views[index] = PROPERTIES_AS_HELD;
@@ -1825,7 +1836,7 @@ export class VaultQueryService {
       // kept entry is replaced by one without the block, never changed — what a query holds stays as it found it.
       const entry = entries[index]!;
       const path = paths[index]!;
-      if (!asKey && entry.block !== undefined && kept.get(path) === entry) kept.set(path, { sha: entry.sha, block: undefined, memo: null, targets: entry.targets, meant: entry.meant });
+      if (!asKey && entry.block !== undefined && !entry.withheldFrom && kept.get(path) === entry) kept.set(path, { sha: entry.sha, block: undefined, memo: null, targets: entry.targets, meant: entry.meant });
     }
     // Read again where it was let go; a block cut to the keys asked is kept with its cut.
     await read(withheld.filter((index) => answerOf(entries[index]!).block === undefined));
@@ -1850,9 +1861,17 @@ export class VaultQueryService {
       const held = await this._tagsOf(seenPaths);
       const texts = await this._noteTexts(seen.filter((index) => tagsNeedTheText(views[index]!)).map((index) => paths[index]!));
       for (const index of seen) {
-        const content = texts.get(paths[index]!);
+        const sha = entries[index]?.sha;
+        const own = held.get(paths[index]!);
+        const text = texts.get(paths[index]!);
+        // Tags and text of another text than the block's: the note is withheld (round 12).
+        if (!own || (sha && own.sha !== sha) || (text && sha && text.sha !== sha)) {
+          views[index] = PROPERTIES_WITHHELD;
+          continue;
+        }
+        const content = text?.content;
         const span = content === undefined ? null : frontmatterSpan(content);
-        tagsInView(views[index]!, held.get(paths[index]!) ?? [], content === undefined ? undefined : span ? content.slice(span.end) : content);
+        tagsInView(views[index]!, own.tags, content === undefined ? undefined : span ? content.slice(span.end) : content);
       }
     }
     return views;
@@ -1900,20 +1919,22 @@ export class VaultQueryService {
     return read;
   }
 
-  /** The tags the index holds of notes, by path, as it holds them. */
-  private async _tagsOf(paths: readonly string[]): Promise<Map<string, string[]>> {
-    const tags = new Map<string, string[]>();
+  /** The tags the index holds of notes, by path, as it holds them, with the hash of the text they are of. */
+  private async _tagsOf(paths: readonly string[]): Promise<Map<string, { sha: string; tags: string[] }>> {
+    const tags = new Map<string, { sha: string; tags: string[] }>();
     for (let i = 0; i < paths.length; i += 400) {
       const slice = paths.slice(i, i + 400);
-      const rows = await this.db.query<{ path: string; tag: string }>(
-        `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE f.path IN (${slice.map(() => "?").join(",")})`,
+      const rows = await this.db.query<{ path: string; sha: string | null; tag: string | null }>(
+        `SELECT f.path AS path, f.sha256 AS sha, t.tag AS tag FROM files f LEFT JOIN tags t ON t.file_id = f.id WHERE f.path IN (${slice.map(() => "?").join(",")})`,
         slice,
       );
-      for (const { path, tag } of rows) {
-        if (typeof tag !== "string") continue;
-        const list = tags.get(path) ?? [];
-        list.push(tag);
-        tags.set(path, list);
+      for (const { path, sha, tag } of rows) {
+        let held = tags.get(path);
+        if (!held) {
+          held = { sha: typeof sha === "string" ? sha : "", tags: [] };
+          tags.set(path, held);
+        }
+        if (typeof tag === "string") held.tags.push(tag);
       }
     }
     return tags;
@@ -1938,15 +1959,15 @@ export class VaultQueryService {
   }
 
   /** Notes' texts as the search table holds them, by path. */
-  private async _noteTexts(paths: readonly string[]): Promise<Map<string, string>> {
-    const texts = new Map<string, string>();
+  private async _noteTexts(paths: readonly string[]): Promise<Map<string, { sha: string; content: string }>> {
+    const texts = new Map<string, { sha: string; content: string }>();
     for (let i = 0; i < paths.length; i += 400) {
       const slice = paths.slice(i, i + 400);
-      const rows = await this.db.query<{ path: string; content: string }>(
-        `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${slice.map(() => "?").join(",")})`,
+      const rows = await this.db.query<{ path: string; content: string; sha: string | null }>(
+        `SELECT n.path AS path, n.content AS content, f.sha256 AS sha FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${slice.map(() => "?").join(",")})`,
         slice,
       );
-      for (const { path, content } of rows) if (typeof content === "string") texts.set(path, content);
+      for (const { path, content, sha } of rows) if (typeof content === "string") texts.set(path, { sha: typeof sha === "string" ? sha : "", content });
     }
     return texts;
   }
@@ -2036,12 +2057,14 @@ export class VaultQueryService {
     // One bulk load of the linked notes' properties, chunked like the main query.
     const paths = [...linkedPaths];
     const byPath = new Map<string, Record<string, any>>();
+    // The text each linked note's values were read of: its view is formed of the same one (round 12).
+    const revisionOf = new Map<string, unknown>();
     const chunk = 500;
     for (let i = 0; i < paths.length; i += chunk) {
       const slice = paths.slice(i, i + chunk);
       const placeholders = slice.map(() => "?").join(",");
       const rows = await this.db.query<any>(
-        `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local, f.size_bytes AS size_bytes,
+        `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local, f.size_bytes AS size_bytes, f.sha256 AS sha,
                 p.key AS key, p.value AS value, p.type AS type
          FROM files f LEFT JOIN properties p ON p.file_id = f.id
          WHERE f.path IN (${placeholders})`,
@@ -2050,6 +2073,7 @@ export class VaultQueryService {
       for (const r of rows) {
         let bucket = byPath.get(r.path);
         if (!bucket) {
+          revisionOf.set(r.path, r.sha ?? "");
           bucket = {
             "file.name": r.title || r.path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") || "",
             "file.path": r.path,
@@ -2069,7 +2093,7 @@ export class VaultQueryService {
       const read = new Set(specs.flatMap(([, spec]) => (spec.of ? [spec.of.toLowerCase()] : [])));
       if (read.size) {
         const reading = [...byPath].filter(([, bucket]) => mayHoldALink(Object.fromEntries(Object.entries(bucket).filter(([key]) => read.has(key.toLowerCase()))))).map(([path]) => path);
-        for (const [path, view] of await this._viewsOfProperties(reading, reach, withhold.rule, read)) {
+        for (const [path, view] of await this._viewsOfProperties(reading, reach, withhold.rule, read, false, reading.map((path) => revisionOf.get(path) ?? ""))) {
           const bucket = byPath.get(path)!;
           const own = Object.fromEntries(Object.entries(bucket).filter(([key]) => !key.startsWith("file.")));
           for (const key of Object.keys(own)) delete bucket[key];
@@ -2630,6 +2654,8 @@ export class VaultQueryService {
 
     // Fetch properties for these files in bulk to avoid N+1 queries
     const propsByFileId: Record<string, Record<string, any>> = {};
+    const narrowed = Boolean(reach && options.withhold);
+    const valuesRevision = new Map<unknown, string | null>();
     const fileIds = rows.map(r => r.id);
     
     // Chunking to respect SQLite variable limits (usually 999 or 32766, 500 is safe)
@@ -2639,7 +2665,11 @@ export class VaultQueryService {
       if (chunk.length === 0) break;
       
       const placeholders = chunk.map(() => "?").join(",");
-      const propsSql = `
+      // For a reader with a narrower view, with the hash of the text the values are of (round 12): its view is formed
+      // of the same text, or the note is withheld.
+      const propsSql = narrowed
+        ? `SELECT p.file_id AS file_id, p.key AS key, p.value AS value, p.type AS type, f.sha256 AS sha FROM properties p JOIN files f ON f.id = p.file_id WHERE p.file_id IN (${placeholders})`
+        : `
         SELECT file_id, key, value, type
         FROM properties
         WHERE file_id IN (${placeholders})
@@ -2649,6 +2679,7 @@ export class VaultQueryService {
       for (const pr of propRows) {
         const fileId = pr.file_id;
         if (!propsByFileId[fileId]) propsByFileId[fileId] = {};
+        if (narrowed) valuesRevision.set(fileId, pr.sha ?? null);
         
         const type = pr.type || pr.TYPE;
         const key = pr.key || pr.KEY;
@@ -2687,8 +2718,15 @@ export class VaultQueryService {
       const blocks = blocksOf(this.db);
       const noLink = noLinkOf(this.db);
       const found: (BlockEntry | undefined)[] = [];
+      const torn: any[] = [];
       for (const row of rows) {
         const path = String(row.path ?? "");
+        // Its row (name, title) and its values read of two texts — the index changed between the two reads: withheld
+        // whole, before anything is judged of either (round 12 of the review of R19, wave 2).
+        if (propsByFileId[row.id] && (valuesRevision.get(row.id) ?? null) !== (row.sha256 ?? null)) {
+          torn.push(row);
+          continue;
+        }
         const sha = typeof row.sha256 === "string" && row.sha256 ? row.sha256 : null;
         let entry = sha ? blocks.get(path) : undefined;
         if (entry && entry.sha !== sha) entry = undefined;
@@ -2722,6 +2760,12 @@ export class VaultQueryService {
         if (!view.data) continue;
         row.title = view.title;
         if (view.tags) viewTags.set(String(row.path ?? ""), view.tags);
+      }
+      for (const row of torn) {
+        unheldRows.add(row);
+        propsByFileId[row.id] = VaultQueryService._valuesInView(propsByFileId[row.id] ?? {}, PROPERTIES_WITHHELD);
+        row.title = PROPERTIES_WITHHELD.title;
+        viewTags.set(String(row.path ?? ""), PROPERTIES_WITHHELD.tags!);
       }
       if (viewTags.size) rowsSeen = rows.filter((row) => !viewTags.has(String(row.path ?? "")) || sourcesHold(String(row.path ?? ""), viewTags.get(String(row.path ?? ""))!));
     }

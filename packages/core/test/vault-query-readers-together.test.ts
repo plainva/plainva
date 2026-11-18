@@ -177,4 +177,149 @@ describe("two readers at the same time (round 11 of the review of R19, wave 2)",
       close();
     }
   }, 120_000);
+
+  // The index changes between two looks of one query (round 12 of the review of R19, wave 2): at every statement a
+  // query of reader A waits on, other readers ask, the vault changes and is indexed, they ask again — then A goes on.
+  // Each value A is answered with of a note is the one A alone gets of it on the state before or the state after, or
+  // the note is withheld whole; never one A gets on neither — such as a withheld link of the old text beside the new.
+  it("a reader is answered of each note as on the state before or after a change of the index between its looks, or not at all", async () => {
+    const { DatabaseSync } = (await import("node:sqlite")) as any;
+    const BASE: Record<string, string> = {
+      "Private/Aaron.md": "# a\n",
+      "Projects/A/Lead.md": "# l\n",
+      "Projects/B/Team.md": "# t\n",
+      "Projects/A/n1.md": `---\nowner: "[[Lead]]"\nup: [[Aaron]]\ntitle: "[[Aaron]] plan"\ntags: [a]\n---\n# n1\n`,
+      "Projects/A/n2.md": `---\nowner: "[[Lead]]"\nmood: [[Team]]\ntags: [b]\n---\n# n2\n`,
+      "Projects/B/n3.md": `---\nup: "[[Aaron]]"\nwith: [[Lead]]\n---\n# n3\n`,
+      "Projects/B/n4.md": `---\nrel: [[n1]]\n---\n# n4\n`,
+    };
+    const changes: { name: string; apply: (vault: MemoryVaultAdapter, kept: { back: string[] }) => Promise<void> }[] = [
+      { name: "a block drops its withheld link", apply: (vault) => vault.writeTextFile("Projects/A/n1.md", `---\nowner: "[[Lead]]"\ntitle: "plain plan"\ntags: [a]\n---\n# n1\n`) },
+      { name: "a block gains a withheld link", apply: (vault) => vault.writeTextFile("Projects/A/n2.md", `---\nowner: "[[Lead]]"\nmood: [[Aaron]]\ntags: [b]\n---\n# n2\n`) },
+      { name: "the withheld note moves into reach", apply: (vault) => vault.renameItem("Private/Aaron.md", "Projects/B/Aaron.md") },
+      { name: "a linked note moves out of reach", apply: (vault) => vault.renameItem("Projects/A/Lead.md", "Private/Lead.md") },
+      { name: "a linked note is renamed", apply: (vault) => vault.renameItem("Projects/A/Lead.md", "Projects/A/Boss.md") },
+      { name: "the withheld note is deleted", apply: (vault) => vault.deleteItem("Private/Aaron.md") },
+      { name: "a note is deleted", apply: (vault) => vault.deleteItem("Projects/B/n3.md") },
+      { name: "the rules keep back one more", apply: async (_vault, kept) => void (kept.back = ["Private/", "Projects/B/Team"]) },
+      { name: "the rules keep back nothing", apply: async (_vault, kept) => void (kept.back = []) },
+      { name: "an index run that finds nothing", apply: async () => undefined },
+    ];
+    let hook: null | (() => Promise<void>) = null;
+    let statements = 0;
+    class Hooked extends YieldingSqlite {
+      constructor(db: any, private hooked: boolean) {
+        super(db);
+      }
+      private async at() {
+        if (!this.hooked || !hook) return;
+        statements++;
+        await hook();
+      }
+      override async query<T = unknown>(sql: string, params: unknown[] = []): Promise<T[]> {
+        await this.at();
+        return super.query<T>(sql, params);
+      }
+      override async queryOne<T = unknown>(sql: string, params: unknown[] = []): Promise<T | null> {
+        await this.at();
+        return super.queryOne<T>(sql, params);
+      }
+    }
+    const table = { filters: { and: ['file.folder.startsWith("Projects")'] }, views: [{ type: "table", name: "T", sort: [{ property: "file.path", direction: "ASC" }] }] };
+    const kinds: Record<string, unknown> = {
+      rows: table,
+      filter: { ...table, filters: { and: ['file.folder.startsWith("Projects")', 'contains(up, "Aaron")'] } },
+      rollup: { ...table, columns: { r: { rollup: { through: "rel", of: "up", aggregate: "list" } } } },
+    };
+    const notes = ["Projects/A/n1.md", "Projects/A/n2.md", "Projects/B/n3.md", "Projects/B/n4.md"];
+    async function world() {
+      const vault = new MemoryVaultAdapter(1_700_000_000_000);
+      for (const [path, text] of Object.entries(BASE)) await vault.writeTextFile(path, text);
+      const sqlite = new DatabaseSync(":memory:");
+      const quiet = new Hooked(sqlite, false);
+      await initializeSchema(quiet);
+      const indexer = new VaultIndexer(vault, quiet);
+      await indexer.indexVaultFull();
+      const kept = { back: ["Private/"] };
+      const readers = {
+        A: { reach: async (paths: readonly string[]) => new Set(paths.filter((path) => !kept.back.some((back) => path.startsWith(back)))), withhold: { rule: "any-kept-back" as const } },
+        B: { reach: async (paths: readonly string[]) => new Set(paths), withhold: { rule: "any-kept-back" as const } },
+        C: { reach: async (paths: readonly string[]) => new Set(paths.filter((path) => path.startsWith("Projects/A/"))), withhold: { rule: "in-reach" as const } },
+      };
+      return { vault, sqlite, indexer, kept, readers, query: new VaultQueryService(new Hooked(sqlite, true) as never) };
+    }
+    type World = Awaited<ReturnType<typeof world>>;
+    // Each note's fields as A is answered, by path.
+    const ask = async (at: World, who: "A" | "B" | "C", kind: string, query = at.query): Promise<Map<string, Record<string, unknown>>> => {
+      const reader = at.readers[who];
+      if (kind === "seen") return new Map([...(await query.notesAsSeen(notes, reader.reach, reader.withhold.rule))].map(([path, seen]) => [path, { ...seen }]));
+      const rows = await query.queryDatabaseFiles(kinds[kind] as never, reader as never);
+      return new Map(rows.map((row: any) => [String(row["file.path"]), Object.fromEntries(Object.entries(row).filter(([key]) => !/mtime|ctime|revision|size/.test(key)))]));
+    };
+    const withheldWhole = (path: string, fields: Record<string, unknown>) => {
+      const name = path.split("/").pop()!.replace(/\.md$/, "");
+      if ("tags" in fields && "title" in fields && !("file.path" in fields)) return fields.title === name && (fields.tags as unknown[]).length === 0;
+      return Object.keys(fields).every((key) => key.startsWith("file.") || key === "r") && fields["file.name"] === name;
+    };
+    const wrong: string[] = [];
+    let runs = 0;
+    for (const warm of [[], ["A", "B"]] as ("A" | "B")[][]) {
+      for (const kind of ["rows", "filter", "rollup", "seen"]) {
+        for (const change of changes) {
+          const alone = await world();
+          const before = await ask(alone, "A", kind, new VaultQueryService(new Hooked(alone.sqlite, false) as never));
+          await change.apply(alone.vault, alone.kept);
+          await alone.indexer.indexVaultFull();
+          const after = await ask(alone, "A", kind, new VaultQueryService(new Hooked(alone.sqlite, false) as never));
+          alone.sqlite.close();
+          // How many statements A's query waits on.
+          const counting = await world();
+          for (const who of warm) await ask(counting, who, kind);
+          statements = 0;
+          hook = async () => undefined;
+          await ask(counting, "A", kind);
+          hook = null;
+          const waits = statements;
+          counting.sqlite.close();
+          for (let at = 1; at <= waits + 1; at++) {
+            const here = await world();
+            for (const who of warm) await ask(here, who, kind);
+            let seen = 0;
+            hook = async () => {
+              if (++seen !== at) return;
+              hook = null;
+              await ask(here, "B", kind);
+              await ask(here, "C", kind);
+              await change.apply(here.vault, here.kept);
+              await here.indexer.indexVaultFull();
+              await ask(here, "B", kind);
+              await ask(here, "C", kind);
+              await ask(here, "B", "rows");
+              hook = async () => undefined;
+            };
+            const got = await ask(here, "A", kind);
+            hook = null;
+            here.sqlite.close();
+            runs++;
+            for (const [path, fields] of got) {
+              const was = before.get(path);
+              const is = after.get(path);
+              if (!was && !is) {
+                wrong.push(`${kind} / ${change.name} / at ${at}: ${path} is on neither state`);
+                continue;
+              }
+              if (withheldWhole(path, fields)) continue;
+              for (const [key, value] of Object.entries(fields)) {
+                const text = JSON.stringify(value);
+                if ((was && JSON.stringify(was[key]) === text) || (is && JSON.stringify(is[key]) === text)) continue;
+                wrong.push(`${kind} / ${change.name} / at ${at}: ${path}.${key} = ${text} (before ${was ? JSON.stringify(was[key]) : "-"}, after ${is ? JSON.stringify(is[key]) : "-"})`);
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(wrong).toEqual([]);
+    expect(runs).toBeGreaterThan(200);
+  }, 300_000);
 });
