@@ -46,6 +46,8 @@ export class MockDatabaseAdapter implements IDatabaseAdapter {
       return (value === undefined ? null : { value }) as T | null;
     }
     if (/\bFROM index_changes\b/.test(query)) return { seq: 0 } as T;
+    // The files owed a reading (VaultIndexer, `index_owed_paths`): none here, and never a mocked result.
+    if (/FROM meta WHERE key = \?/.test(query) && Array.isArray(params) && params[0] === "index_owed_paths") return null;
     return (this.mockedOneResults.shift() || null) as T;
   }
 
