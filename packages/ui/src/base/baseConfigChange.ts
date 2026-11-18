@@ -291,7 +291,8 @@ function comparable(v: any): any {
  * among the views left (a view never named by the name the serializer gives
  * it); a renamed one by being equal but for its name. Where as many views
  * are left on both sides, one action changed them in place (a property
- * deleted from every view showing it): they pair in their order. Otherwise
+ * deleted from every view showing it): they pair in their order, each under
+ * the name it had. Otherwise
  * what is left is added (in `next`) or removed (in `shown`): a view added and
  * another renamed in one change are no edit of each other.
  */
@@ -331,7 +332,9 @@ function pairViews(shown: any[], next: any[], shownRead: any[], nextRead: any[])
   // same order. Where the numbers differ, what is left is added or removed.
   const restShown = leftShown();
   const restNext = leftNext();
-  if (restShown.length === restNext.length && restNext.length > 0) restNext.forEach((j, k) => take(j, restShown[k]));
+  if (restShown.length === restNext.length && restNext.length > 0 && restNext.every((j, k) => nextName(j) === shownName(restShown[k]))) {
+    restNext.forEach((j, k) => take(j, restShown[k]));
+  }
   return pair;
 }
 
@@ -401,9 +404,16 @@ function findInFile(named: any[], read: any[], current: any[]): number[] {
     const ks = current.map((_, k) => k).filter((k) => !taken.has(k) && equal(i, k));
     if (ks.length === 1) take(i, ks[0]);
   });
-  // 4. A database of one view on both sides: it is the same view, whatever
-  // each side did to it (renamed and changed elsewhere, changed here).
-  if (read.length === 1 && current.length === 1 && found[0] < 0) take(0, 0);
+  // 4. A database of one view on both sides, which kept its name or its type:
+  // the same view, though each side changed it (renamed and changed
+  // elsewhere, changed here). Where both differ, the other side may have put
+  // another view in its place: nothing certain.
+  if (read.length === 1 && current.length === 1 && found[0] < 0) {
+    const name = viewName(named[0]) ?? viewName(read[0]);
+    const sameName = name !== null && name === viewName(current[0]);
+    const sameType = isPlainObject(read[0]) && isPlainObject(current[0]) && read[0].type === current[0].type;
+    if (sameName || sameType) take(0, 0);
+  }
   return found;
 }
 
@@ -437,6 +447,40 @@ function mergeViews(shownNamed: any[], shownRead: any[], nextNamed: any[], nextR
   const refuse = (i: number): never => {
     throw new BaseConfigChangeRefusedError(unclaimed ? "viewUnclear" : "viewGone", nameOf(i));
   };
+
+  // The file holds the views as the screen found them, each in its place:
+  // the screen's views stand as it made them, as a whole save writes them.
+  if (current.length === shownRead.length && current.every((c, k) => same(c, shownRead[k]))) {
+    return { views: nextRead.slice(), placeOf: nextRead.map((_, j) => j) };
+  }
+  // Views added or removed here AND one changed here in the same save (a
+  // change parked for a moved file gathers several): which view is which
+  // rests on names the serializer gives anew after the add or the removal,
+  // and the file changed its views too — nothing certain to land on.
+  const added = pair.some((i) => i < 0);
+  const gone = shownRead.findIndex((_, i) => !pair.includes(i));
+  if (added || gone >= 0) {
+    const edited = pair.findIndex((i, j) => i >= 0 && !same(comparable(nextRead[j]), comparable(shownRead[i])));
+    if (edited >= 0) throw new BaseConfigChangeRefusedError("viewUnclear", nameOf(pair[edited]));
+    // A view gone here while another came: one action does not do both (a
+    // view changed and duplicated, or removed while another was added, reads
+    // so) — which of them is which is not certain.
+    if (added && gone >= 0) throw new BaseConfigChangeRefusedError("viewUnclear", nameOf(gone));
+    // A view added under the name of one the screen kept (a duplicate that
+    // kept its name): which of the two is the one the file knows is not certain.
+    const nameIn = (j: number) => viewName(nextNamed[j]) ?? viewName(nextRead[j]);
+    const kept = new Set(pair.map((i, j) => (i >= 0 ? nameIn(j) : null)).filter((x): x is string => x !== null));
+    // So for a view added without a name of its own beside one kept without
+    // one: the serializer names both by their places, nothing tells them apart
+    // (no action of the screens adds a view without a name).
+    const keptUnnamed = pair.some((i, j) => i >= 0 && viewName(nextNamed[j]) === null);
+    const twin = pair.findIndex((i, j) => {
+      if (i >= 0) return false;
+      const name = nameIn(j);
+      return (name !== null && kept.has(name)) || (keptUnnamed && viewName(nextNamed[j]) === null);
+    });
+    if (twin >= 0) throw new BaseConfigChangeRefusedError("viewUnclear", nameIn(twin) ?? "");
+  }
 
   // Moved here (the screen's views stand in another order than it found them),
   // counted among the views the file still has: a move of one it no longer has moves nothing.
@@ -621,51 +665,37 @@ export interface BaseConfigWritten {
 
 /** How often a change reads the file anew before it gives up on a file that does not hold still. */
 const SETTLE_ATTEMPTS = 5;
-/** How long a change waits before it reads again a file that lost what the screen showed. */
+/** How long a change waits before it reads again a file that is not the text the screen knows. */
 const SETTLE_MS = 150;
-
-/**
- * Whether a file's text lacks what the config the screen showed holds — a
- * view, a property, a formula, a filter, any key of the file — or no longer
- * reads at all: what a file looks like while another writer (a sync client,
- * a text editor, a network drive) has written only part of it.
- */
-function lacksWhatWasShown(shown: any, text: string): boolean {
-  if (!isPlainObject(shown)) return false;
-  let current: any;
-  try { current = loadBaseConfigText(text); } catch { return true; }
-  if (!isPlainObject(current)) return true;
-  if (viewsOf(current).length < viewsOf(shown).length) return true;
-  const ids = (m: unknown) => (isPlainObject(m) ? Object.keys(m) : []);
-  const raw = (cfg: any) => (isPlainObject(cfg._obsidian) ? cfg._obsidian : {});
-  const shownRaw = raw(shown);
-  const currentRaw = raw(current);
-  for (const k of ids(shownRaw)) if (k !== "views" && !(k in currentRaw)) return true;
-  for (const k of ["properties", "formulas"]) {
-    const there = new Set(ids(currentRaw[k]));
-    if (ids(shownRaw[k]).some((id) => !there.has(id))) return true;
-  }
-  return false;
-}
 
 class FileUnsettled extends Error {}
 
 const settle = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** Whether a config holds anything a file could have lost: a view, or any key. */
+function holdsAnything(cfg: any): boolean {
+  if (!isPlainObject(cfg)) return false;
+  return viewsOf(cfg).length > 0 || Object.keys(isPlainObject(cfg._obsidian) ? cfg._obsidian : {}).some((k) => k !== "views");
+}
+
 /**
- * Writes a database config change through the vault's chain, read and
- * written in one step (`updateVaultText`). Answers the config the file now
- * holds — at an open conflict the file's, not the user's own version's — and
- * what the write did. Throws `BaseConfigChangeRefusedError` (nothing written)
- * where the change has nothing to land on with certainty.
+ * Writes a database config change through the vault's chain. Answers the
+ * config the file now holds — at an open conflict the file's, not the user's
+ * own version's — and what the write did. Throws
+ * `BaseConfigChangeRefusedError` (nothing written) where the change has
+ * nothing to land on with certainty.
  *
- * A change merges only with a reading that holds still: the file read just
- * before is the text the chain hands the change. Another writer — a sync
- * client, a text editor, a network drive, none of which writes atomically —
- * leaves a file empty or cut off while it writes; such a reading is no "the
- * other side removed it all". Where the file lacks what the screen showed, it
- * is read again after a moment, and decided on only once two readings agree.
- * A file that never holds still refuses the change (`fileChanging`).
+ * Decided on the text, never on what a reading seems to lack. Where the file
+ * is the text the screen loaded or last wrote, nothing is parsed and nothing
+ * waited for: `next` is written as a whole save writes it. Any other reading
+ * may be a file another writer — a sync client, a text editor, a network
+ * drive, none of which writes atomically — has written only in part: it
+ * counts only once a second reading after a moment is the same text, and it
+ * is written only while the file still is that text. Each text the change is
+ * handed for the file is checked so; one that is not the settled reading
+ * starts over. A settled reading that is empty, or no longer reads, while the
+ * screen showed a database is no change of the other side either: refused
+ * (`fileChanging`). So is a file that never holds still.
  *
  * Changes to one file go one after the other: a screen makes its next change
  * from the config it shows, which already holds the change before, so the
@@ -693,32 +723,66 @@ export function writeBaseConfigChange(files: TextUpdateFiles, path: string, show
 }
 
 async function writeOnce(files: TextUpdateFiles, path: string, shown: any, next: any): Promise<BaseConfigWritten> {
-  // The reading the merge may rely on, where it comes to a merge.
-  let read = await files.readTextFile(path);
-  if (lacksWhatWasShown(shown, readTextShape(read).text)) {
+  // The text the screen knows: the one it loaded or last wrote.
+  let knownText: string | undefined;
+  const known = () => (knownText ??= (isPlainObject(shown) ? textOf.get(shown) : undefined) ?? serializeBaseConfig(isPlainObject(shown) ? shown : loadBaseConfigText("")));
+  const halves = files.readTextFileState && files.writeTextFileChange ? { read: files.readTextFileState.bind(files), write: files.writeTextFileChange.bind(files) } : null;
+  const readFile = async () => (halves ? (await halves.read(path)).text : files.readTextFile(path));
+
+  /** The reading the change may rely on: the known text at once; any other once it holds still. */
+  let settled: string | null = null;
+  const settleOn = async (text: string): Promise<void> => {
+    const plain = readTextShape(text).text;
+    if (plain === known()) { settled = text; return; }
     await settle(SETTLE_MS);
-    const again = await files.readTextFile(path);
-    if (again !== read) throw new FileUnsettled();
-    read = again;
-  }
-  // The chain hands the change the file's text first and, at an open
-  // conflict, the user's own version's after it: each answered here, each in
-  // its own shape (a byte order mark and CRLF line ends stay as the file has them).
+    if ((await readFile()) !== text) throw new FileUnsettled();
+    // Held still, and holds nothing where the screen showed a database: no change anybody made.
+    let reads = true;
+    try { loadBaseConfigText(plain); } catch { reads = false; }
+    if ((plain.trim() === "" || !reads) && holdsAnything(shown)) throw new BaseConfigChangeRefusedError("fileChanging", "");
+    settled = text;
+  };
+
+  // Each text of the file the change is handed: the settled reading, or start over.
   const made = new Map<string, BaseConfigRebased>();
-  let theFile = true;
-  const update = await updateVaultText(files, path, (text) => {
-    const ofFile = theFile;
-    theFile = false;
+  const ofFile = (text: string): string => {
+    if (text !== settled) throw new FileUnsettled();
+    return answer(text);
+  };
+  const answer = (text: string): string => {
     const { text: plain, shape } = readTextShape(text);
-    const m = made.get(text) ?? rebaseBaseConfigText(shown, next, plain);
-    // The file changed between the reading above and the chain's: it does not hold still.
-    if (ofFile && m.merged && text !== read) throw new FileUnsettled();
-    made.set(text, m);
+    let m = made.get(text);
+    if (!m) {
+      m = plain === known() && text === settled
+        ? (() => { const t = serializeBaseConfig(next); remember(next, t); return { config: next, text: t, placeOf: unchangedPlaces(next), merged: false }; })()
+        : rebaseBaseConfigText(shown, next, plain);
+      made.set(text, m);
+    }
     return m.text === plain ? text : applyTextShape(m.text, shape);
-  });
-  const ofFile = made.get(update.before);
-  const config = ofFile ? ofFile.config : next;
+  };
+
+  let update: TextFileUpdate;
+  if (halves) {
+    // The chain's two halves (the owner's, over the bus from a second window):
+    // what the file and the user's own version are, then the texts made of
+    // them — written only if the file still is what was read.
+    const state = await halves.read(path);
+    await settleOn(state.text);
+    const text = ofFile(state.text);
+    let workingCopy: string | null = null;
+    // The user's own version takes the change where it fits; where not, it is left as it is.
+    if (state.workingCopy !== null) { try { workingCopy = answer(state.workingCopy); } catch { workingCopy = null; } }
+    const written = await halves.write(path, state, { text, workingCopy });
+    if (!written) throw new FileUnsettled();
+    update = written;
+  } else {
+    // A storage with no chain above it: one reading, settled, then the change of exactly that text.
+    await settleOn(await files.readTextFile(path));
+    update = await updateVaultText(files, path, ofFile);
+  }
+  const mine = made.get(update.before);
+  const config = mine ? mine.config : next;
   // What the file now is, without its shape: the next change's first look.
   remember(config, editorTextOf(update.text));
-  return { config, placeOf: ofFile ? ofFile.placeOf : unchangedPlaces(next), update };
+  return { config, placeOf: mine ? mine.placeOf : unchangedPlaces(next), update };
 }

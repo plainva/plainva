@@ -18,7 +18,8 @@ import {
 // always safe — but none where the file is unchanged, and none where the
 // database holds one view on each side. A write that differs from the oracle
 // is a failure, except the one named limit of the name rule: the file
-// deleted a view and added another, which then takes the change.
+// deleted a view and added another, which then takes the change. Two actions
+// in one save (a change parked for a moved file) hold to the same.
 
 const yaml = { parse: yamlParse, stringify: yamlStringify };
 
@@ -271,4 +272,13 @@ describe("database view changes over random edits on both sides (B20)", () => {
       expect(stats["ok:written"] ?? 0).toBeGreaterThan(800);
     }, 60_000);
   }
+  // Two actions in one save: what a change parked for a moved file gathers.
+  it("two actions in one save: never a wrong write but the named limit", () => {
+    const { stats, failures } = runCases(5, 1000, 2);
+    // The second named limit: a view duplicated and its original removed reads as the original renamed; the other side's change stays on it.
+    const renamedInEffect = (f: Failure) => /A\.duplicate\[(\d+)->\d+\].*A\.delete\[\1\]/.test(f.app);
+    const beyondLimit = failures.filter((f) => !(/F\.delete/.test(f.file) && /F\.add/.test(f.file)) && !renamedInEffect(f));
+    expect(beyondLimit).toEqual([]);
+    expect(stats["ok:written"] ?? 0).toBeGreaterThan(700);
+  }, 60_000);
 });

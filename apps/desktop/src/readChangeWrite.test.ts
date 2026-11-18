@@ -57,6 +57,11 @@ const SITES: Record<string, Site[]> = {
   "apps/desktop/src/ai/routineSessionHarness.ts": [["a pair of read and write without the entry, in write", 1, `${NEW_FILE} (a test's stand-in for the shell's capture: the note a routine leaves)`]],
   "packages/ui/src/ai/acpStores.ts": [["reads and writes path in run", 1, `${APP_DATA} (the log of an external agent's sessions)`]],
   "packages/ui/src/ai/mcpStores.ts": [["reads and writes audit in run", 1, `${APP_DATA} (what foreign MCP servers were asked)`]],
+  "packages/ui/src/base/baseConfigChange.ts": [[
+    "reads and writes path in writeOnce",
+    1,
+    "the chain's own two halves (`readTextFileState`, then `writeTextFileChange`, which writes only while the file still is what was read; a second window reaches them over the bus): a database change merges only with a reading that held still, and every text handed to it is that reading (B20). Without the halves it is `updateVaultText`",
+  ]],
   "packages/ui/src/base/pinboardEntry.ts": [["reads and writes draft.path in endPinboardEntry", 1, NO_CHAIN_FALLBACK]],
   "packages/ui/src/lib/indexMdGenerate.ts": [["reads and writes indexPath in generateIndexForFolder", 1, GENERATED]],
   "packages/ui/src/lib/taskRecurrence.ts": [["reads and writes plan.path in writeNextOccurrenceNote", 1, `${NEW_FILE} (the next occurrence of a repeating task)`]],

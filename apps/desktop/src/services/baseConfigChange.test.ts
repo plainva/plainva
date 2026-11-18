@@ -716,11 +716,11 @@ describe("a file another writer has written only in part is no base for a merge 
     expect(writes).toEqual([]);
   });
 
-  it("a file emptied for good (two readings agree) is decided on: the change lands on it", async () => {
+  it("a file that holds still empty while the screen showed a database is no change anybody made: refused, nothing written", async () => {
     const shown = loadBaseConfigText(FULL);
     const f = writtenMeanwhile([""]);
-    await writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown));
-    expect(loadBaseConfigText(f.store.text).views.map((v: any) => v.name)).toEqual(["Neu"]);
+    await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown))).rejects.toMatchObject({ reason: "fileChanging" });
+    expect(f.store.text).toBe("");
   });
 });
 
@@ -792,5 +792,113 @@ describe("the filter rule hangs on the filter, not on a key of that name (B20)",
     expect(made).toContain("mine");
     expect(out).toContain("fromOther");
     expect(out).toContain("mine");
+  });
+});
+
+// --- Fourth review of B20 (18.11.): decided on the text, one view kept or replaced, several actions in one save ---
+
+/** A file another writer writes over `ms` milliseconds: each reading is what the file is at that moment — cut until then, whole after. */
+function writtenOver(cut: string, whole: string, ms: number) {
+  const start = Date.now();
+  let written: string | null = null;
+  let reads = 0;
+  const now = () => written ?? (Date.now() - start < ms ? cut : whole);
+  return {
+    adapter: {
+      readTextFile: async () => { reads += 1; return now(); },
+      writeTextFile: async (_p: string, c: string) => { written = c; },
+    },
+    text: now,
+    reads: () => reads,
+    written: () => written,
+  };
+}
+
+describe("a reading counts once it holds still, decided on the text (B20)", () => {
+  const FULL = ["formulas:", "  f1: a + 1", "views:", "  - type: table", "    name: Offen", "    order:", "      - note.a", "  - type: cards", "    name: Karten", "    limit: 5", ""].join("\n");
+  const addView = (shown: any) => ({ ...shown, views: [...shown.views, { type: "list", name: "Neu" }] });
+
+  it("a cut that a whole file follows within the wait: the change lands on the whole file, the last view intact", async () => {
+    const shown = loadBaseConfigText(FULL);
+    const whole = FULL.replace("limit: 5", "limit: 9");
+    const f = writtenOver(whole.slice(0, whole.indexOf("Karten") + 3), whole, 60);
+    await writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown));
+    expect(loadBaseConfigText(f.text()).views.map((v: any) => v.name)).toEqual(["Offen", "Karten", "Neu"]);
+    expect(f.text()).toContain("limit: 9");
+  });
+
+  it("the text the screen knows is written at once: one reading before, one for the change, no wait", async () => {
+    const shown = loadBaseConfigText(FULL);
+    const f = writtenOver(FULL, FULL, 0);
+    await writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown));
+    expect(f.reads()).toBe(2);
+    expect(f.text()).toBe(serializeBaseConfig(addView(shown)));
+  });
+
+  it("a file that holds still but no longer reads (half its YAML) is refused as being written, not merged and not overwritten", async () => {
+    const shown = loadBaseConfigText(FULL);
+    const broken = "views:\n  - type: table\n    order: [note.a\n";
+    const f = writtenOver(broken, broken, 0);
+    await expect(writeBaseConfigChange(f.adapter, "Tasks.base", shown, addView(shown))).rejects.toMatchObject({ name: "BaseConfigChangeRefusedError", reason: "fileChanging" });
+    expect(f.written()).toBe(null);
+  });
+});
+
+describe("a database of one view on each side (B20)", () => {
+  it("kept its type, renamed and changed elsewhere: the same view, the change lands on it", () => {
+    const text = ["views:", "  - type: cards", "    name: Galerie", "    order:", "      - note.a", ""].join("\n");
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "Galerie", { sort: sortBy("note.a") });
+    const made = rebaseBaseConfigText(shown, next, text.replace("name: Galerie", "name: Bilder") + "    limit: 4\n");
+    expect(made.config.views.map((v: any) => [v.name, v.sort])).toEqual([["Bilder", sortBy("note.a")]]);
+    expect(made.text).toContain("limit: 4");
+  });
+
+  it("replaced elsewhere by a view of another name and another type: refused, the user's filter never lands on it", () => {
+    const text = ["views:", "  - type: cards", "    name: Galerie", ""].join("\n");
+    const shown = loadBaseConfigText(text);
+    const next = withView(shown, "Galerie", { filters: { and: ['note.a == "1"'] } });
+    expect(() => rebaseBaseConfigText(shown, next, ["views:", "  - type: table", "    name: Projekte", "    limit: 3", ""].join("\n"))).toThrow(BaseConfigChangeRefusedError);
+  });
+});
+
+describe("several actions in one save — a change parked for a moved file (B20)", () => {
+  const TWO = ["views:", "  - type: table", "    name: A", "    order:", "      - note.a", "  - type: cards", "    name: B", ""].join("\n");
+  const fileLimitsA = TWO.replace("      - note.a\n", "      - note.a\n    limit: 7\n");
+  const refused = (shown: any, next: any, file: string) => {
+    try { rebaseBaseConfigText(shown, next, file); return null; } catch (e) { return e instanceof BaseConfigChangeRefusedError ? e.reason : String(e); }
+  };
+
+  it("duplicated under its own name and the original changed: refused, the other side's change never lands on the copy", () => {
+    const shown = loadBaseConfigText(TWO);
+    const next = JSON.parse(JSON.stringify(shown));
+    const copy = JSON.parse(JSON.stringify(next.views[0]));
+    next.views[0].sort = sortBy("note.a");
+    next.views.splice(1, 0, copy);
+    expect(refused(shown, next, fileLimitsA)).toBe("viewUnclear");
+  });
+
+  it("a view removed and another added in one save: refused, the new view never takes the removed one's place", () => {
+    const shown = loadBaseConfigText(["views:", "  - type: cards", "    name: V0", ""].join("\n"));
+    const next = { ...shown, views: [{ type: "table", name: "Neu" }] };
+    expect(refused(shown, next, ["views:", "  - type: cards", "    name: V0", "    limit: 2", ""].join("\n"))).toBe("viewUnclear");
+  });
+
+  it("a view removed and another changed in one save: refused", () => {
+    const shown = loadBaseConfigText(TWO);
+    const next = { ...shown, views: [{ ...shown.views[1], coverImage: "note.c" }] };
+    expect(refused(shown, next, fileLimitsA.replace("    name: B\n", "    name: B\n    limit: 3\n"))).toBe("viewUnclear");
+  });
+
+  it("where the file left the views as they were (it changed a formula), the screen's views stand as a whole save writes them", () => {
+    const shown = loadBaseConfigText(TWO);
+    const next = JSON.parse(JSON.stringify(shown));
+    const copy = JSON.parse(JSON.stringify(next.views[0]));
+    next.views[0].sort = sortBy("note.a");
+    next.views.splice(1, 0, copy);
+    const made = rebaseBaseConfigText(shown, next, "formulas:\n  f: 1 + 1\n" + TWO);
+    expect(made.config.views.map((v: any) => v.name)).toEqual(["A", "A", "B"]);
+    expect(made.config.views[0].sort).toEqual(sortBy("note.a"));
+    expect(made.text).toContain("f: 1 + 1");
   });
 });
