@@ -58,7 +58,10 @@ export async function confirmDeleteFile(
       });
       if (!sure) return false;
     }
-    return (await runCascade(vault, plan, sel, t)).length > 0;
+    // True only where THIS file went (review 17.11.): a cascade that deleted
+    // another target and not this one left the note there, and its screen
+    // closed over it.
+    return (await runCascade(vault, plan, sel, t)).includes(path);
   }
 
   const ok = await mConfirm({
@@ -71,7 +74,7 @@ export async function confirmDeleteFile(
   if (plan) {
     // Trivial plan: the same single delete as before, but user-confirmed
     // paths are reported to the sync guard via the shared executor.
-    return (await runCascade(vault, plan, initialSelection(plan), t)).length > 0;
+    return (await runCascade(vault, plan, initialSelection(plan), t)).includes(path);
   }
   // False where the person kept it at "Delete without a backup?" (D1).
   try {

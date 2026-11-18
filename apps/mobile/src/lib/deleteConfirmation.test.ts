@@ -168,6 +168,21 @@ describe("what did not go is said, on every way (F6 of release 0.9.0)", () => {
     expect(await confirmDeleteFile(vault, "note.md", "Note", t)).toBe(false);
     expect(fixture.said).toEqual(["dialogs.bulkErrorsMsg: note.md"]);
   });
+  it("deleting a folder says what failed and looks again (review 17.11.)", () => {
+    const sheet = readFileSync(resolve("src/lib/useFileRowSheet.tsx"), "utf8");
+    expect(sheet).toMatch(/try \{\s*await vaultOps\.removeFolder\(vault, target\.path, \{ confirmed: true \}\);\s*\} catch \(error\) \{[\s\S]{0,400}toast\.error\(t\("dialogs\.bulkErrorsMsg"[\s\S]{0,400}m-vault-changed/);
+  });
+
+  it("a cascade that deleted another target but not the note itself says the note is still there (review 17.11.)", async () => {
+    fixture.plan = {};
+    fixture.cascade = { deleted: ["Linked.md"], errors: ["note.md"] };
+    expect(await confirmDeleteFile(vault, "note.md", "Note", t)).toBe(false);
+    expect(fixture.said).toEqual(["dialogs.bulkErrorsMsg: note.md"]);
+    fixture.said.length = 0;
+    fixture.cascade = { deleted: ["note.md", "Linked.md"], errors: [] };
+    expect(await confirmDeleteFile(vault, "note.md", "Note", t)).toBe(true);
+  });
+
   it("a selection through the plan: what went comes back, what did not is said", async () => {
     fixture.plan = {};
     fixture.cascade = { deleted: ["one.md"], errors: ["two.md"] };
