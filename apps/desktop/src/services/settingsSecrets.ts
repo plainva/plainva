@@ -6,6 +6,7 @@ import {
   familyOfCalDavUrl,
   familyOfImapHost,
   migrateSecretsMetaToCanonicalIds,
+  retireSecret,
   type CloudAccountRecord,
   type LocalSecretCandidate,
   type SecretsPortMeta,
@@ -89,6 +90,25 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
   return candidates;
 }
 
+function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () =>
+      (await getSettingsStore())
+        .get<SecretsPortMeta>(metaKey(vaultPath))
+        .then((m) => migrateSecretsMetaToCanonicalIds(m ?? null)),
+    writeMeta: async (meta) => {
+      const store = await getSettingsStore();
+      await store.set(metaKey(vaultPath), meta);
+      await store.save();
+    },
+  };
+}
+
+/** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`). */
+export async function retireCalDavSecret(vaultPath: string, url: string, user: string): Promise<void> {
+  await retireSecret(metaStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+}
+
 /**
  * Desktop OS-keychain bridge for the encrypted secrets sideband.
  *
@@ -103,15 +123,7 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     // Metadata written before P4c is keyed by the old per-device names; the
     // candidates above are now named canonically. Migrating on read keeps the
     // two in step (the port persists the result on its next export).
-    readMeta: async () =>
-      (await getSettingsStore())
-        .get<SecretsPortMeta>(metaKey(vaultPath))
-        .then((m) => migrateSecretsMetaToCanonicalIds(m ?? null)),
-    writeMeta: async (meta) => {
-      const store = await getSettingsStore();
-      await store.set(metaKey(vaultPath), meta);
-      await store.save();
-    },
+    ...metaStore(vaultPath),
     candidates: () => localCandidates(vaultPath, pimRuntime),
     // Without the PIM runtime this device does NOT know its full account
     // picture: the mail candidates are complete, the calendar ones are missing.

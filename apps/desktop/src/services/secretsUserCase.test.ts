@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { canonicalSecretId, canonicalizeEndpoint, type SecretBinding, type SecretsBundle } from "@plainva/core";
-import { calDavSecretBinding, createSecretsPort, imapSecretBinding, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { canonicalSecretId, canonicalizeEndpoint, mergeSecretsBundles, stableStringify, type SecretBinding, type SecretsBundle } from "@plainva/core";
+import { calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
 
 /**
  * Two calendar rows the account rule keeps apart — "alice" and "Alice" on a
@@ -18,12 +18,15 @@ const URL_ = "https://dav.example.com/";
 const ENDPOINT = canonicalizeEndpoint(URL_);
 type Row = { id: string; user: string };
 
-function device(name: string, rows: () => Row[], slots = new Map<string, { kind: string; url: string; user: string; pass: string }>()) {
+let clock = 0;
+/** A device up to 0.8.7 lower-cased the user and named the secret after that. */
+const legacyBinding = (user: string): SecretBinding => ({ family: "webdav", service: "calendar", secretType: "caldav-password", user: user.trim().toLowerCase(), endpoint: ENDPOINT });
+
+function device(name: string, rows: () => Row[], slots = new Map<string, { kind: string; url: string; user: string; pass: string }>(), legacy = false) {
   let meta: SecretsPortMeta | null = null;
-  let tick = 0;
   const candidates = (): LocalSecretCandidate[] =>
     rows().map((row) => {
-      const binding = calDavSecretBinding("webdav", URL_, row.user);
+      const binding = legacy ? legacyBinding(row.user) : calDavSecretBinding("webdav", URL_, row.user);
       const stored = slots.get(row.id);
       return {
         logicalId: canonicalSecretId(binding),
@@ -43,9 +46,19 @@ function device(name: string, rows: () => Row[], slots = new Map<string, { kind:
     readSlot: async (slot) => slots.get(slot) ?? null,
     writeSlot: async (slot, value) => void slots.set(slot, value as never),
     removeSlot: async (slot) => void slots.delete(slot),
-    now: () => `2026-11-17T00:00:${String(tick++).padStart(2, "0")}.000Z`,
+    now: () => new Date(Date.parse("2026-11-17T00:00:00.000Z") + 1000 * clock++).toISOString(),
   });
-  return { port, slots, meta: () => meta };
+  const host = { readMeta: async () => meta, writeMeta: async (m: SecretsPortMeta) => { meta = structuredClone(m); } };
+  return { port, slots, meta: () => meta, host };
+}
+
+/** One settings round of a device against the shared bundle, as SecretsSyncStep runs it. */
+let remote: SecretsBundle | null = null;
+async function round(d: ReturnType<typeof device>): Promise<void> {
+  const local = await d.port.exportBundle();
+  const merged = mergeSecretsBundles(local, remote, new Date(Date.parse("2026-11-17T01:00:00.000Z") + 1000 * clock++).toISOString());
+  if (stableStringify(merged.entries) !== stableStringify(local.entries)) await d.port.importBundle(merged);
+  remote = merged;
 }
 
 const passOf = (slots: Map<string, { user: string; pass: string }>) =>
@@ -127,5 +140,81 @@ describe("two password accounts that differ only in the case of the user", () =>
       await b.port.importBundle(bundleOf(order));
       expect(passOf(b.slots)).toEqual({ "s-Alice": "Alice:new-pw" });
     }
+  });
+
+  it("a password changed on a device on 0.8.7 reaches the new device, and the other way round, for the one account its name can mean (review 2026-11-18)", async () => {
+    remote = null;
+    // The password was typed on a third device; both of these got it through
+    // the sync (a password a device typed itself is never overwritten by
+    // another device's, on any version — that rule is not this one).
+    const origin = device("C-new", () => [{ id: "c-Alice", user: "Alice" }], new Map([["c-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw1" }]]));
+    const old = device("A-087", () => [{ id: "a-Alice", user: "Alice" }], undefined, true);
+    const fresh = device("B-new", () => [{ id: "b-Alice", user: "Alice" }]);
+    await round(origin);
+    await round(old);
+    await round(fresh);
+    await round(fresh);
+    expect(passOf(old.slots)).toEqual({ "a-Alice": "Alice:pw1" });
+    expect(passOf(fresh.slots)).toEqual({ "b-Alice": "Alice:pw1" });
+
+    old.slots.set("a-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw2" });
+    await round(old);
+    await round(fresh);
+    expect(passOf(fresh.slots)).toEqual({ "b-Alice": "Alice:pw2" });
+
+    fresh.slots.set("b-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw3" });
+    await round(fresh);
+    await round(old);
+    expect(passOf(old.slots)).toEqual({ "a-Alice": "Alice:pw3" });
+
+    // Settled: three more rounds move no revision.
+    await round(fresh);
+    await round(old);
+    const settled = JSON.stringify(remote!.entries);
+    for (let i = 0; i < 3; i++) {
+      await round(fresh);
+      await round(old);
+    }
+    expect(JSON.stringify(remote!.entries)).toBe(settled);
+    expect(passOf(fresh.slots)).toEqual({ "b-Alice": "Alice:pw3" });
+  });
+
+  it("\"Remove account\" tombstones exactly that account, also beside \"alice\" and when it was the last one", async () => {
+    let rows: Row[] = [{ id: "r-alice", user: "alice" }, { id: "r-Alice", user: "Alice" }];
+    const d = device("A", () => rows, new Map([
+      ["r-alice", { kind: "caldav", url: URL_, user: "alice", pass: "alice-pw" }],
+      ["r-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "Alice-pw" }],
+    ]));
+    await d.port.exportBundle();
+    const alice = canonicalSecretId(calDavSecretBinding("webdav", URL_, "alice"));
+    const Alice = canonicalSecretId(calDavSecretBinding("webdav", URL_, "Alice"));
+
+    await retireSecret(d.host, calDavSecretBinding("webdav", URL_, "Alice"));
+    rows = [{ id: "r-alice", user: "alice" }];
+    d.slots.delete("r-Alice");
+    const beside = await d.port.exportBundle();
+    expect(beside.entries[Alice]?.tombstone).toBe(true);
+    expect(beside.entries[alice]?.tombstone).toBeFalsy();
+    expect(beside.entries[alice]?.secret).toEqual({ pass: "alice-pw" });
+
+    await retireSecret(d.host, calDavSecretBinding("webdav", URL_, "alice"));
+    rows = [];
+    d.slots.clear();
+    const last = await d.port.exportBundle();
+    expect(last.entries[alice]?.tombstone).toBe(true);
+  });
+
+  it("\"Remove account\" of the only \"Alice\" tombstones the name a device on 0.8.7 knows it by too", async () => {
+    let rows: Row[] = [{ id: "r-Alice", user: "Alice" }];
+    const d = device("A", () => rows, new Map([["r-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw" }]]));
+    const first = await d.port.exportBundle();
+    const legacyId = canonicalSecretId(legacyBinding("Alice"));
+    expect(first.entries[legacyId]?.secret).toEqual({ pass: "pw" });
+    await retireSecret(d.host, calDavSecretBinding("webdav", URL_, "Alice"));
+    rows = [];
+    d.slots.clear();
+    const after = await d.port.exportBundle();
+    expect(after.entries[legacyId]?.tombstone).toBe(true);
+    expect(after.entries[canonicalSecretId(calDavSecretBinding("webdav", URL_, "Alice"))]?.tombstone).toBe(true);
   });
 });

@@ -25,7 +25,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptedPimConfig, adoptPreferenceForCard, droppingOwnConfirmedAccess, passwordAccessMove, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, adoptPreferenceForCard, droppingOwnConfirmedAccess, passwordAccessMove, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -656,6 +656,17 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
   await restartPimAccountAfterLogin(target.vaultId, accountId);
 }
 
+async function retireRemovedCalDavSecret(vaultId: string, accountId: string): Promise<void> {
+  const row = runtime ? (await runtime.cache.listAccounts()).find((account) => account.id === accountId) : undefined;
+  if (row?.provider !== "caldav") return;
+  const creds = await getPimCredentials(vaultId, accountId).catch(() => null);
+  const url = creds?.kind === "caldav" ? creds.url : typeof row.config.url === "string" ? row.config.url : "";
+  const user = creds?.kind === "caldav" ? creds.user : typeof row.config.user === "string" ? row.config.user : "";
+  if (!url || !user) return;
+  const { retireCalDavSecret } = await import("../mobileSecretsPort");
+  await retireCalDavSecret(vaultId, url, user);
+}
+
 /**
  * "Sign out on this device": this phone no longer reaches the account, so its
  * confirmed access leaves the row and, with the next settings round, every
@@ -672,6 +683,8 @@ export async function removePimAccount(accountId: string): Promise<void> {
   // Before the account is gone: the tombstone is keyed on the shared id, and
   // the map that translates the local id lives beside the account (P2).
   await noteAccountRemovedLocally(runtime.vaultId, "pim", accountId).catch(() => {});
+  // Its password leaves the secrets sync by this act, as on the desktop (review 2026-11-18).
+  await retireRemovedCalDavSecret(runtime.vaultId, accountId).catch(reportingTo("pim:remove-secret"));
   await clearPimCredentials(runtime.vaultId, accountId);
   await runtime.cache.deleteAccount(accountId);
   if ((await runtime.cache.listAccounts()).length === 0) setPimState({ status: "off", message: null });

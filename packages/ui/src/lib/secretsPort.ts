@@ -90,6 +90,13 @@ export interface SecretsPortMeta {
       updatedAt: string;
     }
   >;
+  /**
+   * Accounts "Remove account" took out on this device, by their exact name
+   * (`retireSecret`). The next export writes their tombstone from that act,
+   * not from comparing lists — which cannot tell "gone" from "alice" beside a
+   * removed "Alice", or the last account from a runtime still booting.
+   */
+  retired?: Record<string, SecretBinding>;
 }
 
 /** What a shell must provide; everything else is decided above. */
@@ -163,7 +170,20 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   quarantine: Object.fromEntries(
     Object.entries(source?.quarantine ?? {}).map(([id, entry]) => [id, { ...entry }]),
   ),
+  ...(source?.retired ? { retired: Object.fromEntries(Object.entries(source.retired).map(([id, binding]) => [id, { ...binding }])) } : {}),
 });
+
+/**
+ * "Remove account" took this account out (review 2026-11-18): its entry is
+ * tombstoned by the next export, under its exact name and — where no other
+ * account here can mean it — the old name a device up to 0.8.7 reads it by.
+ * An account that comes back before then keeps its entry.
+ */
+export async function retireSecret(host: Pick<SecretsPortHost, "readMeta" | "writeMeta">, binding: SecretBinding): Promise<void> {
+  const meta = cloneMeta(await host.readMeta());
+  meta.retired = { ...(meta.retired ?? {}), [canonicalSecretId(binding)]: { ...binding } };
+  await host.writeMeta(meta);
+}
 
 const emptyImportResult = (): SecretsImportResult => ({
   entries: [],
@@ -242,6 +262,30 @@ export function migrateSecretsMetaToCanonicalIds<T extends SecretsPortMeta | nul
   return meta;
 }
 
+/**
+ * The name a device up to 0.8.7 knows this account's password by, when it is
+ * another than the exact one, and only where that name can mean nothing else
+ * here (review 2026-11-18): a calendar user in capitals, and no second account
+ * of the same kind on the same server whose user differs only in case. Up to
+ * 0.8.7 a device lower-cases the user; for the one account it can mean, the
+ * old entry and the exact one are ONE place — read, the later wins; written,
+ * both carry the password. Where two spellings stand side by side, nothing
+ * is mirrored: 0.8.7 cannot tell them apart and gets neither.
+ */
+function legacyMirrorId(candidate: LocalSecretCandidate, candidates: readonly LocalSecretCandidate[]): { id: string; binding: SecretBinding } | null {
+  if (candidate.binding.service !== "calendar" || isLegacyLowerCaseUser(candidate.binding)) return null;
+  const twin = candidates.some(
+    (other) =>
+      other !== candidate &&
+      other.binding.secretType === candidate.binding.secretType &&
+      bindingMatchesExceptFamily(other.binding, candidate.binding, "fold"),
+  );
+  if (twin) return null;
+  const binding: SecretBinding = { ...candidate.binding, user: candidate.binding.user.toLowerCase() };
+  const id = canonicalSecretId(binding);
+  return id === candidate.logicalId ? null : { id, binding };
+}
+
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   const now = () => (host.now ? host.now() : new Date().toISOString());
 
@@ -293,6 +337,25 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         };
       }
 
+      // The same password under the name a device up to 0.8.7 reads it by,
+      // where that name can only mean this account (`legacyMirrorId`). Its
+      // revision moves exactly when its content does, like any entry.
+      for (const candidate of candidates) {
+        if (!candidate.secret) continue;
+        const mirror = legacyMirrorId(candidate, candidates);
+        if (!mirror) continue;
+        const hash = stableStringify({ binding: mirror.binding, secret: candidate.secret });
+        const previous = meta.entries[mirror.id];
+        const changed = !previous || previous.hash !== hash || previous.tombstone;
+        const entryRev = changed ? (previous?.entryRev ?? 0) + 1 : previous.entryRev;
+        const updatedAt = changed ? stamp : previous.updatedAt;
+        const author = changed ? deviceId : previous.deviceId;
+        entries[mirror.id] = { entryRev, updatedAt, deviceId: author, binding: mirror.binding, secret: candidate.secret };
+        meta.entries[mirror.id] = { hash, entryRev, updatedAt, deviceId: author, binding: mirror.binding };
+        currentIds.add(mirror.id);
+        knownIds.add(mirror.id);
+      }
+
       // An account that vanished here becomes a tombstone, so the other device
       // learns it was removed rather than resurrecting it on the next cycle.
       //
@@ -301,6 +364,27 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // and a list that came back completely empty while we know of accounts is
       // treated as "not ready" regardless — that shape is a runtime that has not
       // booted yet, and the cost of being wrong is a destroyed password.
+      // What "Remove account" took out here is tombstoned whatever the lists
+      // say — it is known, not inferred (`retireSecret`).
+      const tombstone = (id: string) => {
+        const previous = meta.entries[id];
+        if (!previous || previous.tombstone || currentIds.has(id)) return;
+        const entryRev = previous.entryRev + 1;
+        entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
+        meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
+      };
+      for (const [id, binding] of Object.entries(meta.retired ?? {})) {
+        delete meta.retired![id];
+        if (knownIds.has(id)) continue;
+        tombstone(id);
+        if (binding.service === "calendar" && !isLegacyLowerCaseUser(binding)) {
+          const old: SecretBinding = { ...binding, user: binding.user.toLowerCase() };
+          const meant = candidates.some((c) => c.binding.secretType === binding.secretType && bindingMatchesExceptFamily(old, c.binding, "fold"));
+          if (!meant) tombstone(canonicalSecretId(old));
+        }
+      }
+      if (meta.retired && Object.keys(meta.retired).length === 0) delete meta.retired;
+
       const ready = host.accountsReady ? await host.accountsReady() : true;
       const looksUnavailable = candidates.length === 0 && Object.keys(meta.entries).length > 0;
       if (ready && !looksUnavailable) {
@@ -446,19 +530,40 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           ? []
           : candidates.filter((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding, "fold"));
         const legacyCandidate = legacyMatches.length === 1 ? legacyMatches[0] : undefined;
+        // ...unless it is the later of the two names of the one account it can
+        // mean (`legacyMirrorId`): a password a device up to 0.8.7 changed
+        // has to arrive (review 2026-11-18).
+        const mirroredHere = legacyCandidate ? legacyMirrorId(legacyCandidate, candidates)?.id === logicalId : false;
         if (
           legacyCandidate &&
           Object.entries(bundle.entries).some(
             ([otherId, other]) =>
               otherId !== logicalId &&
               other.binding.secretType === entry.binding.secretType &&
-              bindingMatchesExceptFamily(other.binding, legacyCandidate.binding),
+              bindingMatchesExceptFamily(other.binding, legacyCandidate.binding) &&
+              !(mirroredHere && entry.updatedAt > other.updatedAt),
           )
         ) {
+          // The old name of this account carries an older password: remember
+          // its revision, so the next export writes the current one over it
+          // rather than under it.
+          if (mirroredHere) rememberEntry(logicalId, entry);
           recordImportResult(result, logicalId, "unchanged", "superseded-by-exact-entry");
           continue;
         }
+        // The exact entry of an account that also has an old-named one
+        // (`legacyMirrorId`): the later of the two is the password.
+        const exactMirror = exactCandidate ? legacyMirrorId(exactCandidate, candidates) : null;
+        const mirrorEntry = exactMirror && exactMirror.id !== logicalId ? bundle.entries[exactMirror.id] : undefined;
+        if (mirrorEntry && mirrorEntry.binding.secretType === entry.binding.secretType && mirrorEntry.updatedAt > entry.updatedAt) {
+          recordImportResult(result, logicalId, "unchanged", "superseded-by-later-entry");
+          continue;
+        }
         const candidate = exactCandidate ?? legacyCandidate;
+        // Both names of one account share one record of having been imported.
+        const pairIds = [logicalId, candidate?.logicalId, candidate ? legacyMirrorId(candidate, candidates)?.id : undefined]
+          .filter((id): id is string => !!id);
+        const pairImported = pairIds.some((id) => meta.imported[id]);
 
         if (!candidate && entry.tombstone) {
           rememberEntry(logicalId, entry);
@@ -477,7 +582,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           continue;
         }
 
-        if (entry.tombstone && !meta.imported[logicalId]) {
+        if (entry.tombstone && !pairImported) {
           rememberEntry(logicalId, entry);
           if (candidate.secret) {
             recordImportResult(result, logicalId, "rejected", "local-secret-protected");
@@ -486,7 +591,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           }
           continue;
         }
-        if (!entry.tombstone && candidate.secret && !meta.imported[logicalId]) {
+        if (!entry.tombstone && candidate.secret && !pairImported) {
           if (stableStringify(candidate.secret) !== stableStringify(entry.secret)) {
             recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
             continue;
@@ -527,6 +632,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           } else {
             await host.writeSlot(candidate.slot, candidate.apply(entry.secret!));
             meta.imported[logicalId] = true;
+            // The account's other name was written with it (`legacyMirrorId`).
+            if (candidate.logicalId !== logicalId) meta.imported[candidate.logicalId] = true;
           }
           rememberEntry(logicalId, entry);
           successfulSlots.add(candidate.slot);

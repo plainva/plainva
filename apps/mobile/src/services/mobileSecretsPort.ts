@@ -7,6 +7,7 @@ import {
   familyOfImapHost,
   getPlatformServices,
   migrateSecretsMetaToCanonicalIds,
+  retireSecret,
   type LocalSecretCandidate,
   type SecretsPortMeta,
 } from "@plainva/ui";
@@ -97,6 +98,25 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
   return out;
 }
 
+function metaStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () =>
+      migrateSecretsMetaToCanonicalIds(
+        (await (await settingsStore()).get<SecretsPortMeta>(metaKey(vaultId))) ?? null,
+      ),
+    writeMeta: async (meta) => {
+      const store = await settingsStore();
+      await store.set(metaKey(vaultId), meta);
+      await store.save();
+    },
+  };
+}
+
+/** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`), as on the desktop. */
+export async function retireCalDavSecret(vaultId: string, url: string, user: string): Promise<void> {
+  await retireSecret(metaStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+}
+
 /** Mobile keychain bridge for the secrets sideband. */
 export function createMobileSecretsPort(vaultId: string): SecretsPort {
   return createSecretsPort({
@@ -110,15 +130,7 @@ export function createMobileSecretsPort(vaultId: string): SecretsPort {
     accountsReady: async () => isPimRuntimeReady(),
     // See the desktop port: pre-P4c metadata is keyed by the old per-device
     // names, the candidates above by the canonical one.
-    readMeta: async () =>
-      migrateSecretsMetaToCanonicalIds(
-        (await (await settingsStore()).get<SecretsPortMeta>(metaKey(vaultId))) ?? null,
-      ),
-    writeMeta: async (meta) => {
-      const store = await settingsStore();
-      await store.set(metaKey(vaultId), meta);
-      await store.save();
-    },
+    ...metaStore(vaultId),
     candidates: () => mobileCandidates(vaultId),
     readSlot: (slot) => getPlatformServices().credentials.readSecret(slot),
     writeSlot: (slot, value) => getPlatformServices().credentials.writeSecret(slot, value),
