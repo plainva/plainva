@@ -2538,6 +2538,12 @@ textarea {
   background: var(--surface-container); border-radius: var(--radius-md);
 }
 .m-filepick { align-self: flex-start; }
+/* The top frames of an exit on "Ended by the system" (F51): readable in a screenshot, selectable to copy. */
+.m-exit-frames {
+  display: block; margin-top: var(--space-1);
+  font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted);
+  white-space: pre-wrap; word-break: break-all; -webkit-user-select: text; user-select: text;
+}
 /* Single action under an on-ramp/status card (connect cloud, recheck). */
 .m-onramp-action { align-self: flex-start; }
 
