@@ -28,7 +28,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
-import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote } from "@plainva/core";
+import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, vaultFolderIsThere } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -1119,7 +1119,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     sweepOwedToRemote: (kind) => {
       if (!db || !syncEnqueueEnabled) return;
       const handlers = {
-        vaultIsThere: () => adapter.exists("").catch(() => false),
+        vaultIsThere: () => vaultFolderIsThere(files).then((there) => there === true),
         stillGone: async (p: string) => !(await adapter.exists(p)),
         remove: queueLocalDeletion,
         removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
