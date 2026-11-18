@@ -51,6 +51,7 @@ export * from "./lib/quarantineGroups";
 export * from "./lib/profileFields";
 export * from "./lib/vaultPathSetting";
 export * from "./lib/syncDiagnostics";
+export * from "./lib/capitalize";
 export * from "./lib/taskList";
 export * from "./lib/templateActions";
 export * from "./lib/dayAgenda";

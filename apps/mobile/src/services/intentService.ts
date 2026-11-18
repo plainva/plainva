@@ -24,6 +24,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { clearIntentDirectory, clearIntentOrders, onIntentOrders, readIntentOrdersRaw, systemIntentsAvailable, writeIntentDirectory } from "../platform/intentBridge";
+import { vaultEntryName } from "./vaultEntryName";
 
 /**
  * Plainva as a tool of the system's assistant (AI harness P4.7): what Siri and
@@ -246,7 +247,7 @@ async function sourcesOfOpenVault(): Promise<IntentDirectorySources> {
   // device's record and of the vault in memory — and a question that cannot be answered is answered with yes.
   const workspace = await getMobileWorkspaceStatus(entry.id).then((found) => found !== null, () => true);
   return {
-    vaultName: entry.name || "Plainva",
+    vaultName: vaultEntryName(entry.name), // as the shell's header names it
     enabled: Boolean(settings?.enabled && settings.systemFind),
     sealed: workspace || vault.workspaceState !== null || vault.workspaceRuntime !== null,
     secret,

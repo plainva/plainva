@@ -121,3 +121,35 @@ describe("a call into a picked folder that does not answer", () => {
     }
   });
 });
+
+/**
+ * A large file's read the deadline gave up on still finishes its copy in the
+ * app's cache natively - the whole of a note, in clear text. It is closed as
+ * soon as it answers (first review of F54, R3), not when the plugin next sweeps.
+ */
+describe("a read in parts that answers after its deadline", () => {
+  it("is closed as soon as it answers", async () => {
+    const big = new Uint8Array(400 * 1024).fill(1);
+    const fake = fakeVaultFolder(new Map([["big.png", big]]));
+    const read = fake.plugin.read;
+    let answer: (() => void) | null = null;
+    const slow: VaultFolderNative = { ...fake.plugin, read: (opts) => new Promise((resolve) => { answer = () => void read(opts).then(resolve); }) };
+    const folder = withFolderDeadlines(slow, { deadlines: SHORT });
+    await expect(folder.read({ handle: "h", path: "big.png", maxBytes: 256 * 1024 })).rejects.toBeInstanceOf(FolderNoAnswerError);
+    answer!();
+    await vi.waitFor(() => expect(fake.openReads()).toBe(0));
+    // In time, the caller keeps it and closes it itself.
+    const kept = await withFolderDeadlines(fake.plugin, { deadlines: { lookMs: 1000, readMs: 1000 } }).read({ handle: "h", path: "big.png", maxBytes: 256 * 1024 });
+    expect(kept.tooLarge).toBe(true);
+    expect(fake.openReads()).toBe(1);
+  });
+
+  it("the native plugins empty their parts folder when they load", async () => {
+    const { readFileSync } = await import("node:fs");
+    // From the app's folder: under jsdom the module's own address is no file path.
+    const java = readFileSync("android/app/src/main/java/com/plainva/app/VaultFolderPlugin.java", "utf8");
+    const swift = readFileSync("ios/App/App/VaultFolderPlugin.swift", "utf8");
+    expect(java).toMatch(/public void load\(\)[\s\S]{0,400}vault-folder-parts[\s\S]{0,400}delete\(\)/);
+    expect(swift).toMatch(/override public func load\(\)[\s\S]{0,400}partsFolder\(\)[\s\S]{0,300}removeItem/);
+  });
+});

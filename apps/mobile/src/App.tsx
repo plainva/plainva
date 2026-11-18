@@ -88,6 +88,7 @@ import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/wi
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
 import { aiShellRoutes, MobileAiShell, ShellProviders, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
+import { vaultEntryName } from "./services/vaultEntryName";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -177,7 +178,15 @@ export default function App() {
     void pendingReleaseDialog(getMobileSettings().onboarded).then(setReleaseDialog);
   }, []);
 
-  const [vaultName, setVaultName] = useState("Plainva");
+  /** The vault list's name of the open vault — "" for an entry without one. */
+  const [entryName, setEntryName] = useState("");
+  // The name the vault goes by in the app (F7 of release 0.9.0): the header,
+  // the share preview and every place the shell names it, by the rule the
+  // templates and the desktop use. Read at render, so a language change follows.
+  const vaultName = vaultEntryName(entryName);
+  // The backup archives keep the name they were always written under: their
+  // file names must not change with the language or a vault without a name.
+  const archiveName = entryName || "Plainva"; // file name, not a vault name
   /** Which vault the bar was read for — the change listener has no props. */
   const barVaultRef = useRef<string | null>(null);
   /**
@@ -216,18 +225,18 @@ export default function App() {
     void saveMobileBar(vault?.vaultId ?? null, next).catch((error: unknown) => reportVisible("settings:bar", error, t("mobile.settingSaveFailed")));
   }, [vault, t]);
 
-  useBackupSchedule(vault, vaultName);
+  useBackupSchedule(vault, archiveName);
   usePinboardDraftSweep(vault); // what a crash left of a pinboard entry (E15)
   useIndexAutoUpdate(vault, vaultName);
   useNavPersistence(vault, nav); // the session outlives the app (P6)
   const connectionRun = useConnectionRun();
 
   useEffect(() => {
-    void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
+    void getActiveVaultEntry().then((e) => setEntryName(e.name ?? ""));
     const onChanged = () => setBump((n) => n + 1);
-    const onSwitched = () => void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
+    const onSwitched = () => void getActiveVaultEntry().then((e) => setEntryName(e.name ?? ""));
     const onSettings = () => {
-      void getActiveVaultEntry().then((e) => setVaultName(e.name || "Plainva"));
+      void getActiveVaultEntry().then((e) => setEntryName(e.name ?? ""));
     };
     /**
      * The bar changed — here, on the desktop, or through the settings sync.
@@ -619,7 +628,7 @@ export default function App() {
     newTemplate: quickCreateTemplate,
     openComments: () => setNav((st) => tapTab(st, "comments")),
     openImport: () => push({ kind: "importwizard", path: "" }),
-    backupNow: () => void backupVaultNow(vault, vaultName),
+    backupNow: () => void backupVaultNow(vault, archiveName),
     rebuildIndex: () => void rebuildVaultIndex(vault),
     updateIndexes: () => push({ kind: "overviews", path: "" }),
     activeNote: () => commandNotePath(nav),

@@ -105,9 +105,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     try {
       const result = await forgetVaultEverywhere(path, { deleteZipBackups: forgetZips }, removeRecentVault);
       if (result.ok) {
-        toast.info(t("splash.removeForgotten", { name: getBasename(path) }));
+        toast.info(t("splash.removeForgotten", { name: vaultLabel(path) }));
       } else {
-        toast.warning(t("splash.removeForgetPartial", { name: getBasename(path), what: result.errors.join(", ") }));
+        toast.warning(t("splash.removeForgetPartial", { name: vaultLabel(path), what: result.errors.join(", ") }));
       }
     } finally {
       setForgetting(false);

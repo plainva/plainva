@@ -181,7 +181,9 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
       readSourceBytes: archive ? archiveByteReader(archive) : undefined,
       archiveSkipped: archive?.skipped.map((s) => ({
         relativePath: s.relativePath,
-        reason: t(`import.skip.${s.reason}`, { defaultValue: s.reason }),
+        // The desktop's words for it (F53 of release 0.9.0): `import.skip.*`
+        // never existed, and the phone showed the raw reason ("too_large").
+        reason: t(`import.archiveSkip.${s.reason}`, { defaultValue: t("import.archiveSkip.unreadable") }),
       })),
       // An API source reaches the network from a WebView that CORS would stop;
       // the native bridge is the phone's way out (the desktop passes its own).

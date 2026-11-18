@@ -7,6 +7,7 @@ import { previousMobileVault, switchVault } from "../services/vaultService";
 import { listVaults, type VaultEntry } from "../services/vaultRegistry";
 import { getIndexBuild, subscribeIndexBuild } from "../services/indexBuild";
 import { mActions } from "../services/mobileDialogs";
+import { vaultEntryName } from "../services/vaultEntryName";
 
 /**
  * What the app shows while it has no vault (issue 143).
@@ -39,7 +40,7 @@ export function VaultBootSurface({ boot: state }: { boot: VaultBootState }) {
     return () => { alive = false; };
   }, [boot.vaultId]);
 
-  const nameOf = (entry: { name: string }) => entry.name || t("mobile.vaultLocal");
+  const nameOf = (entry: { name: string }) => vaultEntryName(entry.name);
   const go = (id: string) => {
     setBusy(true);
     void switchVault(id).catch((e) => console.error("[boot] switch failed", e)).finally(() => setBusy(false));

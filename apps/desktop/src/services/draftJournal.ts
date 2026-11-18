@@ -397,12 +397,22 @@ export async function pruneDrafts(vaultPath: string): Promise<void> {
 }
 
 /**
+ * Forgets what the journal saw of this vault's files: the vault closed, or its
+ * drafts are removed past the journal. The next snapshot reads the disk.
+ */
+export function forgetDraftMemory(vaultPath: string): void {
+  for (const dir of layout.dirs(vaultPath)) journalInstance?.forgetSeen(dir);
+}
+
+/**
  * Removes ALL drafts of a vault — wired into "forget app data". The current
  * folder goes whole. The folder of the old name can be shared with another
  * vault whose path hashed alike: there only this vault's entries go, and the
  * old comment-operation queue in it stays for `removeLegacyCommentOperations`.
  */
 export async function removeVaultDrafts(vaultPath: string): Promise<void> {
+  // The journal's picture of these files goes with them, whatever the removal reaches.
+  forgetDraftMemory(vaultPath);
   try {
     const base = await join(await appDataDir(), "drafts");
     const dir = await join(base, draftPathKey(vaultPath));

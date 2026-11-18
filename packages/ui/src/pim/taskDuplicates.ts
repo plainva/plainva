@@ -199,11 +199,13 @@ export async function removeTaskCopies(
    * question, not N (A12 of release 0.9.0).
    */
   deleteNote: (path: string, ask: DeletionNetAsk) => Promise<boolean | void>
-): Promise<{ removed: string[]; skipped: string[] }> {
+): Promise<{ removed: string[]; skipped: string[]; failed: string[] }> {
   const wanted = new Set(removableTaskCopies(shown));
   const current = new Set(removableTaskCopies(await findDuplicateTaskNotes(opts)));
   const removed: string[] = [];
   const skipped: string[] = [];
+  /** Copies the device would not delete — said, not only left (F4 of release 0.9.0). */
+  const failed: string[] = [];
   const still = [...wanted].filter((path) => {
     if (current.has(path)) return true;
     skipped.push(path);
@@ -213,8 +215,9 @@ export async function removeTaskCopies(
     if ("error" in outcome) {
       console.warn("[taskDuplicates] could not remove a task copy", outcome.item, outcome.error);
       skipped.push(outcome.item);
+      failed.push(outcome.item);
     } else if (outcome.deleted) removed.push(outcome.item);
     else skipped.push(outcome.item);
   }
-  return { removed, skipped };
+  return { removed, skipped, failed };
 }

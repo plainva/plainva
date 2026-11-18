@@ -24,7 +24,7 @@ export function aiDefaultSettings(info: BuildInfo = buildInfo()): AiAppSettings 
 }
 
 /** Why a system's model is not there (plan P2c), as the native plugins name it. */
-const PLATFORM_REASONS: ReadonlySet<string> = new Set([
+const PLATFORM_REASON_LIST = [
   "deviceNotEligible",
   "appleIntelligenceNotEnabled",
   "modelNotReady",
@@ -34,7 +34,10 @@ const PLATFORM_REASONS: ReadonlySet<string> = new Set([
   "osTooOld",
   "background",
   "unsupportedLanguage",
-]);
+] as const;
+/** A reason the native plugins name: the domain of `ai.error.platform.<reason>` (F53 of release 0.9.0). */
+type PlatformReason = (typeof PLATFORM_REASON_LIST)[number];
+const isPlatformReason = (reason: string): reason is PlatformReason => (PLATFORM_REASON_LIST as readonly string[]).includes(reason);
 
 /**
  * Who a failure is about: its name, and whether it is this device. A server on
@@ -81,7 +84,7 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
     case "provider_error":
       return t("ai.error.providerError", { provider, message: failure.message });
     case "platform_unavailable":
-      return PLATFORM_REASONS.has(failure.reason) ? t(`ai.error.platform.${failure.reason}`, { provider }) : t("ai.error.platform.unavailable", { provider });
+      return isPlatformReason(failure.reason) ? t(`ai.error.platform.${failure.reason}`, { provider }) : t("ai.error.platform.unavailable", { provider });
     case "kept_on_device":
       return t("ai.error.keptOnDevice", { provider });
     case "local_only":
