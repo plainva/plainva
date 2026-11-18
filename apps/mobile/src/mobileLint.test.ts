@@ -3518,9 +3518,14 @@ describe("desktop rules the phone had never been given (finding 2026-08-19)", ()
   it("says whether restoring a mass deletion worked", () => {
     // The user chose "restore" — going quiet means believing the files are
     // back while the deletions still stand.
+    // One question for both workers since release 0.9.0 (A4): the sync
+    // service hands the plain and the workspace worker to it.
     const sync = read("src/services/syncService.ts");
-    expect(sync).toMatch(/massDeleteRestored/);
-    expect(sync).toMatch(/massDeleteRestoreFailed/);
+    expect(sync).toMatch(/w\.onMassDeletionPending = \(info\) => askMassDeletion\(w, info\)/);
+    expect(sync).toMatch(/encrypted\.onMassDeletionPending = \(info\) => askMassDeletion\(encrypted, info\)/);
+    const shared = stripComments(readFileSync(join(SRC, "../../../packages/ui/src/lib/massDeletionQuestion.ts"), "utf8"));
+    expect(shared).toMatch(/massDeleteRestored/);
+    expect(shared).toMatch(/massDeleteRestoreFailed/);
   });
 
   it("tells a configured-but-unreachable file provider apart from no sync", () => {

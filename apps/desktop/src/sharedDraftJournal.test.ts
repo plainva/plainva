@@ -26,6 +26,8 @@ class MemoryDrafts implements DraftJournalStorage {
   reads = 0;
   /** Files whose next write fails once. */
   readonly failOnce = new Set<string>();
+  /** Holds every write until it is opened. */
+  gate: Promise<void> | null = null;
   constructor(private readonly now: () => number) {}
   async read(file: string) {
     this.reads += 1;
@@ -37,6 +39,7 @@ class MemoryDrafts implements DraftJournalStorage {
   async write(file: string, text: string) {
     if (this.hanging.has(file)) return new Promise<void>(() => {});
     if (this.failOnce.delete(file)) throw new Error("disk full");
+    if (this.gate) await this.gate;
     this.writes += 1; this.files.set(file, { text, mtimeMs: this.now() });
   }
   async remove(file: string) { this.files.delete(file); }
@@ -443,6 +446,31 @@ describe("the journal's pace and its reads (maintainer 17.11., release 0.9.0)", 
     expect(read("apps/desktop/src/contexts/VaultContext.tsx")).toMatch(/await flushDrafts\(path\)[\s\S]{0,300}forgetDraftMemory\(path\);/);
     expect(read("apps/mobile/src/services/vaultForget.ts")).toMatch(/forgetDraftMemory\(vaultId\);\s*const drafts = removeInternalFolder/);
     expect(read("apps/mobile/src/services/vaultService.ts")).toMatch(/dispose: async \(\) => \{[\s\S]{0,300}forgetDraftMemory\(entry\.id\);/);
+  });
+
+  it("forgetting waits for a write already under way: what it lands is forgotten too (review 18.11.)", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout, { now });
+    const file = layout.file(VAULT, "Note.md");
+    await journal.record(VAULT, "Note.md", "older draft of another session", 1, "OLD");
+    writer.write(VAULT, "Note.md", "typing 1", 1, "S");
+    await settle();
+    // A snapshot is on its way to the disk when the vault's drafts are forgotten…
+    let open!: () => void;
+    storage.gate = new Promise<void>((resolve) => { open = resolve; });
+    clock += 400;
+    writer.write(VAULT, "Note.md", "typing 2", 2, "S");
+    await vi.advanceTimersByTimeAsync(0);
+    const forgotten = journal.forgetSeen(VAULT);
+    // …it lands, and only then are the files removed.
+    storage.gate = null;
+    open();
+    await forgotten;
+    storage.files.clear();
+    clock += 400;
+    writer.write(VAULT, "Note.md", "typing 3", 3, "S");
+    await settle(400);
+    expect(storage.entries(file).map((e) => `${e.sessionId}:${e.text}`)).toEqual(["S:typing 3"]);
   });
 
   it("a write that failed reads the file again: the disk may hold either version", async () => {

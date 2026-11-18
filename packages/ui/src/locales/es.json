@@ -3320,6 +3320,7 @@
     "groupView": "Vista",
     "groupZipBackups": "Copias ZIP",
     "installingUpdate": "Descargando e instalando la actualización...",
+    "updateWaitingForWrites": "Plainva está terminando de escribir; la actualización se instala en {{seconds}} segundos como máximo.",
     "installUpdate": "Instalar ahora y reiniciar",
     "keychainChecking": "Comprobando...",
     "keychainFallback": "No disponible (se usa el almacén alternativo)",
@@ -3865,6 +3866,14 @@
     "deletionsKeptLocalEdits_one": "«{{names}}» se eliminó en la nube, pero tenía cambios aquí que aún no se habían subido. Plainva lo conservó y lo vuelve a subir; elimínalo aquí si quieres que desaparezca.",
     "deletionsKeptLocalEdits_many": "{{count}} archivos se eliminaron en la nube, pero tenían cambios aquí que aún no se habían subido. Plainva los conservó y los vuelve a subir; elimínalos aquí si quieres que desaparezcan: {{names}}",
     "deletionsKeptLocalEdits_other": "{{count}} archivos se eliminaron en la nube, pero tenían cambios aquí que aún no se habían subido. Plainva los conservó y los vuelve a subir; elimínalos aquí si quieres que desaparezcan: {{names}}",
+    "workspaceChangesRefused": "No está permitido en este espacio: {{names}}. El cambio se queda en este dispositivo como bifurcación local y no llega a los demás; consúltalo en «Integridad y bifurcaciones locales».",
+    "workspacePullGuardTitle": "Eliminados en otro dispositivo",
+    "workspacePullGuardBody": "Otro dispositivo de este espacio ha eliminado {{n}} de {{total}} archivos. ¿Eliminarlos también aquí?",
+    "workspacePullGuardBodyLocal": "Otro dispositivo de este espacio ha eliminado {{n}} de {{total}} archivos. ¿Eliminarlos también aquí? {{local}} de ellos no se pueden volver a poner a disposición de los demás desde aquí: si se conservan, se quedan solo en este dispositivo, como su propia versión.",
+    "workspacePullGuardKeepHere": "Conservar solo en este dispositivo",
+    "workspacePullGuardKeepMixed": "Conservar",
+    "workspacePullGuardKeptLocal": "Conservados: {{count}}, de ellos {{local}} solo en este dispositivo, como su propia versión.",
+    "workspaceRestorePending": "No está permitido y el original aún no ha vuelto aquí: {{names}}. Plainva lo vuelve a intentar en cada sincronización; hasta entonces, el cambio espera.",
     "downloading": "Descargando cambios… {{current}}/{{total}}",
     "uploading": "Subiendo cambios… {{current}}/{{total}}",
     "idle": "Sincronizar ahora (incluye reintento)",
@@ -7562,7 +7571,8 @@
     "forkReason": {
       "permission-denied": "No se permitía escribir: el cambio queda al lado como copia.",
       "parallel-write": "Escrito al mismo tiempo: ambas versiones quedan una junto a otra.",
-      "path-collision": "La ruta estaba ocupada: la copia lleva su propio nombre."
+      "path-collision": "La ruta estaba ocupada: la copia lleva su propio nombre.",
+      "kept-local": "Eliminado en otro dispositivo: se conserva aquí como versión propia de este dispositivo."
     },
     "quarantineEntries_one": "1 entrada",
     "quarantineEntries_many": "{{count}} entradas",
@@ -7930,6 +7940,7 @@
     "verifierPlaceholder": "Tu nombre"
   },
   "window": {
+    "closedBeforeSaved": "La última vez Plainva se cerró antes de que todas las ventanas terminaran de guardar. Revisa las notas que editabas por última vez.",
     "openInNewWindow": "Abrir en una ventana nueva",
     "popOutCompose": "Abrir en su propia ventana",
     "pinOnTop": "Siempre visible",

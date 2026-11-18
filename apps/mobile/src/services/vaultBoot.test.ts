@@ -147,6 +147,8 @@ describe("opening a vault in a picked folder", () => {
     const spied: VaultFolderNative = {
       ...plugin,
       write: async (o) => { changes.push(`write ${o.path}`); return plugin.write(o); },
+      // A large file goes in parts: the write begins here.
+      begin: async (o) => { changes.push(`begin ${o.path}`); return plugin.begin(o); },
       mkdir: async (o) => { changes.push(`mkdir ${o.path}`); return plugin.mkdir(o); },
       delete: async (o) => { changes.push(`delete ${o.path}`); return plugin.delete(o); },
       rename: async (o) => { changes.push(`rename ${o.from}`); return plugin.rename(o); },

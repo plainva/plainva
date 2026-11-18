@@ -279,9 +279,14 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
      * snapshot afterwards reads the disk again and never writes back an entry
      * that is gone (review 17.11.).
      */
-    forgetSeen(dir?: string): void {
-      if (dir === undefined) { seen.clear(); return; }
-      for (const file of [...seen.keys()]) if (file.startsWith(`${dir}/`)) seen.delete(file);
+    forgetSeen(dir?: string): Promise<void> {
+      // The files pictured, and those with work in their lane: a write under way took its file out of the picture until it lands.
+      const files = [...new Set([...seen.keys(), ...lanes.keys()])].filter((file) => dir === undefined || file.startsWith(`${dir}/`));
+      // At once: no snapshot that starts now builds on the picture…
+      for (const file of files) seen.delete(file);
+      // …and in each file's lane, behind what is already in it (review 18.11.): a
+      // write under way stores its picture when it lands, and that one goes too.
+      return Promise.all(files.map((file) => serial(file, async () => { seen.delete(file); }))).then(() => {});
     },
 
     /** The session's snapshot of the note. Rejects where the file is there and unreadable: an older draft is never written over. */
