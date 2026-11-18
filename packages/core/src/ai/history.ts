@@ -152,7 +152,23 @@ export interface RunMeta {
   writes?: RunWrites;
   /** The scripts the run started; absent when it started none. */
   scripts?: RunScripts;
+  /**
+   * The notes the run's answer named as its source although the conversation
+   * never had them (plan Oberfläche O7, E2), as a click asked for them —
+   * checked once, as the run ended (`unfoundedAmongShown` in the UI). At most
+   * `RUN_UNFOUNDED_CAP`; absent when there were none.
+   */
+  unfounded?: string[];
+  /**
+   * The check above could not be made (review O7, fourth round): the vault
+   * did not answer in time, or failed. Absent where it was made — with or
+   * without a finding — or there was nothing to check.
+   */
+  unfoundedUnchecked?: true;
 }
+
+/** How many unfounded citations a run keeps: the warning names a few; the rest is the same finding. */
+export const RUN_UNFOUNDED_CAP = 20;
 
 /**
  * What a run did with the vault's scripts (plan KI-Harness P5.5): which
@@ -548,6 +564,8 @@ function readRun(raw: unknown): RunMeta[] {
       ...(readRunMcp(r.mcp) ? { mcp: readRunMcp(r.mcp)! } : {}),
       ...(readRunWrites(r.writes) ? { writes: readRunWrites(r.writes)! } : {}),
       ...(readRunScripts(r.scripts) ? { scripts: readRunScripts(r.scripts)! } : {}),
+      ...(strings(r.unfounded).length ? { unfounded: strings(r.unfounded).slice(0, RUN_UNFOUNDED_CAP) } : {}),
+      ...(r.unfoundedUnchecked === true ? { unfoundedUnchecked: true as const } : {}),
     },
   ];
 }

@@ -399,6 +399,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     resolveLink: (target) => input.query.resolveNotePath(target),
     // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
     fileNames: () => input.query.linkTargets(),
+    // Where an answer's links lead: the files those links can name, never the whole list (review O7, third round).
+    filesNamed: (targets) => input.query.linkTargetsNamed(targets),
     encrypted: input.encrypted,
   });
   currentPolicy = policy;

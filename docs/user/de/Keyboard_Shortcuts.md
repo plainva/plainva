@@ -1,6 +1,6 @@
 # Tastenkürzel
 
-Stand: 2026-10-22
+Stand: 2026-11-16
 
 Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du jederzeit das Tastenkürzel-Fenster. Es gruppiert alle Kürzel und Maus-Gesten in Bereiche, zwischen denen Du oben mit den Chips wechselst, hat ein Suchfeld über alle Bereiche und erkennt Deine Plattform automatisch: `Strg`/`Alt` unter Windows und Linux, `⌘`/`⌥` unter macOS. In den Tabellen unten steht `Strg` daher für `⌘` unter macOS und `Alt` für `⌥`.
 
@@ -10,7 +10,7 @@ Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du 
 |---|---|
 | `Strg+P` (oder `Strg+Umschalt+P`) | Befehlspalette öffnen |
 | `Strg+O` | Schnellwechsel – Dateien suchen und öffnen |
-| `Strg+J` | KI fragen – den Begleiter öffnen (nur solange die KI eingeschaltet ist, siehe [KI-Assistent](AI_Assistant.md)) |
+| `Strg+J` | KI fragen – das Gespräch in der rechten Seitenleiste öffnen (nur solange die KI eingeschaltet ist, siehe [KI-Assistent](AI_Assistant.md)) |
 | `Strg+,` | Einstellungen öffnen |
 | `Strg+Plus` / `Strg+Minus` | Oberfläche vergrößern / verkleinern (80–150 %) |
 | `Strg+0` | Zoom auf 100 % zurücksetzen |

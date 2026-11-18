@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-11-17
+Stan na: 2026-11-18
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -184,6 +184,10 @@ Najpierw wybierasz, dokąd import zapisuje: do **podfolderu** otwartego vaultu a
 Źródła wymagające dostępu — Notion przez API — proszą w kreatorze o token. Obowiązuje on dla tego jednego przebiegu i nie jest zapisywany.
 
 Szczegóły każdego źródła znajdziesz w [Import z innej aplikacji](Import.md).
+
+## Pierwsze uruchomienie
+
+Przy pierwszym uruchomieniu aplikacja pyta, jak chcesz zacząć: **Zacznij lokalnie**, **Połącz sejf w chmurze** lub **Mam już vault**. Po **Zacznij lokalnie** wybierasz strukturę startową; wycieczka po Plainva jest na górze i ma oznaczenie **Polecane na start**. **Mam już vault** wyjaśnia dla Twojego telefonu, gdzie może leżeć vault, i prowadzi dalej: **Folder na tym urządzeniu** otwiera folder dostępny dla telefonu (w iOS w aplikacji Pliki, w Androidzie na przykład folder Obsidian lub synchronizowany przez Syncthing), **Połącz istniejący vault** pobiera go z chmury. Jeśli Twój vault jest tylko na komputerze, najpierw skonfiguruj tam synchronizację z chmurą. Jeśli anulujesz, wybór zostaje na ekranie. Vault, który jest jeszcze pusty, pokazuje na **Start** dokładnie jedno zaproszenie: **Napisz swoją pierwszą notatkę**, z przyciskiem **Nowa notatka**. Pod kartami **Importuj z Notion, Evernote, Obsidian …** prowadzi do importu, a plainva.com i **Instrukcja obsługi** mówią więcej. Jeśli vault synchronizowany z chmurą jest jeszcze pusty, do zakończenia pierwszej synchronizacji po otwarciu **Start** pokazuje zamiast tego **Twój vault się wczytuje**. Jeśli ta synchronizacja się nie uda, vault pokazuje to, co zawiera, a stan synchronizacji mówi dlaczego; komunikat nie wróci, dopóki nie otworzysz vaultu ponownie. Jeśli struktury startowej nie da się utworzyć w całości, aplikacja o tym mówi i usuwa to, co zapisała i co nadal jest takie, jak to zapisała; plik zmieniony w międzyczasie zostaje. **Spróbuj ponownie** tworzy wtedy strukturę w całości, nawet jeśli nie wszystko dało się usunąć – przeszkadza w tym tylko zmieniony plik.
 
 ## Synchronizacja
 

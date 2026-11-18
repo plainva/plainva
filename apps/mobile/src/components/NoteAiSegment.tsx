@@ -3,6 +3,7 @@ import { AiConversation, AiSessionContext, noteDisplayName } from "@plainva/ui";
 import { focusAiNote, getMobileAiSession, openAiLink, openAiNotePick, openAiNoteTarget, openAiSettings } from "../services/ai/mobileAi";
 import type { MobileVault } from "../services/vaultService";
 import { editorSelectionReader } from "../services/editorSelection";
+import { useAiSetupDoor } from "../hooks/useAiSetupDoor";
 
 /**
  * The AI segment of the note's context (plan KI-Harness §19.1): the desktop
@@ -14,6 +15,8 @@ export function NoteAiSegment({ vault, path, onOpenNote }: { vault: MobileVault;
   useEffect(() => {
     focusAiNote(path);
   }, [path]);
+  // "Set up" opens the three-step setup while a step is missing (plan Oberfläche O7, T9).
+  const setup = useAiSetupDoor(openAiSettings);
   return (
     <AiSessionContext.Provider value={getMobileAiSession()}>
       <div className="m-ai-segment" data-testid="ai-context-segment">
@@ -21,11 +24,12 @@ export function NoteAiSegment({ vault, path, onOpenNote }: { vault: MobileVault;
           selection={editorSelectionReader}
           dress="sheet"
           activeNote={{ path, title: noteDisplayName(path) }}
-          onOpenNote={(target) => openAiNoteTarget(vault, target, onOpenNote)}
+          onOpenNote={(target, kind) => openAiNoteTarget(vault, target, onOpenNote, kind)}
           onOpenUrl={openAiLink}
-          onOpenSettings={openAiSettings}
+          onOpenSettings={setup.open}
           onPickNote={() => openAiNotePick("pin")}
         />
+        {setup.sheet}
       </div>
     </AiSessionContext.Provider>
   );

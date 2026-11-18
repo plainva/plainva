@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-11-17
+Stand: 2026-11-18
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -184,6 +184,10 @@ Du legst zuerst fest, wohin geschrieben wird: in einen **Unterordner** des geöf
 Quellen, die einen Zugang brauchen — Notion über die API —, fragen im Assistenten nach einem Token. Der gilt für diesen einen Lauf und wird nicht gespeichert.
 
 Die Einzelheiten zu jeder Quelle stehen unter [Aus einer anderen App importieren](Import.md).
+
+## Erster Start
+
+Beim ersten Start fragt die App, wie Du anfangen willst: **Lokal starten**, **Mit Cloud verbinden** oder **Ich habe schon einen Vault**. Nach **Lokal starten** wählst Du die Startstruktur; die Plainva-Tour steht oben und trägt **Empfohlen für den Einstieg**. **Ich habe schon einen Vault** sagt für Dein Telefon, wo ein Vault liegen kann, und führt weiter: **Ein Ordner auf diesem Gerät** öffnet einen Ordner, den das Telefon erreicht (unter iOS in der Dateien-App, unter Android etwa den von Obsidian oder Syncthing), **Bestehenden Vault verbinden** holt ihn aus der Cloud. Liegt Dein Vault nur auf dem Rechner, richtest Du dort zuerst den Sync mit einer Cloud ein. Brichst Du ab, bleibt die Auswahl stehen. Ein Vault, der noch leer ist, zeigt auf **Home** genau eine Aufforderung: **Schreib Deine erste Notiz**, mit dem Knopf **Neue Notiz**. Unter den Karten führt **Aus Notion, Evernote, Obsidian … importieren** in den Import; plainva.com und das **Handbuch** erzählen mehr. Ist ein Vault aus der Cloud noch leer, steht auf **Home**, bis der erste Abgleich nach dem Öffnen fertig ist, **Dein Vault wird geladen**. Scheitert dieser Abgleich, zeigt der Vault, was er hat, und der Sync-Status sagt, warum; bis Du den Vault neu öffnest, kommt der Hinweis nicht wieder. Lässt sich die Startstruktur nicht ganz anlegen, sagt die App das und nimmt zurück, was sie dabei geschrieben hat und was noch so dasteht; eine Datei, die inzwischen geändert wurde, bleibt. **Erneut versuchen** legt die Struktur dann ganz an, auch wenn sich nicht alles entfernen ließ – nur eine geänderte Datei steht dem im Weg.
 
 ## Synchronisation
 

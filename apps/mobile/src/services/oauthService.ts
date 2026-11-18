@@ -15,7 +15,7 @@ import {
 import { getPlatformServices, getVaultTemplates, logDiagnostic, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider } from "./syncService";
+import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider, type VaultSignInAdopter } from "./syncService";
 import { adoptAddedVaultSignIn, beginMobileSignIn, dropboxDeviceKey } from "./accountSignIn";
 import { fileGrantProbe, getAccountToken, tokenCoversService } from "./accountBroker";
 import { loadCloudAccounts } from "./cloudAccountsStore";
@@ -321,7 +321,7 @@ async function finishConnectSteps(rootFolder: string): Promise<void> {
 }
 
 /** A new vault's Google or Microsoft sign-in becomes a card (K4b); a run inside a card already has one. */
-function adoptFor(access: OAuthAccess | undefined, provider: MobileSyncProvider, context?: ServiceConnectionContext): ((vaultId: string) => Promise<void>) | undefined {
+function adoptFor(access: OAuthAccess | undefined, provider: MobileSyncProvider, context?: ServiceConnectionContext): VaultSignInAdopter | undefined {
   if (!access || context?.runId || (provider.provider !== "drive" && provider.provider !== "onedrive")) return undefined;
   return (vaultId) => adoptAddedVaultSignIn(vaultId, access, provider);
 }

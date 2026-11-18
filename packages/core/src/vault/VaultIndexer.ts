@@ -516,6 +516,12 @@ export class VaultIndexer {
   private readClock = 0;
   private readonly writtenFrom = new Map<string, number>();
   /**
+   * Paths announced as new outside a pass (a move no queue took,
+   * `relocatePathInIndex`) and the tick of it, kept while a pass is under
+   * way: a pass that began before does not announce them a second time.
+   */
+  private readonly announcedNewAt = new Map<string, number>();
+  /**
    * The journal marks of the readings under way, how many of each
    * (`takeChangeMark`): the change journal is trimmed up to the oldest of
    * them and no further. A mark being asked for counts as 0.
@@ -818,6 +824,7 @@ export class VaultIndexer {
       if (--this.openPasses === 0) {
         this.touchedAt.clear();
         this.writtenFrom.clear();
+        this.announcedNewAt.clear();
       }
     }
   }
@@ -1986,6 +1993,35 @@ export class VaultIndexer {
    * a file gone is `inspectPathIn`, which asks first whether the path is still
    * its to judge.
    */
+  /**
+   * Whether a move of `from` the app made never reached the sync queue: the
+   * queue's `queueRename` takes the sync rows and the queued uploads of
+   * `from` along to the destination in one transaction, so a synced row or
+   * an upload still waiting under `from` says the move was not queued. A
+   * vault that never synced has neither, and its moves are followed as
+   * before; one that no longer syncs hears of the move and queues nothing.
+   */
+  private async moveNeverQueued(from: string): Promise<boolean> {
+    const under = `(path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY)`;
+    const args = [from, from + "/", from + "/"];
+    try {
+      // A row the remote knows: synced before (the index writes rows of its own, with neither).
+      const row = await this.dbAdapter.queryOne<{ n: number }>(
+        `SELECT 1 AS n FROM sync_state WHERE ${under} AND (base_sha256 IS NOT NULL OR remote_etag IS NOT NULL) LIMIT 1`,
+        args
+      );
+      if (row) return true;
+      const write = await this.dbAdapter.queryOne<{ n: number }>(
+        `SELECT 1 AS n FROM offline_queue WHERE operation = 'write' AND (file_path = ? COLLATE BINARY OR substr(file_path, 1, length(?)) = ? COLLATE BINARY) LIMIT 1`,
+        args
+      );
+      return !!write;
+    } catch {
+      // A store without these tables (an index without sync): nothing was to be queued.
+      return false;
+    }
+  }
+
   async removePathFromIndex(path: string): Promise<void> {
     // Keyed on the PATH, not on sha256(path). `path` is UNIQUE, so this hits
     // exactly the row being de-indexed — including one whose id went stale when
@@ -2031,6 +2067,16 @@ export class VaultIndexer {
    */
   async relocatePathInIndex(from: string, to: string): Promise<void> {
     if (!from || !to || from === to) return;
+    // A move the queue never got (Fehlerliste 0.9.0 A16): its entry was given
+    // up after the file was on disk (owedQueueEntries.ts), and the shell
+    // carried on because the file landed. Following the rows told nobody: the
+    // remote kept the old file and never got the new one, and the next
+    // listing brought the old one back here beside the new. Such a move is
+    // still followed (the rows keep what they know), and reported as what the
+    // disk shows besides — the old path gone, the new one new — the way the
+    // next full scan would have found it.
+    const unqueued = await this.moveNeverQueued(from);
+    let moved: string[] = [];
     const fromPrefix = from + "/";
     const toPrefix = to + "/";
     const move = (p: string): string => (p === from ? to : to + p.substring(from.length));
@@ -2069,13 +2115,24 @@ export class VaultIndexer {
         await tx.execute(`UPDATE fts_notes SET path = ? WHERE rowid = ? AND path IS NOT ?`, [path, Number(num), path]);
       }
       // Asked only while a pass is under way: nobody else holds an older reading.
+      // A move no queue took is reported below, its source by this call: the
+      // pass leaves the destination alone either way.
       if (this.openPasses > 0) {
         for (const { path } of arrived) {
-          this.touch(back(path));
+          if (!unqueued) this.touch(back(path));
           this.touch(path);
         }
       }
+      if (unqueued) await this.markRemoved(arrived.map(({ path }) => back(path)), tx);
+      moved = arrived.map(({ path }) => path);
     });
+    if (unqueued && moved.length > 0) {
+      this.reportRemoved(moved.map(back), this.touchClock);
+      for (const path of moved) {
+        if (this.openPasses > 0) this.announcedNewAt.set(path, ++this.touchClock);
+        this.options?.onNewLocalFile?.(path);
+      }
+    }
   }
 
   /**
@@ -2415,7 +2472,10 @@ export class VaultIndexer {
       for (const m of pass.externalMods) this.options.onExternalModification(m.path, m.oldHash, m.newHash);
     }
     if (this.options?.onNewLocalFile) {
-      for (const path of pass.newLocalFiles) this.options.onNewLocalFile(path);
+      for (const path of pass.newLocalFiles) {
+        if ((this.announcedNewAt.get(path) ?? 0) > pass.since) continue;
+        this.options.onNewLocalFile(path);
+      }
     }
     pass.externalMods = [];
     pass.newLocalFiles = [];

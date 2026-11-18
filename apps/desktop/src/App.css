@@ -459,6 +459,10 @@ option {
    idle panel shows nothing. `--pv-side-pad-end` takes the reserved room off the
    sections' own inset on that side: gutter plus inset is the column's margin. */
 .pv-side-right { overflow-x: hidden; overflow-y: scroll; }
+/* The column while the conversation holds it (plan Oberfläche O7, M6): no scrolling of its own — the week strip on
+   top, the conversation in the rest of the height scrolls inside itself. */
+.pv-side-right.pv-side-right--ai { display: flex; flex-direction: column; overflow: hidden; width: 100%; height: 100%; min-height: 0; background: var(--bg-secondary); }
+.pv-side-week { flex: none; padding: var(--space-2) var(--space-2) var(--space-1); border-bottom: 1px solid var(--border-color-light); }
 .pv-side-right .pv-side-section { --pv-side-pad-end: 2px; }
 /* The sections lose their generous inset below the comfortable step. Through
    the TOKEN, which the head and the body both read — the rule this replaces
@@ -564,7 +568,7 @@ option {
 .pv-peek-window { position: fixed; left: var(--peek-x); top: var(--peek-y); width: var(--peek-w); height: var(--peek-h); z-index: calc(var(--z-floating) + var(--peek-order, 0)); display: flex; flex-direction: column; overflow: hidden; }
 /* A window a dialog opened belongs to that dialog and lies in front of it. */
 .pv-peek-window[data-over-dialog] { z-index: calc(var(--z-modal) + var(--peek-order, 0)); }
-.pv-peek-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); }
+.pv-peek-card { background: var(--float-surface, var(--bg-primary)); border: 1px solid var(--float-edge, var(--border-color)); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); }
 .pv-peek-head { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color); background: var(--surface-container-low); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
 .pv-peek-grip { display: flex; align-items: center; color: var(--text-faint); flex-shrink: 0; }
 .pv-peek-nav { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }

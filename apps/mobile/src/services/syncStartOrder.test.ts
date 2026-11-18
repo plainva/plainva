@@ -160,7 +160,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, disconnectFiles, getSyncStatus, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
+import { connectProvider, disconnectFiles, getSyncStatus, isFirstPullPending, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -452,5 +452,42 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     const joined = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
     await startSyncIfConfigured(joined).catch(() => undefined);
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
+  });
+});
+
+describe("the first pull of a vault (O8: a cloud vault arriving is not an empty one)", () => {
+  it("is pending from the worker's start until its first cycle is done, and nothing without a worker", async () => {
+    expect(isFirstPullPending(getSyncStatus())).toBe(false);
+    // A vault opened afresh: what earlier tests' pulls of `vault` failed does not carry over.
+    await startSyncIfConfigured({ ...vault } as MobileVault);
+    expect(getSyncStatus().firstPullDone).toBe(false);
+    expect(isFirstPullPending(getSyncStatus())).toBe(true);
+    const plain = state.workers[state.workers.length - 1] as { onFirstCycleComplete?: (outcome: { skipped: string[]; conflictCopies: string[] }) => void };
+    plain.onFirstCycleComplete!({ skipped: [], conflictCopies: [] });
+    expect(getSyncStatus().firstPullDone).toBe(true);
+    expect(isFirstPullPending(getSyncStatus())).toBe(false);
+    await stopSyncAndDrain();
+    expect(getSyncStatus().firstPullDone).toBeNull();
+  });
+  it("the first failure ends \"being loaded\" for the session, a new start included (third review of O8)", async () => {
+    const opened = { ...vault } as MobileVault;
+    await startSyncIfConfigured(opened);
+    expect(isFirstPullPending(getSyncStatus())).toBe(true);
+    type W = { onStatusChange?: (status: "idle" | "syncing" | "retrying" | "error", message?: string, reason?: unknown, retryAt?: number) => void };
+    const first = state.workers[state.workers.length - 1] as W;
+    first.onStatusChange!("syncing");
+    first.onStatusChange!("retrying", "offline", undefined, Date.now() + 1000);
+    first.onStatusChange!("syncing");
+    expect(getSyncStatus().firstPullFailed).toBe(true);
+    expect(isFirstPullPending(getSyncStatus())).toBe(false);
+    // The sync starts again for the same opened vault (settings, a return to the app): Home stays as it is.
+    await stopSyncAndDrain();
+    await startSyncIfConfigured(opened);
+    expect(getSyncStatus().firstPullDone).toBe(false);
+    expect(isFirstPullPending(getSyncStatus())).toBe(false);
+    // The vault opened again (a switch, a reload) is a pull of its own.
+    await stopSyncAndDrain();
+    await startSyncIfConfigured({ ...vault } as MobileVault);
+    expect(isFirstPullPending(getSyncStatus())).toBe(true);
   });
 });

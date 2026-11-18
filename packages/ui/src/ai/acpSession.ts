@@ -256,9 +256,11 @@ export interface AiAcpState {
   session: AiAcpSession | null;
   /** The last sessions in this vault, newest first. */
   sessions: AcpSessionEntry[];
+  /** Plainva's tools would go along with a start now — what the start itself asks (`toolbox`), not the switch alone. */
+  tools: boolean;
 }
 
-export const NO_ACP: AiAcpState = { available: false, loaded: false, vault: false, encrypted: false, agents: [], found: [], session: null, sessions: [] };
+export const NO_ACP: AiAcpState = { available: false, loaded: false, vault: false, encrypted: false, agents: [], found: [], session: null, sessions: [], tools: false };
 
 export type AcpAddResult = { ok: true; id: string } | { ok: false; problem: "declined" | "failed" };
 
@@ -382,9 +384,11 @@ export class AiAcp {
   async refresh(): Promise<void> {
     const host = this.host;
     if (!host) return;
-    const generation = this.generation;
+    // Each reading its own generation (review O7, third round): of two that overlap — the MCP switch turned twice in a
+    // row —, the later one's answer stands, however late the first one's comes.
+    const generation = ++this.generation;
     try {
-      const [registered, records, sessions] = await Promise.all([host.native.agents(), host.store.load().catch(() => ({})), this.vault ? this.vault.store.sessions().catch(() => []) : Promise.resolve([])]);
+      const [registered, records, sessions, toolbox] = await Promise.all([host.native.agents(), host.store.load().catch(() => ({})), this.vault ? this.vault.store.sessions().catch(() => []) : Promise.resolve([]), host.toolbox().catch(() => null)]);
       const agents: AiAcpAgent[] = registered.map((entry) => {
         const record = (records as Record<string, { label: string; target: string; seen?: AcpAgentSeen }>)[entry.id];
         // A record belongs to the command it was made for: another one under the same id starts without a name and without a past.
@@ -403,11 +407,11 @@ export class AiAcp {
         if (file) found.push({ key: known.key, name: known.name, program: file, args: [...known.args] });
       }
       if (generation !== this.generation) return;
-      this.set({ available: true, loaded: true, agents, found, sessions: [...sessions].reverse(), encrypted: this.vault ? this.vault.access.encrypted() : false });
+      this.set({ available: true, loaded: true, agents, found, sessions: [...sessions].reverse(), encrypted: this.vault ? this.vault.access.encrypted() : false, tools: toolbox !== null });
     } catch {
       if (generation !== this.generation) return;
       // A native side that does not answer — a browser build has none — hosts nothing, and the surfaces show nothing for it.
-      this.set({ available: false, loaded: true, agents: [], found: [] });
+      this.set({ available: false, loaded: true, agents: [], found: [], tools: false });
     }
   }
 

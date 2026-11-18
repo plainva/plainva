@@ -139,28 +139,34 @@ describe("S3SyncTarget", () => {
     expect(seq[1].url).toBe("http://127.0.0.1:9000/vault/a.md");
   });
 
-  it("deletes a folder by sweeping all keys under its prefix", async () => {
-    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
-      if (init.method === "GET") {
-        return res({ body: listXml([{ key: "dir/a.md" }, { key: "dir/sub/b.md" }]) });
-      }
+  it("never sweeps a folder that holds files; one that holds only folder markers loses them (F44)", async () => {
+    const holding = makeTarget(async (_url: string, init: any) => {
+      if (init.method === "GET") return res({ body: listXml([{ key: "dir/a.md" }, { key: "dir/sub/b.md" }]) });
       return res({ status: 204 });
     });
-    await target.push({ id: 1, file_path: "dir", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 });
+    await expect(
+      holding.target.push({ id: 1, file_path: "dir", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 })
+    ).rejects.toThrow("the folder holds files");
+    expect(calls(holding.fetchFn).filter((c) => c.method === "DELETE")).toEqual([]);
+    expect(calls(holding.fetchFn)[0].url).toContain("prefix=dir%2F");
 
-    const deletes = calls(fetchFn).filter((c) => c.method === "DELETE");
-    expect(deletes.map((c) => c.url)).toEqual([
-      "http://127.0.0.1:9000/vault/dir/a.md",
-      "http://127.0.0.1:9000/vault/dir/sub/b.md",
+    const empty = makeTarget(async (_url: string, init: any) => {
+      if (init.method === "GET") return res({ body: listXml([{ key: "dir/" }, { key: "dir/sub/" }]) });
+      return res({ status: 204 });
+    });
+    await empty.target.push({ id: 1, file_path: "dir", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 0 });
+    expect(calls(empty.fetchFn).filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual([
+      "http://127.0.0.1:9000/vault/dir/sub/",
+      "http://127.0.0.1:9000/vault/dir/",
       "http://127.0.0.1:9000/vault/dir",
     ]);
-    const list = calls(fetchFn)[0];
-    expect(list.url).toContain("prefix=dir%2F");
   });
 
   it("renames a file via signed copy + delete and returns the copy ETag", async () => {
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
-      if (init.method === "HEAD") return res({ status: 200 });
+      // Only the source is there; the destination is free (A1: a move never copies over an object).
+      if (init.method === "HEAD") return res({ status: String(url).includes("old%20name") ? 200 : 404 });
+      if (init.method === "GET") return res({ body: listXml([]) });
       if (init.method === "PUT") {
         return res({ body: `<CopyObjectResult><ETag>&quot;new-etag&quot;</ETag></CopyObjectResult>` });
       }
@@ -178,19 +184,22 @@ describe("S3SyncTarget", () => {
 
     expect(result).toEqual({ etag: "new-etag" });
     const seq = calls(fetchFn);
-    expect(seq.map((c) => c.method)).toEqual(["HEAD", "PUT", "DELETE"]);
-    expect(seq[1].url).toBe("http://127.0.0.1:9000/vault/new%20name.md");
-    expect(seq[1].init.headers["x-amz-copy-source"]).toBe("/vault/old%20name.md");
+    // The destination asked first (object, then anything below it), then the source.
+    expect(seq.map((c) => c.method)).toEqual(["HEAD", "GET", "HEAD", "PUT", "DELETE"]);
+    expect(seq[0].url).toBe("http://127.0.0.1:9000/vault/new%20name.md");
+    expect(seq[3].url).toBe("http://127.0.0.1:9000/vault/new%20name.md");
+    expect(seq[3].init.headers["x-amz-copy-source"]).toBe("/vault/old%20name.md");
     // x-amz-* headers must be signed.
-    expect(seq[1].init.headers["Authorization"]).toContain("x-amz-copy-source");
-    expect(seq[2].url).toBe("http://127.0.0.1:9000/vault/old%20name.md");
+    expect(seq[3].init.headers["Authorization"]).toContain("x-amz-copy-source");
+    expect(seq[4].url).toBe("http://127.0.0.1:9000/vault/old%20name.md");
   });
 
   it("renames a folder by copy+delete of every key under the old prefix", async () => {
     const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
       if (init.method === "HEAD") return res({ status: 404 });
       if (init.method === "GET") {
-        return res({ body: listXml([{ key: "old/a.md" }, { key: "old/sub/b.md" }]) });
+        // Keys only under the old prefix: the destination is free.
+        return res({ body: listXml(String(url).includes("prefix=old%2F") ? [{ key: "old/a.md" }, { key: "old/sub/b.md" }] : []) });
       }
       if (init.method === "PUT") return res({ body: "<CopyObjectResult></CopyObjectResult>" });
       return res({ status: 204 });

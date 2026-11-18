@@ -465,6 +465,85 @@ export async function adoptFilesSignIn(
   return { ...finished, completed };
 }
 
+/** What `adoptFilesSignInUndoable` needs beyond a sign-in: to see a grant and to take one away. */
+export interface SignInTakeBackPorts {
+  /** The grant a card holds now, or null. */
+  loadGrant(cardId: string): Promise<unknown | null>;
+  clearGrant(cardId: string): Promise<void>;
+}
+
+/** Parts of a take-back that could not be done — said, never swallowed. */
+export class SignInTakeBackError extends Error {
+  constructor(readonly causes: unknown[]) {
+    super(`the sign-in of a failed attempt could not be taken back completely (${causes.length} part(s))`);
+    this.name = "SignInTakeBackError";
+  }
+}
+
+/**
+ * `adoptFilesSignIn` for a vault being made, with a way back (fifth review of
+ * O8): a sign-in that does not end with the files active is taken back at
+ * once, and the caller gets `takeBack` for a failure after it (listing the
+ * vault, the rest of the writing). Taken back is what THIS attempt made and
+ * only that: the cards are put back as they were before it — a card it added
+ * goes, a card that was there keeps what it had — and a grant it wrote for a
+ * card that held none goes with its refresh token. A grant that was there
+ * before stays. A part that cannot be taken back is thrown as
+ * `SignInTakeBackError` from `takeBack`; after a failed sign-in it goes to
+ * `report`, and the sign-in's own error is the one thrown.
+ */
+export async function adoptFilesSignInUndoable(
+  input: PreVaultSignIn,
+  ports: CompleteSignInPorts & BindSignInPorts & SignInTakeBackPorts,
+  options: { notGranted: string; report: (error: unknown) => void },
+): Promise<{ record: CloudAccountRecord; takeBack: () => Promise<void> }> {
+  const before = structuredClone(await ports.loadCards());
+  const looked = new Set<string>();
+  const created = new Set<string>();
+  let cardsWritten = false;
+  const tracked: CompleteSignInPorts & BindSignInPorts = {
+    ...ports,
+    saveGrant: async (cardId, token) => {
+      if (!looked.has(cardId)) {
+        looked.add(cardId);
+        if ((await ports.loadGrant(cardId)) === null) created.add(cardId);
+      }
+      await ports.saveGrant(cardId, token);
+    },
+    saveCards: async (records) => {
+      await ports.saveCards(records);
+      cardsWritten = true;
+    },
+  };
+  const takeBack = async () => {
+    const causes: unknown[] = [];
+    if (cardsWritten) {
+      try {
+        await ports.saveCards(before);
+      } catch (error) {
+        causes.push(error);
+      }
+    }
+    for (const cardId of created) {
+      try {
+        await ports.clearGrant(cardId);
+      } catch (error) {
+        causes.push(error);
+      }
+    }
+    if (causes.length) throw new SignInTakeBackError(causes);
+  };
+  try {
+    const finished = await adoptFilesSignIn(input, tracked);
+    const files = finished.rows.find((row) => row.service === "files");
+    if (files?.state !== "active") throw new Error(files?.detail ?? options.notGranted);
+    return { record: finished.record, takeBack };
+  } catch (error) {
+    await takeBack().catch(options.report);
+    throw error;
+  }
+}
+
 async function renewPreVaultGrant(input: PreVaultSignIn, refreshToken: string, scope: string, fetchFn: FetchFn): Promise<SignInConsent> {
   const { clientId, clientSecret } = input.access;
   const renewed = input.family === "google"

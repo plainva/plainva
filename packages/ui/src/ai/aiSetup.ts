@@ -1,4 +1,4 @@
-import type { AiProfileSlot } from "@plainva/core";
+import { BUILTIN_PROVIDERS, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
 import { configuredProviders } from "./aiSettingsModel";
 import type { AiState } from "./aiSession";
 
@@ -39,4 +39,47 @@ export function takeAiSettingsIntent(): AiSettingsIntent | null {
   const intent = pendingIntent;
   pendingIntent = null;
   return intent;
+}
+
+/**
+ * The setup in three steps (plan Oberfläche O7, T9; mockup M7): what does the
+ * AI compute with (1), the way in — a key, the device's own model, an
+ * address (2) —, and a first "Hello" that ends in the conversation (3). The
+ * phone draws it as one sheet; this is what the sheet offers and where it
+ * starts, decided once so a test can hold it.
+ */
+export type AiSetupKind = "device" | "cloud" | "server";
+
+export interface AiSetupOffer {
+  /** The three answers to "What should the AI compute with?", in this order; "device" only where the system has a model. */
+  kinds: AiSetupKind[];
+  /** The system's own model, where this device has one. */
+  device: ProviderInfo | null;
+  /** The providers that take a key of the user's own: the clouds first, then the gateways. */
+  cloud: ProviderInfo[];
+}
+
+export function aiSetupOffer(state: Pick<AiState, "settings" | "keys" | "tests">, platformOs: "ios" | "android" | null): AiSetupOffer {
+  const configured = configuredProviders(state as AiState).map((row) => row.provider);
+  const device =
+    configured.find((p) => p.kind === "platform-device") ?? BUILTIN_PROVIDERS.find((p) => p.kind === "platform-device" && p.os === platformOs) ?? null;
+  const cloud = [...BUILTIN_PROVIDERS.filter((p) => p.kind === "cloud"), ...BUILTIN_PROVIDERS.filter((p) => p.kind === "gateway")];
+  return { kinds: [...(device ? (["device"] as const) : []), "cloud", "server"], device, cloud };
+}
+
+/**
+ * Where the setup begins: at step 1 while no provider is set up; at step 3 —
+ * the model and the first "Hello" — once one is there that can answer but the
+ * profile new conversations start with names no model (`aiSetupStep`
+ * "model"), with that provider chosen. A provider that is set up but cannot
+ * answer — its key is missing, its last test failed — begins at step 2 with
+ * that provider, so it can be fixed or replaced there (review O7, O2): the
+ * setup never begins behind a step that has to be done again.
+ */
+export function aiSetupStart(state: Pick<AiState, "settings" | "keys" | "tests">): { step: 1 | 2 | 3; providerId: string | null } {
+  if (aiSetupStep(state) !== "model") return { step: 1, providerId: null };
+  const rows = configuredProviders(state as AiState);
+  const ready = rows.find((row) => (!row.needsKey || row.hasKey) && state.tests[row.provider.id]?.state !== "failed");
+  if (ready) return { step: 3, providerId: ready.provider.id };
+  return { step: rows.length ? 2 : 1, providerId: rows[0]?.provider.id ?? null };
 }

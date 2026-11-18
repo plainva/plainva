@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Última actualización: 2026-10-22
+Última actualización: 2026-11-16
 
 Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir en cualquier momento la ventana de atajos. Agrupa todos los atajos y gestos del ratón en zonas entre las que cambias con los chips de arriba, tiene un campo de búsqueda que abarca todas las zonas, y detecta tu plataforma automáticamente: muestra `Ctrl`/`Alt` en Windows y Linux, y `⌘`/`⌥` en macOS. Por eso, en las tablas de abajo `Ctrl` significa `⌘` en macOS y `Alt` significa `⌥`.
 
@@ -10,7 +10,7 @@ Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir e
 |---|---|
 | `Ctrl+P` (o `Ctrl+Shift+P`) | Abrir la paleta de comandos |
 | `Ctrl+O` | Selector rápido – buscar y abrir archivos |
-| `Ctrl+J` | Preguntar a la IA – abrir el compañero (solo mientras la IA está activada, ver [Asistente de IA](AI_Assistant.md)) |
+| `Ctrl+J` | Preguntar a la IA – abrir la conversación en la barra lateral derecha (solo mientras la IA está activada, ver [Asistente de IA](AI_Assistant.md)) |
 | `Ctrl+,` | Abrir configuración |
 | `Ctrl+Plus` / `Ctrl+Minus` | Ampliar / reducir el zoom de la interfaz (80–150 %) |
 | `Ctrl+0` | Restablecer el zoom al 100 % |

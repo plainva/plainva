@@ -153,6 +153,11 @@ async function observeState(vaultPath: string, pimRuntime: PimRuntime | null): P
  * when it changed. Safe without a pim runtime (closed vault): calendar
  * references are then carried through unverified rather than dropped.
  */
+/** Rebuilt at the start, and the settings sync has not applied the document yet: an account's absence says nothing about it. */
+async function pimAccountsHeldAfterRebuild(pimRuntime: PimRuntime): Promise<boolean> {
+  return (await pimRuntime.cache.accountsAfterRebuild().catch(() => null)) === "held";
+}
+
 export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRuntime | null): Promise<CloudAccountRecord[]> {
   const stored = await loadCloudAccounts(vaultPath);
   const observed = await observeState(vaultPath, pimRuntime);
@@ -162,6 +167,15 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
     observed.pim = stored
       .filter((r) => r.services.calendar)
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
+  } else if (await pimAccountsHeldAfterRebuild(pimRuntime)) {
+    // An index database rebuilt at the start: each account not back yet
+    // keeps its card's reference until the settings sync has applied the
+    // document (`restoreAccountsAfterRebuild`), one by one.
+    const back = new Set(observed.pim.map((p) => p.id));
+    for (const r of stored) {
+      const id = r.services.calendar?.pimAccountId;
+      if (id && !back.has(id)) observed.pim.push({ id, provider: "caldav" as const, label: r.label });
+    }
   }
   const next = reconcileCloudAccounts(stored, observed);
   // A calendar switched off for the vault on another device stops here too (E3).

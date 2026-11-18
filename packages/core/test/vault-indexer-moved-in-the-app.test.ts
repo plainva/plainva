@@ -173,7 +173,7 @@ describe("a folder the app moves while a full scan is under way", () => {
     await expectTheFolderMoved("Archiv/Projekt");
   });
 
-  it("the index is told first and moves the rows itself (no queue took them along): the same", async () => {
+  it("the index is told first and moves the rows itself (no queue took them along): the rows follow, and the sync hears of it", async () => {
     await syncedFolder();
     aroundTheScanListing(async () => {
       await vault.createDir("Archiv");
@@ -182,7 +182,11 @@ describe("a folder the app moves while a full scan is under way", () => {
     });
     await indexer.indexVaultFull("return to the app");
 
-    expect(gone).toEqual([]);
+    // A synced folder whose MOVE no queue took (its entry given up, release
+    // 0.9.0 A16): the old paths are reported gone and the new ones new, once —
+    // else the cloud kept the old files and never got the new ones.
+    expect([...gone].sort()).toEqual(under("Projekt").sort());
+    expect([...fresh].sort()).toEqual(under("Archiv/Projekt").sort());
     expect((await rows()).filter((r) => r.path !== "Keep.md").map((r) => [r.path, r.ctime])).toEqual(
       under("Archiv/Projekt").map((p) => [p, CREATED]),
     );

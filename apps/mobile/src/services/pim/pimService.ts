@@ -248,6 +248,16 @@ export async function setPimAccountEnabled(accountId: string, enabled: boolean):
   if (enabled) pimSyncNow();
 }
 
+/**
+ * The index database was rebuilt and the settings sync has not applied the
+ * document yet (`restoreAccountsAfterRebuild`): an account's absence here
+ * says nothing about it.
+ */
+export async function pimAccountsHeldAfterRebuild(): Promise<boolean> {
+  if (!runtime) return false;
+  return (await runtime.cache.accountsAfterRebuild().catch(() => null)) === "held";
+}
+
 export async function listPimAccounts(): Promise<PimAccountRow[]> {
   return (await runtime?.cache.listAccounts()) ?? [];
 }

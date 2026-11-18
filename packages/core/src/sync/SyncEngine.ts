@@ -52,6 +52,17 @@ export function expectedRemoteOf(state: { base_sha256: string | null; base_etag:
   return undefined;
 }
 
+/**
+ * What a DELETE of a file with this sync row expects on the remote
+ * (Fehlerliste 0.9.0 A1): the version of its merge base — the one this device
+ * saw last. Another device's change since then is not deleted with it. A row
+ * without a marker, and a path without a row (a folder, a file never synced),
+ * delete unconditionally, as before.
+ */
+export function expectedDeletionOf(state: { base_etag: string | null } | null): ExpectedRemote | undefined {
+  return state?.base_etag ? { kind: "marker", marker: state.base_etag } : undefined;
+}
+
 function isRemoteChanged(err: unknown): boolean {
   return err instanceof RemoteChangedError || (err instanceof Error && err.name === "RemoteChangedError");
 }
@@ -686,10 +697,60 @@ export class SyncEngine {
               throw err;
             }
          }
+        if (op.operation === "delete" && this.stateRepo) {
+          op.expectedRemote = expectedDeletionOf(await this.stateRepo.getSyncState(op.file_path));
+        }
+        let knownBeforeMove: string | null = null;
+        if (op.operation === "rename" && this.stateRepo) {
+          // The row may have moved with the file already (the app moves it at once).
+          const before = (await this.stateRepo.getSyncState(op.file_path)) ?? (op.new_path ? await this.stateRepo.getSyncState(op.new_path) : null);
+          knownBeforeMove = before?.remote_etag ?? null;
+        }
         let result;
+        let deletedOnNewMarker = false;
         try {
           result = await this.target.push(op);
         } catch (err) {
+          // The remote holds another version than the one this device saw
+          // last: another device changed the file after this one deleted it
+          // (Fehlerliste 0.9.0 A1). Nothing was deleted, and the deletion does
+          // not wait for another try — it would only meet the same version.
+          // It retires, and so does the row: the next listing brings that
+          // version back here, as any new file of the remote, and nothing of
+          // it is lost.
+          //
+          // Unless only the server's marker moved and the bytes are the ones
+          // this device saw (a re-upload of the same bytes, a change of the
+          // server's metadata): then the deletion goes on the new marker.
+          if (op.operation === "delete" && isRemoteChanged(err) && await this.deleteWhereOnlyTheMarkerMoved(op)) {
+            deletedOnNewMarker = true;
+          } else if (op.operation === "delete" && isRemoteChanged(err) && await this.ownDeletionsBelow(op.file_path)) {
+            // A folder still holding files whose deletions this device has
+            // queued too (F44): the shells queue the files and their folder
+            // one by one, in no fixed order. The folder goes behind them, and
+            // finds itself empty then — or holding a file of another device.
+            await this.queue.requeueDeletionBehind(op);
+            consecutiveFailures = 0;
+            continue;
+          } else if (op.operation === "delete" && isRemoteChanged(err)) {
+            console.warn(`[SyncEngine] not deleting ${op.file_path}: ${(err as Error).message}; it comes back here instead`);
+            if (this.stateRepo) await this.stateRepo.deleteSyncState(op.file_path);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            this.reconcileAgain.add(op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          // A move whose destination the remote already holds (A1): another
+          // device created a file of that name. The move goes as a deletion
+          // of the old name and an upload of the new one, which the
+          // reconcile compares with that file (`replaceRefusedRename`).
+          if (op.operation === "rename" && op.new_path && isRemoteChanged(err)) {
+            console.warn(`[SyncEngine] not moving ${op.file_path} onto ${op.new_path}: ${(err as Error).message}; the old name is deleted and the new one compared instead`);
+            await this.queue.replaceRefusedRename(op);
+            this.reconcileAgain.add(op.new_path);
+            consecutiveFailures = 0;
+            continue;
+          }
           // The remote no longer holds what the upload expected, and nothing
           // was written. Not a failure: the upload stays queued, due at once,
           // and spends no retry — the next cycle's reconcile, which runs
@@ -717,7 +778,7 @@ export class SyncEngine {
             }
             continue;
           }
-          throw err;
+          if (!deletedOnNewMarker) throw err;
         }
 
         if (op.operation === "rename" && op.new_path && result && result.renameSourceMissing) {
@@ -795,12 +856,35 @@ export class SyncEngine {
           await this.stateRepo.deleteSyncState(op.file_path);
         }
 
-        if (this.stateRepo) {
+        // A folder has no sync row (F60): the listing never carries one, and a
+        // row the move of a folder recorded counted as a missing file in every
+        // listing from then on — the listing looked incomplete, and no
+        // deletion was mirrored any more.
+        const folderMoved = (op.operation === "rename" || op.operation === "mkdir") && this.stateRepo
+          && (await (async () => {
+            try {
+              return (await this.vault.getFileInfo?.(syncedPath))?.isDirectory === true;
+            } catch {
+              // silent: a path that cannot be asked about is no folder here; its state is recorded as before.
+              return false;
+            }
+          })());
+        if (folderMoved && this.stateRepo) {
+          await this.stateRepo.deleteSyncState(syncedPath);
+        } else if (this.stateRepo) {
            const etag = result && result.etag ? result.etag : null;
            // Persist the remote id/etag for providers that return one (Drive always; many
            // WebDAV servers omit the ETag header on PUT). Only touch remote_etag when we
            // actually got one.
-           if (etag) {
+           if (etag && op.operation === "rename" && knownBeforeMove && etag !== knownBeforeMove) {
+             // A move takes the remote's version along, which may be newer
+             // than the one this device knows — another device changed the
+             // file in between (F44). That marker is not this device's: the
+             // row keeps the one it knows, and the path is reconciled with
+             // the remote in the next pull, which brings the newer version.
+             await this.stateRepo.updateRemoteState(syncedPath, knownBeforeMove, (result && result.remoteId) ?? null, Date.now());
+             this.reconcileAgain.add(syncedPath);
+           } else if (etag) {
              await this.stateRepo.updateRemoteState(syncedPath, etag, (result && result.remoteId) ?? null, Date.now());
            }
 
@@ -882,4 +966,35 @@ export class SyncEngine {
       if (!refusedThisPass.has(path) && !(await this.queue.hasPendingOperation(path))) this.refusals.delete(path);
     }
   }
+
+  /**
+   * A deletion the remote refused because its marker moved (A1), asked once
+   * more: if the remote still holds the very bytes this device saw last — a
+   * re-upload of the same bytes, a change of the server's metadata — the
+   * file is deleted on the marker of that answer, and true is returned. Any
+   * other answer leaves the deletion refused (false), and the file comes
+   * back here (F44 no. 3).
+   */
+  /** Does the queue still hold deletions of paths below `folder`? */
+  private async ownDeletionsBelow(folder: string): Promise<boolean> {
+    const prefix = folder + "/";
+    return (await this.queue.getPendingDeletePaths()).some((path) => path.startsWith(prefix));
+  }
+
+  private async deleteWhereOnlyTheMarkerMoved(op: SyncOperation): Promise<boolean> {
+    const base = this.stateRepo ? (await this.stateRepo.getSyncState(op.file_path))?.base_sha256 : null;
+    if (!base || !this.target.stat) return false;
+    const found = await this.target.stat(op.file_path);
+    if (!found?.etag) return false;
+    const bytes = await this.target.download(op.file_path);
+    if (!bytes || (await sha256Bytes(bytes)) !== base) return false;
+    try {
+      await this.target.push({ ...op, expectedRemote: { kind: "marker", marker: found.etag } });
+      return true;
+    } catch (err) {
+      if (isRemoteChanged(err)) return false;
+      throw err;
+    }
+  }
+
 }

@@ -4,6 +4,7 @@ import { AiConversation, AiSessionContext, ICON, IconButton, noteDisplayName, st
 import { SheetGrip } from "./SheetGrip";
 import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";
 import { editorSelectionReader } from "../services/editorSelection";
+import { useAiSetupDoor } from "../hooks/useAiSetupDoor";
 
 /**
  * The KI sheet (plan KI-Harness §19.1, dress A on the phone): the companion's
@@ -20,11 +21,13 @@ export function AiSheet({
   notePath: string | null;
   onClose: () => void;
   onOpenScreen: () => void;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   onOpenSettings: () => void;
 }) {
   const { t } = useTranslation();
   const session = getMobileAiSession();
+  // "Set up" opens the three-step setup while a step is missing (plan Oberfläche O7, T9).
+  const setup = useAiSetupDoor(onOpenSettings);
   return (
     <AiSessionContext.Provider value={session}>
       <div className="m-sheet-backdrop" onClick={onClose}>
@@ -46,11 +49,12 @@ export function AiSheet({
             activeNote={notePath ? { path: notePath, title: noteDisplayName(notePath) } : null}
             onOpenNote={onOpenNote}
             onOpenUrl={openAiLink}
-            onOpenSettings={onOpenSettings}
+            onOpenSettings={setup.open}
             onPickNote={() => openAiNotePick("pin")}
           />
         </div>
       </div>
+      {setup.sheet}
     </AiSessionContext.Provider>
   );
 }
