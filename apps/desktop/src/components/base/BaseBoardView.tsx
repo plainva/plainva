@@ -34,6 +34,7 @@ export function BaseBoardView({
   onDropToSplit,
   onAddGroup,
   onReorderColumns,
+  viewRows,
   onSetWipLimit,
 }: {
   dbData: any[];
@@ -67,7 +68,13 @@ export function BaseBoardView({
   onDropToSplit?: (path: string) => void;
   onAddGroup: (name: string) => void;
   /** Persist a new column order after a header drag (report 2026-07-07). */
-  onReorderColumns?: (orderedKeys: string[]) => void;
+  /**
+   * The new order of the shown columns, and the order of all the board's
+   * columns without the search or scope (`viewRows`): a column hidden there keeps its place.
+   */
+  onReorderColumns?: (orderedKeys: string[], wholeOrder?: string[]) => void;
+  /** All rows of the view, before the head search or a scope narrows them (`dbData`). */
+  viewRows?: any[];
   /** Sets or clears (null) a column's WIP limit — the count badge edits it inline. */
   onSetWipLimit?: (groupKey: string, limit: number | null) => void;
 }) {
@@ -283,7 +290,10 @@ export function BaseBoardView({
       colDragArm.current = null;
       try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* not captured */ }
       const to = hitTest(colRefs.current, e.clientX, e.clientY);
-      if (arm?.armed && to && to !== arm.key) onReorderColumns?.(reorderBoardKeys(orderedKeys, arm.key, to));
+      if (arm?.armed && to && to !== arm.key) {
+        const wholeOrder = viewRows ? orderBoardGroups(Object.keys(bucketByColumn(viewRows)), { optionOrder, savedOrder: boardColumnOrder }) : undefined;
+        onReorderColumns?.(reorderBoardKeys(orderedKeys, arm.key, to), wholeOrder);
+      }
       setDragCol(null);
       setOverCol(null);
     },

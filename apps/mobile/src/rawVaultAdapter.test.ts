@@ -80,7 +80,8 @@ type Site = [use: string, times: number, why: string];
 const SITES: Record<string, Site[]> = {
   "App.tsx": [
     ["calls updatePolicy", 1, VERSIONS_LAYER],
-    ["handed to scaffoldVaultTemplate as adapter", 1, FIRST_VAULT],
+    // Through `track` (third review of O8): what a failed attempt wrote is taken back, file by file.
+    ["handed to track", 1, FIRST_VAULT],
   ],
   "BookmarksScreen.tsx": [["handed to useBookmarkTargets", 1, READS_ONLY]],
   // A file a note names (an embed, a card picture): read, after the check of its name (F2 review).

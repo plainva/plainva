@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { RemoteChangedError } from "../../src/sync/ISyncTarget.js";
 import { DriveSyncTarget } from "../../src/sync/DriveSyncTarget.js";
 import { UnsyncableFileError } from "../../src/sync/errorKind.js";
 import type { FetchFn } from "../../src/sync/WebDavSyncTarget.js";
@@ -448,11 +449,13 @@ describe("DriveSyncTarget", () => {
   });
 
   it("recreates a file when update hits a stale 404", async () => {
+    let gone = false;
     const { target } = makeTarget(async (url: string, init: any) => {
       const u = String(url);
       if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
-      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "stale-id", name: askedName(u) }] });
-      if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/stale-id")) return res({ error: { message: "not found" } }, { status: 404 });
+      // Found once by its name; after the 404 nothing of that name is there.
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: gone ? [] : [{ id: "stale-id", name: askedName(u) }] });
+      if (init.method === "PATCH" && u.includes("/upload/drive/v3/files/stale-id")) { gone = true; return res({ error: { message: "not found" } }, { status: 404 }); }
       if (init.method === "POST" && u.includes("/upload/drive/v3/files")) return res({ id: "new-id", md5Checksum: "h" });
       throw new Error(`unexpected ${init.method} ${u}`);
     });
@@ -645,6 +648,8 @@ describe("DriveSyncTarget", () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);
         if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+        // Asked whether the item is a folder that holds files (F44): nothing below a file.
+        if (init.method === "GET" && u.includes("/drive/v3/files?") && !u.includes("name")) return res({ files: [] });
         if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "f-1", name: askedName(u) }] });
         if (init.method === "DELETE" && u.includes("/files/f-1")) return res({}, { status: 404, ok: false });
         throw new Error(`unexpected ${init.method} ${u}`);
@@ -654,10 +659,15 @@ describe("DriveSyncTarget", () => {
       expect(fetchFn.mock.calls.some((c: any) => c[1].method === "DELETE" && String(c[0]).includes("/files/f-1"))).toBe(true);
     });
 
-    it("deletes a FOLDER: the mime-unfiltered lookup finds the folder object (Drive deletes recursively)", async () => {
+    it("deletes a FOLDER that holds no file: the mime-unfiltered lookup finds the folder object (F44)", async () => {
       const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
         const u = String(url);
         if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder" }] });
+        // Asked whether the folder holds files: it holds none.
+        if (init.method === "GET" && u.includes("/drive/v3/files?") && !u.includes("name")) {
+          expect(u).toContain("folder-7");
+          return res({ files: [] });
+        }
         // The delete lookup carries NO mimeType filter, so the folder itself matches.
         if (init.method === "GET" && u.includes("/drive/v3/files?")) {
           expect(u).toContain(encodeURIComponent("name='proj'"));
@@ -699,6 +709,46 @@ describe("DriveSyncTarget", () => {
     const writeOp = (filePath: string) => ({
       id: 1, file_path: filePath, operation: "write" as const,
       content: new TextEncoder().encode("body"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+
+    it("a known file another device put into the trash since: the upload takes a fresh file, not the trashed one (F44)", async () => {
+      let trashed = false;
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        // The trashed file is no longer found by its name.
+        if (init.method === "GET" && u.includes("/drive/v3/files?") && u.includes("name")) return res({ files: trashed ? [] : [{ id: "old", name: "note.md", md5Checksum: "abc" }] });
+        // The cached id still answers — from the trash.
+        if (init.method === "PATCH" && u.includes("/files/old?")) { trashed = true; return res({ id: "old", md5Checksum: "new", trashed: true }); }
+        if (init.method === "POST" && u.includes("uploadType=multipart")) return res({ id: "fresh", md5Checksum: "new" });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+
+      await expect(target.push(writeOp("note.md"))).resolves.toEqual({ etag: "new", remoteId: "fresh" });
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "POST" && String(c[0]).includes("uploadType=multipart"))).toBe(true);
+    });
+
+    it("a known file in the trash whose name another device has taken meanwhile: a change elsewhere, not a second file of that name", async () => {
+      const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?") && u.includes("name")) return res({ files: [{ id: fetchFn.mock.calls.some((c: any) => c[1].method === "PATCH") ? "theirs" : "old", name: "note.md" }] });
+        if (init.method === "PATCH" && u.includes("/files/old?")) return res({ id: "old", md5Checksum: "new", trashed: true });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+      await expect(target.push(writeOp("note.md"))).rejects.toBeInstanceOf(RemoteChangedError);
+      expect(fetchFn.mock.calls.some((c: any) => c[1].method === "POST")).toBe(false);
+    });
+
+    it("a trashed file is no file: its metadata answers nothing (F44)", async () => {
+      const { target } = makeTarget(async (url: string, init: any) => {
+        const u = String(url);
+        if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+        if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [{ id: "old", name: "note.md" }] });
+        if (init.method === "GET" && u.includes("/files/old?")) return res({ id: "old", md5Checksum: "abc", size: "4", trashed: true });
+        throw new Error(`unexpected ${init.method} ${u}`);
+      });
+      await expect(target.stat("note.md")).resolves.toBeNull();
     });
 
     it("refuses to write when Drive only holds a name differing in case", async () => {

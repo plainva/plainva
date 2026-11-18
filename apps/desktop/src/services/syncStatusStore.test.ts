@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { captureSyncErrorSnapshot, syncStatusStore } from "./syncStatusStore";
+import { captureSyncErrorSnapshot, isFirstPullPending, syncStatusStore } from "./syncStatusStore";
 
 /** Every existing assertion is about one vault; stage D only names it. */
 const V = "/vault";
@@ -106,5 +106,55 @@ describe("two vaults in one process (stage D)", () => {
     // an error over a screen with no vault behind it.
     expect(syncStatusStore.get(null).status).toBe("idle");
     expect(syncStatusStore.getErrorHistory(null)).toEqual([]);
+  });
+});
+
+describe("isFirstPullPending (O8: a cloud vault arriving is not an empty one)", () => {
+  beforeEach(() => syncStatusStore.resetAll());
+
+  it("is pending from the worker's start until its first cycle is done", () => {
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false); // no sync at all
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+    syncStatusStore.set(V, { status: "idle", message: null });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+    syncStatusStore.set(V, { firstPullDone: true });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+  });
+
+  it("a held folder names its provider and fetches nothing: not pending (second review of O8)", () => {
+    // What the desktop sets while an encrypted folder waits for a decision (onWaiting, the held start).
+    syncStatusStore.set(V, { status: "retrying", message: "unconfirmed", provider: "drive", reason: "encrypted-workspace", retryAt: 1 });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+  });
+
+  it("after the first failure the vault shows as it is, even while the worker tries again (third review of O8)", () => {
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    syncStatusStore.set(V, { status: "retrying", message: "offline", retryAt: 1 });
+    syncStatusStore.set(V, { status: "syncing", message: null });
+    expect(syncStatusStore.get(V).firstPullFailed).toBe(true);
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+    // A new worker in the same session does not bring "being loaded" back …
+    syncStatusStore.set(V, { firstPullDone: false });
+    syncStatusStore.set(V, { status: "idle", message: null });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+    // … opening the vault again does.
+    syncStatusStore.reset(V);
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+  });
+
+  it("the watchdog's notice keeps \"being loaded\" and is not a failure (fourth review of O8)", () => {
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    syncStatusStore.set(V, { status: "retrying", message: "sync cycle appears stuck", reason: "stalled" });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+    syncStatusStore.set(V, { status: "syncing", message: null, reason: undefined });
+    expect(syncStatusStore.get(V).firstPullFailed).toBe(false);
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+  });
+
+  it("a first pull that failed is not pending: the ordinary start shows", () => {
+    syncStatusStore.set(V, { status: "error", message: "offline", provider: "drive", firstPullDone: false });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
   });
 });

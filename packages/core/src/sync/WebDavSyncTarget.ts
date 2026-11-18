@@ -1,8 +1,8 @@
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { parseDavListing } from "./xmlListing.js";
-import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence, type ExpectedRemote } from "./ISyncTarget.js";
-import { ConditionalWrites } from "./conditionalWrite.js";
+import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncUploader, RemoteProbe, RemotePresence, RemoteChangedError, type ExpectedRemote } from "./ISyncTarget.js";
+import { ConditionalWrites, foldsToSameName } from "./conditionalWrite.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { trimChars, trimEndChars } from "../textScan.js";
@@ -291,9 +291,30 @@ export class WebDavSyncTarget implements ISyncTarget {
       return { etag: etag?.replace(/"/g, "") };
     } else if (op.operation === "delete") {
       const url = this.urlForPath(op.file_path);
-      const res = await this.request("DELETE", url, {
-        headers: this.headers
-      });
+      // A deletion removes only the version this device saw last
+      // (Fehlerliste 0.9.0 A1): `If-Match` on it, or a question right before
+      // where the tag is weak or the server ignores the condition.
+      const expected = op.expectedRemote?.kind === "marker" ? op.expectedRemote : undefined;
+      // A DELETE of a collection takes everything below it. A folder goes
+      // only while the server holds no file in it (F44): another device may
+      // have put a note there since this one last looked, and whatever is
+      // there decides on its own, file by file.
+      if (!expected && await this.folderHoldsFiles(op.file_path)) throw new RemoteChangedError(op.file_path, "the folder holds files");
+      const stat = () => this.stat(op.file_path);
+      const condition = expected && this.conditions.conditionsHold ? WebDavSyncTarget.conditionFor(expected) : null;
+      if (expected && !condition && !(await this.conditions.askBeforeDelete(op.file_path, expected, stat))) return;
+      const remove = (headers: Record<string, string>) => this.request("DELETE", url, { headers: { ...this.headers, ...headers } });
+      let res = await remove(condition ?? {});
+      if (expected && condition && (res.status === 412 || res.status === 501)) {
+        discardResponse(res);
+        if (res.status === 412) {
+          if (!(await this.conditions.refusedDelete(op.file_path, expected, stat, "412"))) return;
+        } else {
+          this.conditions.notSupported("501");
+          if (!(await this.conditions.askBeforeDelete(op.file_path, expected, stat))) return;
+        }
+        res = await remove({});
+      }
       if (!res.ok && res.status !== 404) {
         throw syncHttpError(`WebDAV DELETE failed: ${res.status} ${res.statusText}`, res);
       }
@@ -302,13 +323,23 @@ export class WebDavSyncTarget implements ISyncTarget {
 
       const url = this.urlForPath(op.file_path);
       const destUrl = this.urlForPath(op.new_path);
+      // A move never replaces what lies at its destination (A1): another
+      // device may have just created a file of that name. `Overwrite: F` makes
+      // the server refuse (412) instead. Not for a change of letter case
+      // only: on a server that folds case the destination IS the source.
+      const caseOnly = foldsToSameName(op.file_path, op.new_path);
       const res = await this.request("MOVE", url, {
         headers: {
           ...this.headers,
-          "Destination": destUrl
+          "Destination": destUrl,
+          ...(caseOnly ? {} : { "Overwrite": "F" }),
         }
       });
       if (res.status === 404) return { renameSourceMissing: true };
+      if (res.status === 412 && !caseOnly) {
+        discardResponse(res);
+        throw new RemoteChangedError(op.new_path, "412 on MOVE: the destination exists");
+      }
       if (!res.ok && res.status !== 404) {
         throw syncHttpError(`WebDAV MOVE failed: ${res.status} ${res.statusText}`, res);
       } else if (res.ok) {
@@ -627,6 +658,29 @@ export class WebDavSyncTarget implements ISyncTarget {
    * listing (getetag without quotes); a server that reports no etag yields ""
    * and the caller hashes the bytes, exactly as the listing path does.
    */
+  /**
+   * True when `path` is a collection on the server with a file anywhere
+   * below it — any file, conflict copies and hidden files included, which no
+   * listing of the sync reports. One PROPFIND with Depth: 1 per folder level.
+   */
+  private async folderHoldsFiles(path: string): Promise<boolean> {
+    const rel = trimChars(path.replace(/\\/g, "/"), "/");
+    if (!rel) return true;
+    const res = await this.request("PROPFIND", this.urlForPath(rel + "/"), { headers: { ...this.headers, "Depth": "1" } });
+    if (res.status === 404) return false;
+    if (!res.ok) throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
+    const entries = this.parseListing(await res.text()).filter((r) => r.href);
+    const self = entries.find((r) => trimEndChars(this.relativeHref(r.href!), "/") === rel);
+    if (self && !self.isCollection) return false;
+    for (const entry of entries) {
+      const childRel = trimEndChars(this.relativeHref(entry.href!), "/");
+      if (!childRel || childRel === rel) continue;
+      if (!entry.isCollection) return true;
+      if (await this.folderHoldsFiles(childRel)) return true;
+    }
+    return false;
+  }
+
   public async stat(filePath: string): Promise<RemoteStat | null> {
     if (filePath.includes(".CONFLICT")) return null;
     const res = await this.request("PROPFIND", this.urlForPath(filePath), {

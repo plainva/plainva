@@ -23,7 +23,7 @@ async function createTour(page: Page, context: BrowserContext) {
   });
   await page.goto("/");
   await page.getByRole("button", { name: /Start locally/ }).click();
-  await page.getByRole("button", { name: "Plainva Tour", exact: true }).click();
+  await page.getByRole("button", { name: /^Plainva Tour/ }).click();
   await expect.poll(() => readFile(page, "Welcome.md").catch(() => "")).toContain("Tour data version:");
   const close = page.getByTestId("whats-new-close");
   if (await close.isVisible()) await close.click();

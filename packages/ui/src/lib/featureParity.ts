@@ -268,6 +268,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-24",
   },
   {
+    id: "ai-conversation-docked",
+    title: "The AI conversation docked in the right column beside the note, or popped out into a floating window (plan Oberfläche O7, E1)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "A phone has no column beside the note and no windows to float: the " +
+      "conversation is a screen of its own (Areas > AI) and, at a note, the " +
+      "AI part of the note's sheet - the phone's way of keeping it beside " +
+      "the text (design language: peek window on the desktop, pushed screen " +
+      "or sheet on the phone). What the conversation shows and does is the " +
+      "same shared component in every dress.",
+    verified: "2026-11-16",
+  },
+  {
     id: "ai-external-agents",
     title: "An external agent — another maker's program with its own sign-in — works in the vault, with the settings and commands it offers (Agent Client Protocol, plan KI-Harness P4.6, P9-7)",
     area: "ai",
@@ -385,6 +401,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-24",
   },
   {
+    id: "ai-setup-guided",
+    title: "Setting up the AI in three steps from \"Set up\" to the first answer (plan Oberfläche O7, T9)",
+    area: "ai",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "T9 was found on the phone, where \"Set up\" led to a long page; the " +
+      "three-step sheet is built there. On the desktop \"Set up\" opens " +
+      "Settings > AI, which since O7 also lists the profiles only once a " +
+      "provider exists, and the conversation is begun by hand afterwards. " +
+      "The steps' logic is shared (aiSetupOffer, aiSetupStart, sendGreeting); " +
+      "a desktop dialog over it is still to build - deferred on 2026-11-16 " +
+      "to wave 4 of plan Oberfläche, in the maintainer's open-items plan.",
+    mobile: "yes",
+    verified: "2026-11-16",
+  },
+  {
     id: "ai-system-intents",
     title: "The system's assistant finds notes and takes down entries (Siri and Shortcuts; plan KI-Harness P4.7)",
     area: "ai",
@@ -468,6 +501,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "The phone covers the underlying need through the content font size scale " +
       "and the OS-level display size, both of which reach the same reader.",
     verified: "2026-08-19",
+  },
+  {
+    id: "base-board-column-drag",
+    title: "Reordering the columns of a board by dragging",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop drags a board column by its header: a select or status board " +
+      "reorders the property's options, any other board writes the view's " +
+      "boardColumnOrder. The phone shows the board in that saved order (both " +
+      "shells order it with orderBoardGroups) but has no way to change it; a " +
+      "held drag on a column header, as its pinboard has for cards, is not " +
+      "built. Found with B17 of the 0.9.0 defect list; in the maintainer's " +
+      "open-items plan since 2026-11-16.",
+    verified: "2026-11-16",
   },
   {
     id: "base-bulk-range-select",
@@ -731,6 +781,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "room from; the tablet navigation rail stays available.",
     mobile: "yes",
     verified: "2026-10-29",
+  },
+  {
+    id: "save-retry-after-leaving-note",
+    title: "A failed save of a note the person has left is tried again by itself",
+    area: "editor",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "Both shells try a failed save again by one rule (lib/saveRetry.ts) while " +
+      "the note is open. The phone's saver keeps a note's text after its screen " +
+      "is left and tries it again, and when the app returns (noteSaver.wake). " +
+      "The desktop's retry timer belongs to the editor pane: when the pane shows " +
+      "another note or closes, it makes one last try, and if that fails the text " +
+      "stays in the draft journal, offered when the note is opened again " +
+      "(review 2026-11-18). Closing this means a saver beside the pane on the " +
+      "desktop that outlives it, as the phone's does.",
+    mobile: "yes",
+    verified: "2026-11-18",
   },
   {
     id: "tag-pill-open-while-editing",
@@ -1516,6 +1584,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-26",
   },
   {
+    id: "first-start-tour-one-click",
+    title: "The tour vault on the first start, in one click",
+    area: "vault",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's welcome makes the tour in one click, in a folder of the " +
+      "user's Documents it names beforehand (mockup M8). The phone has no such " +
+      "folder to name: its first vault lives in the app's own storage and " +
+      "exists already when the first screen shows. So the phone's first screen " +
+      "asks where the vault lives (this device, the cloud, one the user has) " +
+      "and 'Start locally' leads to the template sheet with the tour first and " +
+      "marked as recommended - one tap more, the same tour (plan Oberflaeche, " +
+      "O8; mockup M8 'sinngemaess' for the phone).",
+    verified: "2026-11-17",
+  },
+  {
     id: "settings-backup-zip-destination",
     title: "Where the daily ZIP archive goes: choose, reset and open the folder (Backup & version history)",
     area: "vault",
@@ -1557,14 +1643,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     kind: "gap",
     desktop: "partial",
     desktopReason:
-      "The desktop does not open such a vault: the database not opening fails the vault " +
-      "open, and the splash names the error. The phone opens it restricted (stability plan " +
-      "R5): reading, writing and creating notes work and reach the sync at the next start " +
-      "with a database; deleting, renaming and moving are refused by the chain " +
-      "(StructureRefusingVaultAdapter) and the strip says so, because the sync queue lives " +
-      "in that database. Whether the phone keeps opening such a vault, or the desktop " +
-      "opens it the same way, is the maintainer's decision (collection plan, R5 rest item).",
+      "Both shells say in words why the database did not open, and for a damaged one outside " +
+      "an encrypted workspace both offer Rebuild index, asked first (indexDatabase.ts in " +
+      "packages/ui). For the other reasons - locked by another program, a full disk, no " +
+      "permission - the desktop does not open the vault and the start says what to do, " +
+      "while the phone opens it restricted (stability plan R5): reading, writing and " +
+      "creating notes work, deleting, renaming and moving are refused by the chain " +
+      "(StructureRefusingVaultAdapter) because the sync queue lives in that database. " +
+      "Whether the desktop opens such a vault restricted too is the maintainer's decision " +
+      "(collection plan, R5 rest item).",
     mobile: "yes",
-    verified: "2026-11-12",
+    verified: "2026-11-17",
   },
 ];

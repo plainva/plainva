@@ -156,6 +156,13 @@ const parentOf = (p: string): string => {
   return i < 0 ? "" : p.slice(0, i);
 };
 
+/** The shortest prefix of `path` whose own last name is a second spelling: the twin folder, or the twin file itself. */
+const outermostTwinSpelling = (path: string): string => {
+  const parts = path.split("/");
+  for (let i = 1; i <= parts.length; i++) if (isTwinSpelling(parts[i - 1]!)) return parts.slice(0, i).join("/");
+  return path;
+};
+
 /** What the last listings of the cloud said about a path. */
 export interface RemoteFacts {
   etag: string;
@@ -348,17 +355,29 @@ export async function resolveTwinSpellings(
     ctx.touch?.();
     await ctx.target.push({ id: 0, file_path: twin, operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: Date.now() });
     remoteDeleted = true;
+    goneRemote.add(twin);
     await ctx.stateRepo.deleteSyncState(twin);
   };
+  /** Twin paths this pass took away, by side: their folders may now stand empty. */
+  const goneRemote = new Set<string>();
+  const goneHere = new Set<string>();
   const removeHere = async (twin: string, synced: string) => {
     if (!isTwinSpelling(twin)) throw new Error(`refusing to delete ${twin}: not a twin spelling`);
     // The adapter names the twin literally only while it stands next to its
     // composed file; alone, the same spelling would address the composed one.
+    // Where the second spelling is a FOLDER's (A10), that folder is what has
+    // to stand next to its composed form; the twin is a file inside it.
     const names = (await ctx.vault.listDir(parentOf(twin), false)).map((e) => e.path);
-    if (!names.includes(twin) || !names.includes(synced)) throw new Error(`refusing to delete ${twin}: it no longer stands next to ${synced}`);
+    const pivot = outermostTwinSpelling(twin);
+    const siblings = pivot === twin ? names : (await ctx.vault.listDir(parentOf(pivot), false)).map((e) => e.path);
+    const composed = pivot === twin ? synced : toPathIdentity(pivot);
+    if (!names.includes(twin) || !siblings.includes(pivot) || !siblings.includes(composed)) {
+      throw new Error(`refusing to delete ${twin}: it no longer stands next to ${synced}`);
+    }
     await ctx.vault.deleteItem(twin, false);
     await ctx.queue.discardOperationsOf?.(twin);
     changedPaths.push(twin);
+    goneHere.add(twin);
   };
 
   for (const c of cases) {
@@ -426,6 +445,7 @@ export async function resolveTwinSpellings(
           await ctx.vault.renameItem(twin, to);
           await ctx.queue.discardOperationsOf?.(twin);
           changedPaths.push(twin);
+          goneHere.add(twin);
           await ctx.queue.queueWrite(to);
           keptBytes.push(read.other.here);
         }
@@ -449,6 +469,7 @@ export async function resolveTwinSpellings(
       result.skipped++;
     }
   }
+  await removeEmptiedTwinFolders(ctx, goneHere, goneRemote, changedPaths);
   // The composed file must still be in the cloud. Every provider deleted the
   // twin by its own stored name; should one have taken the composed file with
   // it (a store that matched the name looser than it listed it), the copy here
@@ -467,4 +488,68 @@ export async function resolveTwinSpellings(
     }
   }
   return result;
+}
+
+/**
+ * The folders of the second spelling that the resolution emptied
+ * (Fehlerliste 0.9.0 A10). A twin can be a note in a folder whose own name is
+ * the second spelling (`Bäckerei/` decomposed next to `Bäckerei/` composed);
+ * once its last note is removed or kept under a composed name, the folder
+ * stood there empty — here and in the cloud — and looked like a second,
+ * empty `Bäckerei`. Such a folder goes with its last note, innermost first:
+ *
+ * - only a folder whose own name is a twin spelling, never the composed one;
+ * - in the cloud, only where the listing of this pass carries no other file
+ *   below it — through the same target call that removed its notes, by its
+ *   own stored spelling;
+ * - here, only where it stands next to the composed folder and is empty.
+ *
+ * A failure leaves the folder as it was: an empty folder is no loss.
+ */
+async function removeEmptiedTwinFolders(
+  ctx: NameTwinContext,
+  goneHere: ReadonlySet<string>,
+  goneRemote: ReadonlySet<string>,
+  changedPaths: string[],
+): Promise<void> {
+  const twinFoldersOf = (paths: Iterable<string>): string[] => {
+    const out = new Set<string>();
+    for (const p of paths) {
+      for (let folder = parentOf(p); folder; folder = parentOf(folder)) {
+        const name = folder.slice(folder.lastIndexOf("/") + 1);
+        if (isTwinSpelling(name)) out.add(folder);
+      }
+    }
+    // Innermost first: a parent can only be empty once its children went.
+    return [...out].sort((a, b) => b.length - a.length);
+  };
+  if (goneRemote.size > 0) {
+    const remaining = [...ctx.remotePaths()].filter((p) => !goneRemote.has(p));
+    for (const folder of twinFoldersOf(goneRemote)) {
+      const inside = (p: string) => p.startsWith(folder + "/");
+      if (remaining.some(inside)) continue;
+      try {
+        ctx.touch?.();
+        await ctx.target.push({ id: 0, file_path: folder, operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: Date.now() });
+      } catch (e) {
+        console.warn(`[nameTwins] could not remove the emptied folder ${folder} from the cloud`, e);
+      }
+    }
+  }
+  for (const folder of twinFoldersOf(goneHere)) {
+    try {
+      const composed = toPathIdentity(folder);
+      const siblings = await ctx.vault.listDir(parentOf(folder), false);
+      const names = siblings.filter((e) => e.isDirectory).map((e) => e.path);
+      if (!names.includes(folder) || !names.includes(composed)) continue;
+      if ((await ctx.vault.listDir(folder, false)).length > 0) continue;
+      // Empty, as just listed: a folder is removed with `recursive` on every
+      // adapter (a plain removal is for files). Nothing writes into the second
+      // spelling — Plainva writes composed names — so nothing lands in between.
+      await ctx.vault.deleteItem(folder, true);
+      changedPaths.push(folder);
+    } catch (e) {
+      console.warn(`[nameTwins] could not remove the emptied folder ${folder} here`, e);
+    }
+  }
 }

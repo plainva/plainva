@@ -280,6 +280,29 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     }
   }
 
+  /**
+   * See `IVaultAdapter.removeEmptyDir`: the native delete without `recursive`
+   * refuses a folder with any child (VaultFolderPlugin) — on iOS in the same
+   * step as the removal (rmdir), on Android by asking the folder first: the
+   * Storage Access Framework has no "delete only if empty", so a file another
+   * app puts there in that moment goes with it (a limit, named).
+   */
+  async removeEmptyDir(path: string): Promise<boolean> {
+    const rel = await this.realPath(path);
+    const info = await this.statOrNull(rel);
+    if (!info) return true;
+    if (!info.isDirectory) return false;
+    try {
+      await this.plugin.delete({ handle: this.handle, path: rel, recursive: false });
+    } catch (err) {
+      // silent: a folder that holds something, or one the system will not remove, stays where it is — nothing is lost, and the sync weighs it again next cycle.
+      console.warn(`[ExternalVaultAdapter] could not remove the empty folder ${path}`, err);
+      return false;
+    }
+    this.spellings.forget(norm(path));
+    return true;
+  }
+
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
     await this.inOrder([path], async () => {
       const rel = await this.realPath(path);

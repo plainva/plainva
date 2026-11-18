@@ -1547,15 +1547,17 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-syncnote-line + .pv-syncnote-line { margin-top: var(--space-1); }
 
 .pv-evt {
-  background: var(--evt-color, var(--accent-color));
-  color: var(--accent-on);
+  /* The fill the ink stands on: `--evt-fill` where a translucent colour is shown fainter for its text (review O7,
+     third round); `--evt-color` stays the calendar's colour for the text, edges and dots that are drawn in it. */
+  background: var(--evt-fill, var(--evt-color, var(--accent-color)));
+  color: var(--evt-ink, var(--accent-on));
 }
 .pv-evt--tentative {
   /* Hatch made FROM the event colour, so it still reads as that calendar. */
   background-image: repeating-linear-gradient(
     135deg,
-    color-mix(in srgb, var(--evt-color, var(--accent-color)) 100%, transparent) 0 5px,
-    color-mix(in srgb, var(--evt-color, var(--accent-color)) 55%, var(--bg-primary)) 5px 10px
+    color-mix(in srgb, var(--evt-fill, var(--evt-color, var(--accent-color))) 100%, transparent) 0 5px,
+    color-mix(in srgb, var(--evt-fill, var(--evt-color, var(--accent-color))) 70%, var(--evt-hatch, var(--evt-hatch-accent))) 5px 10px
   );
 }
 .pv-evt--cancelled,
@@ -5064,7 +5066,11 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    on the accent pair, answers on the low container surface; tool steps and
    the "sent to …" line are quiet meta text. Nothing here loads anything: an
    answer is elements built from Markdown, images are links. */
-.pv-ai { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; }
+/* --ai-ground: the surface the conversation lies on, per dress — what a fixed foot covers the scrolling text with. */
+.pv-ai { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; --ai-ground: var(--bg-primary); }
+.pv-ai--dock { --ai-ground: var(--bg-secondary); }
+.pv-ai--window { --ai-ground: var(--float-surface, var(--bg-primary)); }
+.pv-ai--sheet { --ai-ground: var(--surface, var(--bg-primary)); }
 .pv-ai > .pv-empty { margin: auto; }
 .pv-ai-marking {
   margin: 0;
@@ -5305,10 +5311,14 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 /* A question that waits (plan KI-Oberflächen K9): above the composer, never scrolled away with the thread; it scrolls
    inside itself when it is long, so the field and the thread keep their room. */
 .pv-ai-pending { flex: none; display: flex; flex-direction: column; gap: var(--space-2); max-height: 60%; overflow-y: auto; padding: var(--space-2) var(--space-3) 0; }
+/* The answer of a waiting question keeps a fixed foot (plan Oberfläche O7, D1): however long the overview above it, the
+   buttons stay in view at the bottom of the scrolling question, never cut off — on the dress's own ground, so the text
+   scrolling under them never shows through (review O7). */
+.pv-ai-pending .pv-ai-overview-actions { position: sticky; bottom: 0; padding-block: var(--space-2); background: var(--ai-ground); }
 /* Under an answer (plan K8): what can be done with it, and the one quiet line of what went where. */
 .pv-ai-actrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
-.pv-ai-quiet { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-left: auto; color: var(--text-faint); }
-.pv-ai-coverage-warn { color: var(--warning-text); }
+/* The calm line under an answer (plan Oberfläche O7, M6): what it rests on and where it went, then "Details". */
+.pv-ai-quiet { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-1) 0 0; color: var(--text-faint); overflow-wrap: anywhere; }
 .pv-ai-runfull { margin: var(--space-1) 0 0; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Who a failure comes from (plan K10), ahead of the sentence. */
 .pv-ai-sender { display: inline-block; margin-inline-end: var(--space-2); font-weight: 600; }
@@ -5330,18 +5340,19 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-selchips-label { font-size: var(--text-xs); color: var(--text-muted); }
 /* "Transcribe" at a voice note (plan P1.5): the last control of the player, never shrinking. */
 .pv-audio-transcribe { flex: none; }
-/* The core skills (plan P1.5) as the quick start of an empty conversation, where the thumb is (plan KI-Oberflächen K7). */
-.pv-ai-skills { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.pv-ai--touch .pv-ai-skills { flex-direction: column; align-items: stretch; }
 /* On a phone the buttons of a question stand one under the other, full width, the answer that goes on at the bottom (K9). */
 .pv-ai-overview--touch .pv-ai-overview-actions { flex-direction: column; align-items: stretch; }
 .pv-ai-inputrow { display: flex; align-items: flex-end; gap: var(--space-2); }
 .pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; resize: none; }
 .pv-ai-foot { display: flex; justify-content: flex-end; min-width: 0; }
+/* The skills of an empty conversation behind one button (plan Oberfläche O7, D2), at the start of the foot. */
+.pv-ai-foot-start { margin-inline-end: auto; }
 .pv-ai--touch .pv-ai-msg { max-width: 96%; }
-/* The dock: the conversation in a sidebar column — bounded, so the thread scrolls inside the section. */
-.pv-ai-dock { display: flex; flex-direction: column; height: min(560px, 70vh); min-height: 280px; }
+/* The dock (plan Oberfläche O7): the conversation in the full height of the right column, under the week strip; the
+   thread scrolls inside, the head and the composer stay put. */
+.pv-ai-dock { display: flex; flex: 1; flex-direction: column; min-height: 0; outline: none; }
 .pv-ai-dock > .pv-ai { flex: 1; min-height: 0; }
+.pv-ai-dock-head { display: flex; flex: none; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-bottom: 1px solid var(--border-color-light); }
 .pv-ai--dock .pv-ai-msg { max-width: 100%; }
 .pv-ai--dock .pv-ai-overview-list,
 .pv-ai--window .pv-ai-overview-list { grid-template-columns: minmax(0, 1fr); }

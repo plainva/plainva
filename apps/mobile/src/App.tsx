@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { newEntries, type NewHandlers, reportingTo, reportVisible } from "@plainva/ui";
+import { newEntries, type NewHandlers, reportingTo, reportVisible, writeNewVault, type TrackWrites } from "@plainva/ui";
+import { sandboxNewVaultPorts, writeWithRetry } from "./services/newVaultWrite";
 import { NavBar } from "./components/NavBar";
 import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { OnboardingChoice } from "./components/OnboardingChoice";
+import { OnboardingChoice, type OnboardingWay } from "./components/OnboardingChoice";
+import { chooseExistingVault, pickVaultTemplate } from "./services/firstStart";
 import {
   AreaBoundary,
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
-  getVaultTemplates,
   ICON,
   journalTodayKey,
   setPlaceProvider,
@@ -21,7 +22,7 @@ import {
 import { useCommentShell } from "./hooks/useCommentShell";
 import { AdaptiveLayout } from "./components/AdaptiveLayout";
 import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
-import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder } from "./services/vaultService";
+import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder, rebuildActiveIndexDatabase } from "./services/vaultService";
 import { useVaultBoot } from "./hooks/useVaultBoot";
 import { VaultBootSurface } from "./components/VaultBootSurface";
 import { IndexBuildNotice } from "./components/IndexBuildNotice";
@@ -104,7 +105,7 @@ const dayOfIso = (iso: string): Date => {
 };
 
 export default function App() {
-  const { i18n, t } = useTranslation();
+  const { t } = useTranslation();
   // The bar's arrangement, from the shared bar model (S10). Starts at the
   // model's default and is replaced once the vault's own value is read — a
   // synchronous first paint matters more here than a moment of the default,
@@ -452,12 +453,29 @@ export default function App() {
   const focusedSetup = isFocusedSetup(top, !!connectionRun?.pending.length);
   const barHidden = focusedSetup || (hidesTabBar(top) && windowClass === "compact");
 
-  const finishOnboarding = (connectCloud: boolean) => {
-    void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)
-    setReleaseDialog("none");
-    setOnboarded(true);
-    void updateMobileSettings({ onboarded: true });
-    if (connectCloud) {
+  const finishOnboarding = (way: OnboardingWay) => {
+    const done = () => {
+      void markReleaseDialogSeen(); // the welcome screen IS the first run (H5)
+      setReleaseDialog("none");
+      setOnboarded(true);
+      void updateMobileSettings({ onboarded: true });
+    };
+    if (way === "existing") {
+      // "I already have a vault" (O8): the screen stays until a way in was
+      // actually taken — a cancelled sheet or folder picker is not a start.
+      void (async () => {
+        const how = await chooseExistingVault();
+        if (how === "folder" && !(await createVaultInPickedFolder())) return;
+        if (how === null) return;
+        done();
+        if (how === "cloud") push({ kind: "cloudconnect", path: "files" });
+      })().catch((e) => console.error("existing vault failed", e));
+      return;
+    }
+    done();
+    // Import (O8, as on the desktop's welcome): into the vault this boot made.
+    if (way === "import") return void push({ kind: "importwizard", path: "" });
+    if (way === "cloud") {
       // Cloud branch (2026-07-13): existing vault vs. a NEW vault in the cloud
       // (order: place -> template -> connection, matching the desktop splash).
       void (async () => {
@@ -471,16 +489,9 @@ export default function App() {
         if (choice === "existing") {
           push({ kind: "cloudconnect", path: "files" });
         } else if (choice === "new") {
-          const defs = getVaultTemplates(i18n.language);
-          const pick = await mActions({
-            title: t("mobile.templatePick"),
-            options: [
-              { value: "", label: t("splash.emptyVault") },
-              ...defs.map((d) => ({ value: d.id, label: d.name })),
-            ],
-          });
+          const pick = await pickVaultTemplate();
           if (pick === null) return;
-          push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
+          push({ kind: "cloudconnect", path: "files", createTemplateId: pick.id });
         }
       })();
       return;
@@ -488,24 +499,21 @@ export default function App() {
     // Local start: offer the shared structure templates (package I). Only a
     // vault this boot created gets the offer — the one-time onboarding also
     // shows once on existing installs, whose content must never gain folders.
+    // A dismissed sheet is an empty vault, as before.
     void (async () => {
       if (!vault.claimTemplateCreation()) return;
-      const defs = getVaultTemplates(i18n.language);
-      const pick = await mActions({
-        title: t("mobile.templatePick"),
-        options: [
-          { value: "", label: t("splash.emptyVault") },
-          ...defs.map((d) => ({ value: d.id, label: d.name })),
-        ],
-      });
-      const def = defs.find((d) => d.id === pick) ?? null;
-      await scaffoldVaultTemplate({
-        adapter: vault.belowChain,
+      const def = (await pickVaultTemplate())?.def ?? null;
+      // A failed attempt takes back what it wrote and is said, with a second try (third review of O8).
+      const write = (track: TrackWrites) => scaffoldVaultTemplate({
+        adapter: track(vault.belowChain),
         isNewVault: vault.freshlySeeded,
         template: def,
         vaultName: "Plainva",
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
+      const root = vault.containerRoot; // a freshly seeded vault is always a container
+      const made = await writeWithRetry((onTakenBack) => (root ? writeNewVault(root, sandboxNewVaultPorts, write, { onTakenBack }) : write((a) => a)));
+      if (!made) return;
       await applyTemplateSettings(def?.settings);
       await vault.indexer?.indexVaultFull("vault template");
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -520,17 +528,10 @@ export default function App() {
       const where = await chooseVaultPlace();
       if (where === null) return;
       if (where === "folder") { await createVaultInPickedFolder(); return; }
-      const defs = getVaultTemplates(i18n.language);
-      const pick = await mActions({
-        title: t("mobile.templatePick"),
-        options: [
-          { value: "", label: t("splash.emptyVault") },
-          ...defs.map((d) => ({ value: d.id, label: d.name })),
-        ],
-      });
+      const pick = await pickVaultTemplate();
       if (pick === null) return;
       if (where === "online") {
-        push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
+        push({ kind: "cloudconnect", path: "files", createTemplateId: pick.id });
         return;
       }
       const { value: rawName, cancelled } = await mPrompt({
@@ -539,8 +540,8 @@ export default function App() {
       });
       const name = rawName?.trim();
       if (cancelled || !name) return;
-      const def = defs.find((d) => d.id === pick) ?? null;
-      await createLocalVault(name, def);
+      const def = pick.def;
+      if (!(await createLocalVault(name, def))) return;
       const nv = await getMobileVault();
       if (def) {
         await applyTemplateSettings(def.settings);
@@ -652,7 +653,7 @@ export default function App() {
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
-      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} indexClosed={vault.indexClosed} /></AreaBoundary>
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} indexClosed={vault.indexClosed} failure={vault.indexDatabaseFailure} onRebuild={rebuildActiveIndexDatabase} /></AreaBoundary>
       {!onboarded && <AreaBoundary area="shell:onboarding" placeClassName="m-onboarding"><OnboardingChoice onChoose={finishOnboarding} /></AreaBoundary>}
 
       <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />

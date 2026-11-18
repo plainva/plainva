@@ -3,6 +3,7 @@ import { within } from "./helpers/timeBudget.js";
 import { insertJournalEntry, parseJournal, readJournalLine } from "../src/journal.js";
 import { findInlineTagsInLine } from "../src/tagRule.js";
 import { EDITOR_LIST_ITEM, MARKDOWN_LIST_ITEM, readMarkdownListItem } from "../src/markdownListItem.js";
+import { prepareReaderSource } from "../src/noteSource.js";
 import { trimSpaceBeforeLineEnds, trimStartChars } from "../src/textScan.js";
 
 /**
@@ -101,5 +102,28 @@ describe("tags in a line of source", () => {
     for (const run of ["[[", "](", "<!--", "<a", "![["]) {
       within(1_000, () => findInlineTagsInLine(`#tag ${run.repeat(N / 4)}`));
     }
+  });
+});
+
+describe("the reading view's map between the note and the text it shows", () => {
+  it("finds the place of every character in time linear in the note", () => {
+    // `rehypeReaderSource` asks for the place of every character of every
+    // text of the page; each answer walked all spans of the note, and 2 000
+    // lines took 2.5 s, 101 lines of wiki links 5.4 s. Halving finds the span.
+    const note = Array.from({ length: 4_000 }, (_, i) => `Line ${i} with [[note ${i}|a name]] and @2026-11-1${i % 9} and text.`).join("\n");
+    const source = prepareReaderSource(note, { formatDate: () => "today" });
+    // Every place lies in the note (an alias link maps back to its target,
+    // which stands before the alias in the note: the map is not ordered).
+    let inside = true;
+    within(3_000, () => {
+      for (let offset = 0; offset <= source.text.length; offset++) {
+        const at = source.toOriginal(offset);
+        if (at < 0 || at > note.length || source.toOriginal(offset, "end") > note.length) inside = false;
+      }
+    });
+    expect(inside).toBe(true);
+    const lastLine = note.lastIndexOf("\nLine ") + 1;
+    expect(source.toOriginal(source.toRendered(lastLine))).toBe(lastLine);
+    expect(source.toRendered(source.toOriginal(5))).toBe(5);
   });
 });

@@ -36,6 +36,10 @@ import {
   type ISyncTarget,
   type IVaultAdapter,
   type PimAccountRow,
+  type IDatabaseAdapter,
+  PimCacheRepository,
+  PROFILE_SYNC_PATH,
+  SETTINGS_ENC_PATH,
   SecretPolicyError,
 } from "@plainva/core";
 import {
@@ -95,6 +99,7 @@ import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { desktopPersonalDesign } from "./personalDesign";
 import { mergePersonalDesignValues } from "@plainva/ui";
+import { accountFieldsHeldBack, fillHeldAccountField, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
 import { getWorkspaceSecurityStatus } from "./workspaceSecurity/workspaceKeychain";
 import { hasLocalKeyfile, loadCachedMasterKey, loadCachedMasterKeys } from "./encryptionSession";
 import {
@@ -105,6 +110,7 @@ import {
   saveConnectionState,
 } from "./encryptionManifest";
 import { cloudAccountsRegistryKey, loadCloudAccounts, saveCloudAccounts } from "./cloudAccounts";
+import { profileAccountMapKey } from "./profileAccountMap";
 import { clearPimCredentials } from "./pim/pimCredentials";
 import { getSyncRootFolder } from "./cloudAccountsActions";
 import {
@@ -157,7 +163,6 @@ const defaultCalendarKey = (v: string) => `defaultCalendar_${b64(v)}`;
 const defaultMailAccountKey = (v: string) => `defaultMailAccount_${b64(v)}`;
 // The vault's week start (decision E4): the key `weekStartVault.ts` reads and writes.
 const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
-const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
 const profileImportJournalKey = (v: string) => `settingsSyncImportJournal_${b64(v)}`;
 export const secretsSyncEnabledKey = (vaultPath: string) => `secretsSyncEnabled_${b64(vaultPath)}`;
 
@@ -829,23 +834,23 @@ export function sanitizeProfileValues(values: Record<string, unknown>): Sanitize
  * id collisions, the map) lives in `@plainva/ui/accountProfile` so the phone
  * runs the SAME code; this only says where the desktop keeps its accounts.
  */
-function desktopAccountPorts(store: ISettingsStore, vaultPath: string, pimRuntime: PimRuntime | null): AccountImportPorts {
+function desktopAccountPorts(store: ISettingsStore, vaultPath: string, cache: PimCacheRepository | null): AccountImportPorts {
   return {
-    listPimAccounts: async () => (pimRuntime ? pimRuntime.cache.listAccounts() : []),
+    listPimAccounts: async () => (cache ? cache.listAccounts() : []),
     upsertPimAccount: async (row) => {
-      if (pimRuntime) await pimRuntime.cache.upsertAccount(row);
+      if (cache) await cache.upsertAccount(row);
     },
     deletePimAccount: async (accountId) => {
-      if (pimRuntime) await pimRuntime.cache.deleteAccount(accountId);
+      if (cache) await cache.deleteAccount(accountId);
       await clearPimCredentials(vaultPath, accountId).catch(reportingTo("pim:remove-credentials"));
     },
-    listCalendars: async (accountId) => (pimRuntime ? pimRuntime.cache.listCalendars(accountId) : []),
+    listCalendars: async (accountId) => (cache ? cache.listCalendars(accountId) : []),
     setCalendarSelected: async (accountId, id, selected) => {
-      if (pimRuntime) await pimRuntime.cache.setCalendarSelected(accountId, id, selected);
+      if (cache) await cache.setCalendarSelected(accountId, id, selected);
     },
-    listTaskLists: async (accountId) => (pimRuntime ? pimRuntime.cache.listTaskLists(accountId) : []),
+    listTaskLists: async (accountId) => (cache ? cache.listTaskLists(accountId) : []),
     setTaskListSelected: async (accountId, id, selected) => {
-      if (pimRuntime) await pimRuntime.cache.setTaskListSelected(accountId, id, selected);
+      if (cache) await cache.setTaskListSelected(accountId, id, selected);
     },
     listMailAccounts: () => listMailAccounts(vaultPath),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultPath, accounts),
@@ -867,7 +872,7 @@ async function importAccountMetadata(
   // Without a runtime there is no PIM truth to reconcile against; importing
   // calendars into nothing would strand them. Mail is store-backed and fine.
   const scoped = pimRuntime ? values : { ...values, pimAccounts: undefined, pimSelections: undefined };
-  const idMap = await sharedImportAccountMetadata(scoped, desktopAccountPorts(store, vaultPath, pimRuntime));
+  const idMap = await sharedImportAccountMetadata(scoped, desktopAccountPorts(store, vaultPath, pimRuntime?.cache ?? null));
 
   const defaultCalendar = defaultCalendarFromProfile(values.defaultCalendar, idMap.pim);
   if (defaultCalendar !== undefined) await store.set(defaultCalendarKey(vaultPath), defaultCalendar);
@@ -891,7 +896,41 @@ export function createDesktopProfilePort(vaultPath: string, context: DesktopProf
     async applyValues(values) {
       await applyProfileValues(await getSettingsStore(), vaultPath, values, withReporting);
     },
+    // An index database rebuilt at the start speaks for its accounts only once
+    // the document's were applied (`accountFieldsHeldBack`).
+    heldBack: () => accountFieldsHeldBack(context.pimRuntime?.cache ?? null),
+    // Only what the rebuild took is the document's; a change made here since is this device's (`fillHeldAccountField`).
+    async fillHeldBack(key, documentValue, exportedValue) {
+      const map = normalizeAccountMap(await (await getSettingsStore()).get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
+      return fillHeldAccountField(key, documentValue, exportedValue, new Set(Object.keys(map.removedLogical ?? {})));
+    },
   };
+}
+
+/**
+ * The first open of an index database rebuilt at the start: its calendar and
+ * task accounts come back from this vault's copy of the profile before the
+ * vault opens (`restoreAccountsAfterRebuild`). The copy is read as the
+ * settings sync reads it — sealed where this device holds the key.
+ */
+export async function restoreDesktopAccountsAfterRebuild(vaultPath: string, db: IDatabaseAdapter, raw: IVaultAdapter): Promise<void> {
+  const cache = new PimCacheRepository(db);
+  const store = await getSettingsStore();
+  await restoreAccountsAfterRebuild({
+    state: cache,
+    ports: desktopAccountPorts(store, vaultPath, cache),
+    settingsSyncRuns: (await isSettingsSyncEnabled(vaultPath, store)) && !!(await getActiveConnectionId(vaultPath)),
+    readProfileCopy: async () => {
+      const mk = await loadCachedMasterKey(vaultPath);
+      if (mk) {
+        if (!(await raw.exists(SETTINGS_ENC_PATH))) return null;
+        return new TextDecoder().decode(profileCryptoFor(mk).open(await raw.readBinaryFile(SETTINGS_ENC_PATH)) as BufferSource);
+      }
+      // A sealed copy, and no key here now: there is one, it cannot be read yet.
+      if (await raw.exists(SETTINGS_ENC_PATH)) throw new Error("the sealed settings profile cannot be opened without the key");
+      return (await raw.exists(PROFILE_SYNC_PATH)) ? raw.readTextFile(PROFILE_SYNC_PATH) : null;
+    },
+  });
 }
 
 /** Builds K_settings seal/open for the sealed profile mode from a cached MK. */
@@ -1223,6 +1262,8 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         },
         onExchange: async (info) => {
           const at = new Date().toISOString();
+          // A cycle went through while the accounts were held: the document's are applied, and they are this device's again.
+          await settleAccountsAfterRebuild(context.pimRuntime?.cache ?? null);
           await updateDiagnostics(vaultPath, (d) => recordProfileExchange(d, at, info));
         },
         onLegacyProfile: (info) => {

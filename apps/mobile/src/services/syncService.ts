@@ -25,12 +25,13 @@ import {
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
-import { assertEmptyRemoteVault } from "@plainva/core";
+import { assertEmptyRemoteVault, firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspaceSyncFailureText, writeNewVault } from "@plainva/ui";
+import { ensureVaultsFolder, sandboxNewVaultPorts } from "./newVaultWrite";
 import { mobileSyncStart, type MobileSyncStart } from "./fileSyncAccess";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "./syncRootFolder";
 import { mConfirm } from "./mobileDialogs";
@@ -164,9 +165,24 @@ interface SyncState {
   listingIncomplete: ListingIncompleteInfo | null;
   /** The remote folder of a vault that has synced before is gone (plan A4). */
   rootMissing: boolean;
+  /**
+   * The running worker's first pull: `false` until it finished, `true` after,
+   * `null` with no worker. Until then an empty vault is still arriving, and
+   * Home says so instead of offering a first note (O8, review 2026-11-17).
+   */
+  firstPullDone: boolean | null;
+  /**
+   * The first pull of this vault failed at least once since it was opened
+   * here (third review of O8): Home then shows the vault as it is, and the
+   * sync line says what is wrong. Kept by `setState` through core's
+   * `firstPullFailedAfter`; a worker for another opened vault starts it afresh.
+   */
+  firstPullFailed: boolean;
+  /** The worker's reason beside the status: `stalled` is the watchdog's notice, not a failure (fourth review of O8). */
+  reason: string | null;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false, firstPullDone: null, firstPullFailed: false, reason: null };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -211,6 +227,7 @@ function setState(next: {
   errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out";
   retryAt?: number;
   rootMissing?: boolean;
+  reason?: string;
 }): void {
   if (next.message) next = { ...next, message: connectionErrorText(next.message) ?? next.message };
   const finished = state.status === "syncing" && next.status === "idle";
@@ -236,8 +253,45 @@ function setState(next: {
     // Same rule: raised and lowered by the worker's own report, not by a status.
     listingIncomplete: next.status === "off" ? null : state.listingIncomplete,
     rootMissing: next.rootMissing ?? false,
+    firstPullDone: next.status === "off" ? null : state.firstPullDone,
+    // A folder held for pairing is a hold, not a failed pull (fourth review of O8).
+    firstPullFailed: firstPullFailedAfter(state, next.status, next.reason ?? (next.errorKind === "pair-required" ? "encrypted-workspace" : null)),
+    reason: next.reason ?? null,
   };
   for (const l of listeners) l();
+}
+
+/**
+ * The opened vault the kept `firstPullFailed` belongs to — the instance, not
+ * its id: switching to a vault or reloading it opens a new one and starts
+ * afresh, while a restart of its sync (settings, a return to the app) keeps
+ * the instance and with it the failure.
+ */
+let firstPullVault: object | null = null;
+
+/** A worker exists for `vault`: its first pull begins; a failure of an earlier pull of the same opened vault stays. */
+function beginFirstPull(vault: object): void {
+  if (firstPullVault !== vault) {
+    firstPullVault = vault;
+    state = { ...state, firstPullFailed: false };
+  }
+  setFirstPullDone(false);
+}
+
+function setFirstPullDone(firstPullDone: boolean | null): void {
+  if (state.firstPullDone === firstPullDone) return;
+  state = { ...state, firstPullDone };
+  for (const l of listeners) l();
+}
+
+/**
+ * Whether the vault syncs and its first pull is running or about to start —
+ * core's `isFirstPullPending`, the desktop asks the same. A first pull that failed
+ * once is not "pending" again in this session: Home shows the vault as it is,
+ * and the sync line says what broke.
+ */
+export function isFirstPullPending(s: Pick<SyncState, "status" | "firstPullDone" | "firstPullFailed" | "reason">): boolean {
+  return isCoreFirstPullPending(s);
 }
 
 function setListingIncomplete(info: ListingIncompleteInfo | null): void {
@@ -534,7 +588,7 @@ export async function connectProvider(
   p: MobileSyncProvider,
   selectedContext?: ServiceConnectionContext,
   /** Runs once the slot exists and before the vault is listed (account sign-in plan K4b); a failure leaves no vault. */
-  adopt?: (vaultId: string) => Promise<void>,
+  adopt?: VaultSignInAdopter,
 ): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   const { connectionContextFor } = await import("./connectQueue");
@@ -548,8 +602,7 @@ export async function connectProvider(
   // No probe here (R8): the new vault's first listing shows a workspace's
   // genesis before its worker writes anything, and records it.
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
-  await adoptOrForget(id, adopt);
-  await addVault({ id, name: providerVaultName(p), provider: p.provider });
+  await adoptAndList(id, adopt, () => addVault({ id, name: providerVaultName(p), provider: p.provider }));
   // Offered instead of taken while something else's unsaved input is on screen
   // (`flowVault.ts`): the vault is connected either way.
   await enterMadeVault(id);
@@ -567,7 +620,7 @@ export async function createProviderVault(
   v: MobileVault,
   p: MobileSyncProvider,
   opts: { template: VaultTemplateDefinition | null; vaultName: string; subfoldersHeading: string },
-  adopt?: (vaultId: string) => Promise<void>,
+  adopt?: VaultSignInAdopter,
 ): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
@@ -576,21 +629,28 @@ export async function createProviderVault(
   // destination, never a root left in the settings by an earlier probe.
   await assertEmptyRemoteVault(await buildTarget(p, null));
   const id = newVaultId();
-  const adapter = new CapacitorVaultAdapter(`vaults/${id}`);
+  const root = `vaults/${id}`;
+  const adapter = new CapacitorVaultAdapter(root);
   if (await adapter.exists("")) throw new Error("Vault container already exists");
-  await adapter.initialize();
-  await scaffoldVaultTemplate({
-    adapter,
-    isNewVault: true,
-    template: opts.template,
-    vaultName: opts.vaultName,
-    subfoldersHeading: opts.subfoldersHeading,
-    // Made for this new cloud folder: the template is what it is to hold.
-    recordStarter: false,
-  });
-  await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
-  await adoptOrForget(id, adopt);
-  await addVault({ id, name: providerVaultName(p), provider: p.provider });
+  await ensureVaultsFolder();
+  // The whole attempt, sign-in included: what a failed one wrote into its
+  // container is taken back, and nothing of it stays unregistered (fourth
+  // review of O8 — the desktop's twin is OnlineVaultSetup).
+  await writeNewVault(root, sandboxNewVaultPorts, async (track) => {
+    await adapter.initialize();
+    await scaffoldVaultTemplate({
+      adapter: track(adapter),
+      isNewVault: true,
+      template: opts.template,
+      vaultName: opts.vaultName,
+      subfoldersHeading: opts.subfoldersHeading,
+      // Made for this new cloud folder: the template is what it is to hold.
+      recordStarter: false,
+    });
+    await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
+    // Listed inside the attempt: a vault entry that cannot be written takes the sign-in, the slot and the container back.
+    await adoptAndList(id, adopt, () => addVault({ id, name: providerVaultName(p), provider: p.provider }));
+  }, { makeFolder: true });
   // The template's settings are the new vault's own: written into it now, they
   // are there whether it opens at once or waits at its offer (`flowVault.ts`)
   // — and an app that ends in between loses nothing.
@@ -598,12 +658,23 @@ export async function createProviderVault(
   await enterMadeVault(id);
 }
 
-/** Hands a new vault's sign-in to its card; on failure the slot goes and no vault is listed. */
-async function adoptOrForget(vaultId: string, adopt?: (vaultId: string) => Promise<void>): Promise<void> {
-  if (!adopt) return;
+/** Makes a new vault's Google or Microsoft sign-in a card; hands back how to take that again (fifth review of O8). */
+export type VaultSignInAdopter = (vaultId: string) => Promise<(() => Promise<void>) | undefined | void>;
+
+/**
+ * Hands a new vault's sign-in to its card, then lists the vault. Whatever of
+ * the two fails, nothing stays that no vault entry points to (fifth review of
+ * O8): the sign-in takes back the grant and the card it made, and the slot
+ * goes. A part that cannot be taken back is reported, never swallowed; the
+ * first error is the one thrown.
+ */
+export async function adoptAndList(vaultId: string, adopt: VaultSignInAdopter | undefined, list: () => Promise<void>): Promise<void> {
+  let undo: (() => Promise<void>) | undefined | void;
   try {
-    await adopt(vaultId);
+    undo = adopt ? await adopt(vaultId) : undefined;
+    await list();
   } catch (error) {
+    if (undo) await undo().catch(reportingTo("signin:take-back"));
     await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId)).catch(reportingTo("credentials:forget"));
     throw error;
   }
@@ -952,6 +1023,7 @@ export function stopSync(): void {
   clearMobileCommentWorker();
   worker?.stop();
   worker = null;
+  setFirstPullDone(null);
   settingsOnlySync?.stop();
   settingsOnlySync = null;
   deletionJournal = null;
@@ -977,6 +1049,7 @@ async function stopAndDrainNow(): Promise<void> {
   clearMobileCommentWorker();
   const w = worker;
   worker = null;
+  setFirstPullDone(null);
   const settingsOnly = settingsOnlySync;
   settingsOnlySync = null;
   await settingsOnly?.stopAndDrain();
@@ -1361,11 +1434,13 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // The first cycle has looked: a file the index finds as new from now on
     // goes into the workspace queue at once, as with the plain worker (3.119).
     encrypted.onFirstCycleComplete = () => {
+      setFirstPullDone(true);
       v.markFirstSyncComplete();
       // What the index found and an ended app never queued (R22).
       v.sweepOwedToRemote("workspace");
     };
     worker = encrypted;
+    beginFirstPull(v);
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
     encrypted.start();
@@ -1432,7 +1507,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       }, delay);
       return;
     }
-    setState({ status, message: errorMsg ?? null, retryAt, rootMissing: reason === "root-missing" });
+    setState({ status, message: errorMsg ?? null, retryAt, rootMissing: reason === "root-missing", reason });
   };
   // The listing contradicts itself: facts for the sync screen, null once a
   // listing holds again (finding 2026-09-20). Never a question.
@@ -1457,6 +1532,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     setProgress(p ? { current: p.current, total: p.total } : null);
   };
   w.onFirstCycleComplete = (outcome) => {
+    setFirstPullDone(true);
     // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
     void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
     // Owed changes not queued now are queued by the next start's first cycle; a trace says why they waited.
@@ -1494,6 +1570,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     }
   };
   worker = w;
+  beginFirstPull(v);
   setState({ status: "idle", message: null });
   w.start();
   w.triggerImmediate();
