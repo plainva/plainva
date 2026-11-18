@@ -1,4 +1,5 @@
 import { createFenceTracker } from "../markdownFence.js";
+import { type LinkCorpusFile } from "../vault/LinkResolver.js";
 
 /**
  * Coverage of an answer (plan KI-Harness P2b-5, §21 citation duty): how many
@@ -67,4 +68,31 @@ export function answerCoverage(answer: string): AnswerCoverage {
   if (!statements.length) return { statements: 0, cited: 0, level: null };
   const share = cited / statements.length;
   return { statements: statements.length, cited, level: share >= HIGH ? "high" : share >= PARTIAL ? "partial" : "low" };
+}
+
+/** A file of the vault as the link rule reads it (`VaultQueryService.linkTargets`): `attachment` for everything that is no note. */
+export interface VaultLinkFile extends LinkCorpusFile {
+  mode?: string | null;
+}
+
+/** What a conversation had of the vault: the notes its context carried, and the ones its tools read (`RunMeta`). */
+export interface AnswerGrounding {
+  /** Paths of the notes the context carried. */
+  sent: readonly string[];
+  /** Paths of the notes the run's tools read. */
+  read?: readonly string[];
+  /** The tools read more than `read` lists: then nothing is known about what was not read. */
+  readMore?: boolean;
+  /** Sent notes with the `title` they go by — a link may name a note by it (ADR 0027). */
+  titled?: readonly LinkCorpusFile[];
+  /** The note the conversation stands in: where `./Note` and `../Folder/Note` are read from. */
+  from?: string;
+  /**
+   * The files of the vault the answer's links can lead to — all of them, or
+   * only those the links can name (`linkFilesNamed`), which answers alike: a
+   * link is read against them where a click on it leads. Without them only
+   * what the conversation had is asked — a link that names another note of
+   * the same name is then taken for the one it had.
+   */
+  vault?: readonly VaultLinkFile[];
 }

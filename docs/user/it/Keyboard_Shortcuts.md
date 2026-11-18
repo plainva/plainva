@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Ultimo aggiornamento: 2026-10-22
+Ultimo aggiornamento: 2026-11-16
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 
@@ -10,7 +10,7 @@ Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**
 |---|---|
 | `Ctrl+P` (o `Ctrl+Shift+P`) | Apri la palette dei comandi |
 | `Ctrl+O` | Selettore rapido – cerca e apri file |
-| `Ctrl+J` | Chiedi all'IA – apri il compagno (solo mentre l'IA è attiva, vedi [Assistente IA](AI_Assistant.md)) |
+| `Ctrl+J` | Chiedi all'IA – apri la conversazione nella barra laterale destra (solo mentre l'IA è attiva, vedi [Assistente IA](AI_Assistant.md)) |
 | `Ctrl+,` | Apri le impostazioni |
 | `Ctrl+Plus` / `Ctrl+Minus` | Aumenta / riduci lo zoom dell'interfaccia (80–150 %) |
 | `Ctrl+0` | Ripristina lo zoom al 100 % |

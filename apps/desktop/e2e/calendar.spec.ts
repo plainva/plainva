@@ -1985,7 +1985,7 @@ test('AI drafts an e-mail and an appointment: both wait as drafts, open in the c
   };
 
   await page.keyboard.press('Control+j');
-  const companion = page.getByTestId('ai-companion');
+  const companion = page.getByTestId('ai-dock');
   await companion.getByTestId('ai-input').fill('Tell Ms Okafor and tom@example.org that the 14th is fixed, and put the shooting day into my calendar.');
   await companion.getByTestId('ai-send').click();
   await companion.getByTestId('ai-consent-send').click();
@@ -2071,8 +2071,9 @@ test('AI drafts an e-mail and an appointment: both wait as drafts, open in the c
   //    by that; saved from there, this fixture's provider refuses — and the draft is still in the list.
   await eventCard.getByTestId('ai-draft-create').click();
   await expect(page.getByTestId('event-edit-form')).toBeVisible();
-  // The editor is a dialog of the calendar: the floating companion made room for it.
-  await expect(companion).toHaveCount(0);
+  // The editor is a dialog of the calendar; the docked conversation lies under it in the column and stays (plan
+  // Oberfläche O7) — only the floating window, which is drawn above dialogs, makes room.
+  await expect(companion).toBeVisible();
   await expect(page.getByTestId('event-title')).toHaveValue('Shooting day');
   await expect(page.getByTestId('event-start-time')).toHaveValue('09:00');
   await expect(page.getByTestId('event-end-time')).toHaveValue('17:00');
@@ -2086,8 +2087,7 @@ test('AI drafts an e-mail and an appointment: both wait as drafts, open in the c
   await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
   await expect(page.locator('.pv-toast--error').filter({ hasText: /nicht gespeichert|was not saved/ })).toBeVisible();
   expect(await waitingTitles()).toEqual(['Shooting day']);
-  // Back in the companion, the same conversation — and the card where it was.
-  await page.keyboard.press('Control+j');
+  // Still in the column, the same conversation — and the card where it was.
   await expect(companion.getByText('I drafted the reply and the appointment.')).toBeVisible();
   await expect(eventCard).toHaveCount(1);
   // No model was asked for any of it.

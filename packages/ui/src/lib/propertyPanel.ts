@@ -37,16 +37,32 @@ export interface PropertyPanelModel {
    */
   showStatusRow: boolean;
   showStaleRow: boolean;
+  /**
+   * The trust group ("Trust & provenance", the level, "Mark as reviewed")
+   * and the two lifecycle rows show only where they mean something (plan
+   * Oberfläche O7, D11): while the AI is on on this device — which can make
+   * notes and review them — or when the note carries such fields already.
+   */
+  trustShown: boolean;
   /** Rows the panel draws: the ordinary ones plus the pinned lifecycle rows. */
   shownCount: number;
 }
 
-export function propertyPanelModel(frontmatter: Record<string, unknown> | null | undefined): PropertyPanelModel {
+export interface PropertyPanelOptions {
+  /** The AI is on on this device (`useAiOn`): every note is offered its trust signals. */
+  aiOn?: boolean;
+}
+
+export function propertyPanelModel(frontmatter: Record<string, unknown> | null | undefined, options: PropertyPanelOptions = {}): PropertyPanelModel {
   const fm = frontmatter && typeof frontmatter === "object" && !Array.isArray(frontmatter) ? frontmatter : {};
   const trust = parseOkfTrustSignals(fm);
   const claimed = new Set(trust.claimedKeys);
-  const showStatusRow = !trust.statusForeign;
-  const showStaleRow = fm.stale_after === undefined || trust.staleAfter !== null;
+  // Fields of the trust family the note carries: a provenance family read as one, a lifecycle `status` (not a task
+  // database's own word), a `stale_after` in any form. A note without any of them shows no trust group while the AI is off.
+  const carriesTrust = claimed.size > 0 || (fm.status !== undefined && !trust.statusForeign) || fm.stale_after !== undefined;
+  const trustShown = Boolean(options.aiOn) || carriesTrust;
+  const showStatusRow = trustShown && !trust.statusForeign;
+  const showStaleRow = trustShown && (fm.stale_after === undefined || trust.staleAfter !== null);
   const userKeys = Object.keys(fm).filter((key) => !isHiddenPropertyKey(key));
   const genericKeys = userKeys.filter((key) => {
     if (PROVENANCE_KEYS.has(key) && claimed.has(key)) return false;
@@ -60,6 +76,7 @@ export function propertyPanelModel(frontmatter: Record<string, unknown> | null |
     genericKeys,
     showStatusRow,
     showStaleRow,
+    trustShown,
     shownCount: genericKeys.length + (showStatusRow ? 1 : 0) + (showStaleRow ? 1 : 0),
   };
 }

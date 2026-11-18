@@ -31,6 +31,7 @@ import { MobileNoteHintsSection } from "../components/MobileNoteHintsSection";
 import { MobileGistsSection } from "../components/MobileGistsSection";
 import { MobileSystemAssistantSection } from "../components/MobileSystemAssistantSection";
 import { AiModelSheet } from "../components/AiModelSheet";
+import { AiSetupSheet } from "../components/AiSetupSheet";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { PlatformModel } from "../platform/platformModel";
 import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
@@ -58,6 +59,8 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
   const [saved, setSaved] = useState<Awaited<ReturnType<AiSession["savings"]>>>({ savedTokens: 0, runs: 0 });
   // The model of one profile, in one sheet (plan KI-Oberflächen K4).
   const [modelFor, setModelFor] = useState<AiProfileSlot | null>(null);
+  // The three-step setup (plan Oberfläche O7, T9), from the page's "No model yet" row.
+  const [settingUp, setSettingUp] = useState(false);
   const number = new Intl.NumberFormat(i18n.language);
   // As the desktop says it: the cost where the provider publishes prices (plan P9-6).
   const money = new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -248,7 +251,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
               <RowList>
                 {/* One card with one way while a step is missing (plan K3); the mode line once a conversation can start. */}
                 {step === "provider" ? (
-                  <Row wrap title={t("ai.setup.title")} subtitle={t("ai.setup.bodyPhone")} data-testid="ai-mode-now" />
+                  <Row wrap title={t("ai.setup.title")} subtitle={t("ai.setup.bodyPhone")} onClick={() => setSettingUp(true)} data-testid="ai-mode-now" />
                 ) : step === "model" ? (
                   <Row
                     wrap
@@ -266,20 +269,26 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
                   <Row key={row.provider.id} wrap title={row.provider.label} subtitle={providerStatus(t, row)} onClick={() => void providerActions(row.provider)} />
                 ))}
                 <Row icon={<Plus size={ICON.ui} />} title={t("ai.settings.addProvider")} onClick={() => void addProvider()} data-testid="ai-add-provider-open" />
-                {AI_PROFILE_IDS.map((id) => (
-                  <Row key={id} wrap title={t(`ai.profile.${id}`)} subtitle={profileLine(id)} disabled={rows.length === 0} onClick={() => void profileActions(id)} data-testid={`ai-profile-${id}`} />
-                ))}
+                {/* The profiles appear once a provider is there (plan Oberfläche O7, M7): before that they could only say "not set up". */}
+                {rows.length > 0 &&
+                  AI_PROFILE_IDS.map((id) => (
+                    <Row key={id} wrap title={t(`ai.profile.${id}`)} subtitle={profileLine(id)} onClick={() => void profileActions(id)} data-testid={`ai-profile-${id}`} />
+                  ))}
               </RowList>
             </GroupCard>
-            <p className="m-hint">{t("ai.settings.moreModels")}</p>
-            <GroupCard>
-              <RowList>
-                {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
-                <Row wrap title={t("ai.profile.audio")} subtitle={profileLine(AI_AUDIO_PROFILE)} info={t("ai.settings.audioHint")} disabled={rows.length === 0} onClick={() => void profileActions(AI_AUDIO_PROFILE)} data-testid="ai-profile-audio" />
-                {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
-                <Row wrap title={t("ai.profile.embedding")} subtitle={profileLine(AI_EMBEDDING_PROFILE)} info={t("ai.settings.embeddingHint")} disabled={rows.length === 0} onClick={() => void profileActions(AI_EMBEDDING_PROFILE)} data-testid="ai-profile-embedding" />
-              </RowList>
-            </GroupCard>
+            {rows.length > 0 && (
+              <>
+                <p className="m-hint">{t("ai.settings.moreModels")}</p>
+                <GroupCard>
+                  <RowList>
+                    {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
+                    <Row wrap title={t("ai.profile.audio")} subtitle={profileLine(AI_AUDIO_PROFILE)} info={t("ai.settings.audioHint")} onClick={() => void profileActions(AI_AUDIO_PROFILE)} data-testid="ai-profile-audio" />
+                    {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
+                    <Row wrap title={t("ai.profile.embedding")} subtitle={profileLine(AI_EMBEDDING_PROFILE)} info={t("ai.settings.embeddingHint")} onClick={() => void profileActions(AI_EMBEDDING_PROFILE)} data-testid="ai-profile-embedding" />
+                  </RowList>
+                </GroupCard>
+              </>
+            )}
 
             {/* What may leave this device, in one place (plan K2): the promise "Fully local", and the question before each request. */}
             <SectionLabel info={mode.localOnly ? t("ai.mode.notThis") : t("ai.mode.note")}>{t("ai.settings.privacy")}</SectionLabel>
@@ -377,6 +386,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
           </p>
         )}
       </div>
+      {settingUp && <AreaBoundary area="sheet:aiSetup" size="dialog" exit={{ label: t("common.close"), onExit: () => setSettingUp(false) }}><AiSetupSheet onClose={() => setSettingUp(false)} /></AreaBoundary>}
       {modelFor && <AreaBoundary area="sheet:aiModel" size="dialog" exit={{ label: t("common.close"), onExit: () => setModelFor(null) }}><AiModelSheet session={session} state={state} rows={rows} profile={modelFor} onClose={() => setModelFor(null)} /></AreaBoundary>}
     </div>
   );

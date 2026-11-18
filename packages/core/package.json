@@ -49,6 +49,7 @@
     "benchmark": "tsx scripts/benchmark.ts",
     "benchmark:large": "tsx scripts/benchmark-large-vault.ts",
     "perf:gate": "tsx scripts/perf/core-gate.ts",
+    "perf:tables": "tsx scripts/perf/many-tables.ts",
     "fuzz:workspace": "tsx scripts/workspace-fuzz.ts",
     "vectors:workspace": "tsx scripts/workspace-vectors.ts"
   },
@@ -75,6 +76,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "mdast-util-to-hast": "13.2.1",
+    "micromark": "4.0.2",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1",
     "tsx": "^4.23.15",

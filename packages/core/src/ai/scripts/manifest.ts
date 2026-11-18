@@ -63,7 +63,12 @@ export const SCRIPT_READ_TOOL_NAMES: readonly string[] = [
  * its properties, and the drafts of a note, a database entry, a task and a
  * journal line. Each ends as the same call of a model ends: a suggestion
  * round in the note's margin, a draft in the list — nothing in the vault
- * changes before the user accepts or creates.
+ * changes before the user accepts or creates. The one exception is the
+ * user's own leave (ADR 0019, addendum 2026-11-06, point 6; maintainer,
+ * 2026-11-16): a script the AI starts in a conversation writes as that
+ * conversation does, so under "Apply directly", and in a folder with
+ * "Change without asking", these six write at once — they are exactly
+ * `DIRECT_TOOL_NAMES`. Started from the workshop, a script never does.
  *
  * Not among them: the plans (rename, move, delete — each asks the user about
  * one thing, and a program that loops would ask without end) and the drafts

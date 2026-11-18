@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-11-17
+Stand: 2026-11-18
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -26,7 +26,7 @@ Ein Vault ist ein ganz normaler Ordner auf Deinem Rechner, in dem Deine Markdown
 
 ## Einen Vault öffnen oder anlegen
 
-Beim **allerersten** Start — bevor Du je einen Vault geöffnet hast — zeigt Plainva einmalig ein kurzes Willkommen. Es erklärt in drei Zeilen, worauf Plainva aufbaut, zeigt daneben eine kleine Vorschau der Oberfläche und bietet direkt die drei Wege hinein an: **Vault öffnen**, **Neuer Vault** und **Aus anderer App importieren**. Mit **Später** überspringst Du es und landest auf dem normalen Willkommensbildschirm; wieder erscheint es nicht — es sei denn, Du holst es unter **Einstellungen → Start & Verhalten → Willkommensbildschirm** zurück.
+Beim **allerersten** Start — bevor Du je einen Vault geöffnet hast — zeigt Plainva einmalig **Willkommen bei Plainva**. Die Hauptaktion ist **Mit der Tour ausprobieren**: Ein Klick legt den Vault der Plainva-Tour in einem neuen Ordner in Deinen Dokumenten an und öffnet ihn; welchen Ordner, steht vorher auf der Karte **Tour-Vault**. Ist der Name schon vergeben, kommt die Tour in einen Ordner daneben, und eine Meldung nennt ihn. Daneben öffnet **Vorhandenen Ordner öffnen** einen Ordner, in dem schon Notizen liegen, etwa einen Obsidian-Vault. Darunter führen **Neuer leerer Vault** und **Aus Notion, Evernote, Obsidian … importieren** zu den beiden anderen Wegen. Lässt sich die Tour dort nicht anlegen – etwa weil macOS den Zugriff auf Deine Dokumente nicht erlaubt –, sagt das Willkommen das und bietet **Anderen Ort wählen**. Darunter führen plainva.com und das **Handbuch** weiter. Mit **Später** oder dem ✕ schließt Du das Willkommen und landest auf dem normalen Willkommensbildschirm; wieder erscheint es nicht — es sei denn, Du holst es unter **Einstellungen → Start & Verhalten → Willkommensbildschirm** zurück. Ist ein Vault noch leer, zeigt die leere Editorfläche genau eine Aufforderung: **Schreib Deine erste Notiz**, mit dem Knopf **Neue Notiz**. Ist ein Vault aus der Cloud hier noch leer, steht dort, bis der erste Abgleich nach dem Öffnen fertig ist, **Dein Vault wird geladen**. Scheitert dieser Abgleich, zeigt der Vault, was er hat, und der Sync-Status sagt, warum; bis Du den Vault neu öffnest, kommt der Hinweis nicht wieder. Scheitert das Anlegen der Tour, nimmt Plainva zurück, was es dabei geschrieben hat und was noch so dasteht; eine Datei, die inzwischen geändert wurde, bleibt. Ein neuer Versuch legt die Tour ganz an – im selben Ordner, auch wenn sich nicht alles entfernen ließ, und in einem Ordner daneben, wenn dort eine Datei geändert wurde.
 
 Nach einem Update zeigt dieselbe Stelle, was sich geändert hat: die größte Neuerung dieser Version mit eigener Überschrift, der Rest als je eine Zeile. Er erscheint einmal je Version — unter **Einstellungen → Start & Verhalten → Neuerungen erneut anzeigen** kannst Du ihn jederzeit erneut aufrufen.
 

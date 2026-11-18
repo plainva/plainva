@@ -1,6 +1,7 @@
 import { devicePlatform } from "./devicePlatform";
 import {
-  adoptFilesSignIn,
+  adoptFilesSignInUndoable,
+  reportBackground,
   adoptedDropboxAccess,
   resolveDropboxAccess,
   bindSignedInAccount,
@@ -32,7 +33,7 @@ import { forgetGraphMailRuntime, legacyMailSecretKey, listMailAccounts, mailSecr
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { beginPimOAuth, setOAuthPurposeHandler } from "./pim/pimOAuth";
-import { getAccountToken, saveAccountToken } from "./accountBroker";
+import { clearAccountToken, getAccountToken, saveAccountToken } from "./accountBroker";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { restartPimAccountAfterLogin } from "./pim/pimService";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
@@ -287,8 +288,8 @@ export function registerSignInHandler(): void {
  * sign-in through Android's system sheet holds no refresh token; it is renewed
  * silently here instead.
  */
-export async function adoptAddedVaultSignIn(vaultId: string, access: OAuthAccess, provider: MobileSyncProvider): Promise<void> {
-  if (provider.provider !== "drive" && provider.provider !== "onedrive") return;
+export async function adoptAddedVaultSignIn(vaultId: string, access: OAuthAccess, provider: MobileSyncProvider): Promise<(() => Promise<void>) | undefined> {
+  if (provider.provider !== "drive" && provider.provider !== "onedrive") return undefined;
   const family: OAuthFamily = provider.provider === "drive" ? "google" : "microsoft";
   const files = provider.provider;
   let grant: { refreshToken: string } | { consent: { refreshToken: string; accessToken: string; grantedScope: string; nativeGoogle: { email: string } } };
@@ -298,10 +299,14 @@ export async function adoptAddedVaultSignIn(vaultId: string, access: OAuthAccess
   } else {
     grant = { refreshToken: provider.creds.refreshToken };
   }
-  const finished = await adoptFilesSignIn({ vaultId, family, access, grant }, {
+  // A failure on the way takes back the grant and the card this attempt made
+  // (fifth review of O8); the caller takes them back for a failure after it.
+  const { takeBack } = await adoptFilesSignInUndoable({ vaultId, family, access, grant }, {
     fetch: webdavFetch,
     loadCards: () => loadCloudAccounts(vaultId),
     saveGrant: (cardId, token) => saveAccountToken(vaultId, cardId, token),
+    loadGrant: (cardId) => getAccountToken(vaultId, cardId),
+    clearGrant: (cardId) => clearAccountToken(vaultId, cardId),
     newCardId: () => crypto.randomUUID(),
     saveCards: (records) => saveCloudAccounts(vaultId, records),
     setPending: () => undefined,
@@ -316,7 +321,6 @@ export async function adoptAddedVaultSignIn(vaultId: string, access: OAuthAccess
     // The vault is entered next; that starts its worker.
     afterBinding: async () => undefined,
     describeFailure: (error) => (error instanceof Error ? error.message : String(error)),
-  });
-  const row = finished.rows.find((entry) => entry.service === "files");
-  if (row?.state !== "active") throw new Error(row?.detail ?? i18n.t("cloudAccounts.notGranted"));
+  }, { notGranted: i18n.t("cloudAccounts.notGranted"), report: (error) => reportBackground("signin:take-back", error) });
+  return takeBack;
 }

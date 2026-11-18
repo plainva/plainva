@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, ListChecks, RefreshCw, CalendarPlus } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
-import { AreaBoundary, chunkWeeks, dayRangeLabel, formatClockTime, formatHourMark, formatMinuteOfDay, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
+import { AreaBoundary, chunkWeeks, dayRangeLabel, formatClockTime, formatHourMark, formatMinuteOfDay, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventColorVars, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "@plainva/ui";
 import type { PimEventRow, PimSyncProblem } from "@plainva/core";
 import { isoOf } from "../lib/dates";
@@ -1020,7 +1020,7 @@ export function PimCalendarScreen({
                       data-testid="pim-event"
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                       onClick={() => void editor.openEvent(e)}
-                      style={{ ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "var(--space-1)", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap", textOverflow: "ellipsis" }}
+                      style={{ ...eventColorVars(colorOf(e)), border: "none", borderRadius: "var(--radius-xs)", padding: "var(--space-1)", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap", textOverflow: "ellipsis" }}
                       type="button"
                     >
                       {e.blockOf || e.blockedIn?.length ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock")} data-testid="pim-event-linked" style={{ flexShrink: 0, verticalAlign: "text-bottom", marginRight: "var(--space-1)" }} /> : null}
@@ -1122,7 +1122,7 @@ export function PimCalendarScreen({
                         data-compact={compact ? "true" : undefined}
                         className={eventStateClass("m-evt", eventVisualState(e), e)}
                         onClick={() => void editor.openEvent(e)}
-                        style={{ position: "absolute", top, height, left: `calc(${l.lane * laneWidthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: compact ? "0 4px" : "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: compact ? 1 : 1.15 }}
+                        style={{ position: "absolute", top, height, left: `calc(${l.lane * laneWidthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ...eventColorVars(colorOf(e)), border: "none", borderRadius: "var(--radius-xs)", padding: compact ? "0 4px" : "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: compact ? 1 : 1.15 }}
                       >
                         {e.blockOf || e.blockedIn?.length ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock")} data-testid="pim-event-linked" style={{ flexShrink: 0, verticalAlign: "text-bottom", marginRight: "var(--space-1)" }} /> : null}
                         <span className="m-evt-title">{e.title}</span>

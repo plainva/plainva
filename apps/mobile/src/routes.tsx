@@ -548,7 +548,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   journal: (_e, c) => <JournalScreen bump={c.bump} onBack={c.pop} onNewEntry={() => c.captureJournal()} onOpenNote={c.openNote} vault={c.vault} />,
   // Pushed when the KI screen sits outside the bar — its usual place (plan KI-Harness §19.1).
   ai: (_e, c) => (
-    <AiScreen onBack={c.pop} onHistory={(view) => c.push({ kind: "aihistory", path: view ?? "" })} onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)} onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })} />
+    <AiScreen onBack={c.pop} onHistory={(view) => c.push({ kind: "aihistory", path: view ?? "" })} onOpenNote={(target, kind) => openAiNoteTarget(c.vault, target, c.openNote, kind)} onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })} />
   ),
   aihistory: (e, c) => <AiHistoryScreen onBack={c.pop} onOpenNote={c.openNote} initialView={e.path === "skills" || e.path === "memory" || e.path === "open" ? e.path : "chats"} />,
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
@@ -684,7 +684,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
     <AiScreen
       onMenu={() => c.push({ kind: "settings", path: "" })}
       onHistory={(view) => c.push({ kind: "aihistory", path: view ?? "" })}
-      onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)}
+      onOpenNote={(target, kind) => openAiNoteTarget(c.vault, target, c.openNote, kind)}
       onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })}
     />
   ),

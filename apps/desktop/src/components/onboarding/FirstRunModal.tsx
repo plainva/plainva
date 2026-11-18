@@ -1,227 +1,182 @@
 import React from 'react';
-import { Modal, Button, ICON } from '@plainva/ui';
+import { Modal, Banner, Button, ICON } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
+import { FolderOpen, Sparkles } from 'lucide-react';
 import { openExternalUrl as openUrl } from '../../services/openExternal';
-import { FileText, Database, Download, FolderOpen, Plus } from 'lucide-react';
 import { userGuideUrl } from '../../services/docsLinks';
-
-interface FirstRunModalProps {
-  /** "Later" — leaves the welcome and shows the ordinary splash. */
-  onClose: () => void;
-  /** Opens an existing vault (local or in a cloud), via the splash's own flow. */
-  onOpenVault: () => void;
-  /** Creates a new vault, via the splash's own flow. */
-  onNewVault: () => void;
-  /** Starts the import wizard. */
-  onImport: () => void;
-}
 
 const WEBSITE_URL = 'https://plainva.com';
 
-/**
- * A miniature of the app, drawn rather than screenshotted.
- *
- * A screenshot would be one language and one theme; this is rendered from the
- * same tokens as the app, so it follows the user's theme and reads in all ten
- * languages. The labels come from the real UI wherever one exists — a preview
- * that names things differently from the app teaches the wrong words.
- */
-const MiniPreview: React.FC = () => {
-  const { t } = useTranslation();
+/** A link-styled action inside a sentence — the welcome's four quieter ways. */
+const TextLink: React.FC<{ onClick: () => void; disabled?: boolean; testId?: string; children: React.ReactNode }> = ({ onClick, disabled, testId, children }) => (
+  <button type="button" className="pv-linkbtn" onClick={onClick} disabled={disabled} data-testid={testId}>
+    {children}
+  </button>
+);
 
-  const head: React.CSSProperties = {
-    fontSize: 'var(--text-xs)',
-    color: 'var(--text-faint)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    margin: '0 0 var(--space-1) 0',
-  };
-  const row: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 'var(--space-2)',
-    fontSize: 'var(--text-xs)',
-    color: 'var(--text-muted)',
-    padding: '2px 0',
-  };
-  const dot = (active: boolean): React.CSSProperties => ({
-    width: 6,
-    height: 6,
-    borderRadius: 'var(--radius-xs)',
-    background: active ? 'var(--accent-color)' : 'var(--border-color)',
-    flexShrink: 0,
-  });
+/** Where the tour is: not started, being written, or refused where it was to go. */
+export type TourProgress = { kind: 'idle' } | { kind: 'busy' } | { kind: 'failed'; place: string };
 
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '38% 1fr',
-        border: '1px solid var(--border-color)',
-        borderRadius: 'var(--radius-md)',
-        overflow: 'hidden',
-        background: 'var(--bg-primary)',
-        minHeight: 190,
-      }}
-    >
-      <div style={{ background: 'var(--surface-container-low)', padding: 'var(--space-3)' }}>
-        <p style={head}>{t('firstRun.miniAreas')}</p>
-        <div style={{ ...row, color: 'var(--text-main)' }}><span style={dot(true)} />{t('sidebar.files')}</div>
-        <div style={row}><span style={dot(false)} />{t('rightPanel.calendar')}</div>
-        <div style={row}><span style={dot(false)} />{t('database.viewPinboard')}</div>
-        <p style={{ ...head, marginTop: 'var(--space-3)' }}>{t('sidebar.databases')}</p>
-        <div style={row}><span style={dot(false)} />{t('firstRun.miniDatabase')}</div>
-      </div>
-
-      <div style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-        <div style={{ fontSize: 'var(--text-ui)', fontWeight: 600, color: 'var(--text-main)' }}>
-          {t('firstRun.miniDocTitle')}
-        </div>
-        <div style={{ ...row, color: 'var(--text-faint)' }}>
-          {/* Only the text is struck through — a struck-through tick reads as
-              "not done", which is the opposite of what it says. */}
-          <span style={{ color: 'var(--accent-color)' }}>✓</span>
-          <span style={{ textDecoration: 'line-through' }}>{t('firstRun.miniDone')}</span>
-        </div>
-        <div style={row}>
-          <span>☐</span>
-          {t('firstRun.miniTask')}
-        </div>
-        <div style={{ ...row, gap: 'var(--space-1)' }}>
-          <span>{t('firstRun.miniSee')}</span>
-          <span style={{ color: 'var(--accent-color)' }}>[[{t('firstRun.miniLink')}]]</span>
-        </div>
-      </div>
-    </div>
-  );
-};
+interface FirstRunModalProps {
+  /** "Later" and the ✕ — leave the welcome and show the ordinary splash. */
+  onClose: () => void;
+  /** The main action: makes the tour vault in one click and opens it. */
+  onTour: () => void;
+  /** After a refused place: the tour, in a folder the person picks. */
+  onTourElsewhere: () => void;
+  /** Opens a folder that already holds notes (an Obsidian vault, a folder of Markdown). */
+  onOpenFolder: () => void;
+  /** Makes a new, empty vault, via the splash's own flow. */
+  onNewEmpty: () => void;
+  /** Starts the import wizard. */
+  onImport: () => void;
+  /** Where the tour will go — a path only, worked out without looking into it. */
+  tourFolder: string | null;
+  tour: TourProgress;
+}
 
 /**
- * Shown once, to people opening Plainva for the very first time.
+ * Shown once, to people opening Plainva for the very first time (plan
+ * Oberfläche, O8 / D3 / E5, mockup M8).
  *
- * It ends in a decision rather than in "next": the three actions are the same
- * ones the splash offers, so the welcome is the entry itself instead of a
- * screen in front of it. That is also where a switcher first sees that
- * importing exists — before this it lived in a menu that needs a vault.
+ * Show rather than explain: the tour is the main action, because sentences
+ * about what Plainva can do are worth less than a vault in which it does it.
+ * Beside it the one other common first step — a folder of notes the user
+ * already has. Starting empty and importing from another app stay one click
+ * away as links: they are real ways in, not the first suggestion. "Later" is
+ * the way out and sits apart from the offers, with the website and the guide
+ * for whoever wants to read first.
+ *
+ * While the tour is written the welcome stays and says so, and nothing in it
+ * can be pressed twice. Where the place is refused (macOS asks before an app
+ * may look into "Documents"), it says so in words and offers another place —
+ * never the system's raw message (review of O8, 2026-11-17).
+ *
+ * The welcome used to lead with the import, and the tour sat three clicks
+ * deep under "New vault" (finding D3, review 2026-11-10).
  */
 export const FirstRunModal: React.FC<FirstRunModalProps> = ({
   onClose,
-  onOpenVault,
-  onNewVault,
+  onTour,
+  onTourElsewhere,
+  onOpenFolder,
+  onNewEmpty,
   onImport,
+  tourFolder,
+  tour,
 }) => {
   const { t } = useTranslation();
-
-  const points = [
-    { icon: FileText, text: t('firstRun.point1') },
-    { icon: Database, text: t('firstRun.point2') },
-    { icon: Download, text: t('firstRun.point3') },
-  ];
-
-  const linkStyle: React.CSSProperties = {
-    color: 'var(--accent-color)',
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    font: 'inherit',
-    cursor: 'pointer',
-  };
+  const busy = tour.kind === 'busy';
+  const close = () => { if (!busy) onClose(); };
 
   return (
     <Modal
-      onClose={onClose}
+      onClose={close}
       title={t('firstRun.title')}
       size="lg"
+      testId="firstrun-dialog"
       footer={
-        <>
-          {/* "Later" is the way out, not one of the three offers — it sits
-              apart from them rather than as a fourth button in the row. */}
-          <Button variant="ghost" onClick={onClose} style={{ marginRight: 'auto' }}>
-            {t('firstRun.later')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={onOpenVault}
-            data-testid="firstrun-open"
-            icon={<FolderOpen size={ICON.ui} />}
-          >
-            {t('splash.openVault')}
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={onNewVault}
-            data-testid="firstrun-new"
-            icon={<Plus size={ICON.ui} />}
-          >
-            {t('splash.newVault')}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={onImport}
-            data-testid="firstrun-import"
-            icon={<Download size={ICON.ui} />}
-          >
-            {t('splash.importVault')}
-          </Button>
-        </>
+        <Button variant="ghost" onClick={close} disabled={busy} data-testid="firstrun-later" style={{ marginRight: 'auto' }}>
+          {t('firstRun.later')}
+        </Button>
       }
     >
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
           gap: 'var(--space-5)',
-          alignItems: 'center',
+          alignItems: 'start',
           padding: 'var(--space-2) 0',
         }}
       >
-        <div>
-          <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', margin: '0 0 var(--space-4) 0' }}>
-            {t('firstRun.intro')}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <h3 style={{ margin: 0, fontSize: 'var(--text-headline)', color: 'var(--text-main)' }}>
+            {t('firstRun.heading')}
+          </h3>
+          <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: '1.6' }}>
+            {t('firstRun.body')}
           </p>
 
-          {/* One line per point, not a paragraph: this screen is a decision aid. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            {points.map(({ icon: Icon, text }) => (
-              <span
-                key={text}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-2)',
-                  alignSelf: 'flex-start',
-                  padding: 'var(--space-1) var(--space-3)',
-                  borderRadius: 'var(--radius-pill)',
-                  background: 'var(--surface-container-low)',
-                  border: '1px solid var(--border-color-light)',
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--text-main)',
-                }}
-              >
-                <Icon size={ICON.meta} style={{ flexShrink: 0, color: 'var(--accent-color)' }} />
-                {text}
-              </span>
-            ))}
+          {tour.kind === 'failed' && (
+            <Banner
+              kind="warning"
+              rounded
+              testId="firstrun-tour-failed"
+              actions={
+                <Button variant="secondary" onClick={onTourElsewhere} data-testid="firstrun-tour-elsewhere">
+                  {t('firstRun.tourElsewhere')}
+                </Button>
+              }
+            >
+              {t('firstRun.tourFailed', { place: tour.place })}
+            </Banner>
+          )}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+            <Button
+              variant="primary"
+              onClick={onTour}
+              disabled={busy}
+              aria-busy={busy}
+              data-testid="firstrun-tour"
+              icon={<Sparkles size={ICON.ui} />}
+            >
+              {busy ? t('firstRun.tourBusy') : t('firstRun.tour')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={onOpenFolder}
+              disabled={busy}
+              data-testid="firstrun-open"
+              icon={<FolderOpen size={ICON.ui} />}
+            >
+              {t('firstRun.openFolder')}
+            </Button>
           </div>
 
-          <p style={{ margin: 'var(--space-4) 0 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-            {t('firstRun.moreAt')}{' '}
-            <button type="button" style={linkStyle} onClick={() => void openUrl(WEBSITE_URL)}>
-              plainva.com
-            </button>
+          {/* Two real ways in, one click away — but not the first suggestion. */}
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+            <TextLink onClick={onNewEmpty} disabled={busy} testId="firstrun-new">
+              {t('firstRun.newEmpty')}
+            </TextLink>
             {' · '}
-            <button
-              type="button"
-              style={linkStyle}
-              onClick={() => void openUrl(userGuideUrl('Getting_Started.md'))}
-            >
+            <TextLink onClick={onImport} disabled={busy} testId="firstrun-import">
+              {t('firstRun.importLink')}
+            </TextLink>
+          </p>
+
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }} data-testid="firstrun-more">
+            {t('firstRun.moreAt')}{' '}
+            <TextLink onClick={() => void openUrl(WEBSITE_URL)}>plainva.com</TextLink>
+            {' · '}
+            <TextLink onClick={() => void openUrl(userGuideUrl('Getting_Started.md'))}>
               {t('firstRun.guideLink')}
-            </button>
+            </TextLink>
           </p>
         </div>
 
-        <MiniPreview />
+        <div
+          data-testid="firstrun-tour-card"
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color-light)',
+            background: 'var(--surface-container-low)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-1)',
+            fontSize: 'var(--text-sm)',
+          }}
+        >
+          <strong style={{ color: 'var(--text-main)' }}>{t('firstRun.tourCardTitle')}</strong>
+          <span style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>{t('firstRun.tourCardBody')}</span>
+          {tourFolder && (
+            <span style={{ color: 'var(--text-faint)', overflowWrap: 'anywhere' }} data-testid="firstrun-tour-where">
+              {t('firstRun.tourCardWhere', { path: tourFolder })}
+            </span>
+          )}
+        </div>
       </div>
     </Modal>
   );

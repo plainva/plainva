@@ -454,7 +454,10 @@ describe("every list sheet says which kind it is (E20)", () => {
     // answers as cards to click.
     ["services/vaultService.ts", "mobile.vaultCreate", "mActions"],
     ["App.tsx", "mobile.onboardingCloud", "mActions"],
-    ["App.tsx", "mobile.templatePick", "mActions"],
+    // The template sheet and "I already have a vault" moved out of App.tsx
+    // into the first-start service (O8); both are forks, nothing preselected.
+    ["services/firstStart.ts", "mobile.templatePick", "mActions"],
+    ["services/firstStart.ts", "mobile.onboardingExisting", "mActions"],
   ];
 
   it.each(KIND)("%s: %s is %s", (file, title, fn) => {

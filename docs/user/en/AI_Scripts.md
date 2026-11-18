@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-17
 
 A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it: they read your vault the way the AI's tools do, or leave a suggestion that you decide about. A script that you start here changes nothing by itself; one that the AI starts in a conversation can write directly where you let it (see “In a conversation” below).
 
@@ -18,7 +18,7 @@ In an ordinary conversation the AI can find your active scripts and run one when
 
 A script can also be given tools that suggest. The tools **Suggesting changes to a note** and **Suggesting a property value** leave a suggestion in the margin of a note; **Drafting a note**, **Drafting a database entry**, **Drafting a task** and **Drafting a journal entry** leave a draft. Both carry the script's name. A script you start here with **Run** writes nothing directly: nothing in your vault changes before you accept a suggestion or create a draft — exactly as with a suggestion of the AI. After a run the dialog lists them under **Suggestions and drafts**; a run started with **Dry run** leaves nothing.
 
-What a script read decides where it may write: a suggestion or a draft that rests on a note you keep from the cloud is taken only by a place under the same rule. In a conversation the AI is offered a script that suggests only where the conversation can suggest itself, and what the script leaves there carries the name of the conversation's model. Where the conversation applies changes directly — with the chip **Apply directly**, or for a target in a folder that allows **Change without asking** —, what such a script writes goes in directly too: a change to a note and to its properties, a new note, a database entry, a task or a journal entry, with the same net as the assistant's own direct changes (see “Apply directly” in [AI Assistant](AI_Assistant.md)). Without that leave the script leaves suggestions and drafts, as above.
+What a script read decides where it may write: a suggestion or a draft that rests on a note you keep from the cloud is taken only by a place under the same rule. In a conversation the AI is offered a script that suggests only where the conversation can suggest itself, and what the script leaves there carries the name of the conversation's model. Where the conversation applies changes directly — with the chip **Apply directly**, or for a target in a folder that allows **Change without asking** —, what such a script writes goes in directly too: a change to a note and to its properties, a new note, a database entry, a task or a journal entry, with the same net as the assistant's own direct changes (see “Apply directly” in [AI Assistant](AI_Assistant.md)). One run can change many notes this way: the AI may start a script in every step of its answer, and each start may make as many calls as the script's limit allows. Each change keeps its version before, and the answer lists them all with **Undo all**. Without that leave the script leaves suggestions and drafts, as above.
 
 ## Writing a script
 

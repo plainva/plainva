@@ -188,7 +188,8 @@ describe("a script in the workshop", () => {
     expect(facts.may).toEqual([
       "It calls these tools: Reading a note · Suggesting changes to a note · Drafting a task.",
       "It reaches nothing else — no file, no network, no other tool.",
-      "It can suggest changes and leave drafts, signed with its name. Nothing in the vault changes before you accept or create.",
+      "It can suggest changes and leave drafts, signed with its name — they wait for you to accept or create.",
+      "Started by the AI in a conversation with “Apply directly”, or in a folder with “Change without asking”, it changes notes at once, with Undo.",
     ]);
     expect(facts.canApprove).toBe(true);
     // Its row names the writing tools like the reading ones: what it calls is what it can do.

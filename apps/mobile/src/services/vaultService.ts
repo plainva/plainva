@@ -30,6 +30,7 @@ import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLin
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
 import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
+import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, pickVaultFolder, type VaultFolderAccess } from "../platform/vaultFolder";
@@ -98,6 +99,7 @@ import {
 import { finishMobileSetAside, mobileIndexDatabaseWasRebuilt, removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } from "./indexDatabaseRebuild";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
+import { writeNewVault } from "@plainva/ui";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet, type DeletionNetAsk } from "@plainva/ui";
 import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
@@ -123,6 +125,12 @@ export interface MobileVault {
   freshlySeeded: boolean;
   /** Single-use creation opportunity, consumed before showing the chooser. */
   claimTemplateCreation(): boolean;
+  /**
+   * The sandbox folder of a container vault, relative to the app's data
+   * folder; null for a picked folder. What a failed template writes there is
+   * taken back by its path (third review of O8).
+   */
+  containerRoot: string | null;
   /**
    * The storage below the chain (listing, binary reads): the sandbox one, or
    * the external-folder one. Typed to READ only (stability plan R2): seven
@@ -656,12 +664,23 @@ export async function deleteVault(id: string): Promise<string[]> {
  * container. The chosen structure is written before registration and opening;
  * boot never supplements an existing container from a template.
  */
-export async function createLocalVault(name: string, template: VaultTemplateDefinition | null = null): Promise<string> {
-  const id = newVaultId();
-  const adapter = new CapacitorVaultAdapter(`vaults/${id}`);
-  if (await adapter.exists("")) throw new Error("Vault container already exists");
-  await adapter.initialize();
-  await scaffoldVaultTemplate({ adapter, isNewVault: true, template, vaultName: name, subfoldersHeading: i18n.t("indexMd.subfoldersHeading") });
+export async function createLocalVault(name: string, template: VaultTemplateDefinition | null = null): Promise<string | null> {
+  // Each attempt in a container of its own: what a failed one wrote is taken
+  // back — its files, then the folders it made, the container last — and the
+  // person is asked whether to try again (third review of O8, as on the desktop).
+  let id = "";
+  const made = await writeWithRetry(async (onTakenBack) => {
+    id = newVaultId();
+    const root = `vaults/${id}`;
+    const adapter = new CapacitorVaultAdapter(root);
+    if (await adapter.exists("")) throw new Error("Vault container already exists");
+    await ensureVaultsFolder();
+    await writeNewVault(root, sandboxNewVaultPorts, async (track) => {
+      await adapter.initialize();
+      await scaffoldVaultTemplate({ adapter: track(adapter), isNewVault: true, template, vaultName: name, subfoldersHeading: i18n.t("indexMd.subfoldersHeading") });
+    }, { makeFolder: true, onTakenBack });
+  });
+  if (!made) return null;
   await addVault({ id, name });
   await switchVault(id);
   return id;
@@ -799,6 +818,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   // Set when the vault closes or a switch leaves it while it opens (retireBoot).
   const indexAbort = new AbortController();
   signal?.addEventListener("abort", () => indexAbort.abort(), { once: true });
+  const containerRoot = isExternalVault(entry) ? null : isDefaultLocal ? "vault" : `vaults/${entry.id}`;
   const adapter: MobileRawAdapter = isExternalVault(entry)
     ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle, {
       // Closing waits for the scan; a call it hangs on fails at once then.
@@ -808,7 +828,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       onStalled: (call, path, afterMs) => logDiagnostic("folder", `no answer to ${call} "${path}" after ${Math.round(afterMs / 1000)} s — further calls fail at once until the folder answers again`),
       onRecovered: (refused) => logDiagnostic("folder", `the folder answers again (${refused} call(s) failed at once meanwhile)`),
     })
-    : new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
+    : new CapacitorVaultAdapter(containerRoot ?? "vault");
   const containerExisted = await adapter.exists("");
   await adapter.initialize();
   const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
@@ -1134,6 +1154,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const v: MobileVault = {
     vaultId: entry.id,
     freshlySeeded,
+    containerRoot,
     claimTemplateCreation: () => {
       if (!freshlySeeded || templateCreationClaimed) return false;
       templateCreationClaimed = true;
