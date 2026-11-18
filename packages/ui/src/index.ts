@@ -40,6 +40,7 @@ export * from "./lib/momentFormat";
 export * from "./lib/featureParity";
 export * from "./lib/draftJournalEntries";
 export * from "./lib/draftJournal";
+export * from "./lib/newVaultFolder";
 export * from "./lib/saveCoordinator";
 export * from "./lib/editorSave";
 export * from "./lib/qrScan";

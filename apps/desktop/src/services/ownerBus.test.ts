@@ -78,7 +78,7 @@ vi.mock("./windowBus", async (importOriginal) => {
 
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
 import { isFirstPullPending, syncStatusStore } from "./syncStatusStore";
-import { applyMirroredSyncStatus, installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
+import { applyMirroredSyncStatus, askSyncStatus, installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
 import { resetVaultRuntimes, setHolderVault } from "./vaultRuntimes";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import {
@@ -892,6 +892,37 @@ describe("the sync status the other windows see", () => {
     syncStatusStore.set("/vault", { status: "syncing", message: null, firstPullDone: true });
     await new Promise((r) => setTimeout(r, 0));
     expect(syncStatusStore.get("/client").firstPullDone).toBe(true);
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(false);
+    stop();
+    off();
+    dispose();
+  });
+
+  it("a window opened during the first pull asks once and says \"being loaded\" (third review of O8)", async () => {
+    // The owner reached its state before the window opened: no change follows to carry it.
+    syncStatusStore.set("/vault", { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    const { aux, dispose } = await setup();
+    const asked = await aux.request("sync-status-now", {}, { vaultPath: "/vault" });
+    expect(asked).toMatchObject({ status: "syncing", provider: "drive", firstPullDone: false });
+    // The window files the answer under the vault it holds ("/client" stands for its own copy).
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(false);
+    await askSyncStatus({ request: (async () => asked) as never }, "/client");
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(true);
+    // No runtime answers: nothing is filed, nothing is thrown.
+    await askSyncStatus({ request: (async () => { throw new Error("timeout"); }) as never }, "/other");
+    expect(syncStatusStore.get("/other").firstPullDone).toBeUndefined();
+    dispose();
+  });
+
+  it("carries a failed first pull: the other window shows the vault as it is too (third review of O8)", async () => {
+    const { aux, dispose } = await setup();
+    const off = await aux.onBroadcast("sync-status", (p) => applyMirroredSyncStatus("/client", p));
+    const stop = installSyncStatusMirror("/vault");
+    syncStatusStore.set("/vault", { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    syncStatusStore.set("/vault", { status: "retrying", message: "offline", retryAt: 5 });
+    syncStatusStore.set("/vault", { status: "syncing", message: null });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(syncStatusStore.get("/client").firstPullFailed).toBe(true);
     expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(false);
     stop();
     off();

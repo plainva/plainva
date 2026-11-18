@@ -4,13 +4,14 @@ import { FolderOpen, Cloud, Folder, Laptop, Plus, X, FilePlus2, Database, Downlo
 import { useTranslation } from "react-i18next";
 import { OnlineVaultSetup } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
-import { exists, remove } from "@tauri-apps/plugin-fs";
+import { exists } from "@tauri-apps/plugin-fs";
 import { Checkbox, getTourTemplate, ICON, Switch } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
-import { forgetVaultData, forgetVaultEverywhere } from "../services/vaultForget";
-import { writeNewVault } from "../services/newVaultFolder";
+import { forgetVaultEverywhere } from "../services/vaultForget";
+import { writeNewVault } from "@plainva/ui";
+import { newVaultFolderPorts } from "../services/newVaultFolderDisk";
 import { useVaultLabels } from "../services/vaultNames";
 import { ImportWizardModal } from "./import/ImportWizardModal";
 import { FirstRunModal, type TourProgress } from "./onboarding/FirstRunModal";
@@ -143,24 +144,22 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
 
   /**
    * Scaffolds `template` into the new, empty folder `selected` and opens it;
-   * throws what went wrong. A folder this call made is taken back when the
-   * writing fails, so a retry gets the same name, not a second one beside a
-   * half vault (second review of O8).
+   * throws what went wrong. What a failed attempt wrote is taken back — its
+   * files, then the folders it made, never anything else — so a retry gets
+   * the same name and an empty folder again (second and third review of O8).
+   * `makeFolder`: the folder is to be made here (the tour); a folder picked
+   * in the dialog is the person's and stays.
    */
-  const scaffoldAndOpen = async (selected: string, template: VaultTemplateDefinition | null) => {
+  const scaffoldAndOpen = async (selected: string, template: VaultTemplateDefinition | null, options: { makeFolder?: boolean } = {}) => {
     // A folder the tour is about to make does not exist yet; one that
     // exists must be empty and unknown — the scaffolder never writes into
     // anybody's notes.
     if ((await exists(selected)) && !(await isVaultFolderEmpty(selected))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
     await writeNewVault(
       selected,
-      {
-        exists: (p) => exists(p),
-        remove: (p) => remove(p, { recursive: true }),
-        forget: async (p) => { await forgetVaultData(p, { deleteZipBackups: false }); },
-      },
-      async () => {
-        const adapter = new TauriVaultAdapter(selected);
+      newVaultFolderPorts,
+      async (track) => {
+        const adapter = track(new TauriVaultAdapter(selected));
         await adapter.initialize();
         await scaffoldVaultTemplate({ isNewVault: true,
           adapter,
@@ -170,6 +169,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
         });
         await applyVaultTemplateSettings(selected, template);
       },
+      options,
     );
     await openVault(selected);
   };
@@ -217,7 +217,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
       place = parent ?? (await tourParentFolder());
       const folder = await findTourFolder(tour.name, tauriTourFolderProbe(recentVaults), parent);
       if (!folder) throw new Error("no free name for the tour");
-      await scaffoldAndOpen(folder, tour);
+      await scaffoldAndOpen(folder, tour, { makeFolder: true });
       setTourProgress({ kind: "idle" });
       onFirstRunDismiss?.();
       // The card named the planned folder; where the name was taken the tour

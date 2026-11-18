@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { newEntries, type NewHandlers, reportingTo, reportVisible } from "@plainva/ui";
+import { newEntries, type NewHandlers, reportingTo, reportVisible, writeNewVault, type TrackWrites } from "@plainva/ui";
+import { sandboxNewVaultPorts, writeWithRetry } from "./services/newVaultWrite";
 import { NavBar } from "./components/NavBar";
 import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
@@ -491,13 +492,17 @@ export default function App() {
     void (async () => {
       if (!vault.claimTemplateCreation()) return;
       const def = (await pickVaultTemplate())?.def ?? null;
-      await scaffoldVaultTemplate({
-        adapter: vault.belowChain,
+      // A failed attempt takes back what it wrote and is said, with a second try (third review of O8).
+      const write = (track: TrackWrites) => scaffoldVaultTemplate({
+        adapter: track(vault.belowChain),
         isNewVault: vault.freshlySeeded,
         template: def,
         vaultName: "Plainva",
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
+      const root = vault.containerRoot; // a freshly seeded vault is always a container
+      const made = await writeWithRetry(() => (root ? writeNewVault(root, sandboxNewVaultPorts, write) : write((a) => a)));
+      if (!made) return;
       await applyTemplateSettings(def?.settings);
       await vault.indexer?.indexVaultFull("vault template");
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -525,7 +530,7 @@ export default function App() {
       const name = rawName?.trim();
       if (cancelled || !name) return;
       const def = pick.def;
-      await createLocalVault(name, def);
+      if (!(await createLocalVault(name, def))) return;
       const nv = await getMobileVault();
       if (def) {
         await applyTemplateSettings(def.settings);

@@ -128,6 +128,22 @@ describe("isFirstPullPending (O8: a cloud vault arriving is not an empty one)", 
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
   });
 
+  it("after the first failure the vault shows as it is, even while the worker tries again (third review of O8)", () => {
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    syncStatusStore.set(V, { status: "retrying", message: "offline", retryAt: 1 });
+    syncStatusStore.set(V, { status: "syncing", message: null });
+    expect(syncStatusStore.get(V).firstPullFailed).toBe(true);
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+    // A new worker in the same session does not bring "being loaded" back …
+    syncStatusStore.set(V, { firstPullDone: false });
+    syncStatusStore.set(V, { status: "idle", message: null });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);
+    // … opening the vault again does.
+    syncStatusStore.reset(V);
+    syncStatusStore.set(V, { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    expect(isFirstPullPending(syncStatusStore.get(V))).toBe(true);
+  });
+
   it("a first pull that failed is not pending: the ordinary start shows", () => {
     syncStatusStore.set(V, { status: "error", message: "offline", provider: "drive", firstPullDone: false });
     expect(isFirstPullPending(syncStatusStore.get(V))).toBe(false);

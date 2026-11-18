@@ -63,18 +63,43 @@ export async function readVaultEmptiness(
 }
 
 /**
- * Whether the first pull of a syncing vault is running or about to start — the
- * one rule both shells ask before they call an empty vault "being loaded"
- * (second review of O8, 2026-11-17).
- *
- * `firstPullDone` is `false` only from the moment a sync worker exists until
- * its first cycle has finished, `true` after it, and absent (`null` or
- * `undefined`) while no worker runs — a folder held back for a decision, a
- * vault that does not sync, a stopped sync. Only `false` is "loading": a
- * status that names a provider proves nothing about a pull. A failed pull is
- * not pending either: the ordinary start shows, and the status bar says what
- * went wrong. A worker that is retrying is still about to fetch.
+ * What a shell keeps about the first pull of the vault it shows: the worker's
+ * `firstPullDone` (`false` from the moment a sync worker exists until its first
+ * cycle has finished, `true` after it, absent while no worker runs) and whether
+ * that first pull has failed at least once in this session.
  */
-export function isFirstPullPending(s: { firstPullDone?: boolean | null; status: string }): boolean {
-  return s.firstPullDone === false && s.status !== "error" && s.status !== "off";
+export interface FirstPullState {
+  firstPullDone?: boolean | null;
+  firstPullFailed?: boolean | null;
+  status: string;
+}
+
+/**
+ * Whether the start of an empty vault says "being loaded" — the one rule both
+ * shells ask (second and third review of O8, 2026-11-17).
+ *
+ * Only while a worker's first pull is running or about to begin, and only until
+ * it failed once. A status that names a provider proves nothing about a pull (a
+ * folder held back for a decision says "retrying" with no worker behind it).
+ * After the first failure the vault shows as it is — its empty start with the
+ * offers — and the sync status says what is wrong: the encrypted workspace's
+ * worker retries a network failure for ever, the plain one holds its first
+ * cycle back while a single file keeps failing, and either way "being loaded"
+ * would have stood without an end. It does not come back in that session; a
+ * pull that gets through later brings the content as at any other time.
+ */
+export function isFirstPullPending(s: FirstPullState): boolean {
+  return s.firstPullDone === false && s.firstPullFailed !== true && s.status !== "error" && s.status !== "retrying" && s.status !== "off";
+}
+
+/**
+ * The `firstPullFailed` a shell keeps after its worker reported `status`: a
+ * failure during the first pull — `error`, or `retrying` (a failed cycle, a
+ * file that could not be pulled, a cycle given up as stuck) — is remembered;
+ * nothing ever clears it but the end of the session. Without a worker there is
+ * no first pull to fail.
+ */
+export function firstPullFailedAfter(s: Omit<FirstPullState, "status">, status: string): boolean {
+  if (s.firstPullFailed === true) return true;
+  return s.firstPullDone === false && (status === "error" || status === "retrying");
 }

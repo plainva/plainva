@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PLAINVA_INDEX_MARKER } from "../okf-index.js";
-import { isFirstPullPending, readVaultEmptiness, type VaultRootReader } from "./emptyVault.js";
+import { firstPullFailedAfter, isFirstPullPending, readVaultEmptiness, type VaultRootReader } from "./emptyVault.js";
 
 type Entry = { name: string; isDirectory: boolean };
 const file = (name: string) => ({ name, isDirectory: false });
@@ -84,8 +84,6 @@ describe("isFirstPullPending — one rule for both shells", () => {
   it("is pending only while a worker exists and its first cycle has not finished", () => {
     expect(isFirstPullPending({ firstPullDone: false, status: "idle" })).toBe(true);
     expect(isFirstPullPending({ firstPullDone: false, status: "syncing" })).toBe(true);
-    // A worker that retries is about to fetch again.
-    expect(isFirstPullPending({ firstPullDone: false, status: "retrying" })).toBe(true);
     expect(isFirstPullPending({ firstPullDone: true, status: "syncing" })).toBe(false);
   });
 
@@ -97,7 +95,46 @@ describe("isFirstPullPending — one rule for both shells", () => {
   });
 
   it("a failed or stopped first pull is not pending", () => {
+    expect(isFirstPullPending({ firstPullDone: false, status: "retrying" })).toBe(false);
     expect(isFirstPullPending({ firstPullDone: false, status: "error" })).toBe(false);
     expect(isFirstPullPending({ firstPullDone: false, status: "off" })).toBe(false);
+  });
+});
+
+describe("the first failure ends \"being loaded\" for the session (third review of O8)", () => {
+  /** What a shell keeps over a sequence of worker statuses, read at each step. */
+  function loadingOver(statuses: Array<string | { done: true }>): string {
+    let st: { firstPullDone: boolean | null; firstPullFailed: boolean; status: string } = { firstPullDone: false, firstPullFailed: false, status: "idle" };
+    let out = "";
+    for (const next of statuses) {
+      if (typeof next === "string") st = { ...st, status: next, firstPullFailed: firstPullFailedAfter(st, next) };
+      else st = { ...st, firstPullDone: true, status: "idle" };
+      out += isFirstPullPending(st) ? "L" : "-";
+    }
+    return out;
+  }
+
+  it("a retrying worker is not loading any more: the encrypted workspace offline retries for ever", () => {
+    expect(loadingOver(["syncing", "retrying", "syncing", "retrying", "syncing", "retrying"])).toBe("L-----");
+  });
+
+  it("the plain worker offline does not jump back to loading on its next attempt", () => {
+    expect(loadingOver(["syncing", "retrying", "syncing", "retrying", "syncing", "error", "syncing"])).toBe("L------");
+  });
+
+  it("one file that fails each cycle holds the first cycle back; the vault shows as it is", () => {
+    expect(loadingOver(["syncing", "retrying", "syncing", "retrying"])).toBe("L---");
+  });
+
+  it("a first pull that gets through is loading until it is done", () => {
+    expect(loadingOver(["syncing", "idle", "syncing", { done: true }])).toBe("LLL-");
+  });
+
+  it("without a worker no status counts as a failed first pull", () => {
+    expect(firstPullFailedAfter({ firstPullDone: undefined }, "retrying")).toBe(false);
+    expect(firstPullFailedAfter({ firstPullDone: null }, "error")).toBe(false);
+    expect(firstPullFailedAfter({ firstPullDone: true }, "error")).toBe(false);
+    expect(firstPullFailedAfter({ firstPullDone: false }, "syncing")).toBe(false);
+    expect(firstPullFailedAfter({ firstPullDone: true, firstPullFailed: true }, "idle")).toBe(true);
   });
 });

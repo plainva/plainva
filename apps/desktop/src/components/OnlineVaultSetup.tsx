@@ -19,6 +19,8 @@ import {
 } from "../services/syncTargets";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
+import { writeNewVault } from "@plainva/ui";
+import { newVaultFolderPorts } from "../services/newVaultFolderDisk";
 import {
   Banner,
   Button,
@@ -265,17 +267,21 @@ export const OnlineVaultSetup: React.FC<Props> = ({ mode = "open", template = nu
           : c.provider === "dropbox" ? buildDropboxTarget({ ...c, rootPath: folder ? `/${folder.replace(/^\/+/, "")}` : undefined }, token => { c.refreshToken = token; })
           : buildS3Target({ ...c.s3, prefix: folder });
         await assertEmptyRemoteVault(remote);
-        const adapter = new TauriVaultAdapter(localDir);
-        await adapter.initialize();
-        await scaffoldVaultTemplate({ isNewVault: true,
-          adapter,
-          template,
-          vaultName: getBasename(localDir),
-          subfoldersHeading: t("indexMd.subfoldersHeading"),
-          // Made for this new cloud folder: the template is what it is to hold.
-          recordStarter: false,
+        // The folder was picked in the dialog and stays; what a failed attempt
+        // wrote into it goes again, so a retry finds it empty (third review of O8).
+        await writeNewVault(localDir, newVaultFolderPorts, async (track) => {
+          const adapter = track(new TauriVaultAdapter(localDir));
+          await adapter.initialize();
+          await scaffoldVaultTemplate({ isNewVault: true,
+            adapter,
+            template,
+            vaultName: getBasename(localDir),
+            subfoldersHeading: t("indexMd.subfoldersHeading"),
+            // Made for this new cloud folder: the template is what it is to hold.
+            recordStarter: false,
+          });
+          await applyVaultTemplateSettings(localDir, template);
         });
-        await applyVaultTemplateSettings(localDir, template);
       }
       const folder = cloudFolder?.trim() || undefined;
       if (c.provider === "webdav") {

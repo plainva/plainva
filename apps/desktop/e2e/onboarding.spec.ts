@@ -70,7 +70,12 @@ function firstRunShell(page: any, opts: FirstRunOptions = {}) {
         if (cmd === 'plugin:fs|mkdir' || cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
           const path = String(args?.path ?? options?.headers?.path ?? '');
           calls.push({ cmd, path: decodeURIComponent(path) });
-          if (cmd === 'plugin:fs|mkdir') fs[decodeURIComponent(path).replace(/\/$/, '')] = { isDir: true };
+          if (cmd === 'plugin:fs|mkdir') {
+            const dir = decodeURIComponent(path).replace(/\/$/, '');
+            // As the plugin does: without `recursive`, a folder that is there is an error.
+            if (fs[dir] && !args?.options?.recursive) throw 'File exists (os error 17)';
+            fs[dir] = { isDir: true };
+          }
           return null;
         }
         // The vault adapter writes through the checked native command.
@@ -83,11 +88,16 @@ function firstRunShell(page: any, opts: FirstRunOptions = {}) {
             throw 'No space left on device';
           }
           calls.push({ cmd: 'write', path });
+          fs[path] = { isFile: true };
           return null;
         }
         if (cmd === 'plugin:fs|remove') {
           const path = String(args.path).replace(/\/$/, '');
-          calls.push({ cmd, path });
+          const recursive = !!args?.options?.recursive;
+          calls.push({ cmd, path, recursive });
+          // As the plugin does: without `recursive`, a folder with anything in it stays.
+          const inside = Object.keys(fs).some((key) => key.startsWith(path + '/')) || (fs[path]?.children ?? []).length > 0;
+          if (fs[path]?.isDir && inside && !recursive) throw 'Directory not empty (os error 39)';
           for (const key of Object.keys(fs)) if (key === path || key.startsWith(path + '/')) delete fs[key];
           return null;
         }
@@ -254,8 +264,11 @@ test('a tour that fails halfway takes its half folder back, and the next try get
   await expect(dialog.getByTestId('firstrun-tour-failed')).toBeVisible({ timeout: 20000 });
   const first = (await madeFolders(page))[0];
   expect(first).toMatch(/\/Plainva[ -]Tour$/);
-  const removed = await page.evaluate(() => (window as any).__fsCalls.filter((c: any) => c.cmd === 'plugin:fs|remove').map((c: any) => c.path));
-  expect(removed).toEqual([first]);
+  // Taken back one by one — the attempt's own folders, deepest first, the tour folder last — never recursively.
+  const removed = await page.evaluate(() => (window as any).__fsCalls.filter((c: any) => c.cmd === 'plugin:fs|remove'));
+  expect(removed.length).toBeGreaterThan(0);
+  expect(removed.every((c: any) => !c.recursive && (c.path === first || c.path.startsWith(`${first}/`)))).toBe(true);
+  expect(removed[removed.length - 1].path).toBe(first);
 
   await dialog.getByTestId('firstrun-tour').click();
   await expect(page.getByTestId('firstrun-tour')).toHaveCount(0, { timeout: 30000 });

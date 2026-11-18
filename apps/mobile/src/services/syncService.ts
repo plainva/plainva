@@ -25,7 +25,7 @@ import {
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
-import { assertEmptyRemoteVault, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
+import { assertEmptyRemoteVault, firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
 import { authorizeNativeGoogle, forgetNativeGoogleTokens } from "./googleNativeAuthorization";
@@ -156,9 +156,16 @@ interface SyncState {
    * Home says so instead of offering a first note (O8, review 2026-11-17).
    */
   firstPullDone: boolean | null;
+  /**
+   * The first pull of this vault failed at least once since it was opened
+   * here (third review of O8): Home then shows the vault as it is, and the
+   * sync line says what is wrong. Kept by `setState` through core's
+   * `firstPullFailedAfter`; a worker for another opened vault starts it afresh.
+   */
+  firstPullFailed: boolean;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false, firstPullDone: null };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false, firstPullDone: null, firstPullFailed: false };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -229,8 +236,26 @@ function setState(next: {
     listingIncomplete: next.status === "off" ? null : state.listingIncomplete,
     rootMissing: next.rootMissing ?? false,
     firstPullDone: next.status === "off" ? null : state.firstPullDone,
+    firstPullFailed: firstPullFailedAfter(state, next.status),
   };
   for (const l of listeners) l();
+}
+
+/**
+ * The opened vault the kept `firstPullFailed` belongs to — the instance, not
+ * its id: switching to a vault or reloading it opens a new one and starts
+ * afresh, while a restart of its sync (settings, a return to the app) keeps
+ * the instance and with it the failure.
+ */
+let firstPullVault: object | null = null;
+
+/** A worker exists for `vault`: its first pull begins; a failure of an earlier pull of the same opened vault stays. */
+function beginFirstPull(vault: object): void {
+  if (firstPullVault !== vault) {
+    firstPullVault = vault;
+    state = { ...state, firstPullFailed: false };
+  }
+  setFirstPullDone(false);
 }
 
 function setFirstPullDone(firstPullDone: boolean | null): void {
@@ -241,10 +266,11 @@ function setFirstPullDone(firstPullDone: boolean | null): void {
 
 /**
  * Whether the vault syncs and its first pull is running or about to start —
- * core's `isFirstPullPending`, the desktop asks the same. A failed first pull is not
- * "pending": Home shows its ordinary start, and the sync line says what broke.
+ * core's `isFirstPullPending`, the desktop asks the same. A first pull that failed
+ * once is not "pending" again in this session: Home shows the vault as it is,
+ * and the sync line says what broke.
  */
-export function isFirstPullPending(s: Pick<SyncState, "status" | "firstPullDone">): boolean {
+export function isFirstPullPending(s: Pick<SyncState, "status" | "firstPullDone" | "firstPullFailed">): boolean {
   return isCoreFirstPullPending(s);
 }
 
@@ -1369,7 +1395,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       v.sweepOwedToRemote("workspace");
     };
     worker = encrypted;
-    setFirstPullDone(false);
+    beginFirstPull(v);
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
     encrypted.start();
@@ -1552,7 +1578,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     }
   };
   worker = w;
-  setFirstPullDone(false);
+  beginFirstPull(v);
   setState({ status: "idle", message: null });
   w.start();
   w.triggerImmediate();

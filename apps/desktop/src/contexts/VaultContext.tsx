@@ -53,7 +53,7 @@ import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
 import { openClientVault, type ClientVaultServices } from "../services/clientVault";
 import { getWindowBus } from "../services/windowBus";
-import { applyMirroredSyncStatus, broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
+import { applyMirroredSyncStatus, askSyncStatus, broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
 import { usePinboardDraftSweep } from "../services/usePinboardDraftSweep";
@@ -2132,7 +2132,11 @@ export const VaultProvider: React.FC<{
     if (!isClient || !windowLabel) return;
     const tell = (vaultPath: string | null) => {
       void getWindowBus()
-        .then((bus) => bus.request("hold-vault", { label: windowLabel, vaultPath }))
+        .then(async (bus) => {
+          await bus.request("hold-vault", { label: windowLabel, vaultPath });
+          // Held: the status as it is now, once — the mirror sends changes only (third review of O8).
+          if (vaultPath) await askSyncStatus(bus, vaultPath);
+        })
         .catch(() => {
           /* no bus (browser/test): nothing holds anything there */
         });
