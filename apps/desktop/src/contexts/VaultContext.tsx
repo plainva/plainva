@@ -1,6 +1,6 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { dailyDayResolver, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
-import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, type IndexDatabaseFailureKind } from "@plainva/ui";
+import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -32,7 +32,7 @@ import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
-import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
+import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId, restoreDesktopAccountsAfterRebuild } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
 import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
@@ -64,7 +64,7 @@ import { microsoftAuthFetch } from "../services/authFetch";
 import { getSettingsStore } from "../services/settingsStore";
 import { askHeldFolder, desktopSyncBranch } from "../services/encryptedRemoteStart";
 import { templateVaultOf } from "../services/dailyNotes";
-import { IndexDatabaseOpenError, openIndexDatabase, setAsideDesktopIndexDatabase } from "../services/indexDatabase";
+import { IndexDatabaseOpenError, indexDatabaseWasRebuilt, openIndexDatabase, setAsideDesktopIndexDatabase } from "../services/indexDatabase";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
 import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
@@ -119,8 +119,8 @@ interface IndexDatabaseFailure {
   vaultPath: string;
   url: string;
   kind: IndexDatabaseFailureKind;
-  /** The vault is an encrypted workspace: its state lives in that database, which is never rebuilt here. */
-  workspace: boolean;
+  /** The vault is an encrypted workspace, or could not be told not to be: its state lives in that database, which is never rebuilt here. */
+  workspace: IndexDatabaseWorkspace;
 }
 
 interface VaultState {
@@ -822,9 +822,13 @@ export const VaultProvider: React.FC<{
       // a network-drive vault paid a round-trip per index statement on every save.
       // Backups stay in the vault; an existing in-vault DB is migrated once.
       // One that does not open is said in words at the start, and set aside there when it is damaged (`IndexDatabaseOpenError`).
-      const { dbAdapter } = await perfMeasure("vault open: database", () => openIndexDatabase(path));
+      const { dbPath, dbAdapter } = await perfMeasure("vault open: database", () => openIndexDatabase(path));
       // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
       await logIndexDiagnostics(dbAdapter);
+      // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
+      if (await indexDatabaseWasRebuilt(dbPath)) {
+        await restoreDesktopAccountsAfterRebuild(path, dbAdapter, tauriVaultAdapter).catch(reportingTo("accounts:restore-after-rebuild"));
+      }
 
       const syncQueue = new SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));
@@ -1891,7 +1895,8 @@ export const VaultProvider: React.FC<{
       if (error instanceof IndexDatabaseOpenError) {
         // Why it did not open, in words, and what can be done (both shells, `indexDatabaseFailureKind`).
         const kind = indexDatabaseFailureKind(error.cause);
-        const workspace = !!(await getWorkspaceSecurityStatus(path).catch(() => null));
+        // A status that cannot be read is no "not a workspace": then nothing is offered (`indexDatabaseWorkspace`).
+        const workspace = await indexDatabaseWorkspace(() => getWorkspaceSecurityStatus(path));
         setState(s => ({
           ...s,
           isLoading: false,

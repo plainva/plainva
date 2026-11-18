@@ -7840,14 +7840,14 @@
     "miniLink": "Plan Q3"
   },
   "indexDatabase": {
-    "damaged": "Baza danych indeksu tego vaultu jest uszkodzona, dlatego nie można go otworzyć. „Odbuduj indeks” odkłada ją na bok i buduje indeks od nowa; Twoje notatki zostają bez zmian.",
+    "damaged": "Baza danych indeksu tego vaultu jest uszkodzona, dlatego nie można go otworzyć. „Odbuduj indeks” odkłada ją na bok i buduje indeks od nowa; żadna notatka nie zostanie usunięta.",
     "damagedWorkspace": "Baza danych indeksu tego vaultu jest uszkodzona. Plainva nie odbudowuje jej tutaj: w zaszyfrowanym obszarze roboczym zawiera zmiany, które nie dotarły jeszcze do Twoich innych urządzeń. Uruchom aplikację ponownie, aby spróbować jeszcze raz, i poproś o pomoc, zanim cokolwiek usuniesz.",
     "locked": "Inny program używa bazy danych indeksu tego vaultu, zwykle drugie okno lub druga aplikacja Plainva. Zamknij je, a potem otwórz vault ponownie.",
     "full": "Dysk jest pełny, dlatego nie można otworzyć bazy danych indeksu tego vaultu. Zwolnij miejsce, a potem otwórz vault ponownie.",
     "readOnly": "Plainva nie może otworzyć ani zapisać bazy danych indeksu tego vaultu: {{reason}}. Sprawdź uprawnienia folderu danych aplikacji Plainva, a potem otwórz vault ponownie.",
     "unavailable": "Nie udało się otworzyć bazy danych indeksu tego vaultu: {{reason}}. Uruchom aplikację ponownie, aby spróbować jeszcze raz.",
     "rebuildTitle": "Odbudować indeks?",
-    "rebuildConfirm": "Baza danych indeksu tego vaultu jest uszkodzona. Plainva odkłada ją na bok i odbudowuje indeks. Twoje notatki pozostają nietknięte. Niezsynchronizowane jeszcze usunięcia i zmiany nazw zostaną utracone: usunięte elementy mogą wrócić z serwera, a elementy o zmienionej nazwie mogą pojawić się podwójnie.",
+    "rebuildConfirm": "Baza danych indeksu tego vaultu jest uszkodzona. Plainva odkłada ją na bok i odbudowuje indeks. Żadna notatka nie zostanie usunięta, ale Plainva zapomina, na jakim etapie była synchronizacja: tam, gdzie notatka różni się na tym urządzeniu i na serwerze, w notatce znajdzie się wersja z serwera, a Twoja obok jako kopia konfliktu. Usunięte notatki mogą wrócić, także te usunięte na innym urządzeniu. Notatki o zmienionej nazwie mogą pojawić się podwójnie. Plainva przywraca konta kalendarza i zadań z synchronizacji ustawień; konta, których tam brakuje, trzeba połączyć ponownie.",
     "rebuildFailed": "Nie udało się odbudować indeksu: {{reason}}"
   },
   "refresh": {

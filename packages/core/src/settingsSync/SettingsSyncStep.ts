@@ -49,6 +49,15 @@ export interface ProfileSettingsPort {
   /** Domain registers may join all observed versions before ordinary LWW.
    * Return only owned fields; an absent value must never erase a register. */
   mergeObservedValues?(versions: readonly Record<string, unknown>[]): Record<string, unknown>;
+  /**
+   * Fields this device cannot speak for yet: what it exports for them is no
+   * edit of its own, and the document's value stands and is applied. A
+   * device whose index database was just rebuilt exports no calendar
+   * accounts — not because they were removed, but because the rows went with
+   * the database; published, that empty list would be the newest edit and
+   * win on every device.
+   */
+  heldBack?(): Promise<readonly string[]>;
 }
 
 /**
@@ -190,6 +199,7 @@ export class SettingsSyncStep {
     const memberPath = this.memberPath;
     const isMember = this.options.isMemberField ?? (() => false);
     const current = this.normalizeValues(await this.options.port.exportValues());
+    const held = new Set(await this.options.port.heldBack?.() ?? []);
 
     // Without a member partition every field belongs to the shared file, which
     // is the single-person case and byte-for-byte the previous behaviour.
@@ -210,6 +220,7 @@ export class SettingsSyncStep {
         // moved house.
         keep: (logical) => !belongsToMember(logical),
         cleanupPlaintext: true,
+        held,
       }),
     );
     if (memberPath) {
@@ -217,6 +228,7 @@ export class SettingsSyncStep {
         await this.runPartition(target, vault, memberPath, memberValues, {
           keep: belongsToMember,
           cleanupPlaintext: false,
+          held,
         }),
       );
     }
@@ -267,8 +279,8 @@ export class SettingsSyncStep {
     target: ISyncTarget,
     vault: IVaultAdapter,
     path: string,
-    current: Record<string, unknown>,
-    opts: { keep: (logical: string) => boolean; cleanupPlaintext: boolean },
+    exported: Record<string, unknown>,
+    opts: { keep: (logical: string) => boolean; cleanupPlaintext: boolean; held: ReadonlySet<string> },
   ): Promise<PartitionResult> {
     const sealed = this.sealed;
 
@@ -282,6 +294,17 @@ export class SettingsSyncStep {
     if (localNeedsCapability) this.reportLegacyProfile(path, "local", parsedLocal);
     const scopedLocal = this.scoped(parsedLocal, opts.keep);
     const local = this.normalizeProfile(scopedLocal);
+    // A held field counts as what this device last saw of it, never as an
+    // edit (`heldBack`): the document decides, and the result is applied.
+    const current = { ...exported };
+    if (opts.held.size > 0) {
+      const known = local ? entriesOf(local) : {};
+      for (const key of opts.held) {
+        const entry = known[key];
+        if (entry && !entry.deleted) current[key] = entry.value;
+        else delete current[key];
+      }
+    }
     if (localText && !parsedLocal) {
       throw new FatalSyncProtocolError("manifest-invalid", `local settings profile ${path} is malformed`);
     }

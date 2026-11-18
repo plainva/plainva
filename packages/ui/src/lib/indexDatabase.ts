@@ -40,8 +40,27 @@ function failureText(error: unknown): string {
   return String(error ?? "");
 }
 
+/**
+ * Whether the vault is an encrypted workspace, as the start could tell when
+ * its index database did not open: `"unknown"` where the question itself
+ * failed — then it is treated as one, and nothing is rebuilt
+ * (`indexDatabaseRebuildOffered`).
+ */
+export type IndexDatabaseWorkspace = boolean | "unknown";
+
+/** Asks whether the vault is an encrypted workspace; a question that fails is `"unknown"`, never "no". */
+export async function indexDatabaseWorkspace(read: () => Promise<unknown>): Promise<IndexDatabaseWorkspace> {
+  try {
+    return !!(await read());
+  } catch {
+    return "unknown";
+  }
+}
+
 /** What the start says about an index database that did not open: why, in words, and what the person can do. */
-export function indexDatabaseFailureMessage(kind: IndexDatabaseFailureKind, error: unknown, workspace: boolean): string {
+export function indexDatabaseFailureMessage(kind: IndexDatabaseFailureKind, error: unknown, workspace: IndexDatabaseWorkspace): string {
+  // Damaged, but whether it may be rebuilt is not known: said as a database that did not open, without the offer.
+  if (kind === "damaged" && workspace === "unknown") return i18n.t("indexDatabase.unavailable", { reason: errorText(error) });
   if (kind === "damaged") return i18n.t(workspace ? "indexDatabase.damagedWorkspace" : "indexDatabase.damaged");
   if (kind === "locked") return i18n.t("indexDatabase.locked");
   if (kind === "full") return i18n.t("indexDatabase.full");
@@ -52,10 +71,11 @@ export function indexDatabaseFailureMessage(kind: IndexDatabaseFailureKind, erro
 /**
  * Whether the start offers to build the index anew: only for a damaged file,
  * and never in an encrypted workspace — its queue, revisions and comment
- * outbox live in that database, and a new one would lose them.
+ * outbox live in that database, and a new one would lose them — nor where
+ * that could not be told (`IndexDatabaseWorkspace`).
  */
-export function indexDatabaseRebuildOffered(kind: IndexDatabaseFailureKind, workspace: boolean): boolean {
-  return kind === "damaged" && !workspace;
+export function indexDatabaseRebuildOffered(kind: IndexDatabaseFailureKind, workspace: IndexDatabaseWorkspace): boolean {
+  return kind === "damaged" && workspace === false;
 }
 
 /** The files a set-aside moves, as each shell's file system reaches them (`setAsideIndexDatabase`). */
@@ -64,6 +84,9 @@ export interface IndexDatabaseFiles {
   rename(from: string, to: string): Promise<void>;
   /** Writes an empty file: an empty SQLite database, which the next open fills. */
   writeEmpty(path: string): Promise<void>;
+  /** The paths in `prefix`'s folder whose name begins with `prefix`'s name (`prefix` is a path). */
+  listStartingWith(prefix: string): Promise<string[]>;
+  remove(path: string): Promise<void>;
 }
 
 /** The companions SQLite keeps beside a database, moved with it. */
@@ -77,17 +100,48 @@ export function setAsideStamp(at: Date): string {
   return at.toISOString().replace(/[:.]/g, "-");
 }
 
+/** The set-asides beside `database`, by their stamp: which of the files each one has. */
+async function setAsidesOf(files: IndexDatabaseFiles, database: string): Promise<Map<string, { base: boolean; paths: string[] }>> {
+  const prefix = database + SET_ASIDE_MARKER;
+  const byStamp = new Map<string, { base: boolean; paths: string[] }>();
+  for (const path of await files.listStartingWith(prefix)) {
+    if (!path.startsWith(prefix)) continue;
+    const rest = path.slice(prefix.length);
+    const companion = INDEX_DATABASE_COMPANIONS.find((suffix) => rest.endsWith(suffix));
+    const stamp = companion ? rest.slice(0, -companion.length) : rest;
+    const entry = byStamp.get(stamp) ?? { base: false, paths: [] };
+    if (!companion) entry.base = true;
+    entry.paths.push(path);
+    byStamp.set(stamp, entry);
+  }
+  return byStamp;
+}
+
+/**
+ * A set-aside that stopped half-way: its companions moved, the database not
+ * (`setAsideIndexDatabase`). Opened as it is, the database would come up
+ * without its log; the run is finished instead, under the stamp it began.
+ */
+async function unfinishedStamp(files: IndexDatabaseFiles, database: string): Promise<string | null> {
+  if (!(await files.exists(database))) return null;
+  for (const [stamp, entry] of await setAsidesOf(files, database)) if (!entry.base) return stamp;
+  return null;
+}
+
 /**
  * Sets a damaged index database aside and leaves an empty one in its place.
  *
  * The files keep their bytes under `<file>.broken-<time>` — the companions as
  * `<file>.broken-<time>-wal` and so on, so no sweep that knows a database by
  * its companions takes them for orphans — and nothing ever opens or writes
- * them again. The companions go first and the database last: a stop in
- * between leaves the damaged database where it was, without a companion of
- * another one, and the start offers the same again. The empty database is
- * written last; until it is there, a set-aside beside the name tells the
- * open not to bring an older copy back in (`hasSetAside`).
+ * them again. The companions go first and the database last; a stop in
+ * between is finished at the next open (`finishSetAside`) or the next press,
+ * under the same stamp. The empty database is written last; until it is
+ * there, a set-aside beside the name tells the open not to bring an older
+ * copy back in (`hasSetAside`).
+ *
+ * One set-aside is kept, the newest: each is as large as the index and holds
+ * the notes' text, so the earlier ones go once the new one is in place.
  *
  * One at a time per database: a second press while one runs is that one.
  */
@@ -95,15 +149,21 @@ export function setAsideIndexDatabase(files: IndexDatabaseFiles, database: strin
   const running = settingAside.get(database);
   if (running) return running;
   const run = (async () => {
-    let stamp = setAsideStamp(at);
-    // Never over an earlier set-aside: it is kept as it was.
-    for (let n = 2; await files.exists(`${database}${SET_ASIDE_MARKER}${stamp}`); n++) stamp = `${setAsideStamp(at)}-${n}`;
+    let stamp = await unfinishedStamp(files, database);
+    if (stamp === null) {
+      stamp = setAsideStamp(at);
+      // Never over an earlier set-aside: it is kept as it was until this one is in place.
+      for (let n = 2; await files.exists(`${database}${SET_ASIDE_MARKER}${stamp}`); n++) stamp = `${setAsideStamp(at)}-${n}`;
+    }
     const aside = `${database}${SET_ASIDE_MARKER}${stamp}`;
     for (const companion of INDEX_DATABASE_COMPANIONS) {
       if (await files.exists(database + companion)) await files.rename(database + companion, aside + companion);
     }
     if (await files.exists(database)) await files.rename(database, aside);
     await files.writeEmpty(database);
+    for (const [other, entry] of await setAsidesOf(files, database)) {
+      if (other !== stamp) for (const path of entry.paths) await files.remove(path);
+    }
     return aside;
   })();
   settingAside.set(database, run);
@@ -113,6 +173,16 @@ export function setAsideIndexDatabase(files: IndexDatabaseFiles, database: strin
 }
 
 const settingAside = new Map<string, Promise<string>>();
+
+/**
+ * Before a database is opened: finishes a set-aside that stopped half-way
+ * (`unfinishedStamp`), so it never opens without its log. Returns where it
+ * was set aside, or null where nothing was half done.
+ */
+export async function finishSetAside(files: IndexDatabaseFiles, database: string): Promise<string | null> {
+  if ((await unfinishedStamp(files, database)) === null) return null;
+  return setAsideIndexDatabase(files, database);
+}
 
 /** Whether a database of this name was set aside, by the names in its folder. */
 export function hasSetAside(namesInFolder: Iterable<string>, databaseName: string): boolean {

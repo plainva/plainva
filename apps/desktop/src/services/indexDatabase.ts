@@ -1,9 +1,9 @@
 import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
-import { readFile, writeFile, exists as fsExists, mkdir, readDir, rename } from "@tauri-apps/plugin-fs";
+import { readFile, writeFile, exists as fsExists, mkdir, readDir, remove, rename } from "@tauri-apps/plugin-fs";
 import { initializeSchema } from "@plainva/core";
-import { hasSetAside, setAsideIndexDatabase } from "@plainva/ui";
+import { finishSetAside, hasSetAside, SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { indexDbFileName } from "./indexDbPath";
 
@@ -31,6 +31,8 @@ export async function openIndexDatabase(vaultPath: string): Promise<{ dbPath: st
   const dbPath = await resolveIndexDbUrl(vaultPath);
   const dbAdapter = new TauriDatabaseAdapter(dbPath);
   try {
+    // A set-aside that stopped half-way is finished first: the database never opens without its log.
+    await finishSetAside(desktopIndexFiles, dbPath.replace(/^sqlite:/, ""));
     await dbAdapter.initialize();
     await initializeSchema(dbAdapter);
   } catch (cause) {
@@ -51,12 +53,29 @@ export async function setAsideDesktopIndexDatabase(url: string): Promise<string>
   const file = url.replace(/^sqlite:/, "");
   await Promise.resolve().then(() => Database.get(url).close()).catch(() => {});
   await invoke("db_tx_close", { dbPath: url }).catch(() => {});
-  return setAsideIndexDatabase({
-    exists: (path) => fsExists(path),
-    rename: (from, to) => rename(from, to),
-    writeEmpty: (path) => writeFile(path, new Uint8Array()),
-  }, file);
+  return setAsideIndexDatabase(desktopIndexFiles, file);
 }
+
+/** Whether the index database at `url` was set aside here before: the one there now was built anew (`restoreDesktopAccountsAfterRebuild`). */
+export async function indexDatabaseWasRebuilt(url: string): Promise<boolean> {
+  const file = url.replace(/^sqlite:/, "");
+  return (await desktopIndexFiles.listStartingWith(file + SET_ASIDE_MARKER).catch(() => [])).length > 0;
+}
+
+/** The index databases' files as the desktop reaches them (`IndexDatabaseFiles`). */
+const desktopIndexFiles: IndexDatabaseFiles = {
+  exists: (path) => fsExists(path),
+  rename: (from, to) => rename(from, to),
+  writeEmpty: (path) => writeFile(path, new Uint8Array()),
+  async listStartingWith(prefix) {
+    const cut = prefix.lastIndexOf("/");
+    const dir = prefix.slice(0, cut);
+    const start = prefix.slice(cut + 1);
+    const entries = await readDir(dir).catch(() => []);
+    return entries.filter((entry) => entry.name.startsWith(start)).map((entry) => `${dir}/${entry.name}`);
+  },
+  remove: (path) => remove(path),
+};
 
 /**
  * Resolves the index-DB sqlite URL (WP5 5b). The SQLite index used to live in

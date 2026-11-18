@@ -7530,14 +7530,14 @@
     "miniLink": "Q3-plan"
   },
   "indexDatabase": {
-    "damaged": "De indexdatabase van deze vault is beschadigd, daarom kan de vault niet worden geopend. “Index opnieuw opbouwen” zet haar opzij en bouwt de index opnieuw op; je notities blijven zoals ze zijn.",
+    "damaged": "De indexdatabase van deze vault is beschadigd, daarom kan de vault niet worden geopend. “Index opnieuw opbouwen” zet haar opzij en bouwt de index opnieuw op; er wordt geen notitie verwijderd.",
     "damagedWorkspace": "De indexdatabase van deze vault is beschadigd. Plainva bouwt haar hier niet opnieuw op: in een versleutelde werkruimte bevat ze wijzigingen die je andere apparaten nog niet hebben bereikt. Start de app opnieuw om het nog eens te proberen, en vraag om hulp voordat je iets verwijdert.",
     "locked": "Een ander programma gebruikt de indexdatabase van deze vault, meestal een tweede Plainva-venster of -app. Sluit het en open de vault daarna opnieuw.",
     "full": "De schijf is vol, daarom kan de indexdatabase van deze vault niet worden geopend. Maak ruimte vrij en open de vault daarna opnieuw.",
     "readOnly": "Plainva mag de indexdatabase van deze vault niet openen of beschrijven: {{reason}}. Controleer de rechten van de app-gegevensmap van Plainva en open de vault daarna opnieuw.",
     "unavailable": "De indexdatabase van deze vault kon niet worden geopend: {{reason}}. Start de app opnieuw om het nog eens te proberen.",
     "rebuildTitle": "Index opnieuw opbouwen?",
-    "rebuildConfirm": "De indexdatabase van deze vault is beschadigd. Plainva zet haar opzij en bouwt de index opnieuw op. Je notities blijven onaangeroerd. Verwijderingen en hernoemingen die nog niet zijn gesynchroniseerd gaan verloren: wat verwijderd is kan van de server terugkomen, wat hernoemd is kan dubbel verschijnen.",
+    "rebuildConfirm": "De indexdatabase van deze vault is beschadigd. Plainva zet haar opzij en bouwt de index opnieuw op. Er wordt geen notitie verwijderd, maar Plainva vergeet hoe ver de synchronisatie was: waar een notitie op dit apparaat en op de server verschilt, staat daarna de versie van de server in de notitie en die van jou ernaast als conflictkopie. Verwijderde notities kunnen terugkomen, ook notities die je op een ander apparaat hebt verwijderd. Hernoemde notities kunnen dubbel verschijnen. Plainva herstelt agenda- en takenaccounts uit de instellingensynchronisatie; accounts die daar ontbreken, verbind je opnieuw.",
     "rebuildFailed": "De index kon niet opnieuw worden opgebouwd: {{reason}}"
   },
   "refresh": {

@@ -65,6 +65,7 @@ export * from "./lib/taskPromotion";
 export * from "./lib/taskRecurrence";
 export * from "./lib/newItemContent";
 export * from "./lib/accountProfile";
+export * from "./lib/accountsAfterRebuild";
 export * from "./lib/accountRepair";
 export * from "./lib/accountRepairCleanup";
 export * from "./lib/profileNotice";

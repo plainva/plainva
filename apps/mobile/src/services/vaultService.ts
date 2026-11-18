@@ -48,7 +48,7 @@ import { phoneTemplateVault } from "./templateVault";
 import { getStoredProvider, purgeCredentials, startSyncIfConfigured, stopSyncAndDrain, syncSoon } from "./syncService";
 import { armedLeaveGuards, foreignInputArmed } from "./leaveGuard";
 import { takeScreen } from "./screenStep";
-import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
+import { clearMobileSyncState, mobileSyncDeviceId, restoreMobileAccountsAfterRebuild } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
@@ -95,7 +95,7 @@ import {
   type IndexDatabaseFailureKind,
   type VaultTemplateDefinition,
 } from "@plainva/ui";
-import { removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } from "./indexDatabaseRebuild";
+import { finishMobileSetAside, mobileIndexDatabaseWasRebuilt, removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } from "./indexDatabaseRebuild";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet, type DeletionNetAsk } from "@plainva/ui";
@@ -889,11 +889,17 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const indexDatabaseName = isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`;
   let indexDatabaseFailure: MobileVault["indexDatabaseFailure"] = null;
   try {
+    // A set-aside that stopped half-way is finished first: the database never opens without its log.
+    await finishMobileSetAside(indexDatabaseName);
     db = createIndexDatabase(indexDatabaseName);
     await db.initialize();
     await initializeSchema(db);
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
     await logIndexDiagnostics(db);
+    // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
+    if (await mobileIndexDatabaseWasRebuilt(indexDatabaseName)) {
+      await restoreMobileAccountsAfterRebuild(entry.id, db, adapter).catch(reportingTo("accounts:restore-after-rebuild"));
+    }
 
     // Retention comes from the global mobile settings (package G); the
     // desktop keeps this per vault, mobile applies one policy to the active

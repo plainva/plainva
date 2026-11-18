@@ -803,7 +803,11 @@ export async function importAccountMetadata(
       // account that happens to share an id gets a fresh one instead of
       // overwriting a local account that is not it.
       const collisionMatches = mergeIdentity !== null && pimMergeIdentity(idCollision ?? imported) === mergeIdentity;
+      // An account whose row is gone (the index database was rebuilt) comes
+      // back under the id this device knew it by: its sign-in hangs off it.
+      const remembered = mapped && !used.has(mapped) ? mapped : undefined;
       const localId = same?.id
+        ?? remembered
         ?? (idCollision && !collisionMatches ? nextLocalId(imported.id, used, newId) : imported.id);
       used.add(localId);
       pimMap.set(imported.id, localId);

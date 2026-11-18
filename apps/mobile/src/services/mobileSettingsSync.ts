@@ -23,6 +23,8 @@ import {
   type ConnectionE2EState,
   type ISyncTarget,
   type IVaultAdapter,
+  type IDatabaseAdapter,
+  PROFILE_SYNC_PATH,
   type Keyfile,
   type MasterKeyBundle,
   type ProfileSettingsPort,
@@ -106,6 +108,7 @@ import { mobileKeyringCacheKey } from "./vaultForget";
 import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 import { isMemberProfileField } from "@plainva/ui";
+import { accountFieldsHeldBack, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
 import { mergePersonalDesignValues } from "@plainva/ui";
 import { mobilePersonalDesign } from "./personalDesign";
 
@@ -505,11 +508,13 @@ const accountMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vault
 
 /** Mobile side of the shared account import (plan P3). */
 function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
-  const vaultId = vault.vaultId;
   // Write through a cache built on the vault's own database rather than the PIM
   // runtime: the runtime boots in parallel with the sync worker, and an import
   // that waited for it would simply do nothing on the cycle that matters.
-  const cache = vault.db ? new PimCacheRepository(vault.db) : null;
+  return accountPortsOver(vault.vaultId, vault.db ? new PimCacheRepository(vault.db) : null);
+}
+
+function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): AccountImportPorts {
   return {
     listPimAccounts: async () => (cache ? cache.listAccounts() : []),
     upsertPimAccount: async (row) => {
@@ -542,6 +547,28 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
       await s.save();
     },
   };
+}
+
+/**
+ * The first open of an index database rebuilt at the start: its calendar and
+ * task accounts come back from this vault's copy of the profile before the
+ * vault opens (`restoreAccountsAfterRebuild`). The copy is read as the
+ * settings sync reads it — sealed where this device holds the key.
+ */
+export async function restoreMobileAccountsAfterRebuild(vaultId: string, db: IDatabaseAdapter, raw: IVaultAdapter): Promise<void> {
+  const cache = new PimCacheRepository(db);
+  await restoreAccountsAfterRebuild({
+    state: cache,
+    ports: accountPortsOver(vaultId, cache),
+    readProfileCopy: async () => {
+      const ring = await loadKeyring(vaultId);
+      if (ring) {
+        if (!(await raw.exists(SETTINGS_ENC_PATH))) return null;
+        return new TextDecoder().decode(openBlob(ring.active, await raw.readBinaryFile(SETTINGS_ENC_PATH), "settings") as BufferSource);
+      }
+      return (await raw.exists(PROFILE_SYNC_PATH)) ? raw.readTextFile(PROFILE_SYNC_PATH) : null;
+    },
+  });
 }
 
 /**
@@ -608,6 +635,9 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
   return {
     normalizeValues: canonicalizeProfileValues,
     mergeObservedValues: mergePersonalDesignValues,
+    // An index database rebuilt at the start speaks for its accounts only once
+    // the document's were applied (`accountFieldsHeldBack`).
+    heldBack: () => accountFieldsHeldBack(vault.db ? new PimCacheRepository(vault.db) : null),
     async exportValues(): Promise<Record<string, unknown>> {
       const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};
@@ -1061,6 +1091,8 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
         },
         onExchange: async (info) => {
           const at = new Date().toISOString();
+          // A cycle went through while the accounts were held: the document's are applied, and they are this device's again.
+          await settleAccountsAfterRebuild(vault.db ? new PimCacheRepository(vault.db) : null);
           await updateDiagnostics(vault.vaultId, (d) => recordProfileExchange(d, at, info));
         },
         onLegacyProfile: (info) => {

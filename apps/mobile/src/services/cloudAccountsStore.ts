@@ -8,7 +8,7 @@ import {
   type SyncProviderId,
 } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind } from "@plainva/ui/mail";
-import { listPimAccounts } from "./pim/pimService";
+import { listPimAccounts, pimAccountsHeldAfterRebuild } from "./pim/pimService";
 import { getActiveVaultEntry } from "./vaultRegistry";
 
 /**
@@ -116,7 +116,8 @@ async function observe(vaultId: string): Promise<ObservedCloudState> {
 export async function refreshCloudAccounts(vaultId: string, pimReady: boolean): Promise<CloudAccountRecord[]> {
   const stored = await loadCloudAccounts(vaultId);
   const observed = await observe(vaultId);
-  if (!pimReady) {
+  // Not up yet, or rebuilt and none of its accounts back yet: their absence is no removal.
+  if (!pimReady || (await pimAccountsHeldAfterRebuild())) {
     observed.pim = stored
       .filter((r) => r.services.calendar)
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));

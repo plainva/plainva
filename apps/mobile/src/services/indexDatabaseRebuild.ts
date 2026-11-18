@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
-import { SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
+import { finishSetAside, SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
 import { IOS_DATABASE_FOLDER } from "../adapters/iosDatabaseFolder";
 import { isMissingFile } from "../adapters/fileErrors";
 import { withDatabaseClosed } from "../adapters/sqliteConnections";
@@ -69,7 +69,23 @@ function filesIn(folder: DatabaseFolder): IndexDatabaseFiles {
     async writeEmpty(file) {
       await Filesystem.writeFile({ ...at(file), data: "", encoding: Encoding.UTF8 });
     },
+    async listStartingWith(prefix) {
+      return (await namesIn(folder)).filter((name) => name.startsWith(prefix));
+    },
+    async remove(file) {
+      await Filesystem.deleteFile(at(file));
+    },
   };
+}
+
+/** The file names in the plugin's database folder; none where it does not exist yet. */
+async function namesIn(folder: DatabaseFolder): Promise<string[]> {
+  const listed = await Filesystem.readdir({ path: folder.path(""), ...(folder.directory ? { directory: folder.directory } : {}) })
+    .catch((error: unknown) => {
+      if (isMissingFile(error)) return { files: [] };
+      throw error;
+    });
+  return listed.files.map((entry) => (typeof entry === "string" ? entry : entry.name));
 }
 
 /**
@@ -82,17 +98,29 @@ export async function setAsideMobileIndexDatabase(name: string): Promise<string>
   return withDatabaseClosed(name, () => setAsideIndexDatabase(filesIn(folder), `${name}${DB_SUFFIX}`));
 }
 
+/**
+ * Before the index database `name` is opened: a set-aside that stopped
+ * half-way is finished (`finishSetAside`), so the database never opens
+ * without its log. Nothing holds it then; the open comes after.
+ */
+export async function finishMobileSetAside(name: string): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  const folder = await databaseFolder();
+  await finishSetAside(filesIn(folder), `${name}${DB_SUFFIX}`);
+}
+
+/** Whether the index database `name` was set aside here before: the one there now was built anew (`restoreMobileAccountsAfterRebuild`). */
+export async function mobileIndexDatabaseWasRebuilt(name: string): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  const folder = await databaseFolder();
+  return (await namesIn(folder).catch(() => [])).some((file) => file.startsWith(`${name}${DB_SUFFIX}${SET_ASIDE_MARKER}`));
+}
+
 /** Removes every copy of `name` set aside as damaged (a vault forgotten on this device: they hold the notes' text too). */
 export async function removeSetAsideMobileIndexDatabases(name: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   const folder = await databaseFolder();
-  const listed = await Filesystem.readdir({ path: folder.path(""), ...(folder.directory ? { directory: folder.directory } : {}) })
-    .catch((error: unknown) => {
-      if (isMissingFile(error)) return { files: [] };
-      throw error;
-    });
-  for (const entry of listed.files) {
-    const file = typeof entry === "string" ? entry : entry.name;
+  for (const file of await namesIn(folder)) {
     if (!file.startsWith(`${name}${DB_SUFFIX}${SET_ASIDE_MARKER}`)) continue;
     await Filesystem.deleteFile({ path: folder.path(file), ...(folder.directory ? { directory: folder.directory } : {}) });
   }

@@ -198,6 +198,15 @@ export async function setPimAccountEnabled(accountId: string, enabled: boolean):
   if (enabled) pimSyncNow();
 }
 
+/**
+ * The index database was rebuilt and none of its calendar accounts is back yet
+ * (`restoreAccountsAfterRebuild`): their absence here says nothing about them.
+ */
+export async function pimAccountsHeldAfterRebuild(): Promise<boolean> {
+  if (!runtime) return false;
+  return (await runtime.cache.accountsAfterRebuild().catch(() => null)) === "held" && (await runtime.cache.listAccounts()).length === 0;
+}
+
 export async function listPimAccounts(): Promise<PimAccountRow[]> {
   return (await runtime?.cache.listAccounts()) ?? [];
 }

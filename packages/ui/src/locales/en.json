@@ -7530,14 +7530,14 @@
     "miniLink": "Q3 plan"
   },
   "indexDatabase": {
-    "damaged": "This vault's index database is damaged, so the vault cannot open. “Rebuild index” sets it aside and builds the index anew; your notes stay as they are.",
+    "damaged": "This vault's index database is damaged, so the vault cannot open. “Rebuild index” sets it aside and builds the index anew; no note is deleted.",
     "damagedWorkspace": "This vault's index database is damaged. Plainva does not rebuild it here: in an encrypted workspace it holds changes that have not reached your other devices yet. Restart the app to try again, and ask for help before you remove anything.",
     "locked": "Another program is using this vault's index database, usually a second Plainva window or app. Close it, then open the vault again.",
     "full": "The disk is full, so this vault's index database cannot open. Free some space, then open the vault again.",
     "readOnly": "Plainva may not open or write this vault's index database: {{reason}}. Check the permissions of Plainva's app data folder, then open the vault again.",
     "unavailable": "This vault's index database could not be opened: {{reason}}. Restart the app to try again.",
     "rebuildTitle": "Rebuild the index?",
-    "rebuildConfirm": "This vault's index database is damaged. Plainva sets it aside and rebuilds the index. Your notes stay untouched. Deletions and renames that have not been synced yet are lost: deleted notes can come back from the server, renamed ones can appear twice.",
+    "rebuildConfirm": "This vault's index database is damaged. Plainva sets it aside and rebuilds the index. No note is deleted, but Plainva forgets where the sync stood: where a note differs between this device and the server, the server's version ends up in the note and yours beside it as a conflict copy. Deleted notes can come back, including ones you deleted on another device. Renamed notes can appear twice. Plainva restores calendar and task accounts from the settings sync; accounts missing there need to be connected again.",
     "rebuildFailed": "The index could not be rebuilt: {{reason}}"
   },
   "refresh": {

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  finishSetAside,
   hasSetAside,
   indexDatabaseFailureKind,
+  indexDatabaseFailureMessage,
   indexDatabaseRebuildOffered,
+  indexDatabaseWorkspace,
   setAsideIndexDatabase,
   setAsideStamp,
   type IndexDatabaseFiles,
@@ -46,6 +49,17 @@ describe("why an index database did not open", () => {
     expect(indexDatabaseRebuildOffered("damaged", true)).toBe(false);
   });
 
+  it("offers nothing where it could not be told whether the vault is an encrypted workspace", async () => {
+    const workspace = await indexDatabaseWorkspace(async () => { throw new Error("settings store unavailable"); });
+    expect(workspace).toBe("unknown");
+    expect(indexDatabaseRebuildOffered("damaged", workspace)).toBe(false);
+    const said = indexDatabaseFailureMessage("damaged", new Error("database disk image is malformed"), workspace);
+    expect(said, "said as a database that did not open, not as one to rebuild").toContain("database disk image is malformed");
+    expect(said).not.toBe(indexDatabaseFailureMessage("damaged", new Error("database disk image is malformed"), false));
+    expect(await indexDatabaseWorkspace(async () => null)).toBe(false);
+    expect(await indexDatabaseWorkspace(async () => ({ workspaceId: "w" }))).toBe(true);
+  });
+
   it("reads the cause an error carries, and a plain message object", () => {
     expect(indexDatabaseFailureKind(Object.assign(new Error("open failed"), { cause: new Error("file is not a database") }))).toBe("damaged");
     expect(indexDatabaseFailureKind({ message: "database disk image is malformed" })).toBe("damaged");
@@ -68,6 +82,11 @@ function folder(initial: Record<string, string>, failRenameOf: string | null = n
     writeEmpty: async (path) => {
       steps.push(`empty ${path}`);
       files.set(path, "");
+    },
+    listStartingWith: async (prefix) => [...files.keys()].filter((path) => path.startsWith(prefix)),
+    remove: async (path) => {
+      steps.push(`remove ${path}`);
+      files.delete(path);
     },
   };
   return { files, steps, fs };
@@ -97,12 +116,12 @@ describe("setting a damaged index database aside", () => {
     expect(STAMP).not.toMatch(/[:]/);
   });
 
-  it("never over an earlier set-aside", async () => {
-    const { files, fs } = folder({ "x.db": "damaged again", [`x.db.broken-${STAMP}`]: "damaged before" });
+  it("never over an earlier set-aside, and only the newest one is kept", async () => {
+    const earlier = `x.db.broken-${STAMP}`;
+    const { files, fs } = folder({ "x.db": "damaged again", [earlier]: "damaged before", [`${earlier}-wal`]: "its log", "x.db.broken-2026-01-01T00-00-00-000Z": "older still" });
     const aside = await setAsideIndexDatabase(fs, "x.db", AT);
     expect(aside).toBe(`x.db.broken-${STAMP}-2`);
-    expect(files.get(`x.db.broken-${STAMP}`)).toBe("damaged before");
-    expect(files.get(aside)).toBe("damaged again");
+    expect(Object.fromEntries(files), "each is as large as the index and holds the notes' text").toEqual({ [aside]: "damaged again", "x.db": "" });
   });
 
   it("a second press while one runs is that one", async () => {
@@ -112,12 +131,23 @@ describe("setting a damaged index database aside", () => {
     expect(steps.filter((step) => step.startsWith("rename"))).toHaveLength(1);
   });
 
-  it("a stop before the database moved leaves it where it was, and no companion of another one beside it", async () => {
+  it("a stop before the database moved is finished before it opens, under the same name", async () => {
     const { files, fs } = folder({ "x.db": "damaged", "x.db-wal": "log" }, "x.db");
     await expect(setAsideIndexDatabase(fs, "x.db", AT)).rejects.toThrow("rename failed");
-    expect(files.get("x.db"), "the damaged database stays, the start offers the same again").toBe("damaged");
     expect(files.has("x.db-wal"), "its log is set aside, never replayed into a new one").toBe(false);
     expect(files.get(`x.db.broken-${STAMP}-wal`)).toBe("log");
+    // The next open: the database never opens without its log.
+    const healed = folder(Object.fromEntries(files));
+    const aside = await finishSetAside(healed.fs, "x.db");
+    expect(aside).toBe(`x.db.broken-${STAMP}`);
+    expect(Object.fromEntries(healed.files)).toEqual({ [`x.db.broken-${STAMP}`]: "damaged", [`x.db.broken-${STAMP}-wal`]: "log", "x.db": "" });
+  });
+
+  it("nothing half done: the open goes on as it was", async () => {
+    const { files, steps, fs } = folder({ "x.db": "fine", "x.db-wal": "live log", [`x.db.broken-${STAMP}`]: "set aside", [`x.db.broken-${STAMP}-wal`]: "its log" });
+    expect(await finishSetAside(fs, "x.db")).toBeNull();
+    expect(steps).toEqual([]);
+    expect(files.get("x.db-wal")).toBe("live log");
   });
 
   it("a set-aside tells the open not to bring an older copy back in", () => {

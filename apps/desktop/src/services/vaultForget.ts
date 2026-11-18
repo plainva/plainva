@@ -91,6 +91,34 @@ export async function collectVaultKeychainSlots(vaultPath: string): Promise<stri
 }
 
 /**
+ * The vault's index database in app-data (+ WAL/SHM sidecars), and every copy
+ * the start set aside as damaged (`setAsideIndexDatabase`) — they hold the
+ * notes' text too — wherever it lay. A fresh open of the same path then starts
+ * with a clean index, exactly like a never-seen vault.
+ */
+export async function forgetIndexDatabases(vaultPath: string): Promise<void> {
+  const dir = await join(await appDataDir(), "index");
+  const name = await indexDbFileName(vaultPath);
+  const base = await join(dir, name);
+  for (const p of [base, `${base}-wal`, `${base}-shm`]) {
+    if (await exists(p)) await remove(p);
+  }
+  // And every copy the start set aside as damaged (`setAsideIndexDatabase`): it holds the notes' text too.
+  const names = await readDir(dir).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
+  for (const entry of names) {
+    if (entry.startsWith(name + SET_ASIDE_MARKER)) await remove(await join(dir, entry));
+  }
+  // A vault whose index stayed in its own `.plainva/` (the app-data folder
+  // could not be used) had a damaged one set aside there. Only those copies
+  // go; the folder is the vault's.
+  const inVault = await join(vaultPath, ".plainva");
+  const inVaultNames = await readDir(inVault).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
+  for (const entry of inVaultNames) {
+    if (entry.startsWith(`vault.db${SET_ASIDE_MARKER}`)) await remove(await join(inVault, entry));
+  }
+}
+
+/**
  * The encrypted workspace's own keys (finding 2026-08-30).
  *
  * "Forget this vault" swept the account slots and left the workspace runtime
@@ -181,19 +209,7 @@ export async function forgetVaultData(
 
   // Index DB in app-data (+ WAL/SHM sidecars). A fresh open of the same path
   // then starts with a clean index, exactly like a never-seen vault.
-  await attempt("index-db", async () => {
-    const dir = await join(await appDataDir(), "index");
-    const name = await indexDbFileName(vaultPath);
-    const base = await join(dir, name);
-    for (const p of [base, `${base}-wal`, `${base}-shm`]) {
-      if (await exists(p)) await remove(p);
-    }
-    // And every copy the start set aside as damaged (`setAsideIndexDatabase`): it holds the notes' text too.
-    const names = await readDir(dir).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
-    for (const entry of names) {
-      if (entry.startsWith(name + SET_ASIDE_MARKER)) await remove(await join(dir, entry));
-    }
-  });
+  await attempt("index-db", () => forgetIndexDatabases(vaultPath));
 
   // Crash-recovery draft journal (P2.4) — note text snapshots live in
   // app-data and must not survive "forget app data".

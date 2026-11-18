@@ -148,12 +148,19 @@ async function observeState(vaultPath: string, pimRuntime: PimRuntime | null): P
  * when it changed. Safe without a pim runtime (closed vault): calendar
  * references are then carried through unverified rather than dropped.
  */
+/** Rebuilt at the start, and none of the database's calendar accounts back yet: their absence says nothing about them. */
+async function pimAccountsHeldAfterRebuild(pimRuntime: PimRuntime): Promise<boolean> {
+  return (await pimRuntime.cache.accountsAfterRebuild().catch(() => null)) === "held" && (await pimRuntime.cache.listAccounts()).length === 0;
+}
+
 export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRuntime | null): Promise<CloudAccountRecord[]> {
   const stored = await loadCloudAccounts(vaultPath);
   const observed = await observeState(vaultPath, pimRuntime);
-  if (!pimRuntime) {
+  if (!pimRuntime || (await pimAccountsHeldAfterRebuild(pimRuntime))) {
     // No runtime = no pim truth. Feed the stored calendar refs back as
     // observations so reconcile keeps them instead of treating them as gone.
+    // The same while an index database rebuilt at the start has none of its
+    // accounts back yet (`restoreAccountsAfterRebuild`).
     observed.pim = stored
       .filter((r) => r.services.calendar)
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));

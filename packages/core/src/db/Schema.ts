@@ -1,4 +1,4 @@
-import { IDatabaseAdapter } from "./IDatabaseAdapter.js";
+import { IDatabaseAdapter, type BatchStatement } from "./IDatabaseAdapter.js";
 import { migratePathIdentity } from "./pathIdentityMigration.js";
 import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
 import { mergeWorkspaceQueueCopies } from "./workspaceQueueCopies.js";
@@ -24,9 +24,34 @@ const FTS_NOTES_COLUMNS = `content,
       tokenize = 'unicode61 remove_diacritics 1'`;
 
 /**
- * Initializes the database schema as defined in Master_Projektplan.md §5.2
+ * Initializes the database schema as defined in Master_Projektplan.md §5.2.
+ *
+ * A damaged full-text index (SQLite's SQLITE_CORRUPT_VTAB, 267: the FTS5
+ * table's own pages, not the files, the sync state or the queue) never keeps
+ * the vault from opening and never costs the rest of the database: the
+ * full-text table is made anew, every note goes to the next full pass, and
+ * the schema is brought up once more. Search is empty until that pass has
+ * read the notes again. Damage anywhere else still fails the open, and the
+ * start says so (`indexDatabaseFailureKind`).
  */
 export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
+  try {
+    await bringSchemaUp(db);
+  } catch (error) {
+    if (!isDamagedFullText(error)) throw error;
+    console.error("[index] the full-text index is damaged; it is built anew", error);
+    await runStatementsAtomic(db, await fullTextAnew(db));
+    await bringSchemaUp(db);
+  }
+}
+
+/** SQLITE_CORRUPT_VTAB as each driver says it: sqlx's code, the phone plugin's and SQLite's words, FTS5's own. */
+export function isDamagedFullText(error: unknown): boolean {
+  const text = error instanceof Error ? `${error.message} ${String((error as { cause?: unknown }).cause ?? "")}` : String(error ?? "");
+  return /\(code: 267\)|SQLITE_CORRUPT_VTAB|fts5: corruption/i.test(text);
+}
+
+async function bringSchemaUp(db: IDatabaseAdapter): Promise<void> {
   const schemaQueries = [
     `CREATE TABLE IF NOT EXISTS files (
       id          TEXT PRIMARY KEY,
@@ -1082,24 +1107,32 @@ async function numberFullTextRowsOrRebuild(db: IDatabaseAdapter, { adoptUnnamed 
     return;
   } catch (error) {
     console.error("[index] numbering the full-text rows failed; the full-text index is built anew", error);
-    // A kind and a count, nothing of the vault: it goes into the diagnostics export (readIndexDiagnostics).
-    const count = diagnosticCount(rowValue(await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [FULL_TEXT_NUMBERING_DIAGNOSTIC]).catch(() => null), "value"));
-    const record = JSON.stringify({ count: count + 1, at: new Date().toISOString() });
     try {
-      await runStatementsAtomic(db, [
-        { sql: `DROP TABLE IF EXISTS fts_number_map` },
-        { sql: `DROP TABLE IF EXISTS fts_moving` },
-        { sql: `DROP TABLE IF EXISTS fts_notes` },
-        { sql: `CREATE VIRTUAL TABLE fts_notes USING fts5(${FTS_NOTES_COLUMNS})` },
-        { sql: FULL_TEXT_SENTINEL },
-        { sql: `UPDATE files SET fts_rowid = 0` },
-        { sql: `UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'` },
-        { sql: `DELETE FROM meta WHERE key = ?`, params: [UNNUMBERED_FLAG] },
-        { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`, params: [FULL_TEXT_NUMBERING_DIAGNOSTIC, record] },
-        { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`, params: [String(INDEX_FORMAT_VERSION)] },
-      ]);
+      await runStatementsAtomic(db, await fullTextAnew(db));
     } catch (fallback) {
       console.error("[index] building the full-text index anew failed too; the vault opens without it", fallback);
     }
   }
+}
+
+/**
+ * The statements that make the full-text table anew and hand every note to the
+ * next full pass, the failure recorded under {@link FULL_TEXT_NUMBERING_DIAGNOSTIC}
+ * (a kind and a count, nothing of the vault: readIndexDiagnostics).
+ */
+async function fullTextAnew(db: IDatabaseAdapter): Promise<BatchStatement[]> {
+  const count = diagnosticCount(rowValue(await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [FULL_TEXT_NUMBERING_DIAGNOSTIC]).catch(() => null), "value"));
+  const record = JSON.stringify({ count: count + 1, at: new Date().toISOString() });
+  return [
+    { sql: `DROP TABLE IF EXISTS fts_number_map` },
+    { sql: `DROP TABLE IF EXISTS fts_moving` },
+    { sql: `DROP TABLE IF EXISTS fts_notes` },
+    { sql: `CREATE VIRTUAL TABLE fts_notes USING fts5(${FTS_NOTES_COLUMNS})` },
+    { sql: FULL_TEXT_SENTINEL },
+    { sql: `UPDATE files SET fts_rowid = 0` },
+    { sql: `UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'` },
+    { sql: `DELETE FROM meta WHERE key = ?`, params: [UNNUMBERED_FLAG] },
+    { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`, params: [FULL_TEXT_NUMBERING_DIAGNOSTIC, record] },
+    { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`, params: [String(INDEX_FORMAT_VERSION)] },
+  ];
 }

@@ -43,7 +43,7 @@ vi.mock("@capacitor/filesystem", () => ({
 }));
 vi.mock("@capacitor-community/sqlite", async () => (await import("../../../../packages/core/test/helpers/phoneSqlitePlugin")).phoneSqlite.module);
 
-const { androidDatabasesFolder, removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } = await import("./indexDatabaseRebuild");
+const { androidDatabasesFolder, finishMobileSetAside, removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } = await import("./indexDatabaseRebuild");
 const { resetDatabasesForTests } = await import("../adapters/sqliteConnections");
 const { resetDatabaseFolderForTests } = await import("../adapters/iosDatabaseFolder");
 
@@ -93,6 +93,25 @@ describe("setting the phone's damaged index database aside", () => {
     ]) {
       expect(androidDatabasesFolder(uri), uri).toBe(folder);
     }
+  });
+
+  it("a set-aside that stopped before the database moved is finished before it opens; only the newest copy is kept", async () => {
+    device.platform = "ios";
+    phoneSqlite.reset("ios");
+    const at = (file: string) => key(`CapacitorDatabase/${file}`, "LIBRARY");
+    device.files.set(at("plainva-v1SQLite.db"), "damaged");
+    device.files.set(at("plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z-wal"), "its log");
+    device.files.set(at("plainva-v1SQLite.db.broken-2026-01-01T00-00-00-000Z"), "older still");
+    await finishMobileSetAside("plainva-v1");
+    expect(Object.fromEntries([...device.files].filter(([k]) => k.startsWith("LIBRARY:")))).toEqual({
+      [at("plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z")]: "damaged",
+      [at("plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z-wal")]: "its log",
+      [at("plainva-v1SQLite.db")]: "",
+    });
+    // Nothing half done: nothing moves.
+    device.files.set(at("plainva-v1SQLite.db"), "fine");
+    await finishMobileSetAside("plainva-v1");
+    expect(device.files.get(at("plainva-v1SQLite.db"))).toBe("fine");
   });
 
   it("forgetting the vault on this device removes every copy set aside, and nothing else", async () => {
