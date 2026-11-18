@@ -780,6 +780,18 @@ const defaultNewId = () => globalThis.crypto.randomUUID().slice(0, 12);
  * cloud registry and the default-calendar setting at the ids this device
  * actually uses.
  */
+/** The servers and ports a mailbox signs in to, as this device has them — absent fields stay absent. */
+function mailServersOf(account: MailAccountConfig): Partial<MailAccountConfig> {
+  return {
+    host: account.host,
+    port: account.port,
+    smtpHost: account.smtpHost,
+    smtpPort: account.smtpPort,
+    sieveHost: account.sieveHost,
+    sievePort: account.sievePort,
+  };
+}
+
 export async function importAccountMetadata(
   values: Record<string, unknown>,
   ports: AccountImportPorts
@@ -929,6 +941,11 @@ export async function importAccountMetadata(
       const row: MailAccountConfig = {
         ...imported,
         id: localId,
+        // A mailbox this device already has keeps ITS servers and ports
+        // (review 2026-11-18, A1; the rule of `confirmedAccess` for CalDAV):
+        // its stored password goes only where this device signs in. What the
+        // document names applies to a device that does not have it yet.
+        ...(same ? mailServersOf(same) : {}),
         ...(same?.clientId ? { clientId: same.clientId } : {}),
         ...(!imported.firstFetchAt && same?.firstFetchAt ? { firstFetchAt: same.firstFetchAt } : {}),
       };
