@@ -89,7 +89,7 @@ const ORDINARY_TEXT = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
 const ORDINARY_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 /** Why the reader shows a card or a preview of fixed size otherwise than main (coordination, 2026-11-18): main cuts off or overlays words the assistant reads, the branch shows them on the element itself. */
 const GROWS_TO_ITS_WORDS = "main keeps the painted box at its height and its words run out of it, past its ground and over what follows; the branch lets the box grow to its words (round 4, a painted box keeps no height its words outgrow)";
-const SHOWS_THE_CUT = "main cuts the preview at its max-height with overflow:hidden, and the assistant reads the words cut off; the branch gives no clip that does not take a box to nothing, so the reader shows all of it";
+const SHOWS_THE_CUT = "main cuts the box at its height or max-height with overflow:hidden, and the assistant reads the words cut off; the branch gives no clip that does not take a box to nothing, so the reader shows all of it";
 const LINE_NOT_CUT = "main cuts the line at the box's width with overflow:hidden and an ellipsis, and the assistant reads the words cut off; the branch gives no clip, the whole line shows and the frame fits it";
 const ORDINARY_6: MailCorpusCase[] = [
   { name: "ordinary 6 · b1 button inline-block height = line-height", html: `<p><a href="https://x.example.com/b1" style="display:inline-block;height:44px;line-height:44px;padding:0 24px;background-color:#0a66c2;color:#ffffff;border-radius:4px;text-decoration:none">VISIBLEb1 Jetzt ansehen</a></p>` },
@@ -122,6 +122,30 @@ const ORDINARY_6: MailCorpusCase[] = [
   { name: "ordinary 6 · b28 inherited px line height into h1 child", html: `<td><div style="font-size:14px;line-height:20px"><h1 style="font-size:30px">VISIBLEb28 Titel mit geerbter Zeilenhöhe</h1></div></td>` },
   { name: "ordinary 6 · b29 card with fixed height and image + caption", html: `<div style="width:260px;height:220px;background-color:#ffffff;border:1px solid #eee"><img src="${ORDINARY_PNG}" width="260" height="150" style="display:block"><div style="height:70px;padding:8px;font-size:13px">VISIBLEb29 Bildunterschrift kurz</div></div>`, differs: { body: GROWS_TO_ITS_WORDS, "body/0": GROWS_TO_ITS_WORDS } },
   { name: "ordinary 6 · b30 pre code block with fixed width", html: `<pre style="width:300px;background-color:#f4f4f4;padding:8px">VISIBLEb30 const a = 1;\nconsole.log(a);</pre>` },
+];
+
+/** The reviewer's ordinary mails of round 7 (2026-11-18, `ordinary7.mjs`): fixed heights, max-heights and tight line heights the shaper could reach. */
+const ORDINARY_7: MailCorpusCase[] = [
+  { name: "ordinary 7 · o1 card height 120, text fits", html: `<div style="height:120px;width:260px;background-color:#f2f2f2;padding:10px">VISIBLEo1 Kurz und knapp.</div><p>VISIBLEo1b after</p>` },
+  { name: "ordinary 7 · o2 card height 40, text overflows (overflow visible)", html: `<div style="height:40px;width:260px;background-color:#f2f2f2">VISIBLEo2 ${ORDINARY_TEXT}</div><p style="background-color:#ffffff">VISIBLEo2b after</p>`, differs: { body: GROWS_TO_ITS_WORDS, "body/0": GROWS_TO_ITS_WORDS } },
+  { name: "ordinary 7 · o3 card height 40 overflow hidden, text longer", html: `<div style="height:40px;width:260px;overflow:hidden;background-color:#f2f2f2">VISIBLEo3 ${ORDINARY_TEXT} SECRETo3tail</div><p>VISIBLEo3b</p>`, differs: { body: SHOWS_THE_CUT, "body/0": SHOWS_THE_CUT } },
+  { name: "ordinary 7 · o4 button height 36 = line-height", html: `<a href="https://x.example.com/o4" style="display:inline-block;height:36px;line-height:36px;padding:0 18px;background-color:#e4572e;color:#ffffff">VISIBLEo4 Kaufen</a>` },
+  { name: "ordinary 7 · o5 button height 36, label wraps on phone", html: `<a href="https://x.example.com/o5" style="display:block;height:36px;line-height:36px;width:180px;background-color:#e4572e;color:#ffffff;text-align:center">VISIBLEo5 Jetzt das Angebot ansehen und sparen</a><p>VISIBLEo5b</p>`, differs: { body: GROWS_TO_ITS_WORDS, "body/0": GROWS_TO_ITS_WORDS } },
+  { name: "ordinary 7 · o6 accordion open state max-height 1000", html: `<div style="max-height:1000px;overflow:hidden;background-color:#fafafa">VISIBLEo6 ${ORDINARY_TEXT}</div>` },
+  { name: "ordinary 7 · o7 preview box max-height 60 overflow hidden", html: `<div style="max-height:60px;overflow:hidden;line-height:20px">VISIBLEo7 ${ORDINARY_TEXT} ${ORDINARY_TEXT} SECRETo7tail</div><p>VISIBLEo7b</p>` },
+  { name: "ordinary 7 · o8 max-height 300 no overflow", html: `<div style="max-height:300px;background-color:#eef">VISIBLEo8 kurzer Text</div>` },
+  { name: "ordinary 7 · o9 line-height 0.45 inherited into a paragraph", html: `<div style="font-size:20px;line-height:9px"><p>VISIBLEo9 ${ORDINARY_TEXT}</p></div>` },
+  { name: "ordinary 7 · o10 single-line headline line-height 0.4", html: `<h1 style="font-size:40px;line-height:16px;margin:20px 0">VISIBLEo10 Kurz</h1><p>VISIBLEo10b</p>` },
+  { name: "ordinary 7 · o11 line-height 0.5 exactly", html: `<p style="font-size:20px;line-height:10px">VISIBLEo11 ${ORDINARY_TEXT}</p>` },
+  { name: "ordinary 7 · o12 line-height 0.6 two lines", html: `<p style="font-size:30px;line-height:18px">VISIBLEo12 Zwei Zeilen Schlagzeile mit Text</p>` },
+  { name: "ordinary 7 · o13 line-height 0.8 headline", html: `<h2 style="font-size:36px;line-height:0.8;margin:0">VISIBLEo13 Große Überschrift über mehrere Zeilen hinweg</h2>` },
+  { name: "ordinary 7 · o14 wrapper line-height 0 with image and text", html: `<div style="line-height:0"><img src="${ORDINARY_PNG}" width="300" height="80"><span style="font-size:14px;line-height:20px">VISIBLEo14 Bildunterschrift</span></div><p>after</p>` },
+  { name: "ordinary 7 · o15 wrapper line-height 0px around images, text in a nested div", html: `<div style="line-height:0px"><img src="${ORDINARY_PNG}" width="200" height="60"> <img src="${ORDINARY_PNG}" width="200" height="60"><div style="line-height:20px">VISIBLEo15 Text</div></div>` },
+  { name: "ordinary 7 · o16 image-over-text stage fixed height", html: `<div style="height:260px;width:300px;background-color:#123456;color:#ffffff"><img src="${ORDINARY_PNG}" width="300" height="200" style="display:block"><div style="padding:8px">VISIBLEo16 Bühne</div></div><p>VISIBLEo16b</p>`, differs: { body: GROWS_TO_ITS_WORDS, "body/0": GROWS_TO_ITS_WORDS } },
+  { name: "ordinary 7 · o17 stage fixed height, caption too long", html: `<div style="height:230px;width:300px;background-color:#123456;color:#ffffff"><img src="${ORDINARY_PNG}" width="300" height="200" style="display:block"><div style="padding:8px">VISIBLEo17 ${ORDINARY_TEXT}</div></div><p style="background-color:#ffffff">VISIBLEo17b</p>`, differs: { body: GROWS_TO_ITS_WORDS, "body/0": GROWS_TO_ITS_WORDS } },
+  { name: "ordinary 7 · o18 list items fixed height 20 with 14px text", html: `<ul>${Array.from({ length: 5 }, (_, i) => `<li style="height:20px">VISIBLEo18i${i} Punkt</li>`).join("")}</ul>` },
+  { name: "ordinary 7 · o19 inline span line-height 0.3 inside a paragraph", html: `<p style="font-size:14px;line-height:20px">VISIBLEo19 Text <span style="font-size:30px;line-height:8px">GROSS</span> weiter</p>` },
+  { name: "ordinary 7 · o20 table-free card grid inline-block height 150", html: `<div>${Array.from({ length: 3 }, (_, i) => `<div style="display:inline-block;width:180px;height:150px;vertical-align:top;margin:4px;background-color:#f6f6f6;padding:8px"><b>VISIBLEo20t${i}</b><br>Kurzer Teaser ${i}</div>`).join("")}</div>` },
 ];
 
 export const MAIL_CORPUS: MailCorpusCase[] = [
@@ -167,4 +191,5 @@ export const MAIL_CORPUS: MailCorpusCase[] = [
   { name: "two columns of 600", html: `<table width="600" cellpadding="0" cellspacing="0"><tr><td width="290" valign="top" style="padding:0 10px 0 0">VISIBLEc1 ${LINE}</td><td width="290" valign="top" style="padding:0 0 0 10px">VISIBLEc2 ${LINE}</td></tr></table>` },
   ...REVIEW_4,
   ...ORDINARY_6,
+  ...ORDINARY_7,
 ];

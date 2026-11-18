@@ -1,6 +1,6 @@
 import { colourHex, readAttributeColour, readColour, type Rgba } from "./mailColour.js";
 import {
-  appliedMailStyle, backgroundImageColours, fontSizePx, lengthPx, namedFontSize, readLength, readMailStyle, writeMailStyle, type MailDeclaration,
+  appliedMailStyle, backgroundImageColours, fontSizePx, lengthPx, namedFontSize, readLength, readMailStyle, tinyLineHeight, writeMailStyle, type MailDeclaration,
 } from "./mailStyle.js";
 
 /**
@@ -80,23 +80,6 @@ function colourCss(colour: Rgba): string {
 function attributeReach(value: string | null): number {
   const size = value === null ? null : attributeWidth(value);
   return !size ? 0 : "px" in size ? size.px : size.percent <= 100 ? 0 : ((size.percent - 100) / 100) * REACH_MAX;
-}
-
-/**
- * A line height below this share of the font size lays lines on top of each
- * other, and words run out of their line. Below the tight headlines and prices
- * of ordinary mails (48/36, a 32 px price in a 14/18 cell: 0.56), which keep
- * theirs as at main (review of 2026-11-18, rule 3).
- */
-const MIN_LINE_SHARE = 0.5;
-
-/** A `line-height` as the element hands it down: a share of the font size (a number) or pixels (anything else). */
-function readLine(value: string, px: number, parent: { factor: number } | { px: number } | null): { factor: number } | { px: number } | null {
-  if (value === "normal") return null;
-  if (value === "inherit" || value === "unset") return parent;
-  if (/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) return { factor: parseFloat(value) };
-  const length = lengthPx(value, px, px);
-  return length === null ? parent : { px: length };
 }
 
 /** Elements the shaper looks at whatever the mail wrote on them. */
@@ -247,8 +230,6 @@ export interface ShapeState {
   readonly intended: Rgba | null;
   /** Whether a ground the reader shows lies behind it: one of the mail's own, or the reader's pair (not the bare sheet). */
   readonly grounded: boolean;
-  /** The line height it hands down: a share of the font size, a length in pixels, or `null` for the engine's own. */
-  readonly line?: { factor: number } | { px: number } | null;
   /** Makes the nearest painted box above hold the floats inside it. */
   readonly holdFloats?: () => void;
 }
@@ -270,6 +251,12 @@ export interface ShapeAccess<N> {
    * as the mail wrote it (`MailShaper.element`); without this, every element counts as one with words.
    */
   holdsText?(node: N): boolean;
+  /**
+   * Whether a word inside the element takes its line height from it: one not
+   * inside a box with a line height of its own (`ownsLineHeight`). Without
+   * this, every element with words counts as one that lends its line.
+   */
+  lendsLine?(node: N): boolean;
 }
 
 const NONE: ReadonlyMap<string, string> = new Map();
@@ -431,38 +418,31 @@ export class MailShaper<N> {
       font = { px: READER_PX, keyword: false };
     }
     const px = font.px;
+    // Lines laid on top of each other are no way to read them: a line height
+    // that does so goes where a word takes its line from it — not from a
+    // wrapper whose words all stand in boxes with line heights of their own,
+    // the wrapper of pictures that closes the gap under them (review of 2026-11-18).
+    const line = applyOnce(declarations).get("line-height");
+    if (line !== undefined && tinyLineHeight(line) && (this.access.lendsLine?.(node) ?? true)) {
+      declarations = declarations.filter((d) => d.name !== "line-height");
+    }
     applied = applyOnce(declarations);
 
-    // A box that holds words is never smaller than its words (review of
-    // 2026-11-17, round 5), whether it paints or not: words that ran out of
-    // their box would lie where a later box paints over them, or on a ground
-    // not theirs. So no height they outgrow, no lines that lie on top of each
-    // other, and, painted, no width narrower than a letter. A line that keeps
-    // itself whole keeps its width, and a line height a headline sets tight
-    // stays: an ordinary mail looks as at main wherever main hides no word
-    // (review of 2026-11-18, rule 3). A table's parts grow to their words; a
-    // box that clips itself to nothing (a preview line) hides its words from
-    // the reader and the walk alike.
+    // A background lies behind every word of its box: a painted box keeps no
+    // size it could be smaller than its words — no height they outgrow, no
+    // width narrower than a letter (a table's parts grow to theirs).
     const block = BLOCK.has(name) || (applied.has("display") && applied.get("display") !== "inline");
-    const lineValue = applied.get("line-height");
-    let line = lineValue === undefined ? parent.line ?? null : readLine(lineValue, px, parent.line ?? null);
-    if (!TABLE_PARTS.has(name) && !TABLE_DISPLAY.has(applied.get("display") ?? "") && !clipsToNothing(name, applied, px)) {
+    if (paints && !TABLE_PARTS.has(name) && !TABLE_DISPLAY.has(applied.get("display") ?? "")) {
       const narrow = (value: string | undefined) => value !== undefined && value !== "auto" && value !== "none" && (lengthPx(value, px, REACH_MAX) ?? 0) < px;
-      const confines = (value: string | undefined) => paints && narrow(value);
       // A size it asked for stays its least size: the box grows to its words, never smaller than it was.
       const before = declarations;
       const least = (property: string) => applied.has(property);
       declarations = declarations.flatMap((d): MailDeclaration[] => {
-        if (d.name === "max-height" || (d.name === "max-width" && confines(d.value))) return [];
+        if (d.name === "max-height" || (d.name === "max-width" && narrow(d.value))) return [];
         if (d.name === "height") return least("min-height") ? [] : [{ ...d, name: "min-height" }];
-        if (d.name === "width" && confines(d.value)) return least("min-width") ? [] : [{ ...d, name: "min-width" }];
+        if (d.name === "width" && narrow(d.value)) return least("min-width") ? [] : [{ ...d, name: "min-width" }];
         return [d];
       });
-      const lineHeightPx = line === null ? null : "px" in line ? line.px : line.factor * px;
-      if (lineHeightPx !== null && lineHeightPx < px * MIN_LINE_SHARE) {
-        declarations = [...declarations.filter((d) => d.name !== "line-height"), { name: "line-height", value: "normal", important: false }];
-        line = null;
-      }
       if (declarations.some((d, index) => d !== before[index]) || declarations.length !== before.length) applied = applyOnce(declarations);
     }
     // A float in a painted box stands on that box's background: the box holds it.
@@ -537,7 +517,6 @@ export class MailShaper<N> {
       dropColours,
       intended,
       grounded: standardPair || ownGround || parent.grounded,
-      line,
       holdFloats,
       row: name === "tr" ? { left: contentLeft, used: 0, takeBack: [] } : null,
     };

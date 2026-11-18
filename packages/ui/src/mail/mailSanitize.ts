@@ -1,5 +1,5 @@
 import createDOMPurify from "dompurify";
-import { keptMailStyle, MailShaper, visibleDocumentOf, WHITE_SHEET, type ShapeState, type VisibleDocument } from "@plainva/core";
+import { keptMailStyle, MailShaper, ownsLineHeight, visibleDocumentOf, WHITE_SHEET, type ShapeState, type VisibleDocument } from "@plainva/core";
 import { domReader, treeAccess } from "./mailTree";
 
 // The package's default export is a FACTORY in module environments — bind it
@@ -130,6 +130,30 @@ function holdsText(node: Node): boolean {
   return false;
 }
 
+/** Whether a word inside an element takes its line height from it (`ShapeAccess.lendsLine`): one not inside a box with a line height of its own. */
+function lendsLine(node: Node): boolean {
+  const doc = node.ownerDocument;
+  // The tree is read past what the mail named its elements (`form name="parentNode"`).
+  const view = doc?.defaultView ?? (typeof window === "undefined" ? null : window);
+  const PARENT = view ? Object.getOwnPropertyDescriptor(view.Node.prototype, "parentNode")?.get : undefined;
+  const ATTRIBUTE = view?.Element.prototype.getAttribute;
+  if (!doc || !PARENT || !ATTRIBUTE) return true;
+  const walker = doc.createTreeWalker(node, 4 /* NodeFilter.SHOW_TEXT */);
+  for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+    const up = PARENT.call(text) as Node | null;
+    if (NO_WORD.test((text as Text).data) || NOT_WORDS.has(up?.nodeName.toUpperCase() ?? "")) continue;
+    let own = false;
+    for (let at = up; at && at !== node; at = PARENT.call(at) as Node | null) {
+      if (at.nodeType === 1 && ownsLineHeight(ATTRIBUTE.call(at as Element, "style") ?? "")) {
+        own = true;
+        break;
+      }
+    }
+    if (!own) return true;
+  }
+  return false;
+}
+
 function makePass(raw: string): Pass {
   const read = treeAccess();
   if (!read) throw new Error("no DOM to sanitize mail with");
@@ -152,6 +176,7 @@ function makePass(raw: string): Pass {
       } else if (now !== value) read.setAttribute(node, name, value);
     },
     holdsText,
+    lendsLine,
   });
 
   const record = (node: Node, name: string, value: string): void => {

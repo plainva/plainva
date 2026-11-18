@@ -369,14 +369,32 @@ function fontSizeToken(token: string): boolean {
 function lineHeight(tokens: string[]): boolean {
   if (tokens.length !== 1) return false;
   if (tokens[0] === "normal") return true;
-  // Lines laid on top of each other are no way to read them either.
-  if (/^(\d+(?:\.\d+)?|\.\d+)$/.test(tokens[0])) return parseFloat(tokens[0]) >= 0.5 && parseFloat(tokens[0]) <= 10;
+  if (/^(\d+(?:\.\d+)?|\.\d+)$/.test(tokens[0])) return parseFloat(tokens[0]) <= 10;
   const length = readLength(tokens[0]);
+  return length !== null;
+}
+
+/**
+ * A line height that lays lines on top of each other: below half the font,
+ * below 4 px. The shaper takes it from an element only where a word of it
+ * takes its line from it (`MailShaper`, review of 2026-11-18): a wrapper of
+ * pictures with `line-height:0` keeps it, as at main, where every word inside
+ * stands in a box with a line height of its own.
+ */
+export function tinyLineHeight(value: string): boolean {
+  if (value === "normal" || value === "inherit" || value === "unset" || value === "initial") return false;
+  if (/^(\d+(?:\.\d+)?|\.\d+)$/.test(value)) return parseFloat(value) < 0.5;
+  const length = readLength(value);
   if (!length) return false;
-  if (length.unit in PX_PER_UNIT) return length.amount * PX_PER_UNIT[length.unit] >= 4;
-  if (length.unit === "%") return length.amount >= 50;
+  if (length.unit in PX_PER_UNIT) return length.amount * PX_PER_UNIT[length.unit] < 4;
+  if (length.unit === "%") return length.amount < 50;
   // An ex or a ch is about half a letter's height.
-  return length.unit === "ex" || length.unit === "ch" ? length.amount >= 1 : length.amount >= 0.5;
+  return length.unit === "ex" || length.unit === "ch" ? length.amount < 1 : length.amount < 0.5;
+}
+
+/** Whether a `style` attribute gives its element a line height of its own that it keeps (not one `tinyLineHeight` takes away). */
+export function ownsLineHeight(style: string): boolean {
+  return readMailStyle(style).declarations.some((d) => d.name === "line-height" && !tinyLineHeight(d.value));
 }
 
 const FONT_WEIGHT = oneOf("normal", "bold", "bolder", "lighter", "100", "200", "300", "400", "500", "600", "700", "800", "900");

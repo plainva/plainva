@@ -1879,6 +1879,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a1 h0 text, wordless opacity cover",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa1</p><div style=\"height:0\">SECRETa1</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEa1b</p>",
   "mainSeen": {
    "343": [
@@ -1893,6 +1894,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a2 h0 text, wordless inline-block cover",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa2</p><div style=\"height:0\">SECRETa2</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div>",
   "mainSeen": {
    "343": [
@@ -1905,6 +1907,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a3 h0 text, wordless white img cover",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa3</p><div style=\"height:0\">SECRETa3</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\">",
   "mainSeen": {
    "343": [
@@ -1917,6 +1920,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a4 h0 text, wordless cell cover",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa4</p><div style=\"height:0\">SECRETa4</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#fff\"></td></tr></table>",
   "mainSeen": {
    "343": [
@@ -1929,6 +1933,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a5 h0 text, cover with a word and padding (opacity)",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa5</p><div style=\"height:0\">SECRETa5</div><div style=\"opacity:0.99;background-color:#ffffff;padding:20px 0\">x</div>",
   "mainSeen": {
    "343": [
@@ -1941,6 +1946,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a6 h0 text, inline-block cover with a word",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa6</p><div style=\"height:0\">SECRETa6</div><div><span style=\"display:inline-block;width:600px;padding:12px 0;background-color:#ffffff\">&#8203;x</span></div>",
   "mainSeen": {
    "343": [
@@ -1953,20 +1959,21 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a7 line-height 4px text, wordless covers",
+  "note": "the judge of 2026-11-17 counted the word as seen; at main only a third of its ink reaches the screen under the covers (pixel judge, review of 2026-11-18)",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<div style=\"opacity:0.99;background-color:#fff;height:30px\"></div><div style=\"line-height:4px;font-size:14px\">SECRETa7</div><div style=\"opacity:0.99;background-color:#fff;height:30px;margin-top:0\"></div><p>VISIBLEa7</p>",
   "mainSeen": {
    "343": [
-    "SECRETa7",
     "VISIBLEa7"
    ],
    "760": [
-    "SECRETa7",
     "VISIBLEa7"
    ]
   }
  },
  {
   "name": "review 5 · a8 cover inline-block after text on same line",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa8 <span style=\"display:inline-block;width:0;height:0\"></span></p><div style=\"height:0;white-space:nowrap\">SECRETa8 SECRETa8 SECRETa8</div><span style=\"display:inline-block;width:900px;height:30px;background-color:#fff\"></span>",
   "mainSeen": {
    "343": [
@@ -1979,6 +1986,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a9 cover with nbsp only",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<div style=\"height:0\">SECRETa9</div><div style=\"opacity:0.99;background-color:#fff;height:40px\">&nbsp;&nbsp;</div><p>VISIBLEa9</p>",
   "mainSeen": {
    "343": [
@@ -1991,6 +1999,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a10 cover is a td of spacer table with height",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<div style=\"height:0\">SECRETa10</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEa10</p>",
   "mainSeen": {
    "343": [
@@ -2003,6 +2012,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under opacity",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf1</p><div style=\"font-size:14px;height:0\">SECRETf1</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf1b</p>",
   "mainSeen": {
    "343": [
@@ -2017,6 +2027,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under inlineblock",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf2</p><div style=\"font-size:14px;height:0\">SECRETf2</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf2b</p>",
   "mainSeen": {
    "343": [
@@ -2031,6 +2042,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under picture",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf3</p><div style=\"font-size:14px;height:0\">SECRETf3</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf3b</p>",
   "mainSeen": {
    "343": [
@@ -2045,6 +2057,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under cell",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf4</p><div style=\"font-size:14px;height:0\">SECRETf4</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf4b</p>",
   "mainSeen": {
    "343": [
@@ -2059,6 +2072,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under table",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf5</p><div style=\"font-size:14px;height:0\">SECRETf5</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf5b</p>",
   "mainSeen": {
    "343": [
@@ -2073,6 +2087,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under opacity",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf6</p><div style=\"font-size:14px;height:4px\">SECRETf6</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf6b</p>",
   "mainSeen": {
    "343": [
@@ -2087,6 +2102,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under inlineblock",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf7</p><div style=\"font-size:14px;height:4px\">SECRETf7</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf7b</p>",
   "mainSeen": {
    "343": [
@@ -2101,6 +2117,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under picture",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf8</p><div style=\"font-size:14px;height:4px\">SECRETf8</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf8b</p>",
   "mainSeen": {
    "343": [
@@ -2115,6 +2132,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under cell",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf9</p><div style=\"font-size:14px;height:4px\">SECRETf9</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf9b</p>",
   "mainSeen": {
    "343": [
@@ -2129,6 +2147,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under table",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf10</p><div style=\"font-size:14px;height:4px\">SECRETf10</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf10b</p>",
   "mainSeen": {
    "343": [
@@ -2143,6 +2162,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under opacity",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf11</p><div style=\"font-size:14px;max-height:0\">SECRETf11</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf11b</p>",
   "mainSeen": {
    "343": [
@@ -2157,6 +2177,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under inlineblock",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf12</p><div style=\"font-size:14px;max-height:0\">SECRETf12</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf12b</p>",
   "mainSeen": {
    "343": [
@@ -2171,6 +2192,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under picture",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf13</p><div style=\"font-size:14px;max-height:0\">SECRETf13</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf13b</p>",
   "mainSeen": {
    "343": [
@@ -2185,6 +2207,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under cell",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf14</p><div style=\"font-size:14px;max-height:0\">SECRETf14</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf14b</p>",
   "mainSeen": {
    "343": [
@@ -2199,6 +2222,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under table",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf15</p><div style=\"font-size:14px;max-height:0\">SECRETf15</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf15b</p>",
   "mainSeen": {
    "343": [
@@ -2213,6 +2237,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under opacity",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf16</p><div style=\"font-size:14px;max-height:4px\">SECRETf16</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf16b</p>",
   "mainSeen": {
    "343": [
@@ -2227,6 +2252,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under inlineblock",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf17</p><div style=\"font-size:14px;max-height:4px\">SECRETf17</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf17b</p>",
   "mainSeen": {
    "343": [
@@ -2241,6 +2267,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under picture",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf18</p><div style=\"font-size:14px;max-height:4px\">SECRETf18</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf18b</p>",
   "mainSeen": {
    "343": [
@@ -2255,6 +2282,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under cell",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf19</p><div style=\"font-size:14px;max-height:4px\">SECRETf19</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf19b</p>",
   "mainSeen": {
    "343": [
@@ -2269,6 +2297,7 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under table",
+  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf20</p><div style=\"font-size:14px;max-height:4px\">SECRETf20</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf20b</p>",
   "mainSeen": {
    "343": [

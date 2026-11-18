@@ -79,9 +79,8 @@ const NOT_KEPT: Array<[string, string, string]> = [
   ["escaped display in hex", "display:\\6e one", ""],
   ["negative opacity", "opacity:-1", ""],
   ["opacity worked out", "opacity:calc(0)", ""],
-  // A box with words is never smaller than its words (round 5): its height is its least.
-  ["a box of no height that scrolls", "height:0;overflow:scroll", "min-height:0"],
-  ["a box of no height that clips", "overflow:hidden hidden;max-height:0", ""],
+  ["a box of no height that scrolls", "height:0;overflow:scroll", "height:0"],
+  ["a box of no height that clips", "overflow:hidden hidden;max-height:0", "max-height:0"],
   ["a box moved off the page", "position:absolute;left:-9999px", ""],
   // The line keeps itself whole, as at main: what runs past the frame, the frame scrolls to.
   ["a line indented off the page", "text-indent:-9999px;overflow:hidden;white-space:nowrap", "white-space:nowrap"],
@@ -257,9 +256,9 @@ describe("a newsletter reads as it did, and the assistant reads what it shows (r
     expect(given(html)?.getAttribute("style")).toBe("display:block;max-height:0;overflow:hidden");
     expect(mailDocument(message(html)).text).toContain(WORDS);
     expect(mailDocument(message(html)).text).not.toContain(SECRET);
-    // A clip that does not take the box to nothing is not given, and the box grows to its words: the reader shows all of them.
+    // A clip that does not take the box to nothing is not given: the reader shows all of it.
     const clipped = `<div id="x" style="height:20px;overflow:hidden">${WORDS}</div>`;
-    expect(given(clipped)?.getAttribute("style")).toBe("min-height:20px");
+    expect(given(clipped)?.getAttribute("style")).toBe("height:20px");
   });
 });
 
@@ -358,6 +357,28 @@ describe("one pass over a message (review of 2026-11-17)", () => {
   });
 });
 
+
+describe("a line height that lays lines on top of each other goes where a word takes its line from it (review of 2026-11-18)", () => {
+  const styleOf = (html: string, id: string) => {
+    const doc = new DOMParser().parseFromString(sanitizeEmailHtml(html).html, "text/html");
+    return doc.getElementById(id)?.getAttribute("style") ?? null;
+  };
+  it("a wrapper of pictures keeps line-height:0 where its words stand in boxes with line heights of their own", () => {
+    const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    expect(styleOf(`<div id="w" style="line-height:0"><img src="${PNG}" width="300" height="80"><span style="font-size:14px;line-height:20px">Caption ${Math.random()}</span></div>`, "w")).toBe("line-height:0");
+    expect(styleOf(`<div id="w" style="line-height:0px"><img src="${PNG}" width="200" height="60"><div style="line-height:20px">Text ${Math.random()}</div></div>`, "w")).toBe("line-height:0px");
+  });
+  it("takes it where a word takes its line from it, itself or through a box without a line height", () => {
+    expect(styleOf(`<div id="w" style="line-height:0">Words ${Math.random()}</div>`, "w")).toBeNull();
+    expect(styleOf(`<div id="w" style="font-size:20px;line-height:2px"><p>Words ${Math.random()}</p></div>`, "w")).toBe("font-size:20px");
+    expect(styleOf(`<div id="w" style="line-height:0"><span style="line-height:20px">a</span> and loose words ${Math.random()}</div>`, "w")).toBeNull();
+    // A line height of one's own that is itself too tight lends nothing of its own.
+    expect(styleOf(`<div id="w" style="line-height:0"><span style="line-height:1px">Words ${Math.random()}</span></div>`, "w")).toBeNull();
+  });
+  it("keeps the tight lines of ordinary headlines as at main", () => {
+    expect(styleOf(`<h1 id="h" style="font-size:40px;line-height:16px">Kurz ${Math.random()}</h1>`, "h")).toBe("font-size:40px;line-height:16px");
+  });
+});
 
 describe("a mail the sanitizer cannot make safe is given to nobody as it came (review of 2026-11-18)", () => {
   /** What must never reach the reader's frame, the assistant or a quote. */

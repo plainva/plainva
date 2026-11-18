@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { htmlToVisibleText, JUDGED_BY_THE_WALK } from "../src/pim/htmlVisibleText.js";
-import { keptMailStyle, MAIL_STYLE } from "../src/pim/mailStyle.js";
+import { keptMailStyle, MAIL_STYLE, tinyLineHeight } from "../src/pim/mailStyle.js";
 
 /**
  * The inline styles a mail keeps and the walk that reads what the reader shows
@@ -15,7 +15,7 @@ const CANNOT_HIDE: Record<string, string> = {
   "font-family": "a typeface changes letters, not whether they are drawn",
   "font-weight": "keywords and weights only",
   "font-style": "keywords only",
-  "line-height": "kept from half a line up: lines never lie on top of each other",
+  "line-height": "lines laid on top of each other are taken where a word takes its line from them (the shaper, `tinyLineHeight`); a wrapper of pictures keeps line-height:0 as at main",
   "text-align": "keywords only, the text stays in its box",
   "vertical-align": "keywords only, no length that moves a line off the page",
   "text-decoration": "lines drawn with the text",
@@ -80,11 +80,19 @@ describe("the inline styles a mail keeps", () => {
       "overflow-y:auto", "text-overflow:clip", "position:absolute", "left:-9999px", "top:-100px", "z-index:-1", "transform:scale(0)",
       "clip:rect(0 0 0 0)", "clip-path:inset(50%)", "mask:none", "filter:opacity(0)", "content-visibility:hidden", "color:canvas",
       "color:rgb(1,2)", "background:url(x) #fff left/cover magic", "text-indent:-9999px", "margin:-1px", "margin-left:-5000px", "letter-spacing:-1em",
-      "line-height:0", "vertical-align:-9999px", "width:99999px", "font-size:-12px", "font-size:12furlongs", "font-size:var(--x)", "font-size:constructor", "font-size:__proto__",
-      "display:table-column", "font-size:calc(1px * 1px)", "font-size:calc(10)", "font-size:min(10px)x", "line-height:0.5ex", "mso-hide:all", "background:url(x)", "display:none !importan",
+      "vertical-align:-9999px", "width:99999px", "font-size:-12px", "font-size:12furlongs", "font-size:var(--x)", "font-size:constructor", "font-size:__proto__",
+      "display:table-column", "font-size:calc(1px * 1px)", "font-size:calc(10)", "font-size:min(10px)x", "mso-hide:all", "background:url(x)", "display:none !importan",
       "font:16px", "font:caption", "border:2000px solid red", "letter-spacing:1000px", "word-spacing:2000px",
     ];
     for (const style of dropped) expect(keptMailStyle(style), style).toBe("");
+    // A line height on top of the lines is kept by the list; the shaper decides on it (`tinyLineHeight`).
+    expect(keptMailStyle("line-height:0")).toBe("line-height:0");
+    expect(tinyLineHeight("0")).toBe(true);
+    expect(tinyLineHeight("0.5ex")).toBe(true);
+    expect(tinyLineHeight("3px")).toBe(true);
+    expect(tinyLineHeight("4px")).toBe(false);
+    expect(tinyLineHeight("0.5")).toBe(false);
+    expect(tinyLineHeight("normal")).toBe(false);
     // An open quote cannot carry the next declaration away: the reader is given
     // only what is written out here, and that is what the walk reads.
     expect(keptMailStyle('font-family:"a;display:none')).toBe("display:none");
@@ -93,8 +101,8 @@ describe("the inline styles a mail keeps", () => {
   it("write the shorthands out as the longhands they set (review of 2026-11-17)", () => {
     expect(keptMailStyle("font:bold 16px/22px Arial, sans-serif")).toBe("font-style:normal;font-weight:bold;font-size:16px;line-height:22px;font-family:Arial, sans-serif");
     expect(keptMailStyle("font: italic 12px Georgia")).toBe("font-style:italic;font-weight:normal;font-size:12px;line-height:normal;font-family:Georgia");
-    // A line height of nothing is not kept; the size of nothing is, and the walk reads it.
-    expect(keptMailStyle("font:0/0 a")).toBe("font-style:normal;font-weight:normal;font-size:0;line-height:normal;font-family:a");
+    // A line height of nothing and the size of nothing are kept: the walk reads the size, and the shaper takes the line height where a word takes its line from it.
+    expect(keptMailStyle("font:0/0 a")).toBe("font-style:normal;font-weight:normal;font-size:0;line-height:0;font-family:a");
     expect(keptMailStyle("background:#000 url(https://x.example/a.png) no-repeat center / cover")).toBe("background-color:#000");
     expect(keptMailStyle("background:linear-gradient(to right, #000 0%, rgba(0,0,0,.5) 100%), #111")).toBe(
       "background-color:#111;background-image:linear-gradient(to right, #000 0%, rgba(0,0,0,.5) 100%)"
