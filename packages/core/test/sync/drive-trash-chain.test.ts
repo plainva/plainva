@@ -6,8 +6,9 @@ import { DriveSyncTarget } from "../../src/sync/DriveSyncTarget.js";
 /**
  * Google Drive with its trash, over the whole sync chain (F44, third review).
  *
- * Plainva's deletions on Drive go into the trash. A file or folder another
- * device put there since this one looked still answers by its id: a rename
+ * Plainva deletes on Drive for good; another device or the Drive web may put
+ * a file or folder into the trash. One put there since this device looked
+ * still answers by its id: a rename
  * PATCH or a create under a trashed parent succeeds, and the file lies in the
  * trash, where the next listing does not show it — the device took that for
  * a deletion elsewhere and deleted the note here. Every answer is asked for
@@ -189,8 +190,12 @@ describe("Google Drive: a folder moved in the app (F60)", () => {
 
     await b.app.renameItem("F", "G/F");
     await b.cycle();
-    await b.cycle();
     expect(fake.tree()).toContain("G/F/b.md");
+    // Right after the cycle that pushed the move: the engine records no row for
+    // the folder (the worker's own cleanup of a leftover row is the next test).
+    const rowsAfterPush = await b.db.query<{ path: string }>("SELECT path FROM sync_state WHERE path IN ('F', 'G/F', 'G')");
+    expect(rowsAfterPush).toEqual([]);
+    await b.cycle();
     const folderRows = await b.db.query<{ path: string }>("SELECT path FROM sync_state WHERE path IN ('F', 'G/F', 'G')");
     expect(folderRows).toEqual([]);
 
