@@ -7542,6 +7542,8 @@
     "skippedLine": "Übersprungen: {{paths}}",
     "leftOut_one": "„{{names}}“ ließ sich nicht lesen und fehlt im Suchindex; der Rest des Vaults ist erfasst. Meist ist das ein Link auf einen Ort, den es auf diesem Gerät nicht gibt.",
     "leftOut_other": "{{count}} Dateien oder Ordner ließen sich nicht lesen und fehlen im Suchindex; der Rest des Vaults ist erfasst. Meist ist das ein Link auf einen Ort, den es auf diesem Gerät nicht gibt: {{names}}",
+    "readAgain_one": "„{{names}}“ hat sich bei jedem Lesen geändert; die Datei steht so im Suchindex, wie sie zuletzt gelesen wurde, und wird gleich noch einmal gelesen.",
+    "readAgain_other": "{{count}} Dateien haben sich bei jedem Lesen geändert; sie stehen so im Suchindex, wie sie zuletzt gelesen wurden, und werden gleich noch einmal gelesen: {{names}}",
     "indexFailed": "Der Suchindex konnte nicht aktualisiert werden: {{reason}}. Suche, Tags und Datenbanken sind womöglich unvollständig, bis der Vault neu eingelesen wird.",
     "indexUnavailable": "Der Suchindex ließ sich auf diesem Gerät nicht öffnen: {{reason}}. Suche, Tags, Datenbanken, die Synchronisation und der Kalender bleiben aus, bis er sich öffnen lässt — ein Neustart der App versucht es erneut.",
     "cloudRequested": "Cloud: Voll-Abgleich angefordert",

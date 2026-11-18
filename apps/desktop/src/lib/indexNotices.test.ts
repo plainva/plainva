@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import i18n from "@plainva/ui/i18n";
-import { LEFT_OUT_NAMES_SHOWN, createIndexNotices, indexFailureSaid, indexLeftOutText, indexScanFailedText, indexUnavailableText } from "@plainva/ui";
+import { LEFT_OUT_NAMES_SHOWN, createIndexNotices, indexFailureSaid, indexLeftOutText, indexReadAgainText, indexScanFailedText, indexUnavailableText } from "@plainva/ui";
 import { REPO } from "../test-sourceTree";
 
 // Issue #125: one link in an iCloud vault, to a folder that exists only on the
@@ -72,6 +72,23 @@ describe("what both shells say about the search index", () => {
     notices.scanned({ skipped: [link, loop] });
     expect(said).toHaveLength(1);
     expect(said[0]).not.toContain("Archive/self");
+  });
+
+  it("names, in the same place, the files that changed every time they were read — once per set", async () => {
+    await i18n.changeLanguage("en");
+    const said: string[] = [];
+    const notices = createIndexNotices({ warning: (m) => void said.push(m), error: (m) => void said.push(`error: ${m}`) });
+    const busy = { path: "Inbox/log.md", reason: "changing" as const };
+    notices.scanned({ skipped: [busy] });
+    notices.scanned({ skipped: [busy] });
+    expect(said).toEqual([indexReadAgainText([busy])]);
+    expect(said[0]).toContain("Inbox/log.md");
+    expect(said[0]).toContain("read again");
+    // Read again, and owed nothing any more: a later set is news again.
+    notices.scanned({ skipped: [] });
+    notices.scanned({ skipped: [busy] });
+    expect(said).toHaveLength(2);
+    expect(indexLeftOutText([]), "nothing is said as unreadable for it").toBeNull();
   });
 
   it("says a failure once — again when it is another, and again after a scan that went through", () => {
