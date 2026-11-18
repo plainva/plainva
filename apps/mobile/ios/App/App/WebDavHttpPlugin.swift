@@ -44,6 +44,8 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /** Hard cap for buffered response bodies (the bridge is not a streamer yet). */
     private static let maxResponseBytes = 256 * 1024 * 1024
+    /** A response body up to this size comes back in the answer; a larger one in a file (see `request`). */
+    private static let inlineResponseBytes = 256 * 1024
 
     static func originOf(_ url: URL) -> String? {
         guard let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased() else { return nil }
@@ -210,6 +212,34 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 if let nameText = name as? String, let valueText = value as? String {
                     headers[nameText] = valueText
                 }
+            }
+            // A large body does not come back in the answer: every answer's text becomes a
+            // JavaScript call, and a 3 MB picture as one base64 string froze the Android app
+            // (17.11.; the same calls run here). It waits in a file below Library/Caches,
+            // which the JS side reads in parts (AtomicFile.read) and removes.
+            if payload.count > WebDavHttpPlugin.inlineResponseBytes {
+                guard let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first else {
+                    call.reject("no library directory")
+                    return
+                }
+                let rel = "Caches/plainva-http/.plainva-tmp-http-\(UUID().uuidString)"
+                let file = library.appendingPathComponent(rel)
+                do {
+                    try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try payload.write(to: file)
+                } catch {
+                    try? FileManager.default.removeItem(at: file)
+                    call.reject("response could not be kept: \(error.localizedDescription)")
+                    return
+                }
+                call.resolve([
+                    "status": http.statusCode,
+                    "headers": headers,
+                    "bodyFile": rel,
+                    "bodyDirectory": "LIBRARY",
+                    "bodySize": payload.count,
+                ])
+                return
             }
             call.resolve([
                 "status": http.statusCode,

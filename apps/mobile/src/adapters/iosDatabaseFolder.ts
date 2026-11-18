@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { Directory, Filesystem } from "@capacitor/filesystem";
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { isMissingFile } from "./fileErrors";
 
 /**
@@ -55,6 +55,22 @@ import { isMissingFile } from "./fileErrors";
  * leaves the database's files where they are, and the database closed until
  * the next start.
  *
+ * `Documents` is shared with the Files app, so it can hold anything - an entry
+ * the platform cannot even list (a broken link, a file in the middle of a
+ * download). When `Documents` cannot be listed, each database asks for its
+ * own files by name before it opens, and only a database whose own files
+ * cannot be asked stays closed.
+ *
+ * A database that is deleted while it is closed here (its vault is removed,
+ * a connect destination is discarded) is deleted where it lies - in
+ * `Documents`, in the new folder or in both - and a mark
+ * (`<name>SQLite.db.deleted`, in the new folder, or in `Documents` when the
+ * new folder takes none) records the deletion first: when a file will not
+ * go, the next start removes what is left before it moves anything, so a
+ * deleted database is never brought back into the plugin's folder. Only when
+ * neither mark can be written and a file will not go either does the
+ * deletion fail; the vault's deletion then names the index as not removed.
+ *
  * A database whose files could not be moved is not opened in this lifetime:
  * the plugin would make a new, empty one in `Library` while the real one,
  * with its queue, waits in `Documents` - two databases for one vault. The
@@ -83,22 +99,35 @@ export interface DatabaseFolders {
   /** File names in the new folder; none when it does not exist. */
   listNew(): Promise<string[]>;
   /** False only when the platform says the file is missing; any other failure throws. */
+  existsOld(file: string): Promise<boolean>;
+  /** False only when the platform says the file is missing; any other failure throws. */
   existsNew(file: string): Promise<boolean>;
   /** Moves `Documents/<file>` to the new folder; the target does not exist. */
   moveToNew(file: string): Promise<void>;
   removeOld(file: string): Promise<void>;
   removeNew(file: string): Promise<void>;
+  /** Writes a small file into the new folder (a deletion mark). */
+  writeNew(file: string, text: string): Promise<void>;
+  /** Writes a small file into `Documents` (the deletion mark when the new folder takes none). */
+  writeOld(file: string, text: string): Promise<void>;
 }
 
 export interface FolderOutcome {
   /** Database names (as the app opens them, without `SQLite.db`) that must not open. */
   refused: Set<string>;
-  /** True when a folder could not be read: no database may open. */
+  /** True when the new folder could not be read: no database may open. */
   unknown: boolean;
+  /**
+   * The names in the new folder after the sweep. Set when `Documents` could
+   * not be listed: each database then puts its own files in place by name.
+   */
+  unlisted: Set<string> | null;
 }
 
 /** The suffixes of the files beside a database, in the order they are removed. */
 const COMPANIONS = [REBUILT, ...CARRIED] as const;
+/** The mark of a database deleted while it was closed; see the module comment. */
+const DELETED = ".deleted";
 
 function companionOf(file: string): { db: string; suffix: string } | null {
   for (const suffix of COMPANIONS) {
@@ -119,33 +148,34 @@ async function removeNewSet(folders: DatabaseFolders, dbFile: string): Promise<v
   }
 }
 
-/** Puts every database's files into the new folder; see the module comment. */
-export async function moveDatabasesOutOfDocuments(folders: DatabaseFolders): Promise<FolderOutcome> {
-  const refused = new Set<string>();
-  let files: string[];
-  let newFiles: string[];
+/** Every file of a database in both folders, each folder's database last; asked by name, so no listing is needed. */
+async function removeEverywhere(folders: DatabaseFolders, dbFile: string): Promise<void> {
+  await removeNewSet(folders, dbFile);
+  for (const suffix of [...COMPANIONS, ""]) {
+    if (await folders.existsOld(dbFile + suffix)) await folders.removeOld(dbFile + suffix);
+  }
+}
+
+/** Removes what is left of a deleted database, then its mark; false when something stays. */
+async function finishDeletion(folders: DatabaseFolders, dbFile: string, removeMark: () => Promise<void>): Promise<boolean> {
   try {
-    files = await folders.listOld();
-    newFiles = await folders.listNew();
+    await removeEverywhere(folders, dbFile);
+    await removeMark();
+    return true;
   } catch (error) {
-    console.warn("[sqlite] the database folders could not be listed; no database opens", error);
-    return { refused, unknown: true };
+    // silent: the mark stays and the name stays closed; the next start removes the rest before anything opens.
+    console.warn(`[sqlite] ${nameOf(dbFile)} was deleted, but not all its files went; it stays closed until the next start`, error);
+    return false;
   }
+}
+
+/**
+ * Puts these files of `Documents` into the new folder (the rules of the module
+ * comment); `files` is the listing of `Documents`, or the files of one
+ * database asked for by name.
+ */
+async function placeFiles(folders: DatabaseFolders, files: readonly string[], presentNew: ReadonlySet<string>, refused: Set<string>): Promise<void> {
   const present = new Set(files);
-  const presentNew = new Set(newFiles);
-
-  // Companions in the new folder without their database: never ours to keep.
-  for (const file of newFiles) {
-    const companion = companionOf(file);
-    if (!companion || presentNew.has(companion.db)) continue;
-    try {
-      await folders.removeNew(file);
-    } catch (error) {
-      console.warn(`[sqlite] ${file} without its database could not be removed; its database stays closed until the next start`, error);
-      refused.add(nameOf(companion.db));
-    }
-  }
-
   for (const dbFile of files.filter((file) => file.endsWith(DB_SUFFIX))) {
     if (refused.has(nameOf(dbFile))) continue;
     try {
@@ -178,7 +208,78 @@ export async function moveDatabasesOutOfDocuments(folders: DatabaseFolders): Pro
       refused.add(nameOf(companion.db));
     }
   }
-  return { refused, unknown: false };
+}
+
+/** Puts every database's files into the new folder; see the module comment. */
+export async function moveDatabasesOutOfDocuments(folders: DatabaseFolders): Promise<FolderOutcome> {
+  const refused = new Set<string>();
+  let newFiles: string[];
+  try {
+    newFiles = await folders.listNew();
+  } catch (error) {
+    console.warn("[sqlite] the database folder could not be listed; no database opens", error);
+    return { refused, unknown: true, unlisted: null };
+  }
+
+  // Deletions owed by an earlier lifetime come first: nothing of them may move.
+  const owed = newFiles.filter((file) => file.endsWith(`${DB_SUFFIX}${DELETED}`));
+  for (const mark of owed) {
+    const dbFile = mark.slice(0, -DELETED.length);
+    if (!(await finishDeletion(folders, dbFile, () => folders.removeNew(mark)))) refused.add(nameOf(dbFile));
+  }
+  if (owed.length > 0) {
+    try {
+      newFiles = await folders.listNew();
+    } catch (error) {
+      console.warn("[sqlite] the database folder could not be listed; no database opens", error);
+      return { refused, unknown: true, unlisted: null };
+    }
+  }
+  const presentNew = new Set(newFiles);
+
+  // Companions in the new folder without their database: never ours to keep.
+  for (const file of newFiles) {
+    const companion = companionOf(file);
+    if (!companion || presentNew.has(companion.db)) continue;
+    try {
+      await folders.removeNew(file);
+      presentNew.delete(file);
+    } catch (error) {
+      console.warn(`[sqlite] ${file} without its database could not be removed; its database stays closed until the next start`, error);
+      refused.add(nameOf(companion.db));
+    }
+  }
+
+  let files: string[];
+  try {
+    files = await folders.listOld();
+  } catch (error) {
+    // Documents is shared with the Files app; one entry it cannot list must not close every database.
+    console.warn("[sqlite] Documents could not be listed; each database looks for its own files", error);
+    return { refused, unknown: false, unlisted: presentNew };
+  }
+  const deletedHere = new Set<string>();
+  for (const mark of files.filter((file) => file.endsWith(`${DB_SUFFIX}${DELETED}`))) {
+    const dbFile = mark.slice(0, -DELETED.length);
+    deletedHere.add(dbFile);
+    if (!(await finishDeletion(folders, dbFile, () => folders.removeOld(mark)))) refused.add(nameOf(dbFile));
+  }
+  const remaining = files.filter((file) => {
+    const dbFile = file.endsWith(DELETED) ? file.slice(0, -DELETED.length) : (companionOf(file)?.db ?? file);
+    return !deletedHere.has(dbFile);
+  });
+  await placeFiles(folders, remaining, presentNew, refused);
+  return { refused, unknown: false, unlisted: null };
+}
+
+async function exists(path: string, directory: Directory): Promise<boolean> {
+  try {
+    await Filesystem.stat({ path, directory });
+    return true;
+  } catch (error) {
+    if (isMissingFile(error)) return false;
+    throw error;
+  }
 }
 
 /** The real folders, through the Filesystem plugin. */
@@ -196,15 +297,8 @@ export const capacitorDatabaseFolders: DatabaseFolders = {
       throw error;
     }
   },
-  async existsNew(file) {
-    try {
-      await Filesystem.stat({ path: `${IOS_DATABASE_FOLDER}/${file}`, directory: Directory.Library });
-      return true;
-    } catch (error) {
-      if (isMissingFile(error)) return false;
-      throw error;
-    }
-  },
+  existsOld: (file) => exists(file, Directory.Documents),
+  existsNew: (file) => exists(`${IOS_DATABASE_FOLDER}/${file}`, Directory.Library),
   async moveToNew(file) {
     await Filesystem.rename({ from: file, directory: Directory.Documents, to: `${IOS_DATABASE_FOLDER}/${file}`, toDirectory: Directory.Library });
   },
@@ -214,9 +308,47 @@ export const capacitorDatabaseFolders: DatabaseFolders = {
   async removeNew(file) {
     await Filesystem.deleteFile({ path: `${IOS_DATABASE_FOLDER}/${file}`, directory: Directory.Library });
   },
+  async writeNew(file, text) {
+    await Filesystem.writeFile({ path: `${IOS_DATABASE_FOLDER}/${file}`, directory: Directory.Library, data: text, encoding: Encoding.UTF8, recursive: true });
+  },
+  async writeOld(file, text) {
+    await Filesystem.writeFile({ path: file, directory: Directory.Documents, data: text, encoding: Encoding.UTF8 });
+  },
 };
 
 let outcome: Promise<FolderOutcome> | null = null;
+/** Per name, when `Documents` could not be listed: its own files put in place (once per lifetime). */
+const byName = new Map<string, Promise<void>>();
+
+async function settled(name: string, folders: DatabaseFolders): Promise<FolderOutcome> {
+  outcome ??= moveDatabasesOutOfDocuments(folders);
+  const result = await outcome;
+  const { unlisted, refused } = result;
+  if (unlisted && !refused.has(name)) {
+    let placing = byName.get(name);
+    if (!placing) {
+      placing = (async () => {
+        const dbFile = `${name}${DB_SUFFIX}`;
+        const own: string[] = [];
+        try {
+          if (await folders.existsOld(dbFile + DELETED)) {
+            if (!(await finishDeletion(folders, dbFile, () => folders.removeOld(dbFile + DELETED)))) refused.add(name);
+            return;
+          }
+          for (const suffix of ["", ...COMPANIONS]) if (await folders.existsOld(dbFile + suffix)) own.push(dbFile + suffix);
+        } catch (error) {
+          console.warn(`[sqlite] the files of ${name} in Documents could not be asked for; it stays closed until the next start`, error);
+          refused.add(name);
+          return;
+        }
+        await placeFiles(folders, own, unlisted, refused);
+      })();
+      byName.set(name, placing);
+    }
+    await placing;
+  }
+  return result;
+}
 
 /**
  * Resolves when the database files are in place for this lifetime (once; on
@@ -224,8 +356,7 @@ let outcome: Promise<FolderOutcome> | null = null;
  */
 export async function databaseFolderRefusal(name: string, folders: DatabaseFolders = capacitorDatabaseFolders): Promise<Error | null> {
   if (Capacitor.getPlatform() !== "ios") return null;
-  outcome ??= moveDatabasesOutOfDocuments(folders);
-  const { refused, unknown } = await outcome;
+  const { refused, unknown } = await settled(name, folders);
   if (unknown || refused.has(name)) {
     return new Error(`Database ${name} is not opened: its files could not be moved out of Documents. The next start tries again.`);
   }
@@ -240,8 +371,7 @@ export async function databaseFolderRefusal(name: string, folders: DatabaseFolde
  */
 export async function removeDatabaseLeftovers(name: string, folders: DatabaseFolders = capacitorDatabaseFolders): Promise<void> {
   if (Capacitor.getPlatform() !== "ios") return;
-  outcome ??= moveDatabasesOutOfDocuments(folders);
-  const { refused } = await outcome;
+  const { refused } = await settled(name, folders);
   try {
     for (const suffix of COMPANIONS) {
       const file = `${name}${DB_SUFFIX}${suffix}`;
@@ -253,7 +383,48 @@ export async function removeDatabaseLeftovers(name: string, folders: DatabaseFol
   }
 }
 
+/**
+ * Deletes a database that is closed in this lifetime because its files could
+ * not be put in place: wherever its files lie, without the plugin (which would
+ * look only in its own folder). The deletion is marked first, so what will
+ * not go now goes at the next start, before anything moves; the name stays
+ * closed until then. Throws when not even the mark can be written.
+ */
+export async function deleteClosedDatabase(name: string, folders: DatabaseFolders = capacitorDatabaseFolders): Promise<void> {
+  const { refused } = await settled(name, folders);
+  const dbFile = `${name}${DB_SUFFIX}`;
+  refused.add(name);
+  const mark = dbFile + DELETED;
+  let removeMark: (() => Promise<void>) | null = null;
+  try {
+    await folders.writeNew(mark, "");
+    removeMark = () => folders.removeNew(mark);
+  } catch (error) {
+    console.warn(`[sqlite] the deletion mark of ${name} could not be written in the database folder; trying Documents`, error);
+    try {
+      await folders.writeOld(mark, "");
+      removeMark = () => folders.removeOld(mark);
+    } catch (second) {
+      // Without a mark the deletion is still made; only if a file will not go either does it fail.
+      console.warn(`[sqlite] no deletion mark of ${name} could be written`, second);
+    }
+  }
+  await removeEverywhere(folders, dbFile);
+  if (removeMark) {
+    try {
+      await removeMark();
+    } catch (error) {
+      // The database is gone; the mark goes at the next start, before anything opens.
+      console.warn(`[sqlite] the deletion mark of ${name} stays until the next start`, error);
+      return;
+    }
+  }
+  // Nothing of it is left anywhere: a new database of that name may open.
+  refused.delete(name);
+}
+
 /** Tests only: a new JavaScript lifetime. */
 export function resetDatabaseFolderForTests(): void {
   outcome = null;
+  byName.clear();
 }

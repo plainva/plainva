@@ -1,3 +1,5 @@
+import { installBridgeMeter } from "./platform/bridgeMeter";
+import { installBridgeLimit } from "./platform/bridgeLimit";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { TransferReviewHost } from "./components/TransferReviewHost";
@@ -90,6 +92,11 @@ class FatalBoundary extends React.Component<{ children: React.ReactNode }, { fai
 import { getMobileVault, noteSaver } from "./services/vaultService";
 import { openExternalUrl } from "./services/openExternal";
 import { mobileAppVersion } from "./services/mobileWhatsNew";
+
+// First: every plugin call from here on is measured (release list F51, `bridgeMeter.ts`).
+installBridgeMeter();
+// First: no plugin call leaves the page with more than the bridge can take (release list F51).
+installBridgeLimit();
 
 setPlatformServices({
   loadSettings: async () => capacitorSettingsStore,
