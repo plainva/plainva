@@ -22,7 +22,7 @@ public class LocalModelPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "remove", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "freeSpace", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "memory", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "readText", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readPart", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "load", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "run", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "unload", returnType: CAPPluginReturnPromise)
@@ -215,11 +215,29 @@ public class LocalModelPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    @objc func readText(_ call: CAPPluginCall) {
+    /// The most one answer carries, in bytes before base64 (`BRIDGE_PART_BYTES` in JS).
+    private static let maxPart = 256 * 1024
+
+    /// At most one part of a checked package file from `offset`, base64, with the file's
+    /// size: a tokenizer of 11 to 33 MB in one answer is the message that froze the app on
+    /// Android (release list F54, the class of F51) - the same rule on both platforms.
+    @objc func readPart(_ call: CAPPluginCall) {
         files.async {
             do {
+                guard let offset = call.getInt("offset"), let length = call.getInt("length"), offset >= 0, length >= 0 else {
+                    throw NSError(domain: "LocalModels", code: 2, userInfo: [NSLocalizedDescriptionKey: "no offset and length"])
+                }
                 let url = try self.checked(call.getString("model") ?? "", call.getString("name") ?? "")
-                call.resolve(["text": try String(contentsOf: url, encoding: .utf8)])
+                let handle = try FileHandle(forReadingFrom: url)
+                defer { try? handle.close() }
+                let size = Int(try handle.seekToEnd())
+                let want = max(0, min(min(length, LocalModelPlugin.maxPart), size - offset))
+                var bytes = Data()
+                if want > 0 {
+                    try handle.seek(toOffset: UInt64(offset))
+                    bytes = try handle.read(upToCount: want) ?? Data()
+                }
+                call.resolve(["data": bytes.base64EncodedString(), "size": size])
             } catch {
                 call.reject(error.localizedDescription)
             }

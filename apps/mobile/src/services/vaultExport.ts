@@ -124,7 +124,17 @@ export class PartFileSink implements ZipSink {
     return this.begun;
   }
 
-  constructor(private readonly path: string, private readonly directory: Directory) {}
+  /**
+   * `writePart` replaces the Filesystem plugin's write and append: the backup
+   * on Android writes into the public Documents folder natively, where the
+   * plugin asks for a media scan at every part (F56). `last` is the part
+   * after which nothing follows - the one that is synced.
+   */
+  constructor(
+    private readonly path: string,
+    private readonly directory: Directory,
+    private readonly writePart?: (bytes: Uint8Array, first: boolean, last: boolean) => Promise<void>,
+  ) {}
 
   async write(bytes: Uint8Array): Promise<void> {
     this.hash.update(bytes);
@@ -140,18 +150,29 @@ export class PartFileSink implements ZipSink {
 
   /** Writes what is left; the hex SHA-256 of everything written. */
   async close(): Promise<string> {
+    if (this.writePart) {
+      // The last part, synced - or, when the archive ended on a part's edge, an empty one that syncs.
+      await this.flush(true, true);
+      return this.hash.hex();
+    }
     await this.flush();
     if (!this.begun) await Filesystem.writeFile({ path: this.path, directory: this.directory, data: "", recursive: true });
     return this.hash.hex();
   }
 
-  private async flush(): Promise<void> {
-    if (this.pendingBytes === 0) return;
+  private async flush(last = false, always = false): Promise<void> {
+    if (this.pendingBytes === 0 && !always) return;
     const part = new Uint8Array(this.pendingBytes);
     let at = 0;
     for (const piece of this.pending) { part.set(piece, at); at += piece.length; }
     this.pending = [];
     this.pendingBytes = 0;
+    if (this.writePart) {
+      const first = !this.begun;
+      this.begun = true;
+      await this.writePart(part, first, last);
+      return;
+    }
     const data = toBase64(part);
     if (!this.begun) {
       this.begun = true;

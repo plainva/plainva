@@ -134,6 +134,27 @@ export function writeDraft(v: MobileVault, path: string, text: string, revision 
   writer().write(v, path, text, revision, RUN_SESSION);
 }
 
+/**
+ * The note's buffered snapshot, written now: its editor goes — another note,
+ * the screen closing. The interval only paces continuous typing (maintainer
+ * 17.11.); a way out never waits for it.
+ */
+export function flushDraftOf(v: MobileVault, path: string): void {
+  void writer().flush((scope) => scope.vaultId === v.vaultId, { notes: (notePath) => notePath === path }).catch(() => {
+    // silent: best-effort like every journal write; the save the editor starts next keeps the text.
+  });
+}
+
+/**
+ * Forgets what the journal saw of this vault's files: the vault closed, or its
+ * drafts were removed past the journal ("forget app data"). The next snapshot
+ * reads the disk again.
+ */
+export function forgetDraftMemory(vaultId: string): void {
+  // Not awaited: a native write that never answers must not hold the way out up; the lanes keep the order.
+  void made?.journal.forgetSeen(`drafts/${vaultId}`);
+}
+
 /** Attempt all buffered journal snapshots before the OS suspends timers. */
 export async function flushDrafts(v?: MobileVault): Promise<void> {
   await writer().flush((scope) => !v || scope.vaultId === v.vaultId);

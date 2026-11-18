@@ -15,7 +15,7 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
   const dirs = new Set<string>([""]);
   const enc = new TextEncoder();
   const asBytes = (v: string | Uint8Array) => (typeof v === "string" ? enc.encode(v) : v);
-  const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+  const b64 = (bytes: Uint8Array) => { let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(bin); };
   const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
   const parentOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
   const mtimes = new Map<string, number>();
@@ -34,6 +34,13 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
     return { name: path.split("/").pop()!, isDirectory: false, size: asBytes(v).length, mtime: mtimes.get(path) ?? 1000 };
   };
   const calls: string[] = [];
+  /** Bytes of every file part that crossed the bridge, either way (before base64). */
+  const sizes: number[] = [];
+  const PART = 256 * 1024;
+  const reads = new Map<string, Uint8Array>();
+  const writes = new Map<string, { path: string; parts: Uint8Array[] }>();
+  /** A test's way to make the `n`-th part of a write to `path` fail. */
+  let failAppend: ((path: string, n: number) => boolean) | undefined;
   const plugin: VaultFolderNative = {
     async pickFolder(): Promise<PickFolderResult> { return { picked: false, reason: "cancelled" }; },
     async resolve() { calls.push("resolve"); return access; },
@@ -46,12 +53,61 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
       return { entries };
     },
     async stat({ path }) { return { entry: entryOf(path) }; },
-    async read({ path }) {
+    async read({ path, maxBytes }) {
       const v = files.get(path);
       if (v === undefined) throw new Error("ENOENT");
-      return { dataBase64: b64(asBytes(v)) };
+      const bytes = asBytes(v);
+      calls.push(`read:${path}`);
+      // As both native plugins: a file over the limit is not sent; it is read on into a copy -
+      // one version, taken now: what the map holds later is another program's write.
+      if (bytes.length > (maxBytes ?? PART)) {
+        const id = `r${++clock}`;
+        reads.set(id, bytes.slice());
+        return { tooLarge: true as const, id, size: bytes.length };
+      }
+      sizes.push(bytes.length);
+      return { dataBase64: b64(bytes) };
     },
-    async write({ path, dataBase64 }) { files.set(path, unb64(dataBase64)); mtimes.set(path, ++clock); },
+    async write({ path, dataBase64 }) {
+      const bytes = unb64(dataBase64);
+      sizes.push(bytes.length);
+      files.set(path, bytes);
+      mtimes.set(path, ++clock);
+    },
+    async readPart({ id, offset, length }) {
+      const bytes = reads.get(id);
+      if (!bytes) throw new Error("no such read");
+      const part = bytes.subarray(offset, offset + Math.min(length, PART));
+      sizes.push(part.length);
+      return { data: b64(part) };
+    },
+    async closeRead({ id }) { reads.delete(id); },
+    async begin({ path }) {
+      const id = `w${++clock}`;
+      writes.set(id, { path, parts: [] });
+      calls.push(`begin:${path}`);
+      return { id };
+    },
+    async append({ id, data }) {
+      const write = writes.get(id);
+      if (!write) throw new Error("no such write");
+      const part = unb64(data);
+      sizes.push(part.length);
+      if (failAppend?.(write.path, write.parts.length)) throw new Error("append failed");
+      write.parts.push(part);
+    },
+    async commit({ id }) {
+      const write = writes.get(id);
+      if (!write) throw new Error("no such write");
+      writes.delete(id);
+      const total = write.parts.reduce((n, p) => n + p.length, 0);
+      const bytes = new Uint8Array(total);
+      let at = 0;
+      for (const part of write.parts) { bytes.set(part, at); at += part.length; }
+      files.set(write.path, bytes);
+      mtimes.set(write.path, ++clock);
+    },
+    async abort({ id }) { writes.delete(id); calls.push("abort"); },
     async delete({ path, recursive }) {
       if (folders().has(path)) {
         const inside = [...files.keys()].filter((f) => f.startsWith(path + "/"));
@@ -64,13 +120,41 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
     },
     async rename({ from, to }) {
       const v = files.get(from);
-      if (v === undefined) throw new Error("ENOENT");
+      if (v === undefined) {
+        // A folder moves with everything below it, as the native move does.
+        if (!folders().has(from)) throw new Error("ENOENT");
+        for (const f of [...files.keys()].filter((k) => k.startsWith(from + "/"))) {
+          files.set(to + f.slice(from.length), files.get(f)!);
+          files.delete(f);
+        }
+        for (const d of [...dirs].filter((k) => k === from || k.startsWith(from + "/"))) {
+          dirs.delete(d);
+          dirs.add(to + d.slice(from.length));
+        }
+        return;
+      }
       files.delete(from);
       files.set(to, v);
     },
     async mkdir({ path }) { dirs.add(path); },
   };
-  return { plugin, calls, dirs };
+  // One call at a time, in the order they arrive - as on the plugin's thread (Android) or queue (iOS).
+  let queue: Promise<unknown> = Promise.resolve();
+  const serial = plugin as unknown as Record<string, (opts: unknown) => Promise<unknown>>;
+  for (const name of Object.keys(serial)) {
+    const call = serial[name]!;
+    serial[name] = (opts: unknown) => {
+      const answer = queue.then(() => call(opts));
+      queue = answer.catch(() => {});
+      return answer;
+    };
+  }
+  return {
+    plugin, calls, dirs, sizes,
+    openReads: () => reads.size,
+    openWrites: () => writes.size,
+    failAppendWhen(rule: (path: string, n: number) => boolean) { failAppend = rule; },
+  };
 }
 
 /** What lies at `path` in the fake's map, as bytes. */

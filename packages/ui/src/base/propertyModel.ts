@@ -415,7 +415,9 @@ export interface CuratedOption {
 }
 
 /** Palette names map 1:1 to the `.pv-chip-N` classes in App.css. */
-export const PALETTE_NAMES = ["gray", "teal", "blue", "green", "amber", "coral", "purple", "pink"];
+export const PALETTE_NAMES = ["gray", "teal", "blue", "green", "amber", "coral", "purple", "pink"] as const;
+/** A palette colour's name: the domain of `properties.color_<name>` (F53 of release 0.9.0). */
+export type PaletteName = (typeof PALETTE_NAMES)[number];
 
 /** Representative solid swatch per palette name (for the color picker in the schema editor). */
 export const PALETTE_SWATCH: Record<string, string> = {
@@ -427,7 +429,7 @@ export const PALETTE_SWATCH: Record<string, string> = {
  *  valid, else deterministic by value. Maps to the `.pv-chip-N` classes and the
  *  `--chip-N-bg`/`--chip-N-fg` tokens (used for whole-column board tinting, WP3). */
 export function chipPaletteIndex(value: string, color?: string): number {
-  const i = color ? PALETTE_NAMES.indexOf(color) : -1;
+  const i = color ? (PALETTE_NAMES as readonly string[]).indexOf(color) : -1;
   return i >= 0 ? i : chipColorIndex(value);
 }
 
@@ -439,7 +441,7 @@ export function chipClass(value: string, color?: string): string {
 /** Solid swatch colour for an option: curated palette colour when valid, else the same
  *  deterministic value-derived colour the chips use — so a dropdown row matches its chip. */
 export function optionSwatch(value: string, color?: string): string {
-  const name = color && PALETTE_NAMES.includes(color) ? color : PALETTE_NAMES[chipColorIndex(value)];
+  const name = color && (PALETTE_NAMES as readonly string[]).includes(color) ? color : PALETTE_NAMES[chipColorIndex(value)];
   return PALETTE_SWATCH[name];
 }
 

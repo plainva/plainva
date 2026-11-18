@@ -81,6 +81,7 @@ import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { holdGestureEnd, holdMoved } from "../../lib/holdGesture";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile, confirmDeleteFiles } from "../../lib/deleteFile";
+import { deleteSelectedFiles } from "../../lib/deleteSelection";
 import { mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
 import { getWindowClass, subscribeWindowClass } from "../../services/windowClass";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
@@ -1141,16 +1142,16 @@ export function BaseScreen({
   /** Deleting the whole selection — one prompt, the same cascade flow (P4). */
   const deleteSelection = useCallback(async () => {
     const paths = [...rowSel.selection];
-    if (paths.length === 0) return;
-    const deleted = await confirmDeleteFiles(vault, paths, t).catch((e: unknown) => {
-      toast.error(e instanceof Error ? e.message : String(e));
-      return [] as string[];
+    // After an error too, the view asks again what is still there.
+    await deleteSelectedFiles(paths, {
+      confirm: () => confirmDeleteFiles(vault, paths, t),
+      refresh: () => requery(config, viewIndex),
+      onDeleted: (deleted) => {
+        rowSel.clear();
+        setPeekPath((cur) => (cur && deleted.includes(cur) ? null : cur));
+      },
+      onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
     });
-    if (deleted.length > 0) {
-      rowSel.clear();
-      setPeekPath((cur) => (cur && deleted.includes(cur) ? null : cur));
-      requery(config, viewIndex);
-    }
   }, [rowSel, vault, config, viewIndex, requery, t]);
 
   // On a pinboard the FAB opens the "New entry" page — a title and the real

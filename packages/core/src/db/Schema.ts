@@ -182,7 +182,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       queued_at     INTEGER NOT NULL,
       retry_count   INTEGER NOT NULL DEFAULT 0,
       last_error    TEXT,
-      prepared_json TEXT
+      prepared_json TEXT,
+      confirmed_at  INTEGER
     );`,
     `CREATE TABLE IF NOT EXISTS workspace_checkpoint (
       checkpoint_hash TEXT PRIMARY KEY,
@@ -288,6 +289,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     );`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_object_path ON workspace_object(path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_revision_object ON workspace_revision(object_id);`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_revision_materialized ON workspace_revision(materialized_path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_operation_device ON workspace_operation(device_id, sequence);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_queue_path ON workspace_queue(path, new_path);`,
     `CREATE INDEX IF NOT EXISTS idx_workspace_comment_target ON workspace_comment(target_object_id, created_at);`,
@@ -413,6 +415,16 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
   for (const query of schemaQueries) {
     await db.execute(query);
+  }
+
+  // Whether a row's timestamp is confirmed (VaultIndexer, `readingVouches`):
+  // 0 for a row written from a reading that came within a tick of the file's
+  // timestamp, which the indexer reads once more when the tick is over. A row
+  // an older version wrote counts as confirmed — nothing of a vault is read
+  // again for the update.
+  const fileColumns = await db.query<{ name: string }>(`PRAGMA table_info(files)`);
+  if (fileColumns.length > 0 && !fileColumns.some((column) => column.name === "stamp_vouched")) {
+    await db.execute(`ALTER TABLE files ADD COLUMN stamp_vouched INTEGER NOT NULL DEFAULT 1`);
   }
 
   try {
@@ -664,6 +676,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   }
   if (!queueColumns.has("delete_journaled")) {
     await db.execute(`ALTER TABLE offline_queue ADD COLUMN delete_journaled INTEGER NOT NULL DEFAULT 0`);
+  }
+  // The encrypted workspace's queue the same (release 0.9.0 A4): a deletion
+  // the person confirmed in the app carries when. A row from before has none
+  // and counts as unconfirmed — the guard may ask about it, never the reverse.
+  // An older build ignores the column; what it queues is unconfirmed.
+  const workspaceQueueColumns = new Set((await db.query<{ name: string }>(`PRAGMA table_info(workspace_queue)`)).map((row) => row.name));
+  if (!workspaceQueueColumns.has("confirmed_at")) {
+    await db.execute(`ALTER TABLE workspace_queue ADD COLUMN confirmed_at INTEGER`);
   }
 
   // Must run after the ALTER above: on pre-existing databases the links table
@@ -924,6 +944,20 @@ export async function readIndexDiagnostics(db: IDatabaseAdapter): Promise<IndexD
     if (count > 0) out.push({ kind: key.slice("index-diagnostic:".length), count });
   }
   return out;
+}
+
+/**
+ * How many files the index holds without a timestamp (0 or none): the files a
+ * full scan that compares must read to tell a change of the same size
+ * (`VaultIndexer`, `hasStamp`). A count, nothing of the vault, for the
+ * diagnostics export of both shells.
+ */
+export async function countUnstampedFiles(db: IDatabaseAdapter): Promise<number> {
+  try {
+    return Number(rowValue(await db.queryOne(`SELECT COUNT(*) AS n FROM files WHERE mtime_local IS NULL OR mtime_local <= 0`), "n") ?? 0) || 0;
+  } catch {
+    return 0;
+  }
 }
 
 const CHUNK = 400;

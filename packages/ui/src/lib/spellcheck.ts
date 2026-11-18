@@ -4,8 +4,9 @@ import { useSyncExternalStore } from "react";
  * Spell checking: one switch, one rule (plan Befunde 2026-10-06, E3).
  *
  * Plainva draws no squiggles and ships no dictionaries. What checks the text is
- * the platform: the WebView with the system's languages on Windows and macOS,
- * the keyboard and the system's checker on a phone. All the app decides is
+ * the platform: the WebView with the system's languages on the desktop
+ * (WebView2, WKWebView, WebKitGTK with the system's dictionaries), the keyboard
+ * and the system's checker on a phone. All the app decides is
  * WHERE the platform may check, and it says so with the `spellcheck` attribute.
  *
  * Until now that was decided field by field and nobody had decided it as a

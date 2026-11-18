@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { useApp } from "./contexts/AppContext";
 import { useWindowTitle } from "./services/windowTitle";
+import { useVaultLabels } from "./services/vaultNames";
 import { useVaultWeekStart } from "./services/weekStartVault";
 import { useVault, okfPromptDismissedKey, type SyncProviderId } from "./contexts/VaultContext";
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
@@ -316,11 +317,12 @@ function App() {
     recentVaults,
   }), [openSettings, openSyncError, openImport, closeVault, openVault, recentVaults]);
 
+  // Show the vault being loaded (loadingPath), not the one we're leaving (vaultPath
+  // stays set until the new vault finishes loading) — by the name it goes by.
+  const loadingTarget = loadingPath ?? vaultPath;
+  const loadingVaultLabel = useVaultLabels([loadingTarget]);
   if (isLoading) {
-    // Show the vault being loaded (loadingPath), not the one we're leaving (vaultPath
-    // stays set until the new vault finishes loading).
-    const loadingTarget = loadingPath ?? vaultPath;
-    const loadingVaultName = loadingTarget ? loadingTarget.split(/[/\\]/).pop() : null;
+    const loadingVaultName = loadingTarget ? loadingVaultLabel(loadingTarget) : null;
     return (
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg-primary)", color: "var(--text-main)" }}>
         {/* No regular title bar while loading — keep the window movable/closable. */}

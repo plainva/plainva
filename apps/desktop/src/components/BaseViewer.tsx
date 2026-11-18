@@ -16,6 +16,7 @@ import { BaseConfigChangeRefusedError, buildPropertyCommentCells, errorText, fin
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
+import { newWriteAction, withWriteAttempt } from "../services/pim/remotePimTarget";
 import {
   applyRelationWrite,
   enableSubItemsConfig,
@@ -2353,6 +2354,10 @@ export function BaseViewer({
 
   // ── Putting an entry in the calendar (S19, plan P9b) ─────────────────────
   const [scheduleTarget, setScheduleTarget] = useState<string | null>(null);
+  // One open dialog is one action of the person (A15): choosing a calendar
+  // again after "it may still land" does not add the entry twice from another
+  // window; opening the dialog again is a new action.
+  const scheduleAction = useRef(newWriteAction("entry-event"));
   const [calendarTargets, setCalendarTargets] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -2427,7 +2432,7 @@ export function BaseViewer({
     const accountId = calendarKey.split(" ")[0] ?? "";
     const accounts = await pimRuntime.cache.listAccounts();
     const account = accounts.find((a) => a.id === accountId);
-    const provider = account ? await pimRuntime.buildTarget(account) : null;
+    const provider = account ? withWriteAttempt(await pimRuntime.buildTarget(account), scheduleAction.current) : null;
     if (!provider) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
     const allPaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [path];
     const res = await createEntryEvent({
@@ -3222,7 +3227,7 @@ export function BaseViewer({
               entry HAS a date and a writable calendar exists — an item that
               cannot do anything is worse than an absent one. */}
           {calendarTargets.length > 0 && entryDateOf(rowMenu.path) ? (
-            <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); setScheduleTarget(p); }}>
+            <MenuItem onSelect={() => { const p = rowMenu.path; setRowMenu(null); scheduleAction.current = newWriteAction("entry-event"); setScheduleTarget(p); }}>
               {t("pim.scheduleEntry", { defaultValue: "In Kalender eintragen" })}
             </MenuItem>
           ) : null}

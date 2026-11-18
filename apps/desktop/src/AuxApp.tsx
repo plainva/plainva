@@ -14,6 +14,7 @@ import { TabContextMenu } from "./components/TabContextMenu";
 import { TemplatePickerModal } from "./components/TemplatePickerModal";
 import { isVirtualPath } from "./components/graph/virtualPaths";
 import { useVault } from "./contexts/VaultContext";
+import { useDayBoundary } from "./hooks/useDayBoundary";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { useAuxBridge } from "./hooks/useAuxBridge";
 import { popOutCompose } from "./services/mail/composeWindow";
@@ -58,6 +59,10 @@ export function AuxApp() {
   const { t } = useTranslation();
   const params = currentWindowParams();
   const { vaultAdapter, vaultPath, isLoading, error, fileTreeVersion, triggerFileTreeUpdate } = useVault();
+  // Its task lists and databases name the same days as the main window's: the
+  // vault's day boundary and daily-note naming, read now and again on every
+  // save in any window (F8 of release 0.9.0, review 17.11.).
+  useDayBoundary();
   const { bookmarks, toggleBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
   // Per window (multi-window C4 convention): whether the context sidebar is
   // open describes THIS window's view.
