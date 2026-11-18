@@ -1,4 +1,4 @@
-import { taskViewStateKey, forgetTaskViewState } from "@plainva/ui";
+import { taskViewStateKey, forgetTaskViewState, SET_ASIDE_MARKER, SET_ASIDE_NOTE } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, remove } from "@tauri-apps/plugin-fs";
 import { getSettingsStore } from "./settingsStore";
@@ -62,6 +62,29 @@ export function collectPerVaultLocalStorageKeys(vaultPath: string, allKeys: stri
   return allKeys.filter((k) => k === taskViewStateKey(vaultPath) || prefixes.some((p) => k === p || k.startsWith(p)));
 }
 
+/**
+ * Whether Plainva still holds settings or view state for a vault at this path
+ * — a vault removed from the recent list keeps them unless it was forgotten.
+ * A new vault made at that place would inherit them (review of O8,
+ * 2026-11-17), so the tour skips such a place. Reads only.
+ */
+export async function vaultHasAppData(vaultPath: string): Promise<boolean> {
+  try {
+    const all: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k !== null) all.push(k);
+    }
+    if (collectPerVaultLocalStorageKeys(vaultPath, all).length > 0) return true;
+  } catch { /* no localStorage: the settings store still answers */ }
+  try {
+    const suffix = perVaultStoreSuffix(vaultPath);
+    return (await (await getSettingsStore()).keys()).some((key) => key.endsWith(suffix));
+  } catch {
+    return false;
+  }
+}
+
 export interface ForgetVaultResult {
   ok: boolean;
   errors: string[];
@@ -88,6 +111,35 @@ export async function collectVaultKeychainSlots(vaultPath: string): Promise<stri
   // old ones, and a migration that could not finish leaves them behind on
   // purpose. Forgetting a vault has to reach either.
   return allVaultSlots(vaultPath, await vaultSlotIds(vaultPath));
+}
+
+/**
+ * The vault's index database in app-data (+ WAL/SHM sidecars), and every copy
+ * the start set aside as damaged (`setAsideIndexDatabase`) — they hold the
+ * notes' text too — wherever it lay. A fresh open of the same path then starts
+ * with a clean index, exactly like a never-seen vault.
+ */
+export async function forgetIndexDatabases(vaultPath: string): Promise<void> {
+  const dir = await join(await appDataDir(), "index");
+  const name = await indexDbFileName(vaultPath);
+  const base = await join(dir, name);
+  for (const p of [base, `${base}-wal`, `${base}-shm`]) {
+    if (await exists(p)) await remove(p);
+  }
+  // And every copy the start set aside as damaged (`setAsideIndexDatabase`): it holds the notes' text too.
+  const names = await readDir(dir).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
+  for (const entry of names) {
+    // Every copy, and the note of a run that stopped: left behind, it would set the next database of this name aside.
+    if (entry.startsWith(name + SET_ASIDE_MARKER) || entry === name + SET_ASIDE_NOTE) await remove(await join(dir, entry));
+  }
+  // A vault whose index stayed in its own `.plainva/` (the app-data folder
+  // could not be used) had a damaged one set aside there. Only those copies
+  // go; the folder is the vault's.
+  const inVault = await join(vaultPath, ".plainva");
+  const inVaultNames = await readDir(inVault).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
+  for (const entry of inVaultNames) {
+    if (entry.startsWith(`vault.db${SET_ASIDE_MARKER}`) || entry === `vault.db${SET_ASIDE_NOTE}`) await remove(await join(inVault, entry));
+  }
 }
 
 /**
@@ -181,12 +233,7 @@ export async function forgetVaultData(
 
   // Index DB in app-data (+ WAL/SHM sidecars). A fresh open of the same path
   // then starts with a clean index, exactly like a never-seen vault.
-  await attempt("index-db", async () => {
-    const base = await join(await appDataDir(), "index", await indexDbFileName(vaultPath));
-    for (const p of [base, `${base}-wal`, `${base}-shm`]) {
-      if (await exists(p)) await remove(p);
-    }
-  });
+  await attempt("index-db", () => forgetIndexDatabases(vaultPath));
 
   // Crash-recovery draft journal (P2.4) — note text snapshots live in
   // app-data and must not survive "forget app data".

@@ -106,7 +106,8 @@ describe("the reading view's own parse never meets a mark", () => {
     const reader = sourceFile("apps/desktop/src/components/MarkdownReader.tsx");
     expect(reader).toContain("const source = useMemo(() => prepareReaderSource(content, {");
     // Bounded by the parse budget (open-items plan 3.133 no. 4): the same text, character for character, a stretch over the budget read as written.
-    expect(reader).toContain("const bounded = useMemo(() => boundReaderMarkdown(source.text), [source]);");
+    // With the ranges the note's parsers set in the original as well (L13), so that the reading view and the index decide alike.
+    expect(reader).toContain("const bounded = useMemo(() => boundReaderMarkdown(source.text, { original: content, source }), [source, content]);");
     expect(reader).toContain("const processedContent = bounded.text;");
     expect(reader).toMatch(/\{processedContent\}\s+<\/ReactMarkdown>/);
     // The only text a ReactMarkdown of this file is ever handed.

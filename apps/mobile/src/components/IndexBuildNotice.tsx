@@ -1,7 +1,8 @@
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner } from "@plainva/ui";
+import { Banner, Button, errorText, indexDatabaseRebuildOffered, toast, type IndexDatabaseFailureKind } from "@plainva/ui";
 import { getIndexBuild, subscribeIndexBuild } from "../services/indexBuild";
+import { mConfirm } from "../services/mobileDialogs";
 
 /**
  * The strip on top of the app while the first index of the open vault is
@@ -13,14 +14,49 @@ import { getIndexBuild, subscribeIndexBuild } from "../services/indexBuild";
  * the vault's database did not open, and deleting, renaming and moving are
  * refused until it does (`StructureRefusingVaultAdapter`) — said up front,
  * so nobody tries, fails and guesses.
+ *
+ * Why the database did not open is said there too, in words, in every vault
+ * (`indexDatabaseFailure`), and a damaged one outside an encrypted workspace
+ * is offered to be built anew, asked first — the desktop's start offers the
+ * same (`indexDatabaseRebuildOffered`).
  */
-export function IndexBuildNotice({ vaultId, indexClosed = false }: { vaultId: string; indexClosed?: boolean }) {
+export function IndexBuildNotice({ vaultId, indexClosed = false, failure = null, onRebuild }: {
+  vaultId: string;
+  indexClosed?: boolean;
+  failure?: { kind: IndexDatabaseFailureKind; workspace: boolean; message: string } | null;
+  /** Sets the damaged database aside and opens the vault again (`rebuildActiveIndexDatabase`). */
+  onRebuild?: () => Promise<void>;
+}) {
   const { t } = useTranslation();
   const build = useSyncExternalStore(subscribeIndexBuild, getIndexBuild);
-  if (indexClosed) {
+  const [rebuilding, setRebuilding] = useState(false);
+  const rebuild = async () => {
+    if (rebuilding) return;
+    const yes = await mConfirm({ title: t("indexDatabase.rebuildTitle"), message: t("indexDatabase.rebuildConfirm"), confirmLabel: t("settings.rebuildIndexAction") });
+    if (!yes) return;
+    setRebuilding(true);
+    try {
+      await onRebuild?.();
+    } catch (error) {
+      toast.error(t("indexDatabase.rebuildFailed", { reason: errorText(error) }));
+    } finally {
+      setRebuilding(false);
+    }
+  };
+  if (failure || indexClosed) {
+    const offered = !!failure && !!onRebuild && indexDatabaseRebuildOffered(failure.kind, failure.workspace);
     return (
-      <Banner className="m-index-notice" kind="warning">
-        <span data-testid="index-closed-notice">{t("errors.indexClosedNotice")}</span>
+      <Banner
+        className="m-index-notice"
+        kind="warning"
+        actions={offered ? (
+          <Button size="sm" onClick={() => { void rebuild(); }} disabled={rebuilding} data-testid="index-rebuild">
+            {t("settings.rebuildIndexAction")}
+          </Button>
+        ) : undefined}
+      >
+        {failure ? <span data-testid="index-failure-notice">{failure.message} </span> : null}
+        {indexClosed ? <span data-testid="index-closed-notice">{t("errors.indexClosedNotice")}</span> : null}
       </Banner>
     );
   }

@@ -91,6 +91,29 @@ export function acquireDatabase(name: string): Promise<DatabaseHandle> {
   });
 }
 
+/**
+ * Runs `work` on the files of `name` while nothing holds them: a connection
+ * that is open is closed first, the plugin's own as well, and the work takes
+ * its turn with every open and close of a database. For setting a damaged
+ * index database aside (`indexDatabaseRebuild.ts`); the next open of the
+ * name opens what the work left.
+ */
+export function withDatabaseClosed<T>(name: string, work: () => Promise<T>): Promise<T> {
+  return inQueue(async () => {
+    const known = open.get(name);
+    if (known) {
+      open.delete(name);
+      await known.connection.close().catch(() => {});
+    }
+    const conn = plugin();
+    if ((await conn.isConnection(name, false).catch(() => ({ result: false }))).result) await conn.closeConnection(name, false).catch(() => {});
+    // iOS: the files are in the plugin's folder before they are moved there.
+    const refusal = await databaseFolderRefusal(name);
+    if (refusal) throw refusal;
+    return work();
+  });
+}
+
 /** One user is done with `name`; the last one closes it. */
 export function releaseDatabase(name: string): Promise<void> {
   return inQueue(async () => {

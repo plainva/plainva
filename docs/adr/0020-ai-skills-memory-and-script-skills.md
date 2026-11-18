@@ -144,7 +144,13 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
      journal line — lays down what the same call of a model lays down,
      through the approval chain of ADR 0019: a suggestion round in the
      note's margin, a draft in the list. Nothing in the vault changes before
-     the user accepts or creates.
+     the user accepts or creates — except where the user let changes apply
+     directly (maintainer, 2026-11-16): a script
+     the AI starts in a conversation writes as that conversation does, so
+     under **Apply directly**, and in a folder with **Change without
+     asking**, those six tools write at once, with the version before and
+     the line that takes it back (ADR 0019, addendum 2026-11-06, point 6).
+     A script started from the workshop never does.
      - Started from the workshop, it signs with its own name
        (`script:<name>`, a fourth machine writer beside the assistant, a
        paired app and an agent — ADR 0023). It reads as a reader on this

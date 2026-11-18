@@ -3,6 +3,7 @@ import { reportingTo } from "@plainva/ui";
 import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
+import { openLink } from "../../services/openLink";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import {
   aiNavigationCommands,
@@ -78,6 +79,27 @@ export interface DesktopAiInput {
   renameTabPrefix?: (from: string, to: string) => void;
 }
 
+export type AiPlacement = "dock" | "window";
+/** Per device, like the floating window's own size: where a person likes the conversation is about this screen. */
+export const AI_PLACEMENT_KEY = "plainva-ai-placement";
+
+/** Docked unless this device chose the floating window ("Pop out"); a value from elsewhere counts as docked. */
+export function readAiPlacement(): AiPlacement {
+  try {
+    return localStorage.getItem(AI_PLACEMENT_KEY) === "window" ? "window" : "dock";
+  } catch {
+    return "dock";
+  }
+}
+
+function writeAiPlacement(placement: AiPlacement): void {
+  try {
+    localStorage.setItem(AI_PLACEMENT_KEY, placement);
+  } catch {
+    // A storage that refuses keeps the choice for this session only.
+  }
+}
+
 const clockNow = (): string => {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -108,7 +130,11 @@ export function useDesktopAi(input: DesktopAiInput) {
   const session: AiSession | null = useMemo(() => getDesktopAiSession(), []);
   const state = useSyncExternalStore(session ? session.subscribe : NOOP_SUBSCRIBE, session ? session.getState : NULL_STATE, session ? session.getState : NULL_STATE);
   const enabled = Boolean(state?.loaded && state.settings.enabled);
+  // Where the conversation opens (plan Oberfläche O7, E1): docked in the right column by default, the floating
+  // window only after "Pop out" — remembered on this device until "Dock" in the window.
+  const [placement, setPlacementState] = useState<AiPlacement>(readAiPlacement);
   const [companionOpen, setCompanionOpen] = useState(false);
+  const [dockOpen, setDockOpen] = useState(false);
 
   // The vault host reads the latest active path and handlers through refs:
   // it is built once per vault, not once per keystroke.
@@ -418,7 +444,11 @@ export function useDesktopAi(input: DesktopAiInput) {
     const vault = vaultPath && vaultAdapter && queryService ? { path: vaultPath, name: vaultName(vaultPath) } : null;
     // An encrypted workspace takes no changes from an app (E32): no tool that writes is even listed there.
     // While it is not open on this device, nothing of the vault goes to an app at all.
-    void configureMcp(mcpOn, vault, { sealed, closed }).catch(() => undefined);
+    // The agents' tool line reads whether the helper runs: asked again once the switch took effect, not in the same
+    // commit — the view's own refresh is a child's effect and ran before this started or stopped it (review O7).
+    void configureMcp(mcpOn, vault, { sealed, closed })
+      .catch(() => undefined)
+      .then(() => session.agents.refresh());
     // The prompts speak the app's language: a switch registers them again.
   }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language, sealed, closed]);
 
@@ -441,21 +471,56 @@ export function useDesktopAi(input: DesktopAiInput) {
     return () => setImageExplainer(null);
   }, [session, enabled, vaultAdapter]);
 
-  // Switching the AI off closes the companion; the conversation stays stored.
+  // Switching the AI off closes the conversation wherever it shows; the conversation stays stored.
   useEffect(() => {
-    if (!enabled) setCompanionOpen(false);
+    if (!enabled) {
+      setCompanionOpen(false);
+      setDockOpen(false);
+    }
   }, [enabled]);
 
+  /** Opens the conversation where it lives on this device: the right column, or the floating window after "Pop out". */
   const openCompanion = useStableHandler(() => {
-    session?.present("window");
-    setCompanionOpen(true);
+    if (placement === "window") {
+      session?.present("window");
+      setCompanionOpen(true);
+      return;
+    }
+    session?.present("dock");
+    setDockOpen(true);
   });
   // Closed while a question waits (the send overview, a page, a server's question): where no other surface shows the
   // conversation, nobody could answer it, so it ends as a no and the session is free again (Befunde 06.11., B6).
-  // Asked after the window has unmounted: the tab or the dock may still show it.
+  // Asked after the surface has unmounted: the tab may still show it.
   const closeCompanion = useStableHandler(() => {
     setCompanionOpen(false);
+    setDockOpen(false);
     window.setTimeout(() => session?.questionLeftUnseen(), 0);
+  });
+  // Hiding the column or entering focus mode puts the docked conversation away (review O7, R3): that is no answer to
+  // a question that waits — it stays open, the ribbon's dot carries it, and opening the AI shows it again.
+  const stowDock = useStableHandler(() => setDockOpen(false));
+  /** "Pop out": the same conversation in the floating window, from now on on this device. */
+  const popOut = useStableHandler(() => {
+    writeAiPlacement("window");
+    setPlacementState("window");
+    setDockOpen(false);
+    session?.present("window");
+    setCompanionOpen(true);
+  });
+  /** "Dock": back into the right column, from now on on this device. */
+  const dock = useStableHandler(() => {
+    writeAiPlacement("dock");
+    setPlacementState("dock");
+    setCompanionOpen(false);
+    session?.present("dock");
+    setDockOpen(true);
+  });
+  /** The column's "AI" head: the conversation there this once — the device's choice for the AI's own command stays (review O7, O5). */
+  const openInDock = useStableHandler(() => {
+    setCompanionOpen(false);
+    session?.present("dock");
+    setDockOpen(true);
   });
   // The selection door opens the companion wherever it sits (plan P1.5).
   useEffect(() => {
@@ -471,7 +536,7 @@ export function useDesktopAi(input: DesktopAiInput) {
     session.setReveal(() => openCompanion());
     return () => session.setReveal(null);
   }, [session, openCompanion]);
-  const toggleCompanion = useStableHandler(() => (companionOpen ? closeCompanion() : openCompanion()));
+  const toggleCompanion = useStableHandler(() => (companionOpen || dockOpen ? closeCompanion() : openCompanion()));
   // Learning's dialogs (plan P6-2) are dialogs of the window, and the floating companion is drawn above a dialog: it
   // makes room while one of them is open and comes back when the last is closed. The conversation is where it was.
   const madeRoom = useRef(false);
@@ -497,6 +562,7 @@ export function useDesktopAi(input: DesktopAiInput) {
   });
   const openAsTab = useStableHandler(() => {
     setCompanionOpen(false);
+    setDockOpen(false);
     session?.present("tab");
     latest.current.openView(AI_TAB_PATH);
   });
@@ -510,12 +576,11 @@ export function useDesktopAi(input: DesktopAiInput) {
       window.removeEventListener(AI_MEMORY_EVENT, open);
     };
   }, []);
-  const openNoteTarget = useStableHandler((target: string) => {
-    const query = latest.current.queryService;
-    if (!query) return;
-    void query.resolveNotePath(target).then((path) => {
-      if (path) latest.current.openNote(path);
-    });
+  // A link in an answer opens as every link of the app does (`planLinkOpen` through `openLink`), by the way it is
+  // written — the same function the source check under the answer asks (review O7, fifth round).
+  const openNoteTarget = useStableHandler((target: string, kind?: "wiki" | "markdown") => {
+    const { queryService, vaultAdapter } = latest.current;
+    void openLink({ text: target, kind: kind ?? "wiki" }, { queryService, vaultAdapter, onOpenPath: (path) => latest.current.openNote(path), newTab: false, t: (key, options) => i18n.t(key, options), createMissing: false });
   });
   /**
    * A link in an answer is untrusted: it opens only after the reader saw where
@@ -537,5 +602,5 @@ ${i18n.t("ai.openLinkBuilt")}` : url;
     [activePath],
   );
 
-  return { session, enabled, companionOpen, openCompanion, closeCompanion, toggleCompanion, runSkill, skills, openAsTab, openNoteTarget, openUrl, activeNote, commandSourceRef };
+  return { session, enabled, placement, companionOpen, dockOpen, openCompanion, closeCompanion, stowDock, openInDock, toggleCompanion, popOut, dock, runSkill, skills, openAsTab, openNoteTarget, openUrl, activeNote, commandSourceRef };
 }

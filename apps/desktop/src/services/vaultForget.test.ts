@@ -23,10 +23,13 @@ vi.mock("./workspaceSecurity/workspaceKeychain", () => ({
 }));
 
 let indexDbExists = true;
+/** What a folder lists, by its path; and what was removed. */
+const listings = new Map<string, string[]>();
+const removed: string[] = [];
 vi.mock("@tauri-apps/plugin-fs", () => ({
   exists: vi.fn(async () => indexDbExists),
-  readDir: vi.fn(async () => []),
-  remove: vi.fn(async () => undefined),
+  readDir: vi.fn(async (dir: string) => (listings.get(dir) ?? []).map((name) => ({ name, isFile: true, isDirectory: false }))),
+  remove: vi.fn(async (path: string) => void removed.push(path)),
 }));
 vi.mock("@tauri-apps/api/path", () => ({
   appDataDir: vi.fn(async () => "C:/AppData/Plainva"),
@@ -62,9 +65,11 @@ vi.mock("../adapters/TauriDatabaseAdapter", () => ({
 import {
   collectPerVaultLocalStorageKeys,
   collectVaultKeychainSlots,
+  forgetIndexDatabases,
   forgetWorkspaceCredentials,
   perVaultStoreSuffix,
 } from "./vaultForget";
+import { indexDbFileName } from "./indexDbPath";
 import { accountSecretKey } from "./accountBroker";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { mailSecretKey } from "@plainva/ui/mail";
@@ -263,5 +268,27 @@ describe("forgetWorkspaceCredentials (finding 2026-08-30)", () => {
 
     expect(dbClosed).toEqual([]);
     expect(clearedRuntimes).toEqual([VAULT]);
+  });
+});
+
+describe("forgetting a vault's index databases", () => {
+  it("removes every copy set aside as damaged, in app-data and in the vault's own .plainva, and nothing else of the vault", async () => {
+    const vault = "C:/Notes";
+    const name = await indexDbFileName(vault);
+    indexDbExists = false;
+    removed.length = 0;
+    listings.set("C:/AppData/Plainva/index", [name, `${name}.broken-2026-11-17T09-00-00-000Z`, `${name}.broken-2026-11-17T09-00-00-000Z-wal`, `${name}.setting-aside`, "other.db.broken-1", "other.db.setting-aside"]);
+    listings.set(`${vault}/.plainva`, ["vault.db", "vault.db-wal", "vault.db.broken-2026-11-17T09-00-00-000Z", "vault.db.broken-2026-11-17T09-00-00-000Z-shm", "bookmarks.json"]);
+    await forgetIndexDatabases(vault);
+    expect(removed.sort()).toEqual([
+      `C:/AppData/Plainva/index/${name}.broken-2026-11-17T09-00-00-000Z`,
+      `C:/AppData/Plainva/index/${name}.broken-2026-11-17T09-00-00-000Z-wal`,
+      // The note of a run that stopped: left behind, it would set the next database of this name aside.
+      `C:/AppData/Plainva/index/${name}.setting-aside`,
+      `${vault}/.plainva/vault.db.broken-2026-11-17T09-00-00-000Z`,
+      `${vault}/.plainva/vault.db.broken-2026-11-17T09-00-00-000Z-shm`,
+    ].sort());
+    listings.clear();
+    indexDbExists = true;
   });
 });

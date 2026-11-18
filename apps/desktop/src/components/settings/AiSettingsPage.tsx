@@ -184,31 +184,36 @@ function AiSettingsBody({ session }: { session: AiSession }) {
                 {t("ai.settings.addProvider")}
               </Button>
             </SettingCardNote>
-            {AI_PROFILE_IDS.map((id) => (
-              <SettingRow key={id} label={t(`ai.profile.${id}`)} desc={profileLine(id)}>
-                <div className="pv-ai-rowactions">
-                  <Button size="sm" variant="secondary" disabled={rows.length === 0} onClick={() => setModelFor(id)} data-testid={`ai-profile-${id}`}>
-                    {t("ai.settings.change")}
-                  </Button>
-                  <IconButton label={t("common.moreActions")} size="sm" disabled={!settings.profiles[id]} onClick={(e) => openMenu(e, { kind: "profile", profile: id })} data-testid={`ai-profile-more-${id}`}>
-                    <MoreHorizontal size={ICON.ui} />
-                  </IconButton>
-                </div>
+            {/* The profiles appear once a provider is there (plan Oberfläche O7, M7): before that they could only say "not set up". */}
+            {rows.length > 0 && (
+              <>
+              {AI_PROFILE_IDS.map((id) => (
+                <SettingRow key={id} label={t(`ai.profile.${id}`)} desc={profileLine(id)}>
+                  <div className="pv-ai-rowactions">
+                    <Button size="sm" variant="secondary" onClick={() => setModelFor(id)} data-testid={`ai-profile-${id}`}>
+                      {t("ai.settings.change")}
+                    </Button>
+                    <IconButton label={t("common.moreActions")} size="sm" disabled={!settings.profiles[id]} onClick={(e) => openMenu(e, { kind: "profile", profile: id })} data-testid={`ai-profile-more-${id}`}>
+                      <MoreHorizontal size={ICON.ui} />
+                    </IconButton>
+                  </div>
+                </SettingRow>
+              ))}
+              <SettingCardNote>{t("ai.settings.moreModels")}</SettingCardNote>
+              {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
+              <SettingRow label={t("ai.profile.audio")} desc={profileLine(AI_AUDIO_PROFILE)} info={t("ai.settings.audioHint")}>
+                <Button size="sm" variant="secondary" onClick={() => setModelFor(AI_AUDIO_PROFILE)} data-testid="ai-profile-audio">
+                  {t("ai.settings.change")}
+                </Button>
               </SettingRow>
-            ))}
-            <SettingCardNote>{t("ai.settings.moreModels")}</SettingCardNote>
-            {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
-            <SettingRow label={t("ai.profile.audio")} desc={profileLine(AI_AUDIO_PROFILE)} info={t("ai.settings.audioHint")}>
-              <Button size="sm" variant="secondary" disabled={rows.length === 0} onClick={() => setModelFor(AI_AUDIO_PROFILE)} data-testid="ai-profile-audio">
-                {t("ai.settings.change")}
-              </Button>
-            </SettingRow>
-            {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
-            <SettingRow label={t("ai.profile.embedding")} desc={profileLine(AI_EMBEDDING_PROFILE)} info={t("ai.settings.embeddingHint")}>
-              <Button size="sm" variant="secondary" disabled={rows.length === 0} onClick={() => setModelFor(AI_EMBEDDING_PROFILE)} data-testid="ai-profile-embedding">
-                {t("ai.settings.change")}
-              </Button>
-            </SettingRow>
+              {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
+              <SettingRow label={t("ai.profile.embedding")} desc={profileLine(AI_EMBEDDING_PROFILE)} info={t("ai.settings.embeddingHint")}>
+                <Button size="sm" variant="secondary" onClick={() => setModelFor(AI_EMBEDDING_PROFILE)} data-testid="ai-profile-embedding">
+                  {t("ai.settings.change")}
+                </Button>
+              </SettingRow>
+              </>
+            )}
           </SettingCard>
 
           {/* What may leave this device, in one place (plan K2): the promise "Fully local", and the question before each request. */}

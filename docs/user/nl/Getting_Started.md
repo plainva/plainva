@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-11-17
+Laatst bijgewerkt: 2026-11-18
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -26,7 +26,7 @@ Een vault is een gewone map op je computer met daarin je Markdown-notities. Plai
 
 ## Een vault openen of aanmaken
 
-Bij de **allereerste** start — voordat je ooit een vault hebt geopend — toont Plainva eenmalig een kort welkomstbericht. Het legt in drie zinnen uit waarop Plainva is gebouwd, toont ernaast een kleine preview van de interface en biedt meteen de drie manieren om te beginnen: **Vault openen**, **Nieuwe vault** en **Importeren uit een andere app**. Met **Later** sla je het over en kom je op het gewone welkomstscherm terecht; het verschijnt daarna niet meer — tenzij je het opnieuw oproept onder **Instellingen → Opstarten en gedrag → Welkomstscherm**.
+Bij de **allereerste** start — voordat je ooit een vault hebt geopend — toont Plainva eenmalig **Welkom bij Plainva**. De hoofdactie is **Proberen met de tour**: één klik maakt de vault van de Plainva-tour aan in een nieuwe map in je Documenten en opent hem; de kaart **Tour-vault** noemt die map vooraf. Is die naam al bezet, dan komt de tour in een map ernaast, en een melding noemt die. Daarnaast opent **Bestaande map openen** een map waarin al notities staan, bijvoorbeeld een Obsidian-vault. Daaronder leiden **Nieuwe lege vault** en **Importeren uit Notion, Evernote, Obsidian …** naar de andere twee wegen. Kan de tour daar niet worden aangemaakt – bijvoorbeeld omdat macOS geen toegang tot je Documenten toestaat –, dan zegt het welkom dat en biedt het **Andere plek kiezen**. Daaronder vertellen plainva.com en de **Handleiding** meer. Met **Later** of de ✕ sluit je het welkom en kom je op het gewone welkomstscherm; het komt niet terug, tenzij je het opnieuw aanvraagt onder **Instellingen → Opstarten en gedrag → Welkomstscherm**. Zolang een vault nog leeg is, toont het lege editorvlak precies één uitnodiging: **Schrijf je eerste notitie**, met de knop **Nieuwe notitie**. Is een vault die met de cloud synchroniseert hier nog leeg, dan staat daar, tot de eerste synchronisatie na het openen klaar is, in plaats daarvan **Je vault wordt geladen**. Mislukt die synchronisatie, dan toont de vault wat erin staat en zegt de synchronisatiestatus waarom; de melding komt pas terug als je de vault opnieuw opent. Mislukt het aanmaken van de tour, dan haalt Plainva weg wat het schreef en wat er nog zo staat; een bestand dat intussen is gewijzigd, blijft staan. Een nieuwe poging maakt de tour volledig aan – in dezelfde map, ook als niet alles kon worden verwijderd, en in een map ernaast als daar een bestand is gewijzigd.
 
 Na een update laat dezelfde plek zien wat er is veranderd: de belangrijkste wijziging van die release met een eigen kop, en de rest als telkens één regel. Dit verschijnt eenmaal per release — je kunt het op elk moment opnieuw oproepen onder **Instellingen → Opstarten en gedrag → Toon de hoogtepunten van de release opnieuw**.
 

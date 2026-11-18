@@ -1,5 +1,6 @@
 import {
   approvalSeen,
+  DIRECT_TOOL_NAMES,
   MCP_SKILL_LIMITS,
   serverSkillKey,
   stripInvisible,
@@ -168,9 +169,13 @@ function scriptFacts(t: Translate, entry: InstructionEntry, language: string): A
   const script = source.script ?? null;
   const number = new Intl.NumberFormat(language);
   // A script that names a writing tool (the second stage) lays down suggestions and drafts — and the review says what
-  // that means, in the words a skill's review uses for the same tools: nothing changes before the user takes it.
+  // that means, in the words a skill's review uses for the same tools: it waits for the user — except where the
+  // user let changes apply directly.
   const may = script
-    ? [script.tools.length ? t("ai.scripts.mayTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.mayNoTools"), t("ai.scripts.mayNothingElse"), t(scriptWrites(script) ? "ai.scripts.mayPropose" : "ai.scripts.mayReadOnly")]
+    ? [script.tools.length ? t("ai.scripts.mayTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.mayNoTools"), t("ai.scripts.mayNothingElse"), t(scriptWrites(script) ? "ai.scripts.mayPropose" : "ai.scripts.mayReadOnly"),
+        // Every tool a script writes with is one that can write directly (maintainer, 2026-11-16): started by the AI
+        // in a conversation that applies directly, or for a folder that changes without asking, it does.
+        ...(scriptWrites(script) ? [t("ai.scripts.mayProposeDirect")] : [])]
     : [];
   const limits = script
     ? t("ai.scripts.limitsLine", {
@@ -257,7 +262,12 @@ export function skillMayLines(t: Translate, skill: SkillDefinition, language: st
   // A tool that reads or shows changes nothing; a request to the internet is the one thing that leaves.
   // A skill that names writing tools (plan P5) gets them, and the approval says what that means: proposals, drafts and plans — never a change the user did not take.
   const risks = grant.tools.map((name) => toolByName(name)?.risk);
-  if (risks.some((risk) => risk === "write" || risk === "critical")) may.push(t("ai.workshop.mayPropose"));
+  // Proposals wait for the user — except where "Apply directly" or a folder's "Change without asking" lets a change go at
+  // once; the approval says both, so it holds in every state the conversation can be in (review O7, F32).
+  if (risks.some((risk) => risk === "write" || risk === "critical")) {
+    may.push(t("ai.workshop.mayPropose"));
+    if (grant.tools.some((name) => DIRECT_TOOL_NAMES.includes(name))) may.push(t("ai.workshop.mayProposeDirect"));
+  }
   else if (risks.every((risk) => risk === "read" || risk === "ui")) may.push(t(reachesWeb ? "ai.workshop.mayNoChange" : "ai.workshop.mayReadOnly"));
   return may;
 }

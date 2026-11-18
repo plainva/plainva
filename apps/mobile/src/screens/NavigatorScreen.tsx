@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Folder } from "lucide-react";
-import { AreaBoundary, Chip, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
+import { AreaBoundary, Chip, FirstNotePrompt, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge, useVaultEmptiness } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { useSyncSubtitle } from "../components/syncSubtitle";
@@ -9,6 +9,7 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { getNavigatorTab, setNavigatorTab, type NavigatorTab } from "../services/navigatorPlace";
 import { vaultOps, type MobileVault } from "../services/vaultService";
+import { getSyncStatus, isFirstPullPending, subscribeSyncStatus } from "../services/syncService";
 import { loadRecentList } from "../lib/recentList";
 import { vaultFileIcon } from "../lib/vaultFileIcon";
 import { BrowseScreen } from "./BrowseScreen";
@@ -92,6 +93,14 @@ export function NavigatorScreen({
   const [marks, setMarks] = useState<BookmarkEntry[]>([]);
   const targets = useBookmarkTargets(vault.adapter, marks, bump);
   const [docIcons, setDocIcons] = useState<Map<string, { icon: string; color?: string }>>(new Map());
+  // An empty vault is ONE prompt, "Write your first note" (O8, T11): the
+  // tabs, the search field and a listing of the managed index.md said
+  // "this is full of things" about a vault with nothing in it. The core's
+  // rule, the same one the desktop's empty pane asks — read on a bump only
+  // while the vault can still be empty, and a cloud vault whose first pull is
+  // running is being loaded, not empty.
+  const firstPullPending = useSyncExternalStore(subscribeSyncStatus, () => isFirstPullPending(getSyncStatus()));
+  const vaultStart = useVaultEmptiness(vault.files, bump, firstPullPending);
   const ptrRef = useRef<HTMLDivElement>(null);
   const syncSubtitle = useSyncSubtitle();
   const ptrIndicator = usePullToRefresh(ptrRef);
@@ -148,6 +157,10 @@ export function NavigatorScreen({
       <AppBar large onMenu={onMenu} onSearch={onSearch} subtitle={syncSubtitle} title={vaultName} actions={<SyncIndicator />} />
       {ptrIndicator}
 
+      {vaultStart !== "content" && onCreateNote ? (
+        <FirstNotePrompt fetching={vaultStart === "fetching"} onCreate={onCreateNote} />
+      ) : (
+      <>
       {/* Pinned sections, exactly the desktop's `leftSections` — above the
           tabs, because they answer "where was I" before "what is there". */}
       {recent.length > 0 && (
@@ -229,6 +242,8 @@ export function NavigatorScreen({
         <DatabasesScreen bump={bump} onCreate={onCreateDatabase} onOpenBase={onOpenBase} pane vault={vault} />
       )
       )}</AreaBoundary>
+      </>
+      )}
 
     </div>
   );
