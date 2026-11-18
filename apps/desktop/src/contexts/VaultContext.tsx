@@ -3,7 +3,7 @@ import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint,
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
+import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
@@ -852,7 +852,7 @@ export const VaultProvider: React.FC<{
       await perfMeasure("vault open: database pool", () => dbAdapter.initialize());
       await perfMeasure("vault open: database schema", () => initializeSchema(dbAdapter));
       // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
-      await logIndexDiagnostics(dbAdapter);
+      await logIndexDiagnostics(dbAdapter, "desktop folder");
 
       const syncQueue = new SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));
@@ -2576,7 +2576,7 @@ export const VaultProvider: React.FC<{
           indexer,
           syncWorker: state.syncWorker,
           skipCloud: opts?.skipCloud,
-          trigger: opts?.silent ? "automatic refresh" : "manual refresh",
+          trigger: opts?.silent ? "automatic refresh" : MANUAL_REFRESH_TRIGGER,
         });
         // The automatic pass (window focus, the interval net) runs while
         // somebody may be typing: it reloads only what it found changed, and

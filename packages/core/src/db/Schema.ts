@@ -936,6 +936,20 @@ export async function readIndexDiagnostics(db: IDatabaseAdapter): Promise<IndexD
   return out;
 }
 
+/**
+ * How many files the index holds without a timestamp (0 or none): the files a
+ * full scan that compares must read to tell a change of the same size
+ * (`VaultIndexer`, `hasStamp`). A count, nothing of the vault, for the
+ * diagnostics export of both shells.
+ */
+export async function countUnstampedFiles(db: IDatabaseAdapter): Promise<number> {
+  try {
+    return Number(rowValue(await db.queryOne(`SELECT COUNT(*) AS n FROM files WHERE mtime_local IS NULL OR mtime_local <= 0`), "n") ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 const CHUNK = 400;
 const chunks = <T,>(items: readonly T[]): T[][] => {
   const out: T[][] = [];

@@ -1,4 +1,4 @@
-import { clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   type BackupVaultAdapter,
   ConflictError,
@@ -27,7 +27,7 @@ import {
   scanChangedNothing,
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
-import { buildVaultChain, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
+import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
 import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -725,7 +725,7 @@ export async function rereadVaultOnResume(now: number = Date.now()): Promise<boo
 export async function rereadVault(folder?: string): Promise<void> {
   const v = bootPromise ? await bootPromise.catch(() => null) : null;
   if (!v || !v.indexer) return;
-  if (folder === undefined) await v.indexer.indexVaultFull("manual refresh");
+  if (folder === undefined) await v.indexer.indexVaultFull(MANUAL_REFRESH_TRIGGER);
   else await v.indexer.reconcileFolder(folder);
 }
 
@@ -856,7 +856,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     await db.initialize();
     await initializeSchema(db);
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
-    await logIndexDiagnostics(db);
+    await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
 
     // Retention comes from the global mobile settings (package G); the
     // desktop keeps this per vault, mobile applies one policy to the active
