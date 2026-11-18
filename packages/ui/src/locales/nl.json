@@ -2718,6 +2718,8 @@
     "diagExitMemory": "Android heeft de app wegens geheugen beëindigd",
     "diagExitCrash": "Gecrasht",
     "diagExitAnr": "Reageerde niet meer (ANR)",
+    "diagExitHang": "Reageerde niet meer",
+    "diagExitDay": "Geteld door het systeem: {{memory}}× vanwege geheugen, {{other}}× om een andere reden",
     "diagTitle": "Wat de synchronisatie het laatst deed",
     "explainer": "Draagt kluisinstellingen en je accounts (agenda’s, postvakken) over — maar geen wachtwoorden en geen apparaatspecifieke paden. Wijzigen meerdere apparaten iets, dan wint de laatst opgeslagen versie.",
     "lockedHere": "Dit apparaat is vergrendeld — instellingen en accounts reizen pas mee als je de sync-wachtwoordzin invoert.",
