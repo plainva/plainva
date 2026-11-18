@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, Banner, type AnchorHighlight } from '@plainva/ui';
-import { markdownLinkTarget, prepareReaderSource, READER_NOTICE_TAG, rehypeReaderMath, resolveMarkdownLinkIndexed, selectNoteFragment, type MathLayout } from '@plainva/core';
+import { markdownLinkTarget, prepareReaderSource, mathBudgetBeside, READER_NOTICE_TAG, rehypeReaderMath, resolveMarkdownLinkIndexed, selectNoteFragment, type MathLayout } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
@@ -414,8 +414,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   // KaTeX lays the formulas out until what it made reaches the formula budget; the rest stay as their source, and the note says so once.
   const mathNotice = t('reader.mathLeftAsSource');
   const readerMath = useMemo(
-    () => (mathPlugins ? () => rehypeReaderMath({ layout: (mathPlugins.rehype as () => MathLayout)(), notice: mathNotice }) : null),
-    [mathPlugins, mathNotice],
+    () => (mathPlugins ? () => rehypeReaderMath({ layout: (mathPlugins.rehype as () => MathLayout)(), budget: mathBudgetBeside(bounded.tableWeight), notice: mathNotice }) : null),
+    [mathPlugins, mathNotice, bounded.tableWeight],
   );
   const processedContent = bounded.text;
 

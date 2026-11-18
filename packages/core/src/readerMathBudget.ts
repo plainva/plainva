@@ -1,3 +1,5 @@
+import { TABLE_READ_BUDGET } from "./inlineParseBudget.js";
+
 /**
  * The reading view's formulas, bounded by what KaTeX makes of them (reviews
  * of 2026-11-17). KaTeX holds far more while it lays formulas out than the
@@ -40,6 +42,19 @@ export const MATH_NODE_BUDGET = 132_000;
  * 7 704 characters under 128 MB (an array of 400 columns up to 8 169).
  */
 export const MATH_WORST_NODES_PER_CHAR = 17;
+
+/**
+ * The formula budget of a note beside its tables: a table read as a table and
+ * the formulas of the note are held in the same memory, and each budget is
+ * what fills it alone. A table at its budget (`TABLE_READ_BUDGET`) with
+ * formulas at theirs ran the reading view out of memory (the performance
+ * workflow's hunt, 2026-11-18), so the formulas get what the tables leave:
+ * `tableWeight` is what the note's tables read as tables weigh together.
+ */
+export function mathBudgetBeside(tableWeight: number, budget = MATH_NODE_BUDGET): number {
+  const left = 1 - Math.min(1, Math.max(0, tableWeight) / TABLE_READ_BUDGET);
+  return Math.floor(budget * left);
+}
 
 /** A node of a hast tree, as far as this step reads it. */
 export interface MathHastNode {

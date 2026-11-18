@@ -22,7 +22,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
-import { MATH_NODE_BUDGET, mathNodeCount, rehypeReaderMath, type MathHastNode } from "../../src/readerMathBudget.js";
+import { overBudgetInlineRanges, READER_READING, TABLE_READ_BUDGET } from "../../src/inlineParseBudget.js";
+import { MATH_NODE_BUDGET, mathBudgetBeside, mathNodeCount, rehypeReaderMath, type MathHastNode } from "../../src/readerMathBudget.js";
 
 const here = fileURLToPath(import.meta.url);
 const desktop = createRequire(path.resolve(path.dirname(here), "../../../../apps/desktop/package.json"));
@@ -86,7 +87,10 @@ async function runOne(budget: string, shape: string, count: number, len: number)
   const remarkRehype = await fromDesktop("remark-rehype", createRequire(desktop.resolve("react-markdown")));
   const { VFile } = (await import(pathToFileURL(createRequire(desktop.resolve("react-markdown")).resolve("vfile")).href)) as { VFile: new (v: string) => { data: Record<string, unknown> } };
   const text = noteOf(shape, count, len);
-  const limit = budget === "main" ? Infinity : budget === "head" ? MATH_NODE_BUDGET : Number(budget);
+  // `head`: as the reading view runs it, the formulas beside the note's tables get what the tables leave (`mathBudgetBeside`).
+  let tableWeight = 0;
+  if (budget === "head") overBudgetInlineRanges(text, { table: (_first, _last, _exact, cost) => { if (cost <= TABLE_READ_BUDGET) tableWeight += cost; } }, READER_READING);
+  const limit = budget === "main" ? Infinity : budget === "head" ? mathBudgetBeside(tableWeight) : Number(budget);
   let made = 0;
   const layout = rehypeKatex();
   // What KaTeX made: everything the step put in place of the formulas it laid out.

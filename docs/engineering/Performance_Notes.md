@@ -664,9 +664,18 @@ under 128 MB, three times `main`'s limit stays under it, and so do the dearest s
 `$`, reference definitions and footnotes with a `$`, padded formulas — against the reading view:
 KaTeX lays out exactly the formulas the rule admits, the notice stands where one is left, and
 every table is a table. Only the desktop's reading view needs the budget: the phone reads a note
-in the editor, which lays out the formulas in view (parity entry `reader-math-budget`). Not
-covered: a table at its budget and formulas at theirs in one note (L14 weighs the whole note), and
-the editor's live preview, which lays out formulas as they scroll into view.
+in the editor, which lays out the formulas in view (parity entry `reader-math-budget`). A table
+read as a table and the formulas of the note are held in the same memory, and each budget is what
+fills it alone: a table at its budget with formulas at theirs ran the reading view out of memory
+(the performance workflow's hunt, 2026-11-18, 18 of 200 drawn tables). So the formulas get what the
+note's tables leave (`mathBudgetBeside`: the formula budget times one less the tables' weight over
+`TABLE_READ_BUDGET`; `boundReaderMarkdown` sums the tables it reads as tables). That costs formulas
+in a large table: the 780 cells of `main`'s limit stand in a table that weighs 0.41 of its budget,
+and 479 of them are laid out; 400 cells, a table of 0.21, are laid out in full. Not covered: the
+memory of a note of many tables and other blocks beside them (L14 weighs the whole note), and the
+editor's live preview, which lays out formulas as they scroll into view
+(`mathMermaidLive.test.ts` holds that it lays out every formula in view of a note over the reading
+view's budget).
 
 **Tables over the budget keep their links in the index (2026-11-17).** A table over the budget is
 text for the reading view; the index read it as text too, and a price table of 2 000 rows gave it

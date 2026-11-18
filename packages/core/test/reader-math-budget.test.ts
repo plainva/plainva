@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { boundReaderMath, MATH_NODE_BUDGET, MATH_WORST_NODES_PER_CHAR, mathNodeCount, READER_NOTICE_TAG, rehypeReaderMath, type MathHastNode } from "../src/readerMathBudget.js";
+import { TABLE_READ_BUDGET } from "../src/inlineParseBudget.js";
+import { boundReaderMath, mathBudgetBeside, MATH_NODE_BUDGET, MATH_WORST_NODES_PER_CHAR, mathNodeCount, READER_NOTICE_TAG, rehypeReaderMath, type MathHastNode } from "../src/readerMathBudget.js";
 
 /**
  * The reading view's formulas are charged by what KaTeX made of them, not by
@@ -50,6 +51,14 @@ describe("the formula budget of the reading view", () => {
     expect(boundReaderMath(tree, {}, layout)).toBe(2);
     // KaTeX never saw the giant: its memory is spent before anything could be counted.
     expect(asked).toEqual(["x", "y"]);
+  });
+
+  it("gives the formulas of a note what its tables leave of the memory", () => {
+    // A table at its budget and formulas at theirs ran the reading view out of memory (the hunt, 2026-11-18).
+    expect(mathBudgetBeside(0)).toBe(MATH_NODE_BUDGET);
+    expect(mathBudgetBeside(TABLE_READ_BUDGET / 4)).toBe(Math.floor(MATH_NODE_BUDGET * 0.75));
+    expect(mathBudgetBeside(TABLE_READ_BUDGET)).toBe(0);
+    expect(mathBudgetBeside(3 * TABLE_READ_BUDGET)).toBe(0);
   });
 
   it("counts every node a formula made", () => {
@@ -115,7 +124,10 @@ describe("the formula budget of the reading view", () => {
     for (const [shape, count, len] of MAIN_LIMITS) {
       const at = capped(shape, count, len);
       expect(at.ran, `${shape} ×${len} at main's limit: ${at.stderr}`).toBe(true);
-      expect(at.result, `${shape} ×${len} at main's limit`).toEqual(expect.objectContaining({ left: 0 }));
+      // Formulas in a table share the memory with it (`mathBudgetBeside`): at main's limit the table of 780 rows
+      // weighs 0.41 of its budget, and the formulas get the rest — 78 120 nodes, 479 of the 780.
+      if (shape === "cells") expect(at.result!.laid, `${shape} ×${len} at main's limit`).toBeGreaterThanOrEqual(479);
+      else expect(at.result, `${shape} ×${len} at main's limit`).toEqual(expect.objectContaining({ left: 0 }));
       const past = capped(shape, 3 * count, len);
       expect(past.ran, `${shape} ×${len} at three times main's limit: ${past.stderr}`).toBe(true);
       expect(past.result!.left, `${shape} ×${len} past main's limit`).toBeGreaterThan(0);

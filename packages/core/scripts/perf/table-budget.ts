@@ -39,7 +39,7 @@ import * as path from "node:path";
 import { readFileSync } from "node:fs";
 import { READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, overBudgetInlineRanges, boundMarkdownInRanges, unitedRanges, tableLineStart, tableMarkerCost, tableMarkerCount, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
 import { prepareReaderSource } from "../../src/noteSource.js";
-import { rehypeReaderMath } from "../../src/readerMathBudget.js";
+import { mathBudgetBeside, rehypeReaderMath } from "../../src/readerMathBudget.js";
 import { toHast } from "mdast-util-to-hast";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
@@ -710,14 +710,14 @@ const unbounded = {
   },
   tree: (text: string) => unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks).parse(text),
   // The reading view's parser (GFM without the properties block, MarkdownReader.tsx) and its HTML tree, which fills every row to the header's columns.
-  reader: (input: string, prepared = false, mathBudget = false) => {
+  reader: (input: string, prepared = false, mathBudget: number | false = false) => {
     // The note as the reading view gets it (`prepareReaderSource`), unless it is so already.
     const text = prepared ? input : prepareReaderSource(input).text;
     // With math, as the reading view runs it: remark-math in the parse, KaTeX for the page.
     if (HAS_MATH.test(text)) {
       // Bounded, as the app runs it: KaTeX lays the formulas out until they made their budget, the rest stay as source (`rehypeReaderMath`).
-      const processor = mathBudget
-        ? unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use((() => rehypeReaderMath({ layout: (rehypeKatex as () => never)() })) as never)
+      const processor = mathBudget !== false
+        ? unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use((() => rehypeReaderMath({ layout: (rehypeKatex as () => never)(), budget: mathBudget })) as never)
         : unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use(rehypeKatex as never);
       const tree = processor.parse(text);
       processor.runSync(tree);
@@ -739,9 +739,11 @@ const unbounded = {
  */
 function boundedReader(text: string) {
   const source = prepareReaderSource(text);
-  const own = overBudgetInlineRanges(source.text, undefined, READER_READING);
+  let tableWeight = 0;
+  const own = overBudgetInlineRanges(source.text, { table: (_first, _last, _exact, cost) => { if (cost <= TABLE_READ_BUDGET) tableWeight += cost; } }, READER_READING);
   const theirs = overBudgetInlineRanges(text).map((range) => ({ ...range, from: source.toRendered(range.from), to: source.toRendered(range.to, "end") }));
-  return unbounded.reader(boundMarkdownInRanges(source.text, unitedRanges(own, theirs.filter((range) => range.to > range.from))).text, true, true);
+  // The formulas beside the table get what it leaves, as in the app (`boundReaderMarkdown`, `mathBudgetBeside`).
+  return unbounded.reader(boundMarkdownInRanges(source.text, unitedRanges(own, theirs.filter((range) => range.to > range.from))).text, true, mathBudgetBeside(tableWeight));
 }
 
 function child(name: string, rows: number, parse: string, bounded: boolean): void {

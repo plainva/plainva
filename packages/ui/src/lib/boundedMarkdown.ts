@@ -1,5 +1,5 @@
 import type { markdown } from "@codemirror/lang-markdown";
-import { boundMarkdownInRanges, exceedsInlineParseBudget, overBudgetInlineRanges, READER_READING, restoreBoundedTree, unitedRanges, type BoundedMarkdown, type ReaderSource } from "@plainva/core";
+import { boundMarkdownInRanges, exceedsInlineParseBudget, overBudgetInlineRanges, READER_READING, restoreBoundedTree, TABLE_READ_BUDGET, unitedRanges, type BoundedMarkdown, type ReaderSource } from "@plainva/core";
 
 /**
  * The parse budget (`inlineParseBudget.ts` in core) for the two parsers that
@@ -19,13 +19,15 @@ import { boundMarkdownInRanges, exceedsInlineParseBudget, overBudgetInlineRanges
  * FIRST, before any plugin reads a value; every place in the text stays where
  * it was, so the reader's source mapping holds.
  */
-export function boundReaderMarkdown(text: string, from?: { original: string; source: Pick<ReaderSource, "toRendered"> }): BoundedMarkdown & { remarkRestore: () => (tree: unknown) => void } {
+export function boundReaderMarkdown(text: string, from?: { original: string; source: Pick<ReaderSource, "toRendered"> }): BoundedMarkdown & { remarkRestore: () => (tree: unknown) => void; tableWeight: number } {
   // Weighed for the reading view's own parser: GFM without the properties
   // block (MarkdownReader.tsx), which opens quotes and lists behind an
   // unclosed `---`. And what the note's parsers read as written in the
   // original (the index, the outline) is read as written here as well, at its
   // place in the shown text: one decision for every reader, the heavier one.
-  const own = overBudgetInlineRanges(text, undefined, READER_READING);
+  // What the tables it reads as tables weigh together: the formulas get what they leave (`mathBudgetBeside`).
+  let tableWeight = 0;
+  const own = overBudgetInlineRanges(text, { table: (_first, _last, _exact, cost) => { if (cost <= TABLE_READ_BUDGET) tableWeight += cost; } }, READER_READING);
   const theirs = from
     ? overBudgetInlineRanges(from.original).map((range) => ({ ...range, from: from.source.toRendered(range.from), to: from.source.toRendered(range.to, "end") }))
     : [];
@@ -34,6 +36,7 @@ export function boundReaderMarkdown(text: string, from?: { original: string; sou
   return {
     ...bounded,
     remarkRestore: () => (tree: unknown) => restoreBoundedTree(tree, ranges),
+    tableWeight,
   };
 }
 
