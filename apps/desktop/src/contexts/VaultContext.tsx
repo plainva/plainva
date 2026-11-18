@@ -5,7 +5,7 @@ import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseReb
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
+import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, vaultFolderIsThere } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
@@ -988,7 +988,7 @@ export const VaultProvider: React.FC<{
       const sweepOwedToRemote = (kind: "plain" | "workspace") => {
         if (!queuesChanges) return;
         const handlers = {
-          vaultIsThere: () => vaultAdapter.exists("").catch(() => false),
+          vaultIsThere: () => vaultFolderIsThere(vaultAdapter).then((there) => there === true),
           stillGone: async (p: string) => !(await vaultAdapter.exists(p)),
           remove: queueLocalDeletion,
           removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
