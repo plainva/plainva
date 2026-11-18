@@ -22,6 +22,7 @@ import { groupNameCollisions } from "@plainva/core";
 import { Banner, Button, NameCollisionsNotice, UnverifiedFilesNotice, resolveNameCollisionCases, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 import { syncStateLabel } from "./components/syncSubtitle";
+import { vaultEntryName } from "./services/vaultEntryName";
 
 /* The provider NAME comes from the shared family table (N5.1). This file kept
    its own map, which is how the phone ended up with two spellings of the same
@@ -423,7 +424,7 @@ export function VaultDetailScreen({
 
   if (!entry) return <div className="m-page" />;
 
-  const name = entry.name || t("mobile.vaultLocal");
+  const name = vaultEntryName(entry.name);
   const providerName = entry.provider ? providerNameOf(entry.provider) : "";
 
   const rename = () => {

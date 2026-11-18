@@ -14,6 +14,7 @@ import {
   type AccessPlatform,
   type AccessProblem,
   type StoredOAuthAccess,
+  googleClientType,
 } from "../../lib/oauthAccess";
 import { googleClientGuideUrl, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../../lib/docsLinks";
 import { getPlatformServices } from "../../platform/services";
@@ -110,7 +111,7 @@ export function OAuthAccessEditor({
           <SettingCardNote>{typeHint}</SettingCardNote>
           {/* issue 142: Google answers a client of the wrong type on its own error
               page, which never reaches Plainva — so the editor says it first. */}
-          {family === "google" && <SettingCardNote>{t(`accountAccess.ownTypeMismatch.${needs.clientType}`)}</SettingCardNote>}
+          {family === "google" && <SettingCardNote>{t(`accountAccess.ownTypeMismatch.${googleClientType(platform)}`)}</SettingCardNote>}
           <SettingCardBlock>
             <Button
               variant="ghost"

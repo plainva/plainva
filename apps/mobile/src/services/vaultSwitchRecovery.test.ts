@@ -8,6 +8,7 @@ import { armLeaveGuard, armedLeaveGuards, disarmLeaveGuard, foreignInputArmed, r
 import { currentMobileDialog, dismissMobileDialog } from "./mobileDialogs";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
 import type { MobileVault } from "./vaultService";
+import { retiredBoot } from "./bootRetirement";
 
 /**
  * The vault switch and the vault reload of the phone (finding 2026-10-22,
@@ -41,6 +42,8 @@ function harness(start: string) {
   const syncStarted: string[] = [];
   const order: string[] = [];
   const deps = {
+    // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
+    retiredBoot,
     initial: vault(start),
     noteSaver: { flushAll: vi.fn(async () => {}) },
     stopSyncAndDrain: vi.fn(async () => { order.push("stop"); }),

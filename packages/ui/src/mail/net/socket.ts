@@ -39,6 +39,9 @@ export function mailSocket(): MailSocket {
 }
 
 const enc = new TextEncoder();
+
+/** The most bytes one write carries across the bridge (before base64): as a file's part (`BRIDGE_PART_BYTES` on the phone). */
+export const MAIL_WRITE_PART_BYTES = 256 * 1024;
 const dec = new TextDecoder("utf-8", { fatal: false });
 
 function socketBytesToBase64(bytes: Uint8Array): string {
@@ -82,11 +85,23 @@ export class LineSocket {
   }
 
   async writeText(text: string): Promise<void> {
-    await this.sock.write(this.id, socketBytesToBase64(enc.encode(text)));
+    await this.writeBytes(enc.encode(text));
   }
 
+  /**
+   * The bytes in parts of at most `MAIL_WRITE_PART_BYTES`, one call each - a
+   * stream does not care where one write ends. A message with attachments was
+   * one call: an 18 MB forward became a 33 MB string the phone parses on its
+   * UI thread (release list F54, the class of F51).
+   */
   async writeBytes(bytes: Uint8Array): Promise<void> {
-    await this.sock.write(this.id, socketBytesToBase64(bytes));
+    if (bytes.length === 0) {
+      await this.sock.write(this.id, "");
+      return;
+    }
+    for (let offset = 0; offset < bytes.length; offset += MAIL_WRITE_PART_BYTES) {
+      await this.sock.write(this.id, socketBytesToBase64(bytes.subarray(offset, offset + MAIL_WRITE_PART_BYTES)));
+    }
   }
 
   private async fill(): Promise<void> {

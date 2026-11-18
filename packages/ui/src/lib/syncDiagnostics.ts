@@ -6,6 +6,7 @@ import type {
 } from "@plainva/core";
 import { classifySyncError, syncErrorMessage } from "@plainva/core";
 import { redactDiagnosticText } from "../services/diagnosticsLog";
+import { capitalize } from "./capitalize";
 
 /**
  * Durable, device-local facts about settings and secret sync. The record keeps
@@ -489,6 +490,5 @@ export function diagnosticsState(
 }
 
 export function deviceStateKey(state: ProfileDeviceState): string {
-  const suffix = state.charAt(0).toUpperCase() + state.slice(1);
-  return `settingsSync.diag${suffix}`;
+  return `settingsSync.diag${capitalize(state)}`;
 }

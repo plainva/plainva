@@ -373,13 +373,14 @@ export function AiDraftDone({ outcome, onOpenNote }: { outcome: WriteDraftOutcom
   const path = outcome.path;
   const name = outcome.title;
   // The memory's drafts (plan P6) end in the memory or in the vault's instructions: said in their own words.
-  const kept = created && (outcome.kind === "memory" || outcome.kind === "forget" || outcome.kind === "rule");
+  // The kind itself, narrowed, so the checker sees which `done.line` texts it can reach (F53).
+  const keptKind = created && (outcome.kind === "memory" || outcome.kind === "forget" || outcome.kind === "rule") ? outcome.kind : null;
   // A skill that was taken over (plan P6-2) lies in the vault's agent area: said, not linked — the workshop is where it is opened.
   const skill = created && outcome.kind === "skill";
   const text = skill
     ? t("ai.learn.done.line", { name })
-    : kept
-      ? t(`ai.memory.done.line.${outcome.kind}`, { name })
+    : keptKind
+      ? t(`ai.memory.done.line.${keptKind}`, { name })
       : outcome.outcome === "sent"
       ? t("ai.write.draft.done.sent", { name })
       : outcome.outcome === "saved"

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil } from "lucide-react";
-import { AreaBoundary, LinkStylePreview, NOTE_LINK_STYLES, WEB_LINK_STYLES, readNoteLinkStyle, readWebLinkStyle } from "@plainva/ui";
+import { AreaBoundary, capitalize, LinkStylePreview, NOTE_LINK_STYLES, WEB_LINK_STYLES, readNoteLinkStyle, readWebLinkStyle } from "@plainva/ui";
 import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
 import { FontSlotSheet } from "../components/FontSlotSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
@@ -30,7 +30,7 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
   const [fontSheet, setFontSheet] = useState<FontSlot | null>(null);
   /** What the row says: the custom name, or the words for a preset/theme. */
   const fontChoiceLabel = (c: FontChoice): string =>
-    c.family === "custom" ? c.customName || t("settings.fontFieldEmpty") : t(`settings.font${c.family.charAt(0).toUpperCase()}${c.family.slice(1)}`);
+    c.family === "custom" ? c.customName || t("settings.fontFieldEmpty") : t(`settings.font${capitalize(c.family)}`);
   const [weekStart, setWeekStart] = useState<WeekStartSetting>("monday");
   useEffect(() => {
     void getWeekStartSetting().then(setWeekStart);
