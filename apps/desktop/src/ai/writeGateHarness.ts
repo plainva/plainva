@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   BundleCommentStore,
   buildVaultChain,
@@ -15,12 +15,17 @@ import {
   planCommentDecision,
   readConversationRecord,
   readFrontmatterPath,
+  readInstructionFile,
+  scanInstruction,
+  scanVaultInstructions,
   resolveLinkTargetIndexed,
   type CommentOperationService,
   type ConversationRecord,
   type DirectWriteFiles,
   type EgressChunk,
   type IDatabaseAdapter,
+  type DeviceScriptKey,
+  type InstructionIO,
   type InstructionApprovals,
   type LedgerEntry,
   type SkillTestRecords,
@@ -31,6 +36,7 @@ import {
   AiSession,
   CHAT_TOOL_NAMES,
   captureVocabularyOf,
+  createDirectSandbox,
   createVaultPolicy,
   createVaultToolExecutor,
   createWriteDraftStore,
@@ -89,6 +95,12 @@ export interface GateOptions {
    * unsaved keystrokes in, `snapshotFails` makes the version before a change fail.
    */
   direct?: { unsaved?: Set<string>; snapshotFails?: () => boolean };
+  /**
+   * The vault's scripts (plan KI-Harness P5.5) are read from its `.agent/` on the disk, and the workshop writes
+   * them there; a conversation is offered them through its tool search. Its writing tools can then also make a
+   * task, a line of the journal and an entry of `Clients.base` (entries in `Clients/`), as a shell with those does.
+   */
+  scripts?: boolean;
 }
 
 const roots: string[] = [];
@@ -234,7 +246,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
       acts.push(`rule ${rule} ${set ? "into" : "out of"} ${path}`);
       return false;
     },
-    entryPlace: async () => null,
+    entryPlace: async (base) => (options.scripts && base === "Clients.base" ? { folder: "Clients" } : null),
     ...(direct ? { direct } : {}),
   };
   const deps: VaultToolDeps = {
@@ -268,17 +280,46 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
       created.push(path);
       return path;
     },
-    async task() {
-      throw new Error("no task database in this vault");
+    async task({ text }) {
+      if (!options.scripts) throw new Error("no task database in this vault");
+      const path = `Tasks/${text.replace(/[^\p{L}\p{N} ]/gu, "").trim().slice(0, 60) || "Task"}.md`;
+      if (await backup.exists(path)) throw new Error("a file of that name is there");
+      await files.writeTextFile(path, `---\nstatus: open\n---\n${text}\n`);
+      created.push(path);
+      return path;
     },
-    async journal() {
-      throw new Error("no journal in this vault");
+    async journal({ text, day, time }) {
+      if (!options.scripts) throw new Error("no journal in this vault");
+      const path = `Daily/${day}.md`;
+      const before = (await read(path)) ?? `# ${day}\n`;
+      const line = `- ${time} ${text}`;
+      if (!before.includes(line)) await files.writeTextFile(path, `${before.endsWith("\n") ? before : `${before}\n`}${line}\n`);
+      return path;
     },
-    entryPlace: async () => null,
+    entryPlace: async (base) => (options.scripts && base === "Clients.base" ? { folder: "Clients", noteType: "client", tags: [] } : null),
     placeDenies: async () => [],
     inbox: async () => "Inbox",
   };
+  /** The vault's `.agent/` as the scan of instructions reads it: straight from the disk. */
+  const instructionIO: InstructionIO = {
+    async list(folder) {
+      try {
+        return (await readdir(join(vaultRoot, folder), { withFileTypes: true })).map((entry) => ({ name: entry.name, folder: entry.isDirectory() }));
+      } catch {
+        return [];
+      }
+    },
+    read: async (path) => {
+      try {
+        return new Uint8Array(await readFile(join(vaultRoot, path)));
+      } catch {
+        return null;
+      }
+    },
+  };
   const host: AiVaultHost = {
+    // A script is signed for the vault it was approved in: the key of this one.
+    ...(options.scripts ? { key: deviceKey } : {}),
     conversations: {
       list: async () => [...saved.values()].map((record) => ({ id: record.id, title: record.title, updatedAt: record.updatedAt, providerId: record.providerId, model: record.model })),
       load: async (id) => (saved.has(id) ? readConversationRecord(JSON.parse(JSON.stringify(saved.get(id)))) : null),
@@ -294,16 +335,33 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     },
     candidates: async () => [],
     policy,
-    tools(recipient, scope, redact, web, narrowed, foreign, writing) {
+    tools(recipient, scope, redact, web, narrowed, foreign, writing, scripts) {
       const more = furtherToolNames(deps);
-      return { names: CHAT_TOOL_NAMES, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}) }, writing) };
+      return {
+        names: CHAT_TOOL_NAMES,
+        more,
+        executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}), ...(scripts ? { scripts } : {}) }, writing),
+      };
     },
-    instructions: {
-      scan: async () => [],
-      scanOne: async () => null,
-      readFile: async () => null,
-      approvals: { load: async () => approvals, save: async (value) => void (approvals = value) },
-    },
+    instructions: options.scripts
+      ? {
+          scan: () => scanVaultInstructions(instructionIO),
+          scanOne: (id) => scanInstruction(instructionIO, id),
+          readFile: (source, rel) => readInstructionFile(instructionIO, source, rel),
+          // The workshop writes a script's files beside the notes, on the disk, as a shell's adapter does.
+          write: async (path, bytes) => {
+            await mkdir(dirname(join(vaultRoot, path)), { recursive: true });
+            await writeFile(join(vaultRoot, path), bytes);
+          },
+          remove: (path) => rm(join(vaultRoot, path), { recursive: true, force: true }),
+          approvals: { load: async () => approvals, save: async (value) => void (approvals = value) },
+        }
+      : {
+          scan: async () => [],
+          scanOne: async () => null,
+          readFile: async () => null,
+          approvals: { load: async () => approvals, save: async (value) => void (approvals = value) },
+        },
     skillTests: { load: async () => tests, save: async (value) => void (tests = value) },
     drafts: createWriteDraftStore(appData, "vault-gate"),
     creates,
@@ -378,7 +436,9 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
 export type GateVault = Awaited<ReturnType<typeof gateVault>>;
 
 /** The real session in front of a scripted model, with this vault attached. The send overview is approved as it comes. */
-export async function gateSession(script: EgressChunk[][], vault: GateVault, model: { providerId: string; model: string } = CLOUD) {
+export async function gateSession(script: EgressChunk[][], vault: GateVault, model: { providerId: string; model: string } = CLOUD, options: { scripts?: boolean } = {}) {
+  // This device's script key, as its keychain would keep it: in memory.
+  let key: DeviceScriptKey | null = null;
   const fake = fakeEgress(script);
   let ids = 0;
   let stored: unknown = { ...DEFAULT_AI_APP_SETTINGS, enabled: true, providers: ["anthropic", "ollama"], profiles: { balanced: model } };
@@ -391,7 +451,8 @@ export async function gateSession(script: EgressChunk[][], vault: GateVault, mod
     today: () => "2026-10-08",
     now: () => new Date("2026-10-08T10:00:00Z"),
     newId: () => `id-${String(++ids).padStart(4, "0")}`,
-    label: (key, vars) => (key === "ai.suggestionAuthor" ? `Plainva AI · ${String(vars?.model)}` : key),
+    label: (word, vars) => (word === "ai.suggestionAuthor" ? `Plainva AI · ${String(vars?.model)}` : word),
+    ...(options.scripts ? { scripts: { sandbox: createDirectSandbox(), keys: { load: async () => key, save: async (next: DeviceScriptKey) => void (key = next) } } } : {}),
   });
   s.subscribe(() => {
     if (s.getState().consent) s.answerConsent(true);

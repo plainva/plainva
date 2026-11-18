@@ -34,6 +34,10 @@ const ALLOWED = new Map<string, string>([
     "packages/core/test/tasks-query-evaluate.test.ts",
     "times the cold and the warm evaluation as the least of three and prints both (plan E6); its bound is scaled with coreSlowdown()",
   ],
+  [
+    "packages/core/test/inline-parse-budget.test.ts",
+    "compares the scan of a note with the scan of one four times its size, each the least of three: a ratio, not a budget; the absolute bound goes through within()",
+  ],
   ["apps/desktop/src/components/graph/graphEngine.test.ts", "hands a frame callback the time it expects; nothing is measured"],
   ["apps/desktop/src/composedLocaleKeys.test.ts", "times its one checker run only to print a line past 15 s (F53 of release 0.9.0); it asserts nothing on the clock"],
 ]);

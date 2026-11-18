@@ -3,7 +3,7 @@ import { useTabTransferSource, useTabTransferTarget } from "./hooks/useTabTransf
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
 import { PATH_RENAMED_EVENT, type FileMovedDetail } from "./services/fileMoved";
 const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
-import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
 import { onTrayJournal, onTrayNewTask } from "./services/background";
@@ -20,7 +20,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, FirstNotePrompt, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler, useVaultEmptiness } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -63,6 +63,7 @@ import { useActiveDrag } from "./components/tabStrip";
 import { usePaneLayout } from "./hooks/usePaneLayout";
 import { listExistingDailyNotes, resolveActiveDailyNoteDate } from "./services/dailyNotes";
 import { useDailyNoteAction } from "./hooks/useDailyNoteAction";
+import { useFirstPullPending } from "./services/syncStatusStore";
 import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
@@ -468,15 +469,28 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     setRightCollapsed(rightCollapsedFor(activeTabKind));
   }, [activeTabKind]);
 
+  // The conversation docked in the right column (plan Oberfläche O7) shows the column while it is open, whatever the
+  // column's own state: hiding the column then puts the conversation away — a waiting question stays open (review O7,
+  // R3) — and the column keeps the user's own choice.
+  const aiDockRef = useRef<{ open: boolean; close: () => void }>({ open: false, close: () => undefined });
   const toggleRightSidebar = useCallback(() => {
+    if (aiDockRef.current.open) {
+      aiDockRef.current.close();
+      if (!rightCollapsed) {
+        if (activeTabKind === "editor") localStorage.setItem(windowStateKey("plainva-right-sidebar-collapsed"), "1");
+        setRightCollapsed(true);
+      }
+      return;
+    }
     setRightCollapsed((c) => {
       const next = !c;
       if (activeTabKind === "editor") localStorage.setItem(windowStateKey("plainva-right-sidebar-collapsed"), next ? "1" : "0");
       return next;
     });
-  }, [activeTabKind]);
+  }, [activeTabKind, rightCollapsed]);
 
   const toggleFocusMode = useCallback(() => {
+    if (aiDockRef.current.open) aiDockRef.current.close();
     if (!leftCollapsed || !rightCollapsed) {
       setFocusReturn({ left: leftCollapsed, right: rightCollapsed });
       setLeftCollapsed(true);
@@ -598,6 +612,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     gists,
     renameTabPrefix,
   });
+  useLayoutEffect(() => {
+    aiDockRef.current = { open: ai.dockOpen, close: ai.stowDock };
+  });
+  const rightShown = !rightCollapsed || ai.dockOpen;
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
   // What waits for a decision in the AI (plan KI-Oberflächen K11): the ribbon's AI button carries it.
@@ -696,6 +714,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       if (refused) toast.error(refused);
     });
   });
+  // An empty vault lands on ONE prompt instead of "nothing is open" (O8).
+  // Read again on tree moves only while it can still be empty (O8).
+  const vaultStart = useVaultEmptiness(vaultAdapter, fileTreeVersion, useFirstPullPending(vaultPath));
   const dispatchNewNote = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } })));
   const toggleReadEdit = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "read" } })));
   const toggleSourceMode = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "source" } })));
@@ -1503,7 +1524,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onMoveTab={moveTabTo}
         onSplitWithTab={splitEditorWithTab}
         leftCollapsed={leftCollapsed}
-        rightCollapsed={rightCollapsed}
+        rightCollapsed={!rightShown}
         onToggleLeftSidebar={() => setLeftCollapsed((c) => !c)}
         onToggleRightSidebar={toggleRightSidebar}
       />
@@ -1948,6 +1969,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                     // before they had read the sentence. What they had open
                     // last is a list, not a button, because it names things.
                     <div className="pv-emptypane" style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {vaultStart !== "content" ? (
+                        // The vault holds nothing yet (O8, T11): the one
+                        // thing to do is the first note — the same prompt as
+                        // the phone's Home, from the same component.
+                        <FirstNotePrompt fetching={vaultStart === "fetching"} onCreate={() => { focusPane(i); dispatchNewNote(); }} />
+                      ) : (
                       <EmptyState
                         icon={<FileText size={ICON.empty} />}
                         title={t("editor.emptyPaneTitle")}
@@ -1982,6 +2009,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           />
                         </span>
                       </EmptyState>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1991,10 +2019,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         })}
       </main>
 
-      {!rightCollapsed && (
+      {rightShown && (
         <div onMouseDown={startSidebarResize("right")} style={sidebarResizeHandleStyle} aria-hidden="true" data-tip={t("sidebar.resize")} />
       )}
-      {!rightCollapsed && (
+      {rightShown && (
       <aside aria-label="Right Sidebar" style={{ width: `${rightSidebarWidth}px`, flexShrink: 0, borderLeft: '1px solid var(--border-color-light)', background: 'var(--bg-secondary)' }}>
         <AreaBoundary area="sidebar:right" size="section">
         <RightSidebar
@@ -2020,8 +2048,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   onOpenCreated: (path) => openInFocusedPane(path, true),
                   onOpenUrl: ai.openUrl,
                   onOpenSettings: () => capabilities.openSettings({ area: "ai" }),
-                  // The dock is narrow: a question that waits opens in the companion (plan KI-Oberflächen E4b).
-                  onOpenRoomy: ai.openCompanion,
+                  open: ai.dockOpen,
+                  // The head of the column's "AI" section opens the conversation there, whatever this device chose for
+                  // the AI's own command: the column is where the person clicked.
+                  onOpen: ai.openInDock,
+                  onClose: ai.closeCompanion,
+                  onPopOut: ai.popOut,
+                  onOpenAsTab: ai.openAsTab,
                   onPickNote: () => {
                     setAiPick("pin");
                     setShowQuickSwitcher(true);
@@ -2099,6 +2132,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             <AiCompanion
               activeNote={ai.activeNote}
               onClose={ai.closeCompanion}
+              onDock={ai.dock}
               onOpenAsTab={ai.openAsTab}
               onOpenNote={ai.openNoteTarget}
               onOpenCreated={(path) => openInFocusedPane(path, true)}

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
 import { Button, ICON, blockHeightPx, formatHourMark, formatMinuteOfDay, formatMinuteRange, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToPx, moveEventMinutes, nextLaneStartMin, fillAllDayRoom, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
-import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
+import { eventColorVars, eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
 import { eventDayKeys, eventDisplayTitle, formatTimeRange } from "../../services/pim/calendarModel";
@@ -463,7 +463,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   data-state={eventVisualState(e)}
                   data-tip={`${eventDisplayTitle(e.title, untitledLabel)}${calName(e) ? ` · ${calName(e)}` : ""}`}
                   className={eventStateClass("pv-evt", eventVisualState(e), e)}
-                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", ["--evt-color" as string]: colorOf(e), fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
+                  style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", ...eventColorVars(colorOf(e)), fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
                   {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })} style={{ marginRight: 3, verticalAlign: "text-bottom" }} /> : null}
                   <span className="pv-evt-title">{eventDisplayTitle(e.title, untitledLabel)}</span>
@@ -571,7 +571,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                 borderEndEndRadius: bar.clippedEnd ? 0 : "var(--radius-xs)",
                 padding: "0 6px",
                 cursor: "pointer",
-                ["--evt-color" as string]: colorOf(bar.event),
+                ...eventColorVars(colorOf(bar.event)),
                 fontSize: "var(--text-xs)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -694,7 +694,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         borderRadius: "var(--radius-xs)",
                         // The calendar colour is DATA; the state class decides
                         // whether it fills, hatches or only outlines (F7/F8).
-                        ["--evt-color" as string]: colorOf(b.ev),
+                        ...eventColorVars(colorOf(b.ev)),
                         textAlign: "left",
                         padding: compact ? "0 5px" : "2px 5px",
                         justifyContent: compact ? "center" : undefined,

@@ -32,6 +32,8 @@ const HANDOFFS: Record<string, Owner> = {
   "const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {": "background",
   "isOwnWrite: (path, sha256) => vaultAdapter.wasWrittenByUs(path, sha256),": "read",
   "exists: (p) => tauriVaultAdapter.exists(p),": "read",
+  // The accounts of a rebuilt index database: it only reads the settings profile's copy in the vault.
+  'await restoreDesktopAccountsAfterRebuild(path, dbAdapter, tauriVaultAdapter).catch(reportingTo("accounts:restore-after-rebuild"));': "read",
   "const deletionJournal = new DeletionJournal(backupVaultAdapter, await getDeviceId());": "background",
   // The task sync: the next start runs it again.
   "readTextFile: (p) => vaultAdapter.readTextFile(p),": "background",

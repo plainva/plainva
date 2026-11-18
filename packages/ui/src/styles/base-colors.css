@@ -27,8 +27,13 @@
   --accent-color: #0f766e;
   --accent-color-hover: #115e59;
   --accent-on: #ffffff;
+  /* An appointment in the accent: its tentative hatch mixes away from --accent-on (review O7, A2). */
+  --evt-hatch-accent: #000000;
   --border-color: #d7e5e3;
   --border-color-light: #e4eeed;
+  /* A floating window's own surface and edge (plan Oberfläche O7, D15): in light mode the shadow lifts it; see dark. */
+  --float-surface: var(--bg-primary);
+  --float-edge: var(--border-color);
   --error-bg: #fbeaea;
   --error-border: #f1c9c9;
   --error-text: #b42318;
@@ -182,8 +187,13 @@
   --accent-color: #2dd4bf;
   --accent-color-hover: #5eead4;
   --accent-on: #06302b;
+  --evt-hatch-accent: #ffffff;
   --border-color: #2a3c3a;
   --border-color-light: #233331;
+  /* On a dark ground a shadow hardly shows (D15): the window is lifted the way dark surfaces are — a lighter surface
+     and an edge that reads against the note under it. Mixed from the mode's own colours, so every palette follows. */
+  --float-surface: color-mix(in srgb, var(--text-main) 4%, var(--bg-primary));
+  --float-edge: color-mix(in srgb, var(--text-main) 24%, var(--bg-primary));
   --error-bg: #3a1715;
   --error-border: #5e2420;
   --error-text: #f3a39b;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GraphService } from "../src/vault/GraphService.js";
-import { buildLinkTargetIndex, resolveLinkTargetIndexed, wikiTargetChooser, wikiTargetForPath } from "../src/vault/LinkResolver.js";
+import { buildLinkTargetIndex, linkFilesNamed, linkTargetName, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, wikiTargetChooser, wikiTargetForPath } from "../src/vault/LinkResolver.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
 import { LINK_CASES, type LinkCase } from "./helpers/linkCases.js";
@@ -54,6 +54,17 @@ describe.each(LINK_CASES)("case $id: $shows", (linkCase: LinkCase) => {
       }
       await vault.db.close();
     }
+  });
+
+  // Review O7, third round: the warning under an AI answer asks the index only for the files its links can name.
+  it("the files the links can name answer as the whole corpus does", async () => {
+    const vault = await indexed(linkCase.files);
+    const named = await vault.query.linkTargetsNamed(linkCase.links.map((link) => linkTargetName(link.target)));
+    const index = buildLinkTargetIndex(named);
+    const answers = linkCase.links.map((link) => ({ ...link, leadsTo: resolveLinkTargetIndexed(link.from, linkTargetName(link.target), index) }));
+    expect(answers).toEqual(linkCase.links);
+    expect(named.length).toBeLessThanOrEqual((await indexRows(vault)).length);
+    await vault.db.close();
   });
 
   it("the graph draws the link to that file, or lists it as broken", async () => {
@@ -155,5 +166,55 @@ describe("what the rule costs", () => {
     reads.forEach((answer) => answer());
     expect(await Promise.all(together)).toEqual(["Start.md", null, "Start.md"]);
     expect(await after).toBe("Neu.md");
+  });
+});
+
+describe("the files a few links can name", () => {
+  it("are those of their names and titles, however large the vault", async () => {
+    const files: Record<string, string> = { "Projects/Plan.md": "# Plan", "Plan.md": "# Plan", "Areas/Brief.md": "---\ntitle: Roadmap\n---\n# Brief" };
+    for (let n = 0; n < 200; n++) files[`Archive/Note ${n}.md`] = `# Note ${n}`;
+    const vault = await indexed(files);
+    const named = await vault.query.linkTargetsNamed(["Plan", "Roadmap", "Missing"]);
+    expect(named.map((row) => row.path).sort()).toEqual(["Areas/Brief.md", "Plan.md", "Projects/Plan.md"]);
+    expect(await vault.query.linkTargetsNamed([])).toEqual([]);
+    await vault.db.close();
+  });
+
+  // Review O7, fourth round: what the part holds is never less than the rule needs — a title with a blank at its end,
+  // a letter whose small form is longer (İ), a decomposed name, another case, a dotted or a colon name. Drawn at
+  // random, each target read by both rules from several notes: the part answers as the whole list does.
+  it("answer as the whole list does, for names drawn at random", () => {
+    let seed = 20261117;
+    const next = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(next() * xs.length)]!;
+    const stems = ["Plan", "Roadmap", "İzmir", "Käse".normalize("NFD"), "Käse", "Заметки", "Node.js", "Q4: Plan", "Tipps:Tricks", "100% Plan", "a_b", "Daten.json", "www.example", "index", "Logs.txt", "IZMIR", "plan"];
+    const folders = ["", "Projects/", "Areas/", "Areas/Sub/", "Archive/"];
+    const ends = [".md", ".md", ".md", ".png", ".pdf", ""];
+    for (let round = 0; round < 40; round++) {
+      const files: { path: string; title: string | null; mode: string }[] = [];
+      const taken = new Set<string>();
+      for (let n = 0; n < 60; n++) {
+        const end = pick(ends);
+        const path = `${pick(folders)}${pick(stems)}${end}`;
+        if (taken.has(path)) continue;
+        taken.add(path);
+        const note = end === ".md";
+        const title = note ? pick([null, pick(stems), `${pick(stems)} `, ` ${pick(stems)}`, pick(stems).toUpperCase()]) : null;
+        files.push({ path, title: note ? (title ?? path.slice(path.lastIndexOf("/") + 1, -3)) : path.slice(path.lastIndexOf("/") + 1), mode: note ? "note" : "attachment" });
+      }
+      for (let n = 0; n < 200; n++) files.push({ path: `Bulk/N${round}-${n}.md`, title: `N${round}-${n}`, mode: "note" });
+      const targets = Array.from({ length: 8 }, () => {
+        const stem = pick(stems);
+        return pick([stem, stem.toLowerCase(), stem.toUpperCase(), `${stem}.md`, `${pick(folders)}${stem}`, `../${stem}`, `${stem}/`, `${stem} `, stem.normalize("NFD")]);
+      });
+      const whole = buildLinkTargetIndex(files);
+      const part = buildLinkTargetIndex(linkFilesNamed(files, targets));
+      for (const from of ["", "Projects/Start.md", "Areas/Sub/Deep.md"]) {
+        for (const target of targets) {
+          expect(resolveLinkTargetIndexed(from, target, part), `wiki ${JSON.stringify(target)} from ${from}`).toBe(resolveLinkTargetIndexed(from, target, whole));
+          expect(resolveMarkdownLinkIndexed(from, target, part), `markdown ${JSON.stringify(target)} from ${from}`).toEqual(resolveMarkdownLinkIndexed(from, target, whole));
+        }
+      }
+    }
   });
 });

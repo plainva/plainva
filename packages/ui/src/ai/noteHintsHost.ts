@@ -1,4 +1,4 @@
-import { readNoteLinks, type PimEventRow, type VaultQueryService } from "@plainva/core";
+import { NOT_A_NOTE_FILE, readNoteLinks, type PimEventRow, type VaultQueryService } from "@plainva/core";
 import { brokenLinkLabel, brokenLinkNotePath, type BrokenLinkToCreate } from "../services/graphActions";
 
 /**
@@ -30,14 +30,8 @@ export interface BrokenLinkInNote {
   link: BrokenLinkToCreate;
 }
 
-/**
- * What a link names when it names a file that is no note — a picture, a
- * recording, a film, a PDF, a database, a canvas, a document of another
- * program. A missing one is no note to create: "Create note" made
- * `shot.png.md` for a missing `![[shot.png]]`. A dotted note name
- * (`[[Plan.v2]]`) is a note.
- */
-const NOT_A_NOTE = /\.(?:png|jpe?g|gif|webp|svg|bmp|avif|heic|heif|tiff?|ico|mp3|wav|m4a|ogg|oga|opus|flac|aac|webm|mp4|m4v|mov|avi|mkv|ogv|pdf|base|canvas|csv|txt|json|docx?|xlsx?|pptx?|odt|ods|odp|zip)$/i;
+/** What a link names when it names a file that is no note: the core's one list (`NOT_A_NOTE_FILE`). */
+const NOT_A_NOTE = NOT_A_NOTE_FILE;
 
 /**
  * The links of a note's text that lead to no note — asked of the index by the

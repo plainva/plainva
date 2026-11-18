@@ -179,6 +179,9 @@ export interface PimSyncProblem {
   signIn: boolean;
 }
 
+/** Meta key of `PimCacheRepository.accountsAfterRebuild`. */
+export const ACCOUNTS_AFTER_REBUILD_KEY = "pim_accounts_after_rebuild";
+
 export class PimCacheRepository {
   constructor(private db: IDatabaseAdapter) {}
 
@@ -200,6 +203,22 @@ export class PimCacheRepository {
   }
 
   // ---- accounts -----------------------------------------------------------
+
+  /**
+   * The accounts of an index database rebuilt at the start (both shells):
+   * `"held"` from its first open until a settings-sync cycle has applied the
+   * document's accounts — until then what this device exports for them is no
+   * edit of its own (`ProfileSettingsPort.heldBack`) — then `"settled"`.
+   * Null: a database that was never rebuilt, or not opened since.
+   */
+  async accountsAfterRebuild(): Promise<"held" | "settled" | null> {
+    const row = await this.db.queryOne<{ value: string }>(`SELECT value FROM meta WHERE key = ?`, [ACCOUNTS_AFTER_REBUILD_KEY]);
+    return row?.value === "held" || row?.value === "settled" ? row.value : null;
+  }
+
+  async setAccountsAfterRebuild(state: "held" | "settled"): Promise<void> {
+    await this.db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`, [ACCOUNTS_AFTER_REBUILD_KEY, state]);
+  }
 
   async listAccounts(): Promise<PimAccountRow[]> {
     const rows = await this.db.query<{ id: string; provider: string; label: string | null; config: string | null; enabled: number }>(

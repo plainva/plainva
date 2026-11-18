@@ -267,6 +267,8 @@ export interface AcpHarness {
   agent(): ScriptedAcpAgent;
   /** What Plainva's own tools are for the agent; null while they are switched off. */
   toolbox: AcpMcpServer | null;
+  /** Where set, how the native side answers what Plainva's tools are — slowly, say; else `toolbox` at once. */
+  toolboxFor?: () => Promise<AcpMcpServer | null>;
   deviceFiles: AiFileStore & { files: Map<string, string> };
   /** Tells a listener about every state that is published — what a surface subscribes to. */
   subscribe(listener: () => void): () => void;
@@ -293,7 +295,7 @@ export async function acpHarness(
     native: native.native,
     store: createAcpDeviceStore(deviceFiles),
     version: async () => "0.9.0",
-    toolbox: async () => harness.toolbox,
+    toolbox: async () => (harness.toolboxFor ? harness.toolboxFor() : harness.toolbox),
   };
   const listeners = new Set<() => void>();
   const agents = new AiAcp(host, { now: () => NOW, later: (run) => run() }, options.label ?? acpLabel, (state) => {

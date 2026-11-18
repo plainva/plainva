@@ -60,6 +60,7 @@ import { createMobileAiEgress, setMobileLocalOnly } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
 import { createMobileMcpHost } from "../../platform/aiMcp";
 import { createMobileMcpBrowser, openMobileMcpPage } from "./mobileMcpBrowser";
+import { openLink } from "../openLink";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
@@ -274,10 +275,13 @@ ${i18n.t("ai.openLinkBuilt")}` : url;
 }
 
 /** A wikilink in an answer names a note as written; the vault's resolver finds its path. */
-export function openAiNoteTarget(vault: MobileVault, target: string, openNote: (path: string) => void): void {
-  void vaultOps.resolveWikiTarget(vault, target, "").then((path) => {
-    if (path) openNote(path);
-  });
+/**
+ * A link in an answer opens as every link of the app does (`planLinkOpen` through `openLink`), by the way it is
+ * written — the same function the source check under the answer asks (review O7, fifth round). A missing note is
+ * not created: the answer is not the user's own text.
+ */
+export function openAiNoteTarget(vault: MobileVault, target: string, openNote: (path: string) => void, kind?: "wiki" | "markdown"): void {
+  void openLink({ text: target, kind: kind ?? "wiki" }, { vault, onOpenNote: openNote, createMissing: false });
 }
 
 /** The areas without the KI screen while the switch is off: no entry leads to a surface that is off. */
@@ -385,6 +389,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from),
       // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
       fileNames: () => query.linkTargets(),
+      // Where an answer's links lead: the files those links can name, never the whole list (review O7, third round).
+      filesNamed: (targets) => query.linkTargetsNamed(targets),
       encrypted: () => vault.workspaceRuntime !== null,
     });
     // What `run_command` can do: the palette's commands that show something, and the three that take a note or a day.

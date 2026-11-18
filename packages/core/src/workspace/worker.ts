@@ -330,6 +330,8 @@ export class EncryptedWorkspaceWorker {
    * with attachments (review of release 0.9.0, the pattern of F51).
    */
   private readonly targetPathsThisPull = new Map<string, string | null>();
+  /** The objects whose deletion this pull applies (`applyIncoming`: of two files of one name and text, the one that goes gives the name up). */
+  private readonly deletedThisPull = new Set<string>();
   private readonly foldersToClear = new Set<string>();
   /** Each device's operations this pull applied or found applied, by sequence (`advanceHead`). */
   private readonly appliedThisPull = new Map<string, Map<number, string>>();
@@ -1003,6 +1005,8 @@ export class EncryptedWorkspaceWorker {
     const waiting = await this.waitingOperations(sorted, new Set([...held, ...await this.waitingForOwnChanges(sorted)]));
     this.heldDeviceIds = new Set(sorted.filter((entry) => waiting.has(entry.hash)).map((entry) => entry.document.payload.deviceId));
     const pending = sorted.filter((entry) => !waiting.has(entry.hash));
+    this.deletedThisPull.clear();
+    for (const entry of pending) if (entry.document.payload.operation === "delete") this.deletedThisPull.add(entry.document.payload.objectId);
     const changed: string[] = [];
     let progress = true;
     while (pending.length && progress) {
@@ -1409,10 +1413,19 @@ export class EncryptedWorkspaceWorker {
       } else if (pathOwner && !pathOwner.deleted && pathOwner.objectId !== operation.objectId) {
         // Two objects, one name (the same new note made on two devices): the
         // smaller id keeps it on every device, the other is its conflict copy
-        // everywhere. Two folders of one name are one folder: the other
-        // folder object is retired, here as on every device.
-        const incomingKeeps = operation.objectId < pathOwner.objectId;
-        if (isDirectory && pathOwner.contentKind === "directory") {
+        // everywhere. Two folders of one name are one folder, and two files
+        // of one name with the same text are one file (two devices that both
+        // kept another device's deleted files uploaded each of them anew:
+        // review of release 0.9.0, F63) — the other object is retired, here
+        // as on every device. Where the texts differ, the copy stays. Of two
+        // such files, one whose deletion this pull applies gives the name up:
+        // a device that pulls the deletion and the new upload together keeps
+        // the file, as one that saw the deletion first does.
+        const oneFile = !isDirectory && pathOwner.contentKind !== "directory" && pathOwner.plaintextSha256 === opened.metadata.plaintextSha256;
+        const ownerGoes = this.deletedThisPull.has(pathOwner.objectId);
+        const incomingGoes = this.deletedThisPull.has(operation.objectId);
+        const incomingKeeps = oneFile && ownerGoes !== incomingGoes ? ownerGoes : operation.objectId < pathOwner.objectId;
+        if ((isDirectory && pathOwner.contentKind === "directory") || oneFile) {
           if (incomingKeeps) await this.state.retireObject(pathOwner.objectId);
           else { objectPath = deletedObjectPath(operation.objectId); placed = false; }
         } else if (incomingKeeps) moved.push(...await this.moveToConflictCopy(pathOwner, conflictPath(targetPath, pathOwner.objectId), true));
