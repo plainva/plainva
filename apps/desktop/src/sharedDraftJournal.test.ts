@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createDraftJournal,
   createDraftWriter,
+  draftIntervalFor,
   decodeDraftJournal,
   encodeDraftJournal,
   type DraftJournalEntry,
@@ -19,8 +23,14 @@ class MemoryDrafts implements DraftJournalStorage {
   readonly files = new Map<string, { text: string; mtimeMs: number }>();
   readonly unreadable = new Set<string>();
   writes = 0;
+  reads = 0;
+  /** Files whose next write fails once. */
+  readonly failOnce = new Set<string>();
+  /** Holds every write until it is opened. */
+  gate: Promise<void> | null = null;
   constructor(private readonly now: () => number) {}
   async read(file: string) {
+    this.reads += 1;
     if (this.unreadable.has(file)) throw new Error("I/O error");
     return this.files.get(file)?.text ?? null;
   }
@@ -28,6 +38,8 @@ class MemoryDrafts implements DraftJournalStorage {
   readonly hanging = new Set<string>();
   async write(file: string, text: string) {
     if (this.hanging.has(file)) return new Promise<void>(() => {});
+    if (this.failOnce.delete(file)) throw new Error("disk full");
+    if (this.gate) await this.gate;
     this.writes += 1; this.files.set(file, { text, mtimeMs: this.now() });
   }
   async remove(file: string) { this.files.delete(file); }
@@ -348,12 +360,160 @@ describe("review of 2026-11-11", () => {
     const writes = storage.writes;
     clock += 500;
     writer.write(VAULT, "Big.md", `${big}y`, 2, "s");
-    // 2.5 MB: 1.2 s between snapshots, not 400 ms.
-    await vi.advanceTimersByTimeAsync(500);
+    // 2.5 MB: 5 s between snapshots, not 400 ms.
+    await vi.advanceTimersByTimeAsync(4_400);
     expect(storage.writes).toBe(writes);
-    clock += 800;
-    await vi.advanceTimersByTimeAsync(800);
+    clock += 5_100;
+    await vi.advanceTimersByTimeAsync(700);
     await settle();
     expect(storage.writes).toBe(writes + 1);
+  });
+});
+
+describe("the journal's pace and its reads (maintainer 17.11., release 0.9.0)", () => {
+  it("the interval is set by the note's size, and it is the most text a crash can take", () => {
+    expect([1, 100_000, 100_001, 1_000_000, 1_000_001, 5_000_000, 5_000_001].map(draftIntervalFor)).toEqual([400, 400, 2_000, 2_000, 5_000, 5_000, 10_000]);
+  });
+
+  for (const [size, interval] of [[50_000, 400], [500_000, 2_000], [3_000_000, 5_000], [6_000_000, 10_000]] as const) {
+    it(`continuous typing in a note of ${size / 1000} KB is snapshotted every ${interval / 1000} s`, async () => {
+      const writer = createDraftWriter(journalOf(), layout, { now });
+      const text = "x".repeat(size);
+      const at: number[] = [];
+      let seen = 0;
+      // A key every 100 ms for three intervals.
+      for (let ms = 0, rev = 1; ms <= interval * 3; ms += 100, rev++) {
+        writer.write(VAULT, "Note.md", `${text}${rev}`, rev, "s");
+        await vi.advanceTimersByTimeAsync(0);
+        if (storage.writes > seen) { seen = storage.writes; at.push(ms); }
+        clock += 100;
+        await vi.advanceTimersByTimeAsync(100);
+      }
+      expect(at.slice(0, 4)).toEqual([0, interval, interval * 2, interval * 3]);
+    });
+  }
+
+  it("typing on does not read the file back before each snapshot", async () => {
+    const writer = createDraftWriter(journalOf(), layout, { now });
+    for (let rev = 1; rev <= 20; rev++) {
+      writer.write(VAULT, "Note.md", `text ${rev}`, rev, "s");
+      clock += 400;
+      await settle(400);
+    }
+    expect(storage.writes).toBe(20);
+    // Once, for a file this journal has not written yet.
+    expect(storage.reads).toBe(1);
+  });
+
+  it("two sessions on one file keep each other's entry without reading it back", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout, { now });
+    const file = layout.file(VAULT, "Note.md");
+    for (let rev = 1; rev <= 5; rev++) {
+      writer.write(VAULT, "Note.md", `left ${rev}`, rev, "split-left");
+      writer.write(VAULT, "Note.md", `right ${rev}`, rev, "split-right");
+      // A third editor in another window: its snapshot comes to this journal over the bus (`draft-record`).
+      await journal.record(VAULT, "Note.md", `window ${rev}`, rev, "aux-window");
+      clock += 400;
+      await settle(400);
+    }
+    expect(storage.entries(file).map((e) => `${e.sessionId}:${e.text}`).sort()).toEqual(["aux-window:window 5", "split-left:left 5", "split-right:right 5"]);
+    // The editors' ten snapshots read once, the first, of a file this journal had not written yet;
+    // each record from the other window reads, as a single record always did.
+    expect(storage.reads).toBe(1 + 5);
+    // The left editor's save confirmed: only its entry goes (a clear still reads the disk).
+    await writer.clear(VAULT, "Note.md", 5, "split-left");
+    expect(storage.entries(file).map((e) => e.sessionId).sort()).toEqual(["aux-window", "split-right"]);
+  });
+
+  it("drafts removed past the journal stay gone: forgetting app data and closing the vault clear its picture (review 17.11.)", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout, { now });
+    const file = layout.file(VAULT, "Note.md");
+    await journal.record(VAULT, "Note.md", "older draft of another session", 1, "OLD");
+    writer.write(VAULT, "Note.md", "typing 1", 1, "S");
+    await settle();
+    // "Forget app data" removes the files past the journal, which is told.
+    storage.files.clear();
+    journal.forgetSeen(VAULT);
+    clock += 400;
+    writer.write(VAULT, "Note.md", "typing 2", 2, "S");
+    await settle(400);
+    expect(storage.entries(file).map((e) => `${e.sessionId}:${e.text}`)).toEqual(["S:typing 2"]);
+    // Both shells tell it: the removal of a vault's drafts and the vault closing.
+    const read = (rel: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", rel), "utf8");
+    expect(read("apps/desktop/src/services/draftJournal.ts")).toMatch(/export async function removeVaultDrafts\(vaultPath: string\): Promise<void> \{[\s\S]{0,200}forgetDraftMemory\(vaultPath\);/);
+    expect(read("apps/desktop/src/contexts/VaultContext.tsx")).toMatch(/await flushDrafts\(path\)[\s\S]{0,300}forgetDraftMemory\(path\);/);
+    expect(read("apps/mobile/src/services/vaultForget.ts")).toMatch(/forgetDraftMemory\(vaultId\);\s*const drafts = removeInternalFolder/);
+    expect(read("apps/mobile/src/services/vaultService.ts")).toMatch(/dispose: async \(\) => \{[\s\S]{0,300}forgetDraftMemory\(entry\.id\);/);
+  });
+
+  it("forgetting waits for a write already under way: what it lands is forgotten too (review 18.11.)", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout, { now });
+    const file = layout.file(VAULT, "Note.md");
+    await journal.record(VAULT, "Note.md", "older draft of another session", 1, "OLD");
+    writer.write(VAULT, "Note.md", "typing 1", 1, "S");
+    await settle();
+    // A snapshot is on its way to the disk when the vault's drafts are forgotten…
+    let open!: () => void;
+    storage.gate = new Promise<void>((resolve) => { open = resolve; });
+    clock += 400;
+    writer.write(VAULT, "Note.md", "typing 2", 2, "S");
+    await vi.advanceTimersByTimeAsync(0);
+    const forgotten = journal.forgetSeen(VAULT);
+    // …it lands, and only then are the files removed.
+    storage.gate = null;
+    open();
+    await forgotten;
+    storage.files.clear();
+    clock += 400;
+    writer.write(VAULT, "Note.md", "typing 3", 3, "S");
+    await settle(400);
+    expect(storage.entries(file).map((e) => `${e.sessionId}:${e.text}`)).toEqual(["S:typing 3"]);
+  });
+
+  it("a write that failed reads the file again: the disk may hold either version", async () => {
+    const writer = createDraftWriter(journalOf(), layout, { now, retryMs: 400 });
+    const file = layout.file(VAULT, "Note.md");
+    writer.write(VAULT, "Note.md", "one", 1, "a");
+    await settle();
+    writer.write(VAULT, "Note.md", "other", 1, "b");
+    clock += 400;
+    await settle(400);
+    const reads = storage.reads;
+    storage.failOnce.add(file);
+    writer.write(VAULT, "Note.md", "two", 2, "a");
+    clock += 400;
+    await settle(400);
+    clock += 400;
+    await settle(400);
+    expect(storage.reads).toBeGreaterThan(reads);
+    expect(storage.entries(file).map((e) => `${e.sessionId}:${e.text}`).sort()).toEqual(["a:two", "b:other"]);
+  });
+
+  it("leaving does not wait for the interval: a 6 MB note's newest text is in the journal at once", async () => {
+    const writer = createDraftWriter(journalOf(), layout, { now });
+    const file = layout.file(VAULT, "Big.md");
+    const big = "x".repeat(6_000_000);
+    writer.write(VAULT, "Big.md", big, 1, "s");
+    await settle();
+    clock += 100;
+    writer.write(VAULT, "Big.md", `${big} last words`, 2, "s");
+    await vi.advanceTimersByTimeAsync(100);
+    expect(storage.entries(file)[0].revision).toBe(1);
+    await writer.flush(() => true, { notes: (path) => path === "Big.md" });
+    expect(storage.entries(file)[0].text.endsWith(" last words")).toBe(true);
+  });
+
+  it("every way out of both shells writes at once", () => {
+    const read = (rel: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", rel), "utf8");
+    // Phone: the editor going (another note, the screen closing), and the app going to the background.
+    const host = read("apps/mobile/src/EditorHost.tsx");
+    expect(host).toMatch(/flushDraftOf\(vault, path\);\s*\/\/[^\n]*\n[^\n]*\n\s*void noteSaver\.flush\(path, vault\)/);
+    expect(read("apps/mobile/src/services/appLifecycle.ts")).toMatch(/flushDrafts\(\)/);
+    // Desktop: every save of a closing or switching editor records its text unthrottled, and the page going flushes the rest.
+    expect(read("apps/desktop/src/components/Editor.tsx")).toMatch(/const persistText = async[\s\S]{0,1200}recordDraft\(draftVault, path, val/);
+    expect(read("apps/desktop/src/services/draftJournal.ts")).toMatch(/flushDraftsOnLeave\(window, document\)/);
   });
 });

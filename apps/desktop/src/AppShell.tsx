@@ -92,6 +92,7 @@ import { useQuickCaptureSink } from "./hooks/useJournal";
 import { useDayBoundary } from "./hooks/useDayBoundary";
 import "./App.css";
 import { newNoteOpensInNewTab } from "./services/newNoteTab";
+import { useVaultLabels, vaultLabel } from "./services/vaultNames";
 
 /**
  * The recents service is loaded on demand, never at App's module init.
@@ -108,6 +109,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const { t } = useTranslation();
   const drag = useActiveDrag();
   const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, getCommentStoreState, workspaceSecurityStatus, discardLocalFork } = useVault();
+  // The vault's name as the app shows it (its own, else its folder's): the files header and the overviews' heading.
+  const vaultNameOf = useVaultLabels([vaultPath]);
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -759,7 +762,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     const updater = createIndexAutoUpdater({
       adapter: vaultAdapter,
       queryService,
-      vaultName: () => vaultPath?.split(/[/\\]/).pop() ?? "Vault",
+      vaultName: () => (vaultPath ? vaultLabel(vaultPath) : "Vault"),
       subfoldersHeading: () => t("indexMd.subfoldersHeading"),
       onWritten: (indexPath) => {
         triggerFileTreeUpdate();
@@ -828,7 +831,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           const result = await updateAllManagedIndexes({
             adapter: vaultAdapter,
             queryService,
-            vaultName: () => vaultPath?.split(/[/\\]/).pop() ?? "Vault",
+            vaultName: () => (vaultPath ? vaultLabel(vaultPath) : "Vault"),
             subfoldersHeading: () => t("indexMd.subfoldersHeading"),
           });
           // Only the regenerated index.md files changed — reindex just those (Issue #9).
@@ -1714,7 +1717,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px 2px" }}>
                 <FolderTree size={ICON.ui} style={{ flexShrink: 0, color: "var(--text-muted)" }} aria-hidden />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {vaultPath ? (vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? vaultPath) : ""}
+                  {vaultPath ? vaultNameOf(vaultPath) : ""}
                 </span>
                 <button
                   className="pv-iconbtn"

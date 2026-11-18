@@ -13,6 +13,7 @@ import { ComposeEditor } from "./ComposeEditor";
 import { TemplatePickerModal } from "../TemplatePickerModal";
 import { applyTemplateInteractive } from "../../services/templateInteractive";
 import { submitDraft, submitSend } from "../../services/mail/sendQueue";
+import { createAttempt } from "../../services/attempt";
 import type { ComposeSnapshot } from "../../services/mail/composeHandoff";
 import { holdComposeDraft } from "../../services/mail/composeHost";
 import { composeChanged, splitRecipients, type ComposeContent } from "@plainva/ui/mail";
@@ -510,6 +511,10 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
    *  sending mailbox does not take. */
   const ownFiles = useMemo(() => attach.filter((_, i) => carried.othersGo[i] !== false), [attach, carried.othersGo]);
 
+  // A second press after "may still land" is the same send, not another one (A15).
+  const sendAttempt = useRef(createAttempt());
+  const draftAttempt = useRef(createAttempt());
+
   const submit = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
     if (!vaultPath || !account || busy || waiting) return;
@@ -534,7 +539,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         attachments: [...carried.attachments, ...ownFiles.map(sendableAttachment)],
         cc: foldRecips(cc, ccDraft),
         bcc: foldRecips(bcc, bccDraft),
-      });
+      }, draftAttempt.current);
       toast.info(t("mail.draftSaved", { defaultValue: "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen." }));
       onDone?.("saved");
       onClose();
@@ -592,7 +597,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         fromAddress,
         // Whoever opened this composer for the mail hears "sent" once the transport took it: a send that is undone
         // in its few seconds, or that the server refuses, tells nothing — and the draft is still theirs to offer.
-      }, onDone ? () => onDone("sent") : undefined);
+      }, onDone ? () => onDone("sent") : undefined, sendAttempt.current);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

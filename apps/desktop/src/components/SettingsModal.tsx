@@ -50,7 +50,7 @@ import { getStoredAppFonts, setStoredAppFonts, defaultAppFontSettings, type AppF
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/linkCreatePrompt";
-import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK } from "../services/spellcheck";
+import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK, spellcheckHint, useWebviewSpellStatus } from "../services/spellcheck";
 import { DEFAULT_NEW_NOTES_IN_NEW_TAB, getStoredNewNotesInNewTab, setStoredNewNotesInNewTab } from "../services/newNoteTab";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, classifyUpdateFailure, describeUpdateFailure, downloadAndInstallUpdate, getAutoUpdateCheck, getUpdatesManagedBy, setAutoUpdateCheck } from "../services/appUpdate";
@@ -59,6 +59,7 @@ import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
 import { VaultDetailsPage } from "./settings/VaultDetailsPage";
 import { useVaultLabels } from "../services/vaultNames";
+import { announceVaultFeaturesSaved } from "../services/vaultFeaturesRelay";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
 import { AppearancePage, EditorPage, BehaviorPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
@@ -86,7 +87,6 @@ interface SettingsModalProps {
 
 const GENERAL = "general";
 
-const basename = (p: string) => p.split(/[/\\]/).pop() || p;
 
 /* Every settings page stays mounted in one grid cell (.pv-setpages), so the
  * window is sized by the TALLEST page and never resizes between areas. Each
@@ -149,6 +149,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getAskBeforeCreateLink().then(setAskBeforeCreateLinkState).catch(() => {}); }, []);
   const [spellcheck, setSpellcheck] = useState(DEFAULT_SPELLCHECK);
   useEffect(() => { getStoredSpellcheck().then(setSpellcheck).catch(() => {}); }, []);
+  const webviewSpellStatus = useWebviewSpellStatus();
   const [newNotesInNewTab, setNewNotesInNewTab] = useState(DEFAULT_NEW_NOTES_IN_NEW_TAB);
   useEffect(() => { getStoredNewNotesInNewTab().then(setNewNotesInNewTab).catch(() => {}); }, []);
   const [uiZoom, setUiZoom] = useState<number>(DEFAULT_UI_ZOOM);
@@ -560,6 +561,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       featuresEventTimer.current = setTimeout(() => {
         featuresEventTimer.current = null;
         if (target === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
+        // Every other window with this vault reads them again too (F8).
+        announceVaultFeaturesSaved(target);
       }, 600);
     } catch (e) {
       settingFailed(e);
@@ -654,6 +657,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     if (featuresEventTimer.current) {
       clearTimeout(featuresEventTimer.current);
       if (featuresEventSection.current === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
+      if (featuresEventSection.current) announceVaultFeaturesSaved(featuresEventSection.current);
     }
   }, []);
 
@@ -685,7 +689,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     try {
       setIsUpdating(true);
       setUpdateStatus(t("settings.installingUpdate", "Lade Update herunter und installiere..."));
-      await downloadAndInstallUpdate(updateAvailable);
+      await downloadAndInstallUpdate(
+        updateAvailable,
+        (seconds) => setUpdateStatus(t("settings.updateWaitingForWrites", { seconds })),
+        () => setUpdateStatus(t("settings.installingUpdate", "Lade Update herunter und installiere...")),
+      );
     } catch (e) {
       setIsUpdating(false);
       logDiagnostic("update.install", String(e));
@@ -885,6 +893,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       askBeforeCreateLink={askBeforeCreateLink}
                       onAskBeforeCreateLink={(v) => { setAskBeforeCreateLinkState(v); void setAskBeforeCreateLink(v); }}
                       spellcheck={spellcheck}
+                      spellcheckHint={spellcheckHint(spellcheck, webviewSpellStatus)}
                       onSpellcheck={(v) => { setSpellcheck(v); void setStoredSpellcheck(v); }}
                       newNotesInNewTab={newNotesInNewTab}
                       onNewNotesInNewTab={(v) => { setNewNotesInNewTab(v); void setStoredNewNotesInNewTab(v); }}
@@ -1160,7 +1169,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         <SyncFolderPickerModal
           // The vault root is a legitimate pick for both fields ("" = root).
           allowRoot
-          rootLabel={basename(section)}
+          rootLabel={vaultLabelOf(section)}
           listFolders={listVaultFolders}
           onSelect={(picked) => {
             // The browser lists `.plainva` as well: no folder setting may point there (3.127 no. 4).

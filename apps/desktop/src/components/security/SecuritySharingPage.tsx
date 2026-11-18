@@ -16,6 +16,7 @@ import { WorkspaceGovernanceDialog } from "./WorkspaceGovernanceDialog";
 import { WorkspaceSetupWizard } from "./WorkspaceSetupWizard";
 import { WorkspaceJoinDialog } from "./WorkspaceJoinDialog";
 import { encodeWorkspaceInvite } from "../../services/workspaceSecurity/workspacePairing";
+import type { WorkspaceSecurityPublicStatus } from "../../services/workspaceSecurity/workspaceKeychain";
 
 interface SecuritySharingPageProps {
   selectedVault: string;
@@ -29,7 +30,7 @@ interface SecuritySharingPageProps {
 
 type AdminArea = SecurityAreaId;
 
-function phaseLabel(t: ReturnType<typeof useTranslation>["t"], phase: string): string {
+function phaseLabel(t: ReturnType<typeof useTranslation>["t"], phase: WorkspaceSecurityPublicStatus["phase"]): string {
   return t(`workspaceSecurity.phase.${phase}`, { defaultValue: phase });
 }
 

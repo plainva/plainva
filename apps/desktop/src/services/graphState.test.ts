@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IVaultAdapter } from "@plainva/core";
 import { getGraphState, GraphStateStore, suggestionKey } from "./graphState";
+import { flushGraphStates } from "@plainva/ui";
 
 function fakeAdapter(initial?: string): IVaultAdapter & { written: Record<string, string> } {
   const written: Record<string, string> = {};
@@ -29,6 +30,16 @@ function fakeAdapter(initial?: string): IVaultAdapter & { written: Record<string
 }
 
 describe("graphState", () => {
+  it("writes a pin placed a moment ago when the window or the app goes (A7)", async () => {
+    const adapter = fakeAdapter();
+    const store = new GraphStateStore(adapter);
+    await store.load();
+    store.setPin("graph", "N", { x: 5, y: 6 });
+    expect(Object.keys(adapter.written), "not yet: it waits 800 ms").toEqual([]);
+    await flushGraphStates();
+    expect(JSON.parse(Object.values(adapter.written)[0]).pins.graph).toEqual({ N: { x: 5, y: 6 } });
+  });
+
   it("two views loading at once both get the file's pins, and the second one's change keeps them", async () => {
     // The second caller used to get "loaded" over the EMPTY state while the first read was under way:
     // no pins shown, and its first change (the overlay mode a map sets as it opens) wrote the empty state.

@@ -88,6 +88,8 @@ const vault = {
   fileTreeVersion: 0,
 };
 vi.mock("./contexts/VaultContext", () => ({ useVault: () => vault }));
+// The day boundary and daily naming have tests of their own (dailyNamingFollow.test.ts).
+vi.mock("./hooks/useDayBoundary", () => ({ useDayBoundary: () => {} }));
 
 /**
  * The app layer, stubbed to the one thing this shell reads from it: how many

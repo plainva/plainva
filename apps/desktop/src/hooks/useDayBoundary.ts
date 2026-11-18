@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { setDayBoundary, setPlaceProvider } from "@plainva/ui";
-import { dayEndsAtKey, readDailyDayOfPath, useVault } from "../contexts/VaultContext";
+import { followDailyNaming, setDayBoundary, setPlaceProvider, useStableHandler } from "@plainva/ui";
+import { dayEndsAtKey, readDailyNaming, useVault } from "../contexts/VaultContext";
 import { getSettingsStore } from "../services/settingsStore";
 
 /**
@@ -17,7 +17,9 @@ import { getSettingsStore } from "../services/settingsStore";
  * what the app did before the boundary existed.
  */
 export function useDayBoundary(): void {
-  const { vaultPath, queryService } = useVault();
+  const { vaultPath, queryService, triggerFileTreeUpdate } = useVault();
+  // The latest only: the effect below must not run again on every render.
+  const refresh = useStableHandler(() => triggerFileTreeUpdate());
 
   /**
    * Where this window can find a position (plan Journal-Erweiterungen, X7).
@@ -41,6 +43,7 @@ export function useDayBoundary(): void {
   }, []);
   useEffect(() => {
     let alive = true;
+    const follow = followDailyNaming((resolver) => queryService?.setDayOfPath(resolver));
     const read = () => {
       if (!vaultPath) {
         setDayBoundary(0);
@@ -52,8 +55,10 @@ export function useDayBoundary(): void {
           // `file.day` (plan Journal-Erweiterungen, X8): the same two settings
           // that name a daily note tell a query which day its name stands for.
           // The vault's load already handed the first reading to the query
-          // service; this one follows a saved change.
-          if (alive) queryService?.setDayOfPath(readDailyDayOfPath(vaultPath));
+          // service; this one follows a saved change, and a changed naming
+          // reloads what is open — task lists, Tasks queries, databases.
+          const naming = await readDailyNaming(vaultPath);
+          if (alive && follow(naming)) refresh();
           const store = await getSettingsStore();
           const minutes = await store.get<number>(dayEndsAtKey(vaultPath));
           if (alive) setDayBoundary(minutes ?? 0);
@@ -68,5 +73,5 @@ export function useDayBoundary(): void {
       alive = false;
       window.removeEventListener("plainva-features-saved", read);
     };
-  }, [vaultPath, queryService]);
+  }, [vaultPath, queryService, refresh]);
 }

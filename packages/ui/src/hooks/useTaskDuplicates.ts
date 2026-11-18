@@ -40,6 +40,12 @@ export interface TaskDuplicatesDeps {
    */
   deleteNote: (path: string, ask: DeletionNetAsk) => Promise<boolean | void>;
   onRemoved?: (removed: string[]) => void | Promise<void>;
+  /**
+   * Copies that should have gone and did not: the device refused them (F4 of
+   * release 0.9.0). Before, the run said only "N removed" and they stayed
+   * unsaid. A copy the person kept, or one that changed meanwhile, is not one.
+   */
+  onFailed: (paths: string[]) => void;
   onError: (error: unknown) => void;
 }
 
@@ -117,8 +123,9 @@ export function useTaskDuplicates(deps: TaskDuplicatesDeps): TaskDuplicatesState
     try {
       const opts = await options();
       if (!opts) return 0;
-      const { removed } = await removeTaskCopies(groups, opts, deps.deleteNote);
+      const { removed, failed } = await removeTaskCopies(groups, opts, deps.deleteNote);
       setGroups(null);
+      if (failed.length > 0) deps.onFailed(failed);
       if (removed.length > 0) await deps.onRemoved?.(removed);
       return removed.length;
     } catch (e) {
