@@ -14,6 +14,7 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
 import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
+import { retiredBoot } from "./bootRetirement";
 
 // CodeMirror belongs to the shared UI package; load that exact installed copy.
 type TestChange = { changes: { from: number; to: number; insert: string } };
@@ -82,6 +83,8 @@ function harness(vault: MobileVault) {
   const stopped = vi.fn(async () => {});
   const activated = vi.fn(async () => {});
   const deps = {
+    // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
+    retiredBoot,
     vault, createSaveCoordinator, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>

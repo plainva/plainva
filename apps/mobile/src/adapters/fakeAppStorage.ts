@@ -49,6 +49,9 @@ const state = {
 /** An empty container of the given kind; what a test gets back is what lies in it and how it was read. */
 export function fakeAppStorage(kind: AppStorageKind) {
   Object.assign(state, { kind, files: new Map(), dirs: new Set([""]), mtimes: new Map(), clock: 1000, reads: [] });
+  writes.clear();
+  openReads.clear();
+  afterPart = null;
   return { files: state.files, reads: state.reads };
 }
 
@@ -158,10 +161,89 @@ const Filesystem = {
   },
 };
 
-/** The app's own write plugin: the text as UTF-8 bytes, or the bytes it was handed as base64. */
+const writes = new Map<string, { path: string; parts: Uint8Array[] }>();
+/**
+ * Open reads: what the open file holds. A rename (`put`) leaves an open read
+ * on the bytes it opened; a write in place (`appStorageWriteInPlace`) changes
+ * what every open read of that file sees, as on a file system.
+ */
+const openReads = new Map<string, { path: string; bytes: Uint8Array }>();
+let readCount = 0;
+let afterPart: ((id: string) => void) | null = null;
+
+/** Tests only: called after each part a read hands out - where another program can step in. */
+export function appStorageAfterPart(hook: ((id: string) => void) | null): void {
+  afterPart = hook;
+}
+
+/** Another program writes the file in place - same file, new bytes - instead of renaming a new one over it. */
+export function appStorageWriteInPlace(path: string, bytes: Uint8Array): void {
+  state.files.set(path, bytes);
+  state.mtimes.set(path, ++state.clock);
+  for (const read of openReads.values()) if (read.path === path) read.bytes = bytes;
+}
+
+/** What lies at `path` as bytes, for the plugin's read and hash (a phone stores nothing else). */
+function storedBytes(path: string): Uint8Array {
+  const stored = state.files.get(path);
+  if (stored === undefined) throw missing("read", path);
+  if (isText(stored)) return new TextEncoder().encode(stored);
+  if (isBytes(stored)) return stored;
+  throw new Error(`${path} was laid down as a Blob; a phone holds bytes`);
+}
+
+/**
+ * The app's own file plugin: a write in one call (the text as UTF-8 bytes, or
+ * the bytes it was handed as base64) or in parts, a read in parts - the
+ * first part of a read is what `reads` records, once per read - and a hash.
+ */
 const AtomicFile = {
   async write({ path, data, encoding }: { path: string; data: string; encoding: "utf8" | "base64" }) {
     put(path, encoding === "utf8" ? new TextEncoder().encode(data) : fromBase64(data));
+  },
+  async begin({ path }: { path: string }) {
+    const id = `write-${writes.size + 1}-${path}`;
+    writes.set(id, { path, parts: [] });
+    return { id };
+  },
+  async append({ id, data }: { id: string; data: string }) {
+    writes.get(id)!.parts.push(fromBase64(data));
+  },
+  async commit({ id }: { id: string }) {
+    const write = writes.get(id)!;
+    writes.delete(id);
+    const whole = new Uint8Array(write.parts.reduce((n, part) => n + part.length, 0));
+    let at = 0;
+    for (const part of write.parts) { whole.set(part, at); at += part.length; }
+    put(write.path, whole);
+  },
+  async abort({ id }: { id: string }) {
+    writes.delete(id);
+  },
+  async openRead({ path }: { path: string }) {
+    const bytes = storedBytes(path);
+    state.reads.push({ path, as: "bytes" });
+    const id = `read-${++readCount}-${path}`;
+    openReads.set(id, { path, bytes });
+    return { id, size: bytes.length };
+  },
+  async readPart({ id, offset, length }: { id: string; offset: number; length: number }) {
+    const read = openReads.get(id);
+    if (!read) throw new Error("no such read");
+    const answer = { data: toBase64(read.bytes.subarray(offset, offset + Math.min(length, 256 * 1024))), size: read.bytes.length };
+    afterPart?.(id);
+    return answer;
+  },
+  async closeRead({ id }: { id: string }) {
+    openReads.delete(id);
+  },
+  async sha256({ path }: { path: string }) {
+    const bytes = storedBytes(path);
+    const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
+    return { sha256: Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join(""), size: bytes.length };
+  },
+  async sweep() {
+    return { removed: 0 };
   },
 };
 
