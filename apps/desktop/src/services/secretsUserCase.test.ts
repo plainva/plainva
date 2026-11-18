@@ -49,7 +49,14 @@ function device(name: string, rows: () => Row[], slots = new Map<string, { kind:
     now: () => new Date(Date.parse("2026-11-17T00:00:00.000Z") + 1000 * clock++).toISOString(),
   });
   const host = { readMeta: async () => meta, writeMeta: async (m: SecretsPortMeta) => { meta = structuredClone(m); } };
-  return { port, slots, meta: () => meta, host };
+  // A device up to 0.8.7 writes its entries without `exactUser` (review 2026-11-18, O1).
+  const exportBundle = legacy
+    ? async () => {
+        const bundle = await port.exportBundle();
+        return { ...bundle, entries: Object.fromEntries(Object.entries(bundle.entries).map(([id, { exactUser: _mark, ...entry }]) => [id, entry])) };
+      }
+    : port.exportBundle;
+  return { port: { ...port, exportBundle }, slots, meta: () => meta, host };
 }
 
 /** One settings round of a device against the shared bundle, as SecretsSyncStep runs it. */
@@ -241,5 +248,66 @@ describe("two password accounts that differ only in the case of the user", () =>
     const after = await d.port.exportBundle();
     expect(after.entries).not.toHaveProperty(legacyId);
     expect(after.entries[canonicalSecretId(calDavSecretBinding("webdav", URL_, "Alice"))]?.tombstone).toBe(true);
+  });
+
+  // Review 2026-11-18, O1: whether an entry is an account's old name is said by
+  // the entry (no `exactUser`: written by a device up to 0.8.7), never by the
+  // spelling of its user. Every password ends in its own slot or none.
+  const twinRows = (): Row[] => [{ id: "rA", user: "Alice" }, { id: "ra", user: "alice" }];
+  const caldav = (user: string, pass: string) => ({ kind: "caldav", url: URL_, user, pass });
+
+  it("F5: \"alice\" removed while another device changes it: its password never lands in \"Alice\"'s slot", async () => {
+    remote = null;
+    let n3Rows = twinRows();
+    let n1Rows = twinRows();
+    const n1 = device("N1", () => n1Rows, new Map([["rA", caldav("Alice", "pA")], ["ra", caldav("alice", "pa")]]));
+    const n2 = device("N2", twinRows);
+    const n3 = device("N3", () => n3Rows);
+    for (const d of [n1, n2, n3, n1, n2, n3]) await round(d);
+    await retireSecret(n1.host, calDavSecretBinding("webdav", URL_, "alice"));
+    n1Rows = [{ id: "rA", user: "Alice" }];
+    n1.slots.delete("ra");
+    n3Rows = [{ id: "rA", user: "Alice" }];
+    for (const d of [n1, n3]) await round(d);
+    n2.slots.set("ra", caldav("alice", "pa2"));
+    for (const d of [n2, n3, n1, n2, n3, n1]) await round(d);
+    expect(n3.slots.get("rA")?.pass).toBe("pA");
+    expect(n1.slots.get("rA")?.pass).toBe("pA");
+    expect(n2.slots.get("rA")?.pass).toBe("pA");
+  });
+
+  it("F6: a device on 0.8.7 that knows only \"Alice\" changes its password: it never lands in \"alice\"'s slot", async () => {
+    remote = null;
+    const n1 = device("N1", twinRows, new Map([["rA", caldav("Alice", "pA")], ["ra", caldav("alice", "pa")]]));
+    const n2 = device("N2", twinRows);
+    const old = device("O", () => [{ id: "rA", user: "Alice" }], new Map(), true);
+    for (const d of [n1, n2, old, n1, n2, old]) await round(d);
+    old.slots.set("rA", caldav("Alice", "pO"));
+    for (const d of [old, n1, n2, old, n1, n2]) await round(d);
+    for (const d of [n1, n2]) expect(d.slots.get("ra")?.pass).not.toBe("pO");
+    expect(n1.slots.get("ra")?.pass).toBe("pa");
+  });
+
+  it("F7: \"alice\" gone from one device while another changes it: \"Alice\" keeps its own password there", async () => {
+    remote = null;
+    let n2Rows = twinRows();
+    const n1 = device("N1", twinRows, new Map([["rA", caldav("Alice", "pA")], ["ra", caldav("alice", "pa")]]));
+    const n2 = device("N2", () => n2Rows);
+    for (const d of [n1, n2, n1, n2]) await round(d);
+    n2Rows = [{ id: "rA", user: "Alice" }];
+    n1.slots.set("ra", caldav("alice", "pa2"));
+    for (const d of [n1, n2, n1, n2]) await round(d);
+    expect(n2.slots.get("rA")?.pass).toBe("pA");
+    expect(n1.slots.get("rA")?.pass).toBe("pA");
+  });
+
+  it("a tombstone under the old name is remembered, not applied: a later value under it revives nothing", async () => {
+    const d = device("B", () => [{ id: "r-Alice", user: "Alice" }], new Map([["r-Alice", caldav("Alice", "Alice-pw")]]));
+    const [id, entry] = legacyEntry("x");
+    await d.port.importBundle(bundleOf([[id, { entryRev: 4, updatedAt: "2026-11-02T00:00:00.000Z", deviceId: "old-phone", binding: entry.binding, tombstone: true }]]));
+    expect(passOf(d.slots)).toEqual({ "r-Alice": "Alice:Alice-pw" });
+    expect(d.meta()?.oldNameTombstones?.[id]).toBe("2026-11-02T00:00:00.000Z");
+    await d.port.importBundle(bundleOf([[id, { ...entry, entryRev: 5, updatedAt: "2026-11-03T00:00:00.000Z", secret: { pass: "late" } }]]));
+    expect(passOf(d.slots)).toEqual({ "r-Alice": "Alice:Alice-pw" });
   });
 });

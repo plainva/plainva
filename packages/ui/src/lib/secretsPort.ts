@@ -5,6 +5,7 @@ import {
   bindingMatchesExceptFamily,
   canonicalSecretId,
   isLegacyLowerCaseUser,
+  isOldNameEntry,
   isLegacySecretType,
   isShareableSecretType,
   canonicalizeEndpoint,
@@ -97,6 +98,13 @@ export interface SecretsPortMeta {
    * removed "Alice", or the last account from a runtime still booting.
    */
   retired?: Record<string, SecretBinding>;
+  /**
+   * Tombstones seen under an account's OLD name (review 2026-11-18, O1), by id
+   * with their time. Never applied — a device up to 0.8.7 cannot say which of
+   * two spellings it removed — but remembered: a later value under that name
+   * puts nothing into the slot of an account here.
+   */
+  oldNameTombstones?: Record<string, string>;
 }
 
 /** What a shell must provide; everything else is decided above. */
@@ -171,6 +179,7 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
     Object.entries(source?.quarantine ?? {}).map(([id, entry]) => [id, { ...entry }]),
   ),
   ...(source?.retired ? { retired: Object.fromEntries(Object.entries(source.retired).map(([id, binding]) => [id, { ...binding }])) } : {}),
+  ...(source?.oldNameTombstones ? { oldNameTombstones: { ...source.oldNameTombstones } } : {}),
 });
 
 /**
@@ -288,7 +297,11 @@ export function migrateSecretsMetaToCanonicalIds<T extends SecretsPortMeta | nul
  * for this one account, when it is newer than the exact entry or there is none,
  * and never after a tombstone for the old name. A password changed on an
  * updated device therefore reaches a device on 0.8.7 only once that device is
- * updated too (named limit, release texts F36).
+ * updated too (named limit, release texts F36). "Newer" compares `updatedAt`,
+ * the clocks of two devices: a device on 0.8.7 whose clock runs ahead can
+ * cover a password changed on an updated device, for the other devices on
+ * 0.8.7 and for updated ones (named limit, review 2026-11-18). Only an entry
+ * without `exactUser` is read as an old name (`isOldNameEntry`).
  */
 function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSecretCandidate[]): string | null {
   if (candidate.binding.service !== "calendar" || isLegacyLowerCaseUser(candidate.binding)) return null;
@@ -348,6 +361,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           deviceId: changed ? deviceId : previous.deviceId,
           binding: candidate.binding,
           secret: candidate.secret,
+          // The user is this account's exact spelling: never an old name (O1).
+          exactUser: true,
         };
         meta.entries[candidate.logicalId] = {
           hash,
@@ -372,7 +387,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const previous = meta.entries[id];
         if (!previous || previous.tombstone || currentIds.has(id)) return;
         const entryRev = previous.entryRev + 1;
-        entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
+        entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true, exactUser: true };
         meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
       };
       for (const id of Object.keys(meta.retired ?? {})) {
@@ -414,7 +429,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           if (candidates.some((candidate) => bindingMatchesExceptFamily(previous.binding, candidate.binding, "fold"))) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
-          entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };
+          entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true, exactUser: true };
           meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt, deviceId, tombstone: true };
         }
       } else {
@@ -466,6 +481,12 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           tombstone: entry.tombstone,
           ...(alias ? { alias: true } : {}),
         };
+        metaDirty = true;
+      };
+
+      const rememberOldNameTombstone = (logicalId: string, entry: SecretEntry) => {
+        if (meta.oldNameTombstones?.[logicalId] === entry.updatedAt) return;
+        meta.oldNameTombstones = { ...(meta.oldNameTombstones ?? {}), [logicalId]: entry.updatedAt };
         metaDirty = true;
       };
 
@@ -528,10 +549,23 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // that differ only in case, and never an account an entry with its
         // exact spelling already speaks for (that one is current; the
         // lower-cased one would put an older password back).
-        const legacyMatches = exactCandidate || !isLegacyLowerCaseUser(entry.binding)
-          ? []
-          : candidates.filter((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding, "fold"));
-        const legacyCandidate = legacyMatches.length === 1 ? legacyMatches[0] : undefined;
+        // Whether this entry can be an old name is said by the entry itself —
+        // no `exactUser`, so a device up to 0.8.7 wrote it — never by the
+        // spelling of its user alone: "alice" is also the exact name of an
+        // account of its own (review 2026-11-18, O1).
+        const oldNameShaped = isOldNameEntry(entry);
+        const foldMatches = oldNameShaped
+          ? candidates.filter((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding, "fold"))
+          : [];
+        // Two accounts here that differ only in case: an entry from 0.8.7
+        // cannot say which one it means, so it is read for neither. A tombstone
+        // among them is remembered, not applied.
+        if (foldMatches.length > 1) {
+          if (entry.tombstone) rememberOldNameTombstone(logicalId, entry);
+          recordImportResult(result, logicalId, "unchanged", "old-name-not-taken");
+          continue;
+        }
+        const legacyCandidate = !exactCandidate && foldMatches.length === 1 ? foldMatches[0] : undefined;
         // ...and only as its old name, one way (`oldNameId`): never a
         // tombstone, never after a tombstone for that name was seen here, and
         // only when it is newer than the exact entry of that account.
@@ -542,7 +576,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
               other.binding.secretType === entry.binding.secretType &&
               bindingMatchesExceptFamily(other.binding, legacyCandidate.binding),
           )?.[1];
-          const retiredName = meta.entries[logicalId]?.tombstone === true;
+          const retiredName = meta.entries[logicalId]?.tombstone === true || !!meta.oldNameTombstones?.[logicalId];
+          if (entry.tombstone) rememberOldNameTombstone(logicalId, entry);
           if (entry.tombstone || retiredName || (exact && !(entry.updatedAt > exact.updatedAt))) {
             recordImportResult(result, logicalId, "unchanged", exact ? "superseded-by-exact-entry" : "old-name-not-taken");
             continue;
@@ -553,7 +588,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const oldName = exactCandidate ? oldNameId(exactCandidate, candidates) : null;
         const oldEntry = oldName && oldName !== logicalId ? bundle.entries[oldName] : undefined;
         if (
-          oldEntry && !oldEntry.tombstone && meta.entries[oldName!]?.tombstone !== true &&
+          oldEntry && isOldNameEntry(oldEntry) && !oldEntry.tombstone && meta.entries[oldName!]?.tombstone !== true && !meta.oldNameTombstones?.[oldName!] &&
           oldEntry.binding.secretType === entry.binding.secretType && oldEntry.updatedAt > entry.updatedAt
         ) {
           recordImportResult(result, logicalId, "unchanged", "superseded-by-later-entry");

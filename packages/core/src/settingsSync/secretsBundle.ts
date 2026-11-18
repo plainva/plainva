@@ -64,6 +64,16 @@ export interface SecretEntry {
   binding: SecretBinding;
   /** The actual secret payload (e.g. {pass} or {clientId, clientSecret}). Absent for tombstones. */
   secret?: Record<string, string>;
+  /**
+   * Written by a device that names the user by its exact spelling (review
+   * 2026-11-18, O1). An entry without it comes from a device up to 0.8.7,
+   * which lower-cased every user: only such an entry can be the OLD name of
+   * an account (`isLegacyLowerCaseUser`). The spelling alone never says so —
+   * "alice" is also the exact name of an account of its own. A device up to
+   * 0.8.7 passes the field on unchanged (`mergeSecretEntries` keeps entries
+   * whole).
+   */
+  exactUser?: boolean;
 }
 
 export interface SecretsBundle {
@@ -185,6 +195,14 @@ export function isLegacyLowerCaseUser(binding: Pick<SecretBinding, "user">): boo
   return binding.user === binding.user.toLowerCase();
 }
 
+/**
+ * Whether an entry can be an account's OLD name: written by a device up to
+ * 0.8.7 (no `exactUser`), with the user as it wrote every user — lower-cased.
+ */
+export function isOldNameEntry(entry: Pick<SecretEntry, "binding" | "exactUser">): boolean {
+  return !entry.exactUser && isLegacyLowerCaseUser(entry.binding);
+}
+
 /** True when a synced entry's binding matches an observed local account. */
 export function bindingMatches(binding: SecretBinding, observed: { family: string; service: SecretBinding["service"]; user: string; endpoint: string }): boolean {
   return bindingMatchesExceptFamily(binding, observed) && binding.family === observed.family;
@@ -282,6 +300,7 @@ export function assertSecretsBundleStructure(value: unknown): asserts value is S
       !isNonEmptyString(candidate.updatedAt) ||
       !isNonEmptyString(candidate.deviceId) ||
       (candidate.tombstone !== undefined && typeof candidate.tombstone !== "boolean") ||
+      (candidate.exactUser !== undefined && typeof candidate.exactUser !== "boolean") ||
       !isRecord(candidate.binding)
     ) {
       throw new SecretPolicyError("secrets bundle entry metadata is malformed");
