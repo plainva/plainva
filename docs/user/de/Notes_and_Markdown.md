@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-16
+Stand: 2026-11-18
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -170,7 +170,7 @@ Eine Tagesnotiz kann auch ein **Journal** tragen: kurze Einträge mit Uhrzeit (`
 - **Aufgaben-Checkboxen**: `- [ ] Aufgabe` wird überall als Checkbox angezeigt — und im **Lesemodus** kannst Du sie direkt anklicken: Plainva schreibt `[x]` bzw. `[ ]` in die Datei zurück. Eine erledigte Aufgabe steht gedämpft und durchgestrichen da — in der Notiz genauso wie in der Aufgabenansicht.
 - **Callouts**: Ein Zitat, das mit `> [!tip] Titel` beginnt (oder einer der 13 Varianten aus dem Slash-Menü), steht als eine Karte da — feine Linie in der Farbe des Callouts, leichte Tönung, der Titel in dieser Farbe; ohne Titel zeigt die Karte den Namen ihrer Variante. Das sieht in der Live-Vorschau, im Lesemodus und am Telefon gleich aus; ein gewöhnliches Zitat behält seinen Balken.
 - **Verschachtelte Listen**: Ab der zweiten Ebene zeigt eine feine Linie unter jedem übergeordneten Punkt, welche Einträge zusammengehören — in der Live-Vorschau und im Lesemodus.
-- **Mathe (LaTeX)**: `$E = mc^2$` im Fließtext und `$$…$$` als Block werden im Lesemodus UND in der Live-Vorschau als Formeln gerendert (KaTeX). Steht die Schreibmarke in der Formel, siehst Du die Syntax; ein Klick auf eine gerenderte Formel öffnet sie zum Bearbeiten. Nur der Quelltext-Modus zeigt immer die rohe Syntax. Den `$$…$$`-Block musst Du nicht auswendig kennen — der Slash-Befehl **Formel (LaTeX)** (`/katex`) fügt ihn ein und setzt die Schreibmarke hinein.
+- **Mathe (LaTeX)**: `$E = mc^2$` im Fließtext und `$$…$$` als Block werden im Lesemodus UND in der Live-Vorschau als Formeln gerendert (KaTeX). Steht die Schreibmarke in der Formel, siehst Du die Syntax; ein Klick auf eine gerenderte Formel öffnet sie zum Bearbeiten. Nur der Quelltext-Modus zeigt immer die rohe Syntax. Den `$$…$$`-Block musst Du nicht auswendig kennen — der Slash-Befehl **Formel (LaTeX)** (`/katex`) fügt ihn ein und setzt die Schreibmarke hinein. Ein Wiki-Link `[[…]]` bleibt auch zwischen Dollarzeichen ein Link: Steht er in einer Formel, zeigen Lesemodus und Live-Vorschau diese Stelle als Text mit dem Link, nicht als Formel (etwa `$A[[1,2]]$`).
 - **Mermaid-Diagramme**: Ein Codeblock mit der Sprache `mermaid` (am schnellsten über den Slash-Befehl **Mermaid-Diagramm**, `/mermaid`) wird im Lesemodus und in der Live-Vorschau als Diagramm gezeichnet — ein Klick auf das Diagramm zeigt den Code zum Bearbeiten:
 
   ````markdown
