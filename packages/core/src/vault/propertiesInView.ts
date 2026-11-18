@@ -1,9 +1,9 @@
 import { extractLinksAndTags } from "../ast-scanner.js";
 import { frontmatterSpan } from "../frontmatter-block.js";
-import { propertiesAsWritten } from "../frontmatter-surgical.js";
+import { propertiesAsWritten, propertiesBlockOfKeys } from "../frontmatter-surgical.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
-import { mayHoldAWithheldLink, redactDeniedLinksIn } from "../ai/egressGate.js";
+import { linkTargetsOfPlainBlock, mayHoldAWithheldLink, redactDeniedLinksIn } from "../ai/egressGate.js";
 import { ReaderView } from "../ai/readerView.js";
 import { findInlineTags } from "../tagRule.js";
 import { decodeIndexedProperty, encodeIndexedProperty } from "./indexedProperty.js";
@@ -70,17 +70,27 @@ class Few<V> {
 
 /**
  * What is kept of one note's properties block, with the note, for as long as the index holds the same text of it
- * (`VaultQueryService`, keyed by the note's path and the hash of its text): what the block says, and its views for
- * the links withheld from it. One per note, so there is no number of notes past which a query reads every block anew.
+ * (`VaultQueryService`, keyed by the note's path and the hash of its text): every reading of it as YAML — what it
+ * says, its views for the links withheld from it, its values as written, the block cut to some keys — and its link
+ * targets. One per note, so there is no number of notes past which a query reads a block anew; and no reading of a
+ * block as YAML happens anywhere but here, counted (`BLOCK_READS`).
  */
 export class BlockMemo {
+  /** @internal The link targets of a block, by its text (`linkTargetsOfBlock`). */
+  readonly targets = new Few<readonly string[]>();
   /** @internal */
   readonly readings = new Few<BlockReading>();
   /** @internal By the text of a block, then by the links withheld from it. */
   readonly views = new Few<Few<ViewCore>>();
+  /** @internal A block cut to the keys a rollup reads, by those keys (`cutToKeys`). */
+  readonly cuts = new Few<string | null>();
 }
 
-/** How many times a block has been read as YAML, for the budget tests: a query that finds its notes kept reads none. */
+/**
+ * How many times a block has been read as YAML (its reading, its values as written, a cut to some keys), for the
+ * budget tests: a query that finds its notes kept reads none, and a block that can withhold nothing from its reader
+ * is never read so (`plainBlock`).
+ */
 export const BLOCK_READS = { count: 0 };
 
 /** What a block says, read once per text: the link targets in its text and in the texts its reading gives, its tags. */
@@ -107,6 +117,72 @@ export function propertiesBlockOf(content: string): string | null {
   if (!span) return null;
   const block = content.slice(0, span.end);
   return MAY_HOLD_A_LINK.test(block) ? block : null;
+}
+
+/**
+ * Whether every text YAML reads from a block stands on one line of it as it is written, so that the links the views
+ * read in the block's own text (`redactDeniedLinksIn`) are all the links any reading of it holds (round 10 of the
+ * review of R19, wave 2). It is so where each line is a key, an entry of a list or a comment, each with a value that
+ * ends on its line — plain, quoted or a flow collection closed there —, and nothing in the block makes YAML build a
+ * text from something else: no escape or doubled quote, no tab or other line break, no anchor, alias, tag, block of
+ * text or key of its own kind, no link left open at the end of a line, no reference definition. Any other block is
+ * read as YAML, where it can hold a link withheld from its reader.
+ */
+export function plainBlock(block: string): boolean {
+  if (/[\\\t\r\u0085\u2028\u2029]|''|\]:/.test(block)) return false;
+  const span = frontmatterSpan(block);
+  if (!span) return false;
+  for (const line of span.yaml.split("\n")) if (!plainLine(line)) return false;
+  return true;
+}
+
+/** A complete wiki link on one line, as the views read one (`egressGate`, `WIKI_LINK`). */
+const WHOLE_WIKI_LINK = /!?\[\[[^[\]\n]+\]\]/g;
+
+function plainLine(line: string): boolean {
+  // A link left open at the end of its line, which YAML or the views could read on into the next.
+  if (line.includes("[[") || line.includes("]]")) {
+    const rest = line.replace(WHOLE_WIKI_LINK, "");
+    if (rest.includes("[[") || rest.includes("]]")) return false;
+  }
+  const inline = line.indexOf("](");
+  if (inline >= 0 && line.indexOf(")", inline) < 0) return false;
+  let text = line.replace(/^ +/, "");
+  if (text === "" || text.startsWith("#")) return true;
+  let listed = false;
+  while (text === "-" || text.startsWith("- ")) {
+    listed = true;
+    text = text.slice(1).replace(/^ +/, "");
+  }
+  if (text === "" || text.startsWith("#")) return true;
+  const key = /^("[^"\n]*"|'[^'\n]*'|[^\s#"'&*!|>%@`?{}[\],:-][^:]*?|-[^\s:][^:]*?):(?: +|$)/.exec(text);
+  if (!key && !listed) return false;
+  const value = key ? text.slice(key[0].length) : text;
+  return plainValue(value);
+}
+
+/** A value that ends on its line: plain, quoted, or a flow collection closed there; a comment may follow. */
+function plainValue(value: string): boolean {
+  if (value === "" || value.startsWith("#")) return true;
+  const first = value[0]!;
+  if ("|>&*!%@`?".includes(first)) return false;
+  if (first === '"' || first === "'") return new RegExp(`^${first}[^${first}]*${first} *(?:#.*)?$`).test(value);
+  if (first !== "[" && first !== "{") return true;
+  let depth = 0;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i]!;
+    if (c === '"' || c === "'") {
+      const close = value.indexOf(c, i + 1);
+      if (close < 0) return false;
+      i = close;
+    } else if (c === "[" || c === "{") depth++;
+    else if (c === "]" || c === "}") {
+      depth--;
+      if (depth < 0) return false;
+      if (depth === 0) return /^ *(?:#.*)?$/.test(value.slice(i + 1));
+    }
+  }
+  return false;
 }
 
 /** The index's reading of a block: its values and the tags it gives (`extractLinksAndTags`), as the indexer takes them. */
@@ -165,10 +241,37 @@ function readingOfBlock(block: string, memo?: BlockMemo): BlockReading {
 
 /**
  * Every link target of a block: in its text, and in every text its reading gives (`"[[Aa\x72on]]"` is `[[Aaron]]`).
- * `memo`: what is kept of the note (`BlockMemo`).
+ * A block whose every text stands in it as written (`plainBlock`) holds no link its text does not show: it is not
+ * read as YAML for them. `memo`: what is kept of the note (`BlockMemo`).
  */
 export function linkTargetsOfBlock(block: string, memo?: BlockMemo): readonly string[] {
-  return readingOfBlock(block, memo).targets;
+  const known = memo?.targets.get(block);
+  if (known) return known;
+  let targets: readonly string[];
+  if (plainBlock(block)) targets = [...new Set(linkTargetsOfPlainBlock(block))].map(standingAlone);
+  else targets = readingOfBlock(block, memo).targets.map(standingAlone);
+  return memo ? memo.targets.set(block, targets) : targets;
+}
+
+/**
+ * A text of its own: a piece read out of a note's text would keep the whole text with it for as long as it is kept
+ * (a target kept with a note whose block is let go, `BlockEntry`).
+ */
+function standingAlone(text: string): string {
+  return ` ${text}`.slice(1);
+}
+
+/**
+ * A block cut to the keys a rollup reads (`propertiesBlockOfKeys`), with its fences, where it could hold a link; null
+ * where it holds none; the block itself where it cannot be cut. Read once per text and keys (`BlockMemo`).
+ */
+export function cutToKeys(block: string, keys: ReadonlySet<string>, memo?: BlockMemo): string | null {
+  const key = [...keys].sort().join("\u0000");
+  const known = memo?.cuts.get(`${block.length}:${key}`);
+  if (known !== undefined) return known;
+  BLOCK_READS.count++;
+  const cut = propertiesBlockOf(propertiesBlockOfKeys(block, keys) ?? block);
+  return memo ? memo.cuts.set(`${block.length}:${key}`, cut) : cut;
 }
 
 /** A text with the links `isDenied` names withheld, as the views withhold them. */
@@ -188,13 +291,14 @@ function withheldValue(value: unknown, isDenied: (target: string) => boolean, de
 
 /**
  * `PropertiesView` of one note's properties block (`propertiesBlockOf`, with its fences); `isDenied` answers for the
- * reader. The tags are those of the block; the note's text behind it adds its own (`tagsInView`).
+ * reader. The tags are those of the block; the note's text behind it adds its own (`tagsInView`). A block none of
+ * whose links is withheld is the index's (`PROPERTIES_AS_HELD`), read as nothing more than its links.
  */
 export function propertiesInView(block: string, isDenied: (target: string) => boolean, memo?: BlockMemo): PropertiesView {
+  const denied = linkTargetsOfBlock(block, memo).filter((target) => isDenied(target));
+  if (denied.length === 0) return PROPERTIES_AS_HELD;
   const reading = readingOfBlock(block, memo);
-  const denied = reading.targets.filter((target) => isDenied(target));
-  if (denied.length === 0) return propertiesAsSeen(block);
-  const key = [...denied].sort().join("\u0000");
+  const key = [...new Set(denied)].sort().join("\u0000");
   const ofBlock = memo ? (memo.views.get(block) ?? memo.views.set(block, new Few<ViewCore>())) : null;
   const known = ofBlock?.get(key);
   const core = known ?? viewOf(block, reading, new Set(denied));
@@ -226,7 +330,11 @@ function viewOf(block: string, reading: BlockReading, denied: ReadonlySet<string
   const blockTags = tagsOfValues(data);
   const kept = new Set(blockTags);
   const goneTags = new Set(reading.tags.filter((tag) => !kept.has(tag)));
-  return { data, title, blockTags, goneTags, seen, written: once(() => withheldWritten(propertiesAsWritten(seen), isDenied)), tags: null };
+  const written = once(() => {
+    BLOCK_READS.count++;
+    return withheldWritten(propertiesAsWritten(seen), isDenied);
+  });
+  return { data, title, blockTags, goneTags, seen, written, tags: null };
 }
 
 function withheldWritten(written: Map<string, unknown> | null, isDenied: (target: string) => boolean): Map<string, unknown> | null {
@@ -234,10 +342,11 @@ function withheldWritten(written: Map<string, unknown> | null, isDenied: (target
   return new Map([...written].map(([key, value]) => [withheldText(key, isDenied), withheldValue(value, isDenied)]));
 }
 
-/** `PropertiesView` of a block that withholds nothing from the reader: the index's values, those YAML read otherwise as written. */
-export function propertiesAsSeen(block: string): PropertiesView {
-  return { data: null, title: null, tags: null, blockTags: null, goneTags: new Set(), seen: null, written: once(() => propertiesAsWritten(block)) };
-}
+/**
+ * `PropertiesView` of a block that withholds nothing from the reader: the note as the index holds it, as any other
+ * reader is shown it — nothing of it is read again.
+ */
+export const PROPERTIES_AS_HELD: PropertiesView = Object.freeze({ data: null, title: null, tags: null, blockTags: null, goneTags: new Set<string>(), seen: null, written: () => null });
 
 /**
  * Whether the text behind a note's block must be read for its tags in the view: only where a tag the view takes away

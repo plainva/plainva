@@ -1,6 +1,6 @@
 # Łączenie aplikacji AI (beta)
 
-Stan na: 2026-11-17
+Stan na: 2026-11-18
 
 Aplikacje AI na Twoim komputerze — Claude Code, Claude Desktop, Cursor, VS Code i inne, które mówią protokołem Model Context Protocol (MCP) — mogą czytać Twój vault przez Plainva: przeszukiwać go, czytać notatki i ich sekcje, konspekty, linki zwrotne, bazy danych, zadania i ostatnie notatki oraz otwierać notatkę w Plainva. Same niczego nie zmieniają: aplikacja, której na to pozwolisz, może proponować zmiany, a te czekają, aż zdecydujesz (zob. niżej). To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -32,7 +32,7 @@ Tylko foldery, na które zezwolono, i tylko to, co Twoje zasady prywatności pus
 
 Ustawienia pokazują aplikacje dozwolone na tym komputerze z ich folderami w tym vaulcie (**żaden w tym vaulcie** przy aplikacji dozwolonej tylko gdzie indziej) i ostatnie zapytania. **Usuń** cofa zgodę aplikacji we wszystkich vaultach. Obowiązuje to od razu — także dla aplikacji, która jest w tej chwili połączona.
 
-Dopóki zaszyfrowany workspace otwartego vaultu jest zablokowany, Plainva nie odpowiada żadnej aplikacji: każde zapytanie — także lista czy wyszukiwanie — jest odrzucane z komunikatem, że workspace jest zablokowany, zapytanie, które trwa w chwili blokady, nie dostaje nic z tego, co znalazło, a aplikacja, która się łączy, od razu się o tym dowiaduje. Odblokuj go, a to samo połączenie znów odpowiada. Zgoda dotyczy nazwy folderu: jeśli zmienisz nazwę dozwolonego folderu, aplikacja przestaje go widzieć, dopóki znów na niego nie zezwolisz, a nowy folder o starej nazwie byłby dla niej widoczny.
+Dopóki zaszyfrowany workspace otwartego vaultu nie jest otwarty na tym urządzeniu — jest zablokowany albo to urządzenie nie ma do niego klucza — Plainva nie odpowiada żadnej aplikacji: każde zapytanie — także lista czy wyszukiwanie — jest odrzucane z komunikatem, który mówi, który z tych dwóch przypadków zachodzi, zapytanie, które trwa w chwili blokady, nie dostaje nic z tego, co znalazło, a aplikacja, która się łączy, od razu się o tym dowiaduje. Odblokuj workspace albo skonfiguruj go na tym urządzeniu, a to samo połączenie znów odpowiada. Zgoda dotyczy nazwy folderu: jeśli zmienisz nazwę dozwolonego folderu, aplikacja przestaje go widzieć, dopóki znów na niego nie zezwolisz, a nowy folder o starej nazwie byłby dla niej widoczny.
 
 Oprócz narzędzi Plainva udostępnia pięć swoich umiejętności jako prompty, we własnym języku Plainvy, oraz opis formatu plików jako zasób (`plainva://format`): prompty to `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` i `task-triage`; `project-status` pyta o nazwę projektu, a `meeting-prep` o spotkanie. Aplikacja obsługująca prompty pokazuje je wśród swoich poleceń.
 

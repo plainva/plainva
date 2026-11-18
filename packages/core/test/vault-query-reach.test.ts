@@ -358,6 +358,56 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
     expect(large.again.questions).toBeLessThanOrEqual(3 * small.again.questions + 4);
   }, 300_000);
 
+  /**
+   * A block all of whose links lead to notes in reach is not read as YAML for a narrower reader — not at the first
+   * query, not after, not after a note changed — and its values are the ones every other reader is shown (round 10 of
+   * the review of R19, wave 2): links with and without quotes, in a list and beside a list of plain names.
+   */
+  it("reads no block as YAML whose every link leads to a note in reach, and shows its values as held (review of R19, wave 2)", async () => {
+    const n = 1_200;
+    const vault = new MemoryVaultAdapter(1_000);
+    await vault.writeTextFile("Private/Meier, Kowalski.md", note("", "Meier"));
+    const text = (i: number, extra = "") =>
+      `---\nowner: "[[Board/n${(i * 7) % n}]]"\nrel: [[n${(i * 3) % n}]]\nrelated:\n  - [[n${(i + 1) % n}|next]]\n  - "[[Board/n${(i + 2) % n}]]"\ntags: [a, b]\nstate: open${extra}\n---\n# n${i}\nbody ${i}\n`;
+    for (let i = 0; i < n; i++) await vault.writeTextFile(`Board/n${i}.md`, text(i));
+    const { DatabaseSync } = (await import("node:sqlite")) as any;
+    const db = new NodeSqliteAdapter(new DatabaseSync(":memory:"));
+    await initializeSchema(db);
+    const indexer = new VaultIndexer(vault, db);
+    await indexer.indexVaultFull();
+    const query = new VaultQueryService(db as never);
+    const sql: string[] = [];
+    const plain = db.query.bind(db);
+    db.query = (async (statement: string, params?: unknown[]) => {
+      sql.push(statement);
+      return plain(statement, params);
+    }) as typeof db.query;
+    const config = { filters: { and: ['file.folder == "Board"'] }, views: [{ type: "table", name: "T", sort: [{ property: "owner", direction: "ASC" }] }] } as any;
+    const ask = async () => {
+      sql.length = 0;
+      BLOCK_READS.count = 0;
+      const rows = await query.queryDatabaseFiles(config, { reach: visible, withhold: { rule: "any-kept-back", hiddenKeys: ["plainva"] } });
+      return { rows, reads: BLOCK_READS.count, texts: sql.filter((statement) => /n\.content/.test(statement)).length };
+    };
+    const everyone = async () => query.queryDatabaseFiles(config, {});
+    const first = await ask();
+    const again = await ask();
+    expect(first.rows).toHaveLength(n);
+    expect(first.reads).toBe(0);
+    expect(again.reads).toBe(0);
+    expect(again.texts).toBe(0);
+    expect(first.rows).toEqual(await everyone());
+    expect(again.rows).toEqual(first.rows);
+    // One note changes: its block is read again for its links, as text; none is read as YAML.
+    await vault.writeTextFile("Board/n5.md", text(5, "\nx: 1"));
+    await indexer.indexVaultFull();
+    const after = await ask();
+    expect(after.reads).toBe(0);
+    expect(after.texts).toBe(1);
+    expect(after.rows).toEqual(await everyone());
+    await db.close();
+  }, 120_000);
+
   it("a rollup reads one key of the notes it reaches, and withholds no other (review of R19, wave 2)", async () => {
     await withVault(
       async (query) => {

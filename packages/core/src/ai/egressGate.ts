@@ -201,6 +201,33 @@ export function mayHoldAWithheldLink(text: string): boolean {
   return LINK_SHAPE.test(text);
 }
 
+/**
+ * The link targets `redactDeniedLinksIn` asks about in a properties block (with its fences) in which no link runs over
+ * a line, no escape or doubled quote stands and no reference is defined (`plainBlock`, `propertiesInView.ts`): there
+ * it reads wiki links — as written and as YAML reads them — and Markdown links only, and asks about the same targets
+ * in the same order, read here without forming a view of the text.
+ */
+export function linkTargetsOfPlainBlock(block: string): string[] {
+  const targets: string[] = [];
+  if (!LINK_SHAPE.test(block)) return targets;
+  for (const match of block.matchAll(WIKI_LINK)) {
+    const inner = match[1]!;
+    const written = wikiLinkParts(inner).target;
+    if (written) targets.push(written);
+    // YAML reads the text between the brackets otherwise only where it holds a comment, a tab, a line break, a comma
+    // or blanks at its ends or side by side (`asYamlReadsIt`).
+    if (!/[#\t\r,]| {2}|^ | $/.test(inner)) continue;
+    const read = wikiLinkParts(asYamlReadsIt(inner)).target;
+    if (read && read !== written) targets.push(read);
+  }
+  if (!block.includes("](")) return targets;
+  for (const match of block.matchAll(INLINE_LINK)) {
+    const target = vaultTarget(match[2] ?? match[3] ?? "");
+    if (target) targets.push(target);
+  }
+  return targets;
+}
+
 /** `redactDeniedLinks` on a reader's view: each withheld link becomes a withheld piece of it (`ReaderView`). */
 export function redactDeniedLinksIn(view: ReaderView, isDenied: (target: string) => boolean): { view: ReaderView; redacted: number } {
   if (!LINK_SHAPE.test(view.text)) return { view, redacted: 0 };

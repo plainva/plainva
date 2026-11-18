@@ -1,6 +1,6 @@
 # Externe agents (Beta)
 
-Laatst bijgewerkt: 2026-11-17
+Laatst bijgewerkt: 2026-11-18
 
 Een externe agent is een AI-programma van een andere maker — een agent die je op je computer hebt geïnstalleerd en waarbij je je zelf hebt aangemeld, met je eigen abonnement of sleutel. Plainva kan zo'n agent in de map van een vault starten en zijn sessie in het AI-tabblad tonen. Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
@@ -69,7 +69,7 @@ Als het programma van de agent vanzelf eindigt, zegt de sessie dat, en **Zijn la
 ## Grenzen
 
 - Alleen op de desktop en alleen in het hoofdvenster. Op de telefoon is er de eigen assistent van Plainva.
-- Niet in een versleutelde workspace: daar start geen agent, en zolang zo'n workspace vergrendeld is, antwoorden de tools van Plainva geen enkele agent en geen enkele app.
+- Niet in een versleutelde workspace: daar start geen agent, en zolang zo'n workspace vergrendeld is of dit apparaat er geen sleutel voor heeft, antwoorden de tools van Plainva geen enkele agent en geen enkele app.
 - Niet zolang **Volledig lokaal** aan staat: er start geen agent en er loopt geen aanmelding, en een lopende sessie eindigt.
 - Eén sessie tegelijk, en geen geschiedenis: een beëindigde sessie kan niet opnieuw worden geopend.
 - Er kunnen geen afbeeldingen naar een agent worden gestuurd, en een modus of model dat je in een sessie kiest, neemt Plainva niet mee naar de volgende.

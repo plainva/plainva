@@ -1,6 +1,6 @@
 # Connecter des apps d'IA (bêta)
 
-Dernière mise à jour : 2026-11-17
+Dernière mise à jour : 2026-11-18
 
 Les apps d'IA de votre ordinateur — Claude Code, Claude Desktop, Cursor, VS Code et d'autres qui parlent le Model Context Protocol (MCP) — peuvent lire votre vault à travers Plainva : y chercher, lire des notes et leurs sections, des plans, des backlinks, des bases de données, des tâches et les notes récentes, et ouvrir une note dans Plainva. D'elles-mêmes, elles ne modifient rien : une app que vous y autorisez peut proposer des modifications, et celles-ci attendent votre décision (voir plus bas). Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
 
@@ -32,7 +32,7 @@ Uniquement les dossiers que vous avez autorisés, et uniquement ce que vos règl
 
 Les paramètres listent les apps que vous avez autorisées sur cet ordinateur avec leurs dossiers dans ce vault (**aucun dans ce vault** pour une app autorisée seulement ailleurs) et les dernières requêtes. **Retirer** reprend l'autorisation d'une app dans tous les vaults. Cela vaut aussitôt — y compris pour une app connectée à ce moment-là.
 
-Tant que l'espace de travail chiffré du vault ouvert est verrouillé, Plainva ne répond à aucune app : chaque requête — y compris une liste ou une recherche — est refusée avec un message qui dit que l'espace est verrouillé, une requête en cours au moment où vous le verrouillez ne reçoit rien de ce qu'elle a trouvé, et une app qui se connecte en est informée aussitôt. Déverrouillez-le, et la même connexion répond de nouveau. Une autorisation suit le nom du dossier : si vous renommez un dossier autorisé, l'app ne le voit plus tant que vous ne l'autorisez pas à nouveau, et un nouveau dossier portant l'ancien nom lui serait visible.
+Tant que l'espace de travail chiffré du vault ouvert n'est pas ouvert sur cet appareil — il est verrouillé, ou cet appareil ne détient aucune clé pour lui —, Plainva ne répond à aucune app : chaque requête — y compris une liste ou une recherche — est refusée avec un message qui dit lequel des deux cas s'applique, une requête en cours au moment où vous le verrouillez ne reçoit rien de ce qu'elle a trouvé, et une app qui se connecte en est informée aussitôt. Déverrouillez l'espace, ou configurez-le sur cet appareil, et la même connexion répond de nouveau. Une autorisation suit le nom du dossier : si vous renommez un dossier autorisé, l'app ne le voit plus tant que vous ne l'autorisez pas à nouveau, et un nouveau dossier portant l'ancien nom lui serait visible.
 
 En plus des outils, Plainva propose cinq de ses compétences comme prompts, dans la propre langue de Plainva, et la référence du format de fichier comme ressource (`plainva://format`) : les prompts sont `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` et `task-triage` ; `project-status` demande le nom du projet et `meeting-prep` la réunion. Une app qui prend en charge les prompts les affiche parmi ses commandes.
 

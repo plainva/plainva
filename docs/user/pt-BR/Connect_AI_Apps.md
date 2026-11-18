@@ -1,6 +1,6 @@
 # Conectar apps de IA (Beta)
 
-Última revisão: 2026-11-17
+Última revisão: 2026-11-18
 
 Apps de IA no seu computador — Claude Code, Claude Desktop, Cursor, VS Code e outros que falam o Model Context Protocol (MCP) — podem ler o seu vault pelo Plainva: pesquisar nele, ler notas e suas seções, estruturas, backlinks, bancos de dados, tarefas e notas recentes, e abrir uma nota no Plainva. Sozinhos eles não mudam nada: um app a que você permitir pode sugerir alterações, e elas esperam até você decidir (veja abaixo). Isso faz parte das funções experimentais de IA e funciona só no desktop.
 
@@ -32,7 +32,7 @@ Só as pastas que você permitiu, e só o que suas regras de privacidade deixam 
 
 As configurações listam os apps que você permitiu neste computador com suas pastas neste vault (**nenhuma neste vault** para um app permitido só em outro lugar) e as últimas solicitações. **Remover** retira a permissão de um app em todos os vaults. Isso vale na hora — também para um app que esteja conectado naquele momento.
 
-Enquanto o workspace criptografado do vault aberto estiver bloqueado, o Plainva não responde a nenhum app: toda solicitação — também uma lista ou uma busca — é recusada com uma mensagem que diz que o workspace está bloqueado, uma solicitação em andamento quando você o bloqueia não recebe nada do que encontrou, e um app que se conecta fica sabendo na hora. Desbloqueie-o, e a mesma conexão volta a responder. Uma permissão vale pelo nome da pasta: se você renomear uma pasta permitida, o app deixa de vê-la até você permitir de novo, e uma pasta nova com o nome antigo ficaria visível para ele.
+Enquanto o workspace criptografado do vault aberto não estiver aberto neste dispositivo — porque está bloqueado ou porque este dispositivo não tem nenhuma chave para ele —, o Plainva não responde a nenhum app: toda solicitação — também uma lista ou uma busca — é recusada com uma mensagem que diz qual dos dois casos é, uma solicitação em andamento quando você o bloqueia não recebe nada do que encontrou, e um app que se conecta fica sabendo na hora. Desbloqueie o workspace ou configure-o neste dispositivo, e a mesma conexão volta a responder. Uma permissão vale pelo nome da pasta: se você renomear uma pasta permitida, o app deixa de vê-la até você permitir de novo, e uma pasta nova com o nome antigo ficaria visível para ele.
 
 Além das ferramentas, o Plainva oferece cinco de suas habilidades como prompts, no próprio idioma do Plainva, e a referência do formato de arquivo como um recurso (`plainva://format`): os prompts são `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` e `task-triage`; `project-status` pede o nome do projeto e `meeting-prep` a reunião. Um app que aceita prompts os lista entre seus comandos.
 

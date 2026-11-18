@@ -1,6 +1,6 @@
 # KI-Apps verbinden (Beta)
 
-Stand: 2026-11-17
+Stand: 2026-11-18
 
 KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und andere, die das Model Context Protocol (MCP) sprechen — können Deinen Vault über Plainva lesen: ihn durchsuchen, Notizen und ihre Abschnitte lesen, Gliederungen, Backlinks, Datenbanken, Aufgaben und zuletzt benutzte Notizen, und eine Notiz in Plainva öffnen. Von sich aus ändern sie nichts: eine App, der Du es erlaubst, darf Änderungen vorschlagen, und die warten, bis Du entscheidest (siehe unten). Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -32,7 +32,7 @@ Nur die Ordner, die Du erlaubt hast, und nur, was Deine Datenschutzregeln an ein
 
 Die Einstellungen listen die Apps, die Du auf diesem Rechner erlaubt hast, mit ihren Ordnern in diesem Vault (**keiner in diesem Vault** bei einer App, die nur anderswo erlaubt ist) und die letzten Anfragen. **Entfernen** nimmt einer App die Erlaubnis in jedem Vault zurück. Das gilt sofort — auch für eine App, die in dem Moment verbunden ist.
 
-Solange der verschlüsselte Workspace des offenen Vaults gesperrt ist, antwortet Plainva keiner App: Jede Anfrage — auch eine Liste oder eine Suche — wird mit einer Meldung abgelehnt, die sagt, dass der Workspace gesperrt ist; eine Anfrage, die läuft, während Du sperrst, bekommt nichts von dem, was sie gefunden hat, und eine App, die sich verbindet, erfährt es sofort. Entsperrst Du ihn, antwortet dieselbe Verbindung wieder. Eine Freigabe gilt dem Namen eines Ordners: Benennst Du einen erlaubten Ordner um, sieht die App ihn nicht mehr, bis Du ihn wieder erlaubst, und ein neuer Ordner mit dem alten Namen wäre für sie sichtbar.
+Solange der verschlüsselte Workspace des offenen Vaults auf diesem Gerät nicht offen ist — er ist gesperrt, oder auf diesem Gerät liegt kein Schlüssel dafür —, antwortet Plainva keiner App: Jede Anfrage — auch eine Liste oder eine Suche — wird mit einer Meldung abgelehnt, die sagt, welcher der beiden Fälle vorliegt; eine Anfrage, die läuft, während Du sperrst, bekommt nichts von dem, was sie gefunden hat, und eine App, die sich verbindet, erfährt es sofort. Entsperrst Du den Workspace oder richtest Du ihn auf diesem Gerät ein, antwortet dieselbe Verbindung wieder. Eine Freigabe gilt dem Namen eines Ordners: Benennst Du einen erlaubten Ordner um, sieht die App ihn nicht mehr, bis Du ihn wieder erlaubst, und ein neuer Ordner mit dem alten Namen wäre für sie sichtbar.
 
 Neben den Werkzeugen bietet Plainva fünf seiner Skills als Prompts an, in Plainvas eigener Sprache, und die Referenz des Dateiformats als Ressource (`plainva://format`): die Prompts sind `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` und `task-triage`; `project-status` fragt nach dem Namen des Projekts und `meeting-prep` nach dem Meeting. Eine App, die Prompts unterstützt, führt sie unter ihren Befehlen.
 

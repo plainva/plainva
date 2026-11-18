@@ -1,6 +1,6 @@
 # AI-apps koppelen (bèta)
 
-Laatst bijgewerkt: 2026-11-17
+Laatst bijgewerkt: 2026-11-18
 
 AI-apps op je computer — Claude Code, Claude Desktop, Cursor, VS Code en andere die het Model Context Protocol (MCP) spreken — kunnen je vault via Plainva lezen: erin zoeken, notities en hun secties lezen, structuren, backlinks, databases, taken en recente notities, en een notitie in Plainva openen. Uit zichzelf wijzigen ze niets: een app die je dat toestaat mag wijzigingen voorstellen, en die wachten tot je beslist (zie hieronder). Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
@@ -32,7 +32,7 @@ Alleen de mappen die je hebt toegestaan, en alleen wat je privacyregels naar een
 
 De instellingen tonen de apps die je op deze computer hebt toegestaan met hun mappen in deze vault (**geen in deze vault** bij een app die alleen elders is toegestaan) en de laatste verzoeken. **Verwijderen** trekt de toestemming van een app in elke vault in. Dat geldt meteen — ook voor een app die op dat moment verbonden is.
 
-Zolang de versleutelde workspace van de geopende vault vergrendeld is, antwoordt Plainva geen enkele app: elk verzoek — ook een lijst of een zoekopdracht — wordt geweigerd met een melding dat de workspace vergrendeld is, een verzoek dat loopt wanneer je vergrendelt krijgt niets van wat het vond, en een app die verbinding maakt hoort het meteen. Ontgrendel hem, en dezelfde verbinding antwoordt weer. Een toestemming gaat op de naam van een map: hernoem je een toegestane map, dan ziet de app hem niet meer tot je hem opnieuw toestaat, en een nieuwe map met de oude naam zou voor de app zichtbaar zijn.
+Zolang de versleutelde workspace van de geopende vault op dit apparaat niet open is — hij is vergrendeld, of dit apparaat heeft er geen sleutel voor —, antwoordt Plainva geen enkele app: elk verzoek — ook een lijst of een zoekopdracht — wordt geweigerd met een melding die zegt welk van de twee het is, een verzoek dat loopt wanneer je vergrendelt krijgt niets van wat het vond, en een app die verbinding maakt hoort het meteen. Ontgrendel de workspace of richt hem op dit apparaat in, en dezelfde verbinding antwoordt weer. Een toestemming gaat op de naam van een map: hernoem je een toegestane map, dan ziet de app hem niet meer tot je hem opnieuw toestaat, en een nieuwe map met de oude naam zou voor de app zichtbaar zijn.
 
 Naast de tools biedt Plainva vijf van zijn vaardigheden aan als prompts, in Plainva's eigen taal, en de naslag van het bestandsformaat als resource (`plainva://format`): de prompts zijn `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` en `task-triage`; `project-status` vraagt om de naam van het project en `meeting-prep` om de vergadering. Een app die prompts ondersteunt, toont ze tussen zijn opdrachten.
 

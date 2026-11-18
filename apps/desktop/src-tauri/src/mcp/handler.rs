@@ -30,7 +30,7 @@ use tauri::{AppHandle, Manager, Runtime};
 
 use super::paths;
 use super::store::{AuditEntry, ClientRecord};
-use super::{now_iso, CallExtra, CallFrom, ListChange, McpState, PendingPlan, ToolKind, CHANGED, LOCKED};
+use super::{now_iso, CallExtra, CallFrom, ListChange, McpState, PendingPlan, ToolKind, CHANGED};
 
 /// The key of the one input request a plan sends: the note that it waits in Plainva.
 pub(crate) const CONFIRM_KEY: &str = "confirm";
@@ -174,9 +174,9 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         if state.generation() != self.generation {
             return Err(McpError::invalid_request(CHANGED, None));
         }
-        // The encrypted workspace is locked: nothing of the vault is answered (`McpState::set_locked`).
-        if state.locked() {
-            return Err(McpError::invalid_request(LOCKED, None));
+        // The encrypted workspace is not open here: nothing of the vault is answered (`McpState::set_locked`).
+        if let Some(closed) = state.locked() {
+            return Err(McpError::invalid_request(closed.message(), None));
         }
         // What a client may do is asked when it asks: a grant the user took back is gone from its next list,
         // and a client whose access was taken back has no tools at all.
@@ -218,10 +218,10 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         if state.generation() != self.generation {
             return Ok(Self::refuse(CHANGED));
         }
-        // The encrypted workspace is locked: nothing of the vault is answered, and the main window is not asked.
-        if state.locked() {
+        // The encrypted workspace is not open here: nothing of the vault is answered, and the main window is not asked.
+        if let Some(closed) = state.locked() {
             self.audit(&name, false, 0);
-            return Ok(Self::refuse(LOCKED));
+            return Ok(Self::refuse(closed.message()));
         }
         // What this client may do here is asked at this call, whatever it was admitted with and whatever
         // list it still holds: its folders, and whether it may propose changes.
@@ -320,10 +320,10 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
             self.audit(&name, false, 0);
             return Ok(Self::refuse(CHANGED));
         }
-        // Locked while the main window ran the call: what it found is withheld.
-        if state.locked() {
+        // Closed while the main window ran the call: what it found is withheld.
+        if let Some(closed) = state.locked() {
             self.audit(&name, false, 0);
-            return Ok(Self::refuse(LOCKED));
+            return Ok(Self::refuse(closed.message()));
         }
         // The second wall: an answer that names a note outside the folders is refused whole.
         // Each path is judged in the spelling it is checked in; a name of unusual shape the action itself took away
@@ -414,9 +414,9 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         if state.generation() != self.generation {
             return Err(McpError::invalid_request(CHANGED, None));
         }
-        // The encrypted workspace is locked: nothing of the vault is answered (`McpState::set_locked`).
-        if state.locked() {
-            return Err(McpError::invalid_request(LOCKED, None));
+        // The encrypted workspace is not open here: nothing of the vault is answered (`McpState::set_locked`).
+        if let Some(closed) = state.locked() {
+            return Err(McpError::invalid_request(closed.message(), None));
         }
         let prompts = state
             .prompts()
@@ -435,9 +435,9 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         if state.generation() != self.generation {
             return Err(McpError::invalid_request(CHANGED, None));
         }
-        // The encrypted workspace is locked: nothing of the vault is answered (`McpState::set_locked`).
-        if state.locked() {
-            return Err(McpError::invalid_request(LOCKED, None));
+        // The encrypted workspace is not open here: nothing of the vault is answered (`McpState::set_locked`).
+        if let Some(closed) = state.locked() {
+            return Err(McpError::invalid_request(closed.message(), None));
         }
         let Some(spec) = state.prompts().into_iter().find(|p| p.name == request.name) else {
             return Err(McpError::invalid_params(format!("There is no prompt called {}.", request.name), None));
@@ -447,8 +447,8 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
     }
 
     async fn list_resources(&self, _request: Option<PaginatedRequestParams>, _context: RequestContext<RoleServer>) -> Result<ListResourcesResult, McpError> {
-        if self.app.state::<McpState>().locked() {
-            return Err(McpError::invalid_request(LOCKED, None));
+        if let Some(closed) = self.app.state::<McpState>().locked() {
+            return Err(McpError::invalid_request(closed.message(), None));
         }
         let resource = Resource::new(FORMAT_URI, "format")
             .with_title("How Plainva stores notes")
@@ -458,8 +458,8 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
     }
 
     async fn read_resource(&self, request: ReadResourceRequestParams, _context: RequestContext<RoleServer>) -> Result<ReadResourceResponse, McpError> {
-        if self.app.state::<McpState>().locked() {
-            return Err(McpError::invalid_request(LOCKED, None));
+        if let Some(closed) = self.app.state::<McpState>().locked() {
+            return Err(McpError::invalid_request(closed.message(), None));
         }
         if request.uri != FORMAT_URI {
             return Err(McpError::resource_not_found(format!("unknown resource {}", request.uri), None));

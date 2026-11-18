@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
 import { onTrayJournal, onTrayNewTask } from "./services/background";
 import { copyDesktopNoteLink, hasNoteLink, useDesktopNoteLinks } from "./services/noteLinkReceiver";
+import { workspaceClosedHere } from "./services/workspaceSecurity/workspaceClosed";
 import { openAttachmentExternally } from "./services/openAttachment";
 import { useVault } from "./contexts/VaultContext";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
@@ -587,7 +588,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     vaultAdapter,
     queryService,
     encrypted: workspaceSecurityStatus !== null,
-    locked: workspaceSecurityStatus?.phase === "locked",
+    closed: workspaceClosedHere(workspaceSecurityStatus),
     activePath,
     layout,
     openView,

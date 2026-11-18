@@ -1,6 +1,6 @@
 # Connecting AI apps (Beta)
 
-Last reviewed: 2026-11-17
+Last reviewed: 2026-11-18
 
 AI apps on your computer — Claude Code, Claude Desktop, Cursor, VS Code and others that speak the Model Context Protocol (MCP) — can read your vault through Plainva: search it, read notes and their sections, outlines, backlinks, databases, tasks and recent notes, and open a note in Plainva. They change nothing by themselves: where you allow it, an app may propose changes, and those wait until you decide (see below). This is part of the experimental AI features and works on the desktop only.
 
@@ -32,7 +32,7 @@ Only the folders you allowed, and only what your privacy rules let go to a cloud
 
 The settings list the apps you allowed on this computer with their folders in this vault (**none in this vault** for an app allowed only elsewhere) and the last requests. **Remove** takes an app's permission back in every vault. That holds at once — also for an app that is connected at that moment.
 
-While the encrypted workspace of the open vault is locked, Plainva answers no app: every request — also a list or a search — is refused with a message that says the workspace is locked, a request that runs when you lock it gets nothing of what it found, and an app that connects is told so at once. Unlock it, and the same connection answers again. A permission goes by a folder's name: if you rename an allowed folder, the app no longer sees it until you allow it again, and a new folder with the old name would be visible to it.
+While the encrypted workspace of the open vault is not open on this device — it is locked, or this device holds no key for it —, Plainva answers no app: every request — also a list or a search — is refused with a message that says which of the two it is, a request that runs when you lock it gets nothing of what it found, and an app that connects is told so at once. Unlock the workspace, or set it up on this device, and the same connection answers again. A permission goes by a folder's name: if you rename an allowed folder, the app no longer sees it until you allow it again, and a new folder with the old name would be visible to it.
 
 Besides the tools, Plainva offers five of its skills as prompts, in Plainva's own language, and the file-format reference as a resource (`plainva://format`): the prompts are `daily-orientation`, `weekly-review`, `project-status`, `meeting-prep` and `task-triage`; `project-status` asks for the project's name and `meeting-prep` for the meeting. An app that supports prompts lists them among its commands.
 

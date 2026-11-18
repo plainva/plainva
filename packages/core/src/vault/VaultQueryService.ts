@@ -24,7 +24,7 @@ function needsTaskProgress(config: any): boolean {
 }
 import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./findReplace.js";
 import { contentHasTag } from "./renameTag.js";
-import { propertiesBlockOfKeys, readFrontmatterPath } from "../frontmatter-surgical.js";
+import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
 import { buildLinkTargetIndex, linkTargetName, noteLinkResolver, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
@@ -33,7 +33,7 @@ import { mayHoldAWithheldLink, redactDeniedLinksIn } from "../ai/egressGate.js";
 import type { LinkRule } from "../ai/chat.js";
 import { ReaderView } from "../ai/readerView.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
-import { BlockMemo, linkTargetsOfBlock, propertiesBlockOf, propertiesInView, tagsInView, tagsNeedTheText, withValuesAsWritten, type PropertiesView } from "./propertiesInView.js";
+import { BlockMemo, cutToKeys, linkTargetsOfBlock, PROPERTIES_AS_HELD, propertiesBlockOf, propertiesInView, tagsInView, tagsNeedTheText, withValuesAsWritten, type PropertiesView } from "./propertiesInView.js";
 import { frontmatterSpan } from "../frontmatter-block.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -262,21 +262,64 @@ function stringsOf(value: unknown, depth = 0): string[] {
 /** What one query's reach was told about links (`_linksDeniedInReach`): the names of all files, what each link could mean. */
 const JUDGED = new WeakMap<object, { names: Promise<LinkNameIndex> | null; meanings: Map<string, string[]> }>();
 
+/** A link means what it means from the folder it stands in (`filesALinkCouldMean`): asked once per folder and target. */
+const meaningKey = (from: string, target: string) => `${from.slice(0, from.lastIndexOf("/") + 1)}\u0000${target}`;
+
+function meaningsOf(memo: { meanings: Map<string, string[]> }, names: LinkNameIndex, from: string, target: string): string[] {
+  const key = meaningKey(from, target);
+  let paths = memo.meanings.get(key);
+  if (!paths) {
+    paths = filesALinkCouldMean(names, linkTargetName(target), from);
+    memo.meanings.set(key, paths);
+  }
+  return paths;
+}
+
+/** Whether a link is withheld: under "in-reach" where it means no note in reach, under "any-kept-back" where it could mean one out of reach. */
+function deniedBy(rule: LinkRule, paths: readonly string[], inReach: ReadonlySet<string> | ((path: string) => boolean)): boolean {
+  const has = typeof inReach === "function" ? inReach : (path: string) => inReach.has(path);
+  if (rule === "in-reach") {
+    for (const path of paths) if (has(path)) return false;
+    return true;
+  }
+  for (const path of paths) if (!has(path)) return true;
+  return false;
+}
+
+/** What each link of a note's block could mean, kept with the note for one set of names (`_blocksDenied`). */
+interface Meant {
+  names: LinkNameIndex;
+  targets: readonly string[];
+  lists: readonly (readonly string[])[];
+}
+
+/** What was kept of notes no longer in the index goes with them: their blocks, their values' links (`BLOCKS`, `VALUE_TARGETS`, `NO_LINK`). */
+function forgetGoneNotes(db: object, files: readonly LinkTargetRow[]): void {
+  const stores = [BLOCKS.get(db), VALUE_TARGETS.get(db), NO_LINK.get(db)].filter((store) => store?.size);
+  if (stores.length === 0) return;
+  const there = new Set(files.map((file) => file.path));
+  for (const store of stores) for (const path of store!.keys()) if (!there.has(path)) store!.delete(path);
+}
+
 /**
  * The names of all files and what each link could mean by them (`filesALinkCouldMean`), kept by index for as long as
- * the files the index lists stay the same — compared row by row with what it lists at each query, so a file added,
- * gone or retitled is read anew at once. A query over a vault of many notes asks each link's meanings once, not once
+ * the files the index lists stay the same — compared file by file with what it lists at each query (`FILE_KEYS_SQL`),
+ * so a file added, gone, moved or retitled is read anew at once. A query over a vault of many notes asks each link's meanings once, not once
  * per query.
  */
-const NAMES = new WeakMap<object, { files: readonly LinkTargetRow[]; names: LinkNameIndex; meanings: Map<string, string[]> }>();
+const NAMES = new WeakMap<object, { keys: readonly string[]; names: LinkNameIndex; meanings: Map<string, string[]> }>();
 
-function sameFiles(a: readonly LinkTargetRow[], b: readonly LinkTargetRow[]): boolean {
+/**
+ * Each file the index lists as one text of its path, its kind and its title, written so that two files are the same
+ * text only where all three are the same (the path's length first, a value that is absent apart from an empty one):
+ * what `NAMES` compares at each query, read faster than the rows themselves, in the order of the paths: a note written
+ * anew is the same file.
+ */
+const FILE_KEYS_SQL = `SELECT length(path) || ':' || path || ifnull('=' || mode, '-') || ':' || ifnull('=' || title, '-') AS k FROM files WHERE is_deleted IS NULL OR is_deleted = 0 ORDER BY path`;
+
+function sameKeys(a: readonly string[], b: readonly { k: string }[]): boolean {
   if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i]!;
-    const y = b[i]!;
-    if (x.path !== y.path || x.title !== y.title || x.mode !== y.mode) return false;
-  }
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]!.k) return false;
   return true;
 }
 
@@ -284,32 +327,101 @@ function sameFiles(a: readonly LinkTargetRow[], b: readonly LinkTargetRow[]): bo
  * The link targets of each text a note's values hold, kept with the note by index and path for as long as the index
  * holds the same text of it (`_withholdRowValues`): a query reads them once per text of a note.
  */
-const VALUE_TARGETS = new WeakMap<object, Map<string, { sha: string; texts: Map<string, readonly string[]> }>>();
+const VALUE_TARGETS = new WeakMap<object, Map<string, ValueTexts>>();
+
+/** What is kept of one note's values (`VALUE_TARGETS`): the link targets of each text, and what a text shows once withheld. */
+interface ValueTexts {
+  sha: string;
+  texts: Map<string, readonly string[]>;
+  /** By text: the text with its withheld links taken out, for which of its links (`mask`) were withheld. */
+  shown: Map<string, { mask: string; text: string }>;
+}
+
+function valueTargetsOf(db: object): Map<string, ValueTexts> {
+  let kept = VALUE_TARGETS.get(db);
+  if (!kept) {
+    kept = new Map();
+    VALUE_TARGETS.set(db, kept);
+  }
+  return kept;
+}
 
 /**
  * Whether what the index holds of a note — its keys, its values, its title — could stand for a link: every way the
  * views write one (`[[…]]`, `[…](…)`, `[…]`) has a bracket, and YAML keeps the brackets of a link it reads as a list
- * (`[["Meier", "Kowalski"]]`), as a key (`[ [ Kowalski ] ]`) or as text (`[Meier, Kowalski]`). Only such a note's
- * properties block is read for a reader with a narrower view (`_viewsOfProperties`).
+ * (`[["Meier", "Kowalski"]]`), as a key (`[ [ Kowalski ] ]`) or as text (`[Meier, Kowalski]`); the views read one
+ * from an escape too (`\`). Only such a note's properties block is read for a reader with a narrower view
+ * (`_viewsOfProperties`); the values of any other are withheld of nothing (`_withholdRowValues`, `held`).
  */
 function mayHoldALink(held: unknown): boolean {
-  if (typeof held === "string") return /[[\]]/.test(held);
+  if (typeof held === "string") return LINK_MARK.test(held);
   if (held === null || typeof held !== "object") return false;
   // A value YAML read as a list in a list or a map is held as a collection, or a map as its JSON text: brackets too.
-  if (Array.isArray(held)) return held.some((item) => (item !== null && typeof item === "object") || mayHoldALink(item));
-  return Object.entries(held).some(([key, value]) => mayHoldALink(key) || (value !== null && typeof value === "object" && !Array.isArray(value)) || mayHoldALink(value));
+  if (Array.isArray(held)) {
+    for (const item of held) if ((item !== null && typeof item === "object") || mayHoldALink(item)) return true;
+    return false;
+  }
+  for (const key in held) {
+    if (LINK_MARK.test(key)) return true;
+    const value = (held as Record<string, unknown>)[key];
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) return true;
+    if (mayHoldALink(value)) return true;
+  }
+  return false;
 }
 
+const LINK_MARK = /[[\]\\]/;
+
 /** How much of a note is read first for its properties block: past it, the rest (`_viewsOfProperties`). */
-const PROPERTIES_HEAD = 4096;
+const PROPERTIES_HEAD = 1024;
 
 /**
  * What is kept of each note's properties block for a reader with a narrower view, by index and path, for as long as
- * the index holds the same text of the note (its `sha256`, written with the text by the indexer): the block, null
- * where it could hold no link, and its readings and views (`BlockMemo`). One entry per note — a query over a vault of
- * any size finds what it read before, and reads only the notes whose text changed since.
+ * the index holds the same text of the note (its `sha256`, written with the text by the indexer): its link targets,
+ * and — only where a reader may not follow one of them — the block and its readings and views (`BlockMemo`). Of a
+ * note none of whose links was withheld only its links are kept. One entry per note — a query over a vault of any
+ * size finds what it read before, and reads only the notes whose text changed since; an entry goes with its note
+ * (`forgetGoneNotes`).
  */
-const BLOCKS = new WeakMap<object, Map<string, { sha: string; block: string | null; memo: BlockMemo }>>();
+interface BlockEntry {
+  sha: string;
+  /** The block with its fences; null where it could hold no link; undefined where it was let go (nothing withheld). */
+  block: string | null | undefined;
+  memo: BlockMemo | null;
+  targets: readonly string[];
+  /** The block cut to the keys a rollup reads, by those keys, with its link targets (`cutToKeys`). */
+  cuts?: Map<string, { block: string | null; targets: readonly string[]; meant?: Meant }>;
+  /** What each of its links could mean (`_blocksDenied`). */
+  meant?: Meant;
+}
+const BLOCKS = new WeakMap<object, Map<string, BlockEntry>>();
+
+/**
+ * The notes whose values and title hold nothing that could stand for a link (`mayHoldALink`), by index and path, with
+ * the hash of the text that was so: asked once per text of a note.
+ */
+const NO_LINK = new WeakMap<object, Map<string, string>>();
+
+function noLinkOf(db: object): Map<string, string> {
+  let kept = NO_LINK.get(db);
+  if (!kept) {
+    kept = new Map();
+    NO_LINK.set(db, kept);
+  }
+  return kept;
+}
+
+/** The answer of a note whose block, cut to the keys asked, holds no link. */
+const NO_ANSWER: { block: null; targets: readonly string[] } = Object.freeze({ block: null, targets: Object.freeze([]) as readonly string[] });
+
+function blocksOf(db: object): Map<string, BlockEntry> {
+  let kept = BLOCKS.get(db);
+  if (!kept) {
+    kept = new Map();
+    BLOCKS.set(db, kept);
+  }
+  return kept;
+}
 
 /**
  * A reader's `reach`, asked once per note and in one question for many: the notes a value computed for it may be
@@ -317,19 +429,36 @@ const BLOCKS = new WeakMap<object, Map<string, { sha: string; block: string | nu
  * reach, which would make "could not tell" look like "not there" (review of R19, wave 2).
  */
 interface Reach {
-  ask(paths: readonly string[]): Promise<ReadonlySet<string>>;
+  ask(paths: Iterable<string>): Promise<ReadonlySet<string>>;
+  /** `ask`, answered as a question of one path: in reach where it was asked about, now or before, and found so. */
+  judge(paths: Iterable<string>): Promise<(path: string) => boolean>;
 }
 
 function reachOf(question: (paths: readonly string[]) => ReadonlySet<string> | Promise<ReadonlySet<string>>): Reach {
   const known = new Map<string, boolean>();
   return {
     async ask(paths) {
-      const fresh = [...new Set(paths)].filter((path) => !known.has(path));
-      if (fresh.length) {
-        const yes = await question(fresh);
-        for (const path of fresh) known.set(path, yes.has(path));
+      // What it said before is taken as it said it: only what it was never asked goes to it, each path once.
+      let fresh: Set<string> | null = null;
+      for (const path of paths) if (!known.has(path)) (fresh ??= new Set()).add(path);
+      if (fresh) {
+        const asked = [...fresh];
+        const yes = await question(asked);
+        for (const path of asked) known.set(path, yes.has(path));
       }
-      return new Set(paths.filter((path) => known.get(path) === true));
+      const inReach = new Set<string>();
+      for (const path of paths) if (known.get(path) === true) inReach.add(path);
+      return inReach;
+    },
+    async judge(paths) {
+      let fresh: Set<string> | null = null;
+      for (const path of paths) if (!known.has(path)) (fresh ??= new Set()).add(path);
+      if (fresh) {
+        const list = [...fresh];
+        const yes = await question(list);
+        for (const path of list) known.set(path, yes.has(path));
+      }
+      return (path) => known.get(path) === true;
     },
   };
 }
@@ -1379,7 +1508,7 @@ export class VaultQueryService {
    * keys set to nothing. Computed columns (reverse, rollup) are left as they
    * are: they are made of notes in reach already.
    */
-  private async _withholdRowValues(result: any[], reach: Reach, withhold: { rule: LinkRule; hiddenKeys?: readonly string[] }, only?: ReadonlySet<string>): Promise<void> {
+  private async _withholdRowValues(result: any[], reach: Reach, withhold: { rule: LinkRule; hiddenKeys?: readonly string[] }, only?: ReadonlySet<string>, held?: { unheld: WeakSet<object>; computed: readonly string[] }): Promise<void> {
     const hidden = new Set((withhold.hiddenKeys ?? []).map((key) => key.toLowerCase()));
     // A note's own values: its properties, and its name — which is the title of its properties where it has one, and
     // holds a link like any of them (review of R19, wave 2). The other `file.` fields are its path, made by nobody.
@@ -1387,24 +1516,33 @@ export class VaultQueryService {
     const own = (key: string) => (key === "file.name" || (!key.startsWith("file.") && !key.startsWith("formula."))) && (!only || only.has(key.toLowerCase()));
     // The values have been read from the view of each note's properties block already (`_viewsOfProperties`); what
     // stands in them now is withheld once more by the same rule, as every view withholds a value it shows.
-    // 1. Every link target of every value, by row — read once per text of a note (`VALUE_TARGETS`).
-    const keptTargets = VALUE_TARGETS.get(this.db) ?? new Map<string, { sha: string; texts: Map<string, readonly string[]> }>();
-    VALUE_TARGETS.set(this.db, keptTargets);
-    const targetsByRow = new Map<string, Map<string, readonly string[]>>();
+    // 1. Every link target of every value, by row — read once per text of a note (`VALUE_TARGETS`), and what a text
+    // shows once its withheld links are taken out, for the links withheld from it.
+    const keptTargets = valueTargetsOf(this.db);
     const asked: { from: string; target: string }[] = [];
+    // Each row's kept texts, and where its links stand in `asked`: a row none of whose links is withheld stays as it is.
+    const kept: (ValueTexts | null)[] = [];
+    const ends: number[] = [];
     for (const row of result) {
       const from = String(row["file.path"] ?? "");
       const sha = typeof row["file.revision"] === "string" ? row["file.revision"] : "";
-      let entry = keptTargets.get(from);
-      if (!entry || !sha || entry.sha !== sha) {
-        entry = { sha, texts: new Map() };
-        if (sha) keptTargets.set(from, entry);
-      }
-      targetsByRow.set(from, entry.texts);
-      for (const [key, value] of Object.entries(row)) {
-        if (!own(key) || hidden.has(key.toLowerCase())) continue;
+      let entry: ValueTexts | null = null;
+      // `held`: a row whose own values withhold nothing from this reader (`queryDatabaseFiles`): of it only its name
+      // and the columns computed over other notes are read.
+      const asHeld = held !== undefined && !held.unheld.has(row);
+      for (const key of asHeld ? held!.computed : Object.keys(row)) {
+        if (!own(key) || !Object.prototype.hasOwnProperty.call(row, key)) continue;
+        const value = row[key];
+        if (hidden.size && hidden.has(key.toLowerCase())) continue;
         for (const text of stringsOf(value)) {
           if (!mayHoldAWithheldLink(text)) continue;
+          if (!entry) {
+            entry = keptTargets.get(from) ?? null;
+            if (!entry || !sha || entry.sha !== sha) {
+              entry = { sha, texts: new Map(), shown: new Map() };
+              if (sha) keptTargets.set(from, entry);
+            }
+          }
           let targets = entry.texts.get(text);
           if (!targets) {
             const found: string[] = [];
@@ -1418,19 +1556,34 @@ export class VaultQueryService {
           for (const target of targets) asked.push({ from, target });
         }
       }
+      kept.push(entry);
+      ends.push(asked.length);
     }
     // 2. What each could mean, and which of those are in reach — in one question.
-    const denied = await this._linksDeniedInReach(asked, reach, withhold.rule);
+    const denied = asked.length ? await this._linksDeniedInReach(asked, reach, withhold.rule) : () => false;
     // 3. The values, withheld.
-    for (const row of result) {
+    for (let index = 0; index < result.length; index++) {
+      const row = result[index];
       const from = String(row["file.path"] ?? "");
-      const texts = targetsByRow.get(from);
+      let any = false;
+      for (let i = index ? ends[index - 1]! : 0; i < ends[index]! && !any; i++) any = denied(from, asked[i]!.target);
+      if (!any) {
+        if (hidden.size) for (const key of Object.keys(row)) if (own(key) && hidden.has(key.toLowerCase())) row[key] = null;
+        continue;
+      }
+      const entry = kept[index]!;
       const shown = (text: string) => {
         if (!mayHoldAWithheldLink(text)) return text;
         // A text none of whose links is withheld stands as it is.
-        const targets = texts?.get(text);
-        if (targets && !targets.some((target) => denied(from, target))) return text;
-        return redactDeniedLinksIn(ReaderView.of(text), (target) => denied(from, target)).view.text;
+        const targets = entry.texts.get(text);
+        if (!targets) return redactDeniedLinksIn(ReaderView.of(text), (target) => denied(from, target)).view.text;
+        const mask = targets.map((target) => (denied(from, target) ? "1" : "0")).join("");
+        if (!mask.includes("1")) return text;
+        const known = entry.shown.get(text);
+        if (known?.mask === mask) return known.text;
+        const out = redactDeniedLinksIn(ReaderView.of(text), (target) => denied(from, target)).view.text;
+        entry.shown.set(text, { mask, text: out });
+        return out;
       };
       for (const key of Object.keys(row)) {
         if (!own(key)) continue;
@@ -1449,42 +1602,83 @@ export class VaultQueryService {
    * could mean read from the names of all files (`filesALinkCouldMean`), and the reach asked once for all of them.
    */
   private async _linksDeniedInReach(asked: readonly { from: string; target: string }[], reach: Reach, rule: LinkRule): Promise<(from: string, target: string) => boolean> {
-    // One query asks this several times (the blocks, the values, a rollup's notes): the names are read once for it,
-    // and a link means what it means from the folder it stands in (`filesALinkCouldMean`), asked once per folder.
-    let judged = JUDGED.get(reach);
-    if (!judged) {
-      judged = { names: null, meanings: new Map() };
-      JUDGED.set(reach, judged);
-    }
-    const memo = judged;
-    const keyOf = (from: string, target: string) => `${from.slice(0, from.lastIndexOf("/") + 1)}\u0000${target}`;
+    const memo = this._judged(reach);
     const all = new Set<string>();
     if (asked.length) {
-      memo.names ??= this.linkTargets().then((files) => {
-        const known = NAMES.get(this.db);
-        if (known && sameFiles(known.files, files)) {
-          memo.meanings = known.meanings;
-          return known.names;
-        }
-        const names = buildLinkNameIndex(files);
-        NAMES.set(this.db, { files, names, meanings: memo.meanings });
-        return names;
-      });
-      const names = await memo.names;
-      for (const { from, target } of asked) {
-        const key = keyOf(from, target);
-        let paths = memo.meanings.get(key);
-        if (!paths) {
-          paths = filesALinkCouldMean(names, linkTargetName(target), from);
-          memo.meanings.set(key, paths);
-        }
-        for (const path of paths) all.add(path);
-      }
+      const names = await this._namesOf(memo);
+      for (const { from, target } of asked) for (const path of meaningsOf(memo, names, from, target)) all.add(path);
     }
-    const inReach = all.size ? await reach.ask([...all]) : new Set<string>();
-    return (from, target) => {
-      const paths = memo.meanings.get(keyOf(from, target)) ?? [];
-      return rule === "in-reach" ? !paths.some((path) => inReach.has(path)) : paths.some((path) => !inReach.has(path));
+    const inReach = all.size ? await reach.ask(all) : new Set<string>();
+    return (from, target) => deniedBy(rule, memo.meanings.get(meaningKey(from, target)) ?? [], inReach);
+  }
+
+  /**
+   * What one query's reach is told about links (`JUDGED`): the names of all files, read once for it and kept by index
+   * for as long as the files the index lists stay the same (`NAMES`) — and when they change, what was kept of a note
+   * that is no longer there goes with it (`forgetGoneNotes`).
+   */
+  private _judged(reach: Reach): { names: Promise<LinkNameIndex> | null; meanings: Map<string, string[]> } {
+    let memo = JUDGED.get(reach);
+    if (!memo) {
+      memo = { names: null, meanings: new Map() };
+      JUDGED.set(reach, memo);
+    }
+    return memo;
+  }
+
+  /** The names of all files for one query (`_judged`), read only where a link is asked about. */
+  private _namesOf(judged: { names: Promise<LinkNameIndex> | null; meanings: Map<string, string[]> }): Promise<LinkNameIndex> {
+    judged.names ??= (async () => {
+      const keys = await this.db.query<{ k: string }>(FILE_KEYS_SQL);
+      const known = NAMES.get(this.db);
+      if (known && sameKeys(known.keys, keys)) {
+        judged.meanings = known.meanings;
+        return known.names;
+      }
+      const files = await this.linkTargets();
+      forgetGoneNotes(this.db, files);
+      const names = buildLinkNameIndex(files);
+      NAMES.set(this.db, { keys: keys.map((row) => row.k), names, meanings: judged.meanings });
+      return names;
+    })();
+    return judged.names;
+  }
+
+  /**
+   * `_linksDeniedInReach` for the blocks of many notes at once, each with its link targets: whether any link of each is
+   * withheld, and which. What each link of a note could mean is kept with the note (`Meant`) for as long as the names
+   * of all files stay the same: a query over a vault whose notes it read before resolves no link again and asks the
+   * reach once for all of them.
+   */
+  private async _blocksDenied(froms: readonly string[], targetsOf: readonly (readonly string[])[], holders: readonly { meant?: Meant }[], reach: Reach, rule: LinkRule): Promise<{ any: (index: number) => boolean; denied: (from: string, target: string) => boolean }> {
+    const memo = this._judged(reach);
+    const names = froms.length ? await this._namesOf(memo) : null;
+    const meant: Meant[] = new Array(froms.length);
+    const all: string[] = [];
+    for (let index = 0; index < froms.length; index++) {
+      const targets = targetsOf[index]!;
+      const holder = holders[index]!;
+      let known = holder.meant;
+      if (!known || known.names !== names || known.targets !== targets) {
+        known = { names: names!, targets, lists: targets.map((target) => meaningsOf(memo, names!, froms[index]!, target)) };
+        if (Object.isExtensible(holder)) holder.meant = known;
+      }
+      meant[index] = known;
+      for (const paths of known.lists) for (const path of paths) all.push(path);
+    }
+    const inReach = await reach.judge(all);
+    let byFrom: Map<string, Meant> | null = null;
+    return {
+      any: (index) => {
+        for (const paths of meant[index]!.lists) if (deniedBy(rule, paths, inReach)) return true;
+        return false;
+      },
+      denied: (from, target) => {
+        byFrom ??= new Map(froms.map((path, index) => [path, meant[index]!]));
+        const known = byFrom.get(from);
+        const at = known ? known.targets.indexOf(target) : -1;
+        return deniedBy(rule, at >= 0 ? known!.lists[at]! : names ? meaningsOf(memo, names, from, target) : [], inReach);
+      },
     };
   }
 
@@ -1498,46 +1692,151 @@ export class VaultQueryService {
    * withheld links (`propertiesInView`). `tags`: whether the caller reads the notes' tags. `revisions`: the hash of
    * each note's text where the caller read it with the note already, else asked here.
    */
-  private async _viewsOfProperties(paths: readonly string[], reach: Reach, rule: LinkRule, keys?: ReadonlySet<string>, tags = false, revisions?: ReadonlyMap<string, unknown>): Promise<Map<string, PropertiesView>> {
+  private async _viewsOfProperties(paths: readonly string[], reach: Reach, rule: LinkRule, keys?: ReadonlySet<string>, tags = false): Promise<Map<string, PropertiesView>> {
+    const views = new Map<string, PropertiesView>();
+    const inOrder = await this._viewsInOrder(paths, null, reach, rule, keys, tags);
+    for (let index = 0; index < paths.length; index++) if (inOrder[index]) views.set(paths[index]!, inOrder[index]!);
+    return views;
+  }
+
+  /**
+   * `_viewsOfProperties`, answered in the order of `paths` (undefined where a note is answered for by none). `shas`:
+   * the hash of each note's text where the caller read it with the note already, else asked here.
+   */
+  private async _viewsInOrder(paths: readonly string[], shas: readonly unknown[] | null, reach: Reach, rule: LinkRule, keys?: ReadonlySet<string>, tags = false, found?: readonly (BlockEntry | undefined)[]): Promise<(PropertiesView | undefined)[]> {
     // Only some keys read (a rollup reads one of the notes it reaches): the block cut to those, so a link in another
     // key is asked about by nobody (review of R19, wave 2). A note's name is its title.
     const cut = keys && keys.has("file.name") ? new Set([...keys, "title"]) : keys;
-    const kept = BLOCKS.get(this.db) ?? new Map<string, { sha: string; block: string | null; memo: BlockMemo }>();
-    BLOCKS.set(this.db, kept);
-    const blocks = new Map<string, { block: string; memo: BlockMemo }>();
-    const use = (path: string, entry: { block: string | null; memo: BlockMemo }) => {
-      if (entry.block === null) return;
-      const block = cut ? propertiesBlockOf(propertiesBlockOfKeys(entry.block, cut) ?? entry.block) : entry.block;
-      if (block !== null) blocks.set(path, { block, memo: entry.memo });
+    const kept = blocksOf(this.db);
+    const views: (PropertiesView | undefined)[] = new Array(paths.length);
+    // Which text the index holds of each note first: what was read of the same text before is taken as it was.
+    const entries: (BlockEntry | undefined)[] = new Array(paths.length);
+    const unread: number[] = [];
+    let shaOf: (index: number) => unknown = (index) => shas![index];
+    if (!shas) {
+      const asked = new Map<string, string | null>();
+      for (let i = 0; i < paths.length; i += 400) {
+        const slice = paths.slice(i, i + 400);
+        const rows = await this.db.query<{ path: string; sha: string | null }>(
+          `SELECT f.path AS path, f.sha256 AS sha FROM files f WHERE f.path IN (${slice.map(() => "?").join(",")}) AND EXISTS (SELECT 1 FROM properties p WHERE p.file_id = f.id)`,
+          slice,
+        );
+        for (const { path, sha } of rows) asked.set(path, sha);
+      }
+      shaOf = (index) => (asked.has(paths[index]!) ? (asked.get(paths[index]!) ?? "") : undefined);
+    }
+    for (let index = 0; index < paths.length; index++) {
+      const sha = shaOf(index);
+      if (sha === undefined) continue;
+      // `found`: what the caller found kept of each note already.
+      const entry = found ? found[index] : kept.get(paths[index]!);
+      if (entry && typeof sha === "string" && sha && entry.sha === sha) entries[index] = entry;
+      else unread.push(index);
+    }
+    const read = async (indexes: readonly number[]) => {
+      if (indexes.length === 0) return;
+      const fresh = await this._readBlocks(indexes.map((index) => paths[index]!));
+      for (const index of indexes) {
+        const entry = fresh.get(paths[index]!);
+        if (!entry) continue;
+        // Kept only where the index says which text it holds: a row without a hash is read anew each time.
+        if (entry.sha) kept.set(paths[index]!, entry);
+        else kept.delete(paths[index]!);
+        entries[index] = entry;
+      }
     };
+    await read(unread);
+    // The block each answer is read of: the note's, or cut to the keys asked — kept with the note by those keys, so a
+    // link in another key is asked about by nobody, and a block is cut once per text.
+    const asKey = cut ? [...cut].sort().join("\u0000") : null;
+    if (cut && asKey) {
+      await read(unread.length === paths.length ? [] : entries.flatMap((entry, index) => (entry && entry.block === undefined && !entry.cuts?.has(asKey) ? [index] : [])));
+      for (const entry of entries) {
+        if (!entry || typeof entry.block !== "string" || entry.cuts?.has(asKey)) continue;
+        entry.memo ??= new BlockMemo();
+        const block = cutToKeys(entry.block, cut, entry.memo);
+        (entry.cuts ??= new Map()).set(asKey, { block, targets: block === null ? [] : linkTargetsOfBlock(block, entry.memo) });
+      }
+    }
+    const answerOf = (entry: BlockEntry): { block: string | null | undefined; targets: readonly string[]; meant?: Meant } =>
+      asKey ? (entry.cuts?.get(asKey) ?? NO_ANSWER) : entry;
+    // The notes with links, in one question for all of them.
+    const asked: number[] = [];
+    const froms: string[] = [];
+    const targets: (readonly string[])[] = [];
+    const holders: { meant?: Meant }[] = [];
+    for (let index = 0; index < paths.length; index++) {
+      const entry = entries[index];
+      if (!entry) continue;
+      const answer = answerOf(entry);
+      if (answer.targets.length === 0) continue;
+      asked.push(index);
+      froms.push(paths[index]!);
+      targets.push(answer.targets);
+      holders.push(answer);
+    }
+    if (asked.length === 0) return views;
+    const { any, denied } = await this._blocksDenied(froms, targets, holders, reach, rule);
+    // A block none of whose links is withheld is the index's (`PROPERTIES_AS_HELD`): of it only its links are kept,
+    // and nothing more is read (round 10 of the review of R19, wave 2). The text of the others is read again where it
+    // was let go: a block whose link a reader may not follow is read as YAML, its views kept with the note.
+    const withheld: number[] = [];
+    for (let k = 0; k < asked.length; k++) {
+      const index = asked[k]!;
+      if (any(k)) {
+        withheld.push(index);
+        continue;
+      }
+      views[index] = PROPERTIES_AS_HELD;
+      if (!asKey) {
+        const entry = entries[index]!;
+        entry.block = undefined;
+        entry.memo = null;
+        entry.cuts = undefined;
+      }
+    }
+    await read(withheld.filter((index) => entries[index]!.block === undefined));
+    for (const index of withheld) {
+      const entry = entries[index]!;
+      const block = answerOf(entry).block;
+      if (typeof block !== "string") continue;
+      entry.memo ??= new BlockMemo();
+      const from = paths[index]!;
+      views[index] = propertiesInView(block, (target) => denied(from, target), entry.memo);
+    }
+    // The tags of a note whose view withholds a link: those the index holds of it, less what only its block gave, and
+    // the view's — the text behind the block read only where a tag taken away could stand in it as well.
+    if (!cut && tags) {
+      // Tags read of the same text and links before are kept with the view (`BlockMemo`).
+      const seen = withheld.filter((index) => views[index] && views[index]!.seen !== null && views[index]!.tags === null);
+      const seenPaths = seen.map((index) => paths[index]!);
+      const held = await this._tagsOf(seenPaths);
+      const texts = await this._noteTexts(seen.filter((index) => tagsNeedTheText(views[index]!)).map((index) => paths[index]!));
+      for (const index of seen) {
+        const content = texts.get(paths[index]!);
+        const span = content === undefined ? null : frontmatterSpan(content);
+        tagsInView(views[index]!, held.get(paths[index]!) ?? [], content === undefined ? undefined : span ? content.slice(span.end) : content);
+      }
+    }
+    return views;
+  }
+
+  /**
+   * The properties blocks of notes from the search table, by path, with the hash of the text the index holds: the
+   * head of a note first — a block is rarely longer —, the rest only where its block runs on. A block that could hold
+   * no link is none (null); of the others the link targets are read (`linkTargetsOfBlock`).
+   */
+  private async _readBlocks(paths: readonly string[]): Promise<Map<string, BlockEntry>> {
+    const read = new Map<string, BlockEntry>();
     const take = (path: string, sha: unknown, content: string) => {
       const span = frontmatterSpan(content);
-      const entry = { sha: typeof sha === "string" ? sha : "", block: span ? propertiesBlockOf(content.slice(0, span.end)) : null, memo: new BlockMemo() };
-      // Kept only where the index says which text it holds: a row without a hash is read anew each time.
-      if (entry.sha) kept.set(path, entry);
-      else kept.delete(path);
-      use(path, entry);
+      const block = span ? propertiesBlockOf(content.slice(0, span.end)) : null;
+      const memo = block === null ? null : new BlockMemo();
+      read.set(path, { sha: typeof sha === "string" ? sha : "", block, memo, targets: block === null ? [] : linkTargetsOfBlock(block, memo!) });
     };
-    // Which text the index holds of each note first: what was read of the same text before is taken as it was. Of
-    // the others the head first — a block is rarely longer —, the rest of a note only where its block runs on.
-    const unread: string[] = [];
-    const known = (path: string, sha: unknown) => {
-      const entry = kept.get(path);
-      if (entry && typeof sha === "string" && sha && entry.sha === sha) use(path, entry);
-      else unread.push(path);
-    };
-    if (revisions) for (const path of paths) known(path, revisions.get(path));
-    else for (let i = 0; i < paths.length; i += 400) {
-      const slice = paths.slice(i, i + 400);
-      const rows = await this.db.query<{ path: string; sha: string | null }>(
-        `SELECT f.path AS path, f.sha256 AS sha FROM files f WHERE f.path IN (${slice.map(() => "?").join(",")}) AND EXISTS (SELECT 1 FROM properties p WHERE p.file_id = f.id)`,
-        slice,
-      );
-      for (const { path, sha } of rows) known(path, sha);
-    }
     const whole: string[] = [];
-    for (let i = 0; i < unread.length; i += 400) {
-      const slice = unread.slice(i, i + 400);
+    for (let i = 0; i < paths.length; i += 400) {
+      const slice = paths.slice(i, i + 400);
       const heads = await this.db.query<{ path: string; head: string; whole: number; sha: string | null }>(
         `SELECT n.path AS path, substr(n.content, 1, ${PROPERTIES_HEAD}) AS head, length(n.content) <= ${PROPERTIES_HEAD} AS whole, f.sha256 AS sha FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${slice.map(() => "?").join(",")}) AND EXISTS (SELECT 1 FROM properties p WHERE p.file_id = f.id)`,
         slice,
@@ -1561,27 +1860,7 @@ export class VaultQueryService {
       );
       for (const { path, content, sha } of rows) if (typeof content === "string") take(path, sha, content);
     }
-    const views = new Map<string, PropertiesView>();
-    if (blocks.size === 0) return views;
-    const asked: { from: string; target: string }[] = [];
-    for (const [from, { block, memo }] of blocks) for (const target of linkTargetsOfBlock(block, memo)) asked.push({ from, target });
-    const denied = await this._linksDeniedInReach(asked, reach, rule);
-    // A block none of whose links is withheld is seen as it is (`propertiesInView` asks no second pass of it).
-    for (const [from, { block, memo }] of blocks) views.set(from, propertiesInView(block, (target) => denied(from, target), memo));
-    // The tags of a note whose view withholds a link: those the index holds of it, less what only its block gave, and
-    // the view's — the text behind the block read only where a tag taken away could stand in it as well.
-    if (!cut && tags) {
-      // Tags read of the same text and links before are kept with the view (`BlockMemo`).
-      const seen = [...views].filter(([, view]) => view.seen !== null && view.tags === null).map(([path]) => path);
-      const held = await this._tagsOf(seen);
-      const texts = await this._noteTexts(seen.filter((path) => tagsNeedTheText(views.get(path)!)));
-      for (const path of seen) {
-        const content = texts.get(path);
-        const span = content === undefined ? null : frontmatterSpan(content);
-        tagsInView(views.get(path)!, held.get(path) ?? [], content === undefined ? undefined : span ? content.slice(span.end) : content);
-      }
-    }
-    return views;
+    return read;
   }
 
   /** The tags the index holds of notes, by path, as it holds them. */
@@ -1640,11 +1919,8 @@ export class VaultQueryService {
    * them anew where the view withholds a link, else those YAML read differently from their text, as written.
    */
   private static _valuesInView(values: Record<string, any>, view: PropertiesView): Record<string, any> {
-    if (!view.data) {
-      const kept = { ...values };
-      withValuesAsWritten(kept, view.written);
-      return kept;
-    }
+    // Nothing withheld (`PROPERTIES_AS_HELD`): the values the index holds, as every other reader is shown them.
+    if (!view.data) return values;
     const seen: Record<string, any> = { ...view.data };
     withValuesAsWritten(seen, view.written);
     return seen;
@@ -2351,6 +2627,10 @@ export class VaultQueryService {
     // them (`propertiesInView`), BEFORE anything reads them — a filter, the sort, a rollup, a count. A row the view
     // takes out of a tag source the statement chose it by is no row (review of R19, wave 2).
     const viewTags = new Map<string, ReadonlySet<string>>();
+    // The rows whose own values may withhold something from this reader (`_withholdRowValues`): of every other row only
+    // its name and the columns computed over other notes are read there.
+    const unheldRows = new Set<unknown>();
+    const unheld = new WeakSet<object>();
     let rowsSeen = rows;
     if (reach && options.withhold) {
       // The tags of a view are formed only where something reads them: a tag source, a filter, the pickers, a
@@ -2362,12 +2642,39 @@ export class VaultQueryService {
         Boolean(options.includeFilterMetadata) ||
         pinboard ||
         viewReadsTags(config);
-      const reading = rows.filter((row) => mayHoldALink(row.title) || mayHoldALink(propsByFileId[row.id] ?? {}));
-      const revisions = new Map(reading.map((row) => [String(row.path ?? ""), row.sha256]));
-      const views = await this._viewsOfProperties(reading.map((row) => String(row.path ?? "")), reach, options.withhold.rule, undefined, readsTags, revisions);
+      const reading: string[] = [];
+      const revisions: unknown[] = [];
+      const readRows: any[] = [];
+      // Whether a note's values could hold a link is asked once per text of it: a note read for its block before
+      // (`BLOCKS`) could, one found without any (`NO_LINK`) could not.
+      const blocks = blocksOf(this.db);
+      const noLink = noLinkOf(this.db);
+      const found: (BlockEntry | undefined)[] = [];
       for (const row of rows) {
-        const view = views.get(String(row.path ?? ""));
-        if (!view) continue;
+        const path = String(row.path ?? "");
+        const sha = typeof row.sha256 === "string" && row.sha256 ? row.sha256 : null;
+        let entry = sha ? blocks.get(path) : undefined;
+        if (entry && entry.sha !== sha) entry = undefined;
+        if (!entry) {
+          if (sha && noLink.get(path) === sha) continue;
+          if (!mayHoldALink(row.title) && !mayHoldALink(propsByFileId[row.id] ?? {})) {
+            if (sha) noLink.set(path, sha);
+            continue;
+          }
+        }
+        reading.push(path);
+        revisions.push(row.sha256 ?? "");
+        readRows.push(row);
+        found.push(entry);
+      }
+      const views = await this._viewsInOrder(reading, revisions, reach, options.withhold.rule, undefined, readsTags, found);
+      for (let index = 0; index < readRows.length; index++) {
+        const row = readRows[index];
+        const view = views[index];
+        // A note whose values hold no link, or none withheld from this reader, withholds nothing below; the others
+        // are read there again.
+        if (view !== PROPERTIES_AS_HELD) unheldRows.add(row);
+        if (!view || view === PROPERTIES_AS_HELD) continue;
         propsByFileId[row.id] = VaultQueryService._valuesInView(propsByFileId[row.id] ?? {}, view);
         if (!view.data) continue;
         row.title = view.title;
@@ -2414,6 +2721,7 @@ export class VaultQueryService {
         }
       }
       normalizeDatabaseMetadata(fileData);
+      if (unheldRows.has(row)) unheld.add(fileData);
       result.push(fileData);
     }
 
@@ -2457,7 +2765,11 @@ export class VaultQueryService {
     // is computed here and stored in no note.
     await this._enrichRollups(config, result, reach, options.withhold);
 
-    if (reach && options.withhold) await this._withholdRowValues(result, reach, options.withhold);
+    if (reach && options.withhold) {
+      // The columns computed over other notes: a reverse column, a rollup — read in every row.
+      const computed = ["file.name", ...Object.entries((config.columns ?? {}) as Record<string, any>).filter(([, column]) => column && typeof column === "object" && (column.reverseOf || column.rollup)).map(([name]) => name)];
+      await this._withholdRowValues(result, reach, options.withhold, undefined, { unheld, computed });
+    }
 
     let finalResult = result;
 

@@ -97,6 +97,7 @@ async fn run(identifier: &str) -> Result<(), String> {
             Some("denied") => "Plainva did not allow this client. Allow it when Plainva asks, or look in Settings, AI.",
             Some("no-vault") => "Plainva has no vault open.",
             Some("locked") => "The encrypted workspace of the vault open in Plainva is locked. Unlock it there, then start the connection again.",
+            Some("no-key") => "This device holds no key for the encrypted workspace of the vault open in Plainva. Set the workspace up on this device there, then start the connection again.",
             Some("busy") => "Plainva is asking about another client right now. Try again in a moment.",
             Some("version") => "This helper does not match the running Plainva. Update Plainva.",
             Some("changed") => "Plainva's open vault or its settings changed while it was asking. Start the connection again.",

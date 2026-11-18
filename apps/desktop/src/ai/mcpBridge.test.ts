@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   }),
 }));
 
-const { MCP_JUDGE_BLOCK, MCP_LEFT_OUT, MCP_LOCKED, MCP_UNSURE, MCP_VAULT_CHANGED, configureMcp, listenForMcpCalls, mcpCallScope, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { MCP_JUDGE_BLOCK, MCP_LEFT_OUT, MCP_LOCKED, MCP_NO_KEY, MCP_UNSURE, MCP_VAULT_CHANGED, configureMcp, listenForMcpCalls, mcpCallScope, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -309,11 +309,13 @@ describe("what the native side is told to serve", () => {
     expect(sealed.tools.map((tool) => tool.name)).toEqual(open.tools.filter((tool) => tool.kind === "read").map((tool) => tool.name));
   });
 
-  it("says whether the encrypted workspace is locked: the native side then answers nothing of it", async () => {
-    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true, locked: true });
-    expect((served() as unknown as { locked: boolean }).locked).toBe(true);
+  it("says whether the encrypted workspace is open on this device: locked, or no key here, the native side answers nothing of it", async () => {
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true, closed: "locked" });
+    expect((served() as unknown as { locked: unknown }).locked).toBe("locked");
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true, closed: "no-key" });
+    expect((served() as unknown as { locked: unknown }).locked).toBe("no-key");
     await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true });
-    expect((served() as unknown as { locked: boolean }).locked).toBe(false);
+    expect((served() as unknown as { locked: unknown }).locked).toBeNull();
   });
 });
 
@@ -326,7 +328,7 @@ describe("a locked workspace", () => {
         .mock.calls.filter(([command]) => command === "mcp_call_answer")
         .map(([, args]) => args as { requestId: string; answer: { content: string; isError: boolean; paths: string[] } });
     const answerOf = (requestId: string) => answers().find((a) => a.requestId === requestId)?.answer;
-    let locked = true;
+    let closed: "locked" | "no-key" | null = "locked";
     let looked = 0;
     const plain = host();
     // The workspace locks while the vault is read for the call.
@@ -334,12 +336,12 @@ describe("a locked workspace", () => {
       ...plain,
       tools: (...args: unknown[]) => {
         looked += 1;
-        locked = true;
+        closed = "locked";
         return (plain.tools as (...a: unknown[]) => unknown)(...args);
       },
     } as unknown as AiVaultHost;
     const before = events.handlers.length;
-    const stop = listenForMcpCalls(() => watched, undefined, () => locked);
+    const stop = listenForMcpCalls(() => watched, undefined, () => closed);
     await vi.waitFor(() => expect(events.handlers).toHaveLength(before + 1));
     const deliver = (requestId: string) =>
       events.handlers[before]!({ payload: { requestId, clientId: "c1", client: "Test client", vaultKey: "vault-key", tool: "read_note", args: { path: "Projects/Plan.md" }, folders: ["Projects"] } });
@@ -347,11 +349,17 @@ describe("a locked workspace", () => {
     await vi.waitFor(() => expect(answerOf("locked-before")).toBeDefined());
     expect(answerOf("locked-before")).toEqual({ content: MCP_LOCKED, isError: true, paths: [] });
     expect(looked).toBe(0);
-    locked = false;
+    closed = null;
     deliver("locked-during");
     await vi.waitFor(() => expect(answerOf("locked-during")).toBeDefined());
     expect(looked).toBe(1);
     expect(answerOf("locked-during")).toEqual({ content: MCP_LOCKED, isError: true, paths: [] });
+    // No key for the workspace on this device: told as that, and nothing is looked at.
+    closed = "no-key";
+    deliver("no-key");
+    await vi.waitFor(() => expect(answerOf("no-key")).toBeDefined());
+    expect(answerOf("no-key")).toEqual({ content: MCP_NO_KEY, isError: true, paths: [] });
+    expect(looked).toBe(1);
     stop();
     // The mocked plugin keeps every handler: this one goes, so the tests after it count their own.
     events.handlers.splice(before, 1);
