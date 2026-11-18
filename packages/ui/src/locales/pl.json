@@ -5350,6 +5350,7 @@
     "areaAgain": "Po ponownym załadowaniu znów się nie udało. Jeśli tak zostanie, uruchom Plainva ponownie; błąd jest zapisany w {{place}}.",
     "areaReload": "Załaduj ten obszar ponownie",
     "structureNeedsIndex": "Teraz nie można tego zrobić: nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu, więc synchronizacja nie mogłaby przekazać usunięcia, zmiany nazwy, przeniesienia ani nowego folderu na inne urządzenia. Uruchom aplikację ponownie, aby spróbować jeszcze raz; same notatki pozostały nietknięte.",
+    "fullTextDamaged": "Indeks wyszukiwania jest uszkodzony. Plainva odbuduje go przy następnym otwarciu; do tego czasu wyszukiwanie niczego nie znajdzie. Same notatki pozostały nietknięte.",
     "indexClosedNotice": "Nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu. Możesz czytać, pisać i tworzyć notatki; usuwanie, zmiana nazwy, przenoszenie i tworzenie folderów są niedostępne, dopóki indeks się nie otworzy. Uruchom aplikację ponownie, aby spróbować jeszcze raz; notatki pozostały nietknięte.",
     "background": {
       "aiKeyNotRemoved": "Nie udało się usunąć klucza {{provider}} z tego urządzenia, więc {{provider}} pozostaje na liście: {{reason}}",

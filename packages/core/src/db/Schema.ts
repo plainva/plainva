@@ -7,6 +7,9 @@ import { runStatementsAtomic } from "./batch.js";
 import { FIRST_ROWID_BEFORE, FULL_TEXT_SENTINEL, fullTextRowOf, UNNUMBERED_FLAG } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 import { INDEX_CHANGES_SCHEMA } from "./indexChanges.js";
+import { FULL_TEXT_DAMAGED_MARK, fullTextDamageNoted, isDamagedFullText } from "./fullTextDamage.js";
+
+export { isDamagedFullText };
 
 /**
  * The full-text table. `content` doubles as the note text for other readers
@@ -32,9 +35,14 @@ const FTS_NOTES_COLUMNS = `content,
  * full-text table is made anew, every note goes to the next full pass, and
  * the schema is brought up once more. Search is empty until that pass has
  * read the notes again. Damage anywhere else still fails the open, and the
- * start says so (`indexDatabaseFailureKind`).
+ * start says so (`indexDatabaseFailureKind`). The same happens for damage met
+ * while the vault was open and noted then (`watchFullTextDamage`).
  */
 export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
+  if (await fullTextDamageNoted(db)) {
+    console.error("[index] a damaged full-text index was noted; it is built anew");
+    await runStatementsAtomic(db, await fullTextAnew(db));
+  }
   try {
     await bringSchemaUp(db);
   } catch (error) {
@@ -43,12 +51,6 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     await runStatementsAtomic(db, await fullTextAnew(db));
     await bringSchemaUp(db);
   }
-}
-
-/** SQLITE_CORRUPT_VTAB as each driver says it: sqlx's code, the phone plugin's and SQLite's words, FTS5's own. */
-export function isDamagedFullText(error: unknown): boolean {
-  const text = error instanceof Error ? `${error.message} ${String((error as { cause?: unknown }).cause ?? "")}` : String(error ?? "");
-  return /\(code: 267\)|SQLITE_CORRUPT_VTAB|fts5: corruption/i.test(text);
 }
 
 async function bringSchemaUp(db: IDatabaseAdapter): Promise<void> {
@@ -1166,6 +1168,7 @@ async function fullTextAnew(db: IDatabaseAdapter): Promise<BatchStatement[]> {
     { sql: `UPDATE files SET fts_rowid = 0` },
     { sql: `UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'` },
     { sql: `DELETE FROM meta WHERE key = ?`, params: [UNNUMBERED_FLAG] },
+    { sql: `DELETE FROM meta WHERE key = ?`, params: [FULL_TEXT_DAMAGED_MARK] },
     { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`, params: [FULL_TEXT_NUMBERING_DIAGNOSTIC, record] },
     { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`, params: [String(INDEX_FORMAT_VERSION)] },
   ];

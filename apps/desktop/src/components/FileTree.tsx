@@ -1263,14 +1263,14 @@ export const FileTree: React.FC<{
       <EmptyState
         icon={isSearching ? <SearchX size={ICON.empty} /> : <FileText size={ICON.empty} />}
         action={
-          isSearching && searchPage.failed
+          isSearching && searchPage.failed && !searchPage.damaged
             ? <Button variant="primary" onClick={searchPage.retry}>{t("sync.retryNow")}</Button>
             : isSearching && searchPage.hasMore
               ? <Button variant="primary" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>
               : undefined
         }
       >
-        {isSearching ? (searchPage.loading ? t("searchResults.loading") : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
+        {isSearching ? (searchPage.loading ? t("searchResults.loading") : searchPage.damaged ? t("errors.fullTextDamaged") : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
       </EmptyState>
     );
   } else if (isSearching) {
@@ -1403,7 +1403,7 @@ export const FileTree: React.FC<{
         {showGroupHeaders && groupHeader("gh-content", t("sidebar.matchesContent"), searchGroups.content.length)}
         {searchGroups.content.map(renderHit)}
         {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-        {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+        {searchPage.damaged ? <p role="status">{t("errors.fullTextDamaged")}</p> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
         {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
         <ActiveSemanticCoverage />
       </div>

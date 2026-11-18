@@ -360,7 +360,7 @@ export function SearchScreen({
           {contentHits.length > 0 && <p className="m-sectionlabel">{t("sidebar.matchesContent")}</p>}
           {contentHits.filter((r) => r.occurrence || !nameMatchSet.has(r.path)).map(resultRow)}
           {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-          {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+          {searchPage.damaged ? <p role="status">{t("errors.fullTextDamaged")}</p> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
           {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
           <ActiveSemanticCoverage />
           {!searchPage.loading && !searchPage.failed && !results.length && <p role="status">{t("searchResults.empty")}</p>}

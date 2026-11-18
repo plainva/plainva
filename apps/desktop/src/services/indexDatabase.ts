@@ -2,8 +2,8 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import { readFile, readTextFile, writeFile, writeTextFile, exists as fsExists, mkdir, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
-import { initializeSchema } from "@plainva/core";
-import { finishSetAside, hasSetAside, SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
+import { initializeSchema, watchFullTextDamage } from "@plainva/core";
+import { finishSetAside, hasSetAside, reportingTo, SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { indexDbFileName } from "./indexDbPath";
 
@@ -39,7 +39,8 @@ export async function openIndexDatabase(vaultPath: string): Promise<{ dbPath: st
     await dbAdapter.close().catch(() => {});
     throw new IndexDatabaseOpenError(dbPath, cause);
   }
-  return { dbPath, dbAdapter };
+  // A damaged full-text index met while the vault is open is noted, and the next open makes it anew.
+  return { dbPath, dbAdapter: watchFullTextDamage(dbAdapter, reportingTo("index:full-text-damaged")) };
 }
 
 /**

@@ -306,7 +306,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                 );
               })}
               {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-          {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+          {searchPage.damaged ? <p role="status">{t("errors.fullTextDamaged")}</p> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
           {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
           {showCreateRow && (
                 <div

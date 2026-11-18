@@ -123,6 +123,7 @@ export * from "./settingsSync/secretsBundle.js";
 export * from "./settingsSync/EncryptingSyncTarget.js";
 export * from "./db/IDatabaseAdapter.js";
 export * from "./db/Schema.js";
+export { FULL_TEXT_DAMAGED_MARK, fullTextDamageNoted, watchFullTextDamage } from "./db/fullTextDamage.js";
 export { migratePathIdentity, PATH_IDENTITY_VERSION, type PathIdentityReport } from "./db/pathIdentityMigration.js";
 export * from "./db/batch.js";
 export * from "./pim/types.js";

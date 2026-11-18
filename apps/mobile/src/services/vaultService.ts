@@ -28,7 +28,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
-import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, vaultFolderIsThere } from "@plainva/core";
+import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -286,7 +286,7 @@ export async function discardPreparedContainer(vaultId: string, sourceVaultId?: 
 export async function openPreparedVaultDatabase(vaultId: string): Promise<IDatabaseAdapter> {
   if ((await getActiveVaultEntry()).id === vaultId) throw new Error("transfer_destination_active");
   const db = createIndexDatabase(`plainva-${vaultId}`);
-  try { await db.initialize(); await initializeSchema(db); return db; }
+  try { await db.initialize(); await initializeSchema(db); return watchFullTextDamage(db, reportingTo("index:full-text-damaged")); }
   catch (error) { await db.close().catch(() => {}); throw error; }
 }
 
@@ -895,6 +895,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     db = createIndexDatabase(indexDatabaseName);
     await db.initialize();
     await initializeSchema(db);
+    // A damaged full-text index met while the vault is open is noted, and the next open makes it anew.
+    db = watchFullTextDamage(db, reportingTo("index:full-text-damaged"));
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
     await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
     // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
