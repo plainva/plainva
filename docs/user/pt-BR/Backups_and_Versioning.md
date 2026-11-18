@@ -1,6 +1,6 @@
 # Backups & Histórico de Versões
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-17
 
 O Plainva protege seu trabalho em dois níveis: **versões de arquivo** (snapshots automáticos de cada arquivo individual ao editar e excluir) e **backups do vault** (arquivos ZIP regulares de todo o vault, armazenados fora da pasta do vault). Ambos rodam em segundo plano sem qualquer configuração e podem ser ajustados nas configurações em **Backup e versionamento**.
 
@@ -71,7 +71,7 @@ No celular, **Backups ZIP** é o primeiro grupo da página **Backup e versioname
 
 No celular, uma falha ao salvar a nota interrompe a troca, o recarregamento ou a remoção do vault. O texto continua aguardando outra tentativa. Notas com o mesmo nome em vaults diferentes mantêm gravações pendentes e rascunhos separados. Um conflito preserva a versão afetada; o texto digitado depois é salvo separadamente ou em outra cópia de conflito. As duas interfaces ordenam a gravação e a exclusão dos rascunhos para que uma conclusão atrasada não remova uma cópia mais recente. Se a cópia de conflito falhar, o texto no editor móvel permanece intacto.
 
-Um backup ZIP só é considerado concluído depois que todos os arquivos selecionados foram lidos e o arquivo completo foi salvo. Uma tentativa com falha não remove backups anteriores nem altera o horário do último backup bem-sucedido. No celular, o aviso de falha automática informa o vault; **Fazer backup agora** em **Backup e versionamento** → **Backups ZIP** inicia outra tentativa. A configuração oculta do usuário, como `.obsidian`, é incluída nas duas plataformas. Os diretórios `.plainva`, `.git`, `.trash` e `node_modules` são excluídos em qualquer nível. Quando vários backups são criados no mesmo segundo, o novo nome recebe um sufixo como `_001`.
+Um backup ZIP só é considerado concluído depois que todos os arquivos selecionados foram lidos e o arquivo completo foi salvo. Uma tentativa com falha não remove backups anteriores nem altera o horário do último backup bem-sucedido. No celular, o aviso de falha automática informa o vault; **Fazer backup agora** em **Backup e versionamento** → **Backups ZIP** inicia outra tentativa. A configuração oculta do usuário, como `.obsidian`, é incluída nas duas plataformas. Os diretórios `.plainva`, `.git`, `.trash` e `node_modules` são excluídos em qualquer nível. Quando vários backups são criados no mesmo segundo, o novo nome recebe um sufixo como `_001`. Depois de uma falha, o backup automático no celular espera um dia, depois o dobro a cada vez, no máximo uma semana, em vez de tentar de novo a cada início; um arquivo que some durante o backup fica de fora.
 
 O salvamento só é indicado como concluído após a confirmação da gravação. O texto digitado durante um salvamento continua pendente até que sua própria versão seja gravada. Os rascunhos no desktop pertencem à respectiva sessão do editor: concluir uma sessão antiga não exclui o rascunho de um editor recém-aberto. Quando alterações externas chegam ao mesmo tempo, o Plainva combina as alterações compatíveis; o texto em conflito permanece disponível como rascunho e cópia de conflito.
 

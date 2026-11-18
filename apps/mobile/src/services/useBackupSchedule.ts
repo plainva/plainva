@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { backupIfDue } from "./vaultBackup";
+import { backupIfDue, whenStartIsQuiet } from "./vaultBackup";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -17,9 +17,14 @@ import type { MobileVault } from "./vaultService";
 export function useBackupSchedule(vault: MobileVault | null, vaultName: string): void {
   useEffect(() => {
     if (!vault) return;
+    let gone = false;
     const check = () => void backupIfDue(vault, vaultName);
-    check();
+    // Not in the first seconds: after the first frame and the start-up index pass (F51).
+    void whenStartIsQuiet(vault).then(() => { if (!gone) check(); });
     window.addEventListener("m-backup-due", check);
-    return () => window.removeEventListener("m-backup-due", check);
+    return () => {
+      gone = true;
+      window.removeEventListener("m-backup-due", check);
+    };
   }, [vault, vaultName]);
 }
