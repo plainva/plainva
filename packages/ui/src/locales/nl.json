@@ -7542,6 +7542,8 @@
     "skippedLine": "Overgeslagen: {{paths}}",
     "leftOut_one": "‘{{names}}’ kon niet worden gelezen en ontbreekt in de zoekindex; de rest van de vault is geïndexeerd. Meestal is dit een link naar een plek die op dit apparaat niet bestaat.",
     "leftOut_other": "{{count}} bestanden of mappen konden niet worden gelezen en ontbreken in de zoekindex; de rest van de vault is geïndexeerd. Meestal is dit een link naar een plek die op dit apparaat niet bestaat: {{names}}",
+    "readAgain_one": "“{{names}}” veranderde bij elke keer lezen; het staat in de zoekindex zoals het het laatst is gelezen en wordt zo dadelijk opnieuw gelezen.",
+    "readAgain_other": "{{count}} bestanden veranderden bij elke keer lezen; ze staan in de zoekindex zoals ze het laatst zijn gelezen en worden zo dadelijk opnieuw gelezen: {{names}}",
     "indexFailed": "De zoekindex kon niet worden bijgewerkt: {{reason}}. Zoeken, tags en databases zijn mogelijk onvolledig tot de vault opnieuw is ingelezen.",
     "indexUnavailable": "De zoekindex kon op dit apparaat niet worden geopend: {{reason}}. Zoeken, tags, databases, de synchronisatie en de kalender blijven uit tot hij opent — de app opnieuw starten probeert het opnieuw.",
     "cloudRequested": "Cloud: volledige synchronisatie aangevraagd",
