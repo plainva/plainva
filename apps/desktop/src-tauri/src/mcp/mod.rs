@@ -996,8 +996,10 @@ fn only_main(window: &tauri::Window) -> Result<(), String> {
     }
 }
 
-/// The main window's settings: on/off, the vault it serves, the tools and the prompts.
+/// The main window's settings: on/off, the vault it serves, the tools and the prompts, and whether its encrypted
+/// workspace is locked. A command's arguments are what the window sends by name, so they stay one list.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn mcp_configure(
     app: AppHandle,
     window: tauri::Window,
