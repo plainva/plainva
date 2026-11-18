@@ -105,6 +105,7 @@ import { noteConflict } from "./conflictState";
 import { mobileChainPorts } from "./mobileChainPorts";
 import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
 import { afterFirstPaint } from "./bootStagger";
+import { retiredBoot } from "./bootRetirement";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -332,23 +333,15 @@ const ABANDON_BOOT_AFTER_MS = 2_000;
 /**
  * The vault of the boot that is running, or null — and the boot is over when
  * this returns. A boot that is still running is told to stop its scan and
- * given a moment; one that does not answer by then is left behind, and its
- * vault is closed whenever it does arrive. Waiting for it here was a switch
+ * given a moment; whatever it brings then is closed, in time or late
+ * (`bootRetirement.ts`): its index was called off, and a vault left open with
+ * it would sync and take edits without one. Waiting for it here was a switch
  * that hung as long as the boot did.
  */
-async function retireBoot(): Promise<MobileVault | null> {
+function retireBoot(): Promise<MobileVault | null> {
   const pending = bootPromise;
-  if (!pending) return null;
-  if (bootSettled) return pending.catch(() => null);
-  bootAbort?.abort();
-  const late = Symbol("late");
-  const outcome = await Promise.race([
-    pending.catch(() => null),
-    new Promise<typeof late>((resolve) => setTimeout(() => resolve(late), ABANDON_BOOT_AFTER_MS)),
-  ]);
-  if (outcome !== late) return outcome;
-  void pending.then((v) => v.dispose()).catch(() => {});
-  return null;
+  if (!pending) return Promise.resolve(null);
+  return retiredBoot(pending, bootSettled, () => bootAbort?.abort(), ABANDON_BOOT_AFTER_MS);
 }
 
 /**
@@ -959,6 +952,10 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     const indexNotices = createIndexNotices(toast);
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
+      // No watcher here: what changes from outside while a scan reads is looked at once more.
+      hearsNoChanges: true,
+      // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
+      comesBackByItself: true,
       // Counted only while the first index is built (services/indexBuild.ts).
       onProgress: (done, total) => reportIndexBuild(entry.id, done, total),
       // One line per full scan (issue 122), the same one the desktop writes:

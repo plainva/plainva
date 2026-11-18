@@ -440,6 +440,16 @@ async function bringSchemaUp(db: IDatabaseAdapter): Promise<void> {
     await db.execute(query);
   }
 
+  // Whether a row's timestamp is confirmed (VaultIndexer, `readingVouches`):
+  // 0 for a row written from a reading that came within a tick of the file's
+  // timestamp, which the indexer reads once more when the tick is over. A row
+  // an older version wrote counts as confirmed — nothing of a vault is read
+  // again for the update.
+  const fileColumns = await db.query<{ name: string }>(`PRAGMA table_info(files)`);
+  if (fileColumns.length > 0 && !fileColumns.some((column) => column.name === "stamp_vouched")) {
+    await db.execute(`ALTER TABLE files ADD COLUMN stamp_vouched INTEGER NOT NULL DEFAULT 1`);
+  }
+
   try {
     await db.execute(`ALTER TABLE workspace_revision ADD COLUMN created_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z';`);
   } catch {
