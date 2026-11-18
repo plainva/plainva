@@ -121,7 +121,7 @@ describe("connecting a CalDAV account that is already here", () => {
     expect(again.id).toBe(first.id);
     // Recorded as THIS device's confirmed access (GitHub issue 174).
     expect(state.rows[0].config.confirmedAccess).toEqual({
-      laptop: { url: nextcloud.url, user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/", since: expect.any(String) },
+      laptop: { url: nextcloud.url, user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/", seq: expect.any(Number) },
     });
     // Radicale tells them apart: two principals, two rows.
     state.rows = []; state.slots.clear();
@@ -136,7 +136,7 @@ describe("connecting a CalDAV account that is already here", () => {
     state.rows = [{ id: "r1", provider: "caldav", label: "anna", config: { url: nextcloud.url, user: "anna", confirmedAccess: { phone } }, enabled: true }];
     const again = await connectCalDavAccount(runtime, "/original", { ...nextcloud, pass: "again" });
     expect(again.id).toBe("r1");
-    expect(state.rows[0].config.confirmedAccess).toEqual({ laptop: { url: nextcloud.url, user: "anna", since: expect.any(String) }, phone });
+    expect(state.rows[0].config.confirmedAccess).toEqual({ laptop: { url: nextcloud.url, user: "anna", seq: expect.any(Number) }, phone });
   });
 
   it("lands in the row of the card it was started from (the phone's rule, adoptPreferenceForCard)", async () => {

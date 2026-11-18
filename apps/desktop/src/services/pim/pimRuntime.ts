@@ -11,8 +11,8 @@ import {
   type PimAccountRow,
   type PimStatus,
 } from "@plainva/core";
-import { formatPimCycle, isSignedOutSlot, logDiagnostic, markTaskSyncInputChanged, passwordAccessMove } from "@plainva/ui";
-import { getPimCredentials, rotatePimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { formatPimCycle, isSignedOutSlot, logDiagnostic, markTaskSyncInputChanged } from "@plainva/ui";
+import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 
 /**
@@ -106,16 +106,6 @@ export function createPimRuntime(opts: {
     // device reached a password account (GitHub issue 174). Imported lazily,
     // as main.tsx does, to keep the settings profile out of this module's graph.
     deviceId: () => import("../settingsProfile").then((m) => m.getDeviceId()),
-    // The server moved and another device confirmed the new address: this
-    // device follows with its own sign-in once the server vouches for it
-    // (review 2026-11-18; the shared rule is passwordAccessMove).
-    otherAccess: passwordAccessMove({
-      readSignIn: (accountId) => getPimCredentials(opts.vaultPath, accountId),
-      rotateSignIn: (accountId, previous, next) =>
-        rotatePimCredentials(opts.vaultPath, accountId, previous as unknown as PimStoredCredentials, next as unknown as PimStoredCredentials),
-      setRowAddress: async (accountId, url) => { await cache.updateAccountConfigValue(accountId, "url", () => url); },
-      caldavTarget: (creds) => new CalDavPimTarget(creds, httpFetch),
-    }),
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: i18n.t("pim.signInRequired"),

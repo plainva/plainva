@@ -17,16 +17,16 @@
  * each entry has one writer, so the set settles after one exchange.
  *
  * Which access the shared document names, and which entries it keeps, goes by
- * WHEN each was confirmed (review 2026-11-18): `since` is the moment a device
- * first confirmed that access — it stays while the address, user and principal
- * stay, so re-confirming on every fetch never moves it, and it moves when any
- * of them changes. The document names the latest one (`latestConfirmedAccess`;
- * a tie goes to the smaller device id), so a server move repaired on one
- * device reaches a new device even while an older device still names the old
- * address. The bound keeps the `MAX_CONFIRMED_ACCESS` latest entries, so a
- * retired device falls out and an active one never does; a device's own entry
- * goes with "Remove account" and "Sign out on this device"
- * (`withoutOwnConfirmedAccess`).
+ * the ORDER in which they were confirmed (reviews 2026-11-18): `seq` is set to
+ * the row's highest number plus one when a device confirms a CHANGED access,
+ * and stays while address, user and principal stay. No clock is involved, so a
+ * device whose clock is wrong gains nothing. The document names the entry with
+ * the highest number (`latestConfirmedAccess`; a tie goes to the smaller
+ * device id) — what a NEW device signs in with; a device that has its own row
+ * keeps its own address and never sends its password anywhere else. The bound
+ * keeps the `MAX_CONFIRMED_ACCESS` highest numbers, so a retired device falls
+ * out and an active one never does; a device's own entry goes with "Sign out
+ * on this device" (`withoutOwnConfirmedAccess`).
  *
  * An import takes the other devices' entries as the document carries them —
  * a document that carries the key at all is complete, so an entry it lacks was
@@ -48,8 +48,8 @@ export interface ConfirmedAccess {
   user: string;
   /** The `current-user-principal` the server named, resolved against `url`; absent when it named none. */
   principal?: string;
-  /** When this device first confirmed exactly this access (ISO time); absent on an entry written before it was recorded. */
-  since?: string;
+  /** Its place in the order of confirmations of this row: the row's highest number plus one when a device confirmed a changed access; absent (0) on an entry written before it was recorded. */
+  seq?: number;
 }
 
 export type ConfirmedAccessMap = Record<string, ConfirmedAccess>;
@@ -62,21 +62,26 @@ function validAccess(value: unknown): ConfirmedAccess | null {
     url: v.url,
     user: v.user,
     ...(typeof v.principal === "string" && v.principal.trim() ? { principal: v.principal } : {}),
-    ...(typeof v.since === "string" && v.since.trim() ? { since: v.since } : {}),
+    ...(typeof v.seq === "number" && Number.isSafeInteger(v.seq) && v.seq > 0 ? { seq: v.seq } : {}),
   };
 }
 
-/** Whether two entries name the same access — address, user and principal; `since` aside. */
+/** Whether two entries name the same access — address, user and principal; `seq` aside. */
 export function sameAccessValue(a: ConfirmedAccess, b: ConfirmedAccess): boolean {
   return a.url === b.url && a.user === b.user && (a.principal ?? "") === (b.principal ?? "");
 }
 
-/** Later first: the latest `since`, a tie to the smaller device id. */
+/** Later first: the highest `seq`, a tie to the smaller device id. */
 function byRecency([deviceA, a]: [string, ConfirmedAccess], [deviceB, b]: [string, ConfirmedAccess]): number {
-  const sinceA = a.since ?? "";
-  const sinceB = b.since ?? "";
-  if (sinceA !== sinceB) return sinceA > sinceB ? -1 : 1;
+  const seqA = a.seq ?? 0;
+  const seqB = b.seq ?? 0;
+  if (seqA !== seqB) return seqB - seqA;
   return deviceA < deviceB ? -1 : deviceA > deviceB ? 1 : 0;
+}
+
+/** The next number of this row: its highest plus one. */
+function nextSeq(map: ConfirmedAccessMap): number {
+  return Math.max(0, ...Object.values(map).map((access) => access.seq ?? 0)) + 1;
 }
 
 function bounded(entries: Iterable<[string, ConfirmedAccess]>): ConfirmedAccessMap {
@@ -104,29 +109,23 @@ export function carriesConfirmedAccess(config: Record<string, unknown> | undefin
   return !!raw && typeof raw === "object" && !Array.isArray(raw);
 }
 
-/** The entry the shared document names: the latest confirmed, a tie to the smaller device id. */
+/** The entry the shared document names — what a new device signs in with: the highest number, a tie to the smaller device id. */
 export function latestConfirmedAccess(map: ConfirmedAccessMap): [string, ConfirmedAccess] | null {
   const sorted = Object.entries(map).sort(byRecency);
   return sorted[0] ?? null;
 }
 
-/** The time now, strictly after the last one handed out here: two entries confirmed in one millisecond keep their order. */
-let lastStamp = 0;
-function stampNow(): string {
-  lastStamp = Math.max(Date.now(), lastStamp + 1);
-  return new Date(lastStamp).toISOString();
-}
-
 /**
- * The map with THIS device's entry set to `access`. Its `since` stays when the
- * access is the one already recorded, and is `now` when it is new or changed.
+ * The map with THIS device's entry set to `access`. Its number stays when the
+ * access is the one already recorded, and is the row's next one when it is
+ * new or changed.
  */
-export function withOwnConfirmedAccess(map: ConfirmedAccessMap, deviceId: string, access: ConfirmedAccess, now: string = stampNow()): ConfirmedAccessMap {
+export function withOwnConfirmedAccess(map: ConfirmedAccessMap, deviceId: string, access: ConfirmedAccess): ConfirmedAccessMap {
   const fresh = validAccess(access);
   if (!deviceId || !fresh) return bounded(Object.entries(map));
   const previous = map[deviceId];
-  const since = previous && sameAccessValue(previous, fresh) && previous.since ? previous.since : now;
-  const own: ConfirmedAccess = { url: fresh.url, user: fresh.user, ...(fresh.principal ? { principal: fresh.principal } : {}), since };
+  const seq = previous && sameAccessValue(previous, fresh) && previous.seq ? previous.seq : nextSeq(map);
+  const own: ConfirmedAccess = { url: fresh.url, user: fresh.user, ...(fresh.principal ? { principal: fresh.principal } : {}), seq };
   return bounded([...Object.entries(map).filter(([device]) => device !== deviceId), [deviceId, own]]);
 }
 
@@ -158,13 +157,14 @@ export function mergeConfirmedAccess(local: ConfirmedAccessMap, imported: Confir
 /**
  * `base` with every entry of `over` laid on top (an adopted row: the fresh
  * connect's own entry wins). An entry that names the access `base` already
- * had keeps base's `since`.
+ * had keeps base's number; any other gets base's next one.
  */
 export function overlayConfirmedAccess(base: ConfirmedAccessMap, over: ConfirmedAccessMap): ConfirmedAccessMap {
-  const out: ConfirmedAccessMap = { ...base };
+  let out: ConfirmedAccessMap = { ...base };
   for (const [device, access] of Object.entries(over)) {
     const previous = base[device];
-    out[device] = previous && sameAccessValue(previous, access) && previous.since ? { ...access, since: previous.since } : access;
+    const seq = previous && sameAccessValue(previous, access) && previous.seq ? previous.seq : nextSeq(out);
+    out = { ...out, [device]: { ...access, seq } };
   }
   return bounded(Object.entries(out));
 }
@@ -178,6 +178,6 @@ export function sameConfirmedAccess(a: ConfirmedAccessMap, b: ConfirmedAccessMap
     if (key !== keysB[i]) return false;
     const x = a[key];
     const y = b[key];
-    return sameAccessValue(x, y) && (x.since ?? "") === (y.since ?? "");
+    return sameAccessValue(x, y) && (x.seq ?? 0) === (y.seq ?? 0);
   });
 }

@@ -165,10 +165,10 @@ export function droppingOwnConfirmedAccess(deviceId: string | null | undefined):
   };
 }
 
-/** This device's confirmed access as a config fragment for a fresh row, confirmed now: `{ confirmedAccess: { [device]: access } }`. */
-export function ownConfirmedAccessConfig(deviceId: string | null | undefined, access: ConfirmedAccess | undefined, now?: string): Record<string, unknown> {
+/** This device's confirmed access as a config fragment for a fresh row: `{ confirmedAccess: { [device]: access } }`. */
+export function ownConfirmedAccessConfig(deviceId: string | null | undefined, access: ConfirmedAccess | undefined): Record<string, unknown> {
   if (!deviceId || !access) return {};
-  return { [CONFIRMED_ACCESS_KEY]: withOwnConfirmedAccess({}, deviceId, access, now) };
+  return { [CONFIRMED_ACCESS_KEY]: withOwnConfirmedAccess({}, deviceId, access) };
 }
 
 /**

@@ -19,13 +19,13 @@ import { getMobileVault, type MobileVault } from "../vaultService";
 import { phoneTemplateVault } from "../templateVault";
 import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
-import { getPimCredentials, savePimCredentials, clearPimCredentials, rotatePimCredentials, type PimStoredCredentials } from "./pimCredentials";
+import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { pimTargetCredentials } from "./pimTargetCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptedPimConfig, adoptPreferenceForCard, droppingOwnConfirmedAccess, passwordAccessMove, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -142,19 +142,6 @@ export async function startPim(vault: MobileVault): Promise<void> {
     onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
     // Under it the worker records how this phone reached a password account (GitHub issue 174).
     deviceId: () => mobileSyncDeviceId(),
-    // After a server move another device confirmed, this phone follows with
-    // its own sign-in once the server vouches for it, as on the desktop
-    // (review 2026-11-18; the shared rule is passwordAccessMove).
-    otherAccess: (vaultId, cache) => passwordAccessMove({
-      readSignIn: (accountId) => getPimCredentials(vaultId, accountId),
-      rotateSignIn: (accountId, previous, next) =>
-        rotatePimCredentials(vaultId, accountId, previous as unknown as PimStoredCredentials, next as unknown as PimStoredCredentials),
-      setRowAddress: async (accountId, url) => { await cache.updateAccountConfigValue(accountId, "url", () => url); },
-      caldavTarget: (creds) => {
-        void allowHttpOrigin(creds.url);
-        return new CalDavPimTarget(creds, webdavFetch);
-      },
-    }),
     // The other half of "did a change made in Reminders arrive here" (T4).
     onDeviceChanged: () => logDiagnostic("device", "store changed, cycle requested"),
   });

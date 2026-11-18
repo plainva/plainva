@@ -10,7 +10,7 @@ import {
   type ConfirmedAccess,
   type PimAccountRow,
 } from "@plainva/core";
-import { emptyAccountMap, importAccountMetadata, passwordAccessMove, passwordRowToAdoptInto, pimAccountsForProfile, SIGNED_OUT_MARK, type AccountImportPorts } from "@plainva/ui";
+import { emptyAccountMap, importAccountMetadata, passwordRowToAdoptInto, pimAccountsForProfile, type AccountImportPorts } from "@plainva/ui";
 
 /**
  * One Nextcloud, two devices, two addresses of it: the laptop signs in through
@@ -146,12 +146,12 @@ describe("one password account reached through two addresses", () => {
   });
 
   it("is bounded the same way on every read", () => {
-    const full = Object.fromEntries(Array.from({ length: MAX_CONFIRMED_ACCESS + 1 }, (_, i) => [`d${i}`, { ...accessAt(PUB), since: `2026-11-${String(10 + i)}T00:00:00.000Z` }]));
+    const full = Object.fromEntries(Array.from({ length: MAX_CONFIRMED_ACCESS + 1 }, (_, i) => [`d${i}`, { ...accessAt(PUB), seq: i + 1 }]));
     expect(Object.keys(confirmedAccessOf({ [CONFIRMED_ACCESS_KEY]: full }))).toHaveLength(MAX_CONFIRMED_ACCESS);
     expect(confirmedAccessOf({ [CONFIRMED_ACCESS_KEY]: full })).not.toHaveProperty("d0");
   });
 
-  it("a server move repaired on one device reaches a device that joins later, while another still names the old address (review 2026-11-18)", async () => {
+  it("a server move repaired on one device reaches a device that joins later, while the other keeps its own address (review 2026-11-18)", async () => {
     const laptop = device("a-laptop", {
       id: "pA", provider: "caldav", label: "anna", enabled: true,
       config: { url: PUB, user: "anna", [CONFIRMED_ACCESS_KEY]: { "a-laptop": accessAt(PUB) } },
@@ -182,6 +182,10 @@ describe("one password account reached through two addresses", () => {
     // named its dead address and a new device signed in there.
     expect(laptop.publish().pimAccounts[0].config.url).toBe(NEW);
     expect(phone.publish().pimAccounts[0].config.url).toBe(NEW);
+    // The laptop itself stays on the address it was connected with (and says
+    // that it fails there) until it is repaired here: no device ever sends its
+    // password to an address another device put into the row.
+    expect(laptop.state.pim[0].config.url).toBe(PUB);
     const joined = device("0-new", null, null);
     await importAccountMetadata(laptop.publish(), joined.ports);
     expect(joined.state.pim).toHaveLength(1);
@@ -190,15 +194,28 @@ describe("one password account reached through two addresses", () => {
 
   it("the bound keeps the latest confirmed, so an active device with a large id is never the one left out", () => {
     let map = {};
-    for (let i = 1; i <= MAX_CONFIRMED_ACCESS; i++) map = withOwnConfirmedAccess(map, `0000-dead-${i}`, accessAt(LAN), `2026-01-0${i}T00:00:00.000Z`);
-    const after = withOwnConfirmedAccess(map, "ffff-active", accessAt(PUB), "2026-11-18T00:00:00.000Z");
+    for (let i = 1; i <= MAX_CONFIRMED_ACCESS; i++) map = withOwnConfirmedAccess(map, `0000-dead-${i}`, accessAt(LAN));
+    const after = withOwnConfirmedAccess(map, "ffff-active", accessAt(PUB));
     expect(Object.keys(after)).toHaveLength(MAX_CONFIRMED_ACCESS);
     expect(after).toHaveProperty("ffff-active");
     expect(after).not.toHaveProperty("0000-dead-1");
-    // Confirming the same access again does not move its moment.
-    const again = withOwnConfirmedAccess(after, "ffff-active", accessAt(PUB), "2026-12-01T00:00:00.000Z");
-    expect(again["ffff-active"].since).toBe("2026-11-18T00:00:00.000Z");
+    expect(after["ffff-active"].seq).toBe(MAX_CONFIRMED_ACCESS + 1);
+    // Confirming the same access again does not move its place.
+    const again = withOwnConfirmedAccess(after, "ffff-active", accessAt(PUB));
+    expect(again["ffff-active"].seq).toBe(MAX_CONFIRMED_ACCESS + 1);
     expect(latestConfirmedAccess(again)?.[0]).toBe("ffff-active");
+  });
+
+  it("no clock decides: an entry that names a time far ahead gains nothing, the order of confirmations does (review 2026-11-18, clock)", () => {
+    const wrongClock = { ...accessAt(LAN), since: "2035-01-01T00:00:00.000Z" } as never;
+    let map = withOwnConfirmedAccess({}, "b-skewed", wrongClock);
+    map = withOwnConfirmedAccess(map, "a-laptop", accessAt(PUB));
+    expect(latestConfirmedAccess(map)?.[0]).toBe("a-laptop");
+    expect(Object.values(confirmedAccessOf({ [CONFIRMED_ACCESS_KEY]: map })).some((entry) => "since" in entry)).toBe(false);
+    // The skewed device confirms a CHANGED access: it is next, by number, not by time.
+    map = withOwnConfirmedAccess(map, "b-skewed", accessAt(NEW));
+    expect(latestConfirmedAccess(map)?.[0]).toBe("b-skewed");
+    expect(map["b-skewed"].seq).toBe(3);
   });
 
   it("an entry its device took out (signed out there) leaves every other device, and the own entry never comes back from the document", async () => {
@@ -221,32 +238,5 @@ describe("one password account reached through two addresses", () => {
     expect(Object.keys(confirmedAccessOf(laptop.state.pim[0].config))).toEqual(["phone"]);
     await importAccountMetadata(laptop.publish(), phone.ports);
     expect(Object.keys(confirmedAccessOf(phone.state.pim[0].config))).toEqual(["phone"]);
-  });
-
-  it("following a moved server signs in with this device's own password, for its own user only, and moves sign-in and row together", async () => {
-    let signIn: Record<string, unknown> = { kind: "caldav", url: PUB, user: "anna", pass: "own-pw" };
-    const rowUrls: string[] = [];
-    const built: Array<{ url: string; user: string; pass: string }> = [];
-    const move = passwordAccessMove({
-      readSignIn: async () => signIn,
-      rotateSignIn: async (_id, previous, next) => {
-        expect(previous).toEqual(signIn);
-        signIn = next;
-      },
-      setRowAddress: async (_id, url) => void rowUrls.push(url),
-      caldavTarget: (creds) => {
-        built.push(creds);
-        return {} as never;
-      },
-    });
-    const row = { id: "pA", provider: "caldav" as const, label: "anna", enabled: true, config: { url: PUB, user: "anna" } };
-    expect(await move.target(row, accessAt(NEW))).not.toBeNull();
-    expect(built).toEqual([{ url: NEW, user: "anna", pass: "own-pw" }]);
-    expect(await move.target(row, { ...accessAt(NEW), user: "Anna" })).toBeNull();
-    await move.adopt(row, accessAt(NEW));
-    expect(signIn).toEqual({ kind: "caldav", url: NEW, user: "anna", pass: "own-pw" });
-    expect(rowUrls).toEqual([NEW]);
-    signIn = { ...signIn, [SIGNED_OUT_MARK]: true, pass: "" };
-    expect(await move.target(row, accessAt(LAN))).toBeNull();
   });
 });
