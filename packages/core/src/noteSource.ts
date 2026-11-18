@@ -322,7 +322,8 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   const literals: Array<[number, number]> = [];
   const walk = (node: SourceNode, inLink = false) => {
     if (node.position && node.type === "yaml") edits.push({ from: node.position.start.offset, to: node.position.end.offset, text: "" });
-    if (node.type === "paragraph") paragraphs.push(node);
+    // A setext heading is a paragraph with a line under it: its lines read as a paragraph's.
+    if (node.type === "paragraph" || (node.type === "heading" && node.position && clean.text.slice(node.position.start.offset, node.position.end.offset).includes("\n"))) paragraphs.push(node);
     if (node.position && (node.type === "inlineCode" || node.type === "html")) literals.push([node.position.start.offset, node.position.end.offset]);
     if (node.position && node.type === "text" && !inLink && options.formatDate) {
       const start = node.position.start.offset;
@@ -370,8 +371,10 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
         // Behind a `]` the link's text would read as the label of a reference
         // (`[x][[a]]` with `[a]: …` became `[x][a]` and a `(wiki://a)`, Sammelplan
         // § 3.133 Nr. 3): an empty comment, which the renderer drops, stands
-        // between them.
-        let text = clean.text[from - 1] === "]" ? "<!---->[" : "[";
+        // between them. Not on a line that may be code — four blanks before
+        // the `]`, which a block a formula closes leaves as code: nothing
+        // written in is ever seen.
+        let text = clean.text[from - 1] === "]" && !mayBeCode(clean.text, from - 1) ? "<!---->[" : "[";
         const visible: NonNullable<ReaderEdit["visible"]> = [];
         let at = 0;
         for (const spelled of [...spellings, { at: label.length, text: "" }]) {
@@ -420,7 +423,8 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   // card reads the line as it is written.
   for (const paragraph of options.tables ? paragraphs : []) {
     if (!paragraph.position) continue;
-    const end = paragraph.position.end.offset;
+    // A heading's underline is its own: the row it would be is never one.
+    const end = paragraph.type === "heading" ? clean.text.lastIndexOf("\n", paragraph.position.end.offset - 1) : paragraph.position.end.offset;
     let lineFrom = paragraph.position.start.offset;
     for (let brk = clean.text.indexOf("\n", lineFrom); brk !== -1 && brk < end; ) {
       const next = clean.text.indexOf("\n", brk + 1);
@@ -471,10 +475,29 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   // over one gives way to it (`remarkFormulasYieldToLinks`, Fehlerliste 0.9.0, B4).
   const wikiLinks = linkEdits.map((edit) => composed.placed.get(edit)).filter((range): range is readonly [number, number] => range !== undefined).sort((x, y) => x[0] - y[0]);
   const { spans, visible, embeds, length } = composed;
-  const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => list.find((span) => {
+  // The span an offset stands in. The spans follow each other in both texts,
+  // so it is found by halving; a list that does not is searched through, as
+  // it always was. A search through every span for every element made a long
+  // note with many elements quadratic in its reading view.
+  const holds = (span: ReaderSpan, offset: number, original: boolean, edge: "start" | "end") => {
     const a = original ? span.from : span.start, b = original ? span.to : span.end;
     return edge === "start" ? a <= offset && offset < b : a < offset && offset <= b;
-  });
+  };
+  const inOrder = (list: ReaderSpan[], original: boolean) => list.every((span, k) => k === 0 || (original ? list[k - 1].to <= span.from : list[k - 1].end <= span.start));
+  const ordered = new Map<ReaderSpan[], [boolean, boolean]>([[spans, [inOrder(spans, true), inOrder(spans, false)]], [visible, [inOrder(visible, true), inOrder(visible, false)]]]);
+  const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => {
+    if (!ordered.get(list)?.[original ? 0 : 1]) return list.find((span) => holds(span, offset, original, edge));
+    let low = 0, high = list.length - 1, found = -1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const a = original ? list[mid].from : list[mid].start;
+      if (edge === "start" ? a <= offset : a < offset) {
+        found = mid;
+        low = mid + 1;
+      } else high = mid - 1;
+    }
+    return found >= 0 && holds(list[found], offset, original, edge) ? list[found] : undefined;
+  };
   return {
     text: composed.text,
     embeds,
@@ -491,6 +514,17 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
       return clean.toRaw(span.exact ? span.from + offset - span.start : edge === "start" ? span.from : span.to, edge === "start" ? "after" : "before");
     },
   };
+}
+
+/** Whether `at` stands behind nothing but blanks (and quote marks) on its line, four of them or more: code, where a formula closed the block above. */
+function mayBeCode(text: string, at: number): boolean {
+  let blanks = 0;
+  for (let i = at - 1; i >= 0 && text[i] !== "\n"; i--) {
+    if (text[i] === " ") blanks++;
+    else if (text[i] === "\t") blanks += 4;
+    else if (text[i] !== ">" && text[i] !== "\r") return false;
+  }
+  return blanks >= 4;
 }
 
 /**

@@ -127,6 +127,10 @@ describe("the prepared text reads as the note", () => {
     expect(prepared).toBe("[x]<!---->[a](wiki://a)\n\n[a]: https://e.com");
     // Without one in between, nothing changes.
     expect(prepareReaderSource("[x] [[a]]").text).toBe("[x] [a](wiki://a)");
+    // Nor on a line that may be code (behind a block a formula closes):
+    // nothing written in is ever seen.
+    expect(prepareReaderSource("$$\nx\n$$\n    ][[B]]").text).toBe("$$\nx\n$$\n    ][B](wiki://B)");
+    expect(prepareReaderSource("> x\n>     ][[B]]").text).toBe("> x\n>     ][B](wiki://B)");
   });
 
   it("keeps the place of the label behind the comment", () => {
@@ -150,6 +154,10 @@ describe("the prepared text reads as the note", () => {
     // A line with more or fewer cells than the row makes no table here either:
     // nothing is written into it, where a formula may show it.
     expect(prepareReaderSource("[[a|b]] | c | d\n|---|---|\n", { tables: true }).text).toBe("[b](wiki://a) | c | d\n|---|---|\n");
+    // A `---` or `===` under the row makes the lines a heading: they are a
+    // paragraph's, and get the comment as one.
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n---\n", { tables: true }).text).toBe("[b](wiki://a) | c\n|-<!---->--|---|\n---\n");
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n===\n", { tables: true }).text).toBe("[b](wiki://a) | c\n|-<!---->--|---|\n===\n");
   });
 
   it("says where the wiki links and embeds stand in the text it prepares", () => {
