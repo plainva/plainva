@@ -1,6 +1,6 @@
 # Back-ups & versiegeschiedenis
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-17
 
 Plainva beschermt je werk op twee niveaus: **bestandsversies** (automatische snapshots van elk afzonderlijk bestand terwijl je bewerkt en verwijdert) en **vault-back-ups** (regelmatige ZIP-archieven van de hele vault, opgeslagen buiten de vault-map). Beide draaien op de achtergrond zonder enige instelling en zijn af te stemmen in de instellingen onder **Backup & versiegeschiedenis**.
 
@@ -71,7 +71,7 @@ Op de telefoon staat **ZIP-backups** als eerste groep op de pagina **Backup & ve
 
 Op mobiel stopt een mislukte notitieopslag het wisselen, opnieuw laden of verwijderen van de vault. Je tekst blijft klaarstaan voor een nieuwe poging. Notities met dezelfde naam in verschillende vaults houden afzonderlijke opslagopdrachten en concepten. Een opslagconflict bewaart de betreffende tekst; later getypte tekst wordt daarna apart opgeslagen of in een extra conflictkopie bewaard. Beide interfaces voeren het schrijven en verwijderen van concepten in volgorde uit, zodat een late afronding geen nieuwere kopie verwijdert. Een mislukte conflictkopie vervangt de tekst in de mobiele editor niet.
 
-Een ZIP-back-up telt pas als geslaagd wanneer alle geselecteerde bestanden leesbaar waren en het volledige archief is opgeslagen. Een mislukte poging verwijdert geen eerdere archieven en verandert het tijdstip van de laatste geslaagde back-up niet. Op mobiel noemt een automatische fout de vault; **Nu back-uppen** onder **Backup & versiegeschiedenis** → **ZIP-backups** start een nieuwe poging. Verborgen gebruikersconfiguratie zoals `.obsidian` wordt op beide platforms meegenomen. De mappen `.plainva`, `.git`, `.trash` en `node_modules` blijven op elk niveau uitgesloten. Bij meerdere archieven in dezelfde seconde krijgt de nieuwe bestandsnaam een achtervoegsel zoals `_001`.
+Een ZIP-back-up telt pas als geslaagd wanneer alle geselecteerde bestanden leesbaar waren en het volledige archief is opgeslagen. Een mislukte poging verwijdert geen eerdere archieven en verandert het tijdstip van de laatste geslaagde back-up niet. Op mobiel noemt een automatische fout de vault; **Nu back-uppen** onder **Backup & versiegeschiedenis** → **ZIP-backups** start een nieuwe poging. Verborgen gebruikersconfiguratie zoals `.obsidian` wordt op beide platforms meegenomen. De mappen `.plainva`, `.git`, `.trash` en `node_modules` blijven op elk niveau uitgesloten. Bij meerdere archieven in dezelfde seconde krijgt de nieuwe bestandsnaam een achtervoegsel zoals `_001`. Na een mislukking wacht de automatische back-up op de telefoon een dag, daarna telkens twee keer zo lang, hoogstens een week, in plaats van het bij elke start opnieuw te proberen; een bestand dat tijdens de back-up verdwijnt, wordt overgeslagen.
 
 Een opslag wordt pas als voltooid gemeld nadat het schrijven is bevestigd. Tekst die je tijdens het opslaan invoert, blijft onopgeslagen totdat ook die versie is geschreven. Desktopconcepten horen bij hun eigen editorsessie: het afronden van een oude sessie verwijdert geen concept van een pas geopende editor. Als er tegelijk externe wijzigingen binnenkomen, voegt Plainva verenigbare wijzigingen samen; conflicterende tekst blijft beschikbaar als concept en conflictkopie.
 

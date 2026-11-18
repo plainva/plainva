@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Encoding, Filesystem } from "@capacitor/filesystem";
 import i18n from "@plainva/ui/i18n";
 import { MCP_OAUTH_CLIENT_DOCUMENT, withTodoAsTask } from "@plainva/core";
 import {
@@ -55,7 +54,7 @@ import {
   type VaultPolicyHost,
   GRAPH_TRAIL_EVENT,
 } from "@plainva/ui";
-import { atomicWriteInternalText } from "../../platform/atomicFile";
+import { atomicWriteInternalText, readTextAt } from "../../platform/atomicFile";
 import { internalPlace } from "../../platform/internalFiles";
 import { removeInternalFile, removeInternalFolder } from "../../platform/dataFiles";
 import { mConfirm } from "../mobileDialogs";
@@ -89,8 +88,8 @@ export const mobileAiFiles: AiFileStore = {
   async read(relPath) {
     try {
       const place = await internalPlace(`${ROOT}/${relPath}`);
-      const res = await Filesystem.readFile({ path: place.path, directory: place.directory, encoding: Encoding.UTF8 });
-      return typeof res.data === "string" ? res.data : null;
+      // In parts on a phone: a long conversation is megabytes (`BRIDGE_PART_BYTES`).
+      return await readTextAt(place);
     } catch {
       return null;
     }
