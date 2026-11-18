@@ -138,6 +138,13 @@
   --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.07);
   --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.16);
   --shadow-3: 0 16px 48px rgba(0, 0, 0, 0.28);
+  /* The text on an appointment's fill (plan Oberfläche O7, D15): the fill is the calendar's own colour (data), so the
+     ink is chosen by contrast in code (`eventInk.ts`) — the same two in every theme and mode. */
+  --evt-ink-light: #ffffff;
+  --evt-ink-dark: #10201e;
+  /* The tentative hatch's second stripe mixes away from the ink (review O7, A2): darker under light ink, lighter under dark ink. */
+  --evt-hatch-light-ink: #000000;
+  --evt-hatch-dark-ink: #ffffff;
 
   /* Stacking layers (replaces the 50/1000/1200/4000 ad-hoc values). Menus sit
      above modals (dropdowns open from inside dialogs); appDialogs (confirm/

@@ -27,7 +27,7 @@ import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
-import { buildLinkTargetIndex, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
+import { buildLinkTargetIndex, linkFilesNamed, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownTargetIndexed, resolveNotePathIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -143,6 +143,9 @@ export interface TaskAnchorRecord {
 
 // The pre-filter of the backlinks; the pickers above the core narrow a list of names with it too.
 export { likeAnySpelling };
+
+/** How many rows of the link list one slice of `linkTargetsNamed`'s pass reads: a few milliseconds' work. */
+const LINK_PASS_SLICE = 5000;
 
 /** A file as the link rule reads it from the index (`VaultQueryService.linkTargets`). */
 export interface LinkTargetRow {
@@ -905,6 +908,26 @@ export class VaultQueryService {
   }
 
   /**
+   * The part of `linkTargets()` that these link targets can lead to (review
+   * O7, fourth round): one read of the list and one pass over it for the
+   * names and titles asked (`linkFilesNamed`) — the link rule over this part
+   * answers as over the whole list. A read, not a search: the list comes back
+   * in a few milliseconds even for a large vault, where a pattern for each
+   * name would read the table once for each. The pass goes in slices with a
+   * breath between them, so a large vault holds the screen up for no frame.
+   */
+  async linkTargetsNamed(targets: readonly string[]): Promise<LinkTargetRow[]> {
+    if (!targets.some((target) => target.trim())) return [];
+    const all = await this.linkTargets();
+    const out: LinkTargetRow[] = [];
+    for (let at = 0; at < all.length; at += LINK_PASS_SLICE) {
+      if (at > 0) await new Promise((resolve) => setTimeout(resolve, 0));
+      out.push(...linkFilesNamed(all.slice(at, at + LINK_PASS_SLICE), targets));
+    }
+    return out;
+  }
+
+  /**
    * Where a link leads: the vault path of the file `target` names, read from
    * the note at `sourcePath`, or null where it names none (a click then offers
    * to create the note). THE answer of both shells — the editor and the
@@ -915,9 +938,9 @@ export class VaultQueryService {
    * the name: the note beside the linking one can then not come first.
    */
   async resolveNotePath(target: string, sourcePath?: string): Promise<string | null> {
-    const name = linkTargetName(target);
-    if (!name) return null;
-    return resolveLinkTargetIndexed(sourcePath ?? "", name, await this.linkLookup());
+    // No name, no read of the lookup.
+    if (!linkTargetName(target)) return null;
+    return resolveNotePathIndexed(target, sourcePath, await this.linkLookup());
   }
 
   /**
@@ -930,7 +953,7 @@ export class VaultQueryService {
    */
   async resolveMarkdownLink(target: string, sourcePath?: string): Promise<MarkdownLinkAnswer> {
     if (!target.trim()) return null;
-    return resolveMarkdownLinkIndexed(sourcePath ?? "", target, await this.linkLookup());
+    return resolveMarkdownTargetIndexed(target, sourcePath, await this.linkLookup());
   }
 
   /**

@@ -268,6 +268,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-24",
   },
   {
+    id: "ai-conversation-docked",
+    title: "The AI conversation docked in the right column beside the note, or popped out into a floating window (plan Oberfläche O7, E1)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "A phone has no column beside the note and no windows to float: the " +
+      "conversation is a screen of its own (Areas > AI) and, at a note, the " +
+      "AI part of the note's sheet - the phone's way of keeping it beside " +
+      "the text (design language: peek window on the desktop, pushed screen " +
+      "or sheet on the phone). What the conversation shows and does is the " +
+      "same shared component in every dress.",
+    verified: "2026-11-16",
+  },
+  {
     id: "ai-external-agents",
     title: "An external agent — another maker's program with its own sign-in — works in the vault, with the settings and commands it offers (Agent Client Protocol, plan KI-Harness P4.6, P9-7)",
     area: "ai",
@@ -383,6 +399,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "without a window for the system's schedulers; neither is built. In the " +
       "maintainer's open-items plan since 2026-10-24.",
     verified: "2026-10-24",
+  },
+  {
+    id: "ai-setup-guided",
+    title: "Setting up the AI in three steps from \"Set up\" to the first answer (plan Oberfläche O7, T9)",
+    area: "ai",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "T9 was found on the phone, where \"Set up\" led to a long page; the " +
+      "three-step sheet is built there. On the desktop \"Set up\" opens " +
+      "Settings > AI, which since O7 also lists the profiles only once a " +
+      "provider exists, and the conversation is begun by hand afterwards. " +
+      "The steps' logic is shared (aiSetupOffer, aiSetupStart, sendGreeting); " +
+      "a desktop dialog over it is still to build - deferred on 2026-11-16 " +
+      "to wave 4 of plan Oberfläche, in the maintainer's open-items plan.",
+    mobile: "yes",
+    verified: "2026-11-16",
   },
   {
     id: "ai-system-intents",
