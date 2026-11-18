@@ -20,6 +20,7 @@ import {
   TextArea,
   TextInput,
   EVENT_COLOR_PALETTE,
+  capitalize,
 } from "@plainva/ui";
 import { sameStoredValue, type PimEventDraft, type PimEventRow, type PimRecurrenceFreq } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
@@ -251,7 +252,7 @@ export function EventEditSheet({
             >
               {f === ""
                 ? t("pim.repeatNone")
-                : t(`pim.repeat${f.charAt(0).toUpperCase()}${f.slice(1)}`)}
+                : t(`pim.repeat${capitalize(f)}`)}
             </Chip>
           ))}
         </div>

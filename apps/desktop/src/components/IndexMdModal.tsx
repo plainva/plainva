@@ -21,6 +21,7 @@ import {
   type FolderIndexInfo,
   type OverviewPlacement,
 } from "../services/indexMd";
+import { vaultAppName } from "../services/vaultNames";
 
 type FolderAction = { kind: "skip" } | { kind: "generate" } | { kind: "adopt"; candidatePath: string };
 
@@ -127,7 +128,7 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
       try {
         if (action.kind === "generate") {
           const heading = info.folder === ""
-            ? (vaultPath?.split(/[/\\]/).pop() ?? "Vault")
+            ? (vaultPath ? await vaultAppName(vaultPath) : "Vault")
             : info.folder.split("/").pop()!;
           const result = await generateIndexForFolder({
             adapter: vaultAdapter,
