@@ -22,7 +22,6 @@ import {
   planPinboardEntry,
   sweepPinboardDrafts,
   deletePropertyFromConfig,
-  migrateFiltersToPerView,
   nextItemName,
   parseBaseConfig,
   type ReverseIntent,
@@ -33,6 +32,9 @@ import {
   templateCaretInNote,
   viewPrefill,
   writeNoteProperty,
+  writeBaseConfigChange,
+  type ViewLineage,
+  loadBaseConfigText,
   bulkSetProperty,
   convertDateColumns,
   editReverseRelation,
@@ -78,7 +80,7 @@ export async function loadBase(v: MobileVault, path: string): Promise<LoadedBase
   const raw = await vaultOps.read(v, path);
   // Same load-time migration the desktop runs: global property filters move
   // into every view (idempotent), persisted on the next save.
-  const config = migrateFiltersToPerView(parseBaseConfig(raw));
+  const config = loadBaseConfigText(raw);
   return { config, stem: baseStemOf(path) };
 }
 
@@ -100,14 +102,30 @@ export async function queryView(v: MobileVault, config: any, viewIndex: number):
  * would carry on. The write throws `VaultFileNotFoundError` then, and the
  * screen looks for the file. `recreate` is the reader's own "Save here again".
  */
-export async function saveBaseConfig(v: MobileVault, path: string, config: any, { recreate = false }: { recreate?: boolean } = {}): Promise<void> {
-  const text = serializeBaseConfig(config);
-  if (!recreate) await assertFileStillThere(v.files, path);
-  await v.files.writeTextFile(path, text);
+export async function saveBaseConfig(
+  v: MobileVault,
+  path: string,
+  config: any,
+  { recreate = false, shown, lineage }: { recreate?: boolean; shown?: any; lineage?: ViewLineage } = {},
+): Promise<{ config: any; placeOf: number[] }> {
+  let saved = { config, placeOf: (Array.isArray(config?.views) ? config.views : []).map((_: unknown, i: number) => i) };
+  // Onto the file as it lies there (finding B20): what changed against the
+  // config the screen showed is set on the file's current config, so a
+  // change another device or window made meanwhile stays. "Save here again"
+  // writes the whole config only where no file stands there any more.
+  if (shown !== undefined && (!recreate || (await v.files.exists(path)))) {
+    await assertFileStillThere(v.files, path);
+    const written = await writeBaseConfigChange(v.files, path, shown, config, { lineage });
+    saved = { config: written.config, placeOf: written.placeOf };
+  } else {
+    if (!recreate) await assertFileStillThere(v.files, path);
+    await v.files.writeTextFile(path, serializeBaseConfig(config));
+  }
   // The index hears of a database like of a note (finding 2026-10-09): the
   // call that stood here took notes only and never did anything for a `.base`.
   if (v.indexer) await v.reindexPaths([path]);
   syncSoon();
+  return saved;
 }
 
 /**
@@ -307,7 +325,7 @@ export async function writeRelationSchema(
       else delete col.relationLimit;
       next.columns[column] = col;
       if (foldIntoOwn) next = foldIntoOwn(next);
-      await saveBaseConfig(v, basePath, next);
+      await saveBaseConfig(v, basePath, next, { shown: config });
     },
   );
 }
@@ -418,7 +436,9 @@ export async function renameBaseProperty(
     paths: rowPaths,
     oldName,
     newName,
-    saveConfig: () => saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName)),
+    saveConfig: async () => {
+      await saveBaseConfig(v, basePath, renamePropertyInConfig(config, oldName, newName), { shown: config });
+    },
   });
   if (outcome.status === "renamed" && outcome.result.written.length > 0) syncSoon();
   return outcome;
@@ -440,7 +460,7 @@ export async function deleteBaseProperty(
   cleanNotes: boolean,
 ): Promise<NoteRewriteResult> {
   const nc = deletePropertyFromConfig(config, name);
-  await saveBaseConfig(v, basePath, nc);
+  await saveBaseConfig(v, basePath, nc, { shown: config });
   const result = cleanNotes ? await removePropertyAcrossNotes(noteFiles(v), rowPaths, name) : { written: [], unchanged: [], failed: [], skipped: [] };
   syncSoon();
   return result;

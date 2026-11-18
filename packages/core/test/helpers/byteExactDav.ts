@@ -23,7 +23,7 @@ export interface ByteExactDav {
 const enc = (p: string) => p.split("/").map(encodeURIComponent).join("/");
 
 export interface ByteExactDavOptions {
-  /** "honor" (default): If-Match / If-None-Match on PUT as a real server; "ignore": neither is looked at. */
+  /** "honor" (default): If-Match / If-None-Match on PUT and DELETE, `Overwrite` on MOVE, as a real server; "ignore": none is looked at. */
   conditions?: "honor" | "ignore";
   /** Weak entity tags (`W/"…"`): a strong comparison, as If-Match demands, never matches them. */
   weakEtags?: boolean;
@@ -109,6 +109,12 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
       }
       case "DELETE": {
         if (!folders.has(p) && !files.has(p)) return status(404);
+        // A conditional DELETE (RFC 9110): the strong entity tag of the file.
+        if (options.conditions !== "ignore") {
+          const ifMatch = headers.get("If-Match");
+          const current = files.get(p);
+          if (ifMatch !== null && (current === undefined || (ifMatch.trim() !== "*" && !ifMatch.split(",").some((t) => t.trim() === `"${current.etag}"` && !options.weakEtags)))) return status(412);
+        }
         for (const q of [...files.keys()]) if (q === p || q.startsWith(`${p}/`)) files.delete(q);
         for (const q of [...folders]) if (q === p || q.startsWith(`${p}/`)) folders.delete(q);
         return status(204);
@@ -117,6 +123,14 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
         const dest = rel(headers.get("Destination")!);
         if (!folders.has(p) && !files.has(p)) return status(404);
         if (!folders.has(parent(dest))) return status(409);
+        // RFC 4918: `Overwrite: F` refuses an existing destination (412); the
+        // default, T, replaces it.
+        const taken = files.has(dest) || folders.has(dest);
+        if (taken && (headers.get("Overwrite") ?? "T").toUpperCase() === "F" && options.conditions !== "ignore") return status(412);
+        if (taken) {
+          for (const q of [...files.keys()]) if (q === dest || q.startsWith(`${dest}/`)) files.delete(q);
+          for (const q of [...folders]) if (q === dest || q.startsWith(`${dest}/`)) folders.delete(q);
+        }
         const move = (q: string) => dest + q.slice(p.length);
         for (const q of [...files.keys()]) if (q === p || q.startsWith(`${p}/`)) {
           files.set(move(q), files.get(q)!);

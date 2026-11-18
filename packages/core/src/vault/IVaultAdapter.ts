@@ -381,6 +381,16 @@ export interface IVaultAdapter {
    */
   listDirReport?(path?: string, recursive?: boolean, options?: VaultWalkOptions): Promise<VaultListing>;
 
+  /**
+   * Removes the folder `path` only if it holds nothing at all — no file, no
+   * folder, nothing hidden (`.git`, `.DS_Store`) — never recursively and never
+   * into the trash. False when something lies in it or it could not be
+   * removed; true when it is gone (or was not there). The sync takes a folder
+   * another device deleted away with it (F44): a listing is no test for
+   * "empty", since every listing of the app leaves something out.
+   */
+  removeEmptyDir?(path: string): Promise<boolean>;
+
   /** Complete backup inventory, including hidden files. Excluded DIRECTORY
    * names are pruned at every depth; symbolic links are not followed.
    * Any unreadable selected entry rejects instead of returning a partial list.

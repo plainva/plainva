@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CloudAccountRecord } from "@plainva/ui";
+import { normalizeAccountMap, rememberRemovedAccount, type CloudAccountRecord } from "@plainva/ui";
 
 /**
  * Sammelplan § 3.105: on the phone nothing reconciled the account cards any
@@ -33,6 +33,7 @@ vi.mock("./pim/pimService", () => ({ listPimAccounts: async () => calendars, pim
 vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: async () => activeVault }));
 
 import { loadCloudAccounts, refreshCloudAccounts, startCloudAccountsReconcile } from "./cloudAccountsStore";
+import { accountMapKey } from "./profileAccountMap";
 
 const cardsKey = "cloudAccounts_v1";
 const card = (id: string, services: CloudAccountRecord["services"]): CloudAccountRecord => ({ id, family: "microsoft", label: "anna@example.com", services });
@@ -115,6 +116,20 @@ describe("the phone reconciles its account cards (Sammelplan § 3.105)", () => {
     stop = startCloudAccountsReconcile("v1", () => true);
     await settle();
     expect((await loadCloudAccounts("v1")).map((c) => [c.id, c.services.calendar?.pimAccountId])).toEqual([["card-a", "pim-1"], ["card-b", "pim-2"]]);
+  });
+
+  it("held after the rebuild, an account removed on this device does not keep its card's reference", async () => {
+    heldAfterRebuild = true;
+    calendars = [{ id: "pim-1", provider: "microsoft", label: "anna@example.com", config: {} }];
+    stored.set(cardsKey, [card("card-a", { calendar: { pimAccountId: "pim-1" } }), { ...card("card-b", { calendar: { pimAccountId: "pim-2" }, mail: { mailAccountId: "mail-2" } }), label: "ben@example.com" }]);
+    mailboxes = [{ id: "mail-2", label: "ben@example.com", user: "ben@example.com", host: "", kind: "microsoft" }];
+    // Removed here in this window: the row is gone and the tombstone is written (`noteAccountRemovedLocally`).
+    stored.set(accountMapKey("v1"), rememberRemovedAccount(normalizeAccountMap(null), "pim", "pim-2"));
+    stop = startCloudAccountsReconcile("v1", () => true);
+    await settle();
+    const cards = await loadCloudAccounts("v1");
+    expect(cards.find((c) => c.id === "card-a")?.services.calendar).toEqual({ pimAccountId: "pim-1" });
+    expect(cards.find((c) => c.id === "card-b")?.services).toEqual({ mail: { mailAccountId: "mail-2" } });
   });
 
   it("keeps a files reference when another vault is the open one", async () => {
