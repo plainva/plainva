@@ -1,4 +1,4 @@
-import { GraphService, VaultQueryService, type IVaultAdapter } from "@plainva/core";
+import { GraphService, VaultQueryService, watchFullTextDamage, type IVaultAdapter } from "@plainva/core";
 import { countWrites } from "./inflightWrites";
 import { appDataDir } from "@tauri-apps/api/path";
 import { exists as fsExists } from "@tauri-apps/plugin-fs";
@@ -71,8 +71,10 @@ export async function openClientVault(vaultPath: string, bus: WindowBus): Promis
   const readAdapter = new TauriVaultAdapter(vaultPath);
   await readAdapter.initialize();
 
-  const dbAdapter = new TauriDatabaseAdapter(await resolveClientIndexDbUrl(vaultPath));
-  dbAdapter.attachReadOnly();
+  const ownDbAdapter = new TauriDatabaseAdapter(await resolveClientIndexDbUrl(vaultPath));
+  ownDbAdapter.attachReadOnly();
+  // A damaged full-text index met here is noted by the owner: this window cannot write the note, nor run FTS5's check.
+  const dbAdapter = watchFullTextDamage(ownDbAdapter, undefined, (reading) => bus.request("full-text-damaged", { reading }));
 
   // No initializeSchema() here on purpose: the schema (and every migration of
   // it) belongs to the window that owns the writes. A client that ran them

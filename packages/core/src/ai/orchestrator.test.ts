@@ -5,6 +5,7 @@ import { EMPTY_MCP_GRANT } from "./mcp/grants.js";
 import { mcpForeignManifest, mcpOfferedTools } from "./mcp/offer.js";
 import { approveMcpListing } from "./mcp/pin.js";
 import { runAgent, type ToolExecutor } from "./orchestrator.js";
+import { FULL_TEXT_DAMAGED_TOOL_TEXT } from "./toolFailure.js";
 import { BUILTIN_ENDPOINTS } from "./providers.js";
 
 const anthropic = BUILTIN_ENDPOINTS.find((e) => e.id === "anthropic")!;
@@ -132,6 +133,23 @@ describe("the orchestrator", () => {
     const breaker = await runAgent({ conversation: base(), egress: scriptedEgress([turn({ calls })]), endpoint: anthropic, model: "m", executor: failing, context: { privateContext: true, untrustedContext: true }, now: () => at });
     expect(breaker.stop).toEqual({ kind: "circuit_breaker", tool: "read_note" });
     expect(lastResults(breaker.conversation.turns).map((r) => r.content)).toEqual(["The tool failed: disk", "The tool failed: disk", "The tool failed: disk"]);
+  });
+
+  it("a search that fails on a damaged full-text index hands the model a sentence, not the driver's words", async () => {
+    const damaged: ToolExecutor = { async execute() { throw new Error('error returned from database: (code: 267) fts5: corruption found reading blob 549755813889 from table "fts_notes"'); } };
+    const result = await runAgent({
+      conversation: base(),
+      egress: scriptedEgress([turn({ calls: [{ id: "s1", name: "search_vault", args: { query: "plans" } }] }), turn({ text: "I cannot search right now." })]),
+      endpoint: anthropic,
+      model: "m",
+      executor: damaged,
+      context: { privateContext: true, untrustedContext: true },
+      now: () => at,
+    });
+    const said = lastResults(result.conversation.turns.slice(0, 3))[0]!;
+    expect(said.isError).toBe(true);
+    expect(said.content).toBe(FULL_TEXT_DAMAGED_TOOL_TEXT);
+    expect(said.content).not.toMatch(/fts5|267|blob/);
   });
 
   it("refuses arguments that do not fit the schema and tools the conversation does not carry", async () => {

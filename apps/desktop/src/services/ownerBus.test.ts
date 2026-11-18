@@ -77,6 +77,7 @@ vi.mock("./windowBus", async (importOriginal) => {
 });
 
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
+import { readFullTextDamage } from "@plainva/core";
 import { isFirstPullPending, syncStatusStore } from "./syncStatusStore";
 import { applyMirroredSyncStatus, askSyncStatus, installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
 import { resetVaultRuntimes, setHolderVault } from "./vaultRuntimes";
@@ -184,7 +185,7 @@ function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
   } as never;
 }
 
-async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean; indexFails?: boolean } = {}) {
+async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean; indexFails?: boolean; db?: import("@plainva/core").IDatabaseAdapter } = {}) {
   const wire = createWire();
   const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/vault");
   // The aux window belongs to a vault and says so on every message — that is
@@ -242,6 +243,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
   const commentCalls: string[] = [];
   const historyCalls: string[] = [];
   const dispose = await installOwnerBus({
+    ...(opts.db ? { db: opts.db } : {}),
     // The workspace revision history (finding 2026-09-07): records the ask,
     // answers with fixed values so the wire's fidelity is what is tested.
     workspaceHistory: {
@@ -472,6 +474,19 @@ describe("delegated mutations", () => {
     release(); await Promise.all([operation, writing]);
     expect(calls.filter((call) => call === "write:Note.md")).toHaveLength(1);
     dispose();
+  });
+
+  it("notes a damaged full-text index an auxiliary window met: that window only reads the index", async () => {
+    const db = await realSqlite();
+    const { aux, dispose } = await setup({ db });
+    expect(await readFullTextDamage(db)).toEqual({ state: "none" });
+    // A damaged page met while reaching the full-text index, and FTS5's own check finds the index whole: nothing to note.
+    expect(await aux.request("full-text-damaged", { reading: "perhaps" })).toBe(false);
+    expect((await readFullTextDamage(db)).state).toBe("none");
+    expect(await aux.request("full-text-damaged", { reading: "damaged" })).toBe(true);
+    expect((await readFullTextDamage(db)).state).toBe("noted");
+    dispose();
+    await db.close();
   });
 
   it("writes through the owner's adapter and indexes the result", async () => {
