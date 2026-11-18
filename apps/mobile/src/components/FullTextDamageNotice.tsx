@@ -1,18 +1,25 @@
 import { useTranslation } from "react-i18next";
-import { Button, useFullTextDamageNotice } from "@plainva/ui";
+import { Button, useFullTextDamageNotice, type FullTextDamageNotice as Notice } from "@plainva/ui";
 import { rebuildActiveIndexDatabase, type MobileVault } from "../services/vaultService";
 import { useRebuildIndex } from "./useRebuildIndex";
 
 /**
- * What the search says when it failed on a damaged full-text index
- * (`useSearchPages`'s `damaged`), with the strip's "Rebuild index" where only
- * that helps (`fullTextDamageNotice`) — the desktop's search says the same.
+ * Whether a failed search failed on a damaged full-text index, as the index
+ * database's note says (`useFullTextDamageNotice`). Null: an ordinary
+ * failure, which the search offers to try again.
  */
-export function FullTextDamageNotice({ vault, damaged }: { vault: MobileVault; damaged: boolean }) {
+export function useSearchDamageNotice(vault: MobileVault, search: { failed: boolean; damaged: boolean }): Notice | null {
+  return useFullTextDamageNotice(vault.db, search.failed, search.damaged, async () => vault.isEncryptedWorkspace);
+}
+
+/**
+ * What the search says when it failed on a damaged full-text index, with the
+ * strip's "Rebuild index" where only that helps (`fullTextDamageNotice`) — the
+ * desktop's search says the same.
+ */
+export function FullTextDamageNotice({ notice }: { notice: Notice }) {
   const { t } = useTranslation();
-  const notice = useFullTextDamageNotice(vault.db, damaged, async () => vault.isEncryptedWorkspace);
   const { rebuilding, rebuild } = useRebuildIndex(rebuildActiveIndexDatabase);
-  if (!notice) return null;
   return (
     <div role="status" data-testid="full-text-damage-notice">
       <p>{t(notice.textKey, { action: t("settings.rebuildIndexAction") })}</p>

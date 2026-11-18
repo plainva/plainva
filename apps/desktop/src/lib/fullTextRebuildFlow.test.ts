@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { initializeSchema, readFullTextDamage, watchFullTextDamage } from "@plainva/core";
+import { initializeSchema, isDamagedFullText, readFullTextDamage, watchFullTextDamage } from "@plainva/core";
 import { fullTextDamageNotice, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
-import { destroyLeafPage, fileDatabase, removeSeededFiles, seededFile } from "../../../../packages/core/test/helpers/fileSqlite";
+import { destroyLeafPage, destroyRootPage, fileDatabase, removeSeededFiles, seededFile, type Mode } from "../../../../packages/core/test/helpers/fileSqlite";
 
 /**
  * The search's "Rebuild index" from start to end, over a real SQLite file: a
@@ -71,6 +71,33 @@ describe("the search's \"Rebuild index\", start to end", () => {
     await rebuilt.close();
   });
 
+  it.each<[string, Mode]>([
+    ["fts_notes_data", "desktop"],
+    ["fts_notes_idx", "desktop"],
+    ["fts_notes_data", "ios-plain"],
+    ["fts_notes_idx", "ios-plain"],
+  ])("a destroyed root page of %s (%s): the search fails in SQLite's generic words, and the note still decides the sentence", async (table, mode) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const file = await seededFile();
+    destroyRootPage(file, table);
+
+    const first = fileDatabase(file, mode);
+    await initializeSchema(first);
+    const failure = await watchFullTextDamage(first).query(`SELECT path FROM fts_notes WHERE fts_notes MATCH ?`, ["body"]).then(() => null, (error: unknown) => error);
+    expect(failure, "the search fails").not.toBeNull();
+    expect(isDamagedFullText(failure), "in words that do not name the full-text index").toBe(false);
+    expect((await readFullTextDamage(first)).state, "FTS5's own check noted it").toBe("noted");
+    await first.close();
+
+    const second = fileDatabase(file, mode);
+    await initializeSchema(second);
+    const damage = await readFullTextDamage(second);
+    expect(damage.state).toBe("rebuild-failed");
+    // What the search shows comes from this note (`useFullTextDamageNotice`), not from the failure's words.
+    expect(fullTextDamageNotice(damage, false)).toEqual({ textKey: "errors.fullTextRebuildFailed", offerRebuild: true });
+    await second.close();
+  });
+
   it("is the start's way in the vault context: closed the ordinary way first, then the start's rebuild", () => {
     const source = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
     const body = (name: string) => {
@@ -80,12 +107,16 @@ describe("the search's \"Rebuild index\", start to end", () => {
     };
     const fromStart = body("rebuildIndexDatabase");
     const fromSearch = body("rebuildDamagedIndexDatabase");
-    // One rebuild for both: the same set-aside, the same open (with the accounts' restore in it).
+    const fromSettings = body("rebuildIndex");
+    const openVault = body("rebuildOpenIndexDatabase");
+    // One rebuild for all three: the same set-aside, the same open (with the accounts' restore in it).
     expect(fromStart).toContain("rebuildIndexDatabaseAt(");
-    expect(fromSearch).toContain("rebuildIndexDatabaseAt(");
+    expect(fromSearch).toContain("rebuildOpenIndexDatabase()");
     expect(body("rebuildIndexDatabaseAt")).toMatch(/awaitVaultTeardown\([\s\S]*setAsideDesktopIndexDatabase\([\s\S]*loadVault\(/);
     // The ordinary close's safeguards before anything touches the file, and never in an encrypted workspace.
-    expect(fromSearch).toMatch(/indexDatabaseRebuildOffered\([\s\S]*askHeldWork\(\)[\s\S]*teardownVault\(\)[\s\S]*rebuildIndexDatabaseAt\(/);
-    expect(fromSearch).not.toContain("setAsideDesktopIndexDatabase(");
+    expect(openVault).toMatch(/indexDatabaseRebuildOffered\([\s\S]*askHeldWork\(\)[\s\S]*teardownVault\(\)[\s\S]*rebuildIndexDatabaseAt\(/);
+    expect(openVault).not.toContain("setAsideDesktopIndexDatabase(");
+    // "Rebuild index" in the settings, failing at the damaged database itself: the same question, the same way.
+    expect(fromSettings).toMatch(/indexDatabaseFailureKind\(e\) === "damaged"[\s\S]*indexDatabaseRebuildOffered\([\s\S]*appConfirm\(\{ title: i18n\.t\("indexDatabase\.rebuildTitle"\), message: i18n\.t\("indexDatabase\.rebuildConfirm"\)[\s\S]*rebuildOpenIndexDatabase\(\)/);
   });
 });

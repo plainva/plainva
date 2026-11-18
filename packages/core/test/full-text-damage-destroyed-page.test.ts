@@ -68,4 +68,20 @@ describe("a full-text index with a destroyed page of its own storage", () => {
     expect((await readFullTextDamage(db)).state).toBe("none");
     await db.close();
   });
+
+  it("FTS5's own check runs once in a session, whatever it found: every search meeting a damaged main table does not run it again", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const file = await seededFile();
+    destroyLeafPage(file, "files");
+    const db = fileDatabase(file, "ios");
+    let checks = 0;
+    const counting = { ...db, execute: async (sql: string, params?: unknown[]) => { if (/integrity-check/.test(sql)) checks += 1; return db.execute(sql, params as never); } };
+    const watched = watchFullTextDamage(counting as typeof db);
+    for (let i = 0; i < 5; i++) {
+      await expect(watched.query(`SELECT f.path, f.sha256, f.title FROM fts_notes fn JOIN files f ON f.path = fn.path WHERE fts_notes MATCH ?`, ["body"])).rejects.toThrow(/rc: 11/);
+    }
+    expect(checks).toBe(1);
+    expect((await readFullTextDamage(db)).state).toBe("none");
+    await db.close();
+  });
 });

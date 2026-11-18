@@ -125,7 +125,8 @@ describe("what both shells say about the search index", () => {
     // The refresh of the whole vault and the rebuild ask; a folder's
     // reconcile is no full scan and has no notice of its own.
     expect(desktop).toMatch(/if \(!opts\?\.silent && !indexFailureSaid\(e\)\) \{\s*toast\.error\(i18n\.t\("refresh\.failed"/);
-    expect(desktop).toMatch(/index rebuild failed", e\);\s*if \(!indexFailureSaid\(e\)\) toast\.error\(i18n\.t\("refresh\.failed"/);
+    // The rebuild says nothing of its own where it offers to set a damaged database aside instead.
+    expect(desktop).toMatch(/index rebuild failed", e\);\s*if \(!(?:damagedDatabase && !)?indexFailureSaid\(e\)\) toast\.error\(i18n\.t\("refresh\.failed"/);
     const pull = readFileSync(join(REPO, "apps/mobile/src/lib/usePullToRefresh.tsx"), "utf8");
     expect(pull).toMatch(/if \(!indexFailureSaid\(e\)\) toast\.error\(i18n\.t\("refresh\.failed"\)\)/);
     const rebuild = readFileSync(join(REPO, "apps/mobile/src/services/indexMaintenance.ts"), "utf8");

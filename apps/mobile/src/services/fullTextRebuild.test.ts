@@ -22,7 +22,7 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["retireBoot", "reloadActiveMobileVault", "offerReload", "rebuildActiveIndexDatabase"];
+const NAMES = ["retireBoot", "reloadActiveMobileVault", "offerReload", "rebuildActiveIndexDatabase", "rebuildOpenMobileIndexDatabase"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));

@@ -53,7 +53,7 @@ import { useTranslation } from "react-i18next";
 import { DEFAULT_FOLDER_SORT, type FolderSort, type SearchSort } from "@plainva/ui";
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
 import { useVaultLabels, vaultAppName } from "../services/vaultNames";
-import { FullTextDamageNotice } from "./FullTextDamageNotice";
+import { FullTextDamageNotice, useSearchDamageNotice } from "./FullTextDamageNotice";
 
 // The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
 // elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.
@@ -441,6 +441,8 @@ export const FileTree: React.FC<{
     [embeddings, meaningOn, searchMode, queryService],
   );
   const searchPage = useSearchPages(searchService, effectiveQuery, fileTreeVersion, 40, searchSort);
+  // A damaged full-text index, as its note says — whatever words the search failed with.
+  const damageNotice = useSearchDamageNotice(searchPage);
   // Derive search rows in the same render as the query. An effect mirror
   // briefly rendered every tree entry as a search hit before the first page.
   const files: typeof treeFiles = useMemo(() => effectiveQuery.trim()
@@ -1264,14 +1266,14 @@ export const FileTree: React.FC<{
       <EmptyState
         icon={isSearching ? <SearchX size={ICON.empty} /> : <FileText size={ICON.empty} />}
         action={
-          isSearching && searchPage.failed && !searchPage.damaged
+          isSearching && searchPage.failed && !damageNotice
             ? <Button variant="primary" onClick={searchPage.retry}>{t("sync.retryNow")}</Button>
             : isSearching && searchPage.hasMore
               ? <Button variant="primary" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>
               : undefined
         }
       >
-        {isSearching ? (searchPage.loading ? t("searchResults.loading") : searchPage.damaged ? <FullTextDamageNotice damaged /> : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
+        {isSearching ? (searchPage.loading ? t("searchResults.loading") : damageNotice ? <FullTextDamageNotice notice={damageNotice} /> : searchPage.failed ? t("searchResults.failed") : t("sidebar.noResults")) : t("fileTree.noNotes")}
       </EmptyState>
     );
   } else if (isSearching) {
@@ -1404,7 +1406,7 @@ export const FileTree: React.FC<{
         {showGroupHeaders && groupHeader("gh-content", t("sidebar.matchesContent"), searchGroups.content.length)}
         {searchGroups.content.map(renderHit)}
         {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-        {searchPage.damaged ? <FullTextDamageNotice damaged /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+        {damageNotice ? <FullTextDamageNotice notice={damageNotice} /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
         {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
         <ActiveSemanticCoverage />
       </div>

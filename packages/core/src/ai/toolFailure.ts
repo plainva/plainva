@@ -6,7 +6,7 @@ import { isDamagedFullText } from "../db/fullTextDamage.js";
  * — never the driver's words (`fts5: corruption found reading blob …`).
  */
 export const FULL_TEXT_DAMAGED_TOOL_TEXT =
-  "The vault's full-text search index is damaged, so full-text search finds nothing for now; Plainva's own search tells the person how it is rebuilt. Notes can still be read by path, and links and tags still work.";
+  "The vault's full-text search index is damaged, so full-text search finds nothing for now, and links, tags, databases and task lists may be out of date until it is rebuilt; Plainva's own search tells the person how. Notes can still be read by path.";
 
 /** The text of a tool that failed, for the model (the orchestrator, scripts). */
 export function toolFailureText(error: unknown): string {

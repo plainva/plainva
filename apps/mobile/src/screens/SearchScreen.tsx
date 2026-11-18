@@ -12,7 +12,7 @@ import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
-import { FullTextDamageNotice } from "../components/FullTextDamageNotice";
+import { FullTextDamageNotice, useSearchDamageNotice } from "../components/FullTextDamageNotice";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { SortSheet } from "../components/SortSheet";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
@@ -113,6 +113,8 @@ export function SearchScreen({
     [embeddings, meaningOn, searchMode, vault.queryService],
   );
   const searchPage = useSearchPages(searchService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision, 40, sort);
+  // A damaged full-text index, as its note says — whatever words the search failed with.
+  const damageNotice = useSearchDamageNotice(vault, searchPage);
   const results = searchPage.hits;
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -361,7 +363,7 @@ export function SearchScreen({
           {contentHits.length > 0 && <p className="m-sectionlabel">{t("sidebar.matchesContent")}</p>}
           {contentHits.filter((r) => r.occurrence || !nameMatchSet.has(r.path)).map(resultRow)}
           {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-          {searchPage.damaged ? <FullTextDamageNotice vault={vault} damaged /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+          {damageNotice ? <FullTextDamageNotice notice={damageNotice} /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
           {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
           <ActiveSemanticCoverage />
           {!searchPage.loading && !searchPage.failed && !results.length && <p role="status">{t("searchResults.empty")}</p>}

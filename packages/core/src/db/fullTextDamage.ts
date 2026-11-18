@@ -134,9 +134,25 @@ type Reading = FullTextDamageReading | null;
  * (the desktop's auxiliary windows, `watchFullTextDamage`'s `record`).
  */
 export async function noteFullTextDamageFound(db: SqlStatements, reading: FullTextDamageReading): Promise<boolean> {
-  if (reading === "perhaps" && (await fullTextIsDamaged(db)) !== true) return false;
+  if (reading === "perhaps" && (await probedOnce(db)) !== true) return false;
   await noteFullTextDamage(db);
   return true;
+}
+
+/**
+ * What FTS5's own check found, per open database: its answer holds for the
+ * session, "whole" too. The check reads all of the full-text index under the
+ * write lock (some 200 ms at 20 000 notes); a damaged main table met by every
+ * search must not run it again at each one.
+ */
+const probed = new WeakMap<object, Promise<boolean | null>>();
+function probedOnce(db: SqlStatements): Promise<boolean | null> {
+  let answer = probed.get(db);
+  if (!answer) {
+    answer = fullTextIsDamaged(db);
+    probed.set(db, answer);
+  }
+  return answer;
 }
 function readingOf(error: unknown, sql: string): Reading {
   if (isDamagedFullText(error)) return "damaged";

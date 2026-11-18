@@ -21,7 +21,13 @@ vi.mock("../services/mobileDialogs", () => ({
   mConfirm: async (input: { message: string }) => { calls.asked.push(input.message); return true; },
 }));
 
-import { FullTextDamageNotice } from "./FullTextDamageNotice";
+import { FullTextDamageNotice, useSearchDamageNotice } from "./FullTextDamageNotice";
+
+/** The search: the notice where the note (or the failure's words) says so, else the ordinary retry. */
+function Probe({ vault, damaged }: { vault: never; damaged: boolean }) {
+  const notice = useSearchDamageNotice(vault, { failed: true, damaged });
+  return notice ? <FullTextDamageNotice notice={notice} /> : <span data-testid="ordinary-failure">retry</span>;
+}
 
 let root: Root | undefined;
 let host: HTMLElement;
@@ -52,7 +58,7 @@ const button = () => host.querySelector<HTMLButtonElement>('[data-testid="search
 describe("the phone's search on a damaged full-text index", () => {
   it("noted: the next open makes it anew, no button", async () => {
     await noteFullTextDamage(db);
-    await act(async () => root!.render(<FullTextDamageNotice vault={vault(false)} damaged />));
+    await act(async () => root!.render(<Probe vault={vault(false)} damaged />));
     await settle();
     expect(host.textContent).toContain(i18n.t("errors.fullTextDamaged"));
     expect(button()).toBeNull();
@@ -60,7 +66,7 @@ describe("the phone's search on a damaged full-text index", () => {
 
   it("the open's attempt failed in an ordinary vault: sentence B with the button, asked first", async () => {
     await failedAttempt();
-    await act(async () => root!.render(<FullTextDamageNotice vault={vault(false)} damaged />));
+    await act(async () => root!.render(<Probe vault={vault(false)} damaged />));
     await settle();
     expect(host.textContent).toContain(i18n.t("errors.fullTextRebuildFailed", { action: i18n.t("settings.rebuildIndexAction") }));
     await act(async () => button()!.click());
@@ -69,9 +75,17 @@ describe("the phone's search on a damaged full-text index", () => {
     expect(calls.rebuilt).toBe(1);
   });
 
+  it("the search failed in SQLite's generic words (iOS): the note decides — sentence B with the button", async () => {
+    await failedAttempt();
+    await act(async () => root!.render(<Probe vault={vault(false)} damaged={false} />));
+    await settle();
+    expect(host.textContent).toContain(i18n.t("errors.fullTextRebuildFailed", { action: i18n.t("settings.rebuildIndexAction") }));
+    expect(button()).not.toBeNull();
+  });
+
   it("the open's attempt failed in an encrypted workspace: sentence C, no button", async () => {
     await failedAttempt();
-    await act(async () => root!.render(<FullTextDamageNotice vault={vault(true)} damaged />));
+    await act(async () => root!.render(<Probe vault={vault(true)} damaged />));
     await settle();
     expect(host.textContent).toContain(i18n.t("errors.fullTextRebuildFailedWorkspace"));
     expect(button()).toBeNull();

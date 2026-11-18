@@ -26,26 +26,34 @@ export function fullTextDamageNotice(damage: FullTextDamage, workspace: IndexDat
 }
 
 /**
- * The notice for a search that failed on a damaged full-text index
- * (`useSearchPages`'s `damaged`): read from the index database's note and
- * the vault's workspace state once the search says so; null before.
+ * The notice for a search that failed (`useSearchPages`'s `failed`): what
+ * the index database's note says, not the words of the failure — a damaged
+ * root page of the full-text index fails a search with SQLite's generic code
+ * (11), and iOS passes on nothing else. Null where neither the note nor the
+ * failure's words (`damaged`) say the full-text index is damaged: then it is
+ * an ordinary failure, to try again.
  */
 export function useFullTextDamageNotice(
   db: SqlStatements | null | undefined,
+  failed: boolean,
   damaged: boolean,
   readWorkspace: () => Promise<IndexDatabaseWorkspace>,
 ): FullTextDamageNotice | null {
   const [notice, setNotice] = useState<FullTextDamageNotice | null>(null);
   useEffect(() => {
-    if (!damaged) {
+    if (!failed) {
       setNotice(null);
       return;
     }
     let live = true;
-    // Until the note is read, the sentence that promises least.
-    setNotice({ textKey: "errors.fullTextDamaged", offerRebuild: false });
+    // Until the note is read, the sentence that promises least — where the words say so.
+    setNotice(damaged ? { textKey: "errors.fullTextDamaged", offerRebuild: false } : null);
     void (async () => {
       const damage = db ? await readFullTextDamage(db) : ({ state: "none" } as const);
+      if (damage.state === "none") {
+        if (live) setNotice(damaged ? { textKey: "errors.fullTextDamaged", offerRebuild: false } : null);
+        return;
+      }
       const workspace = damage.state === "rebuild-failed" ? await readWorkspace().catch((): IndexDatabaseWorkspace => "unknown") : "unknown";
       if (live) setNotice(fullTextDamageNotice(damage, workspace));
     })();
@@ -54,6 +62,6 @@ export function useFullTextDamageNotice(
     };
     // `readWorkspace` is asked again only with a new search failure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, damaged]);
+  }, [db, failed, damaged]);
   return notice;
 }

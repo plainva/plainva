@@ -469,23 +469,35 @@ async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Pr
 export async function rebuildActiveIndexDatabase(): Promise<boolean> {
   const current = bootPromise ? await bootPromise.catch(() => null) : null;
   if (!current) return false;
-  const entry = await getActiveVaultEntry();
-  if (entry.id !== current.vaultId) return false;
-  const setAside = () => setAsideMobileIndexDatabase(entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`).then(() => undefined);
   const failure = current.indexDatabaseFailure;
   if (failure) {
-    if (!indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return false;
+    const entry = await getActiveVaultEntry();
+    if (entry.id !== current.vaultId || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return false;
     // Nothing holds a database that did not open.
-    await setAside();
+    await setAsideMobileIndexDatabase(entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`);
     return reloadActiveMobileVault();
   }
-  // The search's "Rebuild index": the open vault whose full-text index could
-  // not be made anew at its open (`readFullTextDamage`). It is closed the
-  // ordinary way first — unsaved input asked about, the notes saved, the
-  // running cycle drained, the database closed — and set aside only then.
-  if (!current.db || current.isEncryptedWorkspace) return false;
-  if ((await readFullTextDamage(current.db)).state !== "rebuild-failed") return false;
-  return reloadActiveMobileVault(undefined, { beforeReopen: setAside });
+  // The search's "Rebuild index": the open vault whose full-text index could not be made anew at its open.
+  if (!current.db || (await readFullTextDamage(current.db)).state !== "rebuild-failed") return false;
+  return rebuildOpenMobileIndexDatabase();
+}
+
+/**
+ * The open vault's index database set aside and built anew, the strip's way
+ * (`setAsideMobileIndexDatabase`) — for the search, where the open could not
+ * make the full-text index anew, and for "Rebuild index" in Maintenance where
+ * it fails at the database itself. The vault is closed the ordinary way first
+ * — unsaved input asked about, the notes saved, the running cycle drained,
+ * the database closed — and the file set aside only then. Never in an
+ * encrypted workspace. Asked first by the caller.
+ */
+export async function rebuildOpenMobileIndexDatabase(): Promise<boolean> {
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (!current?.db || current.isEncryptedWorkspace) return false;
+  const entry = await getActiveVaultEntry();
+  if (entry.id !== current.vaultId) return false;
+  const name = entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`;
+  return reloadActiveMobileVault(undefined, { beforeReopen: () => setAsideMobileIndexDatabase(name).then(() => undefined) });
 }
 
 /** A reload waiting behind someone else's input (`screenStep.ts`). */

@@ -92,3 +92,16 @@ export function destroyLeafPage(file: string, table: string) {
   closeSync(fd);
 }
 
+
+/** Destroys the root page of `table`'s storage on the disk: every statement that reaches the table fails with SQLite's generic code (11). */
+export function destroyRootPage(file: string, table: string) {
+  const look = new DatabaseSync(file);
+  const pageSize = Number((look.prepare(`PRAGMA page_size`).get() as { page_size: number }).page_size);
+  const root = Number((look.prepare(`SELECT rootpage FROM sqlite_master WHERE name = ?`).get(table) as { rootpage: number }).rootpage);
+  look.close();
+  expect(root, `${table} has a root page`).toBeGreaterThan(1);
+  const junk = Buffer.alloc(pageSize, 0xa7);
+  const fd = openSync(file, "r+");
+  writeSync(fd, junk, 0, junk.length, (root - 1) * pageSize);
+  closeSync(fd);
+}

@@ -12,7 +12,7 @@ import { parkTemplateCaret } from "@plainva/ui";
 import { toast } from "@plainva/ui";
 import { virtualTabMeta } from "./graph/virtualPaths";
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
-import { FullTextDamageNotice } from "./FullTextDamageNotice";
+import { FullTextDamageNotice, useSearchDamageNotice } from "./FullTextDamageNotice";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -40,6 +40,8 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
   const { queryService, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate } = useVault();
   const [query, setQuery] = useState("");
   const searchPage = useSearchPages(queryService, isOpen ? query : "", 0, 8);
+  // A damaged full-text index, as its note says — whatever words the search failed with.
+  const damageNotice = useSearchDamageNotice(searchPage);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   // Full title/path corpus, loaded ONCE per open (P3.3): fuzzy matching like
@@ -307,7 +309,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
                 );
               })}
               {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
-          {searchPage.damaged ? <FullTextDamageNotice damaged /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
+          {damageNotice ? <FullTextDamageNotice notice={damageNotice} /> : searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
           {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
           {showCreateRow && (
                 <div

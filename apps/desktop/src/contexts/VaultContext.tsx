@@ -2622,16 +2622,24 @@ export const VaultProvider: React.FC<{
     const indexer = state.indexer;
     if (!indexer) return;
     setState(s => ({ ...s, isLoading: true }));
+    let damagedDatabase = false;
     try {
       await indexer.rebuildIndex("index rebuild");
       bumpTree();
       toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
     } catch (e) {
+      // Reading everything again cannot heal the database itself: where that is
+      // what failed, the start's way of setting it aside is offered, asked first.
+      damagedDatabase = indexDatabaseFailureKind(e) === "damaged" && indexDatabaseRebuildOffered("damaged", await indexRebuildWorkspace());
       console.error("[VaultContext] index rebuild failed", e);
-      if (!indexFailureSaid(e)) toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
+      if (!damagedDatabase && !indexFailureSaid(e)) toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
     } finally {
       setState(s => ({ ...s, isLoading: false }));
     }
+    if (!damagedDatabase) return;
+    const yes = await appConfirm({ title: i18n.t("indexDatabase.rebuildTitle"), message: i18n.t("indexDatabase.rebuildConfirm"), confirmLabel: i18n.t("settings.rebuildIndexAction") });
+    if (!yes) return;
+    await rebuildOpenIndexDatabase().catch((error: unknown) => toast.error(i18n.t("indexDatabase.rebuildFailed", { reason: errorText(error) })));
   };
 
   // P1b/P1c: one mechanism, several triggers. The manual ones (F5, the tree
@@ -2749,11 +2757,22 @@ export const VaultProvider: React.FC<{
 
   const rebuildDamagedIndexDatabase = async (): Promise<boolean> => {
     if (isClient) throw new Error(ownerOnly("rebuildDamagedIndexDatabase"));
-    const path = state.vaultPath;
     const db = state.dbAdapter;
-    if (!path || !db) return false;
-    // Only where the open's own attempt failed, and never in an encrypted workspace (or where that cannot be told).
-    if ((await readFullTextDamage(db)).state !== "rebuild-failed") return false;
+    // Only where the open's own attempt failed.
+    if (!db || (await readFullTextDamage(db)).state !== "rebuild-failed") return false;
+    return rebuildOpenIndexDatabase();
+  };
+
+  /**
+   * The open vault's index database set aside and built anew, the start's way
+   * (`rebuildIndexDatabaseAt`) — for the search, where the open could not
+   * make the full-text index anew, and for "Rebuild index" in the settings
+   * where it fails at the database itself. Asked first by the caller.
+   */
+  const rebuildOpenIndexDatabase = async (): Promise<boolean> => {
+    const path = state.vaultPath;
+    if (!path || !state.dbAdapter) return false;
+    // Never in an encrypted workspace, nor where that cannot be told.
     if (!indexDatabaseRebuildOffered("damaged", await indexRebuildWorkspace())) return false;
     // The ordinary close's safeguards: a changed draft is asked about, then the
     // vault's runtime drains — the draft journal, pending writes, the running
