@@ -6,6 +6,7 @@ import {
   familyOfMailAccount,
   familyOfPimProvider,
   familyOfSyncProvider,
+  cardIdentityKey,
   identityKey,
   type SyncProviderId,
   verifiedProviderIdentityKey,
@@ -87,7 +88,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
   ) =>
     verified
       ? `${family}|verified:${verifiedProviderIdentityKey(verified)}`
-      : `${family}|${identityKey(label) ?? `#${fallback}`}`;
+      : `${family}|${cardIdentityKey(family, label) ?? `#${fallback}`}`;
   const recordFor = (family: CloudProviderFamily, label: string, verified?: VerifiedProviderIdentity) => {
     if (verified) {
       const key = verifiedProviderIdentityKey(verified);
@@ -98,9 +99,9 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       );
       if (byIdentity) return byIdentity;
     }
-    const identity = identityKey(label);
+    const identity = cardIdentityKey(family, label);
     const matches = records.filter(
-      (r) => r.family === family && (identity ? identityKey(r.label) === identity : r.label === label),
+      (r) => r.family === family && (identity ? cardIdentityKey(family, r.label) === identity : r.label === label),
     );
     return matches.length === 1 && (!verified || !matches[0].verifiedProviderIdentity) ? matches[0] : undefined;
   };
@@ -205,13 +206,13 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     // can share one (second review 2026-10-27); where it is ambiguous, the
     // cards stay apart.
     const recordIdentity = record.verifiedProviderIdentity ? verifiedProviderIdentityKey(record.verifiedProviderIdentity) : null;
-    const address = identityKey(record.label);
-    const addressIsTheAccount = !!address && records.filter((other) => other.family === record.family && identityKey(other.label) === address).length === 1;
+    const address = cardIdentityKey(record.family, record.label);
+    const addressIsTheAccount = !!address && records.filter((other) => other.family === record.family && cardIdentityKey(other.family, other.label) === address).length === 1;
     const owner = cards.find((card) => {
       if (card.record || card.family !== record.family) return false;
       const cardIdentity = card.verifiedProviderIdentity ? verifiedProviderIdentityKey(card.verifiedProviderIdentity) : null;
       if (cardIdentity && recordIdentity) return cardIdentity === recordIdentity;
-      return addressIsTheAccount && identityKey(card.label) === address;
+      return addressIsTheAccount && cardIdentityKey(card.family, card.label) === address;
     });
     if (owner) {
       owner.record = record;

@@ -202,4 +202,30 @@ describe("loadAccountCards", () => {
     const { cards } = await loadAccountCards();
     expect(cards[0].signIn).toBe("active");
   });
+
+  it("keeps two password accounts whose addresses differ only in case on two cards, each with its own record (review 2026-11-18)", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    const url = "https://cloud.example.org/remote.php/dav";
+    pimRows.push({ id: "pim-upper", provider: "caldav", label: "Alice@example.org", config: { url, user: "Alice@example.org" } });
+    pimRows.push({ id: "pim-lower", provider: "caldav", label: "alice@example.org", config: { url, user: "alice@example.org" } });
+    records = [
+      { id: "acc-upper", family: "webdav", label: "Alice@example.org", services: { calendar: { pimAccountId: "pim-upper" } } } as unknown as CloudAccountRecord,
+      { id: "acc-lower", family: "webdav", label: "alice@example.org", services: { calendar: { pimAccountId: "pim-lower" } } } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => [card.record?.id, card.pimAccountId]).sort()).toEqual([["acc-lower", "pim-lower"], ["acc-upper", "pim-upper"]]);
+  });
+
+  it("keeps them apart without records too", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    const url = "https://cloud.example.org/remote.php/dav";
+    pimRows.push({ id: "pim-upper", provider: "caldav", label: "Alice@example.org", config: { url, user: "Alice@example.org" } });
+    pimRows.push({ id: "pim-lower", provider: "caldav", label: "alice@example.org", config: { url, user: "alice@example.org" } });
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => card.pimAccountId).sort()).toEqual(["pim-lower", "pim-upper"]);
+  });
 });

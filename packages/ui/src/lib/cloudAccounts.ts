@@ -221,6 +221,20 @@ export function identityKey(label: string | undefined): string | null {
   return isSimpleEmail(trimmed) ? trimmed : null;
 }
 
+/**
+ * The key two account cards of one family are joined by while neither has a
+ * verified identity (review 2026-11-18). Google and Microsoft vouch for an
+ * e-mail address, which is one account in any case of its letters; for every
+ * other family the label is a user the server decides on, so it is compared
+ * character for character — "Alice@x" and "alice@x" on a Nextcloud are two
+ * accounts, each with its own card.
+ */
+export function cardIdentityKey(family: CloudProviderFamily, label: string | undefined): string | null {
+  if (family === "google" || family === "microsoft") return identityKey(label);
+  const trimmed = (label ?? "").trim();
+  return identityKey(trimmed) ? trimmed : null;
+}
+
 /** What a shell observed in its subsystem stores (the runtime truth).
  * `family` overrides the coarse provider-derived family when the shell
  * recognized a catalog provider from the entry's URL/host (providerCatalog
