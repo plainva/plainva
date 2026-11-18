@@ -24,7 +24,7 @@ export function NoteAiSegment({ vault, path, onOpenNote }: { vault: MobileVault;
           selection={editorSelectionReader}
           dress="sheet"
           activeNote={{ path, title: noteDisplayName(path) }}
-          onOpenNote={(target) => openAiNoteTarget(vault, target, onOpenNote)}
+          onOpenNote={(target, kind) => openAiNoteTarget(vault, target, onOpenNote, kind)}
           onOpenUrl={openAiLink}
           onOpenSettings={setup.open}
           onPickNote={() => openAiNotePick("pin")}

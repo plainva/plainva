@@ -351,13 +351,11 @@ import {
   type RoutineRun,
   type Turn,
   type VaultLinkFile,
-  answerMayLink,
-  answerNoteLinks,
   RUN_UNFOUNDED_CAP,
-  unfoundedAmong,
 } from "@plainva/core";
 import { skillView } from "./aiSkills";
 import { conversationGrounding } from "./answerGrounds";
+import { answerLinksShown, answerLinkTargets, answerMayLink, unfoundedAmongShown } from "./answerLinks";
 import { logEntryText, logMaterial, type FolderLogHost, type LogMaterial } from "./folderLogRun";
 import type { NoteHintsHost } from "./noteHintsHost";
 import { EMPTY_NOTE_HINTS_PREFS, type NoteHintsPrefs, type NoteHintsStore } from "./noteHintsStore";
@@ -7630,22 +7628,12 @@ export class AiSession {
   }
 
   /**
-   * One user turn to the model and back — streaming, stop, the run's record
-   * and the ledger — for a message typed in the composer and for an action at
-   * a selection alike. The context and its approval come in ready.
-   */
-  /**
-   * The notes a run's answer names as its source although the conversation never had them (plan Oberfläche O7, E2):
-   * the links of every text the run gave — one before a tool call as much as the last —, led where the editor leads
-   * them, read from the note the conversation stood in. What it costs follows the answer's links (review O7, third
-   * round): an answer that cannot hold one is not read, and the vault is asked only for the files those links can
-   * name. A vault that cannot answer now is asked as if it had only what the conversation had.
-   */
-  /**
    * What the run's answer names as a source the conversation never had
    * (plan Oberfläche O7, E2) — or that this could not be checked: the vault
-   * did not give the files these links can name in time, or failed. Without
-   * a link, nothing is asked.
+   * did not give the files these links can name in time, or failed. The
+   * links of every text the run gave — one before a tool call as much as the
+   * last —, as the answer's view shows them, led where a click on them leads
+   * (`answerLinks.ts`). Without a link, nothing is read and nothing is asked.
    */
   private async unfoundedOf(vault: AiVaultHost, runs: readonly RunMeta[], turns: readonly Turn[], pack: ContextPackage): Promise<{ unfounded: string[]; unchecked: boolean }> {
     const none = { unfounded: [], unchecked: false };
@@ -7656,21 +7644,28 @@ export class AiSession {
     if (!answerMayLink(answer)) return none;
     const grounding = conversationGrounding(runs, runs.length - 1, pack.refs.find((ref) => ref.reasons.includes("active"))?.path);
     if (grounding.readMore) return none;
-    const links = answerNoteLinks(answer);
+    // The links the answer's view shows, read by the parser it renders with (review O7, fifth round).
+    const links = answerLinksShown(answer);
     if (links.length === 0) return none;
-    if (!vault.linkFilesFor) return { unfounded: unfoundedAmong(links, grounding).slice(0, RUN_UNFOUNDED_CAP), unchecked: false };
+    if (!vault.linkFilesFor) return { unfounded: await unfoundedAmongShown(links, grounding, RUN_UNFOUNDED_CAP), unchecked: false };
     // A guard against a vault that hangs, not a budget: the files come in milliseconds. Late or failed, the run
     // says it was not checked — never "nothing found" (review O7, fourth round).
     const late = Symbol("late");
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const targets = await answerLinkTargets(links);
     const files = await Promise.race([
-      vault.linkFilesFor([...new Set(links.map((link) => link.target))]).catch((): typeof late => late),
+      vault.linkFilesFor(targets).catch((): typeof late => late),
       new Promise<typeof late>((resolve) => (timer = setTimeout(() => resolve(late), UNFOUNDED_CHECK_MS))),
     ]).finally(() => clearTimeout(timer));
     if (files === late) return { unfounded: [], unchecked: true };
-    return { unfounded: unfoundedAmong(links, { ...grounding, vault: files }).slice(0, RUN_UNFOUNDED_CAP), unchecked: false };
+    return { unfounded: await unfoundedAmongShown(links, { ...grounding, vault: files }, RUN_UNFOUNDED_CAP), unchecked: false };
   }
 
+  /**
+   * One user turn to the model and back — streaming, stop, the run's record
+   * and the ledger — for a message typed in the composer and for an action at
+   * a selection alike. The context and its approval come in ready.
+   */
   private async execute(input: {
     vault: AiVaultHost;
     choice: ModelChoice;

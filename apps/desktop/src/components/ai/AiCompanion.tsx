@@ -27,7 +27,7 @@ export function AiCompanion({
   /** Back into the right column, from now on on this device (plan Oberfläche O7). */
   onDock: () => void;
   onOpenAsTab: () => void;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   /** Opens a note the conversation just made — an answer kept as a note — in a tab of its own, beside what is open. */
   onOpenCreated?: (path: string) => void;
   /** `composed`: the model put the address together itself (plan KI-Harness P4); the question before opening says so. */

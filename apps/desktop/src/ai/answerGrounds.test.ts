@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { unfoundedNoteCitations, type EgressManifest, type RunMeta } from "@plainva/core";
-import { conversationGrounding, groundTitles } from "@plainva/ui";
+import { type AnswerGrounding, type EgressManifest, type RunMeta } from "@plainva/core";
+import { answerLinksShown, conversationGrounding, groundTitles, unfoundedAmongShown } from "@plainva/ui";
+
+const unfoundedNoteCitations = (answer: string, grounding: AnswerGrounding) => unfoundedAmongShown(answerLinksShown(answer), grounding);
 
 const source = (path: string, title: string, extra: Partial<EgressManifest["sources"][number]> = {}) => ({ path, title, tier: "evidence" as const, chars: 10, reasons: [], ...extra });
 
@@ -29,18 +31,18 @@ describe("conversationGrounding", () => {
     run({ sent: ["Later.md"] }),
   ];
 
-  it("a follow-up that cites a note of the first turn cites a note the model had", () => {
+  it("a follow-up that cites a note of the first turn cites a note the model had", async () => {
     const grounding = conversationGrounding(runs, 1);
-    expect(unfoundedNoteCitations("As said [[Website relaunch]], see [[Relaunch plan]], [[Ideas]] and [[Roadmap]].", grounding)).toEqual([]);
+    expect(await unfoundedNoteCitations("As said [[Website relaunch]], see [[Relaunch plan]], [[Ideas]] and [[Roadmap]].", grounding)).toEqual([]);
   });
 
-  it("counts no run after the one asked about", () => {
-    expect(unfoundedNoteCitations("[[Later]]", conversationGrounding(runs, 1))).toEqual(["Later"]);
+  it("counts no run after the one asked about", async () => {
+    expect(await unfoundedNoteCitations("[[Later]]", conversationGrounding(runs, 1))).toEqual(["Later"]);
   });
 
-  it("a run whose request reached no model still counts: its context goes with the next request (review O7, second round)", () => {
+  it("a run whose request reached no model still counts: its context goes with the next request (review O7, second round)", async () => {
     const unreached = [run({ sent: ["Ghost.md"], unreached: true }), run({ sent: [] })];
-    expect(unfoundedNoteCitations("[[Ghost]]", conversationGrounding(unreached, 1))).toEqual([]);
+    expect(await unfoundedNoteCitations("[[Ghost]]", conversationGrounding(unreached, 1))).toEqual([]);
   });
 
   it("one run that read more than it listed makes the rest unknown", () => {

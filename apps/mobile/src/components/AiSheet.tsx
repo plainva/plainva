@@ -21,7 +21,7 @@ export function AiSheet({
   notePath: string | null;
   onClose: () => void;
   onOpenScreen: () => void;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   onOpenSettings: () => void;
 }) {
   const { t } = useTranslation();

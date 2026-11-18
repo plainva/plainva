@@ -68,8 +68,8 @@ export interface VaultPolicyHost extends ContextPolicyHost {
   /**
    * The files of the vault these link targets can lead to, as the link rule
    * reads them (`VaultQueryService.linkTargetsNamed`): asked when an answer's
-   * links are checked (`unfoundedAmong`), for those links alone, never for the
-   * whole vault. Absent in a host that was given none.
+   * links are checked (`unfoundedAmongShown`), for those links alone — one
+   * read of the list and a pass over it. Absent in a host that was given none.
    */
   filesNamed?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   /** Forget the cached rules (after the settings wrote the file). */

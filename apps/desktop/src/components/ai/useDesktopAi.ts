@@ -3,6 +3,7 @@ import { reportingTo } from "@plainva/ui";
 import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
+import { openLink } from "../../services/openLink";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import {
   aiNavigationCommands,
@@ -569,12 +570,11 @@ export function useDesktopAi(input: DesktopAiInput) {
       window.removeEventListener(AI_MEMORY_EVENT, open);
     };
   }, []);
-  const openNoteTarget = useStableHandler((target: string) => {
-    const query = latest.current.queryService;
-    if (!query) return;
-    void query.resolveNotePath(target).then((path) => {
-      if (path) latest.current.openNote(path);
-    });
+  // A link in an answer opens as every link of the app does (`planLinkOpen` through `openLink`), by the way it is
+  // written — the same function the source check under the answer asks (review O7, fifth round).
+  const openNoteTarget = useStableHandler((target: string, kind?: "wiki" | "markdown") => {
+    const { queryService, vaultAdapter } = latest.current;
+    void openLink({ text: target, kind: kind ?? "wiki" }, { queryService, vaultAdapter, onOpenPath: (path) => latest.current.openNote(path), newTab: false, t: (key, options) => i18n.t(key, options), createMissing: false });
   });
   /**
    * A link in an answer is untrusted: it opens only after the reader saw where

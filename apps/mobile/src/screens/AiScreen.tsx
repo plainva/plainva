@@ -27,7 +27,7 @@ export function AiScreen({
   onBack?: () => void;
   onMenu?: () => void;
   onHistory: (view?: AiHistoryView) => void;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   onOpenSettings: () => void;
 }) {
   const { t } = useTranslation();

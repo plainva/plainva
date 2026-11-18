@@ -52,7 +52,7 @@ export interface AiConversationProps {
   dress: AiDress;
   /** The note open in the shell, for the context chip. */
   activeNote: { path: string; title: string } | null;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   /**
    * Opens a note this conversation just made — an answer kept as a note (plan
    * P4-6) — by its path. A shell with tabs opens it beside what is open, so

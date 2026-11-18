@@ -220,6 +220,22 @@ export function buildLinkTargetIndex(files: readonly (string | LinkCorpusFile)[]
 }
 
 /**
+ * Where a click on a wiki link leads — `resolveNotePath` of the index, over
+ * any lookup (review O7, fifth round): the shells' click and the AI's check of
+ * an answer's sources ask this one function, each over its own files. An
+ * alias or an anchor left on the target is ignored.
+ */
+export function resolveNotePathIndexed(target: string, sourcePath: string | undefined, index: LinkTargetIndex): string | null {
+  const name = linkTargetName(target);
+  return name ? resolveLinkTargetIndexed(sourcePath ?? "", name, index) : null;
+}
+
+/** Where a click on a Markdown link leads (`resolveMarkdownLink` of the index), over any lookup. */
+export function resolveMarkdownTargetIndexed(target: string, sourcePath: string | undefined, index: LinkTargetIndex): MarkdownLinkAnswer {
+  return target.trim() ? resolveMarkdownLinkIndexed(sourcePath ?? "", target, index) : null;
+}
+
+/**
  * The files of `files` that these link targets can lead to — by the wiki rule
  * or the Markdown rule, read from any note (review O7, fourth round): every
  * file whose name is the last part of a target, as it is or as a note

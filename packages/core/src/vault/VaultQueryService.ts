@@ -27,7 +27,7 @@ import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
-import { buildLinkTargetIndex, linkFilesNamed, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
+import { buildLinkTargetIndex, linkFilesNamed, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownTargetIndexed, resolveNotePathIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -938,9 +938,9 @@ export class VaultQueryService {
    * the name: the note beside the linking one can then not come first.
    */
   async resolveNotePath(target: string, sourcePath?: string): Promise<string | null> {
-    const name = linkTargetName(target);
-    if (!name) return null;
-    return resolveLinkTargetIndexed(sourcePath ?? "", name, await this.linkLookup());
+    // No name, no read of the lookup.
+    if (!linkTargetName(target)) return null;
+    return resolveNotePathIndexed(target, sourcePath, await this.linkLookup());
   }
 
   /**
@@ -953,7 +953,7 @@ export class VaultQueryService {
    */
   async resolveMarkdownLink(target: string, sourcePath?: string): Promise<MarkdownLinkAnswer> {
     if (!target.trim()) return null;
-    return resolveMarkdownLinkIndexed(sourcePath ?? "", target, await this.linkLookup());
+    return resolveMarkdownTargetIndexed(target, sourcePath, await this.linkLookup());
   }
 
   /**

@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import * as core from "@plainva/core";
+import * as links from "../../../../packages/ui/src/ai/answerLinks";
 import { mcpSession, turn } from "./mcpSessionHarness";
 
-// The parser of an answer's links, watched (review O7, fourth round): an answer that cannot hold a link is not read.
-vi.mock("@plainva/core", async (original) => {
-  const actual = await original<typeof import("@plainva/core")>();
-  return { ...actual, answerNoteLinks: vi.fn(actual.answerNoteLinks) };
+// The reader of an answer's links, watched (review O7, fourth and fifth round): an answer that cannot hold a link is
+// not read. The session imports it from its own module; the mock is keyed by that file.
+vi.mock("../../../../packages/ui/src/ai/answerLinks", async (original) => {
+  const actual = await original<typeof import("../../../../packages/ui/src/ai/answerLinks")>();
+  return { ...actual, answerLinksShown: vi.fn(actual.answerLinksShown) };
 });
 
 /**
@@ -44,11 +45,11 @@ describe("the notes an answer names without the conversation having had them", (
       asked++;
       return [];
     };
-    vi.mocked(core.answerNoteLinks).mockClear();
+    vi.mocked(links.answerLinksShown).mockClear();
     expect(await s.send("Summarize.")).toEqual({ kind: "answered" });
     expect(s.getState().active!.runs[0]!.unfounded).toBeUndefined();
     expect(s.getState().active!.runs[0]!.unfoundedUnchecked).toBeUndefined();
-    expect(vi.mocked(core.answerNoteLinks)).not.toHaveBeenCalled();
+    expect(vi.mocked(links.answerLinksShown)).not.toHaveBeenCalled();
     expect(asked).toBe(0);
   });
 

@@ -154,8 +154,8 @@ export interface RunMeta {
   scripts?: RunScripts;
   /**
    * The notes the run's answer named as its source although the conversation
-   * never had them (plan Oberfläche O7, E2), as the answer spelled them —
-   * checked once, as the run ended (`unfoundedNoteCitations`). At most
+   * never had them (plan Oberfläche O7, E2), as a click asked for them —
+   * checked once, as the run ended (`unfoundedAmongShown` in the UI). At most
    * `RUN_UNFOUNDED_CAP`; absent when there were none.
    */
   unfounded?: string[];
