@@ -1,7 +1,7 @@
 import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
-import { readFile, readTextFile, writeFile, writeTextFile, exists as fsExists, mkdir, readDir, remove, rename } from "@tauri-apps/plugin-fs";
+import { readFile, readTextFile, writeFile, writeTextFile, exists as fsExists, mkdir, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
 import { initializeSchema } from "@plainva/core";
 import { finishSetAside, hasSetAside, SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
@@ -66,7 +66,15 @@ export async function indexDatabaseWasRebuilt(url: string): Promise<boolean> {
 const desktopIndexFiles: IndexDatabaseFiles = {
   exists: (path) => fsExists(path),
   rename: (from, to) => rename(from, to),
-  writeEmpty: (path) => writeFile(path, new Uint8Array()),
+  async writeEmpty(path) {
+    try {
+      // Never over a database there: another window's run may have made it and opened it.
+      await writeFile(path, new Uint8Array(), { createNew: true });
+    } catch (error) {
+      if (await fsExists(path)) return;
+      throw error;
+    }
+  },
   async listStartingWith(prefix) {
     const cut = prefix.lastIndexOf("/");
     const dir = prefix.slice(0, cut);
@@ -76,7 +84,20 @@ const desktopIndexFiles: IndexDatabaseFiles = {
   },
   remove: (path) => remove(path),
   readText: async (path) => ((await fsExists(path)) ? readTextFile(path) : null),
-  writeText: (path, text) => writeTextFile(path, text),
+  async writeText(path, text, options) {
+    try {
+      await writeTextFile(path, text, options?.exclusive ? { createNew: true } : undefined);
+      return true;
+    } catch (error) {
+      // Created first by another window's run (`createNew`).
+      if (options?.exclusive && (await fsExists(path))) return false;
+      throw error;
+    }
+  },
+  async modifiedAt(path) {
+    const info = await stat(path).catch(() => null);
+    return info?.mtime ? new Date(info.mtime).getTime() : null;
+  },
 };
 
 /**

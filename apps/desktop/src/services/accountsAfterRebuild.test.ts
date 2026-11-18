@@ -94,7 +94,6 @@ describe("the accounts of a rebuilt index database", () => {
 
   it.each([
     ["no copy", async () => null],
-    ["a copy that cannot be read", async () => { throw new Error("permission denied"); }],
     ["a copy that is no profile", async () => "{ not json"],
     ["a profile without accounts", async () => profileCopy({ theme: "dark" })],
   ])("%s: nothing is restored, and nothing stops", async (_label, readProfileCopy) => {
@@ -159,6 +158,16 @@ describe("the accounts of a rebuilt index database", () => {
     await restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy: async () => null });
     expect(s.rebuild).toBe("held");
     await restoreAccountsAfterRebuild({ settingsSyncRuns: false, state: s.state, ports: s.ports, readProfileCopy: async () => null });
+    expect(s.rebuild).toBe("settled");
+  });
+
+  it("a copy that cannot be read now: nothing restored, still held — without a settings sync too, until a try that could read it", async () => {
+    const s = scene();
+    const unreadable = async (): Promise<string | null> => { throw new Error("the sealed settings profile cannot be opened without the key"); };
+    expect(await restoreAccountsAfterRebuild({ settingsSyncRuns: false, state: s.state, ports: s.ports, readProfileCopy: unreadable })).toBe("unreadable");
+    expect(s.rebuild, "the references stay: the next open tries again").toBe("held");
+    expect(await restoreAccountsAfterRebuild({ settingsSyncRuns: false, state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) })).toBe("restored");
+    expect(s.rows.map((r) => r.id)).toEqual(["remote-1"]);
     expect(s.rebuild).toBe("settled");
   });
 });

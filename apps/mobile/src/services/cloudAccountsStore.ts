@@ -116,11 +116,19 @@ async function observe(vaultId: string): Promise<ObservedCloudState> {
 export async function refreshCloudAccounts(vaultId: string, pimReady: boolean): Promise<CloudAccountRecord[]> {
   const stored = await loadCloudAccounts(vaultId);
   const observed = await observe(vaultId);
-  // Not up yet, or rebuilt and none of its accounts back yet: their absence is no removal.
-  if (!pimReady || (await pimAccountsHeldAfterRebuild())) {
+  if (!pimReady) {
     observed.pim = stored
       .filter((r) => r.services.calendar)
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
+  } else if (await pimAccountsHeldAfterRebuild()) {
+    // An index database rebuilt at the start: each account not back yet
+    // keeps its card's reference until the settings sync has applied the
+    // document (`restoreAccountsAfterRebuild`), one by one.
+    const back = new Set(observed.pim.map((p) => p.id));
+    for (const r of stored) {
+      const id = r.services.calendar?.pimAccountId;
+      if (id && !back.has(id)) observed.pim.push({ id, provider: "caldav" as const, label: r.label });
+    }
   }
   if (!observed.sync && (await getActiveVaultEntry().catch(() => null))?.id !== vaultId) {
     // Not the open vault: its file sync cannot be observed here, so a stored

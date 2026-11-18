@@ -275,12 +275,14 @@ describe("forgetting a vault's index databases", () => {
     const name = await indexDbFileName(vault);
     indexDbExists = false;
     removed.length = 0;
-    listings.set("C:/AppData/Plainva/index", [name, `${name}.broken-2026-11-17T09-00-00-000Z`, `${name}.broken-2026-11-17T09-00-00-000Z-wal`, "other.db.broken-1"]);
+    listings.set("C:/AppData/Plainva/index", [name, `${name}.broken-2026-11-17T09-00-00-000Z`, `${name}.broken-2026-11-17T09-00-00-000Z-wal`, `${name}.setting-aside`, "other.db.broken-1", "other.db.setting-aside"]);
     listings.set(`${vault}/.plainva`, ["vault.db", "vault.db-wal", "vault.db.broken-2026-11-17T09-00-00-000Z", "vault.db.broken-2026-11-17T09-00-00-000Z-shm", "bookmarks.json"]);
     await forgetIndexDatabases(vault);
     expect(removed.sort()).toEqual([
       `C:/AppData/Plainva/index/${name}.broken-2026-11-17T09-00-00-000Z`,
       `C:/AppData/Plainva/index/${name}.broken-2026-11-17T09-00-00-000Z-wal`,
+      // The note of a run that stopped: left behind, it would set the next database of this name aside.
+      `C:/AppData/Plainva/index/${name}.setting-aside`,
       `${vault}/.plainva/vault.db.broken-2026-11-17T09-00-00-000Z`,
       `${vault}/.plainva/vault.db.broken-2026-11-17T09-00-00-000Z-shm`,
     ].sort());

@@ -83,14 +83,26 @@ export function indexDatabaseRebuildOffered(kind: IndexDatabaseFailureKind, work
 export interface IndexDatabaseFiles {
   exists(path: string): Promise<boolean>;
   rename(from: string, to: string): Promise<void>;
-  /** Writes an empty file: an empty SQLite database, which the next open fills. */
+  /**
+   * Writes an empty file — an empty SQLite database, which the next open
+   * fills — only where no file of that name is: never over one, which may be
+   * the database another window's run has just made and opened. One that is
+   * there already is no failure.
+   */
   writeEmpty(path: string): Promise<void>;
   /** The paths in `prefix`'s folder whose name begins with `prefix`'s name (`prefix` is a path). */
   listStartingWith(prefix: string): Promise<string[]>;
   remove(path: string): Promise<void>;
   /** A small text file: the note a set-aside leaves while it runs (`SET_ASIDE_NOTE`). Null where there is none. */
   readText(path: string): Promise<string | null>;
-  writeText(path: string, text: string): Promise<void>;
+  /**
+   * Writes it; `exclusive`: only where no file of that name is yet — false
+   * where one is (another window began a run first). A file system that
+   * cannot tell writes and answers true.
+   */
+  writeText(path: string, text: string, options?: { exclusive?: boolean }): Promise<boolean>;
+  /** When the file was last written, in ms; null where that cannot be told. */
+  modifiedAt(path: string): Promise<number | null>;
 }
 
 /** The companions SQLite keeps beside a database, moved with it. */
@@ -161,37 +173,44 @@ async function stampInNote(files: IndexDatabaseFiles, database: string): Promise
  * set-aside beside the name tells the open not to bring an older copy back
  * in (`hasSetAside`).
  *
- * The two newest copies are kept (`SET_ASIDE_COPIES_KEPT`); each is as
- * large as the index and holds the notes' text. Older ones are removed after
- * the run, companions first and the main file last, so a stop leaves no
- * half copy that reads as a whole one; a removal that fails is reported and
- * fails nothing.
+ * The copy just made and the newest other one are kept (`keepSetAsides`);
+ * each is as large as the index and holds the notes' text.
  *
- * One at a time per database: a second press while one runs is that one.
+ * One at a time per database: a second press while one runs is that one,
+ * and a run that finds another's note — another window pressed first —
+ * finishes that run instead of beginning its own.
  */
 export function setAsideIndexDatabase(files: IndexDatabaseFiles, database: string, at: Date = new Date()): Promise<string> {
   const running = settingAside.get(database);
   if (running) return running;
   const run = (async () => {
     let stamp = await stampInNote(files, database);
+    if (stamp !== null && (await noteIsStale(files, database, stamp))) {
+      await dropStaleNote(files, database);
+      stamp = null;
+    }
     if (stamp === null) {
       stamp = setAsideStamp(at);
       // Never over an earlier set-aside: it is kept as it was.
       for (let n = 2; (await setAsidesOf(files, database)).has(stamp); n++) stamp = `${setAsideStamp(at)}-${n}`;
-      await files.writeText(database + SET_ASIDE_NOTE, JSON.stringify({ stamp }));
+      // Another window that began a run first has its note there: this one finishes that run.
+      if (!(await files.writeText(database + SET_ASIDE_NOTE, JSON.stringify({ stamp }), { exclusive: true }))) {
+        stamp = (await stampInNote(files, database)) ?? stamp;
+      }
     }
     const aside = `${database}${SET_ASIDE_MARKER}${stamp}`;
     // Moved already by the run this one finishes: what lies at the name now is the new database's.
-    const moved = await files.exists(aside);
-    if (!moved) {
-      for (const companion of INDEX_DATABASE_COMPANIONS) {
-        if (await files.exists(database + companion)) await files.rename(database + companion, aside + companion);
-      }
-      if (await files.exists(database)) await files.rename(database, aside);
+    if (!(await files.exists(aside))) {
+      for (const companion of INDEX_DATABASE_COMPANIONS) await moveIfThere(files, database + companion, aside + companion);
+      await moveIfThere(files, database, aside);
     }
+    // Only where none lies: the other window's run may have made it and opened it (`writeEmpty`).
     if (!(await files.exists(database))) await files.writeEmpty(database);
-    await files.remove(database + SET_ASIDE_NOTE);
-    await keepNewestSetAsides(files, database);
+    await files.remove(database + SET_ASIDE_NOTE).catch(async (error: unknown) => {
+      // Gone already: the other window's run took it away.
+      if (await files.exists(database + SET_ASIDE_NOTE)) throw error;
+    });
+    await keepSetAsides(files, database, stamp);
     return aside;
   })();
   settingAside.set(database, run);
@@ -200,11 +219,54 @@ export function setAsideIndexDatabase(files: IndexDatabaseFiles, database: strin
   return run;
 }
 
-/** Removes all but the newest copies (`SET_ASIDE_COPIES_KEPT`): companions first, the main file last; a failure fails nothing. */
-async function keepNewestSetAsides(files: IndexDatabaseFiles, database: string): Promise<void> {
+/** Moves a file where it is still there; one another run moved to the same place meanwhile counts as moved. */
+async function moveIfThere(files: IndexDatabaseFiles, from: string, to: string): Promise<void> {
+  if (!(await files.exists(from))) return;
   try {
-    const stamps = [...(await setAsidesOf(files, database)).entries()].sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0));
-    for (const [, entry] of stamps.slice(SET_ASIDE_COPIES_KEPT)) {
+    await files.rename(from, to);
+  } catch (error) {
+    if (!(await files.exists(from)) && (await files.exists(to))) return;
+    throw error;
+  }
+}
+
+/**
+ * A note whose run left nothing anywhere — neither the copy nor one of its
+ * companions — beside a database written after the note: the copy went
+ * (by hand, or with "forget"), and the database there is a new one in use.
+ * Finishing would set that one aside. Where the times cannot be told, the
+ * note counts as stale too: nothing is moved on a guess.
+ */
+async function noteIsStale(files: IndexDatabaseFiles, database: string, stamp: string): Promise<boolean> {
+  if ((await setAsidesOf(files, database)).has(stamp)) return false;
+  if (!(await files.exists(database))) return false;
+  const noteAt = await files.modifiedAt(database + SET_ASIDE_NOTE).catch(() => null);
+  const databaseAt = await files.modifiedAt(database).catch(() => null);
+  return noteAt === null || databaseAt === null || databaseAt > noteAt;
+}
+
+async function dropStaleNote(files: IndexDatabaseFiles, database: string): Promise<void> {
+  const report = reportingTo("index:set-aside-note");
+  report(new Error("a set-aside note without its copy, beside a newer database, was removed; nothing was moved"));
+  await files.remove(database + SET_ASIDE_NOTE).catch(report);
+}
+
+/**
+ * After a run: the copy it just made is kept whatever its stamp says — a
+ * clock set back must not make it the oldest — and beside it the newest
+ * other whole copy (`SET_ASIDE_COPIES_KEPT`, two in all). Only copies with
+ * their main file count; a companion whose main file is gone is no copy and
+ * goes with the old ones. Removed companions first, the main file last, so a
+ * stop leaves no half copy that reads as a whole one; a removal that fails is
+ * reported and fails nothing.
+ */
+async function keepSetAsides(files: IndexDatabaseFiles, database: string, current: string): Promise<void> {
+  try {
+    const all = await setAsidesOf(files, database);
+    const others = [...all.entries()].filter(([stamp, entry]) => stamp !== current && entry.base !== null).sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0));
+    const kept = new Set([current, ...others.slice(0, SET_ASIDE_COPIES_KEPT - 1).map(([stamp]) => stamp)]);
+    for (const [stamp, entry] of all) {
+      if (kept.has(stamp)) continue;
       for (const path of entry.companions) await files.remove(path);
       if (entry.base) await files.remove(entry.base);
     }
@@ -222,7 +284,13 @@ const settingAside = new Map<string, Promise<string>>();
  * was under way; whatever else lies beside the database, nothing moves then.
  */
 export async function finishSetAside(files: IndexDatabaseFiles, database: string): Promise<string | null> {
-  if ((await stampInNote(files, database)) === null) return null;
+  const stamp = await stampInNote(files, database);
+  if (stamp === null) return null;
+  // Its copy gone and a newer database there: the note goes, nothing moves (`noteIsStale`).
+  if (await noteIsStale(files, database, stamp)) {
+    await dropStaleNote(files, database);
+    return null;
+  }
   return setAsideIndexDatabase(files, database);
 }
 

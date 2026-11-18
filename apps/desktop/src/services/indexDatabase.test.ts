@@ -6,7 +6,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * of an older version never comes back in its place.
  */
 
-const disk = vi.hoisted(() => ({ files: new Map<string, string>(), log: [] as string[] }));
+const disk = vi.hoisted(() => ({
+  files: new Map<string, string>(),
+  log: [] as string[],
+  /** A look at `path` that finds nothing waits here until `release` — another window's run goes on meanwhile. */
+  hold: null as null | { path: string; reached: () => void; release: Promise<void> },
+}));
 
 vi.mock("@tauri-apps/api/path", () => ({ appDataDir: async () => "/data" }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: async (cmd: string, args: { dbPath?: string }) => { disk.log.push(`${cmd} ${args?.dbPath ?? ""}`); } }));
@@ -14,15 +19,29 @@ vi.mock("@tauri-apps/plugin-sql", () => ({
   default: { get: (url: string) => ({ close: async () => { disk.log.push(`close pool ${url}`); } }) },
 }));
 vi.mock("@tauri-apps/plugin-fs", () => ({
-  exists: async (path: string) => disk.files.has(path),
+  exists: async (path: string) => {
+    const there = disk.files.has(path);
+    const hold = disk.hold;
+    if (hold && path === hold.path && !there) {
+      disk.hold = null;
+      hold.reached();
+      await hold.release;
+    }
+    return there;
+  },
   mkdir: async () => {},
   readFile: async (path: string) => new TextEncoder().encode(disk.files.get(path) ?? ""),
-  writeFile: async (path: string, data: Uint8Array) => { disk.log.push(`write ${path}`); disk.files.set(path, new TextDecoder().decode(data)); },
+  writeFile: async (path: string, data: Uint8Array, options?: { createNew?: boolean }) => {
+    if (options?.createNew && disk.files.has(path)) throw new Error(`File exists (os error 17): ${path}`);
+    disk.log.push(`write ${path}`);
+    disk.files.set(path, new TextDecoder().decode(data));
+  },
   rename: async (from: string, to: string) => {
     disk.log.push(`rename ${from} -> ${to}`);
     disk.files.set(to, disk.files.get(from)!);
     disk.files.delete(from);
   },
+  stat: async (path: string) => ({ mtime: disk.files.has(path) ? new Date(0) : null }),
   readTextFile: async (path: string) => disk.files.get(path) ?? "",
   writeTextFile: async (path: string, text: string) => { disk.log.push(`note ${path}`); disk.files.set(path, text); },
   remove: async (path: string) => { disk.log.push(`remove ${path}`); disk.files.delete(path); },
@@ -82,5 +101,25 @@ describe("setting the desktop's damaged index database aside", () => {
     const aside = await setAsideDesktopIndexDatabase(url);
     expect([...disk.files.keys()].sort()).toEqual([aside, "/home/me/Notes/.plainva/vault.db.broken-2026-02-01T00-00-00-000Z", "/home/me/Notes/.plainva/bookmarks.json", "/home/me/Notes/.plainva/vault.db"].sort());
     expect(disk.files.get(aside)).toBe("damaged again");
+  });
+
+  it("two windows finish the same run: the second never writes its empty database over the one the first made and opened", async () => {
+    const url = "sqlite:/data/index/v-2.db";
+    const stamp = "2026-11-18T09-00-00-000Z";
+    // The first window's run: its note, the damaged database moved aside, and the empty one not yet written.
+    disk.files.set("/data/index/v-2.db.setting-aside", JSON.stringify({ stamp }));
+    disk.files.set(`/data/index/v-2.db.broken-${stamp}`, "damaged");
+    let reached!: () => void;
+    const atTheLook = new Promise<void>((resolve) => { reached = resolve; });
+    let release!: () => void;
+    disk.hold = { path: "/data/index/v-2.db", reached: () => reached(), release: new Promise<void>((resolve) => { release = resolve; }) };
+    const second = setAsideDesktopIndexDatabase(url);
+    // The second window has looked and found no database; the first now writes its empty one and opens it.
+    await atTheLook;
+    disk.files.set("/data/index/v-2.db", "the first window's new database, open");
+    release();
+    await second;
+    expect(disk.files.get("/data/index/v-2.db")).toBe("the first window's new database, open");
+    expect(disk.files.get(`/data/index/v-2.db.broken-${stamp}`)).toBe("damaged");
   });
 });

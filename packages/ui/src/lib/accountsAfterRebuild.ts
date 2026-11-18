@@ -33,7 +33,9 @@ type RebuildState = Pick<PimCacheRepository, "accountsAfterRebuild" | "setAccoun
  * removals count), and each comes back under the id this device knew it by,
  * with its sign-in. A copy that cannot be read, or carries no accounts,
  * restores nothing and stops nothing: the settings sync may still bring them,
- * and what it does not know is connected again.
+ * and what it does not know is connected again. `readProfileCopy` answers
+ * null where there is no copy, and throws where there is one it cannot read
+ * now (a sealed copy and no key here).
  */
 export async function restoreAccountsAfterRebuild(input: {
   state: RebuildState;
@@ -46,21 +48,27 @@ export async function restoreAccountsAfterRebuild(input: {
    * and its card says so instead of keeping it as connected.
    */
   settingsSyncRuns: boolean;
-}): Promise<"restored" | "nothing" | "already"> {
+}): Promise<"restored" | "nothing" | "unreadable" | "already"> {
   const state = await input.state.accountsAfterRebuild();
-  if (state !== null) {
-    // Held at an earlier open, and no cycle can come any more: the attempt is over.
-    if (state === "held" && !input.settingsSyncRuns) await input.state.setAccountsAfterRebuild("settled");
-    return "already";
-  }
-  await input.state.setAccountsAfterRebuild("held");
+  if (state === "settled") return "already";
+  // Held at an earlier open, and a settings-sync cycle can still bring them: that cycle decides.
+  if (state === "held" && input.settingsSyncRuns) return "already";
+  if (state === null) await input.state.setAccountsAfterRebuild("held");
   const outcome = await restoreFromCopy(input);
-  if (!input.settingsSyncRuns) await input.state.setAccountsAfterRebuild("settled");
+  // No cycle can come: the attempt is over once the copy could be read —
+  // not while it could not (a keychain locked for a moment, a file not
+  // answering); then the next open tries again, and the references stay.
+  if (!input.settingsSyncRuns && outcome !== "unreadable") await input.state.setAccountsAfterRebuild("settled");
   return outcome;
 }
 
-async function restoreFromCopy(input: { readProfileCopy: () => Promise<string | null>; ports: AccountImportPorts }): Promise<"restored" | "nothing"> {
-  const text = await input.readProfileCopy().catch(() => null);
+async function restoreFromCopy(input: { readProfileCopy: () => Promise<string | null>; ports: AccountImportPorts }): Promise<"restored" | "nothing" | "unreadable"> {
+  let text: string | null;
+  try {
+    text = await input.readProfileCopy();
+  } catch {
+    return "unreadable";
+  }
   const doc = parseProfile(text);
   if (!doc) return "nothing";
   const values = valuesOf(entriesOf(doc));

@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
-import { finishSetAside, SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
+import { finishSetAside, SET_ASIDE_MARKER, SET_ASIDE_NOTE, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
 import { IOS_DATABASE_FOLDER } from "../adapters/iosDatabaseFolder";
 import { isMissingFile } from "../adapters/fileErrors";
 import { withDatabaseClosed } from "../adapters/sqliteConnections";
@@ -67,6 +67,8 @@ function filesIn(folder: DatabaseFolder): IndexDatabaseFiles {
       });
     },
     async writeEmpty(file) {
+      // Never over a database there (`IndexDatabaseFiles.writeEmpty`); the phone has one window, so a look first is enough.
+      if (await this.exists(file)) return;
       await Filesystem.writeFile({ ...at(file), data: "", encoding: Encoding.UTF8 });
     },
     async listStartingWith(prefix) {
@@ -85,7 +87,18 @@ function filesIn(folder: DatabaseFolder): IndexDatabaseFiles {
       }
     },
     async writeText(file, text) {
+      // One window on the phone: no other run can have begun beside this one.
       await Filesystem.writeFile({ ...at(file), data: text, encoding: Encoding.UTF8 });
+      return true;
+    },
+    async modifiedAt(file) {
+      try {
+        const { mtime } = await Filesystem.stat(at(file));
+        return typeof mtime === "number" && mtime > 0 ? mtime : null;
+      } catch (error) {
+        if (isMissingFile(error)) return null;
+        throw error;
+      }
     },
   };
 }
@@ -133,7 +146,8 @@ export async function removeSetAsideMobileIndexDatabases(name: string): Promise<
   if (!Capacitor.isNativePlatform()) return;
   const folder = await databaseFolder();
   for (const file of await namesIn(folder)) {
-    if (!file.startsWith(`${name}${DB_SUFFIX}${SET_ASIDE_MARKER}`)) continue;
+    // Every copy, and the note of a run that stopped: left behind, it would set the next database of this name aside.
+    if (!file.startsWith(`${name}${DB_SUFFIX}${SET_ASIDE_MARKER}`) && file !== `${name}${DB_SUFFIX}${SET_ASIDE_NOTE}`) continue;
     await Filesystem.deleteFile({ path: folder.path(file), ...(folder.directory ? { directory: folder.directory } : {}) });
   }
 }

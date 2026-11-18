@@ -1,4 +1,4 @@
-import { taskViewStateKey, forgetTaskViewState, SET_ASIDE_MARKER } from "@plainva/ui";
+import { taskViewStateKey, forgetTaskViewState, SET_ASIDE_MARKER, SET_ASIDE_NOTE } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, remove } from "@tauri-apps/plugin-fs";
 import { getSettingsStore } from "./settingsStore";
@@ -106,7 +106,8 @@ export async function forgetIndexDatabases(vaultPath: string): Promise<void> {
   // And every copy the start set aside as damaged (`setAsideIndexDatabase`): it holds the notes' text too.
   const names = await readDir(dir).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
   for (const entry of names) {
-    if (entry.startsWith(name + SET_ASIDE_MARKER)) await remove(await join(dir, entry));
+    // Every copy, and the note of a run that stopped: left behind, it would set the next database of this name aside.
+    if (entry.startsWith(name + SET_ASIDE_MARKER) || entry === name + SET_ASIDE_NOTE) await remove(await join(dir, entry));
   }
   // A vault whose index stayed in its own `.plainva/` (the app-data folder
   // could not be used) had a damaged one set aside there. Only those copies
@@ -114,7 +115,7 @@ export async function forgetIndexDatabases(vaultPath: string): Promise<void> {
   const inVault = await join(vaultPath, ".plainva");
   const inVaultNames = await readDir(inVault).then((entries) => entries.map((entry) => entry.name), () => [] as string[]);
   for (const entry of inVaultNames) {
-    if (entry.startsWith(`vault.db${SET_ASIDE_MARKER}`)) await remove(await join(inVault, entry));
+    if (entry.startsWith(`vault.db${SET_ASIDE_MARKER}`) || entry === `vault.db${SET_ASIDE_NOTE}`) await remove(await join(inVault, entry));
   }
 }
 

@@ -922,6 +922,8 @@ export async function restoreDesktopAccountsAfterRebuild(vaultPath: string, db: 
         if (!(await raw.exists(SETTINGS_ENC_PATH))) return null;
         return new TextDecoder().decode(profileCryptoFor(mk).open(await raw.readBinaryFile(SETTINGS_ENC_PATH)) as BufferSource);
       }
+      // A sealed copy, and no key here now: there is one, it cannot be read yet.
+      if (await raw.exists(SETTINGS_ENC_PATH)) throw new Error("the sealed settings profile cannot be opened without the key");
       return (await raw.exists(PROFILE_SYNC_PATH)) ? raw.readTextFile(PROFILE_SYNC_PATH) : null;
     },
   });

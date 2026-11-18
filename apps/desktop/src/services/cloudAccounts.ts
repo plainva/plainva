@@ -148,22 +148,29 @@ async function observeState(vaultPath: string, pimRuntime: PimRuntime | null): P
  * when it changed. Safe without a pim runtime (closed vault): calendar
  * references are then carried through unverified rather than dropped.
  */
-/** Rebuilt at the start, and none of the database's calendar accounts back yet: their absence says nothing about them. */
+/** Rebuilt at the start, and the settings sync has not applied the document yet: an account's absence says nothing about it. */
 async function pimAccountsHeldAfterRebuild(pimRuntime: PimRuntime): Promise<boolean> {
-  return (await pimRuntime.cache.accountsAfterRebuild().catch(() => null)) === "held" && (await pimRuntime.cache.listAccounts()).length === 0;
+  return (await pimRuntime.cache.accountsAfterRebuild().catch(() => null)) === "held";
 }
 
 export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRuntime | null): Promise<CloudAccountRecord[]> {
   const stored = await loadCloudAccounts(vaultPath);
   const observed = await observeState(vaultPath, pimRuntime);
-  if (!pimRuntime || (await pimAccountsHeldAfterRebuild(pimRuntime))) {
+  if (!pimRuntime) {
     // No runtime = no pim truth. Feed the stored calendar refs back as
     // observations so reconcile keeps them instead of treating them as gone.
-    // The same while an index database rebuilt at the start has none of its
-    // accounts back yet (`restoreAccountsAfterRebuild`).
     observed.pim = stored
       .filter((r) => r.services.calendar)
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
+  } else if (await pimAccountsHeldAfterRebuild(pimRuntime)) {
+    // An index database rebuilt at the start: each account not back yet
+    // keeps its card's reference until the settings sync has applied the
+    // document (`restoreAccountsAfterRebuild`), one by one.
+    const back = new Set(observed.pim.map((p) => p.id));
+    for (const r of stored) {
+      const id = r.services.calendar?.pimAccountId;
+      if (id && !back.has(id)) observed.pim.push({ id, provider: "caldav" as const, label: r.label });
+    }
   }
   const next = reconcileCloudAccounts(stored, observed);
   // A calendar switched off for the vault on another device stops here too (E3).

@@ -108,6 +108,15 @@ describe("the phone reconciles its account cards (Sammelplan § 3.105)", () => {
     expect(await loadCloudAccounts("v1")).toEqual([card("card-a", { calendar: { pimAccountId: "pim-1" } })]);
   });
 
+  it("one of two accounts back after the rebuild: the other's card keeps its reference too", async () => {
+    heldAfterRebuild = true;
+    calendars = [{ id: "pim-1", provider: "microsoft", label: "anna@example.com", config: {} }];
+    stored.set(cardsKey, [card("card-a", { calendar: { pimAccountId: "pim-1" } }), { ...card("card-b", { calendar: { pimAccountId: "pim-2" } }), label: "ben@example.com" }]);
+    stop = startCloudAccountsReconcile("v1", () => true);
+    await settle();
+    expect((await loadCloudAccounts("v1")).map((c) => [c.id, c.services.calendar?.pimAccountId])).toEqual([["card-a", "pim-1"], ["card-b", "pim-2"]]);
+  });
+
   it("keeps a files reference when another vault is the open one", async () => {
     activeVault = { id: "v2", provider: "drive" };
     stored.set(cardsKey, [card("card-a", { files: { provider: "onedrive" } })]);

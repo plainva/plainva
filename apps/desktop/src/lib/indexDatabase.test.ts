@@ -67,9 +67,12 @@ describe("why an index database did not open", () => {
 });
 
 /** A folder of files in memory, noting every step. */
-function folder(initial: Record<string, string>, failRenameOf: string | null = null, failRemoveOf: string | null = null) {
+function folder(initial: Record<string, string>, failRenameOf: string | null = null, failRemoveOf: string | null = null, at: Record<string, number> = {}) {
   const files = new Map(Object.entries(initial));
   const steps: string[] = [];
+  /** When each file was last written: the initial ones at time 0 or as given, every write later than the one before. */
+  const times = new Map(Object.keys(initial).map((path) => [path, at[path] ?? 0]));
+  let clock = 100;
   const fs: IndexDatabaseFiles = {
     exists: async (path) => files.has(path),
     rename: async (from, to) => {
@@ -77,11 +80,13 @@ function folder(initial: Record<string, string>, failRenameOf: string | null = n
       if (from === failRenameOf) throw new Error("rename failed");
       if (files.has(to)) throw new Error(`would replace ${to}`);
       files.set(to, files.get(from)!);
+      times.set(to, times.get(from) ?? 0);
       files.delete(from);
     },
     writeEmpty: async (path) => {
       steps.push(`empty ${path}`);
       files.set(path, "");
+      times.set(path, ++clock);
     },
     listStartingWith: async (prefix) => [...files.keys()].filter((path) => path.startsWith(prefix)),
     remove: async (path) => {
@@ -90,12 +95,16 @@ function folder(initial: Record<string, string>, failRenameOf: string | null = n
       files.delete(path);
     },
     readText: async (path) => files.get(path) ?? null,
-    writeText: async (path, text) => {
+    writeText: async (path, text, options) => {
+      if (options?.exclusive && files.has(path)) return false;
       steps.push(`note ${path}`);
       files.set(path, text);
+      times.set(path, ++clock);
+      return true;
     },
+    modifiedAt: async (path) => (files.has(path) ? times.get(path) ?? null : null),
   };
-  return { files, steps, fs };
+  return { files, steps, fs, times };
 }
 
 const AT = new Date("2026-11-17T09:30:00.123Z");
@@ -187,6 +196,56 @@ describe("setting a damaged index database aside", () => {
     const next = folder(Object.fromEntries(files));
     expect(await finishSetAside(next.fs, "x.db")).toBeNull();
     expect(next.files.get("x.db")).toBe("rebuilt, in use");
+  });
+
+  it("the copy just made stays whatever its stamp says: a clock set back does not make it the oldest", async () => {
+    const later1 = "x.db.broken-2027-01-01T00-00-00-000Z";
+    const later2 = "x.db.broken-2027-02-01T00-00-00-000Z";
+    const { files, fs } = folder({ "x.db": "damaged, with the data", [later1]: "older copy", [later2]: "newer copy" });
+    const aside = await setAsideIndexDatabase(fs, "x.db", AT);
+    expect(files.get(aside), "the copy with the data").toBe("damaged, with the data");
+    expect(files.has(later2), "and the newest other one").toBe(true);
+    expect(files.has(later1)).toBe(false);
+  });
+
+  it("a companion whose main file is gone is no copy: it takes no place, and it goes", async () => {
+    const whole = "x.db.broken-2026-10-01T00-00-00-000Z";
+    const orphan = "x.db.broken-2026-10-02T00-00-00-000Z-wal";
+    const { files, fs } = folder({ "x.db": "damaged again", [whole]: "the older whole copy", [orphan]: "orphan log" });
+    const aside = await setAsideIndexDatabase(fs, "x.db", AT);
+    expect(Object.fromEntries(files)).toEqual({ [aside]: "damaged again", [whole]: "the older whole copy", "x.db": "" });
+  });
+
+  it("a note whose copy is gone, beside a database written after it: the note goes, nothing moves", async () => {
+    const { files, steps, fs } = folder(
+      { "x.db": "new, in use", "x.db-wal": "its log", "x.db.setting-aside": JSON.stringify({ stamp: STAMP }) },
+      null, null, { "x.db.setting-aside": 1, "x.db": 50, "x.db-wal": 50 },
+    );
+    expect(await finishSetAside(fs, "x.db")).toBeNull();
+    expect(steps.filter((step) => step.startsWith("rename") || step.startsWith("empty"))).toEqual([]);
+    expect(files.get("x.db")).toBe("new, in use");
+    expect(files.has("x.db.setting-aside")).toBe(false);
+  });
+
+  it("a note written, the run stopped before its first move: the damaged database, older than the note, is set aside at the open", async () => {
+    const { files, fs } = folder(
+      { "x.db": "damaged", "x.db.setting-aside": JSON.stringify({ stamp: STAMP }) },
+      null, null, { "x.db": 1, "x.db.setting-aside": 50 },
+    );
+    expect(await finishSetAside(fs, "x.db")).toBe(`x.db.broken-${STAMP}`);
+    expect(files.get(`x.db.broken-${STAMP}`)).toBe("damaged");
+    expect(files.get("x.db")).toBe("");
+  });
+
+  it("a second window that finds the first one's note finishes that run instead of beginning its own", async () => {
+    const OTHER = "2026-11-17T08-00-00-000Z";
+    const { files, fs } = folder({ "x.db": "damaged", "x.db-wal": "log", "x.db.setting-aside": JSON.stringify({ stamp: OTHER }) }, null, null, { "x.db": 1, "x.db-wal": 1, "x.db.setting-aside": 50 });
+    // The first window wrote its note between this one's look and its own write.
+    let looked = false;
+    const racing = { ...fs, readText: async (path: string) => (looked ? fs.readText(path) : ((looked = true), null)) };
+    const aside = await setAsideIndexDatabase(racing, "x.db", AT);
+    expect(aside).toBe(`x.db.broken-${OTHER}`);
+    expect(Object.fromEntries(files)).toEqual({ [`x.db.broken-${OTHER}`]: "damaged", [`x.db.broken-${OTHER}-wal`]: "log", "x.db": "" });
   });
 
   it("a set-aside tells the open not to bring an older copy back in", () => {

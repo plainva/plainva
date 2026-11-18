@@ -136,6 +136,7 @@ describe("setting the phone's damaged index database aside", () => {
     device.files.set(key("CapacitorDatabase/plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z-wal", "LIBRARY"), "old log");
     device.files.set(key("CapacitorDatabase/plainva-v2SQLite.db.broken-2026-11-17T09-00-00-000Z", "LIBRARY"), "another vault's");
     device.files.set(key("CapacitorDatabase/plainva-v1SQLite.db", "LIBRARY"), "");
+    device.files.set(key("CapacitorDatabase/plainva-v1SQLite.db.setting-aside", "LIBRARY"), JSON.stringify({ stamp: "2026-11-17T09-00-00-000Z" }));
     await removeSetAsideMobileIndexDatabases("plainva-v1");
     expect([...device.files.keys()].sort()).toEqual([
       key("CapacitorDatabase/plainva-v1SQLite.db", "LIBRARY"),
