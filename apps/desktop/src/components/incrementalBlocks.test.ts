@@ -17,6 +17,7 @@ import { frontmatterBlock } from "../../../../packages/ui/src/components/frontma
 import { boundedInlineSyntax } from "../../../../packages/ui/src/lib/boundedMarkdown";
 import { wikiLinkInlineSyntax } from "../../../../packages/ui/src/components/wikiLinkInline";
 import { parseMarkdownTable } from "../../../../packages/ui/src/components/tableModel";
+import { formulaHoldsWikiLink } from "@plainva/core";
 
 /**
  * Performance plan L6: the block fields (tables, Mermaid and `$$`, ```tasks)
@@ -96,8 +97,8 @@ function legacyMath(state: EditorState): string[] {
     if (!focused) {
       const raw = doc.sliceString(line.from, doc.line(closing).to);
       const expr = raw.replace(/^\s*\$\$/, "").replace(/\$\$\s*$/, "").trim();
-      // A formula over a wiki link is drawn as its source (Fehlerliste 0.9.0, B4).
-      if (expr && !/\[\[[^[\]\n]+\]\]/.test(expr)) out.push(`${line.from}-${doc.line(closing).to}:${expr}`);
+      // A formula over a wiki link — the one the reading view reads — is drawn as its source (Fehlerliste 0.9.0, B4).
+      if (expr && !formulaHoldsWikiLink(raw)) out.push(`${line.from}-${doc.line(closing).to}:${expr}`);
     }
     n = closing;
   }

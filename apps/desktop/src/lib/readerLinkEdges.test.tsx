@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { prepareReaderSource, remarkFormulasYieldToLinks } from "@plainva/core";
+import { formulaHoldsWikiLink, prepareReaderSource, remarkFormulasYieldToLinks } from "@plainva/core";
 import { markdownToPlainText, rehypeReaderSource } from "@plainva/ui";
 import { remarkStripHtmlComments } from "../components/markdownReaderModel";
 import FROZEN_MAIN from "./readerFormulas.main.json";
@@ -96,25 +96,121 @@ describe("the reading view of a wiki link", () => {
     expect(formulas(inside)).toEqual(["y", "z"]);
   });
 
-  it("gives back each link the reviews found taken (R2, O3, O4), with no sign added", () => {
-    // R2: main shows h; the `$$` behind it pairs with nothing new.
-    const r2 = read("$[[h]]\n$$[[A]]");
-    expect(wikiTargets(r2)).toEqual(["wiki://h", "wiki://A"]);
-    expect(formulas(r2)).toEqual([]);
-    // O3: a block over a link is its lines, its dollar signs as written — no formula `a\`.
-    const o3 = read("$$\n[[g]]$a$");
-    expect(formulas(o3)).toEqual([]);
-    expect(o3.textContent).toBe("$$\ng$a$");
-    // O4: an address the formula cut off is no link, and gets no backslash.
-    const o4 = read("Kosten $5 [[A]]\n$$ siehe <https://graph.microsoft.com/v1.0/me?$top=1>");
-    expect(links(o4)).toEqual([["A", "wiki://A"]]);
-    expect(o4.textContent).toBe("Kosten $5 A\n$$ siehe <https://graph.microsoft.com/v1.0/me?$top=1>");
-    // A backtick the formula held pairs anew, and still takes no link.
-    expect(wikiTargets(read("$5 `$HOME` $5 [Graph](https://x/?$f=1) \\$ `$HOME` ![[A]] > `echo $PATH` $5 $x$"))).toEqual(["wiki-embed://A"]);
-    // In a quote and a list the marks of the container stay out of the text.
-    const quoted = read("> $$\n> a = [[B]]\n> $$\n> next");
-    expect(quoted.querySelectorAll("blockquote")).toHaveLength(1);
-    expect(quoted.textContent).toBe("\n$$\na = B\n$$\nnext\n");
+  it("reads a block formula over a link as one paragraph of its lines, which opens no block", () => {
+    // What Markdown would read as a block in a line of such a formula (a
+    // footnote's definition, a table, a list, a heading, code) stays text of
+    // the paragraph: no sign main shows is gone, no footnote section is made.
+    // In a quote the marks of the container stay out of the text.
+    const cases: Array<[string, string, string[]]> = [
+      ["$$\n[^1]: [[A]] text\n$$", "$$\n[^1]: A text\n$$", ["wiki://A"]],
+      ["$$\n$$||\n-|-\nA||[[m]]", "$$\n$$||\n-|-\nA||m", ["wiki://m"]],
+      ["$$[^1]![[H]]\n[^1]:\n$$\n$", "$$[^1]\n[^1]:\n$$", ["wiki-embed://H"]],
+      ["$$\na^2 + [[x]]\n- b^2\n$$", "$$\na^2 + x\n- b^2\n$$", ["wiki://x"]],
+      ["$$\n# H [[A]]\n- item\n$$", "$$\n# H A\n- item\n$$", ["wiki://A"]],
+      ["1. x\n$$\n\n    $$[[2]]", "$$\n\n$$2", ["wiki://2"]],
+      ["> $$\n> a = [[B]]\n> $$\n> next", "$$\na = B\n$$", ["wiki://B"]],
+      ["$$\n[[A]] x\n```\ny\n$$", "$$\nA x\n```\ny\n$$", ["wiki://A"]],
+      ["$$\n[[g]]$a$", "$$\ng$a$", ["wiki://g"]],
+    ];
+    for (const [form, text, targets] of cases) {
+      const el = read(form);
+      expect(formulas(el), form).toEqual([]);
+      expect(wikiTargets(el), form).toEqual(targets);
+      expect(el.querySelector("p")?.textContent, form).toBe(text);
+      expect(el.querySelectorAll("ul, h1, h2, table, pre, section, sup").length, form).toBe(0);
+      expect(el.querySelectorAll("ol").length, form).toBe(form.startsWith("1.") ? 1 : 0);
+      expect(el.querySelectorAll("blockquote").length, form).toBe(form.startsWith(">") ? 1 : 0);
+    }
+  });
+
+  it("writes in no sign that shows: not where a line may be code, not under a line a heading reads", () => {
+    // Behind the block, the indented line is code: it stays as it is written.
+    const code = html("$$\nx\n$$\n    ][[B]]");
+    expect(code).not.toContain("&lt;!--");
+    expect([...element(code).querySelectorAll("pre code")].map((node) => node.textContent)).toEqual(["x", "][B](wiki://B)\n"]);
+    // Under a delimiter row a `---` or `===` makes the lines a heading, as in
+    // the note — never a table the note does not have.
+    for (const [under, tag] of [["---", "h2"], ["===", "h1"]]) {
+      const el = read(`[[a|b]] | c\n|---|---|\n${under}\n`);
+      expect(el.querySelector("table"), under).toBeNull();
+      expect(el.querySelector(tag)?.textContent, under).toBe("b | c\n|---|---|");
+    }
+    // A heading's own underline is never taken for a row: it stays a heading.
+    const heading = html("x [[A|a|b]]\n---\n");
+    expect(heading).not.toContain("&lt;!--");
+    expect(element(heading).querySelector("h2")?.textContent).toBe("x a|b");
+  });
+
+  it("decides with the editor which formula holds a link, by one function", () => {
+    const inners = ["x [[a]] y", "[[a\\]b]]", "[[a]b]]", "[[a[b]]", "[[ ]]", "[[]]", "\\[[a]]", "\\text{[[a]]}", "[[#H]]", "[[|x]]", "[[a|b|c]]", "![[img.png]]", "[[a\\|b]]", "[[<b>]]", "[[a]]]", "[[[a]]]", "[[a%%b]]", "A[[1,2]]", "[[a]] `c`", "a [[b", "[[ a ]]", "[[a\tb]]", "[[a^b]]", "[[*a*]]", "[[x|]]"];
+    const forms: Array<[string, string]> = [];
+    for (const inner of inners) forms.push([`x $${inner}$ y`, `$${inner}$`], [`$$\n${inner}\n$$`, `$$\n${inner}\n$$`]);
+    for (const inner of ["[[x\ny]]", "a\n[[b]]\nc", "[[a]]\n\\\\ b"]) forms.push([`$$\n${inner}\n$$`, `$$\n${inner}\n$$`]);
+    expect(forms).toHaveLength(53);
+    for (const [note, written] of forms) expect(formulas(read(note)).length === 0, note).toBe(formulaHoldsWikiLink(written));
+  });
+
+  it("reads every block formula of a random note: over a link one paragraph of its lines, else a formula", () => {
+    let seed = 7;
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const pick = <T,>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
+    // What would open a block at the start of a line, and words a formula has.
+    const starts = ["", "", "- ", "* ", "+ ", "# ", "## ", "1. ", "2) ", "> ", "    ", "[^1]: ", "[a]: ", "| ", "-|-", "```", "~~~", "***", "===", "---", ":--|--"];
+    const words = ["a", "x^2", "b_1", "+", "=", "|", "$", "[^1]", "[x]", "\\frac{1}{2}", "y"];
+    const linkOf = /\[\[(L\d+)\]\]/g;
+    for (let round = 0; round < 300; round++) {
+      const blocks: Array<{ lines: string[]; link: boolean }> = [];
+      for (let count = 1 + Math.floor(random() * 3); count > 0; count--) {
+        const lines: string[] = [];
+        let link = false;
+        for (let many = Math.floor(random() * 4); many > 0; many--) {
+          let line = pick(starts);
+          for (let w = Math.floor(random() * 3); w >= 0; w--) {
+            if (random() < 0.2) {
+              line += `[[L${round}]] `;
+              link = true;
+            } else line += `${pick(words)} `;
+          }
+          lines.push(line.trimEnd());
+        }
+        if (!link) lines.push("z");
+        blocks.push({ lines, link });
+      }
+      const note = blocks.map((block) => ["$$", ...block.lines, "$$"].join("\n")).join("\n\n");
+      // A link is one where the note has one: a fence a line opens makes what
+      // follows code, there and at main.
+      const source = prepareReaderSource(note, { tables: true });
+      const live = new Set(source.wikiLinks.map(([from]) => source.toOriginal(from)));
+      let at = 0;
+      const expected = blocks.map((block) => {
+        at += 3;
+        const targets: string[] = [];
+        const lines = block.lines.map((line) => {
+          const shown = line.replace(linkOf, (written, name: string, index: number) => {
+            if (!live.has(at + index)) return written;
+            targets.push(`wiki://${name}`);
+            return name;
+          });
+          at += line.length + 1;
+          return shown.trim();
+        });
+        at += 4;
+        return { text: ["$$", ...lines, "$$"].join("\n"), targets };
+      });
+      const linked = expected.filter((block) => block.targets.length > 0);
+      const el = read(note);
+      expect([...el.querySelectorAll("p")].map((p) => p.textContent), note).toEqual(linked.map((block) => block.text));
+      expect(formulas(el), note).toHaveLength(blocks.length - linked.length);
+      expect(el.querySelectorAll("ul, ol, h1, h2, table, blockquote, section, sup, hr").length, note).toBe(0);
+      expect(el.querySelectorAll("pre").length, note).toBe(blocks.length - linked.length);
+      expect(wikiTargets(el), note).toEqual(linked.flatMap((block) => block.targets));
+      expect(html(note), note).not.toContain("&lt;!--");
+    }
   });
 
   it("gives back every kind of wiki link and embed, and leaves a Markdown link where main has it", () => {

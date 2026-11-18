@@ -1,5 +1,5 @@
 import { parseReaderTextTree } from "./markdown-parser.js";
-import type { ReaderSource } from "./noteSource.js";
+import { prepareReaderSource, type ReaderSource } from "./noteSource.js";
 
 interface Point { line: number; column: number; offset: number }
 interface MdNode {
@@ -21,8 +21,9 @@ const WIKI_URL = /^wiki(?:-[a-z]+)?:\/\//;
  * formula (`inlineMath`, `math`) that holds a wiki link of `source` stands as
  * what is written there: its dollar signs as the signs they are, its content
  * read as ordinary text without formulas, the link in it a link. A block
- * becomes the blocks its lines are. Every other formula stays as it is, and
- * no formula is made.
+ * becomes one paragraph of its lines, in which only what can stand on one
+ * line is read (links, emphasis, code) — never a block of its own. Every
+ * other formula stays as it is, and no formula is made.
  *
  * Runs as the first transformer after the parse (before tag pills and the
  * like, which then read the new text too). Every place in the new nodes is a
@@ -112,7 +113,12 @@ export function remarkFormulasYieldToLinks(source: ReaderSource) {
         });
       }
     }
-    for (const job of jobs) if (job.made === undefined) job.made = readAsText(text, job.from, job.to, job.indent, job.inline, job.held, pointAt);
+    const blockJobs = jobs.filter((job) => !job.inline);
+    if (blockJobs.length > 0) {
+      const made = readBlocksAsParagraphs(text, blockJobs, linksIn, pointAt);
+      blockJobs.forEach((job, k) => { job.made = made[k]; });
+    }
+    for (const job of jobs) if (job.made === undefined) job.made = readAsText(text, job.from, job.to, job.indent, job.held, pointAt);
     // Back to front, so that each index still names its formula.
     for (let k = jobs.length - 1; k >= 0; k--) {
       const job = jobs[k];
@@ -187,13 +193,13 @@ function unwrapCutAddresses(node: MdNode, end: number, closedBySign: boolean): v
 }
 
 /**
- * `text[from, to)` read without formulas — inline as the phrasing of one
- * paragraph, else as blocks — with every place moved to a place in `text`, or
- * null where it cannot be read as one paragraph. On a line behind the first,
+ * An inline formula's `text[from, to)` read without formulas, as the phrasing
+ * of one paragraph, with every place moved to a place in `text`, or null where
+ * it cannot be read as one paragraph. On a line behind the first,
  * the marks of the containers it stands in (`> `, a list's blanks) are not
  * part of what is read, up to `indent` characters.
  */
-function readAsText(text: string, from: number, to: number, indent: number, inline: boolean, held: number, pointAt: (offset: number) => Point): MdNode[] | null {
+function readAsText(text: string, from: number, to: number, indent: number, held: number, pointAt: (offset: number) => Point): MdNode[] | null {
   // What is read, and for each of its characters the place in `text` (one more at the end).
   let read = "";
   const places: number[] = [];
@@ -226,17 +232,13 @@ function readAsText(text: string, from: number, to: number, indent: number, inli
       }
       for (const child of node.children ?? []) move(child);
     };
-    if (!inline) {
-      blocks.forEach(move);
-      return blocks;
-    }
     if (blocks.length !== 1 || blocks[0].type !== "paragraph") return null;
     const phrasing = blocks[0].children ?? [];
     phrasing.forEach(move);
     return phrasing;
   };
   const made = parse(read, places);
-  if (made || !inline) return made;
+  if (made) return made;
   // A line behind the first that would open a block of its own (`- `, `# `,
   // `===`, a table's delimiter row) stays text: its first sign is read behind
   // a backslash, which stands at the place of that sign.
@@ -264,6 +266,136 @@ function readAsText(text: string, from: number, to: number, indent: number, inli
   }
   guardedPlaces.push(places[read.length]);
   return parse(guarded, guardedPlaces);
+}
+
+interface Line { from: number; to: number }
+
+/** A sign that may open a block where it starts a line: Markdown's own, and a list's number. */
+const OPENS_BLOCK = /^(?:[-+*#>`~[_<|]|\d+[.)])/;
+
+/**
+ * Each block formula's `text[from, to)` as one paragraph of its lines: each
+ * line read on its own, so that only what can stand on one line is read in it
+ * — links, emphasis, code —, never a block (a list, a heading, a table, a
+ * footnote's definition, code): a line that would open one is read with a
+ * backslash in front of its first sign, which stands at the place of that
+ * sign. A line break stays one. Null for a formula a line of which cannot be
+ * read with its links: it then stays one, as it always was.
+ *
+ * The lines that open no block are read together, a blank line between them,
+ * in one go: a note full of such formulas costs one reading, not one a line.
+ */
+function readBlocksAsParagraphs(text: string, blocks: ReadonlyArray<{ from: number; to: number; indent: number }>, linksIn: (from: number, to: number) => number, pointAt: (offset: number) => Point): Array<MdNode[] | null> {
+  const linesOf = blocks.map((block) => blockLines(text, block.from, block.to, block.indent, linksIn));
+  const known = new Map<number, MdNode[] | null>();
+  const together: Line[] = [];
+  for (const lines of linesOf) for (const line of lines) if (line.from < line.to && !OPENS_BLOCK.test(text.slice(line.from, line.from + 12))) together.push(line);
+  const ends = new Set(blocks.map((block) => block.to));
+  if (together.length > 1) {
+    const bases: number[] = [];
+    let joined = "";
+    for (const line of together) {
+      if (joined) joined += "\n\n";
+      bases.push(joined.length);
+      joined += text.slice(line.from, line.to);
+    }
+    const read = (parseReaderTextTree(joined) as unknown as MdNode).children ?? [];
+    if (read.length === together.length && read.every((node, k) => node.type === "paragraph" && node.position?.start.offset === bases[k])) {
+      together.forEach((line, k) => {
+        const paragraph = read[k];
+        const base = bases[k];
+        if (ends.has(line.to)) unwrapCutAddresses(paragraph, base + line.to - line.from, text[line.to - 1] === "$");
+        if (linksOf(paragraph) < linksIn(line.from, line.to)) return;
+        const move = (node: MdNode) => {
+          if (node.position) node.position = { start: pointAt(node.position.start.offset - base + line.from), end: pointAt(node.position.end.offset - base + line.from) };
+          for (const child of node.children ?? []) move(child);
+        };
+        const phrasing = paragraph.children ?? [];
+        phrasing.forEach(move);
+        known.set(line.from, phrasing);
+      });
+    }
+  }
+  return linesOf.map((lines, k) => {
+    const { from, to } = blocks[k];
+    const children: MdNode[] = [];
+    for (let n = 0; n < lines.length; n++) {
+      const line = lines[n];
+      if (n > 0) children.push({ type: "text", value: "\n", position: { start: pointAt(lines[n - 1].to), end: pointAt(line.from) } });
+      if (line.from === line.to) continue;
+      const made = known.get(line.from) ?? readLine(text, line, to, false, true, linksIn, pointAt) ?? readLine(text, line, to, true, true, linksIn, pointAt) ?? readLine(text, line, to, true, false, linksIn, pointAt);
+      if (!made) return null;
+      children.push(...made);
+    }
+    return [{ type: "paragraph", children, position: { start: pointAt(from), end: pointAt(to) } }];
+  });
+}
+
+/** The lines of a block formula, each without the marks of the containers it stands in and the blanks before it; a link over a line break joins its two lines. */
+function blockLines(text: string, from: number, to: number, indent: number, linksIn: (from: number, to: number) => number): Line[] {
+  const lines: Line[] = [];
+  for (let at = from; ; ) {
+    let start = at;
+    for (let skipped = 0; start > from && skipped < indent && start < to && (text[start] === " " || text[start] === "\t" || text[start] === ">"); skipped++) start++;
+    while (start < to && (text[start] === " " || text[start] === "\t")) start++;
+    const brk = text.indexOf("\n", at);
+    const end = brk === -1 || brk >= to ? to : brk;
+    lines.push({ from: Math.min(start, end), to: end });
+    if (end >= to) break;
+    at = end + 1;
+  }
+  for (let k = 0; k + 1 < lines.length; k++) {
+    if (linksIn(lines[k].to, lines[k].to + 1) > 0) {
+      lines[k] = { from: lines[k].from, to: lines[k + 1].to };
+      lines.splice(k + 1, 1);
+      k--;
+    }
+  }
+  return lines;
+}
+
+/** One line of a block formula read as the phrasing of one paragraph — behind a backslash at its first sign with `guard` —, or null where it is no paragraph or loses a link. `end` is where the formula ends. */
+function readLine(text: string, line: Line, end: number, guard: boolean, codeSpans: boolean, linksIn: (from: number, to: number) => number, pointAt: (offset: number) => Point): MdNode[] | null {
+  let sign = -1;
+  if (guard) {
+    let digits = line.from;
+    while (digits < line.to && text.charCodeAt(digits) >= 48 && text.charCodeAt(digits) <= 57) digits++;
+    sign = digits > line.from && (text[digits] === "." || text[digits] === ")") ? digits : ASCII_PUNCTUATION.test(text[line.from] ?? "") ? line.from : -1;
+    if (sign < 0) return null;
+  }
+  let value = "";
+  const map: number[] = [];
+  for (let at = line.from; at < line.to; at++) {
+    if (at === sign) {
+      value += "\\";
+      map.push(at);
+    }
+    value += text[at];
+    map.push(at);
+  }
+  map.push(line.to);
+  const blocks = (parseReaderTextTree(value, codeSpans ? {} : { codeSpans: false }) as unknown as MdNode).children ?? [];
+  if (blocks.length !== 1 || blocks[0].type !== "paragraph") return null;
+  const paragraph = blocks[0];
+  if (line.to === end) unwrapCutAddresses(paragraph, value.length, text[end - 1] === "$");
+  if (linksOf(paragraph) < linksIn(line.from, line.to)) return null;
+  const move = (node: MdNode) => {
+    if (node.position) node.position = { start: pointAt(map[Math.min(node.position.start.offset, map.length - 1)]), end: pointAt(map[Math.min(node.position.end.offset, map.length - 1)]) };
+    for (const child of node.children ?? []) move(child);
+  };
+  const phrasing = paragraph.children ?? [];
+  phrasing.forEach(move);
+  return phrasing;
+}
+
+/**
+ * Whether a formula as it is written — with its dollar signs — holds a wiki
+ * link: the one answer for the reading view, which shows such a formula as
+ * text with its link, and the editor's live preview, which leaves it as it is
+ * written (Fehlerliste 0.9.0, B4). The link is the one the reading view reads.
+ */
+export function formulaHoldsWikiLink(written: string): boolean {
+  return written.includes("[[") && prepareReaderSource(written).wikiLinks.length > 0;
 }
 
 /** How many wiki links and embeds stand in a tree. */
