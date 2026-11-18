@@ -1897,6 +1897,29 @@ describe("SyncWorker", () => {
       expect(pendingSpy).toHaveBeenCalledWith({ pendingDeletes: 12, syncedTotal: 20 });
     });
 
+    it("two folders emptied outside the app reach the queue file by file: held, and asked again after a restart (release 0.9.0 A4 review)", async () => {
+      // The index reports vanished files, never their folders
+      // (`onLocalFileDeleted`), so the plain queue counts what disappears —
+      // unlike the encrypted workspace, whose folders are objects of their own.
+      const files = [...Array.from({ length: 30 }, (_, i) => `Notes/n${i}.md`), ...Array.from({ length: 20 }, (_, i) => `Projects/p${i}.md`)];
+      queue.getPendingDeletePaths.mockResolvedValue(files);
+      stateRepo.getAllStates.mockResolvedValue(new Map(files.map((file) => [file, { remote_etag: "e" }])));
+      const asked = vi.fn();
+      worker.onMassDeletionPending = asked;
+      await worker.runCycle();
+      expect(engine.processQueue.mock.calls.at(-1)![2]).toMatchObject({ skipDeletes: true });
+      expect(asked).toHaveBeenCalledWith({ pendingDeletes: 50, syncedTotal: 50 });
+
+      // No answer; the app restarts with the same queue.
+      const restarted = new SyncWorker(engine, target, stateRepo, vault, queue, 100);
+      restarted["isRunning"] = true;
+      const askedAgain = vi.fn();
+      restarted.onMassDeletionPending = askedAgain;
+      await restarted.runCycle();
+      expect(engine.processQueue.mock.calls.at(-1)![2]).toMatchObject({ skipDeletes: true });
+      expect(askedAgain).toHaveBeenCalledWith({ pendingDeletes: 50, syncedTotal: 50 });
+    });
+
     it("approveMassDeletion executes the held deletes on the next cycle", async () => {
       queue.getPendingDeletePaths.mockResolvedValue(
         Array.from({ length: 12 }, (_, i) => `del-${i}.md`)

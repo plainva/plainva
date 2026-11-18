@@ -18,11 +18,23 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/app", () => ({ getIdentifier }));
 vi.mock("@tauri-apps/plugin-updater", () => ({ check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
+const flushes = vi.hoisted(() => [] as string[]);
+let settleTakes = 0;
+let settleDone = true;
+const settleLimits: number[] = [];
+vi.mock("./leaveFlush", () => ({
+  settleEveryWindowBeforeLeaving: async (limitMs: number) => {
+    settleLimits.push(limitMs);
+    if (settleTakes > 0) await new Promise((resolve) => setTimeout(resolve, settleTakes));
+    flushes.push("flush");
+    return settleDone;
+  },
+}));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn() }));
 vi.mock("@plainva/ui", () => ({ logDiagnostic: vi.fn(), toast: { info: vi.fn(), progress: vi.fn(), dismiss: vi.fn(), error: vi.fn() } }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
-import { checkForAppUpdate, classifyUpdateFailure, describeUpdateFailure, getUpdatesManagedBy, resetStartupUpdateCheckForTests, scheduleStartupUpdateCheck } from "./appUpdate";
+import { checkForAppUpdate, classifyUpdateFailure, downloadAndInstallUpdate, UPDATE_SETTLE_MS, describeUpdateFailure, getUpdatesManagedBy, resetStartupUpdateCheckForTests, scheduleStartupUpdateCheck } from "./appUpdate";
 import { logDiagnostic, toast } from "@plainva/ui";
 
 const release = { version: "9.9.9" };
@@ -139,8 +151,9 @@ describe("the start-up prompt, refused", () => {
     try {
       resetStartupUpdateCheckForTests();
       invoke.mockResolvedValue(null);
-      const downloadAndInstall = vi.fn().mockRejectedValue("The signature verification failed");
-      check.mockResolvedValue({ version: "9.9.9", downloadAndInstall });
+      const download = vi.fn().mockRejectedValue("The signature verification failed");
+      const install = vi.fn();
+      check.mockResolvedValue({ version: "9.9.9", download, install });
       scheduleStartupUpdateCheck();
       await vi.advanceTimersByTimeAsync(10_000);
       const info = vi.mocked(toast.info);
@@ -148,12 +161,94 @@ describe("the start-up prompt, refused", () => {
       const action = info.mock.calls[0][1] as { run: () => void };
       action.run();
       await vi.advanceTimersByTimeAsync(0);
-      expect(downloadAndInstall).toHaveBeenCalledTimes(1);
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(install).not.toHaveBeenCalled();
       expect(toast.error).toHaveBeenCalledWith("settings.updateRefused");
       expect(logDiagnostic).toHaveBeenCalledWith("update.install", "The signature verification failed");
     } finally {
       vi.unstubAllGlobals();
       vi.useRealTimers();
     }
+  });
+});
+
+describe("installing an update (A7)", () => {
+  it("writes what the windows still buffer after the download and before the install ends the process", async () => {
+    flushes.length = 0;
+    const steps: string[] = [];
+    const update = {
+      download: vi.fn(async () => { steps.push("download"); }),
+      install: vi.fn(async () => { steps.push(`install after ${flushes.length} flush`); }),
+    };
+    await downloadAndInstallUpdate(update as never);
+    expect(steps).toEqual(["download", "install after 1 flush"]);
+  });
+
+  it("waits for the writes at most a bounded time, and tells the person what it waits for", async () => {
+    vi.useFakeTimers();
+    try {
+      flushes.length = 0;
+      settleLimits.length = 0;
+      settleTakes = 2_000;
+      const said: number[] = [];
+      const update = { download: vi.fn(async () => {}), install: vi.fn(async () => {}) };
+      const done = downloadAndInstallUpdate(update as never, (seconds) => said.push(seconds));
+      await vi.advanceTimersByTimeAsync(2_000);
+      await done;
+      expect(settleLimits).toEqual([UPDATE_SETTLE_MS]);
+      expect(UPDATE_SETTLE_MS).toBeLessThanOrEqual(5_000);
+      expect(said).toEqual([Math.ceil(UPDATE_SETTLE_MS / 1000)]);
+      expect(update.install).toHaveBeenCalledTimes(1);
+    } finally {
+      settleTakes = 0;
+      vi.useRealTimers();
+    }
+  });
+
+  it("says when the installation starts after the wait, and that the limit ran out at the next start", async () => {
+    vi.useFakeTimers();
+    try {
+      settleTakes = UPDATE_SETTLE_MS;
+      settleDone = false;
+      invoke.mockReset();
+      const said: string[] = [];
+      const steps: string[] = [];
+      const update = { download: vi.fn(async () => {}), install: vi.fn(async () => { steps.push(`install after ${invoke.mock.calls.map(([cmd]) => cmd).join(",")}`); }) };
+      const done = downloadAndInstallUpdate(update as never, (seconds) => said.push(`waiting ${seconds}`), () => said.push("installing"));
+      await vi.advanceTimersByTimeAsync(UPDATE_SETTLE_MS);
+      await done;
+      expect(said).toEqual([`waiting ${Math.ceil(UPDATE_SETTLE_MS / 1000)}`, "installing"]);
+      expect(steps).toEqual(["install after leave_mark_cut"]);
+    } finally {
+      settleTakes = 0;
+      settleDone = true;
+      vi.useRealTimers();
+    }
+  });
+
+  it("takes the mark back when the installation fails and the app stays open (review 2026-11-17)", async () => {
+    settleDone = false;
+    invoke.mockReset();
+    try {
+      const update = { download: vi.fn(async () => {}), install: vi.fn(async () => { throw new Error("install failed"); }) };
+      await expect(downloadAndInstallUpdate(update as never)).rejects.toThrow("install failed");
+      expect(invoke.mock.calls.map(([cmd]) => cmd)).toEqual(["leave_mark_cut", "leave_clear_cut"]);
+    } finally {
+      settleDone = true;
+    }
+  });
+
+  it("writes no mark, and takes none back, when the writes were done and the installation fails", async () => {
+    invoke.mockReset();
+    const update = { download: vi.fn(async () => {}), install: vi.fn(async () => { throw new Error("install failed"); }) };
+    await expect(downloadAndInstallUpdate(update as never)).rejects.toThrow("install failed");
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("says nothing when the writes are done at once", async () => {
+    const said: number[] = [];
+    const update = { download: vi.fn(async () => {}), install: vi.fn(async () => {}) };
+    await downloadAndInstallUpdate(update as never, (seconds) => said.push(seconds));
+    expect(said).toEqual([]);
   });
 });

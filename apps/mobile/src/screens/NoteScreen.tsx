@@ -2,6 +2,7 @@ import { getConflict, noteConflict, subscribeConflicts } from "../services/confl
 import { useReaderChrome } from "../hooks/useReaderChrome";
 import { listMobilePublicationFeedback } from "../services/mobileComments";
 import { phoneTemplateVault } from "../services/templateVault";
+import { vaultEntryName } from "../services/vaultEntryName";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -41,7 +42,7 @@ import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNo
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity, editorTextOf } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity, editorTextOf, vaultFolderIsThere } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { forgetKeptText, getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
@@ -633,7 +634,7 @@ export function NoteScreen({
   const followMoved = useStableHandler((to: string, movedOutside = true) => {
     // A move the sync made here is no move outside the app: the bar shows the new name.
     if (movedOutside) void getVaultEntry(vault.vaultId).catch(() => null).then((entry) => {
-      toast.info(t("mobile.noteMovedFollowed", { folder: movedFolderLabel(to, entry?.name || t("mobile.vaultLocal")) }));
+      toast.info(t("mobile.noteMovedFollowed", { folder: movedFolderLabel(to, vaultEntryName(entry?.name)) }));
     });
     onRenamed(to);
   });
@@ -769,6 +770,12 @@ export function NoteScreen({
   const restoreHere = useStableHandler(async () => {
     const text = liveText();
     if (text === null) return;
+    // Not into a vault folder that is not there (review 2026-11-18): a picked
+    // folder whose provider is away, a drive that went.
+    if ((await vaultFolderIsThere(vault.files)) === false) {
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
     try {
       // The plain write on purpose: the editor save refuses to recreate a
       // vanished file; this is the reader saying it should. In the shape the
@@ -793,6 +800,8 @@ export function NoteScreen({
     // Another program's atomic save deletes and writes again — the file may
     // simply be back.
     if (await vault.adapter.exists(path).catch(() => true)) return;
+    // A vault folder out of reach is no vanished note (review 2026-11-18).
+    if ((await vaultFolderIsThere(vault.files)) === false) return;
     const text = liveText();
     const unsaved = noteSaver.hasPending(path, vault) || (text !== null && text !== (getLastPersistedText(vault, path) ?? doc));
     if (!unsaved) {

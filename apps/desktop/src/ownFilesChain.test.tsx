@@ -146,6 +146,10 @@ const handedOut = () => ({
   backupAdapter: versions,
   belowChainAdapter: versions,
   backupVaultAdapter: versions,
+  // The same level, counted as the person's writes before a window goes (`inflightWrites.ts`).
+  personBelowChain: versions,
+  // Work the next start does again goes past that count, to the same level.
+  uncounted: <T,>(adapter: T): T => adapter,
   state: { vaultAdapter: top, backupAdapter: versions, belowChainAdapter: versions },
   deps: { vaultAdapter: top },
 });
@@ -300,8 +304,9 @@ describe("the desktop's wiring", () => {
     const context = sourceFile(CONTEXT);
     // What a component reads as `backupAdapter` (only versions) or `belowChainAdapter` (writable) is the versions layer,
     // the chain's lowest link from the factory, and the owner window's handlers get the chain's top.
-    expect(context).toMatch(/\n\s+backupAdapter: backupVaultAdapter,\n\s+belowChainAdapter: backupVaultAdapter,\n/);
+    expect(context).toMatch(/\n\s+backupAdapter: personBelowChain,\n\s+belowChainAdapter: personBelowChain,\n/);
     expect(context).toMatch(/const backupVaultAdapter = chain\.belowChain;/);
+    expect(context).toMatch(/const personBelowChain = countWrites\(backupVaultAdapter, "person"\);/);
     expect(context).toMatch(/const syncRepo = chain\.syncRepo!;/);
     expect(context).toMatch(/installOwnerBus\(\{[^}]*?\n\s+vaultAdapter: state\.vaultAdapter,/);
     expect(all(parsed(CONTEXT), ts.isVariableDeclaration).filter((d) => d.name.getText() === "backupAdapter").map((d) => d.initializer?.getText())).toEqual(["state.belowChainAdapter", "state.belowChainAdapter"]);

@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-11-05
+Ultimo aggiornamento: 2026-11-17
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -70,7 +70,7 @@ Scegli una nuova cartella locale vuota e, per creare online, una cartella cloud 
 - **Area dell'editor** — dove leggi e scrivi. Tramite il menu della scheda (**Dividi a destra** / **Dividi in basso**) o le scorciatoie `Ctrl+Alt+V` / `Ctrl+Alt+S` dividi l'editor in due riquadri, ad es. una nota accanto a un database.
 - **Altre finestre**: una nota nella propria finestra mostra a destra la stessa barra laterale di contesto (struttura, grafo, database, backlink, proprietà; il calendario resta nella finestra principale), apribile e chiudibile dalla barra del titolo. Il menu **⋮** dell'editor lì fa lo stesso che nella finestra principale: **Cronologia delle versioni…** e la risoluzione dei conflitti si aprono nella finestra della nota, **Mostra nell'albero dei file** porta in primo piano la finestra con l'albero dei file selezionando il file, e un clic destro su una scheda offre lo stesso menu della scheda (senza **Apri in una nuova finestra** — la scheda è già in una).
 - **Barra laterale destra** — sette sezioni, riordinabili trascinandole: **Calendario** (note giornaliere), **Diario** (le voci di diario del giorno), **Struttura** (i titoli della nota attiva), **Grafo** (i dintorni della nota), **Database** (i database di cui fa parte la nota), **Backlink** (chi collega qui) e **Proprietà** (il frontmatter della nota). Puoi mostrarle, nasconderle e riordinarle in **Impostazioni → Vault → Barre e aree**.
-- **Barra di stato** — conteggio di parole/caratteri, stato di sincronizzazione (Locale/Online/Offline) e stato di salvataggio (**Salvataggio...** / **Salvato**).
+- **Barra di stato** — conteggio di parole/caratteri, stato di sincronizzazione (Locale/Online/Offline) e stato di salvataggio (**Salvataggio...** / **Salvato**). Se un salvataggio non riesce, lo stato mostra **Non salvato — nuovo tentativo in arrivo** e Plainva riprova da solo dopo un secondo, poi a intervalli crescenti fino a 30 secondi; scrivere o `Ctrl+S` riprova subito. Se dopo circa cinque minuti non ci riesce, si ferma, mostra **Salvataggio non riuscito!** e il motivo al passaggio del puntatore; il tentativo successivo arriva quando scrivi, salvi o torni alla finestra. Dopo un conflitto, o con un file sparito o non più testo, mostra subito **Salvataggio non riuscito!** e aspetta te. Il tuo testo resta sempre nell'editor. Il telefono riprova allo stesso modo, e di nuovo quando torni all'app.
 - **Elenchi vuoti** — un elenco senza contenuto dice cosa si aspetta e propone il primo passo: l’albero dei file, i database, il grafo, la posta, le attività.
 
 ## Le tre modalità dell'editor

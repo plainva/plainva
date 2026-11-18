@@ -4,6 +4,7 @@ import { armedLeaveGuards, disarmLeaveGuard, foreignInputArmed } from "./leaveGu
 import { leaveThen } from "./leaveQuestion";
 import { getActiveVaultEntry, getVaultEntry } from "./vaultRegistry";
 import { switchVault } from "./vaultService";
+import { vaultEntryName } from "./vaultEntryName";
 
 /**
  * A vault switch the PROGRAM starts, not the person (finding 2026-10-12).
@@ -166,7 +167,7 @@ async function raise(vaultId: string, offer: Offer): Promise<void> {
   // notice — or takes the vault, if nothing is at stake by then —, and every
   // one of them goes on once the vault is opened another way.
   if (entry === undefined) return;
-  offer.notice = toast.progress(i18n.t("mobile.flowVaultOffer", { name: entry.name || i18n.t("mobile.vaultLocal") }), {
+  offer.notice = toast.progress(i18n.t("mobile.flowVaultOffer", { name: vaultEntryName(entry.name) }), {
     label: i18n.t("sidebar.switchVault"),
     run: () => void accept(vaultId, offer),
   });

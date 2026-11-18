@@ -47,6 +47,27 @@ export function dailyDayResolver(naming: DailyNoteNaming | null | undefined): ((
 }
 
 /**
+ * Keeps a query service's daily-note naming in step with the vault's settings,
+ * in both shells: `follow(naming)` hands the resolver on (`apply`) and answers
+ * whether the naming CHANGED since the call before. The first call only sets
+ * it. A changed folder or format changes which notes are daily notes — the
+ * journal stamp of their tasks, `file.day` of their rows —, so the shell then
+ * reloads what it lists; before, open task lists kept the old naming until
+ * the next reload (the desktop) or the next opening of the vault (the phone).
+ */
+export function followDailyNaming(apply: (resolver: ((path: string) => string | null) | null) => void): (naming: DailyNoteNaming) => boolean {
+  let last: string | null = null;
+  return (naming) => {
+    const key = `${(naming.folder ?? "").trim()}\n${(naming.format ?? "").trim()}`;
+    if (key === last) return false;
+    const first = last === null;
+    last = key;
+    apply(dailyDayResolver(naming));
+    return !first;
+  };
+}
+
+/**
  * Which column a calendar or timeline places its rows by: the field the view
  * names, else the first column explicitly typed as a date.
  *

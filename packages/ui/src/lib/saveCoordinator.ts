@@ -1,7 +1,10 @@
+import { SAVE_RETRY_BASE_MS, SAVE_RETRY_LIMIT, SAVE_RETRY_MAX_MS, isSaveFailureFinal, saveRetryDelay } from "./saveRetry";
 /**
  * Pending note text belongs to a vault AND a path. Revisions stay monotonic
  * after a successful write, so a late confirmation cannot clear a newer draft.
- * Background attempts report errors and retry; explicit flushes reject until
+ * Background attempts report errors and retry — by the rule both shells share
+ * (`saveRetry.ts`): growing intervals, and after `SAVE_RETRY_LIMIT` retries the
+ * saver rests until the next edit or `wake()`. Explicit flushes reject until
  * their selected documents have actually finished writing.
  */
 export interface SaveCoordinatorOptions<C> {
@@ -10,10 +13,19 @@ export interface SaveCoordinatorOptions<C> {
   debounceMs?: number;
   retryBaseMs?: number;
   maxRetryDelayMs?: number;
+  /** Retries after which the saver rests (default `SAVE_RETRY_LIMIT`). */
+  retryLimit?: number;
   onSaved?: (path: string, ctx: C, revision: number) => void;
-  onError?: (path: string, error: unknown, attempt: number, ctx: C, revision: number) => void;
+  /**
+   * A save failed. `retryIn` is when the next try comes by itself, in
+   * milliseconds — null when none comes: the failure is final, or the saver
+   * rests until the next edit or `wake()`. A message about it says only what
+   * really happens.
+   */
+  onError?: (path: string, error: unknown, attempt: number, ctx: C, revision: number, retryIn: number | null) => void;
   /** The failed revision was preserved separately, for example in a conflict
-   * copy. A newer revision still needs its OWN confirmed save or recovery. */
+   * copy. A newer revision still needs its OWN confirmed save or recovery.
+   * Defaults to the rule both shells share (`saveRetry.ts`). */
   isTerminal?: (error: unknown) => boolean;
   write: (ctx: C, path: string, text: string, revision: number) => Promise<void>;
 }
@@ -39,12 +51,19 @@ export interface SaveCoordinator<C> {
   withWriteLock(path: string, ctx: C, work: () => Promise<void>): Promise<void>;
   /** Discards only the selected vault and no input newer than the captured revision. */
   discard(path: string, ctx: C, upToRevision?: number): boolean;
+  /**
+   * The person is back (the app returns to the foreground): every note whose
+   * saver rests after its last retry is tried again, from one second on.
+   */
+  wake(ctx?: C): void;
 }
 
 export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveCoordinator<C> {
   const debounceMs = opts.debounceMs ?? 800;
-  const retryBaseMs = opts.retryBaseMs ?? 1000;
-  const maxRetryDelayMs = opts.maxRetryDelayMs ?? 30_000;
+  const retryBaseMs = opts.retryBaseMs ?? SAVE_RETRY_BASE_MS;
+  const maxRetryDelayMs = opts.maxRetryDelayMs ?? SAVE_RETRY_MAX_MS;
+  const isTerminal = opts.isTerminal ?? isSaveFailureFinal;
+  const retryLimit = opts.retryLimit ?? SAVE_RETRY_LIMIT;
   const entries = new Map<string, Entry<C>>();
   const revisions = new Map<string, number>();
   const writes = new Map<string, Promise<void>>();
@@ -94,7 +113,9 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
         // a new retry timer or report a conflict against its replacement.
         if (entries.get(key) !== entry) return;
         entry.attempts = attempt;
-        opts.onError?.(path, error, attempt, ctx, revision);
+        const terminal = isTerminal(error);
+        const retryIn = terminal || attempt > retryLimit ? null : saveRetryDelay(attempt, retryBaseMs, maxRetryDelayMs);
+        opts.onError?.(path, error, attempt, ctx, revision, retryIn);
         if (entries.get(key) !== entry) return;
         if (entry.revision !== revision) {
           // Only the captured text failed. Preserve the newer snapshot through
@@ -102,16 +123,17 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
           entry.attempts = 0;
           return run(key);
         }
-        if (opts.isTerminal?.(error)) {
+        if (terminal) {
           clearTimers(entry);
           entries.delete(key);
-        } else {
-          const delay = Math.min(maxRetryDelayMs, retryBaseMs * 2 ** (attempt - 1));
+        } else if (retryIn !== null) {
           entry.retryTimer = setTimeout(() => {
             entry.retryTimer = null;
             if (entries.get(key) === entry) background(key);
-          }, delay);
+          }, retryIn);
         }
+        // Else the saver rests: the text stays pending (and in the journal),
+        // and the next edit, flush or `wake()` tries it again.
         throw error;
       },
     );
@@ -151,6 +173,8 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
       entry.ctx = ctx;
       entry.text = text;
       entry.revision = revision;
+      // The person edited: a failure after this save waits one second again.
+      entry.attempts = 0;
       opts.onSchedule?.(ctx, path, text, revision);
       clearTimers(entry);
       const scheduled = entry;
@@ -177,6 +201,15 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
     flushAll: (ctx) => flush(undefined, ctx),
     hasPending: (path, ctx) => [...entries.values()].some((entry) => matches(entry, path, ctx)),
     getRevision: (path, ctx) => revisions.get(keyFor(ctx, path)) ?? 0,
+    wake(ctx) {
+      for (const [key, entry] of entries) {
+        if (!matches(entry, undefined, ctx)) continue;
+        const resting = entry.attempts > 0 && entry.timer === null && entry.retryTimer === null && entry.inFlight === null;
+        if (!resting) continue;
+        entry.attempts = 0;
+        background(key);
+      }
+    },
     discard(path, ctx, upToRevision = Infinity) {
       const key = keyFor(ctx, path);
       const entry = entries.get(key);

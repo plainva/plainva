@@ -4,7 +4,7 @@ import { availableZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZi
 import i18n from "@plainva/ui/i18n";
 import { isMissingFile } from "../adapters/fileErrors";
 import { getMobileSettings } from "./mobileSettings";
-import { atomicWriteInternalText, nativeFileDigest } from "../platform/atomicFile";
+import { appendDocumentPart, atomicWriteInternalText, nativeFileDigest, scanDocumentFiles } from "../platform/atomicFile";
 import { internalPlace } from "../platform/internalFiles";
 import { PartFileSink, streamVaultZip, ZipStoppedError } from "./vaultExport";
 import type { MobileVault } from "./vaultService";
@@ -60,10 +60,19 @@ import { classifyBackupListing, type BackupListing, type UnreadableMark } from "
  * longer each time, and the vault screen says the last one failed. "Back up
  * now" always runs. The automatic one waits until the app is quiet: after the
  * first frame and the start-up index pass.
+ *
+ * **No media scan per part (release list F56).** On Android the Filesystem
+ * plugin asks the system to index a file at every write into the public
+ * Documents folder - once per part, some 2 000 scans for a 500 MB vault. So
+ * there the parts are written natively without one (`appendDocumentPart`),
+ * and the finished archive is indexed once. It is written where it will lie:
+ * made elsewhere and copied, it took its room twice for a moment, and a vault
+ * whose archive fits the free space once would no longer be backed up.
  */
 
 const DIR = Directory.Documents;
 const ROOT = "Plainva Backups";
+const onAndroid = (): boolean => Capacitor.getPlatform() === "android";
 
 const lastRunKey = (vaultId: string) => `m-backup-zip-last-${vaultId}`;
 /** The last try that has not ended in an archive: `{ at, failures, error }` (see the module comment). */
@@ -247,7 +256,8 @@ async function runOnce(vault: MobileVault, name: string, automatic: boolean): Pr
     const partial = destination + "." + crypto.randomUUID() + ".part";
     // A part file a try that ended the app left (it died between two parts): never an archive, removed now.
     await removeLeftoverParts(folder);
-    const sink = new PartFileSink(partial, DIR);
+    if (onAndroid()) await allowPublicDocuments();
+    const sink = new PartFileSink(partial, DIR, onAndroid() ? (bytes, first, last) => appendDocumentPart(partial, bytes, first, last) : undefined);
     try {
       // The automatic one, switched off while it runs, stops before the next file, and the part
       // file goes. One the person asked for runs whatever the switch says.
@@ -267,6 +277,8 @@ async function runOnce(vault: MobileVault, name: string, automatic: boolean): Pr
       if (sink.started) await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
       throw error;
     }
+    // Indexed once, under its name; the part's name leaves the index (F56).
+    if (onAndroid()) await scanDocumentFiles([destination, partial]).catch(reportingTo("backup:scan"));
 
     // Prune only AFTER the new archive exists: deleting first would leave a
     // window in which a failed write means one fewer backup than promised.
@@ -353,6 +365,18 @@ async function removeLeftoverParts(folder: string): Promise<void> {
   for (const name of names.filter((entry) => entry.endsWith(".part"))) {
     await Filesystem.deleteFile({ path: `${folder}/${name}`, directory: DIR }).catch(reportingTo("backup:partial"));
   }
+}
+
+/**
+ * Android before 10 asks the person once for the shared folders, as the
+ * Filesystem plugin did at its first write there; from Android 11 on it is
+ * granted. A refusal is the write's failure, named by the native side.
+ */
+async function allowPublicDocuments(): Promise<void> {
+  const state = await Filesystem.checkPermissions().catch(() => null);
+  if (state && state.publicStorage !== "granted") await Filesystem.requestPermissions().catch(() => {
+    // silent: the native write below fails and says why.
+  });
 }
 
 export async function backupIfDue(vault: MobileVault, name: string): Promise<void> {

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { adoptExternalMove, movedFolderLabel, toast, useMissingFile, vaultDisplayName, type MissingFile } from "@plainva/ui";
+import { adoptExternalMove, movedFolderLabel, toast, useMissingFile, type MissingFile } from "@plainva/ui";
+import { vaultLabel } from "../services/vaultNames";
 import { useVault } from "../contexts/VaultContext";
 import { retargetDesktopBookmarks } from "../services/bookmarks";
 import { applyIndexChanges } from "../services/fileActions";
@@ -51,7 +52,7 @@ export function useOpenFileLookup(path: string, opts: OpenFileLookupOptions): Mi
     follow: opts.onRenamed || opts.onOpenPath ? (to) => {
       toast.info(t("editor.movedFileFollowed", {
         defaultValue: "Moved outside Plainva. The tab now shows the file in {{folder}}.",
-        folder: movedFolderLabel(to, vaultDisplayName(vaultPath ?? "")),
+        folder: movedFolderLabel(to, vaultLabel(vaultPath ?? "")),
       }));
       if (opts.onRenamed) opts.onRenamed(path, to);
       else opts.onOpenPath?.(to, false);

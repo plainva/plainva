@@ -7,6 +7,7 @@ import { pimSecretKey } from "./pim/pimCredentials";
 import { mobileWorkspaceSecretKeys } from "./mobileWorkspaceSecurity";
 import { profileJournalPath } from "./profileImportJournal";
 import { removeInternalFile, removeInternalFolder } from "../platform/dataFiles";
+import { forgetDraftMemory } from "./draftJournal";
 
 /**
  * Everything a forgotten vault leaves behind (finding 2026-08-19).
@@ -80,9 +81,13 @@ export async function forgetVaultFiles(vaultId: string): Promise<void> {
   // Absent is fine (no drafts were ever written, no import was interrupted).
   // Drafts hold note text: a folder that stays behind fails, after the
   // journal had its turn (stability plan R4).
+  // The journal's picture of these files goes with them, whatever the removal reaches.
+  forgetDraftMemory(vaultId);
   const drafts = removeInternalFolder(`drafts/${vaultId}`).then(() => null, (error: unknown) => error);
   const journal = removeInternalFile(profileJournalPath(vaultId)).then(() => null, (error: unknown) => error);
   const failed = (await drafts) ?? (await journal);
+  // …and once more when the files are gone: a write that landed meanwhile left a picture of a file that is not there.
+  forgetDraftMemory(vaultId);
   if (failed) throw failed;
 }
 
