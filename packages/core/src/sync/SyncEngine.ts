@@ -700,6 +700,13 @@ export class SyncEngine {
         if (op.operation === "delete" && this.stateRepo) {
           op.expectedRemote = expectedDeletionOf(await this.stateRepo.getSyncState(op.file_path));
         }
+        let knownBeforeMove: string | null = null;
+        if (op.operation === "rename" && this.stateRepo) {
+          // The row may have moved with the file already (the app moves it at once).
+          const before = (await this.stateRepo.getSyncState(op.file_path)) ?? (op.new_path ? await this.stateRepo.getSyncState(op.new_path) : null);
+          op.remoteId = before?.remote_id ?? null;
+          knownBeforeMove = before?.remote_etag ?? null;
+        }
         let result;
         let deletedOnNewMarker = false;
         try {
@@ -855,7 +862,15 @@ export class SyncEngine {
            // Persist the remote id/etag for providers that return one (Drive always; many
            // WebDAV servers omit the ETag header on PUT). Only touch remote_etag when we
            // actually got one.
-           if (etag) {
+           if (etag && op.operation === "rename" && knownBeforeMove && etag !== knownBeforeMove) {
+             // A move takes the remote's version along, which may be newer
+             // than the one this device knows — another device changed the
+             // file in between (F44). That marker is not this device's: the
+             // row keeps the one it knows, and the path is reconciled with
+             // the remote in the next pull, which brings the newer version.
+             await this.stateRepo.updateRemoteState(syncedPath, knownBeforeMove, (result && result.remoteId) ?? null, Date.now());
+             this.reconcileAgain.add(syncedPath);
+           } else if (etag) {
              await this.stateRepo.updateRemoteState(syncedPath, etag, (result && result.remoteId) ?? null, Date.now());
            }
 

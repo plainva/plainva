@@ -26,7 +26,7 @@ export function driveTrashFake() {
   const md5 = (b: Uint8Array) => { let h = 0; for (const x of b) h = (h * 31 + x) >>> 0; return "m" + h.toString(16) + "-" + b.length; };
   const trashed = (id: string): boolean => { const it = items.get(id); if (!it) return false; if (it.explicitTrash) return true; return it.parent !== "root" && trashed(it.parent); };
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-  const view = (it: Item) => ({ id: it.id, name: it.name, mimeType: it.folder ? FOLDER : "text/markdown", md5Checksum: it.folder ? undefined : it.md5, modifiedTime: it.mtime, size: String(it.content.length), trashed: trashed(it.id), parents: [it.parent] });
+  const view = (it: Item) => ({ id: it.id, name: it.name, mimeType: it.folder ? FOLDER : "text/markdown", md5Checksum: it.folder ? undefined : it.md5, modifiedTime: it.mtime, size: String(it.content.length), trashed: trashed(it.id), explicitlyTrashed: it.explicitTrash, parents: [it.parent] });
   const pathOf = (id: string): string => { const it = items.get(id)!; if (id === "root-folder") return ""; const p = pathOf(it.parent); return p ? `${p}/${it.name}` : it.name; };
   const fetchFn = async (input: any, init: any = {}) => {
     const url = String(input);

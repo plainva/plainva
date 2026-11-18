@@ -95,3 +95,108 @@ describe("Google Drive: what another device put into the trash meanwhile", () =>
     expect(fake.tree()).toContain("F/new.md");
   });
 });
+
+/** This device's request: a move into another folder (`addParents`). */
+const isMove = (m: string, u: string) => m === "PATCH" && u.includes("addParents=");
+
+async function texts(d: Awaited<ReturnType<typeof driveDevice>>) {
+  const out: string[] = [];
+  for (const f of await d.files()) if (!f.startsWith("fill/") && !f.endsWith("/")) out.push(`${f}=${(await d.text(f)).trim()}`);
+  return out.sort();
+}
+const visible = (fake: Fake) => [...fake.items.values()]
+  .filter((it) => !it.folder && !fake.trashed(it.id) && !fake.pathOf(it.id).startsWith("fill/"))
+  .map((it) => `${fake.pathOf(it.id)}=${new TextDecoder().decode(it.content).trim()}`).sort();
+
+describe("Google Drive: a move into a folder another device put into the trash meanwhile (fourth review)", () => {
+  async function twoDevices(fake: Fake, fetchB: Parameters<typeof driveDevice>[0]) {
+    const c = await driveDevice(fake.fetchFn), b = await driveDevice(fetchB);
+    for (const d of [b, c]) { await d.cycle(); await d.cycle(); }
+    return { b, c };
+  }
+
+  it("X2/X3: a file — the other device's newer version stays visible and is nowhere replaced by this device's older one", async () => {
+    const fake = account();
+    fake.put("X.md", "# old\n");
+    fake.mkdir("G");
+    const { b, c } = await twoDevices(fake, armed(fake, isMove, "G"));
+    expect(await b.text("X.md")).toBe("# old\n");
+    await c.app.writeTextFile("X.md", "# newer from C\n");
+    await c.cycle();
+
+    await b.app.renameItem("X.md", "G/X.md");
+    for (let i = 0; i < 4; i++) { await b.cycle(); await c.cycle(); }
+
+    expect(visible(fake).some((f) => f.endsWith("=# newer from C"))).toBe(true);
+    expect((await texts(c)).some((f) => f.endsWith("=# newer from C"))).toBe(true);
+    for (const d of [b, c]) expect(await texts(d)).not.toContain("G/X.md=# old");
+    expect(visible(fake)).not.toContain("G/X.md=# old");
+  });
+
+  it("X1: a folder — a note in it this device never saw stays visible, there and on both devices", async () => {
+    const fake = account();
+    fake.put("F/b.md", "# b\n");
+    fake.mkdir("G");
+    const { b, c } = await twoDevices(fake, armed(fake, isMove, "G"));
+    await c.app.writeTextFile("F/c.md", "# c from C\n");
+    await c.cycle();
+
+    await b.app.renameItem("F", "G/F");
+    for (let i = 0; i < 4; i++) { await b.cycle(); await c.cycle(); }
+
+    expect(visible(fake).some((f) => f.endsWith("c.md=# c from C"))).toBe(true);
+    for (const d of [b, c]) expect((await texts(d)).some((f) => f.endsWith("c.md=# c from C"))).toBe(true);
+  });
+
+  it("a move cut off between its two steps is finished by the next cycle, and the other device mirrors no deletion meanwhile", async () => {
+    const fake = account();
+    fake.put("X.md", "# old\n");
+    fake.mkdir("G");
+    let moves = 0;
+    const trashG = armed(fake, isMove, "G");
+    // The first move lands in the trashed folder; the network drops the second.
+    const fetchB = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      if (isMove((init.method ?? "GET").toUpperCase(), String(input)) && ++moves === 2) throw new TypeError("network connection was lost");
+      return trashG(input, init);
+    };
+    const { b, c } = await twoDevices(fake, fetchB);
+    await c.app.writeTextFile("X.md", "# newer from C\n");
+    await c.cycle();
+
+    await b.app.renameItem("X.md", "G/X.md");
+    await b.cycle();
+    expect(moves).toBeGreaterThanOrEqual(2);
+    // Meanwhile, the other device looks.
+    await c.cycle();
+    expect((await texts(c)).some((f) => f.endsWith("=# newer from C"))).toBe(true);
+    // The move's retry is due (its backoff has run out).
+    for (let i = 0; i < 4; i++) {
+      await b.db.execute("UPDATE offline_queue SET next_retry_at = 0");
+      await b.cycle();
+      await c.cycle();
+    }
+
+    expect(visible(fake).some((f) => f.endsWith("=# newer from C"))).toBe(true);
+    for (const d of [b, c]) {
+      expect((await texts(d)).some((f) => f.endsWith("=# newer from C"))).toBe(true);
+      expect(await texts(d)).not.toContain("G/X.md=# old");
+    }
+    expect(visible(fake)).not.toContain("G/X.md=# old");
+    expect(fake.tree(true).filter((p) => !p.startsWith("fill")).filter((p) => p.includes("X.md") && p.includes("[trash]"))).toEqual([]);
+    expect(await b.queue.getPendingOperations()).toEqual([]);
+  });
+});
+
+describe("Google Drive: a folder created under a folder in the trash", () => {
+  it("is created where it is seen, not as an invisible folder in the trash", async () => {
+    const fake = account();
+    fake.mkdir("G");
+    const target = new DriveSyncTarget({ clientId: "cid", clientSecret: "s", refreshToken: "r", accessToken: "a" }, fake.fetchFn as never);
+    await target.pull();
+    await fake.fetchFn(`https://www.googleapis.com/drive/v3/files/${idOf(fake, "G")}?fields=id`, { method: "PATCH", body: JSON.stringify({ trashed: true }) });
+
+    await target.createVaultFolder("G/Neu");
+
+    expect(fake.tree()).toContain("G/Neu/");
+  });
+});

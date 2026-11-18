@@ -52,6 +52,13 @@ export interface SyncOperation {
    * plaintext content is unchanged. The post-push base hashes stay plaintext.
    */
   force?: number;
+  /**
+   * Renames only: the provider's id this device recorded for the source
+   * (`sync_state.remote_id`). An id-based target finds by it a move it began
+   * and could not finish (Drive, F44); the engine sets it right before the
+   * push.
+   */
+  remoteId?: string | null;
   /** Durable confirmation of this exact local DELETE, not a reusable path grant. */
   delete_confirmed_at?: number | null;
   /** Its intent has been saved in the local deletion journal. */

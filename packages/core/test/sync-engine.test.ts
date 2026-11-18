@@ -269,9 +269,12 @@ describe("SyncEngine", () => {
     db.mockedResults.push([
       { id: 7, file_path: "Data.csv", operation: "rename", new_path: "Renamed.csv", retry_count: 0, next_retry_at: 0, queued_at: 1 }
     ]);
-    db.mockedResults.push([
-      { path: "Renamed.csv", local_sha256: "l", remote_etag: "etag1", base_sha256: "b", base_etag: "etag1", remote_id: null, last_sync_ts: null, base_text: null, recheck: 1 }
-    ]);
+    const row = { path: "Renamed.csv", local_sha256: "l", remote_etag: "etag1", base_sha256: "b", base_etag: "etag1", remote_id: null, last_sync_ts: null, base_text: null, recheck: 1 };
+    // Before the push the engine reads the row for the move (its id, the
+    // marker it knows): at the old name none, at the new one this.
+    db.mockedResults.push([]);
+    db.mockedResults.push([row]);
+    db.mockedResults.push([row]);
     target.renameSourceMissingPaths.add("Data.csv");
     vault.files.set("Renamed.csv", new Uint8Array([42]));
 
