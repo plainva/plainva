@@ -88,6 +88,7 @@ import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
 import { aiShellRoutes, MobileAiShell, ShellProviders, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
 import { vaultEntryName } from "./services/vaultEntryName";
+import { useNavFollowsDeletions } from "./hooks/useNavFollowsDeletions";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -227,6 +228,7 @@ export default function App() {
   useBackupSchedule(vault, archiveName);
   usePinboardDraftSweep(vault); // what a crash left of a pinboard entry (E15)
   useIndexAutoUpdate(vault, vaultName);
+  useNavFollowsDeletions(setNav); // a deleted note or folder leaves the stacks, as its desktop tabs close
   useNavPersistence(vault, nav); // the session outlives the app (P6)
   const connectionRun = useConnectionRun();
 

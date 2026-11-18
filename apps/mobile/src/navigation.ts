@@ -384,6 +384,32 @@ export function popTop(state: NavState): NavState {
   };
 }
 
+/** The kinds whose `path` is a file or folder of the vault. */
+const VAULT_PATH_KINDS = new Set<NavKind>(["folder", "note", "base", "imageviewer"]);
+
+/**
+ * The navigation without what a deletion took (review 18.11.): an entry of a
+ * deleted file, and of anything under a deleted folder, in every stack and
+ * the overlay — as the desktop closes the tabs under a deleted path
+ * (`closeTabsByPrefix`). Before, going back after deleting a folder landed on
+ * its notes' "not found" screens one by one.
+ */
+export function withoutDeleted(state: NavState, deleted: ReadonlyArray<{ path: string; isFolder?: boolean }>): NavState {
+  if (deleted.length === 0) return state;
+  const gone = (entry: NavEntry) =>
+    VAULT_PATH_KINDS.has(entry.kind) &&
+    deleted.some((d) => entry.path === d.path || (d.isFolder === true && entry.path.startsWith(`${d.path}/`)));
+  let changed = false;
+  const keep = (entries: NavEntry[]) => {
+    const kept = entries.filter((entry) => !gone(entry));
+    if (kept.length !== entries.length) changed = true;
+    return kept;
+  };
+  const stacks = Object.fromEntries(Object.entries(state.stacks).map(([tab, entries]) => [tab, keep(entries)])) as NavState["stacks"];
+  const overlay = keep(state.overlay);
+  return changed ? { ...state, stacks, overlay } : state;
+}
+
 /**
  * Bottom-bar tap: dismisses the overlay and lands on the tab's ROOT — whether
  * that tab was already active or not.
