@@ -574,7 +574,7 @@ export async function connectProvider(
   p: MobileSyncProvider,
   selectedContext?: ServiceConnectionContext,
   /** Runs once the slot exists and before the vault is listed (account sign-in plan K4b); a failure leaves no vault. */
-  adopt?: (vaultId: string) => Promise<void>,
+  adopt?: VaultSignInAdopter,
 ): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   const { connectionContextFor } = await import("./connectQueue");
@@ -588,8 +588,7 @@ export async function connectProvider(
   // No probe here (R8): the new vault's first listing shows a workspace's
   // genesis before its worker writes anything, and records it.
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
-  await adoptOrForget(id, adopt);
-  await addVault({ id, name: providerVaultName(p), provider: p.provider });
+  await adoptAndList(id, adopt, () => addVault({ id, name: providerVaultName(p), provider: p.provider }));
   // Offered instead of taken while something else's unsaved input is on screen
   // (`flowVault.ts`): the vault is connected either way.
   await enterMadeVault(id);
@@ -607,7 +606,7 @@ export async function createProviderVault(
   v: MobileVault,
   p: MobileSyncProvider,
   opts: { template: VaultTemplateDefinition | null; vaultName: string; subfoldersHeading: string },
-  adopt?: (vaultId: string) => Promise<void>,
+  adopt?: VaultSignInAdopter,
 ): Promise<void> {
   if (!syncPossible(v)) throw new Error("sync requires the native SQLite queue");
   if (p.provider === "webdav") await allowHttpOrigin(p.creds.url);
@@ -635,9 +634,9 @@ export async function createProviderVault(
       recordStarter: false,
     });
     await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
-    await adoptOrForget(id, adopt);
+    // Listed inside the attempt: a vault entry that cannot be written takes the sign-in, the slot and the container back.
+    await adoptAndList(id, adopt, () => addVault({ id, name: providerVaultName(p), provider: p.provider }));
   }, { makeFolder: true });
-  await addVault({ id, name: providerVaultName(p), provider: p.provider });
   // The template's settings are the new vault's own: written into it now, they
   // are there whether it opens at once or waits at its offer (`flowVault.ts`)
   // — and an app that ends in between loses nothing.
@@ -645,12 +644,23 @@ export async function createProviderVault(
   await enterMadeVault(id);
 }
 
-/** Hands a new vault's sign-in to its card; on failure the slot goes and no vault is listed. */
-async function adoptOrForget(vaultId: string, adopt?: (vaultId: string) => Promise<void>): Promise<void> {
-  if (!adopt) return;
+/** Makes a new vault's Google or Microsoft sign-in a card; hands back how to take that again (fifth review of O8). */
+export type VaultSignInAdopter = (vaultId: string) => Promise<(() => Promise<void>) | undefined | void>;
+
+/**
+ * Hands a new vault's sign-in to its card, then lists the vault. Whatever of
+ * the two fails, nothing stays that no vault entry points to (fifth review of
+ * O8): the sign-in takes back the grant and the card it made, and the slot
+ * goes. A part that cannot be taken back is reported, never swallowed; the
+ * first error is the one thrown.
+ */
+export async function adoptAndList(vaultId: string, adopt: VaultSignInAdopter | undefined, list: () => Promise<void>): Promise<void> {
+  let undo: (() => Promise<void>) | undefined | void;
   try {
-    await adopt(vaultId);
+    undo = adopt ? await adopt(vaultId) : undefined;
+    await list();
   } catch (error) {
+    if (undo) await undo().catch(reportingTo("signin:take-back"));
     await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId)).catch(reportingTo("credentials:forget"));
     throw error;
   }
