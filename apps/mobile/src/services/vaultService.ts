@@ -51,7 +51,7 @@ import { takeScreen } from "./screenStep";
 import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
-import { createSaveCoordinator, isSaveFailureFinal, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
+import { createSaveCoordinator, saveFailureReason, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
@@ -2120,16 +2120,16 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
     // no text over it, however often it is asked. The write above keeps the text
     // beside such a file; what still arrives here met the change between its
     // read and its write.
-    // Nor is a note the device gives no right to write, or a read-only drive:
-    // only the person can change that, so their next edit tries again.
-    // The list is the one both shells share (`isSaveFailureFinal`, @plainva/ui).
-    isTerminal: isSaveFailureFinal,
-    onError: (path, err, attempt, vault) => {
+    // Everything else is tried again, at most about five minutes, then the
+    // saver rests until the next edit or the app's return (`wake`). The rule
+    // is the one both shells share (`saveRetry.ts`, @plainva/ui), the
+    // coordinator's default.
+    onError: (path, err, attempt, vault, _revision, retryIn) => {
       if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
         window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
         return;
       }
-      if ((err as { code?: string } | null)?.code === "NOT_TEXT_FILE") {
+      if (["NOT_TEXT_FILE", "KEEP_BESIDE_FAILED"].includes((err as { code?: string } | null)?.code ?? "")) {
         // The text stays in the editor and the draft journal; the file stays as
         // the other program left it. Said in the words the screen uses for it.
         toast.warning(i18n.t("editor.notTextTitle"));
@@ -2142,7 +2142,9 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
         noteConflict(path, err.conflictPath ?? conflictCopyPath(path), vault.vaultId);
         return;
       }
-      if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));
+      // Said only while a try is really planned; once the saver rests, why.
+      if (retryIn === null) toast.error(i18n.t("mobile.saveFailedWhy", { reason: saveFailureReason(err) }));
+      else if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));
     },
   }));
   return {
@@ -2153,5 +2155,6 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
     getRevision: (path, vault) => saver().getRevision(path, vault),
     withWriteLock: (path, vault, work) => saver().withWriteLock(path, vault, work),
     discard: (path, vault, upToRevision) => saver().discard(path, vault, upToRevision),
+    wake: (vault) => saver().wake(vault),
   };
 })();

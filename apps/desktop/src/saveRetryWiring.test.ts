@@ -47,4 +47,19 @@ describe("the desktop editor tries a failed save again", () => {
     expect(between("saveState.activate();", "}, [saveState, saveRetry]);")).toMatch(/saveRetry\.cancel\(\);\s*saveState\.deactivate\(\);/);
     expect(between("const captureTabDocument", "for (const timer of [saveTimeoutRef")).toMatch(/saveRetry\.cancel\(\);/);
   });
+
+  it("tries a save that rested after its last retry when the person comes back to the window", () => {
+    expect(editor).toMatch(/window\.addEventListener\("focus", wakeRestingSave\)/);
+    const wake = between("const wakeRestingSave = useStableHandler(", "});");
+    // Only a save that rests, of the note the pane shows, with text still unsaved — no write at every switch of windows.
+    expect(wake).toMatch(/if \(!saveRetry\.resting \|\| !activePath \|\| loadedPathRef\.current !== activePath\) return;/);
+    expect(wake).toMatch(/if \(!saveState\.isActive\(\) \|\| !saveState\.dirty \|\| saveState\.transferFrozen\) return;/);
+    expect(wake).toMatch(/saveRetry\.reset\(\);\s*void persistText\(/);
+  });
+
+  it("says \"trying again\" only while a try is planned, and why once it rests", () => {
+    expect(editor).toMatch(/saveRetryState === "planned" \? t\("editor\.saveRetrying"\) : t\("editor\.saveFailed"\)/);
+    expect(editor).toMatch(/saveRetryState === "resting" && saveError \? t\("editor\.saveFailedWhy", \{ reason: saveError \}\)/);
+    expect(editor).toMatch(/data-tip=\{failedTip\} data-testid="editor-save-state"/);
+  });
 });

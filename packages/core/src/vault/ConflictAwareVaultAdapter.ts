@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, VaultUnreachableError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
@@ -300,6 +300,13 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         // would recreate it at its old place, a duplicate of a moved note or
         // a deletion undone, and sync would carry either on. The editor keeps
         // the text (and its journal) and decides where it goes.
+        // Unless the vault's own folder is not there: then every path in it
+        // answers "not found" (a network drive that dropped), nothing was
+        // moved or deleted, and the save is tried again once it is back.
+        // Asked only here, where a file is missing, never on a save that finds
+        // its file. An adapter that cannot answer for its folder keeps the
+        // refusal as it was: the file counts as gone.
+        if (!(await this.inner.exists("").catch(() => true))) throw new VaultUnreachableError(path);
         throw new VaultFileNotFoundError(path);
       }
       let candidate = text;

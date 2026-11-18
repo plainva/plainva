@@ -14,6 +14,19 @@ export class VaultFileNotFoundError extends VaultError {
   }
 }
 
+/**
+ * The vault's own folder cannot be reached (a network drive that dropped, a
+ * removable disk, a picked folder whose provider is away), so a path in it
+ * answers "not found" without being gone. Passing: a save tries again, and
+ * nothing looks for a vanished file.
+ */
+export class VaultUnreachableError extends VaultError {
+  constructor(path: string) {
+    super(`The vault folder cannot be reached, so ${path} was not saved`, "VAULT_UNREACHABLE");
+    this.name = "VaultUnreachableError";
+  }
+}
+
 export class VaultPermissionDeniedError extends VaultError {
   constructor(path: string) {
     super(`Permission denied: ${path}`, "PERMISSION_DENIED");

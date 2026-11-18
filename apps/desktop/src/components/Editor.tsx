@@ -89,7 +89,7 @@ import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
-import { createSaveRetryTimer } from "../services/saveRetryTimer";
+import { createSaveRetryTimer, type SaveRetryState } from "../services/saveRetryTimer";
 
 /**
  * Text shown in the composer for a property comment, and the anchor quote.
@@ -734,9 +734,9 @@ export const Editor: React.FC<{
   const saveTimeoutRef = useRef<number | null>(null);
   // A failed save is tried again by itself, by the rule the phone keeps
   // (`saveRetryTimer.ts`, decided 2026-11-17); the status says it is planned.
-  const [saveRetrying, setSaveRetrying] = useState(false);
+  const [saveRetryState, setSaveRetryState] = useState<SaveRetryState>("idle");
   // One timer for the pane's whole life (a lazy state, so it is made once).
-  const [saveRetry] = useState(() => createSaveRetryTimer(setSaveRetrying));
+  const [saveRetry] = useState(() => createSaveRetryTimer(setSaveRetryState));
   const contentSyncTimeoutRef = useRef<number | null>(null);
   // Every asynchronous save keeps the identity and refs of its original note.
   const saveState = useMemo(() => new EditorSaveLifetime(vaultPath, activePath, vaultAdapter), [vaultPath, activePath, vaultAdapter]);
@@ -990,8 +990,9 @@ export const Editor: React.FC<{
         console.error("Failed to save file", error);
         if (current()) {
           setSaveError(e.message || String(error));
-          // Tried again by itself — unless no retry can help (`isSaveFailureFinal`):
-          // then only the person's next keystroke or Ctrl+S tries once more.
+          // Tried again by itself (`saveRetry.ts`) — not after a failure that is
+          // surely final, and after about five minutes the timer rests until the
+          // person types, saves or comes back to the window.
           saveRetry.failed(
             error,
             () => saveState.isActive() && loadedPathRef.current === path && saveState.dirty && !saveState.transferFrozen,
@@ -3319,6 +3320,19 @@ export const Editor: React.FC<{
     sessionRef.current?.setMode(viewMode === 'source' ? 'source' : 'live');
   }, [viewMode, isReadMode]);
 
+  // Coming back to the window tries a save that rested after its last retry
+  // (`saveRetry.ts`): the drive, the right or the other program may be gone.
+  const wakeRestingSave = useStableHandler(() => {
+    if (!saveRetry.resting || !activePath || loadedPathRef.current !== activePath) return;
+    if (!saveState.isActive() || !saveState.dirty || saveState.transferFrozen) return;
+    saveRetry.reset();
+    void persistText(sessionRef.current?.view.state.doc.toString() ?? contentRef.current).catch(() => {});
+  });
+  useEffect(() => {
+    window.addEventListener("focus", wakeRestingSave);
+    return () => window.removeEventListener("focus", wakeRestingSave);
+  }, [wakeRestingSave]);
+
   const captureTabDocument = useStableHandler(async () => {
     if (!activePath || !vaultPath || loadedPathRef.current !== activePath || !saveState.isActive() || saveState.transferFrozen) throw new Error("The source editor is unavailable");
     saveState.setTransferFrozen(true);
@@ -3491,9 +3505,11 @@ export const Editor: React.FC<{
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {(() => {
             const label = saveLabelFor({ writing: isSaving, failed: !isSaving && !!saveError, dirty: !!activePath && dirtyPaths.has(activePath) });
-            const failedText = saveRetrying ? t("editor.saveRetrying") : t("editor.saveFailed");
+            // "Trying again" only while a try is planned; once the retries rest, why.
+            const failedText = saveRetryState === "planned" ? t("editor.saveRetrying") : t("editor.saveFailed");
+            const failedTip = saveRetryState === "resting" && saveError ? t("editor.saveFailedWhy", { reason: saveError }) : saveError || "";
             return (
-              <span style={{ fontSize: "var(--text-ui)", color: label === "failed" ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""} data-testid="editor-save-state" data-state={label}>
+              <span style={{ fontSize: "var(--text-ui)", color: label === "failed" ? "var(--error-text)" : "var(--text-muted)" }} data-tip={failedTip} data-testid="editor-save-state" data-state={label}>
                 {label === "saving" ? t("editor.saving") : label === "failed" ? failedText : t("editor.saved")}
               </span>
             );
