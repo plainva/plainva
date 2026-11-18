@@ -908,6 +908,11 @@ export const VaultProvider: React.FC<{
       // the way out did not see land is said at the next start; the sync and the
       // index, which take `vaultAdapter` itself, are not (review 2026-11-17).
       const personVaultAdapter = countWrites(vaultAdapter, "person");
+      // The same for the lowest writable link: remarks, the workspace's steps
+      // and a restored version write there for the person; the sync, the
+      // settings sync and the deletion journal take `backupVaultAdapter` itself.
+      // Every handoff of a link of the chain is named in `writeOwners.test.ts`.
+      const personBelowChain = countWrites(backupVaultAdapter, "person");
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below. The five
@@ -1253,7 +1258,8 @@ export const VaultProvider: React.FC<{
       // is poked so the provider deletion happens the moment the window closes
       // instead of waiting for the next poll.
       initTaskDeletion({
-        writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
+        // "Undo" is the person's: a write of theirs, also when the way out cuts it short.
+        writeTextFile: (p, c) => personVaultAdapter.writeTextFile(p, c),
         runTaskSync: () => void runTaskSyncNow(),
         onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
@@ -1906,8 +1912,8 @@ export const VaultProvider: React.FC<{
         ...s,
         vaultPath: path,
         vaultAdapter: personVaultAdapter,
-        backupAdapter: backupVaultAdapter,
-        belowChainAdapter: backupVaultAdapter,
+        backupAdapter: personBelowChain,
+        belowChainAdapter: personBelowChain,
         dbAdapter,
         indexer,
         queryService,
@@ -2434,7 +2440,7 @@ export const VaultProvider: React.FC<{
         void loadVault(state.vaultPath);
         return;
       }
-      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.belowChainAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
+      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
           if (step) worker.triggerImmediate();

@@ -122,6 +122,7 @@ describe("before a window goes", () => {
       off();
     }
   });
+
   it("does not count work the next start does again, such as clearing out old snapshots (review 2026-11-18)", async () => {
     const lowest = { deleteItem: () => new Promise<never>(() => {}) };
     const top = countWrites(lowest, "person");
@@ -130,4 +131,59 @@ describe("before a window goes", () => {
     await expect(settleBeforeLeaving(200)).resolves.toBe("settled");
     expect(uncounted(lowest)).toBe(lowest);
   });
+
+  describe("the mark for an end harder than the deadline (review 2026-11-18)", () => {
+    const owedSaid = () => {
+      const said: string[] = [];
+      return { said, onOwed: async () => { said.push("mark"); } };
+    };
+
+    it("goes down for a cell left in mid-edit, whose write starts with the blur", async () => {
+      const disk = countWrites({ writeTextFile: () => new Promise<never>(() => {}) }, "person");
+      const cell = document.createElement("input");
+      document.body.appendChild(cell);
+      cell.addEventListener("blur", () => void disk.writeTextFile());
+      cell.focus();
+      const { said, onOwed } = owedSaid();
+      try {
+        await expect(settleBeforeLeaving(200, onOwed)).resolves.toBe("cut");
+        expect(said).toEqual(["mark"]);
+      } finally {
+        cell.remove();
+      }
+    });
+
+    it("goes down for a remark on its way through the lowest link, and the way out is a cut", async () => {
+      const lowest = countWrites({ writeTextFile: () => new Promise<never>(() => {}) }, "person");
+      void lowest.writeTextFile();
+      const { said, onOwed } = owedSaid();
+      await expect(settleBeforeLeaving(200, onOwed)).resolves.toBe("cut");
+      expect(said).toEqual(["mark"]);
+    });
+
+    it("goes down for a surface's part that does not end at once", async () => {
+      const off = onBeforeLeaving(() => later(50, null));
+      const { said, onOwed } = owedSaid();
+      try {
+        await expect(settleBeforeLeaving(500, onOwed)).resolves.toBe("settled");
+        expect(said).toEqual(["mark"]);
+      } finally {
+        off();
+      }
+    });
+
+    it("does not go down when nothing of the person's is to do — a sync pull on its way included", async () => {
+      const off = onBeforeLeaving(async () => null);
+      const pull = countWrites({ writeTextFile: () => new Promise<never>(() => {}) }, "background");
+      void pull.writeTextFile();
+      const { said, onOwed } = owedSaid();
+      try {
+        await settleBeforeLeaving(200, onOwed);
+        expect(said).toEqual([]);
+      } finally {
+        off();
+      }
+    });
+  });
 });
+

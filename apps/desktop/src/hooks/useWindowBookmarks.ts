@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { bookmarkKey, moveBookmark as moveBookmarkEntries, moveBookmarkOnDisk, removeBookmarksOnDisk, toggleBookmarkOnDisk, toast, type BookmarkEntry, type BookmarksIO } from "@plainva/ui";
-import { getWindowBus, mayStillLand } from "../services/windowBus";
+import { getWindowBus } from "../services/windowBus";
 import { isOwnerWindow } from "../services/windowContext";
 import { loadDesktopBookmarks, publishBookmarks } from "../services/bookmarks";
 
@@ -41,12 +41,14 @@ export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | n
   /**
    * Another window asks for the state it shows the star going to (2026-11-17),
    * not for a toggle: a try that comes twice lands once, and the next click
-   * asks for the other state. The star turns at once; the answer replaces it.
+   * asks for the other state. The star shows what the file says: it turns
+   * with the central window's answer, or with its broadcast (review
+   * 2026-11-18) — never ahead of them, so a refusal or a central window that
+   * went leaves nothing wrong on screen.
    */
   const askForStar = async (path: string, type: BookmarkEntry["type"]) => {
     const key = bookmarkKey({ path, type });
     const on = !shown.current.some((entry) => bookmarkKey(entry) === key);
-    setBookmarks((current) => (on ? [...current, { path, type }] : current.filter((entry) => bookmarkKey(entry) !== key)));
     return (await getWindowBus()).request("toggle-bookmark", { path, type, on }, { vaultPath });
   };
   const mutate = async (kind: "toggle" | "remove", paths: string[], type: BookmarkEntry["type"] = "file") => {
@@ -60,15 +62,7 @@ export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | n
           : (await getWindowBus()).request("remove-bookmarks", { paths }, { vaultPath }));
       if (isOwnerWindow()) publishBookmarks(vaultPath, next);
       if (generation.current === epoch) setBookmarks(next);
-    } catch (error) {
-      if (generation.current !== epoch) return;
-      toast.error(t("sidebar.bookmarkSaveFailed"));
-      // The star turned at once (`askForStar`). Refused, or never at the central
-      // window: the window shows what the file says again, as a failed move
-      // does. Only a request that may still land keeps its star, until the
-      // answer or the next broadcast replaces it.
-      if (kind === "toggle" && !isOwnerWindow() && !mayStillLand(error)) window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
-    }
+    } catch { if (generation.current === epoch) toast.error(t("sidebar.bookmarkSaveFailed")); }
   };
   /** One entry in front of another, or to the end (plan Befunde 2026-10-06, W6). The owner writes; every window follows. */
   const moveBookmark = async (key: string, beforeKey: string | null) => {

@@ -1,7 +1,5 @@
 import { settleBeforeLeaving } from "./beforeLeaving";
 import { draftWindowsListening, flushWindowDrafts } from "./windowDraftFlush";
-import { personWritesInFlight } from "./inflightWrites";
-import { dirtyStore } from "./dirtyStore";
 import { windowsStillHoldingWork } from "./windowManager";
 import { askHeldWork, holdsUnsavedWork } from "./windowCloseGuard";
 import { toast } from "@plainva/ui";
@@ -44,9 +42,14 @@ import i18n from "@plainva/ui/i18n";
 export const LEAVE_SETTLE_MS = 2_500;
 
 /** Every window's part, this one's and the others'. True when every window was done in time. */
-export async function settleEveryWindowBeforeLeaving(limitMs: number = LEAVE_SETTLE_MS): Promise<boolean> {
+export async function settleEveryWindowBeforeLeaving(limitMs: number = LEAVE_SETTLE_MS, onOwed?: () => Promise<unknown>): Promise<boolean> {
+  // Once, whoever finds something owed first: this window's list, or another
+  // window that listens and is asked for what it buffered.
+  let marked: Promise<unknown> | null = null;
+  const owed = onOwed ? () => (marked ??= onOwed()) : undefined;
+  if (owed && draftWindowsListening() > 0) await owed();
   const [own, others] = await Promise.all([
-    settleBeforeLeaving(limitMs).catch(() => {
+    settleBeforeLeaving(limitMs, owed).catch(() => {
       // silent: the app is going; each write reports its own failure, and nobody is left to tell.
       return "settled" as const;
     }),
@@ -92,15 +95,6 @@ export interface LeaveAnswer {
  * The central window's answer: the app stays when a window asks its question.
  * `mayStay` is false for a termination signal: nobody is asked.
  */
-/**
- * Something of the person's is not on disk yet as the hold begins: a note with
- * unsaved changes, a write of theirs on its way, or another window that may
- * still owe what it buffered.
- */
-function somethingOwed(): boolean {
-  return dirtyStore.get().size > 0 || personWritesInFlight() > 0 || draftWindowsListening() > 0;
-}
-
 export async function leaveOrStay(mayStay = true, markOwed?: () => Promise<unknown>): Promise<LeaveAnswer> {
   const askedHere = letGo;
   letGo = false;
@@ -111,16 +105,12 @@ export async function leaveOrStay(mayStay = true, markOwed?: () => Promise<unkno
     }
     if (await windowsStillHoldingWork()) return { stay: true, cut: false };
   }
-  // The mark goes down before the wait, while something is owed (review
-  // 2026-11-17): an end that comes harder than the deadline — a second
-  // termination signal — then leaves it standing, and the next start says so.
-  // The native side takes it back when everything was done (`leave.rs`).
-  if (markOwed && somethingOwed()) {
-    await markOwed().catch(() => {
-      // silent: without the mark only a hard end goes unsaid; the deadline's cut still writes it.
-    });
-  }
-  return { stay: false, cut: !(await settleEveryWindowBeforeLeaving()) };
+  // The mark goes down before the wait when the hold has something of the
+  // person's to do — read off the same list the hold works through
+  // (`settleBeforeLeaving`, the windows asked for their drafts) — so an end
+  // harder than the deadline, a second termination signal, leaves it
+  // standing. The native side takes it back when everything was done (`leave.rs`).
+  return { stay: false, cut: !(await settleEveryWindowBeforeLeaving(undefined, markOwed)) };
 }
 
 /**

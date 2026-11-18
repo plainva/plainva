@@ -54,7 +54,7 @@ if (typeof window !== "undefined") {
  * pull are waited for up to the limit too, but are no cut: the next start pulls
  * again (review 2026-11-17).
  */
-export async function settleBeforeLeaving(limitMs: number = SETTLE_LIMIT_MS): Promise<"settled" | "cut"> {
+export async function settleBeforeLeaving(limitMs: number = SETTLE_LIMIT_MS, onOwed?: () => Promise<unknown>): Promise<"settled" | "cut"> {
   if (typeof document === "undefined" || typeof window === "undefined") return "settled";
   const until = Date.now() + limitMs;
   const active = document.activeElement;
@@ -64,6 +64,20 @@ export async function settleBeforeLeaving(limitMs: number = SETTLE_LIMIT_MS): Pr
   const works: Promise<unknown>[] = [];
   const request: BeforeLeavingRequest = { waitUntil: (work) => void works.push(work) };
   window.dispatchEvent(new CustomEvent(BEFORE_LEAVING_EVENT, { detail: request }));
+  // Something of the person's to do, read off this very list (review
+  // 2026-11-18): a surface's part that does not end at once — a draft, a
+  // note's save, the mail queue in its undo window — or a write of theirs on
+  // its way, a field left by the blur above included. Then `onOwed` puts the
+  // mark down before the wait, so an end harder than the deadline is said.
+  const pending = await Promise.race([
+    Promise.allSettled(works).then(() => false),
+    new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 0)),
+  ]);
+  if ((pending || personWritesInFlight() > 0) && onOwed) {
+    await onOwed().catch(() => {
+      // silent: without the mark only an end harder than the deadline goes unsaid.
+    });
+  }
   let cut = false;
   await Promise.race([
     Promise.allSettled(works),
