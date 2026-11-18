@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import ts from "typescript";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtractSkipReason, QuarantineReasonFamily, WorkspaceQuarantineRecord } from "@plainva/core";
@@ -117,9 +118,6 @@ const OPEN: Record<string, string> = {
   "ai.tool.{}": "tool names include those of MCP servers and scripts; an unknown tool is named as it calls itself",
   "ai.ext.outcome.{}": "the outcome an external tool server reports; an unknown one is shown as reported",
   "ai.toolDirect.{}": "tool names include those of MCP servers; an unknown tool falls back to its label",
-  "workspaceSecurity.{}": "keys a publication instruction carries in its own data; an unknown one keeps its raw text",
-  "import.report.{}": "report keys an importer of any source writes; an unknown one keeps the importer's English sentence",
-  "import.limits.{}": "limit keys an importer of any source writes; an unknown one keeps the importer's English sentence",
   "import.sources.{}": "a source id from a stored import plan or a deep link; an unknown one keeps the importer's name",
   "import.archiveSkip.{}": "the reason the archive reader reports; an unknown one reads as \"unreadable\"",
   "whatsNew.highlight{}Title": "numbered by the catalog's count; localeParity.test.ts holds the count to the texts",
@@ -130,10 +128,10 @@ const OPEN: Record<string, string> = {
 
 interface Site { at: string; family: string; keys: string[] | null; open: string[]; fallback: boolean }
 
-function composedSites(): Site[] {
+function composedSites(probe?: string): Site[] {
   const reference = bundles.get("en")!;
   const isNamespace = (ns: string) => typeof reference[ns] === "object";
-  const roots = ["packages/ui/src", "apps/desktop/src", "apps/mobile/src"].flatMap((dir) => sourceFiles(join(ROOT, dir)));
+  const roots = [...["packages/ui/src", "apps/desktop/src", "apps/mobile/src"].flatMap((dir) => sourceFiles(join(ROOT, dir))), ...(probe ? [probe] : [])];
   const program = ts.createProgram(roots, {
     noEmit: true, skipLibCheck: true, strict: true, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, allowImportingTsExtensions: true,
@@ -162,6 +160,56 @@ function composedSites(): Site[] {
     if (!second) return false;
     if (ts.isStringLiteralLike(second) || ts.isTemplateExpression(second) || ts.isIdentifier(second)) return true;
     return ts.isObjectLiteralExpression(second) && second.properties.some((p) => p.name !== undefined && ts.isIdentifier(p.name) && p.name.text === "defaultValue");
+  };
+  /** `t(…)` or `i18n.t(…)`. */
+  const isTranslate = (callee: ts.Expression) =>
+    (ts.isIdentifier(callee) && callee.text === "t") || (ts.isPropertyAccessExpression(callee) && callee.name.text === "t");
+  const unwrap = (e: ts.Expression): ts.Expression => (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) ? unwrap(e.expression) : e);
+  const isJoin = (e: ts.Expression): e is ts.CallExpression =>
+    ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && e.expression.name.text === "join" && ts.isArrayLiteralExpression(unwrap(e.expression.expression));
+  /** A built key the namespace scan above does not see: not a literal, not `ns.…${}` and not `"ns.…" + value`. */
+  const builtElsewhere = (raw: ts.Expression): boolean => {
+    const e = unwrap(raw);
+    if (ts.isTemplateExpression(e)) return !/^[a-zA-Z][a-zA-Z0-9]*\./.test(e.head.text);
+    if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken) return !ts.isStringLiteral(e.left);
+    // A choice counts where one of its keys is built so; a choice between a literal and a lookup is the lookup's business.
+    if (ts.isConditionalExpression(e)) return builtElsewhere(e.whenTrue) || builtElsewhere(e.whenFalse);
+    return isJoin(e);
+  };
+  /** Every key a built expression can be, or null where a part is open. */
+  const keysOf = (raw: ts.Expression): string[] | null => {
+    const e = unwrap(raw);
+    const cross = (a: string[] | null, b: string[] | null, sep = "") => (a && b ? a.flatMap((x) => b.map((y) => x + sep + y)) : null);
+    if (ts.isStringLiteralLike(e)) return [e.text];
+    if (ts.isTemplateExpression(e)) {
+      let out: string[] | null = [e.head.text];
+      for (const span of e.templateSpans) out = cross(cross(out, keysOf(span.expression)), [span.literal.text]);
+      return out;
+    }
+    if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken) return cross(keysOf(e.left), keysOf(e.right));
+    if (ts.isConditionalExpression(e)) {
+      const a = keysOf(e.whenTrue), b = keysOf(e.whenFalse);
+      return a && b ? [...a, ...b] : null;
+    }
+    if (isJoin(e)) {
+      const sep = e.arguments[0] && ts.isStringLiteralLike(e.arguments[0]) ? e.arguments[0].text : ",";
+      let out: string[] | null = [""];
+      (unwrap((e.expression as ts.PropertyAccessExpression).expression) as ts.ArrayLiteralExpression).elements.forEach((el, i) => {
+        out = cross(out, keysOf(el), i === 0 ? "" : sep);
+      });
+      return out;
+    }
+    return valuesOf(e);
+  };
+  /** The form of a built key, its open parts as `{}` — the family it stands for. */
+  const formOf = (raw: ts.Expression): string => {
+    const e = unwrap(raw);
+    if (ts.isStringLiteralLike(e)) return e.text;
+    if (ts.isTemplateExpression(e)) return e.head.text + e.templateSpans.map((s) => `{}${s.literal.text}`).join("");
+    if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken) return formOf(e.left) + formOf(e.right);
+    if (ts.isConditionalExpression(e)) return `(${formOf(e.whenTrue)}|${formOf(e.whenFalse)})`;
+    if (isJoin(e)) return (unwrap((e.expression as ts.PropertyAccessExpression).expression) as ts.ArrayLiteralExpression).elements.map((el) => formOf(el)).join(".");
+    return "{}";
   };
   const sites: Site[] = [];
   for (const file of program.getSourceFiles()) {
@@ -193,6 +241,15 @@ function composedSites(): Site[] {
           sites.push({ at: at(node), family: `${head}{}`, keys: values?.map((v) => head + v) ?? null, open: values ? [] : [node.right.getText(file)], fallback: hasFallback(node) });
         }
       }
+      // A key handed to t() in any other built form (review 18.11.): a namespace
+      // in a variable (`${ns}.label`), a concatenation with a name on its left,
+      // `[...].join(".")`, a choice between two such keys. Each part's values
+      // come from its type as above; what cannot be listed is an open family.
+      if (ts.isCallExpression(node) && isTranslate(node.expression) && node.arguments[0] && builtElsewhere(node.arguments[0])) {
+        const key = node.arguments[0];
+        const keys = keysOf(key);
+        sites.push({ at: at(key), family: formOf(key), keys, open: keys ? [] : [key.getText(file)], fallback: hasFallback(key) });
+      }
       ts.forEachChild(node, visit);
     };
     visit(file);
@@ -215,10 +272,41 @@ describe("every key built from a value", () => {
   let sites: Site[] = [];
   // One program over the three source trees; the checker answers each value's type.
   let took = 0;
+  /** The forms the app does not write today, in a file of their own, read by the same program and kept out of the checks. */
+  let probes: Site[] = [];
   beforeAll(() => {
+    const dir = mkdtempSync(join(tmpdir(), "composed-keys-"));
+    const probe = join(dir, "probe.ts").split("\\").join("/");
+    writeFileSync(probe, [
+      "export {};",
+      "declare const t: (key: string) => string;",
+      "declare const area: \"import\" | \"settings\";",
+      "declare const step: \"label\" | \"open\";",
+      "declare const prefix: \"import.notionToken.\";",
+      "declare const anything: string;",
+      "t([area, step].join(\".\"));",
+      "t(prefix + step);",
+      "t(anything + \".label\");",
+      "",
+    ].join("\n"));
     const start = performance.now();
-    sites = composedSites();
+    const all = composedSites(probe);
     took = performance.now() - start;
+    const ofProbe = (site: Site) => site.at.startsWith(relative(ROOT, probe));
+    probes = all.filter(ofProbe);
+    sites = all.filter((site) => !ofProbe(site));
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("sees a key built in each form: a namespace in a value, a join, a name joined on the left (review 18.11.)", () => {
+    expect(probes.map((p) => (p.keys ? [...p.keys].sort() : null))).toEqual([
+      ["import.label", "import.open", "settings.label", "settings.open"],
+      ["import.notionToken.label", "import.notionToken.open"],
+      null,
+    ]);
+    // The same forms in the app: the credential guide of an API source, the theme mode of the preview banner.
+    expect(sites.find((site) => site.family === "{}.label")?.keys).toEqual(["import.notionToken.label"]);
+    expect(sites.find((site) => site.family === "{}.{}")?.keys).toEqual(expect.arrayContaining(["mobile.themeDark", "settings.themeSystem"]));
   });
 
   it("finds the places (a sanity bound: the scan sees them), and says when it grows slow", () => {
