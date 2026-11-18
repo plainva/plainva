@@ -41,6 +41,7 @@ export * from "./lib/featureParity";
 export * from "./lib/draftJournalEntries";
 export * from "./lib/draftJournal";
 export * from "./lib/saveCoordinator";
+export * from "./lib/saveRetry";
 export * from "./lib/editorSave";
 export * from "./lib/qrScan";
 export * from "./lib/largeFileBackupHint";

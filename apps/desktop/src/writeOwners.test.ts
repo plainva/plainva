@@ -27,7 +27,7 @@ const HANDOFFS: Record<string, Owner> = {
   "const vaultAdapter = chain.files;": "chain",
   'const personVaultAdapter = countWrites(vaultAdapter, "person");': "person",
   'const personBelowChain = countWrites(backupVaultAdapter, "person");': "person",
-  'vaultIsThere: () => vaultAdapter.exists("").catch(() => false),': "read",
+  "vaultIsThere: () => vaultFolderIsThere(vaultAdapter).then((there) => there === true),": "read",
   "stillGone: async (p: string) => !(await vaultAdapter.exists(p)),": "read",
   "const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {": "background",
   "isOwnWrite: (path, sha256) => vaultAdapter.wasWrittenByUs(path, sha256),": "read",

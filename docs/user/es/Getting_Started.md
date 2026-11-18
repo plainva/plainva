@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-11-05
+Última actualización: 2026-11-17
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -70,7 +70,7 @@ Elige una carpeta local nueva y vacía y, para crear en línea, una carpeta de n
 - **Área del editor** — donde lees y escribes. A través del menú de la pestaña (**Dividir a la derecha** / **Dividir abajo**) o los atajos `Ctrl+Alt+V` / `Ctrl+Alt+S` divides el editor en dos paneles, por ejemplo una nota junto a una base de datos.
 - **Más ventanas**: una nota en su propia ventana muestra a la derecha la misma barra lateral de contexto (esquema, grafo, bases de datos, backlinks, propiedades; el calendario se queda en la ventana principal), que se pliega y despliega desde la barra de título. El menú **⋮** del editor hace ahí lo mismo que en la ventana principal: **Historial de versiones…** y la resolución de conflictos se abren en la ventana de la nota, **Mostrar en el árbol de archivos** trae al frente la ventana con el árbol de archivos y selecciona el archivo, y el clic derecho en una pestaña ofrece el mismo menú de la pestaña (sin **Abrir en una ventana nueva** — la pestaña ya está en una).
 - **Barra lateral derecha** — siete secciones, reordenables por arrastre: **Calendario** (notas diarias), **Diario** (las entradas de diario del día), **Esquema** (encabezados de la nota activa), **Grafo** (el entorno de la nota), **Bases de datos** (las bases de datos a las que pertenece la nota), **Retroenlaces** (quién enlaza aquí) y **Propiedades** (el frontmatter de la nota). Puedes mostrarlas, ocultarlas y reordenarlas en **Configuración → Vault → Barras y áreas**.
-- **Barra de estado** — recuento de palabras/caracteres, estado de sincronización (Local/En línea/Sin conexión) y estado de guardado (**Guardando...** / **Guardado**).
+- **Barra de estado** — recuento de palabras/caracteres, estado de sincronización (Local/En línea/Sin conexión) y estado de guardado (**Guardando...** / **Guardado**). Si falla un guardado, el estado muestra **No guardado — se volverá a intentar** y Plainva lo intenta de nuevo por sí solo tras un segundo, luego a intervalos crecientes de hasta 30 segundos; escribir o `Ctrl+S` lo intenta al momento. Si tras unos cinco minutos no lo consigue, se detiene, muestra **¡Error al guardar!** y el motivo al pasar el puntero por encima; el siguiente intento llega cuando escribes, guardas o vuelves a la ventana. Tras un conflicto, o con un archivo que ya no existe o ya no es texto, muestra **¡Error al guardar!** de inmediato y espera por ti. Tu texto permanece en el editor todo el tiempo. El teléfono lo reintenta igual, y otra vez cuando vuelves a la app.
 - **Listas vacías** — una lista sin contenido dice qué espera y ofrece el primer paso: el árbol de archivos, las bases de datos, el grafo, el correo, las tareas.
 
 ## Los tres modos del editor
