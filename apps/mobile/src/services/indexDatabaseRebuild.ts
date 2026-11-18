@@ -75,6 +75,18 @@ function filesIn(folder: DatabaseFolder): IndexDatabaseFiles {
     async remove(file) {
       await Filesystem.deleteFile(at(file));
     },
+    async readText(file) {
+      try {
+        const { data } = await Filesystem.readFile({ ...at(file), encoding: Encoding.UTF8 });
+        return typeof data === "string" ? data : null;
+      } catch (error) {
+        if (isMissingFile(error)) return null;
+        throw error;
+      }
+    },
+    async writeText(file, text) {
+      await Filesystem.writeFile({ ...at(file), data: text, encoding: Encoding.UTF8 });
+    },
   };
 }
 

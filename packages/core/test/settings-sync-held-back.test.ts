@@ -13,8 +13,8 @@ import { CountingSyncTarget, profileHarnessDevice, runProfileCycle } from "./sup
 
 const ACCOUNTS = [{ id: "cal-1", provider: "caldav", label: "Nextcloud" }];
 
-/** A port over an in-memory store; `held` names the fields it cannot speak for. */
-function port(store: Record<string, unknown>, held: () => string[] = () => []) {
+/** A port over an in-memory store; `held` names the fields it cannot speak for, `fill` says what it knows of them. */
+function port(store: Record<string, unknown>, held: () => string[] = () => [], fill?: ProfileSettingsPort["fillHeldBack"]) {
   const applied: Array<Record<string, unknown>> = [];
   const api: ProfileSettingsPort = {
     exportValues: async () => ({ ...store }),
@@ -24,6 +24,7 @@ function port(store: Record<string, unknown>, held: () => string[] = () => []) {
       Object.assign(store, values);
     },
     heldBack: async () => held(),
+    ...(fill ? { fillHeldBack: fill } : {}),
   };
   return { api, applied };
 }
@@ -78,5 +79,46 @@ describe("a field held back after the index database was rebuilt", () => {
     store.pimAccounts = [];
     await runProfileCycle(target, a, "2026-11-17T10:02:00.000Z");
     expect(remoteValues(target)?.pimAccounts).toEqual([]);
+  });
+
+  /** What the shells do (`fillHeldAccountField`): what is missing here is the document's, what is here is this device's. */
+  const fillChoices: ProfileSettingsPort["fillHeldBack"] = async (_key, documentValue, exportedValue) => ({
+    ...(documentValue as Record<string, boolean>),
+    ...((exportedValue ?? {}) as Record<string, boolean>),
+  });
+
+  it.each([false, true])("a change made here while held is this device's own: it stays, and it goes out (closed and opened again between: %s)", async (reopen) => {
+    const target = new CountingSyncTarget();
+    const storeA: Record<string, unknown> = { pimSelections: { work: true, home: true } };
+    let rebuilt = false;
+    const portA = () => port(storeA, () => (rebuilt ? ["pimSelections"] : []), fillChoices).api;
+    let a = profileHarnessDevice("device-a", portA());
+    const b = profileHarnessDevice("device-b", port({}).api);
+    await runProfileCycle(target, a, "2026-11-17T10:00:00.000Z");
+    // Rebuilt and restored; then the person switches the work calendar off, before any settings-sync cycle.
+    rebuilt = true;
+    storeA.pimSelections = { work: false, home: true };
+    if (reopen) {
+      const vault = a.vault;
+      a = { ...profileHarnessDevice("device-a", portA()), vault };
+    }
+    await runProfileCycle(target, a, "2026-11-17T10:02:00.000Z");
+    expect(storeA.pimSelections, "not set back by the document").toEqual({ work: false, home: true });
+    expect(remoteValues(target)?.pimSelections, "and it goes out").toEqual({ work: false, home: true });
+    await runProfileCycle(target, b, "2026-11-17T10:03:00.000Z");
+    expect(remoteValues(target)?.pimSelections).toEqual({ work: false, home: true });
+  });
+
+  it("what the rebuild took is the document's: a choice missing here comes back from it", async () => {
+    const target = new CountingSyncTarget();
+    const store: Record<string, unknown> = { pimSelections: { work: true, home: false } };
+    let rebuilt = false;
+    const a = profileHarnessDevice("device-a", port(store, () => (rebuilt ? ["pimSelections"] : []), fillChoices).api);
+    await runProfileCycle(target, a, "2026-11-17T10:00:00.000Z");
+    rebuilt = true;
+    store.pimSelections = { work: true };
+    await runProfileCycle(target, a, "2026-11-17T10:02:00.000Z");
+    expect(store.pimSelections).toEqual({ work: true, home: false });
+    expect(remoteValues(target)?.pimSelections).toEqual({ work: true, home: false });
   });
 });

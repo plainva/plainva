@@ -23,6 +23,8 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
     disk.files.set(to, disk.files.get(from)!);
     disk.files.delete(from);
   },
+  readTextFile: async (path: string) => disk.files.get(path) ?? "",
+  writeTextFile: async (path: string, text: string) => { disk.log.push(`note ${path}`); disk.files.set(path, text); },
   remove: async (path: string) => { disk.log.push(`remove ${path}`); disk.files.delete(path); },
   readDir: async (dir: string) => [...disk.files.keys()]
     .filter((path) => path.startsWith(`${dir}/`) && !path.slice(dir.length + 1).includes("/"))
@@ -70,14 +72,15 @@ describe("setting the desktop's damaged index database aside", () => {
     expect(disk.files.get(`/data/index/${name}`)).toBe("warm index");
   });
 
-  it("keeps only the newest copy set aside, also where the index stayed in the vault's own .plainva", async () => {
+  it("keeps the two newest copies set aside, also where the index stayed in the vault's own .plainva", async () => {
     const url = "sqlite:/home/me/Notes/.plainva/vault.db";
     disk.files.set("/home/me/Notes/.plainva/vault.db", "damaged again");
-    disk.files.set("/home/me/Notes/.plainva/vault.db.broken-2026-01-01T00-00-00-000Z", "damaged before");
+    disk.files.set("/home/me/Notes/.plainva/vault.db.broken-2026-02-01T00-00-00-000Z", "damaged before");
+    disk.files.set("/home/me/Notes/.plainva/vault.db.broken-2026-01-01T00-00-00-000Z", "oldest");
     disk.files.set("/home/me/Notes/.plainva/vault.db.broken-2026-01-01T00-00-00-000Z-wal", "its log");
     disk.files.set("/home/me/Notes/.plainva/bookmarks.json", "{}");
     const aside = await setAsideDesktopIndexDatabase(url);
-    expect([...disk.files.keys()].sort()).toEqual([aside, "/home/me/Notes/.plainva/bookmarks.json", "/home/me/Notes/.plainva/vault.db"].sort());
+    expect([...disk.files.keys()].sort()).toEqual([aside, "/home/me/Notes/.plainva/vault.db.broken-2026-02-01T00-00-00-000Z", "/home/me/Notes/.plainva/bookmarks.json", "/home/me/Notes/.plainva/vault.db"].sort());
     expect(disk.files.get(aside)).toBe("damaged again");
   });
 });

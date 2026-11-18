@@ -108,7 +108,7 @@ import { mobileKeyringCacheKey } from "./vaultForget";
 import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 import { isMemberProfileField } from "@plainva/ui";
-import { accountFieldsHeldBack, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
+import { accountFieldsHeldBack, fillHeldAccountField, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
 import { mergePersonalDesignValues } from "@plainva/ui";
 import { mobilePersonalDesign } from "./personalDesign";
 
@@ -555,10 +555,11 @@ function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): Ac
  * vault opens (`restoreAccountsAfterRebuild`). The copy is read as the
  * settings sync reads it — sealed where this device holds the key.
  */
-export async function restoreMobileAccountsAfterRebuild(vaultId: string, db: IDatabaseAdapter, raw: IVaultAdapter): Promise<void> {
+export async function restoreMobileAccountsAfterRebuild(vaultId: string, db: IDatabaseAdapter, raw: IVaultAdapter, vaultSyncs: boolean): Promise<void> {
   const cache = new PimCacheRepository(db);
   await restoreAccountsAfterRebuild({
     state: cache,
+    settingsSyncRuns: vaultSyncs && (await isMobileSettingsSyncEnabled(vaultId)),
     ports: accountPortsOver(vaultId, cache),
     readProfileCopy: async () => {
       const ring = await loadKeyring(vaultId);
@@ -638,6 +639,11 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
     // An index database rebuilt at the start speaks for its accounts only once
     // the document's were applied (`accountFieldsHeldBack`).
     heldBack: () => accountFieldsHeldBack(vault.db ? new PimCacheRepository(vault.db) : null),
+    // Only what the rebuild took is the document's; a change made here since is this device's (`fillHeldAccountField`).
+    async fillHeldBack(key, documentValue, exportedValue) {
+      const map = normalizeAccountMap(await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId)));
+      return fillHeldAccountField(key, documentValue, exportedValue, new Set(Object.keys(map.removedLogical ?? {})));
+    },
     async exportValues(): Promise<Record<string, unknown>> {
       const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};

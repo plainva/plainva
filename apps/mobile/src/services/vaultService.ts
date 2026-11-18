@@ -898,7 +898,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     await logIndexDiagnostics(db);
     // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
     if (await mobileIndexDatabaseWasRebuilt(indexDatabaseName)) {
-      await restoreMobileAccountsAfterRebuild(entry.id, db, adapter).catch(reportingTo("accounts:restore-after-rebuild"));
+      await restoreMobileAccountsAfterRebuild(entry.id, db, adapter, !isLocal).catch(reportingTo("accounts:restore-after-rebuild"));
     }
 
     // Retention comes from the global mobile settings (package G); the

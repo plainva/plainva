@@ -1,7 +1,7 @@
 import { appDataDir } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
-import { readFile, writeFile, exists as fsExists, mkdir, readDir, remove, rename } from "@tauri-apps/plugin-fs";
+import { readFile, readTextFile, writeFile, writeTextFile, exists as fsExists, mkdir, readDir, remove, rename } from "@tauri-apps/plugin-fs";
 import { initializeSchema } from "@plainva/core";
 import { finishSetAside, hasSetAside, SET_ASIDE_MARKER, setAsideIndexDatabase, type IndexDatabaseFiles } from "@plainva/ui";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
@@ -75,6 +75,8 @@ const desktopIndexFiles: IndexDatabaseFiles = {
     return entries.filter((entry) => entry.name.startsWith(start)).map((entry) => `${dir}/${entry.name}`);
   },
   remove: (path) => remove(path),
+  readText: async (path) => ((await fsExists(path)) ? readTextFile(path) : null),
+  writeText: (path, text) => writeTextFile(path, text),
 };
 
 /**

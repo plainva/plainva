@@ -33,6 +33,11 @@ vi.mock("@capacitor/filesystem", () => ({
       device.files.set(key(to, toDirectory ?? directory), data);
     },
     writeFile: async ({ path, directory, data }: { path: string; directory?: string; data: string }) => { device.files.set(key(path, directory), data); },
+    readFile: async ({ path, directory }: { path: string; directory?: string }) => {
+      const data = device.files.get(key(path, directory));
+      if (data === undefined) throw missing();
+      return { data };
+    },
     readdir: async ({ path, directory }: { path: string; directory?: string }) => {
       const prefix = key(path.replace(/\/?$/, "/"), directory);
       const names = [...device.files.keys()].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
@@ -95,23 +100,33 @@ describe("setting the phone's damaged index database aside", () => {
     }
   });
 
-  it("a set-aside that stopped before the database moved is finished before it opens; only the newest copy is kept", async () => {
+  it("a set-aside that stopped before the database moved is finished before it opens, by its note; the two newest copies are kept", async () => {
     device.platform = "ios";
     phoneSqlite.reset("ios");
     const at = (file: string) => key(`CapacitorDatabase/${file}`, "LIBRARY");
+    const stamp = "2026-11-17T09-00-00-000Z";
     device.files.set(at("plainva-v1SQLite.db"), "damaged");
-    device.files.set(at("plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z-wal"), "its log");
-    device.files.set(at("plainva-v1SQLite.db.broken-2026-01-01T00-00-00-000Z"), "older still");
+    device.files.set(at("plainva-v1SQLite.db.setting-aside"), JSON.stringify({ stamp }));
+    device.files.set(at(`plainva-v1SQLite.db.broken-${stamp}-wal`), "its log");
+    device.files.set(at("plainva-v1SQLite.db.broken-2026-02-01T00-00-00-000Z"), "older");
+    device.files.set(at("plainva-v1SQLite.db.broken-2026-01-01T00-00-00-000Z"), "oldest");
     await finishMobileSetAside("plainva-v1");
     expect(Object.fromEntries([...device.files].filter(([k]) => k.startsWith("LIBRARY:")))).toEqual({
-      [at("plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z")]: "damaged",
-      [at("plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z-wal")]: "its log",
+      [at(`plainva-v1SQLite.db.broken-${stamp}`)]: "damaged",
+      [at(`plainva-v1SQLite.db.broken-${stamp}-wal`)]: "its log",
+      [at("plainva-v1SQLite.db.broken-2026-02-01T00-00-00-000Z")]: "older",
       [at("plainva-v1SQLite.db")]: "",
     });
-    // Nothing half done: nothing moves.
-    device.files.set(at("plainva-v1SQLite.db"), "fine");
+  });
+
+  it("an orphan companion of an earlier copy beside a healthy database, and no note: nothing moves at the open", async () => {
+    device.platform = "ios";
+    phoneSqlite.reset("ios");
+    const at = (file: string) => key(`CapacitorDatabase/${file}`, "LIBRARY");
+    device.files.set(at("plainva-v1SQLite.db"), "healthy");
+    device.files.set(at("plainva-v1SQLite.db.broken-2026-11-17T09-00-00-000Z-wal"), "orphan");
     await finishMobileSetAside("plainva-v1");
-    expect(device.files.get(at("plainva-v1SQLite.db"))).toBe("fine");
+    expect(device.files.get(at("plainva-v1SQLite.db"))).toBe("healthy");
   });
 
   it("forgetting the vault on this device removes every copy set aside, and nothing else", async () => {

@@ -67,7 +67,7 @@ describe("why an index database did not open", () => {
 });
 
 /** A folder of files in memory, noting every step. */
-function folder(initial: Record<string, string>, failRenameOf: string | null = null) {
+function folder(initial: Record<string, string>, failRenameOf: string | null = null, failRemoveOf: string | null = null) {
   const files = new Map(Object.entries(initial));
   const steps: string[] = [];
   const fs: IndexDatabaseFiles = {
@@ -86,7 +86,13 @@ function folder(initial: Record<string, string>, failRenameOf: string | null = n
     listStartingWith: async (prefix) => [...files.keys()].filter((path) => path.startsWith(prefix)),
     remove: async (path) => {
       steps.push(`remove ${path}`);
+      if (path === failRemoveOf) throw new Error("EBUSY: resource busy or locked");
       files.delete(path);
+    },
+    readText: async (path) => files.get(path) ?? null,
+    writeText: async (path, text) => {
+      steps.push(`note ${path}`);
+      files.set(path, text);
     },
   };
   return { files, steps, fs };
@@ -106,22 +112,27 @@ describe("setting a damaged index database aside", () => {
       [`x.db.broken-${STAMP}-shm`]: "index",
       "x.db": "",
     });
-    // The companions first, the database last, the empty one after it.
+    // The note first, the companions, the database last, the empty one after it, the note gone.
     expect(steps).toEqual([
+      "note x.db.setting-aside",
       `rename x.db-wal -> x.db.broken-${STAMP}-wal`,
       `rename x.db-shm -> x.db.broken-${STAMP}-shm`,
       `rename x.db -> x.db.broken-${STAMP}`,
       "empty x.db",
+      "remove x.db.setting-aside",
     ]);
     expect(STAMP).not.toMatch(/[:]/);
   });
 
-  it("never over an earlier set-aside, and only the newest one is kept", async () => {
+  it("never over an earlier set-aside, and the two newest are kept: two rebuilds in a row keep the copy with the data", async () => {
     const earlier = `x.db.broken-${STAMP}`;
-    const { files, fs } = folder({ "x.db": "damaged again", [earlier]: "damaged before", [`${earlier}-wal`]: "its log", "x.db.broken-2026-01-01T00-00-00-000Z": "older still" });
+    const older = "x.db.broken-2026-01-01T00-00-00-000Z";
+    const { files, steps, fs } = folder({ "x.db": "damaged again", [earlier]: "damaged before", [`${earlier}-wal`]: "its log", [older]: "older still", [`${older}-shm`]: "older index" });
     const aside = await setAsideIndexDatabase(fs, "x.db", AT);
     expect(aside).toBe(`x.db.broken-${STAMP}-2`);
-    expect(Object.fromEntries(files), "each is as large as the index and holds the notes' text").toEqual({ [aside]: "damaged again", "x.db": "" });
+    expect(Object.fromEntries(files)).toEqual({ [aside]: "damaged again", [earlier]: "damaged before", [`${earlier}-wal`]: "its log", "x.db": "" });
+    // The oldest goes companions first, its main file last.
+    expect(steps.filter((step) => step.startsWith("remove x.db.broken"))).toEqual([`remove ${older}-shm`, `remove ${older}`]);
   });
 
   it("a second press while one runs is that one", async () => {
@@ -131,7 +142,7 @@ describe("setting a damaged index database aside", () => {
     expect(steps.filter((step) => step.startsWith("rename"))).toHaveLength(1);
   });
 
-  it("a stop before the database moved is finished before it opens, under the same name", async () => {
+  it("a stop before the database moved is finished before it opens, under the same name, by its note", async () => {
     const { files, fs } = folder({ "x.db": "damaged", "x.db-wal": "log" }, "x.db");
     await expect(setAsideIndexDatabase(fs, "x.db", AT)).rejects.toThrow("rename failed");
     expect(files.has("x.db-wal"), "its log is set aside, never replayed into a new one").toBe(false);
@@ -143,11 +154,39 @@ describe("setting a damaged index database aside", () => {
     expect(Object.fromEntries(healed.files)).toEqual({ [`x.db.broken-${STAMP}`]: "damaged", [`x.db.broken-${STAMP}-wal`]: "log", "x.db": "" });
   });
 
-  it("nothing half done: the open goes on as it was", async () => {
-    const { files, steps, fs } = folder({ "x.db": "fine", "x.db-wal": "live log", [`x.db.broken-${STAMP}`]: "set aside", [`x.db.broken-${STAMP}-wal`]: "its log" });
+  it("a stop after the database moved, before the note went: the next open moves nothing of the new database", async () => {
+    const { files, fs } = folder({ "x.db": "damaged" }, null, "x.db.setting-aside");
+    await expect(setAsideIndexDatabase(fs, "x.db", AT)).rejects.toThrow("EBUSY");
+    // The new database is in use by now, with a log of its own.
+    files.set("x.db", "rebuilt, in use");
+    files.set("x.db-wal", "its own log");
+    const again = folder(Object.fromEntries(files));
+    await finishSetAside(again.fs, "x.db");
+    expect(again.files.get("x.db")).toBe("rebuilt, in use");
+    expect(again.files.get("x.db-wal")).toBe("its own log");
+    expect(again.files.has("x.db.setting-aside")).toBe(false);
+  });
+
+  it.each(["-wal", "-shm", "-journal"])("a companion of an earlier copy beside a healthy database (%s), its main file gone: nothing happens at the open", async (companion) => {
+    const { files, steps, fs } = folder({ "x.db": "healthy, in use", "x.db-wal": "live log", [`x.db.broken-${STAMP}${companion}`]: "orphan" });
     expect(await finishSetAside(fs, "x.db")).toBeNull();
     expect(steps).toEqual([]);
+    expect(files.get("x.db")).toBe("healthy, in use");
     expect(files.get("x.db-wal")).toBe("live log");
+  });
+
+  it.each([
+    ["the oldest copy's companion", "x.db.broken-2026-01-01T00-00-00-000Z-wal"],
+    ["the oldest copy's main file", "x.db.broken-2026-01-01T00-00-00-000Z"],
+  ])("removing old copies fails at %s: the rebuild stands, and the next open sets nothing aside", async (_label, failing) => {
+    const older = "x.db.broken-2026-01-01T00-00-00-000Z";
+    const { files, fs } = folder({ "x.db": "damaged", [older]: "oldest", [`${older}-wal`]: "oldest log", "x.db.broken-2026-02-01T00-00-00-000Z": "older" }, null, failing);
+    await expect(setAsideIndexDatabase(fs, "x.db", AT)).resolves.toBe(`x.db.broken-${STAMP}`);
+    expect(files.get("x.db")).toBe("");
+    files.set("x.db", "rebuilt, in use");
+    const next = folder(Object.fromEntries(files));
+    expect(await finishSetAside(next.fs, "x.db")).toBeNull();
+    expect(next.files.get("x.db")).toBe("rebuilt, in use");
   });
 
   it("a set-aside tells the open not to bring an older copy back in", () => {

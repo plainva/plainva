@@ -99,7 +99,7 @@ import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
 import { desktopPersonalDesign } from "./personalDesign";
 import { mergePersonalDesignValues } from "@plainva/ui";
-import { accountFieldsHeldBack, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
+import { accountFieldsHeldBack, fillHeldAccountField, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
 import { getWorkspaceSecurityStatus } from "./workspaceSecurity/workspaceKeychain";
 import { hasLocalKeyfile, loadCachedMasterKey, loadCachedMasterKeys } from "./encryptionSession";
 import {
@@ -895,6 +895,11 @@ export function createDesktopProfilePort(vaultPath: string, context: DesktopProf
     // An index database rebuilt at the start speaks for its accounts only once
     // the document's were applied (`accountFieldsHeldBack`).
     heldBack: () => accountFieldsHeldBack(context.pimRuntime?.cache ?? null),
+    // Only what the rebuild took is the document's; a change made here since is this device's (`fillHeldAccountField`).
+    async fillHeldBack(key, documentValue, exportedValue) {
+      const map = normalizeAccountMap(await (await getSettingsStore()).get<ProfileAccountMap>(profileAccountMapKey(vaultPath)));
+      return fillHeldAccountField(key, documentValue, exportedValue, new Set(Object.keys(map.removedLogical ?? {})));
+    },
   };
 }
 
@@ -906,9 +911,11 @@ export function createDesktopProfilePort(vaultPath: string, context: DesktopProf
  */
 export async function restoreDesktopAccountsAfterRebuild(vaultPath: string, db: IDatabaseAdapter, raw: IVaultAdapter): Promise<void> {
   const cache = new PimCacheRepository(db);
+  const store = await getSettingsStore();
   await restoreAccountsAfterRebuild({
     state: cache,
-    ports: desktopAccountPorts(await getSettingsStore(), vaultPath, cache),
+    ports: desktopAccountPorts(store, vaultPath, cache),
+    settingsSyncRuns: (await isSettingsSyncEnabled(vaultPath, store)) && !!(await getActiveConnectionId(vaultPath)),
     readProfileCopy: async () => {
       const mk = await loadCachedMasterKey(vaultPath);
       if (mk) {

@@ -1,5 +1,6 @@
 import i18n from "../i18n";
 import { errorText } from "./errorText";
+import { reportingTo } from "../services/backgroundErrors";
 
 /**
  * A vault's index database that does not open (both shells, the start).
@@ -87,6 +88,9 @@ export interface IndexDatabaseFiles {
   /** The paths in `prefix`'s folder whose name begins with `prefix`'s name (`prefix` is a path). */
   listStartingWith(prefix: string): Promise<string[]>;
   remove(path: string): Promise<void>;
+  /** A small text file: the note a set-aside leaves while it runs (`SET_ASIDE_NOTE`). Null where there is none. */
+  readText(path: string): Promise<string | null>;
+  writeText(path: string, text: string): Promise<void>;
 }
 
 /** The companions SQLite keeps beside a database, moved with it. */
@@ -95,37 +99,51 @@ export const INDEX_DATABASE_COMPANIONS = ["-wal", "-shm", "-journal"] as const;
 /** The marker a set-aside database carries in its name: `<file>.broken-<time>` (`setAsideIndexDatabase`). */
 export const SET_ASIDE_MARKER = ".broken-";
 
+/**
+ * The note a set-aside writes beside the database before its first step and
+ * removes after its last: `<file>.setting-aside`, holding the stamp it sets
+ * the files aside under. Only this note ever makes an open finish a
+ * set-aside (`finishSetAside`) — never files that happen to lie beside the
+ * database: a companion of an earlier copy whose main file is gone is no
+ * sign that the database in use is damaged.
+ */
+export const SET_ASIDE_NOTE = ".setting-aside";
+
+/** How many set-aside copies are kept, the newest: two rebuilds in a row keep the copy that had the data. */
+export const SET_ASIDE_COPIES_KEPT = 2;
+
 /** The time a set-aside is named by: sortable, and no character a file system refuses. */
 export function setAsideStamp(at: Date): string {
   return at.toISOString().replace(/[:.]/g, "-");
 }
 
 /** The set-asides beside `database`, by their stamp: which of the files each one has. */
-async function setAsidesOf(files: IndexDatabaseFiles, database: string): Promise<Map<string, { base: boolean; paths: string[] }>> {
+async function setAsidesOf(files: IndexDatabaseFiles, database: string): Promise<Map<string, { base: string | null; companions: string[] }>> {
   const prefix = database + SET_ASIDE_MARKER;
-  const byStamp = new Map<string, { base: boolean; paths: string[] }>();
+  const byStamp = new Map<string, { base: string | null; companions: string[] }>();
   for (const path of await files.listStartingWith(prefix)) {
     if (!path.startsWith(prefix)) continue;
     const rest = path.slice(prefix.length);
     const companion = INDEX_DATABASE_COMPANIONS.find((suffix) => rest.endsWith(suffix));
     const stamp = companion ? rest.slice(0, -companion.length) : rest;
-    const entry = byStamp.get(stamp) ?? { base: false, paths: [] };
-    if (!companion) entry.base = true;
-    entry.paths.push(path);
+    const entry = byStamp.get(stamp) ?? { base: null, companions: [] };
+    if (companion) entry.companions.push(path);
+    else entry.base = path;
     byStamp.set(stamp, entry);
   }
   return byStamp;
 }
 
-/**
- * A set-aside that stopped half-way: its companions moved, the database not
- * (`setAsideIndexDatabase`). Opened as it is, the database would come up
- * without its log; the run is finished instead, under the stamp it began.
- */
-async function unfinishedStamp(files: IndexDatabaseFiles, database: string): Promise<string | null> {
-  if (!(await files.exists(database))) return null;
-  for (const [stamp, entry] of await setAsidesOf(files, database)) if (!entry.base) return stamp;
-  return null;
+/** The stamp of the set-aside under way, from its note; null where none runs or the note says nothing usable. */
+async function stampInNote(files: IndexDatabaseFiles, database: string): Promise<string | null> {
+  const text = await files.readText(database + SET_ASIDE_NOTE).catch(() => null);
+  if (!text) return null;
+  try {
+    const stamp = (JSON.parse(text) as { stamp?: unknown }).stamp;
+    return typeof stamp === "string" && /^[0-9TZ-]+$/.test(stamp) ? stamp : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -134,14 +152,20 @@ async function unfinishedStamp(files: IndexDatabaseFiles, database: string): Pro
  * The files keep their bytes under `<file>.broken-<time>` — the companions as
  * `<file>.broken-<time>-wal` and so on, so no sweep that knows a database by
  * its companions takes them for orphans — and nothing ever opens or writes
- * them again. The companions go first and the database last; a stop in
+ * them again. Before its first step the run writes its note
+ * (`SET_ASIDE_NOTE`), and removes it after its last; a stop anywhere in
  * between is finished at the next open (`finishSetAside`) or the next press,
- * under the same stamp. The empty database is written last; until it is
- * there, a set-aside beside the name tells the open not to bring an older
- * copy back in (`hasSetAside`).
+ * under the stamp in the note. Each step looks before it moves: the
+ * companions go while the database has not moved yet, the database last,
+ * the empty one only where no database is. Until the empty one is there, a
+ * set-aside beside the name tells the open not to bring an older copy back
+ * in (`hasSetAside`).
  *
- * One set-aside is kept, the newest: each is as large as the index and holds
- * the notes' text, so the earlier ones go once the new one is in place.
+ * The two newest copies are kept (`SET_ASIDE_COPIES_KEPT`); each is as
+ * large as the index and holds the notes' text. Older ones are removed after
+ * the run, companions first and the main file last, so a stop leaves no
+ * half copy that reads as a whole one; a removal that fails is reported and
+ * fails nothing.
  *
  * One at a time per database: a second press while one runs is that one.
  */
@@ -149,21 +173,25 @@ export function setAsideIndexDatabase(files: IndexDatabaseFiles, database: strin
   const running = settingAside.get(database);
   if (running) return running;
   const run = (async () => {
-    let stamp = await unfinishedStamp(files, database);
+    let stamp = await stampInNote(files, database);
     if (stamp === null) {
       stamp = setAsideStamp(at);
-      // Never over an earlier set-aside: it is kept as it was until this one is in place.
-      for (let n = 2; await files.exists(`${database}${SET_ASIDE_MARKER}${stamp}`); n++) stamp = `${setAsideStamp(at)}-${n}`;
+      // Never over an earlier set-aside: it is kept as it was.
+      for (let n = 2; (await setAsidesOf(files, database)).has(stamp); n++) stamp = `${setAsideStamp(at)}-${n}`;
+      await files.writeText(database + SET_ASIDE_NOTE, JSON.stringify({ stamp }));
     }
     const aside = `${database}${SET_ASIDE_MARKER}${stamp}`;
-    for (const companion of INDEX_DATABASE_COMPANIONS) {
-      if (await files.exists(database + companion)) await files.rename(database + companion, aside + companion);
+    // Moved already by the run this one finishes: what lies at the name now is the new database's.
+    const moved = await files.exists(aside);
+    if (!moved) {
+      for (const companion of INDEX_DATABASE_COMPANIONS) {
+        if (await files.exists(database + companion)) await files.rename(database + companion, aside + companion);
+      }
+      if (await files.exists(database)) await files.rename(database, aside);
     }
-    if (await files.exists(database)) await files.rename(database, aside);
-    await files.writeEmpty(database);
-    for (const [other, entry] of await setAsidesOf(files, database)) {
-      if (other !== stamp) for (const path of entry.paths) await files.remove(path);
-    }
+    if (!(await files.exists(database))) await files.writeEmpty(database);
+    await files.remove(database + SET_ASIDE_NOTE);
+    await keepNewestSetAsides(files, database);
     return aside;
   })();
   settingAside.set(database, run);
@@ -172,15 +200,29 @@ export function setAsideIndexDatabase(files: IndexDatabaseFiles, database: strin
   return run;
 }
 
+/** Removes all but the newest copies (`SET_ASIDE_COPIES_KEPT`): companions first, the main file last; a failure fails nothing. */
+async function keepNewestSetAsides(files: IndexDatabaseFiles, database: string): Promise<void> {
+  try {
+    const stamps = [...(await setAsidesOf(files, database)).entries()].sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0));
+    for (const [, entry] of stamps.slice(SET_ASIDE_COPIES_KEPT)) {
+      for (const path of entry.companions) await files.remove(path);
+      if (entry.base) await files.remove(entry.base);
+    }
+  } catch (error) {
+    reportingTo("index:set-aside-prune")(error);
+  }
+}
+
 const settingAside = new Map<string, Promise<string>>();
 
 /**
- * Before a database is opened: finishes a set-aside that stopped half-way
- * (`unfinishedStamp`), so it never opens without its log. Returns where it
- * was set aside, or null where nothing was half done.
+ * Before a database is opened: finishes a set-aside that stopped half-way —
+ * only one whose note says so (`SET_ASIDE_NOTE`) — so the database never
+ * opens without its log. Returns where it was set aside, or null where none
+ * was under way; whatever else lies beside the database, nothing moves then.
  */
 export async function finishSetAside(files: IndexDatabaseFiles, database: string): Promise<string | null> {
-  if ((await unfinishedStamp(files, database)) === null) return null;
+  if ((await stampInNote(files, database)) === null) return null;
   return setAsideIndexDatabase(files, database);
 }
 

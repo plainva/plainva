@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   accountFieldsHeldBack,
   emptyAccountMap,
+  fillHeldAccountField,
   reconcileCloudAccounts,
   rememberRemovedAccount,
   restoreAccountsAfterRebuild,
@@ -73,7 +74,7 @@ function scene(map: ProfileAccountMap = emptyAccountMap()) {
 describe("the accounts of a rebuilt index database", () => {
   it("come back from the vault's copy of the profile, under the id this device knew them by, with their choices", async () => {
     const s = scene({ ...emptyAccountMap(), pimLocalToLogical: { "local-xyz": "remote-1" } });
-    const outcome = await restoreAccountsAfterRebuild({
+    const outcome = await restoreAccountsAfterRebuild({ settingsSyncRuns: true,
       state: s.state,
       ports: s.ports,
       readProfileCopy: async () => profileCopy({ pimAccounts: [pim()], pimSelections: { calendars: [{ accountId: "remote-1", id: "work", selected: false }], taskLists: [] } }),
@@ -87,7 +88,7 @@ describe("the accounts of a rebuilt index database", () => {
   it("an account removed here on purpose stays removed", async () => {
     const map = rememberRemovedAccount({ ...emptyAccountMap(), pimLocalToLogical: { "local-xyz": "remote-1" } }, "pim", "local-xyz");
     const s = scene(map);
-    await restoreAccountsAfterRebuild({ state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) });
+    await restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) });
     expect(s.rows).toEqual([]);
   });
 
@@ -98,15 +99,15 @@ describe("the accounts of a rebuilt index database", () => {
     ["a profile without accounts", async () => profileCopy({ theme: "dark" })],
   ])("%s: nothing is restored, and nothing stops", async (_label, readProfileCopy) => {
     const s = scene();
-    await expect(restoreAccountsAfterRebuild({ state: s.state, ports: s.ports, readProfileCopy })).resolves.toBe("nothing");
+    await expect(restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy })).resolves.toBe("nothing");
     expect(s.rows).toEqual([]);
     expect(s.rebuild, "still held: the settings sync may bring them").toBe("held");
   });
 
   it("runs once per rebuilt database: a later open leaves the accounts to the settings sync", async () => {
     const s = scene();
-    await restoreAccountsAfterRebuild({ state: s.state, ports: s.ports, readProfileCopy: async () => null });
-    const again = await restoreAccountsAfterRebuild({ state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) });
+    await restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy: async () => null });
+    const again = await restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) });
     expect(again).toBe("already");
     expect(s.rows).toEqual([]);
   });
@@ -114,7 +115,7 @@ describe("the accounts of a rebuilt index database", () => {
   it("held, the account fields are no edit of this device's; after the first settings-sync cycle they are again", async () => {
     const s = scene();
     expect(await accountFieldsHeldBack(s.state)).toEqual([]);
-    await restoreAccountsAfterRebuild({ state: s.state, ports: s.ports, readProfileCopy: async () => null });
+    await restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy: async () => null });
     expect(await accountFieldsHeldBack(s.state)).toEqual(["pimAccounts", "pimSelections"]);
     await settleAccountsAfterRebuild(s.state);
     expect(await accountFieldsHeldBack(s.state)).toEqual([]);
@@ -124,8 +125,40 @@ describe("the accounts of a rebuilt index database", () => {
   it("the account's card stays the same one, and no second card appears", async () => {
     const s = scene({ ...emptyAccountMap(), pimLocalToLogical: { "local-xyz": "remote-1" } });
     const card: CloudAccountRecord = { id: "card-1", family: "webdav", label: "me@cloud.example.com", services: { calendar: { pimAccountId: "local-xyz" } } };
-    await restoreAccountsAfterRebuild({ state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) });
+    await restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) });
     const next = reconcileCloudAccounts([card], { pim: s.rows.map((r) => ({ id: r.id, provider: "caldav" as const, label: r.label })), mail: [] });
     expect(next).toEqual([card]);
+  });
+
+  it("held, only what the rebuild took is filled in from the document; what this device says of an account it knows stands", () => {
+    const doc = { calendars: [{ accountId: "remote-1", id: "home", selected: true }, { accountId: "remote-1", id: "work", selected: true }], taskLists: [] };
+    expect(fillHeldAccountField("pimSelections", doc, { calendars: [], taskLists: [] }, new Set()), "nothing known here: the document's").toEqual(doc);
+    expect(fillHeldAccountField("pimSelections", doc, { calendars: [{ accountId: "remote-1", id: "work", selected: false }], taskLists: [] }, new Set())).toEqual({
+      calendars: [{ accountId: "remote-1", id: "home", selected: true }, { accountId: "remote-1", id: "work", selected: false }],
+      taskLists: [],
+    });
+    expect(fillHeldAccountField("pimSelections", doc, { calendars: [], taskLists: [] }, new Set(["remote-1"])), "nothing of an account removed on purpose").toEqual({ calendars: [], taskLists: [] });
+    const accounts = [pim({ id: "remote-1" }), pim({ id: "remote-2", label: "Other", config: { url: "https://other.example.com/dav", user: "x" } })];
+    const here = [pim({ id: "remote-1", label: "Renamed here" })];
+    const filled = fillHeldAccountField("pimAccounts", accounts, here, new Set()) as PimAccountRow[];
+    expect(filled.map((a) => [a.id, a.label]).sort()).toEqual([["remote-1", "Renamed here"], ["remote-2", "Other"]]);
+    expect(fillHeldAccountField("pimAccounts", accounts, here, new Set(["remote-2"]))).toEqual(here);
+  });
+
+  it("where no settings-sync cycle can come, nothing is held after the restore: an account that did not come back is gone here", async () => {
+    const s = scene({ ...emptyAccountMap(), pimLocalToLogical: { "local-xyz": "remote-1" } });
+    await restoreAccountsAfterRebuild({ settingsSyncRuns: false, state: s.state, ports: s.ports, readProfileCopy: async () => null });
+    expect(s.rebuild).toBe("settled");
+    // The card no longer names a calendar that is not here.
+    const card: CloudAccountRecord = { id: "card-1", family: "webdav", label: "me@cloud.example.com", services: { calendar: { pimAccountId: "local-xyz" } } };
+    expect(reconcileCloudAccounts([card], { pim: [], mail: [] })).toEqual([]);
+  });
+
+  it("held at an earlier open, and the settings sync is off since: the attempt is over at the next open", async () => {
+    const s = scene();
+    await restoreAccountsAfterRebuild({ settingsSyncRuns: true, state: s.state, ports: s.ports, readProfileCopy: async () => null });
+    expect(s.rebuild).toBe("held");
+    await restoreAccountsAfterRebuild({ settingsSyncRuns: false, state: s.state, ports: s.ports, readProfileCopy: async () => null });
+    expect(s.rebuild).toBe("settled");
   });
 });

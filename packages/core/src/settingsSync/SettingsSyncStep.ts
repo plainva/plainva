@@ -58,6 +58,13 @@ export interface ProfileSettingsPort {
    * win on every device.
    */
   heldBack?(): Promise<readonly string[]>;
+  /**
+   * For a held field: what this device says of it, from the document's value
+   * and its own export — only what it does not know any more is the
+   * document's; a change it made since is its own. Absent: the document's
+   * value stands as it is.
+   */
+  fillHeldBack?(key: string, documentValue: unknown, exportedValue: unknown): Promise<unknown>;
 }
 
 /**
@@ -296,14 +303,17 @@ export class SettingsSyncStep {
     const local = this.normalizeProfile(scopedLocal);
     // A held field counts as what this device last saw of it, never as an
     // edit (`heldBack`): the document decides, and the result is applied.
-    const current = { ...exported };
+    let current = { ...exported };
     if (opts.held.size > 0) {
       const known = local ? entriesOf(local) : {};
+      const fill = this.options.port.fillHeldBack;
       for (const key of opts.held) {
         const entry = known[key];
-        if (entry && !entry.deleted) current[key] = entry.value;
-        else delete current[key];
+        if (!entry || entry.deleted) delete current[key];
+        else current[key] = fill ? await fill.call(this.options.port, key, entry.value, exported[key]) : entry.value;
       }
+      // In the export's own shape, so that a value nobody changed reads as unchanged.
+      current = this.normalizeValues(current);
     }
     if (localText && !parsedLocal) {
       throw new FatalSyncProtocolError("manifest-invalid", `local settings profile ${path} is malformed`);

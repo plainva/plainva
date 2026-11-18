@@ -39,9 +39,27 @@ export async function restoreAccountsAfterRebuild(input: {
   state: RebuildState;
   readProfileCopy: () => Promise<string | null>;
   ports: AccountImportPorts;
+  /**
+   * Whether a settings-sync cycle can still bring what the copy did not:
+   * the settings sync is on and the vault syncs. Where it cannot, nothing is
+   * held after the restore — an account that did not come back is gone here,
+   * and its card says so instead of keeping it as connected.
+   */
+  settingsSyncRuns: boolean;
 }): Promise<"restored" | "nothing" | "already"> {
-  if ((await input.state.accountsAfterRebuild()) !== null) return "already";
+  const state = await input.state.accountsAfterRebuild();
+  if (state !== null) {
+    // Held at an earlier open, and no cycle can come any more: the attempt is over.
+    if (state === "held" && !input.settingsSyncRuns) await input.state.setAccountsAfterRebuild("settled");
+    return "already";
+  }
   await input.state.setAccountsAfterRebuild("held");
+  const outcome = await restoreFromCopy(input);
+  if (!input.settingsSyncRuns) await input.state.setAccountsAfterRebuild("settled");
+  return outcome;
+}
+
+async function restoreFromCopy(input: { readProfileCopy: () => Promise<string | null>; ports: AccountImportPorts }): Promise<"restored" | "nothing"> {
   const text = await input.readProfileCopy().catch(() => null);
   const doc = parseProfile(text);
   if (!doc) return "nothing";
