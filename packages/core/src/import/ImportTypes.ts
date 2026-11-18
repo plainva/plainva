@@ -9,6 +9,14 @@
  * appear in the wizard, and only those may be described as supported.
  */
 
+/**
+ * The i18n prefixes of the credential guides an API source brings
+ * (`<guideKey>.label`, `.step1`…`.step3`, `.open`, `.notStored`). A closed
+ * list, so the words of each guide are checked in all ten languages (F53 of
+ * release 0.9.0): a new API source adds its prefix here.
+ */
+export type ImportCredentialGuideKey = 'import.notionToken';
+
 export type ImportSourceId =
   | 'obsidian'
   | 'notion_api'
@@ -30,7 +38,6 @@ export type ImportSourceId =
   | 'anytype'
   | 'standard_notes'
   | 'workflowy'
-  | 'dynalist'
   | 'roam_research'
   | 'trilium'
   | 'reflect'
@@ -432,7 +439,7 @@ export interface ImportSource {
    */
   readonly credentials?: {
     readonly url: string;
-    readonly guideKey: string;
+    readonly guideKey: ImportCredentialGuideKey;
     /**
      * The API host this source talks to, as a bare origin.
      *

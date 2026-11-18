@@ -17,12 +17,18 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A folder the user picked through the Storage Access Framework, addressed by
@@ -197,11 +203,104 @@ public class VaultFolderPlugin extends Plugin {
         }
     }
 
+    /** The most one message carries, in bytes before base64 (`BRIDGE_PART_BYTES` in JS). */
+    private static final int MAX_PART = 256 * 1024;
+    /** A read or a write in parts nobody finished (its page went away) is dropped after this long without a call. */
+    private static final long IDLE_MS = 2L * 60L * 1000L;
+
+    /** A read in parts: the copy of the one version that was opened, in the app's cache. */
+    private static final class OpenRead {
+        final File copy;
+        final RandomAccessFile file;
+        volatile long lastUsed = System.currentTimeMillis();
+        OpenRead(File copy, RandomAccessFile file) { this.copy = copy; this.file = file; }
+    }
+
+    /** A write in parts: what was sent so far, in the app's cache, and where it goes. */
+    private static final class OpenWrite {
+        final File parts;
+        final FileOutputStream out;
+        final String handle;
+        final String path;
+        volatile long lastUsed = System.currentTimeMillis();
+        OpenWrite(File parts, FileOutputStream out, String handle, String path) {
+            this.parts = parts; this.out = out; this.handle = handle; this.path = path;
+        }
+    }
+
+    private final Map<String, OpenRead> reads = new ConcurrentHashMap<>();
+    private final Map<String, OpenWrite> writes = new ConcurrentHashMap<>();
+
+    private File partsFolder() {
+        File dir = new File(getContext().getCacheDir(), "vault-folder-parts");
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        return dir;
+    }
+
+    private void dropIdle() {
+        long cutoff = System.currentTimeMillis() - IDLE_MS;
+        for (Map.Entry<String, OpenRead> e : reads.entrySet()) {
+            if (e.getValue().lastUsed < cutoff) dropRead(e.getKey());
+        }
+        for (Map.Entry<String, OpenWrite> e : writes.entrySet()) {
+            if (e.getValue().lastUsed < cutoff) dropWrite(e.getKey());
+        }
+    }
+
+    private void dropRead(String id) {
+        OpenRead read = reads.remove(id);
+        if (read == null) return;
+        try { read.file.close(); } catch (Exception ignored) { /* the copy goes either way */ }
+        //noinspection ResultOfMethodCallIgnored
+        read.copy.delete();
+    }
+
+    private void dropWrite(String id) {
+        OpenWrite write = writes.remove(id);
+        if (write == null) return;
+        try { write.out.close(); } catch (Exception ignored) { /* the parts go either way */ }
+        //noinspection ResultOfMethodCallIgnored
+        write.parts.delete();
+    }
+
+    /**
+     * Empties the parts folder once per process: what a killed process left
+     * there - the whole copy of a note, in clear text, or the parts of a write
+     * that never committed - belongs to no read or write of this one. Off the
+     * plugin thread, as `AtomicFile.sweep`.
+     */
+    @Override
+    public void load() {
+        super.load();
+        final File dir = new File(getContext().getCacheDir(), "vault-folder-parts");
+        new Thread(() -> {
+            File[] left = dir.listFiles();
+            if (left == null) return;
+            for (File file : left) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+        }, "plainva-folder-parts-sweep").start();
+    }
+
+    /**
+     * A file in one answer, up to `maxBytes` (one part when left out): every
+     * call's text is parsed on this app's UI thread, and a whole picture in one
+     * answer froze the app (release list F54, the class of F51). A larger file
+     * is read on, from the same open stream, into a copy in the app's cache -
+     * the one version every part comes from, and a cloud provider fetches the
+     * file once - and the answer is `tooLarge` with the read's id and size.
+     */
     @PluginMethod
     public void read(PluginCall call) {
         String handle = call.getString("handle");
         String path = call.getString("path");
         if (handle == null || path == null) { call.reject("handle and path required"); return; }
+        Long asked = JsNumbers.whole(call, "maxBytes");
+        long max = asked == null || asked < 0 ? MAX_PART : Math.min(asked, MAX_PART);
+        dropIdle();
+        File copy = null;
         try {
             Uri tree = Uri.parse(handle);
             String id = docIdFor(tree, handle, path);
@@ -212,14 +311,71 @@ public class VaultFolderPlugin extends Plugin {
                 ByteArrayOutputStream buf = new ByteArrayOutputStream();
                 byte[] chunk = new byte[64 * 1024];
                 int n;
-                while ((n = in.read(chunk)) > 0) buf.write(chunk, 0, n);
-                JSObject out = new JSObject();
-                out.put("dataBase64", Base64.encodeToString(buf.toByteArray(), Base64.NO_WRAP));
-                call.resolve(out);
+                while ((n = in.read(chunk)) > 0) {
+                    buf.write(chunk, 0, n);
+                    if (buf.size() > max) break;
+                }
+                if (buf.size() <= max) {
+                    JSObject out = new JSObject();
+                    out.put("dataBase64", Base64.encodeToString(buf.toByteArray(), Base64.NO_WRAP));
+                    call.resolve(out);
+                    return;
+                }
+                copy = File.createTempFile("read-", null, partsFolder());
+                try (FileOutputStream out = new FileOutputStream(copy)) {
+                    buf.writeTo(out);
+                    buf = null;
+                    while ((n = in.read(chunk)) > 0) out.write(chunk, 0, n);
+                }
             }
+            RandomAccessFile file = new RandomAccessFile(copy, "r");
+            String readId = UUID.randomUUID().toString();
+            reads.put(readId, new OpenRead(copy, file));
+            JSObject out = new JSObject();
+            out.put("tooLarge", true);
+            out.put("id", readId);
+            out.put("size", file.length());
+            call.resolve(out);
+        } catch (Exception e) {
+            //noinspection ResultOfMethodCallIgnored
+            if (copy != null) copy.delete();
+            call.reject("read failed: " + e.getMessage());
+        }
+    }
+
+    /** At most `length` bytes (never more than one part) from `offset` of an open read, base64. */
+    @PluginMethod
+    public void readPart(PluginCall call) {
+        String id = call.getString("id");
+        OpenRead read = id == null ? null : reads.get(id);
+        Long offset = JsNumbers.whole(call, "offset");
+        Long length = JsNumbers.whole(call, "length");
+        if (read == null || offset == null || length == null || offset < 0 || length < 0) {
+            call.reject("no such read, or no offset and length");
+            return;
+        }
+        try {
+            read.lastUsed = System.currentTimeMillis();
+            byte[] bytes;
+            synchronized (read) {
+                int want = (int) Math.max(0, Math.min(Math.min(length, MAX_PART), read.file.length() - offset));
+                bytes = new byte[want];
+                read.file.seek(offset);
+                read.file.readFully(bytes);
+            }
+            JSObject out = new JSObject();
+            out.put("data", Base64.encodeToString(bytes, Base64.NO_WRAP));
+            call.resolve(out);
         } catch (Exception e) {
             call.reject("read failed: " + e.getMessage());
         }
+    }
+
+    @PluginMethod
+    public void closeRead(PluginCall call) {
+        String id = call.getString("id");
+        if (id != null) dropRead(id);
+        call.resolve(new JSObject());
     }
 
     @PluginMethod
@@ -229,37 +385,108 @@ public class VaultFolderPlugin extends Plugin {
         String data = call.getString("dataBase64");
         if (handle == null || path == null || data == null) { call.reject("handle, path and dataBase64 required"); return; }
         try {
-            Uri tree = Uri.parse(handle);
-            byte[] bytes = Base64.decode(data, Base64.DEFAULT);
-            String existing = docIdFor(tree, handle, path);
-            Uri doc;
-            boolean created = false;
-            if (existing != null) {
-                doc = DocumentsContract.buildDocumentUriUsingTree(tree, existing);
-            } else {
-                String parentId = ensureDir(tree, handle, parentOf(path));
-                Uri parent = DocumentsContract.buildDocumentUriUsingTree(tree, parentId);
-                doc = DocumentsContract.createDocument(getContext().getContentResolver(), parent, mimeFor(path), lastSegment(path));
-                if (doc == null) { call.reject("create failed: " + path); return; }
-                created = true;
-                invalidate(handle);
-            }
-            try (OutputStream out = getContext().getContentResolver().openOutputStream(doc, "wt")) {
-                if (out == null) throw new IllegalStateException("not writable");
-                out.write(bytes);
-                out.flush();
-            } catch (Exception e) {
-                // A document that was created for this write and could not be
-                // filled must not survive as an empty file the tree then shows.
-                if (created) {
-                    try { DocumentsContract.deleteDocument(getContext().getContentResolver(), doc); } catch (Exception ignored) { /* best effort */ }
-                    invalidate(handle);
-                }
-                throw e;
-            }
+            writeDocument(handle, path, new java.io.ByteArrayInputStream(Base64.decode(data, Base64.DEFAULT)));
             call.resolve();
         } catch (Exception e) {
             call.reject("write failed: " + e.getMessage());
+        }
+    }
+
+    /** A write in parts: they gather in the app's cache; the folder's file is touched only at `commit`. */
+    @PluginMethod
+    public void begin(PluginCall call) {
+        String handle = call.getString("handle");
+        String path = call.getString("path");
+        if (handle == null || path == null) { call.reject("handle and path required"); return; }
+        dropIdle();
+        try {
+            File parts = File.createTempFile("write-", null, partsFolder());
+            String id = UUID.randomUUID().toString();
+            writes.put(id, new OpenWrite(parts, new FileOutputStream(parts), handle, path));
+            JSObject out = new JSObject();
+            out.put("id", id);
+            call.resolve(out);
+        } catch (Exception e) {
+            call.reject("write failed: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void append(PluginCall call) {
+        String id = call.getString("id");
+        String data = call.getString("data");
+        OpenWrite write = id == null ? null : writes.get(id);
+        if (write == null || data == null) { call.reject("no such write"); return; }
+        try {
+            write.lastUsed = System.currentTimeMillis();
+            write.out.write(Base64.decode(data, Base64.DEFAULT));
+            call.resolve(new JSObject());
+        } catch (Exception e) {
+            dropWrite(id);
+            call.reject("write failed: " + e.getMessage());
+        }
+    }
+
+    /** Writes the gathered parts over the folder's file, exactly as `write` does with one message. */
+    @PluginMethod
+    public void commit(PluginCall call) {
+        String id = call.getString("id");
+        OpenWrite write = id == null ? null : writes.remove(id);
+        if (write == null) { call.reject("no such write"); return; }
+        try {
+            write.out.close();
+            try (InputStream in = new FileInputStream(write.parts)) {
+                writeDocument(write.handle, write.path, in);
+            }
+            call.resolve(new JSObject());
+        } catch (Exception e) {
+            call.reject("write failed: " + e.getMessage());
+        } finally {
+            try { write.out.close(); } catch (Exception ignored) { /* already closed */ }
+            //noinspection ResultOfMethodCallIgnored
+            write.parts.delete();
+        }
+    }
+
+    @PluginMethod
+    public void abort(PluginCall call) {
+        String id = call.getString("id");
+        if (id != null) dropWrite(id);
+        call.resolve(new JSObject());
+    }
+
+    /**
+     * The bytes of `in` over the document at `path`. SAF has no rename-over:
+     * the document's own stream in "wt" mode; a document created for this
+     * write and not filled is deleted again, so the tree never shows an empty file.
+     */
+    private void writeDocument(String handle, String path, InputStream in) throws Exception {
+        Uri tree = Uri.parse(handle);
+        String existing = docIdFor(tree, handle, path);
+        Uri doc;
+        boolean created = false;
+        if (existing != null) {
+            doc = DocumentsContract.buildDocumentUriUsingTree(tree, existing);
+        } else {
+            String parentId = ensureDir(tree, handle, parentOf(path));
+            Uri parent = DocumentsContract.buildDocumentUriUsingTree(tree, parentId);
+            doc = DocumentsContract.createDocument(getContext().getContentResolver(), parent, mimeFor(path), lastSegment(path));
+            if (doc == null) throw new IllegalStateException("create failed: " + path);
+            created = true;
+            invalidate(handle);
+        }
+        try (OutputStream out = getContext().getContentResolver().openOutputStream(doc, "wt")) {
+            if (out == null) throw new IllegalStateException("not writable");
+            byte[] chunk = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(chunk)) > 0) out.write(chunk, 0, n);
+            out.flush();
+        } catch (Exception e) {
+            if (created) {
+                try { DocumentsContract.deleteDocument(getContext().getContentResolver(), doc); } catch (Exception ignored) { /* best effort */ }
+                invalidate(handle);
+            }
+            throw e;
         }
     }
 

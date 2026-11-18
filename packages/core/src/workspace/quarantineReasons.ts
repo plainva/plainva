@@ -40,9 +40,13 @@ export const QUARANTINE_REASON_FAMILIES: readonly QuarantineReasonFamily[] = [
 ];
 
 /** Families whose entry offers advice beyond the explanation. */
-export const QUARANTINE_HINTED_FAMILIES: readonly QuarantineReasonFamily[] = [
+export const QUARANTINE_HINTED_FAMILIES = [
   "chainGap", "policyUnaccepted", "authorNotActive", "postRevocation", "capability", "payloadMissing", "missingParents", "unreadable", "unknown",
-];
+] as const satisfies readonly QuarantineReasonFamily[];
+/** A family with advice beyond its explanation: the domain of `quarantineReason.<family>.hint`. */
+export type QuarantineHintedFamily = (typeof QUARANTINE_HINTED_FAMILIES)[number];
+export const isQuarantineHintedFamily = (family: QuarantineReasonFamily): family is QuarantineHintedFamily =>
+  (QUARANTINE_HINTED_FAMILIES as readonly QuarantineReasonFamily[]).includes(family);
 
 const MESSAGE_FAMILIES: ReadonlyArray<readonly [RegExp, QuarantineReasonFamily]> = [
   [/chain has a gap/i, "chainGap"],

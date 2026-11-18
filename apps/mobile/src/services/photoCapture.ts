@@ -1,8 +1,8 @@
 import { attachmentFolderFor, uniqueAttachmentPath } from "@plainva/ui";
 import { getMobileSettings } from "./mobileSettings";
+import { Capacitor } from "@capacitor/core";
 import { CameraErrorCode, type MediaResult } from "@capacitor/camera";
 
-type NativeReadResult = { data: string | Blob };
 
 export function isCameraCancellation(error: unknown): boolean {
   const code = String((error as { code?: unknown } | null)?.code ?? "");
@@ -25,16 +25,24 @@ function base64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
-/** Reads the full native result; the Web fallback carries its bytes as thumbnail. */
+/**
+ * A picture's bytes through the WebView's own file server
+ * (`Capacitor.convertFileSrc`), as an `<img>` gets them - never as one base64
+ * answer over the bridge, which Android parses on its UI thread (release
+ * list F54, the class of F51). A camera photo is several megabytes.
+ */
+export async function localFileBytes(uri: string, load: (url: string) => Promise<Response> = (url) => fetch(url)): Promise<Uint8Array> {
+  const response = await load(Capacitor.convertFileSrc(uri));
+  if (!response.ok) throw new Error(`the picture could not be read (${response.status})`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+/** The full picture of a camera or gallery result; the web fallback carries its bytes as thumbnail. */
 export async function mediaResultBytes(
   media: MediaResult,
-  readNative: (uri: string) => Promise<NativeReadResult>,
+  readLocal: (uri: string) => Promise<Uint8Array> = localFileBytes,
 ): Promise<Uint8Array> {
-  if (media.uri) {
-    const { data } = await readNative(media.uri);
-    if (data instanceof Blob) return new Uint8Array(await data.arrayBuffer());
-    return base64ToBytes(data);
-  }
+  if (media.uri) return readLocal(media.uri);
   if (media.thumbnail) return base64ToBytes(media.thumbnail);
   throw new Error("Camera returned neither a file URI nor image data");
 }

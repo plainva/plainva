@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Camera as CameraIcon } from "lucide-react";
 import { Camera } from "@capacitor/camera";
-import { Filesystem } from "@capacitor/filesystem";
 import { Button, Chip, ICON, JournalCaptureField, PlaceStampButton, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, toast, useJournalDayKey, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
@@ -90,7 +89,7 @@ export function JournalCaptureSheet({
     try {
       const photo = await Camera.takePhoto({ quality: 85, includeMetadata: true });
       if (!photo) return;
-      const bytes = await mediaResultBytes(photo, (uri) => Filesystem.readFile({ path: uri }));
+      const bytes = await mediaResultBytes(photo);
       const name = await availablePhotoPath((candidate) => vault.files.exists(candidate), photo);
       await vault.files.writeBinaryFile(name, bytes);
       void vault.reindexPaths([name]);

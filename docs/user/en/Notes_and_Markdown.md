@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-16
+Last updated: 2026-11-17
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -50,7 +50,7 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 - **Fold lists** — clicking the bullet of a list item with nested items folds them; the bullet turns accent-colored and a “…” marks the spot, a second click unfolds. The file never changes. Bullets alternate per level (• ◦ ▪), continuation lines sit exactly under their item's text — on the phone too, where the bullet is the only fold control.
 - **Scroll position** — every note opens where you left it; remembered per device, not synchronized.
 - **Find & replace** inside the current note: `Ctrl+F` (see [Search](Search.md)).
-- **Spell checking** — off by default. Switch it on under **Settings → App → Editor & notes** and misspelled words are underlined in notes, table cells, emails, comments, journal entries and tasks; code, web addresses, keys and passwords are never checked. Plainva uses your system's spell checker and its languages and brings no dictionaries of its own. While it is on, a right-click in such text opens the system's menu with the suggestions instead of Plainva's own; a table cell keeps its table menu. The setting belongs to this device. On Linux, Plainva does not switch on the system WebView's checker yet, so it has no effect there.
+- **Spell checking** — off by default. Switch it on under **Settings → App → Editor & notes** and misspelled words are underlined in notes, table cells, emails, comments, journal entries and tasks; code, web addresses, keys and passwords are never checked. Plainva uses your system's spell checker and its languages and brings no dictionaries of its own. While it is on, a right-click in such text opens the system's menu with the suggestions instead of Plainva's own; a table cell keeps its table menu. The setting belongs to this device. On Linux, the dictionaries come from the system, in the languages the system is set to: if nothing is underlined, install the Hunspell dictionary for your language (for example the package `hunspell-en-us`) and restart Plainva.
 
 ## Links and backlinks
 

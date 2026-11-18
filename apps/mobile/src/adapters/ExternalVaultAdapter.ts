@@ -3,6 +3,7 @@ import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type 
 import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
 import { isMissingFile } from "./fileErrors";
 import { withFolderDeadlines, type FolderDeadlineOptions } from "./folderAnswerDeadline";
+import { BRIDGE_PART_BYTES, withReadTurn } from "../platform/atomicFile";
 
 /**
  * IVaultAdapter over a folder the user picked on the device (external vault
@@ -45,10 +46,6 @@ function bytesToB64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-function utf8ToB64(text: string): string {
-  return bytesToB64(new TextEncoder().encode(text));
-}
-
 /**
  * The file's text as every adapter hands it out — with its byte order mark as
  * the first character, where it has one (`textOfFileBytes`). A plain decoder
@@ -58,8 +55,8 @@ function utf8ToB64(text: string): string {
  * same rule since 2026-10-20: it used to ask the system for the text, and iOS'
  * own decoder skips the mark (see `readTextFile` there).
  */
-function b64ToUtf8(b64: string): string {
-  return textOfFileBytes(b64ToBytes(b64));
+function bytesToText(bytes: Uint8Array): string {
+  return textOfFileBytes(bytes);
 }
 
 /** Same cap as the desktop's walk (`MAX_WALK_DEPTH`, vault_walk.rs). */
@@ -176,22 +173,13 @@ export class ExternalVaultAdapter implements IVaultAdapter {
   }
 
   async readTextFile(path: string): Promise<string> {
-    return this.stored(path, async (rel) => {
-      try {
-        const res = await this.plugin.read({ handle: this.handle, path: rel });
-        return b64ToUtf8(res.dataBase64);
-      } catch (error) {
-        if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
-        throw error;
-      }
-    });
+    return bytesToText(await this.readBinaryFile(path));
   }
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
     return this.stored(path, async (rel) => {
       try {
-        const res = await this.plugin.read({ handle: this.handle, path: rel });
-        return b64ToBytes(res.dataBase64);
+        return await this.readBytes(rel);
       } catch (error) {
         if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
         throw error;
@@ -199,30 +187,119 @@ export class ExternalVaultAdapter implements IVaultAdapter {
     });
   }
 
+  /**
+   * A file's bytes, never more than one part per message (release list F54):
+   * every call's text is parsed on Android's UI thread, and a whole picture
+   * or PDF in one answer froze the app as the ZIP backup did (F51). A file
+   * that fits one part comes in one call; a larger one in parts from the one
+   * version the native side took when it was opened. At most two such reads
+   * at once, as over the sandbox (`withReadTurn`).
+   */
+  private async readBytes(rel: string): Promise<Uint8Array> {
+    return withReadTurn("foreground", async () => {
+      // One open of the file: a larger one goes on into the native side's copy, read below in parts.
+      // A provider that fetches a file to open it (a cloud folder) fetches it once.
+      const small = await this.plugin.read({ handle: this.handle, path: rel, maxBytes: BRIDGE_PART_BYTES });
+      if (!small.tooLarge) return b64ToBytes(small.dataBase64);
+      const { id, size } = small;
+      try {
+        const bytes = new Uint8Array(size);
+        let filled = 0;
+        while (filled < size) {
+          const part = b64ToBytes((await this.plugin.readPart({ id, offset: filled, length: BRIDGE_PART_BYTES })).data);
+          if (part.length === 0 || filled + part.length > size) throw new Error(`${rel} could not be read whole`);
+          bytes.set(part, filled);
+          filled += part.length;
+        }
+        return bytes;
+      } finally {
+        await this.plugin.closeRead({ id }).catch(() => {
+          // silent: a read nobody closes is closed by the plugin after two minutes.
+        });
+      }
+    });
+  }
+
   async writeTextFile(path: string, content: string): Promise<void> {
-    await this.plugin.write({ handle: this.handle, path: await this.realPath(path), dataBase64: utf8ToB64(content) });
+    const bytes = new TextEncoder().encode(content);
+    await this.inOrder([path], async () => this.writeBytes(await this.realPath(path), bytes));
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
-    await this.plugin.write({ handle: this.handle, path: await this.realPath(path), dataBase64: bytesToB64(content) });
+    await this.inOrder([path], async () => this.writeBytes(await this.realPath(path), content));
+  }
+
+  /** What began to write, delete or rename and has not ended: the paths it works on, and its end. */
+  private readonly running: Array<{ keys: string[]; done: Promise<void> }> = [];
+
+  /**
+   * Runs `run` after everything begun before it on `paths`, on a folder above
+   * them or on anything below them - so the last begun is the one that stays,
+   * as over the sandbox (`atomicFile.ts`), across folders too. A large file
+   * goes in several calls; without this a smaller write begun after it reached
+   * its end first and the older file's `commit` overwrote the newer one, and a
+   * folder deleted or renamed while a file below it was still being written
+   * came back at its old place with that file in it (the native commit makes
+   * the folders it needs). Paths that are neither the same nor one inside the
+   * other do not wait for each other.
+   */
+  private inOrder<T>(paths: string[], run: () => Promise<T>): Promise<T> {
+    const keys = [...new Set(paths.map(norm))];
+    const related = (a: string, b: string) => a === b || a === "" || b === "" || a.startsWith(b + "/") || b.startsWith(a + "/");
+    const before = this.running.filter((op) => op.keys.some((k) => keys.some((key) => related(k, key))));
+    const mine = Promise.all(before.map((op) => op.done)).then(run);
+    const entry = { keys, done: mine.then(() => undefined, () => undefined) };
+    this.running.push(entry);
+    void entry.done.then(() => {
+      const at = this.running.indexOf(entry);
+      if (at >= 0) this.running.splice(at, 1);
+    });
+    return mine;
+  }
+
+  /**
+   * Bytes over the file: in one message when they fit one part, otherwise in
+   * parts the native side gathers before it touches the file - a write that
+   * fails part way leaves the folder's file as it was.
+   */
+  private async writeBytes(rel: string, bytes: Uint8Array): Promise<void> {
+    if (bytes.length <= BRIDGE_PART_BYTES) {
+      await this.plugin.write({ handle: this.handle, path: rel, dataBase64: bytesToB64(bytes) });
+      return;
+    }
+    const { id } = await this.plugin.begin({ handle: this.handle, path: rel });
+    try {
+      for (let offset = 0; offset < bytes.length; offset += BRIDGE_PART_BYTES) {
+        await this.plugin.append({ id, data: bytesToB64(bytes.subarray(offset, offset + BRIDGE_PART_BYTES)) });
+      }
+      await this.plugin.commit({ id });
+    } catch (error) {
+      // silent: the write's own failure is rethrown; the gathered parts go with the abort.
+      await this.plugin.abort({ id }).catch(() => {});
+      throw error;
+    }
   }
 
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
-    const rel = await this.realPath(path);
-    this.spellings.forget(norm(path));
-    const info = await this.statOrNull(rel);
-    if (!info) throw new VaultFileNotFoundError(path);
-    await this.plugin.delete({ handle: this.handle, path: rel, recursive: recursive ?? false });
+    await this.inOrder([path], async () => {
+      const rel = await this.realPath(path);
+      this.spellings.forget(norm(path));
+      const info = await this.statOrNull(rel);
+      if (!info) throw new VaultFileNotFoundError(path);
+      await this.plugin.delete({ handle: this.handle, path: rel, recursive: recursive ?? false });
+    });
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    const from = await this.realPath(oldPath);
-    const to = await this.realPath(newPath);
-    if (!(await this.statOrNull(from))) throw new VaultFileNotFoundError(oldPath);
-    if (await this.statOrNull(to)) throw new VaultFileExistsError(newPath);
-    this.spellings.forget(norm(oldPath));
-    this.spellings.forget(norm(newPath));
-    await this.plugin.rename({ handle: this.handle, from, to });
+    await this.inOrder([oldPath, newPath], async () => {
+      const from = await this.realPath(oldPath);
+      const to = await this.realPath(newPath);
+      if (!(await this.statOrNull(from))) throw new VaultFileNotFoundError(oldPath);
+      if (await this.statOrNull(to)) throw new VaultFileExistsError(newPath);
+      this.spellings.forget(norm(oldPath));
+      this.spellings.forget(norm(newPath));
+      await this.plugin.rename({ handle: this.handle, from, to });
+    });
   }
 
   async exists(path: string): Promise<boolean> {

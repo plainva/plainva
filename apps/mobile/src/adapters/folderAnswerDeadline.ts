@@ -139,8 +139,26 @@ export function withFolderDeadlines(plugin: VaultFolderNative, options: FolderDe
     resolve: (opts) => look("resolve", "", deadlines.lookMs, () => plugin.resolve(opts)),
     list: (opts) => look("list", opts.path, deadlines.lookMs, () => plugin.list(opts)),
     stat: (opts) => look("stat", opts.path, deadlines.lookMs, () => plugin.stat(opts)),
-    read: (opts) => look("read", opts.path, deadlines.readMs, () => plugin.read(opts)),
+    read: (opts) => {
+      // A read in parts the deadline gave up on still finishes its copy natively: closed as soon
+      // as it answers, so no copy of a note waits in the cache for the plugin's idle sweep.
+      let abandoned = false;
+      const answer = look("read", opts.path, deadlines.readMs, () => plugin.read(opts).then((result) => {
+        if (abandoned && result.tooLarge) void plugin.closeRead({ id: result.id }).catch(() => {
+          // silent: the plugin's idle sweep closes what this cannot.
+        });
+        return result;
+      }));
+      answer.catch(() => { abandoned = true; });
+      return answer;
+    },
+    readPart: (opts) => plugin.readPart(opts),
+    closeRead: (opts) => plugin.closeRead(opts),
     write: (opts) => plugin.write(opts),
+    begin: (opts) => plugin.begin(opts),
+    append: (opts) => plugin.append(opts),
+    commit: (opts) => plugin.commit(opts),
+    abort: (opts) => plugin.abort(opts),
     delete: (opts) => plugin.delete(opts),
     rename: (opts) => plugin.rename(opts),
     mkdir: (opts) => plugin.mkdir(opts),

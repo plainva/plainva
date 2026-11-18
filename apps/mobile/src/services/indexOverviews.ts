@@ -11,7 +11,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { mConfirmOption } from "./mobileDialogs";
-import { getActiveVaultEntry } from "./vaultRegistry";
+import { phoneTemplateVault } from "./templateVault";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -40,7 +40,8 @@ export async function overviewState(v: MobileVault, folder: string): Promise<Fol
  */
 export async function writeOverview(v: MobileVault, folder: string): Promise<{ path: string; entries: number; overwrote: boolean }> {
   if (!v.queryService) throw new Error("no index");
-  const heading = folder === "" ? (await getActiveVaultEntry()).name || "Plainva" : folder.split("/").pop()!;
+  // The vault's name as the app shows it, the same rule as the desktop's (`templateVaultName`).
+  const heading = folder === "" ? (await phoneTemplateVault()).name : folder.split("/").pop()!;
   const result = await generateIndexForFolder({
     adapter: v.files,
     queryService: v.queryService,
