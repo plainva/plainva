@@ -688,7 +688,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     try {
       setIsUpdating(true);
       setUpdateStatus(t("settings.installingUpdate", "Lade Update herunter und installiere..."));
-      await downloadAndInstallUpdate(updateAvailable);
+      await downloadAndInstallUpdate(
+        updateAvailable,
+        (seconds) => setUpdateStatus(t("settings.updateWaitingForWrites", { seconds })),
+        () => setUpdateStatus(t("settings.installingUpdate", "Lade Update herunter und installiere...")),
+      );
     } catch (e) {
       setIsUpdating(false);
       logDiagnostic("update.install", String(e));

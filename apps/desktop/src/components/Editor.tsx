@@ -71,6 +71,7 @@ import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { requestSaveFlush, type SaveFlushRequest } from "../services/saveFlush";
+import { onBeforeLeaving } from "../services/beforeLeaving";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { applySelectionFormat, baseEmbedText, createInlineBase, folderOf, SelectionToolbar, type FormatAction, type SelectionToolbarPosition } from "@plainva/ui";
 import { BlockMenu } from "./BlockMenu";
@@ -210,17 +211,34 @@ export const Editor: React.FC<{
    * Writes the copy to the vault database, debounced (C34). Persisting is what
    * lets the copy outlive the app; the in-memory park stays the fast path.
    */
+  /** The copy the timer below will write, so the way out can write it at once (O3). */
+  const parkPending = useRef<(() => Promise<void>) | null>(null);
   const schedulePark = (path: string, base: string | null, copy: string, note: string) => {
     if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
-    parkWriteTimer.current = window.setTimeout(() => {
+    const write = async () => {
       parkWriteTimer.current = null;
+      parkPending.current = null;
       const db = vaultContext.queryService?.db;
       if (!db || base === null) return;
-      void parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
-    }, 500);
+      await parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
+    };
+    parkPending.current = write;
+    parkWriteTimer.current = window.setTimeout(() => void write(), 500);
   };
+  // The way out of the window or the app (A7, O3): the save due a second after
+  // the last keystroke and the parked copy due half a second after the last
+  // change happen now, and the window waits for them (`beforeLeaving.ts`).
+  useEffect(() => onBeforeLeaving(async () => {
+    const park = parkPending.current;
+    if (park) {
+      if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
+      await park();
+    }
+    if (activePath) await requestSaveFlush(activePath, vaultPath ?? undefined);
+  }), [activePath, vaultPath]);
   const forgetPark = (path: string) => {
     if (parkWriteTimer.current !== null) { window.clearTimeout(parkWriteTimer.current); parkWriteTimer.current = null; }
+    parkPending.current = null;
     const db = vaultContext.queryService?.db;
     if (db) void clearEditorSuggestion(db, path, vaultPath).catch(reportingTo("suggestions:unpark"));
   };

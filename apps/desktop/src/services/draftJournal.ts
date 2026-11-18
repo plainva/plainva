@@ -16,6 +16,7 @@ import {
 } from "@plainva/ui";
 import { isOwnerWindow } from "./windowContext";
 import { getWindowBus } from "./windowBus";
+import { onBeforeLeaving } from "./beforeLeaving";
 import { checkedReadTextFile } from "../adapters/checkedFilesystem";
 
 /**
@@ -293,6 +294,10 @@ export function flushDraftsOnLeave(page: LeaveEvents, document?: LeaveEvents & {
 }
 
 if (typeof window !== "undefined" && typeof document !== "undefined") flushDraftsOnLeave(window, document);
+// And the way out that waits (A7): the window or the app going asks every
+// surface first (`beforeLeaving.ts`), the journal's buffer among them.
+if (typeof window !== "undefined") onBeforeLeaving(() => flushDrafts());
+
 
 /** What an editor buffered for the note is let go unwritten (its text went to another window). */
 export function dropDraft(vaultPath: string, notePath: string, sessionId: string): void {
