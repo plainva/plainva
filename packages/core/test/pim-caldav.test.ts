@@ -211,7 +211,7 @@ describe("CalDavPimTarget discovery", () => {
     await failing.listCalendars().catch(() => undefined);
     expect(failing.confirmedAccess()).toBeUndefined();
 
-    const bare = new CalDavPimTarget(CREDS, vi.fn(async (_url: string, init?: RequestInit) =>
+    const bare = new CalDavPimTarget(CREDS, vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) =>
       init?.method === "PROPFIND" && (init.headers as Record<string, string>)?.Depth === "0"
         ? new Response("nope", { status: 404 })
         : davRes(HOME_LIST)));
