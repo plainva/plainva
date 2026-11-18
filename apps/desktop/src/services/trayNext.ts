@@ -1,5 +1,6 @@
 import i18n from "@plainva/ui/i18n";
 import { setTrayNext } from "./background";
+import { vaultLabel } from "./vaultNames";
 
 /**
  * The tray's "next up" line, across every open vault (stage D, E7).
@@ -34,9 +35,9 @@ const byVault = new Map<string, TrayEntry>();
  */
 const commentsByVault = new Map<string, number>();
 
-/** Last segment of the path — the same name the vault switcher shows. */
+/** The same name the vault switcher shows: its own where it has one, else its folder's. */
 function vaultName(vaultPath: string): string {
-  return vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? vaultPath;
+  return vaultLabel(vaultPath);
 }
 
 function nextLine(): string {

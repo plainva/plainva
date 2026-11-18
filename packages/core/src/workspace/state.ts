@@ -192,7 +192,12 @@ export interface WorkspaceLocalForkRecord {
   forkId: string;
   originalPath: string;
   forkPath: string;
-  reason: "permission-denied" | "parallel-write" | "path-collision";
+  /**
+   * `kept-local`: a file another device deleted, kept here by a member who
+   * may not put it back for the others — this device's own version, which
+   * nobody refused (review of release 0.9.0).
+   */
+  reason: "permission-denied" | "parallel-write" | "path-collision" | "kept-local";
   createdAt: string;
 }
 
@@ -256,6 +261,15 @@ export interface PreparedWorkspaceMutation {
   revision: WorkspaceRevisionRecord | null;
 }
 
+/** How an entry comes into the workspace's queue. */
+export interface WorkspaceEnqueueOptions {
+  /**
+   * The person confirmed this deletion in the app: the mass-deletion guard
+   * never holds it. Given for an entry already queued, the entry takes it.
+   */
+  confirmed?: boolean;
+}
+
 export interface WorkspaceQueuedMutation {
   id: number;
   operation: WorkspaceQueueOperation;
@@ -265,6 +279,12 @@ export interface WorkspaceQueuedMutation {
   retryCount: number;
   lastError: string | null;
   prepared: PreparedWorkspaceMutation | null;
+  /**
+   * A deletion the person confirmed in the app (`DeletionConfirmation.confirmed`):
+   * when. Null for everything else — a deletion the index or the start-up
+   * reconcile found, which the mass-deletion guard may hold (release 0.9.0 A4).
+   */
+  confirmedAt: number | null;
 }
 
 export interface WorkspacePendingPublication {
@@ -310,6 +330,12 @@ export interface WorkspaceRuntimeMeta {
   operationHeads: Record<string, { sequence: number; operationHash: string }>;
   needsPublication: boolean;
   pendingPublication: WorkspacePendingPublication | null;
+  /**
+   * The newest refused change this device has told the person about
+   * (`EncryptedWorkspaceWorker.onChangesRefused`), the creation time of its
+   * local fork. Optional: older state has told nothing yet.
+   */
+  refusalsReportedThrough?: string | null;
   /** Durable full-rekey cursor. Optional so pre-P8 local state remains readable. */
   rekeyJob?: WorkspaceRekeyJob | null;
   /**
@@ -379,6 +405,22 @@ export interface WorkspaceStateStore {
   getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null>;
   getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null>;
   listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]>;
+  /**
+   * The revision written to `path` with these bytes, when the worker wrote
+   * one there that is not its object's place: a conflict copy, which every
+   * device writes alike (`EncryptedWorkspaceWorker`, review of release 0.9.0).
+   */
+  findRevisionAt(path: string, plaintextSha256: string): Promise<WorkspaceRevisionRecord | null>;
+  /** Where a revision's bytes lie on this device, after the worker moved them to a conflict copy. */
+  setRevisionMaterializedPath(revisionId: string, path: string): Promise<void>;
+  /**
+   * Gives a living object another place without an operation: the path two
+   * objects claimed belongs to one of them on every device alike, and each
+   * device moves the other to its conflict copy by the same rule.
+   */
+  relocateObject(objectId: string, path: string): Promise<void>;
+  /** Retires a folder object that shares its folder with another one: one folder, one object, on every device alike. */
+  retireObject(objectId: string): Promise<void>;
   listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]>;
   /**
    * Every unresolved-marker-free comment of the workspace, for the vault-wide
@@ -433,7 +475,7 @@ export interface WorkspaceStateStore {
    * repeats after something else touched its paths (a write, a deletion, a
    * write again) is queued anew: the worker pushes them in order.
    */
-  enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null): Promise<number>;
+  enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null, options?: WorkspaceEnqueueOptions): Promise<number>;
   /**
    * Lets the store answer for entries owed to its queue for changes already on
    * disk (`WorkspaceQueueingVaultAdapter`, D4): `hasPendingForPath` and
@@ -512,12 +554,34 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     return [...this.objects.values()].filter((value) => includeDeleted || !value.deleted).map(clone).sort((a, b) => a.path.localeCompare(b.path));
   }
   async getObjectByPath(path: string): Promise<WorkspaceObjectRecord | null> {
-    return clone([...this.objects.values()].find((value) => value.path === path) ?? null);
+    const objects = [...this.objects.values()];
+    return clone(objects.find((value) => value.path === path && !value.deleted) ?? objects.find((value) => value.path === path) ?? null);
   }
   async getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null> { return clone(this.objects.get(objectId) ?? null); }
   async getRevision(revisionId: string): Promise<WorkspaceRevisionRecord | null> { return clone(this.revisions.get(revisionId) ?? null); }
   async listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]> {
     return [...this.revisions.values()].filter((entry) => entry.objectId === objectId).map(clone).sort((a, b) => b.sequence - a.sequence || a.revisionId.localeCompare(b.revisionId));
+  }
+  async findRevisionAt(path: string, plaintextSha256: string): Promise<WorkspaceRevisionRecord | null> {
+    const found = [...this.revisions.values()].find((entry) => entry.materializedPath === path && entry.plaintextSha256 === plaintextSha256);
+    return found ? clone(found) : null;
+  }
+  async setRevisionMaterializedPath(revisionId: string, path: string): Promise<void> {
+    const revision = this.revisions.get(revisionId);
+    if (revision) revision.materializedPath = path;
+  }
+  async relocateObject(objectId: string, path: string): Promise<void> {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+    for (const other of this.objects.values()) {
+      if (other.deleted && other.path === path && other.objectId !== objectId) other.path = deletedObjectPath(other.objectId);
+    }
+    object.path = path;
+  }
+  async retireObject(objectId: string): Promise<void> {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+    Object.assign(object, { path: deletedObjectPath(objectId), deleted: true, currentRevisionId: null, payloadHash: null });
   }
   async listComments(targetObjectId: string): Promise<WorkspaceCommentRecord[]> {
     return (await this.listAllComments()).filter((entry) => entry.targetObjectId === targetObjectId);
@@ -629,12 +693,16 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
       ...[...this.owedEntries].flatMap((owed) => owed.owedPaths()),
     ];
   }
-  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
+  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null, options: WorkspaceEnqueueOptions = {}): Promise<number> {
     const target = newPath ?? null;
+    const confirmedAt = options.confirmed ? Date.now() : null;
     const touches = (entry: WorkspaceQueuedMutation) => [entry.path, entry.newPath].some((a) => !!a && [path, target].some((b) => !!b && pathsOverlap(a, b)));
     const newest = [...this.queue].reverse().find(touches);
-    if (newest && !newest.prepared && newest.operation === operation && newest.path === path && (newest.newPath ?? null) === target) return newest.id;
-    const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath: target, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null };
+    if (newest && !newest.prepared && newest.operation === operation && newest.path === path && (newest.newPath ?? null) === target) {
+      if (confirmedAt != null && newest.confirmedAt == null) newest.confirmedAt = confirmedAt;
+      return newest.id;
+    }
+    const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath: target, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null, confirmedAt };
     this.queue.push(item);
     return item.id;
   }
@@ -679,7 +747,13 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
   private commitMutation(mutation: CommitWorkspaceMutation, setCurrent: boolean): void {
     this.operations.set(mutation.operationHash, clone(mutation));
     if (mutation.revision) this.revisions.set(mutation.revision.revisionId, clone(mutation.revision));
-    if (setCurrent) this.objects.set(mutation.object.objectId, clone(mutation.object));
+    if (!setCurrent) return;
+    if (!mutation.object.deleted) {
+      for (const other of this.objects.values()) {
+        if (other.deleted && other.path === mutation.object.path && other.objectId !== mutation.object.objectId) other.path = deletedObjectPath(other.objectId);
+      }
+    }
+    this.objects.set(mutation.object.objectId, clone(mutation.object));
   }
 }
 
@@ -718,6 +792,8 @@ interface QueueRow {
   retry_count: number;
   last_error: string | null;
   prepared_json: string | null;
+  /** Absent on a row a store before release 0.9.0 read (the column is added on open). */
+  confirmed_at?: number | null;
 }
 
 /** A stored anchor, or null. A row written before anchors existed has none. */
@@ -826,6 +902,28 @@ function revisionFromRow(row: RevisionRow): WorkspaceRevisionRecord {
     plaintextSha256: row.plaintext_sha256,
     createdAt: row.created_at ?? undefined,
   };
+}
+
+/**
+ * Where a deleted object's record goes when a living object takes its path:
+ * a note deleted and made again under its name is a new object, and the path
+ * is one object's at a time (`workspace_object.path` is unique). The record
+ * keeps its id, so a late operation on the deleted object still finds it —
+ * the same place a deletion of an object this device never knew is recorded.
+ */
+export function deletedObjectPath(objectId: string): string {
+  return `deleted-${objectId}`;
+}
+
+/** The object's row, after a deleted object holding its path has given it up. */
+function objectWrites(record: WorkspaceObjectRecord) {
+  return [
+    ...(record.deleted ? [] : [{
+      sql: `UPDATE workspace_object SET path = 'deleted-' || object_id WHERE path = ? AND object_id <> ? AND deleted = 1`,
+      params: [record.path, record.objectId],
+    }]),
+    objectWrite(record),
+  ];
 }
 
 function objectWrite(record: WorkspaceObjectRecord) {
@@ -950,7 +1048,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     return rows.map(objectFromRow);
   }
   async getObjectByPath(path: string): Promise<WorkspaceObjectRecord | null> {
-    const row = await this.db.queryOne<ObjectRow>(`SELECT * FROM workspace_object WHERE path = ? LIMIT 1`, [path]);
+    const row = await this.db.queryOne<ObjectRow>(`SELECT * FROM workspace_object WHERE path = ? ORDER BY deleted ASC LIMIT 1`, [path]);
     return row ? objectFromRow(row) : null;
   }
   async getObjectById(objectId: string): Promise<WorkspaceObjectRecord | null> {
@@ -963,6 +1061,22 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async listRevisionsForObject(objectId: string): Promise<WorkspaceRevisionRecord[]> {
     return (await this.db.query<RevisionRow>(`SELECT * FROM workspace_revision WHERE object_id = ? ORDER BY sequence DESC, revision_id`, [objectId])).map(revisionFromRow);
+  }
+  async findRevisionAt(path: string, plaintextSha256: string): Promise<WorkspaceRevisionRecord | null> {
+    const row = await this.db.queryOne<RevisionRow>(`SELECT * FROM workspace_revision WHERE materialized_path = ? AND plaintext_sha256 = ? LIMIT 1`, [path, plaintextSha256]);
+    return row ? revisionFromRow(row) : null;
+  }
+  async setRevisionMaterializedPath(revisionId: string, path: string): Promise<void> {
+    await this.db.execute(`UPDATE workspace_revision SET materialized_path = ? WHERE revision_id = ?`, [path, revisionId]);
+  }
+  async relocateObject(objectId: string, path: string): Promise<void> {
+    await runStatementsAtomic(this.db, [
+      { sql: `UPDATE workspace_object SET path = 'deleted-' || object_id WHERE path = ? AND object_id <> ? AND deleted = 1`, params: [path, objectId] },
+      { sql: `UPDATE workspace_object SET path = ? WHERE object_id = ?`, params: [path, objectId] },
+    ]);
+  }
+  async retireObject(objectId: string): Promise<void> {
+    await this.db.execute(`UPDATE workspace_object SET path = 'deleted-' || object_id, deleted = 1, current_revision_id = NULL, payload_hash = NULL WHERE object_id = ?`, [objectId]);
   }
   async getComment(commentId: string): Promise<WorkspaceCommentRecord | null> {
     const row = await this.db.queryOne<CommentRow>(`SELECT * FROM workspace_comment WHERE comment_id = ? LIMIT 1`, [commentId]);
@@ -1118,23 +1232,26 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
    * yet (`WorkspaceStateStore.enqueue`). The id is the one of that entry,
    * asked by its fields — never "the newest row", which may be another flow's.
    */
-  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
+  async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null, options: WorkspaceEnqueueOptions = {}): Promise<number> {
     const target = newPath ?? null;
+    const confirmedAt = options.confirmed ? Date.now() : null;
     const later = laterTouches([path, target]);
     await this.db.execute(
-      `INSERT INTO workspace_queue (operation,path,new_path,queued_at)
-       SELECT ?,?,?,? WHERE NOT EXISTS (
+      `INSERT INTO workspace_queue (operation,path,new_path,queued_at,confirmed_at)
+       SELECT ?,?,?,?,? WHERE NOT EXISTS (
          SELECT 1 FROM workspace_queue same
           WHERE same.operation = ? AND same.path = ? AND same.new_path IS ? AND same.prepared_json IS NULL
             AND NOT EXISTS (SELECT 1 FROM workspace_queue later WHERE later.id > same.id AND (${later.sql}))
        )`,
-      [operation, path, target, Date.now(), operation, path, target, ...later.params],
+      [operation, path, target, Date.now(), confirmedAt, operation, path, target, ...later.params],
     );
     const row = await this.db.queryOne<{ id: number }>(
       `SELECT id FROM workspace_queue WHERE operation = ? AND path = ? AND new_path IS ? AND prepared_json IS NULL ORDER BY id DESC LIMIT 1`,
       [operation, path, target],
     );
     if (!row) throw new Error("workspace queue insert did not return an id");
+    // The same entry asked for again, now confirmed: it takes the mark.
+    if (confirmedAt != null) await this.db.execute(`UPDATE workspace_queue SET confirmed_at = ? WHERE id = ? AND confirmed_at IS NULL`, [confirmedAt, row.id]);
     // A deletion queued: the index's mark that it was owed goes (R22). After
     // the entry, in its own statement: an app that ends between the two leaves
     // a mark the next sweep finds queued and drops.
@@ -1153,6 +1270,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
       retryCount: row.retry_count,
       lastError: row.last_error,
       prepared: row.prepared_json ? JSON.parse(row.prepared_json) as PreparedWorkspaceMutation : null,
+      confirmedAt: row.confirmed_at ?? null,
     }));
   }
   async reservePrepared(queueId: number, prepared: PreparedWorkspaceMutation, meta: WorkspaceRuntimeMeta): Promise<void> {
@@ -1198,7 +1316,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
         sql: `INSERT OR IGNORE INTO workspace_operation (operation_hash,device_id,sequence,document_json) VALUES (?,?,?,?)`,
         params: [mutation.operationHash, mutation.deviceId, mutation.sequence, mutation.operationDocument],
       },
-      ...(setCurrent ? [objectWrite(mutation.object)] : []),
+      ...(setCurrent ? objectWrites(mutation.object) : []),
       ...trailing,
       { sql: `INSERT INTO workspace_meta (id,state_json) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json`, params: [JSON.stringify(meta)] },
     ]);

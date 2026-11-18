@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { adoptExternalMove, movedFolderLabel, renameBookmarksOnDisk, toast, useMissingFile, type MissingFile } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import type { MobileVault } from "../services/vaultService";
+import { vaultEntryName } from "../services/vaultEntryName";
 
 export interface OpenFileLookupOptions {
   /**
@@ -43,7 +44,7 @@ export function useOpenFileLookup(vault: MobileVault, path: string, opts: OpenFi
     // A screen that cannot navigate offers the file instead of following it.
     follow: opts.onRenamed ? (to) => {
       void getVaultEntry(vault.vaultId).catch(() => null).then((entry) => {
-        toast.info(t("mobile.fileMovedFollowed", { folder: movedFolderLabel(to, entry?.name || t("mobile.vaultLocal")) }));
+        toast.info(t("mobile.fileMovedFollowed", { folder: movedFolderLabel(to, vaultEntryName(entry?.name)) }));
       });
       opts.onRenamed?.(to);
     } : undefined,

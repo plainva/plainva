@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  withoutDeleted,
   activeFolderPath,
   backStep,
   barMark,
@@ -441,5 +442,24 @@ describe("the note a palette command acts on", () => {
     expect(commandNotePath(pushEntry(folder, { kind: "search", path: "" }))).toBeNull();
     // A database is not a note: the note commands do not apply to it.
     expect(commandNotePath(pushEntry(initialNavState("notes"), { kind: "base", path: "X.base" }))).toBeNull();
+  });
+});
+
+describe("a deletion leaves the navigation (review 18.11.)", () => {
+  it("takes the deleted note and everything under a deleted folder out of every stack, and nothing else", () => {
+    let state = initialNavState("notes");
+    state = pushEntry(state, { kind: "folder", path: "Projects" });
+    state = pushEntry(state, { kind: "note", path: "Projects/Plan.md" });
+    state = pushEntry(state, { kind: "note", path: "Projects2/Other.md" });
+    state = pushEntry(state, { kind: "note", path: "Loose.md" });
+    const after = withoutDeleted(state, [{ path: "Projects", isFolder: true }, { path: "Loose.md" }]);
+    expect(after.stacks.notes.map((entry) => entry.path)).toEqual(["Projects2/Other.md"]);
+    // Nothing deleted, nothing changed: the same state, no render.
+    expect(withoutDeleted(after, [{ path: "Elsewhere.md" }])).toBe(after);
+  });
+
+  it("the phone's shell follows every deletion, as the desktop closes the tabs under a deleted path", () => {
+    const app = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "App.tsx"), "utf8");
+    expect(app).toMatch(/useNavFollowsDeletions\(setNav\);/);
   });
 });

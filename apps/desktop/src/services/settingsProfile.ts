@@ -121,6 +121,7 @@ import { pimSecretKey } from "./pim/pimCredentials";
 import { adoptNewBarAreas, BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 import { weekStartKey } from "./weekStartVault";
 import { recoverDesktopAccountRepair, repairDesktopAccounts } from "./accountRepair";
+import { announceVaultFeaturesSaved, FEATURES_SAVED_EVENT } from "./vaultFeaturesRelay";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
 // graph into a service (the same decoupling backupPolicy.ts uses). These MUST
@@ -599,8 +600,11 @@ export async function applyProfileValues(
     window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
     window.dispatchEvent(new CustomEvent(BAR_LAYOUT_CHANGED_EVENT));
     window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT));
-    // The task database among them: its hint and the views read it again (useTaskDatabaseSetting).
-    window.dispatchEvent(new CustomEvent("plainva-features-saved"));
+    // The task database and the daily-note naming among them: their readers
+    // read again (useTaskDatabaseSetting, useDayBoundary), in every window on
+    // this vault (F8 of release 0.9.0).
+    window.dispatchEvent(new CustomEvent(FEATURES_SAVED_EVENT));
+    announceVaultFeaturesSaved(vaultPath);
   }
 }
 

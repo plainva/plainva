@@ -76,7 +76,7 @@ export function publicationInstructionText(
  * Unknown codes fall through unchanged rather than being swallowed by a
  * generic sentence: an error we did not anticipate is still worth reading.
  */
-const PUBLICATION_ERROR_KEYS: Record<string, string> = {
+const PUBLICATION_ERROR_KEYS = {
   "publication-unknown": "publicationUnknown",
   "publication-locked": "publicationLocked",
   "publication-key-missing": "publicationKeyMissing",
@@ -85,7 +85,11 @@ const PUBLICATION_ERROR_KEYS: Record<string, string> = {
   // The guard that stops a publisher revoking their own Owner out of the
   // publication - the red probe showed the core throws nothing without it.
   "member is not a publication recipient": "publicationNotRecipient",
-};
+} as const satisfies Record<string, string>;
+/** A publication error the screen has words for: the domain of `workspaceSecurity.<key>` here (F53). */
+type PublicationErrorKey = (typeof PUBLICATION_ERROR_KEYS)[keyof typeof PUBLICATION_ERROR_KEYS];
+const publicationErrorKey = (raw: string): PublicationErrorKey | undefined =>
+  Object.prototype.hasOwnProperty.call(PUBLICATION_ERROR_KEYS, raw) ? PUBLICATION_ERROR_KEYS[raw as keyof typeof PUBLICATION_ERROR_KEYS] : undefined;
 
 /**
  * Whether a publication error is a note the sanitizer refuses. Such a reason
@@ -122,7 +126,7 @@ export function publicationErrorText(
       paths: refused.join(", "),
     });
   }
-  const key = PUBLICATION_ERROR_KEYS[raw];
+  const key = publicationErrorKey(raw);
   return key ? t(`workspaceSecurity.${key}`, { defaultValue: raw }) : raw;
 }
 

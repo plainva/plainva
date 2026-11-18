@@ -336,8 +336,12 @@ function readingVouches(reading: FileReading, mtime: number): boolean {
  * Whether the file system gave the file a timestamp at all. A file without
  * one (0 or none: Android's folder access for some providers) is never
  * vouched for: two states of it of the same size are told apart by their
- * bytes alone, so a pass over many files compares its hash
- * (`readingStandsUnstamped`) — a cost only such files pay.
+ * bytes alone, so a full scan that compares (`compareUnstamped`) reads it
+ * and compares its hash (`readingStandsUnstamped`) — a cost only such files
+ * pay. That is the first full scan of a session (the vault's open) and a
+ * manual refresh (`MANUAL_REFRESH_TRIGGER`); an automatic refresh, a folder
+ * re-read and the phone's second scan after one that wrote do not, so a
+ * change of the same size is found at the next open at the latest.
  */
 function hasStamp(mtime: number): boolean {
   return Number.isFinite(mtime) && mtime > 0;
@@ -491,6 +495,9 @@ interface IndexedAtScanStart {
   stamp_vouched?: number | null;
 }
 
+/** The trigger of a full scan the person asked for: it compares the files without a timestamp too (`hasStamp`). */
+export const MANUAL_REFRESH_TRIGGER = "manual refresh";
+
 export class VaultIndexer {
   private readonly syncRepo: SyncStateRepository;
   /**
@@ -522,6 +529,8 @@ export class VaultIndexer {
   /** Rows not confirmed yet, by path: the file's timestamp and size, and since when this indexer has seen them (`confirmationDue`). */
   private readonly unconfirmed = new Map<string, { mtime: number; size: number; since: number }>();
   private confirmTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Whether a full scan of this session has compared the files without a timestamp yet (`hasStamp`). */
+  private unstampedCompared = false;
   /** When the timer is due, on the steady clock: one that fires sooner by that clock is set again for the rest (`confirmDue`). */
   private confirmTimerDueAt = 0;
   /** The one run of the indexer's coming back that is under way (`startConfirming`), and whether a timer fired during it. */
@@ -585,13 +594,13 @@ export class VaultIndexer {
    * surely over. Sooner, the pass leaves it, and the indexer comes back to it
    * by itself once the tick is over; a confirmed row is never read for this.
    */
-  private confirmationDue(file: VaultFileInfo, row: ComparedRow, overMany = false): boolean {
+  private confirmationDue(file: VaultFileInfo, row: ComparedRow, compareUnstamped = false): boolean {
     if (!rowUnconfirmed(row)) {
       this.unconfirmed.delete(file.path);
       return false;
     }
-    // Without a timestamp: read by a pass over many — the full scan, a folder re-read — and by no single look.
-    if (!hasStamp(file.mtime)) return overMany;
+    // Without a timestamp: read by a full scan that compares, and by no other pass (`hasStamp`).
+    if (!hasStamp(file.mtime)) return compareUnstamped;
     const now = this.clock();
     const since = this.seenSince(file, now);
     if (now - since >= timestampTickBound(file.mtime)) return true;
@@ -2267,7 +2276,7 @@ export class VaultIndexer {
     }
     const toIndex = [...onDisk.values()].filter((f) => {
       const row = scopedRow.get(f.path);
-      return !rowMatches(row, f) || !!this.owedPaths?.has(f.path) || this.confirmationDue(f, row, true);
+      return !rowMatches(row, f) || !!this.owedPaths?.has(f.path) || this.confirmationDue(f, row);
     });
 
     if (vanished.length === 0 && silent.length === 0 && toIndex.length === 0) return report;
@@ -2456,7 +2465,9 @@ export class VaultIndexer {
   private nextFullScan: Promise<IndexScanReport> | null = null;
 
   private startFullScan(trigger: string): Promise<IndexScanReport> {
-    const run = this.inPass((pass) => this.indexVaultFullInternal(pass))
+    // The files without a timestamp are compared by the session's first full scan and a manual refresh (`hasStamp`).
+    const compareUnstamped = !this.unstampedCompared || trigger === MANUAL_REFRESH_TRIGGER;
+    const run = this.inPass((pass) => this.indexVaultFullInternal(pass, compareUnstamped))
       .then((report) => {
         // Like a failure, not said for a vault that is being closed: a scan
         // past its last look at the signal still gets through, and its
@@ -2562,7 +2573,7 @@ export class VaultIndexer {
     return this.indexVaultFull(trigger);
   }
 
-  private async indexVaultFullInternal(pass: IndexPass): Promise<IndexScanReport> {
+  private async indexVaultFullInternal(pass: IndexPass, compareUnstamped: boolean): Promise<IndexScanReport> {
     const signal = this.options?.scanSignal;
     signal?.throwIfAborted();
     const startedAt = Date.now();
@@ -2579,7 +2590,8 @@ export class VaultIndexer {
     // not go through says so here at the latest.
     const startsEmpty = dbFiles.length === 0;
     try {
-      const report = await this.scanFrom(pass, dbFiles, startsEmpty, startedAt);
+      const report = await this.scanFrom(pass, dbFiles, startsEmpty, startedAt, compareUnstamped);
+      if (compareUnstamped) this.unstampedCompared = true;
       if (!this.options?.hearsNoChanges || report.added + report.changed === 0) return report;
       // Once more, against the rows as they are now (`hearsNoChanges`).
       signal?.throwIfAborted();
@@ -2587,7 +2599,8 @@ export class VaultIndexer {
         `SELECT rowid, path, mtime_local, size_bytes, sha256, stamp_vouched FROM files`
       );
       // A pass of its own: what the first one wrote is what this one judges.
-      const again = await this.scanFrom({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock }, after, false, Date.now());
+      // It does not compare the files without a timestamp again: the first one did (`hasStamp`).
+      const again = await this.scanFrom({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock }, after, false, Date.now(), false);
       return {
         ...again,
         added: report.added + again.added,
@@ -2610,7 +2623,7 @@ export class VaultIndexer {
   }
 
   /** The full scan, against the rows the index held as it began (indexVaultFullInternal). */
-  private async scanFrom(pass: IndexPass, dbFiles: readonly IndexedAtScanStart[], startsEmpty: boolean, startedAt: number): Promise<IndexScanReport> {
+  private async scanFrom(pass: IndexPass, dbFiles: readonly IndexedAtScanStart[], startsEmpty: boolean, startedAt: number, compareUnstamped: boolean): Promise<IndexScanReport> {
     const signal = this.options?.scanSignal;
     const dbFileMap = new Map(dbFiles.map(f => [f.path, f]));
 
@@ -2684,7 +2697,7 @@ export class VaultIndexer {
       // And the size as well; and a row whose timestamp is not confirmed yet
       // is read once more when its tick is over (`readingVouches`).
       const row = dbFileMap.get(file.path);
-      if (rowMatches(row, file) && !this.owedPaths?.has(file.path) && !this.confirmationDue(file, row, true)) continue;
+      if (rowMatches(row, file) && !this.owedPaths?.has(file.path) && !this.confirmationDue(file, row, compareUnstamped)) continue;
       (file.name.endsWith(".md") ? mdToIndex : attachmentsToIndex).push(file);
     }
     const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);

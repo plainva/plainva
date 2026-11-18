@@ -41,7 +41,6 @@ import {
 import { copyPhoneLineLink } from "./services/noteLinkRoute";
 import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
-import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
@@ -72,6 +71,7 @@ import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResu
 import { pickDeviceFiles } from "./services/pickFiles";
 import { editedNoteProperties, recallScrollTop, rememberScrollTop, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { readSelectionVerbs, selectAll, SelectionToolbarSurface, type SelectionToolbarPosition } from "@plainva/ui";
+import { flushDraftOf } from "./services/draftJournal";
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -516,7 +516,8 @@ export function EditorHost({
                 card.className = "pv-card pv-card--embed m-embed-card";
                 if (!resolved) {
                   card.classList.add("is-missing");
-                  card.textContent = t("noteEmbed." + resolvedTarget.status, { target });
+                  // Never "found" here (no path): narrowed so the checker sees the texts it reaches (F53).
+                  card.textContent = t("noteEmbed." + (resolvedTarget.status === "found" ? "missing" : resolvedTarget.status), { target });
                   container.appendChild(card);
                   return;
                 }
@@ -834,6 +835,9 @@ export function EditorHost({
       window.removeEventListener("m-editor-save-confirmed", onSaveConfirmed);
       unregisterCommentEditor();
       stopObservingRounds();
+      // The newest snapshot into the journal at once, then the save: leaving
+      // never waits for the journal's interval (maintainer 17.11.).
+      flushDraftOf(vault, path);
       // The coordinator already owns the pending text — flush it now; the
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path, vault).catch(() => {});
@@ -1407,7 +1411,7 @@ export function EditorHost({
               quality: 85,
             })).results[0];
         if (!photo) return;
-        const bytes = await mediaResultBytes(photo, (uri) => Filesystem.readFile({ path: uri }));
+        const bytes = await mediaResultBytes(photo);
         const name = await availablePhotoPath((candidate) => vault.files.exists(candidate), photo);
         await vault.files.writeBinaryFile(name, bytes);
         void vault.reindexPaths([name]);
