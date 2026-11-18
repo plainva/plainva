@@ -12,6 +12,7 @@ import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingV
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
+import { createSaveFailureTeller, saveFailureReason } from "../../../../packages/ui/src/lib/saveRetry";
 import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
 import { retiredBoot } from "./bootRetirement";
@@ -85,7 +86,7 @@ function harness(vault: MobileVault) {
   const deps = {
     // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
     retiredBoot,
-    vault, createSaveCoordinator, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
+    vault, createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>
       drafts.set(JSON.stringify([v.vaultId, path]), { text, revision }),
@@ -95,7 +96,7 @@ function harness(vault: MobileVault) {
     },
     noteConflict: (path: string, copy: string, vaultId: string) => { conflicts.push({ path, copy, vaultId }); },
     conflictCopyPath: () => { throw new Error("actual conflict path required"); },
-    syncSoon: () => {}, toast: { warning: () => {} }, i18n: { t: (s: string) => s },
+    syncSoon: () => {}, toast: { warning: () => {}, error: () => {} }, i18n: { t: (s: string) => s },
     stopSyncAndDrain: stopped, setActiveVault: activated, reloadMobileSettingsForActiveVault: async () => {},
     startSyncIfConfigured: async () => {}, foreignInputArmed: () => false, takeScreen: () => true,
     window: events, CustomEvent,
