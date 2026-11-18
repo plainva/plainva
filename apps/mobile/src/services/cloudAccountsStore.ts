@@ -1,5 +1,6 @@
 import { sameStoredValue } from "@plainva/core";
 import {
+  accountRemovedHere,
   getPlatformServices,
   reconcileCloudAccounts,
   verifiedProviderIdentityOf,
@@ -10,6 +11,7 @@ import {
 import { listMailAccounts, mailAccountKind } from "@plainva/ui/mail";
 import { listPimAccounts, pimAccountsHeldAfterRebuild } from "./pim/pimService";
 import { getActiveVaultEntry } from "./vaultRegistry";
+import { loadProfileAccountMap } from "./profileAccountMap";
 
 /**
  * The phone's cloud-account registry — a real one, stored per vault, the same
@@ -123,11 +125,13 @@ export async function refreshCloudAccounts(vaultId: string, pimReady: boolean): 
   } else if (await pimAccountsHeldAfterRebuild()) {
     // An index database rebuilt at the start: each account not back yet
     // keeps its card's reference until the settings sync has applied the
-    // document (`restoreAccountsAfterRebuild`), one by one.
+    // document (`restoreAccountsAfterRebuild`), one by one. Not one removed
+    // here: its absence is the removal, not the rebuild.
     const back = new Set(observed.pim.map((p) => p.id));
+    const map = await loadProfileAccountMap(vaultId);
     for (const r of stored) {
       const id = r.services.calendar?.pimAccountId;
-      if (id && !back.has(id)) observed.pim.push({ id, provider: "caldav" as const, label: r.label });
+      if (id && !back.has(id) && !accountRemovedHere(map, "pim", id)) observed.pim.push({ id, provider: "caldav" as const, label: r.label });
     }
   }
   if (!observed.sync && (await getActiveVaultEntry().catch(() => null))?.id !== vaultId) {
