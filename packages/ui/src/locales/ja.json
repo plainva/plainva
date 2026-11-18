@@ -15,6 +15,7 @@
     "grounds": "根拠: {{notes}}",
     "groundsMore": "+{{count}}",
     "unfounded_other": "この回答は {{notes}} を出典にしていますが、そのノートは送信も読み込みもされていません。内容を確認してください。",
+    "unfoundedUnchecked": "この回答が出典にしているノートが送信または読み込まれたかどうかを確認できませんでした。",
     "details": "詳細",
     "copied": "回答をコピーしました",
     "copy": "コピー",

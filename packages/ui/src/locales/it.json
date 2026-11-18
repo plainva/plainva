@@ -19,6 +19,7 @@
     "unfounded_other": "Questa risposta indica {{notes}} come fonti, ma quelle note non sono state né inviate né lette. Verifica le affermazioni.",
     "unfounded_many": "Questa risposta indica {{notes}} come fonti, ma quelle note non sono state né inviate né lette. Verifica le affermazioni.",
     "unfounded_one": "Questa risposta indica {{notes}} come fonte, ma quella nota non è stata né inviata né letta. Verifica l'affermazione.",
+    "unfoundedUnchecked": "Non è stato possibile verificare se le note che questa risposta indica come fonti siano state inviate o lette.",
     "details": "Dettagli",
     "copied": "Risposta copiata",
     "copy": "Copia",

@@ -21,6 +21,7 @@
     "unfounded_many": "Ta odpowiedź podaje {{notes}} jako źródła, ale te notatki nie zostały ani wysłane, ani odczytane. Sprawdź te stwierdzenia.",
     "unfounded_few": "Ta odpowiedź podaje {{notes}} jako źródła, ale te notatki nie zostały ani wysłane, ani odczytane. Sprawdź te stwierdzenia.",
     "unfounded_one": "Ta odpowiedź podaje {{notes}} jako źródło, ale ta notatka nie została ani wysłana, ani odczytana. Sprawdź to stwierdzenie.",
+    "unfoundedUnchecked": "Nie udało się sprawdzić, czy notatki podane w tej odpowiedzi jako źródła zostały wysłane lub odczytane.",
     "details": "Szczegóły",
     "copied": "Skopiowano odpowiedź",
     "copy": "Kopiuj",

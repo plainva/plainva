@@ -1,9 +1,10 @@
 /**
- * Whether a link's target can name a NOTE, by its form alone (review O7,
- * third round) — whether a file of that name is there or not, and the same
- * for a wiki link and a Markdown link. Which note it names is the link
- * rule's to say (`resolveLinkTargetIndexed`, ADR 0027); this only rules out
- * what is no note at all:
+ * Whether a link's target can name a NOTE, by its form alone — asked of a
+ * target that leads nowhere (review O7, fourth round): where it leads is the
+ * link rule's to say first (`resolveLinkTargetIndexed`, ADR 0027), and
+ * `[[Daten.json]]` that opens `Daten.json.md` is that note. For a target
+ * nothing answers, this rules out what meant no note at all, the same for a
+ * wiki link and a Markdown link:
  *
  *  - an address: a scheme in front (`https:`, `mailto:`, `plainva:`), a
  *    drive (`C:\…`), a share (`\\server\…`), or `www.`. A colon with a blank

@@ -158,7 +158,7 @@ test("AI setup on the phone: a key that was refused is fixed in the sheet the ne
   }
 });
 
-test("AI setup on the phone: an own server's address is no unsaved typing, and a corrected one replaces the server (review O7, second round)", async ({ page, context }) => {
+test("AI setup on the phone: an own server's address is no unsaved typing; a new address beside it is a server of its own, a corrected one replaces the one the sheet added (review O7, second and fourth round)", async ({ page, context }) => {
   test.setTimeout(90_000);
   const sql = await installSqlBridge(context);
   // An own server is set up already and has not been asked yet: the setup begins at the first hello.
@@ -168,7 +168,7 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
       JSON.stringify({ enabled: true, providers: [], custom: [{ id: "custom-1", label: "ai.example.org", baseUrl: "https://ai.example.org/v1", api: "openai-chat", local: false }], profiles: {} }),
     );
   });
-  await installSeam(context, [], ["ok", "ok", "ok"]);
+  await installSeam(context, [], ["ok", "ok", "ok", "ok"]);
   await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
   try {
     await page.goto("/");
@@ -179,13 +179,15 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
     const conversation = page.getByTestId("ai-screen");
     await conversation.getByRole("button", { name: "Set up", exact: true }).click();
     const sheet = page.getByTestId("ai-setup-sheet");
+    const stored = () => page.evaluate(() => ((JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { custom?: { id: string; baseUrl: string }[] }).custom ?? []).map((c) => [c.id, c.baseUrl]));
     const current = sheet.getByTestId("ai-setup-steps").locator('li[aria-current="step"]');
     await expect(current).toContainText("Try it");
     // Put away at the first hello: nothing was typed, so nothing is asked.
     await page.locator(".m-sheet-backdrop").click({ position: { x: 8, y: 8 } });
     await expect(sheet).toHaveCount(0);
 
-    // Begun again, back at the way in: the server's address stands there, and correcting it replaces that server.
+    // Begun again, back at the way in: the server's address stands there. A new address is a server beside it — the
+    // one from before is no correction of this sheet's (review O7, fourth round).
     await conversation.getByRole("button", { name: "Set up", exact: true }).click();
     await sheet.getByTestId("ai-setup-back").click();
     await expect(current).toContainText("Access");
@@ -193,8 +195,21 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
     await sheet.getByTestId("ai-setup-address").fill("https://llm.example.org/v1");
     await sheet.getByTestId("ai-setup-next").click();
     await expect(current).toContainText("Try it");
-    const custom = await page.evaluate(() => (JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { custom?: { id: string; baseUrl: string }[] }).custom ?? []);
-    expect(custom.map((c) => [c.id, c.baseUrl])).toEqual([["custom-1", "https://llm.example.org/v1"]]);
+    expect(await stored()).toEqual([
+      ["custom-1", "https://ai.example.org/v1"],
+      ["custom-2", "https://llm.example.org/v1"],
+    ]);
+
+    // Corrected again in the same pass: the server this sheet added is replaced, nothing is added beside it.
+    await sheet.getByTestId("ai-setup-back").click();
+    await expect(sheet.getByTestId("ai-setup-address")).toHaveValue("https://llm.example.org/v1");
+    await sheet.getByTestId("ai-setup-address").fill("https://llm2.example.org/v1");
+    await sheet.getByTestId("ai-setup-next").click();
+    await expect(current).toContainText("Try it");
+    expect(await stored()).toEqual([
+      ["custom-1", "https://ai.example.org/v1"],
+      ["custom-2", "https://llm2.example.org/v1"],
+    ]);
 
     // A provider tried in between, then the server again (review O7, third round): the same address is that server.
     await sheet.getByTestId("ai-setup-back").click();
@@ -210,11 +225,13 @@ test("AI setup on the phone: an own server's address is no unsaved typing, and a
     await sheet.getByTestId("ai-setup-back").click();
     await sheet.getByTestId("ai-setup-kind-server").click();
     await sheet.getByTestId("ai-setup-next").click();
-    await expect(sheet.getByTestId("ai-setup-address")).toHaveValue("https://llm.example.org/v1");
+    await expect(sheet.getByTestId("ai-setup-address")).toHaveValue("https://llm2.example.org/v1");
     await sheet.getByTestId("ai-setup-next").click();
     await expect(current).toContainText("Try it");
-    const after = await page.evaluate(() => (JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { custom?: { id: string; baseUrl: string }[] }).custom ?? []);
-    expect(after.map((c) => [c.id, c.baseUrl])).toEqual([["custom-1", "https://llm.example.org/v1"]]);
+    expect(await stored()).toEqual([
+      ["custom-1", "https://ai.example.org/v1"],
+      ["custom-2", "https://llm2.example.org/v1"],
+    ]);
 
     // The address in the field is a stored one: closing asks nothing.
     await page.locator(".m-sheet-backdrop").click({ position: { x: 8, y: 8 } });

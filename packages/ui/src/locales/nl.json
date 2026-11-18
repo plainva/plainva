@@ -17,6 +17,7 @@
     "groundsMore": "+{{count}}",
     "unfounded_other": "Dit antwoord noemt {{notes}} als bronnen, maar die notities zijn niet verzonden en niet gelezen. Controleer de beweringen.",
     "unfounded_one": "Dit antwoord noemt {{notes}} als bron, maar die notitie is niet verzonden en niet gelezen. Controleer de bewering.",
+    "unfoundedUnchecked": "Of de notities die dit antwoord als bron noemt zijn verzonden of gelezen, kon niet worden gecontroleerd.",
     "details": "Details",
     "copied": "Antwoord gekopieerd",
     "copy": "Kopiëren",

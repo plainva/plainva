@@ -15,6 +15,7 @@
     "grounds": "依据：{{notes}}",
     "groundsMore": "+{{count}}",
     "unfounded_other": "此回答把 {{notes}} 当作来源，但这些笔记既未发送也未读取。请核对相关说法。",
+    "unfoundedUnchecked": "无法核实此回答当作来源的笔记是否已发送或读取。",
     "details": "详情",
     "copied": "回答已复制",
     "copy": "复制",

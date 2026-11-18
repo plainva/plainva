@@ -186,7 +186,6 @@ describe("unfounded note citations", () => {
       ["a wiki link in <pre>", "<pre>[[Pricing 2026]]</pre>"],
       ["a wiki link in <code> over lines", "<code>\n[[Pricing 2026]]\n</code>"],
       ["a wiki link in a code span", "Write `[[Pricing 2026]]`."],
-      ["a wiki link in a formula", "Formula $[[a]]$ ok."],
       ["escaped brackets", "Write \\[\\[Pricing 2026\\]\\]."],
     ];
     const warned: [string, string, string[]][] = [
@@ -196,6 +195,12 @@ describe("unfounded note citations", () => {
       ["a note that is not there", "x [[Ideas 2027]].", ["Ideas 2027"]],
       ["after a <code> that closed", "<code>a</code> [[Pricing 2026]]", ["Pricing 2026"]],
       ["in a list after a <code> of another paragraph", "<code>x\n\n- [[Pricing 2026]]", ["Pricing 2026"]],
+      // Review O7, fourth round: the answer's view shows no formulas, so a `$` changes nothing — a price before a link.
+      ["after a price", "Das kostet $20, siehe [[Pricing 2026]].", ["Pricing 2026"]],
+      ["after an escaped dollar", "US\\$ 5 laut [[Pricing 2026]].", ["Pricing 2026"]],
+      ["in a list item after a price", "- $5 pro Monat: [[Pricing 2026]]", ["Pricing 2026"]],
+      ["as a Markdown link after a price", "Preis 20 $ – mehr in [p](Pricing%202026.md).", ["Pricing 2026.md"]],
+      ["between two dollars, which the view shows as text", "Formula $[[Pricing 2026]]$ ok.", ["Pricing 2026"]],
     ];
     for (const [name, answer] of silent) {
       it(`says nothing of ${name}`, () => {
@@ -209,6 +214,45 @@ describe("unfounded note citations", () => {
         expect(unfoundedNoteCitations(answer, { sent: ["Projects/Website relaunch.md"] })).toEqual(names);
       });
     }
+    // Review O7, fourth round: where a target leads is asked first, as in the editor — a note reached by a dotted or a
+    // colon name, by `www.` or by its title is that note; only a target that leads nowhere is judged by its form.
+    describe("first where it leads", () => {
+      const notes = [
+        ...listed,
+        { path: "Daten.json.md", title: "Daten.json", mode: "note" },
+        { path: "www.example.md", title: "www.example", mode: "note" },
+        { path: "Areas/Alpha.md", title: "Projekt:Alpha", mode: "note" },
+        { path: "Sitzung.mp4.md", title: "Sitzung.mp4", mode: "note" },
+        { path: "Logs.txt.md", title: "Logs.txt", mode: "note" },
+        { path: "Tipps:Tricks.md", title: "Tipps:Tricks", mode: "note" },
+      ];
+      const reached: [string, string][] = [
+        ["[[Daten.json]]", "Daten.json"],
+        ["[[www.example]]", "www.example"],
+        ["[[Projekt:Alpha]]", "Projekt:Alpha"],
+        ["[[Sitzung.mp4]]", "Sitzung.mp4"],
+        ["[[Logs.txt]]", "Logs.txt"],
+        ["[[Tipps:Tricks]]", "Tipps:Tricks"],
+        ["[w](www.example.md)", "www.example.md"],
+      ];
+      for (const [link, name] of reached) {
+        it(`names the note ${link} leads to`, () => {
+          expect(unfoundedNoteCitations(`See ${link}.`, { sent: ["Projects/Website relaunch.md"], vault: notes })).toEqual([name]);
+          // Sent, it is founded.
+          const path = notes.find((file) => file.title === name.replace(/\.md$/, ""))!.path;
+          expect(unfoundedNoteCitations(`See ${link}.`, { sent: [path], vault: notes })).toEqual([]);
+        });
+      }
+      it("an address in a Markdown link is an address, as the editor opens it, even where a note ends so", () => {
+        expect(unfoundedNoteCitations("[site](https://example.com/Pricing%202026)", { sent: [], vault: notes })).toEqual([]);
+      });
+      for (const [name, answer] of silent) {
+        it(`still says nothing of ${name}`, () => {
+          expect(unfoundedNoteCitations(answer, { sent: ["Projects/Website relaunch.md"], vault: notes })).toEqual([]);
+        });
+      }
+    });
+
     it("an answer that cannot hold a link is not read", () => {
       expect(answerMayLink("Three feature pages instead of six.\n\n- Screenshots are missing.")).toBe(false);
       for (const [, answer] of warned) expect(answerMayLink(answer)).toBe(true);

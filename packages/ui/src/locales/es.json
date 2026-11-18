@@ -19,6 +19,7 @@
     "unfounded_other": "Esta respuesta cita {{notes}} como fuentes, pero esas notas no se enviaron ni se leyeron. Comprueba las afirmaciones.",
     "unfounded_many": "Esta respuesta cita {{notes}} como fuentes, pero esas notas no se enviaron ni se leyeron. Comprueba las afirmaciones.",
     "unfounded_one": "Esta respuesta cita {{notes}} como fuente, pero esa nota no se envió ni se leyó. Comprueba la afirmación.",
+    "unfoundedUnchecked": "No se pudo comprobar si las notas que esta respuesta cita como fuente se enviaron o se leyeron.",
     "details": "Detalles",
     "copied": "Respuesta copiada",
     "copy": "Copiar",

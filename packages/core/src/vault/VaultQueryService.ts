@@ -27,7 +27,7 @@ import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
-import { buildLinkTargetIndex, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
+import { buildLinkTargetIndex, linkFilesNamed, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -143,6 +143,9 @@ export interface TaskAnchorRecord {
 
 // The pre-filter of the backlinks; the pickers above the core narrow a list of names with it too.
 export { likeAnySpelling };
+
+/** How many rows of the link list one slice of `linkTargetsNamed`'s pass reads: a few milliseconds' work. */
+const LINK_PASS_SLICE = 5000;
 
 /** A file as the link rule reads it from the index (`VaultQueryService.linkTargets`). */
 export interface LinkTargetRow {
@@ -906,38 +909,22 @@ export class VaultQueryService {
 
   /**
    * The part of `linkTargets()` that these link targets can lead to (review
-   * O7, third round): every file whose name ends one of them — the last part
-   * of the target, for a note with or without `.md`, in any spelling the link
-   * rule reads as the same name — and every note titled as one of them. The
-   * link rule over this list answers as over the whole corpus, since it only
-   * ever chooses among files of the name or the title asked for; the cost
-   * follows the number of targets, not the size of the vault.
+   * O7, fourth round): one read of the list and one pass over it for the
+   * names and titles asked (`linkFilesNamed`) — the link rule over this part
+   * answers as over the whole list. A read, not a search: the list comes back
+   * in a few milliseconds even for a large vault, where a pattern for each
+   * name would read the table once for each. The pass goes in slices with a
+   * breath between them, so a large vault holds the screen up for no frame.
    */
   async linkTargetsNamed(targets: readonly string[]): Promise<LinkTargetRow[]> {
-    const patterns = new Set<string>();
-    for (const raw of targets) {
-      const target = raw.normalize("NFC").trim();
-      const last = target.split(/[/\\]/).pop() ?? "";
-      if (!last) continue;
-      for (const spelling of likeAnySpelling(last.replace(/\.md$/i, ""))) {
-        for (const tail of [spelling, `${spelling}.md`]) {
-          patterns.add(`p:${tail}`);
-          patterns.add(`p:%/${tail}`);
-        }
-      }
-      for (const spelling of likeAnySpelling(target)) patterns.add(`t:${spelling}`);
+    if (!targets.some((target) => target.trim())) return [];
+    const all = await this.linkTargets();
+    const out: LinkTargetRow[] = [];
+    for (let at = 0; at < all.length; at += LINK_PASS_SLICE) {
+      if (at > 0) await new Promise((resolve) => setTimeout(resolve, 0));
+      out.push(...linkFilesNamed(all.slice(at, at + LINK_PASS_SLICE), targets));
     }
-    if (patterns.size === 0) return [];
-    const rows = new Map<string, LinkTargetRow>();
-    const all = [...patterns];
-    // A statement holds at most a few hundred parameters on every engine the shells use.
-    for (let at = 0; at < all.length; at += 400) {
-      const chunk = all.slice(at, at + 400);
-      const where = chunk.map((pattern) => (pattern.startsWith("p:") ? `path LIKE ? ESCAPE '\\'` : `title LIKE ? ESCAPE '\\'`)).join(" OR ");
-      const found = await this.db.query<LinkTargetRow>(`SELECT path, title, mode FROM files WHERE (is_deleted IS NULL OR is_deleted = 0) AND (${where})`, chunk.map((pattern) => pattern.slice(2)));
-      for (const row of found) rows.set(row.path, row);
-    }
-    return [...rows.values()];
+    return out;
   }
 
   /**

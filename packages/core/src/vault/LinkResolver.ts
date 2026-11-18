@@ -220,6 +220,65 @@ export function buildLinkTargetIndex(files: readonly (string | LinkCorpusFile)[]
 }
 
 /**
+ * The files of `files` that these link targets can lead to — by the wiki rule
+ * or the Markdown rule, read from any note (review O7, fourth round): every
+ * file whose name is the last part of a target, as it is or as a note
+ * (`.md`), the `index.md` of a folder a target names, and every note whose
+ * title is a target — each by the very keys the index files them under
+ * (`nameKey`, a title trimmed). Every lookup of the rule for a file asks one
+ * of those keys, so over this part it finds the file it finds over all of
+ * `files`; only a folder without an `index.md` is known to the whole alone
+ * (its files are in no part), and leads to no file either way. One pass, and
+ * no index of the whole: a few targets keep a few files.
+ */
+export function linkFilesNamed<F extends LinkCorpusFile>(files: readonly F[], targets: readonly string[]): F[] {
+  const names = new Set<string>();
+  const titles = new Set<string>();
+  for (const raw of targets) {
+    const query = raw.normalize("NFC").trim();
+    if (!query) continue;
+    titles.add(nameKey(query));
+    const last = lastSegment(query);
+    if (last === "" || last === "." || last === "..") names.add("index.md");
+    else {
+      names.add(nameKey(last));
+      if (!NOTE_EXTENSION.test(last)) names.add(nameKey(`${last}.md`));
+    }
+  }
+  if (names.size === 0 && titles.size === 0) return [];
+  // Lowercasing plain ASCII keeps its length: a name of none of the lengths asked is passed over without a key.
+  const nameLengths = new Set([...names].map((key) => key.length));
+  const titleLengths = new Set([...titles].map((key) => key.length));
+  const out: F[] = [];
+  for (const file of files) {
+    const path = file?.path;
+    if (typeof path !== "string" || !path) continue;
+    const name = lastSegment(path);
+    if (names.has(keyFor(name, nameLengths))) {
+      out.push(file);
+      continue;
+    }
+    const title = file.title;
+    if (typeof title !== "string" || title === "" || !NOTE_EXTENSION.test(name)) continue;
+    // A title that is the file's name is filed under no title (`buildLinkTargetIndex`): nothing to find by it.
+    if (title.length === name.length - 3 && name.startsWith(title)) continue;
+    if (titles.has(keyFor(title.trim(), titleLengths))) out.push(file);
+  }
+  return out;
+}
+
+/**
+ * `nameKey`, or "" where a text of plain ASCII has none of `lengths` — and so
+ * no key that is asked for. Quicker only: every text keyed is keyed as the
+ * index keys it.
+ */
+function keyFor(text: string, lengths: ReadonlySet<number>): string {
+  if (NON_ASCII.test(text)) return nameKey(text);
+  return lengths.has(text.length) ? text.toLowerCase() : "";
+}
+const NON_ASCII = /[\u0080-\uffff]/;
+
+/**
  * One of several files that answer to a name.
  *
  * `written` is the link's own spelling of the end of the path it names; a

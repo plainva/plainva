@@ -68,11 +68,10 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
   });
   const [choosingModel, setChoosingModel] = useState(false);
   const settings = state.settings;
-  /**
-   * The server this setup works on, as stored: the one tried last, else the one it began with — also after a provider
-   * was tried in between (review O7, third round: server, cloud, server again made a second server of the same address).
-   */
-  const server = settings.custom.find((c) => c.id === providerId) ?? settings.custom.find((c) => c.id === start.providerId) ?? null;
+  // The server this sheet added itself, in this pass — the only one a corrected address may replace (review O7, fourth
+  // round): a server that was there when it opened stays, and a new address beside it is a server of its own.
+  const [madeHere, setMadeHere] = useState<string | null>(null);
+  const server = madeHere ? (settings.custom.find((c) => c.id === madeHere) ?? null) : null;
   // A key typed, or an address no stored server has, is asked about before the sheet goes (review O7, second round): a
   // server's own address shown to be corrected is nothing unsaved.
   const typedAddress = address.trim() ? (normalizeBaseUrl(address)?.baseUrl ?? address.trim()) : "";
@@ -129,12 +128,13 @@ export function AiSetupSheet({ onClose }: { onClose: () => void }) {
           await tested(same.id);
           return;
         }
-        // A corrected address replaces the server it corrects (review O7, second round): the broken one does not stay
-        // in the list beside a second.
+        // A corrected address replaces the server this sheet added for it (review O7, second and fourth round): the
+        // broken one does not stay beside a second — a server from before is no correction of this sheet's to make.
         const id = server?.id ?? customEndpointId(settings.custom.map((c) => c.id));
         // The system's own confirmation names the address before anything can go there (as on the settings page).
         const added = await session.addCustom(new URL(normalized.baseUrl).host, normalized.baseUrl, id, normalized.local);
         if (!added) return;
+        setMadeHere(id);
         // The address stays in the field: if the server cannot answer, it is there to be corrected.
         await tested(id);
       }

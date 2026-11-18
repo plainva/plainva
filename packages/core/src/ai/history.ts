@@ -159,6 +159,12 @@ export interface RunMeta {
    * `RUN_UNFOUNDED_CAP`; absent when there were none.
    */
   unfounded?: string[];
+  /**
+   * The check above could not be made (review O7, fourth round): the vault
+   * did not answer in time, or failed. Absent where it was made — with or
+   * without a finding — or there was nothing to check.
+   */
+  unfoundedUnchecked?: true;
 }
 
 /** How many unfounded citations a run keeps: the warning names a few; the rest is the same finding. */
@@ -559,6 +565,7 @@ function readRun(raw: unknown): RunMeta[] {
       ...(readRunWrites(r.writes) ? { writes: readRunWrites(r.writes)! } : {}),
       ...(readRunScripts(r.scripts) ? { scripts: readRunScripts(r.scripts)! } : {}),
       ...(strings(r.unfounded).length ? { unfounded: strings(r.unfounded).slice(0, RUN_UNFOUNDED_CAP) } : {}),
+      ...(r.unfoundedUnchecked === true ? { unfoundedUnchecked: true as const } : {}),
     },
   ];
 }

@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as core from "@plainva/core";
 import { mcpSession, turn } from "./mcpSessionHarness";
+
+// The parser of an answer's links, watched (review O7, fourth round): an answer that cannot hold a link is not read.
+vi.mock("@plainva/core", async (original) => {
+  const actual = await original<typeof import("@plainva/core")>();
+  return { ...actual, answerNoteLinks: vi.fn(actual.answerNoteLinks) };
+});
 
 /**
  * The warning under an answer (plan Oberfläche O7, E2; review O7, second round): which notes an answer names as its
@@ -24,19 +31,24 @@ describe("the notes an answer names without the conversation having had them", (
     };
     expect(await s.send("What do the notes say?")).toEqual({ kind: "answered" });
     expect(s.getState().active!.runs[0]!.unfounded).toEqual(["Pricing 2026", "Node.js"]);
-    // The vault was asked once, for the links that can name a note — never for its whole list (review O7, third round).
-    expect(asked).toEqual([["Pricing 2026", "Node.js"]]);
+    // The vault was asked once, for the answer's links — where each leads is the vault's to say first (review O7,
+    // fourth round) —, never for its whole list.
+    expect(asked).toEqual([["diagram.png", "Pricing 2026", "Node.js"]]);
   });
 
-  it("an answer that cites nothing carries no finding, and the vault is not asked", async () => {
-    const { s, vault } = await mcpSession([turn({ text: "Three feature pages instead of six, see https://example.com." })]);
+  it("an answer that cannot hold a link is not read, and the vault is not asked", async () => {
+    // Brackets and a parenthesis, but no link: what only `answerMayLink` keeps from the parser.
+    const { s, vault } = await mcpSession([turn({ text: "Three feature pages instead of six (see the [draft] plan), and https://example.com." })]);
     let asked = 0;
     vault.host.linkFilesFor = async () => {
       asked++;
       return [];
     };
+    vi.mocked(core.answerNoteLinks).mockClear();
     expect(await s.send("Summarize.")).toEqual({ kind: "answered" });
     expect(s.getState().active!.runs[0]!.unfounded).toBeUndefined();
+    expect(s.getState().active!.runs[0]!.unfoundedUnchecked).toBeUndefined();
+    expect(vi.mocked(core.answerNoteLinks)).not.toHaveBeenCalled();
     expect(asked).toBe(0);
   });
 
@@ -62,12 +74,48 @@ describe("the notes an answer names without the conversation having had them", (
     expect(saved[saved.length - 1]).toEqual(["Pricing 2026"]);
   });
 
-  it("a vault whose files cannot be listed now is asked as if it had only what the conversation had", async () => {
+  it("what the user chose while it was checked is in what lies on disk with the finding — the title, what goes redacted", async () => {
+    const { s, vault } = await mcpSession([turn({ text: "See [[Pricing 2026]]." })]);
+    let answer: (() => void) | null = null;
+    let asking = 0;
+    vault.host.linkFilesFor = () =>
+      new Promise((resolve) => {
+        asking++;
+        answer = () => resolve([]);
+      });
+    const sending = s.send("And the prices?");
+    await expect.poll(() => asking).toBe(1);
+    const id = s.getState().active!.id;
+    // Chosen while the check waits for the vault: they go onto the stored conversation (`storeChoice`).
+    await s.rename(id, "Prices, checked");
+    await s.toggleRedact("Projects/Offer.md");
+    answer!();
+    expect(await sending).toEqual({ kind: "answered" });
+    const stored = await vault.host.conversations.load(id);
+    expect(stored!.title).toBe("Prices, checked");
+    expect(stored!.redact).toEqual(["Projects/Offer.md"]);
+    expect(stored!.runs[stored!.runs.length - 1]!.unfounded).toEqual(["Pricing 2026"]);
+  });
+
+  it("a vault whose files cannot be listed now leaves the run marked as not checked — never as nothing found", async () => {
     const { s, vault } = await mcpSession([turn({ text: "See [[Pricing 2026]]." })]);
     vault.host.linkFilesFor = async () => {
       throw new Error("index closed");
     };
     expect(await s.send("And the prices?")).toEqual({ kind: "answered" });
-    expect(s.getState().active!.runs[0]!.unfounded).toEqual(["Pricing 2026"]);
+    const run = s.getState().active!.runs[0]!;
+    expect(run.unfounded).toBeUndefined();
+    expect(run.unfoundedUnchecked).toBe(true);
+    const stored = await vault.host.conversations.load(s.getState().active!.id);
+    expect(stored!.runs[0]!.unfoundedUnchecked).toBe(true);
   });
+
+  it("a vault that does not answer in time leaves the run marked as not checked, and the run ends", async () => {
+    const { s, vault } = await mcpSession([turn({ text: "See [[Pricing 2026]]." })]);
+    vault.host.linkFilesFor = () => new Promise(() => undefined);
+    expect(await s.send("And the prices?")).toEqual({ kind: "answered" });
+    const run = s.getState().active!.runs[0]!;
+    expect(run.unfounded).toBeUndefined();
+    expect(run.unfoundedUnchecked).toBe(true);
+  }, 10_000);
 });

@@ -19,6 +19,7 @@
     "unfounded_other": "Esta resposta cita {{notes}} como fontes, mas essas notas não foram enviadas nem lidas. Confira as afirmações.",
     "unfounded_many": "Esta resposta cita {{notes}} como fontes, mas essas notas não foram enviadas nem lidas. Confira as afirmações.",
     "unfounded_one": "Esta resposta cita {{notes}} como fonte, mas essa nota não foi enviada nem lida. Confira a afirmação.",
+    "unfoundedUnchecked": "Não foi possível verificar se as notas que esta resposta cita como fonte foram enviadas ou lidas.",
     "details": "Detalhes",
     "copied": "Resposta copiada",
     "copy": "Copiar",

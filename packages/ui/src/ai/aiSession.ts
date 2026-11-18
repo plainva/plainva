@@ -7641,27 +7641,34 @@ export class AiSession {
    * round): an answer that cannot hold one is not read, and the vault is asked only for the files those links can
    * name. A vault that cannot answer now is asked as if it had only what the conversation had.
    */
-  private async unfoundedOf(vault: AiVaultHost, runs: readonly RunMeta[], turns: readonly Turn[], pack: ContextPackage): Promise<string[]> {
+  /**
+   * What the run's answer names as a source the conversation never had
+   * (plan Oberfläche O7, E2) — or that this could not be checked: the vault
+   * did not give the files these links can name in time, or failed. Without
+   * a link, nothing is asked.
+   */
+  private async unfoundedOf(vault: AiVaultHost, runs: readonly RunMeta[], turns: readonly Turn[], pack: ContextPackage): Promise<{ unfounded: string[]; unchecked: boolean }> {
+    const none = { unfounded: [], unchecked: false };
     const answer = turns
       .filter((turn) => turn.role === "assistant")
       .flatMap((turn) => turn.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])))
       .join("\n\n");
-    if (!answerMayLink(answer)) return [];
+    if (!answerMayLink(answer)) return none;
     const grounding = conversationGrounding(runs, runs.length - 1, pack.refs.find((ref) => ref.reasons.includes("active"))?.path);
-    if (grounding.readMore) return [];
+    if (grounding.readMore) return none;
     const links = answerNoteLinks(answer);
-    if (links.length === 0) return [];
-    // A vault that does not answer in time says nothing: the run ends, and an unknown is no finding.
+    if (links.length === 0) return none;
+    if (!vault.linkFilesFor) return { unfounded: unfoundedAmong(links, grounding).slice(0, RUN_UNFOUNDED_CAP), unchecked: false };
+    // A guard against a vault that hangs, not a budget: the files come in milliseconds. Late or failed, the run
+    // says it was not checked — never "nothing found" (review O7, fourth round).
     const late = Symbol("late");
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const files = vault.linkFilesFor
-      ? await Promise.race([
-          vault.linkFilesFor([...new Set(links.map((link) => link.target))]).catch(() => undefined),
-          new Promise<typeof late>((resolve) => (timer = setTimeout(() => resolve(late), UNFOUNDED_CHECK_MS))),
-        ]).finally(() => clearTimeout(timer))
-      : undefined;
-    if (files === late) return [];
-    return unfoundedAmong(links, files ? { ...grounding, vault: files } : grounding).slice(0, RUN_UNFOUNDED_CAP);
+    const files = await Promise.race([
+      vault.linkFilesFor([...new Set(links.map((link) => link.target))]).catch((): typeof late => late),
+      new Promise<typeof late>((resolve) => (timer = setTimeout(() => resolve(late), UNFOUNDED_CHECK_MS))),
+    ]).finally(() => clearTimeout(timer));
+    if (files === late) return { unfounded: [], unchecked: true };
+    return { unfounded: unfoundedAmong(links, { ...grounding, vault: files }).slice(0, RUN_UNFOUNDED_CAP), unchecked: false };
   }
 
   private async execute(input: {
@@ -7895,9 +7902,14 @@ export class AiSession {
         // The notes the answer names as its source that the conversation never had (plan Oberfläche O7, E2): checked
         // once, after the run is written — it cannot hold the run up (review O7, third round) —, and before the run
         // ends, so no other run of this conversation can be written in between. Never while the screen draws.
-        const unfounded = await this.unfoundedOf(vault, record.runs, result.conversation.turns.slice(userTurn + 1), pack).catch(() => []);
-        if (unfounded.length) {
-          record = { ...record, runs: record.runs.map((meta, index) => (index === record.runs.length - 1 ? { ...meta, unfounded } : meta)) };
+        const check = await this.unfoundedOf(vault, record.runs, result.conversation.turns.slice(userTurn + 1), pack).catch(() => ({ unfounded: [], unchecked: true }));
+        if (check.unfounded.length || check.unchecked) {
+          // Onto the conversation as it is stored NOW (review O7, fourth round): a title, a pin, what goes redacted or a
+          // model chosen while it was checked went onto `entry.stored` (`storeChoice`) — never back to the run's own copy.
+          const finding = check.unfounded.length ? { unfounded: check.unfounded } : { unfoundedUnchecked: true as const };
+          const stored = entry.stored ?? record;
+          const at = stored.runs.length - 1;
+          record = { ...stored, runs: stored.runs.map((meta, index) => (index === at ? { ...meta, ...finding } : meta)) };
           entry.stored = record;
           if (!this.gone(record.id) && this.state.active?.id === record.id) this.set({ active: this.withUserChoices(record, entry) });
           await this.write(vault, record);

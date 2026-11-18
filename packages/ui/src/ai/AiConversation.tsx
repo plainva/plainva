@@ -409,6 +409,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     if (run.mcp?.calls.length) parts.push(t("ai.ext.runCalls", { n: run.mcp.calls.length }));
     if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
     if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
+    // The check for sources the conversation never had could not be made (review O7, fourth round): said, not taken for "none".
+    if (run.unfoundedUnchecked) parts.push(t("ai.unfoundedUnchecked"));
     return parts.join(" · ");
   };
   /**

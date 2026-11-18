@@ -17,6 +17,7 @@
     "groundsMore": "+{{count}}",
     "unfounded_other": "This answer names {{notes}} as sources, but those notes were neither sent nor read. Check the statements.",
     "unfounded_one": "This answer names {{notes}} as a source, but that note was neither sent nor read. Check the statement.",
+    "unfoundedUnchecked": "Whether the notes this answer names as sources were sent or read could not be checked.",
     "details": "Details",
     "copied": "Answer copied",
     "copy": "Copy",

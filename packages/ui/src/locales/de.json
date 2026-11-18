@@ -17,6 +17,7 @@
     "groundsMore": "+{{count}}",
     "unfounded_other": "Diese Antwort nennt {{notes}} als Quellen, aber diese Notizen wurden weder gesendet noch gelesen. Prüfe die Aussagen.",
     "unfounded_one": "Diese Antwort nennt {{notes}} als Quelle, aber diese Notiz wurde weder gesendet noch gelesen. Prüfe die Aussage.",
+    "unfoundedUnchecked": "Ob die als Quelle genannten Notizen gesendet oder gelesen wurden, ließ sich nicht prüfen.",
     "details": "Einzelheiten",
     "copied": "Antwort kopiert",
     "copy": "Kopieren",
