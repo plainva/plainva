@@ -42,6 +42,12 @@ describe("both shells follow it", () => {
     expect(hook).toMatch(/if \(alive && follow\(naming\)\) refresh\(\);/);
   });
 
+  it("every desktop window that shows task lists or databases follows it, the auxiliary one too (review 17.11.)", () => {
+    // AppShell draws the main and every full window; AuxApp draws TasksView and BaseViewer in an auxiliary one.
+    expect(source("apps/desktop/src/components/AuxPane.tsx")).toMatch(/TasksView|BaseViewer/);
+    for (const shell of ["apps/desktop/src/AppShell.tsx", "apps/desktop/src/AuxApp.tsx"]) expect(source(shell)).toMatch(/\buseDayBoundary\(\);/);
+  });
+
   it("the phone follows the settings while the vault is open, and stops with it", () => {
     const vault = source("apps/mobile/src/services/vaultService.ts");
     expect(vault).toMatch(/followDailyNaming\(/);
