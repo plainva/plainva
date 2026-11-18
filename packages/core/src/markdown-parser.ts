@@ -204,8 +204,29 @@ function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly Bound
         }
       }
     }
+    // What the parse of the table as text made a link (an autolink literal: a URL, an e-mail address)
+    // is a link the rows give again: it gives up its place to its text, so that no link counts twice
+    // (review, 2026-11-18: each URL of such a table stood in the index twice).
+    unwrapLinksIn(holder, range.from, range.to);
     holder.children = [...(holder.children ?? []), ...found];
   }
+}
+
+/** Each link under `node` that starts in `from`..`to` replaced by its children (an image, which has none, goes). */
+function unwrapLinksIn(node: LinkNode, from: number, to: number): void {
+  if (!node.children) return;
+  const kept: LinkNode[] = [];
+  for (const child of node.children) {
+    const at = child.position?.start.offset;
+    if (LINK_TYPES.has(child.type) && at !== undefined && at >= from && at < to) {
+      unwrapLinksIn(child, from, to);
+      kept.push(...(child.children ?? []));
+      continue;
+    }
+    unwrapLinksIn(child, from, to);
+    kept.push(child);
+  }
+  node.children = kept;
 }
 
 export function parseMarkdownAst(

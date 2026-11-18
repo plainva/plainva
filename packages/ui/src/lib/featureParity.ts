@@ -733,22 +733,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-29",
   },
   {
-    id: "reader-math-budget",
-    title: "Every formula of a note laid out in the reading view, however many it holds",
-    area: "editor",
-    kind: "decision",
-    desktop: "partial",
-    desktopReason:
-      "The desktop's reading view is one React page of the whole note, and KaTeX lays out " +
-      "every formula of it at once: a note of a thousand formulas ran the view out of " +
-      "memory (Gesamtplan Leistung L13, 2026-11-17). So it lays them out in the order of " +
-      "the note until what KaTeX made reaches a budget (readerMathBudget.ts), shows the " +
-      "rest as their source and says so at the top. The phone's read mode is the editor " +
-      "in read-only mode, which lays out only the formulas in view, so it needs no budget.",
-    mobile: "yes",
-    verified: "2026-11-18",
-  },
-  {
     id: "spell-checking",
     title: "Spell checking in the writing surfaces",
     area: "editor",

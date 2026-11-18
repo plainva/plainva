@@ -124,7 +124,8 @@ jobs:
       # shape: it goes into `--check` as a fixed shape, and the weights are
       # calibrated anew (Performance_Notes.md, "Many tables in one note").
       # The reading view is run as the core can run it: the note prepared
-      # (`prepareReaderSource`), GFM, and remark-math with KaTeX; the desktop
+      # (`prepareReaderSource`), GFM, remark-math and its HTML tree, without
+      # KaTeX's layout of the formulas (the desktop's, L14); the desktop
       # app's tag pills and highlights are held by a unit test of their own
       # (`readerTableBudget.test.tsx`), React and the DOM not at all.
       - name: Tables at the budget under a capped heap

@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-18
+Last updated: 2026-11-16
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -170,7 +170,7 @@ A daily note can also hold a **journal**: short entries with a time (`- 14:05 Te
 - **Task checkboxes**: `- [ ] task` renders as a checkbox everywhere — and in **read mode** you can click it: Plainva writes `[x]` or `[ ]` back into the file. A done task is shown muted and struck through — in the note just as in the task view.
 - **Callouts**: a quote that starts with `> [!tip] Title` (or any of the 13 variants from the slash menu) is drawn as one card — a fine line in the callout's colour, a light tint and the title in that colour; without a title the card shows the name of its variant. It looks the same in the live preview, in read mode and on the phone; a plain quote keeps its bar.
 - **Nested lists**: from the second level on, a fine line under each parent bullet shows which items belong together — in the live preview and in read mode.
-- **Math (LaTeX)**: `$E = mc^2$` inline and `$$…$$` as a block render as formulas in read mode AND in the live preview (KaTeX). With the caret inside a formula you see the syntax; clicking a rendered formula opens it for editing. Only source mode always shows the raw syntax. You do not have to memorize the `$$…$$` block — the **Formula (LaTeX)** slash command (`/katex`) inserts it and places the caret inside. If a note holds a great many formulas, read mode on the desktop lays out as many as it can hold at once, shows the rest as their source and says so at the top of the note; the editor shows all of them.
+- **Math (LaTeX)**: `$E = mc^2$` inline and `$$…$$` as a block render as formulas in read mode AND in the live preview (KaTeX). With the caret inside a formula you see the syntax; clicking a rendered formula opens it for editing. Only source mode always shows the raw syntax. You do not have to memorize the `$$…$$` block — the **Formula (LaTeX)** slash command (`/katex`) inserts it and places the caret inside.
 - **Mermaid diagrams**: a code block with the language `mermaid` (fastest via the **Mermaid diagram** slash command, `/mermaid`) is drawn as a diagram in read mode and in the live preview — clicking the diagram shows the code for editing:
 
   ````markdown

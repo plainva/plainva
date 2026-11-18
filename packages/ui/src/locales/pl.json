@@ -5551,7 +5551,6 @@
     "defaultHint": "Domyślne ustawienie obowiązuje w każdym sejfie, który nie ma własnego."
   },
   "reader": {
-    "mathLeftAsSource": "Ta notatka zawiera więcej wzorów, niż tryb czytania może naraz wyświetlić. Pozostałe są pokazane jako kod źródłowy; edytor pokazuje wszystkie.",
     "mermaidError": "Nie udało się wyrenderować diagramu Mermaid",
     "mermaidLoading": "Ładowanie diagramu…"
   },

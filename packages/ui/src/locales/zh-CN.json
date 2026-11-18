@@ -5218,7 +5218,6 @@
     "defaultHint": "默认设置适用于所有未单独设置的仓库。"
   },
   "reader": {
-    "mathLeftAsSource": "此笔记中的公式多于阅读模式一次能显示的数量。其余公式以源代码显示；编辑器中会显示全部公式。",
     "mermaidError": "无法渲染 Mermaid 图表",
     "mermaidLoading": "正在加载图表…"
   },

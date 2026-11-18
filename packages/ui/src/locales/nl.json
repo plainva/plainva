@@ -5329,7 +5329,6 @@
     "defaultHint": "De standaard geldt in elke kluis die niets eigens heeft ingesteld."
   },
   "reader": {
-    "mathLeftAsSource": "Deze notitie bevat meer formules dan de leesmodus in één keer kan weergeven. De rest staat er als brontekst; de editor toont ze allemaal.",
     "mermaidError": "Mermaid-diagram kon niet worden weergegeven",
     "mermaidLoading": "Diagram wordt geladen…"
   },

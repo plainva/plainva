@@ -599,9 +599,9 @@ export const TABLE_LINK_WEIGHT = 316;
  * What the reading view's own plugins make of a row: a tag pill and a
  * highlight are covered by the word weight (`readerTableBudget.test.tsx`
  * holds them). A formula weighs nothing here: the table budget weighs what
- * the parsers make of a table's structure, and the reading view bounds its
- * formulas where they are made, before KaTeX lays them out
- * (`readerMathBudget.ts`, review 2026-11-17).
+ * the parsers make of a table's structure; what KaTeX lays out of a formula
+ * is the desktop reading view's, unbounded as on `main`, and the memory of a
+ * whole note there is L14's (coordination, 2026-11-18).
  */
 export const TABLE_TAG_WEIGHT = 0;
 export const TABLE_MARK_WEIGHT = 0;

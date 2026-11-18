@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
-import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, Banner, type AnchorHighlight } from '@plainva/ui';
-import { markdownLinkTarget, prepareReaderSource, mathBudgetBeside, READER_NOTICE_TAG, rehypeReaderMath, resolveMarkdownLinkIndexed, selectNoteFragment, type MathLayout } from '@plainva/core';
+import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
+import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
@@ -411,12 +411,6 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   // no. 4): the parser gets it as plain text, the first remark plugin gives
   // the values back their characters. Every place stays where it was.
   const bounded = useMemo(() => boundReaderMarkdown(source.text, { original: content, source }), [source, content]);
-  // KaTeX lays the formulas out until what it made reaches the formula budget; the rest stay as their source, and the note says so once.
-  const mathNotice = t('reader.mathLeftAsSource');
-  const readerMath = useMemo(
-    () => (mathPlugins ? () => rehypeReaderMath({ layout: (mathPlugins.rehype as () => MathLayout)(), budget: mathBudgetBeside(bounded.tableWeight), notice: mathNotice }) : null),
-    [mathPlugins, mathNotice, bounded.tableWeight],
-  );
   const processedContent = bounded.text;
 
   // The reading view's heading ids are the outline's slugs, looked up by the
@@ -437,11 +431,9 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={[bounded.remarkRestore, ...READER_REMARK_PLUGINS, ...(mathPlugins ? [mathPlugins.remark as never] : [])]}
-        rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [readerMath as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
+        rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{
-          // The reading view's one notice about the note (formulas left as their source): the notice strip of the app.
-          [READER_NOTICE_TAG as 'div']: ({ children }: { children?: React.ReactNode }) => <Banner kind="info" rounded>{children}</Banner>,
           // A tinted run of text (C28): the click opens the comment it belongs to.
           mark: ({ node, ...props }) => {
             const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId;

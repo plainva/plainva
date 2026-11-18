@@ -5440,7 +5440,6 @@
     "defaultHint": "La valeur par défaut s’applique à tout vault qui n’a pas la sienne."
   },
   "reader": {
-    "mathLeftAsSource": "Cette note contient plus de formules que le mode lecture ne peut en afficher à la fois. Les autres apparaissent sous forme de source ; l’éditeur les affiche toutes.",
     "mermaidError": "Le diagramme Mermaid n'a pas pu être rendu",
     "mermaidLoading": "Chargement du diagramme…"
   },

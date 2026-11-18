@@ -3,7 +3,6 @@ export * from "./workspace/index.js";
 export * from "./markdown-ast.js";
 export * from "./markdown-parser.js";
 export * from "./inlineParseBudget.js";
-export * from "./readerMathBudget.js";
 export * from "./noteSource.js";
 export * from "./noteLinkUrl.js";
 export * from "./journal.js";

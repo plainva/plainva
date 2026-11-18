@@ -39,7 +39,6 @@ import * as path from "node:path";
 import { readFileSync } from "node:fs";
 import { READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, overBudgetInlineRanges, boundMarkdownInRanges, unitedRanges, tableLineStart, tableMarkerCost, tableMarkerCount, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
 import { prepareReaderSource } from "../../src/noteSource.js";
-import { mathBudgetBeside, rehypeReaderMath } from "../../src/readerMathBudget.js";
 import { toHast } from "mdast-util-to-hast";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
@@ -52,19 +51,21 @@ import { unified } from "unified";
 import { createRequire } from "node:module";
 
 /**
- * The reading view's math, as the desktop app loads it for a note with math
- * (`loadReaderMath` in `markdownReaderModel.ts`): `remark-math`, and
- * `remark-rehype` with `rehype-katex` for its page — KaTeX makes dozens of
- * elements of each formula. Resolved from the desktop app, whose packages they are.
+ * The reading view's math parse, as the desktop app loads it for a note with
+ * math (`loadReaderMath` in `markdownReaderModel.ts`): `remark-math` in the
+ * parse and `remark-rehype` for its HTML tree. KaTeX's layout of the formulas
+ * is not run under the capped heap: the reading view exists on the desktop
+ * only and lays out every formula as `main` does; how much memory a whole
+ * note may take there is L14's to decide (coordination, 2026-11-18). Resolved
+ * from the desktop app, whose packages they are.
  */
 const desktop = createRequire(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../apps/desktop/package.json"));
 const fromDesktop = async (name: string, from = desktop) => ((await import(pathToFileURL(from.resolve(name)).href)) as { default: unknown }).default;
 const remarkMath = await fromDesktop("remark-math");
-const rehypeKatex = await fromDesktop("rehype-katex");
 const remarkRehype = await fromDesktop("remark-rehype", createRequire(desktop.resolve("react-markdown")));
 /** The reading view's test for math in a note (`MarkdownReader.tsx`). */
 const HAS_MATH = /\$\$[\s\S]+?\$\$|(?<![\\$])\$(?!\s)[^$\n]+?(?<!\s)\$(?!\d)/;
-/** Formulas bound by their own budget before KaTeX (`readerMathBudget.ts`): not by the table's weights. */
+/** Formula shapes: the table budget weighs a table's structure, not what KaTeX lays out of its formulas on the desktop. */
 const isMathShape = (name: string) => name.startsWith("math") || name.startsWith("escd") || name === "escmatrix" || name === "codedollar" || name === "twopricesmath";
 
 /** The V8 old space every parse must fit into. */
@@ -579,7 +580,7 @@ function calibrate(args: string[]): void {
   for (let changed = true; changed; ) {
     changed = false;
     for (const [name, parts] of Object.entries(limits)) {
-      // A formula shape's limit is KaTeX's, which its own budget holds (`readerMathBudget.ts`).
+      // A formula shape's limit was KaTeX's on the desktop, which the table budget does not weigh.
       if (isMathShape(name)) continue;
       const deficit = best.budget / 0.9 - current(parts);
       if (deficit <= 0) continue;
@@ -710,15 +711,12 @@ const unbounded = {
   },
   tree: (text: string) => unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks).parse(text),
   // The reading view's parser (GFM without the properties block, MarkdownReader.tsx) and its HTML tree, which fills every row to the header's columns.
-  reader: (input: string, prepared = false, mathBudget: number | false = false) => {
+  reader: (input: string, prepared = false) => {
     // The note as the reading view gets it (`prepareReaderSource`), unless it is so already.
     const text = prepared ? input : prepareReaderSource(input).text;
-    // With math, as the reading view runs it: remark-math in the parse, KaTeX for the page.
+    // With math, as the reading view parses it: remark-math, and its HTML tree (KaTeX's layout is the desktop's, above).
     if (HAS_MATH.test(text)) {
-      // Bounded, as the app runs it: KaTeX lays the formulas out until they made their budget, the rest stay as source (`rehypeReaderMath`).
-      const processor = mathBudget !== false
-        ? unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use((() => rehypeReaderMath({ layout: (rehypeKatex as () => never)(), budget: mathBudget })) as never)
-        : unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use(rehypeKatex as never);
+      const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never);
       const tree = processor.parse(text);
       processor.runSync(tree);
       return tree;
@@ -739,11 +737,9 @@ const unbounded = {
  */
 function boundedReader(text: string) {
   const source = prepareReaderSource(text);
-  let tableWeight = 0;
-  const own = overBudgetInlineRanges(source.text, { table: (_first, _last, _exact, cost) => { if (cost <= TABLE_READ_BUDGET) tableWeight += cost; } }, READER_READING);
+  const own = overBudgetInlineRanges(source.text, undefined, READER_READING);
   const theirs = overBudgetInlineRanges(text).map((range) => ({ ...range, from: source.toRendered(range.from), to: source.toRendered(range.to, "end") }));
-  // The formulas beside the table get what it leaves, as in the app (`boundReaderMarkdown`, `mathBudgetBeside`).
-  return unbounded.reader(boundMarkdownInRanges(source.text, unitedRanges(own, theirs.filter((range) => range.to > range.from))).text, true, mathBudgetBeside(tableWeight));
+  return unbounded.reader(boundMarkdownInRanges(source.text, unitedRanges(own, theirs.filter((range) => range.to > range.from))).text, true);
 }
 
 function child(name: string, rows: number, parse: string, bounded: boolean): void {

@@ -5440,7 +5440,6 @@
     "defaultHint": "El valor predeterminado se aplica a cada bóveda que no tenga el suyo."
   },
   "reader": {
-    "mathLeftAsSource": "Esta nota contiene más fórmulas de las que el modo lectura puede mostrar a la vez. Las demás aparecen como código fuente; el editor las muestra todas.",
     "mermaidError": "No se pudo renderizar el diagrama Mermaid",
     "mermaidLoading": "Cargando diagrama…"
   },

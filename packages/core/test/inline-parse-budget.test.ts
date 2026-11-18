@@ -799,9 +799,9 @@ describe("where a table ends", () => {
     // parse — a price weighed everything behind it, a `$` in code paired with
     // one outside it, a reference definition made a link of a formula — and
     // tables of a hundred rows lost their links to the index, where main read
-    // them as tables. The table budget weighs a table's structure alone; the
-    // reading view bounds its formulas where it makes them
-    // (`readerMathBudget.ts`). A `$` is inline syntax and nothing more.
+    // them as tables. The table budget weighs a table's structure alone; what
+    // KaTeX lays out of the formulas is the desktop reading view's (L14). A `$`
+    // is inline syntax and nothing more.
     const rows = [
       "| Pro | $5 per month, billed yearly, cancel any time, see [[Plans]] |",
       "| `$HOME` | The home directory of the current user, used by many tools | [[Shell]] |",
