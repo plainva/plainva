@@ -79,7 +79,7 @@ async function runtimeOf(second: Second, db: IDatabaseAdapter, fence?: VaultCall
   const ownDeletions = new OwnDeletionRegister();
   const base = fence ? fence.database(db) : db;
   const storage = fence ? fence.storage(vault) : vault;
-  await adoptOwnRemovals(base, ownDeletions, (p) => storage.exists(p));
+  await adoptOwnRemovals(base, ownDeletions, { vaultIsThere: async () => true, exists: (p) => storage.exists(p) });
   const state = new SqlWorkspaceStateStore(base);
   const worker = new EncryptedWorkspaceWorker(second.store, state, storage, second.runtime, { ownDeletions });
   /** What the index reports of a file that vanished, as both shells handle it: the sync's removal, or the person's deletion. */

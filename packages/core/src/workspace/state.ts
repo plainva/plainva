@@ -7,7 +7,7 @@ import type { OwedStructure } from "../vault/owedQueueEntries.js";
 import type { WorkspaceCommentAnchor } from "./commentAnchor.js";
 import type { PublicationManifest } from "./publication.js";
 import type { PublishedSliceConfig } from "./publishedSlices.js";
-import type { IndexedRowStamp } from "../vault/indexedRowStamp.js";
+import { readIndexedRow, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 import { forgetOwnRemoval, noteOwnRemoval } from "../sync/ownRemovalNotes.js";
 
 export type WorkspaceLifecyclePhase = "preparing" | "migrating" | "active" | "locked" | "error";
@@ -399,6 +399,8 @@ export interface WorkspaceStateStore {
    */
   noteOwnRemoval?(path: string, stamps?: readonly IndexedRowStamp[]): Promise<void>;
   forgetOwnRemoval?(path: string): Promise<void>;
+  /** The index row of `path`, for the stamps of an own removal (`ownRemovalStamps`). Optional: a store without the index database has none. */
+  indexedRow?(path: string): Promise<IndexedRowStamp | null>;
   loadMeta(): Promise<WorkspaceRuntimeMeta | null>;
   saveMeta(meta: WorkspaceRuntimeMeta): Promise<void>;
   /**
@@ -1029,6 +1031,10 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
 
   async forgetOwnRemoval(path: string): Promise<void> {
     await forgetOwnRemoval(this.db, path);
+  }
+
+  async indexedRow(path: string): Promise<IndexedRowStamp | null> {
+    return readIndexedRow(this.db, path);
   }
 
   async loadMeta(): Promise<WorkspaceRuntimeMeta | null> {

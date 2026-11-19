@@ -219,6 +219,7 @@ export * from "./components/selectAllBridge";
 export * from "./lib/linkParser";
 export * from "./lib/markdownToHtml";
 export * from "./lib/folderTemplates";
+export * from "./lib/templateNotes";
 export * from "./lib/newNoteContent";
 export * from "./lib/fileStem";
 export * from "./lib/vaultRefresh";

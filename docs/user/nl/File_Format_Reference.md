@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-19
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -82,7 +82,7 @@ OKF 0.2 voegt vijf **optionele** top-level velden toe waarmee een notitie kan ze
 | `stale_after` | datum (`2026-12-31`) of moment | Vanaf wanneer de inhoud als verouderd geldt. Pure informatie — Plainva toont een melding en verandert niets. |
 | `status` | `draft` \| `stable` \| `deprecated` | De levenscyclusstatus. Uitsluitend deze drie waarden; `draft` en `deprecated` verschijnen als badge, `stable` blijft stil. |
 
-**Actoren** (`by` in `generated` en `verified`) volgen een conventie: een persoon is `human:<naam>`, een programma is `<producent>/<versie>`. Plainva schrijft `plainva-import/<versie>`, `plainva-mail-capture/<versie>` en `plainva-task-sync/<versie>` — en, bij een controle, `human:<jouw naam>`.
+**Actoren** (`by` in `generated` en `verified`) volgen een conventie: een persoon is `human:<naam>`, een programma is `<producent>/<versie>`. Plainva schrijft `plainva-import/<versie>`, `plainva-mail-capture/<versie>`, `plainva-task-sync/<versie>` en, voor de AI, `plainva-ai/<model>` — en, bij een controle, `human:<jouw naam>`. Maakt een andere schrijver de notitie aan, dan staat daar zijn kenmerk op dit apparaat: `mcp:<client>` voor een programma via de MCP-server van Plainva, `acp:<agent>` voor een externe agent, `script:<naam>` voor een script.
 
 Voorbeeld van een geïmporteerde, later gecontroleerde notitie:
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **Schrijfregels — wie zet wat:**
 
-- `generated` en `sources` worden alleen geschreven door Plainva's **machinale** schrijfpaden: de import (één moment per run; het importrapport draagt het ook), e-mail vastleggen (met `sources: [{ resource: "mid:<Message-ID>" }]` wanneer het bericht een stabiel Message-ID heeft) en de takensynchronisatie (alleen wanneer die een notitie aanmaakt — een latere synchronisatie laat de stempel met rust).
+- `generated` en `sources` worden alleen geschreven door Plainva's **machinale** schrijfpaden: de import (één moment per run; het importrapport draagt het ook), e-mail vastleggen (met `sources: [{ resource: "mid:<Message-ID>" }]` wanneer het bericht een stabiel Message-ID heeft), de takensynchronisatie (alleen wanneer die een notitie aanmaakt — een latere synchronisatie laat de stempel met rust), **Bewaren als notitie** bij een antwoord van de AI (met de gelezen pagina's, notities en afbeeldingen als `sources`) en elke notitie en elk database-item dat de AI, een programma via de MCP-server of een script als concept aanmaakt — of jij het concept aanmaakt of het meteen ontstaat met **Direct toepassen** (met `sources` waar het concept die noemt). Een notitie die een externe agent aanmaakt, krijgt alleen `generated`. Een wijziging aan een bestaande notitie stempelt nooit.
 - `verified` wordt alleen geschreven door **Markeren als gecontroleerd** (desktop: de sectie **Vertrouwen en herkomst** van het eigenschappenpaneel; telefoon: de contextkaart van de notitie) — en dat voegt toe in plaats van te overschrijven.
 - De editor raakt geen van deze velden ooit uit zichzelf aan, en **bestaande notities krijgen nooit achteraf een stempel**. Een ontbrekend veld betekent alleen: geen uitspraak.
 - `status` en `stale_after` stel je zelf in (als eigenschap of rechtstreeks in de frontmatter). Een waarde buiten `draft`/`stable`/`deprecated` — zeg de `status: Open`-kolom van een takendatabase — is **geen** levenscyclusstatus maar een gewone eigenschap; Plainva toont er geen badge voor.

@@ -126,7 +126,7 @@ async function runtime(w: World, root: string, db: IDatabaseAdapter, fence?: Vau
   const app = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, queue), repo);
   const ownDeletions = new OwnDeletionRegister();
   // Before the index looks: what the sync removed here and did not record stays the sync's.
-  await adoptOwnRemovals(base, ownDeletions, (p) => raw.exists(p));
+  await adoptOwnRemovals(base, ownDeletions, { vaultIsThere: async () => true, exists: (p) => raw.exists(p) });
   let queued: Promise<unknown> = Promise.resolve();
   const later = (work: () => Promise<unknown>) => { queued = queued.then(work).catch(() => undefined); };
   const indexer = new VaultIndexer(raw, base, {
