@@ -1694,8 +1694,11 @@ function noteLineCost(text: string, from: number, to: number): number {
       if (code === 0x5b) {
         opens++;
         const next = text.charCodeAt(i + 1);
-        if (next === 0x5b) links++;
-        else if (next === 0x5e) references++;
+        if (next === 0x5b) {
+          links++;
+          // Behind a `]` the reading view writes a comment in front of the link, as the table's weight counts it.
+          if (text.charCodeAt(i - 1) === 0x5d) cost += readerWikiLinkLead(text, i, false).length;
+        } else if (next === 0x5e) references++;
         // A link glued to the word before it is a piece of its own.
         if (inWord && wordStart !== i && text.charCodeAt(i - 1) !== 0x5b && !(wordStart === i - 1 && text.charCodeAt(i - 1) === 0x21)) words++;
       } else if (code === 0x5d && text.charCodeAt(i + 1) === 0x28) links++;

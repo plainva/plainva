@@ -254,4 +254,27 @@ describe("the note's budget (L14)", () => {
     expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(40_000);
     expect(renameNoteLinks(text, new Map([["Note 5", "Five"]])).renamed).toBe(1);
   });
+
+  it("weighs the comment the reading view writes in front of a link behind a `]`, as the table's weight does", () => {
+    // `readerWikiLinkLead`: behind a `]` an empty comment stands in front of a wiki link in the reading view's text.
+    const most = (line: (i: number) => string) => {
+      const over = (n: number) => overBudgetInlineRanges(`# T\n\n${Array.from({ length: n }, (_, i) => line(i)).join("\n")}\n`).length > 0;
+      let lo = 0;
+      let hi = 1024;
+      while (!over(hi)) {
+        lo = hi;
+        hi *= 2;
+      }
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (over(mid)) hi = mid;
+        else lo = mid;
+      }
+      return lo;
+    };
+    const behind = most((i) => `- item ${i} ][[a]] and more words here`);
+    const beside = most((i) => `- item ${i} x[[a]] and more words here`);
+    expect(behind).toBeLessThan(beside);
+  });
 });
+
