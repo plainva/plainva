@@ -2,6 +2,7 @@ import { utf8Encode } from "../../crypto/cryptoPrimitives.js";
 import type { ToolOutcome } from "../orchestrator.js";
 import { parseToolInput, toolByName, type ToolManifest } from "../tools.js";
 import { parseScriptInput, SCRIPT_TOOL_NAMES, type ScriptDefinition, type ScriptInput, type ScriptLimits } from "./manifest.js";
+import { toolFailureText } from "../toolFailure.js";
 
 /**
  * One run of a script (ADR 0020 decision 6, plan KI-Harness P5.5): the rules
@@ -205,7 +206,7 @@ export async function runScript(input: ScriptRunInput): Promise<ScriptOutcome> {
       try {
         result = scriptCallResult(await input.execute(tool, checked.value, stopper.signal));
       } catch (error) {
-        result = { ok: false, error: `The tool failed: ${error instanceof Error ? error.message : String(error)}`.slice(0, TOOL_ERROR_MAX) };
+        result = { ok: false, error: toolFailureText(error).slice(0, TOOL_ERROR_MAX) };
       }
       let text: string;
       try {

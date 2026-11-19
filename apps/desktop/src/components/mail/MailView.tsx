@@ -36,7 +36,7 @@ import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccount
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
-import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, useMailCanvas } from "@plainva/ui/mail";
+import { buildMailFrameDoc, applyFrameFit, mailBodyView, useMailCanvas } from "@plainva/ui/mail";
 import { formatClockTime, formatDateAndTime } from "@plainva/ui";
 import { attachMailLinks, LinkTargetText, MailPlainText, mailtoDraft, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
 import { addEmlToMailNote, captureMailAsNote, loadMailAccountAliases, mailCaptureNotice, mailDayKey, writeReplyNote } from "@plainva/ui/mail";
@@ -1040,7 +1040,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   // The theme's canvas for a mail that sets no colours of its own (finding X3).
   const mailCanvas = useMailCanvas();
   const sanitized = useMemo(
-    () => (message?.html ? sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote }) : null),
+    // The body the reader shows (`mailBodyView`): an HTML part that shows
+    // nothing leaves the text part, as the assistant reads it — in the one
+    // pass the assistant and the quote share.
+    () => (message ? mailBodyView(message, { allowRemoteImages: allowRemote }) : null),
     [message, allowRemote]
   );
 
@@ -1972,7 +1975,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setSavingFile(file.index);
       try {
         const content = await fetchAttachment(vaultPath, from, origin.mailbox, message.id, file.index);
-        const path = await saveMailAttachment(vaultAdapter, await mailFolder(), file.name, content);
+        const path = await saveMailAttachment(vaultAdapter, await mailFolder(), file.name, content, file.mime);
         if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
         triggerFileTreeUpdate([path]);
         toast.success(t("mail.attachmentSaved", { name: path }));
@@ -2775,8 +2778,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             )}
 
             <div className="pv-mail-bodywrap">
-            <div className={`pv-mail-body${sanitized ? " pv-mail-body--frame" : ""}`}>
-              {sanitized ? (
+            <div className={`pv-mail-body${sanitized && !sanitized.unreadable ? " pv-mail-body--frame" : ""}`}>
+              {sanitized && !sanitized.unreadable ? (
                 <iframe
                   title={t("mail.viewer", { defaultValue: "E-Mail-Inhalt" })}
                   // allow-same-origin WITHOUT allow-scripts: the mail HTML still
@@ -2790,7 +2793,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   className="pv-mail-frame"
                 />
               ) : (
-                <MailPlainText text={message.text ?? ""} events={linkEvents} data-testid="mail-text" />
+                <MailPlainText
+                  // A part the pass could not make safe is never shown as it came (`mailBodyView`).
+                  text={sanitized?.unreadable ? t("mail.bodyUnreadable") : (message.text ?? "")}
+                  events={linkEvents}
+                  data-testid="mail-text"
+                />
               )}
             </div>
             {/* Where the link leads — bottom-left of the message, where every

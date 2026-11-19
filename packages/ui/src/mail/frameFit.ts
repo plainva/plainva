@@ -14,6 +14,9 @@
  * column is wider, so it bites less often — which is why the maths and the
  * DOM application both live here and both shells call the same function.
  *
+ * What is wider than even the smallest scale fits is not cut off: the frame
+ * scrolls sideways to it.
+ *
  * Scaling, not reflowing, is the deliberate choice: reflowing a mail means
  * rewriting the sender's layout, and Plainva's mail viewer shows what was
  * sent. A scaled table stays the table the sender built.
@@ -114,9 +117,12 @@ export function applyFrameFit(
     body.style.transform = `scale(${fit.scale})`;
     // The transform does not shrink the layout box, so the frame would still
     // offer a horizontal scroll over empty space. Pin the body to the width
-    // it actually needs and hide what the scale already took care of.
+    // it actually needs and hide what the scale already took care of. Content
+    // wider than even the smallest scale fits is not cut off: the frame
+    // scrolls sideways to it, so every word stays where a person can reach it
+    // (review of 2026-11-17 — the assistant reads what the mail shows).
     body.style.width = `${contentWidth}px`;
-    root.style.overflowX = "hidden";
+    root.style.overflowX = contentWidth * fit.scale > frame.clientWidth + 1 ? "auto" : "hidden";
   }
 
   if (options?.growHeight) frame.style.height = `${fit.height}px`;

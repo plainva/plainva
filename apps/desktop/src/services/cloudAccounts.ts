@@ -1,5 +1,5 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import { reportingTo } from "@plainva/ui";
+import { accountRemovedHere, reportingTo } from "@plainva/ui";
 import {
   ONEDRIVE_DEFAULT_SCOPE,
   refreshDriveAccessToken,
@@ -32,6 +32,7 @@ import {
   type SyncProviderId,
 } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
+import { loadProfileAccountMap } from "./profileAccountMap";
 import { credentialManager } from "./CredentialManager";
 import { listMailAccounts, mailAccountKind } from "@plainva/ui/mail";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -170,11 +171,13 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
   } else if (await pimAccountsHeldAfterRebuild(pimRuntime)) {
     // An index database rebuilt at the start: each account not back yet
     // keeps its card's reference until the settings sync has applied the
-    // document (`restoreAccountsAfterRebuild`), one by one.
+    // document (`restoreAccountsAfterRebuild`), one by one. Not one removed
+    // here: its absence is the removal, not the rebuild.
     const back = new Set(observed.pim.map((p) => p.id));
+    const map = await loadProfileAccountMap(vaultPath);
     for (const r of stored) {
       const id = r.services.calendar?.pimAccountId;
-      if (id && !back.has(id)) observed.pim.push({ id, provider: "caldav" as const, label: r.label });
+      if (id && !back.has(id) && !accountRemovedHere(map, "pim", id)) observed.pim.push({ id, provider: "caldav" as const, label: r.label });
     }
   }
   const next = reconcileCloudAccounts(stored, observed);

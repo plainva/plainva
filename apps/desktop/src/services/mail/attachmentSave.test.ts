@@ -56,6 +56,18 @@ describe("what a saved attachment is called", () => {
     expect(attachmentFileName("???")).toEqual({ stem: "attachment", ext: "bin" });
   });
 
+  it("names a file without an extension after its type, as forwarding does (review of 2026-11-16)", () => {
+    // A picture embedded in a mail has no name; the desktop's parser lists it as "attachment".
+    expect(attachmentFileName("attachment", "image/png")).toEqual({ stem: "attachment", ext: "png" });
+    expect(attachmentFileName("", "image/jpeg")).toEqual({ stem: "attachment", ext: "jpg" });
+    expect(attachmentFileName("attachment", "message/rfc822")).toEqual({ stem: "attachment", ext: "eml" });
+    expect(attachmentFileName("LIESMICH", "text/plain; charset=utf-8")).toEqual({ stem: "LIESMICH", ext: "txt" });
+    // The name's own extension stands; a type the table does not know leaves `.bin`.
+    expect(attachmentFileName("scan.jpeg", "image/png")).toEqual({ stem: "scan", ext: "jpeg" });
+    expect(attachmentFileName("attachment", "application/octet-stream")).toEqual({ stem: "attachment", ext: "bin" });
+    expect(attachmentFileName("attachment", "toString")).toEqual({ stem: "attachment", ext: "bin" });
+  });
+
   it("leaves out what is no part of any name: control characters, wherever they stand", () => {
     // Built at run time: a control character has no business in a source file.
     const NUL = String.fromCharCode(0);
@@ -113,6 +125,11 @@ describe("saving", () => {
     expect(path).toBe("Mail/Attachments/doc.pdf");
     expect(vault.dirs).toEqual(["Mail/Attachments"]);
     expect(Array.from(vault.files.get(path)!)).toEqual([0x25, 0x50, 0x44, 0x46, 0x2d]);
+  });
+
+  it("saves an embedded picture without a name as what it is", async () => {
+    const vault = memoryVault();
+    await expect(saveMailAttachment(vault.adapter, "Mail", "attachment", "iVBORw0KGgo=", "image/png")).resolves.toBe("Mail/Attachments/attachment.png");
   });
 
   it("never writes over a file that is there: two mails may carry the same name", async () => {

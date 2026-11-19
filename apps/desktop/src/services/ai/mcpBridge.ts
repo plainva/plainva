@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { WRITE_REFUSALS, contentPathRefusal, isInternalSegment, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient, type ToolOutcome } from "@plainva/core";
+import { FULL_TEXT_DAMAGED_TOOL_TEXT, WRITE_REFUSALS, contentPathRefusal, isDamagedFullText, isInternalSegment, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient, type ToolOutcome } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { aiVaultKey, mcpSkillPrompts, type AiSession, type AiVaultHost, type PlanQuestion, type WriteRun } from "@plainva/ui";
 import { samePlan, type McpPlanQuestion, type McpPlans } from "./mcpPlans";
@@ -244,8 +244,9 @@ export async function runMcpCall(host: AiVaultHost | null, request: McpCallReque
       return answered(outcome);
     }
     return await runMcpPlan(host, request, writing, author, stable(parsed.value), execute, answered, paths);
-  } catch {
-    return failed("The tool failed.");
+  } catch (error) {
+    // The driver's words stay inside; a damaged full-text index is said as what it is.
+    return failed(isDamagedFullText(error) ? FULL_TEXT_DAMAGED_TOOL_TEXT : "The tool failed.");
   }
 }
 

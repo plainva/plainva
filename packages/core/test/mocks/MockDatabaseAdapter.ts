@@ -48,6 +48,8 @@ export class MockDatabaseAdapter implements IDatabaseAdapter {
     if (/\bFROM index_changes\b/.test(query)) return { seq: 0 } as T;
     // The files owed a reading (VaultIndexer, `index_owed_paths`): none here, and never a mocked result.
     if (/FROM meta WHERE key = \?/.test(query) && Array.isArray(params) && params[0] === "index_owed_paths") return null;
+    // A damaged full-text index noted while the vault was open (`watchFullTextDamage`): none here, and never a mocked result.
+    if (/FROM meta WHERE key = \?/.test(query) && Array.isArray(params) && params[0] === "full_text_damaged") return null;
     return (this.mockedOneResults.shift() || null) as T;
   }
 

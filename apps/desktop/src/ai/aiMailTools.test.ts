@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { BUILTIN_ENDPOINTS, EFFECT_DECLINED, toolByName, type AiEgress, type EgressChunk, type HttpRequestSpec, type RunReading, type ToolCallPart, type ToolExecutor, type ToolOutcome } from "@plainva/core";
 import {

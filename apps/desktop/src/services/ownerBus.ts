@@ -1,5 +1,5 @@
 import { loadDesktopBookmarks, publishBookmarks, bindBookmarkVault, retargetDesktopBookmarks } from "./bookmarks";
-import { CommentOperationError, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
+import { CommentOperationError, noteFullTextDamageFound, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus, OWNER_LABEL, type BroadcastMap, type RpcMap, type WindowBus } from "./windowBus";
@@ -334,6 +334,8 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     // other window made of it is written only if the file still is that.
     // A window that opens asks once for the status as it is (third review of O8).
     await bus.handle("sync-status-now", () => syncStatusPayload(syncStatusStore.get(deps.vaultPath)), { vaultPath: deps.vaultPath }),
+    // An auxiliary window reads the index only: this window notes the damaged full-text index for it.
+    await bus.handle("full-text-damaged", ({ reading }) => (deps.db ? noteFullTextDamageFound(deps.db, reading) : false), { vaultPath: deps.vaultPath }),
     await bus.handle("update-read", ({ path }) => {
       if (!deps.vaultAdapter.readTextFileState) throw new Error("Conflict-safe editing is unavailable");
       return deps.vaultAdapter.readTextFileState(path);

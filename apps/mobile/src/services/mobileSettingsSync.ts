@@ -89,6 +89,7 @@ import {
 } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
+import { accountMapKey } from "./profileAccountMap";
 import { profileNoticeStorage } from "./profileNoticeStore";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
@@ -498,13 +499,6 @@ export async function mobileEncryptionStatus(vault: MobileVault): Promise<"none"
   if (await loadKeyring(vault.vaultId)) return "unlocked";
   return (await (vault.belowChain).exists(KEYFILE_PATH)) ? "locked" : "none";
 }
-
-/**
- * The account map lives beside the profile: it ties a device-local account id
- * to the id used in the shared document, so the same account is recognised
- * across devices even though the ids differ (they end up in keychain slots).
- */
-const accountMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
 
 /** Mobile side of the shared account import (plan P3). */
 function mobileAccountPorts(vault: MobileVault): AccountImportPorts {

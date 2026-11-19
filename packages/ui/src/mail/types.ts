@@ -129,6 +129,13 @@ export interface RawImapEnvelope {
   openingHead?: string;
   openingBody?: string;
   /**
+   * The SUBJECT and FROM header lines as the server sent them, base64, where
+   * the transport did not read them itself (the desktop's Rust client):
+   * `mailClient` reads `subject` and `from` out of them with the phone's own
+   * reader (Fehlerliste 0.9.0 C7), so a head reads alike on both shells.
+   */
+  headLines?: string;
+  /**
    * Thread headers AS THE SERVER WROTE THEM (findings P9.1): both transports
    * forward the header value and `mailClient` runs the one shared normaliser
    * over it. The Rust path parses with mail-parser (brackets already stripped),
@@ -162,4 +169,6 @@ export interface RawImapMessage {
   listUnsubscribe?: string;
   /** RFC 8058 `List-Unsubscribe-Post` — the sender's one-click promise. */
   listUnsubscribePost?: string;
+  /** The SUBJECT, FROM and TO header lines as sent, base64 — see `RawImapEnvelope.headLines`. */
+  headLines?: string;
 }

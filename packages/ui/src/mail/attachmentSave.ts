@@ -56,6 +56,29 @@ function withinBytes(text: string, max: number): string {
   return out;
 }
 
+/** What a file WITHOUT a name of its own is called after its type, so that
+ *  whoever receives it can open it. */
+const EXTENSION_BY_TYPE: Readonly<Record<string, string>> = {
+  "application/pdf": "pdf",
+  "message/rfc822": "eml",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg",
+  "text/calendar": "ics",
+  "text/csv": "csv",
+  "text/html": "html",
+  "text/plain": "txt",
+};
+
+/** The extension a file of this type is known by; `null` for a type the table does not name. */
+export function extensionOfType(mime: string | null | undefined): string | null {
+  const kind = typeof mime === "string" ? mime.split(";")[0].trim().toLowerCase() : "";
+  // An entry of the table itself, never one every object inherits.
+  return Object.prototype.hasOwnProperty.call(EXTENSION_BY_TYPE, kind) ? EXTENSION_BY_TYPE[kind] : null;
+}
+
 /**
  * A file name as the sender wrote it, split into a stem and an extension that
  * are safe as a file name on every platform Plainva runs on.
@@ -63,9 +86,9 @@ function withinBytes(text: string, max: number): string {
  * The name is somebody else's choice — whoever sent the mail. It may hold a
  * path, a control character, a device name or a novel; what is saved is a
  * plain file under the attachments folder, called as close to that as a file
- * system allows.
+ * system allows. Without an extension, the file's type names one (`mime`).
  */
-export function attachmentFileName(name: string): { stem: string; ext: string } {
+export function attachmentFileName(name: string, mime?: string | null): { stem: string; ext: string } {
   // Control characters first: they are no part of any name, and one in the
   // middle of an extension must not make the rest of it look like a name.
   const plain = Array.from(typeof name === "string" ? name : "")
@@ -85,7 +108,10 @@ export function attachmentFileName(name: string): { stem: string; ext: string } 
   // (`safeFileStem` has made every run of white space one blank.)
   stem = trimEndChars(withinBytes(stem, MAX_STEM_BYTES), ". ");
   if (DEVICE_NAME.test(stem.split(".")[0].trim())) stem = `_${stem}`;
-  return { stem: stem || "attachment", ext: ext || "bin" };
+  // A file without an extension of its own is called after its type, as when
+  // it is forwarded (`cleanAttachmentName`): an embedded PNG is `attachment.png`,
+  // not a `.bin` nothing opens (review of 2026-11-16).
+  return { stem: stem || "attachment", ext: ext || extensionOfType(mime) || "bin" };
 }
 
 /**
@@ -99,11 +125,12 @@ export async function saveMailAttachment(
   adapter: AttachmentSaveAdapter,
   mailFolder: string,
   name: string,
-  contentBase64: string
+  contentBase64: string,
+  mime?: string | null
 ): Promise<string> {
   const folder = attachmentFolder(mailFolder);
   await adapter.createDir(folder).catch(() => undefined);
-  const { stem, ext } = attachmentFileName(name);
+  const { stem, ext } = attachmentFileName(name, mime);
   let path = `${folder}/${stem}.${ext}`;
   for (let n = 2; await adapter.exists(path); n++) path = `${folder}/${stem}-${n}.${ext}`;
   const binary = atob(contentBase64);

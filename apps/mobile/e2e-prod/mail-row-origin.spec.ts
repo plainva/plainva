@@ -240,3 +240,37 @@ test("Undo in the same folder reads the folder again: the message comes back und
     await sql.close();
   }
 });
+
+test("a conversation swiped open and left with one message by a delete from the sheet is closed again — the next touch acts", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  // Fehlerliste 0.9.0 C5, as the review traced it: the row of a conversation
+  // and the row of a single message are one place in the list, so the
+  // swipe's "open" outlived the conversation that was swiped.
+  // The inbox holds two messages of the conversation "project".
+  const { mail, sql } = await bootMail(context, page);
+  try {
+    await page.getByTestId("mail-threads-toggle").click();
+    const conversation = page.getByTestId("mail-thread-row").filter({ hasText: "Projektübersicht" });
+    await conversation.click();
+    const inThread = page.getByTestId("mail-thread-message");
+    await expect(inThread).toHaveCount(2);
+    const reply = inThread.filter({ hasText: "Danke, ich habe die Termine ergänzt." });
+
+    // The conversation is swiped open; then the reply is deleted from its sheet.
+    const offered = await swipeOpen(page, page.locator(".m-swipe").filter({ has: conversation }));
+    await expect(offered.first()).toBeVisible();
+    await hold(page, reply);
+    await page.getByTestId("mail-sheet-delete").click();
+    await expect.poll(() => mail.moves.length).toBe(1);
+    expect(mail.moves[0]).toMatchObject({ id: "fixture-2", to: "deleteditems" });
+
+    // What is left is a message row, and it is closed: the first tap opens the message.
+    const left = page.locator("li").filter({ hasText: "Projektübersicht" });
+    await expect(left.getByTestId("mail-thread-row")).toHaveCount(0);
+    await expect(left.locator(".m-swipe-btn")).toHaveCount(0);
+    await left.locator("button.m-mailrow").click();
+    await expect(page.getByText("Die neue Übersicht ist fertig.").first()).toBeVisible();
+  } finally {
+    await sql.close();
+  }
+});

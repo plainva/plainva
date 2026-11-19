@@ -38,7 +38,7 @@ import {
   mailFolderLabel,
   listEnvelopes,
   moveMessage,
-  sanitizeEmailHtml,
+  mailBodyView,
   setMessageFlagged,
   setMessageSeen,
   AUTO_READ_DELAY_MS,
@@ -194,11 +194,16 @@ export function MailMessageScreen({
   const mailCanvas = useMailCanvas();
   const frame = useMemo(() => {
     if (!message) return null;
-    if (message.html) {
-      const allowRemote = remoteImages.allow;
-      const clean = sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote });
+    // The body the reader shows (`mailBodyView`): an HTML part that shows
+    // nothing leaves the text part, as the assistant reads it — in the one
+    // pass the assistant and the quote share.
+    const allowRemote = remoteImages.allow;
+    const clean = mailBodyView(message, { allowRemoteImages: allowRemote });
+    // A part the pass could not make safe is never shown as it came (`mailBodyView`).
+    if (clean?.unreadable) return { unreadable: true as const };
+    if (clean) {
       // The theme's canvas for a mail that sets no colours of its own (finding X3).
-      return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote, canvas: mailCanvas }), blocked: clean.blockedRemote };
+      return { unreadable: false as const, doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote, canvas: mailCanvas }), blocked: clean.blockedRemote };
     }
     return null;
   }, [message, remoteImages.allow, mailCanvas]);
@@ -455,12 +460,12 @@ export function MailMessageScreen({
    *  the vault syncs with everything else. Where it goes and what it is called
    *  is the shared rule (`saveMailAttachment`): the desktop saves the same file
    *  to the same place. */
-  const saveAttachment = async (index: number, name: string) => {
+  const saveAttachment = async (index: number, name: string, mime: string) => {
     if (!vaultId || !account) return;
     setBusy(true);
     try {
       const base64 = await fetchAttachment(vaultId, account, mailbox, messageId, index);
-      const path = await saveMailAttachment(vault.files, getMobileSettings().mailFolder, name, base64);
+      const path = await saveMailAttachment(vault.files, getMobileSettings().mailFolder, name, base64, mime);
       // The index hears of the file now, not at the next full scan (finding 2026-10-12).
       void vault.reindexPaths([path]);
       toast.success(t("mail.attachmentSaved", { name: path }));
@@ -696,7 +701,7 @@ export function MailMessageScreen({
           {/* In the junk folder the hint names the REASON (M2): "always load"
               is on and still nothing loaded — without the reason that reads as
               a setting that does not work. Elsewhere the one button stays. */}
-          {frame?.blocked && !remoteImages.allow ? (
+          {frame && !frame.unreadable && frame.blocked && !remoteImages.allow ? (
             remoteImages.blockedAsJunk ? (
               <Banner
                 actions={
@@ -716,7 +721,7 @@ export function MailMessageScreen({
             )
           ) : null}
 
-          {frame ? (
+          {frame && !frame.unreadable ? (
             <iframe
               ref={frameRef}
               className="m-mailframe"
@@ -732,7 +737,12 @@ export function MailMessageScreen({
               title={message.subject || "E-Mail"}
             />
           ) : (
-            <MailPlainText className="m-mailtext" data-testid="mail-text" events={linkEvents} text={message.text ?? ""} />
+            <MailPlainText
+              className="m-mailtext"
+              data-testid="mail-text"
+              events={linkEvents}
+              text={frame?.unreadable ? t("mail.bodyUnreadable") : (message.text ?? "")}
+            />
           )}
 
           {message.attachments.length > 0 && (
@@ -743,7 +753,7 @@ export function MailMessageScreen({
                     type="button"
                     className="m-row"
                     disabled={busy}
-                    onClick={() => void saveAttachment(a.index, a.name)}
+                    onClick={() => void saveAttachment(a.index, a.name, a.mime)}
                   >
                     <Paperclip size={ICON.ui} />
                     <span className="m-linestack">

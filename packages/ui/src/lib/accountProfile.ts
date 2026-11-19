@@ -361,6 +361,16 @@ export function forgetRemovedAccount(
   return recordAccountAct(map, logicalId, "revived", at, device);
 }
 
+/**
+ * Whether the act that stands for the account this device knows by `localId`
+ * is a removal in this device's map — removed here (`noteAccountRemovedLocally`)
+ * or a removal this device has taken in from the document.
+ */
+export function accountRemovedHere(map: ProfileAccountMap, kind: "pim" | "mail", localId: string): boolean {
+  const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId] ?? localId;
+  return mapActs(map)[logical]?.act === "removed";
+}
+
 /** `forgetRemovedAccount` for the id the shell knows (its local id), as `rememberRemovedAccount` takes it. */
 export function forgetRemovedLocalAccount(
   map: ProfileAccountMap,

@@ -251,6 +251,10 @@ async function readMail(source: MailSource, a: Record<string, unknown>): Promise
     message = null;
   }
   if (!message) return { content: "The message could not be read: it may have been moved or deleted, or its account cannot be reached.", isError: true };
+  // A message is read in one pass that holds the interface while it runs; the
+  // interface gets its turn first, so reading many mails one after another
+  // never holds it for longer than one (review of 2026-11-17).
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
   const document = mailDocument(message);
   const origin = { kind: "mail" as const, account: inertLine(at.account.label, 80) };
   const quarantine: QuarantinedText = {

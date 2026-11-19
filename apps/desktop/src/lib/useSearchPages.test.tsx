@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { SearchPage, SearchPageCursor } from "@plainva/core";
-import { useSearchPages } from "@plainva/ui";
+import { errorText, useSearchPages } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 
 let root: Root | undefined;
 afterEach(() => { act(() => root?.unmount()); document.body.innerHTML = ""; });
@@ -35,5 +36,24 @@ describe("paged search requests", () => {
     await act(async () => { root!.render(<Probe query="last" />); });
     act(() => { root!.unmount(); root = undefined; });
     expect(calls[4].signal?.aborted).toBe(true);
+  });
+
+  it("a damaged full-text index is said in a sentence, not as a failure to try again", async () => {
+    const damaged = new Error('error returned from database: (code: 267) fts5: corruption found reading blob 1 from table "fts_notes"');
+    const service = { searchOccurrencesPage: vi.fn(async () => { throw damaged; }) };
+    let value: ReturnType<typeof useSearchPages>;
+    function Probe() { value = useSearchPages(service, "hello"); return null; }
+    const host = document.createElement("div"); document.body.append(host); root = createRoot(host);
+    await act(async () => { root!.render(<Probe />); });
+    expect(value!.failed).toBe(true);
+    expect(value!.damaged).toBe(true);
+    // Any other failure stays one to try again.
+    service.searchOccurrencesPage.mockImplementationOnce(async () => { throw new Error("database unavailable"); });
+    await act(async () => { value!.retry(); });
+    expect(value!.failed).toBe(true);
+    expect(value!.damaged).toBe(false);
+    // Wherever such an error reaches a person, it is the same sentence.
+    expect(errorText(damaged)).toBe(i18n.t("errors.fullTextDamaged"));
+    expect(errorText(damaged)).not.toContain("267");
   });
 });

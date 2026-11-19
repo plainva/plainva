@@ -91,6 +91,11 @@ pub struct MailEnvelope {
     /// phone's own reader, so the line is one line on both shells.
     pub opening_head: Option<String>,
     pub opening_body: Option<String>,
+    /// The SUBJECT, FROM and TO header lines as the server sent them, base64
+    /// (`shown_head_lines`): what `subject` and `from` are read from on the
+    /// shared side, with the phone's reader. `subject` and `from` stay as
+    /// mail-parser read them, for a caller that has nothing else.
+    pub head_lines: Option<String>,
 }
 
 /// Body bytes taken along per message for the opening line — the phone's
@@ -110,13 +115,38 @@ fn envelope_fetch_items() -> String {
 /// written: CONTENT-TYPE and CONTENT-TRANSFER-ENCODING, with their folded
 /// continuation lines, as the server sent them. Pure over the bytes.
 fn body_form_lines(header_bytes: &[u8]) -> Vec<u8> {
+    named_header_lines(header_bytes, &[b"content-type:", b"content-transfer-encoding:"])
+}
+
+/// The header lines of the fields an envelope or a message shows of its head
+/// — SUBJECT, FROM and TO —, with their folded continuation lines, as the
+/// server sent them. Pure over the bytes.
+///
+/// They are not read here: the shared TypeScript side reads them with the
+/// phone's own reader (`decodeWords`, `headerAddresses` in `net/mime.ts`, see
+/// `headLines` in `mailClient.ts`). mail-parser leaves an encoded word it
+/// cannot read as it was written — one with a character in its base64 that is
+/// no base64, a hyphen too —, and the subject or a name then showed its
+/// encoded form on the desktop while the phone read it (Fehlerliste 0.9.0 C7).
+/// One reader for both shells, so they cannot differ again.
+fn shown_head_lines(header_bytes: &[u8]) -> Vec<u8> {
+    named_header_lines(header_bytes, &[b"subject:", b"from:", b"to:"])
+}
+
+/// The lines of the named fields (lower case, with their colon) out of a
+/// header block — or out of a whole message, whose header ends at the first
+/// empty line.
+fn named_header_lines(header_bytes: &[u8], names: &[&[u8]]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut keep = false;
     for line in header_bytes.split_inclusive(|b| *b == b'\n') {
+        if line == b"\r\n" || line == b"\n" {
+            break;
+        }
         let folded = matches!(line.first(), Some(b' ') | Some(b'\t'));
         if !folded {
             let lower = line.to_ascii_lowercase();
-            keep = lower.starts_with(b"content-type:") || lower.starts_with(b"content-transfer-encoding:");
+            keep = names.iter().any(|name| lower.starts_with(name));
         }
         if keep {
             out.extend_from_slice(line);
@@ -177,6 +207,9 @@ pub struct MailMessage {
     /// open, not a POST to perform.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list_unsubscribe_post: Option<String>,
+    /// The SUBJECT, FROM and TO header lines as sent, base64, as on an
+    /// envelope (`shown_head_lines`).
+    pub head_lines: String,
 }
 
 /// A rustls stream over a plain TCP socket (the same OpenSSL-free stack the
@@ -590,7 +623,8 @@ fn fetch_to_envelope(f: &imap::types::Fetch, uid_validity: Option<u32>) -> Optio
     // that do come along. No body asked for (or none answered): no line.
     let opening_body = f.text().map(|body| base64::engine::general_purpose::STANDARD.encode(body));
     let opening_head = opening_body.as_ref().map(|_| base64::engine::general_purpose::STANDARD.encode(body_form_lines(f.header().unwrap_or_default())));
-    Some(MailEnvelope { uid, uid_validity, has_attachments, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references, opening_head, opening_body })
+    let head_lines = f.header().map(|header| base64::engine::general_purpose::STANDARD.encode(shown_head_lines(header)));
+    Some(MailEnvelope { uid, uid_validity, has_attachments, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references, opening_head, opening_body, head_lines })
 }
 
 #[tauri::command]
@@ -669,6 +703,16 @@ fn parse_message(raw: &[u8]) -> Result<mail_parser::Message<'_>, String> {
 /// The files of a message, in the order the reader numbers them: every part
 /// of the message itself that is not a text it shows, an attached message
 /// included (the parts inside that message are its own).
+///
+/// This is THE rule of what is a file, on both shells (Fehlerliste 0.9.0 C6,
+/// written out at `isMessageFile` in `packages/ui/src/mail/net/mime.ts`, which
+/// the phone's parser follows): every part not divided into others is a file
+/// — whatever its type, named or not, attached or inline, a picture the HTML
+/// shows by `cid:` included — except the words of the text (a plain or HTML
+/// part in a body, by RFC 8621) and the one part of a message of one part read
+/// as its words. The reader does not show a `cid:` picture in place, so no
+/// file may disappear from the list. One file of example messages holds both
+/// parsers (`one_rule_of_what_is_a_file`, `imapAttachmentRule.test.ts`).
 ///
 /// mail-parser 1.0 lists attachments by RFC 8621, which leaves out a picture
 /// or a sound the message shows in its body: an image in a multipart/mixed
@@ -771,8 +815,8 @@ fn is_media_token(value: &str) -> bool {
 /// with no text and one file named "attachment"; on the phone it opened empty.
 /// By the rule it is plain text (RFC 2046, 4.1.4; RFC 2045, 5.2), on both
 /// shells now: not one attached as a file, and not one that is data
-/// (`DATA_TEXT_SUBTYPES`). Inside a multipart such a part stays what it was —
-/// the attachment question of the parity catalog's `mail-attachment-list`.
+/// (`DATA_TEXT_SUBTYPES`). Inside a multipart such a part is a file
+/// (`attachment_parts`).
 fn whole_message_text_part<'m>(parsed: &'m mail_parser::Message<'_>) -> Option<mail_parser::MessagePart<'m>> {
     if parsed.text_body().len() > 0 || parsed.html_body().len() > 0 {
         return None;
@@ -801,6 +845,23 @@ fn whole_message_text_part<'m>(parsed: &'m mail_parser::Message<'_>) -> Option<m
     words.then_some(part)
 }
 
+/// The name a file of a message is shown and saved by: the first of its file
+/// name and its name that is not blank, else "attachment" — the phone's reader
+/// (`net/mime.ts`) gives the same (Fehlerliste 0.9.0 F24). mail-parser's own
+/// `attachment_name` is the file name wherever one is written, blanks included.
+/// Blank is what either takes away: white space (U+0085 included, which JavaScript's
+/// `trim` keeps; the phone adds it) and U+FEFF (which Rust's `is_whitespace` keeps).
+fn shown_file_name<'m>(part: &mail_parser::MessagePart<'m>) -> &'m str {
+    let file_name = part.content_disposition().and_then(|disposition| disposition.attribute("filename"));
+    let type_name = part.content_type().and_then(|content_type| content_type.attribute("name"));
+    [file_name, type_name]
+        .into_iter()
+        .flatten()
+        .map(|name| name.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}'))
+        .find(|name| !name.is_empty())
+        .unwrap_or("attachment")
+}
+
 /// The raw message as the frontend receives it: standard base64, with padding
 /// and without line breaks, of exactly the bytes the server sent. Three
 /// transports hand this out — this command, the phone's socket client and
@@ -819,7 +880,7 @@ fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<M
         .enumerate()
         .map(|(index, part)| MailAttachmentInfo {
             index,
-            name: part.attachment_name().unwrap_or("attachment").to_string(),
+            name: shown_file_name(&part).to_string(),
             mime: part
                 .content_type()
                 .map(|c| match c.subtype() {
@@ -827,8 +888,10 @@ fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<M
                     None => c.ctype().to_string(),
                 })
                 // A part of a digest that names no type is an enclosed message.
-                .unwrap_or_else(|| if part.is_message() { "message/rfc822" } else { "application/octet-stream" }.to_string()),
-            size: part_contents(&part).len(),
+                .unwrap_or_else(|| if part.is_message() { "message/rfc822" } else { "application/octet-stream" }.to_string())
+                .to_ascii_lowercase(),
+            // The size of the file that is saved or forwarded: its own bytes.
+            size: attachment_bytes(&part).len(),
         })
         .collect();
     Ok(MailMessage {
@@ -844,6 +907,7 @@ fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<M
         provider_message_id: parsed.message_id().map(str::to_string),
         list_unsubscribe: raw_header(&parsed, "List-Unsubscribe"),
         list_unsubscribe_post: raw_header(&parsed, "List-Unsubscribe-Post"),
+        head_lines: base64::engine::general_purpose::STANDARD.encode(shown_head_lines(raw)),
     })
 }
 
@@ -1093,6 +1157,7 @@ fn attachment_bytes(part: &mail_parser::MessagePart) -> Vec<u8> {
 
 /// What the parser hands out as a part's content: the text of a text part,
 /// in UTF-8, and the decoded bytes of any other.
+#[cfg(test)]
 fn part_contents(part: &mail_parser::MessagePart) -> Vec<u8> {
     match part.text() {
         Some(text) => text.into_owned().into_bytes(),
@@ -1926,16 +1991,59 @@ mod tests {
         assert_eq!(attachment_parts(&parsed).into_iter().map(|part| part.attachment_name()).collect::<Vec<_>>(), vec![Some("rechnung.pdf")]);
     }
 
-    /// Where this parser still reads less than the phone's reader: the one
-    /// point left of the parity catalog's `mail-base64-reading`. In an encoded
+    /// Where this parser reads less than the phone's reader: in an encoded
     /// word of a header a character that is no base64 - a hyphen too, which
     /// the parser passes over in a body - leaves the word as it was written;
-    /// the phone passes it over (`imapClient.test.ts`). Held so that the entry
-    /// goes when the difference goes.
+    /// the phone passes it over (`imapClient.test.ts`). It no longer reaches
+    /// the reader: the subject and the names it shows are read on the shared
+    /// side from the lines as sent (`hands_the_shown_head_lines_on_as_sent`,
+    /// Fehlerliste 0.9.0 C7). Held so that a parser update that reads these
+    /// words is seen.
     #[test]
     fn what_the_parser_gives_up_in_base64() {
         assert_eq!(subject_of("=?utf-8?B?R3LDvMOf*ZQ==?="), "=?utf-8?B?R3LDvMOf*ZQ==?=");
         assert_eq!(subject_of("=?utf-8?B?R3LD-vMOfZQ==?="), "=?utf-8?B?R3LD-vMOfZQ==?=");
+    }
+
+    /// ONE rule of what is a file of a message (Fehlerliste 0.9.0 C6): the
+    /// example messages the phone's parser is held to as well
+    /// (`imapAttachmentRule.test.ts`), out of the same file.
+    #[test]
+    fn one_rule_of_what_is_a_file() {
+        let fixtures: serde_json::Value = serde_json::from_str(include_str!("../../../../packages/ui/src/mail/net/attachmentRule.fixtures.json")).expect("fixtures");
+        let cases = fixtures["cases"].as_array().expect("cases");
+        assert!(cases.len() > 8);
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let raw = case["raw"].as_str().unwrap().as_bytes();
+            let message = message_from_raw(raw, 1, None).expect(name);
+            let listed: Vec<(String, String)> = message.attachments.iter().map(|file| (file.name.clone(), file.mime.clone())).collect();
+            let expected: Vec<(String, String)> = case["files"].as_array().unwrap().iter().map(|file| (file["name"].as_str().unwrap().to_string(), file["mime"].as_str().unwrap().to_string())).collect();
+            assert_eq!(listed, expected, "{name}");
+            // Each listed file has its bytes, as many as the list says.
+            let indexes: Vec<usize> = (0..listed.len()).collect();
+            let fetched = attachment_contents(raw, &indexes).expect(name);
+            assert_eq!(fetched.len(), listed.len(), "{name}");
+            for (file, found) in message.attachments.iter().zip(&fetched) {
+                assert_eq!(fetched_bytes(found).len(), file.size, "{name}: {}", file.name);
+            }
+        }
+    }
+
+    /// What the shared side reads a head from (Fehlerliste 0.9.0 C7): the
+    /// SUBJECT, FROM and TO lines as sent, folds included, nothing of the body
+    /// and no other field — for the word above that the parser leaves written,
+    /// the phone's reader reads it (`imapClient.test.ts`).
+    #[test]
+    fn hands_the_shown_head_lines_on_as_sent() {
+        let raw = b"From: =?utf-8?B?QW5uYQ==?= <a@example.org>\r\nTo: b@example.org,\r\n c@example.org\r\nSubject: =?utf-8?B?R3LD-vMOfZQ==?=\r\nX-Subject: no\r\nDate: Mon, 20 Jul 2026 10:00:00 +0200\r\n\r\nSubject: in the body\r\n";
+        let lines = "From: =?utf-8?B?QW5uYQ==?= <a@example.org>\r\nTo: b@example.org,\r\n c@example.org\r\nSubject: =?utf-8?B?R3LD-vMOfZQ==?=\r\n";
+        assert_eq!(String::from_utf8_lossy(&shown_head_lines(raw)), lines);
+        let message = message_from_raw(raw, 1, None).expect("parses");
+        let decoded = base64::engine::general_purpose::STANDARD.decode(message.head_lines).expect("base64");
+        assert_eq!(String::from_utf8_lossy(&decoded), lines);
+        // A header block as a FETCH returns it ends without a body.
+        assert_eq!(String::from_utf8_lossy(&shown_head_lines(b"Subject: Hallo\r\nContent-Type: text/plain\r\n")), "Subject: Hallo\r\n");
     }
 
     /// A part needs no header lines (RFC 2046, 5.1): it begins with the empty
@@ -2131,6 +2239,9 @@ mod tests {
         let files: Vec<String> = attachment_contents(raw, &indexes).unwrap().into_iter().map(|f| f.content_base64).collect();
         let mut value = serde_json::to_value(&message).unwrap();
         value["files"] = serde_json::json!(files);
+        // The head lines are the bytes as sent (`hands_the_shown_head_lines_on_as_sent`), not a reading to pin.
+        let lines = value.as_object_mut().unwrap().remove("headLines").expect("head lines");
+        assert_eq!(base64::engine::general_purpose::STANDARD.decode(lines.as_str().unwrap()).unwrap(), shown_head_lines(raw));
         value
     }
 
