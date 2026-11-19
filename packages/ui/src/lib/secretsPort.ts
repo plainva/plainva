@@ -181,8 +181,6 @@ export function imapSecretBinding(family: string, host: string, port: number, us
   };
 }
 
-const emptyMeta = (): SecretsPortMeta => ({ entries: {}, imported: {}, quarantine: {} });
-
 const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   entries: Object.fromEntries(
     Object.entries(source?.entries ?? {}).map(([id, entry]) => [
@@ -441,7 +439,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const deviceId = await host.deviceId();
       const stamp = now();
       const mark = await secretsMarker(host);
-      const meta = (await host.readMeta()) ?? emptyMeta();
+      const read = await host.readMeta();
+      // Written back only when this round changed it (round eight, F68).
+      const asRead = read ? stableStringify(read) : null;
+      const meta = cloneMeta(read);
       await sealSecretsMeta(meta, mark);
       // OAuth registrations may still be exposed by an older shell adapter,
       // but the shared port is the final policy boundary for every platform.
@@ -575,7 +576,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
       }
 
-      await host.writeMeta(meta);
+      if (stableStringify(meta) !== asRead) await host.writeMeta(meta);
       return {
         format: "plainva-secrets",
         version: 1,

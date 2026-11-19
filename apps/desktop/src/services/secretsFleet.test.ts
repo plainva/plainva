@@ -56,6 +56,8 @@ interface Device {
   keyring: Map<string, unknown>;
   meta: SecretsPortMeta | null;
   pushes: number;
+  /** Times this device wrote its secrets metadata. */
+  metaWrites: number;
   /** Imports an updated device reported (`onImportResult` writes the diagnostics for each). */
   reports: number;
   /** Switches a device on 0.8.7 to today's code, keeping its slots and metadata (the update). */
@@ -73,12 +75,14 @@ function device(name: string, legacy: boolean, rows: Row[], passwords: Record<st
     meta: null,
     pushes: 0,
     reports: 0,
+    metaWrites: 0,
     update: () => {
       d.legacy = false;
     },
     host: {
       readMeta: async () => d.meta,
       writeMeta: async (meta) => {
+        d.metaWrites++;
         d.meta = structuredClone(meta);
       },
     },
@@ -416,5 +420,15 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
         expect(d.slots.get("R")).toBe("PA");
       });
     }
+  });
+
+  it("a round that changes nothing writes no metadata either, export included (round eight, F68)", async () => {
+    start();
+    const rows = (): Row[] => [{ id: "r", user: "anna" }, { id: "m", user: "bert@example.com", kind: "mail" }];
+    const fleet = [device("N1", false, rows(), { r: "P1", m: "M1" }), device("N2", false, rows()), device("N3", false, rows())];
+    await rounds(fleet, 4);
+    for (const d of fleet) d.metaWrites = 0;
+    await rounds(fleet, 5);
+    expect(fleet.map((d) => d.metaWrites)).toEqual([0, 0, 0]);
   });
 });
