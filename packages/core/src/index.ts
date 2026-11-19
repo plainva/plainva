@@ -92,6 +92,7 @@ export * from "./sync/SettingsOnlySync.js";
 export * from "./sync/connectionFailure.js";
 export * from "./pim/taskNoteIdentity.js";
 export * from "./vault/vaultTransfer.js";
+export * from "./sync/ownRemovalNotes.js";
 export * from "./vault/starterFiles.js";
 export * from "./sync/deletionJournal.js";
 export * from "./sync/ownDeletions.js";

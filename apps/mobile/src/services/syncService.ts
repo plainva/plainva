@@ -1403,6 +1403,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     }
     const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.belowChain, v.workspaceRuntime, {
       intervalMs: syncIntervalMs(),
+      ownDeletions: v.ownDeletions,
       // The workspace worker runs its sideband AFTER pull and push, so the
       // manifest guard is not a pre-pull check here. That is fine and not a
       // gap: what it protects against is a PLAINTEXT sync pushing into a remote
