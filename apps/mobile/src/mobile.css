@@ -3452,6 +3452,15 @@ textarea {
   font-weight: 600;
 }
 
+/* With the keyboard up the bar it floats above is hidden (F71 of release 0.9.0, review): the selection bar takes the
+   bar's place at the foot, and the page keeps the room it covers — the strip the hidden bar reserved is otherwise free
+   (`--m-page-bottom: 0px` above), and the rows under the selection bar could not be scrolled out from under it. */
+.m-app.is-keyboard-open .m-selectbar { bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); }
+.m-app.is-keyboard-open:has(.m-selectbar),
+[data-window] .m-app.is-keyboard-open:has(.m-selectbar) {
+  --m-page-bottom: calc(var(--touch-md) + var(--space-6));
+}
+
 /* Mail carries five actions; wrap before a long count label can push the last
    touch target outside the viewport. */
 .m-selectbar--mail { flex-wrap: wrap; gap: var(--space-1); }
@@ -5192,6 +5201,9 @@ textarea {
 /* Something of the AI waits for a decision (plan KI-Oberflächen K11): the desktop's waiting dot on the bar's pill. */
 .m-tab-dot { position: absolute; top: var(--space-1); right: var(--space-3); width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--accent-color); pointer-events: none; }
 .m-ai-page .pv-ai { flex: 1; min-height: 0; }
+/* The composer ends where the content of every other page ends, at the reserved strip above the floating bar (F71 of
+   release 0.9.0): its own bottom padding stood on top of that strip, about 35px between the foot and the bar. */
+.m-ai-page .pv-ai-composer { padding-bottom: var(--space-1); }
 /* The greeting of an empty conversation is no card (F71 of release 0.9.0): it is the conversation's first line, at its
    top and to the left, not an empty surface standing in for content. */
 .m-page .pv-ai-hello { border: 0; background: transparent; padding: var(--space-2) 0; }

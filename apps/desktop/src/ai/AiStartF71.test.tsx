@@ -59,28 +59,52 @@ const conversation = (props: { start?: ReactNode; onOpenSkills?: () => void; onP
   <AiConversation dress="screen" activeNote={null} onOpenNote={() => undefined} onOpenUrl={() => undefined} onOpenSettings={() => undefined} {...props} />
 );
 
+/** jsdom lays nothing out: the thread says it is 500px tall, and every scroll it is given is kept. */
+async function recordingScrolls(run: (scrolled: number[]) => Promise<void>): Promise<void> {
+  const scrolled: number[] = [];
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(500);
+  const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
+  Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+    configurable: true,
+    get: () => 0,
+    set(this: HTMLElement, value: number) {
+      if (this.classList.contains("pv-ai-thread")) scrolled.push(value);
+    },
+  });
+  try {
+    await run(scrolled);
+  } finally {
+    delete (HTMLElement.prototype as unknown as { scrollTop?: number }).scrollTop;
+    Object.defineProperty(Element.prototype, "scrollTop", scrollTop);
+  }
+}
+
 describe("an empty conversation opens at its top (point 1)", () => {
   it("does not jump to the end of what an empty conversation shows", async () => {
-    // jsdom lays nothing out: the thread says it is taller than it is, and every scroll it is given is kept.
-    const scrolled: number[] = [];
-    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(500);
-    const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")!;
-    Object.defineProperty(HTMLElement.prototype, "scrollTop", {
-      configurable: true,
-      get: () => 0,
-      set(this: HTMLElement, value: number) {
-        if (this.classList.contains("pv-ai-thread")) scrolled.push(value);
-      },
-    });
-    try {
+    await recordingScrolls(async (scrolled) => {
       const { s } = await mcpSession([]);
       await show(s, conversation({ start: <div style={{ height: 600 }} data-testid="start-page" /> }));
       expect(scrolled.length).toBeGreaterThan(0);
       expect(scrolled[scrolled.length - 1]).toBe(0);
-    } finally {
-      delete (HTMLElement.prototype as unknown as { scrollTop?: number }).scrollTop;
-      Object.defineProperty(Element.prototype, "scrollTop", scrollTop);
-    }
+    });
+  });
+
+  it("and a conversation with an answer still follows it to its end", async () => {
+    await recordingScrolls(async (scrolled) => {
+      const { s } = await mcpSession([turn({ text: "The offer stands in [[Offer]]." })]);
+      await show(s, conversation());
+      await act(async () => void (await s.send("What is the offer?")));
+      await settle();
+      expect(scrolled[scrolled.length - 1]).toBe(500);
+    });
+  });
+
+  it("what the person has to know now stands before the start page, never below it (review point 10)", async () => {
+    const { s } = await mcpSession([]);
+    await show(s, conversation({ start: <div data-testid="start-page" /> }));
+    await set(s, { preparing: true });
+    const preparing = q("ai-preparing")!;
+    expect(preparing.compareDocumentPosition(q("start-page")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -97,6 +121,24 @@ describe("what happens to a change is said once (point 3)", () => {
     expect(q("ai-direct-off-marking")).toBeNull();
     // Nowhere in the conversation does a sentence say the opposite of the one in the marking line.
     expect(text(q("ai-conversation"))).not.toContain(i18n.t("ai.direct.markingOff"));
+  });
+});
+
+describe("the marking line never claims more protection than the run gives (review point 1)", () => {
+  it("names the folders that change without asking, wherever the open note lies", async () => {
+    const { s } = await mcpSession([]);
+    vi.spyOn(s, "directOffer").mockReturnValue(true);
+    vi.spyOn(s, "hasDirectFolders").mockResolvedValue(true);
+    await show(s, conversation());
+    expect(text(q("ai-direct-off-marking"))).toBe(i18n.t("ai.direct.markingOffFolders"));
+  });
+
+  it("says nothing about proposals where nothing is proposed (an encrypted workspace)", async () => {
+    const { s } = await mcpSession([]);
+    vi.spyOn(s, "directOffer").mockReturnValue(false);
+    await show(s, conversation());
+    expect(q("ai-direct-off-marking")).toBeNull();
+    expect(q("ai-direct-marking")).toBeNull();
   });
 });
 
@@ -152,6 +194,19 @@ describe("the field and the foot (points 6 and 7)", () => {
   });
 });
 
+describe("the way to skills and memory (review point 9)", () => {
+  it("is offered on the start also where no skill can be started", async () => {
+    const { s } = await mcpSession([]);
+    // No skill to start: the menu holds the way to the skills and the memory alone.
+    await set(s, { skills: { ...s.getState().skills, entries: [] } });
+    const onOpenSkills = vi.fn();
+    await show(s, conversation({ onOpenSkills }));
+    await click(q("ai-skills-open"));
+    const items = [...document.body.querySelectorAll('[role="menuitem"]')];
+    expect(items.map((item) => item.getAttribute("data-testid"))).toEqual(["ai-skills-manage"]);
+  });
+});
+
 describe("the greeting (points 1 and 9)", () => {
   it("stands where nothing else does, at the top and to the left; a start page replaces it", async () => {
     const { s } = await mcpSession([]);
@@ -172,13 +227,15 @@ describe("“Learn from this conversation” (mockup M7, maintainer 19.11.)", ()
     await show(s, conversation());
     await act(async () => void (await s.send("What is the offer?")));
     await settle();
-    const learn = q("ai-run-actions")!.querySelector('[data-testid="ai-learn-open"]');
-    expect(learn).not.toBeNull();
-    expect(text(learn)).toBe(i18n.t("ai.learn.action"));
+    const learn = q("ai-run-actions")!.querySelectorAll('[data-testid="ai-learn-open"]');
+    // One button in the row itself, not an entry of a menu.
+    expect(learn).toHaveLength(1);
+    expect(learn[0]!.tagName).toBe("BUTTON");
+    expect(learn[0]!.getAttribute("role")).not.toBe("menuitem");
+    expect(text(learn[0])).toBe(i18n.t("ai.learn.action"));
+    // And no menu carries it: the run's "…" (where the run has one) holds the same question to another model alone.
     const more = q("ai-run-more");
-    if (more) {
-      await click(more);
-      expect(document.body.querySelector('[role="menu"] [data-testid="ai-learn-open"]')).toBeNull();
-    }
+    if (more) await click(more);
+    expect(document.body.querySelectorAll('[role="menuitem"][data-testid="ai-learn-open"]')).toHaveLength(0);
   });
 });

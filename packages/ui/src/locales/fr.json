@@ -2753,6 +2753,7 @@
       "folderTip": "Le dossier de cette note a « Modifier sans demander ».",
       "marking": "L'IA et les scripts qu'elle lance peuvent modifier et créer des notes ici. Supprimer, renommer et déplacer demandent toujours.",
       "markingOff": "Ce que l'IA changerait, elle vous le présente comme une proposition.",
+      "markingOffFolders": "Ce que l'IA changerait, elle vous le présente comme une proposition – sauf dans les dossiers avec « Modifier sans demander » : là, elle modifie aussitôt.",
       "overview": "Appliquer directement",
       "overviewOn": "L'IA et les scripts qu'elle lance peuvent modifier et créer des notes ; la suppression demande toujours.",
       "changed": "Modifié : {{list}}",

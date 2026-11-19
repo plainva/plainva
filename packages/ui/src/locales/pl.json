@@ -2837,6 +2837,7 @@
       "folderTip": "Folder tej notatki ma „Zmieniaj bez pytania”.",
       "marking": "AI i uruchamiane przez nią skrypty mogą w tej rozmowie zmieniać i tworzyć notatki. Usuwanie, zmiana nazwy i przenoszenie nadal pytają.",
       "markingOff": "To, co AI by zmieniła, przedstawia Ci jako propozycję.",
+      "markingOffFolders": "To, co AI by zmieniła, przedstawia Ci jako propozycję – z wyjątkiem folderów z „Zmieniaj bez pytania”: tam zmienia od razu.",
       "overview": "Zastosuj od razu",
       "overviewOn": "AI i uruchamiane przez nią skrypty mogą zmieniać i tworzyć notatki; usuwanie nadal pyta.",
       "changed": "Zmieniono: {{list}}",

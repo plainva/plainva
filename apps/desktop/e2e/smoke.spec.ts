@@ -959,6 +959,31 @@ test('AI dock in a low column: the empty conversation opens at its top, the gree
   expect(placed.helloTop, 'the greeting begins inside the conversation, not above it').toBeGreaterThanOrEqual(placed.threadTop);
 });
 
+// A switch of the conversation that is on stays filled under the pointer (F71 of release 0.9.0, review point 6): the
+// chip's hover look outweighed the "on" look, and a chip just switched on looked like one that is off.
+test('AI dock: a switch that is on stays filled under the pointer', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  const chip = dock.getByTestId('ai-lens-open');
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.move(5, 5);
+  const resting = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await chip.hover();
+  const hovered = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(hovered).toBe(resting);
+});
+
 test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Icons.md'] = "---\ntype: Note\n---\n\nIcon test body\n";

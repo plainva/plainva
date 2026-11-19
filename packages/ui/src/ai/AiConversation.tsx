@@ -78,8 +78,9 @@ export interface AiConversationProps {
    */
   start?: ReactNode;
   /**
-   * Opens the skills and the memory — the last entry of the "Skills" menu (F71 of release 0.9.0): the phone's
-   * conversations screen, the desktop's AI tab. One way to them, from the one place skills are started.
+   * Opens the skills and the memory — the last entry of the "Skills" menu of an empty conversation (F71 of release
+   * 0.9.0), in every dress: the phone's screen, sheet and note segment lead to its conversations screen on "Skills",
+   * the desktop's column, window and tab to the AI tab's skills. One way to them, from the one place skills are started.
    */
   onOpenSkills?: () => void;
 }
@@ -153,6 +154,22 @@ function useDirectFolder(session: AiSession | null, path: string | null): string
     };
   }, [session, path]);
   return found && found.path === path ? found.folder : null;
+}
+
+/** Whether a folder of the vault lets changes go without asking (F71 of release 0.9.0); false while it is asked. */
+function useHasDirectFolders(session: AiSession | null, key: string): boolean {
+  const [found, setFound] = useState<{ key: string; direct: boolean } | null>(null);
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    void session.hasDirectFolders().then((direct) => {
+      if (alive) setFound({ key, direct });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session, key]);
+  return found?.key === key && found.direct;
 }
 
 export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection, start, onOpenSkills }: AiConversationProps) {
@@ -239,6 +256,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
 
   // The folder rule of the open note ("Change without asking", plan "KI direkt schreiben"): asked before any early return.
   const folderOfNote = useDirectFolder(session ?? null, activeNote?.path ?? null);
+  // Asked again with each conversation and each vault: a rule written meanwhile counts from the next one on.
+  const directFolders = useHasDirectFolders(session ?? null, `${state?.hasVault ? "vault" : "none"}:${state?.active?.id ?? "new"}`);
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {
@@ -705,7 +724,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const featuredSkills = allSkills.filter((skill) => skill.featured);
   const skillsInMenu = [...featuredSkills, ...allSkills.filter((skill) => !skill.featured)];
   const serverPrompts = extPrompt || localOnly ? [] : externalPrompts(state.mcp.servers);
-  const quickStart = items.length === 0 && !live && !consent && state.hasVault && skillsInMenu.length + serverPrompts.length > 0;
+  // The "Skills" button of an empty conversation: its skills to start, and — where the dress leads there — always the
+  // way to the skills and the memory themselves, also while no skill can be started (F71 of release 0.9.0).
+  const quickStart = items.length === 0 && !live && !consent && state.hasVault && (skillsInMenu.length + serverPrompts.length > 0 || Boolean(onOpenSkills));
   const shownNotice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice : null;
   const notice = shownNotice?.stop ?? null;
   // No answer came back (plan §19.4): the notes that match the question best stand in for it.
@@ -754,17 +775,18 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         )}
         {/* "Apply directly" (plan "KI direkt schreiben"): said for as long as it is on, before the first message too —
             and what happens to a change while it is off, in the same place (F71 of release 0.9.0): one sentence about
-            changes, the one that holds, never a second one in the conversation that contradicts it. Where the open
-            note's folder lets changes go without asking, the chip says so; no sentence here claims otherwise. */}
+            changes, the one that holds, never a second one in the conversation that contradicts it. It never claims
+            more protection than the run gives: a run decides per note it writes, so where any folder of the vault lets
+            changes go without asking, the sentence says so. Where nothing is proposed at all (an encrypted workspace,
+            a conversation without writing tools) it says nothing. */}
         {directOn ? (
           <span className="pv-ai-marking-web" data-testid="ai-direct-marking">
             {t("ai.direct.marking")}
           </span>
         ) : (
-          state.hasVault &&
-          directFolder === null && (
+          directOffer && (
             <span className="pv-ai-marking-web" data-testid="ai-direct-off-marking">
-              {t("ai.direct.markingOff")}
+              {directFolders ? t("ai.direct.markingOffFolders") : t("ai.direct.markingOff")}
             </span>
           )
         )}
@@ -808,15 +830,6 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             {active.replayOf.changed > 0 ? ` ${t("ai.replay.headChanged", { count: active.replayOf.changed })}` : ""}
           </Banner>
         )}
-        {/* The greeting of an empty conversation, at its top and to the left like everything below it (F71 of release
-            0.9.0) — only where nothing else stands there: a start page that lists what waits says enough. */}
-        {items.length === 0 && !live && !start && (
-          <EmptyState className="pv-ai-hello" title={t("ai.empty.startTitle")} testId="ai-hello">
-            {activeNote ? t("ai.empty.startBody") : t("ai.empty.startBodyVault")}
-          </EmptyState>
-        )}
-        {/* What the dress adds to an empty conversation (plan K11): the phone lists what waits and the last conversations. */}
-        {items.length === 0 && !live && start}
         {items.map((item, index) => renderItem(item, index))}
         {/* A skill reads its instructions before anything goes (Befunde 06.11., B6): the conversation says it is on its way. */}
         {state.preparing && !live && (
@@ -976,6 +989,17 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             <span data-testid="ai-routine-ready">{t("ai.routines.ready", { name: ready.name })}</span>
           </Banner>
         )}
+        {/* The greeting of an empty conversation, to the left like everything around it (F71 of release 0.9.0) — only
+            where nothing else stands there: a start page that lists what waits says enough. Both come after what the
+            person has to know now — a failure before the first answer, a skill on its way, a routine's notice —, which
+            stands at the top of an empty conversation and is never pushed below a tall start page. */}
+        {items.length === 0 && !live && !start && (
+          <EmptyState className="pv-ai-hello" title={t("ai.empty.startTitle")} testId="ai-hello">
+            {activeNote ? t("ai.empty.startBody") : t("ai.empty.startBodyVault")}
+          </EmptyState>
+        )}
+        {/* What the dress adds to an empty conversation (plan K11): the phone lists what waits and the last conversations. */}
+        {items.length === 0 && !live && start}
       </div>
       )}
 
@@ -1068,7 +1092,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         {/* The conversation's switches first, whole, then what goes with it (F71 of release 0.9.0): a switch carries a
             state and is never cut at the edge; on a phone the row is one line, and what follows the switches may come
             in from the right. Every chip has one form; a switch that is on is filled with the accent pair and checked. */}
-        <div className="pv-ai-chips" aria-label={t("ai.context")} data-testid="ai-chips">
+        <div className="pv-ai-chips pv-ai-chips--switches" aria-label={t("ai.context")} data-testid="ai-chips">
           {/* The conversation's options, named (plan KI-Oberflächen K7): before the first message they can be switched;
               afterwards the marking line says what holds. Only where the vault allows the internet, only where this
               device keeps a writing style. */}
@@ -1122,7 +1146,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         </div>
         {/* The field with its send button inside it (F71 of release 0.9.0): one line that grows with the text, as wide
             as everything above it. */}
-        <div className="pv-ai-inputrow">
+        <div className="pv-ai-inputrow pv-ai-inputrow--box">
           <GrowingField
             className="pv-ai-input"
             value={draft}

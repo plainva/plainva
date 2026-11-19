@@ -2669,6 +2669,7 @@
       "folderTip": "Im Ordner dieser Notiz gilt „Ohne Nachfrage ändern“.",
       "marking": "Die KI und Skripte, die sie startet, dürfen hier Notizen ändern und anlegen. Löschen, Umbenennen und Verschieben fragen weiter.",
       "markingOff": "Was die KI ändern würde, legt sie Dir als Vorschlag vor.",
+      "markingOffFolders": "Was die KI ändern würde, legt sie Dir als Vorschlag vor – außer in Ordnern mit „Ohne Nachfrage ändern“: Dort ändert sie sofort.",
       "overview": "Direkt übernehmen",
       "overviewOn": "Die KI und Skripte, die sie startet, dürfen Notizen ändern und anlegen; Löschen fragt weiter.",
       "changed": "Geändert: {{list}}",

@@ -2753,6 +2753,7 @@
       "folderTip": "La cartella di questa nota ha «Modifica senza chiedere».",
       "marking": "L'IA e gli script che avvia possono modificare e creare note in questa conversazione. Eliminare, rinominare e spostare chiedono sempre.",
       "markingOff": "Ciò che l'IA cambierebbe te lo presenta come proposta.",
+      "markingOffFolders": "Ciò che l'IA cambierebbe te lo presenta come proposta, tranne nelle cartelle con «Modifica senza chiedere»: lì cambia subito.",
       "overview": "Applica direttamente",
       "overviewOn": "L'IA e gli script che avvia possono modificare e creare note; l'eliminazione chiede sempre.",
       "changed": "Modificato: {{list}}",

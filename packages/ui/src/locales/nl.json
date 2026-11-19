@@ -2669,6 +2669,7 @@
       "folderTip": "De map van deze notitie heeft “Wijzigen zonder te vragen”.",
       "marking": "De AI en scripts die ze start mogen in dit gesprek notities wijzigen en aanmaken. Verwijderen, hernoemen en verplaatsen vragen nog steeds.",
       "markingOff": "Wat de AI zou veranderen, legt ze je voor als voorstel.",
+      "markingOffFolders": "Wat de AI zou veranderen, legt ze je voor als voorstel – behalve in mappen met “Wijzigen zonder te vragen”: daar wijzigt ze meteen.",
       "overview": "Direct toepassen",
       "overviewOn": "De AI en scripts die ze start mogen notities wijzigen en aanmaken; verwijderen vraagt nog steeds.",
       "changed": "Gewijzigd: {{list}}",

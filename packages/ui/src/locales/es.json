@@ -2753,6 +2753,7 @@
       "folderTip": "La carpeta de esta nota tiene «Cambiar sin preguntar».",
       "marking": "La IA y los scripts que inicia pueden cambiar y crear notas en esta conversación. Eliminar, renombrar y mover siguen preguntando.",
       "markingOff": "Lo que la IA cambiaría te lo presenta como sugerencia.",
+      "markingOffFolders": "Lo que la IA cambiaría te lo presenta como sugerencia, salvo en las carpetas con «Cambiar sin preguntar»: allí cambia al instante.",
       "overview": "Aplicar directamente",
       "overviewOn": "La IA y los scripts que inicia pueden cambiar y crear notas; eliminar sigue preguntando.",
       "changed": "Cambiado: {{list}}",

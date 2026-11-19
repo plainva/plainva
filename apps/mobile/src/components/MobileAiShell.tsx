@@ -49,6 +49,10 @@ export function aiShellRoutes(shell: {
       openNote: (path) => leaveThen(() => openNote(path)),
       openSearch: asked(() => push({ kind: "search", path: "" })),
       openSettings: asked(() => push({ kind: "settingsArea", path: "ai" })),
+      openSkills: asked(() => {
+        ai.closeSheet();
+        push({ kind: "aihistory", path: "skills" });
+      }),
       openMailDraft: (mail) =>
         leaveThen(() => {
           ai.closeSheet();

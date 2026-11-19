@@ -2753,6 +2753,7 @@
       "folderTip": "A pasta desta nota tem “Alterar sem perguntar”.",
       "marking": "A IA e os scripts que ela inicia podem alterar e criar notas nesta conversa. Excluir, renomear e mover continuam perguntando.",
       "markingOff": "O que a IA mudaria, ela apresenta a você como sugestão.",
+      "markingOffFolders": "O que a IA mudaria, ela apresenta a você como sugestão – exceto em pastas com “Alterar sem perguntar”: lá ela altera na hora.",
       "overview": "Aplicar diretamente",
       "overviewOn": "A IA e os scripts que ela inicia podem alterar e criar notas; excluir continua perguntando.",
       "changed": "Alterado: {{list}}",

@@ -83,7 +83,7 @@ async function openAiScreen(page: Page, context: BrowserContext, proposal: boole
     await expect(conversation.getByText("I propose a change.")).toBeVisible({ timeout: 30_000 });
     // A new, empty conversation: something to decide, a last conversation.
     await page.getByTestId("ai-new").click();
-    await expect(page.getByTestId("ai-start-waiting")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("ai-start-waiting").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("ai-start-recent")).toHaveCount(1);
   }
   await page.waitForTimeout(500);
@@ -152,6 +152,43 @@ test("with nothing to list, the greeting stands at the top and to the left", asy
     expect(placed.gap, "at the top of the conversation").toBeLessThanOrEqual(24);
     expect(placed.align).toBe("left");
     expect(Math.abs(placed.titleLeft - placed.fieldLeft), "the greeting begins where the field below it begins").toBeLessThanOrEqual(16);
+  } finally {
+    close();
+  }
+});
+
+test("a failure before the first answer stands in view above the start, without scrolling (review point 10)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const close = await openAiScreen(page, context, true);
+  try {
+    // The model's script is spent: the next request fails, before the new conversation has an answer.
+    await page.getByTestId("ai-input").fill("And the next sentence?");
+    await page.getByTestId("ai-send").click();
+    const notice = page.getByTestId("ai-conversation").locator(".pv-banner").first();
+    await expect(notice).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(300);
+    const placed = await notice.evaluate((el) => {
+      const thread = document.querySelector(".m-ai-page .pv-ai-thread") as HTMLElement;
+      const box = el.getBoundingClientRect();
+      const view = thread.getBoundingClientRect();
+      return { top: box.top, bottom: box.bottom, viewTop: view.top, viewBottom: view.bottom };
+    });
+    expect(placed.top, "the notice begins inside the conversation").toBeGreaterThanOrEqual(placed.viewTop - 1);
+    expect(placed.bottom, "and ends inside it, nothing to scroll for").toBeLessThanOrEqual(placed.viewBottom + 1);
+  } finally {
+    close();
+  }
+});
+
+test("the start lists what waits as the segment “To decide” shows it (mockup M12)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const close = await openAiScreen(page, context, true);
+  try {
+    // The note by its name, under it how many changes, by whom and when; the number beside the heading.
+    const line = page.getByTestId("ai-start-waiting").first();
+    await expect(line).toContainText("Example");
+    await expect(line).toContainText(/\d+ changes? · /);
+    await expect(page.getByTestId("ai-start-waiting-count")).toHaveText("1");
   } finally {
     close();
   }

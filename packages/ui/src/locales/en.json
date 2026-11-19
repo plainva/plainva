@@ -2669,6 +2669,7 @@
       "folderTip": "The folder of this note has “Change without asking”.",
       "marking": "The AI, and scripts it starts, may change and create notes in this conversation. Deleting, renaming and moving still ask.",
       "markingOff": "What the AI would change, it lays before you as a suggestion.",
+      "markingOffFolders": "What the AI would change, it lays before you as a suggestion – except in folders with “Change without asking”: there it changes at once.",
       "overview": "Apply directly",
       "overviewOn": "The AI, and scripts it starts, may change and create notes; deleting still asks.",
       "changed": "Changed: {{list}}",
