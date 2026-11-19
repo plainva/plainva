@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-11-18
+Last reviewed: 2026-11-19
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -149,6 +149,10 @@ Starfleet does not comment on rumors. But word is the logo in the title bar resp
 ### Part of the window says “This area could not be shown”
 
 One area failed to draw — a tab, a sidebar section, a database view, a mail, a settings page, a dialog or, on the phone, a screen or a sheet. Only that area is replaced; everything else keeps working, and an open note keeps its text. **Reload this area** draws the area again. If it fails a second time, the message says so and stays: close the tab (**Close tab**) or, on the phone, tap **Back**, and restart Plainva if it keeps happening. The error is recorded under **About & diagnostics**; the diagnostics export there contains no note content and helps a bug report.
+
+### Why does closing a vault sometimes take a moment?
+
+When you close, switch, reload or remove a vault, Plainva waits until notes are saved and a running sync step has finished – within one deadline for the whole close. If it takes longer than 5 seconds, a notice says what Plainva is waiting for. After 30 seconds Plainva goes on, and nothing is lost: a save that has not finished yet finishes in the background, and the text is also kept in the draft; a sync step that did not finish is stopped, and the next sync catches up on what is missing. A vault that is still opening when you remove it is closed and removed as soon as it answers. If you open the same vault again while it is still closing, Plainva says so and opens it once it is closed – never twice at once. If a sync hangs for 15 minutes, the status line says so; Plainva starts it again as soon as the running step ends, and restarting the app ends it at once.
 
 ## See also
 

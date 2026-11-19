@@ -87,3 +87,22 @@ export async function waitWithDeadline(work: Promise<unknown>, step: () => Close
     if (notice !== null) toast.dismiss(notice);
   }
 }
+
+/**
+ * Opening a vault again while its previous runtime is still ending (text 7):
+ * waits for `ended` — never two runtimes at one vault — and from
+ * `noticeAfterMs` on says so, until it has ended. No deadline: the wait is
+ * bounded by the requests' own time limits.
+ */
+export async function waitForClosingVault(ended: Promise<unknown>, vault: string, options: Pick<CloseDeadlineOptions, "noticeAfterMs"> = {}): Promise<void> {
+  let notice: number | null = null;
+  const timer = setTimeout(() => {
+    notice = toast.progress(i18n.t("closing.stillClosing", { vault }));
+  }, options.noticeAfterMs ?? CLOSE_NOTICE_AFTER_MS);
+  try {
+    await ended;
+  } finally {
+    clearTimeout(timer);
+    if (notice !== null) toast.dismiss(notice);
+  }
+}

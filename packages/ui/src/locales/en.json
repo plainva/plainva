@@ -3780,6 +3780,7 @@
   "sync": {
     "error": "Sync error – click for details and retry",
     "retryingAt": "No connection — trying again at {{time}}",
+    "stuck": "Sync has been stuck for {{minutes}} minutes. Plainva starts it again as soon as the running step ends; restarting the app ends it at once.",
     "retrying": "Plainva is trying the synchronization again…",
     "syncing": "Syncing...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -8389,10 +8390,11 @@
     "savingWaitMany_other": "Plainva is still saving {{count}} notes – then it goes on.",
     "syncWait": "A sync step of “{{vault}}” is still running – then it goes on.",
     "openingWait": "“{{vault}}” is still opening – then it goes on.",
-    "savingGaveUp": "“{{name}}” is not saved yet. Plainva goes on anyway; the text is in the draft and comes back the next time you open it.",
-    "savingGaveUpMany_one": "{{count}} note is not saved yet. Plainva goes on anyway; the text is in the draft and comes back the next time you open it.",
-    "savingGaveUpMany_other": "{{count}} notes are not saved yet. Plainva goes on anyway; the texts are in the drafts and come back the next time you open them.",
+    "savingGaveUp": "“{{name}}” is not saved yet. Plainva goes on; the save finishes in the background, and the text is also kept in the draft.",
+    "savingGaveUpMany_one": "{{count}} note is not saved yet. Plainva goes on; the save finishes in the background, and the text is also kept in the draft.",
+    "savingGaveUpMany_other": "{{count}} notes are not saved yet. Plainva goes on; the saves finish in the background, and the texts are also kept in the drafts.",
     "syncGaveUp": "The sync step of “{{vault}}” did not finish. Plainva stops it and goes on; nothing is lost – the next sync catches up on what is missing.",
-    "openingGaveUp": "“{{vault}}” did not finish opening. Plainva goes on anyway and closes it as soon as it answers."
+    "openingGaveUp": "“{{vault}}” did not finish opening. Plainva closes it and removes it as soon as it answers.",
+    "stillClosing": "“{{vault}}” is still closing – then Plainva opens it again."
   }
 }

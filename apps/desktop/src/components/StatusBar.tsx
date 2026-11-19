@@ -7,7 +7,7 @@ import { activeDocument, type ActiveDoc, type SelectionStats } from "../services
 import { virtualTabMeta } from "./graph/virtualPaths";
 import { computeEmbedInfo } from "../services/embedStats";
 import { countWords, ICON } from "@plainva/ui";
-import { noteBodyOf, parseMarkdownAst } from "@plainva/core";
+import { noteBodyOf, parseMarkdownAst, SYNC_STUCK_AFTER_MINUTES } from "@plainva/core";
 
 interface Stats { words: number; chars: number; blocks: number; }
 
@@ -31,7 +31,7 @@ export function StatusBar() {
   const { syncWorker, vaultPath } = useVault();
   // Sync status via the external store (P3/E2), with anti-flicker: a no-op
   // poll cycle every 15 s must not blink the icon.
-  const { status: syncStatus, progress: syncProgress, retryAt: syncRetryAt } = useDisplaySyncStatus(vaultPath);
+  const { status: syncStatus, progress: syncProgress, retryAt: syncRetryAt, reason: syncReason } = useDisplaySyncStatus(vaultPath);
   const [doc, setDoc] = useState<ActiveDoc>(() => activeDocument.get());
   const [stats, setStats] = useState<Stats | null>(null);
   // Selection-aware counts (P3.9): while text is selected in the active
@@ -131,6 +131,15 @@ export function StatusBar() {
     // survive it and will try again, so the segment stays neutral and says when
     // rather than turning red and naming a provider string nobody can act on.
     // The raw text stays in the error history and the diagnostics export.
+    // Given up by the watchdog: it starts again once the running step ends (`stuck`).
+    if (syncStatus === "retrying" && syncReason === "stuck") {
+      return (
+        <span data-testid="sync-stuck" style={{ ...sep, display: "inline-flex", alignItems: "center", gap: "var(--space-1)", fontWeight: 600, color: "var(--text-muted)" }}>
+          <CloudOff size={ICON.meta} />
+          {t("sync.stuck", { minutes: SYNC_STUCK_AFTER_MINUTES })}
+        </span>
+      );
+    }
     if (syncStatus === "retrying") {
       const when = syncRetryAt
         ? new Date(syncRetryAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })

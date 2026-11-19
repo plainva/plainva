@@ -79,11 +79,11 @@ interface World {
   held: (Hold & { arrived: () => void; released: Promise<void> }) | null;
   fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
-function world(): World {
+function world(conditions: "honor" | "ignore" = "honor"): World {
   vi.spyOn(console, "log").mockImplementation(() => undefined);
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
-  const dav = byteExactDav();
+  const dav = byteExactDav(undefined, { conditions });
   const w: World = {
     dav,
     remote: (p) => {
@@ -156,7 +156,7 @@ async function runtime(w: World, root: string, db: IDatabaseAdapter, fence?: Vau
   };
 }
 
-async function vault(w: World) {
+async function vault(_w: World) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-call-off-"));
   const db = await realSqlite();
   cleanups.push(async () => {
@@ -287,26 +287,40 @@ describe("a sync cycle called off mid-step, and the next runtime's cycle", () =>
     expect(conflictCopies(await walk(v.root))).toEqual([]);
   });
 
-  it("a called-off runtime writes nothing more, also when its held request is answered after the next runtime took over", async () => {
-    const w = world();
+  it("the next runtime starts only once the called-off one has ended — a late upload never lands over its own, even where the provider checks no condition", async () => {
+    const w = world("ignore");
     const v = await vault(w);
     const fence = createVaultCallOff();
     const old = await runtime(w, v.root, v.db, fence);
-    await old.app.writeTextFile("Late.md", "late\n");
-    w.held = hold("PUT", "Late.md");
+    await old.app.writeTextFile("Note.md", "v1\n");
+    w.held = hold("PUT", "Note.md");
     const entered = w.held.entered;
     const release = w.held.release;
     const cycle = old.cycle();
     await entered;
     fence.callOff();
 
+    // As both shells do: the same vault opens again only once the old runtime has ended — its cycle through
+    // (the provider answers its upload) and none of its calls open.
+    let started = false;
+    const nextOpens = (async () => {
+      await settle(cycle);
+      await fence.ended();
+      started = true;
+    })();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(started, "waits while the old upload is open").toBe(false);
+    release();
+    await nextOpens;
+
     const next = await runtime(w, v.root, v.db);
+    await next.app.writeTextFile("Note.md", "v2\n");
     await next.cycle();
     const after = await snapshot(v.db, v.root);
-    // The provider answers the old runtime's upload only now.
-    release();
-    await settle(cycle);
-    expect(await snapshot(v.db, v.root), "the old runtime wrote nothing").toBe(after);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(w.remote("Note.md"), "v2 stays").toBe("v2\n");
+    expect(await fs.readFile(v.file("Note.md"), "utf8")).toBe("v2\n");
+    expect(await snapshot(v.db, v.root), "the old runtime wrote nothing more").toBe(after);
     await expect(old.db.query(`SELECT 1`)).rejects.toThrow(/called off/);
   });
 });

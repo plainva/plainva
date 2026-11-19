@@ -3869,6 +3869,7 @@
   "sync": {
     "error": "Erro de sincronização – clique para ver detalhes e tentar novamente",
     "retryingAt": "Sem conexão — nova tentativa às {{time}}",
+    "stuck": "A sincronização está travada há {{minutes}} minutos. O Plainva a reinicia assim que a etapa em andamento terminar; reiniciar o app a encerra na hora.",
     "retrying": "O Plainva está tentando sincronizar novamente…",
     "syncing": "Sincronizando...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -8559,11 +8560,12 @@
     "savingWaitMany_other": "O Plainva ainda está salvando {{count}} notas – depois continua.",
     "syncWait": "Uma etapa de sincronização de “{{vault}}” ainda está em andamento – depois o Plainva continua.",
     "openingWait": "“{{vault}}” ainda está abrindo – depois o Plainva continua.",
-    "savingGaveUp": "“{{name}}” ainda não foi salva por completo. O Plainva continua mesmo assim; o texto está no rascunho e volta na próxima vez que você abrir.",
-    "savingGaveUpMany_one": "{{count}} nota ainda não foi salva por completo. O Plainva continua mesmo assim; o texto está no rascunho e volta na próxima vez que você abrir.",
-    "savingGaveUpMany_many": "{{count}} notas ainda não foram salvas por completo. O Plainva continua mesmo assim; os textos estão nos rascunhos e voltam na próxima vez que você abrir.",
-    "savingGaveUpMany_other": "{{count}} notas ainda não foram salvas por completo. O Plainva continua mesmo assim; os textos estão nos rascunhos e voltam na próxima vez que você abrir.",
+    "savingGaveUp": "“{{name}}” ainda não foi salva por completo. O Plainva continua; o salvamento termina em segundo plano, e o texto também fica no rascunho.",
+    "savingGaveUpMany_one": "{{count}} nota ainda não foi salva por completo. O Plainva continua; o salvamento termina em segundo plano, e o texto também fica no rascunho.",
+    "savingGaveUpMany_many": "{{count}} notas ainda não foram salvas por completo. O Plainva continua; os salvamentos terminam em segundo plano, e os textos também ficam nos rascunhos.",
+    "savingGaveUpMany_other": "{{count}} notas ainda não foram salvas por completo. O Plainva continua; os salvamentos terminam em segundo plano, e os textos também ficam nos rascunhos.",
     "syncGaveUp": "A etapa de sincronização de “{{vault}}” não terminou. O Plainva a interrompe e continua; nada se perde – a próxima sincronização recupera o que falta.",
-    "openingGaveUp": "“{{vault}}” não terminou de abrir. O Plainva continua mesmo assim e o fecha assim que responder."
+    "openingGaveUp": "“{{vault}}” não terminou de abrir. O Plainva o fecha e o remove assim que responder.",
+    "stillClosing": "“{{vault}}” ainda está fechando – depois o Plainva o abre de novo."
   }
 }

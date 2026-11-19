@@ -2091,46 +2091,50 @@ describe("SyncWorker", () => {
       for (let i = 0; i < tries && !cond(); i++) await vi.advanceTimersByTimeAsync(1);
     };
 
-    it("watchdog warns on a stuck cycle, abandons it after the inactivity ceiling and revives the worker", async () => {
+    it("watchdog warns on a stuck cycle and abandons it after the inactivity ceiling — but starts no second cycle beside it while its request is open", async () => {
       vi.useFakeTimers();
       try {
         let pullCalls = 0;
-        // A request the platform never answers: the pull promise never settles,
-        // which used to leave isSyncing=true forever (only a force-close helped).
+        let answer!: () => void;
+        // A request the platform does not answer for a long time: the first pull hangs until released.
         target.pull = vi.fn(() => {
           pullCalls++;
-          return new Promise(() => {});
+          if (pullCalls === 1) return new Promise((resolve) => { answer = () => resolve({ files: [], deletedPaths: [], cursor: undefined } as never); });
+          return Promise.resolve({ files: [], deletedPaths: [], cursor: undefined } as never);
         });
-        const statuses: Array<{ s: string; e?: string }> = [];
-        worker.onStatusChange = (s, e) => statuses.push({ s, e });
+        const statuses: Array<{ s: string; e?: string; r?: string }> = [];
+        worker.onStatusChange = (s, e, r) => statuses.push({ s, e, r });
         worker["isRunning"] = false; // start() guards on an already-running worker
         worker.start();
         await flushUntil(() => worker["isSyncing"] === true); // resetStuckOperations -> first cycle
         expect(pullCalls).toBe(1);
-        expect(worker["isSyncing"]).toBe(true);
 
         // 10 min of inactivity: warn, but do not abandon yet.
         await vi.advanceTimersByTimeAsync(10 * 60_000);
         // "Appears stuck, will be abandoned if it stays unresponsive" is a
-        // warning about a possible problem, so it reports as `retrying`. A red
-        // triangle here is what taught the user to ignore red triangles.
+        // warning about a possible problem, so it reports as `retrying`.
         expect(statuses.some((x) => x.s === "retrying" && /stuck/i.test(x.e ?? ""))).toBe(true);
         expect(statuses.some((x) => x.s === "error")).toBe(false);
-        expect(worker["isSyncing"]).toBe(true);
 
-        // 15 min of inactivity: the cycle is written off and the worker frees
-        // itself (checked exactly at the abandon tick, before the fresh cycle
-        // scheduled right after starts and re-enters syncing).
+        // 15 min: the cycle is written off — and while its request is still open,
+        // no second cycle goes to the provider beside it (its late answer would
+        // land over what the second one uploaded).
         await vi.advanceTimersByTimeAsync(5 * 60_000);
-        // The first abandon is one failure, not a verdict: same rule as any
-        // other transient failure.
         expect(statuses.some((x) => x.s === "retrying" && /abandoned/i.test(x.e ?? ""))).toBe(true);
-        expect(worker["isSyncing"]).toBe(false);
+        // Said as stuck (`sync.stuck`), with no time of a next attempt: there is none until the step ends.
+        expect(statuses.at(-1)).toMatchObject({ s: "retrying", r: "stuck" });
         expect(worker["cursor"]).toBeUndefined();
+        await vi.advanceTimersByTimeAsync(60 * 60_000);
+        expect(pullCalls, "no second cycle beside the open request").toBe(1);
 
-        // A fresh cycle was scheduled — the worker is responsive again without a restart.
-        await vi.advanceTimersByTimeAsync(200);
-        expect(pullCalls).toBe(2);
+        // The provider answers at last: the abandoned cycle ends, and only then the next one runs.
+        answer();
+        await vi.advanceTimersByTimeAsync(60 * 60_000);
+        expect(pullCalls, "the worker runs again once the abandoned cycle has ended").toBeGreaterThanOrEqual(2);
+        // The notice goes once the next cycle runs.
+        const afterStuck = statuses.slice(statuses.findIndex((x) => x.r === "stuck") + 1);
+        expect(afterStuck.some((x) => x.s === "syncing"), "the next cycle is said").toBe(true);
+        expect(statuses.at(-1)?.r, "and the notice is gone").not.toBe("stuck");
         worker.stop();
       } finally {
         vi.useRealTimers();

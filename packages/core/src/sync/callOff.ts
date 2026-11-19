@@ -12,10 +12,12 @@ import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
  * its storage (the lowest vault adapter, which every link of the chain writes
  * through) are handed out fenced, and the fence refuses every new call at
  * once. A call already running ends as it would — a write of a file is whole
- * or not made, a transaction commits or rolls back — and nothing of that
- * runtime writes after it: not the sync worker or the workspace worker, not
- * the queue, the deletion journal, the sync state, nor a background task or a
- * late answer of the provider. Only then does the next runtime start.
+ * or not made, a transaction commits or rolls back — and the fence counts it,
+ * with every call that waits for a turn inside an adapter, until it ends:
+ * the same vault opens again only once the called-off runtime has ENDED
+ * (`ended`). Never two runtimes at one vault. A step that writes past the
+ * fence (the app's settings, the keychain) asks it first (`allows`), and a
+ * write elsewhere is counted (`track`).
  *
  * What a cycle had done halfway is read by the next one from the disk, the
  * provider and the database, as after a crash (see the tests of the four
@@ -49,10 +51,46 @@ export interface VaultCallOff {
   /** Refuses every new call of what this fence handed out, from now on. */
   callOff(): void;
   readonly calledOff: boolean;
+  /**
+   * Whether a step that writes past the fenced database and storage — the
+   * app's settings, the keychain — may still apply what it got: false once
+   * called off (a late answer must not overwrite what the next runtime set).
+   */
+  allows(): boolean;
+  /**
+   * Counts `work` as one of this runtime's open calls (a write that does not
+   * go through the fenced database or storage), so `ended` waits for it.
+   */
+  track<T>(work: Promise<T>): Promise<T>;
+  /**
+   * Resolves once the runtime is called off AND none of its calls is open any
+   * more — running or waiting for a turn inside an adapter. Only then may the
+   * same vault open again: never two runtimes at one vault.
+   */
+  ended(): Promise<void>;
+  /** How many of the runtime's calls are open now (for the notice while the same vault waits to open). */
+  readonly open: number;
 }
 
 export function createVaultCallOff(): VaultCallOff {
   let calledOff = false;
+  let open = 0;
+  let waiters: Array<() => void> = [];
+  const settleIfEnded = () => {
+    if (!calledOff || open > 0) return;
+    const ready = waiters;
+    waiters = [];
+    for (const resolve of ready) resolve();
+  };
+  const track = <T>(work: Promise<T>): Promise<T> => {
+    open += 1;
+    const done = () => {
+      open -= 1;
+      settleIfEnded();
+    };
+    work.then(done, done);
+    return work;
+  };
   const fence = <T extends object>(target: T, calls: ReadonlySet<string>, what: string): T =>
     new Proxy(target, {
       get(obj, key, receiver) {
@@ -61,7 +99,9 @@ export function createVaultCallOff(): VaultCallOff {
         if (typeof key !== "string" || !calls.has(key)) return value.bind(obj);
         return (...args: unknown[]) => {
           if (calledOff) return Promise.reject(new CalledOffError(`${what}.${key}`));
-          return (value as (...a: unknown[]) => unknown).apply(obj, args);
+          const result = (value as (...a: unknown[]) => unknown).apply(obj, args);
+          // Counted until it settles: a call that waits for a turn inside the adapter is open too.
+          return result instanceof Promise ? track(result) : result;
         };
       },
     });
@@ -70,9 +110,20 @@ export function createVaultCallOff(): VaultCallOff {
     storage: (adapter) => fence(adapter, STORAGE_CALLS, "vault storage"),
     callOff: () => {
       calledOff = true;
+      settleIfEnded();
     },
     get calledOff() {
       return calledOff;
+    },
+    allows: () => !calledOff,
+    track,
+    ended: () =>
+      new Promise<void>((resolve) => {
+        waiters.push(resolve);
+        settleIfEnded();
+      }),
+    get open() {
+      return open;
     },
   };
 }

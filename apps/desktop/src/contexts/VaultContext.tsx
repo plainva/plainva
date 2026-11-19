@@ -1,13 +1,13 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { closeWaitNoteName, errorText, reportBackground, reportingTo, waitWithDeadline, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
+import { errorText, reportBackground, reportingTo, waitForClosingVault, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, readFullTextDamage, sameStoredValue, updateVaultText, vaultFolderIsThere } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
-import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
+import { relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
@@ -23,9 +23,9 @@ import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore } from "../services/syncStatusStore";
-import { pendingWritePaths, settlePendingWrites } from "../services/pendingWrites";
+import { closeVaultRuntime } from "../services/closeRuntime";
 import { vaultLabel } from "../services/vaultNames";
-import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
+import { awaitVaultTeardown } from "../services/vaultTeardown";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
@@ -785,7 +785,21 @@ export const VaultProvider: React.FC<{
       // the last window looking away starts the drain and cannot await it, so
       // the next open does. Without this wait, closing and reopening a vault in
       // quick succession would put two workers on one queue.
-      await perfMeasure("vault open: previous drain", () => awaitVaultTeardown(path));
+      // A runtime of this very vault still running (a reload): it closes the way
+      // a close does — drafts, saves, then the sync step — never called off
+      // before its saves had their chance.
+      if (state.vaultPath === path && (state.syncWorker || callOffRef.current)) {
+        const fence = callOffRef.current;
+        callOffRef.current = null;
+        const settingsOnly = settingsOnlyRef.current;
+        settingsOnlyRef.current = null;
+        settingsOnly?.stop();
+        state.syncWorker?.stop();
+        await closeVaultRuntime({ path, worker: state.syncWorker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence }).closed;
+      }
+      // Never two runtimes at one vault: a previous one opens the way only once
+      // it has ended — its close through and none of its calls open (text 7).
+      await perfMeasure("vault open: previous drain", () => waitForClosingVault(awaitVaultTeardown(path), vaultLabel(path)));
 
       // Which extra file types this vault opens as text (C15). It belongs to
       // the vault, so it is installed with the vault and not by whoever first
@@ -793,14 +807,6 @@ export const VaultProvider: React.FC<{
       // the second truth `openTarget` exists to prevent.
       setExtraTextExtensions(await (await getSettingsStore()).get<string[]>(textFileExtensionsKey(path)) ?? []);
 
-      if (state.syncWorker) {
-        // Drain, don't just stop (P3.4): the old worker may still be mid-cycle
-        // writing into the very DB file the reload below re-opens/migrates.
-        // Not for ever: after the deadline its runtime is called off, and then
-        // it writes nothing more into that file.
-        const previous = callOffRef.current;
-        if ((await waitWithDeadline(state.syncWorker.stopAndDrain(), () => ({ kind: "sync", vault: vaultLabel(path) }))) === "gave-up") previous?.callOff();
-      }
       // The settings-only sync of a vault with files off goes with it (second review, B3).
       await stopSettingsOnly();
 
@@ -824,6 +830,7 @@ export const VaultProvider: React.FC<{
       // nothing of it writes the vault or its index database any more (`createVaultCallOff`).
       const callOff = createVaultCallOff();
       callOffRef.current = callOff;
+      loadStarts.fence(callOff);
       const tauriVaultAdapter = countWrites(callOff.storage(new TauriVaultAdapter(path)), "background");
       await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());
       await tauriVaultAdapter.createDir(".plainva");
@@ -1490,7 +1497,7 @@ export const VaultProvider: React.FC<{
             // target is published either, so nothing here offers a file sync.
             syncTargetRef.current = null;
             syncProviderRef.current = null;
-            const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
+            const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
             if (runner) {
               const sessionCheck = workspaceRuntime ? undefined : settingsOnlyFolderCheck({ ports: remotePorts, binding, provider: syncProvider!, target });
               const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {
@@ -1559,7 +1566,7 @@ export const VaultProvider: React.FC<{
                         : s),
                   }));
                 if (currentAbortSignal.aborted) return null;
-                const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId })) ?? undefined;
+                const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId, allows: callOff.allows })) ?? undefined;
                 const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
                   ownDeletions,
@@ -1627,7 +1634,7 @@ export const VaultProvider: React.FC<{
               if (deferWorkspaceReconcile) {
                 void startEncryptedWorkspace()
                   .then((worker) => {
-                    if (!worker || currentAbortSignal.aborted) { void worker?.stopAndDrain(); return; }
+                    if (!worker || currentAbortSignal.aborted) { if (worker) loadStarts.late(worker); return; }
                     setState((s) => (s.vaultPath === path ? { ...s, syncWorker: worker } : s));
                   })
                   .catch(async (e) => {
@@ -1668,7 +1675,7 @@ export const VaultProvider: React.FC<{
             // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
             // through the same target, outside the file queue/merge path. null when
             // the vault has not opted in.
-            const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;
+            const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows })) ?? undefined;
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
@@ -1809,7 +1816,7 @@ export const VaultProvider: React.FC<{
                   onHeld: (verdict) => syncStatusStore.set(path, { status: "error", message: i18n.t(heldFolderMessageKey(verdict)), provider: syncProvider, reason: "encrypted-workspace" }),
                   onStart: () => {
                     void startPlainWorker().then((worker) => {
-                      if (!worker || currentAbortSignal.aborted) { void worker?.stopAndDrain(); return; }
+                      if (!worker || currentAbortSignal.aborted) { if (worker) loadStarts.late(worker); return; }
                       syncStatusStore.set(path, { status: "idle", message: null, provider: syncProvider, reason: undefined });
                       setState((st) => (st.vaultPath === path ? { ...st, syncWorker: worker } : st));
                     }).catch((error) => console.error("[VaultContext] starting the sync of a held folder failed", error));
@@ -2406,7 +2413,7 @@ export const VaultProvider: React.FC<{
         void loadVault(state.vaultPath);
         return;
       }
-      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null })
+      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null, allows: callOffRef.current?.allows })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
           if (step) worker.triggerImmediate();
@@ -2524,29 +2531,10 @@ export const VaultProvider: React.FC<{
     settingsOnly?.stop();
     const fence = callOffRef.current;
     callOffRef.current = null;
-    const drain = (async () => {
-      // What the draft journal still buffers for this vault goes to disk first
-      // (bounded): with the vault gone, nobody writes it later.
-      if (path) await flushDrafts(path).catch(() => {});
-      // …and the journal's picture of its files goes: they may be removed before it opens again.
-      if (path) forgetDraftMemory(path);
-      // Not for ever (texts 1, 2, 4, 5): after the deadline the close goes on,
-      // and the runtime is called off before the next one starts — a note's
-      // text lies in the draft journal flushed above, and the next sync takes
-      // over what the step left half done.
-      let gaveUp = false;
-      if (path) gaveUp = (await waitWithDeadline(settlePendingWrites(path), () => ({ kind: "saving", names: pendingWritePaths(path).map(closeWaitNoteName) }))) === "gave-up";
-      const background = (async () => {
-        await worker?.stopAndDrain();
-        await settingsOnly?.stopAndDrain();
-        await state.indexer?.whenIdle?.();
-        await state.indexQueue?.whenIdle();
-      })();
-      if ((await waitWithDeadline(background, () => ({ kind: "sync", vault: path ? vaultLabel(path) : "" }))) === "gave-up") gaveUp = true;
-      if (gaveUp) fence?.callOff();
-    })();
-    if (path) noteVaultTeardown(path, drain);
-    await drain;
+    // In order, within one deadline for the whole close; the same vault opens
+    // again only once this runtime has ended (`closeVaultRuntime`).
+    const { closed } = closeVaultRuntime({ path, worker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence });
+    await closed;
   };
 
   // Read through a ref so the unmount cleanup always runs the CURRENT teardown:

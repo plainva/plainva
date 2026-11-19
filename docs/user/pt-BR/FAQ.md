@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-11-18
+Última revisão: 2026-11-19
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -149,6 +149,10 @@ A Frota Estelar não comenta rumores. Mas dizem que o logotipo na barra de títu
 ### Uma parte da janela diz “Não foi possível mostrar esta área”
 
 Uma área não pôde ser desenhada: uma aba, uma seção da barra lateral, uma visualização de banco de dados, um e-mail, uma página de configurações, uma caixa de diálogo ou, no celular, uma tela ou uma folha. Só essa área é substituída; todo o resto continua funcionando, e uma nota aberta mantém seu texto. **Recarregar esta área** desenha a área de novo. Se falhar uma segunda vez, a mensagem diz isso e fica: feche a aba (**Fechar aba**) ou, no celular, toque em **Voltar**, e reinicie o Plainva se acontecer de novo. O erro fica registrado em **Sobre e diagnóstico**; a exportação de diagnóstico de lá não contém o conteúdo das notas e ajuda num relato de bug.
+
+### Por que fechar um vault às vezes leva um momento?
+
+Ao fechar, trocar, recarregar ou remover um vault, o Plainva espera até as notas serem salvas e uma etapa de sincronização em andamento terminar – com um único prazo para todo o fechamento. Se levar mais de 5 segundos, um aviso diz o que o Plainva está esperando. Depois de 30 segundos o Plainva continua, e nada se perde: um salvamento que ainda não terminou termina em segundo plano, e o texto também fica no rascunho; uma etapa de sincronização que não terminou é interrompida, e a próxima sincronização recupera o que falta. Um vault que ainda está abrindo quando você o remove é fechado e removido assim que responder. Se você abrir o mesmo vault de novo enquanto ele ainda está fechando, o Plainva avisa e o abre assim que estiver fechado – nunca duas vezes ao mesmo tempo. Se uma sincronização ficar travada por 15 minutos, a linha de status mostra isso; o Plainva a reinicia assim que a etapa em andamento terminar, e reiniciar o app a encerra na hora.
 
 ## Veja também
 

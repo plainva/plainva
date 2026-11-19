@@ -3780,6 +3780,7 @@
   "sync": {
     "error": "Synchronisatiefout – klik voor details en een nieuwe poging",
     "retryingAt": "Geen verbinding — nieuwe poging om {{time}}",
+    "stuck": "De synchronisatie hangt al {{minutes}} minuten. Plainva start hem opnieuw zodra de lopende stap klaar is; de app opnieuw starten beëindigt hem meteen.",
     "retrying": "Plainva probeert de synchronisatie opnieuw…",
     "syncing": "Synchroniseren...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -8389,10 +8390,11 @@
     "savingWaitMany_other": "Plainva slaat nog {{count}} notities op – daarna gaat het verder.",
     "syncWait": "Er loopt nog een synchronisatiestap van ‘{{vault}}’ – daarna gaat het verder.",
     "openingWait": "‘{{vault}}’ wordt nog geopend – daarna gaat het verder.",
-    "savingGaveUp": "‘{{name}}’ is nog niet helemaal opgeslagen. Plainva gaat toch verder; de tekst staat in het concept en komt terug wanneer je hem weer opent.",
-    "savingGaveUpMany_one": "{{count}} notitie is nog niet helemaal opgeslagen. Plainva gaat toch verder; de tekst staat in het concept en komt terug wanneer je hem weer opent.",
-    "savingGaveUpMany_other": "{{count}} notities zijn nog niet helemaal opgeslagen. Plainva gaat toch verder; de teksten staan in de concepten en komen terug wanneer je ze weer opent.",
+    "savingGaveUp": "‘{{name}}’ is nog niet helemaal opgeslagen. Plainva gaat verder; het opslaan loopt op de achtergrond af, en de tekst staat ook in het concept.",
+    "savingGaveUpMany_one": "{{count}} notitie is nog niet helemaal opgeslagen. Plainva gaat verder; het opslaan loopt op de achtergrond af, en de tekst staat ook in het concept.",
+    "savingGaveUpMany_other": "{{count}} notities zijn nog niet helemaal opgeslagen. Plainva gaat verder; het opslaan loopt op de achtergrond af, en de teksten staan ook in de concepten.",
     "syncGaveUp": "De synchronisatiestap van ‘{{vault}}’ is niet afgerond. Plainva stopt hem en gaat verder; er gaat niets verloren – de volgende synchronisatie haalt in wat ontbreekt.",
-    "openingGaveUp": "‘{{vault}}’ is niet helemaal geopend. Plainva gaat toch verder en sluit hem zodra hij antwoordt."
+    "openingGaveUp": "‘{{vault}}’ is niet helemaal geopend. Plainva sluit hem en verwijdert hem zodra hij antwoordt.",
+    "stillClosing": "‘{{vault}}’ wordt nog gesloten – daarna opent Plainva hem weer."
   }
 }

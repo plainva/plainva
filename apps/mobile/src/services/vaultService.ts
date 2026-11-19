@@ -1,4 +1,4 @@
-import { closeWaitNoteName, waitWithDeadline, clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { closeWaitNoteName, waitForClosingVault, waitWithDeadline, type CloseWaitStep, clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   type BackupVaultAdapter,
   ConflictError,
@@ -163,6 +163,10 @@ export interface MobileVault {
   ownDeletions: OwnDeletionRegister;
   /** Calls this vault's runtime off (`createVaultCallOff`): a close that gave up waiting, before the next runtime starts. */
   callOff(): void;
+  /** Calls the runtime off and resolves once none of its calls is open any more. */
+  ended(): Promise<void>;
+  /** False once called off: a step that writes past the fenced storage (settings, keychain) applies nothing more. */
+  allowsWrites?(): boolean;
   workspaceRuntime: PersonalWorkspaceRuntime | null;
   workspaceState: SqlWorkspaceStateStore | null;
   /**
@@ -403,20 +407,49 @@ export function switchVault(id: string): Promise<void> {
 }
 
 /**
- * What a close, a switch or a reload waits for before the vault goes: its
- * pending saves (texts 1 and 4), then its sync step (texts 2 and 5), each
- * within the deadline (`waitWithDeadline`). Where it gave up, the runtime is
- * called off before the next one starts: a note's text lies in the draft
- * journal, and the next sync takes over what the step left half done. A save
- * that fails is passed on, as before.
+ * The runtimes of vaults that were left and are still ending, by vault:
+ * the same vault opens again only once its previous runtime has ended
+ * (`waitForClosingVault`, text 7). Never two runtimes at one vault.
  */
-async function settleBeforeClosing(current: MobileVault | null): Promise<void> {
+const closingVaults = new Map<string, Promise<void>>();
+
+/**
+ * What a close, a switch or a reload waits for before the vault goes, in this
+ * order and within one deadline for the whole close (texts 1, 2, 4, 5): what
+ * the draft journal buffers goes to disk (bounded), the pending saves land,
+ * then the sync step finishes. Given up in the sync step, the runtime is
+ * called off at once; given up on a save, the save finishes in the background
+ * — a local write is never overtaken. A save that fails is passed on, as
+ * before, and nothing is called off then. The caller that then leaves the
+ * vault parks its end (`leaveVault`).
+ */
+async function settleBeforeClosing(current: MobileVault | null): Promise<{ drain: Promise<void>; calledOff: boolean }> {
   const vault = current ? ((await getVaultEntry(current.vaultId).catch(() => null))?.name ?? "") : "";
-  // What the draft journal still buffers goes to disk first (bounded): a save given up on below is there, and comes back at the next open.
-  if (current) await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
-  let gaveUp = (await waitWithDeadline(noteSaver.flushAll(), () => ({ kind: "saving", names: noteSaver.pendingPaths().map(closeWaitNoteName) }))) === "gave-up";
-  if ((await waitWithDeadline(stopSyncAndDrain(), () => ({ kind: "sync", vault }))) === "gave-up") gaveUp = true;
-  if (gaveUp) current?.callOff();
+  let step = { kind: "saving", names: [] } as CloseWaitStep;
+  const drain = (async () => {
+    if (current) await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
+    step = { kind: "saving", names: [] };
+    await noteSaver.flushAll();
+    step = { kind: "sync", vault };
+    await stopSyncAndDrain();
+  })();
+  const now = (): CloseWaitStep => (step.kind === "saving" ? { kind: "saving", names: noteSaver.pendingPaths().map(closeWaitNoteName) } : step);
+  const outcome = await waitWithDeadline(drain, now);
+  const calledOff = outcome === "gave-up" && step.kind === "sync" && !!current;
+  if (calledOff) current!.callOff();
+  return { drain, calledOff };
+}
+
+/** The vault is left: its end is parked, and nothing of its runtime writes after it (`MobileVault.ended`). */
+function leaveVault(current: MobileVault, drain: Promise<void>): void {
+  const ended = (async () => {
+    await drain.catch(() => undefined);
+    await current.ended();
+  })().catch(reportingTo("vault:runtime-ended"));
+  closingVaults.set(current.vaultId, ended);
+  void ended.finally(() => {
+    if (closingVaults.get(current.vaultId) === ended) closingVaults.delete(current.vaultId);
+  });
 }
 
 async function switchTo(id: string): Promise<void> {
@@ -426,6 +459,7 @@ async function switchTo(id: string): Promise<void> {
   if (current?.vaultId === id) return;
   let leaving: string | undefined;
   const previous = previousVaultId;
+  let settled: { drain: Promise<void>; calledOff: boolean } | null = null;
   try {
     // Asked for the same vault, this is "try again" on the boot surface: no vault to go back to from there.
     leaving = (await getActiveVaultEntry()).id;
@@ -436,7 +470,7 @@ async function switchTo(id: string): Promise<void> {
     // Drain, don't just flag-stop (P3.4/M4): a cycle still downloading or
     // writing must finish before dispose() closes the per-vault database —
     // within the deadline, after which the runtime is called off.
-    await settleBeforeClosing(current);
+    settled = await settleBeforeClosing(current);
     await setActiveVault(id);
     // Swap the per-vault settings slice (folders, backup retention) to the new
     // vault BEFORE the next boot reads the backup policy / screens re-read
@@ -455,9 +489,18 @@ async function switchTo(id: string): Promise<void> {
         await reloadMobileSettingsForActiveVault().catch(() => {});
       }
     }
-    await resumeOnScreen(current, leaving);
+    // Only forwards after a call-off: a runtime called off never stays on screen, and no sync starts on it —
+    // the vault on screen opens anew, once that runtime has ended.
+    if (current && settled?.calledOff) {
+      leaveVault(current, settled.drain);
+      await current.dispose().catch(() => {});
+      await resumeOnScreen(null, leaving);
+    } else {
+      await resumeOnScreen(current, leaving);
+    }
     throw error;
   }
+  if (current) leaveVault(current, settled?.drain ?? Promise.resolve());
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));
@@ -545,12 +588,14 @@ export async function reloadActiveMobileVault(own?: string | readonly string[], 
     return false;
   }
   const current = await retireBoot();
-  await settleBeforeClosing(current);
-  // The drain can take a transfer's length: input begun in it is at stake too.
-  if (current && foreignInputArmed(own)) {
+  const settled = await settleBeforeClosing(current);
+  // The drain can take a transfer's length: input begun in it is at stake too —
+  // unless the runtime was called off: then there is only forwards.
+  if (current && !settled.calledOff && foreignInputArmed(own)) {
     offerReload(vaultId, own, opts);
     return false;
   }
+  if (current) leaveVault(current, settled.drain);
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   try {
@@ -674,7 +719,13 @@ async function forgetVaultData(id: string, pimIds: string[], publicationIds: str
 /** Answers the parts of the vault's app data that could not be removed (empty when all went). */
 export async function deleteVault(id: string): Promise<string[]> {
   if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be deleted");
-  await noteSaver.flushAll();
+  // The pending saves, within the deadline (texts 1 and 4): one given up on finishes in the background, and the
+  // removal waits for it below all the same — the vault's runtime ends only after its saves (`leaveVault`).
+  const saves = noteSaver.flushAll();
+  await waitWithDeadline(saves, () => {
+    const names = noteSaver.pendingPaths().map(closeWaitNoteName);
+    return { kind: "saving", names };
+  });
   // A vault still opening is waited for within the deadline (texts 3 and 6);
   // after it, the removal goes on without it, and the switch below closes it
   // once it answers (`retireBoot`).
@@ -706,7 +757,11 @@ export async function deleteVault(id: string): Promise<string[]> {
   // the length of one query rather than skipped.
   const publicationIds = await readPublicationIds(id, current?.vaultId === id ? current?.db ?? null : null);
   const entry = await getVaultEntry(id).catch(() => null);
-  if (current?.vaultId === id) await switchVault(LOCAL_VAULT_ID);
+  // Its start ends in any case — also one still opening after the deadline (the
+  // switch retires it) — and nothing of it is removed while its runtime runs.
+  if ((await getActiveVaultEntry().catch(() => null))?.id === id || current?.vaultId === id) await switchVault(LOCAL_VAULT_ID);
+  if (booting) await booting.then((v) => (v.vaultId === id ? v.ended() : undefined), () => undefined);
+  await closingVaults.get(id)?.catch(() => undefined);
   // THE HARD LINE of the external-folder plan (§ 3.2, P6): the delete path
   // knows only containers. For a picked folder the connection goes and the
   // files stay — the same rmdir pointed at that folder would be the deletion
@@ -884,6 +939,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const indexAbort = new AbortController();
   signal?.addEventListener("abort", () => indexAbort.abort(), { once: true });
   const containerRoot = isExternalVault(entry) ? null : isDefaultLocal ? "vault" : `vaults/${entry.id}`;
+  // Never two runtimes at one vault: a previous one of this vault ends first (text 7).
+  await waitForClosingVault(closingVaults.get(entry.id) ?? Promise.resolve(), entry.name ?? "");
   // Fenced: a close that gives up waiting calls this runtime off, and then
   // nothing of it writes the vault or its index database any more (`createVaultCallOff`).
   const callOff = createVaultCallOff();
@@ -1240,6 +1297,11 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     syncRepo,
     ownDeletions,
     callOff: () => callOff.callOff(),
+    allowsWrites: () => callOff.allows(),
+    ended: () => {
+      callOff.callOff();
+      return callOff.ended();
+    },
     workspaceRuntime,
     workspaceState,
     workspacePermissions: permissioned,

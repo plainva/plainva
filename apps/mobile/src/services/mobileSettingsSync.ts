@@ -1078,6 +1078,8 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
       const noticeStorage = await profileNoticeStorage(vaultId);
       return new SettingsSyncStep({
         port: createMobileProfilePort(vault, memberId),
+        // The app's settings lie past the vault's fenced storage: a called-off runtime applies nothing more.
+        allows: () => vault.allowsWrites?.() ?? true,
         deviceId: device,
         memberId: memberId ?? undefined,
         isMemberField: isMemberProfileField,
@@ -1150,6 +1152,7 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
       return new SecretsSyncStep({
         port: createMobileSecretsPort(vaultId),
         masterKey: ring.active,
+        allows: () => vault.allowsWrites?.() ?? true,
         // Once per CHANGED set, not once per cycle: a skipped entry never
         // changes the local view that triggers this, so the condition persists.
         onUnknownAccounts: (ids) => {

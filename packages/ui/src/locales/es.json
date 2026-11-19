@@ -3869,6 +3869,7 @@
   "sync": {
     "error": "Error de sincronización: haz clic para ver detalles y reintentar",
     "retryingAt": "Sin conexión: se reintentará a las {{time}}",
+    "stuck": "La sincronización lleva {{minutes}} minutos bloqueada. Plainva la reinicia en cuanto termine el paso en curso; reiniciar la app la termina de inmediato.",
     "retrying": "Plainva está reintentando la sincronización…",
     "syncing": "Sincronizando...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -8559,11 +8560,12 @@
     "savingWaitMany_other": "Plainva sigue guardando {{count}} notas; después continúa.",
     "syncWait": "Todavía se está ejecutando un paso de sincronización de «{{vault}}»; después continúa.",
     "openingWait": "«{{vault}}» todavía se está abriendo; después continúa.",
-    "savingGaveUp": "«{{name}}» aún no se ha guardado del todo. Plainva continúa de todos modos; el texto está en el borrador y vuelve la próxima vez que lo abras.",
-    "savingGaveUpMany_one": "{{count}} nota aún no se ha guardado del todo. Plainva continúa de todos modos; el texto está en el borrador y vuelve la próxima vez que lo abras.",
-    "savingGaveUpMany_many": "{{count}} notas aún no se han guardado del todo. Plainva continúa de todos modos; los textos están en los borradores y vuelven la próxima vez que los abras.",
-    "savingGaveUpMany_other": "{{count}} notas aún no se han guardado del todo. Plainva continúa de todos modos; los textos están en los borradores y vuelven la próxima vez que los abras.",
+    "savingGaveUp": "«{{name}}» aún no se ha guardado del todo. Plainva continúa; el guardado termina en segundo plano y el texto también queda en el borrador.",
+    "savingGaveUpMany_one": "{{count}} nota aún no se ha guardado del todo. Plainva continúa; el guardado termina en segundo plano y el texto también queda en el borrador.",
+    "savingGaveUpMany_many": "{{count}} notas aún no se han guardado del todo. Plainva continúa; los guardados terminan en segundo plano y los textos también quedan en los borradores.",
+    "savingGaveUpMany_other": "{{count}} notas aún no se han guardado del todo. Plainva continúa; los guardados terminan en segundo plano y los textos también quedan en los borradores.",
     "syncGaveUp": "El paso de sincronización de «{{vault}}» no terminó. Plainva lo detiene y continúa; no se pierde nada: la próxima sincronización recupera lo que falte.",
-    "openingGaveUp": "«{{vault}}» no terminó de abrirse. Plainva continúa de todos modos y lo cierra en cuanto responda."
+    "openingGaveUp": "«{{vault}}» no terminó de abrirse. Plainva lo cierra y lo elimina en cuanto responda.",
+    "stillClosing": "«{{vault}}» todavía se está cerrando; después Plainva lo vuelve a abrir."
   }
 }

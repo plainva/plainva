@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-11-18
+Laatst bijgewerkt: 2026-11-19
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -149,6 +149,10 @@ Starfleet becommentarieert geruchten in principe niet. Maar het schijnt dat het 
 ### Een deel van het venster zegt ‘Dit gedeelte kan niet worden weergegeven’
 
 Een gedeelte kon niet worden getekend: een tabblad, een sectie van de zijbalk, een databaseweergave, een e-mail, een instellingenpagina, een dialoogvenster of op de telefoon een scherm of een blad. Alleen dat gedeelte wordt vervangen; al het andere blijft werken, en een open notitie houdt haar tekst. **Dit gedeelte opnieuw laden** tekent het gedeelte opnieuw. Mislukt het een tweede keer, dan zegt de melding dat en blijft ze staan: sluit het tabblad (**Tabblad sluiten**) of tik op de telefoon op **Terug**, en herstart Plainva als het opnieuw gebeurt. De fout staat onder **Over & diagnose**; de diagnose-export daar bevat geen notitie-inhoud en helpt bij een foutmelding.
+
+### Waarom duurt het sluiten van een vault soms even?
+
+Als je een vault sluit, wisselt, opnieuw laadt of verwijdert, wacht Plainva tot notities zijn opgeslagen en een lopende synchronisatiestap klaar is – met één termijn voor het hele sluiten. Duurt het langer dan 5 seconden, dan zegt een melding waarop Plainva wacht. Na 30 seconden gaat Plainva verder, en er gaat niets verloren: een opslag die nog niet klaar is, loopt op de achtergrond af, en de tekst staat ook in het concept; een synchronisatiestap die niet klaar werd, wordt gestopt, en de volgende synchronisatie haalt in wat ontbreekt. Een vault die nog wordt geopend wanneer je hem verwijdert, wordt gesloten en verwijderd zodra hij antwoordt. Open je dezelfde vault opnieuw terwijl hij nog wordt gesloten, dan zegt Plainva dat en opent hem zodra hij gesloten is – nooit twee keer tegelijk. Hangt een synchronisatie al 15 minuten, dan toont de statusregel dat; Plainva start hem opnieuw zodra de lopende stap klaar is, en de app opnieuw starten beëindigt hem meteen.
 
 ## Zie ook
 

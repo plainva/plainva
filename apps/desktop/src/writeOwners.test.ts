@@ -50,23 +50,23 @@ const HANDOFFS: Record<string, Owner> = {
   "writeTextFile: (p, c) => personVaultAdapter.writeTextFile(p, c),": "person",
   // The encrypted workspace's sync, settings sync and reconcile at opening.
   "const remotePorts = encryptedRemoteFilePorts(backupVaultAdapter);": "background",
-  "const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });": "background",
+  "const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });": "background",
   "const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {": "background",
   "vault: backupVaultAdapter,": "background",
-  "const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId })) ?? undefined;": "background",
+  "const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId, allows: callOff.allows })) ?? undefined;": "background",
   "const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {": "background",
   "sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,": "background",
   // The file sync.
   "vaultAdapter,": "background",
   "createContentRefResolver(path, tauriVaultAdapter),": "read",
-  "const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;": "background",
+  "const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows })) ?? undefined;": "background",
   "const fileWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });": "background",
   "if (!(await syncRepo.hasConfirmedRemoteFiles().catch(() => true))) holdBackStartersAtFirstListing(fileWorker, backupVaultAdapter, syncRepo);": "background",
   // What the surfaces, the owner bus and every other window get.
   "vaultAdapter: personVaultAdapter,": "person",
   "backupAdapter: personBelowChain,": "person",
   "belowChainAdapter: personBelowChain,": "person",
-  "buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null })": "background",
+  "buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null, allows: callOffRef.current?.allows })": "background",
   // Clearing out old snapshots (`backupScheduler.ts`).
   "const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: uncounted(state.vaultAdapter) });": "background",
 };

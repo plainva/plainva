@@ -34,7 +34,7 @@ const parts: string[] = [];
 let saveMethod = "", saverInit = "";
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name &&
-      ["switchVault", "switchTo", "settleBeforeClosing", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
+      ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
     parts.push(node.getText(file).replace(/^export /, ""));
   }
   if (ts.isMethodDeclaration(node) && node.name.getText(file) === "save") saveMethod = node.getText(file);
@@ -42,9 +42,9 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!saveMethod || !saverInit || parts.length !== 11) throw new Error("mobile save/lifecycle definitions missing");
+if (!saveMethod || !saverInit || parts.length !== 12) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
+  "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   },
@@ -75,7 +75,7 @@ async function makeVault() {
   const queue = new SyncQueue(db);
   const repo = new SyncStateRepository(db);
   const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), queue), repo);
-  const vault = { vaultId: root, adapter: raw, files, db, indexer: null, dispose: vi.fn(async () => {}) } as unknown as MobileVault;
+  const vault = { vaultId: root, adapter: raw, files, db, indexer: null, ended: vi.fn(async () => {}), dispose: vi.fn(async () => {}) } as unknown as MobileVault;
   return { vault, raw, db, repo };
 }
 function harness(vault: MobileVault) {

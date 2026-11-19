@@ -3691,6 +3691,7 @@
   "sync": {
     "error": "同期エラー——クリックで詳細と再試行",
     "retryingAt": "接続がありません — {{time}} に再試行します",
+    "stuck": "同期が {{minutes}} 分間止まっています。実行中の処理が終わり次第、Plainva が同期をやり直します。アプリを再起動するとすぐに終わります。",
     "retrying": "Plainva が同期を再試行しています…",
     "syncing": "同期中...",
     "syncingCount": "同期 {{current}}/{{total}}",
@@ -8219,9 +8220,10 @@
     "savingWaitMany_other": "Plainva は {{count}} 件のノートをまだ保存しています。終わると先に進みます。",
     "syncWait": "「{{vault}}」 の同期処理がまだ実行中です。終わると先に進みます。",
     "openingWait": "「{{vault}}」 はまだ開いている途中です。終わると先に進みます。",
-    "savingGaveUp": "「{{name}}」 はまだ保存が完了していません。Plainva はそのまま先に進みます。テキストは下書きにあり、次に開いたときに戻ります。",
-    "savingGaveUpMany_other": "{{count}} 件のノートはまだ保存が完了していません。Plainva はそのまま先に進みます。テキストは下書きにあり、次に開いたときに戻ります。",
+    "savingGaveUp": "「{{name}}」 はまだ保存が完了していません。Plainva は先に進みます。保存はバックグラウンドで最後まで続き、テキストは下書きにも残ります。",
+    "savingGaveUpMany_other": "{{count}} 件のノートはまだ保存が完了していません。Plainva は先に進みます。保存はバックグラウンドで最後まで続き、テキストは下書きにも残ります。",
     "syncGaveUp": "「{{vault}}」 の同期処理が完了しませんでした。Plainva はそれを止めて先に進みます。失われるものはありません。足りない分は次の同期で取り戻されます。",
-    "openingGaveUp": "「{{vault}}」 を開き終えられませんでした。Plainva はそのまま先に進み、応答があり次第閉じます。"
+    "openingGaveUp": "「{{vault}}」 を開き終えられませんでした。Plainva は応答があり次第、それを閉じて削除します。",
+    "stillClosing": "「{{vault}}」 はまだ閉じている途中です。終わると Plainva がもう一度開きます。"
   }
 }

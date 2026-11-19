@@ -3780,6 +3780,7 @@
   "sync": {
     "error": "Sync-Fehler – klicken für Details und erneuten Versuch",
     "retryingAt": "Kein Netz — neuer Versuch um {{time}}",
+    "stuck": "Der Abgleich hängt seit {{minutes}} Minuten. Plainva startet ihn neu, sobald der laufende Schritt endet; ein Neustart der App beendet ihn sofort.",
     "retrying": "Plainva versucht die Synchronisierung erneut…",
     "syncing": "Synchronisiert…",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -8389,10 +8390,11 @@
     "savingWaitMany_other": "Plainva speichert noch {{count}} Notizen – danach geht es weiter.",
     "syncWait": "Ein Sync-Schritt von „{{vault}}“ läuft noch – danach geht es weiter.",
     "openingWait": "„{{vault}}“ wird noch geöffnet – danach geht es weiter.",
-    "savingGaveUp": "„{{name}}“ ist noch nicht fertig gespeichert. Plainva geht trotzdem weiter; der Text liegt im Entwurf und kommt beim nächsten Öffnen wieder.",
-    "savingGaveUpMany_one": "{{count}} Notiz ist noch nicht fertig gespeichert. Plainva geht trotzdem weiter; der Text liegt im Entwurf und kommt beim nächsten Öffnen wieder.",
-    "savingGaveUpMany_other": "{{count}} Notizen sind noch nicht fertig gespeichert. Plainva geht trotzdem weiter; die Texte liegen im Entwurf und kommen beim nächsten Öffnen wieder.",
+    "savingGaveUp": "„{{name}}“ ist noch nicht fertig gespeichert. Plainva geht weiter; das Speichern läuft im Hintergrund zu Ende, und der Text liegt zusätzlich im Entwurf.",
+    "savingGaveUpMany_one": "{{count}} Notiz ist noch nicht fertig gespeichert. Plainva geht weiter; das Speichern läuft im Hintergrund zu Ende, und der Text liegt zusätzlich im Entwurf.",
+    "savingGaveUpMany_other": "{{count}} Notizen sind noch nicht fertig gespeichert. Plainva geht weiter; das Speichern läuft im Hintergrund zu Ende, und die Texte liegen zusätzlich im Entwurf.",
     "syncGaveUp": "Der Sync-Schritt von „{{vault}}“ ist nicht fertig geworden. Plainva hält ihn an und geht weiter; verloren geht nichts – der nächste Abgleich holt nach, was fehlt.",
-    "openingGaveUp": "„{{vault}}“ ist nicht fertig geöffnet worden. Plainva geht trotzdem weiter und schließt ihn, sobald er antwortet."
+    "openingGaveUp": "„{{vault}}“ ist nicht fertig geöffnet worden. Plainva schließt ihn und entfernt ihn, sobald er antwortet.",
+    "stillClosing": "„{{vault}}“ wird noch geschlossen – danach öffnet Plainva ihn wieder."
   }
 }

@@ -3958,6 +3958,7 @@
   "sync": {
     "error": "Błąd synchronizacji – kliknij, aby zobaczyć szczegóły i ponowić",
     "retryingAt": "Brak połączenia — kolejna próba o {{time}}",
+    "stuck": "Synchronizacja stoi od {{minutes}} minut. Plainva uruchomi ją ponownie, gdy tylko zakończy się bieżący krok; ponowne uruchomienie aplikacji kończy ją od razu.",
     "retrying": "Plainva ponawia synchronizację…",
     "syncing": "Synchronizowanie...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -8729,12 +8730,13 @@
     "savingWaitMany_other": "Plainva wciąż zapisuje {{count}} notatki – potem przejdzie dalej.",
     "syncWait": "Wciąż trwa krok synchronizacji „{{vault}}” – potem Plainva przejdzie dalej.",
     "openingWait": "„{{vault}}” wciąż się otwiera – potem Plainva przejdzie dalej.",
-    "savingGaveUp": "„{{name}}” nie jest jeszcze w pełni zapisana. Plainva i tak przechodzi dalej; tekst jest w szkicu i wróci przy następnym otwarciu.",
-    "savingGaveUpMany_one": "{{count}} notatka nie jest jeszcze w pełni zapisana. Plainva i tak przechodzi dalej; tekst jest w szkicu i wróci przy następnym otwarciu.",
-    "savingGaveUpMany_few": "{{count}} notatki nie są jeszcze w pełni zapisane. Plainva i tak przechodzi dalej; teksty są w szkicach i wrócą przy następnym otwarciu.",
-    "savingGaveUpMany_many": "{{count}} notatek nie jest jeszcze w pełni zapisanych. Plainva i tak przechodzi dalej; teksty są w szkicach i wrócą przy następnym otwarciu.",
-    "savingGaveUpMany_other": "{{count}} notatki nie są jeszcze w pełni zapisane. Plainva i tak przechodzi dalej; teksty są w szkicach i wrócą przy następnym otwarciu.",
+    "savingGaveUp": "„{{name}}” nie jest jeszcze w pełni zapisana. Plainva przechodzi dalej; zapis kończy się w tle, a tekst jest też w szkicu.",
+    "savingGaveUpMany_one": "{{count}} notatka nie jest jeszcze w pełni zapisana. Plainva przechodzi dalej; zapis kończy się w tle, a tekst jest też w szkicu.",
+    "savingGaveUpMany_few": "{{count}} notatki nie są jeszcze w pełni zapisane. Plainva przechodzi dalej; zapisy kończą się w tle, a teksty są też w szkicach.",
+    "savingGaveUpMany_many": "{{count}} notatek nie jest jeszcze w pełni zapisanych. Plainva przechodzi dalej; zapisy kończą się w tle, a teksty są też w szkicach.",
+    "savingGaveUpMany_other": "{{count}} notatki nie są jeszcze w pełni zapisane. Plainva przechodzi dalej; zapisy kończą się w tle, a teksty są też w szkicach.",
     "syncGaveUp": "Krok synchronizacji „{{vault}}” się nie zakończył. Plainva go zatrzymuje i przechodzi dalej; nic nie przepada – następna synchronizacja nadrobi to, czego brakuje.",
-    "openingGaveUp": "„{{vault}}” nie otworzył się do końca. Plainva i tak przechodzi dalej i zamknie go, gdy tylko odpowie."
+    "openingGaveUp": "„{{vault}}” nie otworzył się do końca. Plainva zamknie go i usunie, gdy tylko odpowie.",
+    "stillClosing": "„{{vault}}” wciąż się zamyka – potem Plainva otworzy go ponownie."
   }
 }

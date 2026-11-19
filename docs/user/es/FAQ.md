@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-11-18
+Última actualización: 2026-11-19
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -149,6 +149,10 @@ La Flota Estelar, por principio, no comenta rumores. Pero se dice que el logo de
 ### Una parte de la ventana dice «No se puede mostrar esta área»
 
 Un área no se pudo dibujar: una pestaña, una sección de la barra lateral, una vista de base de datos, un correo, una página de ajustes, un diálogo o, en el teléfono, una pantalla o una hoja. Solo se reemplaza esa área; todo lo demás sigue funcionando y una nota abierta conserva su texto. **Recargar esta área** vuelve a dibujar el área. Si falla una segunda vez, el mensaje lo dice y se queda: cierra la pestaña (**Cerrar pestaña**) o, en el teléfono, pulsa **Atrás**, y reinicia Plainva si vuelve a ocurrir. El error queda registrado en **Acerca de y diagnóstico**; la exportación de diagnóstico de allí no contiene el contenido de las notas y ayuda en un informe de error.
+
+### ¿Por qué cerrar un vault a veces tarda un momento?
+
+Al cerrar, cambiar, recargar o quitar un vault, Plainva espera a que las notas terminen de guardarse y a que termine un paso de sincronización en curso, con un único plazo para todo el cierre. Si tarda más de 5 segundos, un aviso dice a qué espera Plainva. A los 30 segundos Plainva continúa y no se pierde nada: un guardado que aún no ha terminado termina en segundo plano y el texto también queda en el borrador; un paso de sincronización que no terminó se detiene, y la siguiente sincronización recupera lo que falte. Un vault que todavía se está abriendo cuando lo quitas se cierra y se quita en cuanto responde. Si vuelves a abrir el mismo vault mientras aún se está cerrando, Plainva lo indica y lo abre en cuanto se ha cerrado, nunca dos veces a la vez. Si una sincronización lleva 15 minutos bloqueada, la línea de estado lo indica; Plainva la reinicia en cuanto termine el paso en curso, y reiniciar la app la termina de inmediato.
 
 ## Ver también
 

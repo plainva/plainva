@@ -49,7 +49,7 @@ export { classifySyncError, syncErrorMessage, type SyncErrorKind };
  * activity for a while; the cycle goes on (fourth review of O8: the start of
  * an empty vault keeps saying "being loaded" through it).
  */
-export type SyncErrorReason = FatalSyncProtocolError["reason"] | "root-missing" | "stalled";
+export type SyncErrorReason = FatalSyncProtocolError["reason"] | "root-missing" | "stalled" | "stuck";
 
 /**
  * The structured reason of a fatal protocol error, or undefined for ordinary
@@ -236,6 +236,12 @@ const FULL_LISTING_MAX_AGE_MS = 10 * 60 * 1000;
  */
 const CYCLE_STALE_WARN_MS = 10 * 60 * 1000;
 const CYCLE_STALE_ABANDON_MS = 15 * 60 * 1000;
+/**
+ * After how many minutes without activity the watchdog gives a cycle up —
+ * the minutes the notice of a stuck sync names (`stuck`), from the same
+ * number as the watchdog.
+ */
+export const SYNC_STUCK_AFTER_MINUTES = CYCLE_STALE_ABANDON_MS / 60_000;
 const WATCHDOG_TICK_MS = 60 * 1000;
 /** A tick this much later than scheduled means the process was not running. */
 const SUSPEND_SLACK_MS = 30 * 1000;
@@ -1068,21 +1074,28 @@ export class SyncWorker {
         console.error(
           `[SyncWorker] abandoning a sync cycle after ${Math.round(idleMs / 60000)} min without activity (a request the platform never answered)`
         );
-        this.activeCycleGen++;
-        this.isSyncing = false;
+        // Abandoned: its generation goes, so it stops at its next look at
+        // `alive()`. But no second cycle starts beside it while it runs — a
+        // request of it that the provider answers late would land over what
+        // the next cycle uploaded (never two cycles at one vault). The next
+        // one is scheduled once this one has ended.
+        const next = ++this.activeCycleGen;
         this.pendingSyncRequest = false;
         this.cursor = undefined; // re-establish ground truth on recovery
+        const abandoned = this.currentCycle;
         // An abandoned cycle is a failure like any other, and its own message
         // says "retrying" — so it follows the same rule: the surfaces say
         // "trying again" until it has failed often enough to be a result.
         this.consecutiveFailures++;
-        const delay = this.nextDelayMs();
-        if (this.consecutiveFailures < TRANSIENT_FAILURES_BEFORE_ERROR) {
-          this.setStatus("retrying", "sync cycle was unresponsive and has been abandoned; retrying", undefined, now + delay);
-        } else {
-          this.setStatus("error", "sync cycle was unresponsive and has been abandoned; retrying");
-        }
-        this.scheduleNext();
+        // `stuck`: no attempt at a time — the next cycle starts when this one's
+        // running step ends. The surfaces say so, in place of the status line,
+        // until the next cycle runs.
+        this.setStatus("retrying", "sync cycle was unresponsive and has been abandoned; the next starts once its running step ends", "stuck");
+        void (abandoned ?? Promise.resolve()).catch(() => undefined).then(() => {
+          if (this.activeCycleGen !== next) return;
+          this.isSyncing = false;
+          if (this.isRunning) this.scheduleNext();
+        });
         return;
       }
       if (idleMs >= CYCLE_STALE_WARN_MS && !this.staleWarned) {

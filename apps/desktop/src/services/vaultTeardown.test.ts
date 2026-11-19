@@ -106,17 +106,20 @@ describe("the closing window drains its vault", () => {
     const start = source.indexOf("const teardownVault = async () => {");
     expect(start).toBeGreaterThan(-1);
     const body = source.slice(start, source.indexOf("\n  };", start));
-
+    // The teardown closes through the one close of a runtime, which holds the order and the deadline.
+    expect(body).toContain("closeVaultRuntime({ path, worker,");
+    const close = read("services/closeRuntime.ts");
     // `stop()` alone leaves a half-written note and a mid-flight cycle hanging
     // in the air while the app keeps running with another vault open.
-    expect(body).toContain("settlePendingWrites(path)");
-    expect(body).toContain("stopAndDrain()");
-    expect(body).toContain("noteVaultTeardown(path, drain)");
+    expect(close).toContain("settlePendingWrites(path)");
+    expect(close).toContain("worker?.stopAndDrain()");
+    // Parked is the END of the runtime — the drain and none of its calls open — not the drain alone.
+    expect(close).toContain("noteVaultTeardown(path, ended)");
   });
 
-  it("makes the next open of that vault wait for the drain", () => {
+  it("makes the next open of that vault wait for the end of its previous runtime", () => {
     const source = read("contexts/VaultContext.tsx");
-    const wait = source.indexOf("() => awaitVaultTeardown(path)");
+    const wait = source.indexOf("waitForClosingVault(awaitVaultTeardown(path)");
     expect(wait).toBeGreaterThan(-1);
     // Inside loadVault, not somewhere else: draining without this wait would
     // create the race it prevents.

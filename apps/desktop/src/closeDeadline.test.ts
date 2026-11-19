@@ -55,24 +55,30 @@ describe("the deadline of a close", () => {
     expect(messages()).toEqual([i18n.t("closing.savingGaveUpMany", { count: 3 })]);
   });
 
-  it("is how both shells close: saves and the sync step within it, and the runtime called off where it gave up", () => {
+  it("is how both shells close: one deadline for the whole close, and the same vault opens again only once its runtime has ended", () => {
     const desktop = readFileSync(join(ROOT, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
+    const close = readFileSync(join(ROOT, "apps/desktop/src/services/closeRuntime.ts"), "utf8");
+    // In order: drafts, saves, then the sync step, the settings-only sync and the index — one deadline over all of it.
+    expect(close).toMatch(/deps\.flushDrafts\(path\)[\s\S]*deps\.settlePendingWrites\(path\)[\s\S]*worker\?\.stopAndDrain\(\)[\s\S]*settingsOnly\?\.stopAndDrain\(\)[\s\S]*indexer\?\.whenIdle[\s\S]*indexQueue\?\.whenIdle\(\)/);
+    expect(close).toMatch(/waitWithDeadline\(drain, saving\)\) === "gave-up" && step\.kind === "sync"\) fence\?\.callOff\(\)/);
+    expect(close).toMatch(/fence\?\.callOff\(\);\s*await fence\?\.ended\(\);[\s\S]*noteVaultTeardown\(path, ended\)/);
+    // The close and a reload of the same vault go that one way; the open waits for the end (text 7).
     const teardown = desktop.slice(desktop.indexOf("const teardownVault = async"), desktop.indexOf("const teardownVaultRef"));
-    expect(teardown).toMatch(/flushDrafts\(path\)[\s\S]*waitWithDeadline\(settlePendingWrites\(path\)[\s\S]*waitWithDeadline\(background[\s\S]*if \(gaveUp\) fence\?\.callOff\(\);[\s\S]*noteVaultTeardown\(path, drain\)/);
-    // The next open waits for the drain, which ends within the deadline now.
-    expect(desktop).toMatch(/awaitVaultTeardown\(path\)/);
-    // Every runtime is fenced from its start.
-    expect(desktop).toMatch(/const callOff = createVaultCallOff\(\);[\s\S]*callOff\.storage\(new TauriVaultAdapter\(path\)\)[\s\S]*callOff\.database\(openedDatabase\)/);
+    expect(teardown).toContain("closeVaultRuntime({ path, worker, settingsOnly,");
+    expect(desktop).toMatch(/state\.vaultPath === path && \(state\.syncWorker \|\| callOffRef\.current\)[\s\S]*closeVaultRuntime\([\s\S]*waitForClosingVault\(awaitVaultTeardown\(path\)/);
+    // Every runtime is fenced from its start, and a called-off load calls its runtime off.
+    expect(desktop).toMatch(/const callOff = createVaultCallOff\(\);[\s\S]*loadStarts\.fence\(callOff\);[\s\S]*callOff\.storage\(new TauriVaultAdapter\(path\)\)[\s\S]*callOff\.database\(openedDatabase\)/);
 
     const phone = readFileSync(join(ROOT, "apps/mobile/src/services/vaultService.ts"), "utf8");
-    const settle = phone.slice(phone.indexOf("async function settleBeforeClosing"), phone.indexOf("async function switchTo"));
-    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*waitWithDeadline\(noteSaver\.flushAll\(\)[\s\S]*waitWithDeadline\(stopSyncAndDrain\(\)[\s\S]*if \(gaveUp\) current\?\.callOff\(\);/);
+    const settle = phone.slice(phone.indexOf("async function settleBeforeClosing"), phone.indexOf("function leaveVault"));
+    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*noteSaver\.flushAll\(\)[\s\S]*stopSyncAndDrain\(\)[\s\S]*waitWithDeadline\(drain, now\)[\s\S]*step\.kind === "sync"[\s\S]*current!\.callOff\(\)/);
     for (const name of ["async function switchTo", "export async function reloadActiveMobileVault"]) {
       const body = phone.slice(phone.indexOf(name), phone.indexOf("\n}\n", phone.indexOf(name)));
-      expect(body, name).toContain("await settleBeforeClosing(current);");
-      expect(body, name).not.toContain("await noteSaver.flushAll();");
+      expect(body, name).toContain("await settleBeforeClosing(current)");
+      expect(body, name).toContain("leaveVault(current, ");
     }
-    expect(phone).toMatch(/const callOff = createVaultCallOff\(\);[\s\S]*callOff\.storage\(opened\)[\s\S]*callOff\.database\(/);
+    // The boot of a vault waits for the end of its previous runtime (text 7), before its own fence.
+    expect(phone).toMatch(/waitForClosingVault\(closingVaults\.get\(entry\.id\)[\s\S]*const callOff = createVaultCallOff\(\);[\s\S]*callOff\.storage\(opened\)[\s\S]*callOff\.database\(/);
     expect(phone).toMatch(/waitWithDeadline\(opened, \(\) => \(\{ kind: "opening"/);
   });
 });

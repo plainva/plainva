@@ -18,7 +18,7 @@ import { retiredBoot } from "./bootRetirement";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
+const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -28,13 +28,13 @@ const found = parts.map((part) => /function (\w+)/.exec(part)?.[1]);
 for (const name of ["switchVault", "retireBoot", "reloadActiveMobileVault"]) if (!found.includes(name)) throw new Error(`${name} missing`);
 const compiled = ts.transpileModule(
   "let bootPromise = Promise.resolve(initial); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null;\n" +
-    "const ABANDON_BOOT_AFTER_MS = 2000; const RELOAD_STEP = \"vault-reload\";\n" +
+    "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\";\n" +
     parts.join("\n") +
     "\nreturn { switchVault, reloadActiveMobileVault, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; } };",
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
 ).outputText;
 
-const vault = (id: string) => ({ vaultId: id, dispose: vi.fn(async () => {}) }) as unknown as MobileVault & { dispose: ReturnType<typeof vi.fn> };
+const vault = (id: string) => ({ vaultId: id, callOff: vi.fn(), ended: vi.fn(async () => {}), dispose: vi.fn(async () => {}) }) as unknown as MobileVault & { dispose: ReturnType<typeof vi.fn>; callOff: ReturnType<typeof vi.fn> };
 
 function harness(start: string) {
   let active = start;
@@ -125,6 +125,42 @@ describe("a vault switch", () => {
     await h.switchVault("work");
     expect(h.syncStarted).toEqual([]);
     expect(h.events).toEqual(["work"]);
+  });
+});
+
+describe("after the runtime was called off, only forwards", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("a switch that fails after its sync step was given up on never resumes the called-off vault: it opens anew", async () => {
+    vi.useFakeTimers();
+    const h = harness("notes");
+    let finish!: () => void;
+    h.deps.stopSyncAndDrain.mockImplementationOnce(() => new Promise<void>((r) => (finish = r)));
+    h.deps.reloadMobileSettingsForActiveVault.mockRejectedValueOnce(new Error("settings unreadable"));
+    const switching = h.switchVault("work").catch((e: Error) => e.message);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(await switching).toBe("settings unreadable");
+    expect(h.deps.initial.callOff, "given up in the sync step: called off at once").toHaveBeenCalled();
+    // THE DEFECT: the called-off vault stayed on screen and its sync started again over a runtime that refuses every call.
+    expect(h.syncStarted, "no sync starts on a called-off runtime").toEqual([]);
+    expect(h.deps.initial.dispose).toHaveBeenCalled();
+    expect(h.events, "the vault on screen opens anew").toEqual(["notes"]);
+    expect(h.active()).toBe("notes");
+    finish();
+  });
+
+  it("a reload whose sync step was given up on goes on, though input was begun in the drain", async () => {
+    vi.useFakeTimers();
+    const h = harness("notes");
+    const MESSAGE = { id: "mail-compose", message: "The draft will not be saved." };
+    h.deps.stopSyncAndDrain.mockImplementationOnce(() => { armLeaveGuard(MESSAGE); return new Promise<void>(() => undefined); });
+    const reloading = h.reloadActiveMobileVault();
+    await vi.advanceTimersByTimeAsync(30_000);
+    // Asked before anything calls off — after the call-off a vault that stays on screen would refuse every call.
+    expect(await reloading).toBe(true);
+    expect(h.deps.initial.callOff).toHaveBeenCalled();
+    expect(h.deps.initial.dispose).toHaveBeenCalled();
+    expect(h.events).toEqual(["notes"]);
   });
 });
 

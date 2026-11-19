@@ -3691,6 +3691,7 @@
   "sync": {
     "error": "同步出错——点击查看详情并重试",
     "retryingAt": "无网络连接 — 将于 {{time}} 重试",
+    "stuck": "同步已停滞 {{minutes}} 分钟。当前步骤结束后，Plainva 会重新开始同步；重启应用会立即结束它。",
     "retrying": "Plainva 正在重新尝试同步…",
     "syncing": "同步中…",
     "syncingCount": "同步 {{current}}/{{total}}",
@@ -8219,9 +8220,10 @@
     "savingWaitMany_other": "Plainva 仍在保存 {{count}} 条笔记，完成后继续。",
     "syncWait": "“{{vault}}”的同步步骤仍在进行，完成后继续。",
     "openingWait": "“{{vault}}”仍在打开，完成后继续。",
-    "savingGaveUp": "“{{name}}”尚未保存完成。Plainva 仍会继续；文本保存在草稿中，下次打开时会回来。",
-    "savingGaveUpMany_other": "{{count}} 条笔记尚未保存完成。Plainva 仍会继续；文本保存在草稿中，下次打开时会回来。",
+    "savingGaveUp": "“{{name}}”尚未保存完成。Plainva 会继续；保存会在后台完成，文本也同时保存在草稿中。",
+    "savingGaveUpMany_other": "{{count}} 条笔记尚未保存完成。Plainva 会继续；保存会在后台完成，文本也同时保存在草稿中。",
     "syncGaveUp": "“{{vault}}”的同步步骤未能完成。Plainva 会停止它并继续；不会丢失任何内容——下一次同步会补上缺少的部分。",
-    "openingGaveUp": "“{{vault}}”未能打开完成。Plainva 仍会继续，并在它响应后立即关闭它。"
+    "openingGaveUp": "“{{vault}}”未能打开完成。Plainva 会在它响应后将其关闭并删除。",
+    "stillClosing": "“{{vault}}”仍在关闭中，完成后 Plainva 会重新打开它。"
   }
 }

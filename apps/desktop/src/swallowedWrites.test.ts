@@ -56,7 +56,7 @@ const HANDED_OVER: ReadonlyArray<readonly [file: string, call: string]> = [
   ["apps/desktop/src/services/draftJournal.ts", "ownerWriter().flush((scope) => scope === vaultPath, { notes: (path) => moves.some((m) => relocatedDraftPath(path, m) !== null), waitMs: MOVE_WAIT_MS })"],
   ["apps/desktop/src/services/draftJournal.ts", "journal().relocate(vaultPath, moves)"],
   ["apps/desktop/src/services/draftJournal.ts", "flushDrafts()"],
-  ["apps/desktop/src/contexts/VaultContext.tsx", "flushDrafts(path)"],
+  ["apps/desktop/src/services/closeRuntime.ts", "deps.flushDrafts(path)"],
   ["apps/mobile/src/services/draftJournal.ts", "writer().clear(v, path, upToRevision, RUN_SESSION)"],
   ["apps/mobile/src/services/draftJournal.ts", "journal().clearIf(v, path, identityOf(draft))"],
   ["apps/mobile/src/services/draftJournal.ts", "writer().adopt(v, path, identityOf(draft), RUN_SESSION)"],

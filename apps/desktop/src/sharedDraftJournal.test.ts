@@ -443,7 +443,7 @@ describe("the journal's pace and its reads (maintainer 17.11., release 0.9.0)", 
     // Both shells tell it: the removal of a vault's drafts and the vault closing.
     const read = (rel: string) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", rel), "utf8");
     expect(read("apps/desktop/src/services/draftJournal.ts")).toMatch(/export async function removeVaultDrafts\(vaultPath: string\): Promise<void> \{[\s\S]{0,200}forgetDraftMemory\(vaultPath\);/);
-    expect(read("apps/desktop/src/contexts/VaultContext.tsx")).toMatch(/await flushDrafts\(path\)[\s\S]{0,300}forgetDraftMemory\(path\);/);
+    expect(read("apps/desktop/src/services/closeRuntime.ts")).toMatch(/await deps\.flushDrafts\(path\)[\s\S]{0,300}deps\.forgetDraftMemory\(path\);/);
     expect(read("apps/mobile/src/services/vaultForget.ts")).toMatch(/forgetDraftMemory\(vaultId\);\s*const drafts = removeInternalFolder/);
     expect(read("apps/mobile/src/services/vaultService.ts")).toMatch(/dispose: async \(\) => \{[\s\S]{0,300}forgetDraftMemory\(entry\.id\);/);
   });

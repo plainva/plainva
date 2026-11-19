@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createVaultCallOff } from "@plainva/core";
 import { LoadStarts } from "./loadStarts";
 import { awaitVaultTeardown, resetVaultTeardownsForTests } from "./vaultTeardown";
 
@@ -95,3 +96,62 @@ describe("the vault load hands what it started to LoadStarts (wiring, read from 
     expect(load).toContain("loadStarts.settle();");
   });
 });
+
+describe("a called-off load and its runtime (never two runtimes at one vault)", () => {
+  beforeEach(() => resetVaultTeardownsForTests());
+
+  const openCall = (fence: ReturnType<typeof createVaultCallOff>) => {
+    let answer!: () => void;
+    const storage = fence.storage({ writeTextFile: () => new Promise<void>((r) => (answer = r)) } as never) as unknown as { writeTextFile(): Promise<void> };
+    const write = storage.writeTextFile();
+    return { answer: () => answer(), write };
+  };
+
+  it("calls the runtime off, and the next open of the vault waits until none of its calls is open", async () => {
+    const abort = new AbortController();
+    const starts = new LoadStarts("/vaults/notes", abort.signal);
+    const fence = createVaultCallOff();
+    starts.fence(fence);
+    const call = openCall(fence);
+    abort.abort();
+    void starts.abandon();
+    let reopened = false;
+    const reopening = awaitVaultTeardown("/vaults/notes").then(() => { reopened = true; });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fence.calledOff, "called off").toBe(true);
+    expect(reopened, "waits for the open call").toBe(false);
+    call.answer();
+    await call.write;
+    await reopening;
+    expect(reopened).toBe(true);
+  });
+
+  it("a worker started only after the load was called off is stopped, drained and parked with the runtime called off", async () => {
+    const abort = new AbortController();
+    const starts = new LoadStarts("/vaults/notes", abort.signal);
+    const fence = createVaultCallOff();
+    starts.fence(fence);
+    abort.abort();
+    let drained!: () => void;
+    const worker = { stop: vi.fn(), stopAndDrain: () => new Promise<void>((r) => (drained = r)) };
+    starts.late(worker);
+    expect(worker.stop).toHaveBeenCalled();
+    let reopened = false;
+    const reopening = awaitVaultTeardown("/vaults/notes").then(() => { reopened = true; });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reopened, "waits for the late worker's drain").toBe(false);
+    drained();
+    await reopening;
+    expect(fence.calledOff).toBe(true);
+  });
+
+  it("a fence that comes after the load was called off is called off at once", () => {
+    const abort = new AbortController();
+    abort.abort();
+    const starts = new LoadStarts("/vaults/notes", abort.signal);
+    const fence = createVaultCallOff();
+    starts.fence(fence);
+    expect(fence.calledOff).toBe(true);
+  });
+});
+
