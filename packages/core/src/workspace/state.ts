@@ -7,6 +7,8 @@ import type { OwedStructure } from "../vault/owedQueueEntries.js";
 import type { WorkspaceCommentAnchor } from "./commentAnchor.js";
 import type { PublicationManifest } from "./publication.js";
 import type { PublishedSliceConfig } from "./publishedSlices.js";
+import { readIndexedRow, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
+import { forgetOwnRemoval, noteOwnRemoval } from "../sync/ownRemovalNotes.js";
 
 export type WorkspaceLifecyclePhase = "preparing" | "migrating" | "active" | "locked" | "error";
 export type WorkspaceQueueOperation = "write" | "mkdir" | "rename" | "delete";
@@ -390,6 +392,15 @@ export interface CommitWorkspaceMutation {
 }
 
 export interface WorkspaceStateStore {
+  /**
+   * An incoming deletion carried out here (`ownRemovalNotes.ts`): noted
+   * before the file goes, forgotten once it is recorded. Optional: a store
+   * without a database has no next runtime to tell.
+   */
+  noteOwnRemoval?(path: string, stamps?: readonly IndexedRowStamp[]): Promise<void>;
+  forgetOwnRemoval?(path: string): Promise<void>;
+  /** The index row of `path`, for the stamps of an own removal (`ownRemovalStamps`). Optional: a store without the index database has none. */
+  indexedRow?(path: string): Promise<IndexedRowStamp | null>;
   loadMeta(): Promise<WorkspaceRuntimeMeta | null>;
   saveMeta(meta: WorkspaceRuntimeMeta): Promise<void>;
   /**
@@ -1013,6 +1024,18 @@ function consumedMarks(ids: readonly number[], committed?: { sha256: string | nu
 
 export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   constructor(private readonly db: IDatabaseAdapter) {}
+
+  async noteOwnRemoval(path: string, stamps?: readonly IndexedRowStamp[]): Promise<void> {
+    await noteOwnRemoval(this.db, path, stamps);
+  }
+
+  async forgetOwnRemoval(path: string): Promise<void> {
+    await forgetOwnRemoval(this.db, path);
+  }
+
+  async indexedRow(path: string): Promise<IndexedRowStamp | null> {
+    return readIndexedRow(this.db, path);
+  }
 
   async loadMeta(): Promise<WorkspaceRuntimeMeta | null> {
     const row = await this.db.queryOne<{ state_json: string }>(`SELECT state_json FROM workspace_meta WHERE id = 1`);

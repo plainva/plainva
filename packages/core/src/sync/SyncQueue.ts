@@ -2,7 +2,7 @@ import type { DeletionConfirmation } from "../vault/IVaultAdapter.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { SyncOperation } from "./ISyncTarget.js";
 import { isTwinSpelling } from "./pathIdentity.js";
-import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
+import { readIndexedRow, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 import { EDITED_AT_SQL } from "../vault/editedAt.js";
 import type { OwedStructure } from "../vault/owedQueueEntries.js";
 import { outsideWorkspaceNamespaceSql } from "../workspace/path.js";
@@ -438,11 +438,7 @@ export class SyncQueue {
    * at all (`OwnDeletionRegister`).
    */
   async indexedRow(path: string): Promise<IndexedRowStamp | null> {
-    const row = await this.db.queryOne<{ mtime_local: number | null }>(
-      `SELECT mtime_local FROM files WHERE path = ?`,
-      [path]
-    );
-    return row ? indexedRowStamp(row.mtime_local) : null;
+    return readIndexedRow(this.db, path);
   }
 
   /**

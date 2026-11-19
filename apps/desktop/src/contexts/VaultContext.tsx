@@ -51,7 +51,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspa
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId, restoreDesktopAccountsAfterRebuild } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
+import { adoptOwnRemovals, CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -1039,6 +1039,8 @@ export const VaultProvider: React.FC<{
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
       // this, 898 wrongly mirrored files went back up as 898 remote deletions.
       const ownDeletions = new OwnDeletionRegister();
+      // What a runtime that ended (a crash, a close) left removed and not recorded stays the sync's: taken over before the index looks.
+      await adoptOwnRemovals(dbAdapter, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(tauriVaultAdapter).then((there) => there === true), exists: (p) => tauriVaultAdapter.exists(p) }).catch(reportingTo("sync:own-removals"));
       // Which notes are templates, by this vault's settings (B26): the index
       // takes a file's name for a template's `{{title}}`. A save of the
       // settings here or in another window (`vaultFeaturesRelay`) changes it.
@@ -1582,6 +1584,7 @@ export const VaultProvider: React.FC<{
                 const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId })) ?? undefined;
                 const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
+                  ownDeletions,
                   sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
                   // Only whether THIS device holds the publication's keys. The
                   // folder it lives in is derived inside core from the vault's

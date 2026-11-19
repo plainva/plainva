@@ -2,6 +2,8 @@ import { IDatabaseAdapter, SqlStatements } from "../db/IDatabaseAdapter.js";
 import { conflictSessionKey, decodeConflictSession, type ConflictDiagnostic, type ConflictEditSession } from "./conflictSession.js";
 import { ConflictFileStore } from "./ConflictFileStore.js";
 import type { IVaultAdapter } from "./IVaultAdapter.js";
+import type { IndexedRowStamp } from "./indexedRowStamp.js";
+import { forgetOwnRemoval, noteOwnRemoval } from "../sync/ownRemovalNotes.js";
 import { clearSeenFolders, forgetSeenFolders, listSeenFolders, rememberSeenFolders } from "../sync/seenFolders.js";
 import { clearHeldBackStarters, holdBackStarters, listHeldBackStarters, releaseHeldBackStarter } from "../sync/heldBackStarters.js";
 import { clearAllUnsyncablePaths, clearUnsyncablePath, listUnsyncablePaths, markUnsyncablePath, type UnsyncableEntry } from "../sync/unsyncablePaths.js";
@@ -544,5 +546,15 @@ export class SyncStateRepository {
 
   async deleteSyncState(path: string): Promise<void> {
     await this.db.execute(`DELETE FROM sync_state WHERE path = ?`, [path]);
+  }
+
+  /** The sync removes `path` here (`ownRemovalNotes.ts`): noted before the file goes. */
+  async noteOwnRemoval(path: string, stamps?: readonly IndexedRowStamp[]): Promise<void> {
+    await noteOwnRemoval(this.db, path, stamps);
+  }
+
+  /** The removal is recorded, or did not happen. */
+  async forgetOwnRemoval(path: string): Promise<void> {
+    await forgetOwnRemoval(this.db, path);
   }
 }

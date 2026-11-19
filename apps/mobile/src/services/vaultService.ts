@@ -28,7 +28,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
-import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
+import { adoptOwnRemovals, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -955,6 +955,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     await initializeSchema(db);
     // A damaged full-text index met while the vault is open is noted, and the next open makes it anew.
     db = watchFullTextDamage(db, reportingTo("index:full-text-damaged"));
+    // What a runtime that ended (a crash, a close) left removed and not recorded stays the sync's: taken over before the index looks.
+    await adoptOwnRemovals(db, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(adapter).then((there) => there === true), exists: (p) => adapter.exists(p) }).catch(reportingTo("sync:own-removals"));
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
     await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
     // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
