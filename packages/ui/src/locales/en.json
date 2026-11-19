@@ -5168,6 +5168,9 @@
     "areaAgain": "It failed again after reloading. If it keeps failing, restart Plainva; the error is recorded under {{place}}.",
     "areaReload": "Reload this area",
     "structureNeedsIndex": "This can't be done right now: the search index could not be opened on this device, so the sync could not carry a deletion, a rename, a move or a new folder to your other devices. Restart the app to try again; your notes themselves are untouched.",
+    "fullTextDamaged": "The search index is damaged. Plainva rebuilds it the next time it opens; until then, search finds nothing. Your notes themselves are untouched.",
+    "fullTextRebuildFailed": "The search index is damaged, and Plainva could not rebuild it by itself. Search finds nothing, and changes to notes no longer reach the index. “{{action}}” fixes it: Plainva sets the index database aside and builds it anew. Your notes themselves are untouched.",
+    "fullTextRebuildFailedWorkspace": "The search index is damaged, and Plainva could not rebuild it by itself. Search finds nothing, and changes to notes no longer reach the index – links, tags, databases and tasks stay as they were. In an encrypted workspace Plainva does not rebuild the database, because it holds changes your other devices do not have yet. Your notes themselves are untouched.",
     "indexClosedNotice": "The search index could not be opened on this device. You can read, write and create notes; deleting, renaming, moving and new folders stay unavailable until it opens. Restart the app to try again; your notes are untouched.",
     "background": {
       "aiKeyNotRemoved": "The key for {{provider}} could not be removed from this device, so {{provider}} stays on the list: {{reason}}",

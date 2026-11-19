@@ -184,6 +184,8 @@ export interface RpcMap {
   "tab-transfer-status": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   "tab-transfer-cancel": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   write: { args: { path: string; content: string }; result: void };
+  /** An auxiliary window met a damaged full-text index: the owner notes it, so its next open makes it anew (`watchFullTextDamage`). */
+  "full-text-damaged": { args: { reading: import("@plainva/core").FullTextDamageReading }; result: boolean };
   "editor-write": { args: { path: string; content: string; baseText: string | null }; result: import("@plainva/core").EditorWriteResult };
   /** The two halves of a change of a file where it lies (`RemoteVaultAdapter.updateTextFile`): what the file is … */
   "update-read": { args: { path: string }; result: import("@plainva/core").TextFileState };
@@ -525,6 +527,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   write: "vault",
   "editor-write": "vault",
   "update-read": "vault",
+  "full-text-damaged": "vault",
   "sync-status-now": "vault",
   "update-write": "vault",
   "conflict-read": "vault",
@@ -632,6 +635,7 @@ export const RPC_EFFECT: Record<RpcKind, "read" | "write" | "once"> = {
   write: "write",
   "editor-write": "write",
   "update-read": "read",
+  "full-text-damaged": "write",
   "update-write": "write",
   "conflict-read": "read",
   "conflict-list": "read",

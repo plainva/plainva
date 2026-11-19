@@ -56,6 +56,7 @@ const ROOTS = ["packages/core/src", "packages/ui/src", "apps/mobile/src", "apps/
 const DATABASE_LAYER = [
   "packages/core/src/db/Schema.ts",
   "packages/core/src/db/batch.ts",
+  "packages/core/src/db/fullTextDamage.ts",
   "packages/core/src/db/lossyTextBaseMigration.ts",
   "packages/core/src/db/pathIdentityMigration.ts",
   "packages/core/src/pim/PimCacheRepository.ts",

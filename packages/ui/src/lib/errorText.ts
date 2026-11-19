@@ -19,7 +19,7 @@
  */
 
 import { connectionErrorText } from "./connectionErrorText";
-import { isStructureNeedsIndexError } from "@plainva/core";
+import { isDamagedFullText, isStructureNeedsIndexError } from "@plainva/core";
 import i18n from "i18next";
 
 const INPUT_REJECTIONS = new Map([
@@ -135,6 +135,9 @@ export function errorText(err: unknown): string {
   // A deletion, rename or move refused while the index database is closed
   // (stability plan R5): one sentence that says why and what to do, wherever it surfaces.
   if (isStructureNeedsIndexError(err)) return i18n.t("errors.structureNeedsIndex");
+  // A damaged full-text index (SQLITE_CORRUPT_VTAB): noted where it was met,
+  // made anew at the next open (`watchFullTextDamage`) — not a raw driver text.
+  if (isDamagedFullText(err)) return i18n.t("errors.fullTextDamaged");
   // A database change whose view cannot be found in the file with certainty (B20): by its reason, in the reader's language.
   const refusal = baseConfigRefusal(err);
   if (refusal) {
