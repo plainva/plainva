@@ -276,6 +276,27 @@ describe("a task list that cannot reach the notes says why (issue 172)", () => {
     expect([...vault.files.keys()].filter((p) => p.startsWith("Aufgaben/"))).toEqual(["Aufgaben/Steuern einreichen.md"]);
   });
 
+  it("a line left from a run that reached the database gives way to the reason once the database is deselected or unreadable (Sammelplan 3.130 Nr. 8c)", async () => {
+    const { vault, cycle } = setup({ "Aufgaben.base": buildTaskDbFile("Aufgaben", LABELS).content }, "Aufgaben.base");
+    const write = vault.adapter.writeTextFile;
+    vault.adapter.writeTextFile = async () => {
+      throw new Error("EACCES: read-only vault");
+    };
+    await cycle();
+    expect(await lineOf()).toContain("pim.problemTaskNotCreated");
+    // Deselected: the reconcile ends before the lists, and the line says why — not the old reason.
+    vault.adapter.writeTextFile = write;
+    await cycle({ taskDbPath: null });
+    expect(await lineOf()).toContain("pim.problemTaskNoDatabase");
+    // Chosen again, but its file cannot be read: that is what the line says now.
+    await cycle({ taskDbPath: "Gone.base" });
+    expect(await lineOf()).toContain("pim.problemTaskDatabaseUnreadable");
+    // And once a reconcile gets through, the line goes.
+    const done = await cycle();
+    expect(done.createdNotes).toEqual(["Aufgaben/Steuern einreichen.md"]);
+    expect(await cache.listSyncProblems()).toEqual([]);
+  });
+
   it("a list that is switched off carries no line", async () => {
     const { cycle } = setup({}, null);
     await cycle();

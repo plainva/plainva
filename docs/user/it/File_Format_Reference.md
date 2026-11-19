@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-11-06
+Ultimo aggiornamento: 2026-11-19
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -82,7 +82,7 @@ OKF 0.2 aggiunge cinque campi di primo livello **opzionali** con cui una nota di
 | `stale_after` | data (`2026-12-31`) o istante | Da quando il contenuto conta come obsoleto. Pura informazione — Plainva mostra un avviso e non cambia nulla. |
 | `status` | `draft` \| `stable` \| `deprecated` | Lo stato del ciclo di vita. Esattamente questi tre valori; `draft` e `deprecated` compaiono come badge, `stable` resta silenzioso. |
 
-Gli **attori** (`by` in `generated` e `verified`) seguono una convenzione: una persona è `human:<nome>`, un programma è `<produttore>/<versione>`. Plainva scrive `plainva-import/<version>`, `plainva-mail-capture/<version>` e `plainva-task-sync/<version>` — e, per una revisione, `human:<tuo nome>`.
+Gli **attori** (`by` in `generated` e `verified`) seguono una convenzione: una persona è `human:<nome>`, un programma è `<produttore>/<versione>`. Plainva scrive `plainva-import/<version>`, `plainva-mail-capture/<version>`, `plainva-task-sync/<version>` e, per l'IA, `plainva-ai/<modello>` — e, per una revisione, `human:<tuo nome>`. Quando un altro autore crea la nota, questa porta il suo identificativo su questo dispositivo: `mcp:<client>` per un programma tramite il server MCP di Plainva, `acp:<agente>` per un agente esterno, `script:<nome>` per uno script.
 
 Esempio di una nota importata e in seguito rivista:
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **Regole di scrittura — chi imposta cosa:**
 
-- `generated` e `sources` sono scritti solo dai percorsi di scrittura **macchina** di Plainva: l'importatore (un istante per esecuzione; anche il rapporto di importazione lo riporta), la cattura e-mail (con `sources: [{ resource: "mid:<Message-ID>" }]` quando il messaggio ha un Message-ID stabile) e la sincronizzazione delle attività (solo quando crea una nota — una sincronizzazione successiva lascia il timbro invariato).
+- `generated` e `sources` sono scritti solo dai percorsi di scrittura **macchina** di Plainva: l'importatore (un istante per esecuzione; anche il rapporto di importazione lo riporta), la cattura e-mail (con `sources: [{ resource: "mid:<Message-ID>" }]` quando il messaggio ha un Message-ID stabile), la sincronizzazione delle attività (solo quando crea una nota — una sincronizzazione successiva lascia il timbro invariato), **Conserva come nota** su una risposta dell'IA (con le pagine, le note e le immagini lette come `sources`) e ogni nota e voce di database che l'IA, un programma tramite il server MCP o uno script crea come bozza — sia che la bozza la crei tu, sia che nasca subito con **Applica direttamente** (con `sources` dove la bozza ne indica). Una nota creata da un agente esterno porta solo `generated`. Una modifica a una nota esistente non timbra mai.
 - `verified` è scritto solo da **Segna come revisionata** (desktop: la sezione **Fiducia e provenienza** del pannello delle proprietà; telefono: il pannello di contesto della nota) — e viene aggiunto invece di sovrascrivere.
 - L'editor non tocca mai da solo nessuno di questi campi, e **le note esistenti non vengono mai timbrate a posteriori**. Un campo mancante significa solo: nessuna dichiarazione.
 - `status` e `stale_after` li imposti tu (come proprietà o direttamente nel frontmatter). Un valore fuori da `draft`/`stable`/`deprecated` — ad esempio la colonna `status: Open` di un database attività — **non** è uno stato del ciclo di vita ma una proprietà ordinaria; Plainva non mostra alcun badge per esso.

@@ -1927,13 +1927,23 @@ export class SyncWorker {
       const register = this.options.ownDeletions;
       const stamps = register ? await this.ownRemovalStamps(path) : [];
       if (stamps.length > 0) register!.mark(path, stamps);
+      // In the database too, before the file goes: a runtime that ends (a
+      // crash, a close) between the removal and its record leaves the next one
+      // to find the file missing, and it must not take that for the person's deletion.
+      // Optional: a sync state kept elsewhere than in the index database has no next runtime to tell.
+      await this.stateRepo.noteOwnRemoval?.(path, stamps);
       try {
         await this.vault.deleteItem(path);
       } catch (e) {
         if (stamps.length > 0) register!.unmark(path);
+        await this.stateRepo.forgetOwnRemoval?.(path).catch((error: unknown) => {
+          // silent: a note left over is dropped by the next start, which finds the file still there (`adoptOwnRemovals`).
+          console.error("[SyncWorker] forgetting the note of an own removal failed", error);
+        });
         throw e;
       }
       await this.stateRepo.deleteSyncState(path);
+      await this.stateRepo.forgetOwnRemoval?.(path);
       changedPaths.push(path);
       return "deleted";
     }

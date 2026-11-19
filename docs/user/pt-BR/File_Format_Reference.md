@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-19
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -82,7 +82,7 @@ O OKF 0.2 acrescenta cinco campos de nível superior **opcionais** com os quais 
 | `stale_after` | data (`2026-12-31`) ou instante | A partir de quando o conteúdo conta como desatualizado. Informação pura — o Plainva mostra um aviso e não altera nada. |
 | `status` | `draft` \| `stable` \| `deprecated` | O estado do ciclo de vida. Exatamente esses três valores; `draft` e `deprecated` aparecem como um selo, `stable` permanece silencioso. |
 
-**Autores** (`by` em `generated` e `verified`) seguem uma convenção: uma pessoa é `human:<nome>`, um programa é `<produtor>/<versão>`. O Plainva escreve `plainva-import/<version>`, `plainva-mail-capture/<version>` e `plainva-task-sync/<version>` — e, para uma revisão, `human:<seu nome>`.
+**Autores** (`by` em `generated` e `verified`) seguem uma convenção: uma pessoa é `human:<nome>`, um programa é `<produtor>/<versão>`. O Plainva escreve `plainva-import/<version>`, `plainva-mail-capture/<version>`, `plainva-task-sync/<version>` e, para a IA, `plainva-ai/<modelo>` — e, para uma revisão, `human:<seu nome>`. Quando outro autor cria a nota, ela traz o identificador dele neste dispositivo: `mcp:<cliente>` para um programa pelo servidor MCP do Plainva, `acp:<agente>` para um agente externo, `script:<nome>` para um script.
 
 Exemplo de uma nota importada e depois revisada:
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **Regras de escrita — quem define o quê:**
 
-- `generated` e `sources` são escritos apenas pelos caminhos de escrita **automáticos** do Plainva: o importador (um instante por execução; o relatório de importação também o traz), a captura de e-mail (com `sources: [{ resource: "mid:<Message-ID>" }]` quando a mensagem tem um Message-ID estável) e a sincronização de tarefas (somente quando ela cria uma nota — uma sincronização posterior deixa o selo intacto).
+- `generated` e `sources` são escritos apenas pelos caminhos de escrita **automáticos** do Plainva: o importador (um instante por execução; o relatório de importação também o traz), a captura de e-mail (com `sources: [{ resource: "mid:<Message-ID>" }]` quando a mensagem tem um Message-ID estável), a sincronização de tarefas (somente quando ela cria uma nota — uma sincronização posterior deixa o selo intacto), **Manter como nota** numa resposta da IA (com as páginas, notas e imagens lidas como `sources`) e cada nota e entrada de banco de dados que a IA, um programa pelo servidor MCP ou um script cria como rascunho — seja você quem cria o rascunho, seja ele criado na hora com **Aplicar diretamente** (com `sources` onde o rascunho os indica). Uma nota criada por um agente externo traz apenas `generated`. Uma alteração numa nota existente nunca sela.
 - `verified` é escrito apenas por **Marcar como revisada** (desktop: a seção **Confiança e origem** do painel de propriedades; celular: o painel de contexto da nota) — e ele é acrescentado em vez de sobrescrito.
 - O editor nunca toca nesses campos por conta própria, e **notas existentes nunca são seladas retroativamente**. Um campo ausente significa apenas: nenhuma declaração.
 - `status` e `stale_after` são seus para definir (como propriedade ou diretamente no frontmatter). Um valor fora de `draft`/`stable`/`deprecated` — digamos, a coluna `status: Open` de um banco de tarefas — **não** é um estado de ciclo de vida, mas uma propriedade comum; o Plainva não mostra nenhum selo para ela.

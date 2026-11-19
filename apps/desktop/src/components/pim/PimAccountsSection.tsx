@@ -6,6 +6,7 @@ import { AccountFailureNote, Banner, Button, EmptyState, ICON, MEETING_TEMPLATE_
 import type { PimAccountRow, PimCalendar, PimTaskList } from "@plainva/core";
 import { useVault, meetingFolderKey, meetingNoteTemplateKey, templateFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
+import { vaultFeaturesSaved } from "../../services/vaultFeaturesRelay";
 import { Select } from "../Select";
 
 /**
@@ -152,6 +153,8 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
       }
       await store.set(meetingNoteTemplateKey(vaultPath), value.trim());
       await store.save();
+      // The index takes a template's file name for its placeholder title (B26).
+      vaultFeaturesSaved(vaultPath);
     },
     [vaultPath]
   );
