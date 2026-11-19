@@ -1886,6 +1886,9 @@
       "noClients": "Nessuna app ha ancora chiesto.",
       "folders": "Cartelle: {{folders}}",
       "noFolders": "nessuna in questo vault",
+      "foldersStale_other": "{{count}} cartelle concesse prima non valgono più. Rimuovi l'app; chiederà di nuovo e sceglierai da capo.",
+      "foldersStale_many": "{{count}} cartelle concesse prima non valgono più. Rimuovi l'app; chiederà di nuovo e sceglierai da capo.",
+      "foldersStale_one": "Una cartella concessa prima non vale più. Rimuovi l'app; chiederà di nuovo e sceglierai da capo.",
       "wholeVault": "l'intero vault",
       "lastSeen": "ultimo uso {{when}}",
       "revokeLabel": "Rimuovi {{client}}",
@@ -1900,6 +1903,7 @@
       "pairBody": "Avviata da: {{program}}. Scegli cosa può leggere: non vede altro.",
       "pairFolders": "Cartelle",
       "pairWhole": "L'intero vault",
+      "pairRenamed": "L'accesso segue il nome della cartella: se la rinomini in seguito, non è più condivisa finché non la consenti di nuovo.",
       "pairAllow": "Consenti",
       "pairDeny": "Rifiuta",
       "author": "{{client}} (app di IA)",
@@ -8197,7 +8201,8 @@
     "driveFolder": "Il provider ha restituito un identificatore di cartella non valido. L’operazione è stata interrotta.",
     "htmlDepth": "Questo HTML contiene troppi livelli di annidamento. Semplificalo o importa un’esportazione Markdown.",
     "propertiesBlock": "Il blocco all’inizio della nota non può essere letto come proprietà. Correggilo nel testo della nota e riprova.",
-    "propertyNameTaken": "La nota ha già una proprietà con il nuovo nome."
+    "propertyNameTaken": "La nota ha già una proprietà con il nuovo nome.",
+    "propertySharedByAnchor": "Il valore di questa proprietà è condiviso con un’altra tramite un’ancora YAML (& e * nel testo della nota). Modificalo nel testo della nota stessa."
   },
   "audio": {
     "play": "Riproduci {{name}}",

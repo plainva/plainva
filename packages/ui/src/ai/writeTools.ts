@@ -1,4 +1,7 @@
 import {
+  rawChangeOf,
+  type ReaderView,
+  VIEW_PLACEHOLDER,
   AI_POLICY_DIMENSIONS,
   MEMORY_DRAFT_TOOL_NAMES,
   MEMORY_LIMITS,
@@ -248,6 +251,27 @@ export interface WriteRun {
   make?(input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }): Promise<string>;
 }
 
+/**
+ * Whether any text a tool's arguments would write carries a placeholder of a view (`VIEW_PLACEHOLDER`). Not what only
+ * points into a note — the passage an edit looks for, the section an addition goes to —: those are read on the view,
+ * and may name a placeholder where the reader sees one.
+ */
+function carriesPlaceholder(value: unknown, depth = 0): boolean {
+  if (typeof value === "string") return VIEW_PLACEHOLDER.test(value);
+  if (depth > 6 || value === null || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(([key, item]) => !LOCATORS.has(key) && carriesPlaceholder(item, depth + 1));
+}
+
+/** The arguments that point into a note rather than write to it. */
+const LOCATORS: ReadonlySet<string> = new Set(["find", "section"]);
+
+/**
+ * The argument of a memory tool that names an entry already there rather than writing one: read on the view of the
+ * memory, so it names a placeholder where the reader sees one, and the draft takes the entry as it stands in the file
+ * (`WriteToolContext.memoryRaw`, review of R19, wave 2). What the entry is reworded to is written, and is checked.
+ */
+const MEMORY_POINTERS: Readonly<Record<string, string>> = { forget: "entry", remember: "replaces" };
+
 /** The executor's own view of the vault: the same gate every read passes. */
 export interface WriteToolContext {
   /** A note this run may read, read: counted among what the run read, like every read. */
@@ -271,8 +295,16 @@ export interface WriteToolContext {
    * read; absent where the shell has none.
    */
   memory?(): Promise<readonly MemoryEntry[] | null>;
+  /** An entry's text as it stands in the file, where `memory` gives it as the run's view: what a draft names. */
+  memoryRaw?(entry: MemoryEntry): string;
   /** The id of the call that runs, where the run has one: a question about it is asked under it. */
   callId?: string;
+  /**
+   * A note's text as this run may see it (`ReaderView`, decision A of 2026-11-13): a change is made on the view, and
+   * what touches a withheld part of it is refused alike whatever that part holds. Every run has one — a model on
+   * this device sees place stamps withheld too.
+   */
+  viewOf?(path: string, text: string): Promise<ReaderView>;
 }
 
 /** The writing tools that have hands, in the order the tool search lists them. */
@@ -498,14 +530,25 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const base = noteAsEdited((await deps.current(note.path)) ?? note.text);
   // A suggestion is attached to the words around it; a file with nothing in it has none. A direct addition is not.
   if (base.length === 0 && !(leave && !reason && append.trim())) return refuse("empty-note");
-  const outcome = edits.length ? applyNoteEdits(base, edits) : appendToNote(base, append, typeof a.section === "string" ? a.section : undefined);
+  // Made on what this run may see of the note (review of R19, wave 2): a passage is found in the view, so text
+  // inside a withheld part is "not in the note" like text that is nowhere, and a change that touches such a part is
+  // refused alike whatever it holds (`rawChangeOf`).
+  const view = ctx.viewOf ? await ctx.viewOf(note.path, base) : null;
+  const seen = view ? view.text : base;
+  const outcome = edits.length ? applyNoteEdits(seen, edits) : appendToNote(seen, append, typeof a.section === "string" ? a.section : undefined);
   if (!outcome.ok) return { content: editProblemSentence(outcome.problem, outcome.edit), isError: true };
+  let changed = outcome.text;
+  if (view) {
+    const back = rawChangeOf(view, outcome.text);
+    if (!back.ok) return refuse(back.problem);
+    changed = back.raw;
+  }
 
   // A round inherits nothing, so it may only go where the rules of what the conversation rests on already hold.
   if (!(await placeTakes(run, ctx, note.path, base))) return refuse("restricted");
   // What the edit brings is linted, the paragraphs it touches whole — a block of the round is a fragment, and half an
   // address is none —; every other byte stays as the note had it (strand 6, Nr. 12).
-  const linted = defuseNoteText(outcome.text, [base, ...run.userTexts()], base);
+  const linted = defuseNoteText(changed, [base, ...run.userTexts()], base);
   // Only the note's text is proposed here: its properties stay as they are, whatever the lint made of them.
   const start = noteBodyStart(base);
   const intended = base.slice(0, start) + linted.text.slice(noteBodyStart(linted.text));
@@ -513,7 +556,9 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   if (chunks.length === 0 && intended === base) return refuse("unchanged");
   if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
   // The source check: what the change ADDS as links. A link the note already had is not this run's claim.
-  const links = await linksNowhere(run, ctx, addedNoteTargets(base, intended), note.path);
+  // What the change adds as links, as this run sees the note: a link the note holds where it is withheld is no link
+  // of it for this run, so naming it again is told like naming any other (review of R19, wave 2).
+  const links = await linksNowhere(run, ctx, view ? addedNoteTargets(seen, outcome.text) : addedNoteTargets(base, intended), note.path);
   const passages = Math.max(1, chunks.length);
   if (leave && !reason) {
     const outcome = await applyDirectChange(deps.direct!, note.path, base, intended);
@@ -562,6 +607,12 @@ async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const value: PropertyValue | null = raw === null ? null : Array.isArray(raw) ? raw.map(inert) : inert(raw);
   const target = propertyTarget(base, key, value);
   if (target.class === "invalid") return refuse("bad-property");
+  // A property whose value this run is not shown whole is not changed from here, whatever is asked: "unchanged"
+  // would otherwise say what it holds (review of R19, wave 2).
+  if (ctx.viewOf && target.path.length > 0) {
+    const current = readFrontmatterPath(base, target.path);
+    if (current !== undefined && (await ctx.viewOf(note.path, JSON.stringify(current))).withholds) return refuse("withheld-part");
+  }
   if (target.class === "trust") return refuse("trust");
   if (target.class === "reserved") return refuse("reserved");
   if (target.class === "rules") {
@@ -784,7 +835,7 @@ async function remember(run: WriteRun, a: Record<string, unknown>, ctx: WriteToo
   // A reworded entry stays where it is; a new one is proposed for "always included" while there is room for it.
   const used = known.filter((entry) => entry.place === "active").reduce((sum, entry) => sum + entry.text.length, 0);
   const place = replaces ? replaces.place : used + text.length <= MEMORY_LIMITS.activeChars ? "active" : "long";
-  const left = await run.draft({ title, body: { kind: "memory", text, place, replaces: replaces ? replaces.text : null }, defused: linted.defused });
+  const left = await run.draft({ title, body: { kind: "memory", text, place, replaces: replaces ? (ctx.memoryRaw?.(replaces) ?? replaces.text) : null }, defused: linted.defused });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "memory", title });
   return said(WRITE_RESULTS.remembered(Boolean(replaces), linted.defused), { drafted: true, kind: "memory" });
@@ -797,7 +848,7 @@ async function forget(run: WriteRun, a: Record<string, unknown>, ctx: WriteToolC
   const entry = typeof a.entry === "string" ? findMemoryEntry(known, a.entry) : null;
   if (!entry) return refuse("no-memory-entry");
   const title = oneLine(entry.text, 200);
-  const left = await run.draft({ title, body: { kind: "forget", entry: entry.text }, defused: 0 });
+  const left = await run.draft({ title, body: { kind: "forget", entry: ctx.memoryRaw?.(entry) ?? entry.text }, defused: 0 });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "forget", title });
   return said(WRITE_RESULTS.forgotten, { drafted: true, kind: "forget" });
@@ -993,6 +1044,11 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
   if (deps.sealed()) return refuse("sealed");
   if (!SERVED_WRITE_TOOLS.includes(tool.name)) return refuse("unavailable");
   if (!run) return refuse("nobody");
+  // A placeholder of a view stands for what a reader is not shown: it never reaches a file, a draft or a plan. The
+  // edits of a note are the exception, taken back to the raw text change by change (`rawChangeOf`): a placeholder
+  // that stays where it stood is the part it stands for, kept; one brought in or moved is refused there.
+  const pointer = MEMORY_POINTERS[tool.name];
+  if (ctx.viewOf && carriesPlaceholder(tool.name === "propose_edit" ? { ...a, edits: undefined } : pointer ? { ...a, [pointer]: undefined } : a)) return refuse("withheld-part");
   try {
     switch (tool.name) {
       case "propose_edit":

@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -71,7 +71,7 @@ Every note has an address that opens it from anywhere — a calendar event, a ta
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Copy link** puts that address on the clipboard: on the desktop in the note's ⋮ menu, the tab menu and the context menu of the file tree; on the phone in the note's menu and in a file's sheet.
-- **At a heading or a line**: the block menu (the handle left of a block; on the phone the block sheet) and, on the desktop, the right-click menu of the editor offer **Copy link** — the address of exactly that heading or block — and **Copy block link** — a link for your notes such as `[[Plan#Goals]]` or `[[Plan#^k3x9qa]]`. A block without an ID gets one: Plainva writes ` ^k3x9qa` (six letters and digits) at the end of the paragraph or list item, for a table on a line of its own below it — as if you had typed it, so undo takes it back. Frontmatter, code blocks, formulas and empty lines get no ID.
+- **At a heading or a line**: the block menu (the handle left of a block; on the phone the block sheet) and, on the desktop, the right-click menu of the editor offer **Copy link** — the address of exactly that heading or block — and **Copy block link** — a link for your notes such as `[[Plan#Goals]]` or `[[Plan#^k3x9qa]]`. A block without an ID gets one: Plainva writes ` ^k3x9qa` (six letters and digits) at the end of the paragraph or list item, for a table on a line of its own below it — as if you had typed it, so undo takes it back. Frontmatter, code blocks, formulas and empty lines get no ID. In the editor an ID stands faint at the end of its line, and as written while the cursor is in that line; read mode hides it.
 - **Suggestions**: typing `[[Note#^` lists the block IDs the note already has, with the beginning of their text.
 - **In an event**: **Link a note** in the event editor adds `[Title](plainva://open?…)` to the description. The event preview shows it as a chip with the note's name; a click opens the note.
 - **Clicked in Plainva**: a `plainva://` link in a note, a mail, an event or a task opens the note in Plainva, on the desktop and on the phone. It is never handed to the system.
@@ -170,7 +170,7 @@ A daily note can also hold a **journal**: short entries with a time (`- 14:05 Te
 - **Task checkboxes**: `- [ ] task` renders as a checkbox everywhere — and in **read mode** you can click it: Plainva writes `[x]` or `[ ]` back into the file. A done task is shown muted and struck through — in the note just as in the task view.
 - **Callouts**: a quote that starts with `> [!tip] Title` (or any of the 13 variants from the slash menu) is drawn as one card — a fine line in the callout's colour, a light tint and the title in that colour; without a title the card shows the name of its variant. It looks the same in the live preview, in read mode and on the phone; a plain quote keeps its bar.
 - **Nested lists**: from the second level on, a fine line under each parent bullet shows which items belong together — in the live preview and in read mode.
-- **Math (LaTeX)**: `$E = mc^2$` inline and `$$…$$` as a block render as formulas in read mode AND in the live preview (KaTeX). With the caret inside a formula you see the syntax; clicking a rendered formula opens it for editing. Only source mode always shows the raw syntax. You do not have to memorize the `$$…$$` block — the **Formula (LaTeX)** slash command (`/katex`) inserts it and places the caret inside.
+- **Math (LaTeX)**: `$E = mc^2$` inline and `$$…$$` as a block render as formulas in read mode AND in the live preview (KaTeX). With the caret inside a formula you see the syntax; clicking a rendered formula opens it for editing. Only source mode always shows the raw syntax. You do not have to memorize the `$$…$$` block — the **Formula (LaTeX)** slash command (`/katex`) inserts it and places the caret inside. A wiki link `[[…]]` stays a link between dollar signs too: where one stands inside a formula, read mode and the live preview show that stretch as text with the link, not as a formula (for example `$A[[1,2]]$`).
 - **Mermaid diagrams**: a code block with the language `mermaid` (fastest via the **Mermaid diagram** slash command, `/mermaid`) is drawn as a diagram in read mode and in the live preview — clicking the diagram shows the code for editing:
 
   ````markdown

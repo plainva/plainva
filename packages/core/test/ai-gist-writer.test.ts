@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { turns } from "../src/ai/context/cards.js";
-import { gistSections, protectedTokens } from "../src/ai/context/gists.js";
+import { gistSections, protectedTokens, sectionGistKey } from "../src/ai/context/gists.js";
 import { GistStore, resetGistStores } from "../src/ai/context/gistStore.js";
 import { GistReader, GistWriter, type GistModel } from "../src/ai/context/gistWriter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
@@ -64,7 +64,7 @@ describe("the gist writer", () => {
     expect(pass.rejected).toBe(0);
     const reader = new GistReader(db, "ollama/m");
     const costs = gistSections(NOTES["Projects/Offer.md"]!).find((s) => s.chain === "Offer > Costs")!;
-    expect(await reader.section(costs.key)).toBe("Summary 95 31.12.2026 not.");
+    expect(await reader.section(sectionGistKey("Projects/Offer.md", costs.text))).toBe("Summary 95 31.12.2026 not.");
     expect(await reader.note("Projects/Offer.md")).toBe("Summary.");
     expect(await reader.area("Projects")).toBe("Summary.");
     // Private holds the diary (kept from a cloud) and health: one part is not enough for an area's gist.
@@ -90,9 +90,9 @@ describe("the gist writer", () => {
     expect(await reader.note("Projects/Plan.md")).toBeNull();
     clock.now = START + 1_000;
     await new GistWriter(host, m).run(new AbortController().signal);
-    expect(await reader.section(old.key)).toBeNull();
+    expect(await reader.section(sectionGistKey("Projects/Plan.md", old.text))).toBeNull();
     const fresh = gistSections(disk["Projects/Plan.md"]!)[0]!;
-    expect(await reader.section(fresh.key)).toBe("Summary 2028.");
+    expect(await reader.section(sectionGistKey("Projects/Plan.md", fresh.text))).toBe("Summary 2028.");
     expect(await reader.note("Projects/Plan.md")).toBe("Summary 2028.");
   });
 

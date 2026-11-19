@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
-import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
+import { markdownLinkTarget, prepareReaderSource, remarkFormulasYieldToLinks, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
@@ -320,12 +320,16 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   const source = useMemo(() => prepareReaderSource(content, {
     formatDate: (date) => formatRelativeDate(date, new Date(), (i18n.language || "de").slice(0, 2)),
     embedKind: (target) => embedKindOf(parseWikiImageTarget(target).target) ?? "note",
+    // A GFM renderer: it reads tables.
+    tables: true,
   }), [content, i18n.language]);
   const anchorPlugin = useMemo(() => {
     if (!anchors?.length) return null;
     return rehypeReadAnchors(anchors.map((a) => ({ ...a, from: source.toRendered(a.from), to: source.toRendered(a.to, "end") })));
   }, [anchors, source]);
   const sourcePlugin = useMemo(() => rehypeReaderSource(source, content), [source, content]);
+  // A formula over a wiki link is shown as what is written there, the link a link (Fehlerliste 0.9.0, B4).
+  const formulasYield = useMemo(() => remarkFormulasYieldToLinks(source), [source]);
   // Right-to-left text (issue 111): each block gets the direction the editor
   // gives its lines - one rule, read from the same source. Runs after the
   // source plugin, whose line addresses it reads.
@@ -430,7 +434,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       }}
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
-        remarkPlugins={[bounded.remarkRestore, ...READER_REMARK_PLUGINS, ...(mathPlugins ? [mathPlugins.remark as never] : [])]}
+        // A formula over a wiki link gives way to it before anything else reads the tree (Fehlerliste 0.9.0, B4).
+        remarkPlugins={[bounded.remarkRestore, ...(mathPlugins ? [formulasYield] : []), ...READER_REMARK_PLUGINS, ...(mathPlugins ? [mathPlugins.remark as never] : [])]}
         rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{

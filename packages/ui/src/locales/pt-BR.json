@@ -1886,6 +1886,9 @@
       "noClients": "Nenhum app perguntou ainda.",
       "folders": "Pastas: {{folders}}",
       "noFolders": "nenhuma neste vault",
+      "foldersStale_other": "{{count}} pastas concedidas antes não valem mais. Remova o app; ele pergunta de novo e você escolhe outra vez.",
+      "foldersStale_many": "{{count}} pastas concedidas antes não valem mais. Remova o app; ele pergunta de novo e você escolhe outra vez.",
+      "foldersStale_one": "Uma pasta concedida antes não vale mais. Remova o app; ele pergunta de novo e você escolhe outra vez.",
       "wholeVault": "o vault inteiro",
       "lastSeen": "último uso {{when}}",
       "revokeLabel": "Remover {{client}}",
@@ -1900,6 +1903,7 @@
       "pairBody": "Iniciado por: {{program}}. Escolha o que ele pode ler — ele não vê mais nada.",
       "pairFolders": "Pastas",
       "pairWhole": "O vault inteiro",
+      "pairRenamed": "O acesso vale pelo nome da pasta: se você renomeá-la depois, ela deixa de ser compartilhada até você permitir de novo.",
       "pairAllow": "Permitir",
       "pairDeny": "Recusar",
       "author": "{{client}} (app de IA)",
@@ -8197,7 +8201,8 @@
     "driveFolder": "O provedor retornou um identificador de pasta inválido. A operação foi interrompida.",
     "htmlDepth": "Este HTML tem níveis de aninhamento demais. Simplifique-o ou importe uma exportação em Markdown.",
     "propertiesBlock": "O bloco no início da nota não pode ser lido como propriedades. Corrija-o no texto da nota e tente novamente.",
-    "propertyNameTaken": "A nota já tem uma propriedade com o novo nome."
+    "propertyNameTaken": "A nota já tem uma propriedade com o novo nome.",
+    "propertySharedByAnchor": "O valor desta propriedade é compartilhado com outra por uma âncora YAML (& e * no texto da nota). Altere-o no próprio texto da nota."
   },
   "audio": {
     "play": "Reproduzir {{name}}",

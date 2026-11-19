@@ -453,8 +453,12 @@ export interface AiVaultHost {
   /** The note open right now, if any. */
   activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
   readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
-  /** Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. */
-  situation(): Promise<SituationInput>;
+  /**
+   * Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. `run`: the recipient and
+   * whether it may reach the internet — a value the shell computes from several notes (the task database's view)
+   * is computed only from notes that run may see (review of R19, wave 2).
+   */
+  situation(run?: GateRun): Promise<SituationInput>;
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
   /** The recipient decides whether a cloud embedding model may see the question (plan P2b). */
   candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
@@ -4197,7 +4201,15 @@ export class AiSession {
     const active = activeFile.allowed ? activeMemoryFor(read.active, gate) : { entries: [], withheld: read.active.length, left: 0, chars: 0 };
     const lookup = longFile.allowed && read.long.some((entry) => memoryEntryAllowed(entry, gate));
     if (active.entries.length === 0 && active.withheld === 0 && !lookup) return null;
-    const text = memoryText(active.entries);
+    // To a cloud, and with the internet, an entry goes as such a reader sees it: a link in it to a note kept back is
+    // withheld like one in a note (review of R19, wave 2).
+    const seen = async (text: string) => {
+      const places = withholdPlaces(text).text;
+      if (!isCloudRecipient(recipient) && !web) return places;
+      return (await withholdDeniedLinks(places, memoryFileOf("active"), vault.policy, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)).text;
+    };
+    const shown = await Promise.all(active.entries.map(async (entry) => ({ ...entry, text: await seen(entry.text), section: entry.section === null ? null : await seen(entry.section) })));
+    const text = memoryText(shown);
     // What went although a rule restricts it elsewhere: a conversation without the internet may carry an entry kept from it.
     const restricted = AI_POLICY_DIMENSIONS.filter((dimension) => active.entries.length > 0 && (activeFile.denies.includes(dimension) || active.entries.some((entry) => entry.deny.includes(dimension))));
     return { text, lookup, record: { entries: active.entries.length, withheld: active.withheld, left: active.left, tokens: estimateTokens(text), restricted } };
@@ -6672,7 +6684,7 @@ export class AiSession {
     const budget = contextBudgetFor(this.windowOf(provider, choice.model), platform ? undefined : conversation.carried);
     // The tools the conversation carries — what the model may call, as the overview lists them.
     const tools = toolless ? [] : conversation.tools;
-    const situation = conversation.bare ? this.bareSituation() : await vault.situation().catch(() => this.bareSituation());
+    const situation = conversation.bare ? this.bareSituation() : await vault.situation({ recipient, webTools: web }).catch(() => this.bareSituation());
     const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
     const candidates =
       conversation.bare || conversation.pinsOnly ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
@@ -6699,6 +6711,10 @@ export class AiSession {
           resolveLink: vault.policy.resolveLink,
           // Which notes a link could mean: asked by the gate before a note's text goes into the package.
           ...(vault.policy.linkCandidates ? { linkCandidates: vault.policy.linkCandidates } : {}),
+          // What the rules say now, so a verdict on an area's gist is kept over messages while they and the index stay.
+          ...(vault.policy.rulesStamp ? { rulesStamp: () => vault.policy.rulesStamp!() } : {}),
+          // The names read once for a verdict kept over messages, as fresh as the index its stamp is read from.
+          ...(vault.policy.linkSnapshot ? { linkSnapshot: () => vault.policy.linkSnapshot!() } : {}),
           readNote: (path) => vault.readNote(path),
           ...(vault.noteSizes ? { noteSizes: (paths: readonly string[]) => vault.noteSizes!(paths) } : {}),
           ...(gists ? { gists } : {}),

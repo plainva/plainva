@@ -14,8 +14,10 @@
  */
 import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { aiVisibleSql } from "../hiddenPaths.js";
-import { checkGist, gistInstruction, gistOfGists, gistSections, GIST_MIN_SOURCE, type GistLevel } from "./gists.js";
+import { fullTextRowOf } from "../../db/fullTextRows.js";
+import { checkGist, gistInstruction, gistKey, gistOfGists, gistSections, GIST_MIN_SOURCE, sectionGistKey, type GistLevel } from "./gists.js";
 import { GistStore, type StoredGist } from "./gistStore.js";
+import type { KeptAreaVerdict } from "./package.js";
 
 export interface GistModel {
   /** `provider/model`: whose gists these are. */
@@ -102,14 +104,17 @@ export class GistWriter {
       if (text === null) continue;
       const sections = gistSections(text).filter((section) => section.text.trim().length >= GIST_MIN_SOURCE);
       pass.sections += sections.length;
-      const stored = await this.store.getMany(sections.map((s) => s.key), this.model.id);
+      // A section's gist is its note's (`sectionGistKey`): the same text in another note is written again from there.
+      const keyOf = (section: { text: string }) => sectionGistKey(note.path, section.text);
+      const stored = await this.store.getMany(sections.map(keyOf), this.model.id);
       const parts: { label: string; key: string; gist: string }[] = [];
       for (const section of sections) {
-        live.add(section.key);
-        let gist = stored.get(section.key) ?? null;
+        const key = keyOf(section);
+        live.add(key);
+        let gist = stored.get(key) ?? null;
         if (!gist) {
           const label = [note.title, section.chain].filter(Boolean).join(" › ");
-          gist = await this.write("section", section.key, section.key, `${label}\n\n${section.text}`, signal, pass);
+          gist = await this.write("section", key, section.key, `${label}\n\n${section.text}`, signal, pass);
           onProgress?.(pass);
         }
         if (gist.ok) {
@@ -183,6 +188,9 @@ function epochMs(value: unknown): number {
  * changed after they were written — until the next pass writes them again,
  * they are left out rather than trusted.
  */
+/** The verdicts on areas' gists, per vault index (`GistReader.verdicts`): readers come and go, the index stays. */
+const AREA_VERDICTS = new WeakMap<IDatabaseAdapter, Map<string, KeptAreaVerdict>>();
+
 export class GistReader {
   private readonly store: GistStore;
 
@@ -191,6 +199,27 @@ export class GistReader {
     private readonly model: string,
   ) {
     this.store = new GistStore(db);
+  }
+
+  /** Whether an area's gist may go to a reader, kept with this vault's index over messages (`PackageGists.verdicts`). */
+  get verdicts(): Map<string, KeptAreaVerdict> {
+    let kept = AREA_VERDICTS.get(this.db);
+    if (!kept) {
+      kept = new Map();
+      AREA_VERDICTS.set(this.db, kept);
+    }
+    return kept;
+  }
+
+  /** Every file's path, title and revision as one key: what changes whenever the index does (`PackageGists.state`). */
+  async state(): Promise<string | null> {
+    const row = await this.db.queryOne<{ files: number; state: string | null }>(
+      `SELECT COUNT(*) AS files, group_concat(path || char(1) || coalesce(title, '') || char(1) || coalesce(sha256, '') || char(1) || coalesce(is_deleted, 0), char(2)) AS state
+       FROM (SELECT path, title, sha256, is_deleted FROM files ORDER BY path)`,
+      [],
+    );
+    if (!row) return null;
+    return `${row.files}:${gistKey(row.state ?? "")}`;
   }
 
   /** The gist of a section's exact text. */
@@ -225,5 +254,21 @@ export class GistReader {
 
   async vault(): Promise<string | null> {
     return this.fresh(VAULT_GIST_KEY, () => this.newest("1 = 1", []));
+  }
+
+  /**
+   * The notes an area's gist stands for — the same notes `area` and `vault` measure freshness on —, each with the text
+   * the index holds of it (null where it holds none); null where there are more than `max` (`PackageGists.notes`).
+   */
+  async notes(area: string | null, max: number): Promise<{ path: string; text: string | null }[] | null> {
+    const prefix = area === null ? null : `${area.replace(/[\\%_]/g, "\\$&")}/%`;
+    const rows = await this.db.query<{ path: string; text: string | null }>(
+      `SELECT f.path AS path, n.content AS text FROM files f LEFT JOIN fts_notes n ON n.rowid = ${fullTextRowOf("f")} AND n.path = f.path
+       WHERE f.mode != 'attachment' AND f.path LIKE '%.md' AND (f.is_deleted IS NULL OR f.is_deleted = 0) AND ${aiVisibleSql("f.path")}${prefix === null ? "" : " AND f.path LIKE ? ESCAPE '\\'"}
+       LIMIT ?`,
+      prefix === null ? [max + 1] : [prefix, max + 1],
+    );
+    if (rows.length > max) return null;
+    return rows.map((row) => ({ path: String(row.path), text: typeof row.text === "string" ? row.text : null }));
   }
 }

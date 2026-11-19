@@ -1886,6 +1886,9 @@
       "noClients": "Ninguna app ha preguntado todavía.",
       "folders": "Carpetas: {{folders}}",
       "noFolders": "ninguna en este vault",
+      "foldersStale_other": "{{count}} carpetas concedidas antes ya no cuentan. Quita la app; volverá a preguntar y eliges de nuevo.",
+      "foldersStale_many": "{{count}} carpetas concedidas antes ya no cuentan. Quita la app; volverá a preguntar y eliges de nuevo.",
+      "foldersStale_one": "Una carpeta concedida antes ya no cuenta. Quita la app; volverá a preguntar y eliges de nuevo.",
       "wholeVault": "todo el vault",
       "lastSeen": "último uso {{when}}",
       "revokeLabel": "Quitar {{client}}",
@@ -1900,6 +1903,7 @@
       "pairBody": "Iniciado por: {{program}}. Elige qué puede leer: no ve nada más.",
       "pairFolders": "Carpetas",
       "pairWhole": "Todo el vault",
+      "pairRenamed": "El acceso va por el nombre de la carpeta: si luego le cambias el nombre, deja de estar compartida hasta que la vuelvas a permitir.",
       "pairAllow": "Permitir",
       "pairDeny": "Rechazar",
       "author": "{{client}} (app de IA)",
@@ -8197,7 +8201,8 @@
     "driveFolder": "El proveedor devolvió un identificador de carpeta no válido. La operación se ha detenido.",
     "htmlDepth": "Este HTML tiene demasiados niveles de anidación. Simplifícalo o importa una exportación en Markdown.",
     "propertiesBlock": "El bloque al principio de la nota no se puede leer como propiedades. Corrígelo en el texto de la nota e inténtalo de nuevo.",
-    "propertyNameTaken": "La nota ya tiene una propiedad con el nuevo nombre."
+    "propertyNameTaken": "La nota ya tiene una propiedad con el nuevo nombre.",
+    "propertySharedByAnchor": "El valor de esta propiedad se comparte con otra mediante un ancla YAML (& y * en el texto de la nota). Cámbialo en el propio texto de la nota."
   },
   "audio": {
     "play": "Reproducir {{name}}",

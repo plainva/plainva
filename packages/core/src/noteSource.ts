@@ -1,6 +1,6 @@
 import { parseMarkdownTree } from "./markdown-parser.js";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
-import { readerWikiLink, type ReaderEmbedKind } from "./readerWikiLink.js";
+import { readerWikiLink, readerWikiLinkLead, type ReaderEmbedKind } from "./readerWikiLink.js";
 import { SOURCE_LINE_END } from "./sourceLines.js";
 
 interface SourceNode {
@@ -91,6 +91,13 @@ export function analyzeNoteOutline(raw: string): NoteOutlineNode[] {
   return outline;
 }
 
+/**
+ * A block id where it names its block: ` ^id` at the end of a paragraph,
+ * behind a blank or on a line of its own. The id is the first group; the
+ * match begins at the blank in front of the `^`.
+ */
+export const BLOCK_ID_MARKER = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/;
+
 /** All ranges are UTF-16 offsets in the unmodified note, as in CodeMirror. */
 export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; blocks: NoteBlock[] } {
   const clean = stripAnchorMarkers(raw);
@@ -108,7 +115,7 @@ export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; block
       }
       if (node.type === "paragraph" && node.children?.[node.children.length - 1]?.type === "text") {
         const source = clean.text.slice(node.position.start.offset, node.position.end.offset);
-        const marker = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/.exec(source);
+        const marker = BLOCK_ID_MARKER.exec(source);
         if (marker) {
           const own = source.trim() !== `^${marker[1]}`;
           const listItem = [...ancestors, parent].reverse().find((p) => p.type === "listItem");
@@ -178,6 +185,8 @@ interface ReaderSpan { from: number; to: number; start: number; end: number; exa
 export interface ReaderSource {
   text: string;
   embeds: { from: number; to: number; target: string }[];
+  /** The wiki links and embeds as they stand in `text` (`[start, end)`, in order). */
+  wikiLinks: ReadonlyArray<readonly [number, number]>;
   toRendered(offset: number, edge?: "start" | "end"): number;
   toOriginal(offset: number, edge?: "start" | "end"): number;
 }
@@ -202,11 +211,18 @@ function* relativeDates(source: string): Generator<{ index: number; raw: string;
  */
 export type { ReaderEmbedKind } from "./readerWikiLink.js";
 
-export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind } = {}): ReaderSource {
+export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind; tables?: boolean } = {}): ReaderSource {
   const clean = stripAnchorMarkers(raw);
   const edits: ReaderEdit[] = [];
+  const paragraphs: SourceNode[] = [];
+  const links: Array<[number, number]> = [];
+  const linkEdits = new Set<ReaderEdit>();
+  const literals: Array<[number, number]> = [];
   const walk = (node: SourceNode, inLink = false) => {
     if (node.position && node.type === "yaml") edits.push({ from: node.position.start.offset, to: node.position.end.offset, text: "" });
+    // A setext heading is a paragraph with a line under it: its lines read as a paragraph's.
+    if (node.type === "paragraph" || (node.type === "heading" && node.position && clean.text.slice(node.position.start.offset, node.position.end.offset).includes("\n"))) paragraphs.push(node);
+    if (node.position && (node.type === "inlineCode" || node.type === "html")) literals.push([node.position.start.offset, node.position.end.offset]);
     if (node.position && node.type === "text" && !inLink && options.formatDate) {
       const start = node.position.start.offset;
       const source = clean.text.slice(start, node.position.end.offset);
@@ -218,6 +234,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     // a link cannot hold a link.
     if (node.position && node.type === "wikiLink" && !inLink) {
       const from = node.position.start.offset, to = node.position.end.offset;
+      links.push([from, to]);
       const innerFrom = from + (node.embed ? 3 : 2);
       const inner = clean.text.slice(innerFrom, to - 2);
       if (inner.length === 0) {
@@ -228,7 +245,11 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
         // wherever it is not spelled out, is a place in the rendered label.
         const link = readerWikiLink(inner, !!node.embed, options.embedKind);
         const labelFrom = innerFrom + link.labelStart;
-        edits.push({ from, to, text: link.text, embed: link.embed, visible: node.embed ? undefined : link.visible.map((v) => ({ ...v, from: labelFrom + v.from, to: labelFrom + v.to })) });
+        // Behind a `]`, an empty comment in front of the link (`readerWikiLinkLead`).
+        const lead = readerWikiLinkLead(clean.text, from, !!node.embed);
+        const edit: ReaderEdit = { from, to, text: lead + link.text, embed: link.embed, visible: node.embed ? undefined : link.visible.map((v) => ({ ...v, from: labelFrom + v.from, to: labelFrom + v.to, start: v.start + lead.length, end: v.end + lead.length })) };
+        edits.push(edit);
+        linkEdits.add(edit);
       }
     }
     if (node.type !== "code" && node.type !== "inlineCode" && node.type !== "html") {
@@ -237,6 +258,49 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     }
   };
   walk(treeFor(clean.text));
+  const linkWithBarIn = (from: number, to: number) => {
+    for (let n = lastStartingBefore(links, to); n >= 0 && links[n][1] > from; n--) {
+      if (links[n][0] >= from && clean.text.slice(links[n][0], links[n][1]).includes("|")) return true;
+    }
+    return false;
+  };
+  // A line as the renderer is handed it, as far as its bars go: a wiki link's bars are gone.
+  const readLine = (from: number, to: number) => {
+    let text = "";
+    let at = from;
+    for (let n = lastStartingBefore(links, from); n < links.length; n++) {
+      if (n < 0 || links[n][1] <= at) continue;
+      if (links[n][0] >= to) break;
+      text += clean.text.slice(at, links[n][0]) + "x";
+      at = links[n][1];
+    }
+    return text + clean.text.slice(at, to);
+  };
+  // A line under a line of a paragraph that a table would read as its
+  // delimiter row stays a line of the paragraph: a link that hides the bar of
+  // its alias (`[[a|b]] | c` over `|---|---|`) takes one cell from the line
+  // above, and the renderer, counting again, found a table where the note has
+  // none (Fehlerliste 0.9.0, B5). Only under a line with such a link — every
+  // other line reads in the note as it reads here —, and never in code: an
+  // empty comment, which the renderer drops, stands behind the line's first
+  // `-`. Only for a renderer that reads tables (`tables`): the plain text of a
+  // card reads the line as it is written.
+  for (const paragraph of options.tables ? paragraphs : []) {
+    if (!paragraph.position) continue;
+    // A heading's underline is its own: the row it would be is never one.
+    const end = paragraph.type === "heading" ? clean.text.lastIndexOf("\n", paragraph.position.end.offset - 1) : paragraph.position.end.offset;
+    let lineFrom = paragraph.position.start.offset;
+    for (let brk = clean.text.indexOf("\n", lineFrom); brk !== -1 && brk < end; ) {
+      const next = clean.text.indexOf("\n", brk + 1);
+      const line = clean.text.slice(brk + 1, Math.min(end, next === -1 ? clean.text.length : next)).replace(/\r$/, "");
+      const dash = delimiterRowDash(line);
+      if (dash >= 0 && linkWithBarIn(lineFrom, brk) && !inLiteral(literals, brk + 1 + dash) && cellsOf(readLine(lineFrom, brk)) === cellsOf(line)) {
+        edits.push({ from: brk + 2 + dash, to: brk + 2 + dash, text: "<!---->" });
+      }
+      lineFrom = brk + 1;
+      brk = next;
+    }
+  }
   // What is read is the text: a byte order mark is the file's, like its `\r`.
   // None is left at the start, however many stand there: the renderer parses
   // this text with a parser of its own, which would skip one and count from
@@ -250,6 +314,9 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   const spans: ReaderSpan[] = [];
   const visible: ReaderSpan[] = [];
   const embeds: ReaderSource["embeds"] = [];
+  // Where the wiki links stand in the text the renderer is handed: a formula
+  // over one gives way to it (`remarkFormulasYieldToLinks`, Fehlerliste 0.9.0, B4).
+  const wikiLinks: Array<readonly [number, number]> = [];
   const parts: string[] = [];
   let cursor = 0, length = 0;
   const add = (from: number, to: number, text: string, exact: boolean) => {
@@ -261,6 +328,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     if (edit.from > cursor) add(cursor, edit.from, clean.text.slice(cursor, edit.from), true);
     for (const stretch of edit.visible ?? []) visible.push({ from: stretch.from, to: stretch.to, start: length + stretch.start, end: length + stretch.end, exact: true });
     if (edit.embed) embeds.push({ from: length, to: length + edit.text.length, target: edit.embed });
+    if (linkEdits.has(edit)) wikiLinks.push([length, length + edit.text.length]);
     add(edit.from, edit.to, edit.text, false);
     cursor = edit.to;
   }
@@ -292,6 +360,7 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   return {
     text: parts.join(""),
     embeds,
+    wikiLinks,
     toRendered(offset, edge = "start") {
       const at = clean.toClean(Math.max(0, Math.min(raw.length, offset)));
       const span = choose(visible, at, true, edge) ?? choose(spans, at, true, edge);
@@ -304,6 +373,71 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
       return clean.toRaw(span.exact ? span.from + offset - span.start : edge === "start" ? span.from : span.to, edge === "start" ? "after" : "before");
     },
   };
+}
+
+/**
+ * How many cells a table reads in `line` — behind the marks of a quote and
+ * the blanks of a list, split at every bar a backslash does not stand in
+ * front of, the empty cell before a leading and behind a trailing bar not
+ * counted. A table is only one where its first line has as many as its
+ * delimiter row.
+ */
+function cellsOf(line: string): number {
+  let at = 0;
+  for (;;) {
+    while (line[at] === " " || line[at] === "\t") at++;
+    if (line[at] !== ">") break;
+    at++;
+  }
+  const cells: string[] = [""];
+  for (let i = at; i < line.length; i++) {
+    if (line[i] === "\\" && i + 1 < line.length) {
+      cells[cells.length - 1] += line[i] + line[i + 1];
+      i++;
+    } else if (line[i] === "|") cells.push("");
+    else cells[cells.length - 1] += line[i];
+  }
+  if (cells.length > 1 && cells[0].trim() === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
+  return cells.length;
+}
+
+/**
+ * Where the first `-` of a table's delimiter row stands in `line` — behind the
+ * marks of a quote and the blanks of a list: `|---|:-:|`, `-- | --` —, or -1
+ * where the line is none.
+ */
+function delimiterRowDash(line: string): number {
+  let at = 0;
+  for (;;) {
+    while (line[at] === " " || line[at] === "\t") at++;
+    if (line[at] !== ">") break;
+    at++;
+  }
+  const cells = line.slice(at).split("|");
+  if (cells.length > 1 && cells[0].trim() === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
+  if (cells.length === 0 || !cells.every((cell) => /^:?-+:?$/.test(cell.trim()))) return -1;
+  return line.indexOf("-", at);
+}
+
+/** Whether `at` stands in one of `stretches` (in order, without overlap). */
+function inLiteral(stretches: ReadonlyArray<readonly [number, number]>, at: number): boolean {
+  const n = lastStartingBefore(stretches, at + 1);
+  return n >= 0 && at < stretches[n][1];
+}
+
+/** In stretches that follow each other without overlap: the last one that starts before `at`, or -1. */
+function lastStartingBefore(stretches: ReadonlyArray<readonly [number, number]>, at: number): number {
+  let low = 0, high = stretches.length - 1, found = -1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (stretches[mid][0] < at) {
+      found = mid;
+      low = mid + 1;
+    } else high = mid - 1;
+  }
+  return found;
 }
 
 /**

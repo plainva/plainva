@@ -46,7 +46,7 @@ import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
 import { openMeetingNoteInVault } from "../../services/pim/meetingNoteOpen";
 import { AI_MEMORY_EVENT, AI_OPEN_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, createDesktopVaultHost, getDesktopAiSession, requestWaitingView, type DesktopWriteHost } from "../../services/ai/desktopAi";
-import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
+import { configureMcp, listenForMcpCalls, vaultName, type McpWorkspaceClosed } from "../../services/ai/mcpBridge";
 import { mcpPlans } from "../../services/ai/mcpPlans";
 import { notifyRoutineReady } from "../../services/ai/routineNotifier";
 import { AI_TAB_PATH, CALENDAR_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
@@ -62,6 +62,10 @@ export interface DesktopAiInput {
   vaultAdapter: IVaultAdapter | null;
   queryService: VaultQueryService | null;
   encrypted: boolean;
+  /** The encrypted workspace is not open on this device — locked, or no key here: no app over MCP gets anything of the vault (wave 2, § 3.2). */
+  closed: McpWorkspaceClosed;
+  /** `closed` as it is the moment it is asked — a call of an app looks at the keys themselves, not at the last render (round 11). */
+  closedNow?: () => McpWorkspaceClosed;
   activePath: string | null;
   /** The panes of this window: their open tabs are part of the situation (plan §7). */
   layout: { panes: readonly { tabs: readonly { history: readonly string[]; historyIndex: number }[] }[] };
@@ -292,7 +296,7 @@ export function useDesktopAi(input: DesktopAiInput) {
     }),
   );
 
-  const { vaultPath, vaultAdapter, queryService, encrypted: sealed } = input;
+  const { vaultPath, vaultAdapter, queryService, encrypted: sealed, closed } = input;
   /** The vault host of the open vault: the MCP server's calls run on it too (plan §17.3). */
   const hostRef = useRef<AiVaultHost | null>(null);
   useEffect(() => {
@@ -400,7 +404,8 @@ export function useDesktopAi(input: DesktopAiInput) {
           toast.info(i18n.t("ai.mcp.left.draft", { client: what.client }), { label: i18n.t("ai.write.draft.show"), run: () => requestWaitingView() });
         }
       },
-    });
+      // Closed, the main window answers an app nothing of the vault either (wave 2, § 3.2).
+    }, () => (latest.current.closedNow ? latest.current.closedNow() : latest.current.closed));
   }, [session]);
   // A plan of an app was asked of the vault that was open then: another vault, or none, and it waits no more.
   useEffect(() => () => mcpPlans.clear(), [vaultPath]);
@@ -438,13 +443,14 @@ export function useDesktopAi(input: DesktopAiInput) {
     if (!session || !state?.loaded) return;
     const vault = vaultPath && vaultAdapter && queryService ? { path: vaultPath, name: vaultName(vaultPath) } : null;
     // An encrypted workspace takes no changes from an app (E32): no tool that writes is even listed there.
+    // While it is not open on this device, nothing of the vault goes to an app at all.
     // The agents' tool line reads whether the helper runs: asked again once the switch took effect, not in the same
     // commit — the view's own refresh is a child's effect and ran before this started or stopped it (review O7).
-    void configureMcp(mcpOn, vault, { sealed })
+    void configureMcp(mcpOn, vault, { sealed, closed })
       .catch(() => undefined)
       .then(() => session.agents.refresh());
     // The prompts speak the app's language: a switch registers them again.
-  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language, sealed]);
+  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language, sealed, closed]);
 
   // "Transcribe" at every voice note (plan P1.5): the door exists while the AI is on for the open vault.
   useEffect(() => {

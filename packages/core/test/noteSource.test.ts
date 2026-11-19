@@ -115,3 +115,57 @@ describe("one original source for anchors and transclusion", () => {
     expect(result).toContain("wiki-embed://real%23Heading");
   });
 });
+
+/**
+ * Three edges of the prepared text (Sammelplan § 3.133 Nr. 3 and Nr. 5): what
+ * the renderer reads in it has to be what the note says.
+ */
+describe("the prepared text reads as the note", () => {
+  it("keeps a wiki link behind a `]` from becoming the label of a reference", () => {
+    const note = "[x][[a]]\n\n[a]: https://e.com";
+    const prepared = prepareReaderSource(note).text;
+    expect(prepared).toBe("[x]<!---->[a](wiki://a)\n\n[a]: https://e.com");
+    // Without one in between, nothing changes.
+    expect(prepareReaderSource("[x] [[a]]").text).toBe("[x] [a](wiki://a)");
+    // Nor on a line that may be code (behind a block a formula closes):
+    // nothing written in is ever seen.
+    expect(prepareReaderSource("$$\nx\n$$\n    ][[B]]").text).toBe("$$\nx\n$$\n    ][B](wiki://B)");
+    expect(prepareReaderSource("> x\n>     ][[B]]").text).toBe("> x\n>     ][B](wiki://B)");
+  });
+
+  it("keeps the place of the label behind the comment", () => {
+    const source = prepareReaderSource("[x][[a|Alias]]");
+    const at = source.text.indexOf("Alias");
+    expect(source.toOriginal(at)).toBe("[x][[a|".length);
+    expect(source.toRendered("[x][[a|".length)).toBe(at);
+  });
+
+  it("keeps a line under an alias link that a table would read as its delimiter row a line of the paragraph", () => {
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n", { tables: true }).text).toBe("[b](wiki://a) | c\n|-<!---->--|---|\n");
+    expect(prepareReaderSource("> [[a|b]] | c\n> :--|--\n", { tables: true }).text).toBe("> [b](wiki://a) | c\n> :-<!---->-|--\n");
+    // A table the note has stays one.
+    expect(prepareReaderSource("| [[a\\|b]] | c |\n|---|---|\n", { tables: true }).text).toBe("| [b](wiki://a) | c |\n|---|---|\n");
+    // Under a line without such a link the note reads as it is written,
+    // and in code nothing is touched.
+    expect(prepareReaderSource("a | c\n|---|\n", { tables: true }).text).toBe("a | c\n|---|\n");
+    expect(prepareReaderSource("[[a|b]] `x\n|---|---|` y\n", { tables: true }).text).toBe("[b](wiki://a) `x\n|---|---|` y\n");
+    // Without a renderer of tables, the line reads as it is written.
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n").text).toBe("[b](wiki://a) | c\n|---|---|\n");
+    // A line with more or fewer cells than the row makes no table here either:
+    // nothing is written into it, where a formula may show it.
+    expect(prepareReaderSource("[[a|b]] | c | d\n|---|---|\n", { tables: true }).text).toBe("[b](wiki://a) | c | d\n|---|---|\n");
+    // A `---` or `===` under the row makes the lines a heading: they are a
+    // paragraph's, and get the comment as one.
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n---\n", { tables: true }).text).toBe("[b](wiki://a) | c\n|-<!---->--|---|\n---\n");
+    expect(prepareReaderSource("[[a|b]] | c\n|---|---|\n===\n", { tables: true }).text).toBe("[b](wiki://a) | c\n|-<!---->--|---|\n===\n");
+  });
+
+  it("says where the wiki links and embeds stand in the text it prepares", () => {
+    const source = prepareReaderSource("a [[b]] c ![[d.png]] e");
+    expect(source.wikiLinks.map(([from, to]) => source.text.slice(from, to))).toEqual(["[b](wiki://b)", "![img](wiki-image://d.png)"]);
+  });
+
+  it("leaves every `$` as it is without the renderer's formula plugin", () => {
+    expect(prepareReaderSource("Preis $3 [[Notiz]] und $4").text).toBe("Preis $3 [Notiz](wiki://Notiz) und $4");
+  });
+});

@@ -166,6 +166,22 @@ describe("a refused block, said to the user", () => {
     expect(errorText((raised as Error).message)).not.toContain("unclosed");
   });
 
+  // The block reads; the value is shared through an anchor (Fehlerliste
+  // 0.9.0, F45, second review): said as that, not as an unreadable block.
+  it("says a value another entry refers to through an anchor as that, in every language", async () => {
+    const shared = "---\na: &x 1\nb: *x\n---\nText\n";
+    const { adapter } = vault({ "n.md": shared });
+    let raised: unknown;
+    try { await writeNoteProperty(adapter, "n.md", "a", 2); } catch (error) { raised = error; }
+    expect(errorText(raised)).toBe(i18n.t("inputRejected.propertySharedByAnchor"));
+    expect(errorText(raised)).not.toBe(i18n.t("inputRejected.propertiesBlock"));
+    expect(errorText(raised)).toMatch(/YAML anchor/);
+    for (const lang of LANGS) {
+      const bundle = JSON.parse(readFileSync(join(REPO, "packages", "ui", "src", "locales", `${lang}.json`), "utf8")) as { inputRejected?: Record<string, string> };
+      expect(bundle.inputRejected?.propertySharedByAnchor, `${lang} lacks inputRejected.propertySharedByAnchor`).toMatch(/YAML/);
+    }
+  });
+
   it("speaks the user's language", async () => {
     await i18n.changeLanguage("de");
     expect(errorText(await refusalOf(LIST))).toMatch(/lässt sich nicht als Eigenschaften lesen/);

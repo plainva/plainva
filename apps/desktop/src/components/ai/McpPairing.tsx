@@ -91,6 +91,7 @@ export function McpPairing() {
           </Checkbox>
         ))}
       </fieldset>
+      <p className="pv-mcp-pair-hint">{t("ai.mcp.pairRenamed")}</p>
       {chosen.length === 0 && <p className="pv-mcp-pair-hint">{t("ai.mcp.pairNone")}</p>}
       <fieldset className="pv-mcp-pair-folders pv-mcp-pair-writes">
         <legend>{t("ai.mcp.pairWritesLegend")}</legend>
