@@ -32,7 +32,7 @@ describe("the links of a table over the parse budget", () => {
     for (const prefix of ["", "> "]) {
       const text = priceTable(2000, prefix);
       expect(overBudgetInlineRanges(text).some((range) => range.table), "the table is over the budget").toBe(true);
-      const { links, tags } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }));
+      const { links, tags } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
       expect(links.filter((link) => link.type === "wikilink").map((link) => link.target)).toEqual(["Top", ...Array.from({ length: 2000 }, (_, i) => `Note ${i}`), "End"]);
       expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(2000);
       expect(new Set(tags.map((tag) => tag.name)).size).toBe(2000);
@@ -69,7 +69,7 @@ describe("the links of a table over the parse budget", () => {
       for (let step = rows / 4; step >= 1; step /= 2) if (overBudgetInlineRanges(note(rows - step)).some((range) => range.table)) rows -= step;
       const text = note(rows + 20);
       expect(overBudgetInlineRanges(text).some((range) => range.table), `${name}: over the budget`).toBe(true);
-      const read = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }));
+      const read = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
       const table = extractLinksAndTags(markdownAstSchema.parse(asTable.runSync(asTable.parse(text))));
       expect(read.links.length, `${name}: links`).toBe(table.links.length);
       expect(read.links, `${name}: each link, its target and its line`).toEqual(table.links);

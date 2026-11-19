@@ -4,6 +4,7 @@ import { extractFrontmatter } from "./metadata-extractor.js";
 import { PLAINVA_NAMESPACE_KEY } from "./metadata.js";
 import { findInlineTags } from "./tagRule.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
+import { forEachTextReadLink, textReadRanges } from "./textReadLinks.js";
 
 export type TagOccurrence = {
   name: string;
@@ -25,7 +26,13 @@ export type ExtractedData = {
   links: LinkOccurrence[];
 };
 
-export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
+/**
+ * The tags and links of a note's tree. With the note's `text`, also the links
+ * of the stretches the parse budget reads as text, which the tree holds as
+ * text (`forEachTextReadLink`, L14): the one reading of them a rename shares
+ * (`readNoteLinks`), so that the index lists what a rename rewrites.
+ */
+export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedData {
   const result: ExtractedData = {
     tags: [],
     links: [],
@@ -84,6 +91,22 @@ export function extractLinksAndTags(ast: MarkdownAst): ExtractedData {
     for (const child of node.children ?? []) walk(child);
   };
   walk(ast);
+  // The links of the stretches read as text, as the nodes the parser makes of a link would give them, each at its
+  // place in the order of the text.
+  if (text !== undefined) {
+    const fromTree = result.links.length;
+    const places = placesOf(ast, fromTree);
+    forEachTextReadLink(text, textReadRanges(text), (link) => {
+      places.push(link.start);
+      const position = { start: { line: link.line, offset: link.start } };
+      if (link.type === "wikiLink") walk({ type: "wikiLink", value: link.value, embed: link.embed, position });
+      else walk({ type: "link", url: link.url, position, children: link.labelEnd! > link.labelStart! ? [{ type: "linkLabel", value: text.slice(link.labelStart, link.labelEnd) }] : [] });
+    });
+    if (result.links.length > fromTree) {
+      const order = result.links.map((_, i) => i).sort((a, b) => places[a] - places[b] || a - b);
+      result.links = order.map((i) => result.links[i]);
+    }
+  }
 
   return result;
 }
@@ -163,3 +186,15 @@ function getChildrenText(node: any): string {
   if (!node.children || node.children.length === 0) return "";
   return node.children.map((c: any) => c.value || "").join("");
 }
+
+/** Where each of the first `count` links of the tree starts, in the order the walk above lists them. */
+function placesOf(ast: MarkdownAst, count: number): number[] {
+  const places: number[] = [];
+  const visit = (node: any): void => {
+    if (node.type === "wikiLink" || node.type === "link") places.push(node.position?.start?.offset ?? 0);
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(ast);
+  return places.slice(0, count);
+}
+

@@ -1555,7 +1555,7 @@ const LINE_HEADING = 3;
  * budget (Gesamtplan Leistung § 3a.1), and each weight keeps 30 % to its
  * shape's limit.
  */
-export const NOTE_BUDGET = 10_790_000;
+export const NOTE_BUDGET = 9_790_000;
 
 /**
  * The note's budget this app reads with: `NOTE_BUDGET`, calibrated on 128 MB,
@@ -1586,9 +1586,9 @@ const NOTE_SCAN_FROM = 5_000;
  * lines), a heading, a start of a word, a character of inline syntax, a link
  * or wiki link. Calibrated 2026-11-19 against `main` under 128 MB
  * (`scripts/perf/note-budget.ts`, `noteBudgetForms.json`, Performance_Notes.md):
- * every one of 33 forms keeps at its threshold no more than `main` reads under
- * the heap (a ratio of 1.0 or more), and the early side is as low as weights of
- * countable parts allow (up to 2.1).
+ * every one of 33 forms keeps at its threshold times 1.05 no more than `main`
+ * reads under the heap (a ratio of 1.13 or more), and the early side is as low
+ * as weights of countable parts allow (up to 2.33).
  */
 export const NOTE_LINE_WEIGHT = 80;
 export const NOTE_ITEM_WEIGHT = 1379;

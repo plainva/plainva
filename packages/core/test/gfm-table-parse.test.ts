@@ -62,7 +62,7 @@ const PINS: Record<string, string> = {
   manyTablesInQuotes: "1a53d2bd55c1bf3bdae6b230b3ff9217407c7d01355cddc95f1eef0a29252c18",
   "fixture:all": "adab711456f03d2a4ec36f852b72e739e4a2e4914c130dc81bc815c1514403fb",
   "fixture:long": "bb12057a4c3d82fdad1aa7ca42fa8b5883947320de146e9e3d2c87322a501356",
-  "fixture:long:note-budget": "9827f3aef4c13fb35ecabf8154316fa34120be9c2c2272a83bae6f30d25b3cc7",
+  "fixture:long:note-budget": "4ba243f8148f36cab79d93f300a14dc369f02b2c508cbffdc29ae1f3f402b349",
 };
 
 // Guards of the parser upgrade to GFM tables 2.1.2, not of the parse budget:

@@ -47,7 +47,7 @@ describe("a block read as text beside a formula that gives way to a link (L14 an
   }, 120_000);
 
   it("the index lists each link once, the ones in the block's formulas too", () => {
-    const { links } = extractLinksAndTags(parseMarkdownAst(NOTE, { preserveObsidianSyntax: true }));
+    const { links } = extractLinksAndTags(parseMarkdownAst(NOTE, { preserveObsidianSyntax: true }), NOTE);
     const count = (target: string) => links.filter((link) => link.target === target).length;
     expect([count("Freed"), count("Inside"), count("Block"), count("Note 7")]).toEqual([1, 1, 1, 1]);
     expect(links.filter((link) => link.type === "wikilink")).toHaveLength(1 + 2 + 19_999);

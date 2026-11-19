@@ -15,9 +15,10 @@
  * `--check`: for each form of `noteBudgetForms.json` — `main`'s limit under
  * 128 MB and the ratio measured when the weights were last calibrated — the
  * largest note the note's budget reads with no block as text (its threshold)
- * is read as the app reads it, and so are notes of three and of ten times
- * that size. Each must pass under the heap — the safe side: at its threshold
- * a note passes, which `main`, reading it alike, does too —, and the ratio of
+ * times 1.05 is read formatted in three runs, and notes of three and of ten
+ * times the threshold are read as the app reads them. Each must pass under
+ * the heap — the safe side, stable: V8 close to the end of its heap varies,
+ * and a form that passes in some runs and not in others is named —, and the ratio of
  * `main`'s limit to the threshold must stay between 1.0 and the measured ratio
  * plus 5 %, so that a change of the weights that reads a form as text earlier
  * than calibrated shows. `--heap <mb> --factor <k>`: the same under another
@@ -31,9 +32,10 @@
  * the note's budget reads with no block as text, and the ratio of the two.
  * At 1 or more a note at the threshold passes (the safe side); above 1 the
  * budget reads a note as text that `main` still reads formatted under the
- * heap. The weights are fitted to bring every form to 1 or a little more and
- * the early side as low as weights of countable parts allow (2026-11-19: 1.02
- * to 2.11, `noteBudgetForms.json`); `--features` gives the parts a fit reads.
+ * heap. The weights are fitted to bring every form to 1.13 or a little more
+ * (`main`'s limit is measured to some 5 to 8 %) and the early side as low as
+ * weights of countable parts allow (2026-11-19: 1.13 to 2.33,
+ * `noteBudgetForms.json`); `--features` gives the parts a fit reads.
  *
  * `--hunt`: generated notes of a seed drawn anew (or given), blocks of every
  * kind mixed — prose, words, link literals, lists plain, linked, nested and
@@ -244,7 +246,11 @@ function check(args: string[]): boolean {
   console.log(`check    note budget ${NOTE_BUDGET * budgetFactor}, ${heapMb} MB; ${Object.keys(forms).length} forms${measured ? "" : " (the safe side only)"}`);
   for (const [form, { main, ratio }] of Object.entries(forms)) {
     const n = readAsItIs(form);
-    const at1 = passes(form, n, true);
+    // The safe side, stable rather than close: the note at its threshold times 1.05, read formatted (the note's
+    // budget off, as `main` reads it), passes in three runs of three, each a process of its own.
+    const runs = [0, 1, 2].map(() => passes(form, Math.ceil(n * 1.05), false));
+    const passed = runs.filter((run) => run.ok).length;
+    const at1 = { ok: passed === 3, why: passed === 0 ? runs[0].why : `${3 - passed} of 3 runs ${runs.find((run) => !run.ok)?.why}, the form varies` };
     // Three and ten times as large, at most the 10 MB the note's budget is measured for.
     const within = (factor: number) => Math.max(n, Math.min(n * factor, Math.floor((n * FAR_CHARS) / Math.max(1, noteOf(form, n).length))));
     const over = passes(form, within(3), true);
@@ -253,7 +259,7 @@ function check(args: string[]): boolean {
     const inRatio = !measured || (now >= 1 && now <= ratio * 1.05);
     const ok = at1.ok && over.ok && far.ok && inRatio;
     all &&= ok;
-    console.log(`         ${form.padEnd(10)} formatted up to ${String(n).padStart(7)}${measured ? `   main ${String(main).padStart(7)}   ratio ${now.toFixed(2)} (calibrated ${ratio.toFixed(2)})${inRatio ? "" : " FAIL"}` : ""}   at it ${at1.ok ? "pass" : `FAIL (${at1.why})`}   at 3 x ${over.ok ? "pass" : `FAIL (${over.why})`}   at 10 x ${far.ok ? "pass" : `FAIL (${far.why})`}`);
+    console.log(`         ${form.padEnd(10)} formatted up to ${String(n).padStart(7)}${measured ? `   main ${String(main).padStart(7)}   ratio ${now.toFixed(2)} (calibrated ${ratio.toFixed(2)})${inRatio ? "" : " FAIL"}` : ""}   at it x 1.05 ${at1.ok ? "pass 3/3" : `FAIL (${at1.why})`}   at 3 x ${over.ok ? "pass" : `FAIL (${over.why})`}   at 10 x ${far.ok ? "pass" : `FAIL (${far.why})`}`);
   }
   console.log(`check    ${all ? "every form passes" : "FAILED"}`);
   return all;

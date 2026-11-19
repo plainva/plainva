@@ -312,7 +312,7 @@ describe("what is a link, and what only looks like one", () => {
     for (const [note, renamed, count] of [...taken, ...read]) {
       expect(rename(note, { Old: "New" }), note).toEqual({ content: renamed, renamed: count, unplaced: 0 });
       // The links read are the ones the index lists.
-      const indexed = extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true })).links.filter((link) => link.type !== "markdown-link");
+      const indexed = extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note).links.filter((link) => link.type !== "markdown-link");
       expect(readNoteLinks(note).links.map((link) => `${link.type} ${link.target}`), note).toEqual(indexed.map((link) => `${link.type} ${link.target}`));
       // A second run finds nothing left to do.
       expect(rename(renamed, { Old: "New" }), renamed).toEqual({ content: renamed, renamed: 0, unplaced: 0 });
@@ -325,7 +325,7 @@ describe("what is a link, and what only looks like one", () => {
     expect(rename(note, { "Old.md": "New.md", Old: "New" })).toEqual({ content: `${MARK}${MARK}[x](New.md) and [[New]]\n`, renamed: 2, unplaced: 0 });
     // Behind the second mark `---` opens no properties block: its links are links of the text.
     const fenced = `${MARK}${MARK}---\nrelated: "[[Old]]"\n---\nbody [[Old]] x\n`;
-    const indexed = extractLinksAndTags(parseMarkdownAst(fenced, { preserveObsidianSyntax: true })).links.map((link) => `${link.type} ${link.target}`);
+    const indexed = extractLinksAndTags(parseMarkdownAst(fenced, { preserveObsidianSyntax: true }), fenced).links.map((link) => `${link.type} ${link.target}`);
     expect(indexed).toEqual(["wikilink Old", "wikilink Old"]);
     expect(readNoteLinks(fenced).links.map((link) => `${link.type} ${link.target}`)).toEqual(indexed);
     expect(rename(fenced, { Old: "New" })).toEqual({ content: swapped(fenced, "Old", "New"), renamed: 2, unplaced: 0 });
@@ -512,7 +512,7 @@ describe("the links as they are read", () => {
     ["text the parser cut up after reading", "[[A]] [john@example.com] [www.example.com] {http://example.com} [[B]]\n\n<b>www.example.com</b> [[C]]\n\n# H [www.example.com] [[D]]\n\nx&#32;www.example.com [[E|e]] ![[F]]\n"],
   ];
   it.each(corpus)("lists the links the index lists: %s", (_name, text) => {
-    const indexed = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })).links.map((link) => `${link.type} ${link.target}`);
+    const indexed = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text).links.map((link) => `${link.type} ${link.target}`);
     const read = readNoteLinks(text);
     const listed = [...read.links, ...read.unplaced].map((link) => `${link.type} ${link.target}`);
     // Every link the rewriter reads is one the index lists…

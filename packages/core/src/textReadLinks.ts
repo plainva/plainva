@@ -7,8 +7,8 @@
  * (Gesamtplan Leistung § 3a.6, decision 4). They are found here by their
  * characters, in one pass over each line — never with a parse of the stretch,
  * which is what the budget keeps from running out of memory — and handed out
- * as the nodes the parser makes of a link, so the index and a rename read them
- * from the same tree as every other link (`markdown-parser.ts`).
+ * to a visitor one at a time — the index and a rename read them through it
+ * (`forEachTextReadLink`), beside the links of the tree.
  *
  * A wiki link or an embed runs from a `[[` (`![[`) no backslash escapes to the
  * first `]]` on its line; an inline Markdown link from the `[` of its label to
@@ -23,6 +23,8 @@
  * of without brackets (`https://…`, `www.…`, `a@b.cc`, `<https://…>`): they name no
  * note, and are not listed.
  */
+
+import { overBudgetInlineRanges, type BoundedRange } from "./inlineParseBudget.js";
 
 /** What a backslash escapes in Markdown: ASCII punctuation, nothing else. */
 const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
@@ -83,46 +85,65 @@ export function destinationAt(text: string, from: number, limit: number): { star
   return { start: at, end: Math.min(end, limit), angle: false };
 }
 
-interface Point {
-  line: number;
-  column: number;
-  offset: number;
-}
-
-/** A link as the parser makes one: a wiki link with its value, or a Markdown link with its URL and its label. */
-export interface TextReadLinkNode {
+/**
+ * A link of a stretch read as text, as the index and a rename read it: where
+ * it stands in the text (`start`..`end`, its 1-based `line`), and what it is —
+ * a wiki link or an embed with what is written (`value`, `[[…]]` or
+ * `![[…]]`), or an inline Markdown link with its destination unescaped
+ * (`url`) and where its label stands (`labelStart`..`labelEnd`, the `]`).
+ * Handed to a visitor one at a time and held by nobody here: a note of
+ * 200 000 lines of links made 400 000 nodes in the tree, and the index ran
+ * out of 128 MB (L14, 2026-11-19).
+ */
+export interface TextReadLink {
   type: "wikiLink" | "link";
+  start: number;
+  end: number;
+  line: number;
   value?: string;
   embed?: boolean;
   url?: string;
-  children?: Array<{ type: "text"; value: string; position: { start: Point; end: Point } }>;
-  position: { start: Point; end: Point };
+  labelStart?: number;
+  labelEnd?: number;
 }
 
 /**
- * The links of `text[from, to)` as parser nodes, every place a place in
- * `text`. `lineAt(offset)` gives the 1-based line and the offset that line
- * starts at.
+ * The stretches whose links `forEachTextReadLink` finds: every stretch the
+ * parse budget reads as text but a table's, whose rows the parser reads one
+ * at a time instead (`readRowLinks` in `markdown-parser.ts`).
  */
-export function textReadLinkNodes(text: string, from: number, to: number, lineAt: (offset: number) => { line: number; start: number }): TextReadLinkNode[] {
-  const found: TextReadLinkNode[] = [];
-  const point = (offset: number): Point => {
-    const { line, start } = lineAt(offset);
-    return { line, column: offset - start + 1, offset };
+export function textReadRanges(text: string): BoundedRange[] {
+  return overBudgetInlineRanges(text).filter((range) => !range.table);
+}
+
+/**
+ * Each link of the stretches `ranges` of `text` (`textReadRanges`), in the
+ * order of the text, to `visit`: the one reading of them the index and a
+ * rename share (`extractLinksAndTags`, `readNoteLinks`).
+ */
+export function forEachTextReadLink(text: string, ranges: readonly BoundedRange[], visit: (link: TextReadLink) => void): void {
+  let line = 1;
+  let counted = 0;
+  // The line of `at`, counted on from the last one asked: the links come in the order of the text.
+  const lineOf = (at: number): number => {
+    for (let i = text.indexOf("\n", counted); i >= 0 && i < at; i = text.indexOf("\n", i + 1)) line++;
+    counted = Math.max(counted, at);
+    return line;
   };
-  // A fenced code block inside the stretch is code: its lines hold no link (`fence`: the marker that closes it).
-  let fence: string | null = null;
-  for (let line = from; line < to; ) {
-    let end = text.indexOf("\n", line);
-    if (end < 0 || end > to) end = to;
-    const marker = fenceOf(text.slice(line, Math.min(end, line + 256)).replace(/^[ \t>]*(?:[-+*]|\d{1,9}[.)])?[ \t]*/, ""));
-    if (fence !== null) {
-      if (marker && marker.run[0] === fence[0] && marker.run.length >= fence.length && marker.rest.trim() === "") fence = null;
-    } else if (marker && !(marker.run[0] === "`" && marker.rest.includes("`"))) fence = marker.run;
-    else linksOfLine(text, line, end, found, point);
-    line = end + 1;
+  for (const range of ranges) {
+    // A fenced code block inside the stretch is code: its lines hold no link (`fence`: the marker that closes it).
+    let fence: string | null = null;
+    for (let at = range.from; at < range.to; ) {
+      let end = text.indexOf("\n", at);
+      if (end < 0 || end > range.to) end = range.to;
+      const marker = fenceOf(text.slice(at, Math.min(end, at + 256)).replace(/^[ \t>]*(?:[-+*]|\d{1,9}[.)])?[ \t]*/, ""));
+      if (fence !== null) {
+        if (marker && marker.run[0] === fence[0] && marker.run.length >= fence.length && marker.rest.trim() === "") fence = null;
+      } else if (marker && !(marker.run[0] === "`" && marker.rest.includes("`"))) fence = marker.run;
+      else linksOfLine(text, at, end, (link) => visit({ ...link, line: lineOf(link.start) }));
+      at = end + 1;
+    }
   }
-  return found;
 }
 
 /** The opening or closing marker of a fenced code block at the start of `line` (three backticks or tildes or more), and what follows it. */
@@ -142,8 +163,9 @@ function fenceOf(line: string): { run: string; rest: string } | null {
  * the lengths that close nowhere behind the place they were asked at, so that
  * no run is searched for twice.
  */
-function linksOfLine(text: string, from: number, to: number, found: TextReadLinkNode[], point: (offset: number) => Point): void {
+function linksOfLine(text: string, from: number, to: number, found: (link: Omit<TextReadLink, "line">) => void): void {
   let label = -1;
+  let image = false;
   const missing = new Set<number>();
   for (let at = from; at < to; at++) {
     const char = text[at];
@@ -165,16 +187,23 @@ function linksOfLine(text: string, from: number, to: number, found: TextReadLink
       if (close < 0 || close + 2 > to || close === at + 2) continue;
       const embed = at > from && text[at - 1] === "!" && !escapes(text, at - 2);
       const start = embed ? at - 1 : at;
-      found.push({ type: "wikiLink", value: text.slice(start, close + 2), embed, position: { start: point(start), end: point(close + 2) } });
+      found({ type: "wikiLink", value: text.slice(start, close + 2), embed, start, end: close + 2 });
       at = close + 1;
       label = -1;
-    } else if (char === "[") label = at;
-    else if (char === "]" && text[at + 1] === "(" && label >= 0) {
+    } else if (char === "[") {
+      label = at;
+      // `![alt](…)` is a picture: the index and a rename read no link of it, as the parser makes none.
+      image = at > from && text[at - 1] === "!" && !escapes(text, at - 2);
+    } else if (char === "]" && text[at + 1] === "(" && label >= 0) {
       const destination = destinationAt(text, at + 2, to);
       const closing = destination ? destination.end + (destination.angle ? 1 : 0) : -1;
       if (!destination || text[closing] !== ")") continue;
-      const children = at > label + 1 ? [{ type: "text" as const, value: text.slice(label + 1, at), position: { start: point(label + 1), end: point(at) } }] : [];
-      found.push({ type: "link", url: unescaped(text, destination.start, destination.end).text, children, position: { start: point(label), end: point(closing + 1) } });
+      if (image) {
+        at = closing;
+        label = -1;
+        continue;
+      }
+      found({ type: "link", url: unescaped(text, destination.start, destination.end).text, labelStart: label + 1, labelEnd: at, start: label, end: closing + 1 });
       at = closing;
       label = -1;
     }

@@ -145,7 +145,7 @@ describe("the note's budget (L14)", () => {
     const list = Array.from({ length: 20_000 }, (_, i) => `- [ ] task ${i} [[Note ${i % 7}]] [label](<Other ${i % 5}.md>) #tag${i % 3} \`[[Code]]\``).join("\n");
     const text = `# T\n\n[[Top]] and [x](Top.md)\n\n${list}\n`;
     expect(overBudgetInlineRanges(text).some((range) => range.block)).toBe(true);
-    const { links, tags } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }));
+    const { links, tags } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
     expect(links.filter((link) => link.type === "wikilink")).toHaveLength(20_001);
     expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(20_001);
     expect(links.some((link) => link.target === "Code")).toBe(false);
@@ -219,7 +219,7 @@ describe("the note's budget (L14)", () => {
       const text = mixedNote(seed, 24_000);
       const ranges = overBudgetInlineRanges(text);
       expect(ranges.some((range) => range.block), `seed ${seed}`).toBe(true);
-      const index = listed(extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })));
+      const index = listed(extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text));
       const whole = listed(unboundedIndex(text));
       expect(index.links.length, `seed ${seed}: links`).toBe(whole.links.length);
       expect(index.links, `seed ${seed}: links`).toEqual(whole.links);
@@ -231,7 +231,7 @@ describe("the note's budget (L14)", () => {
     for (const seed of [3, 5, 8, 13, 21, 34]) {
       const text = mixedNote(seed, 1_500);
       expect(overBudgetInlineRanges(text), `seed ${seed}`).toEqual([]);
-      expect(listed(extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }))), `seed ${seed}`).toEqual(listed(unboundedIndex(text)));
+      expect(listed(extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text)), `seed ${seed}`).toEqual(listed(unboundedIndex(text)));
     }
   }, 120 * SECONDS);
 
@@ -252,7 +252,7 @@ describe("the note's budget (L14)", () => {
     const row = (i: number) => `- item ${i} [a](x\`y.md) [[Note ${i}]] and [b](z.md)`;
     const text = `# T\n\n${Array.from({ length: 20_000 }, (_, i) => row(i)).join("\n")}\n`;
     expect(overBudgetInlineRanges(text).some((range) => range.block)).toBe(true);
-    const { links } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }));
+    const { links } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
     expect(links.filter((link) => link.type === "wikilink")).toHaveLength(20_000);
     expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(40_000);
     expect(renameNoteLinks(text, new Map([["Note 5", "Five"]])).renamed).toBe(1);
@@ -287,7 +287,7 @@ describe("the note's budget (L14)", () => {
     // there, and the index's check of the tree threw.
     const text = `# T\n\ntext\n- 2. > [[Kept]] ${"]".repeat(120_000)} [[Inside]]\n\nafter [[End]]\n`;
     expect(overBudgetInlineRanges(text).length).toBeGreaterThan(0);
-    const { links } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }));
+    const { links } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
     expect(links.map((link) => link.target)).toEqual(["Kept", "Inside", "End"]);
   });
 
@@ -315,5 +315,20 @@ describe("the note's budget (L14)", () => {
       expect(asText(form, earliest), `${form}: text at ${earliest}, below the calibrated ratio ${ratio}`).toBe(false);
     }
   }, 300 * SECONDS);
+
+  it("lists the links of 200 000 lines of links and of embeds under 128 MB, as the index reads them", () => {
+    // Three times the threshold of the forms of links (L14): as nodes in the tree, their 400 000 links ran the index
+    // out of 128 MB; beside the tree (`forEachTextReadLink`) they pass. main runs out from about 70 000 such lines.
+    // A picture (`![alt](…)`) is no link to the index, as the parser reads it: 200 000 embeds in the second note.
+    const notes = [
+      `"# N\\n\\n" + Array.from({ length: 200000 }, (_, i) => "see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`,
+      `"# N\\n\\n" + Array.from({ length: 200000 }, (_, i) => "![[image " + i + ".png]] ![alt](pic" + i + ".jpg)").join("\\n") + "\\n"`,
+    ];
+    for (const text of notes) {
+      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); console.log(links.length === (text.includes("![alt]") ? 200000 : 400000) ? "ok" : "links " + links.length);`;
+      const run = underHeap(128, text, body);
+      expect(run.stdout.trim(), `${text.slice(0, 60)}: ${run.stderr.slice(-200)}`).toBe("ok");
+    }
+  }, 600 * SECONDS);
 });
 

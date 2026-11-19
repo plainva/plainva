@@ -285,8 +285,10 @@ describe("the inline parse budget", () => {
   it("keeps the links of a stretch read as written in the index's reading, found by their characters (L14)", () => {
     // Until L14 the index lost them: a backlink and the graph did not see them, and a rename left them behind.
     const stretch = `[[Inside]] ${"x]".repeat(20_000)} \`[[InCode]]\``;
-    const ast = parseMarkdownAst(`[[Before]]\n\n${stretch}\n\n[[After]]\n`, { preserveObsidianSyntax: true });
-    expect(extractLinksAndTags(ast).links.map((link) => link.target)).toEqual(["Before", "Inside", "After"]);
+    const note = `[[Before]]\n\n${stretch}\n\n[[After]]\n`;
+    const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });
+    // The index hands the note along: the links of the stretch come from it (`forEachTextReadLink`).
+    expect(extractLinksAndTags(ast, note).links.map((link) => link.target)).toEqual(["Before", "Inside", "After"]);
   });
 
   it("keeps every place of a text that starts with a byte order mark", () => {
@@ -830,7 +832,7 @@ describe("where a table ends", () => {
       // 300 rows of it — main reads 1 900 and more of each under 128 MB — are a table, and the index holds every link of every row.
       const note = `# N $x^2$\n\n| a | b | c | d | e |\n|---|---|---|---|---|\n${`${row}\n`.repeat(300)}\nbelow [[Below]]\n\n[a$]: http://u\n`;
       expect(overBudgetInlineRanges(note), row).toEqual([]);
-      const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })).links.length;
+      const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text).links.length;
       expect(linksOf(note), row).toBe(300 * linksOf(`| a | b | c | d | e |\n|---|---|---|---|---|\n${row}\n\n[a$]: http://u\n`) + 1);
     }
     // And tables made at random of such pieces, formulas, reference definitions and quotes among them: each table
@@ -855,7 +857,7 @@ describe("where a table ends", () => {
       const twin = note.replaceAll("$", "S");
       expect(weightOf(note), `table ${t}`).toBe(weightOf(twin) + TABLE_SYNTAX_WEIGHT * (`${head}${tableRows.join("\n")}`.split("$").length - 1));
       expect(overBudgetInlineRanges(note), `table ${t}`).toEqual([]);
-      const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true })).links.length;
+      const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text).links.length;
       let links = 0;
       for (let k = 0; k < tableRows.length; k += 10) links += linksOf(`# N\n\n${head}${tableRows.slice(k, k + 10).join("\n")}\n${after}`);
       expect(linksOf(note) - linksOf(after), `table ${t}`).toBe(links - linksOf(after) * Math.ceil(tableRows.length / 10));

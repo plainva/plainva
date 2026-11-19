@@ -1,6 +1,6 @@
 import { decodeMarkdownLinkTarget, encodeMarkdownLinkPath, markdownLinkTarget } from "./linkEncoding.js";
 import { parseMarkdownAst } from "./markdown-parser.js";
-import { destinationAt, unescaped, type Unescaped } from "./textReadLinks.js";
+import { destinationAt, forEachTextReadLink, textReadRanges, unescaped, type Unescaped } from "./textReadLinks.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 
 /**
@@ -206,6 +206,12 @@ function collect(text: string, node: TreeNode, inTable: boolean, inLabel: boolea
 export function readNoteLinks(content: string): NoteLinks {
   const out: NoteLinks = { links: [], unplaced: [] };
   collect(content, parseMarkdownAst(content) as unknown as TreeNode, false, false, out);
+  // The links of the stretches the parse budget reads as text, as the index reads them (`forEachTextReadLink`, L14).
+  forEachTextReadLink(content, textReadRanges(content), (link) => {
+    const position = { start: { offset: link.start }, end: { offset: link.end } };
+    if (link.type === "wikiLink") wikiLinkOf({ type: "wikiLink", value: link.value, embed: link.embed, position }, false, false, out);
+    else markdownLinkOf(content, { type: "link", url: link.url, position, children: link.labelEnd! > link.labelStart! ? [{ type: "text", position: { start: { offset: link.labelStart }, end: { offset: link.labelEnd } } }] : [] }, false, false, out);
+  });
   out.links.sort((a, b) => a.start - b.start);
   return out;
 }

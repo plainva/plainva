@@ -5,7 +5,6 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified, type Processor } from "unified";
-import { textReadLinkNodes } from "./textReadLinks.ts";
 import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type BoundedRange, type MarkdownReading } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
@@ -156,9 +155,9 @@ interface LinkNode {
  * table, one row at a time — and of each row only its links are kept. They
  * join the node the table stands in as text, at their places in `text`.
  * Every other stretch read as text — a paragraph over the inline budget, a
- * block over the note's (L14) — gives its links by their characters
- * (`textReadLinks.ts`): the index, a backlink and a rename read each link of
- * the note once, from this one tree.
+ * block over the note's (L14) — gives its links by their characters, beside
+ * the tree (`forEachTextReadLink` in `textReadLinks.ts`): the index, a
+ * backlink and a rename read each link of the note once.
  */
 function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly BoundedRange[], parse: (text: string) => Tree, reading: MarkdownReading): void {
   let counted = 0;
@@ -173,29 +172,11 @@ function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly Bound
     const end = text.indexOf("\n", at);
     return end < 0 ? text.length : end;
   };
-  let lineStarts: number[] | null = null;
-  // The line of `at` and where it starts, for the links found by their characters.
-  const lineAt = (at: number): { line: number; start: number } => {
-    if (!lineStarts) {
-      lineStarts = [0];
-      for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) lineStarts.push(i + 1);
-    }
-    let lo = 0;
-    let hi = lineStarts.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (lineStarts[mid] <= at) lo = mid;
-      else hi = mid - 1;
-    }
-    return { line: lo + 1, start: lineStarts[lo] };
-  };
   for (const range of tablesWhole(text, ranges)) {
-    if (!range.table) {
-      // A paragraph or a block read as text (L14): its links found by their characters, never by a parse of it.
-      const found = textReadLinkNodes(text, range.from, range.to, lineAt) as unknown as LinkNode[];
-      if (found.length > 0) joinLinks(tree, range, found);
-      continue;
-    }
+    // A paragraph or a block read as text gives its links to the index and a rename by their characters
+    // (`forEachTextReadLink` in `textReadLinks.ts`), beside this tree: as nodes, 400 000 of them ran the index out
+    // of 128 MB (L14).
+    if (!range.table) continue;
     const headStart = text.lastIndexOf("\n", range.from - 1) + 1;
     const headEnd = endOf(headStart);
     if (headEnd + 1 >= range.to) continue;
