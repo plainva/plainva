@@ -1,26 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
-import { canonicalizeEndpoint, mergeSecretsBundles, stableStringify, type SecretsBundle } from "@plainva/core";
+import { canonicalizeEndpoint, mergeSecretsBundles, stableStringify, type SecretBinding, type SecretsBundle } from "@plainva/core";
 import { SECRETS_MARK_KEY_SLOT, type SecretsPortMeta } from "@plainva/ui";
 import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 /**
- * No password in the settings file (review 2026-11-18, round eight, F67).
+ * No password in the settings file (review 2026-11-18, rounds eight and nine,
+ * F67).
  *
  * The secrets sync keeps a mark of each password it published or took, to
  * tell "unchanged" from "changed". Since 0.5.0 that mark was the binding and
  * the secret as text, in `plainva-settings.json`: every synced password stood
- * there in plain text. These tests run the desktop port as it runs here, with
- * several devices, and read the whole settings store of each after every
- * round: no password, not even four characters of one, may be in it. The
- * phone holds the same in `apps/mobile/src/services/secretsStoreNoPassword.test.ts`.
+ * there in plain text. These tests run the desktop port as it runs here, in
+ * random fleets of updated devices and devices on 0.8.7 (some updated on the
+ * way, sealed at their start as the app does), with calendars and mailboxes,
+ * passwords typed, signed out, removed, and a mark key lost. After every step
+ * each updated device's whole settings store is read: every value made from a
+ * password is a mark (`m1:<key id>.<HMAC>`), and no password is in it, not
+ * even four characters of one. The phone holds the same in
+ * `apps/mobile/src/services/secretsStoreNoPassword.test.ts`.
  */
 
 const VAULT = "/vaults/wiki";
-const META_KEY = `settingsSyncSecretMeta_${btoa(unescape(encodeURIComponent(VAULT)))}`;
-type MailRow = { id: string; label: string; host: string; port: number; user: string };
-type Device = { name: string; store: Map<string, unknown>; slots: Map<string, unknown>; mail: MailRow[] };
+const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
+const LEGACY_KEY = `settingsSyncSecretMeta_${b64(VAULT)}`;
+const CURRENT_KEY = `settingsSyncSecretMarks_${b64(VAULT)}`;
+const CAL = "https://cloud.example.com/remote.php/dav";
+type Account = { id: string; kind: "calendar" | "mail"; user: string };
+type Device = { name: string; legacy: boolean; store: Map<string, unknown>; slots: Map<string, unknown>; accounts: Account[] };
 
-const state = vi.hoisted(() => ({ current: null as null | { store: Map<string, unknown>; slots: Map<string, unknown>; mail: unknown[] } }));
+const state = vi.hoisted(() => ({ current: null as null | { store: Map<string, unknown>; slots: Map<string, unknown>; accounts: Array<{ id: string; kind: string; user: string }> } }));
 
 vi.mock("./settingsStore", () => ({
   getSettingsStore: vi.fn(async () => ({
@@ -42,118 +50,294 @@ vi.mock("./CredentialManager", () => ({
 vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: vi.fn(async () => []) }));
 vi.mock("@plainva/ui/mail", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@plainva/ui/mail")>();
-  return { ...actual, listMailAccounts: vi.fn(async () => structuredClone(state.current!.mail)) };
+  return {
+    ...actual,
+    listMailAccounts: vi.fn(async () =>
+      state.current!.accounts.filter((a) => a.kind === "mail").map((a) => ({ id: a.id, label: a.user, host: "imap.example.com", port: 993, user: a.user })),
+    ),
+  };
 });
 vi.mock("./pim/pimCredentials", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./pim/pimCredentials")>();
-  return { ...actual, getPimCredentials: vi.fn(async () => null) };
+  return { ...actual, getPimCredentials: vi.fn(async (vault: string, id: string) => structuredClone(state.current!.slots.get(actual.pimSecretKey(vault, id)) ?? null)) };
 });
 
-import { createDesktopSecretsPort, sealSecretsMetaAtStart } from "./settingsSecrets";
+import { createDesktopSecretsPort, retireCalDavSecret, sealSecretsMetaAtStart } from "./settingsSecrets";
 import { mailSecretKey } from "@plainva/ui/mail";
+import { pimSecretKey } from "./pim/pimCredentials";
+import type { PimRuntime } from "./pim/pimRuntime";
 
-const MAILBOXES: MailRow[] = [
-  { id: "m1", label: "Work", host: "imap.example.com", port: 993, user: "Anna@Example.com" },
-  { id: "m2", label: "Home", host: "imap.example.org", port: 993, user: "bert@example.org" },
-];
+const pimRuntime = {
+  cache: { listAccounts: async () => state.current!.accounts.filter((a) => a.kind === "calendar").map((a) => ({ id: a.id, provider: "caldav", config: { url: CAL, user: a.user } })) },
+} as unknown as PimRuntime;
 
-/** Passwords of characters nothing else in the store is made of, so any four of them in a row are a leak. */
-function passwordMaker(seed: number) {
-  let s = seed >>> 0;
-  const next = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32);
-  const alphabet = "~äöü§¿";
-  return () => Array.from({ length: 10 }, () => alphabet[Math.floor(next() * alphabet.length)]).join("");
-}
+const slotOf = (a: Account) => (a.kind === "mail" ? mailSecretKey(VAULT, a.id) : pimSecretKey(VAULT, a.id));
+const secretOf = (a: Account, pass: string) => (a.kind === "mail" ? { pass } : { kind: "caldav", url: CAL, user: a.user, pass });
+const passOf = (value: unknown) => (value as { pass?: string } | null)?.pass;
 
-function leaks(store: Map<string, unknown>, passwords: readonly string[]): string[] {
-  const text = JSON.stringify([...store]);
-  const found: string[] = [];
-  for (const password of passwords) {
-    for (let i = 0; i + 4 <= password.length; i++) {
-      if (text.includes(password.slice(i, i + 4))) {
-        found.push(password);
-        break;
-      }
-    }
-  }
-  return found;
-}
+/** How 0.8.7 named a password: the old type, the user lower-cased. */
+const oldBinding = (a: Account): SecretBinding =>
+  (a.kind === "mail"
+    ? { family: "imap", service: "mail", secretType: "imap-password", user: a.user.toLowerCase(), endpoint: canonicalizeEndpoint("imaps://imap.example.com:993") }
+    : { family: "webdav", service: "calendar", secretType: "caldav-password", user: a.user.toLowerCase(), endpoint: canonicalizeEndpoint(CAL) }) as never;
 
 let tick = 0;
 const now = () => new Date(Date.parse("2026-11-19T00:00:00.000Z") + 1000 * tick++).toISOString();
 
+function legacyPort(d: Device) {
+  return v087.createSecretsPort({
+    deviceId: async () => d.name,
+    readMeta: async () => structuredClone((d.store.get(LEGACY_KEY) as SecretsPortMeta | undefined) ?? null),
+    writeMeta: async (meta: unknown) => void d.store.set(LEGACY_KEY, structuredClone(meta)),
+    candidates: async () =>
+      d.accounts.map((a) => ({
+        logicalId: v087.canonicalSecretId(oldBinding(a) as never),
+        slot: slotOf(a),
+        binding: oldBinding(a) as never,
+        secret: passOf(d.slots.get(slotOf(a))) ? { pass: passOf(d.slots.get(slotOf(a))) } : null,
+        apply: (secret: { pass?: string }) => secretOf(a, secret.pass ?? ""),
+      })),
+    readSlot: async (slot: string) => structuredClone(d.slots.get(slot) ?? null),
+    writeSlot: async (slot: string, value: unknown) => void d.slots.set(slot, structuredClone(value)),
+    removeSlot: async (slot: string) => void d.slots.delete(slot),
+    now,
+  } as never);
+}
+
+/**
+ * Looks at the store after each half of a round: a value written in plain
+ * text by one half would otherwise be sealed by the next read before anyone
+ * looked.
+ */
+let watch: ((d: Device) => void) | null = null;
+
 async function round(d: Device, remote: SecretsBundle | null): Promise<SecretsBundle> {
+  if (d.legacy) return (await v087.runV087Round(legacyPort(d) as never, remote as never, now())).remote as SecretsBundle;
   state.current = d;
-  const port = createDesktopSecretsPort(VAULT, null);
+  const port = createDesktopSecretsPort(VAULT, pimRuntime);
   const local = await port.exportBundle();
+  watch?.(d);
   const merged = mergeSecretsBundles(local, remote, now());
-  if (stableStringify(merged.entries) !== stableStringify(local.entries)) await port.importBundle(merged);
+  if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
+    await port.importBundle(merged);
+    watch?.(d);
+  }
   return merged;
 }
 
-describe("the secrets sync keeps no password in the desktop's settings store (F67)", () => {
-  it("not after any round of a random fleet", async () => {
-    for (let seed = 1; seed <= 12; seed++) {
-      const password = passwordMaker(seed);
-      const used: string[] = [];
-      const fleet: Device[] = ["A", "B", "C"].map((name) => ({ name, store: new Map(), slots: new Map(), mail: MAILBOXES.map((row) => ({ ...row })) }));
-      const first = fleet[0];
-      for (const row of MAILBOXES) {
+/** The start of an updated app on this device: the marks are sealed first. */
+async function start(d: Device): Promise<void> {
+  d.legacy = false;
+  state.current = d;
+  await sealSecretsMetaAtStart();
+}
+
+/** Passwords of characters nothing else in the store is made of, so any four of them in a row are a leak. */
+function maker(seed: number) {
+  let s = seed >>> 0;
+  const next = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  return { next, password: () => Array.from({ length: 10 }, () => "~äöü§¿"[Math.floor(next() * 6)]).join("") };
+}
+
+const MARK = /^m1:[A-Za-z0-9_-]{8}\.[A-Za-z0-9_-]{43}$/;
+
+/** What is wrong in a device's settings store: a value made from a password that is no mark, or a password in it. */
+function problems(d: Device, passwords: readonly string[]): string[] {
+  const out: string[] = [];
+  const text = JSON.stringify([...d.store]);
+  for (const password of passwords) {
+    for (let i = 0; i + 4 <= password.length; i++) {
+      if (text.includes(password.slice(i, i + 4))) {
+        out.push(`${d.name}: holds ${password}`);
+        break;
+      }
+    }
+  }
+  if (d.store.has(LEGACY_KEY)) out.push(`${d.name}: a record under the name 0.8.7 reads`);
+  const meta = d.store.get(CURRENT_KEY) as SecretsPortMeta | undefined;
+  for (const [id, entry] of Object.entries(meta?.entries ?? {})) {
+    if (entry.tombstone ? entry.hash !== "" : !MARK.test(entry.hash)) out.push(`${d.name}: ${id} hash ${entry.hash}`);
+    if (entry.held !== undefined && !MARK.test(entry.held)) out.push(`${d.name}: ${id} held ${entry.held}`);
+  }
+  if (meta?.settled !== undefined && !MARK.test(meta.settled)) out.push(`${d.name}: settled ${meta.settled}`);
+  return out;
+}
+
+const POOL: Account[] = [
+  { id: "c1", kind: "calendar", user: "anna" },
+  { id: "c2", kind: "calendar", user: "Bert" },
+  { id: "m1", kind: "mail", user: "Carl@Example.com" },
+];
+
+/** One random fleet; the paths it took, and every problem found on the way. */
+async function fleet(seed: number): Promise<{ problems: string[]; paths: Set<string> }> {
+  const { next, password } = maker(seed);
+  const pick = <T,>(a: readonly T[]) => a[Math.floor(next() * a.length)];
+  const used: string[] = [];
+  const paths = new Set<string>();
+  const devices: Device[] = ["N1", "N2", "O1", "O2"].map((name) => ({
+    name,
+    legacy: name.startsWith("O"),
+    store: new Map(),
+    slots: new Map(),
+    accounts: POOL.map((a) => ({ ...a })),
+  }));
+  for (const a of POOL) {
+    const pass = password();
+    used.push(pass);
+    pick(devices).slots.set(slotOf(a), secretOf(a, pass));
+  }
+  let remote: SecretsBundle | null = null;
+  const found: string[] = [];
+  const check = (where: string) => {
+    for (const d of devices) if (!d.legacy) for (const p of problems(d, used)) found.push(`seed ${seed} ${where}: ${p}`);
+  };
+  watch = (d) => {
+    for (const p of problems(d, used)) found.push(`seed ${seed} in a round: ${p}`);
+  };
+  for (let i = 0; i < 2; i++) for (const d of devices) remote = await round(d, remote);
+  for (let step = 0; step < 14; step++) {
+    const d = pick(devices);
+    const k = next();
+    const a = pick(d.accounts.length ? d.accounts : POOL);
+    if (k < 0.4) {
+      const pass = password();
+      used.push(pass);
+      d.slots.set(slotOf(a), secretOf(a, pass));
+      paths.add("typed");
+    } else if (k < 0.5) {
+      d.slots.delete(slotOf(a));
+      paths.add("signed out");
+    } else if (k < 0.6 && !d.legacy && a.kind === "calendar" && d.accounts.includes(a)) {
+      state.current = d;
+      await retireCalDavSecret(VAULT, CAL, a.user);
+      d.accounts = d.accounts.filter((x) => x !== a);
+      d.slots.delete(slotOf(a));
+      paths.add("removed");
+    } else if (k < 0.7 && !d.legacy) {
+      d.slots.delete(SECRETS_MARK_KEY_SLOT);
+      paths.add("key lost");
+    } else if (k < 0.8 && d.legacy) {
+      // Sometimes a password typed on 0.8.7 right before the update, with no
+      // round between: the update finds it changed against its record.
+      if (next() < 0.5) {
         const pass = password();
         used.push(pass);
-        first.slots.set(mailSecretKey(VAULT, row.id), { pass });
+        d.slots.set(slotOf(a), secretOf(a, pass));
+        paths.add("typed before the update");
       }
-      let remote: SecretsBundle | null = null;
-      let s = seed;
-      const pick = (n: number) => ((s = (s * 48271) % 2147483647), s % n);
-      for (let step = 0; step < 24; step++) {
-        const d = fleet[pick(fleet.length)];
-        if (pick(3) === 0) {
-          const pass = password();
-          used.push(pass);
-          d.slots.set(mailSecretKey(VAULT, MAILBOXES[pick(MAILBOXES.length)].id), { pass });
-        }
-        remote = await round(d, remote);
-        for (const device of fleet) expect(leaks(device.store, used), `seed ${seed}, step ${step}, ${device.name}`).toEqual([]);
+      await start(d);
+      paths.add("updated");
+    } else {
+      const missing = POOL.filter((x) => !d.accounts.some((y) => y.id === x.id));
+      if (missing.length) {
+        d.accounts.push({ ...pick(missing) });
+        paths.add("added again");
       }
-      // The passwords did travel: the check above is not trivially true.
-      expect(fleet.every((device) => device.slots.size > 0)).toBe(true);
     }
+    for (const x of devices) if (next() < 0.8) remote = await round(x, remote);
+    check(`step ${step}`);
+  }
+  for (let i = 0; i < 4; i++) for (const d of devices) remote = await round(d, remote);
+  check("end");
+  watch = null;
+  return { problems: found, paths };
+}
+
+describe("the secrets sync keeps no password in the desktop's settings store (F67)", () => {
+  it("not after any step of random mixed fleets, and every value made from a password is a mark", async () => {
+    const paths = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const result = await fleet(seed);
+      expect(result.problems).toEqual([]);
+      for (const p of result.paths) paths.add(p);
+    }
+    // The fleets took every way a mark is written.
+    expect([...paths].sort()).toEqual(["added again", "key lost", "removed", "signed out", "typed", "typed before the update", "updated"]);
+  });
+
+  it("not on the ways the fleets seldom take: an empty slot or a fresh password at the update, an empty slot when the key is lost", async () => {
+    const mail = POOL[2];
+    const run = async (steps: (d: Device, other: Device, remote: { at: SecretsBundle | null }) => Promise<void>) => {
+      const d: Device = { name: "D", legacy: true, store: new Map(), slots: new Map(), accounts: [{ ...mail }] };
+      const other: Device = { name: "N", legacy: false, store: new Map(), slots: new Map(), accounts: [{ ...mail }] };
+      const remote = { at: null as SecretsBundle | null };
+      const between: string[] = [];
+      watch = (x) => void between.push(...problems(x, ["pw-first-1", "pw-again-2"]));
+      await steps(d, other, remote);
+      watch = null;
+      return [...between, ...problems(d, ["pw-first-1", "pw-again-2"]), ...problems(other, ["pw-first-1", "pw-again-2"])];
+    };
+    // Signed out on 0.8.7, then updated: the moved record is the mark of no secret.
+    expect(await run(async (d, other, remote) => {
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-first-1"));
+      remote.at = await round(d, remote.at);
+      d.slots.delete(slotOf(mail));
+      remote.at = await round(d, remote.at);
+      await start(d);
+      remote.at = await round(d, remote.at);
+      remote.at = await round(other, remote.at);
+    })).toEqual([]);
+    // A password typed on 0.8.7 right before the update: the moved record says "changed here".
+    expect(await run(async (d, other, remote) => {
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-first-1"));
+      remote.at = await round(d, remote.at);
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-again-2"));
+      await start(d);
+      remote.at = await round(d, remote.at);
+      remote.at = await round(other, remote.at);
+    })).toEqual([]);
+    // The key lost while the slot is empty: the record is restored as the mark of no secret.
+    expect(await run(async (d, other, remote) => {
+      d.legacy = false;
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-first-1"));
+      remote.at = await round(d, remote.at);
+      remote.at = await round(other, remote.at);
+      d.slots.delete(slotOf(mail));
+      d.slots.delete(SECRETS_MARK_KEY_SLOT);
+      remote.at = await round(d, remote.at);
+      remote.at = await round(d, remote.at);
+    })).toEqual([]);
   });
 
   it("a store written by 0.8.7 is cleaned at start, and the cleaning is no change", async () => {
-    const d: Device = { name: "U", store: new Map(), slots: new Map(), mail: [MAILBOXES[1]] };
-    const pass = passwordMaker(99)();
-    const row = MAILBOXES[1];
-    d.slots.set(mailSecretKey(VAULT, row.id), { pass });
-    // What 0.8.7 wrote: its port, its bindings (the old type, the user lower-cased).
-    const oldBinding = { family: "imap", service: "mail", secretType: "imap-password", user: row.user.toLowerCase(), endpoint: canonicalizeEndpoint(`imaps://${row.host}:${row.port}`) };
-    state.current = d;
-    const old = v087.createSecretsPort({
-      deviceId: async () => "U",
-      readMeta: async () => (d.store.get(META_KEY) as SecretsPortMeta | undefined) ?? null,
-      writeMeta: async (meta: unknown) => void d.store.set(META_KEY, structuredClone(meta)),
-      candidates: async () => [{ logicalId: v087.canonicalSecretId(oldBinding as never), slot: mailSecretKey(VAULT, row.id), binding: oldBinding as never, secret: { pass }, apply: (secret: { pass?: string }) => ({ pass: secret.pass }) }],
-      readSlot: async () => null,
-      writeSlot: async () => undefined,
-      removeSlot: async () => undefined,
-      now,
-    } as never);
-    const published = await old.exportBundle();
+    const d: Device = { name: "U", legacy: true, store: new Map(), slots: new Map(), accounts: [POOL[2]] };
+    const pass = maker(99).password();
+    d.slots.set(slotOf(POOL[2]), secretOf(POOL[2], pass));
+    const published = await round(d, null);
     const [oldEntry] = Object.values(published.entries);
-    expect(leaks(d.store, [pass])).toEqual([pass]);
+    expect(JSON.stringify([...d.store])).toContain(pass);
 
-    expect(await sealSecretsMetaAtStart()).toBe(1);
-    expect(leaks(d.store, [pass])).toEqual([]);
+    await start(d);
+    expect(problems(d, [pass])).toEqual([]);
+    expect(d.store.has(CURRENT_KEY)).toBe(true);
 
     // The next round moves the password into the current type with the
     // version it had: no new revision, no new time, no other device.
     const next = await round(d, published);
     const current = Object.values(next.entries).find((entry) => entry.binding.secretType === "imap-password-2");
     expect(current && [current.entryRev, current.updatedAt, current.deviceId]).toEqual([oldEntry.entryRev, oldEntry.updatedAt, oldEntry.deviceId]);
-    expect(leaks(d.store, [pass])).toEqual([]);
+    expect(problems(d, [pass])).toEqual([]);
     // The key of the marks is with the passwords, not in the settings store.
     expect(d.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(true);
-    expect([...d.store.keys()].some((key) => key.includes(SECRETS_MARK_KEY_SLOT))).toBe(false);
+  });
+
+  it("without an answer from the credentials store nothing is sealed, nothing runs, and the next start does it", async () => {
+    const d: Device = { name: "U", legacy: true, store: new Map(), slots: new Map(), accounts: [POOL[2]] };
+    d.slots.set(slotOf(POOL[2]), secretOf(POOL[2], "pw-locked"));
+    await round(d, null);
+    // The records only: the device id of the port is another key of the store.
+    const records = () => stableStringify([...d.store].filter(([key]) => key === LEGACY_KEY || key === CURRENT_KEY));
+    const before = records();
+    const { credentialManager } = await import("./CredentialManager");
+    vi.mocked(credentialManager.readSecretStrict).mockRejectedValueOnce(new Error("keychain locked"));
+    vi.mocked(credentialManager.readSecretStrict).mockRejectedValueOnce(new Error("keychain locked"));
+    state.current = d;
+    await expect(sealSecretsMetaAtStart()).rejects.toThrow("keychain locked");
+    await expect(createDesktopSecretsPort(VAULT, pimRuntime).exportBundle()).rejects.toThrow("keychain locked");
+    expect(records()).toBe(before);
+    expect(d.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(false);
+    await start(d);
+    expect(problems(d, ["pw-locked"])).toEqual([]);
   });
 });
