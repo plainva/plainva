@@ -101,6 +101,7 @@ export function EditorHost({
   onSuggestionDecline,
   onReaderBlockedChange,
   onFindPanelChange,
+  onReadAsTextChange,
   onVanished,
 }: {
   vault: MobileVault;
@@ -153,6 +154,13 @@ export function EditorHost({
    * floating over it - so the page has to give the panel a place of its own.
    */
   onFindPanelChange?: (open: boolean) => void;
+  /**
+   * The note's notice that part of it is read as text shows (L14,
+   * `ReadAsTextNotice`). It stands at the top of the editor as the find panel
+   * does, so the page gives it a place of its own: the controls floating over
+   * the editor in read mode covered it and took its taps.
+   */
+  onReadAsTextChange?: (shown: boolean) => void;
   /**
    * The file under this editor is gone — moved or deleted outside Plainva, or
    * by sync, while the note was open (issue 110, E9). The screen looks for it.
@@ -1451,7 +1459,7 @@ export function EditorHost({
         <NoteConflictCard conflict={conflict} path={path} vault={vault} onOpenCopy={() => onOpenNote(conflict.copyPath)} onShowDiff={() => setConflictDiff(true)} />
       )}
       {/* Part of the note is read as text (L14): said over the note, with a way to its first place. */}
-      <ReadAsTextNotice content={noticeText} onJump={(offset) => {
+      <ReadAsTextNotice content={noticeText} onShownChange={onReadAsTextChange} onJump={(offset) => {
         const view = sessionRef.current?.view;
         if (!view) return;
         jumpToLineTop(view, view.state.doc.lineAt(Math.min(offset, view.state.doc.length)).number);

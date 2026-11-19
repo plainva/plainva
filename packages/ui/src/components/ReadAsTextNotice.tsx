@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { overBudgetInlineRanges } from "@plainva/core";
 import { Banner } from "./ui/Banner";
@@ -17,12 +17,17 @@ import { InfoTip } from "./ui/InfoTip";
  * `content` is the note as the shell holds it (the editor mirrors its text
  * with a pause, so this asks the scan once a pause, not once a keystroke).
  */
-export function ReadAsTextNotice({ content, onJump }: { content: string; onJump?: (offset: number) => void }) {
+export function ReadAsTextNotice({ content, onJump, onShownChange }: { content: string; onJump?: (offset: number) => void; onShownChange?: (shown: boolean) => void }) {
   const { t } = useTranslation();
   const first = useMemo(() => {
     const ranges = overBudgetInlineRanges(content);
     return ranges.length > 0 ? ranges[0].from : null;
   }, [content]);
+  // Whether the notice shows, for a page that gives it a place of its own (the phone's floating controls, L14).
+  useEffect(() => {
+    onShownChange?.(first !== null);
+  }, [first, onShownChange]);
+  useEffect(() => () => onShownChange?.(false), [onShownChange]);
   if (first === null) return null;
   return (
     <div data-testid="read-as-text-notice">

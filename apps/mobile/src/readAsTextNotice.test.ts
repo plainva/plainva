@@ -15,7 +15,7 @@ describe("a note read partly as text, on the phone (L14)", () => {
 
   it("shows the notice over the note, from the shared building block, with a way to its first place", () => {
     expect(host).toMatch(/import \{[^}]*\bReadAsTextNotice\b[^}]*\} from "@plainva\/ui"/);
-    expect(host).toMatch(/<ReadAsTextNotice content=\{noticeText\} onJump=/);
+    expect(host).toMatch(/<ReadAsTextNotice content=\{noticeText\} onShownChange=\{onReadAsTextChange\} onJump=/);
     expect(host).toMatch(/createEditorSession\(/);
   });
 

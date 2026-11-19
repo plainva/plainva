@@ -3805,5 +3805,8 @@ describe("the top safe area is one token", () => {
     const screen = readFileSync(join(SRC, "screens", "NoteScreen.tsx"), "utf8");
     expect(screen).toMatch(/const readerOverlay = [^;]*&& !finding;/);
     expect(screen).toContain("onFindPanelChange={setFinding}");
+    // So does the notice that part of the note is read as text (L14): the floating controls covered it.
+    expect(screen).toMatch(/const readerOverlay = [^;]*&& !readAsText &&/);
+    expect(screen).toContain("onReadAsTextChange={setReadAsText}");
   });
 });

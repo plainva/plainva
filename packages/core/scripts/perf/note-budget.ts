@@ -125,6 +125,9 @@ export const NOTE_FORMS: Record<string, (n: number) => string> = {
 
 const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
 
+/** The forms whose unit is a whole table. */
+const TABLE_FORMS = new Set(["densetables", "bigtables", "manytables", "tables50"]);
+
 /** A seeded generator (mulberry32). */
 function random(...keys: number[]): () => number {
   let s = 0x9e3779b9;
@@ -146,11 +149,17 @@ function generatedNote(seed: number, k: number, scale = 1): string {
   const lines = Math.floor(((0.1 + r() * 4.9) * NOTE_BUDGET) / 500) * scale;
   const blocks: string[] = [];
   let made = 0;
+  let chars = 0;
   while (made < lines) {
     const kind = kinds[Math.floor(r() * kinds.length)];
-    const size = 1 + Math.floor(r() * (r() < 0.1 ? 20_000 : 200));
+    // A unit of a table form is a whole table (of 50 or 1 200 rows): a few of them make a note of megabytes.
+    const most = TABLE_FORMS.has(kind) ? 4 : r() < 0.1 ? 20_000 : 200;
+    const size = 1 + Math.floor(r() * most);
     const block = kind === "xwords" || kind === "xbrackets" ? NOTE_FORMS[kind](size * 20) : NOTE_FORMS[kind](size);
+    // At most the 10 MB the note's budget is measured for (`FAR_CHARS`), at `scale` times that for the scan's time.
+    if (chars + block.length > FAR_CHARS * scale) break;
     blocks.push(block);
+    chars += block.length + 2;
     made += size;
   }
   return wrap(blocks.join(r() < 0.3 ? "\n" : "\n\n"));

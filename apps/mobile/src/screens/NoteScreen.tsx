@@ -1278,6 +1278,8 @@ export function NoteScreen({
   const [readerBlocked, setReaderBlocked] = useState(false);
   /** The editor's find panel is open (see `readerOverlay`). */
   const [finding, setFinding] = useState(false);
+  // The notice that part of the note is read as text stands at the top of the editor, as the find panel does (L14).
+  const [readAsText, setReadAsText] = useState(false);
   const readerConflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
   /** The load failed: no text on this screen, only its states ("Moved?", not found, not text). */
   const loadFailed = doc === null && (loadError || notText);
@@ -1291,7 +1293,7 @@ export function NoteScreen({
   // of the screen. The panel was drawn over the bar and under the clock and
   // the Dynamic Island, its field and its close button out of reach. While it
   // is open the bar stands in the flow and the panel directly under it.
-  const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince && !finding;
+  const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince && !readAsText && !finding;
   const { chromeRef, away: chromeAway, tucked: chromeTucked, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview, editing);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
@@ -1491,6 +1493,7 @@ export function NoteScreen({
         <EditorHost
           onReaderBlockedChange={setReaderBlocked}
           onFindPanelChange={setFinding}
+          onReadAsTextChange={setReadAsText}
           onVanished={noticeVanished}
           editable={(editing && workspaceCanWrite && !managedIndex) || suggesting}
           initialDoc={doc}
