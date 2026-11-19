@@ -10,6 +10,7 @@ import {
   retireSecret,
   mergeLegacySecretsMeta,
   sealSecretsMetaInStore,
+  storeHoldsSecretsMarks,
   type LocalSecretCandidate,
   type SecretsPortMeta,
 } from "@plainva/ui";
@@ -63,6 +64,8 @@ const META_STORAGE = {
 const markKeySlots = {
   readSlot: (slot: string) => getPlatformServices().credentials.readSecret(slot),
   writeSlot: (slot: string, value: unknown) => getPlatformServices().credentials.writeSecret(slot, value),
+  // One key for the phone: the records of every vault count (round twelve).
+  marksOnDevice: async () => storeHoldsSecretsMarks(await settingsStore(), (key) => key.startsWith(META_PREFIX) || key.startsWith(LEGACY_META_PREFIX)),
 };
 const deviceKey = "settingsSyncDeviceIdMobile";
 
@@ -192,5 +195,6 @@ export function createMobileSecretsPort(vaultId: string): SecretsPort {
     readSlot: (slot) => getPlatformServices().credentials.readSecret(slot),
     writeSlot: (slot, value) => getPlatformServices().credentials.writeSecret(slot, value),
     removeSlot: (slot) => getPlatformServices().credentials.removeSecret(slot),
+    marksOnDevice: markKeySlots.marksOnDevice,
   });
 }

@@ -116,7 +116,7 @@ async function round(d: Dev): Promise<void> {
   const local = await p.exportBundle();
   for (const e of Object.values(local.entries)) if (!e.tombstone) assertShareable(e);
   const merged = mergeSecretsBundles(local, W.remote, iso(W.t++));
-  if (stableStringify(merged.entries) !== stableStringify(local.entries)) await p.importBundle(merged);
+  if (stableStringify(merged.entries) !== stableStringify(local.entries) || p.awaitsDocument?.()) await p.importBundle(merged);
   if (!W.remote || stableStringify(merged.entries) !== stableStringify(W.remote.entries)) {
     assertSecretsBundleStructure(JSON.parse(JSON.stringify(merged)));
     W.remote = JSON.parse(JSON.stringify(merged));

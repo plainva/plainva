@@ -94,12 +94,6 @@ export interface SecretsPortMeta {
        */
       held?: string;
       heldRev?: number;
-      /**
-       * A record of a lost key that one export already left waiting for the
-       * shared document. Still lost at the next export: the document has
-       * nothing to restore it from, and the record goes (round eleven).
-       */
-      lostWaited?: boolean;
     }
   >;
   /** Entries written BY an import — only these may be removed by a tombstone. */
@@ -168,6 +162,8 @@ export interface SecretsPortHost {
   readSlot(slot: string): Promise<unknown>;
   /** The key of the marks, telling "not there" (null) from "no answer" (throws) (`secretsMark.ts`). */
   readMarkKey?(): Promise<unknown>;
+  /** Whether any record on this device, of any vault, holds marks of a key (`secretsMark.ts`). */
+  marksOnDevice?(): Promise<boolean>;
   writeSlot(slot: string, value: unknown): Promise<void>;
   removeSlot(slot: string): Promise<void>;
   /** Injectable for tests; defaults to the wall clock. */
@@ -431,6 +427,16 @@ async function movedHash(mark: SecretsMarker, known: { hash: string; binding: Se
   return pairMark(mark, candidate.binding, candidate.secret);
 }
 
+/**
+ * A record whose slot is a change made on this device: its revision, time and
+ * device as they were, with a mark that matches no pair, so the next export
+ * publishes the slot one revision above.
+ */
+async function changedHere(mark: SecretsMarker, record: SecretsPortMeta["entries"][string]): Promise<SecretsPortMeta["entries"][string]> {
+  const { held: _held, heldRev, ...rest } = record;
+  return { ...rest, entryRev: Math.max(record.entryRev, heldRev ?? 0), hash: await mark("plainva: changed on this device") };
+}
+
 /** A mark made with a key this device no longer has: what it knew is lost, not changed. */
 const isLostMark = (mark: SecretsMarker, hash: string | undefined): boolean => !!hash && isSecretsMark(hash) && !mark.owns(hash);
 
@@ -495,9 +501,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
     return marker;
   };
 
+  // Records of a lost key the last export left waiting (`awaitsDocument`).
+  let waiting = false;
+
   return {
     exportBundle: () => serialized(() => exportBundle()),
     importBundle: (bundle: SecretsBundle) => serialized(() => importBundle(bundle)),
+    awaitsDocument: () => waiting,
   };
 
   async function exportBundle(): Promise<SecretsBundle> {
@@ -513,6 +523,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // The key of the marks was lost while marks of it are here (round nine):
       // said in the diagnostics, every round until the records are restored.
       const lostRecords = Object.values(meta.entries).filter((entry) => !entry.tombstone && !entry.held && isLostMark(mark, entry.hash)).length;
+      waiting = lostRecords > 0;
       if (lostRecords > 0) logDiagnosticCounted("settings-sync", `secrets: ${lostRecords} record(s) made with a lost mark key, restored from the shared document`);
       // OAuth registrations may still be exposed by an older shell adapter,
       // but the shared port is the final policy boundary for every platform.
@@ -537,28 +548,17 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       for (const candidate of candidates) {
         if (!candidate.secret) continue;
         const hash = await pairMark(mark, candidate.binding, candidate.secret);
-        let previous: SecretsPortMeta["entries"][string] | undefined = meta.entries[candidate.logicalId];
+        const previous: SecretsPortMeta["entries"][string] | undefined = meta.entries[candidate.logicalId];
         // What this device knew went with its key (round nine): nothing here is
         // taken as a change. The slot waits for the shared document, which
         // restores the record or holds the slot as a local conflict — until a
         // password is typed here again: a new revision over all it saw.
         const lost = !!previous && !previous.tombstone && isLostMark(mark, previous.hash);
         const typedAgain = lost && !!previous!.held && mark.owns(previous!.held!) && previous!.held !== hash;
-        if (lost && !typedAgain) {
-          // A local conflict waits, as it does without a lost key.
-          if (previous!.held) continue;
-          // One export waits for the document to restore the record; the next
-          // finds it still lost — the document has nothing for it, or nothing
-          // newer — and the account is as on a device without a record
-          // (round eleven): no state without a way out.
-          if (!previous!.lostWaited) {
-            meta.entries[candidate.logicalId] = { ...previous!, lostWaited: true };
-            continue;
-          }
-          delete meta.entries[candidate.logicalId];
-          delete meta.imported[candidate.logicalId];
-          previous = undefined;
-        }
+        // A lost record, and a local conflict held from one, wait for an
+        // import that reads the shared document (round twelve): an export
+        // decides nothing about them, however often it runs.
+        if (lost && !typedAgain) continue;
         // The revision only moves when the secret actually changed — otherwise
         // two devices would ping-pong revisions on every cycle.
         const changed = !previous || previous.tombstone || previous.hash !== hash;
@@ -601,8 +601,17 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const old = canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType) });
         meta.closedOldNames = { ...(meta.closedOldNames ?? {}), [old]: stamp };
       };
-      const tombstone = (id: string) => {
-        const previous = meta.entries[id];
+      const tombstone = (id: string, removed?: SecretBinding) => {
+        let previous = meta.entries[id];
+        // Removed before any export of this version moved the record to the
+        // account's current name: what this device knew under its old name
+        // is what it knew about this account (round twelve, as on main) —
+        // unless another account here still goes by that old name.
+        const old = !previous && removed ? bridgeIdOf(removed) : null;
+        const known = old ? meta.entries[old] : undefined;
+        if (known && !known.tombstone && !known.alias && isBridgeSecretType(known.binding.secretType) && !candidates.some((candidate) => bridgeIdOf(candidate.binding) === old)) {
+          previous = { ...known, binding: removed! };
+        }
         if (!previous || previous.tombstone || currentIds.has(id)) return;
         if (!isShareableSecretType(previous.binding.secretType)) return;
         const entryRev = previous.entryRev + 1;
@@ -610,10 +619,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
         closeOldName(previous.binding);
       };
-      for (const id of Object.keys(meta.retired ?? {})) {
+      for (const [id, removed] of Object.entries(meta.retired ?? {})) {
         delete meta.retired![id];
         if (knownIds.has(id)) continue;
-        tombstone(id);
+        tombstone(id, removed);
       }
       if (meta.retired && Object.keys(meta.retired).length === 0) delete meta.retired;
 
@@ -780,17 +789,17 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           continue;
         }
 
-        let previous: SecretsPortMeta["entries"][string] | undefined = meta.entries[logicalId];
+        const previous: SecretsPortMeta["entries"][string] | undefined = meta.entries[logicalId];
         // A record of a lost key: its version still orders, its mark compares
         // nothing (round nine).
-        let lost = !!previous && !previous.tombstone && isLostMark(mark, previous.hash);
-        // An older entry cannot restore it: the record goes, and the account
-        // is as on a device without a record (round eleven).
-        if (lost && compareEntryVersion(entry, previous!) < 0) {
-          delete meta.entries[logicalId];
-          delete meta.imported[logicalId];
-          previous = undefined;
-          lost = false;
+        const lost = !!previous && !previous.tombstone && isLostMark(mark, previous.hash);
+        // An older entry cannot restore it. The revision is knowledge no key
+        // holds (round twelve): kept, and the slot is what this device has
+        // over it, as if typed here — the next export publishes it above.
+        if (lost && compareEntryVersion(entry, previous!) < 0 && byId.has(logicalId)) {
+          meta.entries[logicalId] = await changedHere(mark, previous!);
+          recordImportResult(result, logicalId, "stale", "older-entry");
+          continue;
         }
         const order = previous ? compareEntryVersion(entry, previous) : 1;
         if (previous) {
@@ -922,23 +931,14 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           // The document holds the very version this device knew, and the slot
           // holds something else: the password changed here (round eleven).
           if (candidate.secret && order === 0 && !previous!.held) {
-            meta.entries[logicalId] = {
-              hash: await mark("plainva: changed on this device"),
-              entryRev: previous!.entryRev,
-              updatedAt: previous!.updatedAt,
-              deviceId: previous!.deviceId,
-              binding: previous!.binding,
-            };
+            meta.entries[logicalId] = await changedHere(mark, previous!);
             recordImportResult(result, logicalId, "unchanged", "already-current");
             continue;
           }
           if (candidate.secret && !(pairImported && order > 0)) {
             const held = await pairMark(mark, candidate.binding, candidate.secret);
             const heldRev = Math.max(previous!.heldRev ?? 0, entry.entryRev);
-            if (previous!.held !== held || previous!.heldRev !== heldRev || previous!.lostWaited) {
-              const { lostWaited: _waited, ...rest } = previous!;
-              meta.entries[logicalId] = { ...rest, held, heldRev };
-            }
+            if (previous!.held !== held || previous!.heldRev !== heldRev) meta.entries[logicalId] = { ...previous!, held, heldRev };
             recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
             continue;
           }
@@ -1027,13 +1027,25 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         if (settled) meta.settled = settled;
         else delete meta.settled;
       }
-      // Records the document could not restore: a record of a lost key with no
-      // entry in it at all goes (round eleven).
-      for (const candidate of candidates) {
-        const record = meta.entries[candidate.logicalId];
-        if (!record || record.tombstone || record.held || !isLostMark(mark, record.hash) || bundle.entries[candidate.logicalId]) continue;
-        delete meta.entries[candidate.logicalId];
-        delete meta.imported[candidate.logicalId];
+      // Every record of a lost key ends with an import that read the document
+      // (round twelve), and keeps its revision and its mark of having been
+      // received — knowledge no key holds; only the mark goes:
+      //  - no account here: there is no slot to compare, the mark of no secret;
+      //  - the document has nothing for it, or nothing as new: the slot is what
+      //    this device has over it, as if typed here;
+      //  - the document has something as new that did not restore it: a local
+      //    conflict, held as above.
+      for (const [id, record] of Object.entries(meta.entries)) {
+        if (record.tombstone || record.held || !isLostMark(mark, record.hash) || isBridgeSecretType(record.binding.secretType)) continue;
+        const candidate = byId.get(id);
+        const entry = bundle.entries[id];
+        if (!candidate) {
+          meta.entries[id] = { ...record, hash: await pairMark(mark, record.binding, null) };
+        } else if (!entry || compareEntryVersion(entry, record) < 0) {
+          meta.entries[id] = await changedHere(mark, record);
+        } else {
+          meta.entries[id] = { ...record, held: await pairMark(mark, candidate.binding, candidate.secret), heldRev: Math.max(record.heldRev ?? 0, entry.entryRev) };
+        }
       }
       // A round that changes nothing writes nothing (round eleven, F68):
       // compared, not assumed.

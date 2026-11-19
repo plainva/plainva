@@ -65,7 +65,7 @@ async function round(d: ReturnType<typeof device>): Promise<void> {
   }
   const local = await d.port.exportBundle();
   const merged = mergeSecretsBundles(local, remote, at);
-  if (stableStringify(merged.entries) !== stableStringify(local.entries)) await d.port.importBundle(merged);
+  if (stableStringify(merged.entries) !== stableStringify(local.entries) || d.port.awaitsDocument?.()) await d.port.importBundle(merged);
   remote = merged;
 }
 

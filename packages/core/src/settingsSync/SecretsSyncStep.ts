@@ -83,6 +83,12 @@ export interface SecretsPort {
   exportBundle(): Promise<SecretsBundle>;
   /** Apply isolated, snapshot-protected write groups (binding-checked). */
   importBundle(bundle: SecretsBundle): Promise<SecretsImportResult>;
+  /**
+   * Whether the last export left records waiting for the shared document
+   * (a lost mark key, round twelve): then the document is imported even when
+   * the merge changed nothing, since only an import that read it ends them.
+   */
+  awaitsDocument?(): boolean;
 }
 
 export interface SecretsSyncStepOptions {
@@ -150,8 +156,9 @@ export class SecretsSyncStep {
 
     const merged = mergeSecretsBundles(local, remote, now);
 
-    // Import into the keychain only when the merge changed the local view.
-    if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
+    // Import into the keychain only when the merge changed the local view, or
+    // when the port waits for the document.
+    if (stableStringify(merged.entries) !== stableStringify(local.entries) || this.options.port.awaitsDocument?.()) {
       const result = await this.options.port.importBundle(merged);
       if (!result.settled) {
         if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);

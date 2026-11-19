@@ -57,6 +57,12 @@ export interface SecretsMarkSlots {
    * answer" (throws). A host without it reads through `readSlot`.
    */
   readMarkKey?(): Promise<unknown>;
+  /**
+   * Whether any record on this device, of any vault, holds marks of a key
+   * (round twelve): a device has one key, and while any of its records was
+   * made with it, a store that does not answer never makes a second one.
+   */
+  marksOnDevice?(): Promise<boolean>;
 }
 
 /** A mark as this file writes it, with any key; anything else that is not "" is an old plain mark. */
@@ -74,6 +80,27 @@ export const holdsSecretsMarks = (meta: SecretsPortMeta | null | undefined): boo
   (Object.values(meta.entries ?? {}).some((entry) => typeof entry?.hash === "string" && isSecretsMark(entry.hash)) ||
     (typeof meta.settled === "string" && isSecretsMark(meta.settled)));
 
+// A device that cannot say whether it holds marks is taken to hold some.
+const marksOnDevice = async (slots: SecretsMarkSlots): Promise<boolean> => {
+  if (!slots.marksOnDevice) return false;
+  try {
+    return await slots.marksOnDevice();
+  } catch {
+    return true;
+  }
+};
+
+/**
+ * Whether any record in a device's settings store — every vault, under either
+ * name (`isRecord`) — holds marks made with a key (`holdsSecretsMarks`).
+ */
+export async function storeHoldsSecretsMarks(store: ISettingsStore, isRecord: (key: string) => boolean): Promise<boolean> {
+  for (const key of (await store.keys()).filter(isRecord)) {
+    if (holdsSecretsMarks(await store.get<SecretsPortMeta>(key))) return true;
+  }
+  return false;
+}
+
 // The first two callers on a fresh device must not each make a key: the
 // second would overwrite the first, and every mark made with it would be
 // wrong. Key reads and the one creation run one after the other.
@@ -88,7 +115,7 @@ async function deviceKey(slots: SecretsMarkSlots, marksExist: boolean): Promise<
       // Not answering is not "no key". Only where there is no mark to lose —
       // a first run on a device whose keychain is not reachable at all, where
       // the passwords live in the credentials file — is a key made anyway.
-      if (marksExist) throw error;
+      if (marksExist || (await marksOnDevice(slots))) throw error;
       stored = null;
     }
     if (typeof stored === "string" && HEX_KEY.test(stored)) return stored;

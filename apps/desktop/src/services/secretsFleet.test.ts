@@ -129,7 +129,7 @@ async function round(d: Device): Promise<void> {
   const local = await port.exportBundle();
   for (const entry of Object.values(local.entries)) if (!entry.tombstone) assertShareable(entry);
   const merged = mergeSecretsBundles(local, remote, tick());
-  if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
+  if (stableStringify(merged.entries) !== stableStringify(local.entries) || port.awaitsDocument?.()) {
     if (!(await port.importBundle(merged)).settled) d.reports++;
   }
   if (!remote || stableStringify(merged.entries) !== stableStringify(remote.entries)) {
@@ -628,4 +628,134 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
     await rounds([n1, n0], 6);
     expect([n1.metaWrites, n0.metaWrites]).toEqual([0, 0]);
   });
+});
+
+describe("what a device knew ends only with a document it read (round twelve)", () => {
+  /** A run whose download fails after the export (offline, target unreachable, app ended): SecretsSyncStep exports first. */
+  const offline = async (d: Device) => void (await portOf(d).exportBundle());
+  const doc = (id = "r") => {
+    const entry = Object.values(remote?.entries ?? {}).find((e) => e.binding.secretType === "caldav-password-2" && e.binding.user === (id === "r" ? "anna" : id));
+    return entry && `r${entry.entryRev}:${(entry.secret as { pass?: string } | undefined)?.pass ?? "-"}/${entry.deviceId}`;
+  };
+  const lostOf = async (d: Device) => {
+    const own = await secretsMarker({ readSlot: async (slot) => d.keyring.get(slot) ?? null, writeSlot: async () => undefined });
+    return Object.values(d.meta?.entries ?? {}).filter((e) => !e.tombstone && !e.held && e.hash.startsWith("m1:") && !own.owns(e.hash)).length;
+  };
+  const row = (): Row[] => [{ id: "r", user: "anna" }];
+
+  for (const off of [1, 3]) {
+    it(`a password taken through the sync follows a change made meanwhile, after ${off} run(s) that ended after the export`, async () => {
+      start();
+      const n1 = device("N1", false, row());
+      const n2 = device("N2", false, row());
+      const f = device("F", false, row());
+      n2.slots.set("r", "P1");
+      await rounds([n2, n1, f], 2);
+      n1.keyring.clear();
+      n2.slots.set("r", "P2");
+      await rounds([n2, f], 2);
+      for (let i = 0; i < off; i++) await offline(n1);
+      await rounds([n1, n2, f], 4);
+      expect({ N1: n1.slots.get("r"), doc: doc() }).toEqual({ N1: "P2", doc: "r2:P2/N2" });
+      expect(await lostOf(n1)).toBe(0);
+    });
+
+    it(`a password typed after the key was lost arrives above all it saw, after ${off} run(s) that ended after the export`, async () => {
+      start();
+      const n1 = device("N1", false, row());
+      const n2 = device("N2", false, row());
+      const f = device("F", false, row());
+      for (const pass of ["P1", "P2", "P3"]) {
+        n2.slots.set("r", pass);
+        await rounds([n2, n1, f], 2);
+      }
+      n1.keyring.clear();
+      n1.slots.set("r", "NEW4");
+      for (let i = 0; i < off; i++) await offline(n1);
+      await rounds([n1, n2, f], 4);
+      expect({ doc: doc(), F: f.slots.get("r") }).toEqual({ doc: "r4:NEW4/N1", F: "NEW4" });
+    });
+
+    it(`a local conflict held over a lost key never puts the older password over the newer, after ${off} run(s) that ended after the export`, async () => {
+      start();
+      const n1 = device("N1", false, row(), { r: "DDD1" });
+      const n2 = device("N2", false, row());
+      const f = device("F", false, row());
+      await round(n1);
+      n2.slots.set("r", "EEE1");
+      await rounds([n2, f, n1], 3);
+      n1.keyring.clear();
+      for (let i = 0; i < off; i++) await offline(n1);
+      await rounds([n1, n2, f], 4);
+      expect({ doc: doc(), F: f.slots.get("r"), N1: n1.slots.get("r") }).toEqual({ doc: "r1:EEE1/N2", F: "EEE1", N1: "DDD1" });
+    });
+  }
+
+  for (const how of ["the document was reset", "the document carries only an older entry"]) {
+    it(`a device whose key was lost never starts again at r1 (${how})`, async () => {
+      start();
+      const n1 = device("N1", false, row());
+      const n2 = device("N2", false, row());
+      let older: SecretsBundle | null = null;
+      for (const pass of ["P1", "P2", "P3"]) {
+        n1.slots.set("r", pass);
+        await rounds([n1, n2], 2);
+        older ??= structuredClone(remote);
+      }
+      expect(doc()).toBe("r3:P3/N1");
+      n1.keyring.clear();
+      remote = how.includes("older") ? older : null;
+      await rounds([n1], 3);
+      expect(doc()).toBe("r4:P3/N1");
+      await rounds([n1, n2], 2);
+      expect([n2.slots.get("r"), await lostOf(n1)]).toEqual(["P3", 0]);
+    });
+  }
+
+  it("a record whose account is gone here ends too, and nothing waits any more", async () => {
+    start();
+    const rows = (): Row[] => [{ id: "m", user: "carl@example.com", kind: "mail" }];
+    const n = device("N", false, rows(), { m: "M1" });
+    const o = device("O", false, rows());
+    await rounds([n, o], 3);
+    // The last account goes without "Remove account": a list that is empty is no removal, the record stays.
+    n.rows = [];
+    n.slots.delete("m");
+    await rounds([n, o], 2);
+    n.keyring.clear();
+    await rounds([n, o], 3);
+    expect(await lostOf(n)).toBe(0);
+    const port = portOf(n);
+    await port.exportBundle();
+    expect(port.awaitsDocument?.()).toBe(false);
+    n.metaWrites = 0;
+    await rounds([n, o], 3);
+    expect(n.metaWrites).toBe(0);
+  });
+});
+
+describe("\"Remove account\" right after the update (round twelve)", () => {
+  for (const order of ["before the first round of the new version", "after it"]) {
+    it(`removes the account on the other updated devices, ${order}, as on main`, async () => {
+      start();
+      const rows = (): Row[] => [{ id: "r", user: "anna" }, { id: "b", user: "bert" }];
+      const o = device("O", true, rows(), { r: "A1", b: "B1" });
+      const l = device("L", true, rows());
+      const n = device("N", false, rows());
+      await rounds([o, l, n], 3);
+      expect([l.slots.get("b"), n.slots.get("b")]).toEqual(["B1", "B1"]);
+      l.update();
+      const remove = async () => {
+        await retireSecret(l.host, calDavSecretBinding("webdav", CAL, "bert"));
+        l.rows = l.rows.filter((r) => r.id !== "b");
+        l.slots.delete("b");
+      };
+      if (order.startsWith("before")) await remove();
+      else await rounds([l], 1);
+      if (!order.startsWith("before")) await remove();
+      await rounds([l, o, n], 3);
+      const current = Object.values(remote!.entries).find((e) => e.binding.secretType === "caldav-password-2" && e.binding.user === "bert");
+      expect([current?.tombstone, current?.deviceId, n.slots.get("b"), n.slots.get("r")]).toEqual([true, "L", undefined, "A1"]);
+    });
+  }
 });

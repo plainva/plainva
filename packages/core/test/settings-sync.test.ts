@@ -1070,6 +1070,19 @@ describe("SecretsSyncStep", () => {
     expect(reports).toEqual([]);
   });
 
+  it("imports a document that changes nothing when the port waits for it, and only then (round twelve)", async () => {
+    for (const waits of [true, false]) {
+      const target = new FakeTarget();
+      const vault = new FakeVault();
+      const local = bundle({ a: entry("a@x", 1, "s1") });
+      target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), local));
+      const store = { bundle: local, imported: [] as SecretsBundle[] };
+      const step = new SecretsSyncStep({ port: { ...makeSecretsPort(store), awaitsDocument: () => waits }, masterKey: mk(), now: () => "t" });
+      await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+      expect(store.imported).toHaveLength(waits ? 1 : 0);
+    }
+  });
+
   it("rejects a legacy Google client when a current shell tries to export it", async () => {
     const target = new FakeTarget();
     const vault = new FakeVault();

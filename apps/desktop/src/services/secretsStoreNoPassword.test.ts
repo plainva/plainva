@@ -118,7 +118,7 @@ async function round(d: Device, remote: SecretsBundle | null): Promise<SecretsBu
   const local = await port.exportBundle();
   watch?.(d);
   const merged = mergeSecretsBundles(local, remote, now());
-  if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
+  if (stableStringify(merged.entries) !== stableStringify(local.entries) || port.awaitsDocument?.()) {
     await port.importBundle(merged);
     watch?.(d);
   }
@@ -355,6 +355,41 @@ describe("the secrets sync keeps no password in the desktop's settings store (F6
     expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
     expect(problems(d, ["pw-locked"])).toEqual([]);
   });
+
+  for (const v2 of ["a new vault", "a vault with a record of 0.8.7"]) {
+    it(`one key for the device: a keychain silent once while ${v2} syncs makes no second key beside the first vault's (round twelve)`, async () => {
+      const VAULT2 = "/vaults/second";
+      const mailbox = POOL.find((a) => a.kind === "mail")!;
+      const d: Device = { name: "U", legacy: false, store: new Map(), slots: new Map(), accounts: [mailbox] };
+      d.slots.set(slotOf(mailbox), secretOf(mailbox, "pw-first"));
+      d.slots.set(mailSecretKey(VAULT2, mailbox.id), secretOf(mailbox, "pw-second"));
+      await round(d, null);
+      const key = d.slots.get(SECRETS_MARK_KEY_SLOT);
+      if (v2.includes("0.8.7")) {
+        const id = v087.canonicalSecretId(oldBinding(mailbox) as never);
+        d.store.set(`settingsSyncSecretMeta_${b64(VAULT2)}`, {
+          entries: { [id]: { hash: stableStringify({ binding: oldBinding(mailbox), secret: { pass: "pw-second" } }), entryRev: 1, updatedAt: now(), deviceId: "U", binding: oldBinding(mailbox) } },
+          imported: {},
+          quarantine: {},
+        });
+      }
+      const { credentialManager } = await import("./CredentialManager");
+      vi.mocked(credentialManager.readSecretStrict).mockRejectedValueOnce(new Error("keychain locked"));
+      state.current = d;
+      await expect(createDesktopSecretsPort(VAULT2, pimRuntime).exportBundle()).rejects.toThrow("keychain locked");
+      expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
+      // Answering again: both vaults go on with the one key, nothing of the first is lost.
+      const second = createDesktopSecretsPort(VAULT2, pimRuntime);
+      await second.importBundle(mergeSecretsBundles(await second.exportBundle(), null, now()));
+      await round(d, null);
+      expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
+      const own = `m1:${String(Object.values((d.store.get(CURRENT_KEY) as SecretsPortMeta).entries)[0].hash).slice(3, 11)}.`;
+      const hashes = [CURRENT_KEY, `settingsSyncSecretMarks_${b64(VAULT2)}`].flatMap((name) => Object.values((d.store.get(name) as SecretsPortMeta).entries).map((e) => e.hash));
+      expect(hashes.length).toBeGreaterThanOrEqual(2);
+      expect(hashes.every((hash) => hash.startsWith(own))).toBe(true);
+      expect(problems(d, ["pw-first", "pw-second"])).toEqual([]);
+    });
+  }
 
   describe("a desktop whose keychain never answers (Linux without a Secret Service; round eleven)", () => {
     // The passwords live in credentials.bin there; the keychain fails every

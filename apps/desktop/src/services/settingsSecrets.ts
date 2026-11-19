@@ -14,7 +14,7 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
-import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, sealSecretsMetaInStore } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -150,6 +150,8 @@ const markKeySlots = {
   readSlot: (slot: string) => credentialManager.readSecret(slot),
   writeSlot: (slot: string, value: unknown) => credentialManager.writeSecret(slot, value),
   readMarkKey: () => credentialManager.readSecretStrict(SECRETS_MARK_KEY_SLOT),
+  // One key for the device: the records of every vault count (round twelve).
+  marksOnDevice: async () => storeHoldsSecretsMarks(await getSettingsStore(), (key) => key.startsWith(META_PREFIX) || key.startsWith(LEGACY_META_PREFIX)),
 };
 
 /**
@@ -194,6 +196,7 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
     readMarkKey: markKeySlots.readMarkKey,
+    marksOnDevice: markKeySlots.marksOnDevice,
     removeSlot: (slot) => credentialManager.removeSecret(slot),
   });
 }
