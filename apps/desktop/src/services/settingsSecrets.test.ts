@@ -174,12 +174,15 @@ describe("desktop secrets port names entries by binding (P4c)", () => {
 
     const bundle = await createDesktopSecretsPort(VAULT, null).exportBundle();
 
-    // One entry, under the canonical name in the current type. The old entry
-    // is of the type a device up to 0.8.7 writes: it is never written again,
-    // so its revision is not continued — the current type starts at 1, where
-    // no device on 0.8.7 competes (review 2026-11-18, round six).
+    // One entry, under the canonical name in the current type; the old entry
+    // is of the type a device up to 0.8.7 writes and is never written again.
+    // What the device knew moves with it (review 2026-11-18, round seven): the
+    // revision goes on from 7 (the stale hash makes this a change), and the
+    // password still counts as received through the sync.
     expect(Object.keys(bundle.entries)).toEqual([MAIL_ID]);
-    expect(bundle.entries[MAIL_ID]?.entryRev).toBe(1);
+    expect(bundle.entries[MAIL_ID]?.entryRev).toBe(8);
     expect(bundle.entries["mail-1"]).toBeUndefined();
+    const meta = store.get(`settingsSyncSecretMeta_${btoa(unescape(encodeURIComponent(VAULT)))}`) as { imported: Record<string, boolean> };
+    expect(meta.imported[MAIL_ID]).toBe(true);
   });
 });

@@ -25,6 +25,10 @@ import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
  *     never writes an old type.
  *  2. A device publishes an entry it did not make only as it found it.
  *  3. A round without a change uploads nothing, in every mix.
+ *
+ * And from round seven: the move into the current type is no change. What a
+ * device knew about a password under its old name — revision, time, whether
+ * it came in through the sync — holds under the new one.
  */
 
 const CAL = "https://cloud.example.com/remote.php/dav";
@@ -248,5 +252,52 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
     const old = device("O", true, [{ id: "o", user: "alice" }], { o: "late" });
     await rounds([old, n], 2);
     expect(Object.fromEntries(n.slots)).toEqual({ rA: "pA" });
+  });
+
+  describe("the move into the current place keeps what the device knew (round seven)", () => {
+    const kinds: Array<[string, Row["kind"]]> = [["a calendar", undefined], ["a mailbox", "mail"]];
+    for (const [what, kind] of kinds) {
+      for (const changer of ["O2", "N1", "O1"]) {
+        for (const both of [false, true]) {
+          it(`${what}: a device that received its password follows a change made on ${changer}${both ? ", both old devices updated" : ""}`, async () => {
+            start();
+            const row = (): Row[] => [{ id: "r", user: "anna", ...(kind ? { kind } : {}) }];
+            const o2 = device("O2", true, row(), { r: "P1" });
+            const o1 = device("O1", true, row());
+            const n1 = device("N1", false, row());
+            const fleet = [o2, o1, n1];
+            await rounds(fleet, 3);
+            expect(o1.slots.get("r")).toBe("P1");
+            o1.update();
+            if (both) o2.update();
+            await rounds(fleet, 3);
+            const c = fleet.find((d) => d.name === changer)!;
+            c.slots.set("r", "P3");
+            await rounds([c, ...fleet.filter((d) => d !== c)], 4);
+            // O1 and N1 received P1 and follow. O2 typed P1: a password typed
+            // here is never replaced from elsewhere, before the update as after.
+            expect(Object.fromEntries(fleet.map((d) => [d.name, d.slots.get("r")]))).toEqual({ O2: changer === "O2" ? "P3" : "P1", O1: "P3", N1: "P3" });
+          });
+        }
+      }
+    }
+
+    it("a password changed on 0.8.7 while two devices were away beats the older one they bring to the current place", async () => {
+      start();
+      const row = (): Row[] => [{ id: "r", user: "anna" }];
+      const o1 = device("O1", true, row(), { r: "P1" });
+      const o2 = device("O2", true, row());
+      const o3 = device("O3", true, row());
+      await rounds([o1, o2, o3], 3);
+      o3.slots.set("r", "P2");
+      await round(o3);
+      o1.update();
+      await round(o1);
+      o2.update();
+      await rounds([o2, o1, o3], 4);
+      // O1 typed P1 and never received P2: it keeps its own, as before the
+      // update. O2 received P1 through the sync and follows P2.
+      expect(Object.fromEntries([o1, o2, o3].map((d) => [d.name, d.slots.get("r")]))).toEqual({ O1: "P1", O2: "P2", O3: "P2" });
+    });
   });
 });

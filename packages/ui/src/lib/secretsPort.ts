@@ -274,7 +274,9 @@ export function migrateSecretsMetaToCanonicalIds<T extends SecretsPortMeta | nul
   if (!meta) return meta;
   for (const [id, entry] of Object.entries(meta.entries)) {
     if (entry.tombstone) continue;
-    if (!isShareableSecretType(entry.binding.secretType)) continue;
+    // The old types too: what a device up to 0.8.7 knew, under the name that
+    // version gives it, so `carryOldKnowledge` finds it after the update.
+    if (!isShareableSecretType(entry.binding.secretType) && !isBridgeSecretType(entry.binding.secretType)) continue;
     const canonical = canonicalSecretId(entry.binding);
     if (canonical === id) continue;
     if (!meta.entries[canonical]) meta.entries[canonical] = entry;
@@ -315,6 +317,49 @@ function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSe
   return canonicalSecretId({ ...candidate.binding, secretType: bridgeSecretTypeOf(candidate.binding.secretType), user: candidate.binding.user.toLowerCase() });
 }
 
+/**
+ * The move into the current type is no change (review 2026-11-18, round
+ * seven). What this device knew about an account's password under its old
+ * name — the revision, time and device of that entry, whether it came in
+ * through the sync — holds for the account's name in the current type, once,
+ * when that name has no record here yet. The entry the device then publishes
+ * in the current place carries the order of the knowledge it comes from, never
+ * the time of the update, so a newer entry in the old place still wins against
+ * an older password moved here; and a device that received its password
+ * follows a change made elsewhere as before the update. Twins carry nothing:
+ * their old name means neither (`oldNameId`). The old record stays, for the
+ * entries a device on 0.8.7 keeps writing under that name.
+ */
+function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): boolean {
+  let carried = false;
+  for (const candidate of candidates) {
+    if (!isShareableSecretType(candidate.binding.secretType) || meta.entries[candidate.logicalId]) continue;
+    const old = oldNameId(candidate, candidates);
+    const known = old ? meta.entries[old] : undefined;
+    if (!old || !known || known.tombstone || known.alias || !isBridgeSecretType(known.binding.secretType)) continue;
+    meta.entries[candidate.logicalId] = {
+      hash: movedHash(known.hash, candidate.binding),
+      entryRev: known.entryRev,
+      updatedAt: known.updatedAt,
+      deviceId: known.deviceId,
+      binding: candidate.binding,
+    };
+    if (meta.imported[old]) meta.imported[candidate.logicalId] = true;
+    carried = true;
+  }
+  return carried;
+}
+
+/** The record of a password under its old binding, as the same password under the current one; "" when it cannot be read. */
+function movedHash(hash: string, binding: SecretBinding): string {
+  try {
+    const known = JSON.parse(hash) as { secret?: unknown };
+    return known && typeof known === "object" && known.secret !== undefined ? stableStringify({ binding, secret: known.secret }) : "";
+  } catch {
+    return "";
+  }
+}
+
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   const now = () => (host.now ? host.now() : new Date().toISOString());
 
@@ -332,6 +377,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const candidates = (await host.candidates()).filter((candidate) =>
         isShareableSecretType(candidate.binding.secretType)
       );
+      carryOldKnowledge(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       // Every account this device KNOWS, with or without a stored secret.
       //
@@ -481,7 +527,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         viaOldName: boolean;
       }> = [];
       const result = emptyImportResult();
-      let metaDirty = false;
+      let metaDirty = carryOldKnowledge(meta, candidates);
 
       const rememberEntry = (logicalId: string, entry: SecretEntry, alias = false) => {
         meta.entries[logicalId] = {
