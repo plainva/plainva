@@ -1,4 +1,5 @@
 import { trimEndChars } from "@plainva/core";
+import { isOfferedTemplateName } from "../base/templateFiles";
 import { dailyTemplatePath } from "./dailyNoteCreate";
 import { templateFilePath } from "./folderTemplates";
 
@@ -19,12 +20,17 @@ export interface TemplateNoteSettings {
 const key = (path: string) => path.normalize("NFC").toLowerCase();
 
 /**
- * Which notes of a vault are templates (Fehlerliste 0.9.0, B26): every note in
- * the templates folder, and every template a setting names wherever it lies —
- * the daily note's, the meeting note's, those of the folder and type rules.
- * The index takes a file's name for a title such a note gives with a
- * placeholder (`VaultIndexerOptions.templateNotes`). Paths are compared as
- * the vault names them, without regard to case or Unicode form.
+ * Which notes of a vault are templates (Fehlerliste 0.9.0, B26): what the app
+ * offers as one — the notes directly in the templates folder, as
+ * `listTemplates` lists them — and every template a setting names wherever it
+ * lies, in a subfolder too: the daily note's, the meeting note's, those of the
+ * folder and type rules. The index takes a file's name for a title such a note
+ * gives with a placeholder (`VaultIndexerOptions.templateNotes`).
+ *
+ * Paths are compared without regard to Unicode form or case: on Windows and
+ * macOS `Templates` and `templates` are one folder. The limit of that: under
+ * Linux and Android, where they are two, a second folder `templates` beside
+ * `Templates` counts as the templates folder too.
  */
 export function templateNotesOf(settings: TemplateNoteSettings): (path: string) => boolean {
   const folder = key(trimEndChars(settings.templateFolder.trim() || "Templates", "/\\"));
@@ -40,29 +46,62 @@ export function templateNotesOf(settings: TemplateNoteSettings): (path: string) 
   add(dailyTemplatePath({ templateFolder: settings.templateFolder || "Templates", template: settings.dailyTemplate }));
   return (path) => {
     const at = key(path);
-    return (within !== "" && at.startsWith(within)) || named.has(at);
+    if (named.has(at)) return true;
+    if (within === "" || !at.startsWith(within)) return false;
+    const name = at.slice(within.length);
+    return !/[/\\]/.test(name) && isOfferedTemplateName(name);
   };
 }
 
+/** The indexer `followTemplateNotes` keeps with the settings. */
+export interface TemplateNotesIndexer {
+  setTemplateNotes(templateNotes: (path: string) => boolean): Promise<unknown>;
+}
+
 /**
- * Keeps an indexer's `templateNotes` with the settings (B26): on `event` — a
- * save of the settings, in this window or, carried over, in another — the
- * settings are read again and the notes whose title that changes are read
- * again (`VaultIndexer.setTemplateNotes`). `forVault` passes over a save for
- * another vault. Until `signal` ends it.
+ * Keeps an indexer's `templateNotes` with the settings (B26). It listens
+ * first and reads after: `first` is the rule to build the indexer with, and a
+ * save that comes while it is read or the indexer is built — before `attach` —
+ * has the settings read again once the indexer is there, so no save between
+ * the reading and the listening is lost until the vault is opened again.
+ *
+ * On `event` — a save of the settings, in this window or, carried over, in
+ * another — the settings are read again and the notes whose title that
+ * changes are read again (`VaultIndexer.setTemplateNotes`). Of two readings
+ * that come back out of order the later one counts: an earlier answer is
+ * dropped. `forVault` passes over a save for another vault. Until `signal`
+ * ends it.
  */
 export function followTemplateNotes(o: {
-  indexer: { setTemplateNotes(templateNotes: (path: string) => boolean): Promise<unknown> };
   read: () => Promise<(path: string) => boolean>;
   event: string;
   forVault?: (event: Event) => boolean;
   signal: AbortSignal;
   onError: (error: unknown) => void;
-}): void {
+}): { first: Promise<(path: string) => boolean>; attach(indexer: TemplateNotesIndexer): void } {
+  let indexer: TemplateNotesIndexer | null = null;
+  let latest = 0;
+  let missed = false;
+  const readAgain = (into: TemplateNotesIndexer) => {
+    const reading = ++latest;
+    void o
+      .read()
+      .then((templateNotes) => (reading === latest && !o.signal.aborted ? into.setTemplateNotes(templateNotes) : undefined))
+      .catch(o.onError);
+  };
   const follow = (event: Event) => {
     if (o.forVault && !o.forVault(event)) return;
-    void o.read().then((templateNotes) => o.indexer.setTemplateNotes(templateNotes)).catch(o.onError);
+    if (indexer) readAgain(indexer);
+    else missed = true;
   };
   window.addEventListener(o.event, follow);
   o.signal.addEventListener("abort", () => window.removeEventListener(o.event, follow), { once: true });
+  const first = o.read();
+  return {
+    first,
+    attach(into) {
+      indexer = into;
+      if (missed) readAgain(into);
+    },
+  };
 }

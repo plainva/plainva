@@ -23,6 +23,17 @@ export function announceVaultFeaturesSaved(vaultPath: string): void {
 }
 
 /**
+ * Tells this window and every other one that a vault's features were saved:
+ * the save of a single setting outside the settings dialog, which batches its
+ * own. Here the event names the vault, as one carried from another window
+ * does, so a reader of another vault passes over it (`featuresSavedFor`).
+ */
+export function vaultFeaturesSaved(vaultPath: string): void {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(FEATURES_SAVED_EVENT, { detail: { vaultPath } }));
+  announceVaultFeaturesSaved(vaultPath);
+}
+
+/**
  * Installed once per window: a save in another window reads as one here. The
  * bus never hands a window its own broadcast, and nothing here sends one, so
  * two windows cannot bounce it. Every reader re-reads its own vault's

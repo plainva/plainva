@@ -1022,10 +1022,15 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // takes a file's name for a template's `{{title}}`. A change of the
     // settings (`m-settings-changed`) changes it.
     // Settings that cannot be read are the vault's defaults: the index opens all the same.
-    const readTemplateNotes = async () => templateNotesOf(await getVaultSettings(entry.id).catch(() => vaultDefaults()));
+    const templateNotes = followTemplateNotes({
+      read: async () => templateNotesOf(await getVaultSettings(entry.id).catch(() => vaultDefaults())),
+      event: "m-settings-changed",
+      signal: indexAbort.signal,
+      onError: reportingTo("index:template-titles"),
+    });
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
-      templateNotes: await readTemplateNotes(),
+      templateNotes: await templateNotes.first,
       // No watcher here: what changes from outside while a scan reads is looked at once more.
       hearsNoChanges: true,
       // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
@@ -1075,7 +1080,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         void queueLocalDeletion(path);
       },
     });
-    followTemplateNotes({ indexer, read: readTemplateNotes, event: "m-settings-changed", signal: indexAbort.signal, onError: reportingTo("index:template-titles") });
+    templateNotes.attach(indexer);
     queryService = new VaultQueryService(db);
     // `file.day` (plan Journal-Erweiterungen, X8): the two settings that name a
     // daily note tell every query which day a file name stands for. Set on the

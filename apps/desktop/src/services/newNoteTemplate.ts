@@ -12,6 +12,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getSettingsStore } from "./settingsStore";
+import { vaultFeaturesSaved } from "./vaultFeaturesRelay";
 import { folderTemplatesKey, typeTemplatesKey, templateFolderKey } from "../contexts/VaultContext";
 import { getConfiguredNoteType } from "./newNote";
 import { applyTemplateInteractive } from "./templateInteractive";
@@ -44,6 +45,7 @@ export async function saveTemplateRules(vaultPath: string, rules: TemplateRules)
   await store.set(folderTemplatesKey(vaultPath), rules.folders);
   await store.set(typeTemplatesKey(vaultPath), rules.types);
   await store.save();
+  vaultFeaturesSaved(vaultPath);
 }
 
 /** Vault-relative path of a template file named in a rule or picked by hand. */

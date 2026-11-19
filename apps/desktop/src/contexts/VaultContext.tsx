@@ -1043,10 +1043,16 @@ export const VaultProvider: React.FC<{
       // takes a file's name for a template's `{{title}}`. A save of the
       // settings here or in another window (`vaultFeaturesRelay`) changes it.
       // Settings that cannot be read are the defaults: the index opens all the same.
-      const readTemplateNotes = async () => templateNotesOf(await readTemplateNoteSettings(path).catch(() => ({ templateFolder: "Templates", dailyTemplate: "", meetingTemplate: "", folderTemplates: [], typeTemplates: [] })));
+      const templateNotes = followTemplateNotes({
+        read: async () => templateNotesOf(await readTemplateNoteSettings(path).catch(() => ({ templateFolder: "Templates", dailyTemplate: "", meetingTemplate: "", folderTemplates: [], typeTemplates: [] }))),
+        event: FEATURES_SAVED_EVENT,
+        forVault: (event) => featuresSavedFor(event, path),
+        signal: currentAbortSignal,
+        onError: reportingTo("index:template-titles"),
+      });
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
         scanSignal: currentAbortSignal,
-        templateNotes: await readTemplateNotes(),
+        templateNotes: await templateNotes.first,
         // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
         comesBackByItself: true,
         onExternalModification: (path) => {
@@ -1117,14 +1123,7 @@ export const VaultProvider: React.FC<{
           }));
         }
       });
-      followTemplateNotes({
-        indexer,
-        read: readTemplateNotes,
-        event: FEATURES_SAVED_EVENT,
-        forVault: (event) => featuresSavedFor(event, path),
-        signal: currentAbortSignal,
-        onError: reportingTo("index:template-titles"),
-      });
+      templateNotes.attach(indexer);
       const queryService = new VaultQueryService(dbAdapter);
       queryService.setDayOfPath(readDailyDayOfPath(path));
       const graphService = new GraphService(dbAdapter);

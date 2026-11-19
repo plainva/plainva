@@ -160,7 +160,7 @@ export interface VaultIndexerOptions {
    * from it, not the template, so the index takes its file's name for it
    * (Fehlerliste 0.9.0, B26). Every reader of `files.title` — links, graph,
    * lists, search — reads that one answer. Both shells pass it
-   * (`indexerTemplateWiring.test.ts`); it changes with `setTemplateNotes`.
+   * (`apps/desktop/src/templateNotes.test.ts`); it changes with `setTemplateNotes`.
    * Without it no note is a template (tests, one-off scans).
    */
   templateNotes?: (path: string) => boolean;
