@@ -924,6 +924,11 @@ and is wanted, not overlooked:
   (`see [[n]] and [t](u)`) pass the index parse under 128 MB up to 368 750 lines, about 10 MB, and run
   out of it beyond (`main` from about 70 000 such lines). `note-budget.test.ts` holds 200 000 lines of
   links and of embeds under 128 MB.
+- *The desktop's reading view past 5 MB:* the reading view exists on the desktop only (the
+  phone's read mode is its editor). Under 128 MB it is held up to 5 MB of note; the index and the note
+  parse up to 10 MB. Past that a mixed note can fill 128 MB in the reading view with the copies of
+  its text alone, the stand-ins making each a string of two bytes a character — the note budget's
+  hunt of seed 823320 found three of 6.3 to 9.0 MB whose index and note parse passed.
 - *Headings last, properties never:* only where every other block is text and the note is still over its
   budget are its headings read as text too (a note of 30 000 headings); the properties block never is.
 

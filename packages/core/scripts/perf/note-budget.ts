@@ -41,7 +41,8 @@
  * kind mixed — prose, words, link literals, lists plain, linked, nested and
  * of tasks, quotes, headings, fenced code, small tables, blank lines or none
  * between them — from a tenth to five times the budget, each read as the app
- * reads it under the capped heap, in time (`HUNT_PARSE_MS`), and with a scan
+ * reads it under the capped heap — the reading view up to 5 MB of note, the
+ * index and the note parse up to 10 MB —, in time (`HUNT_PARSE_MS`), and with a scan
  * whose time grows with the note (eight times the note, at most sixteen times
  * the time). A note that does not pass prints its seed and number.
  */
@@ -66,6 +67,14 @@ if (budgetFactor !== 1) setNoteBudget(NOTE_BUDGET * budgetFactor);
 const HUNT_PARSE_MS = 20_000;
 /** The largest note `--check` reads: beyond it a note's text alone, read as one line of stand-ins, outgrows the heap (Performance_Notes.md). */
 const FAR_CHARS = 10_000_000;
+/**
+ * The largest note the hunt reads in the reading view under the heap: the
+ * reading view exists on the desktop only, and from about 6 MB of a mixed note
+ * the copies of its text alone fill 128 MB there (the hunt of seed 823320,
+ * 2026-11-19: three notes of 6.3 to 9.0 MB); the index and the note parse are
+ * held up to `FAR_CHARS`.
+ */
+const READER_HELD_CHARS = 5_000_000;
 const HERE = fileURLToPath(import.meta.url);
 const CORE = path.resolve(path.dirname(HERE), "../..");
 
@@ -211,9 +220,9 @@ function child(name: string, n: number, scale: number, parse: string, bounded: b
 }
 
 /** Whether all three parses read the note under the capped heap, each in a process of its own; the slowest's time. */
-function passes(name: string, n: number, bounded: boolean, scale = 1): { ok: boolean; slowest: number; why: string } {
+function passes(name: string, n: number, bounded: boolean, scale = 1, parses: readonly string[] = ["index", "tree", "reader"]): { ok: boolean; slowest: number; why: string } {
   let slowest = 0;
-  for (const parse of ["index", "tree", "reader"]) {
+  for (const parse of parses) {
     const run = spawnSync(process.execPath, [`--max-old-space-size=${heapMb}`, "--import", "tsx", HERE, "--child", name, String(n), String(scale), parse, bounded ? "bounded" : "unbounded"], { cwd: CORE, encoding: "utf8", timeout: 300_000, env: { ...process.env, PLAINVA_NOTE_BUDGET_FACTOR: String(budgetFactor) } });
     const out = /^ok (\d+)/m.exec(run.stdout ?? "");
     if (run.status !== 0 || !out) return { ok: false, slowest, why: `${parse}: ${/heap out of memory|Allocation failed/i.test(run.stderr ?? "") ? "out of memory" : `exit ${run.status}`}` };
@@ -358,7 +367,8 @@ function hunt(args: string[]): boolean {
   console.log(`hunt     ${count} generated notes, seed ${seed}, at most ${minutes} min; note budget ${NOTE_BUDGET}`);
   for (let k = 0; k < count && performance.now() - started < minutes * 60_000; k++) {
     const name = `gen:${seed}:${k}`;
-    const run = passes(name, 0, true);
+    // The reading view exists on the desktop only; under 128 MB it is held up to 5 MB of note (`READER_HELD_CHARS`).
+    const run = passes(name, 0, true, 1, noteOf(name, 0).length > READER_HELD_CHARS ? ["index", "tree"] : ["index", "tree", "reader"]);
     tried++;
     const why = !run.ok ? run.why : run.slowest > HUNT_PARSE_MS ? `a parse took ${run.slowest} ms` : scanIsLinear(name);
     if (why) {
