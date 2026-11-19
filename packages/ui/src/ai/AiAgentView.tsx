@@ -879,7 +879,9 @@ export function AiAgentView({ activeNote, onOpenNote, onOpenPath, onOpenUrl, onO
   const session = useAiSession();
   const state = useAiState();
   useEffect(() => {
-    // What is installed and what was added may have changed since the app looked last.
+    // What is installed and what was added may have changed since the app looked last. On a turn of the MCP switch this
+    // reads before the shell started or stopped the helper — one reading early, by design: the shell reads again once the
+    // switch took effect (useDesktopAi), and of two readings the later one's stands (AiAcp.refresh). Checked 19.11. (F34).
     void session?.agents.refresh();
   }, [session, state?.settings.mcpEnabled]);
   if (!session || !state || !state.agents.available) return null;
