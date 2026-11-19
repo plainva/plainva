@@ -1,4 +1,4 @@
-import { clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { closeWaitNoteName, waitWithDeadline, clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   type BackupVaultAdapter,
   ConflictError,
@@ -28,7 +28,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
-import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
+import { adoptOwnRemovals, createVaultCallOff, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -55,7 +55,7 @@ import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
-import { writeDraft, clearDraft, forgetDraftMemory, relocateDrafts } from "./draftJournal";
+import { writeDraft, clearDraft, flushDraftsBeforeClosing, forgetDraftMemory, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { listMailAccounts } from "@plainva/ui/mail";
 import {
@@ -161,6 +161,8 @@ export interface MobileVault {
    * and then queues nothing.
    */
   ownDeletions: OwnDeletionRegister;
+  /** Calls this vault's runtime off (`createVaultCallOff`): a close that gave up waiting, before the next runtime starts. */
+  callOff(): void;
   workspaceRuntime: PersonalWorkspaceRuntime | null;
   workspaceState: SqlWorkspaceStateStore | null;
   /**
@@ -400,6 +402,23 @@ export function switchVault(id: string): Promise<void> {
   return mine.done;
 }
 
+/**
+ * What a close, a switch or a reload waits for before the vault goes: its
+ * pending saves (texts 1 and 4), then its sync step (texts 2 and 5), each
+ * within the deadline (`waitWithDeadline`). Where it gave up, the runtime is
+ * called off before the next one starts: a note's text lies in the draft
+ * journal, and the next sync takes over what the step left half done. A save
+ * that fails is passed on, as before.
+ */
+async function settleBeforeClosing(current: MobileVault | null): Promise<void> {
+  const vault = current ? ((await getVaultEntry(current.vaultId).catch(() => null))?.name ?? "") : "";
+  // What the draft journal still buffers goes to disk first (bounded): a save given up on below is there, and comes back at the next open.
+  if (current) await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
+  let gaveUp = (await waitWithDeadline(noteSaver.flushAll(), () => ({ kind: "saving", names: noteSaver.pendingPaths().map(closeWaitNoteName) }))) === "gave-up";
+  if ((await waitWithDeadline(stopSyncAndDrain(), () => ({ kind: "sync", vault }))) === "gave-up") gaveUp = true;
+  if (gaveUp) current?.callOff();
+}
+
 async function switchTo(id: string): Promise<void> {
   // Already opening this very vault: stopping its boot to start it again would only lose the scan so far.
   if (bootPromise && !bootSettled && (await getActiveVaultEntry()).id === id) return;
@@ -414,10 +433,10 @@ async function switchTo(id: string): Promise<void> {
     // Pending editor saves must land BEFORE the worker stops and the database
     // closes — and they land in the vault they were typed in (the coordinator
     // captured that instance per schedule call).
-    await noteSaver.flushAll();
     // Drain, don't just flag-stop (P3.4/M4): a cycle still downloading or
-    // writing must finish before dispose() closes the per-vault database.
-    await stopSyncAndDrain();
+    // writing must finish before dispose() closes the per-vault database —
+    // within the deadline, after which the runtime is called off.
+    await settleBeforeClosing(current);
     await setActiveVault(id);
     // Swap the per-vault settings slice (folders, backup retention) to the new
     // vault BEFORE the next boot reads the backup policy / screens re-read
@@ -526,8 +545,7 @@ export async function reloadActiveMobileVault(own?: string | readonly string[], 
     return false;
   }
   const current = await retireBoot();
-  await noteSaver.flushAll();
-  await stopSyncAndDrain();
+  await settleBeforeClosing(current);
   // The drain can take a transfer's length: input begun in it is at stake too.
   if (current && foreignInputArmed(own)) {
     offerReload(vaultId, own, opts);
@@ -657,7 +675,17 @@ async function forgetVaultData(id: string, pimIds: string[], publicationIds: str
 export async function deleteVault(id: string): Promise<string[]> {
   if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be deleted");
   await noteSaver.flushAll();
-  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  // A vault still opening is waited for within the deadline (texts 3 and 6);
+  // after it, the removal goes on without it, and the switch below closes it
+  // once it answers (`retireBoot`).
+  const booting = bootPromise;
+  const got: { vault: MobileVault | null } = { vault: null };
+  if (booting) {
+    const name = (await getVaultEntry(id).catch(() => null))?.name ?? "";
+    const opened = booting.then((v) => { got.vault = v; }, () => undefined);
+    if ((await waitWithDeadline(opened, () => ({ kind: "opening", vault: name }))) === "gave-up") got.vault = null;
+  }
+  const current = got.vault;
   // PIM rows live in the vault's own index database, which `switchVault` closes
   // — so they have to be read while it is still open. A vault that is not the
   // active one has a closed database anyway; its slots are then covered by the
@@ -856,7 +884,10 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const indexAbort = new AbortController();
   signal?.addEventListener("abort", () => indexAbort.abort(), { once: true });
   const containerRoot = isExternalVault(entry) ? null : isDefaultLocal ? "vault" : `vaults/${entry.id}`;
-  const adapter: MobileRawAdapter = isExternalVault(entry)
+  // Fenced: a close that gives up waiting calls this runtime off, and then
+  // nothing of it writes the vault or its index database any more (`createVaultCallOff`).
+  const callOff = createVaultCallOff();
+  const opened: MobileRawAdapter = isExternalVault(entry)
     ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle, {
       // Closing waits for the scan; a call it hangs on fails at once then.
       signal: indexAbort.signal,
@@ -866,6 +897,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       onRecovered: (refused) => logDiagnostic("folder", `the folder answers again (${refused} call(s) failed at once meanwhile)`),
     })
     : new CapacitorVaultAdapter(containerRoot ?? "vault");
+  const adapter: MobileRawAdapter = callOff.storage(opened);
   const containerExisted = await adapter.exists("");
   await adapter.initialize();
   const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
@@ -953,7 +985,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     await db.initialize();
     await initializeSchema(db);
     // A damaged full-text index met while the vault is open is noted, and the next open makes it anew.
-    db = watchFullTextDamage(db, reportingTo("index:full-text-damaged"));
+    db = callOff.database(watchFullTextDamage(db, reportingTo("index:full-text-damaged")));
+    // What a runtime called off (or ended) left removed and not recorded stays the sync's: taken over before the index looks.
+    await adoptOwnRemovals(db, ownDeletions, (p) => adapter.exists(p)).catch(reportingTo("sync:own-removals"));
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
     await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
     // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
@@ -1205,6 +1239,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     syncQueue: queue,
     syncRepo,
     ownDeletions,
+    callOff: () => callOff.callOff(),
     workspaceRuntime,
     workspaceState,
     workspacePermissions: permissioned,
@@ -2282,6 +2317,7 @@ export const noteSaver: SaveCoordinator<MobileVault> = (() => {
     flush: (path, vault) => saver().flush(path, vault),
     flushAll: (vault) => saver().flushAll(vault),
     hasPending: (path, vault) => saver().hasPending(path, vault),
+    pendingPaths: (vault) => saver().pendingPaths(vault),
     getRevision: (path, vault) => saver().getRevision(path, vault),
     withWriteLock: (path, vault, work) => saver().withWriteLock(path, vault, work),
     discard: (path, vault, upToRevision) => saver().discard(path, vault, upToRevision),

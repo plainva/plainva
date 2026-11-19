@@ -1,6 +1,6 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { errorText, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
+import { closeWaitNoteName, errorText, reportBackground, reportingTo, waitWithDeadline, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
@@ -23,7 +23,8 @@ import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore } from "../services/syncStatusStore";
-import { settlePendingWrites } from "../services/pendingWrites";
+import { pendingWritePaths, settlePendingWrites } from "../services/pendingWrites";
+import { vaultLabel } from "../services/vaultNames";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
@@ -50,7 +51,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspa
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId, restoreDesktopAccountsAfterRebuild } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
+import { adoptOwnRemovals, createVaultCallOff, type VaultCallOff, CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -671,6 +672,8 @@ export const VaultProvider: React.FC<{
     return () => window.removeEventListener("plainva-recheck-held-folder", askNow);
   }, []);
   const loadAbortRef = useRef<AbortController | null>(null);
+  // The fence of the running vault's runtime (`createVaultCallOff`): a close that gives up waiting calls it off.
+  const callOffRef = useRef<VaultCallOff | null>(null);
   // Recents, the last-vault memory, auto-open and the three lifecycle entry
   // points live one level up (contexts/AppContext.tsx) — they outlive any
   // single vault. They are re-exported through this context so the sixty-one
@@ -792,7 +795,10 @@ export const VaultProvider: React.FC<{
       if (state.syncWorker) {
         // Drain, don't just stop (P3.4): the old worker may still be mid-cycle
         // writing into the very DB file the reload below re-opens/migrates.
-        await state.syncWorker.stopAndDrain();
+        // Not for ever: after the deadline its runtime is called off, and then
+        // it writes nothing more into that file.
+        const previous = callOffRef.current;
+        if ((await waitWithDeadline(state.syncWorker.stopAndDrain(), () => ({ kind: "sync", vault: vaultLabel(path) }))) === "gave-up") previous?.callOff();
       }
       // The settings-only sync of a vault with files off goes with it (second review, B3).
       await stopSettingsOnly();
@@ -813,7 +819,11 @@ export const VaultProvider: React.FC<{
       // Counted, so the way out waits for a write on its way (`inflightWrites.ts`):
       // every write of the chain above ends here. Whose it is, is counted at the
       // top (`personVaultAdapter` below); here it is the sync's as much as the person's.
-      const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path), "background");
+      // Fenced: a close that gives up waiting calls this runtime off, and then
+      // nothing of it writes the vault or its index database any more (`createVaultCallOff`).
+      const callOff = createVaultCallOff();
+      callOffRef.current = callOff;
+      const tauriVaultAdapter = countWrites(callOff.storage(new TauriVaultAdapter(path)), "background");
       await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());
       await tauriVaultAdapter.createDir(".plainva");
 
@@ -842,7 +852,8 @@ export const VaultProvider: React.FC<{
       // a network-drive vault paid a round-trip per index statement on every save.
       // Backups stay in the vault; an existing in-vault DB is migrated once.
       // One that does not open is said in words at the start, and set aside there when it is damaged (`IndexDatabaseOpenError`).
-      const { dbPath, dbAdapter } = await perfMeasure("vault open: database", () => openIndexDatabase(path));
+      const { dbPath, dbAdapter: openedDatabase } = await perfMeasure("vault open: database", () => openIndexDatabase(path));
+      const dbAdapter = callOff.database(openedDatabase);
       // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
       await logIndexDiagnostics(dbAdapter, "desktop folder");
       // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
@@ -1018,6 +1029,8 @@ export const VaultProvider: React.FC<{
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
       // this, 898 wrongly mirrored files went back up as 898 remote deletions.
       const ownDeletions = new OwnDeletionRegister();
+      // What a runtime called off (or ended) left removed and not recorded stays the sync's: taken over before the index looks.
+      await adoptOwnRemovals(dbAdapter, ownDeletions, (p) => tauriVaultAdapter.exists(p)).catch(reportingTo("sync:own-removals"));
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
         scanSignal: currentAbortSignal,
         // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
@@ -1548,6 +1561,7 @@ export const VaultProvider: React.FC<{
                 const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId })) ?? undefined;
                 const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
+                  ownDeletions,
                   sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
                   // Only whether THIS device holds the publication's keys. The
                   // folder it lives in is derived inside core from the vault's
@@ -2507,17 +2521,28 @@ export const VaultProvider: React.FC<{
     const settingsOnly = settingsOnlyRef.current;
     settingsOnlyRef.current = null;
     settingsOnly?.stop();
+    const fence = callOffRef.current;
+    callOffRef.current = null;
     const drain = (async () => {
       // What the draft journal still buffers for this vault goes to disk first
       // (bounded): with the vault gone, nobody writes it later.
       if (path) await flushDrafts(path).catch(() => {});
       // …and the journal's picture of its files goes: they may be removed before it opens again.
       if (path) forgetDraftMemory(path);
-      if (path) await settlePendingWrites(path);
-      await worker?.stopAndDrain();
-      await settingsOnly?.stopAndDrain();
-      await state.indexer?.whenIdle?.();
-      await state.indexQueue?.whenIdle();
+      // Not for ever (texts 1, 2, 4, 5): after the deadline the close goes on,
+      // and the runtime is called off before the next one starts — a note's
+      // text lies in the draft journal flushed above, and the next sync takes
+      // over what the step left half done.
+      let gaveUp = false;
+      if (path) gaveUp = (await waitWithDeadline(settlePendingWrites(path), () => ({ kind: "saving", names: pendingWritePaths(path).map(closeWaitNoteName) }))) === "gave-up";
+      const background = (async () => {
+        await worker?.stopAndDrain();
+        await settingsOnly?.stopAndDrain();
+        await state.indexer?.whenIdle?.();
+        await state.indexQueue?.whenIdle();
+      })();
+      if ((await waitWithDeadline(background, () => ({ kind: "sync", vault: path ? vaultLabel(path) : "" }))) === "gave-up") gaveUp = true;
+      if (gaveUp) fence?.callOff();
     })();
     if (path) noteVaultTeardown(path, drain);
     await drain;

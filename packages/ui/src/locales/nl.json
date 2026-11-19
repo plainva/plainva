@@ -8377,5 +8377,17 @@
     "guide": "Handleiding openen",
     "statusNotYet": "nog niet verbonden",
     "stepSetUp": "Instellen"
+  },
+  "closing": {
+    "savingWait": "Plainva slaat ‘{{name}}’ nog op – daarna gaat het verder.",
+    "savingWaitMany_one": "Plainva slaat nog {{count}} notitie op – daarna gaat het verder.",
+    "savingWaitMany_other": "Plainva slaat nog {{count}} notities op – daarna gaat het verder.",
+    "syncWait": "Er loopt nog een synchronisatiestap van ‘{{vault}}’ – daarna gaat het verder.",
+    "openingWait": "‘{{vault}}’ wordt nog geopend – daarna gaat het verder.",
+    "savingGaveUp": "‘{{name}}’ is nog niet helemaal opgeslagen. Plainva gaat toch verder; de tekst staat in het concept en komt terug wanneer je hem weer opent.",
+    "savingGaveUpMany_one": "{{count}} notitie is nog niet helemaal opgeslagen. Plainva gaat toch verder; de tekst staat in het concept en komt terug wanneer je hem weer opent.",
+    "savingGaveUpMany_other": "{{count}} notities zijn nog niet helemaal opgeslagen. Plainva gaat toch verder; de teksten staan in de concepten en komen terug wanneer je ze weer opent.",
+    "syncGaveUp": "De synchronisatiestap van ‘{{vault}}’ is niet afgerond. Plainva stopt hem en gaat verder; er gaat niets verloren – de volgende synchronisatie haalt in wat ontbreekt.",
+    "openingGaveUp": "‘{{vault}}’ is niet helemaal geopend. Plainva gaat toch verder en sluit hem zodra hij antwoordt."
   }
 }

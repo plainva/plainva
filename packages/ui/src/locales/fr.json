@@ -8545,5 +8545,19 @@
     "guide": "Ouvrir le guide",
     "statusNotYet": "pas encore connecté",
     "stepSetUp": "Configurer"
+  },
+  "closing": {
+    "savingWait": "Plainva enregistre encore « {{name}} » – ensuite, il continue.",
+    "savingWaitMany_one": "Plainva enregistre encore {{count}} note – ensuite, il continue.",
+    "savingWaitMany_many": "Plainva enregistre encore {{count}} notes – ensuite, il continue.",
+    "savingWaitMany_other": "Plainva enregistre encore {{count}} notes – ensuite, il continue.",
+    "syncWait": "Une étape de synchronisation de « {{vault}} » est encore en cours – ensuite, Plainva continue.",
+    "openingWait": "« {{vault}} » est encore en cours d'ouverture – ensuite, Plainva continue.",
+    "savingGaveUp": "« {{name}} » n'est pas encore entièrement enregistrée. Plainva continue quand même ; le texte est dans le brouillon et revient à la prochaine ouverture.",
+    "savingGaveUpMany_one": "{{count}} note n'est pas encore entièrement enregistrée. Plainva continue quand même ; le texte est dans le brouillon et revient à la prochaine ouverture.",
+    "savingGaveUpMany_many": "{{count}} notes ne sont pas encore entièrement enregistrées. Plainva continue quand même ; les textes sont dans les brouillons et reviennent à la prochaine ouverture.",
+    "savingGaveUpMany_other": "{{count}} notes ne sont pas encore entièrement enregistrées. Plainva continue quand même ; les textes sont dans les brouillons et reviennent à la prochaine ouverture.",
+    "syncGaveUp": "L'étape de synchronisation de « {{vault}} » n'a pas abouti. Plainva l'arrête et continue ; rien n'est perdu – la prochaine synchronisation rattrape ce qui manque.",
+    "openingGaveUp": "« {{vault}} » n'a pas fini de s'ouvrir. Plainva continue quand même et le ferme dès qu'il répond."
   }
 }

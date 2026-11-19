@@ -1,3 +1,4 @@
+import { closeWaitNoteName, waitWithDeadline } from "@plainva/ui";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -33,7 +34,7 @@ const parts: string[] = [];
 let saveMethod = "", saverInit = "";
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name &&
-      ["switchVault", "switchTo", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
+      ["switchVault", "switchTo", "settleBeforeClosing", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
     parts.push(node.getText(file).replace(/^export /, ""));
   }
   if (ts.isMethodDeclaration(node) && node.name.getText(file) === "save") saveMethod = node.getText(file);
@@ -41,7 +42,7 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!saveMethod || !saverInit || parts.length !== 10) throw new Error("mobile save/lifecycle definitions missing");
+if (!saveMethod || !saverInit || parts.length !== 11) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
   "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
@@ -86,6 +87,8 @@ function harness(vault: MobileVault) {
   const deps = {
     // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
     retiredBoot,
+    // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
+    waitWithDeadline, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     vault, createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
-import { toast, toastStore } from "@plainva/ui";
+import { closeWaitNoteName, toast, toastStore, waitWithDeadline } from "@plainva/ui";
 import { armLeaveGuard, armedLeaveGuards, disarmLeaveGuard, foreignInputArmed, resetLeaveGuard } from "./leaveGuard";
 import { currentMobileDialog, dismissMobileDialog } from "./mobileDialogs";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
@@ -18,7 +18,7 @@ import { retiredBoot } from "./bootRetirement";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["switchVault", "switchTo", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
+const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -45,7 +45,10 @@ function harness(start: string) {
     // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
     retiredBoot,
     initial: vault(start),
-    noteSaver: { flushAll: vi.fn(async () => {}) },
+    noteSaver: { flushAll: vi.fn(async () => {}), pendingPaths: () => [] },
+    // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
+    waitWithDeadline, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    reportingTo: () => () => {},
     stopSyncAndDrain: vi.fn(async () => { order.push("stop"); }),
     setActiveVault: vi.fn(async (id: string) => { order.push(`active:${id}`); active = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),

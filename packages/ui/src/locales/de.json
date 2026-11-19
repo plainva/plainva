@@ -8377,5 +8377,17 @@
     "guide": "Anleitung öffnen",
     "statusNotYet": "noch nicht verbunden",
     "stepSetUp": "Einrichten"
+  },
+  "closing": {
+    "savingWait": "Plainva speichert noch „{{name}}“ – danach geht es weiter.",
+    "savingWaitMany_one": "Plainva speichert noch {{count}} Notiz – danach geht es weiter.",
+    "savingWaitMany_other": "Plainva speichert noch {{count}} Notizen – danach geht es weiter.",
+    "syncWait": "Ein Sync-Schritt von „{{vault}}“ läuft noch – danach geht es weiter.",
+    "openingWait": "„{{vault}}“ wird noch geöffnet – danach geht es weiter.",
+    "savingGaveUp": "„{{name}}“ ist noch nicht fertig gespeichert. Plainva geht trotzdem weiter; der Text liegt im Entwurf und kommt beim nächsten Öffnen wieder.",
+    "savingGaveUpMany_one": "{{count}} Notiz ist noch nicht fertig gespeichert. Plainva geht trotzdem weiter; der Text liegt im Entwurf und kommt beim nächsten Öffnen wieder.",
+    "savingGaveUpMany_other": "{{count}} Notizen sind noch nicht fertig gespeichert. Plainva geht trotzdem weiter; die Texte liegen im Entwurf und kommen beim nächsten Öffnen wieder.",
+    "syncGaveUp": "Der Sync-Schritt von „{{vault}}“ ist nicht fertig geworden. Plainva hält ihn an und geht weiter; verloren geht nichts – der nächste Abgleich holt nach, was fehlt.",
+    "openingGaveUp": "„{{vault}}“ ist nicht fertig geöffnet worden. Plainva geht trotzdem weiter und schließt ihn, sobald er antwortet."
   }
 }

@@ -2,6 +2,7 @@ import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import { isTextFile } from "../sync/fileType.js";
 import type { SyncProgress, SyncStatus, SyncErrorReason } from "../sync/SyncWorker.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
+import type { OwnDeletionRegister } from "../sync/ownDeletions.js";
 import { createWorkspaceCatalog, openWorkspaceCatalog, type WorkspaceCatalogPayload } from "./catalog.js";
 import {
   encodeWorkspaceDocument,
@@ -228,6 +229,12 @@ export interface EncryptedWorkspaceWorkerOptions {
    */
   openPublicationRuntime?: (record: WorkspacePublicationRecord) => Promise<PersonalWorkspaceRuntime | null>;
   onPublicationsRefreshed?: (outcomes: PublicationRefreshOutcome[]) => void;
+  /**
+   * Where an incoming deletion carried out here is marked, so the index's
+   * report of the vanished file is not taken for the person's deletion — as
+   * the plain sync does (`OwnDeletionRegister`).
+   */
+  ownDeletions?: OwnDeletionRegister;
 }
 
 /**
@@ -1321,6 +1328,7 @@ export class EncryptedWorkspaceWorker {
         ? { ...current, currentRevisionId: null, payloadHash: null, deleted: true, modifiedAt: operation.createdAt }
         : { objectId: operation.objectId, path: deletedObjectPath(operation.objectId), currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, authorMemberId: "", createdAt: operation.createdAt, modifiedAt: operation.createdAt };
       await this.state.recordIncoming({ object, revision: null, operationHash, operationDocument: toBase64(encodeWorkspaceDocument(document)), deviceId: operation.deviceId, sequence: operation.sequence }, setCurrent, meta);
+      if (current) await this.state.forgetOwnRemoval?.(current.path);
       Object.assign(acceptedMeta, meta);
       return setCurrent ? [object.path] : [];
       });
@@ -1399,7 +1407,10 @@ export class EncryptedWorkspaceWorker {
     const branches = fastForward || !current ? null : await this.incomingTakesHead(current, operation.parentRevisionIds[0] ?? null, operationHash);
     const takesHead = fastForward || !!branches?.takes;
     const holdsLocal = !!current && !current.deleted;
-    const locallyChanged = holdsLocal ? await this.localContentChanged(current) : false;
+    // A file that already holds the incoming version is no change of this
+    // device's: a runtime called off after it wrote this download and before
+    // it recorded it (`createVaultCallOff`) — taken over, no conflict copy.
+    const locallyChanged = holdsLocal ? (await this.localContentChanged(current)) && !(await this.holdsBytes(current.path, opened.metadata.plaintextSha256)) : false;
     const pendingLocal = holdsLocal ? await this.state.hasPendingForPath(current.path) : false;
     const setCurrent = takesHead && !locallyChanged && !pendingLocal;
     let objectPath = targetPath;
@@ -1527,6 +1538,16 @@ export class EncryptedWorkspaceWorker {
     return [object.path, copyPath];
   }
 
+  /** Whether the file at `path` holds exactly the bytes of `plaintextSha256`. */
+  private async holdsBytes(path: string, plaintextSha256: string | null | undefined): Promise<boolean> {
+    if (!plaintextSha256) return false;
+    try {
+      return sha256Hex(await this.vault.readBinaryFile(path)) === plaintextSha256;
+    } catch {
+      return false;
+    }
+  }
+
   private async localContentChanged(object: WorkspaceObjectRecord): Promise<boolean> {
     if (object.deleted || !(await this.vault.exists(object.path))) return false;
     if (object.contentKind === "directory") return false;
@@ -1609,7 +1630,16 @@ export class EncryptedWorkspaceWorker {
   private async materializeDelete(current: WorkspaceObjectRecord): Promise<void> {
     if (!(await this.vault.exists(current.path))) return;
     if (current.contentKind !== "directory") {
-      if (await this.holdsRecordedState(current, current.path)) await this.vault.deleteItem(current.path);
+      if (await this.holdsRecordedState(current, current.path)) {
+        // Marked before the file goes, in memory and in the database: the index's
+        // report of it is the sync's, also for a runtime that starts after this one
+        // was called off between the removal and its record (`adoptOwnRemovals`).
+        const info = await this.vault.getFileInfo(current.path).catch(() => null);
+        const stamps = info && !info.isDirectory ? [{ mtime: info.mtime }] : [];
+        if (stamps.length > 0) this.options.ownDeletions?.mark(current.path, stamps);
+        await this.state.noteOwnRemoval?.(current.path, stamps);
+        await this.vault.deleteItem(current.path);
+      }
       return;
     }
     if ((await this.vault.listDir(current.path, true)).some((entry) => !entry.isDirectory)) { this.foldersToClear.add(current.path); return; }

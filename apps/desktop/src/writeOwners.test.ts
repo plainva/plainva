@@ -19,7 +19,9 @@ import { fileURLToPath } from "node:url";
 type Owner = "person" | "background" | "read" | "chain";
 
 const HANDOFFS: Record<string, Owner> = {
-  'const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path), "background");': "chain",
+  'const tauriVaultAdapter = countWrites(callOff.storage(new TauriVaultAdapter(path)), "background");': "chain",
+  // The sync's own removals left unrecorded by a runtime called off: only asks whether a file is still there.
+  'await adoptOwnRemovals(dbAdapter, ownDeletions, (p) => tauriVaultAdapter.exists(p)).catch(reportingTo("sync:own-removals"));': "read",
   'await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());': "chain",
   'await tauriVaultAdapter.createDir(".plainva");': "chain",
   "storage: tauriVaultAdapter,": "chain",

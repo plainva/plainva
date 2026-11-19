@@ -8713,5 +8713,21 @@
     "guide": "Otwórz instrukcję",
     "statusNotYet": "jeszcze niepołączone",
     "stepSetUp": "Konfiguracja"
+  },
+  "closing": {
+    "savingWait": "Plainva wciąż zapisuje „{{name}}” – potem przejdzie dalej.",
+    "savingWaitMany_one": "Plainva wciąż zapisuje {{count}} notatkę – potem przejdzie dalej.",
+    "savingWaitMany_few": "Plainva wciąż zapisuje {{count}} notatki – potem przejdzie dalej.",
+    "savingWaitMany_many": "Plainva wciąż zapisuje {{count}} notatek – potem przejdzie dalej.",
+    "savingWaitMany_other": "Plainva wciąż zapisuje {{count}} notatki – potem przejdzie dalej.",
+    "syncWait": "Wciąż trwa krok synchronizacji „{{vault}}” – potem Plainva przejdzie dalej.",
+    "openingWait": "„{{vault}}” wciąż się otwiera – potem Plainva przejdzie dalej.",
+    "savingGaveUp": "„{{name}}” nie jest jeszcze w pełni zapisana. Plainva i tak przechodzi dalej; tekst jest w szkicu i wróci przy następnym otwarciu.",
+    "savingGaveUpMany_one": "{{count}} notatka nie jest jeszcze w pełni zapisana. Plainva i tak przechodzi dalej; tekst jest w szkicu i wróci przy następnym otwarciu.",
+    "savingGaveUpMany_few": "{{count}} notatki nie są jeszcze w pełni zapisane. Plainva i tak przechodzi dalej; teksty są w szkicach i wrócą przy następnym otwarciu.",
+    "savingGaveUpMany_many": "{{count}} notatek nie jest jeszcze w pełni zapisanych. Plainva i tak przechodzi dalej; teksty są w szkicach i wrócą przy następnym otwarciu.",
+    "savingGaveUpMany_other": "{{count}} notatki nie są jeszcze w pełni zapisane. Plainva i tak przechodzi dalej; teksty są w szkicach i wrócą przy następnym otwarciu.",
+    "syncGaveUp": "Krok synchronizacji „{{vault}}” się nie zakończył. Plainva go zatrzymuje i przechodzi dalej; nic nie przepada – następna synchronizacja nadrobi to, czego brakuje.",
+    "openingGaveUp": "„{{vault}}” nie otworzył się do końca. Plainva i tak przechodzi dalej i zamknie go, gdy tylko odpowie."
   }
 }

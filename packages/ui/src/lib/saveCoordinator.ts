@@ -47,6 +47,8 @@ export interface SaveCoordinator<C> {
   flush(path?: string, ctx?: C): Promise<void>;
   flushAll(ctx?: C): Promise<void>;
   hasPending(path?: string, ctx?: C): boolean;
+  /** The notes with a save pending or running, each once — for the notice of a close that waits for them. */
+  pendingPaths(ctx?: C): string[];
   getRevision(path: string, ctx: C): number;
   withWriteLock(path: string, ctx: C, work: () => Promise<void>): Promise<void>;
   /** Discards only the selected vault and no input newer than the captured revision. */
@@ -200,6 +202,7 @@ export function createSaveCoordinator<C>(opts: SaveCoordinatorOptions<C>): SaveC
     flush,
     flushAll: (ctx) => flush(undefined, ctx),
     hasPending: (path, ctx) => [...entries.values()].some((entry) => matches(entry, path, ctx)),
+    pendingPaths: (ctx) => [...new Set([...entries.values(), ...running.values()].filter((entry) => matches(entry, undefined, ctx)).map((entry) => entry.path))],
     getRevision: (path, ctx) => revisions.get(keyFor(ctx, path)) ?? 0,
     wake(ctx) {
       for (const [key, entry] of entries) {

@@ -94,6 +94,8 @@ export * from "./vault/vaultTransfer.js";
 export * from "./vault/starterFiles.js";
 export * from "./sync/deletionJournal.js";
 export * from "./sync/ownDeletions.js";
+export * from "./sync/ownRemovalNotes.js";
+export * from "./sync/callOff.js";
 export * from "./sync/owedToRemote.js";
 export { SyncRootMissingError, UnsyncableFileError, isLocalStoreBusy, isRequestSendFailure, isSignInFailure } from "./sync/errorKind.js";
 export { listUnsyncablePaths, unsyncableCopyPath, type UnsyncableEntry } from "./sync/unsyncablePaths.js";

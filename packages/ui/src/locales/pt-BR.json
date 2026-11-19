@@ -8545,5 +8545,19 @@
     "guide": "Abrir o guia",
     "statusNotYet": "ainda não conectado",
     "stepSetUp": "Configurar"
+  },
+  "closing": {
+    "savingWait": "O Plainva ainda está salvando “{{name}}” – depois continua.",
+    "savingWaitMany_one": "O Plainva ainda está salvando {{count}} nota – depois continua.",
+    "savingWaitMany_many": "O Plainva ainda está salvando {{count}} notas – depois continua.",
+    "savingWaitMany_other": "O Plainva ainda está salvando {{count}} notas – depois continua.",
+    "syncWait": "Uma etapa de sincronização de “{{vault}}” ainda está em andamento – depois o Plainva continua.",
+    "openingWait": "“{{vault}}” ainda está abrindo – depois o Plainva continua.",
+    "savingGaveUp": "“{{name}}” ainda não foi salva por completo. O Plainva continua mesmo assim; o texto está no rascunho e volta na próxima vez que você abrir.",
+    "savingGaveUpMany_one": "{{count}} nota ainda não foi salva por completo. O Plainva continua mesmo assim; o texto está no rascunho e volta na próxima vez que você abrir.",
+    "savingGaveUpMany_many": "{{count}} notas ainda não foram salvas por completo. O Plainva continua mesmo assim; os textos estão nos rascunhos e voltam na próxima vez que você abrir.",
+    "savingGaveUpMany_other": "{{count}} notas ainda não foram salvas por completo. O Plainva continua mesmo assim; os textos estão nos rascunhos e voltam na próxima vez que você abrir.",
+    "syncGaveUp": "A etapa de sincronização de “{{vault}}” não terminou. O Plainva a interrompe e continua; nada se perde – a próxima sincronização recupera o que falta.",
+    "openingGaveUp": "“{{vault}}” não terminou de abrir. O Plainva continua mesmo assim e o fecha assim que responder."
   }
 }

@@ -8377,5 +8377,17 @@
     "guide": "Open the guide",
     "statusNotYet": "not connected yet",
     "stepSetUp": "Set up"
+  },
+  "closing": {
+    "savingWait": "Plainva is still saving “{{name}}” – then it goes on.",
+    "savingWaitMany_one": "Plainva is still saving {{count}} note – then it goes on.",
+    "savingWaitMany_other": "Plainva is still saving {{count}} notes – then it goes on.",
+    "syncWait": "A sync step of “{{vault}}” is still running – then it goes on.",
+    "openingWait": "“{{vault}}” is still opening – then it goes on.",
+    "savingGaveUp": "“{{name}}” is not saved yet. Plainva goes on anyway; the text is in the draft and comes back the next time you open it.",
+    "savingGaveUpMany_one": "{{count}} note is not saved yet. Plainva goes on anyway; the text is in the draft and comes back the next time you open it.",
+    "savingGaveUpMany_other": "{{count}} notes are not saved yet. Plainva goes on anyway; the texts are in the drafts and come back the next time you open them.",
+    "syncGaveUp": "The sync step of “{{vault}}” did not finish. Plainva stops it and goes on; nothing is lost – the next sync catches up on what is missing.",
+    "openingGaveUp": "“{{vault}}” did not finish opening. Plainva goes on anyway and closes it as soon as it answers."
   }
 }
