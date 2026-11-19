@@ -300,4 +300,21 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
       expect(Object.fromEntries([o1, o2, o3].map((d) => [d.name, d.slots.get("r")]))).toEqual({ O1: "P1", O2: "P2", O3: "P2" });
     });
   });
+
+  it("an old name closed by \"Remove account\" opens again when the same account is back", async () => {
+    start();
+    const o = device("O", true, [{ id: "r", user: "anna" }], { r: "P1" });
+    const n = device("N", false, [{ id: "r", user: "anna" }]);
+    await rounds([o, n], 3);
+    expect(n.slots.get("r")).toBe("P1");
+    await retireSecret(n.host, calDavSecretBinding("webdav", CAL, "anna"));
+    n.rows = [];
+    n.slots.delete("r");
+    await rounds([n, o], 2);
+    n.rows = [{ id: "r2", user: "anna" }];
+    await rounds([n, o], 2);
+    o.slots.set("r", "P2");
+    await rounds([o, n], 3);
+    expect(n.slots.get("r2")).toBe("P2");
+  });
 });

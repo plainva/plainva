@@ -107,6 +107,14 @@ export interface SecretsPortMeta {
    * puts nothing into the slot of an account here.
    */
   oldNameTombstones?: Record<string, string>;
+  /**
+   * Old names this device closed when "Remove account" took the account out
+   * (`closeOldName`), by id with the time. A value a device up to 0.8.7 writes
+   * under one later reaches no other account here. The lock is the removed
+   * account's: it ends when that same account is on this device again
+   * (review 2026-11-18, round seven).
+   */
+  closedOldNames?: Record<string, string>;
 }
 
 /** What a shell must provide; everything else is decided above. */
@@ -181,6 +189,7 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   ),
   ...(source?.retired ? { retired: Object.fromEntries(Object.entries(source.retired).map(([id, binding]) => [id, { ...binding }])) } : {}),
   ...(source?.oldNameTombstones ? { oldNameTombstones: { ...source.oldNameTombstones } } : {}),
+  ...(source?.closedOldNames ? { closedOldNames: { ...source.closedOldNames } } : {}),
 });
 
 /**
@@ -360,6 +369,21 @@ function movedHash(hash: string, binding: SecretBinding): string {
   }
 }
 
+/** An old name closed by "Remove account" opens again when that same account is here again (`closedOldNames`). */
+function reopenOldNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): boolean {
+  if (!meta.closedOldNames) return false;
+  let reopened = false;
+  for (const candidate of candidates) {
+    if (!isShareableSecretType(candidate.binding.secretType) || candidate.binding.user !== candidate.binding.user.toLowerCase()) continue;
+    const old = canonicalSecretId({ ...candidate.binding, secretType: bridgeSecretTypeOf(candidate.binding.secretType) });
+    if (meta.closedOldNames[old] === undefined) continue;
+    delete meta.closedOldNames[old];
+    reopened = true;
+  }
+  if (Object.keys(meta.closedOldNames).length === 0) delete meta.closedOldNames;
+  return reopened;
+}
+
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   const now = () => (host.now ? host.now() : new Date().toISOString());
 
@@ -378,6 +402,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         isShareableSecretType(candidate.binding.secretType)
       );
       carryOldKnowledge(meta, candidates);
+      reopenOldNames(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       // Every account this device KNOWS, with or without a stored secret.
       //
@@ -430,11 +455,12 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // old name was its name): what removed it here also closes its old name
       // here, so a value a device on 0.8.7 writes under it later reaches no
       // other account ("Alice" beside a removed "alice"). Remembered on this
-      // device only (`oldNameTombstones`), never written.
+      // device only (`closedOldNames`), never written, and only until the
+      // same account is here again (`reopenOldNames`).
       const closeOldName = (binding: SecretBinding) => {
         if (!isShareableSecretType(binding.secretType) || binding.user !== binding.user.toLowerCase()) return;
         const old = canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType) });
-        meta.oldNameTombstones = { ...(meta.oldNameTombstones ?? {}), [old]: stamp };
+        meta.closedOldNames = { ...(meta.closedOldNames ?? {}), [old]: stamp };
       };
       const tombstone = (id: string) => {
         const previous = meta.entries[id];
@@ -528,6 +554,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       }> = [];
       const result = emptyImportResult();
       let metaDirty = carryOldKnowledge(meta, candidates);
+      if (reopenOldNames(meta, candidates)) metaDirty = true;
+      const closedOldName = (id: string) => !!meta.oldNameTombstones?.[id] || !!meta.closedOldNames?.[id];
 
       const rememberEntry = (logicalId: string, entry: SecretEntry, alias = false) => {
         meta.entries[logicalId] = {
@@ -631,7 +659,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // tie the current entry stands.
         if (legacyCandidate) {
           const exact = bundle.entries[legacyCandidate.logicalId];
-          const retiredName = meta.entries[logicalId]?.tombstone === true || !!meta.oldNameTombstones?.[logicalId];
+          const retiredName = meta.entries[logicalId]?.tombstone === true || closedOldName(logicalId);
           if (entry.tombstone) rememberOldNameTombstone(logicalId, entry);
           if (entry.tombstone || retiredName || (exact && !(entry.updatedAt > exact.updatedAt))) {
             recordImportResult(result, logicalId, "unchanged", exact ? "superseded-by-exact-entry" : "old-name-not-taken");
@@ -644,7 +672,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const oldEntry = oldName ? bundle.entries[oldName] : undefined;
         if (
           oldEntry && isBridgeSecretType(oldEntry.binding.secretType) && !oldEntry.tombstone &&
-          meta.entries[oldName!]?.tombstone !== true && !meta.oldNameTombstones?.[oldName!] &&
+          meta.entries[oldName!]?.tombstone !== true && !closedOldName(oldName!) &&
           oldEntry.updatedAt > entry.updatedAt
         ) {
           recordImportResult(result, logicalId, "unchanged", "superseded-by-later-entry");
