@@ -950,14 +950,11 @@ test('AI dock in a low column: the empty conversation opens at its top, the gree
     const thread = el.querySelector('.pv-ai-thread') as HTMLElement;
     const hello = el.querySelector('.pv-ai-thread > .pv-empty') as HTMLElement;
     return {
-      client: thread.clientHeight,
-      scroll: thread.scrollHeight,
       scrollTop: thread.scrollTop,
       threadTop: thread.getBoundingClientRect().top,
       helloTop: hello.getBoundingClientRect().top,
     };
   });
-  if (process.env.KI_DEBUG) console.log('LOW-COLUMN ' + JSON.stringify(placed));
   expect(placed.scrollTop, 'the empty conversation is not scrolled').toBe(0);
   expect(placed.helloTop, 'the greeting begins inside the conversation, not above it').toBeGreaterThanOrEqual(placed.threadTop);
 });

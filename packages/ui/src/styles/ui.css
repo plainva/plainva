@@ -1732,7 +1732,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-selectsearch > input:focus,
 .pv-selectsearch > input:focus-visible,
 .pv-popover-search > input:focus,
-.pv-popover-search > input:focus-visible {
+.pv-popover-search > input:focus-visible,
+.pv-ai-inputrow > .pv-ai-input:focus,
+.pv-ai-inputrow > .pv-ai-input:focus-visible {
   outline: none !important;
   box-shadow: none;
 }
@@ -5363,9 +5365,8 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 }
 .pv-ai-inputrow:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--state-focus); }
 .pv-ai-inputrow > .pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; overflow-y: auto; border: 0; background: transparent; box-shadow: none; }
-/* The box draws the focus; the field inside it draws no second ring. */
-.pv-ai-inputrow > .pv-ai-input:focus,
-.pv-ai-inputrow > .pv-ai-input:focus-visible { border: 0; box-shadow: none; outline: none; }
+/* The box draws the focus (with the composite fields above); the field inside it draws no edge of its own. */
+.pv-ai-inputrow > .pv-ai-input:focus { border: 0; }
 .pv-ai-foot { display: flex; justify-content: flex-end; min-width: 0; }
 /* The skills of an empty conversation behind one button (plan Oberfläche O7, D2), at the start of the foot. */
 .pv-ai-foot-start { margin-inline-end: auto; }
