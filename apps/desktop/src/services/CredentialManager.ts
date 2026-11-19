@@ -122,6 +122,28 @@ export class CredentialManager implements ICredentialStore {
     return value || null;
   }
 
+  /**
+   * Reads a secret, telling "not there" (null) from "no store answers"
+   * (throws): the keychain, then the credentials file it falls back to. A
+   * keychain that fails and a file without the item is an error, never "not
+   * there" — the key of the secrets marks must not be made anew over marks
+   * that still exist (F67, round nine).
+   */
+  public async readSecretStrict<T>(key: string): Promise<T | null> {
+    let fromKeychain: string | null = null;
+    let failure: unknown = null;
+    try {
+      fromKeychain = await invoke<string | null>("keychain_get", { key });
+    } catch (error) {
+      failure = error;
+    }
+    if (fromKeychain) return JSON.parse(fromKeychain) as T;
+    const stored = await (await this.store()).get<T>(key);
+    if (stored) return stored;
+    if (failure) throw failure instanceof Error ? failure : new Error(String(failure));
+    return null;
+  }
+
   public async writeSecret<T>(key: string, value: T): Promise<void> {
     const ok = await this.keychainSet(key, JSON.stringify(value));
     if (ok) {

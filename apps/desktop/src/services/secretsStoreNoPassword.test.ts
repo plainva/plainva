@@ -34,6 +34,7 @@ vi.mock("./settingsStore", () => ({
 vi.mock("./CredentialManager", () => ({
   credentialManager: {
     readSecret: vi.fn(async (key: string) => structuredClone(state.current!.slots.get(key) ?? null)),
+    readSecretStrict: vi.fn(async (key: string) => structuredClone(state.current!.slots.get(key) ?? null)),
     writeSecret: vi.fn(async (key: string, value: unknown) => void state.current!.slots.set(key, structuredClone(value))),
     removeSecret: vi.fn(async (key: string) => void state.current!.slots.delete(key)),
   },

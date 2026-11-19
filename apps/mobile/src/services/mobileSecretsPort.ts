@@ -8,6 +8,7 @@ import {
   getPlatformServices,
   migrateSecretsMetaToCanonicalIds,
   retireSecret,
+  mergeLegacySecretsMeta,
   sealSecretsMetaInStore,
   type LocalSecretCandidate,
   type SecretsPortMeta,
@@ -39,7 +40,24 @@ import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pi
  * candidate leaves no trace. The name now comes from the credential itself.
  */
 
-const metaKey = (vaultId: string) => `settingsSyncSecretMetaMobile_${vaultId}`;
+/**
+ * The record of a vault's secrets sync, under this version's name. The name
+ * 0.8.7 reads (`LEGACY_META_PREFIX`) is left empty once sealed, so a phone
+ * that goes back to 0.8.7 starts like a new one (`secretsMark.ts`, F67).
+ */
+const META_PREFIX = "settingsSyncSecretMarksMobile_";
+const LEGACY_META_PREFIX = "settingsSyncSecretMetaMobile_";
+const metaKey = (vaultId: string) => `${META_PREFIX}${vaultId}`;
+const legacyMetaKey = (vaultId: string) => `${LEGACY_META_PREFIX}${vaultId}`;
+const META_STORAGE = {
+  current: (legacyKey: string) => META_PREFIX + legacyKey.slice(LEGACY_META_PREFIX.length),
+  isLegacy: (key: string) => key.startsWith(LEGACY_META_PREFIX),
+};
+/** The key of the marks, from the keychain, which throws when it does not answer. */
+const markKeySlots = {
+  readSlot: (slot: string) => getPlatformServices().credentials.readSecret(slot),
+  writeSlot: (slot: string, value: unknown) => getPlatformServices().credentials.writeSecret(slot, value),
+};
 const deviceKey = "settingsSyncDeviceIdMobile";
 
 async function settingsStore() {
@@ -101,13 +119,17 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
 
 function metaStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
   return {
-    readMeta: async () =>
-      migrateSecretsMetaToCanonicalIds(
-        (await (await settingsStore()).get<SecretsPortMeta>(metaKey(vaultId))) ?? null,
-      ),
+    readMeta: async () => {
+      const store = await settingsStore();
+      const current = (await store.get<SecretsPortMeta>(metaKey(vaultId))) ?? null;
+      const legacy = (await store.get<SecretsPortMeta>(legacyMetaKey(vaultId))) ?? null;
+      return migrateSecretsMetaToCanonicalIds(mergeLegacySecretsMeta(current, legacy));
+    },
     writeMeta: async (meta) => {
       const store = await settingsStore();
       await store.set(metaKey(vaultId), meta);
+      // Taken in by this write: under the old name, nothing stays.
+      await store.delete(legacyMetaKey(vaultId));
       await store.save();
     },
   };
@@ -120,10 +142,7 @@ function metaStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | nul
  * `secretsMark.ts`). The key of the new marks lives in the keychain.
  */
 export async function sealSecretsMetaAtStart(): Promise<number> {
-  return sealSecretsMetaInStore(await settingsStore(), (key) => key.startsWith("settingsSyncSecretMetaMobile_"), {
-    readSlot: (slot) => getPlatformServices().credentials.readSecret(slot),
-    writeSlot: (slot, value) => getPlatformServices().credentials.writeSecret(slot, value),
-  });
+  return sealSecretsMetaInStore(await settingsStore(), META_STORAGE, markKeySlots);
 }
 
 /** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`), as on the desktop. */

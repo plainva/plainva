@@ -35,7 +35,7 @@ import { initAppFonts } from "./services/appFonts";
 import { initUiZoom } from "./services/uiZoom";
 import { initInputModality } from "./services/inputModality";
 import { initWebviewHardening } from "./services/webviewHardening";
-import { installGlobalDiagnostics, removeRetiredStorage, reportingTo } from "@plainva/ui";
+import { installGlobalDiagnostics, removeRetiredStorage, reportingTo, sealSecretsAtStart } from "@plainva/ui";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Which window is this? An auxiliary window loads the same bundle and differs
@@ -152,11 +152,13 @@ void i18nReady.then(async () => {
   removeRetiredStorage();
   // No password stays in the settings file (F67): the marks of the secrets
   // sync are sealed once per start, by the owner window only, so a second
-  // window never makes a second key.
+  // window never makes a second key — first in the line of secrets rounds, so
+  // none begins before it (round nine). A failure is in the diagnostics, and
+  // the next start tries again.
   if (isOwnerWindow) {
-    void import("./services/settingsSecrets")
-      .then(({ sealSecretsMetaAtStart }) => sealSecretsMetaAtStart())
-      .catch(reportingTo("settings-sync:seal-marks"));
+    void sealSecretsAtStart(() => import("./services/settingsSecrets").then(({ sealSecretsMetaAtStart }) => sealSecretsMetaAtStart())).catch(
+      reportingTo("settings-sync:seal-marks"),
+    );
   }
   const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 

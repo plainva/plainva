@@ -9,7 +9,7 @@ import {
   type SecretEntry,
   type SecretsBundle,
 } from "@plainva/core";
-import { SECRETS_MARK_KEY_SLOT, calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
 import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 /**
@@ -54,7 +54,10 @@ interface Device {
   slots: Map<string, string>;
   /** The key of the marks (`secretsMark.ts`), kept beside the slots like a keychain entry. */
   keyring: Map<string, unknown>;
+  /** The record under this version's name. */
   meta: SecretsPortMeta | null;
+  /** The record under the name 0.8.7 reads and writes (`secretsMark.ts`): taken in and emptied by the updated code. */
+  legacyMeta: SecretsPortMeta | null;
   pushes: number;
   /** Times this device wrote its secrets metadata. */
   metaWrites: number;
@@ -73,6 +76,7 @@ function device(name: string, legacy: boolean, rows: Row[], passwords: Record<st
     slots: new Map(Object.entries(passwords)),
     keyring: new Map(),
     meta: null,
+    legacyMeta: null,
     pushes: 0,
     reports: 0,
     metaWrites: 0,
@@ -80,10 +84,11 @@ function device(name: string, legacy: boolean, rows: Row[], passwords: Record<st
       d.legacy = false;
     },
     host: {
-      readMeta: async () => d.meta,
+      readMeta: async () => mergeLegacySecretsMeta(structuredClone(d.meta), structuredClone(d.legacyMeta)),
       writeMeta: async (meta) => {
         d.metaWrites++;
         d.meta = structuredClone(meta);
+        d.legacyMeta = null;
       },
     },
   };
@@ -100,7 +105,9 @@ function portOf(d: Device) {
   const make = d.legacy ? (v087.createSecretsPort as unknown as typeof createSecretsPort) : createSecretsPort;
   return make({
     deviceId: async () => d.name,
-    ...d.host,
+    ...(d.legacy
+      ? { readMeta: async () => structuredClone(d.legacyMeta), writeMeta: async (meta: SecretsPortMeta) => void (d.legacyMeta = structuredClone(meta)) }
+      : d.host),
     candidates: async () => candidates(),
     readSlot: async (slot) => (slot === SECRETS_MARK_KEY_SLOT ? d.keyring.get(slot) : d.slots.get(slot)) ?? null,
     writeSlot: async (slot, value) => void (slot === SECRETS_MARK_KEY_SLOT ? d.keyring.set(slot, value) : d.slots.set(slot, value as string)),
@@ -430,5 +437,92 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
     for (const d of fleet) d.metaWrites = 0;
     await rounds(fleet, 5);
     expect(fleet.map((d) => d.metaWrites)).toEqual([0, 0, 0]);
+  });
+
+  describe("knowledge is never thrown away (round nine)", () => {
+    for (const received of [false, true]) {
+      it(`an account signed out here before the update: a password typed later is a change made here${received ? " (the password had come through the sync)" : ""}`, async () => {
+        start();
+        const row = (): Row[] => [{ id: "r", user: "anna" }];
+        const d = device("D", true, row(), received ? {} : { r: "P1" });
+        const o = device("O", true, row(), received ? { r: "P1" } : {});
+        const n = device("N", false, row());
+        await rounds(received ? [o, d, n] : [d, o, n], 3);
+        d.slots.delete("r");
+        await rounds([d, o, n], 2);
+        d.update();
+        await rounds([d, o, n], 2);
+        d.slots.set("r", "P9");
+        await rounds([d, o, n], 3);
+        for (const x of [d, o, n]) x.pushes = 0;
+        await rounds([d, o, n], 10);
+        expect({ D: d.slots.get("r"), N: n.slots.get("r") }).toEqual({ D: "P9", N: "P9" });
+        expect([d, o, n].map((x) => x.pushes)).toEqual([0, 0, 0]);
+      });
+    }
+
+    for (const changed of [true, false]) {
+      it(`a lost mark key makes nothing a change: the device restores what it knew from the shared document${changed ? ", or holds its own password apart" : ""}`, async () => {
+        start();
+        const rows = (): Row[] => [{ id: "r", user: "anna" }, { id: "m", user: "Carl@Example.com", kind: "mail" }];
+        const n1 = device("N1", false, rows(), { r: "P1", m: "M1" });
+        const n2 = device("N2", false, rows());
+        await rounds([n1, n2], 3);
+        if (changed) {
+          n2.slots.set("r", "P2");
+          await round(n2);
+        }
+        n1.keyring.clear();
+        n1.pushes = 0;
+        n2.pushes = 0;
+        await rounds([n1, n2], 5);
+        expect(Object.fromEntries(n2.slots)).toEqual({ r: changed ? "P2" : "P1", m: "M1" });
+        // N1 typed P1 itself and took nothing through the sync: it keeps it,
+        // as a local conflict, unpublished; nothing of N1 is uploaded.
+        expect(Object.fromEntries(n1.slots)).toEqual({ r: "P1", m: "M1" });
+        expect(n1.pushes).toBe(0);
+        expect(remote!.entries[canonicalSecretId(newBinding({ id: "r", user: "anna" }))]?.secret).toEqual({ pass: changed ? "P2" : "P1" });
+        // Typed again on N1: a change over all it saw, which N2 follows (it
+        // took its first password from N1 through the sync).
+        n1.slots.set("r", "P5");
+        await rounds([n1, n2], 3);
+        expect([n1.slots.get("r"), n2.slots.get("r")]).toEqual(["P5", "P5"]);
+      });
+    }
+
+    it("a device that goes back to 0.8.7 starts like a new one and beats nothing newer", async () => {
+      start();
+      const row = (): Row[] => [{ id: "r", user: "anna" }];
+      const o = device("O", true, row(), { r: "P1" });
+      const d = device("D", true, row());
+      const n = device("N", false, row());
+      await rounds([o, d, n], 3);
+      d.update();
+      await rounds([d, o, n], 3);
+      expect(d.legacyMeta).toBeNull();
+      n.slots.set("r", "P2");
+      await round(n);
+      d.legacy = true;
+      await rounds([d, o, n, d], 4);
+      expect({ O: o.slots.get("r"), D: d.slots.get("r"), N: n.slots.get("r") }).toEqual({ O: "P1", D: "P1", N: "P2" });
+      expect(remote!.entries[canonicalSecretId(newBinding({ id: "r", user: "anna" }))]?.secret).toEqual({ pass: "P2" });
+    });
+
+    it("a phone restored from the system backup (settings back, keychain not) gets its password with the next change, as before", async () => {
+      start();
+      const row = (): Row[] => [{ id: "r", user: "anna" }];
+      const n1 = device("N1", false, row(), { r: "P1" });
+      const n2 = device("N2", false, row());
+      await rounds([n1, n2], 3);
+      n2.slots.clear();
+      n2.keyring.clear();
+      n1.pushes = 0;
+      n2.pushes = 0;
+      await rounds([n2, n1], 4);
+      expect([n2.slots.get("r"), n1.pushes, n2.pushes]).toEqual([undefined, 0, 0]);
+      n1.slots.set("r", "P3");
+      await rounds([n1, n2], 3);
+      expect(n2.slots.get("r")).toBe("P3");
+    });
   });
 });

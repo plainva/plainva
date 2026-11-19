@@ -14,13 +14,25 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
-import { sealSecretsMetaInStore } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, sealSecretsMetaInStore } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
-const metaKey = (vaultPath: string) => `settingsSyncSecretMeta_${b64(vaultPath)}`;
+/**
+ * The record of a vault's secrets sync, under this version's name. The name
+ * 0.8.7 reads (`LEGACY_META_PREFIX`) is left empty once sealed, so a device
+ * that goes back to 0.8.7 starts like a new one (`secretsMark.ts`, F67).
+ */
+const META_PREFIX = "settingsSyncSecretMarks_";
+const LEGACY_META_PREFIX = "settingsSyncSecretMeta_";
+const metaKey = (vaultPath: string) => `${META_PREFIX}${b64(vaultPath)}`;
+const legacyMetaKey = (vaultPath: string) => `${LEGACY_META_PREFIX}${b64(vaultPath)}`;
+const META_STORAGE = {
+  current: (legacyKey: string) => META_PREFIX + legacyKey.slice(LEGACY_META_PREFIX.length),
+  isLegacy: (key: string) => key.startsWith(LEGACY_META_PREFIX),
+};
 
 async function deviceId(): Promise<string> {
   const store = await getSettingsStore();
@@ -93,17 +105,28 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
 
 function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
   return {
-    readMeta: async () =>
-      (await getSettingsStore())
-        .get<SecretsPortMeta>(metaKey(vaultPath))
-        .then((m) => migrateSecretsMetaToCanonicalIds(m ?? null)),
+    readMeta: async () => {
+      const store = await getSettingsStore();
+      const current = (await store.get<SecretsPortMeta>(metaKey(vaultPath))) ?? null;
+      const legacy = (await store.get<SecretsPortMeta>(legacyMetaKey(vaultPath))) ?? null;
+      return migrateSecretsMetaToCanonicalIds(mergeLegacySecretsMeta(current, legacy));
+    },
     writeMeta: async (meta) => {
       const store = await getSettingsStore();
       await store.set(metaKey(vaultPath), meta);
+      // Taken in by this write: under the old name, nothing stays.
+      await store.delete(legacyMetaKey(vaultPath));
       await store.save();
     },
   };
 }
+
+/** The key of the marks, from the credentials store: null when it is not there, an error when no store answers. */
+const markKeySlots = {
+  readSlot: (slot: string) => credentialManager.readSecret(slot),
+  writeSlot: (slot: string, value: unknown) => credentialManager.writeSecret(slot, value),
+  readMarkKey: () => credentialManager.readSecretStrict(SECRETS_MARK_KEY_SLOT),
+};
 
 /**
  * At start, before any vault opens: the secrets metadata of every vault on
@@ -112,10 +135,7 @@ function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | n
  * new marks lives with the passwords, in the credentials store.
  */
 export async function sealSecretsMetaAtStart(): Promise<number> {
-  return sealSecretsMetaInStore(await getSettingsStore(), (key) => key.startsWith("settingsSyncSecretMeta_"), {
-    readSlot: (slot) => credentialManager.readSecret(slot),
-    writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
-  });
+  return sealSecretsMetaInStore(await getSettingsStore(), META_STORAGE, markKeySlots);
 }
 
 /** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`). */
@@ -149,6 +169,7 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     accountsReady: async () => pimRuntime !== null,
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
+    readMarkKey: markKeySlots.readMarkKey,
     removeSlot: (slot) => credentialManager.removeSecret(slot),
   });
 }

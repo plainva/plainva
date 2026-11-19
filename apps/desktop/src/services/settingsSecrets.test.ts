@@ -24,6 +24,8 @@ vi.mock("./settingsStore", () => ({
   getSettingsStore: vi.fn(async () => ({
     get: async (key: string) => store.get(key) ?? null,
     set: async (key: string, value: unknown) => void store.set(key, value),
+    delete: async (key: string) => store.delete(key),
+    keys: async () => [...store.keys()],
     save: async () => undefined,
   })),
 }));
@@ -32,6 +34,7 @@ const slots = new Map<string, unknown>();
 vi.mock("./CredentialManager", () => ({
   credentialManager: {
     readSecret: vi.fn(async (key: string) => slots.get(key) ?? null),
+    readSecretStrict: vi.fn(async (key: string) => slots.get(key) ?? null),
     writeSecret: vi.fn(async (key: string, value: unknown) => void slots.set(key, value)),
     removeSecret: vi.fn(async (key: string) => void slots.delete(key)),
   },
@@ -182,7 +185,9 @@ describe("desktop secrets port names entries by binding (P4c)", () => {
     expect(Object.keys(bundle.entries)).toEqual([MAIL_ID]);
     expect(bundle.entries[MAIL_ID]?.entryRev).toBe(8);
     expect(bundle.entries["mail-1"]).toBeUndefined();
-    const meta = store.get(`settingsSyncSecretMeta_${btoa(unescape(encodeURIComponent(VAULT)))}`) as { imported: Record<string, boolean> };
+    // The record now lives under this version's name; the old name is empty.
+    expect(store.has(`settingsSyncSecretMeta_${btoa(unescape(encodeURIComponent(VAULT)))}`)).toBe(false);
+    const meta = store.get(`settingsSyncSecretMarks_${btoa(unescape(encodeURIComponent(VAULT)))}`) as { imported: Record<string, boolean> };
     expect(meta.imported[MAIL_ID]).toBe(true);
   });
 });

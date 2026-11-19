@@ -20,7 +20,8 @@ import {
   type SecretsImportResult,
   type SecretsPort,
 } from "@plainva/core";
-import { sealSecretsMeta, secretsMarker, type SecretsMarker } from "./secretsMark";
+import { holdsSecretsMarks, isSecretsMark, sealSecretsMeta, secretsMarker, type SecretsMarker } from "./secretsMark";
+import { logDiagnosticCounted } from "../services/diagnosticsLog";
 
 /**
  * The keychain side of the encrypted secrets sideband, written ONCE for both
@@ -77,7 +78,23 @@ export interface LocalSecretCandidate {
 export interface SecretsPortMeta {
   entries: Record<
     string,
-    { hash: string; entryRev: number; updatedAt: string; deviceId: string; binding: SecretBinding; tombstone?: boolean; alias?: boolean }
+    {
+      hash: string;
+      entryRev: number;
+      updatedAt: string;
+      deviceId: string;
+      binding: SecretBinding;
+      tombstone?: boolean;
+      alias?: boolean;
+      /**
+       * Knowledge lost with the key (`ownsMark`, round nine): the mark of what
+       * the slot held when the shared document disagreed with it, and the
+       * revision seen there. The slot stays local until it is restored from the
+       * document or a password is typed here again.
+       */
+      held?: string;
+      heldRev?: number;
+    }
   >;
   /** Entries written BY an import — only these may be removed by a tombstone. */
   imported: Record<string, boolean>;
@@ -143,6 +160,8 @@ export interface SecretsPortHost {
    */
   accountsReady?(): Promise<boolean>;
   readSlot(slot: string): Promise<unknown>;
+  /** The key of the marks, telling "not there" (null) from "no answer" (throws) (`secretsMark.ts`). */
+  readMarkKey?(): Promise<unknown>;
   writeSlot(slot: string, value: unknown): Promise<void>;
   removeSlot(slot: string): Promise<void>;
   /** Injectable for tests; defaults to the wall clock. */
@@ -223,6 +242,17 @@ function serialized<T>(run: () => Promise<T>): Promise<T> {
   const next = metaQueue.then(run, run);
   metaQueue = next.catch(() => undefined);
   return next;
+}
+
+/**
+ * The start of the app puts the sealing of the marks (`secretsMark.ts`,
+ * `sealSecretsMetaInStore`) into the same line as every export and import,
+ * first (review 2026-11-18, round nine): called before any vault opens, no
+ * secrets round begins before it and none runs while it reads and writes the
+ * store. `run` must not call `serialized` itself.
+ */
+export function sealSecretsAtStart<T>(run: () => Promise<T>): Promise<T> {
+  return serialized(run);
 }
 
 const emptyImportResult = (): SecretsImportResult => ({
@@ -382,14 +412,20 @@ async function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly Loc
  * The mark of a moved record under the current binding. The secret comes from
  * the slot, never from a mark (F67): when the slot holds what the old record
  * names, the same password under the current binding; when it holds another,
- * a mark that matches nothing, so the next export sees a change made here;
- * with an empty slot or an unknown record, "" (not known here).
+ * a mark that matches no pair, so the next export sees a change made here;
+ * with an empty slot, the mark of no secret, so a password typed later is a
+ * change (round nine). A mark of a lost key stays as it is: lost knowledge,
+ * restored from the shared document.
  */
 async function movedHash(mark: SecretsMarker, known: { hash: string; binding: SecretBinding }, candidate: LocalSecretCandidate): Promise<string> {
-  if (!candidate.secret || !known.hash) return "";
-  if (known.hash !== (await pairMark(mark, known.binding, candidate.secret))) return "m1:~changed";
+  if (isLostMark(mark, known.hash)) return known.hash;
+  if (!candidate.secret) return pairMark(mark, candidate.binding, null);
+  if (known.hash !== (await pairMark(mark, known.binding, candidate.secret))) return mark("plainva: changed on this device");
   return pairMark(mark, candidate.binding, candidate.secret);
 }
+
+/** A mark made with a key this device no longer has: what it knew is lost, not changed. */
+const isLostMark = (mark: SecretsMarker, hash: string | undefined): boolean => !!hash && isSecretsMark(hash) && !mark.owns(hash);
 
 /** The name a device up to 0.8.7 gave this binding's password (the old type, the user lower-cased). */
 function bridgeIdOf(binding: SecretBinding): string | null {
@@ -438,12 +474,16 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   async function exportBundle(): Promise<SecretsBundle> {
       const deviceId = await host.deviceId();
       const stamp = now();
-      const mark = await secretsMarker(host);
       const read = await host.readMeta();
+      const mark = await secretsMarker(host, holdsSecretsMarks(read));
       // Written back only when this round changed it (round eight, F68).
       const asRead = read ? stableStringify(read) : null;
       const meta = cloneMeta(read);
       await sealSecretsMeta(meta, mark);
+      // The key of the marks was lost while marks of it are here (round nine):
+      // said in the diagnostics, every round until the records are restored.
+      const lostRecords = Object.values(meta.entries).filter((entry) => !entry.tombstone && isLostMark(mark, entry.hash)).length;
+      if (lostRecords > 0) logDiagnosticCounted("settings-sync", `secrets: ${lostRecords} record(s) made with a lost mark key, restored from the shared document`);
       // OAuth registrations may still be exposed by an older shell adapter,
       // but the shared port is the final policy boundary for every platform.
       const candidates = (await host.candidates()).filter((candidate) =>
@@ -468,11 +508,17 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         if (!candidate.secret) continue;
         const hash = await pairMark(mark, candidate.binding, candidate.secret);
         const previous = meta.entries[candidate.logicalId];
+        // What this device knew went with its key (round nine): nothing here is
+        // taken as a change. The slot waits for the shared document, which
+        // restores the record or holds the slot as a local conflict — until a
+        // password is typed here again: a new revision over all it saw.
+        const lost = !!previous && !previous.tombstone && isLostMark(mark, previous.hash);
+        const typedAgain = lost && !!previous.held && mark.owns(previous.held) && previous.held !== hash;
+        if (lost && !typedAgain) continue;
         // The revision only moves when the secret actually changed — otherwise
-        // two devices would ping-pong revisions on every cycle. A record whose
-        // mark is not known here ("") is taken as this slot (F67).
-        const changed = !previous || previous.tombstone || (previous.hash !== "" && previous.hash !== hash);
-        const entryRev = changed ? (previous?.entryRev ?? 0) + 1 : previous.entryRev;
+        // two devices would ping-pong revisions on every cycle.
+        const changed = !previous || previous.tombstone || previous.hash !== hash;
+        const entryRev = changed ? Math.max(previous?.entryRev ?? 0, previous?.heldRev ?? 0) + 1 : previous.entryRev;
         const updatedAt = changed ? stamp : previous.updatedAt;
         entries[candidate.logicalId] = {
           entryRev,
@@ -591,8 +637,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // candidates or touching metadata/keychain state.
       assertSecretsBundleStructure(bundle);
 
-      const mark = await secretsMarker(host);
       const originalMeta = await host.readMeta();
+      const mark = await secretsMarker(host, holdsSecretsMarks(originalMeta));
       const meta = cloneMeta(originalMeta);
       const sealed = await sealSecretsMeta(meta, mark);
       const candidates = await host.candidates();
@@ -609,6 +655,16 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       let metaDirty = (await carryOldKnowledge(meta, candidates, mark)) || sealed;
       if (reopenOldNames(meta, candidates)) metaDirty = true;
       const closedOldName = (id: string) => !!meta.oldNameTombstones?.[id] || !!meta.closedOldNames?.[id];
+      // What this device knew under each old name when the round began. An
+      // entry under an old name that carries the password the device already
+      // knew there is no news (round nine): a device back on 0.8.7 publishes
+      // it again with its own time, and that time must not cover a newer
+      // password in the current place.
+      const before = cloneMeta(meta);
+      const knownUnderOldName = async (id: string, entry: SecretEntry): Promise<boolean> => {
+        const known = before.entries[id];
+        return !!known && !known.tombstone && !entry.tombstone && mark.owns(known.hash) && known.hash === (await entryHash(mark, entry));
+      };
 
       const rememberEntry = async (logicalId: string, entry: SecretEntry, alias = false) => {
         meta.entries[logicalId] = {
@@ -674,16 +730,26 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
 
         const previous = meta.entries[logicalId];
+        // A record of a lost key: its version still orders, its mark compares
+        // nothing (round nine).
+        const lost = !!previous && !previous.tombstone && isLostMark(mark, previous.hash);
+        const order = previous ? compareEntryVersion(entry, previous) : 1;
         if (previous) {
-          const order = compareEntryVersion(entry, previous);
           if (order < 0) {
             recordImportResult(result, logicalId, "stale", "older-entry");
             continue;
           }
-          if (order === 0) {
+          if (order === 0 && lost && bridged) {
+            recordImportResult(result, logicalId, "unchanged", "already-current");
+            continue;
+          }
+          if (order === 0 && !lost) {
             const hash = await entryHash(mark, entry);
-            // A record whose mark is not known here ("", F67) is the same entry.
-            const same = previous.hash === hash || (previous.hash === "" && !previous.tombstone && !entry.tombstone);
+            // An empty slot here has the mark of no secret: the entry it came
+            // with is the same entry, the slot simply holds nothing.
+            const same =
+              previous.hash === hash ||
+              (!previous.tombstone && !entry.tombstone && previous.hash === (await pairMark(mark, previous.binding, null)));
             if (same && Boolean(previous.tombstone) === Boolean(entry.tombstone)) {
               recordImportResult(result, logicalId, "unchanged", "already-current");
             } else {
@@ -737,6 +803,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             recordImportResult(result, logicalId, "unchanged", exact ? "superseded-by-exact-entry" : "old-name-not-taken");
             continue;
           }
+          if (exact && (await knownUnderOldName(logicalId, entry))) {
+            recordImportResult(result, logicalId, "unchanged", "already-current");
+            continue;
+          }
         }
         // The current entry of an account whose old name carries a NEWER
         // password (a device up to 0.8.7 changed it): that one is read.
@@ -745,7 +815,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         if (
           oldEntry && isBridgeSecretType(oldEntry.binding.secretType) && !oldEntry.tombstone &&
           meta.entries[oldName!]?.tombstone !== true && !closedOldName(oldName!) &&
-          oldEntry.updatedAt > entry.updatedAt
+          oldEntry.updatedAt > entry.updatedAt &&
+          !(await knownUnderOldName(oldName!, oldEntry))
         ) {
           recordImportResult(result, logicalId, "unchanged", "superseded-by-later-entry");
           continue;
@@ -777,6 +848,34 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             direct ? "binding-mismatch" : "unknown-account",
           );
           continue;
+        }
+
+        // Knowledge lost with the key (round nine): restored from the document
+        // where the slot holds what it says; held as a local conflict where it
+        // holds something else, unless the entry is newer and this device took
+        // its password through the sync (then it follows, as always).
+        if (lost && !entry.tombstone && candidate.logicalId === logicalId) {
+          if (candidate.secret && stableStringify(candidate.secret) === stableStringify(entry.secret)) {
+            await rememberEntry(logicalId, entry);
+            recordImportResult(result, logicalId, "unchanged", "already-current");
+            continue;
+          }
+          if (candidate.secret && !(pairImported && order > 0)) {
+            const held = await pairMark(mark, candidate.binding, candidate.secret);
+            const heldRev = Math.max(previous!.heldRev ?? 0, entry.entryRev);
+            if (previous!.held !== held || previous!.heldRev !== heldRev) {
+              meta.entries[logicalId] = { ...previous!, held, heldRev };
+              metaDirty = true;
+            }
+            recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
+            continue;
+          }
+          if (!candidate.secret && order === 0) {
+            meta.entries[logicalId] = { hash: await pairMark(mark, candidate.binding, null), entryRev: entry.entryRev, updatedAt: entry.updatedAt, deviceId: entry.deviceId, binding: candidate.binding };
+            metaDirty = true;
+            recordImportResult(result, logicalId, "unchanged", "already-current");
+            continue;
+          }
         }
 
         if (entry.tombstone && !pairImported) {
