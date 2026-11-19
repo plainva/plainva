@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-17
+Última actualización: 2026-11-19
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -255,3 +255,9 @@ Al añadir una propiedad aparecen nombres conocidos con su tipo y frecuencia. Se
 ### Abrir imagen
 
 **Abrir imagen** está disponible para imágenes locales en lectura, vista previa y el menú contextual. En el visor móvil, amplía con dos dedos, un doble toque o los botones; **Restablecer zoom** muestra la imagen completa. Atrás vuelve a la nota. La pulsación larga conserva las acciones del sistema y sigue siendo posible seleccionar una región para comentarla.
+
+## Notas muy grandes
+
+Una nota puede crecer tanto que un dispositivo ya no pueda leerla con formato: una tabla de miles de filas, una lista de decenas de miles de elementos, megabytes de texto en un párrafo. Para que aun así se abra en cualquier dispositivo, Plainva lee sus partes más pesadas como texto sin formato. Sobre la nota aparece **Esta nota es muy grande. Una parte se muestra como texto.**; la ⓘ de al lado explica qué significa, y **Ir allí** te lleva en el editor al primer lugar así.
+
+En esas partes solo falta el formato: las tablas, las listas, los enlaces y los énfasis aparecen como texto fuente. Por lo demás, el texto cuenta como cualquier otro: la búsqueda lo encuentra, sus enlaces aparecen en los vínculos entrantes y en el grafo, sus etiquetas y tareas se encuentran y, al renombrar una nota, Plainva también reescribe sus enlaces. Los encabezados y las propiedades se conservan todo lo posible. Divide la nota en varias y todo vuelve a tener formato. El escritorio y el teléfono deciden igual.

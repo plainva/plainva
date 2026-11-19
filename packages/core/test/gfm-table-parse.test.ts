@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { fixtureFiles } from "../scripts/perf/fixtureVault.ts";
 import { tablesNote } from "../scripts/perf/many-tables.ts";
+import { overBudgetInlineRanges } from "../src/inlineParseBudget.ts";
 import { parseMarkdownAst } from "../src/markdown-parser.ts";
 import { NASTY_TABLES, treeDigest } from "./gfmTableCorpus.ts";
 import { within } from "./helpers/timeBudget.ts";
@@ -61,6 +62,7 @@ const PINS: Record<string, string> = {
   manyTablesInQuotes: "1a53d2bd55c1bf3bdae6b230b3ff9217407c7d01355cddc95f1eef0a29252c18",
   "fixture:all": "adab711456f03d2a4ec36f852b72e739e4a2e4914c130dc81bc815c1514403fb",
   "fixture:long": "bb12057a4c3d82fdad1aa7ca42fa8b5883947320de146e9e3d2c87322a501356",
+  "fixture:long:note-budget": "9215ab8c7127c3301aaa5eb5c819c731897aba6e8d444e4abc57883f23d2955e",
 };
 
 // Guards of the parser upgrade to GFM tables 2.1.2, not of the parse budget:
@@ -75,24 +77,35 @@ describe("GFM tables are read as before, in time linear in the note (guards of t
     expect(actual).toEqual(pinned);
   });
 
-  it("every note of the fixture vault reads into the tree it read into before, the long table note included", () => {
+  it("every note of the fixture vault reads into the tree it read into before; the long table note as the note's budget reads it", () => {
+    // The long table note (80 tables of 200 rows, 1.7 MB) does not fit 128 MB: since L14 the note's budget reads
+    // most of its tables as text. The digest of every note goes into one, the long note's as it was before: every
+    // other note reads as it did.
     const all = createHash("sha256");
     let long = "";
     for (const file of fixtureFiles({ count: 1000 })) {
       if (!file.path.endsWith(".md")) continue;
       const digest = treeDigest(file.data as string);
-      if (file.path.endsWith("Long table note.md")) long = digest;
-      all.update(file.path + "\0" + digest + "\0");
+      const isLong = file.path.endsWith("Long table note.md");
+      if (isLong) long = digest;
+      all.update(file.path + "\0" + (isLong ? PINS["fixture:long"] : digest) + "\0");
     }
-    expect({ all: all.digest("hex"), long }).toEqual({ all: PINS["fixture:all"], long: PINS["fixture:long"] });
+    expect({ all: all.digest("hex"), long }).toEqual({ all: PINS["fixture:all"], long: PINS["fixture:long:note-budget"] });
   }, 60_000);
 
   it("80 tables of 50 rows read in well under a second, not in the square of their cells (time only, the heap uncapped)", () => {
     // Quadratic, this note took 19-39 s on the reference machine (Performance_Notes.md,
     // "Many tables in one note"); linear, about 0.6 s. The budget is five times that,
     // scaled to a slower core by within(), and still misses the quadratic parse.
+    // The note does not fit 128 MB (the note-source parse ran out of it): since L14 the note's budget reads some
+    // of its tables as text; every other one is a table.
     const text = tablesNote(80, 50);
     const tree = within(3_000, () => parseMarkdownAst(text, { preserveObsidianSyntax: true }));
-    expect(tree.children.filter((node) => node.type === "table")).toHaveLength(80);
+    const asText = overBudgetInlineRanges(text).filter((range) => range.block);
+    const headers = [...text.matchAll(/^\|.*\n\|[-| :]+\|$/gm)].map((match) => match.index!);
+    expect(headers).toHaveLength(80);
+    const outside = headers.filter((at) => !asText.some((range) => range.from <= at && at < range.to));
+    expect(asText.length).toBeGreaterThan(0);
+    expect(tree.children.filter((node) => node.type === "table")).toHaveLength(outside.length);
   }, 60_000);
 });

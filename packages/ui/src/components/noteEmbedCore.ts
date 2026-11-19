@@ -1,3 +1,4 @@
+import { readAsTextChanged, withoutReadAsText } from "./readAsText";
 import { RangeSetBuilder, type Extension } from "@codemirror/state";
 import {
   Decoration,
@@ -71,7 +72,7 @@ export function buildNoteEmbedCoreExtension(
         // (the selected line reveals its raw syntax, desktop semantics).
         // A rebuild also when the parser reaches more of the text: whether an
         // embed stands in code is the syntax tree's answer (literalSyntax.ts).
-        let needsRebuild = update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)
+        let needsRebuild = update.transactions.some(readAsTextChanged) || update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)
           // Read mode and editing reveal differently (GitHub issue 118).
           || interactivityChanged(update.startState, update.state);
         if (!needsRebuild && update.selectionSet) {
@@ -133,7 +134,7 @@ export function buildNoteEmbedCoreExtension(
             pos = line.to + 1;
           }
         }
-        return builder.finish();
+        return withoutReadAsText(view.state, builder.finish());
       }
     },
     { decorations: (v) => v.decorations },

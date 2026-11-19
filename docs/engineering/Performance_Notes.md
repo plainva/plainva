@@ -756,17 +756,117 @@ shows its lines as one paragraph of text with the pipes in it, no table, its quo
 it as it was — and no other block: its `=` and `-` are read as written as well, so that a row of
 `==` cannot underline the rows above it as a heading.
 
-**One note, many tables (open, 2026-11-13).** The memory of a parse is the note's, and the budget
-is the table's. Measured under the same criterion (each parse in its own process, 128 MB): one
-table at the budget passes, two do not; at half the budget three tables of a word and a link
-pass, at a tenth seventeen; of sixteen one-character cells per row, two at half, twelve at a
-tenth. What a parse holds at its peak adds up over the tables of a note — the tree it keeps is
-small, 7 to 10 MB a table at the budget, the peak about ten times that. The fixture's long table
-note (80 × 200 rows) does not pass, 22 of its 80 sections do; a list of 9 500 linked items without
-any table does not either. Before L13 the same was true with the lower rule: three tables of 2 500
-rows passed, four did not. Nothing bounds the memory of a whole note; that is a package of its
-own. Read as written, 12 000 such rows take 0.3 s and about 120 MB of resident memory at
-the peak.
+**One note, many tables — the note's budget (L14, 2026-11-16).** The memory of a parse is the
+note's: micromark holds the events of the whole note until its tree is built, so the peak adds up
+over its blocks. Measured on 2026-11-13: one table at the table budget passes under 128 MB, two do
+not; the fixture's long table note (80 × 200 rows) does not, nor does a list of 9 500 linked items
+without any table, nor — on main as well — a paragraph of 1.5 MB of `x x …` (GFM's table parser
+reads a long line as a header row, a piece for each stretch between blanks, 612 MB) or 4 MB of
+prose.
+
+Since L14 the scan weighs the whole note (`noteBudgetRanges` in `inlineParseBudget.ts`): each line
+of text by `noteLineCost` — a line, a list item it opens, its quote and list levels, its characters,
+the starts of its words, each run of inline syntax and, beyond that, by its kind (emphasis, code
+span, `<`, `&`), its links, its link literals and footnote references, its formulas (as a table weighs
+them: KaTeX lays them out) —, each block (the lines between two blank lines) and each heading once
+more. A table weighs what stays of it once it is resolved: each row a row's and each cell's weight
+of its own and its content as text weighs, the heaviest table's peak (a share of its table weight)
+once on top — two tables at the table budget run 128 MB out, 101 tables of 50 rows do not. Over
+`NOTE_BUDGET` (7 660 000, a tenth over the table budget, so that a table at its own budget fits with
+the text around it) the heaviest blocks are read as text until the note is within it; headings only
+where nothing else is left, the properties block never. The choice depends on the text alone, so
+every device makes the same.
+
+A block read as text stands in all its characters, its line ends too (`boundMarkdownInRanges`): a
+line of stand-ins is events of its own — 60 000 lines of them filled 128 MB where ten lines of the
+same length passed in 28 MB —, and blocks with only blank lines between them are one range. The
+places in the text stay where they were; `restoreBoundedTree` gives every value its characters back
+from its place in the original, and every node its line and column. Every stretch read as written,
+a paragraph or a table over its own budget as well, stands in every character but its line ends
+since L14, blanks included: no syntax, no link literal, no word, no cell is left to read, and a
+replace by a pattern over 4 MB, which held 112 MB while it ran, is a repeated run of stand-ins.
+micromark 4.0.3 takes the quadratic splice out of a long text paragraph below; a comparison of
+3 707 notes (the fixture vault, the table corpus, every shape, 200 generated tables, hand-made
+emphasis forms, 2 310 notes of three local vaults) gave the same tree in the index parse, the
+note-source parse and the reading view under 4.0.2 and 4.0.3. `micromark-core-commonmark` stays at
+2.0.3: its 2.0.4 changes emphasis next to punctuation.
+
+The weights come from the largest note of 40 of the generator's 43 forms the three parses read without a budget under
+128 MB (`scripts/perf/note-budget.ts`, measured on 2026-11-16), fitted by a linear program: each
+form's limit weighs at least the budget / 0.77, so every form keeps about 30 %, and the sum of what
+every form weighs at its limit is as small as it can be. The first calibration, from 19 forms of
+one kind of line each, read a list of 3 000 tasks with a link and emphasis as text, which the
+parses read up to 6 500; and footnotes and dense small tables kept no margin (0.88). Four forms
+reach the paragraph budget before the note's (one line of `x]`, lines of links run together,
+sentences run together, lines of embeds); formulas keep the table's weights. A word of text costs
+far less than a word in a table cell: a line of 168 000 one-letter words passes.
+
+| Form | Read as it is up to | Limit without a budget | Margin |
+|---|---:|---:|---:|
+| prose, lines of twelve words | 9 239 | 20 000 | 2.16 |
+| one line of `x x …` (words) | 127 647 | 168 000 | 1.32 |
+| short paragraphs between blank lines | 5 838 | 13 500 | 2.31 |
+| lines of a mail address and a `www.` | 8 586 | 24 000 | 2.80 |
+| list items `- item n` | 6 388 | 8 750 | 1.37 |
+| list items with a wiki link | 5 603 | 7 750 | 1.38 |
+| tasks `- [ ] task n due` | 5 546 | 7 750 | 1.40 |
+| nested items | 5 332 | 8 250 | 1.55 |
+| ordered items | 6 719 | 8 750 | 1.30 |
+| items between blank lines | 4 554 | 9 250 | 2.03 |
+| quote lines | 16 206 | 27 000 | 1.67 |
+| lines three quotes deep | 16 040 | 21 000 | 1.31 |
+| headings | 14 917 | 19 500 | 1.31 |
+| tables of two rows between blank lines | 2 689 | 3 500 | 1.30 |
+| lines of fenced code | 61 338 | 80 000 | 1.30 |
+| thematic breaks between blank lines | 12 536 | 33 000 | 2.63 |
+| lines of two tags | 39 519 | 52 000 | 1.32 |
+| tasks with a wiki link and emphasis | 4 087 | 6 500 | 1.59 |
+| paragraphs of eighty `]` | 11 132 | 14 500 | 1.30 |
+| paragraphs of `` `a `` × 40 | 1 676 | 2 187 | 1.30 |
+| paragraphs of `&amp;` × 16 | 2 783 | 3 625 | 1.30 |
+| paragraphs of eighty `[` | 2 075 | 2 750 | 1.32 |
+| paragraphs of eighty `*` (thematic breaks) | 9 352 | 40 000 | 4.28 |
+| tables of 50 rows of sixteen cells | 19 | 26 | 1.30 |
+| lines of a Markdown link and a URL | 7 073 | 9 250 | 1.31 |
+| paragraphs of `*a` × 40 | 1 292 | 1 687 | 1.31 |
+| paragraphs of `![` × 40 | 2 596 | 4 875 | 1.88 |
+| tables of 50 rows of three cells | 73 | 101 | 1.38 |
+| tables of 1 200 rows | 3 | 4 | 1.31 |
+| done items with a link and a date | 4 628 | 7 500 | 1.62 |
+| journal lines `- 10:00 …` with a link and a tag | 4 053 | 6 500 | 1.60 |
+| lines of emphasis, strike-through and code | 4 048 | 7 000 | 1.73 |
+| footnote references and definitions | 2 778 | 3 625 | 1.30 |
+| paragraphs of `\*` × 40 | 1 292 | 2 125 | 1.64 |
+| paragraphs of `<a` × 40 | 9 479 | 12 500 | 1.32 |
+
+At three times their limit every form is read under 128 MB in the index parse, the note-source parse
+and the reading view as the core runs it; so are notes of 4 to 10 MB (60 000 lines of prose, 40 000
+short paragraphs, 200 000 linked items, 50 000 small tables). A note whose text alone, read as one
+line of stand-ins, outgrows the heap — far beyond 10 MB — is not bounded by this; the editor loads
+such a file as it did before. `perf:notes -- --check` holds the forms, `--hunt` (the performance
+workflow, every push and daily on main) draws mixed notes from a tenth to five times the budget.
+
+The scan weighs every line of a note longer than 5 000 characters: about 25 ms a megabyte (1.3 MB of
+prose 33 ms). It runs where a note is parsed: at open, at each index pass, and in the editor once
+the typing pauses (the desktop mirrors its text 150 ms after the last key, 2 s from 512 KB; the
+phone's notice and the editor's stretches read as text 400 ms, `readAsText.ts`), never at each key.
+
+What a part read as text keeps, in both shells: a notice over the note says that part of it is
+read as text (`ReadAsTextNotice`), with its ⓘ and the way to its first place; the reading view and
+the live preview show the source there (no table widget, no formatting, no link or tag pill). All
+else stays: the full-text search finds the text; its wiki links, embeds and inline links are found
+by a linear search of each line, never a parse (`textReadLinks.ts`), and join the parsed tree as
+the nodes the parser makes of a link — a table's rows give theirs by a parse of one row at a time
+(`readRowLinks`) — so the index, backlinks, the graph and a rename read each link of the note once,
+from one tree (`note-budget.test.ts`: 20 000 tasks with a wiki link, a Markdown link and a tag each
+keep all of them; until 2026-11-19 a rename read the links of a table over the budget twice, once
+from its rows and once from a search of its own); tags come from the text the tree gives back, and
+tasks from the line scan (`taskScan.ts`), which reads no tree. The index reads every note this
+way: until L14 a note with a line over 10 000 characters lost its links, its tags and its
+properties altogether.
+128 MB is an assumption measured on Node's heap: „Speicher messen“ under About & Diagnostics reads
+generated notes of growing size on the device and puts the largest it read, and a size at which
+the app was ended, into the diagnostics export.
 
 What the written reading costs above the budget is the one thing not linear here, and it is not the
 table's: micromark's text initializer (`resolveAllText`, 4.0.2) merges adjacent `data` events with

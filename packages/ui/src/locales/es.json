@@ -3323,6 +3323,12 @@
     "diagnosticsExported": "Exportación de diagnóstico guardada.",
     "diagnosticsExportFailed": "Error al exportar el diagnóstico: {{error}}",
     "exportDiagnostics": "Exportar diagnóstico…",
+    "memoryProbe": "Medir memoria",
+    "memoryProbeInfo": "Lee notas generadas de tamaño creciente y recuerda la mayor que este dispositivo pudo leer. El resultado va a la exportación de diagnóstico, sin el contenido de ninguna nota. Tarda hasta un minuto.",
+    "memoryProbeRun": "Medir",
+    "memoryProbeRunning": "Midiendo …",
+    "memoryProbeResult": "Nota más grande leída: {{size}} MB",
+    "memoryProbeEnded": "La última vez la app se cerró en {{size}} MB (leído: {{largest}} MB)",
     "fontCustom": "Personalizada…",
     "fontCustomPlaceholder": "Nombre de una fuente instalada",
     "fontNotInstalled": "No instalada",
@@ -3848,6 +3854,9 @@
     "draftBanner": "Se encontró un borrador sin guardar (de {{time}}). ¿Restaurarlo?",
     "draftRestore": "Restaurar borrador",
     "draftDiscard": "Descartar borrador",
+    "readAsText": "Esta nota es muy grande. Una parte se muestra como texto.",
+    "readAsTextInfo": "Para que la nota se abra en cualquier dispositivo, Plainva lee sus partes más pesadas como texto sin formato. Allí solo falta el formato: las tablas, las listas y los enlaces aparecen como texto fuente.\n\nPor lo demás, ese texto cuenta como cualquier otro: la búsqueda lo encuentra, sus enlaces aparecen en los vínculos entrantes y en el grafo, sus etiquetas y tareas se encuentran y, al renombrar una nota, se reescriben sus enlaces. Si divides la nota, todo vuelve a tener formato.",
+    "readAsTextJump": "Ir allí",
     "fmtHeading": "Encabezado"
   },
   "tabMenu": {

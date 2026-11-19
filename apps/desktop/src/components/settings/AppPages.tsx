@@ -8,6 +8,7 @@ import {
   SettingRow,
   SettingsPageHead,
   settingsArea,
+  useMemoryProbe,
 } from "@plainva/ui";
 import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
@@ -479,6 +480,8 @@ export interface AboutPageProps {
 
 export const AboutPage: React.FC<AboutPageProps> = (p) => {
   const { t } = useTranslation();
+  // „Speicher messen“ (L14): how large a note this device reads; the result goes into the diagnostics export.
+  const memoryProbe = useMemoryProbe();
   return (
     <div>
       <AreaHead areaId="about" />
@@ -497,6 +500,11 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
       <StoredCredentialsCard keychainStatus={p.keychainStatus} />
 
       <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })}>
+        <SettingRow label={t("settings.memoryProbe")} info={t("settings.memoryProbeInfo")} desc={memoryProbe.line ?? undefined}>
+          <Button variant="secondary" size="sm" disabled={memoryProbe.running} onClick={memoryProbe.run} data-testid="memory-probe-run">
+            {t("settings.memoryProbeRun")}
+          </Button>
+        </SettingRow>
         <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} info={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="secondary" size="sm" onClick={p.onRefreshPerfStats}>

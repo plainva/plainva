@@ -24,6 +24,8 @@ const NOTES: Record<string, string> = {
   "ShortLines.md": around(Array.from({ length: 1_250 }, () => "]".repeat(80)).join("\n")),
   "Emphasis.md": around("*a".repeat(150_000)),
   "BigTable.md": around(["| a | b |", "|---|---|", ...Array.from({ length: 6_000 }, (_, i) => `| row ${i} | [[n${i}]] |`)].join("\n")),
+  // Over the note's budget (L14, B1 of release 0.9.0: 4 s and 409 MB at main).
+  "BigList.md": around(Array.from({ length: 20_000 }, (_, i) => `- [ ] item ${i} [[Note ${i}]]`).join("\n")),
   "Remote.md": [
     "# Remote",
     "",
@@ -112,6 +114,26 @@ test("a picture from the web in a note: the editor fetches it, HTML in the note 
     await expect(page.locator(".cm-content").first().getByText("The end.")).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => [...new Set(fetched)].sort(), { timeout: 15_000 }).toEqual(["/md.png", "/wiki.png"]);
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("remote-phone.png") });
+  } finally {
+    await sql.close();
+  }
+});
+
+test("a note over its budget: the notice over the note, its heaviest block as source (L14)", async ({ page, context }, testInfo) => {
+  test.setTimeout(150_000);
+  const sql = await installSqlBridge(context);
+  try {
+    await openVaultWith(page, { "BigList.md": NOTES["BigList.md"], "Remote.md": NOTES["Remote.md"] });
+    await openNote(page, "BigList");
+    const editor = page.locator(".cm-content").first();
+    await expect(editor.getByText("Title").first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("read-as-text-notice")).toBeVisible({ timeout: 15_000 });
+    // Outside the list the live preview draws the link (its brackets hidden); the list is its source.
+    await expect(editor.getByText("[[Kept]]")).toHaveCount(0);
+    await page.getByTestId("read-as-text-jump").click();
+    await expect(editor.getByText("[[Note 0]]").first()).toBeVisible({ timeout: 15_000 });
+    expect(await answers(page)).toBeLessThan(5_000);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("read-as-text-phone.png") });
   } finally {
     await sql.close();
   }

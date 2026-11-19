@@ -48,7 +48,7 @@
  * a long line of plain text.
  */
 
-import { opensUnclosedProperties } from "./frontmatter-block.js";
+import { frontmatterSpan, opensUnclosedProperties } from "./frontmatter-block.js";
 import { readerWikiLink } from "./readerWikiLink.js";
 
 /** The most `inlineParseCost` a stretch may have and still be parsed as Markdown. */
@@ -58,8 +58,10 @@ export const INLINE_PARSE_BUDGET = 15_000_000;
 export interface BoundedRange {
   from: number;
   to: number;
-  /** A table read as written: its `=` and `-` stand in for themselves as well, so that no row of `==` or `--` underlines the lines above it as a heading. */
+  /** A table read as written: its range starts behind the markers of each line, and every character of it stands in. */
   table?: true;
+  /** A block read as text to keep the note in its budget (`NOTE_BUDGET`): every character stands in, its markers too, and it is read as a paragraph. */
+  block?: true;
 }
 
 const WHITESPACE = /\s/u;
@@ -1134,6 +1136,8 @@ function htmlBlockOpening(text: string): RegExp | null {
 export interface MarkdownReading {
   /** GFM tables. */
   tables: boolean;
+  /** The note's budget over all its blocks (`NOTE_BUDGET`); off only for a reading of one block or one line. */
+  notes?: boolean;
   /** The properties block (`remark-frontmatter`), with its mode behind an unclosed `---` (`opensNoContainers`). */
   properties: boolean;
 }
@@ -1161,6 +1165,7 @@ export function unitedRanges(...lists: BoundedRange[][]): BoundedRange[] {
     if (previous && range.from < previous.to) {
       previous.to = Math.max(previous.to, range.to);
       if (range.table) previous.table = true;
+      if (range.block) previous.block = true;
     } else {
       merged.push({ ...range });
     }
@@ -1268,7 +1273,10 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       { from: header.from + head.at, to: header.to },
       { from: delimiter.from + under.at, to: delimiter.to },
     ];
-    let cost = partsCost(rememberedRowParts(text, content[0].from, content[0].to), 0) + tableMarkerCost(header.text.slice(0, head.at));
+    const headerParts = rememberedRowParts(text, content[0].from, content[0].to);
+    let cost = partsCost(headerParts, 0) + tableMarkerCost(header.text.slice(0, head.at));
+    // What the table weighs to the note's budget: what stays of each row once the table is resolved (`noteTableRowCost`).
+    let noteCost = noteTableRowCost(headerParts, 0, header.text.slice(0, head.at));
     const costly: BoundedRange[] = [];
     if (exceedsInlineParseBudget(text, content[0].from, content[0].to)) costly.push(content[0]);
     let last = index + 1;
@@ -1281,11 +1289,15 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       if (endsTable(row, start.indent, containers)) break;
       const range = { from: line.from + start.at, to: line.to };
       content.push(range);
-      cost += partsCost(rememberedRowParts(text, range.from, range.to), delimiterCells ?? 0) + tableMarkerCost(line.text.slice(0, start.at));
+      const parts = rememberedRowParts(text, range.from, range.to);
+      cost += partsCost(parts, delimiterCells ?? 0) + tableMarkerCost(line.text.slice(0, start.at));
+      noteCost += noteTableRowCost(parts, delimiterCells ?? 0, line.text.slice(0, start.at));
       if (exceedsInlineParseBudget(text, range.from, range.to)) costly.push(range);
       last = at;
     }
     observe?.table?.(index, last, exact, cost);
+    // The note's budget weighs a table the scan reads exactly by its own weight; read as written, by what text costs.
+    if (exact) tablesRead.set(index, { last, cost: cost > TABLE_READ_BUDGET ? -1 : noteCost, peak: cost });
     if (cost > TABLE_READ_BUDGET) {
       // One range where only blanks, line ends and markers that are no markup lie between two lines.
       // Read as written, the table is a paragraph, and the lines behind it
@@ -1303,7 +1315,8 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       for (const range of content) {
         const previous = ranges[ranges.length - 1];
         const between = previous && previous.to <= range.from ? text.slice(previous.to, range.from) : null;
-        if (previous && between !== null && previous.from >= content[0].from && ![...between].some((ch) => MARKUP.includes(ch))) previous.to = range.to;
+        // Rows joined only across a line end: the markers between two rows of a table in a quote or list stay as they are.
+        if (previous && between !== null && previous.from >= content[0].from && /^[ \t]*\r?\n$/.test(between)) previous.to = range.to;
         else ranges.push({ ...range, table: true });
       }
     } else {
@@ -1312,6 +1325,10 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     return last;
   };
   let fence: Fence | null = null;
+  // What the note's budget needs of the scan (`noteBudgetRanges`): the tables read exactly, by their header line;
+  // the lines of fenced code; the blank lines that end a block; the lines of headings.
+  const tablesRead = new Map<number, { last: number; cost: number; peak: number }>();
+  const lineKinds = new Uint8Array(lines.length);
   // The list the current run stands in: where the content of its last item
   // begins, and where its ordered items stand. `null` outside a list.
   // Declared through a cast, so that the type checker does not narrow it to `null` for the reads in the loop.
@@ -1388,6 +1405,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     if (fence) {
+      lineKinds[index] = LINE_CODE;
       // A line less indented than an indented fence may have left the list item the fence stood in.
       if (fence.indent > 0 && !isBlank(line.text) && indentOf(line.text) < fence.indent) {
         fence = null;
@@ -1399,6 +1417,8 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       }
     }
     if (isBlank(line.text)) {
+      // A blank line ends a block of the note's budget, except in fenced code and in HTML that runs on to its end (a comment, a script).
+      if (!fence && (!html || html === HTML_ENDS_AT_BLANK)) lineKinds[index] = LINE_BREAK;
       flush();
       list = null;
       // A blank line ends an HTML block of tags; one of a comment, a script and the like runs on to its end.
@@ -1410,6 +1430,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     if (!fence && !html) {
       const opening = fenceOpening(line.text);
       if (opening) {
+        lineKinds[index] = LINE_CODE;
         flush();
         list = null;
         fence = opening;
@@ -1457,6 +1478,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       continue;
     }
     if (isAtxHeading(content)) {
+      lineKinds[index] = LINE_HEADING;
       flush();
       list = null;
       run = { from: line.from, to: line.to, first: index, last: index };
@@ -1488,12 +1510,21 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   flush();
   // A table weighed generously overlaps the runs measured over the same lines: one range where they meet.
   ranges.sort((x, y) => x.from - y.from);
+  // Then the note's budget, over the blocks the stretches above leave: the heaviest are read as text until the note is in it.
+  if (reading.notes !== false && text.length > NOTE_SCAN_FROM) {
+    const blocks = noteBudgetRanges(text, lines, lineKinds, tablesRead, ranges, reading);
+    if (blocks.length > 0) {
+      ranges.push(...blocks);
+      ranges.sort((x, y) => x.from - y.from);
+    }
+  }
   const merged: BoundedRange[] = [];
   for (const range of ranges) {
     const previous = merged[merged.length - 1];
     if (previous && range.from < previous.to) {
       previous.to = Math.max(previous.to, range.to);
       if (range.table) previous.table = true;
+      if (range.block) previous.block = true;
     } else {
       merged.push({ ...range });
     }
@@ -1501,18 +1532,351 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   return merged;
 }
 
+/** What a line is to the note's budget (`noteBudgetRanges`), where it is not text (0): a line of fenced code, a blank line that ends a block, a heading. */
+const LINE_CODE = 1;
+const LINE_BREAK = 2;
+const LINE_HEADING = 3;
+
 /**
- * The characters that make Markdown of text, and what each stands for while a
- * stretch is read as written: a noncharacter of its own (U+FDD0 onwards),
- * which Unicode keeps free for exactly this — standing in for something
- * inside a program. One UTF-16 unit each, so every place in the text stays
- * where it was.
+ * The most a whole note may weigh and still be read as it is written, in the
+ * unit of the table budget (L14, Gesamtplan Leistung § 3a): a parse holds the
+ * events of the whole note until its tree is built, so the peak adds up over
+ * its blocks — two tables at the table budget did not fit 128 MB together,
+ * nor did a list of 9 500 linked items or a paragraph of 1.5 MB of words
+ * (`scripts/perf/note-budget.ts`). A tenth over the table budget, so that a
+ * table at its own budget fits with the text around it: the parse of N
+ * tables adds up, at about 1.0 to 1.75 times their weights' share of the
+ * budget (Gesamtplan Leistung § 3a.1), and each weight keeps 30 % to its
+ * shape's limit.
  */
-const MARKUP = "\\[]*_~`<&!$|";
-/** The stand-ins in order: `MARKUP`, then what only a table read as written stands in for (`BoundedRange.table`). */
-const STAND_INS = `${MARKUP}=-`;
-const STAND_IN_BASE = 0xfdd0;
-const REPLACEMENT = String.fromCharCode(0xfffd);
+export const NOTE_BUDGET = 7_660_000;
+
+/** A note no longer than this cannot reach the note's budget: no character weighs more than about 1 300. */
+const NOTE_SCAN_FROM = 5_000;
+
+/**
+ * The weights of a line of text to the note's budget (`noteLineCost`),
+ * measured 2026-11-16 (`scripts/perf/note-budget.ts`: the largest note of
+ * each of 19 forms the index parse, the note-source parse and the reading
+ * view read without a budget under 128 MB) and chosen so that each form's
+ * limit weighs at least `NOTE_BUDGET / 0.77`: a line on its own, a list item
+ * it opens, a block (the lines between two blank lines), a heading, a start
+ * of a word, a character of inline syntax, a link or wiki link. A word of
+ * text costs the parse far less than a word in a table's cell (a line of
+ * 168 000 one-letter words passes); a list item costs about a table row.
+ */
+export const NOTE_LINE_WEIGHT = 72;
+export const NOTE_ITEM_WEIGHT = 975;
+/** What each level of quote or list a line stands in weighs (`tableMarkerCount`): three quotes deep, 21 000 lines filled 128 MB. */
+export const NOTE_MARKER_WEIGHT = 100;
+export const NOTE_BLOCK_WEIGHT = 522;
+export const NOTE_HEADING_WEIGHT = 275;
+export const NOTE_WORD_WEIGHT = 62;
+/**
+ * What a run of one character of inline syntax weighs (`**`, `]]`, a single `*`): micromark reads a run of
+ * `*`, `_` or `~` as one sequence, and a closing `]` with nothing open is text; 14 500 paragraphs of eighty `]` passed.
+ */
+export const NOTE_SYNTAX_WEIGHT = 0;
+/** What each `[` weighs beyond its run: every one opens a label the parser keeps until it closes or the paragraph ends. */
+export const NOTE_OPEN_WEIGHT = 0;
+/**
+ * What a run of `*`, `_` or `~` weighs beyond `NOTE_SYNTAX_WEIGHT`: an attention sequence the parser matches
+ * against every other one of the paragraph (1 687 paragraphs of `*a*a…` filled 128 MB, 14 500 of `]]]…` did not).
+ */
+export const NOTE_EMPHASIS_WEIGHT = 140;
+/** What a run of backticks weighs beyond `NOTE_SYNTAX_WEIGHT`: a code span the parser looks for a closing run to. */
+export const NOTE_CODE_SPAN_WEIGHT = 104;
+/** What a `<` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of inline HTML or an autolink. */
+export const NOTE_ANGLE_WEIGHT = 3;
+/** What a `&` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of a character reference. */
+export const NOTE_ENTITY_WEIGHT = 138;
+/** What a `\` weighs beyond `NOTE_SYNTAX_WEIGHT`: an escape is a construct of its own. */
+export const NOTE_ESCAPE_WEIGHT = 0;
+export const NOTE_LINK_WEIGHT = 40;
+/** What each line of fenced code weighs beyond its characters (80 000 short lines of code fill 128 MB). */
+export const NOTE_CODE_LINE_WEIGHT = 116;
+/**
+ * What a line read as written weighs beyond its characters, where its line
+ * end stays (a paragraph or a table over its own budget): a line of
+ * stand-ins is events of its own. A block read as text for the note's budget
+ * becomes one line and weighs its characters.
+ */
+export const NOTE_TEXT_LINE_WEIGHT = 60;
+/**
+ * What a table weighs to the note's budget. The table weight is what reading one table holds at its peak; most of
+ * that is let go once the table is resolved — two tables at the table budget run 128 MB out, 101 tables of 50 rows
+ * do not, and 26 of 50 rows of sixteen cells do. So each row weighs what stays of it, by its own weights, a row and
+ * each cell of it (filled up to the header's columns) and its content as a line of text weighs; and the heaviest
+ * table's peak, in percent of its table weight, comes on top once.
+ */
+export const NOTE_TABLE_ROW_WEIGHT = 293;
+export const NOTE_TABLE_CELL_WEIGHT = 418;
+export const NOTE_TABLE_PEAK_WEIGHT = 6;
+/** What each autolink literal and each footnote reference weighs to the note's budget. */
+export const NOTE_LITERAL_WEIGHT = 301;
+export const NOTE_REFERENCE_WEIGHT = 511;
+
+/**
+ * What a table row of `parts`, behind `prefix`, weighs to the note's budget
+ * (`NOTE_TABLE_ROW_WEIGHT`). A `$` is a character of inline syntax and nothing
+ * more, as in the table's own weight (twelfth review of L13, 2026-11-18): the
+ * note's budget weighs what both shells parse, not KaTeX's layout of the
+ * desktop's reading view, which lays out every formula as `main` does.
+ */
+function noteTableRowCost(parts: TableRowParts, columns: number, prefix: string): number {
+  return (
+    NOTE_TABLE_ROW_WEIGHT +
+    parts.chars +
+    NOTE_TABLE_CELL_WEIGHT * Math.max(parts.cells, columns) +
+    NOTE_SYNTAX_WEIGHT * parts.syntax +
+    NOTE_LITERAL_WEIGHT * parts.literals +
+    NOTE_WORD_WEIGHT * parts.words +
+    NOTE_REFERENCE_WEIGHT * parts.references +
+    NOTE_LINK_WEIGHT * parts.links +
+    prefix.length +
+    NOTE_MARKER_WEIGHT * tableMarkerCount(prefix)
+  );
+}
+
+/** The characters of inline syntax (`TABLE_SYNTAX`), by their code: a lookup for the note's budget, which reads every line. */
+const SYNTAX_CODE = new Uint8Array(128);
+for (const ch of TABLE_SYNTAX) SYNTAX_CODE[ch.charCodeAt(0)] = 1;
+
+/**
+ * What a line of text, `text[from, to)`, weighs to the note's budget: its
+ * markers, a list item it opens, and its content by the parts a table row's
+ * content is weighed by (`tableRowParts`) without the row's and the cells'
+ * own weight — characters, inline syntax, starts of words (and a link glued
+ * to a word), link literals, links and wiki links, footnote references (a `$`
+ * is inline syntax, nothing more). One pass over character codes: it reads every line of a long
+ * note, where the scan otherwise asks most lines nothing.
+ */
+function noteLineCost(text: string, from: number, to: number): number {
+  const kept = keptPrefix(text, from, to);
+  let cost = NOTE_LINE_WEIGHT;
+  if (kept > 0) {
+    const prefix = text.slice(from, from + kept);
+    cost += prefix.length + NOTE_MARKER_WEIGHT * tableMarkerCount(prefix);
+    if (/(?:^|[ \t>])(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/.test(prefix)) cost += NOTE_ITEM_WEIGHT;
+  }
+  let syntax = 0;
+  let opens = 0;
+  let emphasis = 0;
+  let codeSpans = 0;
+  let angles = 0;
+  let entities = 0;
+  let escapes = 0;
+  let previous = -1;
+  let words = 0;
+  let literals = 0;
+  let links = 0;
+  let references = 0;
+  let inWord = false;
+  let wordStart = -1;
+  for (let i = from + kept; i < to; i++) {
+    const code = text.charCodeAt(i);
+    const blank = code === 0x20 || code === 0x09;
+    if (!blank && !inWord) {
+      words++;
+      wordStart = i;
+    }
+    if (code < 128 && SYNTAX_CODE[code]) {
+      if (code !== previous) {
+        syntax++;
+        if (code === 0x2a || code === 0x5f || code === 0x7e) emphasis++;
+        else if (code === 0x60) codeSpans++;
+        else if (code === 0x3c) angles++;
+        else if (code === 0x26) entities++;
+      }
+      if (code === 0x5c) escapes++;
+      if (code === 0x5b) {
+        opens++;
+        const next = text.charCodeAt(i + 1);
+        if (next === 0x5b) links++;
+        else if (next === 0x5e) references++;
+        // A link glued to the word before it is a piece of its own.
+        if (inWord && wordStart !== i && text.charCodeAt(i - 1) !== 0x5b && !(wordStart === i - 1 && text.charCodeAt(i - 1) === 0x21)) words++;
+      } else if (code === 0x5d && text.charCodeAt(i + 1) === 0x28) links++;
+    } else if (code === 0x40) {
+      literals++;
+      if (isRelativeDate(text, i, to)) cost += RELATIVE_DATE_SHOWN_CHARS + NOTE_WORD_WEIGHT * RELATIVE_DATE_SHOWN_WORDS;
+    } else if (code === 0x3a) {
+      if (text.charCodeAt(i + 1) === 0x2f && text.charCodeAt(i + 2) === 0x2f) literals++;
+    } else if ((code | 0x20) === 0x77) {
+      if (lowerIs(text, i + 1, "ww.")) literals++;
+    } else if ((code | 0x20) === 0x6d) {
+      if (lowerIs(text, i + 1, "ailto:")) literals++;
+    } else if ((code | 0x20) === 0x78) {
+      if (lowerIs(text, i + 1, "mpp:")) literals++;
+    }
+    inWord = !blank;
+    previous = code;
+  }
+  return (
+    cost +
+    (to - from - kept) +
+    NOTE_SYNTAX_WEIGHT * syntax +
+    NOTE_OPEN_WEIGHT * opens +
+    NOTE_EMPHASIS_WEIGHT * emphasis +
+    NOTE_CODE_SPAN_WEIGHT * codeSpans +
+    NOTE_ANGLE_WEIGHT * angles +
+    NOTE_ENTITY_WEIGHT * entities +
+    NOTE_ESCAPE_WEIGHT * escapes +
+    NOTE_LITERAL_WEIGHT * literals +
+    NOTE_WORD_WEIGHT * words +
+    NOTE_REFERENCE_WEIGHT * references +
+    NOTE_LINK_WEIGHT * links
+  );
+}
+
+/**
+ * The blocks of a note to read as text so that the whole note weighs no more
+ * than `NOTE_BUDGET`, the heaviest first: a block is the lines between two
+ * blank lines (fenced code and HTML that runs on to its end stay one block,
+ * blank lines and all); headings are blocks of their own, read as text only
+ * where the rest cannot bring the note into its budget, and the properties
+ * block is never read as text. Each weighs its lines
+ * (`noteLineCost`), its tables by the table weight, and what `ranges`
+ * already reads as written, its stretches, by what text costs. The choice
+ * depends on the text alone, so every device makes the same.
+ */
+function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading): BoundedRange[] {
+  const properties = reading.properties ? frontmatterSpan(text) : null;
+  const propertiesEnd = properties ? properties.end : 0;
+  const blocks: Array<{ from: number; to: number; weight: number; asText: number; headings: boolean }> = [];
+  let block: { from: number; to: number; weight: number; asText: number; headings: boolean } | null = null;
+  let total = 0;
+  let written = 0;
+  let heaviestTable = 0;
+  const close = () => {
+    if (block) blocks.push(block);
+    block = null;
+  };
+  const add = (from: number, to: number, weight: number, asText: number, headings = false) => {
+    if (block && block.headings !== headings) close();
+    if (!block) {
+      block = { from, to, weight: 0, asText: 0, headings };
+      weight += NOTE_BLOCK_WEIGHT;
+    }
+    total += weight;
+    block.to = to;
+    block.weight += weight;
+    block.asText += asText;
+  };
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (line.to <= propertiesEnd) continue;
+    const kind = kinds[index];
+    if (kind === LINE_BREAK) {
+      close();
+      continue;
+    }
+    // A block read as text is one line of stand-ins: it weighs its characters.
+    const asText = line.to - line.from + 1;
+    if (kind === LINE_HEADING) {
+      // Headings are blocks of their own, read as text last: the outline and the links to them hang on them.
+      add(line.from, line.to, NOTE_HEADING_WEIGHT + noteLineCost(text, line.from, line.to), asText, true);
+      continue;
+    }
+    while (written < ranges.length && ranges[written].to <= line.from) written++;
+    const table = tables.get(index);
+    if (table) {
+      const end = lines[table.last].to;
+      const written = end - line.from + NOTE_TEXT_LINE_WEIGHT * (table.last - index + 1);
+      if (table.cost >= 0) heaviestTable = Math.max(heaviestTable, table.peak);
+      add(line.from, end, table.cost < 0 ? written : table.cost, end - line.from + 1);
+      index = table.last;
+      continue;
+    }
+    if (written < ranges.length && ranges[written].from < line.to) {
+      // Read as written already: what text costs, its line end kept.
+      add(line.from, line.to, line.to - line.from + NOTE_TEXT_LINE_WEIGHT, asText);
+      continue;
+    }
+    add(line.from, line.to, kind === LINE_CODE ? line.to - line.from + NOTE_CODE_LINE_WEIGHT : noteLineCost(text, line.from, line.to), asText);
+  }
+  close();
+  // The peak of the heaviest table while it is resolved, on top of what stays: it is there whichever blocks are read as text.
+  total += (heaviestTable * NOTE_TABLE_PEAK_WEIGHT) / 100;
+  if (total <= NOTE_BUDGET) return [];
+  const chosen: BoundedRange[] = [];
+  // The heaviest first; headings only where the rest cannot bring the note into its budget.
+  // A block read as text is a paragraph of one line of stand-ins: alone, it weighs a line and a block besides its
+  // characters; next to a block read as text it is part of that one's line, and between two it joins them into one.
+  // (A note of footnotes, weighed by characters alone, read its references as text and kept 5 684 paragraphs of
+  // stand-ins between its definitions, and ran out of 128 MB.)
+  const paragraph = NOTE_LINE_WEIGHT + NOTE_BLOCK_WEIGHT;
+  const asTextAt = new Uint8Array(blocks.length);
+  const besideAsText = (i: number, j: number): boolean =>
+    j >= 0 && j < blocks.length && asTextAt[j] === 1 && onlyBlanksBetween(text, blocks[Math.min(i, j)].to, blocks[Math.max(i, j)].from);
+  const heaviest = blocks
+    .map((_, i) => i)
+    .filter((i) => blocks[i].weight > blocks[i].asText + paragraph)
+    .sort((x, y) => Number(blocks[x].headings) - Number(blocks[y].headings) || blocks[y].weight - blocks[x].weight || x - y);
+  for (const i of heaviest) {
+    if (total <= NOTE_BUDGET) break;
+    const candidate = blocks[i];
+    const before = besideAsText(i, i - 1);
+    const after = besideAsText(i, i + 1);
+    asTextAt[i] = 1;
+    chosen.push({ from: candidate.from, to: candidate.to, block: true });
+    total -= candidate.weight - candidate.asText - (before && after ? -paragraph : before || after ? 0 : paragraph);
+  }
+  // Blocks with only blank lines between them are one range, the blank lines standing in as well: one line, not a
+  // paragraph a block (40 000 short paragraphs read as text still filled 128 MB).
+  chosen.sort((x, y) => x.from - y.from);
+  const joined: BoundedRange[] = [];
+  for (const range of chosen) {
+    const previous = joined[joined.length - 1];
+    if (previous && onlyBlanksBetween(text, previous.to, range.from)) previous.to = range.to;
+    else joined.push(range);
+  }
+  return joined;
+}
+
+/** Whether `text[from, to)` holds nothing but blanks and line ends. */
+function onlyBlanksBetween(text: string, from: number, to: number): boolean {
+  for (let i = from; i < to; i++) {
+    const code = text.charCodeAt(i);
+    if (code !== 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d) return false;
+  }
+  return true;
+}
+
+/**
+ * What every character of a stretch read as written stands in for: one
+ * noncharacter (U+FDD0), which Unicode keeps free for exactly this — standing
+ * in for something inside a program. One UTF-16 unit, so every place in the
+ * text stays where it was. Every character but a line end stands in, blanks
+ * too, so the parser finds nothing to read there — no syntax, no link
+ * literal, no word, no cell: GFM tries an address at every start of a run of
+ * letters, and its table parser reads a long line as a header row, a piece
+ * for each stretch between blanks; a paragraph of 1.5 MB of `x x …` ran a
+ * parse out of 128 MB with nothing else in it, on main as well (L14).
+ * The characters come back by their places (`restoreBoundedTree`).
+ */
+const STAND_IN = "\ufdd0";
+/**
+ * `text[from, to)` with every character but its line ends standing in, onto
+ * `pieces`: a run of stand-ins for each line, one string of them repeated —
+ * a replace by a pattern over 4 MB held 112 MB while it ran. A block read as
+ * text (`BoundedRange.block`) stands in its line ends too, so that it is one
+ * line: a line of stand-ins is events of its own, 60 000 lines of them filled
+ * 128 MB where ten lines of the same length passed in 28 MB. The places in
+ * the text stay as they are; `restoreBoundedTree` gives every node its line
+ * and column back from them.
+ */
+function standInKeepingLineEnds(text: string, from: number, to: number, pieces: string[]): void {
+  let at = from;
+  for (let i = from; i < to; i++) {
+    const code = text.charCodeAt(i);
+    if (code !== 0x0a && code !== 0x0d) continue;
+    if (i > at) pieces.push(STAND_IN.repeat(i - at));
+    pieces.push(text[i]);
+    at = i + 1;
+  }
+  if (to > at) pieces.push(STAND_IN.repeat(to - at));
+}
 
 /** A text made safe to parse, and how to give a parsed value back its characters. */
 export interface BoundedMarkdown {
@@ -1520,83 +1884,203 @@ export interface BoundedMarkdown {
   text: string;
   /** The stretches read as written. */
   ranges: BoundedRange[];
+  /** The text the ranges were measured in, which `restoreBoundedTree` gives the characters back from. */
+  original: string;
 }
 
 /**
  * `text` with every stretch over the budget read as written: inside such a
- * stretch, each character of Markdown syntax stands in for itself as a
- * noncharacter, so the parser reads plain text there — in linear time — and
- * `restoreBoundedValue` gives it back. A noncharacter that was in such a
- * stretch already becomes U+FFFD (none shows as anything). Outside the
- * stretches nothing changes; a note a person writes comes back as it is.
+ * stretch every character but line ends stands in as one
+ * noncharacter, so the parser reads plain text there — in linear time and
+ * memory — and `restoreBoundedTree` gives the characters back by their
+ * places. Outside the stretches nothing changes; a note a person writes
+ * comes back as it is.
  */
 export function boundMarkdownForParse(text: string, reading: MarkdownReading = NOTE_READING): BoundedMarkdown {
   return boundMarkdownInRanges(text, overBudgetInlineRanges(text, undefined, reading));
 }
 
+/**
+ * How many characters at `at`, the start of a line of a range, stay as they
+ * are: the blanks, `>` and list markers the line begins with, so that a
+ * paragraph read as written keeps the quote or list item it stands in. A
+ * table's range starts behind its markers already, and a block read as text
+ * (`BoundedRange.block`) keeps none: it becomes a paragraph.
+ */
+function keptPrefix(text: string, at: number, to: number): number {
+  let i = at;
+  for (;;) {
+    while (i < to && (text[i] === " " || text[i] === "\t")) i++;
+    if (text[i] === ">") {
+      i++;
+      continue;
+    }
+    let marker = i;
+    if (text[marker] === "-" || text[marker] === "+" || text[marker] === "*") marker++;
+    else {
+      while (marker < to && marker - i < 9 && text.charCodeAt(marker) >= 0x30 && text.charCodeAt(marker) <= 0x39) marker++;
+      if (marker === i || (text[marker] !== "." && text[marker] !== ")")) return i - at;
+      marker++;
+    }
+    // A marker counts with a blank behind it, or at the line's end.
+    if (marker < to && text[marker] !== " " && text[marker] !== "\t" && text[marker] !== "\n" && text[marker] !== "\r") return i - at;
+    i = marker;
+  }
+}
+
+/** Whether `range` keeps the markers its lines begin with (`keptPrefix`). */
+const keepsMarkers = (range: BoundedRange): boolean => !range.table && !range.block;
+
 /** `text` with `ranges` read as written (`boundMarkdownForParse`), for a caller that unites the ranges of more than one reading. */
 export function boundMarkdownInRanges(text: string, ranges: BoundedRange[]): BoundedMarkdown {
-  if (ranges.length === 0) return { text, ranges };
-  // One replace a range, not a string grown by a character: a range of a million `[` held a million pieces (review, 2026-11-16).
+  if (ranges.length === 0) return { text, ranges, original: text };
+  // One replace a stretch, not a string grown by a character: a range of a million `[` held a million pieces (review, 2026-11-16).
   const pieces: string[] = [];
   let at = 0;
   for (const range of ranges) {
-    pieces.push(text.slice(at, range.from), text.slice(range.from, range.to).replace(range.table ? STANDS_IN_TABLE : STANDS_IN, standIn));
+    pieces.push(text.slice(at, range.from));
+    if (!keepsMarkers(range)) {
+      if (range.block) pieces.push(STAND_IN.repeat(range.to - range.from));
+      else standInKeepingLineEnds(text, range.from, range.to, pieces);
+    } else {
+      // Line by line: the markers a line begins with stay, the rest stands in.
+      let line = range.from;
+      while (line < range.to) {
+        let end = text.indexOf("\n", line);
+        end = end < 0 || end >= range.to ? range.to : end + 1;
+        const kept = line === 0 || text[line - 1] === "\n" ? keptPrefix(text, line, end) : 0;
+        pieces.push(text.slice(line, line + kept));
+        standInKeepingLineEnds(text, line + kept, end, pieces);
+        line = end;
+      }
+    }
     at = range.to;
   }
   pieces.push(text.slice(at));
-  return { text: pieces.join(""), ranges };
+  return { text: pieces.join(""), ranges, original: text };
 }
 
-/** What a range read as written replaces: its markup (`MARKUP`; in a table `STAND_INS`), and the stand-ins themselves, which a note may hold. */
-const STANDS_IN = new RegExp(`[${MARKUP.replace(/[\\\]^-]/g, "\\$&")}\ufdd0-\ufdef]`, "g");
-const STANDS_IN_TABLE = new RegExp(`[${STAND_INS.replace(/[\\\]^-]/g, "\\$&")}\ufdd0-\ufdef]`, "g");
-const standIn = (ch: string): string => {
-  const markup = STAND_INS.indexOf(ch);
-  return markup >= 0 ? String.fromCharCode(STAND_IN_BASE + markup) : REPLACEMENT;
-};
-/** A stand-in, to give back. */
-const STAND_IN = /[\ufdd0-\ufdef]/g;
+/**
+ * The characters a bounded text's stand-ins stood for, read from the place
+ * `from` on in `original`: each stand-in of `value`, in order, is the next
+ * character of a range that stood in (not a line end, not a marker a line
+ * kept). The parser drops none of a stretch's characters, so the places line
+ * up.
+ */
+function restoredFrom(value: string, from: number, bounded: BoundedMarkdown, cursor: { range: number }): string {
+  const { ranges, original } = bounded;
+  // Most values stand in the text as they are written: then they are the original's characters at their place, in one piece.
+  if (bounded.text.startsWith(value, from)) return original.slice(from, from + value.length);
+  const pieces: string[] = [];
+  let copied = 0;
+  let at = from;
+  let range = cursor.range;
+  while (range > 0 && ranges[range - 1].to > at) range--;
+  while (range < ranges.length && ranges[range].to <= at) range++;
+  // Where the markers of the line `at` stands in end: inside them nothing stood in.
+  let lineKeptUntil = -1;
+  for (let k = value.indexOf(STAND_IN); k >= 0; k = value.indexOf(STAND_IN, k + 1)) {
+    for (;;) {
+      if (range >= ranges.length) return pieces.join("") + value.slice(copied);
+      const r = ranges[range];
+      if (at >= r.to) {
+        range++;
+        continue;
+      }
+      if (at < r.from) at = r.from;
+      const ch = original[at];
+      if (keepsMarkers(r) && (at === r.from || original[at - 1] === "\n") && (at === 0 || original[at - 1] === "\n")) lineKeptUntil = at + keptPrefix(original, at, r.to);
+      if (((ch === "\n" || ch === "\r") && !r.block) || at < lineKeptUntil) {
+        at++;
+        continue;
+      }
+      break;
+    }
+    // A run of stand-ins over characters that follow each other comes back as one slice.
+    let end = at + 1;
+    let next = k + 1;
+    while (next < value.length && value[next] === STAND_IN && end < ranges[range].to && (ranges[range].block || (original[end] !== "\n" && original[end] !== "\r")) && end >= lineKeptUntil) {
+      end++;
+      next++;
+    }
+    pieces.push(value.slice(copied, k), original.slice(at, end));
+    copied = next;
+    at = end;
+    k = next - 1;
+  }
+  cursor.range = range;
+  return pieces.join("") + value.slice(copied);
+}
 
-/** A value read from a bounded text, with its stand-ins turned back into the characters they stood for. */
-export function restoreBoundedValue(value: string): string {
-  return value.replace(STAND_IN, (ch) => {
-    const code = ch.charCodeAt(0);
-    return code < STAND_IN_BASE + STAND_INS.length ? STAND_INS[code - STAND_IN_BASE] : ch;
-  });
+interface PlacedPoint {
+  offset?: number;
+  line?: number;
+  column?: number;
 }
 
 interface PlacedTreeNode {
-  position?: { start?: { offset?: number }; end?: { offset?: number } };
+  position?: { start?: PlacedPoint; end?: PlacedPoint };
   children?: PlacedTreeNode[];
   [key: string]: unknown;
 }
 
+/** Where each line of `text` begins: `\n`, `\r\n` and a lone `\r` end a line, as the parser counts them. */
+function lineStartsOf(text: string): Int32Array {
+  let count = 1;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 0x0a || (code === 0x0d && text.charCodeAt(i + 1) !== 0x0a)) count++;
+  }
+  const starts = new Int32Array(count);
+  let line = 1;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 0x0a || (code === 0x0d && text.charCodeAt(i + 1) !== 0x0a)) starts[line++] = i + 1;
+  }
+  return starts;
+}
+
+/** The line and column of `point` from its offset (`lineStartsOf`), counted from 1 as the parser counts them. */
+function placeAgain(point: PlacedPoint | undefined, lineStarts: Int32Array): void {
+  if (!point || typeof point.offset !== "number") return;
+  let lo = 0;
+  let hi = lineStarts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (lineStarts[mid] <= point.offset) lo = mid;
+    else hi = mid - 1;
+  }
+  point.line = lo + 1;
+  point.column = point.offset - lineStarts[lo] + 1;
+}
+
 /**
- * Gives every string a parsed tree holds from inside `ranges` back its
- * characters (`restoreBoundedValue`): a text, a code value, an address read
- * from a bare `www.`. Nodes outside every range are left alone, so a
- * noncharacter written elsewhere in the note stays what it is. Offsets are
- * those of the text the ranges were measured in.
+ * Gives every string a parsed tree holds from inside the ranges of
+ * `bounded` back its characters: a text, a code value. Each comes back from
+ * its node's place in `bounded.original` (`restoredFrom`). Nodes outside
+ * every range are left alone. Offsets are those of the text the ranges were
+ * measured in.
  */
-export function restoreBoundedTree(tree: unknown, ranges: readonly BoundedRange[]): void {
-  if (ranges.length === 0) return;
-  const touches = (node: PlacedTreeNode): boolean => {
-    const from = node.position?.start?.offset;
-    const to = node.position?.end?.offset;
-    if (typeof from !== "number" || typeof to !== "number") return true;
-    return ranges.some((range) => from < range.to && to > range.from);
-  };
-  // A node without a place is judged by the node it stands in.
-  const open: Array<{ node: PlacedTreeNode; inside: boolean }> = [{ node: tree as PlacedTreeNode, inside: false }];
-  for (let next = open.pop(); next; next = open.pop()) {
-    const { node } = next;
-    const inside = node.position ? touches(node) : next.inside;
-    if (!inside) continue;
-    for (const key of Object.keys(node)) {
-      const value = node[key];
-      if (typeof value === "string") node[key] = restoreBoundedValue(value);
+export function restoreBoundedTree(tree: unknown, bounded: BoundedMarkdown): void {
+  if (bounded.ranges.length === 0) return;
+  const cursor = { range: 0 };
+  // A block read as text is one line in the parsed text: every point gets its line and column back from its place in the original.
+  const lineStarts = bounded.ranges.some((range) => range.block) ? lineStartsOf(bounded.original) : null;
+  const open: PlacedTreeNode[] = [tree as PlacedTreeNode];
+  for (let node = open.pop(); node; node = open.pop()) {
+    if (lineStarts) {
+      placeAgain(node.position?.start, lineStarts);
+      placeAgain(node.position?.end, lineStarts);
     }
-    for (const child of node.children ?? []) open.push({ node: child, inside });
+    const from = node.position?.start?.offset;
+    if (typeof from === "number") {
+      for (const key of Object.keys(node)) {
+        const value = node[key];
+        if (typeof value === "string" && value.includes(STAND_IN)) node[key] = restoredFrom(value, from, bounded, cursor);
+      }
+    }
+    const children = node.children ?? [];
+    // Children in reverse, so that they come off the stack in text order and the cursor only moves on.
+    for (let i = children.length - 1; i >= 0; i--) open.push(children[i]);
   }
 }

@@ -3234,6 +3234,12 @@
     "diagnosticsExported": "Diagnose-export opgeslagen.",
     "diagnosticsExportFailed": "Diagnose-export mislukt: {{error}}",
     "exportDiagnostics": "Diagnose exporteren…",
+    "memoryProbe": "Geheugen meten",
+    "memoryProbeInfo": "Leest gegenereerde notities van toenemende grootte en onthoudt de grootste die dit apparaat kon lezen. Het resultaat gaat naar de diagnose-export, zonder de inhoud van een notitie. Duurt tot een minuut.",
+    "memoryProbeRun": "Meten",
+    "memoryProbeRunning": "Bezig met meten …",
+    "memoryProbeResult": "Grootste gelezen notitie: {{size}} MB",
+    "memoryProbeEnded": "De vorige keer stopte de app bij {{size}} MB (gelezen: {{largest}} MB)",
     "fontCustom": "Aangepast…",
     "fontCustomPlaceholder": "Naam van een geïnstalleerd lettertype",
     "fontNotInstalled": "Niet geïnstalleerd",
@@ -3759,6 +3765,9 @@
     "draftBanner": "Niet-opgeslagen concept gevonden (van {{time}}). Herstellen?",
     "draftRestore": "Concept herstellen",
     "draftDiscard": "Concept verwijderen",
+    "readAsText": "Deze notitie is erg groot. Een deel ervan wordt als tekst getoond.",
+    "readAsTextInfo": "Zodat de notitie op elk apparaat opent, leest Plainva de zwaarste delen als platte tekst. Daar ontbreekt alleen de opmaak: tabellen, lijsten en links verschijnen als brontekst.\n\nVerder telt die tekst als elke andere: zoeken vindt hem, zijn links verschijnen in backlinks en de graaf, zijn tags en taken worden gevonden, en bij het hernoemen van een notitie worden zijn links herschreven. Splits je de notitie, dan is alles weer opgemaakt.",
+    "readAsTextJump": "Ga erheen",
     "fmtHeading": "Kop"
   },
   "tabMenu": {

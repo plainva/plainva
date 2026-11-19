@@ -19,7 +19,7 @@ import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
 import { parkEditorSuggestion, clearEditorSuggestion } from "../services/editorSuggestionPark";
-import { AreaBoundary, askDiscard, readSourceSelection } from "@plainva/ui";
+import { AreaBoundary, askDiscard, ReadAsTextNotice, readSourceSelection } from "@plainva/ui";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
@@ -3719,6 +3719,15 @@ export const Editor: React.FC<{
 
       {showTemplateTargets && activePath && (
         <AreaBoundary area="dialog:templateTargets" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowTemplateTargets(false) }}><TemplateTargetsModal templatePath={activePath} onClose={() => setShowTemplateTargets(false)} /></AreaBoundary>
+      )}
+
+      {/* Part of the note is read as text (L14): said over the note in both modes; the button goes to its first place in the editor. */}
+      {!notText && (
+        <ReadAsTextNotice content={content} onJump={isReadMode ? undefined : (offset) => {
+          const view = sessionRef.current?.view;
+          if (!view) return;
+          jumpToLineTop(view, view.state.doc.lineAt(Math.min(offset, view.state.doc.length)).number, { focus: true });
+        }} />
       )}
 
       {staleSince && (

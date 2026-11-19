@@ -1,3 +1,4 @@
+import { readAsTextChanged, withoutReadAsText } from "./readAsText";
 import { Decoration, ViewPlugin, EditorView, ViewUpdate, DecorationSet, WidgetType } from "@codemirror/view";
 import { Range, StateField, EditorState, Extension, EditorSelection, Facet } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
@@ -699,6 +700,8 @@ export function markdownDecorationPlugin(isLive: boolean) {
         if (isEditorInteractive(update.startState) !== interactiveNow) {
           needsRebuild = true;
         }
+        // A new scan of the note's stretches read as text (L14).
+        if (update.transactions.some(readAsTextChanged)) needsRebuild = true;
         if (needsRebuild) {
           this.decorations = this.build(update.view);
         }
@@ -1005,7 +1008,8 @@ export function markdownDecorationPlugin(isLive: boolean) {
           console.error("[markdownDecorationPlugin] build error", e);
           return Decoration.none;
         }
-        return Decoration.set(decos, true);
+        // Where the parse budget reads the note as text, the source shows, as in the reading view (L14).
+        return withoutReadAsText(view.state, Decoration.set(decos, true));
       }
     },
     { decorations: (v) => v.decorations }

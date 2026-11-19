@@ -1,3 +1,4 @@
+import { readAsTextChanged, withoutReadAsText } from "./readAsText";
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { bracketLinks, wikiLinks } from "@plainva/core";
 import { readWikiLinkInner } from "../lib/linkAnchor";
@@ -166,7 +167,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
         // Also rebuild when the resolver set arrives/changes so unresolved links
         // (re)style after the index loads or a target note gets created.
         const resolverChanged = update.startState.field(wikiResolverField, false) !== update.state.field(wikiResolverField, false);
-        const needsRebuild = update.docChanged || update.viewportChanged || resolverChanged
+        const needsRebuild = update.transactions.some(readAsTextChanged) || update.docChanged || update.viewportChanged || resolverChanged
           || (update.selectionSet && hideSyntax && interactiveNow)
           || isEditorInteractive(update.startState) !== interactiveNow;
         if (needsRebuild) {
@@ -325,7 +326,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
           }
         }
         
-        return builder.finish();
+        return withoutReadAsText(view.state, builder.finish());
       }
     }, {
       decorations: (v: any) => v.decorations

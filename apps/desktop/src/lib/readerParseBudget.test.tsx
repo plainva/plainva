@@ -69,8 +69,9 @@ describe("the reading view and a stretch over the parse budget", () => {
     const first = container.querySelector("p")!;
     expect(first.textContent).toBe(stretch);
     expect(first.querySelector("img, em, a[href='y']")).toBeNull();
-    // A bare address stays what it is in any text: a link, nothing fetched.
-    expect([...first.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual(["https://example.org/p.png"]);
+    // Not even a bare address is a link there (L14, Gesamtplan Leistung § 3a.2: a stretch read as text carries no
+    // link literal — one table at twice its budget made 82 600 of them and ran the parse out of 128 MB); nothing is fetched.
+    expect(first.querySelectorAll("a")).toHaveLength(0);
     expect(container.querySelectorAll("p")[1].querySelector("em")?.textContent).toBe("em");
   }, 300_000);
 });

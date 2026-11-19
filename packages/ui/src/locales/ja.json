@@ -3145,6 +3145,12 @@
     "diagnosticsExported": "診断エクスポートを保存しました。",
     "diagnosticsExportFailed": "診断エクスポートに失敗しました: {{error}}",
     "exportDiagnostics": "診断情報をエクスポート…",
+    "memoryProbe": "メモリを測定",
+    "memoryProbeInfo": "サイズを増やしながら生成したノートを読み込み、この端末で読み込めた最大のサイズを記録します。結果はノートの内容を含めずに診断エクスポートに含まれます。最大 1 分かかります。",
+    "memoryProbeRun": "測定",
+    "memoryProbeRunning": "測定中…",
+    "memoryProbeResult": "読み込めた最大のノート: {{size}} MB",
+    "memoryProbeEnded": "前回の測定では {{size}} MB でアプリが終了しました（読み込み: {{largest}} MB）",
     "fontCustom": "カスタム…",
     "fontCustomPlaceholder": "インストール済みフォント名",
     "fontNotInstalled": "未インストール",
@@ -3670,6 +3676,9 @@
     "draftBanner": "未保存の下書きが見つかりました（{{time}}）。復元しますか？",
     "draftRestore": "下書きを復元",
     "draftDiscard": "下書きを破棄",
+    "readAsText": "このノートは非常に大きいため、一部をテキストとして表示しています。",
+    "readAsTextInfo": "どの端末でもノートを開けるように、Plainva は最も重い部分をプレーンテキストとして読み込みます。その部分で失われるのは書式だけで、表、リスト、リンクはソースのまま表示されます。\n\nそれ以外は、そのテキストもほかのテキストと同じように扱われます。検索で見つかり、リンクはバックリンクとグラフに表示され、タグとタスクも見つかり、ノートの名前を変更するとリンクも書き換えられます。ノートを分割すると、すべて再び書式付きで表示されます。",
+    "readAsTextJump": "その場所へ",
     "fmtHeading": "見出し"
   },
   "tabMenu": {

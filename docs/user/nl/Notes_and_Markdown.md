@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-17
+Laatst bijgewerkt: 2026-11-19
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -255,3 +255,9 @@ Bij het toevoegen verschijnen bekende namen met type en gebruiksaantal. Bestaand
 ### Afbeelding openen
 
 **Afbeelding openen** is beschikbaar voor lokale afbeeldingen in leesmodus, livevoorbeeld en het contextmenu. Gebruik in de mobiele viewer twee vingers, dubbeltikken of de zoomknoppen; **Zoom herstellen** toont de hele afbeelding. Terug brengt je naar de notitie. Lang drukken behoudt de systeemacties en je kunt nog steeds een gebied selecteren voor een opmerking.
+
+## Zeer grote notities
+
+Een notitie kan zo groot worden dat een apparaat haar niet meer opgemaakt kan lezen: een tabel met duizenden rijen, een lijst met tienduizenden items, megabytes tekst in één alinea. Zodat ze toch op elk apparaat opent, leest Plainva dan de zwaarste delen als platte tekst. Boven de notitie staat **Deze notitie is erg groot. Een deel ervan wordt als tekst getoond.**; de ⓘ ernaast legt uit wat dat betekent, en **Ga erheen** brengt je in de editor naar de eerste zulke plek.
+
+In deze delen ontbreekt alleen de opmaak: tabellen, lijsten, links en nadruk verschijnen als brontekst. Verder telt de tekst als elke andere: zoeken vindt hem, zijn links verschijnen in backlinks en de graaf, zijn tags en taken worden gevonden, en als je een notitie hernoemt, herschrijft Plainva ook zijn links. Koppen en eigenschappen blijven zo lang mogelijk behouden. Splits de notitie in meerdere en alles is weer opgemaakt. Desktop en telefoon beslissen hetzelfde.

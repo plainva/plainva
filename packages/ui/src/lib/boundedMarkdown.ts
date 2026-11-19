@@ -30,10 +30,9 @@ export function boundReaderMarkdown(text: string, from?: { original: string; sou
     ? overBudgetInlineRanges(from.original).map((range) => ({ ...range, from: from.source.toRendered(range.from), to: from.source.toRendered(range.to, "end") }))
     : [];
   const bounded = boundMarkdownInRanges(text, unitedRanges(own, theirs.filter((range) => range.to > range.from)));
-  const { ranges } = bounded;
   return {
     ...bounded,
-    remarkRestore: () => (tree: unknown) => restoreBoundedTree(tree, ranges),
+    remarkRestore: () => (tree: unknown) => restoreBoundedTree(tree, bounded),
   };
 }
 

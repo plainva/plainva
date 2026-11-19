@@ -1,3 +1,4 @@
+import { readAsTextChanged, withoutReadAsText } from "./readAsText";
 import { RangeSetBuilder, type EditorState, type Extension } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
@@ -95,7 +96,7 @@ export function tagPillPlugin(onOpenTag: OpenTagFn): Extension {
         update(update: ViewUpdate) {
           // The syntax tree arrives in steps on a long note: a line that was not
           // parsed yet may turn out to be code.
-          if (update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+          if (update.transactions.some(readAsTextChanged) || update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) {
             this.decorations = this.build(update.view);
           }
         }
@@ -108,7 +109,7 @@ export function tagPillPlugin(onOpenTag: OpenTagFn): Extension {
             const { parent } = tagSegments(tag.name);
             if (parent) builder.add(tag.from, tag.from + 1 + parent.length, Decoration.mark({ class: "pv-tag-parent" }));
           }
-          return builder.finish();
+          return withoutReadAsText(view.state, builder.finish());
         }
       },
       { decorations: (plugin) => plugin.decorations },

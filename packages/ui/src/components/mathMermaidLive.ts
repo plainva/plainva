@@ -1,3 +1,4 @@
+import { readAsTextChanged, withoutReadAsText } from "./readAsText";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { EditorState, Extension, RangeSetBuilder, Text } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
@@ -220,6 +221,7 @@ export function mathInlinePlugin() {
       // raw until something ELSE happens (a keystroke, a scroll) — the block
       // field had this check, the inline plugin did not (S8, 2026-08-12).
       if (
+        update.transactions.some(readAsTextChanged) ||
         update.docChanged ||
         update.viewportChanged ||
         update.selectionSet ||
@@ -252,7 +254,7 @@ export function mathInlinePlugin() {
           builder.add(matchStart, matchEnd, Decoration.replace({ widget: new MathWidget(expr, display) }));
         }
       }
-      return builder.finish();
+      return withoutReadAsText(view.state, builder.finish());
     }
   }, { decorations: (v) => v.decorations });
 }

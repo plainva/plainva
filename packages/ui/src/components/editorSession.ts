@@ -1,3 +1,4 @@
+import { readAsText } from "./readAsText";
 import type { i18n as I18nInstance } from "i18next";
 import { Annotation, Compartment, EditorState, Extension, Prec, Transaction } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, type KeyBinding } from "@codemirror/view";
@@ -379,6 +380,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
         },
         { showAddActions: cfg.headerAddActions !== false }
       ),
+      // The stretches the parse budget reads as text: every widget and decoration below shows the source there (L14).
+      readAsText(),
       tableField(isLive),
       // Visual list indentation (live + source), mirroring the read view (#2).
       // Live mode hides the leading whitespace of list lines (T1: a tab's width

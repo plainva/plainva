@@ -3323,6 +3323,12 @@
     "diagnosticsExported": "Export du diagnostic enregistré.",
     "diagnosticsExportFailed": "Échec de l'export du diagnostic : {{error}}",
     "exportDiagnostics": "Exporter le diagnostic…",
+    "memoryProbe": "Mesurer la mémoire",
+    "memoryProbeInfo": "Lit des notes générées de taille croissante et retient la plus grande que cet appareil a pu lire. Le résultat va dans l'export de diagnostic, sans le contenu d'aucune note. Prend jusqu'à une minute.",
+    "memoryProbeRun": "Mesurer",
+    "memoryProbeRunning": "Mesure en cours …",
+    "memoryProbeResult": "Plus grande note lue : {{size}} Mo",
+    "memoryProbeEnded": "La dernière fois, l'app s'est arrêtée à {{size}} Mo (lu : {{largest}} Mo)",
     "fontCustom": "Personnalisée…",
     "fontCustomPlaceholder": "Nom d'une police installée",
     "fontNotInstalled": "Non installée",
@@ -3848,6 +3854,9 @@
     "draftBanner": "Brouillon non enregistré trouvé (du {{time}}). Le restaurer ?",
     "draftRestore": "Restaurer le brouillon",
     "draftDiscard": "Ignorer le brouillon",
+    "readAsText": "Cette note est très volumineuse. Une partie est affichée en texte.",
+    "readAsTextInfo": "Pour que la note s'ouvre sur tous les appareils, Plainva lit ses parties les plus lourdes comme du texte brut. Seule la mise en forme y manque : les tableaux, les listes et les liens apparaissent sous forme de source.\n\nPour le reste, ce texte compte comme n'importe quel autre : la recherche le trouve, ses liens apparaissent dans les rétroliens et le graphe, ses étiquettes et ses tâches sont trouvées, et renommer une note réécrit ses liens. Divisez la note et tout est à nouveau mis en forme.",
+    "readAsTextJump": "Y aller",
     "fmtHeading": "Titre"
   },
   "tabMenu": {

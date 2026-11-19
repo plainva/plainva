@@ -4,6 +4,7 @@
  * an export is safe to attach to a bug report. Vault-relative file paths may
  * appear in messages; the export header says so.
  */
+import { memoryProbeLines, memoryProbeResult } from "../lib/memoryProbe";
 import { formatBuildLine } from "../lib/buildInfo";
 import { countUnstampedFiles, readIndexDiagnostics, type IDatabaseAdapter } from "@plainva/core";
 
@@ -308,6 +309,8 @@ export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
   for (const e of entries) {
     lines.push(`- ${new Date(e.ts).toISOString()} [${e.source}] ${e.message}`);
   }
+  // The last „Speicher messen“: how large a note this device read (L14).
+  lines.push(...memoryProbeLines(memoryProbeResult()));
   if (info.conflicts?.length) {
     // An explicit projection keeps note text and extra local metadata out.
     const conflicts = info.conflicts.map(({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }) =>

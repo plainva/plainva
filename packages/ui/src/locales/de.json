@@ -3234,6 +3234,12 @@
     "diagnosticsExported": "Diagnose-Export gespeichert.",
     "diagnosticsExportFailed": "Diagnose-Export fehlgeschlagen: {{error}}",
     "exportDiagnostics": "Diagnose exportieren…",
+    "memoryProbe": "Speicher messen",
+    "memoryProbeInfo": "Liest erzeugte Notizen steigender Größe und merkt sich die größte, die dieses Gerät lesen konnte. Das Ergebnis kommt in den Diagnose-Export, ohne Inhalt einer Notiz. Dauert bis zu einer Minute.",
+    "memoryProbeRun": "Messen",
+    "memoryProbeRunning": "Wird gemessen …",
+    "memoryProbeResult": "Größte gelesene Notiz: {{size}} MB",
+    "memoryProbeEnded": "Beim letzten Messen endete die App bei {{size}} MB (gelesen: {{largest}} MB)",
     "fontCustom": "Benutzerdefiniert…",
     "fontCustomPlaceholder": "Name einer installierten Schriftart",
     "fontNotInstalled": "Nicht installiert",
@@ -3759,6 +3765,9 @@
     "draftBanner": "Nicht gespeicherter Entwurf gefunden (Stand {{time}}). Wiederherstellen?",
     "draftRestore": "Entwurf wiederherstellen",
     "draftDiscard": "Entwurf verwerfen",
+    "readAsText": "Diese Notiz ist sehr groß. Ein Teil davon wird als Text gezeigt.",
+    "readAsTextInfo": "Damit sich die Notiz auf jedem Gerät öffnen lässt, liest Plainva ihre schwersten Teile als reinen Text. Dort fehlt nur die Formatierung: Tabellen, Listen und Links erscheinen als Quelltext.\n\nSonst zählt der Text wie jeder andere: die Suche findet ihn, seine Links erscheinen in Backlinks und Graph, seine Tags und Aufgaben werden gefunden, und beim Umbenennen werden seine Links umgeschrieben. Teilst Du die Notiz auf, wird alles wieder formatiert.",
+    "readAsTextJump": "Zur Stelle",
     "fmtHeading": "Überschrift"
   },
   "tabMenu": {

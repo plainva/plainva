@@ -3323,6 +3323,12 @@
     "diagnosticsExported": "Esportazione della diagnostica salvata.",
     "diagnosticsExportFailed": "Esportazione della diagnostica non riuscita: {{error}}",
     "exportDiagnostics": "Esporta diagnostica…",
+    "memoryProbe": "Misura memoria",
+    "memoryProbeInfo": "Legge note generate di dimensione crescente e ricorda la più grande che questo dispositivo è riuscito a leggere. Il risultato va nell'esportazione diagnostica, senza il contenuto di alcuna nota. Richiede fino a un minuto.",
+    "memoryProbeRun": "Misura",
+    "memoryProbeRunning": "Misurazione …",
+    "memoryProbeResult": "Nota più grande letta: {{size}} MB",
+    "memoryProbeEnded": "L'ultima volta l'app si è chiusa a {{size}} MB (letti: {{largest}} MB)",
     "fontCustom": "Personalizzato…",
     "fontCustomPlaceholder": "Nome di un carattere installato",
     "fontNotInstalled": "Non installato",
@@ -3848,6 +3854,9 @@
     "draftBanner": "Trovata una bozza non salvata (del {{time}}). Ripristinarla?",
     "draftRestore": "Ripristina bozza",
     "draftDiscard": "Scarta bozza",
+    "readAsText": "Questa nota è molto grande. Una parte viene mostrata come testo.",
+    "readAsTextInfo": "Perché la nota si apra su ogni dispositivo, Plainva legge le sue parti più pesanti come testo semplice. Lì manca solo la formattazione: tabelle, elenchi e link appaiono come testo sorgente.\n\nPer il resto quel testo conta come qualsiasi altro: la ricerca lo trova, i suoi link compaiono nei backlink e nel grafo, i suoi tag e le sue attività vengono trovati e, rinominando una nota, i suoi link vengono riscritti. Dividi la nota e tutto torna formattato.",
+    "readAsTextJump": "Vai lì",
     "fmtHeading": "Titolo"
   },
   "tabMenu": {

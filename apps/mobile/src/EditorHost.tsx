@@ -39,7 +39,7 @@ import {
   KeyboardOff,
 } from "lucide-react";
 import { copyPhoneLineLink } from "./services/noteLinkRoute";
-import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent, ReadAsTextNotice } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
@@ -165,6 +165,10 @@ export function EditorHost({
   useEffect(() => answerEditorPathProbe(() => ({ vaultKey: vault.vaultId, path })), [vault.vaultId, path]);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
+  // The text the note's notice reads (L14, `ReadAsTextNotice`): mirrored with a pause, as the desktop's editor mirrors its text.
+  const [noticeText, setNoticeText] = useState(initialDoc);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
   const highlightsRef = useRef<readonly AnchorHighlight[]>([]);
   const editableRef = useRef(editable);
   const onVanishedRef = useRef(onVanished);
@@ -433,6 +437,8 @@ export function EditorHost({
         // fire-and-forget dropped the text before the write confirmed.
         noteSaver.schedule(vault, path, view.state.doc.toString());
         window.dispatchEvent(new CustomEvent("m-editor-document", { detail: { vaultId: vault.vaultId, path, text: view.state.doc.toString() } }));
+        if (noticeTimer.current) clearTimeout(noticeTimer.current);
+        noticeTimer.current = setTimeout(() => setNoticeText(view.state.doc.toString()), view.state.doc.length > 512_000 ? 2000 : 400);
       },
       onSuggestionChunks: (count) => {
         window.dispatchEvent(new CustomEvent("m-editor-suggest-chunks", { detail: { vaultId: vault.vaultId, path, count } }));
@@ -1444,6 +1450,12 @@ export function EditorHost({
       {conflict && (
         <NoteConflictCard conflict={conflict} path={path} vault={vault} onOpenCopy={() => onOpenNote(conflict.copyPath)} onShowDiff={() => setConflictDiff(true)} />
       )}
+      {/* Part of the note is read as text (L14): said over the note, with a way to its first place. */}
+      <ReadAsTextNotice content={noticeText} onJump={(offset) => {
+        const view = sessionRef.current?.view;
+        if (!view) return;
+        jumpToLineTop(view, view.state.doc.lineAt(Math.min(offset, view.state.doc.length)).number);
+      }} />
       <div
         className={`m-editor${showEditToolbar ? " is-docked" : ""}`}
         ref={containerRef}

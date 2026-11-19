@@ -24,6 +24,8 @@ test.beforeEach(async ({ page }) => {
     const shortLines = Array.from({ length: 1_250 }, () => ']'.repeat(80)).join('\n');
     const emphasis = '*a'.repeat(150_000);
     const table = ['| a | b |', '|---|---|', ...Array.from({ length: 6_000 }, (_, i) => `| row ${i} | [[n${i}]] |`)].join('\n');
+    // Over the note's budget (L14, B1 of release 0.9.0: 4 s and 409 MB at main).
+    const list = Array.from({ length: 20_000 }, (_, i) => `- [ ] item ${i} [[Note ${i}]]`).join('\n');
     const around = (stretch: string) => `# Title\n\nBefore [[Kept]] and *em*.\n\n${stretch}\n\n## After\n\nThe end.\n`;
     (window as any).mockFs = {
       '/test-vault': { isDir: true },
@@ -32,6 +34,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/ShortLines.md': around(shortLines),
       '/test-vault/Emphasis.md': around(emphasis),
       '/test-vault/BigTable.md': around(table),
+      '/test-vault/BigList.md': around(list),
       '/test-vault/Remote.md': [
         '# Remote',
         '',
@@ -227,4 +230,34 @@ test('a picture from the web in a note: the editor and the reading view fetch it
   await expect.poll(drawn, { timeout: 15_000 }).toEqual([['/md.png', true], ['/ref.png', true]]);
   expect(fetched).not.toContain('/html.png');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('remote-reader.png') });
+});
+
+test('a note over its budget: the notice over the note, its heaviest block as source, the same in the reading view (L14)', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await openNote(page, 'BigList');
+  const editor = page.locator('.cm-content');
+  await expect(editor.getByText('Title').first()).toBeVisible({ timeout: 30_000 });
+  const notice = page.getByTestId('read-as-text-notice');
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  // Outside the list the live preview draws the link (its brackets hidden); the list is its source.
+  await expect(editor.getByText('[[Kept]]')).toHaveCount(0);
+  await page.getByTestId('read-as-text-jump').click();
+  await expect(editor.getByText('[[Note 0]]').first()).toBeVisible({ timeout: 15_000 });
+  expect(await answers(page)).toBeLessThan(5_000);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('read-as-text-editor.png') });
+
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader.locator('h2', { hasText: 'After' })).toHaveCount(1, { timeout: 30_000 });
+  await expect(reader.locator('em', { hasText: 'em' })).toHaveCount(1);
+  // The same decision as the editor's: the list is text there too, and the notice stays.
+  await expect(reader.locator('li')).toHaveCount(0);
+  await expect(reader.getByText('[[Note 19999]]', { exact: false })).toHaveCount(1);
+  await expect(notice).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('read-as-text-reader.png') });
+
+  // A note under its budget says nothing.
+  await page.getByText('Remote', { exact: true }).first().click();
+  await expect(page.locator('.markdown-reader, .cm-content').first().getByText('The end.')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('read-as-text-notice')).toHaveCount(0);
 });

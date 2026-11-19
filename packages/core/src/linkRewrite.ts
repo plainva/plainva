@@ -1,5 +1,6 @@
 import { decodeMarkdownLinkTarget, encodeMarkdownLinkPath, markdownLinkTarget } from "./linkEncoding.js";
 import { parseMarkdownAst } from "./markdown-parser.js";
+import { destinationAt, unescaped, type Unescaped } from "./textReadLinks.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 
 /**
@@ -97,33 +98,6 @@ interface TreeNode {
   position?: { start?: TreePoint; end?: TreePoint };
 }
 
-/** What a backslash escapes in Markdown: ASCII punctuation, nothing else. */
-const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-const escapes = (text: string, at: number): boolean => text[at] === "\\" && at + 1 < text.length && ESCAPABLE.includes(text[at + 1]);
-
-/** A stretch of the source with its backslash escapes taken out, and where each character stands. */
-interface Unescaped {
-  text: string;
-  /** Per character: where it begins in the source — at its backslash, if it has one. */
-  starts: number[];
-  /** Per character: the offset behind it. */
-  ends: number[];
-}
-
-function unescaped(text: string, from: number, to: number): Unescaped {
-  const chars: string[] = [];
-  const starts: number[] = [];
-  const ends: number[] = [];
-  for (let at = from; at < to; ) {
-    const char = escapes(text, at) && at + 1 < to ? at + 1 : at;
-    chars.push(text[char]);
-    starts.push(at);
-    ends.push(char + 1);
-    at = char + 1;
-  }
-  return { text: chars.join(""), starts, ends };
-}
-
 /**
  * The file a Markdown link's destination names: what stands in front of the
  * first `#` — the anchor marker of a destination —, decoded and trimmed. A
@@ -136,38 +110,6 @@ function markdownTarget(url: string): { target: string; from: number; to: number
   const hash = url.indexOf("#");
   const path = hash < 0 ? url : url.slice(0, hash);
   return { target: markdownLinkTarget(url).target, from: path.length - path.trimStart().length, to: path.trimEnd().length };
-}
-
-/**
- * The destination of an inline link whose label ends in front of `from - 2`:
- * behind `](`, in angle brackets or bare. The parser has accepted the link, so
- * this only has to find where the destination ends.
- */
-function destinationAt(text: string, from: number, limit: number): { start: number; end: number; angle: boolean } | null {
-  let at = from;
-  while (at < limit && (text[at] === " " || text[at] === "\t" || text[at] === "\n" || text[at] === "\r")) at++;
-  if (text[at] === "<") {
-    for (let end = at + 1; end < limit; end++) {
-      if (escapes(text, end)) end++;
-      else if (text[end] === ">") return { start: at + 1, end, angle: true };
-      else if (text[end] === "<" || text[end] === "\n" || text[end] === "\r") return null;
-    }
-    return null;
-  }
-  let depth = 0;
-  let end = at;
-  for (; end < limit; end++) {
-    const char = text[end];
-    if (escapes(text, end)) end++;
-    // A blank or a control character ends a bare destination.
-    else if (char <= " " || char === "\x7f") break;
-    else if (char === "(") depth++;
-    else if (char === ")") {
-      if (depth === 0) break;
-      depth--;
-    }
-  }
-  return { start: at, end: Math.min(end, limit), angle: false };
 }
 
 /**

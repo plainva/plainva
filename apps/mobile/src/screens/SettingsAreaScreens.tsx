@@ -6,7 +6,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
 import { ZipBackupGroup } from "../components/ZipBackupGroup";
-import { AreaBoundary, errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, taskDatabaseLabels, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
+import { AreaBoundary, errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, taskDatabaseLabels, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel, useMemoryProbe } from "@plainva/ui";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
 import { noteTypeOf } from "../services/newNote";
@@ -538,6 +538,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
 
   // Diagnostics export (package I, desktop P4 parity): the shared no-content
   // event log plus app facts, through the share sheet (web: a download).
+  const memoryProbe = useMemoryProbe();
   const exportDiagnostics = () => {
     void (async () => {
       let appVersion = "dev";
@@ -595,6 +596,8 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
               onClick={exportDiagnostics}
               title={t("settings.exportDiagnostics")}
             />
+            {/* „Speicher messen“ (L14): how large a note this device reads; the result goes into the diagnostics export. */}
+            <Row disabled={memoryProbe.running} info={t("settings.memoryProbeInfo")} onClick={memoryProbe.run} subtitle={memoryProbe.line ?? undefined} title={t("settings.memoryProbe")} data-testid="memory-probe-run" />
           </RowList>
         </GroupCard>
       </div>

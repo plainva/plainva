@@ -1322,20 +1322,15 @@ export class VaultIndexer {
     const fileId = await this.rowIdFor(fileInfo.path, tx, lookups);
 
     try {
-      const hasExtremelyLongLines = content.split('\n').some(line => line.length > 10000);
-      
-      let links: any[] = [];
-      let tags: any[] = [];
-      let fmResult: any = { success: false, data: null };
+      // Every note is read, however large: the parse budget reads what would cost the parser more than its budget as
+      // text (`inlineParseBudget.ts`, L14). Until L14 a note with one line over 10 000 characters lost its links, its
+      // tags and its properties here altogether.
+      const ast = parseMarkdownAst(content, { preserveObsidianSyntax: true });
+      const extracted = extractLinksAndTags(ast);
+      const links: any[] = extracted.links;
+      const tags: any[] = extracted.tags;
+      const fmResult: any = extractFrontmatter(ast);
 
-      if (!hasExtremelyLongLines) {
-        const ast = parseMarkdownAst(content, { preserveObsidianSyntax: true });
-        const extracted = extractLinksAndTags(ast);
-        links = extracted.links;
-        tags = extracted.tags;
-        fmResult = extractFrontmatter(ast);
-      }
-      
       let title = fileInfo.name.replace(/\.md$/, "");
       let mode = "obsidian";
 

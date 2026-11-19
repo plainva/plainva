@@ -3412,6 +3412,12 @@
     "diagnosticsExported": "Eksport diagnostyki zapisany.",
     "diagnosticsExportFailed": "Eksport diagnostyki nie powiódł się: {{error}}",
     "exportDiagnostics": "Eksportuj diagnostykę…",
+    "memoryProbe": "Zmierz pamięć",
+    "memoryProbeInfo": "Czyta wygenerowane notatki o rosnącym rozmiarze i zapamiętuje największą, jaką to urządzenie zdołało odczytać. Wynik trafia do eksportu diagnostyki, bez treści żadnej notatki. Trwa do minuty.",
+    "memoryProbeRun": "Zmierz",
+    "memoryProbeRunning": "Trwa pomiar …",
+    "memoryProbeResult": "Największa odczytana notatka: {{size}} MB",
+    "memoryProbeEnded": "Ostatnio aplikacja zakończyła działanie przy {{size}} MB (odczytano: {{largest}} MB)",
     "fontCustom": "Niestandardowa…",
     "fontCustomPlaceholder": "Nazwa zainstalowanej czcionki",
     "fontNotInstalled": "Niezainstalowana",
@@ -3937,6 +3943,9 @@
     "draftBanner": "Znaleziono niezapisany szkic (z {{time}}). Przywrócić?",
     "draftRestore": "Przywróć szkic",
     "draftDiscard": "Odrzuć szkic",
+    "readAsText": "Ta notatka jest bardzo duża. Część jest pokazywana jako tekst.",
+    "readAsTextInfo": "Aby notatka otwierała się na każdym urządzeniu, Plainva czyta jej najcięższe części jako zwykły tekst. Brakuje tam tylko formatowania: tabele, listy i linki pojawiają się jako tekst źródłowy.\n\nPoza tym ten tekst liczy się jak każdy inny: wyszukiwanie go znajduje, jego linki pojawiają się w linkach zwrotnych i w grafie, jego tagi i zadania są odnajdywane, a zmiana nazwy notatki przepisuje jego linki. Podziel notatkę, a wszystko znów będzie sformatowane.",
+    "readAsTextJump": "Przejdź tam",
     "fmtHeading": "Nagłówek"
   },
   "tabMenu": {

@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-17
+Stand: 2026-11-19
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -255,3 +255,9 @@ Beim Hinzufügen erscheinen bekannte Namen mit Typ und Häufigkeit. Bereits vorh
 ### Bild öffnen
 
 **Bild öffnen** steht bei lokalen Bildern in der Lesedarstellung und Live-Vorschau sowie im Bild-Kontextmenü bereit. Mobil vergrößerst Du im Bildbetrachter mit zwei Fingern, einem Doppeltipp oder den Zoomknöpfen; **Zoom zurücksetzen** zeigt das ganze Bild. Zurück führt zur Notiz. Langes Drücken auf das eingebettete Bild bleibt für die Bildaktionen des Betriebssystems erhalten, ebenso die Markierung einer Bildregion für Kommentare.
+
+## Sehr große Notizen
+
+Eine Notiz kann so groß werden, dass ein Gerät sie nicht mehr formatiert lesen kann: eine Tabelle mit Tausenden Zeilen, eine Liste mit Zehntausenden Punkten, Megabytes an Text in einem Absatz. Damit sie trotzdem auf jedem Gerät öffnet, liest Plainva dann ihre schwersten Teile als reinen Text. Über der Notiz steht **Diese Notiz ist sehr groß. Ein Teil davon wird als Text gezeigt.**; das ⓘ daneben erklärt, was das heißt, und **Zur Stelle** springt im Editor zur ersten solchen Stelle.
+
+In diesen Teilen fehlt nur die Formatierung: Tabellen, Listen, Links und Hervorhebungen erscheinen als Quelltext. Sonst zählt der Text wie jeder andere: die Suche findet ihn, seine Links erscheinen in Backlinks und Graph, seine Tags und Aufgaben werden gefunden, und beim Umbenennen einer Notiz schreibt Plainva auch seine Links um. Überschriften und Eigenschaften bleiben so lange wie möglich erhalten. Teilst Du die Notiz in mehrere auf, wird alles wieder formatiert. Desktop und Telefon entscheiden dabei gleich.

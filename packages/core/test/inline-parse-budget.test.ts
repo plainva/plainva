@@ -10,7 +10,6 @@ import {
   inlineParseCost,
   overBudgetInlineRanges,
   restoreBoundedTree,
-  restoreBoundedValue,
   TABLE_CELL_WEIGHT,
   TABLE_LINK_WEIGHT,
   TABLE_LITERAL_WEIGHT,
@@ -58,6 +57,20 @@ import { unified } from "unified";
  */
 
 const SECONDS = 1000;
+
+/**
+ * The ranges of one table read as written, since L14: one range for each
+ * stretch of its lines with only line ends between them — the markers of a
+ * quote or list in front of each row stay outside, as written — all of them
+ * table ranges, from `from` to `to`, and nothing but line ends, blanks and
+ * markers between two of them.
+ */
+function oneTableRead(text: string, ranges: Array<{ from: number; to: number; table?: boolean }>, from?: number, to?: number): boolean {
+  if (ranges.length === 0 || !ranges.every((range) => range.table)) return false;
+  if (from !== undefined && ranges[0].from !== from) return false;
+  if (to !== undefined && ranges[ranges.length - 1].to !== to) return false;
+  return ranges.every((range, i) => i === 0 || /^\r?\n[ \t>\-*+]*$/.test(text.slice(ranges[i - 1].to, range.from)));
+}
 
 function textsOf(node: MarkdownTreeNode, into: string[] = []): string[] {
   if (typeof node.value === "string") into.push(node.value);
@@ -129,7 +142,7 @@ describe("the inline parse budget", () => {
     expect(tableMarkerCost("  ")).toBe(2 + TABLE_MARKER_WEIGHT);
     expect(tableMarkerCost("- > ")).toBe(4 + 2 * TABLE_MARKER_WEIGHT);
     const deep = `> > | h |\n> > |---|\n${Array.from({ length: Math.ceil(TABLE_READ_BUDGET / (tableReadCost("|a|", 0, 3) + tableMarkerCost("> > "))) + 1 }, () => "> > |a|").join("\n")}\n`;
-    expect(overBudgetInlineRanges(deep)).toHaveLength(1);
+    expect(oneTableRead(deep, overBudgetInlineRanges(deep))).toBe(true);
   });
 
   it("counts a row's cells the way the table parser does", () => {
@@ -239,10 +252,9 @@ describe("the inline parse budget", () => {
       const lines = dense(first, rest, Math.ceil((1.5 * TABLE_READ_BUDGET) / tableReadCost(row, 0, row.length)));
       const note = `# T\n\n${before}${lines.join("\n")}\n\nbelow [[Link]]\n`;
       const ranges = overBudgetInlineRanges(note);
-      expect(ranges, where).toHaveLength(1);
-      // The range is the table's lines behind the markers of the first line: the markers stay as written.
+      // The ranges are the table's lines behind the markers of each line: the markers stay as written.
       const tableStart = note.indexOf(lines[0]) + first.length;
-      expect(ranges[0], where).toEqual({ from: tableStart, to: note.lastIndexOf(lines[lines.length - 1]) + lines[lines.length - 1].length, table: true });
+      expect(oneTableRead(note, ranges, tableStart, note.lastIndexOf(lines[lines.length - 1]) + lines[lines.length - 1].length), where).toBe(true);
       const tree = parseMarkdownTree(note);
       let node = tree.children![1];
       for (const container of containers) {
@@ -270,10 +282,11 @@ describe("the inline parse budget", () => {
     expect(tree.children![1].type).toBe("table");
   }, 240 * SECONDS);
 
-  it("leaves the links of a stretch read as written out of the index's reading", () => {
-    const stretch = `[[Inside]] ${"x]".repeat(20_000)}`;
+  it("keeps the links of a stretch read as written in the index's reading, found by their characters (L14)", () => {
+    // Until L14 the index lost them: a backlink and the graph did not see them, and a rename left them behind.
+    const stretch = `[[Inside]] ${"x]".repeat(20_000)} \`[[InCode]]\``;
     const ast = parseMarkdownAst(`[[Before]]\n\n${stretch}\n\n[[After]]\n`, { preserveObsidianSyntax: true });
-    expect(extractLinksAndTags(ast).links.map((link) => link.target)).toEqual(["Before", "After"]);
+    expect(extractLinksAndTags(ast).links.map((link) => link.target)).toEqual(["Before", "Inside", "After"]);
   });
 
   it("keeps every place of a text that starts with a byte order mark", () => {
@@ -397,32 +410,28 @@ describe("the measure and the stand-ins", () => {
     expect(bounded.text).toHaveLength(text.length);
     expect(bounded.text.startsWith("head\n\n")).toBe(true);
     expect(bounded.text.endsWith("\n\ntail")).toBe(true);
-    expect(restoreBoundedValue(bounded.text)).toBe(text);
-    // Nothing of Markdown is left in the stretch for a parser to read.
+    const whole = { type: "text", value: bounded.text, position: { start: { offset: 0 }, end: { offset: text.length } } };
+    restoreBoundedTree(whole, bounded);
+    expect(whole.value).toBe(text);
+    // Nothing is left in the stretch for a parser to read: no syntax, no word, no link literal.
     const inside = bounded.text.slice(bounded.ranges[0].from, bounded.ranges[0].to);
-    expect(inside).not.toMatch(/[\\[\]*_~`<&!$|]/);
+    expect(inside).toMatch(/^[\ufdd0 ]*$/);
   });
 
-  it("restores only what stands inside a stretch: a noncharacter written elsewhere stays", () => {
+  it("restores only what stands inside a stretch, by its place: a noncharacter written elsewhere stays", () => {
     const standIn = String.fromCharCode(0xfdd0);
-    const tree = {
-      type: "root",
-      position: { start: { offset: 0 }, end: { offset: 100 } },
-      children: [
-        { type: "text", value: `out${standIn}`, position: { start: { offset: 0 }, end: { offset: 10 } } },
-        { type: "text", value: `in${standIn}`, position: { start: { offset: 50 }, end: { offset: 60 } } },
-        { type: "text", value: `placeless${standIn}` },
-      ],
-    };
-    restoreBoundedTree(tree, [{ from: 40, to: 70 }]);
-    expect(tree.children.map((child) => child.value)).toEqual([`out${standIn}`, "in\\", "placeless\\"]);
+    const text = `out${standIn} *a*\n\n> in${standIn} ${"]".repeat(20_000)}\n> - b`;
+    const tree = parseMarkdownTree(text);
+    // Outside the stretch the note reads as ever; inside, every character comes back from its place, the noncharacter too.
+    expect(textsOf(tree)).toEqual([`out${standIn} `, "a", `in${standIn} ${"]".repeat(20_000)}`, "b"]);
+    expect(typesOf(tree)).toEqual(expect.arrayContaining(["blockquote", "list", "emphasis"]));
   });
 
-  it("turns a noncharacter inside a stretch into U+FFFD, so it cannot come back as markup", () => {
+  it("gives back a noncharacter inside a stretch as it was written", () => {
     const standIn = String.fromCharCode(0xfdd1);
     const text = `${standIn}${"]".repeat(20_000)}`;
     const tree = parseMarkdownTree(text);
-    expect(textsOf(tree).join("")).toBe(String.fromCharCode(0xfffd) + "]".repeat(20_000));
+    expect(textsOf(tree).join("")).toBe(standIn + "]".repeat(20_000));
   });
 });
 
@@ -790,7 +799,8 @@ describe("where a table ends", () => {
       const exact: boolean[] = [];
       expect(overBudgetInlineRanges(table(Math.floor((0.95 * TABLE_READ_BUDGET) / cost)), { table: (_first, _last, isExact) => exact.push(isExact) }), prefix.slice(0, 4)).toEqual([]);
       expect(exact, prefix.slice(0, 4)).toEqual([true]);
-      expect(overBudgetInlineRanges(table(Math.ceil((1.05 * TABLE_READ_BUDGET) / cost))), prefix.slice(0, 4)).toHaveLength(1);
+      const over = table(Math.ceil((1.05 * TABLE_READ_BUDGET) / cost));
+      expect(oneTableRead(over, overBudgetInlineRanges(over)), prefix.slice(0, 4)).toBe(true);
     }
   });
 

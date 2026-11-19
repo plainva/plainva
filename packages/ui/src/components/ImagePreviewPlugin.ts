@@ -1,3 +1,4 @@
+import { readAsTextChanged, withoutReadAsText } from "./readAsText";
 import { trimEndChars } from "@plainva/core";
 import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
@@ -278,7 +279,7 @@ export function imagePreviewPlugin(
     }
 
     update(update: ViewUpdate) {
-      let needsRebuild = update.docChanged || update.viewportChanged
+      let needsRebuild = update.transactions.some(readAsTextChanged) || update.docChanged || update.viewportChanged
         // The parser reaches a stretch later than the text: what turned out
         // to be code is drawn as text from then on.
         || syntaxTree(update.startState) !== syntaxTree(update.state)
@@ -367,7 +368,7 @@ export function imagePreviewPlugin(
         }
       }
 
-      return builder.finish();
+      return withoutReadAsText(view.state, builder.finish());
     }
   }, {
     decorations: (v: any) => v.decorations

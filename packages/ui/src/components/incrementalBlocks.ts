@@ -1,6 +1,7 @@
 import { language, syntaxTree } from "@codemirror/language";
 import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
 import { StateField, type EditorSelection, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
+import { readAsTextChanged, readAsTextTouches } from "./readAsText";
 
 /**
  * Block widgets that move with the text (performance plan L6, finding B7).
@@ -303,7 +304,7 @@ function searchAll<C>(config: BlockFieldConfig<C>, state: EditorState, ctx: C): 
   const kinds = config.kinds.map((kind): KindValue => {
     const found = kind.discoverAll(state);
     const decos = new Map<BlockEntry<unknown>, Decoration | null>();
-    for (const block of found.blocks) decos.set(block, kind.decorate(state, ctx, block));
+    for (const block of found.blocks) decos.set(block, decorated(kind, state, ctx, block));
     return { state: found, decos };
   });
   return { ctx, kinds, set: assemble(kinds) };
@@ -316,8 +317,14 @@ export function blockDecorationsFromScratch<C>(config: BlockFieldConfig<C>, stat
   return searchAll(config, state, ctx).set;
 }
 
+/** A block's decoration, or none where the parse budget reads it as text: then its source shows, as in the reading view (L14). */
+function decorated<C>(kind: BlockKind<unknown, C>, state: EditorState, ctx: C, block: BlockEntry<unknown>): Decoration | null {
+  return readAsTextTouches(state, block.from, block.to) ? null : kind.decorate(state, ctx, block);
+}
+
 function advance<C>(config: BlockFieldConfig<C>, value: BlockFieldValue<C>, tr: Transaction): BlockFieldValue<C> {
-  if (!config.triggers(tr)) return value;
+  const rescanned = readAsTextChanged(tr);
+  if (!config.triggers(tr) && !rescanned) return value;
   const state = tr.state;
   const ctx = config.context(state);
   const sameCtx = config.sameContext(ctx, value.ctx);
@@ -329,7 +336,7 @@ function advance<C>(config: BlockFieldConfig<C>, value: BlockFieldValue<C>, tr: 
   // a widget carries its range), a new context, or new anchor frames. A caret
   // move re-decides the blocks it enters or leaves; a parse step the blocks
   // it found anew.
-  const all = tr.docChanged || !sameCtx || (config.refreshesAll?.(tr) ?? false);
+  const all = tr.docChanged || !sameCtx || rescanned || (config.refreshesAll?.(tr) ?? false);
   const before = tr.startState.selection;
   const after = state.selection;
   const moved = !before.eq(after);
@@ -345,7 +352,7 @@ function advance<C>(config: BlockFieldConfig<C>, value: BlockFieldValue<C>, tr: 
       if (reusable) {
         decos.set(block, prev.decos.get(block) ?? null);
       } else {
-        const deco = kind.decorate(state, ctx, block);
+        const deco = decorated(kind, state, ctx, block);
         if (!prev.decos.has(block) || prev.decos.get(block) !== deco) changed = true;
         decos.set(block, deco);
       }

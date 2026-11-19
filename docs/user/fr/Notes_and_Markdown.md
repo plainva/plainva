@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-11-17
+Dernière mise à jour : 2026-11-19
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -255,3 +255,9 @@ La barre de mise en forme suit la sélection pendant le défilement et garde une
 ### Ouvrir l’image
 
 **Ouvrir l’image** est disponible pour les images locales en lecture, en aperçu et dans le menu contextuel. Le visualiseur mobile propose le zoom à deux doigts, le double appui et les boutons ; **Réinitialiser le zoom** affiche toute l’image. Retour ramène à la note. L’appui long conserve les actions du système et les régions d’image restent commentables.
+
+## Notes très volumineuses
+
+Une note peut devenir si volumineuse qu'un appareil ne peut plus la lire mise en forme : un tableau de milliers de lignes, une liste de dizaines de milliers d'éléments, des mégaoctets de texte dans un paragraphe. Pour qu'elle s'ouvre malgré tout sur tous les appareils, Plainva lit alors ses parties les plus lourdes comme du texte brut. Au-dessus de la note s'affiche **Cette note est très volumineuse. Une partie est affichée en texte.** ; le ⓘ à côté explique ce que cela signifie, et **Y aller** vous amène dans l'éditeur au premier endroit concerné.
+
+Dans ces parties, seule la mise en forme manque : les tableaux, les listes, les liens et les mises en valeur apparaissent sous forme de source. Pour le reste, le texte compte comme n'importe quel autre : la recherche le trouve, ses liens apparaissent dans les rétroliens et le graphe, ses étiquettes et ses tâches sont trouvées, et quand vous renommez une note, Plainva réécrit aussi ses liens. Les titres et les propriétés sont conservés aussi longtemps que possible. Divisez la note en plusieurs et tout est à nouveau mis en forme. L'ordinateur et le téléphone décident de la même façon.

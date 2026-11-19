@@ -5,10 +5,17 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified } from "unified";
+import { textReadLinkNodes } from "./textReadLinks.ts";
 import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type BoundedRange, type MarkdownReading } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
+  /**
+   * What the parse budget weighs (`inlineParseBudget.ts`): a note's reading
+   * unless given. The calibration of the note's budget reads with the note's
+   * budget off (`notes: false`) — the parse as it was before L14.
+   */
+  reading?: MarkdownReading;
 };
 
 /**
@@ -92,7 +99,7 @@ function parsedInText<Tree>(parse: (text: string) => Tree, text: string, reading
   const bounded = boundMarkdownForParse(text, reading);
   if (text.charCodeAt(0) !== BYTE_ORDER_MARK) {
     const tree = parse(bounded.text);
-    restoreBoundedTree(tree, bounded.ranges);
+    restoreBoundedTree(tree, bounded);
     if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading);
     return tree;
   }
@@ -111,7 +118,7 @@ function parsedInText<Tree>(parse: (text: string) => Tree, text: string, reading
     for (const child of node.children ?? []) walk(child);
   };
   walk(tree as unknown as PlacedNode);
-  restoreBoundedTree(tree, bounded.ranges);
+  restoreBoundedTree(tree, bounded);
   if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading);
   return tree;
 }
@@ -133,6 +140,10 @@ interface LinkNode {
  * under the table's own header and delimiter row — the reader of every other
  * table, one row at a time — and of each row only its links are kept. They
  * join the node the table stands in as text, at their places in `text`.
+ * Every other stretch read as text — a paragraph over the inline budget, a
+ * block over the note's (L14) — gives its links by their characters
+ * (`textReadLinks.ts`): the index, a backlink and a rename read each link of
+ * the note once, from this one tree.
  */
 function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly BoundedRange[], parse: (text: string) => Tree, reading: MarkdownReading): void {
   let counted = 0;
@@ -147,8 +158,29 @@ function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly Bound
     const end = text.indexOf("\n", at);
     return end < 0 ? text.length : end;
   };
-  for (const range of ranges) {
-    if (!range.table) continue;
+  let lineStarts: number[] | null = null;
+  // The line of `at` and where it starts, for the links found by their characters.
+  const lineAt = (at: number): { line: number; start: number } => {
+    if (!lineStarts) {
+      lineStarts = [0];
+      for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) lineStarts.push(i + 1);
+    }
+    let lo = 0;
+    let hi = lineStarts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (lineStarts[mid] <= at) lo = mid;
+      else hi = mid - 1;
+    }
+    return { line: lo + 1, start: lineStarts[lo] };
+  };
+  for (const range of tablesWhole(text, ranges)) {
+    if (!range.table) {
+      // A paragraph or a block read as text (L14): its links found by their characters, never by a parse of it.
+      const found = textReadLinkNodes(text, range.from, range.to, lineAt) as unknown as LinkNode[];
+      if (found.length > 0) joinLinks(tree, range, found);
+      continue;
+    }
     const headStart = text.lastIndexOf("\n", range.from - 1) + 1;
     const headEnd = endOf(headStart);
     if (headEnd + 1 >= range.to) continue;
@@ -190,26 +222,46 @@ function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly Bound
     }
     if (found.length === 0) continue;
     found.sort((a, b) => (a.position?.start.offset ?? 0) - (b.position?.start.offset ?? 0));
-    // The node the table stands in as text: the deepest one around its first character.
-    let holder = tree;
-    for (let deeper = true; deeper; ) {
-      deeper = false;
-      for (const child of holder.children ?? []) {
-        const from = child.position?.start.offset;
-        const to = child.position?.end.offset;
-        if (child.children && from !== undefined && to !== undefined && from <= range.from && range.from < to) {
-          holder = child;
-          deeper = true;
-          break;
-        }
+    joinLinks(tree, range, found);
+  }
+}
+
+/**
+ * The ranges with the rows of one table as one range: the scan reads the rows
+ * of a table in a quote or a list each behind its markers, which stay as they
+ * are (`inlineParseBudget.ts`), and the rows of a table are read under its
+ * header (`readRowLinks`).
+ */
+function tablesWhole(text: string, ranges: readonly BoundedRange[]): BoundedRange[] {
+  const whole: BoundedRange[] = [];
+  for (const range of ranges) {
+    const previous = whole[whole.length - 1];
+    if (previous?.table && range.table && !range.block && !previous.block && previous.to <= range.from && /^\r?\n[ \t>]*$/.test(text.slice(previous.to, range.from))) previous.to = range.to;
+    else whole.push({ ...range });
+  }
+  return whole;
+}
+
+/** `found` joins the node a stretch read as text stands in: the deepest one around its first character. */
+function joinLinks(tree: LinkNode, range: BoundedRange, found: LinkNode[]): void {
+  let holder = tree;
+  for (let deeper = true; deeper; ) {
+    deeper = false;
+    for (const child of holder.children ?? []) {
+      const from = child.position?.start.offset;
+      const to = child.position?.end.offset;
+      if (child.children && from !== undefined && to !== undefined && from <= range.from && range.from < to) {
+        holder = child;
+        deeper = true;
+        break;
       }
     }
-    // What the parse of the table as text made a link (an autolink literal: a URL, an e-mail address)
-    // is a link the rows give again: it gives up its place to its text, so that no link counts twice
-    // (review, 2026-11-18: each URL of such a table stood in the index twice).
-    unwrapLinksIn(holder, range.from, range.to);
-    holder.children = [...(holder.children ?? []), ...found];
   }
+  // What the parse of a table as text made a link (an autolink literal: a URL, an e-mail address)
+  // is a link the rows give again: it gives up its place to its text, so that no link counts twice
+  // (review, 2026-11-18: each URL of such a table stood in the index twice).
+  unwrapLinksIn(holder, range.from, range.to);
+  holder.children = [...(holder.children ?? []), ...found];
 }
 
 /** Each link under `node` that starts in `from`..`to` replaced by its children (an image, which has none, goes). */
@@ -237,7 +289,7 @@ export function parseMarkdownAst(
     ? obsidianPreservingMarkdownParser
     : markdownParser;
   // With the links of a table over the budget, read row by row (`readRowLinks`): the index and a rename read them.
-  const tree = parsedInText((text) => processor.parse(text), markdown, NOTE_READING, true);
+  const tree = parsedInText((text) => processor.parse(text), markdown, options.reading ?? NOTE_READING, true);
   const transformedTree = options.preserveObsidianSyntax ? processor.runSync(tree) : tree;
 
   return markdownAstSchema.parse(transformedTree);
@@ -249,8 +301,8 @@ export function parseMarkdownAst(
  * the check of the tree's shape that function runs. Every position is a place
  * in `text`.
  */
-export function parseMarkdownTree(text: string): MarkdownTreeNode {
-  return parsedInText((source) => markdownParser.parse(source), text) as unknown as MarkdownTreeNode;
+export function parseMarkdownTree(text: string, reading: MarkdownReading = NOTE_READING): MarkdownTreeNode {
+  return parsedInText((source) => markdownParser.parse(source), text, reading) as unknown as MarkdownTreeNode;
 }
 
 /**

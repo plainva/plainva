@@ -3234,6 +3234,12 @@
     "diagnosticsExported": "Diagnostics export saved.",
     "diagnosticsExportFailed": "Diagnostics export failed: {{error}}",
     "exportDiagnostics": "Export diagnostics…",
+    "memoryProbe": "Measure memory",
+    "memoryProbeInfo": "Reads generated notes of growing size and remembers the largest this device could read. The result goes into the diagnostics export, without the content of any note. Takes up to a minute.",
+    "memoryProbeRun": "Measure",
+    "memoryProbeRunning": "Measuring …",
+    "memoryProbeResult": "Largest note read: {{size}} MB",
+    "memoryProbeEnded": "Last time the app ended at {{size}} MB (read: {{largest}} MB)",
     "fontCustom": "Custom…",
     "fontCustomPlaceholder": "Name of an installed font",
     "fontNotInstalled": "Not installed",
@@ -3759,6 +3765,9 @@
     "draftBanner": "Found an unsaved draft (from {{time}}). Restore it?",
     "draftRestore": "Restore draft",
     "draftDiscard": "Discard draft",
+    "readAsText": "This note is very large. Part of it is shown as text.",
+    "readAsTextInfo": "So that the note opens on every device, Plainva reads its heaviest parts as plain text. All that is missing there is the formatting: tables, lists and links appear as their source.\n\nOtherwise that text counts like any other: search finds it, its links appear in backlinks and the graph, its tags and tasks are found, and renaming a note rewrites its links. Split the note and everything is formatted again.",
+    "readAsTextJump": "Go to it",
     "fmtHeading": "Heading"
   },
   "tabMenu": {
