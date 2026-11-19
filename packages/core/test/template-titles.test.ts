@@ -122,3 +122,25 @@ describe("a placeholder the engine fills in", () => {
     for (const title of ["The {{each}} helper", "Jinja {{ variable }} syntax", "\\{{title}}", "{{title", "plain"]) expect(holdsTemplateToken(title), title).toBe(false);
   });
 });
+
+describe("a note over the note's budget in the index (L14)", () => {
+  it("keeps its title, a template its file's name, and the links of its blocks read as text", async () => {
+    // The properties are never read as text; the title comes from them, and a template's from its file's name, as
+    // `retitleTemplateNotes` reads it again after a full scan. The list read as text gives its links to the index.
+    const list = Array.from({ length: 20_000 }, (_, i) => `- item ${i} [[Target]]`).join("\n");
+    const db = await realSqlite();
+    const vault = new MemoryVaultAdapter(1_000);
+    await vault.writeTextFile("Templates/Big.md", `---\ntitle: "{{title}}"\n---\n# {{title}}\n\n${list}\n`);
+    await vault.writeTextFile("Notes/Big.md", `---\ntitle: Big list\n---\n# Big\n\n${list}\n`);
+    await vault.writeTextFile("Notes/Target.md", "# Target\n");
+    const indexer = new VaultIndexer(vault, db, { templateNotes });
+    await indexer.indexVaultFull();
+    const query = new VaultQueryService(db);
+    expect(await titleOf(query, "Templates/Big.md")).toBe("Big");
+    expect(await titleOf(query, "Notes/Big.md")).toBe("Big list");
+    expect(await indexer.retitleTemplateNotes()).toBe(0);
+    const from = new Set((await query.getBacklinks("Notes/Target.md")).map((link) => link.source_path));
+    expect(from).toEqual(new Set(["Templates/Big.md", "Notes/Big.md"]));
+  }, 120_000);
+});
+

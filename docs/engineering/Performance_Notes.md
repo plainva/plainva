@@ -907,6 +907,12 @@ and is wanted, not overlooked:
 - *Formulas weigh nothing of their own:* a `$` is a character of inline syntax to the note's budget as to the
   table's; KaTeX's layout in the desktop's reading view is not bounded, as on `main` (`$x$` three thousand
   times in a note is laid out formula for formula).
+- *A note of links alone past 10 MB:* the index lists every link of a part read as text, one at a
+  time beside the tree, and a rename rewrites each one (no cap: a rename that left links behind would
+  be a silent fault). Each link the index lists is still an entry it holds; lines of two links each
+  (`see [[n]] and [t](u)`) pass the index parse under 128 MB up to 368 750 lines, about 10 MB, and run
+  out of it beyond (`main` from about 70 000 such lines). `note-budget.test.ts` holds 200 000 lines of
+  links and of embeds under 128 MB.
 - *Headings last, properties never:* only where every other block is text and the note is still over its
   budget are its headings read as text too (a note of 30 000 headings); the properties block never is.
 
