@@ -9,7 +9,7 @@ import {
   type SecretEntry,
   type SecretsBundle,
 } from "@plainva/core";
-import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretsMarker, calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
 import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 /**
@@ -524,5 +524,108 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
       await rounds([n1, n2], 3);
       expect(n2.slots.get("r")).toBe("P3");
     });
+  });
+
+  describe("no state without a way out (round eleven)", () => {
+    for (const how of ["the document was reset", "the document carries only an older entry"]) {
+      it(`a lost key when ${how}: the device is as without a record, a password typed here arrives`, async () => {
+        start();
+        const row = (): Row[] => [{ id: "r", user: "anna" }];
+        const n1 = device("N1", false, row(), { r: "P1" });
+        const n2 = device("N2", false, row());
+        await rounds([n1, n2], 3);
+        let older: SecretsBundle | null = null;
+        if (how.includes("older")) {
+          older = structuredClone(remote);
+          n1.slots.set("r", "P2");
+          await round(n1);
+        }
+        n1.keyring.clear();
+        remote = older;
+        n2.slots.clear();
+        await rounds([n1, n2], 4);
+        expect(n2.slots.get("r")).toBe(how.includes("older") ? "P2" : "P1");
+        n1.slots.set("r", "P3");
+        await rounds([n1, n2], 4);
+        expect(n2.slots.get("r")).toBe("P3");
+        // Nothing waits any more: every record is made with the key N1 has now.
+        const own = await secretsMarker({ readSlot: async (slot) => n1.keyring.get(slot) ?? null, writeSlot: async () => undefined });
+        expect(Object.values(n1.meta!.entries).filter((e) => !e.tombstone && !own.owns(e.hash))).toEqual([]);
+      });
+    }
+
+    it("a password typed here after the key was lost goes out, even the same one again", async () => {
+      start();
+      const row = (): Row[] => [{ id: "r", user: "anna" }];
+      const n1 = device("N1", false, row(), { r: "P1" });
+      const n2 = device("N2", false, row());
+      await rounds([n1, n2], 3);
+      n1.keyring.clear();
+      n1.slots.set("r", "P3");
+      await rounds([n1, n2], 6);
+      expect([n1.slots.get("r"), n2.slots.get("r")]).toEqual(["P3", "P3"]);
+    });
+
+    for (const typed of ["the same password as the document", "a password changed meanwhile"]) {
+      it(`moving an Android phone: the record comes with the backup, key and slots do not; typing ${typed}`, async () => {
+        start();
+        const row = (): Row[] => [{ id: "r", user: "anna" }];
+        const n1 = device("N1", false, row(), { r: "P1" });
+        const phone = device("Phone", false, row());
+        await rounds([n1, phone], 3);
+        expect(phone.slots.get("r")).toBe("P1");
+        // The new phone: settings restored, keychain empty.
+        phone.slots.clear();
+        phone.keyring.clear();
+        phone.slots.set("r", typed.startsWith("the same") ? "P1" : "P7");
+        n1.pushes = 0;
+        phone.pushes = 0;
+        await rounds([phone, n1], 5);
+        if (typed.startsWith("the same")) {
+          expect([phone.slots.get("r"), n1.slots.get("r"), phone.pushes]).toEqual(["P1", "P1", 0]);
+        } else {
+          // Typed here: a change, which N1 follows (it typed P1 itself, so it
+          // keeps its own — as before the move).
+          expect(phone.slots.get("r")).toBe("P7");
+          expect(remote!.entries[canonicalSecretId(newBinding({ id: "r", user: "anna" }))]?.secret).toEqual({ pass: "P7" });
+        }
+      });
+    }
+  });
+
+  describe("an old name: the same password again is no news, a real change back to it is (round eleven)", () => {
+    for (const seen of [false, true]) {
+      it(`0.8.7 changes P1 to P2 and back to P1${seen ? ", the updated device sees P2 in between" : " while the updated device is away"}: P1 arrives`, async () => {
+        start();
+        const row = (): Row[] => [{ id: "r", user: "anna" }];
+        const o = device("O", true, row(), { r: "P1" });
+        const n = device("N", false, row());
+        await rounds([o, n], 3);
+        n.slots.set("r", "Q");
+        await rounds([n, o], 2);
+        o.slots.set("r", "P2");
+        await round(o);
+        if (seen) await round(n);
+        o.slots.set("r", "P1");
+        await round(o);
+        await rounds([n, o], 4);
+        expect({ O: o.slots.get("r"), N: n.slots.get("r") }).toEqual({ O: "P1", N: "P1" });
+      });
+    }
+  });
+
+  it("a round that changes nothing writes nothing, with a tombstone of another device and an account unknown here (round eleven, F68)", async () => {
+    start();
+    const all = (): Row[] => [{ id: "r", user: "anna" }, { id: "m", user: "carl@example.com", kind: "mail" }];
+    const n1 = device("N1", false, all(), { r: "P1", m: "M1" });
+    const n0 = device("N0", false, [{ id: "b", user: "Bert" }], { b: "B1" });
+    await rounds([n1, n0], 3);
+    await retireSecret(n1.host, imapSecretBinding("imap", IMAP.host, IMAP.port, "carl@example.com"));
+    n1.rows = n1.rows.filter((r) => r.id !== "m");
+    n1.slots.delete("m");
+    await rounds([n1, n0], 4);
+    for (const d of [n1, n0]) d.metaWrites = 0;
+    await rounds([n1, n0], 6);
+    expect([n1.metaWrites, n0.metaWrites]).toEqual([0, 0]);
   });
 });

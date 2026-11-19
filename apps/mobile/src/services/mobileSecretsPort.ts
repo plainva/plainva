@@ -49,6 +49,12 @@ const META_PREFIX = "settingsSyncSecretMarksMobile_";
 const LEGACY_META_PREFIX = "settingsSyncSecretMetaMobile_";
 const metaKey = (vaultId: string) => `${META_PREFIX}${vaultId}`;
 const legacyMetaKey = (vaultId: string) => `${LEGACY_META_PREFIX}${vaultId}`;
+/**
+ * What "Remove account" asked to be tombstoned, under a name of its own: only
+ * bindings, never a mark, so a removal before the marks are sealed writes no
+ * password anywhere (round eleven).
+ */
+const retiredKey = (vaultId: string) => `settingsSyncSecretRetiredMobile_${vaultId}`;
 const META_STORAGE = {
   current: (legacyKey: string) => META_PREFIX + legacyKey.slice(LEGACY_META_PREFIX.length),
   isLegacy: (key: string) => key.startsWith(LEGACY_META_PREFIX),
@@ -123,13 +129,31 @@ function metaStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | nul
       const store = await settingsStore();
       const current = (await store.get<SecretsPortMeta>(metaKey(vaultId))) ?? null;
       const legacy = (await store.get<SecretsPortMeta>(legacyMetaKey(vaultId))) ?? null;
-      return migrateSecretsMetaToCanonicalIds(mergeLegacySecretsMeta(current, legacy));
+      const retired = (await store.get<SecretsPortMeta["retired"]>(retiredKey(vaultId))) ?? null;
+      const meta = mergeLegacySecretsMeta(current, legacy) ?? (retired ? { entries: {}, imported: {}, quarantine: {} } : null);
+      if (meta && retired) meta.retired = { ...(meta.retired ?? {}), ...retired };
+      return migrateSecretsMetaToCanonicalIds(meta);
     },
     writeMeta: async (meta) => {
       const store = await settingsStore();
-      await store.set(metaKey(vaultId), meta);
+      const { retired, ...marks } = meta;
+      await store.set(metaKey(vaultId), marks);
+      if (retired && Object.keys(retired).length > 0) await store.set(retiredKey(vaultId), retired);
+      else await store.delete(retiredKey(vaultId));
       // Taken in by this write: under the old name, nothing stays.
       await store.delete(legacyMetaKey(vaultId));
+      await store.save();
+    },
+  };
+}
+
+/** The pending removals alone, for `retireSecret`: it never reads or writes a mark. */
+function retiredStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () => ({ entries: {}, imported: {}, quarantine: {}, retired: (await (await settingsStore()).get<SecretsPortMeta["retired"]>(retiredKey(vaultId))) ?? {} }),
+    writeMeta: async (meta) => {
+      const store = await settingsStore();
+      await store.set(retiredKey(vaultId), meta.retired ?? {});
       await store.save();
     },
   };
@@ -147,7 +171,7 @@ export async function sealSecretsMetaAtStart(): Promise<number> {
 
 /** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`), as on the desktop. */
 export async function retireCalDavSecret(vaultId: string, url: string, user: string): Promise<void> {
-  await retireSecret(metaStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+  await retireSecret(retiredStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
 }
 
 /** Mobile keychain bridge for the secrets sideband. */

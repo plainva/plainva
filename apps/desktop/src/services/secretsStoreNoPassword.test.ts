@@ -298,6 +298,18 @@ describe("the secrets sync keeps no password in the desktop's settings store (F6
       remote.at = await round(d, remote.at);
       remote.at = await round(d, remote.at);
     })).toEqual([]);
+    // The key lost and a password typed right after: the record says "changed here".
+    expect(await run(async (d, other, remote) => {
+      d.legacy = false;
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-first-1"));
+      remote.at = await round(d, remote.at);
+      remote.at = await round(other, remote.at);
+      d.slots.delete(SECRETS_MARK_KEY_SLOT);
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-again-2"));
+      remote.at = await round(d, remote.at);
+      remote.at = await round(d, remote.at);
+      remote.at = await round(other, remote.at);
+    })).toEqual([]);
   });
 
   it("a store written by 0.8.7 is cleaned at start, and the cleaning is no change", async () => {
@@ -322,22 +334,93 @@ describe("the secrets sync keeps no password in the desktop's settings store (F6
     expect(d.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(true);
   });
 
-  it("without an answer from the credentials store nothing is sealed, nothing runs, and the next start does it", async () => {
-    const d: Device = { name: "U", legacy: true, store: new Map(), slots: new Map(), accounts: [POOL[2]] };
+  it("a keychain that does not answer while marks of its key exist: nothing runs, nothing is written, the key is not made anew", async () => {
+    const d: Device = { name: "U", legacy: false, store: new Map(), slots: new Map(), accounts: [POOL[2]] };
     d.slots.set(slotOf(POOL[2]), secretOf(POOL[2], "pw-locked"));
     await round(d, null);
+    const key = d.slots.get(SECRETS_MARK_KEY_SLOT);
     // The records only: the device id of the port is another key of the store.
-    const records = () => stableStringify([...d.store].filter(([key]) => key === LEGACY_KEY || key === CURRENT_KEY));
+    const records = () => stableStringify([...d.store].filter(([name]) => name === LEGACY_KEY || name === CURRENT_KEY));
     const before = records();
     const { credentialManager } = await import("./CredentialManager");
     vi.mocked(credentialManager.readSecretStrict).mockRejectedValueOnce(new Error("keychain locked"));
     vi.mocked(credentialManager.readSecretStrict).mockRejectedValueOnce(new Error("keychain locked"));
     state.current = d;
-    await expect(sealSecretsMetaAtStart()).rejects.toThrow("keychain locked");
     await expect(createDesktopSecretsPort(VAULT, pimRuntime).exportBundle()).rejects.toThrow("keychain locked");
+    await expect(createDesktopSecretsPort(VAULT, pimRuntime).importBundle({ format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: "t", entries: {} })).rejects.toThrow("keychain locked");
     expect(records()).toBe(before);
-    expect(d.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(false);
-    await start(d);
+    expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
+    // Answering again: the same key, the marks hold.
+    await round(d, null);
+    expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
     expect(problems(d, ["pw-locked"])).toEqual([]);
+  });
+
+  describe("a desktop whose keychain never answers (Linux without a Secret Service; round eleven)", () => {
+    // The passwords live in credentials.bin there; the keychain fails every
+    // time. The mark key may be made there too: a plain mark of 0.8.7 is no
+    // knowledge a new key would lose.
+    const failingKeychain = async () => {
+      const { credentialManager } = await import("./CredentialManager");
+      vi.mocked(credentialManager.readSecretStrict).mockImplementation(async (key: string) => {
+        const stored = state.current!.slots.get(key);
+        if (stored != null) return structuredClone(stored) as never;
+        throw new Error("Platform secure storage failure: no secret service");
+      });
+      return () => vi.mocked(credentialManager.readSecretStrict).mockImplementation(async (key: string) => structuredClone(state.current!.slots.get(key) ?? null) as never);
+    };
+
+    it("coming from 0.8.7 with a record: the start seals, the sync runs as before, and no password is under either name", async () => {
+      const restore = await failingKeychain();
+      try {
+        const o: Device = { name: "O", legacy: true, store: new Map(), slots: new Map(), accounts: [{ ...POOL[2] }] };
+        const l: Device = { name: "L", legacy: true, store: new Map(), slots: new Map(), accounts: [{ ...POOL[2] }] };
+        o.slots.set(slotOf(POOL[2]), secretOf(POOL[2], "pw-first-1"));
+        let remote: SecretsBundle | null = null;
+        for (let i = 0; i < 3; i++) for (const d of [o, l]) remote = await round(d, remote);
+        expect(passOf(l.slots.get(slotOf(POOL[2])))).toBe("pw-first-1");
+        await start(l);
+        expect(problems(l, ["pw-first-1"])).toEqual([]);
+        expect(l.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(true);
+        o.slots.set(slotOf(POOL[2]), secretOf(POOL[2], "pw-again-2"));
+        for (let i = 0; i < 3; i++) for (const d of [o, l]) remote = await round(d, remote);
+        expect(passOf(l.slots.get(slotOf(POOL[2])))).toBe("pw-again-2");
+        expect(problems(l, ["pw-first-1", "pw-again-2"])).toEqual([]);
+      } finally {
+        restore();
+      }
+    });
+
+    it("\"Remove account\" before the marks can be sealed writes no password under the new name", async () => {
+      const restore = await failingKeychain();
+      const { credentialManager } = await import("./CredentialManager");
+      // Nothing can be stored either: the start cannot seal.
+      vi.mocked(credentialManager.writeSecret).mockImplementation(async (key: string, value: unknown) => {
+        if (key === SECRETS_MARK_KEY_SLOT) throw new Error("credentials file is read-only");
+        state.current!.slots.set(key, structuredClone(value));
+      });
+      try {
+        const o: Device = { name: "O", legacy: true, store: new Map(), slots: new Map(), accounts: POOL.map((a) => ({ ...a })) };
+        const l: Device = { name: "L", legacy: true, store: new Map(), slots: new Map(), accounts: POOL.map((a) => ({ ...a })) };
+        o.slots.set(slotOf(POOL[0]), secretOf(POOL[0], "pw-first-1"));
+        o.slots.set(slotOf(POOL[1]), secretOf(POOL[1], "pw-again-2"));
+        let remote: SecretsBundle | null = null;
+        for (let i = 0; i < 3; i++) for (const d of [o, l]) remote = await round(d, remote);
+        l.legacy = false;
+        state.current = l;
+        await expect(sealSecretsMetaAtStart()).rejects.toThrow();
+        await retireCalDavSecret(VAULT, CAL, POOL[1].user);
+        await expect(round(l, remote)).rejects.toThrow();
+        // The record of 0.8.7 waits under its old name for a start that can
+        // seal it; nothing else in the store names a password.
+        const others = JSON.stringify([...l.store].filter(([key]) => key !== LEGACY_KEY));
+        expect(others).not.toContain("pw-first-1");
+        expect(others).not.toContain("pw-again-2");
+        expect(l.store.has(CURRENT_KEY)).toBe(false);
+      } finally {
+        restore();
+        vi.mocked(credentialManager.writeSecret).mockImplementation(async (key: string, value: unknown) => void state.current!.slots.set(key, structuredClone(value)));
+      }
+    });
   });
 });

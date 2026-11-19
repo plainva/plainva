@@ -30,7 +30,7 @@ type Device = { name: string; legacy: boolean; store: Map<string, unknown>; slot
 
 const state = vi.hoisted(() => ({ current: null as null | { store: Map<string, unknown>; slots: Map<string, unknown>; accounts: Array<{ id: string; kind: string; user: string }> } }));
 
-const keychain = vi.hoisted(() => ({ refuse: 0 }));
+const keychain = vi.hoisted(() => ({ refuse: 0, readOnly: false }));
 setPlatformServices({
   loadSettings: async () => ({
     get: async (key: string) => structuredClone(state.current!.store.get(key) ?? null),
@@ -48,7 +48,10 @@ setPlatformServices({
       }
       return structuredClone(state.current!.slots.get(key) ?? null);
     },
-    writeSecret: async (key: string, value: unknown) => void state.current!.slots.set(key, structuredClone(value)),
+    writeSecret: async (key: string, value: unknown) => {
+      if (key === SECRETS_MARK_KEY_SLOT && keychain.readOnly) throw new Error("keychain is read-only");
+      state.current!.slots.set(key, structuredClone(value));
+    },
     removeSecret: async (key: string) => void state.current!.slots.delete(key),
   },
 } as never);
@@ -301,6 +304,18 @@ describe("the secrets sync keeps no password in the phone's settings store (F67)
       remote.at = await round(d, remote.at);
       remote.at = await round(d, remote.at);
     })).toEqual([]);
+    // The key lost and a password typed right after: the record says "changed here".
+    expect(await run(async (d, other, remote) => {
+      d.legacy = false;
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-first-1"));
+      remote.at = await round(d, remote.at);
+      remote.at = await round(other, remote.at);
+      d.slots.delete(SECRETS_MARK_KEY_SLOT);
+      d.slots.set(slotOf(mail), secretOf(mail, "pw-again-2"));
+      remote.at = await round(d, remote.at);
+      remote.at = await round(d, remote.at);
+      remote.at = await round(other, remote.at);
+    })).toEqual([]);
   });
 
   it("a store written by 0.8.7 is cleaned at start, and the cleaning is no change", async () => {
@@ -325,20 +340,46 @@ describe("the secrets sync keeps no password in the phone's settings store (F67)
     expect(d.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(true);
   });
 
-  it("without an answer from the credentials store nothing is sealed, nothing runs, and the next start does it", async () => {
-    const d: Device = { name: "U", legacy: true, store: new Map(), slots: new Map(), accounts: [POOL[2]] };
+  it("a keychain that does not answer while marks of its key exist: nothing runs, nothing is written, the key is not made anew", async () => {
+    const d: Device = { name: "U", legacy: false, store: new Map(), slots: new Map(), accounts: [POOL[2]] };
     d.slots.set(slotOf(POOL[2]), secretOf(POOL[2], "pw-locked"));
     await round(d, null);
+    const key = d.slots.get(SECRETS_MARK_KEY_SLOT);
     // The records only: the device id of the port is another key of the store.
-    const records = () => stableStringify([...d.store].filter(([key]) => key === LEGACY_KEY || key === CURRENT_KEY));
+    const records = () => stableStringify([...d.store].filter(([name]) => name === LEGACY_KEY || name === CURRENT_KEY));
     const before = records();
     keychain.refuse = 2;
     state.current = d;
-    await expect(sealSecretsMetaAtStart()).rejects.toThrow("keychain locked");
     await expect(createMobileSecretsPort(VAULT).exportBundle()).rejects.toThrow("keychain locked");
+    await expect(createMobileSecretsPort(VAULT).importBundle({ format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: "t", entries: {} })).rejects.toThrow("keychain locked");
     expect(records()).toBe(before);
-    expect(d.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(false);
-    await start(d);
+    expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
+    // Answering again: the same key, the marks hold.
+    await round(d, null);
+    expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
     expect(problems(d, ["pw-locked"])).toEqual([]);
+  });
+
+  it("\"Remove account\" before the marks can be sealed writes no password under the new name (round eleven)", async () => {
+    const o: Device = { name: "O", legacy: true, store: new Map(), slots: new Map(), accounts: POOL.map((a) => ({ ...a })) };
+    const l: Device = { name: "L", legacy: true, store: new Map(), slots: new Map(), accounts: POOL.map((a) => ({ ...a })) };
+    o.slots.set(slotOf(POOL[0]), secretOf(POOL[0], "pw-first-1"));
+    o.slots.set(slotOf(POOL[1]), secretOf(POOL[1], "pw-again-2"));
+    let remote: SecretsBundle | null = null;
+    for (let i = 0; i < 3; i++) for (const d of [o, l]) remote = await round(d, remote);
+    keychain.readOnly = true;
+    try {
+      l.legacy = false;
+      state.current = l;
+      await expect(sealSecretsMetaAtStart()).rejects.toThrow();
+      await retireCalDavSecret(VAULT, CAL, POOL[1].user);
+      await expect(round(l, remote)).rejects.toThrow();
+      const others = JSON.stringify([...l.store].filter(([key]) => key !== LEGACY_KEY));
+      expect(others).not.toContain("pw-first-1");
+      expect(others).not.toContain("pw-again-2");
+      expect(l.store.has(CURRENT_KEY)).toBe(false);
+    } finally {
+      keychain.readOnly = false;
+    }
   });
 });

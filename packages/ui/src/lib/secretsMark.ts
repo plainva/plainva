@@ -64,11 +64,15 @@ export const isSecretsMark = (value: string): boolean => value.startsWith(PREFIX
 
 const HEX_KEY = /^[0-9a-f]{64}$/;
 
-/** Whether a record holds any mark at all (made with any key). */
+/**
+ * Whether a record holds marks made with a key — knowledge a new key would
+ * lose. An old plain mark is none (round eleven): it is sealed with whatever
+ * key there is, nothing of it is lost.
+ */
 export const holdsSecretsMarks = (meta: SecretsPortMeta | null | undefined): boolean =>
   !!meta &&
-  (Object.values(meta.entries ?? {}).some((entry) => typeof entry?.hash === "string" && entry.hash !== "") ||
-    typeof meta.settled === "string");
+  (Object.values(meta.entries ?? {}).some((entry) => typeof entry?.hash === "string" && isSecretsMark(entry.hash)) ||
+    (typeof meta.settled === "string" && isSecretsMark(meta.settled)));
 
 // The first two callers on a fresh device must not each make a key: the
 // second would overwrite the first, and every mark made with it would be
