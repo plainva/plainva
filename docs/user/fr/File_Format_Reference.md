@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-19
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -82,7 +82,7 @@ OKF 0.2 ajoute cinq champs **facultatifs** de premier niveau avec lesquels une n
 | `stale_after` | date (`2026-12-31`) ou instant | À partir de quand le contenu est considéré comme périmé. Pure information — Plainva affiche un indice et ne change rien. |
 | `status` | `draft` \| `stable` \| `deprecated` | L'état de cycle de vie. Exactement ces trois valeurs ; `draft` et `deprecated` apparaissent comme un badge, `stable` reste silencieux. |
 
-**Acteurs** (`by` dans `generated` et `verified`) suivent une convention : une personne est `human:<nom>`, un programme est `<producteur>/<version>`. Plainva écrit `plainva-import/<version>`, `plainva-mail-capture/<version>` et `plainva-task-sync/<version>` — et, pour une relecture, `human:<votre nom>`.
+**Acteurs** (`by` dans `generated` et `verified`) suivent une convention : une personne est `human:<nom>`, un programme est `<producteur>/<version>`. Plainva écrit `plainva-import/<version>`, `plainva-mail-capture/<version>`, `plainva-task-sync/<version>` et, pour l'IA, `plainva-ai/<modèle>` — et, pour une relecture, `human:<votre nom>`. Quand un autre rédacteur crée la note, elle porte son identifiant sur cet appareil : `mcp:<client>` pour un programme passant par le serveur MCP de Plainva, `acp:<agent>` pour un agent externe, `script:<nom>` pour un script.
 
 Exemple d'une note importée, relue par la suite :
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **Règles d'écriture — qui définit quoi :**
 
-- `generated` et `sources` ne sont écrits que par les chemins d'écriture **machine** de Plainva : l'importeur (un instant par exécution ; le rapport d'import le porte aussi), la capture d'e-mails (avec `sources: [{ resource: "mid:<Message-ID>" }]` quand le message a un Message-ID stable) et la synchronisation des tâches (seulement quand elle crée une note — une synchronisation ultérieure laisse le tampon tranquille).
+- `generated` et `sources` ne sont écrits que par les chemins d'écriture **machine** de Plainva : l'importeur (un instant par exécution ; le rapport d'import le porte aussi), la capture d'e-mails (avec `sources: [{ resource: "mid:<Message-ID>" }]` quand le message a un Message-ID stable), la synchronisation des tâches (seulement quand elle crée une note — une synchronisation ultérieure laisse le tampon tranquille), **Conserver comme note** sur une réponse de l'IA (avec les pages, notes et images lues comme `sources`), et chaque note et entrée de base de données que l'IA, un programme passant par le serveur MCP ou un script crée comme brouillon — que vous créiez le brouillon ou qu'il soit créé aussitôt avec **Appliquer directement** (avec `sources` là où le brouillon en nomme). Une note créée par un agent externe ne porte que `generated`. Une modification d'une note existante ne tamponne jamais.
 - `verified` n'est écrit que par **Marquer comme relue** (bureau : la section **Confiance et provenance** du panneau des propriétés ; téléphone : la feuille de contexte de la note) — et il ajoute au lieu d'écraser.
 - L'éditeur ne touche jamais lui-même à aucun de ces champs, et **les notes existantes ne sont jamais tamponnées après coup**. Un champ manquant signifie simplement : aucune affirmation.
 - `status` et `stale_after` sont à vous de définir (comme propriété ou directement dans le frontmatter). Une valeur en dehors de `draft`/`stable`/`deprecated` — disons la colonne `status: Open` d'une base de tâches — n'**est pas** un état de cycle de vie mais une propriété ordinaire ; Plainva n'affiche aucun badge pour elle.

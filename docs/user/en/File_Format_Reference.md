@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-19
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -82,7 +82,7 @@ OKF 0.2 adds five **optional** top-level fields with which a note says where it 
 | `stale_after` | date (`2026-12-31`) or instant | From when the content counts as stale. Pure information — Plainva shows a hint and changes nothing. |
 | `status` | `draft` \| `stable` \| `deprecated` | The lifecycle state. Exactly these three values; `draft` and `deprecated` appear as a badge, `stable` stays silent. |
 
-**Actors** (`by` in `generated` and `verified`) follow a convention: a person is `human:<name>`, a program is `<producer>/<version>`. Plainva writes `plainva-import/<version>`, `plainva-mail-capture/<version>` and `plainva-task-sync/<version>` — and, for a review, `human:<your name>`.
+**Actors** (`by` in `generated` and `verified`) follow a convention: a person is `human:<name>`, a program is `<producer>/<version>`. Plainva writes `plainva-import/<version>`, `plainva-mail-capture/<version>`, `plainva-task-sync/<version>` and, for the AI, `plainva-ai/<model>` — and, for a review, `human:<your name>`. When another writer creates the note, it carries that writer's id on this device: `mcp:<client>` for a program through Plainva's MCP server, `acp:<agent>` for an external agent, `script:<name>` for a script.
 
 Example of an imported, later reviewed note:
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **Write rules — who sets what:**
 
-- `generated` and `sources` are written only by Plainva's **machine** write paths: the importer (one instant per run; the import report carries it too), mail capture (with `sources: [{ resource: "mid:<Message-ID>" }]` when the message has a stable Message-ID) and the task sync (only when it creates a note — a later sync leaves the stamp alone).
+- `generated` and `sources` are written only by Plainva's **machine** write paths: the importer (one instant per run; the import report carries it too), mail capture (with `sources: [{ resource: "mid:<Message-ID>" }]` when the message has a stable Message-ID), the task sync (only when it creates a note — a later sync leaves the stamp alone), **Keep as a note** on an AI answer (with the pages, notes and pictures it read as `sources`), and every note and database entry that the AI, a program through the MCP server or a script creates as a draft — whether you create the draft or it is made at once with **Apply directly** (with `sources` where the draft names some). A note an external agent creates carries only `generated`. A change to an existing note never stamps.
 - `verified` is written only by **Mark as reviewed** (desktop: the **Trust & provenance** section of the properties panel; phone: the note's context sheet) — and it appends instead of overwriting.
 - The editor never touches any of these fields on its own, and **existing notes are never stamped after the fact**. A missing field just means: no statement.
 - `status` and `stale_after` are yours to set (as a property or directly in the frontmatter). A value outside `draft`/`stable`/`deprecated` — say the `status: Open` column of a task database — is **not** a lifecycle state but an ordinary property; Plainva shows no badge for it.

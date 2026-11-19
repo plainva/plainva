@@ -1,6 +1,6 @@
 # 文件格式参考
 
-更新日期：2026-11-06
+更新日期：2026-11-19
 
 本页是**Plainva仓库中每一个文件**在磁盘上的精确格式约定。它的写作目的是让一个工具——或者另一个程序、脚本或AI助手——可以直接读取并安全地编辑仓库文件，而不必经过Plainva的用户界面。如果你只使用这款应用本身，永远不需要用到这一页；[其他手册页面](README.md)涵盖了日常使用方法。
 
@@ -82,7 +82,7 @@ OKF 0.2新增了五个**可选**的顶层字段，笔记借此说明自己的来
 | `stale_after` | 日期（`2026-12-31`）或时刻 | 从何时起内容算作过期。纯粹的信息——Plainva只会显示提示，不会改变任何内容。 |
 | `status` | `draft` \| `stable` \| `deprecated` | 生命周期状态。只有这三个值；`draft`和`deprecated`会显示为徽章，`stable`保持沉默。 |
 
-**行为者**（`generated`和`verified`中的`by`）遵循一项约定：个人写作`human:<name>`，程序写作`<producer>/<version>`。Plainva会写入`plainva-import/<version>`、`plainva-mail-capture/<version>`和`plainva-task-sync/<version>`——而审阅则写入`human:<your name>`。
+**行为者**（`generated`和`verified`中的`by`）遵循一项约定：个人写作`human:<name>`，程序写作`<producer>/<version>`。Plainva会写入`plainva-import/<version>`、`plainva-mail-capture/<version>`、`plainva-task-sync/<version>`，AI则写入`plainva-ai/<model>`——而审阅则写入`human:<your name>`。如果笔记由其他写入者创建，则写入该写入者在此设备上的标识：通过Plainva MCP服务器的程序为`mcp:<client>`，外部代理为`acp:<agent>`，脚本为`script:<name>`。
 
 一篇被导入、后来又被审阅过的笔记示例：
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **写入规则——谁设置什么：**
 
-- `generated`和`sources`只由Plainva的**机器**写入路径写入：导入器（每次运行一个时刻；导入报告也会带上它）、邮件采集（当邮件带有稳定的Message-ID时，写入`sources: [{ resource: "mid:<Message-ID>" }]`）以及任务同步（仅在它创建笔记时——之后的同步不会再动这个印记）。
+- `generated`和`sources`只由Plainva的**机器**写入路径写入：导入器（每次运行一个时刻；导入报告也会带上它）、邮件采集（当邮件带有稳定的Message-ID时，写入`sources: [{ resource: "mid:<Message-ID>" }]`）、任务同步（仅在它创建笔记时——之后的同步不会再动这个印记）、在AI回答上使用**保留为笔记**（以读取的页面、笔记和图片作为`sources`），以及AI、通过MCP服务器的程序或脚本以草稿形式创建的每条笔记和数据库条目——无论草稿由你创建，还是通过**直接应用**立即创建（草稿列出来源时带有`sources`）。外部代理创建的笔记只带`generated`。对现有笔记的修改从不加印记。
 - `verified`只由**标记为已审阅**写入（桌面端：属性面板中的**可信度与来源**部分；手机端：笔记的上下文操作表）——而且是追加，而不是覆盖。
 - 编辑器绝不会自行触碰这些字段中的任何一个，**已有的笔记也绝不会被事后补盖印记**。缺少某个字段只意味着：没有相关声明。
 - `status`和`stale_after`由你自己设置（作为属性，或直接写在Frontmatter中）。超出`draft`/`stable`/`deprecated`之外的值——比如任务数据库里`status: Open`那一列——**不是**生命周期状态，只是一个普通属性；Plainva不会为它显示徽章。
