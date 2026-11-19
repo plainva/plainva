@@ -62,11 +62,13 @@ export function remarkFormulasYieldToLinks(source: ReaderSource) {
       for (let n = found; n >= 0 && links[n][1] > from; n--) count++;
       return count;
     };
-    interface Job { children: MdNode[]; index: number; from: number; to: number; indent: number; inline: boolean; held: number; made?: MdNode[] | null }
+    interface Job { children: MdNode[]; index: number; from: number; to: number; indent: number; quotes: number; inline: boolean; held: number; made?: MdNode[] | null }
     const jobs: Job[] = [];
-    const walk = (node: MdNode, block: MdNode) => {
+    // `quotes`: how many quotes the node stands in — the `>` a line of its formula may begin with.
+    const walk = (node: MdNode, block: MdNode, quotes: number) => {
       const children = node.children;
       if (!children) return;
+      const within = quotes + (node.type === "blockquote" ? 1 : 0);
       const leaf = node.type === "paragraph" || node.type === "heading" || node.type === "tableCell" ? node : block;
       for (let index = 0; index < children.length; index++) {
         const child = children[index];
@@ -75,11 +77,11 @@ export function remarkFormulasYieldToLinks(source: ReaderSource) {
         if (held > 0 && at) {
           const inline = child.type === "inlineMath";
           const indent = ((inline ? leaf : child).position?.start.column ?? 1) - 1;
-          jobs.push({ children, index, from: at.start.offset, to: at.end.offset, indent, inline, held });
-        } else walk(child, leaf);
+          jobs.push({ children, index, from: at.start.offset, to: at.end.offset, indent, quotes: within, inline, held });
+        } else walk(child, leaf, within);
       }
     };
-    walk(tree as MdNode, tree as MdNode);
+    walk(tree as MdNode, tree as MdNode, 0);
     if (jobs.length === 0) return;
     // A formula on one line of plain words and links is built as it stands,
     // without a reading of its own.
@@ -115,10 +117,16 @@ export function remarkFormulasYieldToLinks(source: ReaderSource) {
     }
     const blockJobs = jobs.filter((job) => !job.inline);
     if (blockJobs.length > 0) {
-      const made = readBlocksAsParagraphs(text, blockJobs, linksIn, pointAt);
+      const made = readBlocksAsParagraphs(text, blockJobs, links, linksIn, pointAt);
       blockJobs.forEach((job, k) => { job.made = made[k]; });
     }
-    for (const job of jobs) if (job.made === undefined) job.made = readAsText(text, job.from, job.to, job.indent, job.held, pointAt);
+    for (const job of jobs) {
+      if (job.made !== undefined) continue;
+      // Where no reading keeps its links, the formula is read in pieces: what
+      // stands between its links, and each link (`readPieces`).
+      job.made = readAsText(text, job.from, job.to, job.indent, job.quotes, job.held, pointAt)
+        ?? joinLines(blockLines(text, job.from, job.to, job.indent, job.quotes, linksIn), (line) => readPieces(text, line, job.to, links, pointAt), pointAt);
+    }
     // Back to front, so that each index still names its formula.
     for (let k = jobs.length - 1; k >= 0; k--) {
       const job = jobs[k];
@@ -199,18 +207,14 @@ function unwrapCutAddresses(node: MdNode, end: number, closedBySign: boolean): v
  * the marks of the containers it stands in (`> `, a list's blanks) are not
  * part of what is read, up to `indent` characters.
  */
-function readAsText(text: string, from: number, to: number, indent: number, held: number, pointAt: (offset: number) => Point): MdNode[] | null {
+function readAsText(text: string, from: number, to: number, indent: number, quotes: number, held: number, pointAt: (offset: number) => Point): MdNode[] | null {
   // What is read, and for each of its characters the place in `text` (one more at the end).
   let read = "";
   const places: number[] = [];
   let lineStart = true;
   for (let at = from; at < to; at++) {
     if (lineStart && at > from) {
-      let skipped = 0;
-      while (skipped < indent && at < to && (text[at] === " " || text[at] === "\t" || text[at] === ">")) {
-        at++;
-        skipped++;
-      }
+      at = behindContainers(text, at, to, indent, quotes);
       if (at >= to) break;
     }
     read += text[at];
@@ -232,7 +236,7 @@ function readAsText(text: string, from: number, to: number, indent: number, held
       }
       for (const child of node.children ?? []) move(child);
     };
-    if (blocks.length !== 1 || blocks[0].type !== "paragraph") return null;
+    if (blocks.length !== 1 || blocks[0].type !== "paragraph" || linksOf(blocks[0]) < held) return null;
     const phrasing = blocks[0].children ?? [];
     phrasing.forEach(move);
     return phrasing;
@@ -285,8 +289,8 @@ const OPENS_BLOCK = /^(?:[-+*#>`~[_<|]|\d+[.)])/;
  * The lines that open no block are read together, a blank line between them,
  * in one go: a note full of such formulas costs one reading, not one a line.
  */
-function readBlocksAsParagraphs(text: string, blocks: ReadonlyArray<{ from: number; to: number; indent: number }>, linksIn: (from: number, to: number) => number, pointAt: (offset: number) => Point): Array<MdNode[] | null> {
-  const linesOf = blocks.map((block) => blockLines(text, block.from, block.to, block.indent, linksIn));
+function readBlocksAsParagraphs(text: string, blocks: ReadonlyArray<{ from: number; to: number; indent: number; quotes: number }>, links: ReadonlyArray<readonly [number, number]>, linksIn: (from: number, to: number) => number, pointAt: (offset: number) => Point): MdNode[][] {
+  const linesOf = blocks.map((block) => blockLines(text, block.from, block.to, block.indent, block.quotes, linksIn));
   const known = new Map<number, MdNode[] | null>();
   const together: Line[] = [];
   for (const lines of linesOf) for (const line of lines) if (line.from < line.to && !OPENS_BLOCK.test(text.slice(line.from, line.from + 12))) together.push(line);
@@ -318,25 +322,73 @@ function readBlocksAsParagraphs(text: string, blocks: ReadonlyArray<{ from: numb
   }
   return linesOf.map((lines, k) => {
     const { from, to } = blocks[k];
-    const children: MdNode[] = [];
-    for (let n = 0; n < lines.length; n++) {
-      const line = lines[n];
-      if (n > 0) children.push({ type: "text", value: "\n", position: { start: pointAt(lines[n - 1].to), end: pointAt(line.from) } });
-      if (line.from === line.to) continue;
-      const made = known.get(line.from) ?? readLine(text, line, to, false, true, linksIn, pointAt) ?? readLine(text, line, to, true, true, linksIn, pointAt) ?? readLine(text, line, to, true, false, linksIn, pointAt);
-      if (!made) return null;
-      children.push(...made);
-    }
-    return [{ type: "paragraph", children, position: { start: pointAt(from), end: pointAt(to) } }];
+    const read = (line: Line) => known.get(line.from)
+      ?? readLine(text, line, to, false, true, linksIn, pointAt) ?? readLine(text, line, to, false, false, linksIn, pointAt)
+      ?? readLine(text, line, to, true, true, linksIn, pointAt) ?? readLine(text, line, to, true, false, linksIn, pointAt)
+      ?? readPieces(text, line, to, links, pointAt);
+    return [{ type: "paragraph", children: joinLines(lines, read, pointAt), position: { start: pointAt(from), end: pointAt(to) } }];
   });
 }
 
+/** The phrasing of `lines`, each read by `read`, a line break between them. */
+function joinLines(lines: Line[], read: (line: Line) => MdNode[], pointAt: (offset: number) => Point): MdNode[] {
+  const children: MdNode[] = [];
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n];
+    if (n > 0) children.push({ type: "text", value: "\n", position: { start: pointAt(lines[n - 1].to), end: pointAt(line.from) } });
+    if (line.from < line.to) children.push(...read(line));
+  }
+  return children;
+}
+
+/**
+ * A line read in pieces, where no reading of it keeps its links: each wiki
+ * link on its own, and on its own what stands between them — so that nothing
+ * around a link (a bare address that would run into it, a code span over it)
+ * takes it. A piece no reading makes a paragraph of stands as it is written.
+ */
+function readPieces(text: string, line: Line, end: number, links: ReadonlyArray<readonly [number, number]>, pointAt: (offset: number) => Point): MdNode[] {
+  const made: MdNode[] = [];
+  const asWritten = (from: number, to: number): MdNode => ({ type: "text", value: text.slice(from, to), position: { start: pointAt(from), end: pointAt(to) } });
+  const between = (from: number, to: number) => {
+    let start = from, stop = to;
+    while (start < stop && (text[start] === " " || text[start] === "\t")) start++;
+    while (stop > start && (text[stop - 1] === " " || text[stop - 1] === "\t")) stop--;
+    if (start > from) made.push(asWritten(from, start));
+    if (stop > start) {
+      const piece = { from: start, to: stop };
+      made.push(...(readLine(text, piece, end, false, true, () => 0, pointAt) ?? readLine(text, piece, end, true, true, () => 0, pointAt) ?? [asWritten(start, stop)]));
+    }
+    if (to > stop) made.push(asWritten(stop, to));
+  };
+  let at = line.from;
+  // The first link that ends behind the line's start.
+  let low = 0, high = links.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (links[mid][1] <= line.from) low = mid + 1;
+    else high = mid;
+  }
+  for (let n = low; n < links.length; n++) {
+    const [from, to] = links[n];
+    if (from >= line.to) break;
+    if (from < at) continue;
+    between(at, from);
+    // The empty comment the reader writes in front of a link behind a `]` (`readerWikiLinkLead`) is no text.
+    const start = text.startsWith("<!---->", from) ? from + "<!---->".length : from;
+    const link = readLine(text, { from: start, to }, end, false, false, () => 1, pointAt);
+    made.push(...(link ?? [asWritten(start, to)]));
+    at = to;
+  }
+  between(at, line.to);
+  return made;
+}
+
 /** The lines of a block formula, each without the marks of the containers it stands in and the blanks before it; a link over a line break joins its two lines. */
-function blockLines(text: string, from: number, to: number, indent: number, linksIn: (from: number, to: number) => number): Line[] {
+function blockLines(text: string, from: number, to: number, indent: number, quotes: number, linksIn: (from: number, to: number) => number): Line[] {
   const lines: Line[] = [];
   for (let at = from; ; ) {
-    let start = at;
-    for (let skipped = 0; start > from && skipped < indent && start < to && (text[start] === " " || text[start] === "\t" || text[start] === ">"); skipped++) start++;
+    let start = at > from ? behindContainers(text, at, to, indent, quotes) : at;
     while (start < to && (text[start] === " " || text[start] === "\t")) start++;
     const brk = text.indexOf("\n", at);
     const end = brk === -1 || brk >= to ? to : brk;
@@ -352,6 +404,22 @@ function blockLines(text: string, from: number, to: number, indent: number, link
     }
   }
   return lines;
+}
+
+/**
+ * Where a line of a formula begins behind the marks of the containers it
+ * stands in: up to `indent` columns of blanks and of `>` — a `>` only as one
+ * of the `quotes` the formula stands in. Every other sign is the line's own.
+ */
+function behindContainers(text: string, at: number, to: number, indent: number, quotes: number): number {
+  let marks = 0;
+  for (let skipped = 0; skipped < indent && at < to; skipped++, at++) {
+    if (text[at] === ">") {
+      if (marks === quotes) break;
+      marks++;
+    } else if (text[at] !== " " && text[at] !== "\t") break;
+  }
+  return at;
 }
 
 /** One line of a block formula read as the phrasing of one paragraph — behind a backslash at its first sign with `guard` —, or null where it is no paragraph or loses a link. `end` is where the formula ends. */

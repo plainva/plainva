@@ -110,6 +110,14 @@ describe("the reading view of a wiki link", () => {
       ["1. x\n$$\n\n    $$[[2]]", "$$\n\n$$2", ["wiki://2"]],
       ["> $$\n> a = [[B]]\n> $$\n> next", "$$\na = B\n$$", ["wiki://B"]],
       ["$$\n[[A]] x\n```\ny\n$$", "$$\nA x\n```\ny\n$$", ["wiki://A"]],
+      // A `>` is a quote's mark only where the block stands in a quote: in
+      // an indented block it is a sign of the line, as main shows it.
+      [" $$\nf(x) = [[A]]\n> 0\n $$", "$$\nf(x) = A\n> 0\n$$", ["wiki://A"]],
+      ["  $$\n[[A]]\n>> b\n  $$", "$$\nA\n>> b\n$$", ["wiki://A"]],
+      ["   $$\n   a [[A]]\n >x\n   $$", "$$\na A\n>x\n$$", ["wiki://A"]],
+      // A line whose code span would take its link is read without code
+      // spans, however it begins.
+      ["$$\nx `\na ` [[A]] ` b\n$$", "$$\nx `\na ` A ` b\n$$", ["wiki://A"]],
       ["$$\n[[g]]$a$", "$$\ng$a$", ["wiki://g"]],
     ];
     for (const [form, text, targets] of cases) {
@@ -148,6 +156,17 @@ describe("the reading view of a wiki link", () => {
     for (const inner of ["[[x\ny]]", "a\n[[b]]\nc", "[[a]]\n\\\\ b"]) forms.push([`$$\n${inner}\n$$`, `$$\n${inner}\n$$`]);
     expect(forms).toHaveLength(53);
     for (const [note, written] of forms) expect(formulas(read(note)).length === 0, note).toBe(formulaHoldsWikiLink(written));
+    // The review's further forms: a line that begins with a letter or a
+    // backtick and lays a code span over its link, and a `>` in an indented block.
+    for (const note of ["$$\nx `\na ` [[A]] ` b\n$$", "$$\nx `\n` [[A]] ` b\n$$", "$$\nx `\n- ` [[A]] ` b\n$$", " $$\nf(x) = [[A]]\n> 0\n $$"]) {
+      expect(formulas(read(note)).length === 0, note).toBe(formulaHoldsWikiLink(note.trim()));
+    }
+    // A line no reading keeps its links in — a bare address runs into the
+    // embed behind it — is read in pieces: every link of it lives.
+    const pieces = "$$\n[^1]:  ![[N]] [t](u.md)\\_  \n> | <br>a*b\n##  [[a\\|b]]\n<%% c %% ^2 [  \n*[[_p_|*al*]]https://e.com/$a![[img.png]]\\\\\n$$";
+    expect(formulaHoldsWikiLink(pieces)).toBe(true);
+    expect(formulas(read(pieces))).toEqual([]);
+    expect(wikiTargets(read(pieces)).sort()).toEqual(["wiki-embed://N", "wiki-image://img.png", "wiki://_p_", "wiki://a"]);
   });
 
   it("reads every block formula of a random note: over a link one paragraph of its lines, else a formula", () => {
