@@ -211,7 +211,8 @@ describe("before an agent is started", () => {
     expect(line()).toBe(t("ai.agent.start.toolsOff"));
     // The shell's second reading is no accident of timing: it is chained behind the switch taking effect.
     const shell = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "components", "ai", "useDesktopAi.ts"), "utf8");
-    expect(shell).toMatch(/void configureMcp\(mcpOn, vault, \{ sealed \}\)\s*\.catch\(\(\) => undefined\)\s*\.then\(\(\) => session\.agents\.refresh\(\)\);/);
+    // Whatever the switch hands over with it (the options grew with the workspace's lock), the reading is chained behind it.
+    expect(shell).toMatch(/void configureMcp\(mcpOn, vault, \{[^}]*\}\)\s*\.catch\(\(\) => undefined\)\s*\.then\(\(\) => session\.agents\.refresh\(\)\);/);
   });
 
   it("leads to the settings where no agent was added, and starts nothing without a vault or inside an encrypted workspace", async () => {
