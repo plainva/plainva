@@ -68,6 +68,13 @@ export interface SecretsImportResult {
   unknownAccounts: string[];
   /** Known obsolete entries that were intentionally not applied locally. */
   legacyEntries: string[];
+  /**
+   * Nothing to do: the port already took this document, against these
+   * accounts and slots, in an earlier round that left nothing open. The step
+   * reports nothing for it, so a round without a change writes nothing
+   * (review 2026-11-18, round seven).
+   */
+  settled?: boolean;
 }
 
 /** Shell bridge between the OS keychain and the shareable secrets bundle. */
@@ -146,8 +153,10 @@ export class SecretsSyncStep {
     // Import into the keychain only when the merge changed the local view.
     if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
       const result = await this.options.port.importBundle(merged);
-      if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);
-      await this.options.onImportResult?.(result);
+      if (!result.settled) {
+        if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);
+        await this.options.onImportResult?.(result);
+      }
     }
 
     // Upload only when the merge changed the remote view (read-compare-retry

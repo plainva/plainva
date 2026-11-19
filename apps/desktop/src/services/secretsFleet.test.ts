@@ -28,7 +28,8 @@ import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
  *
  * And from round seven: the move into the current type is no change. What a
  * device knew about a password under its old name — revision, time, whether
- * it came in through the sync — holds under the new one.
+ * it came in through the sync — holds under the new one, and a round that
+ * changes nothing reports and writes nothing.
  */
 
 const CAL = "https://cloud.example.com/remote.php/dav";
@@ -53,6 +54,8 @@ interface Device {
   slots: Map<string, string>;
   meta: SecretsPortMeta | null;
   pushes: number;
+  /** Imports an updated device reported (`onImportResult` writes the diagnostics for each). */
+  reports: number;
   /** Switches a device on 0.8.7 to today's code, keeping its slots and metadata (the update). */
   update(): void;
   host: { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> };
@@ -66,6 +69,7 @@ function device(name: string, legacy: boolean, rows: Row[], passwords: Record<st
     slots: new Map(Object.entries(passwords)),
     meta: null,
     pushes: 0,
+    reports: 0,
     update: () => {
       d.legacy = false;
     },
@@ -111,7 +115,9 @@ async function round(d: Device): Promise<void> {
   const local = await port.exportBundle();
   for (const entry of Object.values(local.entries)) if (!entry.tombstone) assertShareable(entry);
   const merged = mergeSecretsBundles(local, remote, tick());
-  if (stableStringify(merged.entries) !== stableStringify(local.entries)) await port.importBundle(merged);
+  if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
+    if (!(await port.importBundle(merged)).settled) d.reports++;
+  }
   if (!remote || stableStringify(merged.entries) !== stableStringify(remote.entries)) {
     d.pushes++;
     remote = merged;
@@ -298,6 +304,22 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
       // O1 typed P1 and never received P2: it keeps its own, as before the
       // update. O2 received P1 through the sync and follows P2.
       expect(Object.fromEntries([o1, o2, o3].map((d) => [d.name, d.slots.get("r")]))).toEqual({ O1: "P1", O2: "P2", O3: "P2" });
+    });
+
+    it("a fleet that came from 0.8.7 reports nothing once settled", async () => {
+      start();
+      const rows: Row[] = [{ id: "r", user: "anna" }, { id: "m", user: "bert@example.com", kind: "mail" }];
+      const fleet = ["A", "B", "C"].map((name, i) => device(name, true, rows.map((row) => ({ ...row })), i === 0 ? { r: "P1", m: "M1" } : {}));
+      await rounds(fleet, 3);
+      for (const d of fleet) d.update();
+      await rounds(fleet, 4);
+      for (const d of fleet) {
+        d.pushes = 0;
+        d.reports = 0;
+      }
+      await rounds(fleet, 10);
+      expect(fleet.map((d) => [d.name, d.pushes, d.reports])).toEqual([["A", 0, 0], ["B", 0, 0], ["C", 0, 0]]);
+      expect(fleet.map((d) => d.slots.get("m"))).toEqual(["M1", "M1", "M1"]);
     });
   });
 

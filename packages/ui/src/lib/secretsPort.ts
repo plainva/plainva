@@ -115,6 +115,12 @@ export interface SecretsPortMeta {
    * (review 2026-11-18, round seven).
    */
   closedOldNames?: Record<string, string>;
+  /**
+   * The document, accounts and slots the last import took with nothing left
+   * open, as a short hash (`settledKey`). The same again is settled: nothing is
+   * written and nothing reported (round seven).
+   */
+  settled?: string;
 }
 
 /** What a shell must provide; everything else is decided above. */
@@ -190,6 +196,7 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   ...(source?.retired ? { retired: Object.fromEntries(Object.entries(source.retired).map(([id, binding]) => [id, { ...binding }])) } : {}),
   ...(source?.oldNameTombstones ? { oldNameTombstones: { ...source.oldNameTombstones } } : {}),
   ...(source?.closedOldNames ? { closedOldNames: { ...source.closedOldNames } } : {}),
+  ...(source?.settled ? { settled: source.settled } : {}),
 });
 
 /**
@@ -384,6 +391,29 @@ function reopenOldNames(meta: SecretsPortMeta, candidates: readonly LocalSecretC
   return reopened;
 }
 
+/**
+ * A short hash of what an import decides from: the document, and every
+ * account here with its slot. The slot is in only as the hash this file
+ * already keeps of it (`entries[].hash`), and only as a 53-bit digest, which
+ * names no password.
+ */
+function settledKey(bundle: SecretsBundle, candidates: readonly LocalSecretCandidate[]): string {
+  const text = stableStringify({
+    entries: bundle.entries,
+    candidates: candidates.map((candidate) => [candidate.logicalId, candidate.slot, candidate.binding, candidate.secret]),
+  });
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   const now = () => (host.now ? host.now() : new Date().toISOString());
 
@@ -545,6 +575,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const originalMeta = await host.readMeta();
       const meta = cloneMeta(originalMeta);
       const candidates = await host.candidates();
+      const key = settledKey(bundle, candidates);
+      if (meta.settled === key) return { ...emptyImportResult(), settled: true };
       const byId = new Map(candidates.map((candidate) => [candidate.logicalId, candidate]));
       const operations: Array<{
         logicalId: string;
@@ -773,6 +805,17 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
       }
 
+      // Settled when nothing is left open: no slot failed, no account is
+      // waiting, no retired entry asks to be reported again.
+      const open = result.errors.length > 0 || result.unknownAccounts.length > 0 || result.legacyEntries.length > 0;
+      // Taken against the slots as they are now: what this import wrote is the
+      // state the next round finds.
+      const settled = open ? undefined : successfulSlots.size > 0 ? settledKey(bundle, await host.candidates()) : key;
+      if (meta.settled !== settled) {
+        if (settled) meta.settled = settled;
+        else delete meta.settled;
+        metaDirty = true;
+      }
       if (!metaDirty) return result;
 
       try {

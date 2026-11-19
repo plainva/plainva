@@ -1051,6 +1051,25 @@ describe("SecretsSyncStep", () => {
     expect(openSecretsBundle(mk(), sealed).entries.a.secret).toEqual({ pass: "s1" });
   });
 
+  it("reports nothing for an import the port calls settled (review 2026-11-18, round seven)", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), bundle({ b: entry("b@x", 1, "s2") })));
+    const store = { bundle: bundle({ a: entry("a@x", 1, "s1") }), imported: [] as SecretsBundle[] };
+    const port = makeSecretsPort(store);
+    const reports: string[] = [];
+    const step = new SecretsSyncStep({
+      port: { ...port, importBundle: async (b) => ({ ...(await port.importBundle(b)), unknownAccounts: ["b"], settled: true }) },
+      masterKey: mk(),
+      now: () => "t",
+      onUnknownAccounts: () => void reports.push("unknown"),
+      onImportResult: () => void reports.push("result"),
+    });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(store.imported).toHaveLength(1);
+    expect(reports).toEqual([]);
+  });
+
   it("rejects a legacy Google client when a current shell tries to export it", async () => {
     const target = new FakeTarget();
     const vault = new FakeVault();
