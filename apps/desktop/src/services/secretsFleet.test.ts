@@ -342,4 +342,47 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
     await rounds([o, n], 3);
     expect(n.slots.get("r2")).toBe("P2");
   });
+
+  describe("no way makes an older password newer (round eight)", () => {
+    for (const late of [false, true]) {
+      it(`a password read under the old name keeps the version it came with${late ? "; the device that changed it later is updated too" : ""}`, async () => {
+        start();
+        const row = (): Row[] => [{ id: "r", user: "anna" }];
+        const o1 = device("O1", true, row(), { r: "P1" });
+        const o2 = device("O2", true, row());
+        const n0 = device("N0", false, row());
+        await rounds([o1, o2, n0], 3);
+        o1.slots.set("r", "P4");
+        await round(o1);
+        await round(n0);
+        expect(n0.slots.get("r")).toBe("P4");
+        // A newer change on 0.8.7, then the next export of the updated device:
+        // it publishes P4 with the version P4 came with, never as its own.
+        o2.slots.set("r", "P6");
+        await round(o2);
+        await round(n0);
+        if (late) o2.update();
+        await rounds([o1, o2, n0], 4);
+        expect(Object.fromEntries([o1, o2, n0].map((d) => [d.name, d.slots.get("r")]))).toEqual({ O1: "P4", O2: "P6", N0: "P6" });
+      });
+    }
+
+    it("a device that slept with an older password read under the old name wakes into the newer one", async () => {
+      start();
+      const row = (): Row[] => [{ id: "r", user: "anna" }];
+      const o1 = device("O1", true, row(), { r: "P1" });
+      const o2 = device("O2", true, row());
+      const n0 = device("N0", false, row());
+      const n1 = device("N1", true, row());
+      await rounds([o1, o2, n0, n1], 3);
+      o1.slots.set("r", "P4");
+      await round(o1);
+      await round(n0);
+      await rounds([o2, o1, n1], 2);
+      o2.slots.set("r", "P6");
+      await rounds([o2, o1, n1], 3);
+      await rounds([n0, o1, o2, n1], 4);
+      expect(Object.fromEntries([o1, o2, n0, n1].map((d) => [d.name, d.slots.get("r")]))).toEqual({ O1: "P4", O2: "P6", N0: "P6", N1: "P6" });
+    });
+  });
 });

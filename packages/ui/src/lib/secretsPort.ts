@@ -610,6 +610,25 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         metaDirty = true;
       };
 
+      // A password read under the account's old name holds under its current
+      // name with the version of the entry it came from — never as a change
+      // made here (round eight, R1): no way makes an older password newer. A
+      // new revision, time and device come only from a password typed on this
+      // device; a newer entry seen later, in either place, wins.
+      const recordCurrent = async (candidate: LocalSecretCandidate, entry: SecretEntry) => {
+        const hash = await pairMark(mark, candidate.binding, entry.secret);
+        const existing = meta.entries[candidate.logicalId];
+        if (existing && !existing.tombstone && existing.hash === hash) return;
+        meta.entries[candidate.logicalId] = {
+          hash,
+          entryRev: entry.entryRev,
+          updatedAt: entry.updatedAt,
+          deviceId: entry.deviceId,
+          binding: candidate.binding,
+        };
+        metaDirty = true;
+      };
+
       const rememberOldNameTombstone = (logicalId: string, entry: SecretEntry) => {
         if (meta.oldNameTombstones?.[logicalId] === entry.updatedAt) return;
         meta.oldNameTombstones = { ...(meta.oldNameTombstones ?? {}), [logicalId]: entry.updatedAt };
@@ -762,6 +781,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             continue;
           }
           await rememberEntry(logicalId, entry, viaOldName);
+          if (viaOldName) await recordCurrent(candidate, entry);
           recordImportResult(result, logicalId, "unchanged", "already-current");
           continue;
         }
@@ -801,6 +821,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             if (viaOldName) meta.imported[candidate.logicalId] = true;
           }
           await rememberEntry(logicalId, entry, viaOldName);
+          if (viaOldName && !entry.tombstone) await recordCurrent(candidate, entry);
           successfulSlots.add(candidate.slot);
           recordImportResult(result, logicalId, "imported");
         } catch {
