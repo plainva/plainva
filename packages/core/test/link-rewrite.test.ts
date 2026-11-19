@@ -560,3 +560,43 @@ describe("a rewritten link read back where it stands", () => {
     expect(result).toMatchObject({ renamed: 1, unplaced: 2 });
   });
 });
+
+/**
+ * A rename whose new name can pair with the text around a link reads the note
+ * a few times, not once per link it leaves out (Fehlerliste 0.9.0, B2): each
+ * round read the whole note again for one link, so two thousand such links
+ * were two thousand reads of a note of two thousand lines.
+ */
+describe("leaving out the links that would not read back, in linear time", () => {
+  it("reads a note full of them a few times, each line for itself", () => {
+    const note = "- `a [[Alt]]\n".repeat(2_000);
+    const result = within(2_000, () => rename(note, { Alt: "Neu`x" }));
+    expect(result).toEqual({ content: note, renamed: 0, unplaced: 2_000 });
+  });
+
+  it("leaves out one cascade's links and rewrites the paragraphs around it", () => {
+    // Each link left out hands its backtick to the next one: the paragraph loses all of them.
+    const long = "` " + "[[Alt]] ".repeat(60).trimEnd();
+    const note = `[[Alt]] vorn\n\n${long}\n\nund [[Alt]] hinten\n`;
+    expect(rename(note, { Alt: "Neu`x" })).toEqual({ content: `[[Neu\`x]] vorn\n\n${long}\n\nund [[Neu\`x]] hinten\n`, renamed: 2, unplaced: 60 });
+  });
+
+  it("still rewrites the links in front of the one that closes a span", () => {
+    const note = "[[Alt]] ` [[Alt]]\n";
+    expect(rename(note, { Alt: "Neu`x" })).toEqual({ content: "[[Neu`x]] ` [[Alt]]\n", renamed: 1, unplaced: 1 });
+  });
+
+  // However long the run behind an open backtick (Fehlerliste 0.9.0, F45
+  // no. 3, second review): every link that reads back is renamed — the
+  // links in front of it, and one behind it whose new name pairs with
+  // nothing there.
+  it("still rewrites the links in front of an open backtick after a long run of them", () => {
+    for (const after of [17, 30, 200]) {
+      const tail = "[[Alt]] ".repeat(after);
+      expect(rename(`[[Alt]] \` ${tail}\n`, { Alt: "Neu`x" })).toEqual({ content: `[[Neu\`x]] \` ${tail}\n`, renamed: 1, unplaced: after });
+      expect(rename(`[[Alt]] a [[Alt]] b [[Alt]] \` ${tail}\n`, { Alt: "Neu`x" }).renamed).toBe(3);
+      expect(rename(`[[Other]] [[Alt]] \` ${tail}\n`, { Alt: "Neu`x", Other: "O`x" }).renamed).toBe(2);
+      expect(rename(`\` ${tail}[[B]]\n`, { Alt: "Neu`x", B: "x>y" })).toEqual({ content: `\` ${tail}[[x>y]]\n`, renamed: 1, unplaced: after });
+    }
+  });
+});

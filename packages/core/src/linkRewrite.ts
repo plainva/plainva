@@ -455,17 +455,73 @@ export function rewriteNoteLinks(
   // closes takes the links in front of it along, so each round leaves out the
   // last link that does not read back — the one that closes — and reads again;
   // each round leaves out one, so the rounds end.
+  //
+  // A span only pairs inside the paragraph, heading or table cell it stands
+  // in, so each round leaves out the last such link of every one of them at
+  // once, and a note full of them is read a few times, not once per link
+  // (Fehlerliste 0.9.0, B2: renamed to a name with a backtick, a note with
+  // two thousand such lines was read two thousand times). Within one
+  // paragraph a round still leaves out one link, the last lost one: which of
+  // the links behind an open backtick read back depends on every one left
+  // out before it, and no link is left out that this order keeps.
+  let containers: InlineContainers | null = null;
   for (;;) {
     const { text, made } = withEdits(content, edits);
     if (retargeted.size === 0) return { content: text, rewritten: made, unplaced: left };
     const lost = editsNotReadBack(text, edits, retargeted);
     if (lost.length === 0) return { content: text, rewritten: made, unplaced: left };
-    const last = lost.reduce((a, b) => (b.from > a.from ? b : a));
-    const { link } = retargeted.get(last)!;
-    left.push({ type: link.type, target: link.target });
-    retargeted.delete(last);
-    edits.splice(edits.indexOf(last), 1);
+    containers ??= inlineContainers(content);
+    const leaveOut = (edit: Edit) => {
+      const { link } = retargeted.get(edit)!;
+      left.push({ type: link.type, target: link.target });
+      retargeted.delete(edit);
+      edits.splice(edits.indexOf(edit), 1);
+    };
+    const lastLost = new Map<number, Edit>();
+    for (const edit of lost) {
+      const key = containers.of(retargeted.get(edit)!.link.start);
+      const last = lastLost.get(key);
+      if (!last || edit.from > last.from) lastLost.set(key, edit);
+    }
+    for (const edit of lastLost.values()) leaveOut(edit);
   }
+}
+
+
+interface InlineContainers {
+  /** The paragraph, heading or table cell a place of the note stands in, by number; a place in none is a container of its own. */
+  of(at: number): number;
+}
+
+/** The paragraphs, headings and table cells of a note: where its inline text is read, each for itself. */
+function inlineContainers(content: string): InlineContainers {
+  const starts: number[] = [];
+  const ends: number[] = [];
+  const walk = (node: TreeNode) => {
+    const from = node.position?.start?.offset;
+    const to = node.position?.end?.offset;
+    if ((node.type === "paragraph" || node.type === "heading" || node.type === "tableCell") && typeof from === "number" && typeof to === "number") {
+      starts.push(from);
+      ends.push(to);
+      return;
+    }
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(parseMarkdownAst(content) as unknown as TreeNode);
+  return {
+    of(at) {
+      // In document order and never nested: the last one that starts at or before `at`.
+      let low = 0, high = starts.length - 1, found = -1;
+      while (low <= high) {
+        const mid = (low + high) >> 1;
+        if (starts[mid] <= at) {
+          found = mid;
+          low = mid + 1;
+        } else high = mid - 1;
+      }
+      return found >= 0 && at < ends[found] ? found : -1 - at;
+    },
+  };
 }
 
 /** What in a wiki link's new name can pair with the text around the link. */

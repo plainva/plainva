@@ -16,7 +16,7 @@ import { editorLineDirection } from "./textDirectionExtension";
 import { textDirectionOf, type TextDirection } from "../lib/textDirection";
 import { spellcheckAttr } from "../lib/spellcheck";
 import { onCompletedTap } from "./completedTap";
-import { scanTasks, setChecklistTaskDone } from "@plainva/core";
+import { BLOCK_ID_MARKER, scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
 import { frontmatterLines, frontmatterLinesOf } from "./editorFrontmatter";
@@ -25,6 +25,8 @@ import { blockDecorationsFromScratch, incrementalBlockField, nodeScopedDiscovery
 const HIDE = Decoration.replace({});
 /** The info string of a fenced code block ("js"), shown as the block's label. */
 const CODE_INFO = Decoration.mark({ class: "cm-md-codeinfo" });
+/** A block id (` ^id`) at the end of a paragraph, faint (B6). */
+const BLOCK_ID = Decoration.mark({ class: "cm-md-block-id" });
 
 /** The line class of line `ln` of a code block running from `first` to `last`. */
 export function codeBlockLineClass(ln: number, first: number, last: number): string {
@@ -801,6 +803,29 @@ export function markdownDecorationPlugin(isLive: boolean) {
                 }
 
                 if (!isLive) return;
+
+                // A block id at the end of a paragraph (` ^id`, the core's rule
+                // `BLOCK_ID_MARKER`) is a name for the block, no text of it: faint
+                // while writing, as it is written on the caret's line, and hidden
+                // while reading, as the reading view hides it (Fehlerliste 0.9.0, B6).
+                if (name === "Paragraph") {
+                  const marker = BLOCK_ID_MARKER.exec(state.sliceDoc(node.from, node.to));
+                  const last = node.node.lastChild;
+                  if (marker) {
+                    const idFrom = node.from + marker.index + marker[0].indexOf("^");
+                    const idTo = node.from + marker.index + marker[0].trimEnd().length;
+                    // The blank hidden with it is the one on the id's own line:
+                    // an id alone on the paragraph's last line (`Text` / `^id`)
+                    // stands after a line break, which a plugin may not replace.
+                    const lineFrom = state.doc.lineAt(idFrom).from;
+                    let hideFrom = idFrom;
+                    while (hideFrom > lineFrom && /[ \t]/.test(state.sliceDoc(hideFrom - 1, hideFrom))) hideFrom--;
+                    if (!last || last.to <= idFrom) {
+                      if (!revealRaw) decos.push(HIDE.range(hideFrom, idTo));
+                      else if (!activeLines.has(state.doc.lineAt(idFrom).number)) decos.push(BLOCK_ID.range(idFrom, idTo));
+                    }
+                  }
+                }
 
                 // A code block is a block (finding X6, review 2026-11-10): its
                 // lines carry one card - monospace on the note's code tint, the

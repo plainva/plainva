@@ -8210,7 +8210,8 @@
     "driveFolder": "El proveedor devolvió un identificador de carpeta no válido. La operación se ha detenido.",
     "htmlDepth": "Este HTML tiene demasiados niveles de anidación. Simplifícalo o importa una exportación en Markdown.",
     "propertiesBlock": "El bloque al principio de la nota no se puede leer como propiedades. Corrígelo en el texto de la nota e inténtalo de nuevo.",
-    "propertyNameTaken": "La nota ya tiene una propiedad con el nuevo nombre."
+    "propertyNameTaken": "La nota ya tiene una propiedad con el nuevo nombre.",
+    "propertySharedByAnchor": "El valor de esta propiedad se comparte con otra mediante un ancla YAML (& y * en el texto de la nota). Cámbialo en el propio texto de la nota."
   },
   "audio": {
     "play": "Reproducir {{name}}",

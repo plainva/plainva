@@ -114,7 +114,7 @@ describe("renameTagInText finds a tag as the index reads it", () => {
     // `other: *t` reads the same text: renamed in place, it would change as well, and the writer refuses that.
     // The probe threw, and the search over the vault stopped at this note — for every other note too.
     const anchored = "---\ntags: &t work, home\nother: *t\n---\nx";
-    expect(() => renameTagInText(anchored, "work", "job")).toThrow(/can be changed where it stands/);
+    expect(() => renameTagInText(anchored, "work", "job")).toThrow(/is shared through a YAML anchor and cannot be changed where it stands/);
     expect(contentHasTag(anchored, "work")).toBe(true);
     expect(contentHasTag(anchored, "play")).toBe(false);
     expect(contentHasTag("---\ntags: [&y 2024]\nyear: *y\n---\nx", "2024")).toBe(true);

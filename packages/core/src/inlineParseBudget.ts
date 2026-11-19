@@ -49,7 +49,7 @@
  */
 
 import { frontmatterSpan, opensUnclosedProperties } from "./frontmatter-block.js";
-import { readerWikiLink } from "./readerWikiLink.js";
+import { readerWikiLink, readerWikiLinkLead } from "./readerWikiLink.js";
 
 /** The most `inlineParseCost` a stretch may have and still be parsed as Markdown. */
 export const INLINE_PARSE_BUDGET = 15_000_000;
@@ -803,7 +803,7 @@ function shownRow({ row, links }: RowWikiLinks): string {
   let copied = 0;
   for (let k = 0; k < links.length; k += 3) {
     const [open, close, embed] = [links[k], links[k + 1], links[k + 2] === 1];
-    pieces.push(row.slice(copied, embed ? open - 1 : open), readerWikiLink(row.slice(open + 2, close), embed, undefined, false).text);
+    pieces.push(row.slice(copied, embed ? open - 1 : open), readerWikiLinkLead(row, embed ? open - 1 : open, embed), readerWikiLink(row.slice(open + 2, close), embed, undefined, false).text);
     copied = close + 2;
   }
   pieces.push(row.slice(copied));
@@ -829,6 +829,8 @@ function shownLengthAtLeast({ row, links }: RowWikiLinks): number {
     const target = encodedLength(row, inner, headEnd);
     length -= close + 2 - (embed ? open - 1 : open);
     length += embed ? "![img](wiki-image://)".length + target : "[](wiki://)".length + label + target;
+    // The comment in front of a link behind a `]` is written too.
+    length += readerWikiLinkLead(row, embed ? open - 1 : open, embed).length;
   }
   return length;
 }

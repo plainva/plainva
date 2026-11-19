@@ -8046,7 +8046,8 @@
     "driveFolder": "The provider returned an invalid folder identifier. The operation was stopped.",
     "htmlDepth": "This HTML is too deeply nested. Simplify it or import a Markdown export.",
     "propertiesBlock": "The block at the top of the note cannot be read as properties. Correct it in the note's text and try again.",
-    "propertyNameTaken": "The note already has a property with the new name."
+    "propertyNameTaken": "The note already has a property with the new name.",
+    "propertySharedByAnchor": "This property's value is shared with another one through a YAML anchor (& and * in the note's text). Change it in the note's text itself."
   },
   "audio": {
     "play": "Play {{name}}",

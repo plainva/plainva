@@ -103,6 +103,10 @@ export const editorTheme = EditorView.theme({
   "&:hover .cm-block-handle": { opacity: 0.5 },
   ".cm-block-handle:hover": { opacity: 1, backgroundColor: "var(--bg-hover)" },
   // Markdown decoration classes (see LivePreviewPlugin)
+  // A block id at the end of a paragraph, while the caret is elsewhere.
+  ".cm-md-block-id": {
+    color: "var(--text-faint)",
+  },
   ".cm-frontmatter": {
     color: "var(--text-faint)",
   },
