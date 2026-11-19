@@ -1,6 +1,7 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { errorText, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
+import { errorText, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
+import { FEATURES_SAVED_EVENT, featuresSavedFor } from "../services/vaultFeaturesRelay";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
@@ -552,6 +553,25 @@ export const meetingFolderKey = (vaultPath: string) => `meetingFolder_${btoa(une
 /** Meeting-note template (plan Befunde 24.09., E24): a template name in the
  * templates folder, or a vault path; "" = the built-in note. */
 export const meetingNoteTemplateKey = (vaultPath: string) => `meetingNoteTemplate_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+
+/** What this vault's settings say about its templates (`templateNotesOf`, B26). */
+export async function readTemplateNoteSettings(vaultPath: string): Promise<TemplateNoteSettings> {
+  const store = await getSettingsStore();
+  const [templateFolder, dailyTemplate, meetingTemplate, folderTemplates, typeTemplates] = await Promise.all([
+    store.get<string>(templateFolderKey(vaultPath)),
+    store.get<string>(dailyNoteTemplateKey(vaultPath)),
+    store.get<string>(meetingNoteTemplateKey(vaultPath)),
+    store.get(folderTemplatesKey(vaultPath)),
+    store.get(typeTemplatesKey(vaultPath)),
+  ]);
+  return {
+    templateFolder: templateFolder ?? "Templates",
+    dailyTemplate: dailyTemplate ?? "",
+    meetingTemplate: meetingTemplate ?? "",
+    folderTemplates: parseFolderTemplateRules(folderTemplates),
+    typeTemplates: parseTypeTemplateRules(typeTemplates),
+  };
+}
 /** Default calendar for new events ("<accountId> <calId>"): new events preselect
  * it. Empty/invalid falls back to the first writable calendar. */
 export const defaultCalendarKey = (vaultPath: string) => `defaultCalendar_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
@@ -1019,8 +1039,20 @@ export const VaultProvider: React.FC<{
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
       // this, 898 wrongly mirrored files went back up as 898 remote deletions.
       const ownDeletions = new OwnDeletionRegister();
+      // Which notes are templates, by this vault's settings (B26): the index
+      // takes a file's name for a template's `{{title}}`. A save of the
+      // settings here or in another window (`vaultFeaturesRelay`) changes it.
+      // Settings that cannot be read are the defaults: the index opens all the same.
+      const templateNotes = followTemplateNotes({
+        read: async () => templateNotesOf(await readTemplateNoteSettings(path).catch(() => ({ templateFolder: "Templates", dailyTemplate: "", meetingTemplate: "", folderTemplates: [], typeTemplates: [] }))),
+        event: FEATURES_SAVED_EVENT,
+        forVault: (event) => featuresSavedFor(event, path),
+        signal: currentAbortSignal,
+        onError: reportingTo("index:template-titles"),
+      });
       const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {
         scanSignal: currentAbortSignal,
+        templateNotes: await templateNotes.first,
         // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
         comesBackByItself: true,
         onExternalModification: (path) => {
@@ -1091,6 +1123,7 @@ export const VaultProvider: React.FC<{
           }));
         }
       });
+      templateNotes.attach(indexer);
       const queryService = new VaultQueryService(dbAdapter);
       queryService.setDayOfPath(readDailyDayOfPath(path));
       const graphService = new GraphService(dbAdapter);

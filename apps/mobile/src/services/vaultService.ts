@@ -1,4 +1,4 @@
-import { clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { templateNotesOf, followTemplateNotes, clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   type BackupVaultAdapter,
   ConflictError,
@@ -65,7 +65,8 @@ import {
   forgetVaultSecrets,
   forgetVaultStoreKeys,
 } from "./vaultForget";
-import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
+import { getMobileSettings, getVaultSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
+import { vaultDefaults } from "./mobileSettingsScope";
 import { configuredDailyNoteType, configuredNoteType } from "./newNote";
 import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText, applyTemplateInteractive } from "./templateInteractive";
 import {
@@ -1017,8 +1018,19 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
 
     // What a full scan left out, or why it failed, said once on screen (issue 125).
     const indexNotices = createIndexNotices(toast);
+    // Which notes are templates, by this vault's settings (B26): the index
+    // takes a file's name for a template's `{{title}}`. A change of the
+    // settings (`m-settings-changed`) changes it.
+    // Settings that cannot be read are the vault's defaults: the index opens all the same.
+    const templateNotes = followTemplateNotes({
+      read: async () => templateNotesOf(await getVaultSettings(entry.id).catch(() => vaultDefaults())),
+      event: "m-settings-changed",
+      signal: indexAbort.signal,
+      onError: reportingTo("index:template-titles"),
+    });
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
+      templateNotes: await templateNotes.first,
       // No watcher here: what changes from outside while a scan reads is looked at once more.
       hearsNoChanges: true,
       // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
@@ -1068,6 +1080,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         void queueLocalDeletion(path);
       },
     });
+    templateNotes.attach(indexer);
     queryService = new VaultQueryService(db);
     // `file.day` (plan Journal-Erweiterungen, X8): the two settings that name a
     // daily note tell every query which day a file name stands for. Set on the

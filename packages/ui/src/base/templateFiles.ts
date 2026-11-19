@@ -132,6 +132,13 @@ export function applyTemplatePlaceholders(
 /** OKF reserved note names — folder infrastructure, never a fill-in template. */
 const RESERVED_TEMPLATE_NAME = /^(?:index|log)\.md$/i;
 
+/** Whether a file of the template folder, by its name, is offered as a
+ * template: a Markdown note, not hidden, not a reserved OKF note. The one rule
+ * of the list and of the index (`templateNotesOf`). */
+export function isOfferedTemplateName(base: string): boolean {
+  return base.toLowerCase().endsWith(".md") && !RESERVED_TEMPLATE_NAME.test(base) && !base.startsWith(".");
+}
+
 /** All .md files of the template folder, sorted by title. Reserved OKF notes
  * (index.md/log.md — a managed folder index can live in the template folder)
  * are never offered as templates. */
@@ -142,7 +149,7 @@ export async function listTemplates(adapter: TemplateListAdapter, folder: string
     for (const f of await adapter.listDir(folder)) {
       const base = f.path.split(/[/\\]/).pop() ?? "";
       // A dot file in the template folder is hidden (E8) — the phone's listing never had it.
-      if (!f.isDirectory && f.path.toLowerCase().endsWith(".md") && !RESERVED_TEMPLATE_NAME.test(base) && !base.startsWith(".")) {
+      if (!f.isDirectory && !base.startsWith(".") && isOfferedTemplateName(base)) {
         items.push({ path: f.path, title: base.replace(/\.md$/i, "") || f.path });
       }
     }

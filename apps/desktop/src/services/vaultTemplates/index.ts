@@ -1,4 +1,5 @@
 import { getSettingsStore } from "../settingsStore";
+import { vaultFeaturesSaved } from "../vaultFeaturesRelay";
 import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import { isSystemJunkName } from "@plainva/core";
 import {
@@ -104,4 +105,6 @@ export async function applyVaultTemplateSettings(
   if (settings.taskDatabase !== undefined) await store.set(taskDatabaseKey(vaultPath), settings.taskDatabase);
   if (settings.folderTemplates !== undefined) await store.set(folderTemplatesKey(vaultPath), settings.folderTemplates);
   await store.save();
+  // A vault already open in another window reads its templates again.
+  vaultFeaturesSaved(vaultPath);
 }
