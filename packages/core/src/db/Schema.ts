@@ -7,6 +7,7 @@ import { runStatementsAtomic } from "./batch.js";
 import { FIRST_ROWID_BEFORE, FULL_TEXT_SENTINEL, fullTextRowOf, UNNUMBERED_FLAG } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 import { INDEX_CHANGES_SCHEMA } from "./indexChanges.js";
+import { OWN_REMOVAL_NOTE_PREFIX } from "../sync/ownRemovalNoteKey.js";
 import { FULL_TEXT_DAMAGED_MARK, fullTextDamageNoted, isDamagedFullText, noteFullTextRebuildFailed } from "./fullTextDamage.js";
 
 export { isDamagedFullText };
@@ -748,6 +749,22 @@ async function bringSchemaUp(db: IDatabaseAdapter): Promise<void> {
   await db.execute(
     `CREATE TRIGGER IF NOT EXISTS files_written_by_older_index AFTER INSERT ON files WHEN NEW.fts_rowid IS NULL BEGIN
        INSERT OR REPLACE INTO meta (key, value) VALUES ('${UNNUMBERED_FLAG}', '1');
+     END`
+  );
+
+  // A note of the sync's own removal (`ownRemovalNotes.ts`) is bound to the
+  // file's sync row: wherever the row goes — recorded, renamed away, dropped
+  // with a restore or a new folder — the note goes with it. A note left over
+  // where the record failed would otherwise wait for a later start and take
+  // a row of the same path away that describes another file.
+  await db.execute(
+    `CREATE TRIGGER IF NOT EXISTS sync_state_own_removal_note_goes AFTER DELETE ON sync_state BEGIN
+       DELETE FROM meta WHERE key = '${OWN_REMOVAL_NOTE_PREFIX}' || OLD.path;
+     END`
+  );
+  await db.execute(
+    `CREATE TRIGGER IF NOT EXISTS sync_state_own_removal_note_moves_off AFTER UPDATE OF path ON sync_state WHEN NEW.path <> OLD.path BEGIN
+       DELETE FROM meta WHERE key = '${OWN_REMOVAL_NOTE_PREFIX}' || OLD.path;
      END`
   );
 

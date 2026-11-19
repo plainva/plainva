@@ -17,7 +17,8 @@ import { SyncWorker } from "../../src/sync/SyncWorker.js";
 import { WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
 import { OwnDeletionRegister } from "../../src/sync/ownDeletions.js";
 import { adoptOwnRemovals } from "../../src/sync/ownRemovalNotes.js";
-import { crashable, type Crashable } from "../helpers/crashedRuntime.js";
+import { vaultFolderIsThere } from "../../src/vault/IVaultAdapter.js";
+import { crashable, removalLooks, type Crashable } from "../helpers/crashedRuntime.js";
 import type { IDatabaseAdapter } from "../../src/db/IDatabaseAdapter.js";
 
 /**
@@ -125,7 +126,7 @@ async function runtime(w: World, root: string, db: IDatabaseAdapter, dies?: Cras
   const app = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, queue), repo);
   const ownDeletions = new OwnDeletionRegister();
   // Before the index looks: what the sync removed here and did not record stays the sync's.
-  await adoptOwnRemovals(base, ownDeletions, (p) => raw.exists(p));
+  await adoptOwnRemovals(base, ownDeletions, removalLooks(async () => (await vaultFolderIsThere(raw)) === true, (p) => raw.exists(p)));
   let queued: Promise<unknown> = Promise.resolve();
   const later = (work: () => Promise<unknown>) => { queued = queued.then(work).catch(() => undefined); };
   const indexer = new VaultIndexer(raw, base, {
@@ -155,7 +156,7 @@ async function runtime(w: World, root: string, db: IDatabaseAdapter, dies?: Cras
   };
 }
 
-async function vault(w: World) {
+async function vault(_w: World) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-half-state-"));
   const db = await realSqlite();
   cleanups.push(async () => {
@@ -276,4 +277,52 @@ describe("a runtime that crashed mid-step, and the next runtime's cycle", () => 
     expect(await next.queue.listAllPending(10)).toMatchObject({ total: 0 });
     expect(conflictCopies(await walk(v.root))).toEqual([]);
   });
+
+  for (const elsewhere of [false, true]) {
+    it(`a note left over where the removal's record failed never takes away the row of a file made and deleted later at that path${elsewhere ? " — so a newer version from another device is not deleted unseen" : ""}`, async () => {
+      const w = world();
+      const v = await vault(w);
+      const first = await runtime(w, v.root, v.db);
+      await first.app.writeTextFile("Keep.md", "keep\n");
+      await first.app.writeTextFile("Gone.md", "one\n");
+      await first.cycle();
+      w.dav.files.delete("Gone.md");
+
+      // The removal is carried out here, its record fails: the note and the row stay.
+      const r = await runtime(w, v.root, v.db);
+      const record = vi.spyOn(SyncStateRepository.prototype, "deleteSyncState").mockRejectedValueOnce(new Error("disk I/O error"));
+      await settle(r.cycle());
+      record.mockRestore();
+      expect(await fs.stat(v.file("Gone.md")).then(() => true, () => false)).toBe(false);
+      // Later cycles clear the row another way.
+      await r.cycle();
+      await r.cycle();
+
+      // The person makes a note of that name, it is synced, and they delete it; the app ends before the deletion goes up.
+      await r.app.writeTextFile("Gone.md", "two, made later\n");
+      await r.cycle();
+      expect(w.remote("Gone.md"), "uploaded").toBe("two, made later\n");
+      await r.app.deleteItem("Gone.md", false, { confirmed: true } as never);
+      expect((await r.queue.listAllPending(10)).total, "the deletion is queued").toBeGreaterThan(0);
+      // Meanwhile another device writes a newer version of it.
+      if (elsewhere) w.dav.files.set("Gone.md", { bytes: new TextEncoder().encode("three, from elsewhere\n"), etag: '"e9"' });
+
+      const next = await runtime(w, v.root, v.db);
+      expect(await v.db.query(`SELECT path FROM sync_state WHERE path = 'Gone.md'`), "the start leaves the row of the queued deletion").toHaveLength(1);
+      await next.cycle();
+      await next.cycle();
+      if (!elsewhere) {
+        expect(w.remote("Gone.md"), "the person's deletion went up").toBeNull();
+        expect(await walk(v.root), "and nothing comes back").not.toContain("Gone.md");
+      } else {
+        // THE DEFECT: without its row the deletion went up unconditionally and took the other device's version with it.
+        expect(w.remote("Gone.md"), "the other device's version stays").toBe("three, from elsewhere\n");
+        expect(await fs.readFile(v.file("Gone.md"), "utf8"), "and comes here").toBe("three, from elsewhere\n");
+        // The pulled version, read by the index, goes up as what it is: settled after one more cycle.
+        await next.cycle();
+        expect(w.remote("Gone.md")).toBe("three, from elsewhere\n");
+      }
+      expect(await next.queue.listAllPending(10)).toMatchObject({ total: 0 });
+    });
+  }
 });

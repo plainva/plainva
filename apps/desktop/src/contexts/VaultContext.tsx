@@ -1040,7 +1040,7 @@ export const VaultProvider: React.FC<{
       // this, 898 wrongly mirrored files went back up as 898 remote deletions.
       const ownDeletions = new OwnDeletionRegister();
       // What a runtime that ended (a crash, a close) left removed and not recorded stays the sync's: taken over before the index looks.
-      await adoptOwnRemovals(dbAdapter, ownDeletions, (p) => tauriVaultAdapter.exists(p)).catch(reportingTo("sync:own-removals"));
+      await adoptOwnRemovals(dbAdapter, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(tauriVaultAdapter).then((there) => there === true), exists: (p) => tauriVaultAdapter.exists(p) }).catch(reportingTo("sync:own-removals"));
       // Which notes are templates, by this vault's settings (B26): the index
       // takes a file's name for a template's `{{title}}`. A save of the
       // settings here or in another window (`vaultFeaturesRelay`) changes it.

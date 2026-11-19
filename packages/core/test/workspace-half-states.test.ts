@@ -10,7 +10,8 @@ import {
   type IDatabaseAdapter,
   type IVaultAdapter,
 } from "../src/index.js";
-import { crashable, type Crashable } from "./helpers/crashedRuntime.js";
+import { crashable, removalLooks, type Crashable } from "./helpers/crashedRuntime.js";
+import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 
 /**
  * The four states of a cycle cut off by a crash (see
@@ -78,7 +79,7 @@ async function runtimeOf(second: Second, db: IDatabaseAdapter, dies?: Crashable,
   const ownDeletions = new OwnDeletionRegister();
   const base = dies ? dies.wrap(db) : db;
   const storage = dies ? dies.wrap(vault) : vault;
-  await adoptOwnRemovals(base, ownDeletions, (p) => storage.exists(p));
+  await adoptOwnRemovals(base, ownDeletions, removalLooks(async () => true, (p) => storage.exists(p)));
   const state = new SqlWorkspaceStateStore(base);
   const worker = new EncryptedWorkspaceWorker(second.store, state, storage, second.runtime, { ownDeletions });
   /** What the index reports of a file that vanished, as both shells handle it: the sync's removal, or the person's deletion. */
@@ -86,7 +87,24 @@ async function runtimeOf(second: Second, db: IDatabaseAdapter, dies?: Crashable,
     if (ownDeletions.consume(path, { mtime })) return;
     await state.enqueue("delete", path);
   };
-  return { worker, state, reportVanished };
+  // The index as both shells run it over the vault: what it finds changed or new is queued at once, a
+  // vanished file is the sync's removal or the person's deletion.
+  let queuedByIndex: Promise<unknown> = Promise.resolve();
+  const later = (work: () => Promise<unknown>) => { queuedByIndex = queuedByIndex.then(work).catch(() => undefined); };
+  const indexer = new VaultIndexer(storage, base, {
+    onExternalModification: (p) => later(() => state.enqueue("write", p)),
+    onNewLocalFile: (p) => later(() => state.enqueue("write", p)),
+    onLocalFileDeleted: (p, row) => {
+      if (ownDeletions.consume(p, row)) return;
+      later(() => state.enqueue("delete", p));
+    },
+  });
+  /** The start's look of the index at the vault, and what it queued. */
+  const index = async () => {
+    await indexer.indexVaultFull();
+    await queuedByIndex;
+  };
+  return { worker, state, reportVanished, index, indexer };
 }
 
 const conflictCopies = (vault: MemoryVault) => [...vault.files.keys()].filter((p) => /conflict/i.test(p));
@@ -184,5 +202,79 @@ describe("an encrypted workspace's runtime that crashed mid-step, and the next r
     expect(second.vault.files.has("Old.md"), "nothing comes back").toBe(false);
     expect(await queued(next.state)).toEqual([]);
     expect([...conflictCopies(owner.vault), ...conflictCopies(second.vault)]).toEqual([]);
+  });
+});
+
+/** A cold index reports every file as new; both shells hold that back (`coldIndexOwed`) — nothing of it is a change here. */
+async function settleColdIndex(state: SqlWorkspaceStateStore) {
+  for (const entry of await state.listQueue()) await state.discardQueue(entry.id);
+}
+
+describe("the next start in the order of the app (review of part 1)", () => {
+  it("(b) a download written and not recorded, which the index queues as changed before the first pull: done, no conflict copy", async () => {
+    const { owner, second, db } = await devices(["A.md"]);
+    // The phone's index has read the note as it was, and what it found new was settled.
+    const first = await runtimeOf(second, db);
+    await first.index();
+    await settleColdIndex(first.state);
+    await owner.vault.writeTextFile("A.md", "# A.md\nchanged on the desktop\n");
+    await owner.state.enqueue("write", "A.md");
+    await owner.worker.runCycle();
+
+    const dies = crashable();
+    const vault = telling(second.vault, (what, p) => { if (what === "write" && p === "A.md") dies.crash(); });
+    const old = await runtimeOf(second, db, dies, vault);
+    await settle(old.worker.runCycle());
+    expect(text(second.vault, "A.md"), "the download is in the vault").toBe("# A.md\nchanged on the desktop\n");
+
+    const next = await runtimeOf(second, db);
+    // The start: the index finds the file other than its row and queues it at once, before any pull.
+    await next.index();
+    expect((await next.state.listQueue()).map((e) => `${e.operation} ${e.path}`), "queued by the index").toEqual(["write A.md"]);
+    const operations = async () => (await second.store.list(".pvws/operations/")).items.length;
+    const sentBefore = await operations();
+    await next.worker.runCycle();
+    expect(await queued(next.state), "the queued write was done by the download: it goes").toEqual([]);
+    expect(await operations(), "nothing is sent").toBe(sentBefore);
+    expect((await next.state.getObjectByPath("A.md"))?.currentRevisionId, "recorded as the other device's version").toBe((await owner.state.getObjectByPath("A.md"))?.currentRevisionId);
+    expect([...conflictCopies(second.vault)], "no conflict copy here").toEqual([]);
+    await owner.worker.runCycle();
+    expect([...conflictCopies(owner.vault)], "and none on the other device").toEqual([]);
+    expect(text(owner.vault, "A.md")).toBe("# A.md\nchanged on the desktop\n");
+    expect(text(second.vault, "A.md")).toBe("# A.md\nchanged on the desktop\n");
+  });
+
+  it("(c) the incoming deletion is marked with the index's row as well as the file's time, in the running runtime and after the take-over", async () => {
+    for (const crashes of [false, true]) {
+      const { owner, second, db } = await devices(["A.md", "Gone.md"]);
+      const first = await runtimeOf(second, db);
+      await first.index();
+      await settleColdIndex(first.state);
+      // The index read the note at another time than the file carries now (it has not read it since the worker last wrote it).
+      await db.execute(`UPDATE files SET mtime_local = 7 WHERE path = 'Gone.md'`);
+      const row = (await db.queryOne<{ mtime_local: number }>(`SELECT mtime_local FROM files WHERE path = 'Gone.md'`))!.mtime_local;
+      expect(row).toBe(7);
+      expect((await second.vault.getFileInfo("Gone.md")).mtime).not.toBe(row);
+      await owner.vault.deleteItem("Gone.md");
+      await owner.state.enqueue("delete", "Gone.md");
+      await owner.worker.runCycle();
+
+      if (!crashes) {
+        await first.worker.runCycle();
+        expect(second.vault.files.has("Gone.md")).toBe(false);
+        // The index reports the row it removed: the sync's, not the person's.
+        await first.reportVanished("Gone.md", row);
+        expect(await queued(first.state), "running: not queued as this device's deletion").toEqual([]);
+        continue;
+      }
+      const dies = crashable();
+      const vault = telling(second.vault, (what, p) => { if (what === "delete" && p === "Gone.md") dies.crash(); });
+      const old = await runtimeOf(second, db, dies, vault);
+      await settle(old.worker.runCycle());
+      expect(second.vault.files.has("Gone.md")).toBe(false);
+      const next = await runtimeOf(second, db);
+      await next.reportVanished("Gone.md", row);
+      expect(await queued(next.state), "after the take-over: not queued as this device's deletion").toEqual([]);
+    }
   });
 });

@@ -956,7 +956,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // A damaged full-text index met while the vault is open is noted, and the next open makes it anew.
     db = watchFullTextDamage(db, reportingTo("index:full-text-damaged"));
     // What a runtime that ended (a crash, a close) left removed and not recorded stays the sync's: taken over before the index looks.
-    await adoptOwnRemovals(db, ownDeletions, (p) => adapter.exists(p)).catch(reportingTo("sync:own-removals"));
+    await adoptOwnRemovals(db, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(adapter).then((there) => there === true), exists: (p) => adapter.exists(p) }).catch(reportingTo("sync:own-removals"));
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
     await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
     // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
