@@ -30,3 +30,12 @@ export function crashable(): Crashable {
       }),
   };
 }
+
+/**
+ * How a start looks at the vault for `adoptOwnRemovals`, callable as well:
+ * the same tests then run against the earlier form, which took only the look
+ * at a file (the red half of the evidence).
+ */
+export function removalLooks(vaultIsThere: () => Promise<boolean>, exists: (path: string) => Promise<boolean>) {
+  return Object.assign((path: string) => exists(path), { vaultIsThere, exists });
+}

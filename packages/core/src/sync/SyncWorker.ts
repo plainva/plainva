@@ -32,7 +32,7 @@ import { isMassDeletion as isMassDeletionOf, MASS_DELETE_MIN, MASS_DELETE_SHARE 
 import { contentSha256Of } from "../vault/localText.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
 import { isAppleDoubleCompanion, isSystemJunkPath } from "../vault/systemJunk.js";
-import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
+import { ownRemovalStamps, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -1849,12 +1849,7 @@ export class SyncWorker {
    * before it went). Without either, nothing will be reported.
    */
   private async ownRemovalStamps(path: string): Promise<IndexedRowStamp[]> {
-    const stamps: IndexedRowStamp[] = [];
-    const indexed = await this.queue.indexedRow(path);
-    if (indexed) stamps.push(indexed);
-    const info = await Promise.resolve().then(() => this.vault.getFileInfo(path)).catch(() => null);
-    if (info && !info.isDirectory && !stamps.some((s) => s.mtime === info.mtime)) stamps.push(indexedRowStamp(info.mtime));
-    return stamps;
+    return ownRemovalStamps(() => this.queue.indexedRow(path), this.vault, path);
   }
 
   private async mirrorRemoteDeletionLocked(
