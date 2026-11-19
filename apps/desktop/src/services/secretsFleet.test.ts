@@ -385,4 +385,36 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
       expect(Object.fromEntries([o1, o2, n0, n1].map((d) => [d.name, d.slots.get("r")]))).toEqual({ O1: "P4", O2: "P6", N0: "P6", N1: "P6" });
     });
   });
+
+  describe("what a device knew about a removed account is no knowledge about another one (round eight, O1)", () => {
+    for (const then of ["changes the password", "removes the account"]) {
+      it(`"Anna" after "anna" was removed: the password typed here stays when another device ${then}`, async () => {
+        start();
+        const o = device("O", true, [{ id: "r", user: "anna" }], { r: "P1" });
+        const d = device("D", true, [{ id: "r", user: "anna" }]);
+        await rounds([o, d], 3);
+        d.update();
+        await rounds([d, o], 2);
+        await retireSecret(d.host, calDavSecretBinding("webdav", CAL, "anna"));
+        d.rows = [];
+        d.slots.delete("r");
+        await rounds([d, o], 2);
+        d.rows.push({ id: "R", user: "Anna" });
+        d.slots.set("R", "PA");
+        await rounds([d, o], 2);
+        const anna = canonicalSecretId(newBinding({ id: "R", user: "Anna" }));
+        expect([d.meta?.entries[anna]?.entryRev, !!d.meta?.imported[anna]]).toEqual([1, false]);
+        const n2 = device("N2", false, [{ id: "R", user: "Anna" }, { id: "x", user: "xaver" }], { x: "PX" });
+        await rounds([n2, d, o], 3);
+        expect(n2.slots.get("R")).toBe("PA");
+        if (then === "removes the account") {
+          await retireSecret(n2.host, calDavSecretBinding("webdav", CAL, "Anna"));
+          n2.rows = n2.rows.filter((r) => r.id !== "R");
+          n2.slots.delete("R");
+        } else n2.slots.set("R", "PB");
+        await rounds([n2, d, o], 4);
+        expect(d.slots.get("R")).toBe("PA");
+      });
+    }
+  });
 });

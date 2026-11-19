@@ -115,7 +115,7 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, calls: nu
   ["packages/ui/src/lib/connectAccess.ts", "label(provider).toLowerCase().includes(q)", 1, "search text or a display label; decides no account"],
   ["packages/ui/src/lib/oauthAccess.ts", "platform.toUpperCase()", 1, "the name of a build variable"],
   ["packages/ui/src/lib/secretsPort.ts", "user: secretBindingUser(user).toLowerCase()", 1, "a mailbox is one account in any case of its address (mailIdentity)"],
-  ["packages/ui/src/lib/secretsPort.ts", "user: candidate.binding.user.toLowerCase() })", 1, "the name a device up to 0.8.7 knows a secret by, only read, never written (oldNameId)"],
+  ["packages/ui/src/lib/secretsPort.ts", "user: binding.user.toLowerCase() })", 1, "the name a device up to 0.8.7 knows a secret by, only read, never written (oldNameId)"],
   ["packages/ui/src/lib/secretsPort.ts", "binding.user !== binding.user.toLowerCase()", 1, "asks whether a removed account had one name before the current types (closeOldName), compares nothing"],
   ["packages/ui/src/lib/secretsPort.ts", "candidate.binding.user !== candidate.binding.user.toLowerCase()", 1, "asks whether an account here is the one whose old name was closed (reopenOldNames), compares nothing"],
   ["packages/ui/src/mail/gmailAccount.ts", "expected.label.trim().toLowerCase() !== profile.label.toLowerCase()", 2, "Gmail: an e-mail address Google vouches for"],

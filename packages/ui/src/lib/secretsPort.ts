@@ -338,7 +338,7 @@ function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSe
       bindingMatchesExceptFamily(other.binding, candidate.binding, "fold"),
   );
   if (twin) return null;
-  return canonicalSecretId({ ...candidate.binding, secretType: bridgeSecretTypeOf(candidate.binding.secretType), user: candidate.binding.user.toLowerCase() });
+  return bridgeIdOf(candidate.binding);
 }
 
 /**
@@ -361,6 +361,12 @@ async function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly Loc
     const old = oldNameId(candidate, candidates);
     const known = old ? meta.entries[old] : undefined;
     if (!old || !known || known.tombstone || known.alias || !isBridgeSecretType(known.binding.secretType)) continue;
+    // What this device knew about an account it removed is no knowledge
+    // about another one under the same old name (round eight, O1): a closed
+    // old name, a tombstone seen under it, or a removal still to be written
+    // stops the move.
+    if (meta.closedOldNames?.[old] !== undefined || meta.oldNameTombstones?.[old] !== undefined) continue;
+    if (Object.values(meta.retired ?? {}).some((binding) => bridgeIdOf(binding) === old)) continue;
     meta.entries[candidate.logicalId] = {
       hash: await movedHash(mark, known, candidate),
       entryRev: known.entryRev,
@@ -385,6 +391,12 @@ async function movedHash(mark: SecretsMarker, known: { hash: string; binding: Se
   if (!candidate.secret || !known.hash) return "";
   if (known.hash !== (await pairMark(mark, known.binding, candidate.secret))) return "m1:~changed";
   return pairMark(mark, candidate.binding, candidate.secret);
+}
+
+/** The name a device up to 0.8.7 gave this binding's password (the old type, the user lower-cased). */
+function bridgeIdOf(binding: SecretBinding): string | null {
+  if (!isShareableSecretType(binding.secretType)) return null;
+  return canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType), user: binding.user.toLowerCase() });
 }
 
 /** An old name closed by "Remove account" opens again when that same account is here again (`closedOldNames`). */
