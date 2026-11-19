@@ -1,0 +1,184 @@
+{
+  "$comment": "The example messages of the one rule of what is a file of a message (Fehlerliste 0.9.0 C6). Held against both parsers: imapAttachmentRule.test.ts (the phone's, net/mime.ts) and mail_imap.rs (the desktop's). Change both, or neither.",
+  "cases": [
+    {
+      "name": "a photo iPhone Mail puts into the text: shown by cid, named, inline, in a multipart/related",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"alt\"\r\n\r\n--alt\r\nContent-Type: text/plain; charset=us-ascii\r\n\r\nLook:\r\n--alt\r\nContent-Type: multipart/related; type=\"text/html\"; boundary=\"rel\"\r\n\r\n--rel\r\nContent-Type: text/html; charset=us-ascii\r\n\r\n<html><body>Look: <img src=\"cid:4A1B@example.com\"></body></html>\r\n--rel\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: inline; filename=IMG_0001.jpeg\r\nContent-Type: image/jpeg; name=\"IMG_0001.jpeg\"\r\nContent-Id: <4A1B@example.com>\r\n\r\n/9j/4AAQ\r\n--rel--\r\n--alt--\r\n",
+      "files": [
+        {
+          "name": "IMG_0001.jpeg",
+          "mime": "image/jpeg"
+        }
+      ]
+    },
+    {
+      "name": "the logo of a signature: shown by cid, no name, no disposition",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/related; boundary=\"rel\"\r\n\r\n--rel\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Regards</p><img src=\"cid:logo\">\r\n--rel\r\nContent-Type: image/png\r\nContent-ID: <logo>\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--rel--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "a picture marked inline that the text does not show",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nThe chart:\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: inline; filename=\"chart.png\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "chart.png",
+          "mime": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "an attachment with a Content-ID and a file name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Scan attached.</p>\r\n--mix\r\nContent-Type: image/png; name=\"scan.png\"\r\nContent-ID: <scan@example.com>\r\nContent-Disposition: attachment; filename=\"scan.png\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "scan.png",
+          "mime": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "a picture without name or disposition in a multipart/mixed",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nPhoto:\r\n--mix\r\nContent-Type: image/jpeg\r\nContent-Transfer-Encoding: base64\r\n\r\n/9j/4AAQ\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/jpeg"
+        }
+      ]
+    },
+    {
+      "name": "an invitation: the calendar beside the text and the HTML",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"alt\"\r\n\r\n--alt\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nMeeting\r\n--alt\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Meeting</p>\r\n--alt\r\nContent-Type: text/calendar; charset=utf-8; method=REQUEST\r\n\r\nBEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n--alt--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "text/calendar"
+        }
+      ]
+    },
+    {
+      "name": "a named text file attached inline behind the text",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nSee the note.\r\n--mix\r\nContent-Type: text/plain; charset=utf-8; name=\"notes.txt\"\r\nContent-Disposition: inline; filename=\"notes.txt\"\r\n\r\nLine one\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "notes.txt",
+          "mime": "text/plain"
+        }
+      ]
+    },
+    {
+      "name": "a footer a mailing list appends without a name: part of the text",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>News</p>\r\n--mix\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n-- list footer\r\n--mix--\r\n",
+      "files": []
+    },
+    {
+      "name": "an HTML part attached as a file",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nReport attached.\r\n--mix\r\nContent-Type: text/html; charset=utf-8\r\nContent-Disposition: attachment; filename=\"report.html\"\r\n\r\n<p>Report</p>\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "report.html",
+          "mime": "text/html"
+        }
+      ]
+    },
+    {
+      "name": "a PDF and an enclosed message",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nTwo things.\r\n--mix\r\nContent-Type: application/pdf; name=\"a.pdf\"\r\nContent-Disposition: attachment; filename=\"a.pdf\"\r\nContent-Transfer-Encoding: base64\r\n\r\nJVBERi0=\r\n--mix\r\nContent-Type: message/rfc822\r\n\r\nSubject: Inner\r\nContent-Type: multipart/mixed; boundary=\"in\"\r\n\r\n--in\r\nContent-Type: text/plain\r\n\r\nInner text\r\n--in\r\nContent-Type: image/png; name=\"inner.png\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--in--\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "a.pdf",
+          "mime": "application/pdf"
+        },
+        {
+          "name": "attachment",
+          "mime": "message/rfc822"
+        }
+      ]
+    },
+    {
+      "name": "a message that is nothing but text",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHello\r\n",
+      "files": []
+    },
+    {
+      "name": "a text part with an empty name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: text/plain; name=\"\"\r\n\r\nfooter\r\n--mix--\r\n",
+      "files": []
+    },
+    {
+      "name": "an attached image with an empty file name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=\"\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "a text part whose name is only blanks",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: text/plain; name=\"  \"\r\n\r\nfooter\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "text/plain"
+        }
+      ]
+    },
+    {
+      "name": "an attached image whose file name is only blanks",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=\"  \"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "a file name of blanks beside a name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: application/pdf; name=\"Rechnung.pdf\"\r\nContent-Disposition: attachment; filename=\"  \"\r\nContent-Transfer-Encoding: base64\r\n\r\nJVBERg==\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "Rechnung.pdf",
+          "mime": "application/pdf"
+        }
+      ]
+    },
+    {
+      "name": "a text part with an empty file name beside a name",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: text/plain; name=\"notes.txt\"\r\nContent-Disposition: inline; filename=\"\"\r\n\r\nfooter\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "notes.txt",
+          "mime": "text/plain"
+        }
+      ]
+    },
+    {
+      "name": "an attached image whose file name is a byte order mark",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=\"\ufeff\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "an attached image whose file name is a next-line character (U+0085, a blank to Rust, not to trim)",
+      "raw": "Subject: Test\r\nFrom: Ada <ada@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"mix\"\r\n\r\n--mix\r\nContent-Type: text/plain\r\n\r\nbody\r\n--mix\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=\"\u0085\"\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--mix--\r\n",
+      "files": [
+        {
+          "name": "attachment",
+          "mime": "image/png"
+        }
+      ]
+    }
+  ]
+}

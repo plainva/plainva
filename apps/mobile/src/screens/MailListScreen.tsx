@@ -1653,8 +1653,11 @@ export function MailListScreen({
                     <li key={row.thread.key}>
                       {/* A one-message conversation is a message, so it swipes
                           like one — the branch that had no SwipeRow at all
-                          until round 3. */}
-                      <SwipeRow actions={swipeFor(latest)}>
+                          until round 3. Its own key: the row of a conversation
+                          stands in the same place, and an "open" swiped there
+                          must not carry over to the message left of it
+                          (Fehlerliste 0.9.0 C5). */}
+                      <SwipeRow key="message" actions={swipeFor(latest)}>
                         <button
                           type="button"
                           className={latest.seen ? "m-mailrow" : "m-mailrow is-unread"}
@@ -1699,6 +1702,7 @@ export function MailListScreen({
                     {/* A swipe here means the WHOLE conversation (E3b) — the
                         same thing a tap means while picking. */}
                     <SwipeRow
+                      key="conversation"
                       actions={mailRowActions(t, { delete: unified ? undefined : () => void swipeDeleteThread(row.thread.messages) }).map((a) => ({
                         icon: <a.icon size={ICON.ui} />,
                         label: a.label,

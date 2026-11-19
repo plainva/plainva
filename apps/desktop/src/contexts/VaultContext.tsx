@@ -1,11 +1,11 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
+import { errorText, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews } from "@plainva/ui";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, vaultFolderIsThere } from "@plainva/core";
+import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, readFullTextDamage, sameStoredValue, updateVaultText, vaultFolderIsThere } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { flushDrafts, forgetDraftMemory, relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
@@ -25,6 +25,7 @@ import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from ".
 import { syncStatusStore } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
+import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
@@ -59,7 +60,8 @@ import type { FileOp } from "@plainva/ui";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { workspaceActivationStore } from "../services/workspaceActivationStore";
 import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
-import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, beginWorkspaceLock, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
+import { WORKSPACE_KEY_BUNDLE_MISSING } from "../services/workspaceSecurity/workspaceClosed";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { REMINDER_SOURCES_CHANGED, startReminderScheduler } from "../services/reminderScheduler";
@@ -80,7 +82,7 @@ import { microsoftAuthFetch } from "../services/authFetch";
 import { getSettingsStore } from "../services/settingsStore";
 import { askHeldFolder, desktopSyncBranch } from "../services/encryptedRemoteStart";
 import { templateVaultOf } from "../services/dailyNotes";
-import { IndexDatabaseOpenError, indexDatabaseWasRebuilt, openIndexDatabase, setAsideDesktopIndexDatabase } from "../services/indexDatabase";
+import { IndexDatabaseOpenError, indexDatabaseWasRebuilt, openIndexDatabase, resolveIndexDbUrl, setAsideDesktopIndexDatabase } from "../services/indexDatabase";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
 import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
@@ -263,6 +265,17 @@ interface VaultContextType extends VaultState {
    * its place, and the vault opens with its index built anew. Owner only.
    */
   rebuildIndexDatabase: () => Promise<void>;
+  /**
+   * The search's "Rebuild index" for the open vault whose full-text index
+   * could not be made anew at its open (`readFullTextDamage`): the vault is
+   * closed the ordinary way first (unsaved text asked about, a running cycle
+   * drained), then the start's rebuild runs. Never in an encrypted workspace.
+   * False: nothing happened (the question about unsaved text was answered no).
+   * Owner only.
+   */
+  rebuildDamagedIndexDatabase: () => Promise<boolean>;
+  /** Whether the open vault is an encrypted workspace, for the search's notice (`useFullTextDamageNotice`). */
+  indexRebuildWorkspace: () => Promise<IndexDatabaseWorkspace>;
   preparePersonalWorkspace: (input: { ownerDisplayName: string; deviceDisplayName: string; fallbackPassphrase?: string }) => Promise<PreparedPersonalWorkspace>;
   activatePersonalWorkspace: (draftId: string, onProgress?: (done: number, total: number) => void) => Promise<{ queued: number; total: number }>;
   unlockPersonalWorkspace: (passphrase?: string) => Promise<void>;
@@ -1492,7 +1505,7 @@ export const VaultProvider: React.FC<{
               // there sends the user looking for the wrong thing (finding 2026-08-25, B6).
               const missing = workspaceAccess?.state === "absent";
               const nextStatus: WorkspaceSecurityPublicStatus = missing
-                ? { ...workspaceSecurityStatus, phase: "error", lastError: "workspace-key-bundle-missing" }
+                ? { ...workspaceSecurityStatus, phase: "error", lastError: WORKSPACE_KEY_BUNDLE_MISSING }
                 : { ...workspaceSecurityStatus, phase: "locked" };
               resolvedWorkspaceSecurityStatus = nextStatus;
               await saveWorkspaceSecurityStatus(path, nextStatus);
@@ -2610,16 +2623,24 @@ export const VaultProvider: React.FC<{
     const indexer = state.indexer;
     if (!indexer) return;
     setState(s => ({ ...s, isLoading: true }));
+    let damagedDatabase = false;
     try {
       await indexer.rebuildIndex("index rebuild");
       bumpTree();
       toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
     } catch (e) {
+      // Reading everything again cannot heal the database itself: where that is
+      // what failed, the start's way of setting it aside is offered, asked first.
+      damagedDatabase = indexDatabaseFailureKind(e) === "damaged" && indexDatabaseRebuildOffered("damaged", await indexRebuildWorkspace());
       console.error("[VaultContext] index rebuild failed", e);
-      if (!indexFailureSaid(e)) toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
+      if (!damagedDatabase && !indexFailureSaid(e)) toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
     } finally {
       setState(s => ({ ...s, isLoading: false }));
     }
+    if (!damagedDatabase) return;
+    const yes = await appConfirm({ title: i18n.t("indexDatabase.rebuildTitle"), message: i18n.t("indexDatabase.rebuildConfirm"), confirmLabel: i18n.t("settings.rebuildIndexAction") });
+    if (!yes) return;
+    await rebuildOpenIndexDatabase().catch((error: unknown) => toast.error(i18n.t("indexDatabase.rebuildFailed", { reason: errorText(error) })));
   };
 
   // P1b/P1c: one mechanism, several triggers. The manual ones (F5, the tree
@@ -2716,15 +2737,58 @@ export const VaultProvider: React.FC<{
     await loadVault(state.vaultPath);
   };
 
+  /** The start's rebuild: set the damaged file aside and open the vault again (its accounts come back in `loadVault`). */
+  const rebuildIndexDatabaseAt = async (vaultPath: string, url: string): Promise<void> => {
+    // Whatever of the failed open, or of the ordinary close, still drains goes first: nothing may hold the file.
+    await awaitVaultTeardown(vaultPath);
+    await setAsideDesktopIndexDatabase(url);
+    setState(s => ({ ...s, error: null, indexDatabaseFailure: null }));
+    await loadVault(vaultPath);
+  };
+
   const rebuildIndexDatabase = async (): Promise<void> => {
     if (isClient) throw new Error(ownerOnly("rebuildIndexDatabase"));
     const failure = state.indexDatabaseFailure;
     if (!failure || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return;
-    // Whatever of the failed open still drains goes first: nothing may hold the file.
-    await awaitVaultTeardown(failure.vaultPath);
-    await setAsideDesktopIndexDatabase(failure.url);
-    setState(s => ({ ...s, error: null, indexDatabaseFailure: null }));
-    await loadVault(failure.vaultPath);
+    await rebuildIndexDatabaseAt(failure.vaultPath, failure.url);
+  };
+
+  const indexRebuildWorkspace = async (): Promise<IndexDatabaseWorkspace> =>
+    state.vaultPath ? indexDatabaseWorkspace(() => getWorkspaceSecurityStatus(state.vaultPath!)) : "unknown";
+
+  const rebuildDamagedIndexDatabase = async (): Promise<boolean> => {
+    if (isClient) throw new Error(ownerOnly("rebuildDamagedIndexDatabase"));
+    const db = state.dbAdapter;
+    // Only where the open's own attempt failed.
+    if (!db || (await readFullTextDamage(db)).state !== "rebuild-failed") return false;
+    return rebuildOpenIndexDatabase();
+  };
+
+  /**
+   * The open vault's index database set aside and built anew, the start's way
+   * (`rebuildIndexDatabaseAt`) — for the search, where the open could not
+   * make the full-text index anew, and for "Rebuild index" in the settings
+   * where it fails at the database itself. Asked first by the caller.
+   */
+  const rebuildOpenIndexDatabase = async (): Promise<boolean> => {
+    const path = state.vaultPath;
+    if (!path || !state.dbAdapter) return false;
+    // Never in an encrypted workspace, nor where that cannot be told.
+    if (!indexDatabaseRebuildOffered("damaged", await indexRebuildWorkspace())) return false;
+    // The ordinary close's safeguards: a changed draft is asked about, then the
+    // vault's runtime drains — the draft journal, pending writes, the running
+    // cycle, the index — before anything touches the file.
+    if (holdsUnsavedWork() && !(await askHeldWork())) return false;
+    const url = await resolveIndexDbUrl(path);
+    await teardownVault();
+    try {
+      await rebuildIndexDatabaseAt(path, url);
+    } catch (error) {
+      // Not opened again: the start, with what went wrong — never half a vault.
+      setState(s => ({ ...s, isLoading: false, error: i18n.t("indexDatabase.rebuildFailed", { reason: errorText(error) }) }));
+      throw error;
+    }
+    return true;
   };
 
   /**
@@ -2792,7 +2856,15 @@ export const VaultProvider: React.FC<{
 
   const lockWorkspace = async (): Promise<void> => {
     if (!state.vaultPath || !state.workspaceSecurityStatus) throw new Error("workspace-not-configured");
-    await state.syncWorker?.stopAndDrain();
+    // Closed for every app from the moment the lock begins, while the sync still drains with the keys (round 11 of the
+    // review of wave 2, § 3.2); undone only where the lock does not go through.
+    const lock = beginWorkspaceLock(state.vaultPath);
+    try {
+      await state.syncWorker?.stopAndDrain();
+    } catch (error) {
+      lock.undo();
+      throw error;
+    }
     lockWorkspaceRuntime(state.vaultPath);
     await saveWorkspaceSecurityStatus(state.vaultPath, { ...state.workspaceSecurityStatus, phase: "locked", lastError: null });
     await reloadVault();
@@ -3782,7 +3854,7 @@ export const VaultProvider: React.FC<{
   // One value identity per state change: renders of the provider itself (e.g.
   // parent re-renders) must not fan out to every useVault consumer (P3).
   const value = useMemo(
-    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, rebuildIndexDatabase, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, commentOperations, postWorkspaceCommentInput, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...clientCommentApi, ...CLIENT_WORKSPACE_HISTORY } : null) }),
+    () => ({ ...state, recentVaults, autoOpenLastVault, selectVault, openVault, refreshVault, refreshFolder, rebuildIndex, triggerFileTreeUpdate, closeVault, removeRecentVault, setAutoOpenLastVault, reloadVault, rebuildIndexDatabase, rebuildDamagedIndexDatabase, indexRebuildWorkspace, preparePersonalWorkspace: prepareWorkspace, activatePersonalWorkspace: activateWorkspace, unlockPersonalWorkspace: unlockWorkspace, lockPersonalWorkspace: lockWorkspace, removeRemotePlaintext: cleanupRemotePlaintext, resumePersonalWorkspaceSetup: resumeWorkspaceSetup, changeWorkspacePassphrase, getWorkspaceKeyStorage: workspaceKeyStorage, resetConnectionEncryption, decommissionWorkspace, liftWorkspaceEncryption, getWorkspaceDiagnostics, getWorkspaceGovernance, inspectWorkspacePairingRequest, approveWorkspaceDevice, detectJoinableWorkspace, beginWorkspaceJoin, pollWorkspaceJoin, getPendingWorkspaceJoin, cancelPendingWorkspaceJoin, revokeWorkspaceDevice: removeWorkspaceDevice, revokeWorkspaceMember: removeWorkspaceMember, inviteWorkspaceMember: addWorkspaceMember, createWorkspaceGroup: addWorkspaceGroup, createWorkspaceSlice: addWorkspaceSlice, previewWorkspaceSlice: previewSlice, listWorkspaceSliceObjects: workspaceSliceObjects, createSlicePublication: addSlicePublication, listSlicePublications: slicePublications, listPublicationPendingCounts: publicationPendingCounts, previewSlicePublication, invitePublicationRecipient: addPublicationRecipient, listPublicationRecipients: publicationRecipientList, revokePublicationRecipient: revokePublicationRecipientById, removeSlicePublication: removePublication, restoreWorkspaceRecovery, rotateWorkspaceRecovery, activateWorkspaceRecovery, prepareWorkspaceOwnerTransfer, activateWorkspaceOwnerTransfer, updateWorkspaceQuarantine, discardLocalFork, exportWorkspaceQuarantine, exportWorkspaceQuarantineDiagnostics, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, commentOperations, postWorkspaceCommentInput, postWorkspaceComment, resolveWorkspaceComment, retractWorkspaceComment, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState, listWorkspaceRevisions, readWorkspaceRevision, ...(isClient ? { ...clientLifecycle, ...clientCommentApi, ...CLIENT_WORKSPACE_HISTORY } : null) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, isClient, clientLifecycle, clientCommentApi, commentOperations, recentVaults, autoOpenLastVault, selectVault, openVault, closeVault, removeRecentVault, setAutoOpenLastVault]
   );

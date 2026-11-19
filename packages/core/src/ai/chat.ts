@@ -1,5 +1,6 @@
 import type { Conversation, TextPart } from "./conversation.js";
-import { gateDecision, isCloudRecipient, redactDeniedLinks, type EgressRecipient, type GateDecision } from "./egressGate.js";
+import { gateDecision, isCloudRecipient, redactDeniedLinksIn, type EgressRecipient, type GateDecision } from "./egressGate.js";
+import { ReaderView } from "./readerView.js";
 import { LINK_CANDIDATE_LIMIT } from "./linkNames.js";
 import { isMcpExposedToolName } from "./mcp/names.js";
 import type { EffectivePolicy } from "./policy.js";
@@ -275,10 +276,33 @@ export interface ContextPolicyHost {
    * without it is asked for the one note its resolver finds.
    */
   linkCandidates?(target: string, fromPath: string): Promise<readonly string[]>;
+  /**
+   * What the rules `policyOf` applies besides a note's own text say now — the vault's folder rules, the encrypted
+   * workspace — as one text that changes whenever they do. What a decision kept over many messages rests on
+   * (`PackageGists.verdicts`); absent, no such decision is kept.
+   */
+  rulesStamp?(): Promise<string>;
+  /**
+   * The names of the vault's files read NOW, once, and every question about a link answered from that one read — what
+   * a link could mean and where a tap leads, by the one rule (ADR 0027). What a verdict kept over messages decides its
+   * links by (`PackageGists.verdicts`, review of R19, wave 2): the names `linkCandidates` keeps for a few seconds may
+   * lag behind the index the verdict's stamp is read from, and a "may go" decided on names older than its stamp
+   * stayed. One read for all of a verdict's links also keeps its cost linear in the notes it looks through. Where the
+   * names cannot say where a link leads, the shell's own resolver is asked too (`resolveLink`: the phone's looks at the
+   * files on disk the index has not read yet), and the snapshot names what it answered (`LinkSnapshot.shellAnswers`):
+   * a verdict kept over messages asks it again before it is taken. Absent, no such verdict is kept.
+   */
+  linkSnapshot?(): Promise<LinkSnapshot>;
 }
 
 /** What tells which notes a link could mean: a policy host, or anything that carries its two ways of asking. */
 export type LinkHost = Pick<ContextPolicyHost, "resolveLink" | "linkCandidates">;
+
+/** One read of the names (`ContextPolicyHost.linkSnapshot`), and what the shell's own resolver answered while it was asked. */
+export interface LinkSnapshot extends LinkHost {
+  /** Each link the names could not place and the shell's resolver was asked about, with its answer (null: no file). */
+  shellAnswers?(): readonly { target: string; from: string; path: string | null }[];
+}
 
 /** The notes a link could mean, as this host can tell: its candidates, or the one note its resolver finds. */
 export async function linkCandidatesOf(host: LinkHost, target: string, fromPath: string): Promise<readonly string[]> {
@@ -293,7 +317,13 @@ export async function linkCandidatesOf(host: LinkHost, target: string, fromPath:
  * about (`LINK_CANDIDATE_LIMIT`), which of them the link means cannot be
  * told — and "cannot tell" is never "none": the link is withheld.
  */
-export async function linkNamesDeniedNote(host: LinkHost, target: string, fromPath: string, isAllowed: (path: string) => Promise<boolean>): Promise<boolean> {
+export async function linkNamesDeniedNote(
+  host: LinkHost,
+  target: string,
+  fromPath: string,
+  isAllowed: (path: string) => Promise<boolean>,
+  rule: LinkRule = "any-kept-back",
+): Promise<boolean> {
   let paths: readonly string[];
   try {
     paths = await linkCandidatesOf(host, target, fromPath);
@@ -301,11 +331,25 @@ export async function linkNamesDeniedNote(host: LinkHost, target: string, fromPa
     // The vault could not say what the link means: it is not sent.
     return true;
   }
+  if (rule === "in-reach") {
+    for (const path of paths.slice(0, LINK_CANDIDATE_LIMIT)) if (await isAllowed(path)) return false;
+    return true;
+  }
   for (const path of paths.slice(0, LINK_CANDIDATE_LIMIT)) {
     if (!(await isAllowed(path))) return true;
   }
   return paths.length > LINK_CANDIDATE_LIMIT;
 }
+
+/**
+ * Which links are withheld. `any-kept-back` (the assistant's own rule): a link that could mean a note kept back —
+ * so a kept note's name never travels in a neighbour's text. `in-reach` (a reader outside Plainva, an app over MCP):
+ * a link stays only where it means a note the reader may see; any other is withheld, a link to no note at all among
+ * them. Then what the reader is told depends on nothing outside its reach — under the first rule, whether a link
+ * was withheld said that a note of that name lies outside (review of R19, wave 2). The name such a link shows is the
+ * name of a note in reach, so it tells nothing of one outside.
+ */
+export type LinkRule = "any-kept-back" | "in-reach";
 
 export interface AssembledContext {
   /** The part that goes before the user's words; null when nothing may be sent. */
@@ -337,20 +381,61 @@ export async function withholdDeniedLinks(
   fromPath: string,
   host: LinkHost,
   isAllowed: (path: string) => Promise<boolean>,
+  rule: LinkRule = "any-kept-back",
+  verdicts?: LinkVerdicts,
 ): Promise<{ text: string; redacted: number }> {
+  const { view, redacted } = await withholdDeniedLinksIn(ReaderView.of(text), fromPath, host, isAllowed, rule, verdicts);
+  return { text: view.text, redacted };
+}
+
+/**
+ * What one reader decided about links, kept for as long as that reader's question is answered (one tool call, one
+ * context package): a link means what it means from the FOLDER it stands in — every rule a link is followed by reads
+ * that folder and the vault, never the note's own name (`filesALinkCouldMean`, `resolveLinkTargetIndexed`) —, so a
+ * thousand notes of one folder that link to the same note ask about it once (review of R19, wave 2: a search through a
+ * view resolved the same link in every hit). Only for one `isAllowed`: a map belongs to one reader.
+ */
+export type LinkVerdicts = Map<string, Promise<boolean>>;
+
+const verdictKey = (rule: LinkRule, fromPath: string, target: string) => `${rule}\u0000${fromPath.slice(0, fromPath.lastIndexOf("/") + 1)}\u0000${target}`;
+
+/** `withholdDeniedLinks` on a reader's view: each withheld link becomes a withheld piece of it (`ReaderView`). */
+export async function withholdDeniedLinksIn(
+  view: ReaderView,
+  fromPath: string,
+  host: LinkHost,
+  isAllowed: (path: string) => Promise<boolean>,
+  rule: LinkRule = "any-kept-back",
+  verdicts?: LinkVerdicts,
+): Promise<{ view: ReaderView; redacted: number }> {
   // First pass: collect every target exactly as the redactor parses it (wiki
   // and Markdown links alike), so what is resolved and what is replaced can
   // never disagree about where a link starts or ends.
   const targets = new Set<string>();
-  redactDeniedLinks(text, (target) => {
+  redactDeniedLinksIn(view, (target) => {
     targets.add(target.trim());
     return false;
   });
   // A link is withheld where any note it could mean is kept back — not only
   // the one a tap would open in this shell (`linkNamesDeniedNote`).
   const denied = new Map<string, boolean>();
-  for (const target of targets) denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed));
-  return redactDeniedLinks(text, (target) => denied.get(target.trim()) ?? false);
+  // Asked together: questions in one turn share the vault's one read of its link names.
+  await Promise.all(
+    [...targets].map(async (target) => {
+      if (!verdicts) {
+        denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed, rule));
+        return;
+      }
+      const key = verdictKey(rule, fromPath, target);
+      let verdict = verdicts.get(key);
+      if (!verdict) {
+        verdict = linkNamesDeniedNote(host, target, fromPath, isAllowed, rule);
+        verdicts.set(key, verdict);
+      }
+      denied.set(target, await verdict);
+    }),
+  );
+  return redactDeniedLinksIn(view, (target) => denied.get(target.trim()) ?? false);
 }
 
 /**

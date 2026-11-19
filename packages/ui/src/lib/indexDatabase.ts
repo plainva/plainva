@@ -26,6 +26,9 @@ export function indexDatabaseFailureKind(error: unknown): IndexDatabaseFailureKi
   // SQLITE_CORRUPT (11) and its extended codes (267 virtual table, 523 sequence, 779 index), SQLITE_NOTADB (26).
   if (/\(code: (11|26|267|523|779)\)/.test(text)) return "damaged";
   if (/database disk image is malformed|file is not a database|SQLITE_CORRUPT|SQLITE_NOTADB|malformed database schema/i.test(text)) return "damaged";
+  // The phone's plugin on iOS: the primary code only. FTS5's own words for its storage, met under any code.
+  if (/\brc: (11|26)\b/.test(text)) return "damaged";
+  if (/fts5: (?:corruption found|missing row|checksum mismatch)|invalid fts5 file format|vtable constructor failed/i.test(text)) return "damaged";
   if (/\(code: (5|6|261|262|517)\)|database (?:table )?is locked|SQLITE_BUSY|SQLITE_LOCKED|database is busy/i.test(text)) return "locked";
   if (/\(code: 13\)|database or disk is full|SQLITE_FULL|no space left on device|ENOSPC/i.test(text)) return "full";
   if (/\(code: (8|14|264|776|1032)\)|readonly database|SQLITE_READONLY|SQLITE_CANTOPEN|unable to open database file|permission denied|EACCES|EPERM/i.test(text)) return "readOnly";

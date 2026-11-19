@@ -110,6 +110,7 @@ import {
   saveConnectionState,
 } from "./encryptionManifest";
 import { cloudAccountsRegistryKey, loadCloudAccounts, saveCloudAccounts } from "./cloudAccounts";
+import { profileAccountMapKey } from "./profileAccountMap";
 import { clearPimCredentials } from "./pim/pimCredentials";
 import { getSyncRootFolder } from "./cloudAccountsActions";
 import {
@@ -162,7 +163,6 @@ const defaultCalendarKey = (v: string) => `defaultCalendar_${b64(v)}`;
 const defaultMailAccountKey = (v: string) => `defaultMailAccount_${b64(v)}`;
 // The vault's week start (decision E4): the key `weekStartVault.ts` reads and writes.
 const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
-const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
 const profileImportJournalKey = (v: string) => `settingsSyncImportJournal_${b64(v)}`;
 export const secretsSyncEnabledKey = (vaultPath: string) => `secretsSyncEnabled_${b64(vaultPath)}`;
 

@@ -28,7 +28,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
-import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, vaultFolderIsThere } from "@plainva/core";
+import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -189,6 +189,8 @@ export interface MobileVault {
    * (`indexDatabaseRebuildOffered`). Null where it opened.
    */
   indexDatabaseFailure: { kind: IndexDatabaseFailureKind; workspace: boolean; message: string } | null;
+  /** Whether this vault is an encrypted workspace: then the index database is never built anew (`indexDatabaseRebuildOffered`). */
+  isEncryptedWorkspace: boolean;
   /** Lets locally created files enqueue for push (called once sync starts). */
   enableSyncEnqueue(): void;
   /** Ends the initial-index enqueue deferral (3c) after the first pull. */
@@ -294,7 +296,7 @@ export async function discardPreparedContainer(vaultId: string, sourceVaultId?: 
 export async function openPreparedVaultDatabase(vaultId: string): Promise<IDatabaseAdapter> {
   if ((await getActiveVaultEntry()).id === vaultId) throw new Error("transfer_destination_active");
   const db = createIndexDatabase(`plainva-${vaultId}`);
-  try { await db.initialize(); await initializeSchema(db); return db; }
+  try { await db.initialize(); await initializeSchema(db); return watchFullTextDamage(db, reportingTo("index:full-text-damaged")); }
   catch (error) { await db.close().catch(() => {}); throw error; }
 }
 
@@ -464,14 +466,38 @@ async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Pr
  * again with its index built anew — over the cold index, as on a device that
  * never saw it. Asked first by the caller.
  */
-export async function rebuildActiveIndexDatabase(): Promise<void> {
+export async function rebuildActiveIndexDatabase(): Promise<boolean> {
   const current = bootPromise ? await bootPromise.catch(() => null) : null;
-  const failure = current?.indexDatabaseFailure;
-  if (!current || !failure || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return;
+  if (!current) return false;
+  const failure = current.indexDatabaseFailure;
+  if (failure) {
+    const entry = await getActiveVaultEntry();
+    if (entry.id !== current.vaultId || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return false;
+    // Nothing holds a database that did not open.
+    await setAsideMobileIndexDatabase(entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`);
+    return reloadActiveMobileVault();
+  }
+  // The search's "Rebuild index": the open vault whose full-text index could not be made anew at its open.
+  if (!current.db || (await readFullTextDamage(current.db)).state !== "rebuild-failed") return false;
+  return rebuildOpenMobileIndexDatabase();
+}
+
+/**
+ * The open vault's index database set aside and built anew, the strip's way
+ * (`setAsideMobileIndexDatabase`) — for the search, where the open could not
+ * make the full-text index anew, and for "Rebuild index" in Maintenance where
+ * it fails at the database itself. The vault is closed the ordinary way first
+ * — unsaved input asked about, the notes saved, the running cycle drained,
+ * the database closed — and the file set aside only then. Never in an
+ * encrypted workspace. Asked first by the caller.
+ */
+export async function rebuildOpenMobileIndexDatabase(): Promise<boolean> {
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (!current?.db || current.isEncryptedWorkspace) return false;
   const entry = await getActiveVaultEntry();
-  if (entry.id !== current.vaultId) return;
-  await setAsideMobileIndexDatabase(entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`);
-  await reloadActiveMobileVault();
+  if (entry.id !== current.vaultId) return false;
+  const name = entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`;
+  return reloadActiveMobileVault(undefined, { beforeReopen: () => setAsideMobileIndexDatabase(name).then(() => undefined) });
 }
 
 /** A reload waiting behind someone else's input (`screenStep.ts`). */
@@ -493,10 +519,10 @@ const RELOAD_STEP = "vault-reload";
  * resuming a setup) did so because the vault's state changes under it, and
  * only the reloaded vault starts it in the new state.
  */
-export async function reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean> {
+export async function reloadActiveMobileVault(own?: string | readonly string[], opts: ReloadOptions = {}): Promise<boolean> {
   const vaultId = (await getActiveVaultEntry()).id;
   if (foreignInputArmed(own)) {
-    offerReload(vaultId, own);
+    offerReload(vaultId, own, opts);
     return false;
   }
   const current = await retireBoot();
@@ -504,16 +530,27 @@ export async function reloadActiveMobileVault(own?: string | readonly string[]):
   await stopSyncAndDrain();
   // The drain can take a transfer's length: input begun in it is at stake too.
   if (current && foreignInputArmed(own)) {
-    offerReload(vaultId, own);
+    offerReload(vaultId, own, opts);
     return false;
   }
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
-  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+  try {
+    // Between the close and the next open: nothing of this vault holds its files now.
+    await opts.beforeReopen?.();
+  } finally {
+    // Opened again in any case — with the database as it is where the step failed — so nobody is left without a vault.
+    window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+  }
   return true;
 }
 
-function offerReload(vaultId: string, own?: string | readonly string[]): void {
+/** What a reload does between closing the vault and opening it again (the search's "Rebuild index"). */
+interface ReloadOptions {
+  beforeReopen?: () => Promise<void>;
+}
+
+function offerReload(vaultId: string, own?: string | readonly string[], opts: ReloadOptions = {}): void {
   takeScreen(RELOAD_STEP, {
     // A vault switched away from meanwhile has been opened anew already.
     // What is armed when it runs was given up: by "Discard" at the notice's
@@ -522,7 +559,7 @@ function offerReload(vaultId: string, own?: string | readonly string[]): void {
     run: async () => {
       const given = armedLeaveGuards().map((g) => g.id);
       const mine = own === undefined ? [] : typeof own === "string" ? [own] : own;
-      if ((await getActiveVaultEntry()).id === vaultId) await reloadActiveMobileVault([...mine, ...given]);
+      if ((await getActiveVaultEntry()).id === vaultId) await reloadActiveMobileVault([...mine, ...given], opts);
     },
     offer: i18n.t("mobile.vaultReloadOffer"),
     label: i18n.t("mobile.vaultReloadOfferAction"),
@@ -915,6 +952,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     db = createIndexDatabase(indexDatabaseName);
     await db.initialize();
     await initializeSchema(db);
+    // A damaged full-text index met while the vault is open is noted, and the next open makes it anew.
+    db = watchFullTextDamage(db, reportingTo("index:full-text-damaged"));
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
     await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
     // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
@@ -1175,6 +1214,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     searchAvailable,
     indexClosed: db === null && !isLocal,
     indexDatabaseFailure,
+    isEncryptedWorkspace: !!workspaceStatus,
     enableSyncEnqueue: () => {
       syncEnqueueEnabled = true;
     },

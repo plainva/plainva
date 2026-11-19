@@ -26,6 +26,12 @@ describe("why an index database did not open", () => {
     "Open: open plainva-index failed: database disk image is malformed",
     "Error: SQLITE_NOTADB: file is not a database",
     "malformed database schema (files) - near \"x\": syntax error",
+    // The phone's plugin on iOS: the primary code only.
+    "Error: prepareSQL step failed rc: 11 message: unknown error",
+    // FTS5's own words for its storage, under any code.
+    "error returned from database: (code: 1) invalid fts5 file format (found 99, expected 4 or 5) - run 'rebuild'",
+    "error returned from database: (code: 1) vtable constructor failed: fts_notes",
+    "Error: prepareSQL step failed rc: 11 message: fts5: missing row -80 from content table 'main'.'fts_notes_content'",
   ])("a damaged file: %s", (text) => {
     expect(indexDatabaseFailureKind(new Error(text))).toBe("damaged");
   });

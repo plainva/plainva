@@ -1,5 +1,7 @@
 import type { TextPart } from "../conversation.js";
-import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost } from "../chat.js";
+import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkHost, type LinkSnapshot, type LinkVerdicts } from "../chat.js";
+import { frontmatterKeys, notePropertiesAsWritten } from "../../frontmatter-surgical.js";
+import { frontmatterSpan } from "../../frontmatter-block.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
 import { fenceUntrusted, payload } from "../trust.js";
 import { isAiHiddenPath } from "../hiddenPaths.js";
@@ -7,9 +9,10 @@ import { chunkNote } from "../embeddings/chunks.js";
 import { noteHash } from "../runSnapshot.js";
 import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type CandidateSignal, type RankedCandidate } from "./ranking.js";
 import { cardText, contextCard } from "./cards.js";
-import { checkGist, gistKey } from "./gists.js";
+import { checkGist, sectionGistKey } from "./gists.js";
 import { areaOf } from "./gistWriter.js";
 import { atxHeading, firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
+import { hasSearchOccurrence } from "../../vault/searchOccurrences.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
 import { goingKinds, redactSensitive, SENSITIVE_KINDS, sensitiveFindings, sensitiveKinds, SITUATION_SOURCE, type SensitiveKind } from "./sensitiveHints.js";
 import { questionTerms } from "./terms.js";
@@ -111,12 +114,52 @@ export interface ContextBuildHost extends ContextPolicyHost {
 }
 
 export interface PackageGists {
-  /** The gist of a section's exact text (`gistKey`). */
+  /** The gist of a section's exact text (`sectionGistKey`: its text in its own note). */
   section(key: string): Promise<string | null>;
   note(path: string): Promise<string | null>;
   area(area: string): Promise<string | null>;
   vault(): Promise<string | null>;
+  /**
+   * The notes an area's gist stands for (`area` null: the vault's), each with the text the index holds of it — at
+   * most `max`; null where there are more, or where the index cannot say. What decides whether an area's gist may
+   * go to a reader with a narrower view (review of R19, wave 2). Absent: no area's gist goes to such a reader.
+   */
+  notes?(area: string | null, max: number): Promise<{ path: string; text: string | null }[] | null>;
+  /**
+   * The state of the index an area's verdict rests on — every file's path, title and revision — as one text that
+   * changes whenever any of them does; null where the index cannot say.
+   */
+  state?(): Promise<string | null>;
+  /**
+   * Whether an area's gist may go to a reader, kept over messages (review of R19, wave 2: every package looked through
+   * every note of the area again, seconds a message): by area and reader, with the state it was decided in
+   * (`state`, the host's `rulesStamp`). One that was decided in another state is decided anew.
+   */
+  verdicts?: Map<string, KeptAreaVerdict>;
 }
+
+/**
+ * An area's verdict kept over messages (`PackageGists.verdicts`): the state it was decided in, and for a "may go" what
+ * it read besides the index — the notes its links could mean, whose own rules are read from their files, and what the
+ * shell's resolver answered for links the names could not place (`LinkSnapshot.shellAnswers`). Both are asked again
+ * before a kept "may go" is taken: it never lets through what a verdict decided in the same moment holds back (review
+ * of R19, wave 2).
+ */
+export interface KeptAreaVerdict {
+  stamp: string;
+  allowed: boolean;
+  targets?: readonly string[];
+  shell?: readonly { target: string; from: string; path: string | null }[];
+}
+
+/** The most notes an area is looked through for whether its gist may go to a reader with a narrower view. */
+export const GIST_AREA_CHECK_MAX = 2_000;
+
+/**
+ * What every link the views withhold is written with (`redactDeniedLinksIn`): `[[` for a wiki link, `](` for a
+ * Markdown link, `]:` for the definition every reference link needs. A text without any of them holds no link.
+ */
+const MAY_HOLD_A_LINK = /\[\[|\]\(|\]:/;
 
 /** Map handles that may carry their note's gist, and areas that may be named with theirs. */
 const MAP_GISTS = 4;
@@ -340,15 +383,27 @@ function clip(text: string, max: number): { text: string; clipped: boolean } {
   return { text: text.slice(0, cut > max * 0.6 ? cut : max), clipped: true };
 }
 
+/**
+ * A property of the open note as a line — whole, never cut. The shells read the values as they are written
+ * (`propertiesAsWritten`): a link without quotes is the text `[[…]]` here, as in quotes.
+ */
 function propertyLine(key: string, value: unknown): string {
-  const text = Array.isArray(value) ? value.map((v) => String(v)).join(", ") : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
-  return `${key}: ${text.length > 200 ? `${text.slice(0, 200)}…` : text}`;
+  const text = Array.isArray(value) ? value.map((v) => (typeof v === "object" && v !== null ? JSON.stringify(v) : String(v))).join(", ") : typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
+  return `${key}: ${text}`;
+}
+
+/** A property line is cut — once what the reader may not see is withheld from it, so no link is cut in two (review of R19). */
+function cutPropertyLine(line: string): string {
+  const at = line.indexOf(": ");
+  const value = at < 0 ? line : line.slice(at + 2);
+  return value.length > 200 ? `${at < 0 ? "" : line.slice(0, at + 2)}${value.slice(0, 200)}…` : line;
 }
 
 /** The section a card is cut from: where the question's words are, else where its meaning was, else the note's start. */
-function cardSource(text: string, title: string, candidate: RankedCandidate, terms: readonly string[]): { chain: string; text: string } {
+function cardSource(text: string, title: string, candidate: RankedCandidate, terms: readonly string[], seenBody = noteBody(text)): { chain: string; text: string } {
   const body = noteBody(text);
-  const line = firstLineWith(body, terms);
+  // The line is looked for in what the reader may see of the note, which has the note's lines.
+  const line = firstLineWith(seenBody, terms);
   if (line >= 0) return sectionAt(body, line);
   if (candidate.chunk) {
     const chunk = chunkNote(title, text).find((c) => c.ordinal === candidate.chunk!.ordinal);
@@ -432,11 +487,149 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     return decision.allowed;
   };
   /** What any vault text passes before it goes: place stamps withheld; for a cloud or a run with the internet, links to denied notes too. */
+  /** This package's decisions about links (`LinkVerdicts`): one reader, one question. */
+  const linkVerdicts: LinkVerdicts = new Map();
+  /**
+   * A text as this run may see it, without counting what it withholds: what PICKS a part of a note — the line that
+   * holds a word of the question — and what NAMES one — a title, a section's headings — is read on it, so neither
+   * the choice nor the name depends on what is withheld (review of R19, wave 2). A withheld link stands in its line,
+   * a place stamp is a line of its own: the lines are the note's lines.
+   */
+  const seenOf = async (text: string, fromPath: string): Promise<string> => {
+    const places = withholdPlaces(text).text;
+    if (!cloud && !run.webTools) return places;
+    return (await withholdDeniedLinks(places, fromPath, host, (path) => allowed(path), "any-kept-back", linkVerdicts)).text;
+  };
+  /**
+   * Whether a note holds anything back from this reader: a place stamp, a link the reader may not follow (read as the
+   * view reads links, in the text and in the properties), a mood, or numbers the reader redacts for it. A gist is
+   * written from the whole note, and says in its own words what a link names ("the Kowalski pay talk"): to a reader
+   * with a narrower view a gist goes only where its note holds back nothing (decision of 2026-11-13, review of R19,
+   * wave 2) — decided now, with the note and the rules as they are now, whenever the gist was written.
+   */
+  /** `holdsBack` with the links read by `links` and the notes they mean gated by `gate`: each way keeps its own answers. */
+  const holdsBackBy = (links: LinkHost, verdicts: LinkVerdicts, gate: (path: string) => Promise<boolean> = allowed) => {
+    const heldBack = new Map<string, Promise<boolean>>();
+    const now = async (path: string, text: string): Promise<boolean> => {
+      if (withholdPlaces(text).withheld > 0) return true;
+      if (withoutSensitiveProperties(Object.fromEntries(frontmatterKeys(text).map((key) => [key, true])), situation.moodKey).withheld > 0) return true;
+      if (input.redact?.has(path) && sensitiveFindings(text).length > 0) return true;
+      // No link syntax at all: no link to withhold — nothing to resolve.
+      if (!MAY_HOLD_A_LINK.test(text)) return false;
+      return (await withholdDeniedLinks(text, path, links, (target) => gate(target), "any-kept-back", verdicts)).redacted > 0;
+    };
+    return (path: string, text: string): Promise<boolean> => {
+      let answer = heldBack.get(path);
+      if (!answer) {
+        answer = now(path, text);
+        heldBack.set(path, answer);
+      }
+      return answer;
+    };
+  };
+  const holdsBack = holdsBackBy(host, linkVerdicts);
+  /** Whether a note's gist may go to this reader: always to a model on this device; else only where its note holds nothing back. */
+  const gistMayGo = async (path: string, text: string | null | undefined): Promise<boolean> => {
+    if (!cloud && !run.webTools) return true;
+    if (typeof text !== "string") return false;
+    return !(await holdsBack(path, text));
+  };
+  /**
+   * Whether an area's gist (or the vault's: `area` null) may go to this reader: only where every note it stands for
+   * is one the reader may see and holds nothing back — from the index, at most `GIST_AREA_CHECK_MAX` of them; more, or
+   * an index that cannot say, and it does not go.
+   */
+  const areaGistMayGo = async (area: string | null): Promise<boolean> => {
+    if (!cloud && !run.webTools) return true;
+    const memo = host.gists?.verdicts;
+    // Kept only where the links can be read as fresh as the stamp (`linkSnapshot`, review of R19, wave 2).
+    const stamp = memo && host.linkSnapshot ? await verdictStamp() : null;
+    const key = `${area === null ? "\u0000vault" : area}`;
+    if (memo && stamp !== null) {
+      const known = memo.get(key);
+      // A kept "may not go" holds back no more than one decided now would. A kept "may go" is taken only where what it
+      // read besides the index says the same now: no note its links could mean denies itself, and the shell's resolver
+      // places no link elsewhere (a file on disk the index has not read yet).
+      if (known && known.stamp === stamp && (!known.allowed || (await stillSo(known)))) return known.allowed;
+    }
+    if (stamp === null) return areaGistMayGoNow(area, noteMayStand);
+    const standing = await freshStand();
+    const allowed = await areaGistMayGoNow(area, standing.mayStand);
+    // Kept only where nothing changed while it was decided: a verdict of a state between two is no verdict. The names
+    // were read after the stamp and before it was read again: equal stamps, and they are the names of that state.
+    if (memo && (await verdictStampNow()) === stamp) {
+      memo.set(key, allowed ? { stamp, allowed, targets: [...standing.targets], shell: standing.shell() } : { stamp, allowed });
+    }
+    return allowed;
+  };
+  /** Whether what a kept "may go" read besides the index says the same now (`KeptAreaVerdict`). */
+  const stillSo = async (known: KeptAreaVerdict): Promise<boolean> => {
+    if (!known.targets || !known.shell) return false;
+    const [gated, placed] = await Promise.all([
+      Promise.all(known.targets.map((path) => allowed(path).catch(() => false))),
+      Promise.all(known.shell.map(async (link) => (await host.resolveLink(link.target, link.from).catch(() => null)) === link.path)),
+    ]);
+    return gated.every(Boolean) && placed.every(Boolean);
+  };
+  const areaGistMayGoNow = async (area: string | null, mayStandHere: (path: string, text: string) => Promise<boolean>): Promise<boolean> => {
+    const notes = host.gists?.notes ? await host.gists.notes(area, GIST_AREA_CHECK_MAX).catch(() => null) : null;
+    if (!notes) return false;
+    for (const note of notes) {
+      if (note.text === null) return false;
+      if (!(await mayStandHere(note.path, note.text))) return false;
+    }
+    return true;
+  };
+  /**
+   * What a kept verdict rests on: the index (every file's path, title and revision — a note's text, its own rules,
+   * what a link can mean), the rules besides (`rulesStamp`), and the reader — whom it goes to, its mood key, the notes
+   * it redacts. Null where either the index or the rules cannot say: then nothing is kept.
+   */
+  const verdictStampNow = async (): Promise<string | null> => {
+    if (!host.gists?.state || !host.rulesStamp) return null;
+    const [index, rules] = await Promise.all([host.gists.state().catch(() => null), host.rulesStamp().catch(() => null)]);
+    if (index === null || rules === null) return null;
+    return JSON.stringify([index, rules, run, situation.moodKey ?? null, [...(input.redact ?? [])].sort()]);
+  };
+  let stampOnce: Promise<string | null> | null = null;
+  const verdictStamp = (): Promise<string | null> => (stampOnce ??= verdictStampNow());
+  /** Whether one note of an area may stand behind its gist for this reader: one it may see that holds nothing back. */
+  const mayStandBy = (heldBackHere: (path: string, text: string) => Promise<boolean>) => {
+    const mayStand = new Map<string, Promise<boolean>>();
+    return (path: string, text: string): Promise<boolean> => {
+      let answer = mayStand.get(path);
+      if (!answer) {
+        answer = (async () => gateDecision(await host.policyOf(path, text), run).allowed && !(await heldBackHere(path, text)))();
+        mayStand.set(path, answer);
+      }
+      return answer;
+    };
+  };
+  const noteMayStand = mayStandBy(holdsBack);
+  /**
+   * `noteMayStand` with the links read from the names as they are now, once for this package (`linkSnapshot`): what
+   * a verdict that is kept is decided by. Where the names cannot be read, every link is one that cannot be told.
+   */
+  let fresh: Promise<{ mayStand: (path: string, text: string) => Promise<boolean>; targets: Set<string>; shell: () => NonNullable<KeptAreaVerdict["shell"]> }> | null = null;
+  const freshStand = () =>
+    (fresh ??= (async () => {
+      const links: LinkSnapshot = await host.linkSnapshot!().catch(() => ({
+        resolveLink: () => Promise.reject(new Error("the names cannot be read")),
+        linkCandidates: () => Promise.reject(new Error("the names cannot be read")),
+      }));
+      // Every note a link could mean is gated by its own rules, read from its file: named, so a kept verdict asks again.
+      const targets = new Set<string>();
+      const gate = (path: string) => {
+        targets.add(path);
+        return allowed(path);
+      };
+      return { mayStand: mayStandBy(holdsBackBy(links, new Map(), gate)), targets, shell: () => [...(links.shellAnswers?.() ?? [])] };
+    })());
   const clean = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text);
     redactions.places += places.withheld;
     if (!cloud && !run.webTools) return places.text;
-    const links = await withholdDeniedLinks(places.text, fromPath, host, (path) => allowed(path));
+    const links = await withholdDeniedLinks(places.text, fromPath, host, (path) => allowed(path), "any-kept-back", linkVerdicts);
     redactions.withheldLinks += links.redacted;
     return links.text;
   };
@@ -499,6 +692,25 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     return left > 0 ? { left } : {};
   };
   const missing = new Set<string>();
+  /**
+   * Whether a note found by a word or a meaning may have been found by what a withheld link of it says, for a cloud
+   * or a run with the internet (decision A of 2026-11-13, review of R19): by a word of the question that its text holds
+   * only where the link is withheld, or by its meaning alone, which cannot be told apart. Such a note stays out, in
+   * doubt — its being chosen would tell what the link says.
+   */
+  const foundThroughWithheld = async (c: RankedCandidate, text: string): Promise<boolean> => {
+    if (!(cloud || run.webTools) || (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0) return false;
+    const lexical = (c.signals.lexical ?? 0) > 0;
+    if (!lexical && !((c.signals.semantic ?? 0) > 0)) return false;
+    const view = await withholdDeniedLinks(text, c.path, host, (path) => allowed(path), "any-kept-back", linkVerdicts);
+    if (view.redacted === 0) return false;
+    if (!lexical) return true;
+    // Words compared as the full-text index compares them — letter case, diacritics and scripts without spaces
+    // alike (`findSearchOccurrences`): a spelling the index folds must not find the note around the check.
+    const seen = `${await seenOf(c.title, c.path)}\n${c.path}\n${view.text}`;
+    const has = (where: string, term: string) => hasSearchOccurrence(where, term);
+    return terms.some((term) => has(text, term) && !has(seen, term));
+  };
   const strong = (c: RankedCandidate) =>
     (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0 || (c.signals.lexical ?? 0) >= 0.3 || (c.signals.semantic ?? 0) >= 0.5;
   /** Texts already chosen as evidence: the same section in two notes (a copy, a template) goes once (plan P2b). */
@@ -514,8 +726,12 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       continue;
     }
     if (!(await allowedText(candidate.path, read.text))) continue;
+    // Found by its words or its meaning, a note that withholds a link from this run stays out (decision A of
+    // 2026-11-13, review of R19): it may have been found by what the link says, and its being chosen would tell.
+    if (await foundThroughWithheld(candidate, read.text)) continue;
     const hash = noteHash(read.text);
     const body = noteBody(read.text);
+    const seenBody = noteBody(await seenOf(read.text, candidate.path));
     bodyBytes.set(candidate.path, utf8Length(body));
     const room = budget.evidenceChars - evidenceChars;
     let text: string;
@@ -534,7 +750,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       fromNote = text;
       whole = !clipped.clipped;
     } else if ((candidate.signals.active ?? 0) > 0) {
-      const line = firstLineWith(body, terms);
+      const line = firstLineWith(seenBody, terms);
       const outline = outlineOf(body).map((h) => `${"  ".repeat(h.level - 1)}- ${h.text}`);
       if (line >= 0 && body.length > budget.activeChars) {
         const found = sectionAt(body, line);
@@ -549,7 +765,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
         if (clipped.clipped && outline.length) text = `Sections:\n${outline.join("\n")}\n\n${text}`;
       }
     } else {
-      const line = firstLineWith(body, terms);
+      const line = firstLineWith(seenBody, terms);
       // Found by meaning and not by a word: the section the meaning came from, not the note's beginning.
       const chunk = line < 0 && candidate.chunk ? chunkNote(read.title || candidate.title, read.text).find((c) => c.ordinal === candidate.chunk!.ordinal) : undefined;
       if (chunk && chunk.to > chunk.from) {
@@ -583,6 +799,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // a place stamp or a link that is withheld is no part of a note that was left out.
     const chosenChars = text.length;
     text = await clean(text, candidate.path);
+    if (section) section = await seenOf(section, candidate.path);
     // The same words, however the lines end: a copied section is one source.
     const sameText = contextStamp(text.replace(/\s+/g, " ").trim());
     // What the user put there (a pin, the open note) always goes; only what the search found gives way.
@@ -600,7 +817,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // (P9-6). What the part is goes into the hash, so a stamp of the older form, which did not say it, never matches.
     // One hash token: a stamp's path is what stands before its last "#".
     const stamp = `${candidate.path}#${contextStamp(`${whole ? "whole" : "part"}\n${text}`)}${whole ? contextStamp(body) : ""}`;
-    const title = read.title || candidate.title;
+    const title = await seenOf(read.title || candidate.title, candidate.path);
     const label = whole ? "the whole note" : section ? `section "${section}"` : "the beginning";
     if (input.alreadySent?.has(stamp)) {
       // Nothing of it goes again; the hint stays only where the reader redacts it, so the choice can be taken back.
@@ -664,17 +881,21 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
     // The gate on the text that would go, as for evidence (the editor may hold an unsaved rule).
     if (!(await allowedText(candidate.path, read.text))) continue;
+    // Found by its words or its meaning, a note that withholds a link from this run stays out (decision A of
+    // 2026-11-13, review of R19): it may have been found by what the link says, and its being chosen would tell.
+    if (await foundThroughWithheld(candidate, read.text)) continue;
     const hash = noteHash(read.text);
-    const title = read.title || candidate.title;
+    const title = await seenOf(read.title || candidate.title, candidate.path);
     const body = noteBody(read.text);
     bodyBytes.set(candidate.path, utf8Length(body));
-    const found = cardSource(read.text, title, candidate, terms);
+    const found = cardSource(read.text, read.title || candidate.title, candidate, terms, noteBody(await seenOf(read.text, candidate.path)));
+    const chain = found.chain ? await seenOf(found.chain, candidate.path) : "";
     // Cleaned line by line before it is cut: a place stamp is a line of its own, and a card joins its lines.
-    let text = cardText(contextCard(await clean(found.text, candidate.path), found.chain)).replace(/\s+/g, " ").trim();
+    let text = cardText(contextCard(await clean(found.text, candidate.path), chain)).replace(/\s+/g, " ").trim();
     // A checked gist of exactly this section goes instead when it is shorter, unless the reader asked for the original (P2b-3).
     let gisted = false;
-    if (host.gists && !input.originals?.has(candidate.path)) {
-      const raw = await host.gists.section(gistKey(found.text)).catch(() => null);
+    if (host.gists && !input.originals?.has(candidate.path) && (await gistMayGo(candidate.path, read.text))) {
+      const raw = await host.gists.section(sectionGistKey(candidate.path, found.text)).catch(() => null);
       if (raw && checkGist("section", found.text, raw).ok) {
         const gist = (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim();
         if (gist && gist.length < text.length) {
@@ -696,7 +917,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     went(screened);
     sentBytes += utf8Length(text);
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
-    cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${gisted ? "(gist) " : ""}${text}` : ""}`);
+    cards.push(`- [[${title}]] (${candidate.path})${chain ? ` › ${chain}` : ""} — ${why}${text ? `: ${gisted ? "(gist) " : ""}${text}` : ""}`);
     refs.push({
       path: candidate.path,
       title,
@@ -704,7 +925,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       reasons: candidate.reasons,
       score: candidate.score,
       chars: text.length,
-      section: found.chain,
+      section: chain,
       noteChars: body.length,
       // A card with no sentence named the note and sent nothing of it: no part of it was left out by a choice.
       ...(cardChars > 0 ? leftOf(body, cardChars) : {}),
@@ -717,15 +938,25 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const map: string[] = [];
   const mapped = rest.filter((c) => !carded.has(c.path) && !missing.has(c.path) && decisions.get(c.path)?.allowed !== false);
   let mapGists = 0;
-  for (const candidate of mapped.slice(0, budget.map)) {
+  let named = 0;
+  for (const candidate of mapped) {
+    if (named >= budget.map) break;
+    // As for evidence and cards: a note found by its words or its meaning that withholds a link is not named either.
+    let read: { text: string } | null = null;
+    if (cloud || run.webTools) {
+      read = await host.readNote(candidate.path);
+      if (read && (await foundThroughWithheld(candidate, read.text))) continue;
+    }
+    named++;
     // The first handles may carry their note's gist (P2b-3): a line instead of a bare name, where one exists.
-    const raw = host.gists && mapGists < MAP_GISTS && !input.originals?.has(candidate.path) ? await host.gists.note(candidate.path).catch(() => null) : null;
+    const raw =
+      host.gists && mapGists < MAP_GISTS && !input.originals?.has(candidate.path) && (await gistMayGo(candidate.path, read?.text)) ? await host.gists.note(candidate.path).catch(() => null) : null;
     const screened = screen(raw ? (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim() : "", candidate.path);
     const gist = screened.text;
     if (gist) mapGists++;
     went(screened);
     sentBytes += utf8Length(gist);
-    map.push(`- [[${candidate.title}]] (${candidate.path})${gist ? ` — (gist) ${gist}` : ""}`);
+    map.push(`- [[${await seenOf(candidate.title, candidate.path)}]] (${candidate.path})${gist ? ` — (gist) ${gist}` : ""}`);
     refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: gist.length, ...(gist ? { gist: true } : {}), ...hintOf(screened) });
   }
   // The areas the sources come from, and the vault, as gists (P2b-3): written only from notes a cloud may see.
@@ -742,10 +973,13 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       if (area) counts.set(area, (counts.get(area) ?? 0) + 1);
     }
     for (const [area] of [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, AREA_GISTS)) {
+      // Asked first whether there is a gist at all: the notes behind it are looked through only for one that exists.
       const gist = await host.gists.area(area).catch(() => null);
+      if (gist && !(await areaGistMayGo(area))) continue;
       if (gist && quiet(gist)) areaLines.push(`- ${area}/ — ${gist.replace(/\s+/g, " ").trim()}`);
     }
-    const vault = await host.gists.vault().catch(() => null);
+    const stored = await host.gists.vault().catch(() => null);
+    const vault = stored && (await areaGistMayGo(null)) ? stored : null;
     if (vault && quiet(vault)) areaLines.unshift(`- The vault — ${vault.replace(/\s+/g, " ").trim()}`);
   }
 
@@ -767,8 +1001,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const lines: string[] = [`Now: ${situation.weekday}, ${situation.now}. Today for appointments and due dates: ${situation.calendarDay}; the journal's day: ${situation.journalDay}.`];
   const active = situation.active && !input.leaveOut?.has(situation.active.path) ? situation.active : null;
   if (active && (await allowed(active.path))) {
-    lines.push(active.kind === "base" ? `Open: the database [[${active.title}]] (${active.path}) — query_base reads it.` : `Open: [[${active.title}]] (${active.path}).`);
-    if (active.heading) lines.push(`The cursor is in the section "${active.heading}".`);
+    const activeTitle = await seenOf(active.title, active.path);
+    lines.push(active.kind === "base" ? `Open: the database [[${activeTitle}]] (${active.path}) — query_base reads it.` : `Open: [[${activeTitle}]] (${active.path}).`);
+    if (active.heading) lines.push(`The cursor is in the section "${await seenOf(active.heading, active.path)}".`);
     if (active.selection && active.selection.trim()) {
       const read = await host.readNote(active.path);
       if (!read || (await allowedText(active.path, read.text))) {
@@ -777,19 +1012,31 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
         dataClasses.add("selection");
       }
     }
-    if (active.properties && Object.keys(active.properties).length) {
-      const { properties, withheld } = withoutSensitiveProperties(active.properties, situation.moodKey);
+    // To a reader with a narrower view the properties are those of the note's block as it sees it — its links
+    // withheld in the text, then read (review of R19, wave 2): no reading of a value stands between a link and its
+    // being withheld. A note that cannot be read again shows none.
+    let seenProperties = active.properties;
+    if ((cloud || run.webTools) && seenProperties && Object.keys(seenProperties).length) {
+      const read = await host.readNote(active.path);
+      const span = read ? frontmatterSpan(read.text) : null;
+      seenProperties = read && span ? notePropertiesAsWritten(await clean(read.text.slice(0, span.end), active.path)) : undefined;
+    }
+    if (seenProperties && Object.keys(seenProperties).length) {
+      const { properties, withheld } = withoutSensitiveProperties(seenProperties, situation.moodKey);
       redactions.moodProperties += withheld;
-      const shown = Object.entries(properties).slice(0, 12).map(([k, v]) => propertyLine(k, v));
-      if (shown.length) lines.push(`Properties of the open note:\n${situationText(await clean(shown.join("\n"), active.path), active.path)}`);
+      const shown: string[] = [];
+      for (const [k, v] of Object.entries(properties).slice(0, 12)) shown.push(cutPropertyLine(await clean(propertyLine(k, v), active.path)));
+      if (shown.length) lines.push(`Properties of the open note:\n${situationText(shown.join("\n"), active.path)}`);
     }
   }
   const tabs: string[] = [];
-  for (const tab of situation.tabs) if (tab.path !== active?.path && (await allowed(tab.path))) tabs.push(`[[${tab.title}]]`);
+  for (const tab of situation.tabs) if (tab.path !== active?.path && (await allowed(tab.path))) tabs.push(`[[${await seenOf(tab.title, tab.path)}]]`);
   if (tabs.length) lines.push(`Open tabs: ${tabs.slice(0, 10).join(", ")}.`);
-  if (situation.dailyNote && (await allowed(situation.dailyNote.path))) lines.push(`Today's daily note: [[${situation.dailyNote.title}]] (${situation.dailyNote.path}).`);
+  if (situation.dailyNote && (await allowed(situation.dailyNote.path))) lines.push(`Today's daily note: [[${await seenOf(situation.dailyNote.title, situation.dailyNote.path)}]] (${situation.dailyNote.path}).`);
   const tasks: string[] = [];
-  for (const task of situation.tasks.slice(0, 12)) {
+  // Twelve of those the gate lets through: cut after the gate, so a task kept back takes no place of one that goes.
+  for (const task of situation.tasks) {
+    if (tasks.length >= 12) break;
     if (task.path && !(await allowed(task.path))) continue;
     const due = task.due ? ` (due ${task.due}${task.due < situation.calendarDay ? ", overdue" : ""})` : "";
     tasks.push(`- [ ] ${situationText(task.title, task.path)}${due}${task.path ? ` — in [[${titleFromPath(task.path)}]]` : ""}`);

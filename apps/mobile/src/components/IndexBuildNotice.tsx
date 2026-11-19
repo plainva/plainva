@@ -1,8 +1,8 @@
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, errorText, indexDatabaseRebuildOffered, toast, type IndexDatabaseFailureKind } from "@plainva/ui";
+import { Banner, Button, indexDatabaseRebuildOffered, type IndexDatabaseFailureKind } from "@plainva/ui";
 import { getIndexBuild, subscribeIndexBuild } from "../services/indexBuild";
-import { mConfirm } from "../services/mobileDialogs";
+import { useRebuildIndex } from "./useRebuildIndex";
 
 /**
  * The strip on top of the app while the first index of the open vault is
@@ -25,24 +25,11 @@ export function IndexBuildNotice({ vaultId, indexClosed = false, failure = null,
   indexClosed?: boolean;
   failure?: { kind: IndexDatabaseFailureKind; workspace: boolean; message: string } | null;
   /** Sets the damaged database aside and opens the vault again (`rebuildActiveIndexDatabase`). */
-  onRebuild?: () => Promise<void>;
+  onRebuild?: () => Promise<unknown>;
 }) {
   const { t } = useTranslation();
   const build = useSyncExternalStore(subscribeIndexBuild, getIndexBuild);
-  const [rebuilding, setRebuilding] = useState(false);
-  const rebuild = async () => {
-    if (rebuilding) return;
-    const yes = await mConfirm({ title: t("indexDatabase.rebuildTitle"), message: t("indexDatabase.rebuildConfirm"), confirmLabel: t("settings.rebuildIndexAction") });
-    if (!yes) return;
-    setRebuilding(true);
-    try {
-      await onRebuild?.();
-    } catch (error) {
-      toast.error(t("indexDatabase.rebuildFailed", { reason: errorText(error) }));
-    } finally {
-      setRebuilding(false);
-    }
-  };
+  const { rebuilding, rebuild } = useRebuildIndex(onRebuild);
   if (failure || indexClosed) {
     const offered = !!failure && !!onRebuild && indexDatabaseRebuildOffered(failure.kind, failure.workspace);
     return (

@@ -7,6 +7,7 @@
 export * from "./trust.js";
 export * from "./policy.js";
 export * from "./egressGate.js";
+export * from "./readerView.js";
 export * from "./linkNames.js";
 export * from "./preWriteLint.js";
 export * from "./sureCode.js";
@@ -25,6 +26,7 @@ export * from "./window.js";
 export * from "./history.js";
 export * from "./chat.js";
 export * from "./orchestrator.js";
+export * from "./toolFailure.js";
 export * from "./context/index.js";
 export * from "./embeddings/index.js";
 export * from "./coverage.js";

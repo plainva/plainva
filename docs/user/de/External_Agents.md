@@ -1,6 +1,6 @@
 # Externe Agenten (Beta)
 
-Stand: 2026-11-16
+Stand: 2026-11-18
 
 Ein externer Agent ist ein KI-Programm eines anderen Herstellers — ein Agent, den Du auf Deinem Rechner installiert und bei dem Du Dich selbst angemeldet hast, mit Deinem eigenen Abo oder Schlüssel. Plainva kann so einen Agenten im Ordner eines Vaults starten und seine Sitzung im KI-Tab zeigen. Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -69,7 +69,7 @@ Endet das Programm des Agenten von selbst, sagt die Sitzung das, und **Seine let
 ## Grenzen
 
 - Nur am Desktop und nur im Hauptfenster. Am Telefon gibt es Plainvas eigenen Assistenten.
-- Nicht in einem verschlüsselten Workspace.
+- Nicht in einem verschlüsselten Workspace: Dort startet kein Agent, und solange ein solcher Workspace gesperrt ist oder auf diesem Gerät kein Schlüssel dafür liegt, antworten Plainvas Werkzeuge keinem Agenten und keiner App.
 - Nicht, solange **Voll-lokal** an ist: Kein Agent startet und keine Anmeldung läuft, und eine laufende Sitzung endet.
 - Eine Sitzung zur selben Zeit, und kein Verlauf: eine beendete Sitzung lässt sich nicht wieder öffnen.
 - Bilder lassen sich nicht an einen Agenten senden, und einen Modus oder ein Modell, das Du in einer Sitzung wählst, übernimmt Plainva nicht in die nächste.

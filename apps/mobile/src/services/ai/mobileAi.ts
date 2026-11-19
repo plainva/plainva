@@ -38,6 +38,7 @@ import {
   setImageExplainer,
   situationEvents,
   situationFrom,
+  situationReach,
   spawnScriptWorker,
   startableSkills,
   startRoutineScheduler,
@@ -47,6 +48,7 @@ import {
   watchRoutineReady,
   withCloudDenied,
   type AiFileStore,
+  type DatabaseReach,
   type AppCommand,
   type AreaOrder,
   type VaultPolicyHost,
@@ -402,10 +404,10 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         neighbors: (path, limit) => query.getLinkNeighbors(path, limit),
       });
     /** Checkbox tasks and the task database, as every task view reads them. */
-    const taskRows = async () => {
+    const taskRows = async (options?: DatabaseReach) => {
       const db = getMobileSettings().taskDatabase.trim();
       const [dbRows, notes] = await Promise.all([
-        db ? read(db).then((text) => databaseTaskRows(text, (config) => query.queryDatabaseFiles(config))) : Promise.resolve([]),
+        db ? read(db).then((text) => databaseTaskRows(text, (config) => query.queryDatabaseFiles(config, options))) : Promise.resolve([]),
         query
           .listTasks()
           .then((tasks) => plannerRowsFromTasks(tasks.filter((task) => !task.excluded)))
@@ -517,13 +519,13 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       },
       // The phone's situation: the note the sheet opened over (one editor at a
       // time, no tabs), due tasks, the next appointments, today's daily note.
-      async situation() {
+      async situation(run) {
         const now = new Date();
         const path = sheetNote;
         const text = path ? ((await note(path))?.text ?? null) : null;
         const settings = getMobileSettings();
         const dailyPath = dailyNotePathFor(journalToday(now), { folder: settings.dailyFolder, format: settings.dailyFormat });
-        const [tasks, upcoming, dailyExists] = await Promise.all([taskRows(), events(now, new Date(now.getTime() + 2 * 86_400_000)), vault.files.exists(dailyPath).catch(() => false)]);
+        const [tasks, upcoming, dailyExists] = await Promise.all([taskRows(run ? situationReach((path) => vaultPolicy.policyOf(path), run) : undefined), events(now, new Date(now.getTime() + 2 * 86_400_000)), vault.files.exists(dailyPath).catch(() => false)]);
         return situationFrom({
           now,
           active: path ? { path, kind: "note", text } : null,
@@ -536,8 +538,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       },
       retrieval: {
         searchCandidates: (terms, limit) => query.searchCandidates(terms, limit),
-        linkNeighbors: (path, limit) => query.getLinkNeighbors(path, limit),
-        recentlyChanged: (limit) => query.getRecentlyChangedNotes(limit),
+        linkNeighbors: (path, limit, options) => query.getLinkNeighbors(path, limit, options),
+        recentlyChanged: (limit, offset, within) => query.getRecentlyChangedNotes(limit, offset, within),
         async recentlyOpened() {
           try {
             return parseRecentsFile(await vault.adapter.readTextFile(".plainva/recents.json"));
@@ -554,16 +556,19 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         notesContaining: (needles) => query.notesContaining(needles),
       },
       toolDeps: {
-        async search(q, limit, offset) {
-          const hits = await query.searchFullText(q, limit, offset);
-          return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
+        async search(q, limit, offset, within, withContent) {
+          // With the text the index holds where the search is read through a view, which tests each hit on it.
+          const hits = await query.searchFullText(q, limit, offset, withContent === true, null, within);
+          return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null, content: hit.sourceContent ?? null }));
         },
         readNote: read,
         taskRows,
         todayKey: () => calendarDay(),
         commands,
-        backlinks: (path) => query.getBacklinks(path),
-        queryDatabase: (config) => query.queryDatabaseFiles(config),
+        backlinks: (path, options) => query.getBacklinks(path, options),
+        queryDatabase: (config, options) => query.queryDatabaseFiles(config, options),
+        // A note's title and tags as a reader with a narrower view sees them: the one place every tool names a note from.
+        notesAsSeen: (paths, reach, rule) => query.notesAsSeen(paths, reach, rule),
         events,
         moodKey,
         // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
