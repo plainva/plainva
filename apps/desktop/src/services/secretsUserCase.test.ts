@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalSecretId, canonicalizeEndpoint, mergeSecretsBundles, stableStringify, type SecretBinding, type SecretsBundle } from "@plainva/core";
-import { calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { calDavSecretBinding, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { createSecretsPort } from "./test-secretsPort";
 import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 /**

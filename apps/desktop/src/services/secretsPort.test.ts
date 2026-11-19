@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SecretPolicyError, canonicalizeEndpoint, type SecretBinding, type SecretsBundle } from "@plainva/core";
-import { createSecretsPort, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { createSecretsPort } from "./test-secretsPort";
 
 /**
  * The shared keychain port (H2c) — the one place that decides when a credential

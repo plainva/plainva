@@ -14,6 +14,7 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
+import { sealSecretsMetaInStore } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -102,6 +103,19 @@ function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | n
       await store.save();
     },
   };
+}
+
+/**
+ * At start, before any vault opens: the secrets metadata of every vault on
+ * this device, open or not, loses the plain marks that up to now carried each
+ * password in `plainva-settings.json` (F67, `secretsMark.ts`). The key of the
+ * new marks lives with the passwords, in the credentials store.
+ */
+export async function sealSecretsMetaAtStart(): Promise<number> {
+  return sealSecretsMetaInStore(await getSettingsStore(), (key) => key.startsWith("settingsSyncSecretMeta_"), {
+    readSlot: (slot) => credentialManager.readSecret(slot),
+    writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
+  });
 }
 
 /** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`). */

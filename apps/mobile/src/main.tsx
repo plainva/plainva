@@ -151,6 +151,11 @@ async function boot(): Promise<void> {
   // What retired features left in this device's storage goes, once per start
   // (E13: the task trace's provider rows) — the desktop does the same.
   removeRetiredStorage();
+  // No password stays in the app's settings (F67): the marks of the secrets
+  // sync are sealed once per start, before any vault syncs.
+  await import("./services/mobileSecretsPort")
+    .then(({ sealSecretsMetaAtStart }) => sealSecretsMetaAtStart())
+    .catch((e) => logDiagnostic("settings-sync", `seal marks failed: ${e instanceof Error ? e.message : String(e)}`));
   // AFTER i18n, and that ordering is the fix, not an incidental detail: the
   // reminder action types are registered with the operating system once and
   // kept for the life of the process, so a registration that runs while `t()`

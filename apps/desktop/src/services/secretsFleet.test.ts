@@ -9,7 +9,7 @@ import {
   type SecretEntry,
   type SecretsBundle,
 } from "@plainva/core";
-import { calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
 import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 /**
@@ -52,6 +52,8 @@ interface Device {
   legacy: boolean;
   rows: Row[];
   slots: Map<string, string>;
+  /** The key of the marks (`secretsMark.ts`), kept beside the slots like a keychain entry. */
+  keyring: Map<string, unknown>;
   meta: SecretsPortMeta | null;
   pushes: number;
   /** Imports an updated device reported (`onImportResult` writes the diagnostics for each). */
@@ -67,6 +69,7 @@ function device(name: string, legacy: boolean, rows: Row[], passwords: Record<st
     legacy,
     rows,
     slots: new Map(Object.entries(passwords)),
+    keyring: new Map(),
     meta: null,
     pushes: 0,
     reports: 0,
@@ -95,8 +98,8 @@ function portOf(d: Device) {
     deviceId: async () => d.name,
     ...d.host,
     candidates: async () => candidates(),
-    readSlot: async (slot) => d.slots.get(slot) ?? null,
-    writeSlot: async (slot, value) => void d.slots.set(slot, value as string),
+    readSlot: async (slot) => (slot === SECRETS_MARK_KEY_SLOT ? d.keyring.get(slot) : d.slots.get(slot)) ?? null,
+    writeSlot: async (slot, value) => void (slot === SECRETS_MARK_KEY_SLOT ? d.keyring.set(slot, value) : d.slots.set(slot, value as string)),
     removeSlot: async (slot) => void d.slots.delete(slot),
     now: tick,
   });

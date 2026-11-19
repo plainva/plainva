@@ -20,6 +20,7 @@ import {
   type SecretsImportResult,
   type SecretsPort,
 } from "@plainva/core";
+import { sealSecretsMeta, secretsMarker, type SecretsMarker } from "./secretsMark";
 
 /**
  * The keychain side of the encrypted secrets sideband, written ONCE for both
@@ -117,7 +118,7 @@ export interface SecretsPortMeta {
   closedOldNames?: Record<string, string>;
   /**
    * The document, accounts and slots the last import took with nothing left
-   * open, as a short hash (`settledKey`). The same again is settled: nothing is
+   * open, as a mark (`settledKey`). The same again is settled: nothing is
    * written and nothing reported (round seven).
    */
   settled?: string;
@@ -258,8 +259,15 @@ function compareEntryVersion(
   return 0;
 }
 
-const entryHash = (entry: SecretEntry): string =>
-  entry.tombstone ? "" : stableStringify({ binding: entry.binding, secret: entry.secret });
+/**
+ * The mark of a binding and its secret (`secretsMark.ts`): what this file
+ * keeps to tell an unchanged password from a changed one, never the password.
+ */
+const pairMark = (mark: SecretsMarker, binding: SecretBinding, secret: unknown): Promise<string> =>
+  mark(stableStringify({ binding, secret }));
+
+const entryHash = async (mark: SecretsMarker, entry: SecretEntry): Promise<string> =>
+  entry.tombstone ? "" : pairMark(mark, entry.binding, entry.secret);
 
 /**
  * Rewrites a shell's own bookkeeping from the old per-device names to the
@@ -346,7 +354,7 @@ function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSe
  * their old name means neither (`oldNameId`). The old record stays, for the
  * entries a device on 0.8.7 keeps writing under that name.
  */
-function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): boolean {
+async function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker): Promise<boolean> {
   let carried = false;
   for (const candidate of candidates) {
     if (!isShareableSecretType(candidate.binding.secretType) || meta.entries[candidate.logicalId]) continue;
@@ -354,7 +362,7 @@ function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecr
     const known = old ? meta.entries[old] : undefined;
     if (!old || !known || known.tombstone || known.alias || !isBridgeSecretType(known.binding.secretType)) continue;
     meta.entries[candidate.logicalId] = {
-      hash: movedHash(known.hash, candidate.binding),
+      hash: await movedHash(mark, known, candidate),
       entryRev: known.entryRev,
       updatedAt: known.updatedAt,
       deviceId: known.deviceId,
@@ -366,14 +374,17 @@ function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecr
   return carried;
 }
 
-/** The record of a password under its old binding, as the same password under the current one; "" when it cannot be read. */
-function movedHash(hash: string, binding: SecretBinding): string {
-  try {
-    const known = JSON.parse(hash) as { secret?: unknown };
-    return known && typeof known === "object" && known.secret !== undefined ? stableStringify({ binding, secret: known.secret }) : "";
-  } catch {
-    return "";
-  }
+/**
+ * The mark of a moved record under the current binding. The secret comes from
+ * the slot, never from a mark (F67): when the slot holds what the old record
+ * names, the same password under the current binding; when it holds another,
+ * a mark that matches nothing, so the next export sees a change made here;
+ * with an empty slot or an unknown record, "" (not known here).
+ */
+async function movedHash(mark: SecretsMarker, known: { hash: string; binding: SecretBinding }, candidate: LocalSecretCandidate): Promise<string> {
+  if (!candidate.secret || !known.hash) return "";
+  if (known.hash !== (await pairMark(mark, known.binding, candidate.secret))) return "m1:~changed";
+  return pairMark(mark, candidate.binding, candidate.secret);
 }
 
 /** An old name closed by "Remove account" opens again when that same account is here again (`closedOldNames`). */
@@ -392,26 +403,18 @@ function reopenOldNames(meta: SecretsPortMeta, candidates: readonly LocalSecretC
 }
 
 /**
- * A short hash of what an import decides from: the document, and every
- * account here with its slot. The slot is in only as the hash this file
- * already keeps of it (`entries[].hash`), and only as a 53-bit digest, which
- * names no password.
+ * The mark of what an import decides from: the document (which carries the
+ * passwords) and every account here with its slot. Kept as a mark of this
+ * device's key (`secretsMark.ts`), like every other value of this file that is
+ * made from a password.
  */
-function settledKey(bundle: SecretsBundle, candidates: readonly LocalSecretCandidate[]): string {
-  const text = stableStringify({
-    entries: bundle.entries,
-    candidates: candidates.map((candidate) => [candidate.logicalId, candidate.slot, candidate.binding, candidate.secret]),
-  });
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    h1 = Math.imul(h1 ^ code, 2654435761);
-    h2 = Math.imul(h2 ^ code, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+function settledKey(mark: SecretsMarker, bundle: SecretsBundle, candidates: readonly LocalSecretCandidate[]): Promise<string> {
+  return mark(
+    stableStringify({
+      entries: bundle.entries,
+      candidates: candidates.map((candidate) => [candidate.logicalId, candidate.slot, candidate.binding, candidate.secret]),
+    }),
+  );
 }
 
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
@@ -425,13 +428,15 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   async function exportBundle(): Promise<SecretsBundle> {
       const deviceId = await host.deviceId();
       const stamp = now();
+      const mark = await secretsMarker(host);
       const meta = (await host.readMeta()) ?? emptyMeta();
+      await sealSecretsMeta(meta, mark);
       // OAuth registrations may still be exposed by an older shell adapter,
       // but the shared port is the final policy boundary for every platform.
       const candidates = (await host.candidates()).filter((candidate) =>
         isShareableSecretType(candidate.binding.secretType)
       );
-      carryOldKnowledge(meta, candidates);
+      await carryOldKnowledge(meta, candidates, mark);
       reopenOldNames(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       // Every account this device KNOWS, with or without a stored secret.
@@ -448,11 +453,12 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
 
       for (const candidate of candidates) {
         if (!candidate.secret) continue;
-        const hash = stableStringify({ binding: candidate.binding, secret: candidate.secret });
+        const hash = await pairMark(mark, candidate.binding, candidate.secret);
         const previous = meta.entries[candidate.logicalId];
         // The revision only moves when the secret actually changed — otherwise
-        // two devices would ping-pong revisions on every cycle.
-        const changed = !previous || previous.hash !== hash || previous.tombstone;
+        // two devices would ping-pong revisions on every cycle. A record whose
+        // mark is not known here ("") is taken as this slot (F67).
+        const changed = !previous || previous.tombstone || (previous.hash !== "" && previous.hash !== hash);
         const entryRev = changed ? (previous?.entryRev ?? 0) + 1 : previous.entryRev;
         const updatedAt = changed ? stamp : previous.updatedAt;
         entries[candidate.logicalId] = {
@@ -572,11 +578,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // candidates or touching metadata/keychain state.
       assertSecretsBundleStructure(bundle);
 
+      const mark = await secretsMarker(host);
       const originalMeta = await host.readMeta();
       const meta = cloneMeta(originalMeta);
+      const sealed = await sealSecretsMeta(meta, mark);
       const candidates = await host.candidates();
-      const key = settledKey(bundle, candidates);
-      if (meta.settled === key) return { ...emptyImportResult(), settled: true };
+      const key = await settledKey(mark, bundle, candidates);
+      if (meta.settled === key && !sealed) return { ...emptyImportResult(), settled: true };
       const byId = new Map(candidates.map((candidate) => [candidate.logicalId, candidate]));
       const operations: Array<{
         logicalId: string;
@@ -585,13 +593,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         viaOldName: boolean;
       }> = [];
       const result = emptyImportResult();
-      let metaDirty = carryOldKnowledge(meta, candidates);
+      let metaDirty = (await carryOldKnowledge(meta, candidates, mark)) || sealed;
       if (reopenOldNames(meta, candidates)) metaDirty = true;
       const closedOldName = (id: string) => !!meta.oldNameTombstones?.[id] || !!meta.closedOldNames?.[id];
 
-      const rememberEntry = (logicalId: string, entry: SecretEntry, alias = false) => {
+      const rememberEntry = async (logicalId: string, entry: SecretEntry, alias = false) => {
         meta.entries[logicalId] = {
-          hash: entryHash(entry),
+          hash: await entryHash(mark, entry),
           entryRev: entry.entryRev,
           updatedAt: entry.updatedAt,
           deviceId: entry.deviceId,
@@ -641,10 +649,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             continue;
           }
           if (order === 0) {
-            if (
-              previous.hash === entryHash(entry) &&
-              Boolean(previous.tombstone) === Boolean(entry.tombstone)
-            ) {
+            const hash = await entryHash(mark, entry);
+            // A record whose mark is not known here ("", F67) is the same entry.
+            const same = previous.hash === hash || (previous.hash === "" && !previous.tombstone && !entry.tombstone);
+            if (same && Boolean(previous.tombstone) === Boolean(entry.tombstone)) {
               recordImportResult(result, logicalId, "unchanged", "already-current");
             } else {
               recordImportResult(result, logicalId, "rejected", "version-collision");
@@ -716,7 +724,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const pairImported = !!meta.imported[logicalId] || (!!candidate && !!meta.imported[candidate.logicalId]);
 
         if (!candidate && entry.tombstone) {
-          rememberEntry(logicalId, entry);
+          await rememberEntry(logicalId, entry);
           delete meta.imported[logicalId];
           recordImportResult(result, logicalId, "unchanged", "tombstone-no-local-secret");
           continue;
@@ -740,7 +748,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
 
         if (entry.tombstone && !pairImported) {
-          rememberEntry(logicalId, entry);
+          await rememberEntry(logicalId, entry);
           if (candidate.secret) {
             recordImportResult(result, logicalId, "rejected", "local-secret-protected");
           } else {
@@ -753,7 +761,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
             continue;
           }
-          rememberEntry(logicalId, entry, viaOldName);
+          await rememberEntry(logicalId, entry, viaOldName);
           recordImportResult(result, logicalId, "unchanged", "already-current");
           continue;
         }
@@ -792,7 +800,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             // Read under its old name (`oldNameId`): the account's exact name was written with it.
             if (viaOldName) meta.imported[candidate.logicalId] = true;
           }
-          rememberEntry(logicalId, entry, viaOldName);
+          await rememberEntry(logicalId, entry, viaOldName);
           successfulSlots.add(candidate.slot);
           recordImportResult(result, logicalId, "imported");
         } catch {
@@ -810,7 +818,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const open = result.errors.length > 0 || result.unknownAccounts.length > 0 || result.legacyEntries.length > 0;
       // Taken against the slots as they are now: what this import wrote is the
       // state the next round finds.
-      const settled = open ? undefined : successfulSlots.size > 0 ? settledKey(bundle, await host.candidates()) : key;
+      const settled = open ? undefined : successfulSlots.size > 0 ? await settledKey(mark, bundle, await host.candidates()) : key;
       if (meta.settled !== settled) {
         if (settled) meta.settled = settled;
         else delete meta.settled;

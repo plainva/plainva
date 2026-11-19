@@ -25,7 +25,6 @@ import {
 } from "@plainva/core";
 import {
   cloudRegistryToLogical,
-  createSecretsPort,
   emptyAccountMap,
   pimAccountsForProfile,
   pimIdentity,
@@ -36,6 +35,7 @@ import {
   type ProfileAccountMap,
   type SecretsPortMeta,
 } from "@plainva/ui";
+import { createSecretsPort } from "./test-secretsPort";
 import { mailAccountsKey, mailSecretKey, type MailAccountConfig } from "@plainva/ui/mail";
 import {
   V060_FIXTURE_KEY,

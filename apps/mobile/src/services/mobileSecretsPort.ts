@@ -8,6 +8,7 @@ import {
   getPlatformServices,
   migrateSecretsMetaToCanonicalIds,
   retireSecret,
+  sealSecretsMetaInStore,
   type LocalSecretCandidate,
   type SecretsPortMeta,
 } from "@plainva/ui";
@@ -110,6 +111,19 @@ function metaStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | nul
       await store.save();
     },
   };
+}
+
+/**
+ * At start, before any vault opens: the secrets metadata of every vault on
+ * this phone, open or not, loses the plain marks that up to now carried each
+ * password in the app's settings — which the system backup also copies (F67,
+ * `secretsMark.ts`). The key of the new marks lives in the keychain.
+ */
+export async function sealSecretsMetaAtStart(): Promise<number> {
+  return sealSecretsMetaInStore(await settingsStore(), (key) => key.startsWith("settingsSyncSecretMetaMobile_"), {
+    readSlot: (slot) => getPlatformServices().credentials.readSecret(slot),
+    writeSlot: (slot, value) => getPlatformServices().credentials.writeSecret(slot, value),
+  });
 }
 
 /** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`), as on the desktop. */
