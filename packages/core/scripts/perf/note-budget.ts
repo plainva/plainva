@@ -34,7 +34,7 @@
  * budget reads a note as text that `main` still reads formatted under the
  * heap. The weights are fitted to bring every form to 1.13 or a little more
  * (`main`'s limit is measured to some 5 to 8 %) and the early side as low as
- * weights of countable parts allow (2026-11-19: 1.13 to 2.33,
+ * weights of countable parts allow (2026-11-19: 1.13 to 2.78 over 42 forms,
  * `noteBudgetForms.json`); `--features` gives the parts a fit reads.
  *
  * `--hunt`: generated notes of a seed drawn anew (or given), blocks of every

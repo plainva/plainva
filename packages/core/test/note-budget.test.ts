@@ -308,7 +308,7 @@ describe("the note's budget (L14)", () => {
     const { forms } = JSON.parse(readFileSync(new URL("../scripts/perf/noteBudgetForms.json", import.meta.url), "utf8")) as { forms: Record<string, { main: number; ratio: number }> };
     const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
     const asText = (form: string, n: number) => overBudgetInlineRanges(wrap(NOTE_FORMS[form](n))).some((range) => range.block);
-    expect(Object.keys(forms).length).toBeGreaterThanOrEqual(33);
+    expect(Object.keys(forms).length).toBeGreaterThanOrEqual(42);
     for (const [form, { main, ratio }] of Object.entries(forms)) {
       expect(asText(form, main), `${form}: formatted at main's limit ${main}`).toBe(true);
       const earliest = Math.floor(main / (ratio * 1.05));

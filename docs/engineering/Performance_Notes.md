@@ -772,7 +772,7 @@ nothing more) —, each block (the lines between two blank lines) and each headi
 more. A table weighs what stays of it once it is resolved: each row a row's and each cell's weight
 of its own and its content as text weighs, the heaviest table's peak (a share of its table weight)
 once on top — two tables at the table budget run 128 MB out, 101 tables of 50 rows do not. Over
-`NOTE_BUDGET` (9 790 000, below) the heaviest blocks are read as text until the note is within it; headings only
+`NOTE_BUDGET` (25 710 000, below) the heaviest blocks are read as text until the note is within it; headings only
 where nothing else is left, the properties block never. The choice depends on the text alone, so
 every device makes the same.
 
@@ -791,14 +791,16 @@ note-source parse and the reading view under 4.0.2 and 4.0.3. `micromark-core-co
 2.0.3: its 2.0.4 changes emphasis next to punctuation.
 
 The weights were calibrated anew on 2026-11-19 against `main` (`0b194026e`, micromark 4.0.3): for
-each of 33 forms the most units `main` reads under 128 MB in the index parse, the note-source parse
+each of 42 forms the most units `main` reads under 128 MB in the index parse, the note-source parse
 and the reading view as the core runs it — or, where `main`'s own paragraph budget reads them as text
 before that, the most it reads formatted — against the most the note's budget reads with no block as
 text (`perf:notes -- --calibrate`, `--features`). The safe side is the hard condition, and measured:
 a note at its threshold times 1.05 passes under the heap in three runs of three, each its own
 process — `main`'s limit is known to some 5 to 8 % only, since V8 close to its heap's end varies, so
 every form keeps a ratio of 1.13 or more. The early side is as low as weights of countable parts
-allow: a fit in log space over the 29 forms without a table brings them to 1.13 to 2.33. A window of 1.1 to 1.3 for every form is not reachable with them — the best fit
+allow: a fit in log space over the 37 forms without a table brings them to 1.13 to 2.78, a
+thematic break (`---`, `***`) weighing as one node, its characters and nothing more. One form is
+left out: one line of `x]` is read as written by the paragraph budget before the note's, as on `main`. A window of 1.1 to 1.3 for every form is not reachable with them — the best fit
 without the safe side spread from 0.71 to 1.77, with it no fit stayed under 2.1 —: the memory follows
 the nodes the parses make, not the characters, words and marks the scan counts (lines of long words
 against a line of `x x …`, lists with a link against tasks with one). Weighing by the nodes the
@@ -809,45 +811,54 @@ times over it under the heap, and holds its ratio between 1.0 and the calibrated
 
 | Form | `main` under 128 MB up to | Formatted on this branch up to | Ratio |
 |---|---:|---:|---:|
-| journal lines `- 10:00 …` with a link and a tag | 3 677 | 3 263 | 1.13 |
-| callouts of two lines with a link | 3 607 | 3 203 | 1.13 |
-| one line of `x x …` (words) | 158 925 | 139 828 | 1.14 |
-| lines of a Markdown link and a URL | 9 317 | 8 117 | 1.15 |
-| list items with a wiki link | 4 836 | 4 218 | 1.15 |
-| headings | 19 644 | 17 042 | 1.15 |
-| lines of two tags | 49 761 | 43 157 | 1.15 |
-| paragraphs of `*a` × 40 | 1 321 | 1 150 | 1.15 |
-| lines of links run together | 70 671 | 59 818 | 1.18 |
-| footnote references and definitions | 3 490 | 2 949 | 1.18 |
-| lines of inline HTML | 12 578 | 10 639 | 1.18 |
-| lines of fenced code | 78 694 | 66 208 | 1.19 |
-| lines of embeds run together | 68 916 | 56 058 | 1.23 |
-| tables of 50 rows of three cells | 82 | 62 | 1.32 |
-| tables of two rows between blank lines | 3 257 | 2 335 | 1.39 |
+| callouts of two lines with a link | 3 607 | 3 205 | 1.13 |
+| lines of inline HTML | 12 578 | 11 075 | 1.14 |
+| list items with a wiki link | 4 836 | 4 192 | 1.15 |
+| lines of a Markdown link and a URL | 9 317 | 8 051 | 1.16 |
+| journal lines `- 10:00 …` with a link and a tag | 3 677 | 3 165 | 1.16 |
+| one line of `x x …` (words) | 158 925 | 135 286 | 1.17 |
+| paragraphs of `` `a `` × 40 | 1 781 | 1 516 | 1.17 |
+| tables of 50 rows of sixteen cells | 26 | 22 | 1.18 |
+| tables of 50 rows of three cells | 82 | 69 | 1.19 |
+| lines of fenced code | 78 694 | 65 103 | 1.21 |
+| lines of links run together | 70 671 | 58 472 | 1.21 |
+| footnote references and definitions | 3 490 | 2 893 | 1.21 |
+| lines of embeds run together | 68 916 | 57 046 | 1.21 |
+| paragraphs of `&amp;` × 16 | 3 487 | 2 893 | 1.21 |
+| tables of two rows between blank lines | 3 257 | 2 450 | 1.33 |
+| paragraphs of `*a` × 40 | 1 321 | 957 | 1.38 |
+| paragraphs of eighty `]` | 13 177 | 9 478 | 1.39 |
+| headings | 19 644 | 13 506 | 1.45 |
 | tables of 1 200 rows | 3 | 2 | 1.50 |
-| ordered items | 8 538 | 5 518 | 1.55 |
-| the performance script's note of tables of 50 rows | 62 | 39 | 1.59 |
-| list items `- item n` | 8 961 | 5 311 | 1.69 |
-| lines of emphasis, strike-through and code | 6 991 | 4 010 | 1.74 |
-| tasks `- [ ] task n due` | 7 700 | 4 243 | 1.81 |
-| quote lines | 26 100 | 14 410 | 1.81 |
-| lines of a mail address and a `www.` | 22 835 | 12 545 | 1.82 |
-| prose, lines of twelve words | 19 534 | 10 174 | 1.92 |
-| paragraphs of eighty `[` | 2 638 | 1 376 | 1.92 |
-| nested items | 7 939 | 4 011 | 1.98 |
-| lines three quotes deep | 20 594 | 10 391 | 1.98 |
-| tasks with a wiki link and emphasis | 6 097 | 3 025 | 2.02 |
-| done items with a link and a date | 6 771 | 3 225 | 2.10 |
-| short paragraphs between blank lines | 12 782 | 5 830 | 2.19 |
-| items between blank lines | 8 624 | 3 824 | 2.26 |
-| lines of two formulas | 18 034 | 7 965 | 2.26 |
-| sentences run together in one paragraph | 9 984 | 4 284 | 2.33 |
+| the performance script's note of tables of 50 rows | 62 | 41 | 1.51 |
+| ordered items | 8 538 | 4 904 | 1.74 |
+| tasks `- [ ] task n due` | 7 700 | 4 223 | 1.82 |
+| list items `- item n` | 8 961 | 4 734 | 1.89 |
+| tasks with a wiki link and emphasis | 6 097 | 3 139 | 1.94 |
+| done items with a link and a date | 6 771 | 3 477 | 1.95 |
+| thematic breaks between blank lines | 39 466 | 18 860 | 2.09 |
+| paragraphs of eighty `[` | 2 638 | 1 239 | 2.13 |
+| nested items | 7 939 | 3 717 | 2.14 |
+| lines of a mail address and a `www.` | 22 835 | 10 361 | 2.20 |
+| lines of two formulas | 18 034 | 8 063 | 2.24 |
+| paragraphs of eighty `*` (thematic breaks) | 39 923 | 17 852 | 2.24 |
+| paragraphs of `\*` × 40 | 2 035 | 910 | 2.24 |
+| lines of emphasis, strike-through and code | 6 991 | 3 079 | 2.27 |
+| items between blank lines | 8 624 | 3 786 | 2.28 |
+| paragraphs of `![` × 40 | 4 462 | 1 922 | 2.32 |
+| short paragraphs between blank lines | 12 782 | 5 433 | 2.35 |
+| sentences run together in one paragraph | 9 984 | 4 228 | 2.36 |
+| paragraphs of `<a` × 40 | 11 411 | 4 659 | 2.45 |
+| prose, lines of twelve words | 19 534 | 7 625 | 2.56 |
+| lines three quotes deep | 20 594 | 7 993 | 2.58 |
+| quote lines | 26 100 | 9 875 | 2.64 |
+| lines of two tags | 49 761 | 17 903 | 2.78 |
 
 A ratio above 1 is how much earlier than `main` a note of that form is read partly as text; at the
-top, a paragraph of sentences (2.33, against the 9 984 `main`'s paragraph budget reads formatted —
-`main` reads 149 696 under 128 MB as text), items between blank lines and formulas (2.26, 2.26), short
-paragraphs (2.19), done items and tasks with a link (2.10, 2.02). Lists with a wiki link (1.15),
-journal lines and callouts (1.13, 1.13) are read formatted to a little under where `main` runs out.
+top, lines of two tags (2.78), quote lines (2.64, three deep 2.58), prose (2.56), paragraphs of `<a`
+(2.45), a paragraph of sentences (2.36, against the 9 984 `main`'s paragraph budget reads formatted)
+and short paragraphs (2.35). Callouts, inline HTML and lists with a wiki link (1.13, 1.14, 1.15) are read
+formatted to a little under where `main` runs out.
 
 At three times their limit every form is read under 128 MB in the index parse, the note-source parse
 and the reading view as the core runs it; so are notes of 4 to 10 MB (60 000 lines of prose, 40 000

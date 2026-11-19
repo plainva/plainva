@@ -1555,7 +1555,7 @@ const LINE_HEADING = 3;
  * budget (Gesamtplan Leistung § 3a.1), and each weight keeps 30 % to its
  * shape's limit.
  */
-export const NOTE_BUDGET = 9_790_000;
+export const NOTE_BUDGET = 25_710_000;
 
 /**
  * The note's budget this app reads with: `NOTE_BUDGET`, calibrated on 128 MB,
@@ -1577,7 +1577,7 @@ export function currentNoteBudget(): number {
   return noteBudget;
 }
 
-/** A note no longer than this cannot reach the note's budget: no character weighs more than about 1 000. */
+/** A note no longer than this cannot reach the note's budget: no character weighs more than about 2 500. */
 const NOTE_SCAN_FROM = 5_000;
 
 /**
@@ -1586,47 +1586,49 @@ const NOTE_SCAN_FROM = 5_000;
  * lines), a heading, a start of a word, a character of inline syntax, a link
  * or wiki link. Calibrated 2026-11-19 against `main` under 128 MB
  * (`scripts/perf/note-budget.ts`, `noteBudgetForms.json`, Performance_Notes.md):
- * every one of 33 forms keeps at its threshold times 1.05 no more than `main`
+ * every one of 37 forms keeps at its threshold times 1.05 no more than `main`
  * reads under the heap (a ratio of 1.13 or more), and the early side is as low
- * as weights of countable parts allow (up to 2.33).
+ * as weights of countable parts allow (up to 2.8, 37 forms).
  */
-export const NOTE_LINE_WEIGHT = 80;
-export const NOTE_ITEM_WEIGHT = 1379;
+export const NOTE_LINE_WEIGHT = 1049;
+export const NOTE_ITEM_WEIGHT = 3402;
 /** What each level of quote or list a line stands in weighs (`tableMarkerCount`): three quotes deep, 21 000 lines filled 128 MB. */
-export const NOTE_MARKER_WEIGHT = 237;
-export const NOTE_BLOCK_WEIGHT = 717;
+export const NOTE_MARKER_WEIGHT = 592;
+export const NOTE_BLOCK_WEIGHT = 1360;
 export const NOTE_HEADING_WEIGHT = 275;
-export const NOTE_WORD_WEIGHT = 68;
+export const NOTE_WORD_WEIGHT = 188;
 /**
  * What a run of one character of inline syntax weighs (`**`, `]]`, a single `*`): micromark reads a run of
  * `*`, `_` or `~` as one sequence, and a closing `]` with nothing open is text; 14 500 paragraphs of eighty `]` passed.
  */
-export const NOTE_SYNTAX_WEIGHT = 88;
+export const NOTE_SYNTAX_WEIGHT = 35;
 /** What each `[` weighs beyond its run: every one opens a label the parser keeps until it closes or the paragraph ends. */
-export const NOTE_OPEN_WEIGHT = 76;
+export const NOTE_OPEN_WEIGHT = 14;
 /**
  * What a run of `*`, `_` or `~` weighs beyond `NOTE_SYNTAX_WEIGHT`: an attention sequence the parser matches
  * against every other one of the paragraph (1 687 paragraphs of `*a*a…` filled 128 MB, 14 500 of `]]]…` did not).
  */
-export const NOTE_EMPHASIS_WEIGHT = 101;
+export const NOTE_EMPHASIS_WEIGHT = 569;
 /** What a run of backticks weighs beyond `NOTE_SYNTAX_WEIGHT`: a code span the parser looks for a closing run to. */
-export const NOTE_CODE_SPAN_WEIGHT = 0;
+export const NOTE_CODE_SPAN_WEIGHT = 322;
 /** What a `<` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of inline HTML or an autolink. */
-export const NOTE_ANGLE_WEIGHT = 25;
+export const NOTE_ANGLE_WEIGHT = 36;
 /** What a `&` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of a character reference. */
-export const NOTE_ENTITY_WEIGHT = 138;
+export const NOTE_ENTITY_WEIGHT = 353;
 /** What a `\` weighs beyond `NOTE_SYNTAX_WEIGHT`: an escape is a construct of its own. */
 export const NOTE_ESCAPE_WEIGHT = 0;
-export const NOTE_LINK_WEIGHT = 0;
+export const NOTE_LINK_WEIGHT = 214;
 /** What each line of fenced code weighs beyond its characters (80 000 short lines of code fill 128 MB). */
-export const NOTE_CODE_LINE_WEIGHT = 130;
+export const NOTE_CODE_LINE_WEIGHT = 377;
+/** What a thematic break weighs beyond its line and its characters (`isThematicBreak`). */
+export const NOTE_RULE_WEIGHT = 0;
 /**
  * What a line read as written weighs beyond its characters, where its line
  * end stays (a paragraph or a table over its own budget): a line of
  * stand-ins is events of its own. A block read as text for the note's budget
  * becomes one line and weighs its characters.
  */
-export const NOTE_TEXT_LINE_WEIGHT = 134;
+export const NOTE_TEXT_LINE_WEIGHT = 410;
 /**
  * What a table weighs to the note's budget. The table weight is what reading one table holds at its peak; most of
  * that is let go once the table is resolved — two tables at the table budget run 128 MB out, 101 tables of 50 rows
@@ -1634,8 +1636,8 @@ export const NOTE_TEXT_LINE_WEIGHT = 134;
  * each cell of it (filled up to the header's columns) and its content as a line of text weighs; and the heaviest
  * table's peak, in percent of its table weight, comes on top once.
  */
-export const NOTE_TABLE_ROW_WEIGHT = 413;
-export const NOTE_TABLE_CELL_WEIGHT = 589;
+export const NOTE_TABLE_ROW_WEIGHT = 1085;
+export const NOTE_TABLE_CELL_WEIGHT = 1547;
 export const NOTE_TABLE_PEAK_WEIGHT = 6;
 /**
  * The most a table read as a table weighs to the note's budget, per unit of
@@ -1647,8 +1649,8 @@ export const NOTE_TABLE_PEAK_WEIGHT = 6;
  */
 export const NOTE_TABLE_SHARE = (0.9 * NOTE_BUDGET) / TABLE_READ_BUDGET;
 /** What each autolink literal and each footnote reference weighs to the note's budget. */
-export const NOTE_LITERAL_WEIGHT = 198;
-export const NOTE_REFERENCE_WEIGHT = 209;
+export const NOTE_LITERAL_WEIGHT = 324;
+export const NOTE_REFERENCE_WEIGHT = 888;
 
 /**
  * The weights the note's budget weighs by, as one object: the constants
@@ -1671,6 +1673,7 @@ const W = {
   escape: NOTE_ESCAPE_WEIGHT,
   link: NOTE_LINK_WEIGHT,
   codeLine: NOTE_CODE_LINE_WEIGHT,
+  rule: NOTE_RULE_WEIGHT,
   textLine: NOTE_TEXT_LINE_WEIGHT,
   tableRow: NOTE_TABLE_ROW_WEIGHT,
   tableCell: NOTE_TABLE_CELL_WEIGHT,
@@ -1727,6 +1730,21 @@ function noteTableRowCost(parts: TableRowParts, columns: number, prefix: string)
 const SYNTAX_CODE = new Uint8Array(128);
 for (const ch of TABLE_SYNTAX) SYNTAX_CODE[ch.charCodeAt(0)] = 1;
 
+/** Whether `text[from, to)` is a thematic break: three or more of one of `-`, `*`, `_`, and blanks between them. */
+function isThematicBreak(text: string, from: number, to: number): boolean {
+  let mark = 0;
+  let count = 0;
+  for (let i = from; i < to; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 0x20 || code === 0x09 || code === 0x0d) continue;
+    if (code !== 0x2d && code !== 0x2a && code !== 0x5f) return false;
+    if (mark === 0) mark = code;
+    else if (code !== mark) return false;
+    count++;
+  }
+  return count >= 3;
+}
+
 /**
  * What a line of text, `text[from, to)`, weighs to the note's budget: its
  * markers, a list item it opens, and its content by the parts a table row's
@@ -1744,6 +1762,9 @@ function noteLineCost(text: string, from: number, to: number): number {
     cost += prefix.length + W.marker * tableMarkerCount(prefix);
     if (/(?:^|[ \t>])(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/.test(prefix)) cost += W.item;
   }
+  // A thematic break (`---`, `***`, `_ _ _`) is one node, whatever its characters: no line of text, no emphasis, no
+  // syntax — its characters and its markers alone.
+  if (isThematicBreak(text, from + kept, to)) return cost - W.line + (to - from - kept) + W.rule;
   let syntax = 0;
   let opens = 0;
   let emphasis = 0;
@@ -1900,7 +1921,10 @@ function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables
     j >= 0 && j < blocks.length && asTextAt[j] === 1 && onlyBlanksBetween(text, blocks[Math.min(i, j)].to, blocks[Math.max(i, j)].from);
   const heaviest = blocks
     .map((_, i) => i)
-    .filter((i) => blocks[i].weight > blocks[i].asText + paragraph)
+    // A block lighter than the paragraph it would become alone still helps among others read as text: they join
+    // into one line (a note of 56 000 thematic breaks between blank lines ran the index out of 128 MB, no block of
+    // it heavy enough to be chosen alone).
+    .filter((i) => blocks[i].weight > blocks[i].asText)
     .sort((x, y) => Number(blocks[x].headings) - Number(blocks[y].headings) || blocks[y].weight - blocks[x].weight || x - y);
   for (const i of heaviest) {
     if (total <= noteBudget) break;
