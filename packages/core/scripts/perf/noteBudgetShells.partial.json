@@ -1,0 +1,77 @@
+{
+  "measured": "2026-11-19, branch a055a7831 against main dcc3e0889 (the note's budget off, its own paragraph and table budgets kept). Half of step 2 of L14 (calibration per shell), stopped when L14 moved behind release 0.9.0; the rest is to measure on resumption.",
+  "phone": {
+    "readers": "index parse and note-source parse (the phone's read mode is its editor), under 128 MB",
+    "note": "main = the most units both readers of main read under the heap; branch = the threshold at the weights of e778914bf (NOTE_BUDGET 25 710 000)",
+    "forms": {
+      "prose": {
+        "main": 19774,
+        "branch": 7625,
+        "ratio": 2.59
+      },
+      "paras": {
+        "main": 13070,
+        "branch": 5433,
+        "ratio": 2.41
+      },
+      "emails": {
+        "main": 22986,
+        "branch": 10361,
+        "ratio": 2.22
+      },
+      "urls": {
+        "main": 9433,
+        "branch": 8051,
+        "ratio": 1.17
+      }
+    },
+    "missing": "the other 38 forms of noteBudgetForms.json"
+  },
+  "editor": {
+    "note": "not measured per form; the editor parses every note whole with CodeMirror, as on main, so its limit is a named limit, not the budget's",
+    "missing": "prose, paras, items, linked, tasks, quotes, tables50, bigtables under 128 MB"
+  },
+  "desktop": {
+    "readers": "reading view, index parse and note-source parse, under 512 MB (a named assumption for a computer of 8 GB with several windows; no platform limit)",
+    "missing": "all 42 forms"
+  },
+  "leastHeapPerReader": {
+    "note": "the least heap (of 32, 48, 64, 96, 128, ... MB) each reader reads the note under; main = the note's budget off; the editor is the same at both",
+    "cases": {
+      "20 000 list items with a wiki link (B1 of release 0.9.0)": {
+        "index": {
+          "main": 320,
+          "branch": 32
+        },
+        "noteParse": {
+          "main": 320,
+          "branch": 32
+        },
+        "editor": 96
+      },
+      "prose at the phone's threshold, 7 625 lines, about 500 KB": {
+        "index": {
+          "main": 64,
+          "branch": 96
+        },
+        "noteParse": {
+          "main": 64,
+          "branch": 64
+        },
+        "editor": 64
+      },
+      "69 tables of 50 rows at the phone's threshold, about 104 KB": {
+        "index": {
+          "main": 96,
+          "branch": 96
+        },
+        "noteParse": {
+          "main": 96,
+          "branch": 96
+        },
+        "editor": 64
+      }
+    },
+    "finding": "at the prose threshold the branch's index needs a step more than main's with nothing read as text: the scan holds an object and a string a line, and the index scans the note twice (the scan's correction, released for L14)"
+  }
+}

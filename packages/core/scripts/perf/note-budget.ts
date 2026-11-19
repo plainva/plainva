@@ -2,7 +2,7 @@
  * Where the note budget of the parse budget comes from (Gesamtplan Leistung
  * L14; `NOTE_BUDGET` and `noteLineCost` in `src/inlineParseBudget.ts`).
  *
- *   pnpm --filter @plainva/core perf:notes -- --calibrate [forms]   # per form: where main runs out, where the budget begins (long)
+ *   pnpm --filter @plainva/core perf:notes -- --calibrate [forms] [--heap <mb>] [--parses index,tree]   # per form: where main runs out, where the budget begins (long)
  *   pnpm --filter @plainva/core perf:notes -- --check [--heap <mb> --factor <k>]   # every form at its threshold and far over it (minutes)
  *   pnpm --filter @plainva/core perf:notes -- --hunt <n> [--seed <s>] [--minutes <m>]
  *
@@ -47,6 +47,7 @@
  * the time). A note that does not pass prints its seed and number.
  */
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
@@ -62,6 +63,12 @@ import { tablesNote } from "./many-tables.js";
 export const HEAP_MB = 128;
 /** The heap the parses run under, and the multiple of `NOTE_BUDGET` the app reads with (`--heap`, `--factor`). */
 let heapMb = HEAP_MB;
+/**
+ * The readers the calibration and the check read a note with: a shell's own
+ * (`--parses`). The phone reads with the index and the note parse (its read
+ * mode is its editor); the desktop with those and the reading view.
+ */
+let shellParses: readonly string[] = ["index", "tree", "reader"];
 let budgetFactor = Number(process.env.PLAINVA_NOTE_BUDGET_FACTOR ?? 1);
 if (budgetFactor !== 1) setNoteBudget(NOTE_BUDGET * budgetFactor);
 const HUNT_PARSE_MS = 20_000;
@@ -206,10 +213,34 @@ const withoutNoteBudget = {
   reader: (text: string) => boundedReader(text, false),
 };
 
-function child(name: string, n: number, scale: number, parse: string, bounded: boolean): void {
+/**
+ * The editor's own parse of a note, as both shells build their editor
+ * (`editorSession.ts`): CodeMirror's Markdown with the app's syntax extensions,
+ * its tree over the whole text. The note's budget does not change it — the
+ * editor parses every note whole, as on `main` —, so it is measured for its
+ * own limit, not for the budget's. What the live preview draws is built for
+ * the lines in view only and is not measured.
+ */
+async function editorParse(text: string): Promise<void> {
+  const ui = createRequire(path.resolve(path.dirname(HERE), "../../../ui/package.json"));
+  const load = async (name: string) => import(pathToFileURL(ui.resolve(name)).href);
+  const { EditorState } = await load("@codemirror/state");
+  const { ensureSyntaxTree } = await load("@codemirror/language");
+  const { markdown, markdownLanguage } = await load("@codemirror/lang-markdown");
+  // The app's own syntax extensions, from the UI package (by their path: the core's type check does not read the UI's).
+  const fromUi = async (file: string) => import(pathToFileURL(path.resolve(path.dirname(HERE), "../../../ui/src", file)).href);
+  const { frontmatterBlock } = await fromUi("components/frontmatterBlockParser.ts");
+  const { boundedInlineSyntax } = await fromUi("lib/boundedMarkdown.ts");
+  const { wikiLinkInlineSyntax } = await fromUi("components/wikiLinkInline.ts");
+  const state = EditorState.create({ doc: text, extensions: [markdown({ base: markdownLanguage, extensions: [frontmatterBlock, boundedInlineSyntax, wikiLinkInlineSyntax] })] });
+  if (!ensureSyntaxTree(state, state.doc.length, 600_000)) throw new Error("the editor's parse did not finish");
+}
+
+async function child(name: string, n: number, scale: number, parse: string, bounded: boolean): Promise<void> {
   const text = noteOf(name, n, scale);
   const started = performance.now();
-  if (bounded) {
+  if (parse === "editor") await editorParse(text);
+  else if (bounded) {
     if (parse === "index") parseMarkdownAst(text, { preserveObsidianSyntax: true });
     else if (parse === "tree") parseMarkdownTree(text);
     else boundedReader(text);
@@ -220,7 +251,7 @@ function child(name: string, n: number, scale: number, parse: string, bounded: b
 }
 
 /** Whether all three parses read the note under the capped heap, each in a process of its own; the slowest's time. */
-function passes(name: string, n: number, bounded: boolean, scale = 1, parses: readonly string[] = ["index", "tree", "reader"]): { ok: boolean; slowest: number; why: string } {
+function passes(name: string, n: number, bounded: boolean, scale = 1, parses: readonly string[] = shellParses): { ok: boolean; slowest: number; why: string } {
   let slowest = 0;
   for (const parse of parses) {
     const run = spawnSync(process.execPath, [`--max-old-space-size=${heapMb}`, "--import", "tsx", HERE, "--child", name, String(n), String(scale), parse, bounded ? "bounded" : "unbounded"], { cwd: CORE, encoding: "utf8", timeout: 300_000, env: { ...process.env, PLAINVA_NOTE_BUDGET_FACTOR: String(budgetFactor) } });
@@ -331,7 +362,7 @@ function features(args: string[]): void {
 function calibrate(args: string[]): void {
   const named = args[args.indexOf("--calibrate") + 1];
   const forms = named && !named.startsWith("--") ? named.split(",") : Object.keys(NOTE_FORMS);
-  console.log(`calibrate note budget ${NOTE_BUDGET}, ${HEAP_MB} MB; ${forms.length} forms (units: lines, items, blocks or tables of the form)`);
+  console.log(`calibrate note budget ${NOTE_BUDGET}, ${heapMb} MB, ${shellParses.join(" ")}; ${forms.length} forms (units: lines, items, blocks or tables of the form)`);
   for (const form of forms) {
     const budget = readAsItIs(form);
     const main = readUnbounded(form, budget);
@@ -382,7 +413,10 @@ function hunt(args: string[]): boolean {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
-  if (args[0] === "--child") child(args[1], Number(args[2]), Number(args[3]), args[4], args[5] === "bounded");
+  const flag = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+  if (flag("--parses")) shellParses = flag("--parses")!.split(",");
+  if (flag("--heap") && !args.includes("--check")) heapMb = Number(flag("--heap"));
+  if (args[0] === "--child") await child(args[1], Number(args[2]), Number(args[3]), args[4], args[5] === "bounded");
   else if (args.includes("--calibrate")) calibrate(args);
   else if (args.includes("--features")) features(args);
   else if (args.includes("--hunt")) {
