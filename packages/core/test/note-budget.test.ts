@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { NOTE_BUDGET, overBudgetInlineRanges, boundMarkdownForParse, restoreBoundedTree } from "../src/inlineParseBudget.ts";
 import { parseMarkdownAst, parseMarkdownTree, type MarkdownTreeNode } from "../src/markdown-parser.ts";
@@ -15,6 +16,8 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { within } from "./helpers/timeBudget.js";
+import { shapeTable } from "../scripts/perf/table-budget.ts";
+import { NOTE_FORMS } from "../scripts/perf/note-budget.ts";
 
 const SECONDS = 1000;
 const CORE = new URL("..", import.meta.url).pathname;
@@ -272,9 +275,45 @@ describe("the note's budget (L14)", () => {
       }
       return lo;
     };
-    const behind = most((i) => `- item ${i} ][[a]] and more words here`);
-    const beside = most((i) => `- item ${i} x[[a]] and more words here`);
+    // The two lines differ in the comment alone: `a][[a]]` is a character shorter than `a] [[a]]`, with the same
+    // words and runs of syntax, and seven characters heavier in the reading view.
+    const behind = most((i) => `- item ${i} a][[a]] and more words here`);
+    const beside = most((i) => `- item ${i} a] [[a]] and more words here`);
     expect(behind).toBeLessThan(beside);
   });
+
+  it("joins a link of a paragraph read as written to that paragraph, in a list item in a quote (the hunt of seed 956860)", () => {
+    // The paragraph keeps its markers, so its stretch begins in front of `- 2. >`: the link joined the list item
+    // there, and the index's check of the tree threw.
+    const text = `# T\n\ntext\n- 2. > [[Kept]] ${"]".repeat(120_000)} [[Inside]]\n\nafter [[End]]\n`;
+    expect(overBudgetInlineRanges(text).length).toBeGreaterThan(0);
+    const { links } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }));
+    expect(links.map((link) => link.target)).toEqual(["Kept", "Inside", "End"]);
+  });
+
+  it("never reads a note of one table the table budget reads as a table as text (the hunt of seed 956860)", () => {
+    for (const [name, rows] of [["gen:956860:11", 961], ["gen:956860:30", 58], ["gen:956860:100", 1796]] as const) {
+      const text = shapeTable(name, rows);
+      const ranges = overBudgetInlineRanges(text);
+      expect(ranges.some((range) => range.block), name).toBe(false);
+      expect(parseMarkdownTree(text).children!.some(function table(node: MarkdownTreeNode): boolean { return node.type === "table" || (node.children ?? []).some(table); }), name).toBe(true);
+    }
+  });
+
+  it("reads every calibrated form formatted up to no more than main reads under 128 MB, and no earlier than calibrated", () => {
+    // `noteBudgetForms.json`: main's limit under 128 MB per form and the ratio of the calibration (2026-11-19). At
+    // main's limit the note's budget reads a block as text (the safe side: what it keeps formatted, main reads under
+    // the heap too); at main's limit over the calibrated ratio plus 5 % it does not yet (a change of the weights that
+    // reads a form as text earlier shows here). `perf:notes -- --check` reads the notes at the thresholds themselves.
+    const { forms } = JSON.parse(readFileSync(new URL("../scripts/perf/noteBudgetForms.json", import.meta.url), "utf8")) as { forms: Record<string, { main: number; ratio: number }> };
+    const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
+    const asText = (form: string, n: number) => overBudgetInlineRanges(wrap(NOTE_FORMS[form](n))).some((range) => range.block);
+    expect(Object.keys(forms).length).toBeGreaterThanOrEqual(33);
+    for (const [form, { main, ratio }] of Object.entries(forms)) {
+      expect(asText(form, main), `${form}: formatted at main's limit ${main}`).toBe(true);
+      const earliest = Math.floor(main / (ratio * 1.05));
+      expect(asText(form, earliest), `${form}: text at ${earliest}, below the calibrated ratio ${ratio}`).toBe(false);
+    }
+  }, 300 * SECONDS);
 });
 

@@ -1181,6 +1181,8 @@ export interface InlineScanObserver {
   table?: (first: number, last: number, exact: boolean, cost: number) => void;
   /** Every run of lines the scan measures as one paragraph. */
   run?: (first: number, last: number) => void;
+  /** What the whole note weighs to the note's budget, before any block is read as text (the calibration reads it). */
+  note?: (total: number) => void;
 }
 
 /** A line whose only block markers are `>`, each with at most one blank behind it, and no blank before its text. */
@@ -1299,7 +1301,9 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     }
     observe?.table?.(index, last, exact, cost);
     // The note's budget weighs a table the scan reads exactly by its own weight; read as written, by what text costs.
-    if (exact) tablesRead.set(index, { last, cost: cost > TABLE_READ_BUDGET ? -1 : noteCost, peak: cost });
+    // At most a share of its own weight (`NOTE_TABLE_SHARE`): a note of one table the table budget reads as a table
+    // is never read as text for the note's budget, whatever stands around it in a few lines.
+    if (exact) tablesRead.set(index, { last, cost: cost > TABLE_READ_BUDGET ? -1 : Math.min(noteCost, cost * NOTE_TABLE_SHARE), peak: cost });
     if (cost > TABLE_READ_BUDGET) {
       // One range where only blanks, line ends and markers that are no markup lie between two lines.
       // Read as written, the table is a paragraph, and the lines behind it
@@ -1514,7 +1518,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   ranges.sort((x, y) => x.from - y.from);
   // Then the note's budget, over the blocks the stretches above leave: the heaviest are read as text until the note is in it.
   if (reading.notes !== false && text.length > NOTE_SCAN_FROM) {
-    const blocks = noteBudgetRanges(text, lines, lineKinds, tablesRead, ranges, reading);
+    const blocks = noteBudgetRanges(text, lines, lineKinds, tablesRead, ranges, reading, observe);
     if (blocks.length > 0) {
       ranges.push(...blocks);
       ranges.sort((x, y) => x.from - y.from);
@@ -1551,59 +1555,78 @@ const LINE_HEADING = 3;
  * budget (Gesamtplan Leistung § 3a.1), and each weight keeps 30 % to its
  * shape's limit.
  */
-export const NOTE_BUDGET = 7_660_000;
+export const NOTE_BUDGET = 10_790_000;
 
-/** A note no longer than this cannot reach the note's budget: no character weighs more than about 1 300. */
+/**
+ * The note's budget this app reads with: `NOTE_BUDGET`, calibrated on 128 MB,
+ * unless the shell sets another at its start (`setNoteBudget`). One value for
+ * every reader of a shell — the index, the note-source parse, the editor and
+ * the reading view —, so that they decide alike; both shells set
+ * `NOTE_BUDGET` today. A shell with more memory may be given a budget of its
+ * own, calibrated with `perf:notes` under its heap; the weights stay.
+ */
+let noteBudget = NOTE_BUDGET;
+
+/** The shell's note budget, set once at its start (Gesamtplan Leistung § 3a, L14). */
+export function setNoteBudget(budget: number): void {
+  noteBudget = budget;
+}
+
+/** The note budget this shell reads with (`setNoteBudget`). */
+export function currentNoteBudget(): number {
+  return noteBudget;
+}
+
+/** A note no longer than this cannot reach the note's budget: no character weighs more than about 1 000. */
 const NOTE_SCAN_FROM = 5_000;
 
 /**
- * The weights of a line of text to the note's budget (`noteLineCost`),
- * measured 2026-11-16 (`scripts/perf/note-budget.ts`: the largest note of
- * each of 19 forms the index parse, the note-source parse and the reading
- * view read without a budget under 128 MB) and chosen so that each form's
- * limit weighs at least `NOTE_BUDGET / 0.77`: a line on its own, a list item
- * it opens, a block (the lines between two blank lines), a heading, a start
- * of a word, a character of inline syntax, a link or wiki link. A word of
- * text costs the parse far less than a word in a table's cell (a line of
- * 168 000 one-letter words passes); a list item costs about a table row.
+ * The weights of a line of text to the note's budget (`noteLineCost`): a
+ * line on its own, a list item it opens, a block (the lines between two blank
+ * lines), a heading, a start of a word, a character of inline syntax, a link
+ * or wiki link. Calibrated 2026-11-19 against `main` under 128 MB
+ * (`scripts/perf/note-budget.ts`, `noteBudgetForms.json`, Performance_Notes.md):
+ * every one of 33 forms keeps at its threshold no more than `main` reads under
+ * the heap (a ratio of 1.0 or more), and the early side is as low as weights of
+ * countable parts allow (up to 2.1).
  */
-export const NOTE_LINE_WEIGHT = 72;
-export const NOTE_ITEM_WEIGHT = 975;
+export const NOTE_LINE_WEIGHT = 80;
+export const NOTE_ITEM_WEIGHT = 1379;
 /** What each level of quote or list a line stands in weighs (`tableMarkerCount`): three quotes deep, 21 000 lines filled 128 MB. */
-export const NOTE_MARKER_WEIGHT = 100;
-export const NOTE_BLOCK_WEIGHT = 522;
+export const NOTE_MARKER_WEIGHT = 237;
+export const NOTE_BLOCK_WEIGHT = 717;
 export const NOTE_HEADING_WEIGHT = 275;
-export const NOTE_WORD_WEIGHT = 62;
+export const NOTE_WORD_WEIGHT = 68;
 /**
  * What a run of one character of inline syntax weighs (`**`, `]]`, a single `*`): micromark reads a run of
  * `*`, `_` or `~` as one sequence, and a closing `]` with nothing open is text; 14 500 paragraphs of eighty `]` passed.
  */
-export const NOTE_SYNTAX_WEIGHT = 0;
+export const NOTE_SYNTAX_WEIGHT = 88;
 /** What each `[` weighs beyond its run: every one opens a label the parser keeps until it closes or the paragraph ends. */
-export const NOTE_OPEN_WEIGHT = 0;
+export const NOTE_OPEN_WEIGHT = 76;
 /**
  * What a run of `*`, `_` or `~` weighs beyond `NOTE_SYNTAX_WEIGHT`: an attention sequence the parser matches
  * against every other one of the paragraph (1 687 paragraphs of `*a*a…` filled 128 MB, 14 500 of `]]]…` did not).
  */
-export const NOTE_EMPHASIS_WEIGHT = 140;
+export const NOTE_EMPHASIS_WEIGHT = 101;
 /** What a run of backticks weighs beyond `NOTE_SYNTAX_WEIGHT`: a code span the parser looks for a closing run to. */
-export const NOTE_CODE_SPAN_WEIGHT = 104;
+export const NOTE_CODE_SPAN_WEIGHT = 0;
 /** What a `<` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of inline HTML or an autolink. */
-export const NOTE_ANGLE_WEIGHT = 3;
+export const NOTE_ANGLE_WEIGHT = 25;
 /** What a `&` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of a character reference. */
 export const NOTE_ENTITY_WEIGHT = 138;
 /** What a `\` weighs beyond `NOTE_SYNTAX_WEIGHT`: an escape is a construct of its own. */
 export const NOTE_ESCAPE_WEIGHT = 0;
-export const NOTE_LINK_WEIGHT = 40;
+export const NOTE_LINK_WEIGHT = 0;
 /** What each line of fenced code weighs beyond its characters (80 000 short lines of code fill 128 MB). */
-export const NOTE_CODE_LINE_WEIGHT = 116;
+export const NOTE_CODE_LINE_WEIGHT = 130;
 /**
  * What a line read as written weighs beyond its characters, where its line
  * end stays (a paragraph or a table over its own budget): a line of
  * stand-ins is events of its own. A block read as text for the note's budget
  * becomes one line and weighs its characters.
  */
-export const NOTE_TEXT_LINE_WEIGHT = 60;
+export const NOTE_TEXT_LINE_WEIGHT = 134;
 /**
  * What a table weighs to the note's budget. The table weight is what reading one table holds at its peak; most of
  * that is let go once the table is resolved — two tables at the table budget run 128 MB out, 101 tables of 50 rows
@@ -1611,12 +1634,72 @@ export const NOTE_TEXT_LINE_WEIGHT = 60;
  * each cell of it (filled up to the header's columns) and its content as a line of text weighs; and the heaviest
  * table's peak, in percent of its table weight, comes on top once.
  */
-export const NOTE_TABLE_ROW_WEIGHT = 293;
-export const NOTE_TABLE_CELL_WEIGHT = 418;
+export const NOTE_TABLE_ROW_WEIGHT = 413;
+export const NOTE_TABLE_CELL_WEIGHT = 589;
 export const NOTE_TABLE_PEAK_WEIGHT = 6;
+/**
+ * The most a table read as a table weighs to the note's budget, per unit of
+ * its own weight: nine tenths of the note's budget at the table budget. The
+ * table budget is calibrated for one table alone under the same heap, and
+ * `main` reads such a table as a table; the note's budget must not read it as
+ * text where little else stands beside it (the hunt of the table budget, seed
+ * 956860: 18 of 200 tables at the budget became text before this held).
+ */
+export const NOTE_TABLE_SHARE = (0.9 * NOTE_BUDGET) / TABLE_READ_BUDGET;
 /** What each autolink literal and each footnote reference weighs to the note's budget. */
-export const NOTE_LITERAL_WEIGHT = 301;
-export const NOTE_REFERENCE_WEIGHT = 511;
+export const NOTE_LITERAL_WEIGHT = 198;
+export const NOTE_REFERENCE_WEIGHT = 209;
+
+/**
+ * The weights the note's budget weighs by, as one object: the constants
+ * above. Only the calibration changes them, for the length of one scan
+ * (`withNoteWeights`, `perf:notes -- --calibrate`); the app reads with these.
+ */
+const W = {
+  line: NOTE_LINE_WEIGHT,
+  item: NOTE_ITEM_WEIGHT,
+  marker: NOTE_MARKER_WEIGHT,
+  block: NOTE_BLOCK_WEIGHT,
+  heading: NOTE_HEADING_WEIGHT,
+  word: NOTE_WORD_WEIGHT,
+  syntax: NOTE_SYNTAX_WEIGHT,
+  open: NOTE_OPEN_WEIGHT,
+  emphasis: NOTE_EMPHASIS_WEIGHT,
+  codeSpan: NOTE_CODE_SPAN_WEIGHT,
+  angle: NOTE_ANGLE_WEIGHT,
+  entity: NOTE_ENTITY_WEIGHT,
+  escape: NOTE_ESCAPE_WEIGHT,
+  link: NOTE_LINK_WEIGHT,
+  codeLine: NOTE_CODE_LINE_WEIGHT,
+  textLine: NOTE_TEXT_LINE_WEIGHT,
+  tableRow: NOTE_TABLE_ROW_WEIGHT,
+  tableCell: NOTE_TABLE_CELL_WEIGHT,
+  tablePeak: NOTE_TABLE_PEAK_WEIGHT,
+  literal: NOTE_LITERAL_WEIGHT,
+  reference: NOTE_REFERENCE_WEIGHT,
+};
+export type NoteWeights = typeof W;
+
+/**
+ * `run` with the note's weights `weights` in place of the calibrated ones, and
+ * the calibrated ones back afterwards: the calibration's way to learn what a
+ * note weighs by each of its parts (each weight 1 and the rest 0). Nothing in
+ * the app calls it.
+ */
+/** The weights the note's budget weighs by now (a copy). */
+export function noteWeights(): NoteWeights {
+  return { ...W };
+}
+
+export function withNoteWeights<T>(weights: Partial<NoteWeights>, run: () => T): T {
+  const kept = { ...W };
+  Object.assign(W, weights);
+  try {
+    return run();
+  } finally {
+    Object.assign(W, kept);
+  }
+}
 
 /**
  * What a table row of `parts`, behind `prefix`, weighs to the note's budget
@@ -1627,16 +1710,16 @@ export const NOTE_REFERENCE_WEIGHT = 511;
  */
 function noteTableRowCost(parts: TableRowParts, columns: number, prefix: string): number {
   return (
-    NOTE_TABLE_ROW_WEIGHT +
+    W.tableRow +
     parts.chars +
-    NOTE_TABLE_CELL_WEIGHT * Math.max(parts.cells, columns) +
-    NOTE_SYNTAX_WEIGHT * parts.syntax +
-    NOTE_LITERAL_WEIGHT * parts.literals +
-    NOTE_WORD_WEIGHT * parts.words +
-    NOTE_REFERENCE_WEIGHT * parts.references +
-    NOTE_LINK_WEIGHT * parts.links +
+    W.tableCell * Math.max(parts.cells, columns) +
+    W.syntax * parts.syntax +
+    W.literal * parts.literals +
+    W.word * parts.words +
+    W.reference * parts.references +
+    W.link * parts.links +
     prefix.length +
-    NOTE_MARKER_WEIGHT * tableMarkerCount(prefix)
+    W.marker * tableMarkerCount(prefix)
   );
 }
 
@@ -1655,11 +1738,11 @@ for (const ch of TABLE_SYNTAX) SYNTAX_CODE[ch.charCodeAt(0)] = 1;
  */
 function noteLineCost(text: string, from: number, to: number): number {
   const kept = keptPrefix(text, from, to);
-  let cost = NOTE_LINE_WEIGHT;
+  let cost = W.line;
   if (kept > 0) {
     const prefix = text.slice(from, from + kept);
-    cost += prefix.length + NOTE_MARKER_WEIGHT * tableMarkerCount(prefix);
-    if (/(?:^|[ \t>])(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/.test(prefix)) cost += NOTE_ITEM_WEIGHT;
+    cost += prefix.length + W.marker * tableMarkerCount(prefix);
+    if (/(?:^|[ \t>])(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/.test(prefix)) cost += W.item;
   }
   let syntax = 0;
   let opens = 0;
@@ -1704,7 +1787,7 @@ function noteLineCost(text: string, from: number, to: number): number {
       } else if (code === 0x5d && text.charCodeAt(i + 1) === 0x28) links++;
     } else if (code === 0x40) {
       literals++;
-      if (isRelativeDate(text, i, to)) cost += RELATIVE_DATE_SHOWN_CHARS + NOTE_WORD_WEIGHT * RELATIVE_DATE_SHOWN_WORDS;
+      if (isRelativeDate(text, i, to)) cost += RELATIVE_DATE_SHOWN_CHARS + W.word * RELATIVE_DATE_SHOWN_WORDS;
     } else if (code === 0x3a) {
       if (text.charCodeAt(i + 1) === 0x2f && text.charCodeAt(i + 2) === 0x2f) literals++;
     } else if ((code | 0x20) === 0x77) {
@@ -1720,17 +1803,17 @@ function noteLineCost(text: string, from: number, to: number): number {
   return (
     cost +
     (to - from - kept) +
-    NOTE_SYNTAX_WEIGHT * syntax +
-    NOTE_OPEN_WEIGHT * opens +
-    NOTE_EMPHASIS_WEIGHT * emphasis +
-    NOTE_CODE_SPAN_WEIGHT * codeSpans +
-    NOTE_ANGLE_WEIGHT * angles +
-    NOTE_ENTITY_WEIGHT * entities +
-    NOTE_ESCAPE_WEIGHT * escapes +
-    NOTE_LITERAL_WEIGHT * literals +
-    NOTE_WORD_WEIGHT * words +
-    NOTE_REFERENCE_WEIGHT * references +
-    NOTE_LINK_WEIGHT * links
+    W.syntax * syntax +
+    W.open * opens +
+    W.emphasis * emphasis +
+    W.codeSpan * codeSpans +
+    W.angle * angles +
+    W.entity * entities +
+    W.escape * escapes +
+    W.literal * literals +
+    W.word * words +
+    W.reference * references +
+    W.link * links
   );
 }
 
@@ -1745,7 +1828,7 @@ function noteLineCost(text: string, from: number, to: number): number {
  * already reads as written, its stretches, by what text costs. The choice
  * depends on the text alone, so every device makes the same.
  */
-function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading): BoundedRange[] {
+function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading, observe?: InlineScanObserver): BoundedRange[] {
   const properties = reading.properties ? frontmatterSpan(text) : null;
   const propertiesEnd = properties ? properties.end : 0;
   const blocks: Array<{ from: number; to: number; weight: number; asText: number; headings: boolean }> = [];
@@ -1761,7 +1844,7 @@ function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables
     if (block && block.headings !== headings) close();
     if (!block) {
       block = { from, to, weight: 0, asText: 0, headings };
-      weight += NOTE_BLOCK_WEIGHT;
+      weight += W.block;
     }
     total += weight;
     block.to = to;
@@ -1780,14 +1863,14 @@ function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables
     const asText = line.to - line.from + 1;
     if (kind === LINE_HEADING) {
       // Headings are blocks of their own, read as text last: the outline and the links to them hang on them.
-      add(line.from, line.to, NOTE_HEADING_WEIGHT + noteLineCost(text, line.from, line.to), asText, true);
+      add(line.from, line.to, W.heading + noteLineCost(text, line.from, line.to), asText, true);
       continue;
     }
     while (written < ranges.length && ranges[written].to <= line.from) written++;
     const table = tables.get(index);
     if (table) {
       const end = lines[table.last].to;
-      const written = end - line.from + NOTE_TEXT_LINE_WEIGHT * (table.last - index + 1);
+      const written = end - line.from + W.textLine * (table.last - index + 1);
       if (table.cost >= 0) heaviestTable = Math.max(heaviestTable, table.peak);
       add(line.from, end, table.cost < 0 ? written : table.cost, end - line.from + 1);
       index = table.last;
@@ -1795,22 +1878,23 @@ function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables
     }
     if (written < ranges.length && ranges[written].from < line.to) {
       // Read as written already: what text costs, its line end kept.
-      add(line.from, line.to, line.to - line.from + NOTE_TEXT_LINE_WEIGHT, asText);
+      add(line.from, line.to, line.to - line.from + W.textLine, asText);
       continue;
     }
-    add(line.from, line.to, kind === LINE_CODE ? line.to - line.from + NOTE_CODE_LINE_WEIGHT : noteLineCost(text, line.from, line.to), asText);
+    add(line.from, line.to, kind === LINE_CODE ? line.to - line.from + W.codeLine : noteLineCost(text, line.from, line.to), asText);
   }
   close();
   // The peak of the heaviest table while it is resolved, on top of what stays: it is there whichever blocks are read as text.
-  total += (heaviestTable * NOTE_TABLE_PEAK_WEIGHT) / 100;
-  if (total <= NOTE_BUDGET) return [];
+  total += (heaviestTable * W.tablePeak) / 100;
+  observe?.note?.(total);
+  if (total <= noteBudget) return [];
   const chosen: BoundedRange[] = [];
   // The heaviest first; headings only where the rest cannot bring the note into its budget.
   // A block read as text is a paragraph of one line of stand-ins: alone, it weighs a line and a block besides its
   // characters; next to a block read as text it is part of that one's line, and between two it joins them into one.
   // (A note of footnotes, weighed by characters alone, read its references as text and kept 5 684 paragraphs of
   // stand-ins between its definitions, and ran out of 128 MB.)
-  const paragraph = NOTE_LINE_WEIGHT + NOTE_BLOCK_WEIGHT;
+  const paragraph = W.line + W.block;
   const asTextAt = new Uint8Array(blocks.length);
   const besideAsText = (i: number, j: number): boolean =>
     j >= 0 && j < blocks.length && asTextAt[j] === 1 && onlyBlanksBetween(text, blocks[Math.min(i, j)].to, blocks[Math.max(i, j)].from);
@@ -1819,7 +1903,7 @@ function noteBudgetRanges(text: string, lines: Line[], kinds: Uint8Array, tables
     .filter((i) => blocks[i].weight > blocks[i].asText + paragraph)
     .sort((x, y) => Number(blocks[x].headings) - Number(blocks[y].headings) || blocks[y].weight - blocks[x].weight || x - y);
   for (const i of heaviest) {
-    if (total <= NOTE_BUDGET) break;
+    if (total <= noteBudget) break;
     const candidate = blocks[i];
     const before = besideAsText(i, i - 1);
     const after = besideAsText(i, i + 1);

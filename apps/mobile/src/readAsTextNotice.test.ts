@@ -19,6 +19,10 @@ describe("a note read partly as text, on the phone (L14)", () => {
     expect(host).toMatch(/createEditorSession\(/);
   });
 
+  it("reads with the note budget the desktop reads with, set at the start", () => {
+    expect(readFileSync(new URL("./main.tsx", import.meta.url), "utf8")).toMatch(/setPlatformServices\(\{\n(?:\s*\/\/[^\n]*\n)*\s*noteBudget: NOTE_BUDGET,/);
+  });
+
   it("decides on the same scan as the desktop", () => {
     const list = Array.from({ length: 20_000 }, (_, i) => `- [ ] item ${i} [[Note ${i}]]`).join("\n");
     const ranges = overBudgetInlineRanges(`# T\n\n${list}\n`);

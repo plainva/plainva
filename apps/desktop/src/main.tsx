@@ -18,6 +18,7 @@ import { installDiscardQuestion } from "./services/discardQuestionInstall";
 import { installDeletionNetQuestion } from "./services/deletionNetInstall";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
+import { NOTE_BUDGET } from "@plainva/core";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
 import { MailComposeHost } from "./components/mail/MailComposeHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
@@ -75,6 +76,9 @@ if (isOwnerWindow) {
 // Register the platform capabilities (ADR 0011): shared code in @plainva/ui
 // reaches settings, secrets and URL-opening only through this injected bundle.
 setPlatformServices({
+  // The note's budget this shell reads with (L14): one value for its index, its editor and its reading view;
+  // both shells read with the one calibrated on 128 MB.
+  noteBudget: NOTE_BUDGET,
   loadSettings: getSettingsStore,
   credentials: credentialManager,
   // Only web, mail and phone addresses reach the opener (the shared rule, § 3.138).

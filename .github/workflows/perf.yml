@@ -97,7 +97,7 @@ jobs:
   tables:
     name: Table budget search
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -130,6 +130,12 @@ jobs:
       # (`readerTableBudget.test.tsx`), React and the DOM not at all.
       - name: Tables at the budget under a capped heap
         run: pnpm --filter @plainva/core perf:tables -- --hunt 200 --minutes 20
+
+      # The same 200 tables every run (seed 956860): a note of one table the
+      # table budget reads as a table is read as a table, the note's budget
+      # notwithstanding (L14; 18 of these became text before it held).
+      - name: The tables of seed 956860 under a capped heap
+        run: pnpm --filter @plainva/core perf:tables -- --hunt 200 --seed 956860 --minutes 20
 
   notes:
     name: Note budget search

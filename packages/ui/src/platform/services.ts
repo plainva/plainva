@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { ISettingsStore } from "./settings";
 import type { ICredentialStore } from "./credentials";
 import type { KeychainSlotInput } from "../lib/keychainSlots";
+import { setNoteBudget } from "@plainva/core";
 
 /**
  * The bundle of platform capabilities an app shell injects at startup
@@ -9,6 +10,12 @@ import type { KeychainSlotInput } from "../lib/keychainSlots";
  * Grows additively (fetch, folder pickers, …) as extraction proceeds.
  */
 export interface PlatformServices {
+  /**
+   * The note's budget this shell reads with (`setNoteBudget` in core, L14):
+   * one value for its index, its editor and its reading view. Both shells
+   * pass `NOTE_BUDGET`, calibrated on 128 MB, today.
+   */
+  noteBudget?: number;
   /** Loads (or returns) the app-wide settings store. */
   loadSettings(): Promise<ISettingsStore>;
   /** Secret storage for sync credentials. */
@@ -90,6 +97,7 @@ let current: PlatformServices | null = null;
 /** Called once by the app shell (desktop: main.tsx) before the first render. */
 export function setPlatformServices(services: PlatformServices): void {
   current = services;
+  if (services?.noteBudget !== undefined) setNoteBudget(services.noteBudget);
 }
 
 export function hasPlatformServices(): boolean {

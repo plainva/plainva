@@ -1,0 +1,170 @@
+{
+  "measured": "2026-11-19, main 0b194026e, 128 MB: main = the most units the index, note-source and reading-view parses of main read under the heap (the reading view without KaTeX's layout), or main's own paragraph budget where it reads them as text before; branch = the most units the note's budget reads with no block as text; ratio = main / branch",
+  "forms": {
+    "prose": {
+      "main": 19534,
+      "branch": 11214,
+      "ratio": 1.74
+    },
+    "paras": {
+      "main": 12782,
+      "branch": 6425,
+      "ratio": 1.99
+    },
+    "emails": {
+      "main": 22835,
+      "branch": 13823,
+      "ratio": 1.65
+    },
+    "urls": {
+      "main": 9317,
+      "branch": 8947,
+      "ratio": 1.04
+    },
+    "items": {
+      "main": 8961,
+      "branch": 5854,
+      "ratio": 1.53
+    },
+    "linked": {
+      "main": 4836,
+      "branch": 4648,
+      "ratio": 1.04
+    },
+    "tasks": {
+      "main": 7700,
+      "branch": 4676,
+      "ratio": 1.65
+    },
+    "taskem": {
+      "main": 6097,
+      "branch": 3334,
+      "ratio": 1.83
+    },
+    "done": {
+      "main": 6771,
+      "branch": 3555,
+      "ratio": 1.9
+    },
+    "journal": {
+      "main": 3677,
+      "branch": 3596,
+      "ratio": 1.02
+    },
+    "quotes": {
+      "main": 26100,
+      "branch": 15881,
+      "ratio": 1.64
+    },
+    "callouts": {
+      "main": 3607,
+      "branch": 3530,
+      "ratio": 1.02
+    },
+    "xwords": {
+      "main": 158925,
+      "branch": 154114,
+      "ratio": 1.03
+    },
+    "nested": {
+      "main": 7939,
+      "branch": 4421,
+      "ratio": 1.8
+    },
+    "ordered": {
+      "main": 8538,
+      "branch": 6081,
+      "ratio": 1.4
+    },
+    "loose": {
+      "main": 8624,
+      "branch": 4214,
+      "ratio": 2.05
+    },
+    "quote3": {
+      "main": 20594,
+      "branch": 11451,
+      "ratio": 1.8
+    },
+    "headings": {
+      "main": 19644,
+      "branch": 18781,
+      "ratio": 1.05
+    },
+    "code": {
+      "main": 78694,
+      "branch": 72965,
+      "ratio": 1.08
+    },
+    "links": {
+      "main": 70671,
+      "branch": 65916,
+      "ratio": 1.07
+    },
+    "tagsl": {
+      "main": 49761,
+      "branch": 47566,
+      "ratio": 1.05
+    },
+    "sentences": {
+      "main": 9984,
+      "branch": 4722,
+      "ratio": 2.11
+    },
+    "footnotes": {
+      "main": 3490,
+      "branch": 3250,
+      "ratio": 1.07
+    },
+    "embeds": {
+      "main": 68916,
+      "branch": 61773,
+      "ratio": 1.12
+    },
+    "html": {
+      "main": 12578,
+      "branch": 11725,
+      "ratio": 1.07
+    },
+    "maths": {
+      "main": 18034,
+      "branch": 8778,
+      "ratio": 2.05
+    },
+    "emphasis": {
+      "main": 6991,
+      "branch": 4419,
+      "ratio": 1.58
+    },
+    "opens": {
+      "main": 2638,
+      "branch": 1516,
+      "ratio": 1.74
+    },
+    "starred": {
+      "main": 1321,
+      "branch": 1268,
+      "ratio": 1.04
+    },
+    "tables2": {
+      "main": 3257,
+      "branch": 2573,
+      "ratio": 1.27
+    },
+    "tables50": {
+      "main": 82,
+      "branch": 68,
+      "ratio": 1.21
+    },
+    "bigtables": {
+      "main": 3,
+      "branch": 2,
+      "ratio": 1.5
+    },
+    "manytables": {
+      "main": 62,
+      "branch": 43,
+      "ratio": 1.44
+    }
+  }
+}

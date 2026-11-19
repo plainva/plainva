@@ -257,26 +257,50 @@ function tablesWhole(text: string, ranges: readonly BoundedRange[]): BoundedRang
   return whole;
 }
 
-/** `found` joins the node a stretch read as text stands in: the deepest one around its first character. */
+/**
+ * Each link of `found` joins the node its place stands in: the deepest one
+ * with children around its first character — the paragraph a stretch read as
+ * text became, which may stand in a list item or a quote whose markers the
+ * stretch kept. Found by halving the children at each level, so that a note
+ * of many blocks is not walked once a link.
+ */
 function joinLinks(tree: LinkNode, range: BoundedRange, found: LinkNode[]): void {
-  let holder = tree;
-  for (let deeper = true; deeper; ) {
-    deeper = false;
-    for (const child of holder.children ?? []) {
-      const from = child.position?.start.offset;
-      const to = child.position?.end.offset;
-      if (child.children && from !== undefined && to !== undefined && from <= range.from && range.from < to) {
-        holder = child;
-        deeper = true;
-        break;
+  const holderAt = (at: number): LinkNode => {
+    let holder = tree;
+    for (;;) {
+      const children = holder.children ?? [];
+      let lo = 0;
+      let hi = children.length - 1;
+      let next: LinkNode | null = null;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const from = children[mid].position?.start.offset ?? 0;
+        const to = children[mid].position?.end.offset ?? 0;
+        if (to <= at) lo = mid + 1;
+        else if (from > at) hi = mid - 1;
+        else {
+          next = children[mid];
+          break;
+        }
       }
+      if (!next?.children || LINK_TYPES.has(next.type)) return holder;
+      holder = next;
     }
+  };
+  const holders = new Map<LinkNode, LinkNode[]>();
+  for (const link of found) {
+    const holder = holderAt(link.position?.start.offset ?? range.from);
+    const list = holders.get(holder);
+    if (list) list.push(link);
+    else holders.set(holder, [link]);
   }
-  // What the parse of a table as text made a link (an autolink literal: a URL, an e-mail address)
-  // is a link the rows give again: it gives up its place to its text, so that no link counts twice
-  // (review, 2026-11-18: each URL of such a table stood in the index twice).
-  unwrapLinksIn(holder, range.from, range.to);
-  holder.children = [...(holder.children ?? []), ...found];
+  for (const [holder, links] of holders) {
+    // What the parse of a table as text made a link (an autolink literal: a URL, an e-mail address)
+    // is a link the rows give again: it gives up its place to its text, so that no link counts twice
+    // (review, 2026-11-18: each URL of such a table stood in the index twice).
+    unwrapLinksIn(holder, range.from, range.to);
+    holder.children = [...(holder.children ?? []), ...links];
+  }
 }
 
 /** Each link under `node` that starts in `from`..`to` replaced by its children (an image, which has none, goes). */

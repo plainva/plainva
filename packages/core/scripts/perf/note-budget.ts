@@ -3,7 +3,7 @@
  * L14; `NOTE_BUDGET` and `noteLineCost` in `src/inlineParseBudget.ts`).
  *
  *   pnpm --filter @plainva/core perf:notes -- --calibrate [forms]   # per form: where main runs out, where the budget begins (long)
- *   pnpm --filter @plainva/core perf:notes -- --check             # every form, at the budget and far over it (minutes)
+ *   pnpm --filter @plainva/core perf:notes -- --check [--heap <mb> --factor <k>]   # every form at its threshold and far over it (minutes)
  *   pnpm --filter @plainva/core perf:notes -- --hunt <n> [--seed <s>] [--minutes <m>]
  *
  * The criterion, the table budget's one for a whole note: the index parse
@@ -12,19 +12,28 @@
  * prepared, its own ranges and the note's, GFM, the HTML tree) each read the
  * note in a process whose V8 old space is capped at `HEAP_MB`.
  *
- * `--check`: for each form, the largest note the scan reads as it is (no range
- * of the note's budget) is read with the note's budget OFF at 1.3 times its
- * size — the margin — and a note of three and of ten times that size is read
- * WITH it, as the app reads it.
+ * `--check`: for each form of `noteBudgetForms.json` — `main`'s limit under
+ * 128 MB and the ratio measured when the weights were last calibrated — the
+ * largest note the note's budget reads with no block as text (its threshold)
+ * is read as the app reads it, and so are notes of three and of ten times
+ * that size. Each must pass under the heap — the safe side: at its threshold
+ * a note passes, which `main`, reading it alike, does too —, and the ratio of
+ * `main`'s limit to the threshold must stay between 1.0 and the measured ratio
+ * plus 5 %, so that a change of the weights that reads a form as text earlier
+ * than calibrated shows. `--heap <mb> --factor <k>`: the same under another
+ * heap, with the note's budget `k` times `NOTE_BUDGET` (a shell with more
+ * memory, Gesamtplan Leistung § 3a); there only the safe side counts.
  *
  * `--calibrate`: for each form (or the forms named, comma-separated), the
  * most units the three parses read with the note's budget off under the capped
  * heap — the inline and table budgets kept, as `main` reads before L14: where
  * it runs out of memory — beside the most
- * the scan reads as it is, and the ratio of the two. Above 1 the budget reads
- * a note as text that `main` still reads formatted under the heap; the margin
- * of `--check` holds it at 1.3 or more, so that a note at the budget passes
- * with room to spare.
+ * the note's budget reads with no block as text, and the ratio of the two.
+ * At 1 or more a note at the threshold passes (the safe side); above 1 the
+ * budget reads a note as text that `main` still reads formatted under the
+ * heap. The weights are fitted to bring every form to 1 or a little more and
+ * the early side as low as weights of countable parts allow (2026-11-19: 1.02
+ * to 2.11, `noteBudgetForms.json`); `--features` gives the parts a fit reads.
  *
  * `--hunt`: generated notes of a seed drawn anew (or given), blocks of every
  * kind mixed — prose, words, link literals, lists plain, linked, nested and
@@ -35,18 +44,23 @@
  * the time). A note that does not pass prints its seed and number.
  */
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
 import { toHast } from "mdast-util-to-hast";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
-import { boundMarkdownInRanges, NOTE_BUDGET, NOTE_READING, overBudgetInlineRanges, READER_READING, restoreBoundedTree, unitedRanges, type MarkdownReading } from "../../src/inlineParseBudget.js";
+import { boundMarkdownInRanges, NOTE_BUDGET, NOTE_READING, overBudgetInlineRanges, READER_READING, noteWeights, restoreBoundedTree, setNoteBudget, unitedRanges, withNoteWeights, type MarkdownReading, type NoteWeights } from "../../src/inlineParseBudget.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
 import { prepareReaderSource } from "../../src/noteSource.js";
 import { tablesNote } from "./many-tables.js";
 
 export const HEAP_MB = 128;
+/** The heap the parses run under, and the multiple of `NOTE_BUDGET` the app reads with (`--heap`, `--factor`). */
+let heapMb = HEAP_MB;
+let budgetFactor = Number(process.env.PLAINVA_NOTE_BUDGET_FACTOR ?? 1);
+if (budgetFactor !== 1) setNoteBudget(NOTE_BUDGET * budgetFactor);
 const HUNT_PARSE_MS = 20_000;
 /** The largest note `--check` reads: beyond it a note's text alone, read as one line of stand-ins, outgrows the heap (Performance_Notes.md). */
 const FAR_CHARS = 10_000_000;
@@ -189,7 +203,7 @@ function child(name: string, n: number, scale: number, parse: string, bounded: b
 function passes(name: string, n: number, bounded: boolean, scale = 1): { ok: boolean; slowest: number; why: string } {
   let slowest = 0;
   for (const parse of ["index", "tree", "reader"]) {
-    const run = spawnSync(process.execPath, [`--max-old-space-size=${HEAP_MB}`, "--import", "tsx", HERE, "--child", name, String(n), String(scale), parse, bounded ? "bounded" : "unbounded"], { cwd: CORE, encoding: "utf8", timeout: 300_000 });
+    const run = spawnSync(process.execPath, [`--max-old-space-size=${heapMb}`, "--import", "tsx", HERE, "--child", name, String(n), String(scale), parse, bounded ? "bounded" : "unbounded"], { cwd: CORE, encoding: "utf8", timeout: 300_000, env: { ...process.env, PLAINVA_NOTE_BUDGET_FACTOR: String(budgetFactor) } });
     const out = /^ok (\d+)/m.exec(run.stdout ?? "");
     if (run.status !== 0 || !out) return { ok: false, slowest, why: `${parse}: ${/heap out of memory|Allocation failed/i.test(run.stderr ?? "") ? "out of memory" : `exit ${run.status}`}` };
     slowest = Math.max(slowest, Number(out[1]));
@@ -197,10 +211,13 @@ function passes(name: string, n: number, bounded: boolean, scale = 1): { ok: boo
   return { ok: true, slowest, why: "" };
 }
 
-/** The most units of a form the scan reads as it is: no range of the note's budget. */
+/**
+ * The most units of a form the note's budget reads as they are: no block read
+ * as text. A paragraph's or a table's own budget may read part of it as
+ * written below that, as on `main`, which has them too.
+ */
 function readAsItIs(form: string): number {
-  // Read as it is: no range at all — of the note's budget, or of a paragraph's or a table's.
-  const bounded = (n: number) => overBudgetInlineRanges(noteOf(form, n)).length > 0;
+  const bounded = (n: number) => overBudgetInlineRanges(noteOf(form, n)).some((range) => range.block);
   let lo = 0;
   let hi = 64;
   while (!bounded(hi) && hi < 1 << 22) {
@@ -215,19 +232,28 @@ function readAsItIs(form: string): number {
   return lo;
 }
 
-function check(): boolean {
+function check(args: string[]): boolean {
+  const at = (flag: string, fallback: number) => (args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : fallback);
+  heapMb = at("--heap", HEAP_MB);
+  budgetFactor = at("--factor", 1);
+  setNoteBudget(NOTE_BUDGET * budgetFactor);
+  const measured = heapMb === HEAP_MB && budgetFactor === 1;
+  // The forms with main's limit and the ratio of the last calibration (`--calibrate`, 2026-11-19).
+  const forms = (JSON.parse(readFileSync(path.join(path.dirname(HERE), "noteBudgetForms.json"), "utf8")) as { forms: Record<string, { main: number; branch: number; ratio: number }> }).forms;
   let all = true;
-  console.log(`check    note budget ${NOTE_BUDGET}, ${HEAP_MB} MB; ${Object.keys(NOTE_FORMS).length} forms`);
-  for (const form of Object.keys(NOTE_FORMS)) {
+  console.log(`check    note budget ${NOTE_BUDGET * budgetFactor}, ${heapMb} MB; ${Object.keys(forms).length} forms${measured ? "" : " (the safe side only)"}`);
+  for (const [form, { main, ratio }] of Object.entries(forms)) {
     const n = readAsItIs(form);
-    const margin = passes(form, Math.ceil(n * 1.3), false);
+    const at1 = passes(form, n, true);
     // Three and ten times as large, at most the 10 MB the note's budget is measured for.
     const within = (factor: number) => Math.max(n, Math.min(n * factor, Math.floor((n * FAR_CHARS) / Math.max(1, noteOf(form, n).length))));
     const over = passes(form, within(3), true);
     const far = passes(form, within(10), true);
-    const ok = margin.ok && over.ok && far.ok;
+    const now = main / Math.max(1, n);
+    const inRatio = !measured || (now >= 1 && now <= ratio * 1.05);
+    const ok = at1.ok && over.ok && far.ok && inRatio;
     all &&= ok;
-    console.log(`         ${form.padEnd(10)} read as it is up to ${String(n).padStart(7)}   at 1.3 x without the note budget ${margin.ok ? "pass" : `FAIL (${margin.why})`}   at 3 x ${over.ok ? "pass" : `FAIL (${over.why})`}   at 10 x ${far.ok ? "pass" : `FAIL (${far.why})`}`);
+    console.log(`         ${form.padEnd(10)} formatted up to ${String(n).padStart(7)}${measured ? `   main ${String(main).padStart(7)}   ratio ${now.toFixed(2)} (calibrated ${ratio.toFixed(2)})${inRatio ? "" : " FAIL"}` : ""}   at it ${at1.ok ? "pass" : `FAIL (${at1.why})`}   at 3 x ${over.ok ? "pass" : `FAIL (${over.why})`}   at 10 x ${far.ok ? "pass" : `FAIL (${far.why})`}`);
   }
   console.log(`check    ${all ? "every form passes" : "FAILED"}`);
   return all;
@@ -250,6 +276,32 @@ function readUnbounded(form: string, from: number): number {
     else hi = mid;
   }
   return lo;
+}
+
+/**
+ * `--features <forms> <units>`: what a unit of each form weighs by each of the
+ * note's weights — the note weighed with that weight 1 and every other 0 —,
+ * and by its characters alone (every weight 0), as JSON lines: the parts a
+ * fit of the weights against `--calibrate`'s limits reads.
+ */
+function features(args: string[]): void {
+  const at = args.indexOf("--features");
+  const forms = args[at + 1].split(",");
+  const units = args[at + 2].split(",").map(Number);
+  const zero = Object.fromEntries(Object.keys(noteWeights()).map((key) => [key, 0])) as Partial<NoteWeights>;
+  forms.forEach((form, f) => {
+    const n = units[f] ?? units[0];
+    const text = noteOf(form, n);
+    const total = (weights: Partial<NoteWeights>) => withNoteWeights(weights, () => {
+      let found = 0;
+      overBudgetInlineRanges(text, { note: (value) => (found = value) });
+      return found;
+    });
+    const base = total(zero);
+    const parts: Record<string, number> = { chars: base / n };
+    for (const key of Object.keys(zero)) parts[key] = (total({ ...zero, [key]: 1 }) - base) / n;
+    console.log(JSON.stringify({ form, n, parts }));
+  });
 }
 
 function calibrate(args: string[]): void {
@@ -307,7 +359,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = process.argv.slice(2);
   if (args[0] === "--child") child(args[1], Number(args[2]), Number(args[3]), args[4], args[5] === "bounded");
   else if (args.includes("--calibrate")) calibrate(args);
+  else if (args.includes("--features")) features(args);
   else if (args.includes("--hunt")) {
     if (!hunt(args)) process.exitCode = 1;
-  } else if (!check()) process.exitCode = 1;
+  } else if (!check(args)) process.exitCode = 1;
 }

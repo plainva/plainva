@@ -75,6 +75,9 @@ describe("what of a note is read as text (L14)", () => {
     expect(read("../../../../packages/ui/src/components/editorSession.ts")).toMatch(/\n\s+readAsText\(\),/);
     expect(read("./Editor.tsx")).toMatch(/<ReadAsTextNotice content=\{content\}/);
     expect(read("../../../mobile/src/EditorHost.tsx")).toMatch(/<ReadAsTextNotice content=\{noticeText\}/);
+    // One note budget a shell, set at its start: today both shells read with the one calibrated on 128 MB.
+    // A shell given a budget of its own is an asymmetry, and an entry in the parity catalog.
+    for (const main of ["../main.tsx", "../../../mobile/src/main.tsx"]) expect(read(main), main).toMatch(/setPlatformServices\(\{\n(?:\s*\/\/[^\n]*\n)*\s*noteBudget: NOTE_BUDGET,/);
     // The reading view reads the note's stretches (the original and its preparation handed in), the editor's.
     expect(read("./MarkdownReader.tsx")).toMatch(/boundReaderMarkdown\(source\.text, \{ original: content, source \}\)/);
   });

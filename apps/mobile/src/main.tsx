@@ -92,6 +92,7 @@ class FatalBoundary extends React.Component<{ children: React.ReactNode }, { fai
 import { getMobileVault, noteSaver } from "./services/vaultService";
 import { openExternalUrl } from "./services/openExternal";
 import { mobileAppVersion } from "./services/mobileWhatsNew";
+import { NOTE_BUDGET } from "@plainva/core";
 
 // First: every plugin call from here on is measured (release list F51, `bridgeMeter.ts`).
 installBridgeMeter();
@@ -99,6 +100,9 @@ installBridgeMeter();
 installBridgeLimit();
 
 setPlatformServices({
+  // The note's budget this shell reads with (L14): one value for its index, its editor and its reading view;
+  // both shells read with the one calibrated on 128 MB.
+  noteBudget: NOTE_BUDGET,
   loadSettings: async () => capacitorSettingsStore,
   credentials: secureCredentialStore,
   // The phone's editor queues its saves in the coordinator; a shared write

@@ -767,13 +767,12 @@ prose.
 Since L14 the scan weighs the whole note (`noteBudgetRanges` in `inlineParseBudget.ts`): each line
 of text by `noteLineCost` — a line, a list item it opens, its quote and list levels, its characters,
 the starts of its words, each run of inline syntax and, beyond that, by its kind (emphasis, code
-span, `<`, `&`), its links, its link literals and footnote references, its formulas (as a table weighs
-them: KaTeX lays them out) —, each block (the lines between two blank lines) and each heading once
+span, `<`, `&`), its links, its link literals and footnote references (a `$` is a character of inline syntax and
+nothing more) —, each block (the lines between two blank lines) and each heading once
 more. A table weighs what stays of it once it is resolved: each row a row's and each cell's weight
 of its own and its content as text weighs, the heaviest table's peak (a share of its table weight)
 once on top — two tables at the table budget run 128 MB out, 101 tables of 50 rows do not. Over
-`NOTE_BUDGET` (7 660 000, a tenth over the table budget, so that a table at its own budget fits with
-the text around it) the heaviest blocks are read as text until the note is within it; headings only
+`NOTE_BUDGET` (10 790 000, below) the heaviest blocks are read as text until the note is within it; headings only
 where nothing else is left, the properties block never. The choice depends on the text alone, so
 every device makes the same.
 
@@ -791,53 +790,63 @@ emphasis forms, 2 310 notes of three local vaults) gave the same tree in the ind
 note-source parse and the reading view under 4.0.2 and 4.0.3. `micromark-core-commonmark` stays at
 2.0.3: its 2.0.4 changes emphasis next to punctuation.
 
-The weights come from the largest note of 40 of the generator's 43 forms the three parses read without a budget under
-128 MB (`scripts/perf/note-budget.ts`, measured on 2026-11-16), fitted by a linear program: each
-form's limit weighs at least the budget / 0.77, so every form keeps about 30 %, and the sum of what
-every form weighs at its limit is as small as it can be. The first calibration, from 19 forms of
-one kind of line each, read a list of 3 000 tasks with a link and emphasis as text, which the
-parses read up to 6 500; and footnotes and dense small tables kept no margin (0.88). Four forms
-reach the paragraph budget before the note's (one line of `x]`, lines of links run together,
-sentences run together, lines of embeds); formulas keep the table's weights. A word of text costs
-far less than a word in a table cell: a line of 168 000 one-letter words passes.
+The weights were calibrated anew on 2026-11-19 against `main` (`0b194026e`, micromark 4.0.3): for
+each of 33 forms the most units `main` reads under 128 MB in the index parse, the note-source parse
+and the reading view as the core runs it — or, where `main`'s own paragraph budget reads them as text
+before that, the most it reads formatted — against the most the note's budget reads with no block as
+text (`perf:notes -- --calibrate`, `--features`). The safe side is the hard condition: every form is
+at a ratio of 1.0 or more, so a note at its threshold passes under the heap. The early side is as low
+as weights of countable parts allow: a fit in log space over the 29 forms without a table brings them
+to 1.02 to 2.11. A window of 1.1 to 1.3 for every form is not reachable with them — the best fit
+without the safe side spread from 0.71 to 1.77, with it no fit stayed under 2.1 —: the memory follows
+the nodes the parses make, not the characters, words and marks the scan counts (lines of long words
+against a line of `x x …`, lists with a link against tasks with one). Weighing by the nodes the
+consumers make is a package of its own after the release (L14b). The table below is held in
+`noteBudgetForms.json`: `perf:notes -- --check` reads each form at its threshold and three and ten
+times over it under the heap, and holds its ratio between 1.0 and the calibrated one plus 5 %;
+`note-budget.test.ts` holds the same thresholds by the scan alone.
 
-| Form | Read as it is up to | Limit without a budget | Margin |
+| Form | `main` under 128 MB up to | Formatted on this branch up to | Ratio |
 |---|---:|---:|---:|
-| prose, lines of twelve words | 9 239 | 20 000 | 2.16 |
-| one line of `x x …` (words) | 127 647 | 168 000 | 1.32 |
-| short paragraphs between blank lines | 5 838 | 13 500 | 2.31 |
-| lines of a mail address and a `www.` | 8 586 | 24 000 | 2.80 |
-| list items `- item n` | 6 388 | 8 750 | 1.37 |
-| list items with a wiki link | 5 603 | 7 750 | 1.38 |
-| tasks `- [ ] task n due` | 5 546 | 7 750 | 1.40 |
-| nested items | 5 332 | 8 250 | 1.55 |
-| ordered items | 6 719 | 8 750 | 1.30 |
-| items between blank lines | 4 554 | 9 250 | 2.03 |
-| quote lines | 16 206 | 27 000 | 1.67 |
-| lines three quotes deep | 16 040 | 21 000 | 1.31 |
-| headings | 14 917 | 19 500 | 1.31 |
-| tables of two rows between blank lines | 2 689 | 3 500 | 1.30 |
-| lines of fenced code | 61 338 | 80 000 | 1.30 |
-| thematic breaks between blank lines | 12 536 | 33 000 | 2.63 |
-| lines of two tags | 39 519 | 52 000 | 1.32 |
-| tasks with a wiki link and emphasis | 4 087 | 6 500 | 1.59 |
-| paragraphs of eighty `]` | 11 132 | 14 500 | 1.30 |
-| paragraphs of `` `a `` × 40 | 1 676 | 2 187 | 1.30 |
-| paragraphs of `&amp;` × 16 | 2 783 | 3 625 | 1.30 |
-| paragraphs of eighty `[` | 2 075 | 2 750 | 1.32 |
-| paragraphs of eighty `*` (thematic breaks) | 9 352 | 40 000 | 4.28 |
-| tables of 50 rows of sixteen cells | 19 | 26 | 1.30 |
-| lines of a Markdown link and a URL | 7 073 | 9 250 | 1.31 |
-| paragraphs of `*a` × 40 | 1 292 | 1 687 | 1.31 |
-| paragraphs of `![` × 40 | 2 596 | 4 875 | 1.88 |
-| tables of 50 rows of three cells | 73 | 101 | 1.38 |
-| tables of 1 200 rows | 3 | 4 | 1.31 |
-| done items with a link and a date | 4 628 | 7 500 | 1.62 |
-| journal lines `- 10:00 …` with a link and a tag | 4 053 | 6 500 | 1.60 |
-| lines of emphasis, strike-through and code | 4 048 | 7 000 | 1.73 |
-| footnote references and definitions | 2 778 | 3 625 | 1.30 |
-| paragraphs of `\*` × 40 | 1 292 | 2 125 | 1.64 |
-| paragraphs of `<a` × 40 | 9 479 | 12 500 | 1.32 |
+| journal lines `- 10:00 …` with a link and a tag | 3 677 | 3 596 | 1.02 |
+| callouts of two lines with a link | 3 607 | 3 530 | 1.02 |
+| one line of `x x …` (words) | 158 925 | 154 114 | 1.03 |
+| lines of a Markdown link and a URL | 9 317 | 8 947 | 1.04 |
+| list items with a wiki link | 4 836 | 4 648 | 1.04 |
+| paragraphs of `*a` × 40 | 1 321 | 1 268 | 1.04 |
+| headings | 19 644 | 18 781 | 1.05 |
+| lines of two tags | 49 761 | 47 566 | 1.05 |
+| lines of links run together | 70 671 | 65 916 | 1.07 |
+| footnote references and definitions | 3 490 | 3 250 | 1.07 |
+| lines of inline HTML | 12 578 | 11 725 | 1.07 |
+| lines of fenced code | 78 694 | 72 965 | 1.08 |
+| lines of embeds run together | 68 916 | 61 773 | 1.12 |
+| tables of 50 rows of three cells | 82 | 68 | 1.21 |
+| tables of two rows between blank lines | 3 257 | 2 573 | 1.27 |
+| ordered items | 8 538 | 6 081 | 1.40 |
+| the performance script's note of tables of 50 rows | 62 | 43 | 1.44 |
+| tables of 1 200 rows | 3 | 2 | 1.50 |
+| list items `- item n` | 8 961 | 5 854 | 1.53 |
+| lines of emphasis, strike-through and code | 6 991 | 4 419 | 1.58 |
+| quote lines | 26 100 | 15 881 | 1.64 |
+| lines of a mail address and a `www.` | 22 835 | 13 823 | 1.65 |
+| tasks `- [ ] task n due` | 7 700 | 4 676 | 1.65 |
+| prose, lines of twelve words | 19 534 | 11 214 | 1.74 |
+| paragraphs of eighty `[` | 2 638 | 1 516 | 1.74 |
+| nested items | 7 939 | 4 421 | 1.80 |
+| lines three quotes deep | 20 594 | 11 451 | 1.80 |
+| tasks with a wiki link and emphasis | 6 097 | 3 334 | 1.83 |
+| done items with a link and a date | 6 771 | 3 555 | 1.90 |
+| short paragraphs between blank lines | 12 782 | 6 425 | 1.99 |
+| items between blank lines | 8 624 | 4 214 | 2.05 |
+| lines of two formulas | 18 034 | 8 778 | 2.05 |
+| sentences run together in one paragraph | 9 984 | 4 722 | 2.11 |
+
+A ratio above 1 is how much earlier than `main` a note of that form is read partly as text; at the
+top, a paragraph of sentences (2.11, against the 9 984 `main`'s paragraph budget reads formatted —
+`main` reads 149 696 under 128 MB as text), items between blank lines and formulas (2.05), short
+paragraphs (1.99), done items and tasks with a link (1.90, 1.83). Lists with a wiki link (1.04),
+journal lines and callouts (1.02) are read formatted to just under where `main` runs out.
 
 At three times their limit every form is read under 128 MB in the index parse, the note-source parse
 and the reading view as the core runs it; so are notes of 4 to 10 MB (60 000 lines of prose, 40 000
@@ -864,6 +873,41 @@ from its rows and once from a search of its own); tags come from the text the tr
 tasks from the line scan (`taskScan.ts`), which reads no tree. The index reads every note this
 way: until L14 a note with a line over 10 000 characters lost its links, its tags and its
 properties altogether.
+
+**A table and the note's budget (L14, 2026-11-19).** The table budget is calibrated for one table
+alone under the same heap, and `main` reads a table within it as a table. So a table read as a table
+weighs to the note's budget at most nine tenths of the note's budget at the table budget
+(`NOTE_TABLE_SHARE`): a note of one such table is never read as text for the note's budget, whatever
+stands around it in a few lines. Before this held, 18 of the 200 tables of the table budget's hunt
+with seed 956860 became text that `main` reads as tables; the performance workflow runs those 200
+tables on every push since.
+
+**One budget a shell.** The note's budget is a value each shell sets at its start (`setNoteBudget`),
+and every reader of that shell — the index, the note-source parse, the editor and the reading view —
+weighs against it, so that they decide alike. Both shells set `NOTE_BUDGET`, calibrated on 128 MB,
+today; a shell with more memory may be given a budget of its own, calibrated with `perf:notes` under
+its heap, with the same weights.
+
+**Named limits of a part read as text (L14, 2026-11-19).** Each holds only
+inside a stretch the parse budget reads as text — a paragraph, a table or, over the note's budget, a block —
+and is wanted, not overlooked:
+
+- *Links the parser would not read are listed* (`textReadLinks.ts` reads a line, not the block around it): in
+  indented code (`    [[x]]` behind a blank line), in a code span over two lines of a paragraph
+  (`` a `b `` / `` [[x]] c` ``), in an HTML block (`<div>` / `[[x]]` / `</div>`) and inside a link's label
+  (`[[[x]]](y)` lists `x` and `y`). A code span on one line and fenced code are left out, as the parser
+  leaves them.
+- *A tag in a code span counts:* `` `#draft` `` in such a stretch is the tag `draft`, which the parser would
+  not read; the tags come from the text the tree gives back.
+- *A bare address is no link in the reading view:* `https://example.org` stands as text there (no link
+  literal is read in a stretch read as text, Gesamtplan Leistung § 3a.2: one table at twice its budget made
+  82 600 of them and ran the parse out of 128 MB). It names no note, so the index and a rename lose nothing.
+- *Formulas weigh nothing of their own:* a `$` is a character of inline syntax to the note's budget as to the
+  table's; KaTeX's layout in the desktop's reading view is not bounded, as on `main` (`$x$` three thousand
+  times in a note is laid out formula for formula).
+- *Headings last, properties never:* only where every other block is text and the note is still over its
+  budget are its headings read as text too (a note of 30 000 headings); the properties block never is.
+
 128 MB is an assumption measured on Node's heap: „Speicher messen“ under About & Diagnostics reads
 generated notes of growing size on the device and puts the largest it read, and a size at which
 the app was ended, into the diagnostics export.
