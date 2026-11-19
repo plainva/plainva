@@ -1886,6 +1886,9 @@
       "noClients": "Aucune app n'a encore demandé.",
       "folders": "Dossiers : {{folders}}",
       "noFolders": "aucun dans ce vault",
+      "foldersStale_other": "{{count}} dossiers accordés avant ne comptent plus. Retirez l'app ; elle redemandera et vous choisirez à nouveau.",
+      "foldersStale_many": "{{count}} dossiers accordés avant ne comptent plus. Retirez l'app ; elle redemandera et vous choisirez à nouveau.",
+      "foldersStale_one": "Un dossier accordé avant ne compte plus. Retirez l'app ; elle redemandera et vous choisirez à nouveau.",
       "wholeVault": "tout le vault",
       "lastSeen": "dernière utilisation {{when}}",
       "revokeLabel": "Retirer {{client}}",
@@ -1900,6 +1903,7 @@
       "pairBody": "Lancé par : {{program}}. Choisissez ce qu'elle peut lire — elle ne voit rien d'autre.",
       "pairFolders": "Dossiers",
       "pairWhole": "Tout le vault",
+      "pairRenamed": "L'accès suit le nom du dossier : si vous le renommez plus tard, il n'est plus partagé tant que vous ne l'autorisez pas à nouveau.",
       "pairAllow": "Autoriser",
       "pairDeny": "Refuser",
       "author": "{{client}} (app d'IA)",
@@ -6473,6 +6477,7 @@
     "loadMore": "Charger plus",
     "pickMessage": "Sélectionnez un message.",
     "viewer": "Contenu de l’e-mail",
+    "bodyUnreadable": "Ce message ne peut pas être affiché en toute sécurité, Plainva n’affiche donc pas son contenu.",
     "remoteBlocked": "Contenu distant bloqué ({{n}})",
     "remoteBlockedJunk": "Dans le dossier spam, Plainva ne charge aucune image distante, même si elles sont sinon toujours chargées. Bloqué : {{n}}.",
     "captured": "E-mail enregistré : {{name}}",
@@ -8196,7 +8201,8 @@
     "driveFolder": "Le fournisseur a renvoyé un identifiant de dossier non valide. L’opération a été arrêtée.",
     "htmlDepth": "Ce HTML contient trop de niveaux d’imbrication. Simplifiez-le ou importez une exportation Markdown.",
     "propertiesBlock": "Le bloc au début de la note ne peut pas être lu comme des propriétés. Corrigez-le dans le texte de la note et réessayez.",
-    "propertyNameTaken": "La note a déjà une propriété portant le nouveau nom."
+    "propertyNameTaken": "La note a déjà une propriété portant le nouveau nom.",
+    "propertySharedByAnchor": "La valeur de cette propriété est partagée avec une autre par une ancre YAML (& et * dans le texte de la note). Modifiez-la dans le texte de la note."
   },
   "audio": {
     "play": "Lire {{name}}",

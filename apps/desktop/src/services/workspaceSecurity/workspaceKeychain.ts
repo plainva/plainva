@@ -71,6 +71,46 @@ export type WorkspaceRuntimeAccess =
 const cache = new Map<string, PersonalWorkspaceRuntime>();
 const sessionKeks = new Map<string, Uint8Array>();
 const sessionLocked = new Set<string>();
+/** Vaults whose credential store held no key bundle for their workspace when last looked (`workspaceHere`). */
+const keyAbsent = new Set<string>();
+/** Vaults whose lock has begun: closed for every app from then on, while the sync still drains (`beginWorkspaceLock`). */
+const locking = new Set<string>();
+const hereWatchers = new Set<() => void>();
+const hereChanged = () => {
+  for (const watch of [...hereWatchers]) watch();
+};
+
+/**
+ * Whether the encrypted workspace of a vault is open on this device — told by its keys alone, never by a status saved
+ * before (round 11 of the review of wave 2, § 3.2): open only while its runtime is held unlocked here; without a key
+ * bundle in this device's store it is `no-key`; anything else — locked, its lock begun, not looked at yet — is
+ * `locked`. Nothing that is not known to be open counts as open.
+ */
+export function workspaceHere(vaultPath: string): "open" | "locked" | "no-key" {
+  if (cache.has(vaultPath) && !sessionLocked.has(vaultPath) && !locking.has(vaultPath)) return "open";
+  if (keyAbsent.has(vaultPath) && !locking.has(vaultPath)) return "no-key";
+  return "locked";
+}
+
+/** Calls `watch` whenever `workspaceHere` may answer differently; returns the stop function. */
+export function onWorkspaceHereChange(watch: () => void): () => void {
+  hereWatchers.add(watch);
+  return () => hereWatchers.delete(watch);
+}
+
+/**
+ * The lock of a vault's workspace begins: from now on it counts as locked for every app, while the keys stay in
+ * memory for the sync to drain (`lockWorkspaceRuntime` drops them). `undo`: the lock did not go through.
+ */
+export function beginWorkspaceLock(vaultPath: string): { undo(): void } {
+  locking.add(vaultPath);
+  hereChanged();
+  return {
+    undo() {
+      if (locking.delete(vaultPath)) hereChanged();
+    },
+  };
+}
 const b64Path = (path: string) => btoa(unescape(encodeURIComponent(path)));
 const secretKey = (vaultPath: string) => `workspace_v1_${b64Path(vaultPath)}`;
 export const workspaceSecurityStatusKey = (vaultPath: string) => `workspaceSecurity_${b64Path(vaultPath)}`;
@@ -160,6 +200,9 @@ export async function persistWorkspaceRuntime(input: {
   await credentialManager.writeSecret(secretKey(input.vaultPath), envelope);
   cache.set(input.vaultPath, input.runtime);
   sessionLocked.delete(input.vaultPath);
+  keyAbsent.delete(input.vaultPath);
+  locking.delete(input.vaultPath);
+  hereChanged();
   const status: WorkspaceSecurityPublicStatus = {
     version: 1,
     workspaceId: input.runtime.workspaceId,
@@ -179,18 +222,31 @@ export async function readWorkspaceRuntime(vaultPath: string): Promise<Workspace
   const remembered = cache.get(vaultPath);
   if (remembered && !sessionLocked.has(vaultPath)) return { state: "unlocked", runtime: remembered };
   const envelope = await storedEnvelope(vaultPath);
-  if (!envelope) return { state: "absent" };
+  if (!envelope) {
+    if (!keyAbsent.has(vaultPath)) {
+      keyAbsent.add(vaultPath);
+      hereChanged();
+    }
+    return { state: "absent" };
+  }
+  if (keyAbsent.delete(vaultPath)) hereChanged();
   if (sessionLocked.has(vaultPath)) return { state: "locked", storage: envelope.storage };
   if (envelope.storage !== "native") return { state: "locked", storage: "passphrase" };
   const runtime = deserializePersonalWorkspaceRuntime(envelope.runtime);
   cache.set(vaultPath, runtime);
+  hereChanged();
   return { state: "unlocked", runtime };
 }
 
 export async function unlockWorkspaceRuntime(vaultPath: string, passphrase?: string): Promise<PersonalWorkspaceRuntime> {
   sessionLocked.delete(vaultPath);
   const envelope = await storedEnvelope(vaultPath);
-  if (!envelope) throw new Error("workspace-key-bundle-missing");
+  if (!envelope) {
+    keyAbsent.add(vaultPath);
+    hereChanged();
+    throw new Error("workspace-key-bundle-missing");
+  }
+  keyAbsent.delete(vaultPath);
   let runtime: PersonalWorkspaceRuntime;
   if (envelope.storage === "native") {
     runtime = deserializePersonalWorkspaceRuntime(envelope.runtime);
@@ -207,6 +263,8 @@ export async function unlockWorkspaceRuntime(vaultPath: string, passphrase?: str
     sessionKeks.set(vaultPath, new Uint8Array(kek));
   }
   cache.set(vaultPath, runtime);
+  locking.delete(vaultPath);
+  hereChanged();
   return runtime;
 }
 
@@ -268,6 +326,8 @@ export function lockWorkspaceRuntime(vaultPath: string): void {
   // admin keys sitting in a heap the user believes they just closed.
   wipePublicationCache(vaultPath);
   sessionLocked.add(vaultPath);
+  locking.delete(vaultPath);
+  hereChanged();
 }
 
 /** Re-seals a changed policy/key set without making fallback users re-enter their passphrase. */
@@ -297,6 +357,9 @@ export async function clearWorkspaceRuntime(vaultPath: string): Promise<void> {
   sessionKeks.delete(vaultPath);
   wipePublicationCache(vaultPath);
   sessionLocked.delete(vaultPath);
+  locking.delete(vaultPath);
+  keyAbsent.add(vaultPath);
+  hereChanged();
   await credentialManager.removeSecret(secretKey(vaultPath));
   const store = await getSettingsStore();
   await store.delete(workspaceSecurityStatusKey(vaultPath));

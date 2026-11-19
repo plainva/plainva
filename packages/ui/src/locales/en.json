@@ -1823,6 +1823,8 @@
       "noClients": "No app has asked yet.",
       "folders": "Folders: {{folders}}",
       "noFolders": "none in this vault",
+      "foldersStale_one": "One folder given before no longer counts. Remove the app; it asks again and you choose anew.",
+      "foldersStale_other": "{{count}} folders given before no longer count. Remove the app; it asks again and you choose anew.",
       "wholeVault": "the whole vault",
       "lastSeen": "last used {{when}}",
       "revokeLabel": "Remove {{client}}",
@@ -1837,6 +1839,7 @@
       "pairBody": "Started by: {{program}}. Choose what it may read — it sees nothing else.",
       "pairFolders": "Folders",
       "pairWhole": "The whole vault",
+      "pairRenamed": "Access goes by a folder's name: if you rename a folder later, it is no longer shared until you allow it again.",
       "pairAllow": "Allow",
       "pairDeny": "Deny",
       "author": "{{client}} (AI app)",
@@ -6343,6 +6346,7 @@
     "loadMore": "Load more",
     "pickMessage": "Select a message.",
     "viewer": "Email content",
+    "bodyUnreadable": "This message can’t be displayed safely, so Plainva doesn’t show its content.",
     "remoteBlocked": "Remote content blocked ({{n}})",
     "remoteBlockedJunk": "In the spam folder Plainva loads no remote images, even if they are otherwise always loaded. {{n}} blocked.",
     "captured": "Email captured: {{name}}",
@@ -8033,7 +8037,8 @@
     "driveFolder": "The provider returned an invalid folder identifier. The operation was stopped.",
     "htmlDepth": "This HTML is too deeply nested. Simplify it or import a Markdown export.",
     "propertiesBlock": "The block at the top of the note cannot be read as properties. Correct it in the note's text and try again.",
-    "propertyNameTaken": "The note already has a property with the new name."
+    "propertyNameTaken": "The note already has a property with the new name.",
+    "propertySharedByAnchor": "This property's value is shared with another one through a YAML anchor (& and * in the note's text). Change it in the note's text itself."
   },
   "audio": {
     "play": "Play {{name}}",

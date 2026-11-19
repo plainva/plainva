@@ -1,6 +1,7 @@
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { EditorState, Extension, RangeSetBuilder, Text } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { formulaHoldsWikiLink } from "@plainva/core";
 import { interactivityChanged, revealsRange } from "./LivePreviewPlugin";
 import { isEditorInteractive } from "./editorInteractive";
 import { fenceOpenerFor, fencedCodeRanges, fencedCodeRangesIn, findFencedBlocks, findFencedBlocksIn, type FencedBlock } from "./fencedBlocks";
@@ -157,6 +158,10 @@ class MathWidget extends WidgetType {
 
 // Same boundary rules as the reader's gate (MarkdownReader hasMath): no
 // leading/trailing space inside, no $ digit confusion, escapes respected.
+// A formula that holds a wiki link (`[[A]]`, `![[B]]`) is left as it is
+// written, with its link, as the reading view shows it: one function decides
+// for both (`formulaHoldsWikiLink`, Fehlerliste 0.9.0, B4).
+
 const INLINE_MATH_RE = /\$\$([^\n$]+?)\$\$|(?<![\\$])\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g;
 
 /** Ranges the math scan must never touch: code, HTML, existing math in code. */
@@ -241,7 +246,7 @@ export function mathInlinePlugin() {
         while ((match = INLINE_MATH_RE.exec(text)) !== null) {
           const display = match[1] !== undefined;
           const expr = (display ? match[1] : match[2]).trim();
-          if (!expr) continue;
+          if (!expr || formulaHoldsWikiLink(match[0])) continue;
           const matchStart = from + match.index;
           const matchEnd = matchStart + match[0].length;
           if (overlaps(matchStart, matchEnd, excluded)) continue;
@@ -529,7 +534,7 @@ const mathKind: BlockKind<MathInfo, BlockContext, MathExtra> = {
   discover: discoverMath,
   decorate(state, ctx, block) {
     if (ctx.reveal && selectionTouches(state.selection, block.from, block.to)) return null;
-    if (!block.info.expr) return null;
+    if (!block.info.expr || formulaHoldsWikiLink(state.doc.sliceString(block.from, block.to))) return null;
     return Decoration.replace({ widget: new MathWidget(block.info.expr, true), block: true });
   },
 };

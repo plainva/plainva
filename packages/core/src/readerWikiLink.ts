@@ -175,3 +175,31 @@ export function readerWikiLink(inner: string, embed: boolean, embedKind?: (targe
   pieces.push(`](wiki://${encodeTarget(target)})`);
   return { text: pieces.join(""), labelStart, visible };
 }
+
+/**
+ * What the reading view writes in front of a wiki link that stands behind a
+ * `]`: the link's text would read as the label of a reference there
+ * (`[x][[a]]` with `[a]: …` became `[x][a]` and a `(wiki://a)`, Sammelplan
+ * § 3.133 Nr. 3), so an empty comment, which the renderer drops, stands
+ * between them. Not in front of an embed (`]![…]` reads no label), and not on
+ * a line that may be code — four blanks before the `]`, which a block a
+ * formula closes leaves as code: nothing written in is ever seen. One
+ * definition for the reading view and the table budget, which weighs it too.
+ */
+export function readerWikiLinkLead(text: string, from: number, embed: boolean): string {
+  return !embed && text[from - 1] === "]" && !mayBeCode(text, from - 1) ? READER_WIKI_LINK_LEAD : "";
+}
+
+/** The comment `readerWikiLinkLead` writes. */
+const READER_WIKI_LINK_LEAD = "<!---->";
+
+/** Whether `at` stands behind nothing but blanks (and quote marks) on its line, four of them or more: code, where a formula closed the block above. */
+function mayBeCode(text: string, at: number): boolean {
+  let blanks = 0;
+  for (let i = at - 1; i >= 0 && text[i] !== "\n"; i--) {
+    if (text[i] === " ") blanks++;
+    else if (text[i] === "\t") blanks += 4;
+    else if (text[i] !== ">" && text[i] !== "\r") return false;
+  }
+  return blanks >= 4;
+}

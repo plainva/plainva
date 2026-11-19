@@ -1760,6 +1760,7 @@
       "noClients": "还没有应用询问过。",
       "folders": "文件夹：{{folders}}",
       "noFolders": "在这个仓库中没有",
+      "foldersStale_other": "之前授予的 {{count}} 个文件夹已不再有效。请移除此应用；它会再次询问，你可以重新选择。",
       "wholeVault": "整个仓库",
       "lastSeen": "最近使用 {{when}}",
       "revokeLabel": "移除{{client}}",
@@ -1774,6 +1775,7 @@
       "pairBody": "启动程序：{{program}}。选择它可以读取的内容——它看不到其他任何内容。",
       "pairFolders": "文件夹",
       "pairWhole": "整个仓库",
+      "pairRenamed": "访问权限按文件夹名称授予：之后重命名该文件夹，它就不再共享，直到你再次允许。",
       "pairAllow": "允许",
       "pairDeny": "拒绝",
       "author": "{{client}}（AI应用）",
@@ -6213,6 +6215,7 @@
     "loadMore": "加载更多",
     "pickMessage": "请选择一封邮件。",
     "viewer": "邮件内容",
+    "bodyUnreadable": "此邮件无法安全显示，因此 Plainva 不显示其内容。",
     "remoteBlocked": "已拦截外部内容（{{n}}）",
     "remoteBlockedJunk": "在垃圾邮件文件夹中，即使已设为始终加载，Plainva 也不会加载外部图片。已拦截 {{n}} 项。",
     "captured": "已保存邮件：{{name}}",
@@ -7870,7 +7873,8 @@
     "driveFolder": "提供商返回了无效的文件夹标识符。操作已停止。",
     "htmlDepth": "此HTML的嵌套层级过深。请简化结构，或导入Markdown格式的导出文件。",
     "propertiesBlock": "笔记开头的区块无法作为属性读取。请在笔记文本中修正后重试。",
-    "propertyNameTaken": "笔记中已有使用新名称的属性。"
+    "propertyNameTaken": "笔记中已有使用新名称的属性。",
+    "propertySharedByAnchor": "此属性的值通过 YAML 锚点（笔记文本中的 & 和 *）与另一个属性共享。请直接在笔记文本中修改。"
   },
   "audio": {
     "play": "播放 {{name}}",

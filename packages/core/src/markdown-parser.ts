@@ -4,7 +4,7 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
-import { unified } from "unified";
+import { unified, type Processor } from "unified";
 import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type BoundedRange, type MarkdownReading } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
@@ -28,6 +28,21 @@ const obsidianPreservingMarkdownParser = unified()
 
 /** CommonMark alone: no tables, no bare addresses turned into links, no properties block, no wiki links. */
 const commonMarkParser = unified().use(remarkParse);
+
+/**
+ * The reading view's parse without its formulas: GFM, no properties block, no
+ * wiki links — the text it is handed has Markdown links for them.
+ */
+const readerTextParser = unified().use(remarkParse).use(remarkGfm);
+
+/** The same, reading every backtick as the sign it is. */
+const readerTextParserWithoutCodeSpans = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(function withoutCodeSpans(this: Processor) {
+    const data = this.data() as unknown as { micromarkExtensions?: unknown[] };
+    (data.micromarkExtensions ??= []).push({ disable: { null: ["codeText"] } });
+  });
 
 const BYTE_ORDER_MARK = 0xfeff;
 
@@ -261,4 +276,15 @@ export function parseMarkdownTree(text: string): MarkdownTreeNode {
 export function parseCommonMarkTree(text: string): MarkdownTreeNode {
   // Weighed for CommonMark: its tables are paragraphs, and the measure of a paragraph must see their lines.
   return parsedInText((source) => commonMarkParser.parse(source), text, COMMONMARK_READING) as unknown as MarkdownTreeNode;
+}
+
+/**
+ * A stretch of the text the reading view is handed, read as that view reads
+ * it without its formula plugin (`remarkFormulasYieldToLinks`): what stands
+ * between dollar signs once they open no formula. `codeSpans: false` reads
+ * every backtick as itself. Every position is a place in `text`.
+ */
+export function parseReaderTextTree(text: string, options: { codeSpans?: boolean } = {}): MarkdownTreeNode {
+  const parser = options.codeSpans === false ? readerTextParserWithoutCodeSpans : readerTextParser;
+  return parsedInText((source) => parser.parse(source), text) as unknown as MarkdownTreeNode;
 }

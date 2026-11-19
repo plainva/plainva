@@ -1,3 +1,5 @@
+import { ReaderView } from "../readerView.js";
+
 /**
  * Sensitive data classes (plan §7): the mood of a day and the place stamp of
  * a journal line never go into a context package on their own. The place
@@ -14,12 +16,18 @@ const PLACE_LINE = /^([ \t>*+-]*)📍[ \t]*-?\d{1,3}(?:\.\d+)?[ \t]*,[ \t]*-?\d[
 export const WITHHELD_PLACE = "📍 ⟦place withheld⟧";
 
 export function withholdPlaces(text: string): { text: string; withheld: number } {
+  const { view, withheld } = withholdPlacesIn(ReaderView.of(text));
+  return { text: view.text, withheld };
+}
+
+/** `withholdPlaces` on a reader's view: each place stamp becomes a withheld piece of it (`ReaderView`). */
+export function withholdPlacesIn(view: ReaderView): { view: ReaderView; withheld: number } {
   let withheld = 0;
-  const out = text.replace(PLACE_LINE, (_line, lead: string) => {
+  const out = view.replace(PLACE_LINE, (_line, lead: string) => {
     withheld += 1;
     return `${lead}${WITHHELD_PLACE}`;
   });
-  return { text: out, withheld };
+  return { view: out, withheld };
 }
 
 /** Property names that carry a mood (the journal's default and the usual spellings). */

@@ -29,6 +29,16 @@ export function gistKey(text: string): string {
   return sha256Hex(utf8Encode(text)).slice(0, 32);
 }
 
+/**
+ * Where a section's gist is stored: its exact text in its own note. The same section in two notes (a template, a
+ * copy) has two gists, each written from its own note — the instruction names the note it stands in, and a gist
+ * belongs to the note it was written from: written from a note kept from the cloud, it never goes with another
+ * (review of R19, wave 2).
+ */
+export function sectionGistKey(path: string, text: string): string {
+  return gistKey(`${path}\u0000${text}`);
+}
+
 export interface GistSection {
   chain: string;
   text: string;

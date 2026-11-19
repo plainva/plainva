@@ -226,8 +226,19 @@ describe("a change that cannot be made without changing another entry is refused
     expect(() => set(note, ["anchored"], ["a", "list"])).toThrow(FrontmatterSurgicalError);
   });
 
+  // The block reads: the refusal names the anchor, not an unreadable block
+  // (Fehlerliste 0.9.0, F45, second review).
+  it("says that a value another entry refers to is shared through an anchor", () => {
+    for (const write of [() => remove(note, ["anchored"]), () => set(note, ["anchored"], "other")]) {
+      expect(write).toThrow("Frontmatter entry 'anchored' is shared through a YAML anchor and cannot be changed where it stands");
+    }
+    expect(() => set(lf(["m: &m", "  k: 1", "n: *m"]), ["m", "k"], 2)).toThrow(/^Frontmatter entry 'm' is shared through a YAML anchor/);
+    // Without a reference to it, an anchored value is set where it stands.
+    expect(set(lf(["a: &x 1", "c: 3"]), ["a"], 2)).toBe(lf(["a: &x 2", "c: 3"]));
+  });
+
   it("says so the way a block that is no map is refused: the sentence the user is shown begins there", () => {
-    for (const write of [() => remove(note, ["anchored"]), () => set(note, ["status", "inner"], 1), () => set(note, ["tags", "inner"], 1)]) {
+    for (const write of [() => set(note, ["status", "inner"], 1), () => set(note, ["tags", "inner"], 1)]) {
       let message = "";
       try {
         write();
@@ -514,8 +525,8 @@ describe("values", () => {
     expect(updateFrontmatterString(note, { when, status: "open" })).toBe(note);
     expect(updateFrontmatterString(note, { when, status: "done" })).toBe(lf(["when: !!timestamp 2026-01-01", "status: done"]));
     expect(set(note, ["when"], when)).toBe(note);
-    // Another day is another value, written as its text.
-    expect(set(note, ["when"], new Date("2026-02-01T00:00:00.000Z"))).toBe(lf(["when: 2026-02-01T00:00:00.000Z", "status: open"]));
+    // Another day is another value, written as its text behind the tag (Sammelplan § 3.173 Nr. 5).
+    expect(set(note, ["when"], new Date("2026-02-01T00:00:00.000Z"))).toBe(lf(["when: !!timestamp 2026-02-01T00:00:00.000Z", "status: open"]));
   });
 
   it("a key written the long way is found, and its value stands where it stood", () => {
@@ -755,5 +766,71 @@ describe("generated blocks", () => {
       expect(set(note, [key], read[key]), `the same value — ${label}`).toBe(note);
       expect(updateFrontmatterString(note, read), `the same set — ${label}`).toBe(note);
     }
+  });
+});
+
+/**
+ * A date under `!!timestamp` keeps its tag when a property changes it
+ * (Sammelplan § 3.173 Nr. 5): the field hands a date as a text, and written
+ * anew without the tag it became a text.
+ */
+describe("a date under its own tag", () => {
+  it("takes the new date behind the tag, every other character staying", () => {
+    const note = lf(["# head", "when: !!timestamp 2024-01-02   # due", "x: 1"]);
+    expect(set(note, ["when"], "2024-02-03")).toBe(lf(["# head", "when: !!timestamp 2024-02-03   # due", "x: 1"]));
+    expect(set(note, ["when"], "2024-02-03T10:30:00Z")).toBe(lf(["# head", "when: !!timestamp 2024-02-03T10:30:00Z   # due", "x: 1"]));
+  });
+
+  it("does so in a nested map and in a note with Windows line ends", () => {
+    const note = lf(["plan:", "  due: !!timestamp 2024-01-02", "  by: me"]);
+    expect(set(note, ["plan", "due"], "2025-05-06")).toBe(lf(["plan:", "  due: !!timestamp 2025-05-06", "  by: me"]));
+    const crlf = note.replace(/\n/g, "\r\n");
+    expect(set(crlf, ["plan", "due"], "2025-05-06")).toBe(lf(["plan:", "  due: !!timestamp 2025-05-06", "  by: me"]).replace(/\n/g, "\r\n"));
+  });
+
+  it("leaves the note as it is for the date that stands there", () => {
+    const note = lf(["when: !!timestamp 2024-01-02", "x: 1"]);
+    expect(set(note, ["when"], "2024-01-02")).toBe(note);
+  });
+
+  it("writes a text the tag cannot read as a date as a text, without the tag", () => {
+    const note = lf(["when: !!timestamp 2024-01-02", "x: 1"]);
+    expect(set(note, ["when"], "next week")).toBe(lf(["when: next week", "x: 1"]));
+  });
+
+  // Under the tag YAML reads a day the month has not as the next month's
+  // (`2024-02-30` as 1 March): such a date is written as the text it is.
+  it("writes a day the calendar has not as a text, without the tag", () => {
+    const note = lf(["when: !!timestamp 2024-01-02", "x: 1"]);
+    expect(set(note, ["when"], "2024-02-30")).toBe(lf(["when: 2024-02-30", "x: 1"]));
+    expect(set(note, ["when"], "2024-13-01")).toBe(lf(["when: 2024-13-01", "x: 1"]));
+    expect(set(note, ["when"], "2024-02-03T24:30:00Z")).toBe(lf(["when: 2024-02-03T24:30:00Z", "x: 1"]));
+    // A leap day is one.
+    expect(set(note, ["when"], "2024-02-29")).toBe(lf(["when: !!timestamp 2024-02-29", "x: 1"]));
+  });
+});
+
+/**
+ * An entry whose text keeps its empty lines (`|+`) goes without a comment
+ * behind those empty lines (Sammelplan § 3.173 Nr. 5): the empty lines are
+ * the text's, and the comment behind them was taken along as if it stood
+ * right under the entry. Behind a text that does not keep them (`|`), it
+ * always stayed.
+ */
+describe("removing an entry whose text keeps its empty lines", () => {
+  it("leaves a comment behind them standing, and every other line", () => {
+    expect(remove(lf(["note: |+", "    zeile", "", "  # c", "x: 1"]), ["note"])).toBe(lf(["  # c", "x: 1"]));
+    expect(remove(lf(["y: 0", "note: |+", "    zeile", "", "  # c", "", "x: 1"]), ["note"])).toBe(lf(["y: 0", "  # c", "", "x: 1"]));
+    expect(remove(lf(["m:", "  note: |+", "      zeile", "", "    # c", "  x: 1"]), ["m", "note"])).toBe(lf(["m:", "    # c", "  x: 1"]));
+  });
+
+  it("still takes a comment right under it along, like any entry's", () => {
+    expect(remove(lf(["note: |+", "    zeile", "  # c", "x: 1"]), ["note"])).toBe(lf(["x: 1"]));
+    expect(remove(lf(["note: a", "  # c", "x: 1"]), ["note"])).toBe(lf(["x: 1"]));
+  });
+
+  it("keeps the note's line ends", () => {
+    const crlf = lf(["note: |+", "    zeile", "", "  # c", "x: 1"]).replace(/\n/g, "\r\n");
+    expect(remove(crlf, ["note"])).toBe(lf(["  # c", "x: 1"]).replace(/\n/g, "\r\n"));
   });
 });

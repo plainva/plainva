@@ -1823,6 +1823,8 @@
       "noClients": "Noch keine App hat gefragt.",
       "folders": "Ordner: {{folders}}",
       "noFolders": "keiner in diesem Vault",
+      "foldersStale_other": "{{count}} früher freigegebene Ordner gelten nicht mehr. Entferne die App; sie fragt wieder, und Du wählst neu.",
+      "foldersStale_one": "Ein früher freigegebener Ordner gilt nicht mehr. Entferne die App; sie fragt wieder, und Du wählst neu.",
       "wholeVault": "der ganze Vault",
       "lastSeen": "zuletzt {{when}}",
       "revokeLabel": "{{client}} entfernen",
@@ -1837,6 +1839,7 @@
       "pairBody": "Gestartet von: {{program}}. Wähle, was sie lesen darf — anderes sieht sie nicht.",
       "pairFolders": "Ordner",
       "pairWhole": "Der ganze Vault",
+      "pairRenamed": "Die Freigabe gilt dem Namen eines Ordners: Benennst Du ihn später um, ist er nicht mehr freigegeben, bis Du ihn wieder erlaubst.",
       "pairAllow": "Erlauben",
       "pairDeny": "Ablehnen",
       "author": "{{client}} (KI-App)",
@@ -6343,6 +6346,7 @@
     "loadMore": "Mehr laden",
     "pickMessage": "Nachricht auswählen.",
     "viewer": "E-Mail-Inhalt",
+    "bodyUnreadable": "Diese Nachricht lässt sich nicht sicher darstellen, deshalb zeigt Plainva ihren Inhalt nicht an.",
     "remoteBlocked": "Externe Inhalte blockiert ({{n}})",
     "remoteBlockedJunk": "Im Spam-Ordner lädt Plainva keine externen Bilder, auch wenn sie sonst immer geladen werden. {{n}} blockiert.",
     "captured": "E-Mail abgelegt: {{name}}",
@@ -8033,7 +8037,8 @@
     "driveFolder": "Der Anbieter hat eine ungültige Ordnerkennung zurückgegeben. Der Vorgang wurde abgebrochen.",
     "htmlDepth": "Dieses HTML ist zu tief verschachtelt. Vereinfache es oder importiere einen Markdown-Export.",
     "propertiesBlock": "Der Block am Anfang der Notiz lässt sich nicht als Eigenschaften lesen. Korrigiere ihn im Text der Notiz und versuche es erneut.",
-    "propertyNameTaken": "Die Notiz hat schon eine Eigenschaft mit dem neuen Namen."
+    "propertyNameTaken": "Die Notiz hat schon eine Eigenschaft mit dem neuen Namen.",
+    "propertySharedByAnchor": "Der Wert dieser Eigenschaft ist über einen YAML-Anker mit einer anderen geteilt (& und * im Text der Notiz). Ändere ihn im Text der Notiz selbst."
   },
   "audio": {
     "play": "{{name}} abspielen",

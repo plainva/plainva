@@ -140,7 +140,8 @@ describe.each(SHAPES)("a database cell changes one entry of the block — a note
 
     expect(written).toBe(false);
     expect(messages()).toHaveLength(1);
-    expect(messages()[0]).toMatch(/^error: Property could not be saved: .*cannot be read as properties/);
+    // The block reads: the cell names the anchor (Fehlerliste 0.9.0, F45).
+    expect(messages()[0]).toMatch(/^error: Property could not be saved: .*shared with another one through a YAML anchor/);
     // The name of the entry may be said; nothing of the note's text is.
     expect(messages()[0]).not.toMatch(/kept|goals|4915112345678/);
     expect(files.get(PATH)).toBe(note);

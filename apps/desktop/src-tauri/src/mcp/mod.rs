@@ -210,6 +210,14 @@ struct CallRequest {
     answer: Option<String>,
 }
 
+/// What the main window may ask about one call it runs: the vault that call's connection was admitted for and the
+/// client's folders at the call.
+#[derive(Clone)]
+struct Judging {
+    root: std::path::PathBuf,
+    folders: Vec<String>,
+}
+
 #[derive(Default)]
 struct Inner {
     enabled: bool,
@@ -218,11 +226,19 @@ struct Inner {
     tools: Vec<ToolSpec>,
     prompts: Vec<PromptSpec>,
     calls: HashMap<String, oneshot::Sender<CallAnswer>>,
+    /// For each call the main window is running: where and for which folders the paths of its answer are judged
+    /// (`mcp_judge_paths`). Kept and dropped together with `calls` — never longer than the call waits.
+    judging: HashMap<String, Judging>,
     pairing: Option<(String, oneshot::Sender<PairAnswer>)>,
     denied: HashMap<String, Instant>,
     next_id: u64,
     /// Raised when the server stops or the vault changes: the connections of before end (ADR 0022).
     generation: u64,
+    /// The encrypted workspace of the vault is not open on this device: nothing of it is answered, on any connection
+    /// (`set_locked`).
+    locked: Option<Closed>,
+    /// Raised each time the workspace locks: a call that was running then answers nothing.
+    lock_epoch: u64,
     /// Counts the listeners started: one that ends clears only what is its own.
     listener_run: u64,
     /// The run of the listener that holds the endpoint now; `None` while one waits for it, after it stopped and while
@@ -291,6 +307,49 @@ impl ListChange {
 /// What a connection of an earlier vault or setting is told: it answers nothing any more (ADR 0022).
 pub(crate) const CHANGED: &str = "Plainva's settings or its open vault changed. Restart the connection.";
 
+/// What a client is told while the encrypted workspace of the vault is locked: nothing of it is answered, and its
+/// connection stays — unlocked, the same connection answers again (`McpState::set_locked`).
+pub(crate) const LOCKED: &str = "The encrypted workspace of this vault is locked in Plainva. Nothing of it is answered until it is unlocked there; then ask again.";
+
+/// What a client is told while this device holds no key for the encrypted workspace of the vault: it cannot be
+/// unlocked here until the workspace is set up on this device (`Closed::NoKey`).
+pub(crate) const NO_KEY: &str = "This device holds no key for the encrypted workspace of this vault. Nothing of it is answered until the workspace is set up on this device in Plainva; then ask again.";
+
+/// Why nothing of the vault is answered: its encrypted workspace is not open on this device (wave 2, § 3.2, round 10
+/// of the review) — locked, or without a key here. A sync error of an open workspace is neither.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Closed {
+    Locked,
+    NoKey,
+}
+
+impl Closed {
+    /// What every request is refused with.
+    pub(crate) fn message(self) -> &'static str {
+        match self {
+            Closed::Locked => LOCKED,
+            Closed::NoKey => NO_KEY,
+        }
+    }
+
+    /// What the helper is told at its hello (`plainva-mcp`).
+    pub(crate) fn reason(self) -> &'static str {
+        match self {
+            Closed::Locked => "locked",
+            Closed::NoKey => "no-key",
+        }
+    }
+
+    /// The window's word for it (`mcp_configure`); anything else is an open workspace.
+    fn from_window(word: Option<&str>) -> Option<Self> {
+        match word {
+            Some("locked") => Some(Closed::Locked),
+            Some("no-key") => Some(Closed::NoKey),
+            _ => None,
+        }
+    }
+}
+
 /// A call that waits for the main window, let go however the wait ends (R19 of the stability plan): the entry of a
 /// call whose future is dropped — its connection's task ended — goes with it, not only one that was answered or
 /// ran out of time.
@@ -301,7 +360,9 @@ struct Waiting<'a> {
 
 impl Drop for Waiting<'_> {
     fn drop(&mut self) {
-        self.state.lock().calls.remove(&self.request_id);
+        let mut inner = self.state.lock();
+        inner.calls.remove(&self.request_id);
+        inner.judging.remove(&self.request_id);
     }
 }
 
@@ -324,6 +385,8 @@ pub(crate) struct CallFrom<'a> {
     pub client: &'a ClientRecord,
     pub vault_key: &'a str,
     pub generation: u64,
+    /// The vault that key names on disk: what the paths of the answer are judged against.
+    pub root: &'a std::path::Path,
 }
 
 /// What a client's list of tools follows from: whether it reads in the vault, and whether it may propose changes there.
@@ -370,6 +433,41 @@ impl McpState {
 
     pub(crate) fn generation(&self) -> u64 {
         self.lock().generation
+    }
+
+    /// Whether the encrypted workspace of the vault is not open on this device now, and why.
+    pub(crate) fn locked(&self) -> Option<Closed> {
+        self.lock().locked
+    }
+
+    /// The encrypted workspace of the vault closed on this device — locked, or without a key here — or open again
+    /// (wave 2, § 3.2). Closed, every request of every connection is refused in words (`Closed::message`), a call
+    /// waiting for the main window is let go and answers nothing, and a client waiting for the user's yes is not
+    /// admitted. The connections stay: open again, they answer again, and every client hears that its lists changed
+    /// either way.
+    pub(crate) fn set_locked<R: Runtime>(&self, app: &AppHandle<R>, locked: Option<Closed>) {
+        let mut inner = self.lock();
+        if inner.locked == locked {
+            return;
+        }
+        let closing = inner.locked.is_none();
+        inner.locked = locked;
+        let mut ended = None;
+        if locked.is_some() && closing {
+            inner.lock_epoch += 1;
+            // What the main window finds for a call now is not handed on (`forward_call`).
+            inner.calls.clear();
+            inner.judging.clear();
+            ended = inner.pairing.take().map(|(request_id, _)| request_id);
+        }
+        let on = inner.enabled;
+        drop(inner);
+        if on {
+            self.announce(ListChange::everything());
+        }
+        if let Some(request_id) = ended {
+            let _ = app.emit_to("main", "mcp-pair-ended", request_id);
+        }
     }
 
     pub(crate) fn tools(&self) -> Vec<ToolSpec> {
@@ -424,6 +522,7 @@ impl McpState {
             ended = inner.pairing.take().map(|(request_id, _)| request_id);
             // A call that waits for the main window was made for what is gone: its answer is not waited for.
             inner.calls.clear();
+            inner.judging.clear();
         }
         inner.enabled = enabled;
         let start = enabled && inner.listener.is_none();
@@ -489,10 +588,9 @@ impl McpState {
             let before = sees(&grants, client_id);
             if clean.is_empty() {
                 // A client that reads nothing proposes nothing.
-                grants.writes.remove(client_id);
-                grants.folders.remove(client_id);
+                grants.forget(client_id);
             } else {
-                grants.folders.insert(client_id.to_string(), clean);
+                grants.grant(client_id, clean);
             }
             store.save_grants(&vault.key, &grants)?;
             Ok((before, sees(&grants, client_id)))
@@ -540,12 +638,16 @@ impl McpState {
     /// what the user changed or took back in Plainva holds at once, also for a
     /// connection that is already open. No folders: the client has no place
     /// in this vault (any more).
-    pub(crate) fn grant<R: Runtime>(&self, app: &AppHandle<R>, vault_key: &str, client_id: &str) -> (Vec<String>, bool) {
+    /// What a client may do in a vault at this moment: its folders that still grant something there
+    /// (`paths::effective_grant` — a stored entry is checked again at every use), and whether it may propose changes.
+    pub(crate) fn grant<R: Runtime>(&self, app: &AppHandle<R>, vault_key: &str, root: &std::path::Path, client_id: &str) -> (Vec<String>, bool) {
         let Ok(store) = self.store(app) else {
             return (Vec::new(), false);
         };
         let grants = store.grants(vault_key);
-        (grants.folders.get(client_id).cloned().unwrap_or_default(), grants.may_write(client_id))
+        let folders = paths::effective_grant(root, grants.folders.get(client_id).map(Vec::as_slice).unwrap_or_default(), grants.as_chosen.contains(client_id));
+        let writes = grants.may_write(client_id) && !folders.is_empty();
+        (folders, writes)
     }
 
     fn next_id(&self, prefix: &str) -> String {
@@ -570,12 +672,19 @@ impl McpState {
     ) -> Result<CallAnswer, String> {
         let request_id = self.next_id("call");
         let (tx, rx) = oneshot::channel();
+        let epoch;
         {
             let mut inner = self.lock();
             if inner.generation != from.generation {
                 return Err(CHANGED.into());
             }
+            // Closed, the main window is not asked at all.
+            if let Some(closed) = inner.locked {
+                return Err(closed.message().into());
+            }
+            epoch = inner.lock_epoch;
             inner.calls.insert(request_id.clone(), tx);
+            inner.judging.insert(request_id.clone(), Judging { root: from.root.to_path_buf(), folders: folders.to_vec() });
         }
         let _waiting = Waiting { state: self, request_id: request_id.clone() };
         let request = CallRequest {
@@ -595,7 +704,20 @@ impl McpState {
         if app.emit_to("main", "mcp-call", request).is_err() {
             return Err("Plainva could not reach its window.".into());
         }
-        match tokio::time::timeout(limit, rx).await {
+        let waited = tokio::time::timeout(limit, rx).await;
+        // Closed while the main window looked — and open again, maybe —: what it found is not handed on.
+        let closed = {
+            let inner = self.lock();
+            if inner.lock_epoch != epoch {
+                Some(inner.locked.unwrap_or(Closed::Locked))
+            } else {
+                inner.locked
+            }
+        };
+        if let Some(closed) = closed {
+            return Err(closed.message().into());
+        }
+        match waited {
             Ok(Ok(answer)) => Ok(answer),
             // Taken from the calls while it waited: the vault or the settings changed (`configure`).
             Ok(Err(_)) => Err(CHANGED.into()),
@@ -734,7 +856,7 @@ impl McpState {
             }
             let mut grants = store.grants(&vault.key);
             let before = sees(&grants, &client.id);
-            grants.folders.insert(client.id.clone(), folders.clone());
+            grants.grant(&client.id, folders.clone());
             // Proposing changes is its own answer in the same dialog, and off unless it was ticked there.
             if answer.writes {
                 grants.writes.insert(client.id.clone());
@@ -747,8 +869,7 @@ impl McpState {
                 clients.clients.push(client.clone());
                 if let Err(error) = store.save_clients(&clients) {
                     // Not kept after all: its grant goes with it, so that nothing names a client nobody is.
-                    grants.folders.remove(&client.id);
-                    grants.writes.remove(&client.id);
+                    grants.forget(&client.id);
                     let _ = store.save_grants(&vault.key, &grants);
                     return Err(NotKept::Store(error));
                 }
@@ -778,9 +899,9 @@ where
     let state = app.state::<McpState>();
     // A connection belongs to the settings and the vault of the moment it was accepted, read together: a change of
     // either while its hello is read, while it is admitted or while it is served ends it (ADR 0022).
-    let (enabled, vault, generation) = {
+    let (enabled, vault, generation, locked) = {
         let inner = state.lock();
-        (inner.enabled, inner.vault.clone(), inner.generation)
+        (inner.enabled, inner.vault.clone(), inner.generation, inner.locked)
     };
     let mut generations = state.generation_watch();
     let (read_half, mut write_half) = tokio::io::split(stream);
@@ -819,6 +940,11 @@ where
         let _ = write_half.write_all(reply_line(&HelloReply::refuse("no-vault")).as_bytes()).await;
         return;
     };
+    // The encrypted workspace is not open here: the helper says so to the client that starts it, and nobody is asked.
+    if let Some(closed) = locked {
+        let _ = write_half.write_all(reply_line(&HelloReply::refuse(closed.reason())).as_bytes()).await;
+        return;
+    }
     // The folders a client is admitted with are not kept: every request asks what it may do now. A change after its
     // admission ends it before it is served (below).
     let (client, _folders, secret) = match state.admit(&app, &hello, &vault, generation).await {
@@ -828,6 +954,11 @@ where
             return;
         }
     };
+    // Closed while it was admitted: it is told now, not at its first request.
+    if let Some(closed) = state.locked() {
+        let _ = write_half.write_all(reply_line(&HelloReply::refuse(closed.reason())).as_bytes()).await;
+        return;
+    }
     let ok = HelloReply { ok: true, secret, reason: None };
     if write_half.write_all(reply_line(&ok).as_bytes()).await.is_err() {
         return;
@@ -911,8 +1042,11 @@ fn only_main(window: &tauri::Window) -> Result<(), String> {
     }
 }
 
-/// The main window's settings: on/off, the vault it serves, the tools and the prompts.
+/// The main window's settings: on/off, the vault it serves, the tools and the prompts, and whether its encrypted
+/// workspace is open on this device (`locked`: "locked", "no-key", or none). A command's arguments are what the window
+/// sends by name, so they stay one list.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn mcp_configure(
     app: AppHandle,
     window: tauri::Window,
@@ -921,13 +1055,23 @@ pub fn mcp_configure(
     vault: Option<VaultBinding>,
     tools: Vec<ToolSpec>,
     prompts: Option<Vec<PromptSpec>>,
+    locked: Option<String>,
 ) -> Result<(), String> {
     only_main(&window)?;
     // Fully local (ADR 0030): nothing listens — what an app does with what it reads, nobody here can see. The web
     // view asks for nothing else while the switch is on; this is the same answer once more.
     let enabled = enabled && !crate::ai_egress::local_only();
+    // The encrypted workspace closed: closed before anything is served for the new settings, opened only after —
+    // nothing of a closed workspace goes in between.
+    let closed = Closed::from_window(locked.as_deref());
+    if closed.is_some() {
+        state.set_locked(&app, closed);
+    }
     if state.configure(&app, enabled, vault, tools, prompts.unwrap_or_default()) {
         state.start_listener(&app, hello::endpoint_name(&app.config().identifier));
+    }
+    if closed.is_none() {
+        state.set_locked(&app, None);
     }
     Ok(())
 }
@@ -944,6 +1088,9 @@ pub struct ClientView {
     folders: Vec<String>,
     /// May propose changes in the vault open now.
     writes: bool,
+    /// Stored folders of the vault open now that grant nothing any more (`paths::effective_grant`): the user has to
+    /// choose them again.
+    stale: usize,
 }
 
 #[derive(Serialize)]
@@ -958,6 +1105,29 @@ pub struct McpStatus {
     audit: Vec<store::AuditEntry>,
 }
 
+/// The paired clients as the settings show them, for the vault open now: what holds at a call (`grant`) — the stored
+/// folders that still grant something, and the leave to propose only with them — and how many stored ones no longer
+/// count, so the user is told to choose them again (review of R19, wave 2). Without a vault, none.
+fn client_views(clients: Vec<ClientRecord>, grants: &store::Grants, root: Option<&std::path::Path>) -> Vec<ClientView> {
+    clients
+        .into_iter()
+        .map(|c| {
+            let stored = grants.folders.get(&c.id).cloned().unwrap_or_default();
+            let folders = root.map(|root| paths::effective_grant(root, &stored, grants.as_chosen.contains(&c.id))).unwrap_or_default();
+            ClientView {
+                writes: grants.may_write(&c.id) && !folders.is_empty(),
+                stale: stored.len() - folders.len(),
+                folders,
+                id: c.id,
+                name: c.name,
+                program: c.program,
+                created_at: c.created_at,
+                last_seen: c.last_seen,
+            }
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub fn mcp_status(app: AppHandle, window: tauri::Window, state: tauri::State<'_, McpState>) -> Result<McpStatus, String> {
     only_main(&window)?;
@@ -965,20 +1135,8 @@ pub fn mcp_status(app: AppHandle, window: tauri::Window, state: tauri::State<'_,
     let vault = state.lock().vault.clone();
     let store = state.store(&app)?;
     let grants = vault.as_ref().map(|v| store.grants(&v.key)).unwrap_or_default();
-    let clients = store
-        .clients()
-        .clients
-        .into_iter()
-        .map(|c| ClientView {
-            folders: grants.folders.get(&c.id).cloned().unwrap_or_default(),
-            writes: grants.may_write(&c.id),
-            id: c.id,
-            name: c.name,
-            program: c.program,
-            created_at: c.created_at,
-            last_seen: c.last_seen,
-        })
-        .collect();
+    let root = vault.as_ref().map(|v| std::path::PathBuf::from(&v.root));
+    let clients = client_views(store.clients().clients, &grants, root.as_deref());
     let mut audit = vault.as_ref().map(|v| store.audit(&v.key)).unwrap_or_default();
     audit.reverse();
     audit.truncate(100);
@@ -1014,6 +1172,33 @@ pub fn mcp_call_answer(window: tauri::Window, state: tauri::State<'_, McpState>,
         let _ = tx.send(answer);
     }
     Ok(())
+}
+
+/// The most paths one question may name: a page of search hits is 25, a database view a few hundred.
+pub const JUDGE_MAX: usize = 4096;
+
+/// The verdicts of the second wall on paths an answer of a running call may name, asked by the main window before
+/// anything of them goes into the answer (`answer_path_allowed`; review of R19, wave 2). So the web view and the wall
+/// never disagree: a folder link inside a granted folder that leads out of it does not exist for the call, and a
+/// withheld answer tells a client nothing of what lies beyond its folders. A call that does not wait any more has no
+/// path inside. The disk is looked at off the main thread.
+#[tauri::command]
+pub async fn mcp_judge_paths(window: tauri::Window, state: tauri::State<'_, McpState>, request_id: String, paths: Vec<String>) -> Result<Vec<bool>, String> {
+    only_main(&window)?;
+    if paths.len() > JUDGE_MAX {
+        return Err("Too many paths for one question.".into());
+    }
+    let Some(judging) = state.lock().judging.get(&request_id).cloned() else {
+        return Ok(vec![false; paths.len()]);
+    };
+    Ok(judge_paths(judging, paths).await)
+}
+
+async fn judge_paths(judging: Judging, paths: Vec<String>) -> Vec<bool> {
+    let count = paths.len();
+    tauri::async_runtime::spawn_blocking(move || paths.iter().map(|path| paths::answer_path_allowed(&judging.root, path, &judging.folders)).collect())
+        .await
+        .unwrap_or_else(|_| vec![false; count])
 }
 
 #[tauri::command]
@@ -1299,6 +1484,72 @@ mod tests {
         assert!(audit.iter().all(|a| a.client_id == "c1" && a.tool == "read_note"));
     }
 
+    /// The main window asks the second wall's verdict on the paths of a call it runs before it uses them
+    /// (`mcp_judge_paths`; review of R19, wave 2): the very check the answer meets, against the vault and the folders
+    /// of that call — and only while the call waits. A folder link inside the granted folder that leads out of it is
+    /// outside, so an answer built from what passed is never withheld for it.
+    #[tokio::test]
+    async fn the_main_window_hears_the_walls_verdict_on_a_running_calls_paths_and_only_while_it_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(dir.path().join("vault/Private"), dir.path().join("vault/Projects/link")).unwrap();
+        pair(dir.path(), "s3cret");
+        let app = mock_app(dir.path());
+        let handle = app.handle().clone();
+        let seen: Arc<Mutex<Option<(String, Judging)>>> = Arc::default();
+        let kept = seen.clone();
+        app.listen_any("mcp-call", move |event| {
+            let request: serde_json::Value = serde_json::from_str(event.payload()).unwrap();
+            let id = request["requestId"].as_str().unwrap().to_string();
+            let state = handle.state::<McpState>();
+            let judging = state.lock().judging.get(&id).cloned();
+            *kept.lock().unwrap() = judging.map(|judging| (id.clone(), judging));
+            let tx = state.lock().calls.remove(&id);
+            if let Some(tx) = tx {
+                let _ = tx.send(CallAnswer { content: "ok".into(), is_error: false, paths: vec!["Projects/a.md".into()], pending: None, declined: false });
+            }
+        });
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok, "{reply:?}");
+        initialize(&mut client).await;
+        let answer = call(&mut client, 2, "Projects/a.md").await;
+        assert_eq!(answer["result"]["isError"], false, "{answer}");
+        let (id, judging) = seen.lock().unwrap().clone().expect("the call could be judged while it ran");
+        assert_eq!(judging.folders, vec!["Projects".to_string()]);
+        let paths: Vec<String> = ["Projects/a.md", "Projects", "Private/b.md", "projects/a.md", "Projects/link/b.md", " Projects/a.md", "Projects/missing.md"].iter().map(|p| p.to_string()).collect();
+        let verdicts = judge_paths(judging, paths).await;
+        // Where no link could be made here (Windows without rights), the folder is merely missing: inside.
+        let no_link = !cfg!(unix);
+        assert_eq!(verdicts, vec![true, true, false, false, no_link, false, true]);
+        // Once the call is answered, nothing of it can be asked any more.
+        assert!(!app.state::<McpState>().lock().judging.contains_key(&id));
+        assert!(app.state::<McpState>().lock().judging.is_empty());
+    }
+
+    /// The settings show what holds at a call, not what the file says (review of R19, wave 2): a stored folder that
+    /// grants nothing any more is not shown as granted, the leave to propose goes with the last one, and the user is
+    /// told how many no longer count.
+    #[test]
+    fn the_settings_show_the_folders_that_hold_and_how_many_no_longer_count() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["Notes", " Notes", "Plain"] {
+            std::fs::create_dir_all(dir.path().join(name)).unwrap();
+        }
+        let record = |id: &str| ClientRecord { id: id.into(), name: id.into(), program: "p".into(), secret_sha256: String::new(), created_at: String::new(), last_seen: String::new() };
+        let mut grants = store::Grants::default();
+        // Written by an older build: `/`, and a `Notes` that may stand for ` Notes`.
+        grants.folders.insert("old".into(), vec!["/".into(), "Notes".into(), "Plain".into()]);
+        grants.folders.insert("gone".into(), vec!["/".into()]);
+        grants.writes.insert("gone".into());
+        grants.grant("new", vec!["Notes".into()]);
+        let views = client_views(vec![record("old"), record("gone"), record("new")], &grants, Some(dir.path()));
+        assert_eq!((views[0].folders.clone(), views[0].stale), (vec!["Plain".to_string()], 2));
+        assert_eq!((views[1].folders.clone(), views[1].stale, views[1].writes), (Vec::<String>::new(), 1, false));
+        assert_eq!((views[2].folders.clone(), views[2].stale), (vec!["Notes".to_string()], 0));
+        assert!(client_views(vec![record("new")], &grants, None)[0].folders.is_empty(), "no vault open, no folders");
+    }
+
     #[tokio::test]
     async fn a_new_client_is_paired_once_and_keeps_its_secret() {
         let dir = tempfile::tempdir().unwrap();
@@ -1414,6 +1665,33 @@ mod tests {
 
     fn names(list: &serde_json::Value) -> Vec<String> {
         list["result"]["tools"].as_array().map(|tools| tools.iter().map(|t| t["name"].as_str().unwrap_or("").to_string()).collect()).unwrap_or_default()
+    }
+
+    /// Sends a request and reads until its answer, past what the server tells meanwhile (a list that changed).
+    async fn answer_to(client: &mut DuplexStream, request: serde_json::Value) -> serde_json::Value {
+        let id = request["id"].clone();
+        send(client, request).await;
+        loop {
+            let message: serde_json::Value = serde_json::from_str(&line(client).await).unwrap();
+            if message["id"] == id {
+                return message;
+            }
+        }
+    }
+
+    /// Every request but a call, each refused with `message` (the lists, the prompts, the resource).
+    async fn refused_all(client: &mut DuplexStream, first: u64, message: &str) {
+        let requests = [
+            ("tools/list", serde_json::json!({})),
+            ("prompts/list", serde_json::json!({})),
+            ("prompts/get", serde_json::json!({ "name": "daily-orientation" })),
+            ("resources/list", serde_json::json!({})),
+            ("resources/read", serde_json::json!({ "uri": handler::FORMAT_URI })),
+        ];
+        for (offset, (method, params)) in requests.into_iter().enumerate() {
+            let refused = answer_to(client, serde_json::json!({ "jsonrpc": "2.0", "id": first + offset as u64, "method": method, "params": params })).await;
+            assert_eq!(refused["error"]["message"], message, "{method}: {refused}");
+        }
     }
 
     fn old_call(id: u64, tool: &str, path: &str) -> serde_json::Value {
@@ -1829,12 +2107,12 @@ mod tests {
         let extra = || CallExtra { writes: false, handle: None, answer: None };
         let args = serde_json::json!({ "path": "Projects/a.md" });
         let folders = vec!["Projects".to_string()];
-        let from = CallFrom { client: &client, vault_key: "vault-key", generation };
+        let from = CallFrom { client: &client, vault_key: "vault-key", generation, root: dir.path() };
         let answer = state.forward_call(app.handle(), from, "read_note", args.clone(), &folders, extra()).await;
         assert_eq!(answer.err().as_deref(), Some(CHANGED), "the call is no longer waited for");
         assert_eq!(named.lock().unwrap().as_slice(), ["vault-key"]);
         // A call of that connection after the switch is not handed on at all.
-        let from = CallFrom { client: &client, vault_key: "vault-key", generation };
+        let from = CallFrom { client: &client, vault_key: "vault-key", generation, root: dir.path() };
         let again = state.forward_call(app.handle(), from, "read_note", args, &folders, extra()).await;
         assert_eq!(again.err().as_deref(), Some(CHANGED));
         assert_eq!(named.lock().unwrap().len(), 1, "the main window never heard of it");
@@ -2683,6 +2961,71 @@ mod tests {
         }
         assert_eq!(got[&2], "text of Projects/a.md");
         assert_eq!(got[&3], "text of Projects/b.md");
+    }
+
+    /// While the encrypted workspace of the vault is not open on this device, nothing of it goes to any app (wave 2,
+    /// § 3.2): every request is refused in words — a list, the prompts, the resource, a call —, locked as locked and
+    /// without a key here as that; the main window is not asked; a new connection is told at its hello. A call whose
+    /// answer reaches the server after the workspace was locked answers nothing, also where it was unlocked again
+    /// before the answer came (round 10 of the review: only the lock's epoch tells that one). Open again, the same
+    /// connection answers again, without a restart.
+    #[tokio::test]
+    async fn a_closed_workspace_answers_nothing_and_the_same_connection_answers_again_once_open() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        let app = mock_app(dir.path());
+        let handle = app.handle().clone();
+        let asked = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count = asked.clone();
+        app.listen_any("mcp-call", move |event| {
+            let request: serde_json::Value = serde_json::from_str(event.payload()).unwrap();
+            let state = handle.state::<McpState>();
+            let path = request["args"]["path"].as_str().unwrap_or("").to_string();
+            // The main window has its answer and hands it in, as `mcp_call_answer` does; the lock comes in between.
+            let tx = state.lock().calls.remove(request["requestId"].as_str().unwrap()).expect("a call waits for its answer");
+            match count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) {
+                0 => state.set_locked(&handle, Some(Closed::Locked)),
+                1 => {
+                    state.set_locked(&handle, Some(Closed::Locked));
+                    state.set_locked(&handle, None);
+                }
+                _ => {}
+            }
+            let _ = tx.send(CallAnswer { content: format!("text of {path}"), is_error: false, paths: vec![path], pending: None, declined: false });
+        });
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        // 1. Locked after the main window answered, before the answer was handed on.
+        let running = answer_to(&mut client, old_call(2, "read_note", "Projects/a.md")).await;
+        assert_eq!(running["result"]["content"][0]["text"], LOCKED, "{running}");
+        assert_eq!(running["result"]["isError"], true, "{running}");
+        refused_all(&mut client, 3, LOCKED).await;
+        let again = answer_to(&mut client, old_call(8, "read_note", "Projects/a.md")).await;
+        assert_eq!(again["result"]["content"][0]["text"], LOCKED, "{again}");
+        assert_eq!(asked.load(std::sync::atomic::Ordering::SeqCst), 1, "the main window is not asked while it is locked");
+        let (reply, _other) = connect(&app, Some("s3cret")).await;
+        assert_eq!(reply, HelloReply::refuse("locked"));
+        // 2. No key for the workspace on this device: told as that, not as locked.
+        app.state::<McpState>().set_locked(app.handle(), Some(Closed::NoKey));
+        refused_all(&mut client, 9, NO_KEY).await;
+        let without = answer_to(&mut client, old_call(14, "read_note", "Projects/a.md")).await;
+        assert_eq!(without["result"]["content"][0]["text"], NO_KEY, "{without}");
+        let (reply, _third) = connect(&app, Some("s3cret")).await;
+        assert_eq!(reply, HelloReply::refuse("no-key"));
+        assert_eq!(asked.load(std::sync::atomic::Ordering::SeqCst), 1);
+        // 3. Open again. A call during which it was locked and opened again before its answer came answers nothing.
+        app.state::<McpState>().set_locked(app.handle(), None);
+        let between = answer_to(&mut client, old_call(15, "read_note", "Projects/a.md")).await;
+        assert_eq!(between["result"]["content"][0]["text"], LOCKED, "{between}");
+        assert_eq!(asked.load(std::sync::atomic::Ordering::SeqCst), 2);
+        // 4. And the next is answered, on the same connection.
+        let list = answer_to(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": 16, "method": "tools/list" })).await;
+        assert!(names(&list).contains(&"read_note".to_string()), "{list}");
+        let open = answer_to(&mut client, old_call(17, "read_note", "Projects/a.md")).await;
+        assert_eq!(open["result"]["content"][0]["text"], "text of Projects/a.md", "{open}");
+        assert!(app.state::<McpState>().lock().calls.is_empty());
     }
 
     #[tokio::test]

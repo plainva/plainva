@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-17
+Stan na: 2026-11-18
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -71,7 +71,7 @@ Każda notatka ma adres, który otwiera ją z dowolnego miejsca: z wydarzenia w 
 `plainva://open?vault=Work&path=Projects%2FPlan.md`
 
 - **Kopiuj link** kopiuje ten adres do schowka: na komputerze w menu ⋮ notatki, w menu karty i w menu kontekstowym drzewa plików; na telefonie w menu notatki i w arkuszu pliku.
-- **Przy nagłówku albo wierszu**: menu bloku (uchwyt po lewej stronie bloku; na telefonie arkusz bloku) i na komputerze menu prawego przycisku w edytorze oferują **Kopiuj link** — adres dokładnie tego nagłówka lub bloku — oraz **Kopiuj link do bloku** — link do Twoich notatek, np. `[[Plan#Cele]]` albo `[[Plan#^k3x9qa]]`. Blok bez identyfikatora dostaje go: Plainva zapisuje ` ^k3x9qa` (sześć liter i cyfr) na końcu akapitu lub punktu listy, przy tabeli w osobnym wierszu pod nią — tak, jakbyś to wpisał(a), więc Cofnij to usuwa. Frontmatter, bloki kodu, wzory i puste wiersze nie dostają identyfikatora.
+- **Przy nagłówku albo wierszu**: menu bloku (uchwyt po lewej stronie bloku; na telefonie arkusz bloku) i na komputerze menu prawego przycisku w edytorze oferują **Kopiuj link** — adres dokładnie tego nagłówka lub bloku — oraz **Kopiuj link do bloku** — link do Twoich notatek, np. `[[Plan#Cele]]` albo `[[Plan#^k3x9qa]]`. Blok bez identyfikatora dostaje go: Plainva zapisuje ` ^k3x9qa` (sześć liter i cyfr) na końcu akapitu lub punktu listy, przy tabeli w osobnym wierszu pod nią — tak, jakbyś to wpisał(a), więc Cofnij to usuwa. Frontmatter, bloki kodu, wzory i puste wiersze nie dostają identyfikatora. W edytorze identyfikator jest przygaszony na końcu swojego wiersza, a gdy kursor stoi w tym wierszu, widać go tak, jak został zapisany; tryb czytania go ukrywa.
 - **Podpowiedzi**: gdy wpiszesz `[[Notatka#^`, pojawią się identyfikatory bloków, które notatka już ma, z początkiem ich tekstu.
 - **W wydarzeniu**: **Połącz notatkę** w edytorze wydarzenia dodaje `[Tytuł](plainva://open?…)` do opisu. Podgląd wydarzenia pokazuje go jako chip z nazwą notatki; kliknięcie ją otwiera.
 - **Kliknięty w Plainva**: link `plainva://` w notatce, mailu, wydarzeniu lub zadaniu otwiera notatkę w Plainva, na komputerze i na telefonie. Nigdy nie trafia do systemu.
@@ -170,7 +170,7 @@ Notatka dzienna może też nieść **dziennik**: krótkie wpisy z godziną (`- 1
 - **Pola wyboru zadań**: `- [ ] zadanie` renderuje się wszędzie jako pole wyboru — a w **trybie czytania** można je kliknąć: Plainva zapisuje z powrotem do pliku `[x]` lub `[ ]`. Ukończone zadanie jest wyszarzone i przekreślone — w notatce tak samo jak w widoku zadań.
 - **Callouts**: cytat zaczynający się od `> [!tip] Tytuł` (lub dowolny z 13 wariantów z menu ukośnika) jest rysowany jako jedna karta — cienka linia w kolorze calloutu, lekki odcień i tytuł w tym kolorze; bez tytułu karta pokazuje nazwę swojego wariantu. Wygląda tak samo w podglądzie na żywo, w trybie czytania i na telefonie; zwykły cytat zachowuje swój pasek.
 - **Listy zagnieżdżone**: od drugiego poziomu cienka linia pod każdym punktem nadrzędnym pokazuje, które pozycje należą do siebie — w podglądzie na żywo i w trybie czytania.
-- **Matematyka (LaTeX)**: `$E = mc^2$` w wierszu i `$$…$$` jako blok renderują się jako formuły w trybie czytania ORAZ w podglądzie na żywo (KaTeX). Gdy kursor stoi wewnątrz formuły, widoczna jest jej składnia; kliknięcie wyrenderowanej formuły otwiera ją do edycji. Tylko tryb źródłowy zawsze pokazuje surową składnię. Nie musisz pamiętać na pamięć bloku `$$…$$` — polecenie slash **Wzór (LaTeX)** (`/katex`) wstawia go i ustawia kursor w jego wnętrzu.
+- **Matematyka (LaTeX)**: `$E = mc^2$` w wierszu i `$$…$$` jako blok renderują się jako formuły w trybie czytania ORAZ w podglądzie na żywo (KaTeX). Gdy kursor stoi wewnątrz formuły, widoczna jest jej składnia; kliknięcie wyrenderowanej formuły otwiera ją do edycji. Tylko tryb źródłowy zawsze pokazuje surową składnię. Nie musisz pamiętać na pamięć bloku `$$…$$` — polecenie slash **Wzór (LaTeX)** (`/katex`) wstawia go i ustawia kursor w jego wnętrzu. Link wiki `[[…]]` pozostaje linkiem także między znakami dolara: jeśli stoi wewnątrz formuły, tryb czytania i podgląd na żywo pokazują ten fragment jako tekst z linkiem, a nie jako formułę (na przykład `$A[[1,2]]$`).
 - **Diagramy Mermaid**: blok kodu z językiem `mermaid` (najszybciej przez polecenie slash **Diagram Mermaid**, `/mermaid`) jest rysowany jako diagram w trybie czytania i w podglądzie na żywo — kliknięcie diagramu pokazuje kod do edycji:
 
   ````markdown

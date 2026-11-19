@@ -24,11 +24,11 @@ vi.mock("@plainva/core", async (importOriginal) => {
     ...actual,
     refreshOneDriveAccessToken: vi.fn(async () => ({ accessToken: "ACCESS", expiresIn: 3600 })),
     // The real one, watched: a test below asks which parser read a message.
-    htmlToVisibleText: vi.fn(actual.htmlToVisibleText),
+    htmlToVisibleDocument: vi.fn(actual.htmlToVisibleDocument),
   };
 });
 
-import { htmlToVisibleText, readFrontmatterPath } from "@plainva/core";
+import { htmlToVisibleDocument, htmlToVisibleText, readFrontmatterPath, visibleDocumentOf } from "@plainva/core";
 import { setPlatformServices } from "@plainva/ui";
 import {
   buildEmailNoteContent,
@@ -49,6 +49,8 @@ import {
   type MailCaptureAdapter,
   type MailMessage,
   type MailTransport,
+  domReader,
+  treeAccess,
 } from "@plainva/ui/mail";
 
 /** What a sender hides above the message so that a mail list shows it as the preview. */
@@ -147,30 +149,22 @@ describe("a message cannot rename what its own tree answers", () => {
 
   it("asks the tree through the prototypes: nodes that answer to every name it uses change nothing, and the portable parser is not called", () => {
     // The worst a tree can do: every element answers `childNodes`, `nodeName`,
-    // `nodeType`, `getAttribute` and the rest with something else, and so does
-    // the document for `body`.
-    const Platform = DOMParser;
-    class Renamed {
-      parseFromString(html: string, type: DOMParserSupportedType): Document {
-        const page = new Platform().parseFromString(html, type);
-        const decoy = page.createElement("input");
-        for (const element of Array.from(page.querySelectorAll("*"))) {
-          for (const name of ["childNodes", "nodeName", "nodeType", "getAttribute", "attrs", "value", "data"]) {
-            Object.defineProperty(element, name, { value: decoy, configurable: true });
-          }
-        }
-        Object.defineProperty(page, "body", { value: decoy, configurable: true });
-        Object.defineProperty(page, "getElementsByTagName", { value: decoy, configurable: true });
-        return page;
+    // `nodeType`, `getAttribute` and the rest with something else.
+    const page = new DOMParser().parseFromString('<p>A</p><div style="display:none">Versteckt</div><div><ol start="3"><li>Mitte</li></ol></div><p>B</p>', "text/html");
+    const decoy = page.createElement("input");
+    for (const element of Array.from(page.querySelectorAll("*"))) {
+      for (const name of ["childNodes", "nodeName", "nodeType", "getAttribute", "attrs", "value", "data", "parentNode"]) {
+        Object.defineProperty(element, name, { value: decoy, configurable: true });
       }
     }
-    vi.stubGlobal("DOMParser", Renamed);
-    const reads = vi.mocked(htmlToVisibleText);
+    const read = treeAccess();
+    expect(read).not.toBeNull();
+    expect(visibleDocumentOf(page.body, domReader(read!, new WeakSet())).text).toBe("A\n\n3. Mitte\n\nB");
+    // The reader's own text walks the sanitizer's tree; the portable parser is not called.
+    const reads = vi.mocked(htmlToVisibleDocument);
     reads.mockClear();
-    const html = '<p>A</p><div style="display:none">Versteckt</div><div><ol start="3"><li>Mitte</li></ol></div><p>B</p>';
-    expect(mailMessageText({ text: null, html })).toBe("A\n\n3. Mitte\n\nB");
-    // One read, and it was handed the platform's tree.
-    expect(reads.mock.calls.map((call) => typeof call[1])).toEqual(["function"]);
+    expect(mailMessageText({ text: null, html: `<p>A</p><div style="display:none">Versteckt</div><p>B ${Math.random()}</p>` })).toMatch(/^A\n\nB /);
+    expect(reads).not.toHaveBeenCalled();
   });
 });
 
@@ -403,13 +397,17 @@ describe("what the reader hides, the text leaves out", () => {
     expect(mailMessageText({ text: null, html: attribute })).toBe("Sichtbar");
   });
 
-  it("a style the sanitizer removes hides nothing in the reader, and the text has the element", () => {
-    const html = '<div id="pre" style="display:none;background:url(https://tracker.example.org/p.gif)">Doch sichtbar</div><p>Sichtbar</p>';
-    expect(inFrame(html).querySelector("#pre")?.hasAttribute("style")).toBe(false);
+  it("a style that fetches loses its address, keeps what else it says, and the text reads it so", () => {
+    // The address is never given (a fetch); the declaration beside it is, in the reader and the text alike.
+    const html = '<div id="pre" style="display:none;background:url(https://tracker.example.org/p.gif)">Versteckt</div><div id="shown" style="background:url(https://tracker.example.org/q.gif);padding:4px">Doch sichtbar</div><p>Sichtbar</p>';
+    // The picture is not shown, so its box takes the reader's pair of colours.
+    expect(inFrame(html).querySelector("#pre")?.getAttribute("style")).toBe("display:none;color:#222222 !important;background-color:#ffffff !important");
+    expect(inFrame(html).querySelector("#shown")?.getAttribute("style")).toBe("padding:4px;color:#222222 !important;background-color:#ffffff !important");
+    expect(sanitizeEmailHtml(html).blockedRemote).toBe(2);
     expect(mailMessageText({ text: null, html })).toBe("Doch sichtbar\n\nSichtbar");
   });
 
-  it("a closed details, a popover and a style with a comment stay in the reader's frame as they were sent, and what they hide is not in the text (§ 3.84)", () => {
+  it("a closed details, a popover and a style with a comment stay in the reader's frame, the style written anew without the comment, and what they hide is not in the text (§ 3.84)", () => {
     const html =
       '<details id="fold"><summary>Mehr</summary><p>Zugeklappt</p></details>' +
       '<div id="pop" popover>Auf Anforderung</div>' +
@@ -418,7 +416,7 @@ describe("what the reader hides, the text leaves out", () => {
     expect(frame.querySelector("#fold")?.hasAttribute("open")).toBe(false);
     expect(frame.querySelector("#fold summary")?.textContent).toBe("Mehr");
     expect(frame.querySelector("#pop")?.hasAttribute("popover")).toBe(true);
-    expect(frame.querySelector("#note")?.getAttribute("style")).toContain("/**/");
+    expect(frame.querySelector("#note")?.getAttribute("style")).toBe("display:none");
     expect(mailMessageText({ text: null, html })).toBe("Mehr\n\nSichtbar");
   });
 

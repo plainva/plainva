@@ -18,6 +18,8 @@ vi.mock("./workspaceSecurity/workspaceKeychain", () => ({
   clearPublicationRuntimes: vi.fn(async (vaultPath: string, ids: string[]) =>
     void clearedPublications.push({ vaultPath, ids })
   ),
+  workspaceHere: () => "locked",
+  onWorkspaceHereChange: () => () => undefined,
 }));
 
 let indexDbExists = true;
