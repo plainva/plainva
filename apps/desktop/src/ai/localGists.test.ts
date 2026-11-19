@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { gistKey, gistSections, protectedTokens, turns } from "@plainva/core";
+import { gistKey, gistSections, protectedTokens, sectionGistKey, turns } from "@plainva/core";
 import { createVaultPolicy, LocalGists, type LocalCompletion } from "@plainva/ui";
 import { until, vaultWith } from "./embeddingTestVault";
 
@@ -65,7 +65,8 @@ describe("gists in a vault", () => {
       const reader = gists.reader()!;
       const offer = gistSections(NOTES["Projects/Offer.md"]!)[0]!;
       expect(offer.key).toBe(gistKey(offer.text));
-      expect(await reader.section(offer.key)).toBe("Summary 95 31.12.2026 not.");
+      // Stored as the section of its own note (review of R19, wave 2).
+      expect(await reader.section(sectionGistKey("Projects/Offer.md", offer.text))).toBe("Summary 95 31.12.2026 not.");
       gists.close();
     } finally {
       vi.useRealTimers();

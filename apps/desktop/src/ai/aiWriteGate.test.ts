@@ -12,7 +12,11 @@ vi.mock("../services/commentOperationJournal", async () => {
   const { gateJournal } = await import("./writeGateJournal");
   return { desktopCommentOperationJournal: gateJournal };
 });
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+// The native wall's verdict on the paths of an answer (`mcp_judge_paths`): this vault holds no folder link, so the disk
+// says what the name says, and the web view's own first look has decided that already.
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(async (command: string, args: { paths?: string[] }) => (command === "mcp_judge_paths" ? (args.paths ?? []).map(() => true) : undefined)),
+}));
 
 const { runMcpCall } = await import("../services/ai/mcpBridge");
 const { McpPlans } = await import("../services/ai/mcpPlans");

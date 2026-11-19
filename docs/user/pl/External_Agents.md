@@ -1,6 +1,6 @@
 # Agenci zewnętrzni (Beta)
 
-Stan na: 2026-11-16
+Stan na: 2026-11-18
 
 Agent zewnętrzny to program AI innego producenta — agent zainstalowany samodzielnie na komputerze, do którego logujesz się samodzielnie, z własną subskrypcją lub kluczem. Plainva może uruchomić takiego agenta w folderze vaultu i pokazać jego sesję na karcie AI. To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -69,7 +69,7 @@ Jeśli program agenta zakończy się sam, sesja o tym mówi, a **Pokaż jego ost
 ## Ograniczenia
 
 - Tylko na komputerze i tylko w głównym oknie. Na telefonie jest własny asystent Plainva.
-- Nie w zaszyfrowanym obszarze roboczym.
+- Nie w zaszyfrowanym obszarze roboczym: nie uruchamia się tam żaden agent, a dopóki taki obszar jest zablokowany albo to urządzenie nie ma do niego klucza, narzędzia Plainvy nie odpowiadają żadnemu agentowi ani żadnej aplikacji.
 - Nie, gdy włączone jest **W pełni lokalnie**: żaden agent się nie uruchamia i żadne logowanie nie biegnie, a trwająca sesja się kończy.
 - Jedna sesja naraz i bez historii: zakończonej sesji nie da się otworzyć ponownie.
 - Nie można wysyłać obrazów do agenta, a trybu ani modelu wybranego w sesji Plainva nie przenosi na następną.

@@ -45,9 +45,28 @@ pub struct Grants {
     /// names none.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub writes: BTreeSet<String>,
+    /// The clients whose folders a build wrote that keeps a folder as the user chose it (review of R19). Folders of a
+    /// client not in it were written by a build that trimmed and normalised each one (0.8.7): they are checked again
+    /// at every use (`paths::effective_grant`), never rewritten.
+    #[serde(default, rename = "asChosen", skip_serializing_if = "BTreeSet::is_empty")]
+    pub as_chosen: BTreeSet<String>,
 }
 
 impl Grants {
+    /// A client's folders, checked as they stand (`paths::grant_folders`) and kept so.
+    pub fn grant(&mut self, client_id: &str, folders: Vec<String>) {
+        self.folders.insert(client_id.to_string(), folders);
+        self.as_chosen.insert(client_id.to_string());
+    }
+
+    /// The client reads nothing in this vault any more, and proposes nothing. Whether it read anything before.
+    pub fn forget(&mut self, client_id: &str) -> bool {
+        let read = self.folders.remove(client_id).is_some();
+        let wrote = self.writes.remove(client_id);
+        let chosen = self.as_chosen.remove(client_id);
+        read || wrote || chosen
+    }
+
     /// Whether this client may propose changes: only inside folders it reads.
     pub fn may_write(&self, client_id: &str) -> bool {
         self.writes.contains(client_id) && self.folders.get(client_id).is_some_and(|folders| !folders.is_empty())
@@ -173,9 +192,7 @@ impl Store {
                     // Written back to the file it was read from: a file name is no key to make a name from again.
                     let path = entry.path();
                     let mut grants: Grants = read_json(&path).unwrap_or_default();
-                    let read = grants.folders.remove(client_id).is_some();
-                    let wrote = grants.writes.remove(client_id);
-                    if read || wrote {
+                    if grants.forget(client_id) {
                         write_json(&self.dir, &path, &grants)?;
                     }
                 }

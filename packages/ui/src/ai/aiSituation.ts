@@ -1,4 +1,4 @@
-import { frontmatterKeys, readFrontmatterPath, type SituationInput } from "@plainva/core";
+import { gateDecision, isAiHiddenPath, isCloudRecipient, notePropertiesAsWritten, type EffectivePolicy, type GateRun, type LinkRule, type SituationInput } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveTaskCompletionModel, taskDbRows } from "../lib/taskDatabase";
 import { addDaysToKey, type PlannerRow } from "../lib/taskPlanner";
@@ -123,14 +123,12 @@ export const SITUATION_TASK_DAYS = 7;
 /** Appointments shown: from two hours ago to the end of tomorrow. */
 const EVENT_PAST_MS = 2 * 3_600_000;
 
-/** A note's frontmatter properties, the first `max` of them, empty values left out. */
+/**
+ * A note's frontmatter properties, the first `max` of them, empty values left out — read as they are written
+ * (`notePropertiesAsWritten`): a wiki link without quotes is its text, whatever its name holds (review of R19, wave 2).
+ */
 export function notePropertiesOf(text: string, max = 16): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const key of frontmatterKeys(text).slice(0, max)) {
-    const value = readFrontmatterPath(text, [key]);
-    if (value !== undefined && value !== null && value !== "") out[key] = value;
-  }
-  return out;
+  return notePropertiesAsWritten(text, max);
 }
 
 export function situationFrom(src: SituationSources): SituationInput {
@@ -138,8 +136,9 @@ export function situationFrom(src: SituationSources): SituationInput {
   const horizon = addDaysToKey(today, SITUATION_TASK_DAYS);
   const tasks = (src.taskRows ?? [])
     .filter((row) => (row.state === "open" || row.state === "progress") && row.due !== null && row.due <= horizon)
+    // Not cut here: the package cuts to what goes only after the gate, so a task kept back takes no place of one
+    // that goes (review of R19, wave 2) — the due tasks of a week, every one of them.
     .sort((a, b) => (a.due ?? "").localeCompare(b.due ?? "") || (a.priority || 9) - (b.priority || 9))
-    .slice(0, 12)
     .map((row) => ({ title: row.title, path: row.path, due: row.due }));
   const endOfTomorrow = new Date(src.now.getFullYear(), src.now.getMonth(), src.now.getDate() + 2).getTime();
   const events = (src.events ?? [])
@@ -188,4 +187,27 @@ export async function databaseTaskRows(baseText: string | null, query: (config: 
   } catch {
     return [];
   }
+}
+
+/**
+ * The reach of the situation's task database for one run (review of R19, wave 2): the notes the gate lets through
+ * for that recipient. A value the database computes from other notes — and so its filters and its sort — is made of
+ * those alone (`VaultQueryService.queryDatabaseFiles`), and every row is read through the reader's view of the note:
+ * a task's title is its note's name as the view gives it, like the context package's other links (`any-kept-back`).
+ */
+export function situationReach(
+  policyOf: (path: string) => Promise<EffectivePolicy>,
+  run: GateRun,
+): { reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>>; withhold?: { rule: LinkRule } } {
+  // A model on this device without the internet: the gate lets every note through, and the tasks are computed as
+  // they always were, without asking about each note (review of R19, wave 2).
+  if (!isCloudRecipient(run.recipient) && !run.webTools) return {};
+  return {
+    async reach(paths) {
+      const yes = new Set<string>();
+      for (const path of paths) if (!isAiHiddenPath(path) && gateDecision(await policyOf(path), run).allowed) yes.add(path);
+      return yes;
+    },
+    withhold: { rule: "any-kept-back" },
+  };
 }

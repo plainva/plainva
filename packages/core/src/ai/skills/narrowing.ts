@@ -140,10 +140,12 @@ function fold(value: string): string {
 }
 
 /**
- * True when a vault path lies in one of the folders — as the MCP server's
- * folder grants read it (letter case and Unicode form ignored: narrowing
- * gives nothing the privacy gate would not allow anyway). An empty folder
- * (`""`) is the whole vault; an empty list is nothing.
+ * True when a vault path lies in one of a skill's folders — letter case,
+ * Unicode form, `\` and slashes at either end ignored: a skill's folders are
+ * written by hand, and narrowing a run gives nothing the privacy gate and the
+ * conversation would not allow anyway. An empty folder (`""`) is the whole
+ * vault; an empty list is nothing. Never for a grant that lets something
+ * leave the vault: `withinFoldersExactly` (review of R19, wave 2).
  */
 export function withinFolders(path: string, folders: readonly string[]): boolean {
   const p = fold(path);
@@ -151,4 +153,22 @@ export function withinFolders(path: string, folders: readonly string[]): boolean
     const f = fold(folder);
     return f === "" || p === f || p.startsWith(`${f}/`);
   });
+}
+
+/**
+ * True when a vault path lies in one of the folders of a GRANT — what decides
+ * that a note may go to someone outside the vault: an app over Plainva's MCP
+ * server, a foreign MCP server the conversation's notes are sent to. Compared
+ * exactly as both are spelled (review of R19, wave 2): no case fold, no
+ * Unicode normalisation, only `/` separates, no slash trimmed. A fold took
+ * `projects` beside a granted `Projects` for inside — another real folder on a
+ * case-sensitive disk, as are `STRAẞE` beside `Straße` and the Kelvin sign
+ * beside `K` everywhere. A vault path is the index's spelling (NFC, `/`), and a
+ * folder is granted as the user picked it from the same index, so the exact
+ * comparison loses nothing that was granted. `""` is the whole vault; a folder
+ * spelled in a way no vault path can be (a leading or trailing `/`) grants
+ * nothing; an empty list is nothing.
+ */
+export function withinFoldersExactly(path: string, folders: readonly string[]): boolean {
+  return folders.some((folder) => folder === "" || (!folder.startsWith("/") && !folder.endsWith("/") && (path === folder || path.startsWith(`${folder}/`))));
 }
