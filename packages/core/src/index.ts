@@ -5,6 +5,7 @@ export * from "./markdown-parser.js";
 export * from "./inlineParseBudget.js";
 export * from "./noteSource.js";
 export * from "./readerFormulas.js";
+export * from "./templateTokens.js";
 export * from "./noteLinkUrl.js";
 export * from "./journal.js";
 export * from "./ai/index.js";

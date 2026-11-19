@@ -36,3 +36,13 @@ export async function installVaultFeaturesRelay(): Promise<void> {
     window.dispatchEvent(new CustomEvent(FEATURES_SAVED_EVENT, { detail: { vaultPath } }));
   });
 }
+
+/**
+ * Whether a `FEATURES_SAVED_EVENT` is about `vaultPath`: saved in this window
+ * it names no vault (the settings here are this window's vault), carried from
+ * another window by `installVaultFeaturesRelay` it names the vault saved.
+ */
+export function featuresSavedFor(event: Event, vaultPath: string): boolean {
+  const savedFor = (event as CustomEvent<{ vaultPath?: string } | undefined>).detail?.vaultPath;
+  return savedFor === undefined || savedFor === vaultPath;
+}
