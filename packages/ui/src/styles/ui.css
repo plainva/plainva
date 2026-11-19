@@ -5090,7 +5090,10 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   padding: var(--space-3);
   overflow-y: auto;
 }
-.pv-ai-thread > .pv-empty { margin: auto 0; }
+/* The greeting of an empty conversation (F71 of release 0.9.0): at the top and to the left, like the start page and
+   the composer around it — a centred block in a column that reads from the left was the one thing out of line. */
+.pv-ai-thread > .pv-ai-hello { margin: 0; align-items: flex-start; text-align: left; padding: var(--space-2) 0; }
+.pv-ai-hello .pv-empty-title { font-size: var(--text-lg); }
 .pv-ai-msg {
   max-width: 92%;
   padding: var(--space-2) var(--space-3);
@@ -5335,6 +5338,12 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   border-top: 1px solid var(--border-color-light);
 }
 .pv-ai-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* A switch of the conversation that is on (F71 of release 0.9.0): the accent pair AND its edge, with the check the chip
+   carries — the pair alone came out close to the ground in the Petrol theme, and the chip read as one without a frame. */
+.pv-ai-chips .pv-chip.is-on { border-color: var(--accent-color); }
+/* On a phone the chips are one line (F71): the switches lead and stand whole, what follows may come in from the right. */
+.pv-ai--touch .pv-ai-chips:not(.pv-ai-selchips) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.pv-ai--touch .pv-ai-chips:not(.pv-ai-selchips) > * { flex: none; }
 /* The selection actions (plan P1.5): one quiet row above the context chips while the editor has a selection. */
 .pv-ai-selchips { align-items: center; padding-bottom: var(--space-1); border-bottom: 1px dashed var(--border-color-light); }
 .pv-ai-selchips-label { font-size: var(--text-xs); color: var(--text-muted); }
@@ -5342,8 +5351,21 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-audio-transcribe { flex: none; }
 /* On a phone the buttons of a question stand one under the other, full width, the answer that goes on at the bottom (K9). */
 .pv-ai-overview--touch .pv-ai-overview-actions { flex-direction: column; align-items: stretch; }
-.pv-ai-inputrow { display: flex; align-items: flex-end; gap: var(--space-2); }
-.pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; resize: none; }
+/* The field and its send button are one box (F71 of release 0.9.0): the button inside, the box as wide as the chips
+   above it; the text field itself draws no edge of its own. */
+.pv-ai-inputrow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+.pv-ai-inputrow:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--state-focus); }
+.pv-ai-inputrow > .pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; overflow-y: auto; border: 0; background: transparent; box-shadow: none; }
+/* The box draws the focus; the field inside it draws no second ring. */
+.pv-ai-inputrow > .pv-ai-input:focus,
+.pv-ai-inputrow > .pv-ai-input:focus-visible { border: 0; box-shadow: none; outline: none; }
 .pv-ai-foot { display: flex; justify-content: flex-end; min-width: 0; }
 /* The skills of an empty conversation behind one button (plan Oberfläche O7, D2), at the start of the foot. */
 .pv-ai-foot-start { margin-inline-end: auto; }

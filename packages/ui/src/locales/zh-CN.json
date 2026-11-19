@@ -274,7 +274,7 @@
       }
     },
     "empty": {
-      "startBodyVault": "可以问仓库里的任何内容。AI不会自行更改任何内容：它想做的更改，会以建议的形式交给你。",
+      "startBodyVault": "可以问仓库里的任何内容。",
       "setupBodyPhone": "选择一个服务商并保存它的密钥，或无需密钥直接使用手机自带的模型。",
       "setupTitle": "设置AI",
       "setupBody": "选择一个服务商并保存它的密钥，或使用此设备上的模型（Ollama、LM Studio）。",
@@ -283,7 +283,7 @@
       "offBody": "在设置中开启它。在你提出问题之前，不会发送任何内容。",
       "offAction": "打开设置",
       "startTitle": "问些什么",
-      "startBody": "可以问当前打开的笔记，或仓库里的任何内容。AI不会自行更改任何内容：它想做的更改，会以建议的形式交给你。",
+      "startBody": "可以问当前打开的笔记，或仓库里的任何内容。",
       "mainWindowOnly": "AI仅在主窗口中运行。",
       "noVault": "打开一个仓库来询问你的笔记。"
     },
@@ -429,7 +429,8 @@
       "strong": "强大",
       "local": "本地",
       "audio": "音频",
-      "embedding": "搜索模型"
+      "embedding": "搜索模型",
+      "button": "模型：{{profile}}"
     },
     "policy": {
       "columns": "文件夹",
@@ -2583,6 +2584,7 @@
       "toggleOff": "关：AI 的修改以建议的形式等你决定。",
       "folderTip": "此笔记所在的文件夹设置了“无需询问即可修改”。",
       "marking": "AI 及其启动的脚本可以在此对话中修改和创建笔记。删除、重命名和移动仍会先询问。",
+      "markingOff": "AI 想做的更改，会以建议的形式交给你。",
       "overview": "直接应用",
       "overviewOn": "AI 及其启动的脚本可以修改和创建笔记；删除仍会先询问。",
       "changed": "已修改：{{list}}",

@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { History, SquarePen } from "lucide-react";
 import { AiConversation, AiSessionContext, GroupCard, ICON, IconButton, openWritesCount, Row, RowList, SectionLabel, startAiConversation, useOpenProposals, waitingCount } from "@plainva/ui";
+import type { ConversationSummary } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useAiSetupDoor } from "../hooks/useAiSetupDoor";
 import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";
@@ -34,6 +35,9 @@ export function AiScreen({
   const session = getMobileAiSession();
   // "Set up" opens the three-step setup while a step is missing (plan Oberfläche O7, T9).
   const setup = useAiSetupDoor(onOpenSettings);
+  // The start page stands only where it has something to list (F71 of release 0.9.0): otherwise the conversation's own
+  // greeting stands at the top, never both.
+  const startRows = useAiStartRows();
   return (
     <AiSessionContext.Provider value={session}>
       <div className="m-page m-ai-page" data-testid="ai-screen">
@@ -60,7 +64,8 @@ export function AiScreen({
           onOpenUrl={openAiLink}
           onOpenSettings={setup.open}
           onPickNote={() => openAiNotePick("pin")}
-          start={<AiStartPage onHistory={onHistory} />}
+          start={startRows.waiting > 0 || startRows.recent.length > 0 ? <AiStartPage onHistory={onHistory} /> : undefined}
+          onOpenSkills={() => onHistory("skills")}
         />
         {setup.sheet}
       </div>
@@ -68,16 +73,25 @@ export function AiScreen({
   );
 }
 
-/** What waits, the last conversations and the way to skills and memory — the empty AI screen's start page. */
-function AiStartPage({ onHistory }: { onHistory: (view?: AiHistoryView) => void }) {
-  const { t, i18n } = useTranslation();
+/** What the empty AI screen's start page lists: what waits for a decision, and the last conversations. */
+function useAiStartRows(): { waiting: number; recent: ConversationSummary[]; hasVault: boolean } {
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const proposals = useOpenProposals(session);
-  const waiting = openWritesCount(state.drafts, proposals) + waitingCount(state.skills.entries);
-  const recent = state.summaries.slice(0, 3);
+  if (!state.hasVault) return { waiting: 0, recent: [], hasVault: false };
+  return { waiting: openWritesCount(state.drafts, proposals) + waitingCount(state.skills.entries), recent: state.summaries.slice(0, 3), hasVault: true };
+}
+
+/**
+ * What waits and the last conversations — the empty AI screen's start page. The way to the skills and the memory is
+ * the last entry of the "Skills" menu at the foot (F71 of release 0.9.0), not a row here: one way, one place.
+ */
+function AiStartPage({ onHistory }: { onHistory: (view?: AiHistoryView) => void }) {
+  const { t, i18n } = useTranslation();
+  const session = getMobileAiSession();
+  const { waiting, recent, hasVault } = useAiStartRows();
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" });
-  if (!state.hasVault) return null;
+  if (!hasVault) return null;
   return (
     <div className="m-ai-start" data-testid="ai-start">
       {waiting > 0 && (
@@ -100,11 +114,6 @@ function AiStartPage({ onHistory }: { onHistory: (view?: AiHistoryView) => void 
           </GroupCard>
         </>
       )}
-      <GroupCard>
-        <RowList>
-          <Row title={t("ai.start.skillsAndMemory")} onClick={() => onHistory("skills")} data-testid="ai-start-skills" />
-        </RowList>
-      </GroupCard>
     </div>
   );
 }

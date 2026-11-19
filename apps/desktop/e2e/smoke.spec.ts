@@ -923,6 +923,45 @@ test('AI settings from a conversation: "Set up" opens the page "AI", not the fir
   await expect(page.getByTestId('ai-setup-provider')).toBeVisible();
 });
 
+// An empty conversation opens at its top on the desktop too (F71 of release 0.9.0, point 1): the conversation followed
+// "the answer" to its end the moment it opened, so where the column is lower than what an empty conversation shows —
+// a short window, the column under its week — the greeting stood cut at its top edge. The same shared conversation the
+// phone shows; the desktop has no start page, so here it is the greeting alone.
+test('AI dock in a low column: the empty conversation opens at its top, the greeting whole', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      return orig(cmd, args, options);
+    };
+  });
+  // A short window: the column under the week has less height than the empty conversation shows.
+  await page.setViewportSize({ width: 1280, height: 340 });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  // The greeting is the conversation's empty state (`.pv-empty`), whatever else it is called.
+  const hello = dock.locator('.pv-ai-thread > .pv-empty');
+  await expect(hello).toBeVisible();
+  await page.waitForTimeout(300);
+  const placed = await dock.evaluate((el) => {
+    const thread = el.querySelector('.pv-ai-thread') as HTMLElement;
+    const hello = el.querySelector('.pv-ai-thread > .pv-empty') as HTMLElement;
+    return {
+      client: thread.clientHeight,
+      scroll: thread.scrollHeight,
+      scrollTop: thread.scrollTop,
+      threadTop: thread.getBoundingClientRect().top,
+      helloTop: hello.getBoundingClientRect().top,
+    };
+  });
+  if (process.env.KI_DEBUG) console.log('LOW-COLUMN ' + JSON.stringify(placed));
+  expect(placed.scrollTop, 'the empty conversation is not scrolled').toBe(0);
+  expect(placed.helloTop, 'the greeting begins inside the conversation, not above it').toBeGreaterThanOrEqual(placed.threadTop);
+});
+
 test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Icons.md'] = "---\ntype: Note\n---\n\nIcon test body\n";
@@ -7641,8 +7680,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   // From the docked conversation the dialog opens too; the column lies under a dialog and stays where it is.
   await page.keyboard.press('Control+j');
   const dock = page.getByTestId('ai-dock');
-  await dock.getByTestId('ai-run-more').last().click();
-  await page.getByTestId('ai-learn-open').click();
+  await dock.getByTestId('ai-learn-open').last().click();
   await expect(page.getByTestId('ai-learn')).toBeVisible();
   await expect(dock).toBeVisible();
   await page.getByTestId('ai-learn').getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -7653,8 +7691,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   const companion = page.getByTestId('ai-companion');
   await expect(companion).toBeVisible();
   await expect(dock).toHaveCount(0);
-  await companion.getByTestId('ai-run-more').last().click();
-  await page.getByTestId('ai-learn-open').click();
+  await companion.getByTestId('ai-learn-open').last().click();
   await expect(page.getByTestId('ai-learn')).toBeVisible();
   await expect(page.getByTestId('ai-companion')).toHaveCount(0);
   await page.getByTestId('ai-learn').getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -7664,8 +7701,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   expect(await requests()).toHaveLength(1);
 
   // 2. "Learn from this conversation" stands under its last answer. The dialog says what would go where; nothing has gone.
-  await tab.getByTestId('ai-run-more').last().click();
-  await page.getByTestId('ai-learn-open').click();
+  await tab.getByTestId('ai-learn-open').last().click();
   const learn = page.getByTestId('ai-learn');
   await expect(learn.getByTestId('ai-learn-recipient')).toContainText('m-1');
   await expect(learn.getByTestId('ai-learn-kinds')).toHaveText('Entries for the memory · Rules · A skill, or other instructions for one');

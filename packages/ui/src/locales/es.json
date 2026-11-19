@@ -318,7 +318,7 @@
       }
     },
     "empty": {
-      "startBodyVault": "Sobre cualquier cosa de tu vault. La IA no cambia nada por sí misma: lo que cambiaría te lo presenta como sugerencia.",
+      "startBodyVault": "Sobre cualquier cosa de tu vault.",
       "setupBodyPhone": "Elige un proveedor y guarda su clave — o usa sin clave el modelo de tu teléfono.",
       "setupTitle": "Configurar la IA",
       "setupBody": "Elige un proveedor y guarda su clave — o usa un modelo en este dispositivo (Ollama, LM Studio).",
@@ -327,7 +327,7 @@
       "offBody": "Actívala en la configuración. No se envía nada a ningún sitio hasta que preguntes algo.",
       "offAction": "Abrir configuración",
       "startTitle": "Pregunta algo",
-      "startBody": "Sobre la nota abierta, o sobre cualquier cosa de tu vault. La IA no cambia nada por sí misma: lo que cambiaría te lo presenta como sugerencia.",
+      "startBody": "Sobre la nota abierta, o sobre cualquier cosa de tu vault.",
       "mainWindowOnly": "La IA se ejecuta en la ventana principal.",
       "noVault": "Abre un vault para preguntar sobre tus notas."
     },
@@ -477,7 +477,8 @@
       "strong": "Potente",
       "local": "Local",
       "audio": "Audio",
-      "embedding": "Modelo de búsqueda"
+      "embedding": "Modelo de búsqueda",
+      "button": "Modelo: {{profile}}"
     },
     "policy": {
       "columns": "Carpeta",
@@ -2751,6 +2752,7 @@
       "toggleOff": "Desactivado: los cambios de la IA te esperan como sugerencias.",
       "folderTip": "La carpeta de esta nota tiene «Cambiar sin preguntar».",
       "marking": "La IA y los scripts que inicia pueden cambiar y crear notas en esta conversación. Eliminar, renombrar y mover siguen preguntando.",
+      "markingOff": "Lo que la IA cambiaría te lo presenta como sugerencia.",
       "overview": "Aplicar directamente",
       "overviewOn": "La IA y los scripts que inicia pueden cambiar y crear notas; eliminar sigue preguntando.",
       "changed": "Cambiado: {{list}}",

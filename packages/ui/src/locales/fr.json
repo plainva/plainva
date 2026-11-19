@@ -318,7 +318,7 @@
       }
     },
     "empty": {
-      "startBodyVault": "Sur tout ce qui se trouve dans votre vault. L'IA ne modifie rien elle-même : ce qu'elle changerait, elle vous le présente comme une proposition.",
+      "startBodyVault": "Sur tout ce qui se trouve dans votre vault.",
       "setupBodyPhone": "Choisissez un fournisseur et enregistrez sa clé — ou utilisez sans clé le modèle de votre téléphone.",
       "setupTitle": "Configurer l'IA",
       "setupBody": "Choisissez un fournisseur et enregistrez sa clé — ou utilisez un modèle sur cet appareil (Ollama, LM Studio).",
@@ -327,7 +327,7 @@
       "offBody": "Activez-la dans les paramètres. Rien n'est envoyé nulle part tant que vous n'avez rien demandé.",
       "offAction": "Ouvrir les paramètres",
       "startTitle": "Posez une question",
-      "startBody": "Sur la note ouverte, ou sur tout ce qui se trouve dans votre vault. L'IA ne modifie rien elle-même : ce qu'elle changerait, elle vous le présente comme une proposition.",
+      "startBody": "Sur la note ouverte, ou sur tout ce qui se trouve dans votre vault.",
       "mainWindowOnly": "L'IA s'exécute dans la fenêtre principale.",
       "noVault": "Ouvrez un vault pour poser des questions sur vos notes."
     },
@@ -477,7 +477,8 @@
       "strong": "Puissant",
       "local": "Local",
       "audio": "Audio",
-      "embedding": "Modèle de recherche"
+      "embedding": "Modèle de recherche",
+      "button": "Modèle : {{profile}}"
     },
     "policy": {
       "columns": "Dossier",
@@ -2751,6 +2752,7 @@
       "toggleOff": "Désactivé : les modifications de l'IA vous attendent comme suggestions.",
       "folderTip": "Le dossier de cette note a « Modifier sans demander ».",
       "marking": "L'IA et les scripts qu'elle lance peuvent modifier et créer des notes ici. Supprimer, renommer et déplacer demandent toujours.",
+      "markingOff": "Ce que l'IA changerait, elle vous le présente comme une proposition.",
       "overview": "Appliquer directement",
       "overviewOn": "L'IA et les scripts qu'elle lance peuvent modifier et créer des notes ; la suppression demande toujours.",
       "changed": "Modifié : {{list}}",

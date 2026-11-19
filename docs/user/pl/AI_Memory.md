@@ -1,6 +1,6 @@
 # Pamięć (Beta)
 
-Stan na: 2026-11-16
+Stan na: 2026-11-19
 
 Pamięć przechowuje to, co AI powinna wiedzieć o Tobie i Twojej pracy bez przypominania: czym się zajmujesz, jakie odpowiedzi lubisz, kim są Twoi klienci. To dwa pliki w Twoim vaulcie. Nic nie trafia do pamięci bez Twojego „tak”, a każdy wpis możesz przeczytać, zmienić i usunąć.
 
@@ -12,7 +12,7 @@ Zawartość miejsca **Do sprawdzenia** nie idzie razem z rozmową. AI zagląda t
 
 ## Otwieranie pamięci
 
-Na desktopie wybierz **Pamięć** na karcie AI, obok **Umiejętności**. Na telefonie to segment **Pamięć** ekranu **AI** (albo **Umiejętności i pamięć** na stronie startowej). Tam prowadzi także **Ustawienia → AI w tym vaulcie**: **Otwórz pamięć** w **Umiejętności i pamięć**. Nazwy plików pamięci są za ⓘ karty **Zawsze dołączane**; reguły vaultu (`AGENTS.md`) sprawdzasz i zatwierdzasz tutaj, w widoku pamięci, a nie już wśród umiejętności.
+Na desktopie wybierz **Pamięć** na karcie AI, obok **Umiejętności**. Na telefonie to segment **Pamięć** ekranu **AI** (albo **Umiejętności i pamięć**, ostatnia pozycja menu **Umiejętności** pustej rozmowy). Tam prowadzi także **Ustawienia → AI w tym vaulcie**: **Otwórz pamięć** w **Umiejętności i pamięć**. Nazwy plików pamięci są za ⓘ karty **Zawsze dołączane**; reguły vaultu (`AGENTS.md`) sprawdzasz i zatwierdzasz tutaj, w widoku pamięci, a nie już wśród umiejętności.
 
 ## Samodzielne dodawanie wpisu
 

@@ -340,7 +340,7 @@
       }
     },
     "empty": {
-      "startBodyVault": "O cokolwiek w Twoim vaulcie. AI sama niczego nie zmienia: to, co by zmieniła, przedstawia Ci jako propozycję.",
+      "startBodyVault": "O cokolwiek w Twoim vaulcie.",
       "setupBodyPhone": "Wybierz dostawcę i zapisz jego klucz — albo użyj modelu telefonu, bez klucza.",
       "setupTitle": "Skonfiguruj AI",
       "setupBody": "Wybierz dostawcę i zapisz jego klucz — albo użyj modelu na tym urządzeniu (Ollama, LM Studio).",
@@ -349,7 +349,7 @@
       "offBody": "Włącz ją w ustawieniach. Nic nie zostanie nigdzie wysłane, dopóki o coś nie zapytasz.",
       "offAction": "Otwórz ustawienia",
       "startTitle": "Zapytaj o coś",
-      "startBody": "O otwartą notatkę albo o cokolwiek w Twoim vaulcie. AI sama niczego nie zmienia: to, co by zmieniła, przedstawia Ci jako propozycję.",
+      "startBody": "O otwartą notatkę albo o cokolwiek w Twoim vaulcie.",
       "mainWindowOnly": "AI działa w głównym oknie.",
       "noVault": "Otwórz vault, aby pytać o swoje notatki."
     },
@@ -501,7 +501,8 @@
       "strong": "Silny",
       "local": "Lokalny",
       "audio": "Audio",
-      "embedding": "Model wyszukiwania"
+      "embedding": "Model wyszukiwania",
+      "button": "Model: {{profile}}"
     },
     "policy": {
       "columns": "Folder",
@@ -2835,6 +2836,7 @@
       "toggleOff": "Wyłączone: zmiany AI czekają na Ciebie jako propozycje.",
       "folderTip": "Folder tej notatki ma „Zmieniaj bez pytania”.",
       "marking": "AI i uruchamiane przez nią skrypty mogą w tej rozmowie zmieniać i tworzyć notatki. Usuwanie, zmiana nazwy i przenoszenie nadal pytają.",
+      "markingOff": "To, co AI by zmieniła, przedstawia Ci jako propozycję.",
       "overview": "Zastosuj od razu",
       "overviewOn": "AI i uruchamiane przez nią skrypty mogą zmieniać i tworzyć notatki; usuwanie nadal pyta.",
       "changed": "Zmieniono: {{list}}",
