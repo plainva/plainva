@@ -548,6 +548,7 @@ pub fn run() {
             secure_store::keychain_get,
             secure_store::keychain_delete,
             secure_store::keychain_compare_and_set,
+            secure_store::secrets_mark_key,
             ai_egress::ai_http,
             ai_egress::ai_http_cancel,
             ai_web::ai_web_fetch,

@@ -25,6 +25,12 @@ import {
   googleScopeFor as sharedGoogleScopeFor,
   tokenCoversService as sharedTokenCoversService,
   type StoredAccountToken,
+  forgiveSignInDeletion,
+  getPlatformServices,
+  isSignInDeletionOwed,
+  settleOwedSignInDeletions,
+  type ISettingsStore,
+  type OwedSignInResources,
 } from "@plainva/ui";
 import {
   refreshDriveAccessToken,
@@ -51,7 +57,53 @@ export function accountSecretKey(vaultId: string, accountId: string): string {
   return `account_${accountId}_${vaultId}`;
 }
 
+/** The settings store, reached lazily (the resources are built synchronously). */
+const lazySettings: ISettingsStore = {
+  get: async <T,>(key: string) => (await getPlatformServices().loadSettings()).get<T>(key),
+  set: async (key, value) => (await getPlatformServices().loadSettings()).set(key, value),
+  delete: async (key) => (await getPlatformServices().loadSettings()).delete(key),
+  keys: async () => (await getPlatformServices().loadSettings()).keys(),
+  save: async () => (await getPlatformServices().loadSettings()).save(),
+};
+
+/**
+ * The card sign-ins "Remove account" could not delete in this vault, owed
+ * until they are gone (`owedSignInDeletions.ts`), as on the desktop.
+ * Device-local: the key is no profile field, so it never travels.
+ */
+export function owedSignInResources(vaultId: string): OwedSignInResources {
+  return {
+    store: lazySettings,
+    storeKey: `owedSignInDeletions_${vaultId}`,
+    deleteSignIn: (accountId) =>
+      withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
+        if (!(await isSignInDeletionOwed(owedSignInResources(vaultId), accountId))) return;
+        forgetAccountBroker(vaultId, accountId);
+        await secureCredentialStore.removeSecret(accountSecretKey(vaultId, accountId));
+        await forgetAccountMailRuntime(vaultId, accountId);
+      }),
+  };
+}
+
+/**
+ * Whether the card's sign-in is owed a deletion here — then nothing may copy,
+ * move or use it (review 2026-11-18): the repair, the grant migration, the
+ * move to the readable names. An unreadable list counts as owed nothing.
+ */
+export async function isAccountSignInOwed(vaultId: string, cardId: string): Promise<boolean> {
+  return isSignInDeletionOwed(owedSignInResources(vaultId), cardId);
+}
+
+/** Tries the vault's owed sign-in deletions again (when the vault opens, before every new sign-in). */
+export async function settleOwedAccountSignIns(vaultId: string): Promise<string[]> {
+  return settleOwedSignInDeletions(owedSignInResources(vaultId));
+}
+
 async function readAccountCredentials(vaultId: string, accountId: string): Promise<unknown> {
+  // A card whose removal could not delete its sign-in is not signed in here,
+  // even when the card came back through another device's settings: the
+  // owed deletion wins until the card is signed in again on this device.
+  if (await isSignInDeletionOwed(owedSignInResources(vaultId), accountId)) return null;
   const raw = await accountCredentialStore.read(accountSecretKey(vaultId, accountId));
   if (raw === null) return null;
   const value: unknown = JSON.parse(raw);
@@ -72,7 +124,17 @@ async function forgetAccountMailRuntime(vaultId: string, accountId: string): Pro
 }
 
 export async function saveAccountToken(vaultId: string, accountId: string, token: StoredAccountToken, expected?: StoredAccountToken | null): Promise<void> {
+  // Before every new sign-in the owed deletions are tried again; one that
+  // still fails is said, and this sign-in goes on.
+  await settleOwedAccountSignIns(vaultId).catch(() => undefined);
   await withAccountCredentialLock(accountSecretKey(vaultId, accountId), async () => {
+    // Signed in again here: the leftover of the removed sign-in goes first
+    // (nothing of it may be merged into the new one), then the debt, so it
+    // never takes this sign-in.
+    if (await isSignInDeletionOwed(owedSignInResources(vaultId), accountId)) {
+      await secureCredentialStore.removeSecret(accountSecretKey(vaultId, accountId));
+      await forgiveSignInDeletion(owedSignInResources(vaultId), accountId);
+    }
     await updateAccountCredentials(accountCredentialStore, accountSecretKey(vaultId, accountId), (raw) => {
       if (expected !== undefined) {
         const current = primaryAccountToken(raw);

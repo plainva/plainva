@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PimAccountRow } from "@plainva/core";
 
-const { getPimCredentials, scopeState, started, triggered } = vi.hoisted(() => ({ getPimCredentials: vi.fn(), scopeState: vi.fn(), started: vi.fn(), triggered: vi.fn() }));
+const { getPimCredentials, scopeState, started, triggered, workerOptions } = vi.hoisted(() => ({ getPimCredentials: vi.fn(), scopeState: vi.fn(), started: vi.fn(), triggered: vi.fn(), workerOptions: [] as Array<Record<string, unknown>> }));
 vi.mock("./pimCredentials", () => ({ getPimCredentials, savePimCredentials: vi.fn() }));
 vi.mock("./pimAuth", () => ({ buildPimAuthProvider: () => ({ getAccessToken: async () => "token" }) }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
@@ -10,6 +10,7 @@ vi.mock("@plainva/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@plainva/core")>()),
   PimCacheRepository: class { setScopeState = scopeState; },
   PimWorker: class {
+    constructor(options: Record<string, unknown>) { workerOptions.push(options); }
     start = started;
     triggerImmediate = triggered;
     stop() {}
@@ -45,6 +46,21 @@ describe("building a target for an account", () => {
     // A Google account signed out here does not fall back to the card's (deleted) grant either.
     getPimCredentials.mockResolvedValue({ kind: "google", clientId: "cid", clientSecret: "sec", refreshToken: "", signedOutHere: true });
     expect(await runtime().buildTarget(row("google"))).toBeNull();
+  });
+
+  // Review 2026-11-18, fourth round (inject, outage): the worker had a way to
+  // sign in at an address another device put into the shared row, and the
+  // password went there before the server could prove anything. A device sends
+  // its password only to the address of its own sign-in.
+  it("gives the worker no way to sign in anywhere but the address of this device's own sign-in", async () => {
+    workerOptions.length = 0;
+    runtime();
+    expect(workerOptions).toHaveLength(1);
+    expect(Object.keys(workerOptions[0]).sort()).not.toContain("otherAccess");
+    getPimCredentials.mockResolvedValue({ kind: "caldav", url: "https://cloud.example.com/remote.php/dav", user: "anna", pass: "pw" });
+    const target = await runtime().buildTarget({ ...row("caldav"), config: { url: "https://evil.example/remote.php/dav", user: "anna" } });
+    expect(target?.confirmedAccess?.()).toBeUndefined();
+    expect((target as unknown as { creds: { url: string } }).creds.url).toBe("https://cloud.example.com/remote.php/dav");
   });
 
   it("still builds one for a CalDAV server without a password", async () => {

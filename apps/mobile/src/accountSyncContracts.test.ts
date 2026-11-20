@@ -219,7 +219,7 @@ describe("mobile account-sync regression contracts", () => {
    */
   const CALDAV_CANONICAL = canonicalSecretId({
     service: "calendar",
-    secretType: "caldav-password",
+    secretType: "caldav-password-2",
     user: "person@example.invalid",
     endpoint: "https://calendar.example.invalid/dav",
   });

@@ -40,7 +40,7 @@ import { AreaBoundary,
   type ServiceCheck,
 } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
-import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
+import { findAccountCard, loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { mobilePasswordChangePorts } from "../services/accountPassword";
 import { canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
 import { AccessUnavailableError, beginMobileSignIn, deviceAccess, readDeviceAccess, saveDeviceAccess } from "../services/accountSignIn";
@@ -122,7 +122,7 @@ export function CloudAccountDetailScreen({
     const turn = ++loadGeneration.current;
     void loadAccountCards()
       .then(async ({ cards }) => {
-        const found = cards.find((c) => c.key === accountKey) ?? null;
+        const found = findAccountCard(cards, accountKey);
         let unifiable = false, here = false;
         const vaultId = found?.recordVaultId ?? null;
         if (found && vaultId) {
@@ -376,15 +376,17 @@ export function CloudAccountDetailScreen({
     })();
   };
 
-  // An account can disappear while its page is open. Saying so beats an empty page.
-  if (ready && !card) {
-    return (
-      <div className="m-page">
-        <AppBar onBack={onBack} title={t("settings.sectionCloudAccounts")} />
-        <p className="m-hint">{t("cloudAccounts.noneYet")}</p>
-      </div>
-    );
-  }
+  // An account can disappear while its page is open, and a page saved before
+  // an update can name it by a key no card has any more (review 2026-11-18,
+  // R2): either way the page goes back to the list, never to an empty page.
+  const missing = ready && !card;
+  const wentBack = useRef(false);
+  useEffect(() => {
+    if (!missing || wentBack.current) return;
+    wentBack.current = true;
+    onBack();
+  }, [missing, onBack]);
+  if (missing) return null;
 
   const lastCheck = card ? lastChecks.get(card.key) : undefined;
 

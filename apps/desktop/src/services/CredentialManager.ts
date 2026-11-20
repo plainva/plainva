@@ -122,6 +122,16 @@ export class CredentialManager implements ICredentialStore {
     return value || null;
   }
 
+  /**
+   * The key of the secrets marks (F67): the app process looks for it, makes
+   * it from `fresh` where there is none and notes its one place, under the
+   * lock every window shares (round fourteen, `secure_store.rs`). Throws when
+   * the keychain where it lives does not answer.
+   */
+  public secretsMarkKey(fresh: string, marksOnDevice: boolean): Promise<string> {
+    return invoke<string>("secrets_mark_key", { fresh, marksOnDevice });
+  }
+
   public async writeSecret<T>(key: string, value: T): Promise<void> {
     const ok = await this.keychainSet(key, JSON.stringify(value));
     if (ok) {

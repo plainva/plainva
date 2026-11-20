@@ -1,11 +1,11 @@
 import { reportingTo } from "../services/backgroundErrors.js";
-import { sameStoredValue } from "@plainva/core";
-import { trimEndChars } from "@plainva/core";
+import { CONFIRMED_ACCESS_KEY, carriesConfirmedAccess, confirmedAccessOf, latestConfirmedAccess, mergeConfirmedAccess, sameStoredValue } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
 import { mergeMailAccountRows } from "../mail/mailAccountRows.js";
 import { getPlatformServices } from "../platform/services.js";
+import { passwordRowToAdoptInto, pimPasswordIdentity, samePimPasswordAccount } from "./passwordAccounts.js";
 
 /** Provider-owned account key proven by a successful authenticated API call. */
 export interface VerifiedProviderIdentity {
@@ -157,6 +157,13 @@ export interface AccountImportPorts {
   saveAccountMap(map: ProfileAccountMap): Promise<void>;
   /** Injectable so tests are deterministic. */
   newId?(): string;
+  /**
+   * This device's settings-sync id. With it the import keeps this device's own
+   * confirmed access of a password account and takes every other device's
+   * from the document (`mergeConfirmedAccess`); without it no entry the device
+   * already holds is replaced.
+   */
+  deviceId?(): Promise<string>;
 }
 
 export const emptyAccountMap = (): ProfileAccountMap => ({
@@ -449,20 +456,27 @@ export function verifiedProviderIdentityKey(identity: VerifiedProviderIdentity):
  * new one starts from nothing, so every mirrored task is imported a second
  * time (finding 2026-08-19, C22).
  *
- * Only a VERIFIED provider identity may adopt. A label is not an identity —
- * two people at one company share a display name, and the settings sync
- * already refuses to merge on a label alone for exactly that reason. An
- * account without one (CalDAV, a Graph profile that could not be read) is
- * added beside, which is the old behaviour: untidy, never wrong.
+ * Only a VERIFIED provider identity may adopt, or for an access with a
+ * password (CalDAV) its normalized server and user (decided 2026-11-16, issue 174).
+ * A label is not an identity — two people at one company share a display
+ * name, and the settings sync already refuses to merge on a label alone for
+ * exactly that reason. An account without either (a Graph profile that could
+ * not be read) is added beside, which is the old behaviour: untidy, never
+ * wrong.
  *
  * Deterministic on purpose: with more than one candidate the lowest id wins,
  * so two devices reading the same list reach the same answer.
  */
 export function accountToAdoptInto<T extends { id: string; provider: string; config?: Record<string, unknown> }>(
   accounts: readonly T[],
-  fresh: { id: string; provider: string; identity: VerifiedProviderIdentity | null },
+  fresh: { id: string; provider: string; identity: VerifiedProviderIdentity | null; config?: Record<string, unknown> },
+  /** A row a card already binds for this connect: taken when it is one of the matches. */
+  prefer?: string,
 ): T | null {
-  if (!fresh.identity) return null;
+  // An access with a password has no verified identity; its server and user
+  // are its identity (GitHub issue 174, `passwordAccountIdentity`). Without this every
+  // further connect of one Nextcloud added a calendar row beside the first.
+  if (!fresh.identity) return passwordRowToAdoptInto(accounts, fresh, prefer);
   const key = verifiedProviderIdentityKey(fresh.identity);
   const matches = accounts.filter((a) => {
     if (a.id === fresh.id || a.provider !== fresh.provider) return false;
@@ -470,7 +484,7 @@ export function accountToAdoptInto<T extends { id: string; provider: string; con
     return own ? verifiedProviderIdentityKey(own) === key : false;
   });
   if (matches.length === 0) return null;
-  return [...matches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
+  return matches.find((a) => a.id === prefer) ?? [...matches].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))[0];
 }
 
 /**
@@ -558,20 +572,25 @@ export function parseMicrosoftMe(value: unknown): VerifiedProviderProfile | null
 export function pimIdentity(a: Pick<PimAccountRow, "provider" | "label" | "config">): string {
   const verified = verifiedProviderIdentityOf(a);
   if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
-  const url = typeof a.config.url === "string" ? trimEndChars(a.config.url.trim(), "/").toLowerCase() : "";
-  const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
-  return a.provider === "caldav" && url && user
-    ? ["caldav", url, user].join("|")
-    : `${a.provider}|unverified`;
+  const password = pimPasswordIdentity(a);
+  return password ? `caldav|${password}` : `${a.provider}|unverified`;
 }
 
-function pimMergeIdentity(a: Pick<PimAccountRow, "provider" | "config">): string | null {
-  const verified = verifiedProviderIdentityOf(a);
-  if (verified) return `verified\u0000${verifiedProviderIdentityKey(verified)}`;
-  if (a.provider !== "caldav") return null;
-  const url = typeof a.config.url === "string" ? trimEndChars(a.config.url.trim(), "/").toLowerCase() : "";
-  const user = typeof a.config.user === "string" ? a.config.user.trim().toLowerCase() : "";
-  return url && user ? ["caldav", url, user].join("|") : null;
+/**
+ * Whether an imported row and a row here are the same account: the same
+ * verified provider identity, or the same password account
+ * (`samePimPasswordAccount`, GitHub issue 174). The import used to compare the
+ * address lower-cased with the slash cut off and the user in any case — so a
+ * second device that spelled the endpoint differently got a row of its own, and
+ * "Anna" and "anna" on a server that tells them apart were folded into one.
+ */
+function sameMergeAccount(a: Pick<PimAccountRow, "provider" | "config">, b: Pick<PimAccountRow, "provider" | "config">): boolean {
+  const verifiedA = verifiedProviderIdentityOf(a);
+  const verifiedB = verifiedProviderIdentityOf(b);
+  if (verifiedA || verifiedB) {
+    return !!verifiedA && !!verifiedB && verifiedProviderIdentityKey(verifiedA) === verifiedProviderIdentityKey(verifiedB);
+  }
+  return samePimPasswordAccount(a, b);
 }
 
 export function mailIdentity(a: MailAccountConfig): string {
@@ -632,6 +651,21 @@ const LOCAL_PIM_CONFIG_KEYS = [
 function sharedPimConfig(config: Record<string, unknown>): Record<string, unknown> {
   const out = { ...config };
   for (const key of LOCAL_PIM_CONFIG_KEYS) delete out[key];
+  // One shared document, one address per row: each device signs in through
+  // its own (kept locally, see the import), so the document names the access
+  // confirmed LAST (`latestConfirmedAccess`) — the same answer from every
+  // device once their entries have met, and after a server move repaired on
+  // one device the new address, even while another still names the old one
+  // (review 2026-11-18). A row that carries the key keeps it, empty too: an
+  // entry its owner took out has to leave the other devices as well.
+  const access = confirmedAccessOf(out);
+  const latest = latestConfirmedAccess(access);
+  if (latest) {
+    out.url = latest[1].url;
+    out.user = latest[1].user;
+  }
+  if (latest || carriesConfirmedAccess(out)) out[CONFIRMED_ACCESS_KEY] = access;
+  else delete out[CONFIRMED_ACCESS_KEY];
   const verified = normalizeVerifiedProviderIdentity(out[VERIFIED_PROVIDER_IDENTITY_KEY]);
   if (verified) out[VERIFIED_PROVIDER_IDENTITY_KEY] = verified;
   else delete out[VERIFIED_PROVIDER_IDENTITY_KEY];
@@ -788,6 +822,18 @@ const defaultNewId = () => globalThis.crypto.randomUUID().slice(0, 12);
  * cloud registry and the default-calendar setting at the ids this device
  * actually uses.
  */
+/** The servers and ports a mailbox signs in to, as this device has them — absent fields stay absent. */
+function mailServersOf(account: MailAccountConfig): Partial<MailAccountConfig> {
+  return {
+    host: account.host,
+    port: account.port,
+    smtpHost: account.smtpHost,
+    smtpPort: account.smtpPort,
+    sieveHost: account.sieveHost,
+    sievePort: account.sievePort,
+  };
+}
+
 export async function importAccountMetadata(
   values: Record<string, unknown>,
   ports: AccountImportPorts
@@ -822,6 +868,7 @@ export async function importAccountMetadata(
   }
 
   if (Array.isArray(values.pimAccounts)) {
+    const ownDevice = ports.deviceId ? await ports.deviceId().catch(() => undefined) : undefined;
     const existing = await ports.listPimAccounts();
     const used = new Set(existing.map((a) => a.id));
     const localByLogical = new Map(
@@ -835,16 +882,12 @@ export async function importAccountMetadata(
       const imported = { ...importedValue, config: sharedPimConfig(importedValue.config) };
       const mapped = localByLogical.get(imported.id);
       const mappedAccount = mapped ? existing.find((account) => account.id === mapped) : undefined;
-      const mergeIdentity = pimMergeIdentity(imported);
-      const same = mappedAccount
-        ?? (mergeIdentity
-          ? existing.find((account) => pimMergeIdentity(account) === mergeIdentity)
-          : undefined);
+      const same = mappedAccount ?? existing.find((account) => sameMergeAccount(account, imported));
       const idCollision = existing.find((a) => a.id === imported.id);
       // Same account → keep OUR id (keychain slots hang off it). A foreign
       // account that happens to share an id gets a fresh one instead of
       // overwriting a local account that is not it.
-      const collisionMatches = mergeIdentity !== null && pimMergeIdentity(idCollision ?? imported) === mergeIdentity;
+      const collisionMatches = !!idCollision && sameMergeAccount(idCollision, imported);
       // An account whose row is gone (the index database was rebuilt) comes
       // back under the id this device knew it by: its sign-in hangs off it.
       const remembered = mapped && !used.has(mapped) ? mapped : undefined;
@@ -887,12 +930,30 @@ export async function importAccountMetadata(
       const keptIdentity = !imported.config[VERIFIED_PROVIDER_IDENTITY_KEY]
         ? verifiedProviderIdentityOf(same ?? { config: {} })
         : null;
+      // A password account keeps the address and user THIS device signs in
+      // with (GitHub issue 174): another device may reach the same server
+      // under another name — the public one beside the LAN address — and taking
+      // its spelling made this row name an address this device never uses,
+      // written back by every import and every fetch, and a connect here did
+      // not find its own row in between. What each device confirmed travels
+      // in `confirmedAccess`, one entry per device; the import merges it and
+      // never overwrites this device's own entry.
+      const keptAddress = same && imported.provider === "caldav"
+        && typeof same.config.url === "string" && typeof same.config.user === "string"
+        ? { url: same.config.url, user: same.config.user }
+        : null;
+      const keepsAccessKey = imported.provider === "caldav" && (carriesConfirmedAccess(imported.config) || carriesConfirmedAccess(same?.config));
+      const mergedAccess = keepsAccessKey
+        ? mergeConfirmedAccess(confirmedAccessOf(same?.config), confirmedAccessOf(imported.config), ownDevice, carriesConfirmedAccess(imported.config))
+        : {};
       await ports.upsertPimAccount({
         ...imported,
         id: localId,
         config: {
           ...imported.config,
           ...(keptIdentity ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: keptIdentity } : {}),
+          ...(keptAddress ?? {}),
+          ...(keepsAccessKey ? { [CONFIRMED_ACCESS_KEY]: mergedAccess } : {}),
           ...deviceLocalPimConfig(same?.config ?? {}),
           ...(Object.keys(calendarLeft).length ? { plainvaPendingCalendarSelections: calendarLeft } : {}),
           ...(Object.keys(taskLeft).length ? { plainvaPendingTaskListSelections: taskLeft } : {}),
@@ -926,6 +987,11 @@ export async function importAccountMetadata(
       const row: MailAccountConfig = {
         ...imported,
         id: localId,
+        // A mailbox this device already has keeps ITS servers and ports
+        // (review 2026-11-18, A1; the rule of `confirmedAccess` for CalDAV):
+        // its stored password goes only where this device signs in. What the
+        // document names applies to a device that does not have it yet.
+        ...(same ? mailServersOf(same) : {}),
         ...(same?.clientId ? { clientId: same.clientId } : {}),
         ...(!imported.firstFetchAt && same?.firstFetchAt ? { firstFetchAt: same.firstFetchAt } : {}),
       };

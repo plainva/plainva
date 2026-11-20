@@ -4,8 +4,13 @@ import {
   bindingMatches,
   bindingMatchesExceptFamily,
   canonicalSecretId,
+  bridgeSecretTypeOf,
+  currentSecretTypeOf,
+  isBridgeSecretType,
   isLegacySecretType,
   isShareableSecretType,
+  canonicalizeEndpoint,
+  secretBindingUser,
   stableStringify,
   type SecretBinding,
   type SecretEntry,
@@ -15,6 +20,8 @@ import {
   type SecretsImportResult,
   type SecretsPort,
 } from "@plainva/core";
+import { holdsSecretsMarks, isSecretsMark, sealSecretsMeta, secretsMarker, type SecretsMarker } from "./secretsMark";
+import { logDiagnosticCounted } from "../services/diagnosticsLog";
 
 /**
  * The keychain side of the encrypted secrets sideband, written ONCE for both
@@ -38,7 +45,10 @@ import {
  *    rejected for that entry without blocking independent accounts.
  *  - **Bindings must match.** An entry is only ever applied to an account with
  *    the same service, secret type, user and endpoint — so a password cannot
- *    land on a different server that happens to share an id. The provider
+ *    land on a different server that happens to share an id. The user is
+ *    compared exactly; an entry of a client up to 0.8.7 (an old type, the user
+ *    lower-cased) reaches the single account it can mean, and none when two
+ *    could. The provider
  *    family is compared too, but a family-only difference is tolerated (see
  *    bindingMatchesExceptFamily): it is a catalog label, not an address.
  *  - **An account this device does not know yet is SKIPPED, not fatal.** That is
@@ -68,7 +78,46 @@ export interface LocalSecretCandidate {
 export interface SecretsPortMeta {
   entries: Record<
     string,
-    { hash: string; entryRev: number; updatedAt: string; deviceId: string; binding: SecretBinding; tombstone?: boolean }
+    {
+      hash: string;
+      entryRev: number;
+      updatedAt: string;
+      deviceId: string;
+      binding: SecretBinding;
+      tombstone?: boolean;
+      alias?: boolean;
+      /**
+       * A local conflict held after a lost key (round twelve): the mark of
+       * the slot when the shared document had the same revision with another
+       * password. The slot is neither overwritten nor published until the
+       * document brings what it holds, or a newer entry it follows, or a
+       * password is typed here.
+       */
+      held?: string;
+      /**
+       * The newest revision seen in the shared document while this device
+       * could not tell its slot from what it knew: a password typed here later
+       * goes out above it.
+       */
+      heldRev?: number;
+      /**
+       * Taken from the slot after the key of the marks was lost (round
+       * twelve, the baseline): what this device holds is taken as unchanged
+       * until an import has read the shared document. Until then the record
+       * is not published; a slot that differs from it later is a change made
+       * here.
+       */
+      sinceLoss?: true;
+      /**
+       * A baseline the document did not confirm when the loss ended: it had
+       * nothing for the account, or only an older entry. What this device
+       * holds goes out with the revision it knew, a moment before the time
+       * it knew — so the real entry of that version, should any device still
+       * have it, always wins over it — until the document brings the same
+       * version (restored, or held) or a password is typed here.
+       */
+      unconfirmed?: true;
+    }
   >;
   /** Entries written BY an import — only these may be removed by a tombstone. */
   imported: Record<string, boolean>;
@@ -85,6 +134,34 @@ export interface SecretsPortMeta {
       updatedAt: string;
     }
   >;
+  /**
+   * Accounts "Remove account" took out on this device, by their exact name
+   * (`retireSecret`). The next export writes their tombstone from that act,
+   * not from comparing lists — which cannot tell "gone" from "alice" beside a
+   * removed "Alice", or the last account from a runtime still booting.
+   */
+  retired?: Record<string, SecretBinding>;
+  /**
+   * Tombstones seen under an account's OLD name (review 2026-11-18, O1), by id
+   * with their time. Never applied — a device up to 0.8.7 cannot say which of
+   * two spellings it removed — but remembered: a later value under that name
+   * puts nothing into the slot of an account here.
+   */
+  oldNameTombstones?: Record<string, string>;
+  /**
+   * Old names this device closed when "Remove account" took the account out
+   * (`closeOldName`), by id with the time. A value a device up to 0.8.7 writes
+   * under one later reaches no other account here. The lock is the removed
+   * account's: it ends when that same account is on this device again
+   * (review 2026-11-18, round seven).
+   */
+  closedOldNames?: Record<string, string>;
+  /**
+   * The document, accounts and slots the last import took with nothing left
+   * open, as a mark (`settledKey`). The same again is settled: nothing is
+   * written and nothing reported (round seven).
+   */
+  settled?: string;
 }
 
 /** What a shell must provide; everything else is decided above. */
@@ -106,13 +183,47 @@ export interface SecretsPortHost {
    */
   accountsReady?(): Promise<boolean>;
   readSlot(slot: string): Promise<unknown>;
+  /** The key of the marks from the app process, for every window at once (`secretsMark.ts`). */
+  ownedKey?(fresh: string, marksOnDevice: boolean): Promise<string>;
+  /** Whether any record on this device, of any vault, holds marks of a key (`secretsMark.ts`). */
+  marksOnDevice?(): Promise<boolean>;
   writeSlot(slot: string, value: unknown): Promise<void>;
   removeSlot(slot: string): Promise<void>;
   /** Injectable for tests; defaults to the wall clock. */
   now?(): string;
 }
 
-const emptyMeta = (): SecretsPortMeta => ({ entries: {}, imported: {}, quarantine: {} });
+/**
+ * The binding of a CalDAV password, built ONCE for both shells: the user
+ * exactly as typed — "Alice" and "alice" may be two accounts of one server, and
+ * one secret name for both put one password into the other's slot (GitHub
+ * issue 174, see `canonicalSecretId`). Throws on an endpoint that cannot be
+ * canonicalized, as before.
+ */
+export function calDavSecretBinding(family: string, url: string, user: string): SecretBinding {
+  return {
+    family,
+    service: "calendar",
+    secretType: "caldav-password-2",
+    user: secretBindingUser(user),
+    endpoint: canonicalizeEndpoint(url),
+  };
+}
+
+/**
+ * The binding of an IMAP password. A mailbox is one account in any case of its
+ * address (`mailIdentity`), so its user stays lower-cased.
+ */
+export function imapSecretBinding(family: string, host: string, port: number, user: string): SecretBinding {
+  const scheme = port === 993 ? "imaps" : "imap+starttls";
+  return {
+    family,
+    service: "mail",
+    secretType: "imap-password-2",
+    user: secretBindingUser(user).toLowerCase(),
+    endpoint: canonicalizeEndpoint(`${scheme}://${host}:${port}`),
+  };
+}
 
 const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   entries: Object.fromEntries(
@@ -125,7 +236,49 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   quarantine: Object.fromEntries(
     Object.entries(source?.quarantine ?? {}).map(([id, entry]) => [id, { ...entry }]),
   ),
+  ...(source?.retired ? { retired: Object.fromEntries(Object.entries(source.retired).map(([id, binding]) => [id, { ...binding }])) } : {}),
+  ...(source?.oldNameTombstones ? { oldNameTombstones: { ...source.oldNameTombstones } } : {}),
+  ...(source?.closedOldNames ? { closedOldNames: { ...source.closedOldNames } } : {}),
+  ...(source?.settled ? { settled: source.settled } : {}),
 });
+
+/**
+ * "Remove account" took this account out (review 2026-11-18): its entry is
+ * tombstoned by the next export, under its name in the current type. Its old
+ * name, under which a device up to 0.8.7 may still hold it, is never written.
+ * An account that comes back before then keeps its entry.
+ */
+export async function retireSecret(host: Pick<SecretsPortHost, "readMeta" | "writeMeta">, binding: SecretBinding): Promise<void> {
+  await serialized(async () => {
+    const meta = cloneMeta(await host.readMeta());
+    meta.retired = { ...(meta.retired ?? {}), [canonicalSecretId(binding)]: { ...binding } };
+    await host.writeMeta(meta);
+  });
+}
+
+/**
+ * Every read-modify-write of the secrets metadata — export, import and
+ * `retireSecret` — runs one after the other (review 2026-11-18): a removal
+ * written while an export ran was otherwise overwritten by the export's
+ * older copy, and its tombstone never went out.
+ */
+let metaQueue: Promise<unknown> = Promise.resolve();
+function serialized<T>(run: () => Promise<T>): Promise<T> {
+  const next = metaQueue.then(run, run);
+  metaQueue = next.catch(() => undefined);
+  return next;
+}
+
+/**
+ * The start of the app puts the sealing of the marks (`secretsMark.ts`,
+ * `sealSecretsMetaInStore`) into the same line as every export and import,
+ * first (review 2026-11-18, round nine): called before any vault opens, no
+ * secrets round begins before it and none runs while it reads and writes the
+ * store. `run` must not call `serialized` itself.
+ */
+export function sealSecretsAtStart<T>(run: () => Promise<T>): Promise<T> {
+  return serialized(run);
+}
 
 const emptyImportResult = (): SecretsImportResult => ({
   entries: [],
@@ -159,8 +312,15 @@ function compareEntryVersion(
   return 0;
 }
 
-const entryHash = (entry: SecretEntry): string =>
-  entry.tombstone ? "" : stableStringify({ binding: entry.binding, secret: entry.secret });
+/**
+ * The mark of a binding and its secret (`secretsMark.ts`): what this file
+ * keeps to tell an unchanged password from a changed one, never the password.
+ */
+const pairMark = (mark: SecretsMarker, binding: SecretBinding, secret: unknown): Promise<string> =>
+  mark(stableStringify({ binding, secret }));
+
+const entryHash = async (mark: SecretsMarker, entry: SecretEntry): Promise<string> =>
+  entry.tombstone ? "" : pairMark(mark, entry.binding, entry.secret);
 
 /**
  * Rewrites a shell's own bookkeeping from the old per-device names to the
@@ -191,7 +351,9 @@ export function migrateSecretsMetaToCanonicalIds<T extends SecretsPortMeta | nul
   if (!meta) return meta;
   for (const [id, entry] of Object.entries(meta.entries)) {
     if (entry.tombstone) continue;
-    if (!isShareableSecretType(entry.binding.secretType)) continue;
+    // The old types too: what a device up to 0.8.7 knew, under the name that
+    // version gives it, so `carryOldKnowledge` finds it after the update.
+    if (!isShareableSecretType(entry.binding.secretType) && !isBridgeSecretType(entry.binding.secretType)) continue;
     const canonical = canonicalSecretId(entry.binding);
     if (canonical === id) continue;
     if (!meta.entries[canonical]) meta.entries[canonical] = entry;
@@ -204,19 +366,217 @@ export function migrateSecretsMetaToCanonicalIds<T extends SecretsPortMeta | nul
   return meta;
 }
 
+/**
+ * The name a device up to 0.8.7 knows this account's password by: the old
+ * type, the user lower-cased (`BRIDGE_SECRET_TYPES`) — unless a second account
+ * of the same kind on the same server has a user that differs only in case;
+ * then that name can mean either and is read for neither. The bridge is
+ * ONE-WAY (review 2026-11-18, fourth and sixth round): this name is never
+ * written — a mirror under it undid a newer password everywhere and, once a
+ * twin was gone, handed one account's password to the other. An entry a device
+ * up to 0.8.7 wrote under it is read for this one account, when it is newer
+ * than the entry in the current type or there is none, and never after a
+ * tombstone for the old name. A password changed on an updated device does not
+ * reach a device on 0.8.7 (named limit, release texts). "Newer" compares
+ * `updatedAt`, the clocks of two devices: a device on 0.8.7 whose clock runs
+ * ahead can cover a password changed on an updated device, for the other
+ * devices on 0.8.7 and for updated ones (named limit, review 2026-11-18).
+ */
+function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSecretCandidate[]): string | null {
+  if (!isShareableSecretType(candidate.binding.secretType)) return null;
+  const twin = candidates.some(
+    (other) =>
+      other !== candidate &&
+      other.binding.secretType === candidate.binding.secretType &&
+      bindingMatchesExceptFamily(other.binding, candidate.binding, "fold"),
+  );
+  if (twin) return null;
+  return bridgeIdOf(candidate.binding);
+}
+
+/**
+ * The move into the current type is no change (review 2026-11-18, round
+ * seven). What this device knew about an account's password under its old
+ * name — the revision, time and device of that entry, whether it came in
+ * through the sync — holds for the account's name in the current type, once,
+ * when that name has no record here yet. The entry the device then publishes
+ * in the current place carries the order of the knowledge it comes from, never
+ * the time of the update, so a newer entry in the old place still wins against
+ * an older password moved here; and a device that received its password
+ * follows a change made elsewhere as before the update. Twins carry nothing:
+ * their old name means neither (`oldNameId`). The old record stays, for the
+ * entries a device on 0.8.7 keeps writing under that name.
+ */
+async function carryOldKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker): Promise<boolean> {
+  let carried = false;
+  for (const candidate of candidates) {
+    if (!isShareableSecretType(candidate.binding.secretType) || meta.entries[candidate.logicalId]) continue;
+    const old = oldNameId(candidate, candidates);
+    const known = old ? meta.entries[old] : undefined;
+    if (!old || !known || known.tombstone || known.alias || !isBridgeSecretType(known.binding.secretType)) continue;
+    // A record of a lost key is no knowledge to carry (round eleven).
+    if (isLostMark(mark, known.hash)) continue;
+    // What this device knew about an account it removed is no knowledge
+    // about another one under the same old name (round eight, O1): a closed
+    // old name, a tombstone seen under it, or a removal still to be written
+    // stops the move.
+    if (meta.closedOldNames?.[old] !== undefined || meta.oldNameTombstones?.[old] !== undefined) continue;
+    if (Object.values(meta.retired ?? {}).some((binding) => bridgeIdOf(binding) === old)) continue;
+    meta.entries[candidate.logicalId] = {
+      hash: await movedHash(mark, known, candidate),
+      entryRev: known.entryRev,
+      updatedAt: known.updatedAt,
+      deviceId: known.deviceId,
+      binding: candidate.binding,
+    };
+    if (meta.imported[old]) meta.imported[candidate.logicalId] = true;
+    carried = true;
+  }
+  return carried;
+}
+
+/**
+ * The mark of a moved record under the current binding. The secret comes from
+ * the slot, never from a mark (F67): when the slot holds what the old record
+ * names, the same password under the current binding; when it holds another,
+ * a mark that matches no pair, so the next export sees a change made here;
+ * with an empty slot, the mark of no secret, so a password typed later is a
+ * change (round nine). A record of a lost key is never moved
+ * (`carryOldKnowledge`).
+ */
+async function movedHash(mark: SecretsMarker, known: { hash: string; binding: SecretBinding }, candidate: LocalSecretCandidate): Promise<string> {
+  if (!candidate.secret) return pairMark(mark, candidate.binding, null);
+  if (known.hash !== (await pairMark(mark, known.binding, candidate.secret))) return mark("plainva: changed on this device");
+  return pairMark(mark, candidate.binding, candidate.secret);
+}
+
+/**
+ * The baseline after a lost key (round twelve): every record made with a
+ * key this device no longer has takes the mark of its slot as it is now —
+ * or of no secret, where the account or its slot is not here — keeping its
+ * revision, time, device and its mark of having been received, which no key
+ * holds. Done in the run that finds the loss, export or import, offline
+ * too. A local conflict held with the lost key is held again with the slot.
+ * Records under an old name are left to `dropLostOldNames`.
+ */
+async function baselineAfterLoss(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker): Promise<boolean> {
+  let changed = false;
+  for (const [id, record] of Object.entries(meta.entries)) {
+    if (record.tombstone || isBridgeSecretType(record.binding.secretType)) continue;
+    const hashLost = isLostMark(mark, record.hash);
+    const heldLost = !!record.held && isLostMark(mark, record.held);
+    if (!hashLost && !heldLost) continue;
+    const candidate = candidates.find((item) => item.logicalId === id);
+    const slot = candidate ? await pairMark(mark, candidate.binding, candidate.secret) : await pairMark(mark, record.binding, null);
+    meta.entries[id] = { ...record, ...(hashLost ? { hash: slot } : {}), ...(heldLost ? { held: slot } : {}), sinceLoss: true };
+    changed = true;
+  }
+  return changed;
+}
+
+/** A moment before a time: what an unconfirmed baseline goes out with (`unconfirmed`). */
+function justBefore(time: string): string {
+  const at = Date.parse(time);
+  return Number.isFinite(at) ? new Date(at - 1).toISOString() : time;
+}
+
+/** A mark made with a key this device no longer has: what it knew is lost, not changed. */
+const isLostMark = (mark: SecretsMarker, hash: string | undefined): boolean => !!hash && isSecretsMark(hash) && !mark.owns(hash);
+
+/**
+ * A record under an old name made with a lost key goes (round eleven): no
+ * document restores a name this device never writes, and kept, it would wait
+ * for ever. The device is as without a record for that name.
+ */
+function dropLostOldNames(meta: SecretsPortMeta, mark: SecretsMarker): void {
+  for (const [id, entry] of Object.entries(meta.entries)) {
+    if (entry.tombstone || !isBridgeSecretType(entry.binding.secretType) || !isLostMark(mark, entry.hash)) continue;
+    delete meta.entries[id];
+    delete meta.imported[id];
+  }
+}
+
+/** The name a device up to 0.8.7 gave this binding's password (the old type, the user lower-cased). */
+function bridgeIdOf(binding: SecretBinding): string | null {
+  if (!isShareableSecretType(binding.secretType)) return null;
+  return canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType), user: binding.user.toLowerCase() });
+}
+
+/** An old name closed by "Remove account" opens again when that same account is here again (`closedOldNames`). */
+function reopenOldNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): boolean {
+  if (!meta.closedOldNames) return false;
+  let reopened = false;
+  for (const candidate of candidates) {
+    if (!isShareableSecretType(candidate.binding.secretType) || candidate.binding.user !== candidate.binding.user.toLowerCase()) continue;
+    const old = canonicalSecretId({ ...candidate.binding, secretType: bridgeSecretTypeOf(candidate.binding.secretType) });
+    if (meta.closedOldNames[old] === undefined) continue;
+    delete meta.closedOldNames[old];
+    reopened = true;
+  }
+  if (Object.keys(meta.closedOldNames).length === 0) delete meta.closedOldNames;
+  return reopened;
+}
+
+/**
+ * The mark of what an import decides from: the document (which carries the
+ * passwords) and every account here with its slot. Kept as a mark of this
+ * device's key (`secretsMark.ts`), like every other value of this file that is
+ * made from a password.
+ */
+function settledKey(mark: SecretsMarker, bundle: SecretsBundle, candidates: readonly LocalSecretCandidate[]): Promise<string> {
+  return mark(
+    stableStringify({
+      entries: bundle.entries,
+      candidates: candidates.map((candidate) => [candidate.logicalId, candidate.slot, candidate.binding, candidate.secret]),
+    }),
+  );
+}
+
 export function createSecretsPort(host: SecretsPortHost): SecretsPort {
   const now = () => (host.now ? host.now() : new Date().toISOString());
+  // One read of the key per port, not one per half of a round.
+  let marker: Promise<SecretsMarker> | null = null;
+  const markerFor = (read: SecretsPortMeta | null) => {
+    marker ??= secretsMarker(host, holdsSecretsMarks(read)).catch((error) => {
+      marker = null;
+      throw error;
+    });
+    return marker;
+  };
+
+  // Records of a lost key the last export left waiting (`awaitsDocument`).
+  let waiting = false;
 
   return {
-    async exportBundle(): Promise<SecretsBundle> {
+    exportBundle: () => serialized(() => exportBundle()),
+    importBundle: (bundle: SecretsBundle) => serialized(() => importBundle(bundle)),
+    awaitsDocument: () => waiting,
+  };
+
+  async function exportBundle(): Promise<SecretsBundle> {
       const deviceId = await host.deviceId();
       const stamp = now();
-      const meta = (await host.readMeta()) ?? emptyMeta();
+      const read = await host.readMeta();
+      const mark = await markerFor(read);
+      // Written back only when this round changed it (round eight, F68).
+      const asRead = read ? stableStringify(read) : null;
+      const meta = cloneMeta(read);
+      await sealSecretsMeta(meta, mark);
+      dropLostOldNames(meta, mark);
       // OAuth registrations may still be exposed by an older shell adapter,
       // but the shared port is the final policy boundary for every platform.
       const candidates = (await host.candidates()).filter((candidate) =>
         isShareableSecretType(candidate.binding.secretType)
       );
+      await baselineAfterLoss(meta, candidates, mark);
+      // The key of the marks was lost while marks of it were here: said in
+      // the diagnostics, every round until an import has read the document.
+      // A held conflict does not wait; it ends with that import too.
+      waiting = Object.values(meta.entries).some((entry) => entry.sinceLoss);
+      const lostRecords = Object.values(meta.entries).filter((entry) => entry.sinceLoss && !entry.held).length;
+      if (lostRecords > 0) logDiagnosticCounted("settings-sync", `secrets: ${lostRecords} record(s) made with a lost mark key, restored from the shared document`);
+      await carryOldKnowledge(meta, candidates, mark);
+      reopenOldNames(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       // Every account this device KNOWS, with or without a stored secret.
       //
@@ -232,25 +592,38 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
 
       for (const candidate of candidates) {
         if (!candidate.secret) continue;
-        const hash = stableStringify({ binding: candidate.binding, secret: candidate.secret });
-        const previous = meta.entries[candidate.logicalId];
+        const hash = await pairMark(mark, candidate.binding, candidate.secret);
+        const previous: SecretsPortMeta["entries"][string] | undefined = meta.entries[candidate.logicalId];
+        const live = !!previous && !previous.tombstone;
+        // A local conflict held here is not published while the slot holds
+        // it; and a slot as it was when the key was lost goes out only after
+        // an import has read the document (round twelve), then with the
+        // revision and time this device knew — never one above. A slot that
+        // differs from either is a password typed here: a change, above all
+        // this device knew and saw.
+        if (live && previous!.held === hash) continue;
+        if (live && !previous!.held && previous!.sinceLoss && previous!.hash === hash) continue;
         // The revision only moves when the secret actually changed — otherwise
         // two devices would ping-pong revisions on every cycle.
-        const changed = !previous || previous.hash !== hash || previous.tombstone;
-        const entryRev = changed ? (previous?.entryRev ?? 0) + 1 : previous.entryRev;
-        const updatedAt = changed ? stamp : previous.updatedAt;
+        const changed = !previous || previous.tombstone || !!previous.held || previous.hash !== hash;
+        const entryRev = changed || !previous ? Math.max(previous?.entryRev ?? 0, previous?.heldRev ?? 0) + 1 : previous.entryRev;
+        const updatedAt = changed || !previous ? stamp : previous.updatedAt;
+        // An unconfirmed baseline goes out just below the version it knew.
+        const below = !changed && !!previous?.unconfirmed;
         entries[candidate.logicalId] = {
           entryRev,
-          updatedAt,
-          deviceId: changed ? deviceId : previous.deviceId,
+          updatedAt: below ? justBefore(updatedAt) : updatedAt,
+          deviceId: changed || !previous || below ? deviceId : previous.deviceId,
           binding: candidate.binding,
           secret: candidate.secret,
         };
         meta.entries[candidate.logicalId] = {
+          // Unchanged, the record keeps what it knew besides (the revision seen).
+          ...(changed || !previous ? {} : previous),
           hash,
           entryRev,
           updatedAt,
-          deviceId: entries[candidate.logicalId].deviceId,
+          deviceId: below ? previous!.deviceId : entries[candidate.logicalId].deviceId,
           binding: candidate.binding,
         };
       }
@@ -263,6 +636,44 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // and a list that came back completely empty while we know of accounts is
       // treated as "not ready" regardless — that shape is a runtime that has not
       // booted yet, and the cost of being wrong is a destroyed password.
+      // What "Remove account" took out here is tombstoned whatever the lists
+      // say — it is known, not inferred (`retireSecret`).
+      // An account in lower case had ONE name until the current types (its
+      // old name was its name): what removed it here also closes its old name
+      // here, so a value a device on 0.8.7 writes under it later reaches no
+      // other account ("Alice" beside a removed "alice"). Remembered on this
+      // device only (`closedOldNames`), never written, and only until the
+      // same account is here again (`reopenOldNames`).
+      const closeOldName = (binding: SecretBinding) => {
+        if (!isShareableSecretType(binding.secretType) || binding.user !== binding.user.toLowerCase()) return;
+        const old = canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType) });
+        meta.closedOldNames = { ...(meta.closedOldNames ?? {}), [old]: stamp };
+      };
+      const tombstone = (id: string, removed?: SecretBinding) => {
+        let previous = meta.entries[id];
+        // Removed before any export of this version moved the record to the
+        // account's current name: what this device knew under its old name
+        // is what it knew about this account (round twelve, as on main) —
+        // unless another account here still goes by that old name.
+        const old = !previous && removed ? bridgeIdOf(removed) : null;
+        const known = old ? meta.entries[old] : undefined;
+        if (known && !known.tombstone && !known.alias && isBridgeSecretType(known.binding.secretType) && !candidates.some((candidate) => bridgeIdOf(candidate.binding) === old)) {
+          previous = { ...known, binding: removed! };
+        }
+        if (!previous || previous.tombstone || currentIds.has(id)) return;
+        if (!isShareableSecretType(previous.binding.secretType)) return;
+        const entryRev = previous.entryRev + 1;
+        entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
+        meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
+        closeOldName(previous.binding);
+      };
+      for (const [id, removed] of Object.entries(meta.retired ?? {})) {
+        delete meta.retired![id];
+        if (knownIds.has(id)) continue;
+        tombstone(id, removed);
+      }
+      if (meta.retired && Object.keys(meta.retired).length === 0) delete meta.retired;
+
       const ready = host.accountsReady ? await host.accountsReady() : true;
       const looksUnavailable = candidates.length === 0 && Object.keys(meta.entries).length > 0;
       if (ready && !looksUnavailable) {
@@ -271,6 +682,9 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           // client could interpret that tombstone by deleting its still-needed
           // local registration. S9 handles explicit quarantine/migration.
           if (!isShareableSecretType(previous.binding.secretType)) continue;
+          // An old name read for an account here (`oldNameId`) is never
+          // written back, not as a tombstone either.
+          if (previous.alias) continue;
           if (currentIds.has(id)) continue;
           // The account is still here, only its secret is missing on THIS device.
           // Leave the remote entry untouched: the merge then carries the
@@ -284,24 +698,36 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           // device still holds, merely under the other device's name for it. The
           // import side has resolved entries by binding for a while; the export
           // side has to apply the same yardstick.
-          if (candidates.some((candidate) => bindingMatches(previous.binding, candidate.binding))) continue;
+          //
+          // Users are compared without regard to case here, and only here: an
+          // entry a device up to 0.8.7 named for a user in capitals carries
+          // the user lower-cased, and the account is still on this device
+          // under its exact spelling. A tombstone in doubt is never written.
+          if (candidates.some((candidate) => bindingMatchesExceptFamily(previous.binding, candidate.binding, "fold"))) continue;
           const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
           const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
-          entries[id] = { entryRev, updatedAt, deviceId, binding: previous.binding, tombstone: true };
-          meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt, deviceId, tombstone: true };
+          // A tombstone known already goes out as it is, with the device that
+          // wrote it (round eleven): taking it as this device's flipped its
+          // device against the document every round, and wrote every round.
+          const by = previous.tombstone ? previous.deviceId : deviceId;
+          entries[id] = { entryRev, updatedAt, deviceId: by, binding: previous.binding, tombstone: true };
+          meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt, deviceId: by, tombstone: true };
+          if (!previous.tombstone) closeOldName(previous.binding);
         }
       } else {
         // Re-publish what we still know unchanged, so this cycle neither deletes
         // nor resurrects anything while the device is still coming up.
         for (const [id, previous] of Object.entries(meta.entries)) {
           if (currentIds.has(id) || entries[id]) continue;
+          // An entry of an old type is never written, not as a tombstone either.
+          if (!isShareableSecretType(previous.binding.secretType)) continue;
           if (previous.tombstone) {
             entries[id] = { entryRev: previous.entryRev, updatedAt: previous.updatedAt, deviceId: previous.deviceId, binding: previous.binding, tombstone: true };
           }
         }
       }
 
-      await host.writeMeta(meta);
+      if (stableStringify(meta) !== asRead) await host.writeMeta(meta);
       return {
         format: "plainva-secrets",
         version: 1,
@@ -309,35 +735,84 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         updatedAt: stamp,
         entries,
       };
-    },
+  }
 
-    async importBundle(bundle: SecretsBundle): Promise<SecretsImportResult> {
+  async function importBundle(bundle: SecretsBundle): Promise<SecretsImportResult> {
       // Fatal boundary: validate the complete decrypted document before reading
       // candidates or touching metadata/keychain state.
       assertSecretsBundleStructure(bundle);
 
       const originalMeta = await host.readMeta();
+      const mark = await markerFor(originalMeta);
       const meta = cloneMeta(originalMeta);
+      const sealed = await sealSecretsMeta(meta, mark);
+      dropLostOldNames(meta, mark);
       const candidates = await host.candidates();
+      await baselineAfterLoss(meta, candidates, mark);
+      const key = await settledKey(mark, bundle, candidates);
+      const afterLoss = Object.values(meta.entries).some((entry) => entry.sinceLoss);
+      if (meta.settled === key && !sealed && !afterLoss) return { ...emptyImportResult(), settled: true };
       const byId = new Map(candidates.map((candidate) => [candidate.logicalId, candidate]));
       const operations: Array<{
         logicalId: string;
         entry: SecretEntry;
         candidate: LocalSecretCandidate;
+        viaOldName: boolean;
       }> = [];
       const result = emptyImportResult();
-      let metaDirty = false;
+      await carryOldKnowledge(meta, candidates, mark);
+      reopenOldNames(meta, candidates);
+      const closedOldName = (id: string) => !!meta.oldNameTombstones?.[id] || !!meta.closedOldNames?.[id];
+      // What this device knew under each old name when the round began. An
+      // entry under an old name that carries the password the device already
+      // knew there is no news (round nine): a device back on 0.8.7 publishes
+      // it again with its own time, and that time must not cover a newer
+      // password in the current place.
+      const before = cloneMeta(meta);
+      const knownUnderOldName = async (id: string, entry: SecretEntry): Promise<boolean> => {
+        const known = before.entries[id];
+        // The same password at no later revision: a device back on 0.8.7
+        // publishing it again. A later revision with that password is a real
+        // change back to it on 0.8.7 (round eleven) and is news.
+        return (
+          !!known && !known.tombstone && !entry.tombstone && mark.owns(known.hash) &&
+          entry.entryRev <= known.entryRev && known.hash === (await entryHash(mark, entry))
+        );
+      };
 
-      const rememberEntry = (logicalId: string, entry: SecretEntry) => {
+      const rememberEntry = async (logicalId: string, entry: SecretEntry, alias = false) => {
         meta.entries[logicalId] = {
-          hash: entryHash(entry),
+          hash: await entryHash(mark, entry),
           entryRev: entry.entryRev,
           updatedAt: entry.updatedAt,
           deviceId: entry.deviceId,
           binding: entry.binding,
           tombstone: entry.tombstone,
+          ...(alias ? { alias: true } : {}),
         };
-        metaDirty = true;
+      };
+
+      // A password read under the account's old name holds under its current
+      // name with the version of the entry it came from — never as a change
+      // made here (round eight, R1): no way makes an older password newer. A
+      // new revision, time and device come only from a password typed on this
+      // device; a newer entry seen later, in either place, wins.
+      const recordCurrent = async (candidate: LocalSecretCandidate, entry: SecretEntry) => {
+        const hash = await pairMark(mark, candidate.binding, entry.secret);
+        const existing = meta.entries[candidate.logicalId];
+        if (existing && !existing.tombstone && existing.hash === hash) return;
+        meta.entries[candidate.logicalId] = {
+          hash,
+          entryRev: entry.entryRev,
+          updatedAt: entry.updatedAt,
+          deviceId: entry.deviceId,
+          binding: candidate.binding,
+        };
+      };
+
+      const rememberOldNameTombstone = (logicalId: string, entry: SecretEntry) => {
+        if (meta.oldNameTombstones?.[logicalId] === entry.updatedAt) return;
+        meta.oldNameTombstones = { ...(meta.oldNameTombstones ?? {}), [logicalId]: entry.updatedAt };
       };
 
       // Isolate policy outcomes and build safe write groups. No write can
@@ -353,66 +828,142 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           };
           if (stableStringify(meta.quarantine[logicalId]) !== stableStringify(quarantined)) {
             meta.quarantine[logicalId] = quarantined;
-            metaDirty = true;
           }
           result.legacyEntries.push(logicalId);
           recordImportResult(result, logicalId, "rejected", "legacy-secret-type");
           continue;
         }
-        if (!isShareableSecretType(entry.binding.secretType)) {
+        const bridged = isBridgeSecretType(entry.binding.secretType);
+        if (!isShareableSecretType(entry.binding.secretType) && !bridged) {
           recordImportResult(result, logicalId, "rejected", "unsupported-secret-type");
           continue;
         }
 
-        const previous = meta.entries[logicalId];
+        const previous: SecretsPortMeta["entries"][string] | undefined = meta.entries[logicalId];
+        // The slot as it was when the key was lost (`baselineAfterLoss`):
+        // taken as unchanged, as on a device whose key is whole.
+        const atLoss = !!previous && !previous.tombstone && !!(previous.sinceLoss || previous.unconfirmed) && !previous.held;
+        const order = previous ? compareEntryVersion(entry, previous) : 1;
         if (previous) {
-          const order = compareEntryVersion(entry, previous);
           if (order < 0) {
             recordImportResult(result, logicalId, "stale", "older-entry");
             continue;
           }
           if (order === 0) {
-            if (
-              previous.hash === entryHash(entry) &&
-              Boolean(previous.tombstone) === Boolean(entry.tombstone)
-            ) {
+            const hash = await entryHash(mark, entry);
+            // An empty slot here has the mark of no secret: the entry it came
+            // with is the same entry, the slot simply holds nothing.
+            const same =
+              previous.hash === hash ||
+              (!previous.tombstone && !entry.tombstone && previous.hash === (await pairMark(mark, previous.binding, null)));
+            const emptyAtLoss = atLoss && !entry.tombstone && previous.hash === (await pairMark(mark, (byId.get(logicalId) ?? previous).binding, null));
+            if (emptyAtLoss) {
+              // An empty slot after a lost key (a device moved without its
+              // keychain) takes the password of the version it knew.
+            } else if (same && Boolean(previous.tombstone) === Boolean(entry.tombstone)) {
+              // The document has the version this device knew, with what it holds: confirmed.
+              if (previous.unconfirmed || previous.sinceLoss) {
+                const { unconfirmed: _u, sinceLoss: _s, ...rest } = previous;
+                meta.entries[logicalId] = rest;
+              }
               recordImportResult(result, logicalId, "unchanged", "already-current");
+              continue;
+            } else if (atLoss) {
+              // The same version with another password than the slot holds
+              // after a lost key: held here, neither overwritten nor
+              // published (round twelve).
+              meta.entries[logicalId] = { ...previous, held: previous.hash, heldRev: Math.max(previous.heldRev ?? 0, entry.entryRev) };
+              recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
+              continue;
             } else {
               recordImportResult(result, logicalId, "rejected", "version-collision");
+              continue;
             }
-            continue;
           }
         }
 
+        // The type of a local account this entry may speak for: its own, or —
+        // for an entry of a client up to 0.8.7 — the current one of that kind.
+        const localType = bridged ? currentSecretTypeOf(entry.binding.secretType as Parameters<typeof currentSecretTypeOf>[0]) : entry.binding.secretType;
+        const sameType = (item: LocalSecretCandidate) => item.binding.secretType === localType;
         // An id match is never sufficient by itself: type and endpoint binding
         // must still agree. Family alone may differ because it is a catalog
         // label rather than a credential destination.
-        const direct = byId.get(logicalId);
-        const candidate =
-          (direct &&
-          direct.binding.secretType === entry.binding.secretType &&
-          bindingMatchesExceptFamily(entry.binding, direct.binding)
-            ? direct
-            : undefined) ??
-          candidates.find(
-            (item) =>
-              item.binding.secretType === entry.binding.secretType &&
-              bindingMatches(entry.binding, item.binding),
-          ) ??
-          candidates.find(
-            (item) =>
-              item.binding.secretType === entry.binding.secretType &&
-              bindingMatchesExceptFamily(entry.binding, item.binding),
-          );
+        const direct = bridged ? undefined : byId.get(logicalId);
+        const exactCandidate = bridged
+          ? undefined
+          : (direct && sameType(direct) && bindingMatchesExceptFamily(entry.binding, direct.binding) ? direct : undefined) ??
+            candidates.find((item) => sameType(item) && bindingMatches(entry.binding, item.binding)) ??
+            candidates.find((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding));
+        // An entry of a client up to 0.8.7 carries the user lower-cased,
+        // whatever its spelling was. It reaches the account it names when
+        // exactly one account here could be meant — never one of two that
+        // differ only in case. Whether an entry is old is said by its type,
+        // its place in the document, never by the spelling of its user: an
+        // old client keeps the type of every entry it writes back, and a
+        // current one never writes an old type (review 2026-11-18, round six).
+        const foldMatches = bridged
+          ? candidates.filter((item) => sameType(item) && bindingMatchesExceptFamily(entry.binding, item.binding, "fold"))
+          : [];
+        // Two accounts here that differ only in case: an entry from 0.8.7
+        // cannot say which one it means, so it is read for neither. A tombstone
+        // among them is remembered, not applied.
+        if (foldMatches.length > 1) {
+          if (entry.tombstone) rememberOldNameTombstone(logicalId, entry);
+          recordImportResult(result, logicalId, "unchanged", "old-name-not-taken");
+          continue;
+        }
+        const legacyCandidate = foldMatches.length === 1 ? foldMatches[0] : undefined;
+        // ...and only as its old name, one way (`oldNameId`): never a
+        // tombstone, never after a tombstone for that name was seen here, and
+        // only when it is newer than the current entry of that account. On a
+        // tie the current entry stands.
+        if (legacyCandidate) {
+          const exact = bundle.entries[legacyCandidate.logicalId];
+          const retiredName = meta.entries[logicalId]?.tombstone === true || closedOldName(logicalId);
+          if (entry.tombstone) rememberOldNameTombstone(logicalId, entry);
+          if (entry.tombstone || retiredName || (exact && !(entry.updatedAt > exact.updatedAt))) {
+            recordImportResult(result, logicalId, "unchanged", exact ? "superseded-by-exact-entry" : "old-name-not-taken");
+            continue;
+          }
+          if (exact && (await knownUnderOldName(logicalId, entry))) {
+            recordImportResult(result, logicalId, "unchanged", "already-current");
+            continue;
+          }
+        }
+        // The current entry of an account whose old name carries a NEWER
+        // password (a device up to 0.8.7 changed it): that one is read.
+        const oldName = exactCandidate ? oldNameId(exactCandidate, candidates) : null;
+        const oldEntry = oldName ? bundle.entries[oldName] : undefined;
+        if (
+          oldEntry && isBridgeSecretType(oldEntry.binding.secretType) && !oldEntry.tombstone &&
+          meta.entries[oldName!]?.tombstone !== true && !closedOldName(oldName!) &&
+          oldEntry.updatedAt > entry.updatedAt &&
+          !(await knownUnderOldName(oldName!, oldEntry))
+        ) {
+          recordImportResult(result, logicalId, "unchanged", "superseded-by-later-entry");
+          continue;
+        }
+        const candidate = exactCandidate ?? legacyCandidate;
+        const viaOldName = !!candidate && candidate.logicalId !== logicalId && !exactCandidate;
+        // The old name and the exact one of one account share one record of having been imported.
+        const pairImported = !!meta.imported[logicalId] || (!!candidate && !!meta.imported[candidate.logicalId]);
 
         if (!candidate && entry.tombstone) {
-          rememberEntry(logicalId, entry);
+          await rememberEntry(logicalId, entry);
           delete meta.imported[logicalId];
           recordImportResult(result, logicalId, "unchanged", "tombstone-no-local-secret");
           continue;
         }
         if (!candidate) {
-          result.unknownAccounts.push(logicalId);
+          // An entry of a client up to 0.8.7 beside the current one of the
+          // same account waits with it, not as a second account.
+          const waitsWithCurrent =
+            bridged &&
+            Object.values(bundle.entries).some(
+              (other) => other.binding.secretType === localType && bindingMatchesExceptFamily(other.binding, entry.binding, "fold"),
+            );
+          if (!waitsWithCurrent) result.unknownAccounts.push(logicalId);
           recordImportResult(
             result,
             logicalId,
@@ -422,8 +973,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           continue;
         }
 
-        if (entry.tombstone && !meta.imported[logicalId]) {
-          rememberEntry(logicalId, entry);
+        if (entry.tombstone && !pairImported) {
+          await rememberEntry(logicalId, entry);
           if (candidate.secret) {
             recordImportResult(result, logicalId, "rejected", "local-secret-protected");
           } else {
@@ -431,16 +982,23 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           }
           continue;
         }
-        if (!entry.tombstone && candidate.secret && !meta.imported[logicalId]) {
+        if (!entry.tombstone && candidate.secret && !pairImported) {
           if (stableStringify(candidate.secret) !== stableStringify(entry.secret)) {
+            // Seen and not taken: a password typed here later goes out above
+            // it — after a lost key, beside a held slot, or beside this
+            // device's own password (round twelve; F73).
+            if (previous && entry.entryRev > (previous.heldRev ?? 0)) {
+              meta.entries[logicalId] = { ...previous, heldRev: entry.entryRev };
+            }
             recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
             continue;
           }
-          rememberEntry(logicalId, entry);
+          await rememberEntry(logicalId, entry, viaOldName);
+          if (viaOldName) await recordCurrent(candidate, entry);
           recordImportResult(result, logicalId, "unchanged", "already-current");
           continue;
         }
-        operations.push({ logicalId, entry, candidate });
+        operations.push({ logicalId, entry, candidate, viaOldName });
       }
 
       // Apply each independent slot group against its own snapshot. The first
@@ -453,7 +1011,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         else await host.writeSlot(slot, previous);
       };
 
-      for (const { logicalId, entry, candidate } of operations) {
+      for (const { logicalId, entry, candidate, viaOldName } of operations) {
         let previous: unknown;
         try {
           previous = await host.readSlot(candidate.slot);
@@ -472,8 +1030,11 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           } else {
             await host.writeSlot(candidate.slot, candidate.apply(entry.secret!));
             meta.imported[logicalId] = true;
+            // Read under its old name (`oldNameId`): the account's exact name was written with it.
+            if (viaOldName) meta.imported[candidate.logicalId] = true;
           }
-          rememberEntry(logicalId, entry);
+          await rememberEntry(logicalId, entry, viaOldName);
+          if (viaOldName && !entry.tombstone) await recordCurrent(candidate, entry);
           successfulSlots.add(candidate.slot);
           recordImportResult(result, logicalId, "imported");
         } catch {
@@ -486,7 +1047,29 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
       }
 
-      if (!metaDirty) return result;
+      // Settled when nothing is left open: no slot failed, no account is
+      // waiting, no retired entry asks to be reported again.
+      const open = result.errors.length > 0 || result.unknownAccounts.length > 0 || result.legacyEntries.length > 0;
+      // Taken against the slots as they are now: what this import wrote is the
+      // state the next round finds.
+      const settled = open ? undefined : successfulSlots.size > 0 ? await settledKey(mark, bundle, await host.candidates()) : key;
+      if (meta.settled !== settled) {
+        if (settled) meta.settled = settled;
+        else delete meta.settled;
+      }
+      // The loss ends with this import, which read the document (round
+      // twelve): what is held stays held, an ordinary local conflict; a
+      // baseline the document has nothing as new for is unconfirmed.
+      for (const [id, record] of Object.entries(meta.entries)) {
+        if (!record.sinceLoss) continue;
+        const { sinceLoss: _ended, ...rest } = record;
+        const entry = bundle.entries[id];
+        const unconfirmed = !record.held && !record.tombstone && (!entry || compareEntryVersion(entry, record) < 0);
+        meta.entries[id] = unconfirmed ? { ...rest, unconfirmed: true } : rest;
+      }
+      // A round that changes nothing writes nothing (round eleven, F68):
+      // compared, not assumed.
+      if (stableStringify(meta) === stableStringify(originalMeta)) return result;
 
       try {
         await host.writeMeta(meta);
@@ -506,6 +1089,5 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         );
       }
       return result;
-    },
-  };
+  }
 }

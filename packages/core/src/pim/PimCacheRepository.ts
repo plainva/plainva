@@ -282,6 +282,27 @@ export class PimCacheRepository {
     return (await this.getScopeState(accountId, ACCOUNT_ROW_SCOPE))?.cursor ?? null;
   }
 
+  /**
+   * Rewrites one key of an account's config from its CURRENT value and nothing
+   * else, so a worker that learned a fact about the account neither writes
+   * back a row it read earlier nor drops what an import wrote meanwhile. The
+   * read and the write run in one transaction. `next` returns undefined to
+   * leave the row alone; a missing row stays missing. True when it wrote.
+   */
+  async updateAccountConfigValue(accountId: string, key: string, next: (current: unknown) => unknown): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const rows = await tx.query<{ config: string | null }>(`SELECT config FROM pim_accounts WHERE id = ?`, [accountId]);
+      if (rows.length === 0) return false;
+      const parsed = safeJson(rows[0].config);
+      const config = parsed && !Array.isArray(parsed) ? { ...parsed } : {};
+      const value = next(config[key]);
+      if (value === undefined) return false;
+      config[key] = value;
+      await tx.execute(`UPDATE pim_accounts SET config = ? WHERE id = ?`, [JSON.stringify(config), accountId]);
+      return true;
+    });
+  }
+
   /** Removes the account and every cached object belonging to it. The
    * calendars/tasklists rows cascade; events/tasks/state are keyed loosely and
    * are swept explicitly. */

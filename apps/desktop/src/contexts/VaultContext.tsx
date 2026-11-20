@@ -18,7 +18,7 @@ import { VaultIndexer, VaultQueryService, GraphService, type BackupVaultAdapter,
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
-import { fileBrokerTokenProvider } from "../services/accountBroker";
+import { fileBrokerTokenProvider, settleOwedAccountSignIns } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
 import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
@@ -1279,6 +1279,11 @@ export const VaultProvider: React.FC<{
         onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
 
+      // A sign-in "Remove account" could not delete is tried again first: it
+      // must be gone before anything reads the vault's sign-ins.
+      await settleOwedAccountSignIns(path).catch((e) =>
+        console.error("[VaultContext] deleting owed sign-ins failed", e),
+      );
       // A calendar or mailbox that still signs in on its own hands that sign-in
       // to its card before the calendar starts (account sign-in plan K2).
       await perfMeasure("vault open: account grants", () => migrateVaultGrants(path)).catch((e) =>

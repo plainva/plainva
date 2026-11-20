@@ -1,3 +1,4 @@
+import { passwordAccountGroups } from "./passwordAccounts.js";
 import {
   normalizeAccountMap,
   normalizeVerifiedProviderIdentity,
@@ -279,7 +280,19 @@ export function reviewDuplicatePimRows(
 ): PimDuplicateNeed[] {
   const byIdentity = new Map<string, typeof rows[number][]>();
   const byLabel = new Map<string, typeof rows[number][]>();
+  // A password access is one account by server and user, or by the principal
+  // the server confirmed (`samePimPasswordAccount`, GitHub issue 174) — whatever the
+  // two rows are called. Grouping them by label alone missed duplicates whose
+  // labels differ ("anna@cloud" beside "Nextcloud").
+  const byPassword = new Set<string>();
+  passwordAccountGroups(rows.filter((row) => !normalizeVerifiedProviderIdentity(row.config?.[VERIFIED_PROVIDER_IDENTITY_KEY])))
+    .filter((group) => group.length > 1)
+    .forEach((group, index) => {
+      byIdentity.set(`password\u0000${index}`, group);
+      for (const row of group) byPassword.add(row.id);
+    });
   for (const row of rows) {
+    if (byPassword.has(row.id)) continue;
     const identity = normalizeVerifiedProviderIdentity(row.config?.[VERIFIED_PROVIDER_IDENTITY_KEY]);
     if (identity) {
       const key = `${row.provider}\u0000${verifiedProviderIdentityKey(identity)}`;

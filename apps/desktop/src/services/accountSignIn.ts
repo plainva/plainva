@@ -46,7 +46,7 @@ import { authorizeDrive } from "./driveAuth";
 import { authorizeOneDrive } from "./oneDriveAuth";
 import { oauthErrorText } from "./oauthLoopback";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
-import { claimPendingMailbox, clearAccountToken, getAccountBroker, getAccountToken, saveAccountToken, setPendingBrokerAccount } from "./accountBroker";
+import { claimPendingCalendar, claimPendingMailbox, clearAccountToken, getAccountBroker, getAccountToken, holdPendingBrokerAccount, saveAccountToken } from "./accountBroker";
 import { announceCredentials, clearOtherSyncSlots, connectMicrosoftMailAccount } from "./cloudAccountsActions";
 import { connectGoogleAccount, connectMicrosoftAccount } from "./pim/pimAccounts";
 import { getPimCredentials } from "./pim/pimCredentials";
@@ -228,7 +228,7 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
   const finished = await bindSignedInAccount(prepared, completed, {
     loadCards: () => loadCloudAccounts(vaultPath),
     saveCards: (records) => saveCloudAccounts(vaultPath, records),
-    setPending: (cardId, family) => setPendingBrokerAccount(cardId ? { vaultPath, accountId: cardId, family } : null),
+    setPending: pendingMarker(vaultPath),
     bindFiles: async (cardId) => {
       filesBound = true;
       return bindFiles(vaultPath, cardId, completed, access.clientSecret);
@@ -275,7 +275,7 @@ export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFam
     clearGrant: (cardId) => clearAccountToken(vaultPath, cardId),
     newCardId: () => crypto.randomUUID(),
     saveCards: (records) => saveCloudAccounts(vaultPath, records),
-    setPending: (cardId, fam) => setPendingBrokerAccount(cardId ? { vaultPath, accountId: cardId, family: fam } : null),
+    setPending: pendingMarker(vaultPath),
     bindFiles: (cardId, completed) => bindFiles(vaultPath, cardId, completed, access.access.clientSecret),
     bindCalendar: () => Promise.reject(new Error("not part of an online vault sign-in")),
     bindMail: () => Promise.reject(new Error("not part of an online vault sign-in")),
@@ -283,6 +283,19 @@ export async function adoptOnlineVaultSignIn(vaultPath: string, family: OAuthFam
     afterBinding: async () => undefined,
     describeFailure: (error) => oauthErrorText(error),
   }, { notGranted: "files were not granted", report: (error) => reportBackground("signin:take-back", error) });
+}
+
+/**
+ * The broker's pending marker for ONE connect (Fehlerliste C3): the port sets
+ * it with the card and ends it with `null`, and ending ends this connect's
+ * marker only, never one another connect set meanwhile.
+ */
+function pendingMarker(vaultPath: string): (cardId: string | null, family: OAuthFamily) => void {
+  let release: (() => void) | null = null;
+  return (cardId, family) => {
+    release?.();
+    release = cardId ? holdPendingBrokerAccount({ vaultPath, accountId: cardId, family }) : null;
+  };
 }
 
 async function bindFiles(vaultPath: string, cardId: string, completed: CompletedSignIn, clientSecret: string | undefined): Promise<{ provider: "drive" | "onedrive" }> {
@@ -315,7 +328,9 @@ async function bindCalendar(
   const clientId = completed.token.clientId;
   if (existing) {
     // Signing in again: the calendar row stays, its slot loses any token of
-    // its own and names the client of the card's new sign-in.
+    // its own and names the client of the card's new sign-in. The row is
+    // this connect's from here on, and the only one it answers (C2).
+    claimPendingCalendar(vaultPath, cardId, existing);
     const previous = await getPimCredentials(vaultPath, existing);
     if (previous && previous.kind !== family) throw new Error("calendar of another provider");
     await replaceProtectedSlot(accountCredentialStore, [slot.calendar(vaultPath, existing), legacySlot.calendar(vaultPath, existing)], previous ?? null, {
@@ -326,6 +341,10 @@ async function bindCalendar(
   const row = await withLivingPimRuntime(getRuntime, (runtime) => family === "google"
     ? connectGoogleAccount(runtime, vaultPath, { clientId, clientSecret: clientSecret ?? "", viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity })
     : connectMicrosoftAccount(runtime, vaultPath, { clientId, viaBroker: true, brokerAccountId: cardId, expectedIdentity: completed.identity }));
+  // Validated on the probe of the card's grant; the row starts only after the
+  // card is written. Named all the same, so nothing in between draws a
+  // stranger's token for it - and no other row draws this one.
+  claimPendingCalendar(vaultPath, cardId, row.id);
   return { pimAccountId: row.id, label: row.label };
 }
 
@@ -389,11 +408,11 @@ async function bindMail(vaultPath: string, cardId: string, completed: CompletedS
     // OAuth mailbox replaces it at the card; the password mailbox is kept.
   }
   if (family === "microsoft") {
-    const { id } = await connectMicrosoftMailAccount(vaultPath, completed.token.clientId, true);
+    const { id } = await connectMicrosoftMailAccount(vaultPath, completed.token.clientId, true, cardId);
     return { mailAccountId: id };
   }
   const id = await stableGmailId(completed.identity.subject);
-  claimPendingMailbox(vaultPath, id);
+  claimPendingMailbox(vaultPath, cardId, id);
   const accessToken = await getAccountBroker(vaultPath, cardId, "google").getAccessToken("mail", completed.token);
   await mailTransport().checkLogin({ host: "imap.gmail.com", port: 993, user: completed.email, pass: accessToken, auth: "xoauth2" });
   const account: MailAccountConfig = {

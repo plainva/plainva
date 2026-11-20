@@ -156,6 +156,8 @@ vi.mock("./accountBroker", () => ({
   }),
   setPendingBrokerAccount: vi.fn(),
   claimPendingMailbox: vi.fn(),
+  claimPendingCalendar: vi.fn(),
+  holdPendingBrokerAccount: vi.fn(() => () => undefined),
   fileBrokerTokenProvider: vi.fn(async () => async () => "access"),
   getAccountToken: vi.fn(async (_v: string, id: string) => accountTokens.get(id) ?? null),
   getAccountBroker: vi.fn(() => ({ getAccessToken: vi.fn(async () => "verified-access") })),

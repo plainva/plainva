@@ -141,7 +141,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         })
         .catch(() => undefined);
     };
-    refresh();
+    // Empty calendar rows that only duplicate another of the same Nextcloud go
+    // first, once per vault and runtime (GitHub issue 174), so the cards never show them.
+    const runtime = pimRuntime;
+    void (runtime
+      ? import("./services/pim/pimAccounts").then((m) => m.foldEmptyCalendarDuplicates(runtime, vaultPath)).catch((e) => console.error("[cloudAccounts] empty duplicates", e))
+      : Promise.resolve()
+    ).then(() => { if (alive) refresh(); });
     window.addEventListener("plainva-cloud-accounts-changed", refresh);
     window.addEventListener("plainva-credentials-saved", refresh);
     return () => {

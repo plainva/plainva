@@ -33,6 +33,12 @@ export interface PimRuntimeWiring {
   onCycle(info: PimCycleInfo): void;
   /** The device's calendar/reminder store reported a change (diagnostics only). */
   onDeviceChanged?(): void;
+  /**
+   * The settings sync's device id: under it the worker records how THIS
+   * device reached a password account (GitHub issue 174). Passed in, so the
+   * runtime does not load the settings sync.
+   */
+  deviceId?(): Promise<string>;
 }
 
 type PimUiStatus = "off" | "idle" | "syncing" | "error";
@@ -87,6 +93,8 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
     cache,
     buildTarget,
     accountAuthRevision: (account) => wiring.accountAuthRevision(vault.vaultId, account),
+    // The settings sync's device id, as on the desktop (GitHub issue 174).
+    ...(wiring.deviceId ? { deviceId: () => wiring.deviceId!() } : {}),
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: wiring.parkedMessage,
