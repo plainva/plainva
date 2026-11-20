@@ -164,15 +164,17 @@ export function AiVaultSettingsPage({ isActiveVault, onClose, onOpenAiSettings }
   const [adding, setAdding] = useState("");
   // The rule table measures its own width (no size container: its selects open popovers, interactionGrammar): narrower
   // than its four columns need, each folder stacks its answers under their column names.
-  const gridRef = useRef<HTMLDivElement | null>(null);
   const [narrowGrid, setNarrowGrid] = useState(false);
-  useEffect(() => {
-    const grid = gridRef.current;
+  // A callback ref: the table appears only once the rules are read, and one observer follows it while it is there.
+  const gridSizes = useRef<ResizeObserver | null>(null);
+  const gridRef = useCallback((grid: HTMLDivElement | null) => {
+    gridSizes.current?.disconnect();
+    gridSizes.current = null;
     if (!grid || typeof ResizeObserver === "undefined") return;
     const sizes = new ResizeObserver(() => setNarrowGrid(grid.getBoundingClientRect().width < NARROW_RULE_GRID));
     sizes.observe(grid);
-    return () => sizes.disconnect();
-  });
+    gridSizes.current = sizes;
+  }, []);
 
   const load = useCallback(async () => {
     if (!vaultAdapter) return;

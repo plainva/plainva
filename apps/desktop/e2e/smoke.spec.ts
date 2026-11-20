@@ -9515,6 +9515,55 @@ test('AI in this vault: the folder rules are named columns, every answer under i
   for (const row of columns.rows) expect(row, 'every answer starts under its head').toEqual(columns.head);
 });
 
+test('AI in this vault: in a narrow window each folder stacks its answers under their column names, nothing overlaps (mockup M5)', async ({ page }) => {
+  await page.setViewportSize({ width: 760, height: 900 });
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/.agent': { isDir: true },
+      '/test-vault/.agent/policy.yml': 'folders:\n  "/":\n    write: direct\n  Private/:\n    cloud: deny\n',
+      '/test-vault/Private': { isDir: true },
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
+  const grid = dialog.getByTestId('ai-policy-grid');
+  await expect(grid).toHaveClass(/is-narrow/);
+  const laid = await grid.evaluate((root) => {
+    const card = root.closest('.pv-setcard')!.getBoundingClientRect();
+    const box = (el: Element) => el.getBoundingClientRect();
+    const rows = [...root.querySelectorAll('[data-testid="ai-policy-row"]')].map((row) => {
+      const parts = [row.querySelector('.pv-rulegrid-name')!, ...row.querySelectorAll('.pv-rulegrid-cell'), row.querySelector('.pv-rulegrid-edge')!];
+      const rects = parts.map(box);
+      const overlaps: string[] = [];
+      for (let a = 0; a < rects.length; a++) for (let b = a + 1; b < rects.length; b++) {
+        const r = rects[a]!, q = rects[b]!;
+        if (r.width && q.width && r.left < q.right - 0.5 && q.left < r.right - 0.5 && r.top < q.bottom - 0.5 && q.top < r.bottom - 0.5) overlaps.push(`${a}/${b}`);
+      }
+      const cells = [...row.querySelectorAll('.pv-rulegrid-cell')];
+      return {
+        names: cells.map((cell) => getComputedStyle(cell, '::before').content.replace(/^"|"$/g, '')),
+        stacked: cells.every((cell, i) => i === 0 || box(cell).top >= box(cells[i - 1]!).bottom - 0.5),
+        overlaps,
+        inside: rects.every((r) => r.left >= card.left - 0.5 && r.right <= card.right + 0.5),
+      };
+    });
+    return { width: box(root).width, head: getComputedStyle(root.querySelector('.pv-rulegrid-head')!).display, rows };
+  });
+  expect(laid.width).toBeLessThan(544);
+  expect(laid.head, 'the head goes').toBe('none');
+  for (const row of laid.rows) {
+    expect(row.names).toEqual(['To a provider', 'Onto the internet', 'Change without asking']);
+    expect(row.stacked, 'the answers stand one under the other').toBe(true);
+    expect(row.overlaps, 'nothing of a folder lies on another part of it').toEqual([]);
+    expect(row.inside, 'nothing runs out of the card').toBe(true);
+  }
+  if (process.env.PLAINVA_EVIDENCE) await dialog.screenshot({ path: test.info().outputPath('m5-desktop-schmal.png') });
+});
+
 test('AI in this vault: with the AI off on this device, the notice leads to the page that switches it on (mockup M5)', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__E2E_STORE_SEED = { ai: { enabled: false } };
