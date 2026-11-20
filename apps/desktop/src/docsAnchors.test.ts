@@ -30,13 +30,39 @@ const userDocs = resolve(__dirname, "../../../docs/user");
 
 /** The text of a heading as it reads once rendered: no markup, only the words. */
 function headingText(raw: string): string {
-  return raw
-    .replace(/\s+#+\s*$/, "")
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/`([^`]*)`/g, "$1")
-    .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
-    .replace(/<[^>]+>/g, "")
-    .trim();
+  return withoutTags(
+    raw
+      .replace(/\s+#+\s*$/, "")
+      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/`([^`]*)`/g, "$1")
+      .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1"),
+  ).trim();
+}
+
+/**
+ * The text without its tags: everything from a `<` to the next `>` left out, read once — what
+ * `.replace(/<[^>]+>/g, "")` did, in a pass that cannot leave a tag behind a tag it took out
+ * (code scanning #279, js/incomplete-multi-character-sanitization). A `<` with no `>` after it, or
+ * an empty `<>`, stays as it stood.
+ */
+function withoutTags(text: string): string {
+  let out = "";
+  let at = 0;
+  let close = text.indexOf(">");
+  while (at < text.length) {
+    const open = text.indexOf("<", at);
+    if (open < 0) break;
+    if (close <= open) close = text.indexOf(">", open + 1);
+    if (close < 0) break;
+    if (close === open + 1) {
+      out += text.slice(at, close);
+      at = close;
+      continue;
+    }
+    out += text.slice(at, open);
+    at = close + 1;
+  }
+  return out + text.slice(at);
 }
 
 /** GitHub's slug of a heading's words. */
@@ -147,6 +173,9 @@ describe("docsAnchors", () => {
       expect(slugOf(headingText("数据库（`.base`）"))).toBe("数据库base");
       expect(slugOf(headingText("Header color / Icon / Tags · whole note"))).toBe("header-color--icon--tags--whole-note");
       expect(slugOf(headingText("**Bold** and [a link](x.md) ##"))).toBe("bold-and-a-link");
+      // Tags are left out in one pass that leaves none behind (code scanning #279).
+      expect(headingText("Ein <kbd>Kürzel</kbd> und <scr<script>ipt>alert(1)</script> Text")).toBe("Ein Kürzel und ipt>alert(1) Text");
+      expect(headingText("a <> b < c")).toBe("a <> b < c");
       // The website cuts one hyphen at the end: a blank before a question mark leaves none.
       expect(slugOf(headingText("Qu'est-ce qui part ?"))).toBe("quest-ce-qui-part");
       expect(slugOf(headingText("Pourquoi X (Proton, Drive …) ?"))).toBe("pourquoi-x-proton-drive-");
