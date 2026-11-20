@@ -184,8 +184,40 @@ function merged(pieces: readonly ViewPiece[]): ViewPiece[] {
   return out;
 }
 
-/** Placeholders a view writes: a text that carries one of them was made from a view, and is never written to a file. */
-export const VIEW_PLACEHOLDER = /⟦(?:withheld [^⟧\n]*|place withheld)⟧/u;
+/**
+ * Placeholders a view writes — `⟦withheld …⟧` (anything but a line end inside) and `⟦place withheld⟧`: a text that
+ * carries one of them was made from a view, and is never written to a file.
+ *
+ * Found by a scan rather than the expression `/⟦(?:withheld [^⟧\n]*|place withheld)⟧/u` it matches exactly: that
+ * expression, tried at every `⟦withheld ` of a line that never closes one, read the rest of the line again from each
+ * — quadratic in a text a model or an app wrote (code scanning, js/polynomial-redos). Here a line that closes no
+ * placeholder is read once.
+ */
+const WITHHELD_OPEN = "⟦withheld ";
+const PLACE_WITHHELD = "⟦place withheld⟧";
+
+/** The next placeholder at or after `from`, as `[start, end)`, or null; the matches the expression above finds, in order. */
+function nextPlaceholder(text: string, from: number): [number, number] | null {
+  let at = text.indexOf("⟦", from);
+  while (at >= 0) {
+    if (text.startsWith(PLACE_WITHHELD, at)) return [at, at + PLACE_WITHHELD.length];
+    if (text.startsWith(WITHHELD_OPEN, at)) {
+      let end = at + WITHHELD_OPEN.length;
+      while (end < text.length && text[end] !== "⟧" && text[end] !== "\n") end++;
+      if (text[end] === "⟧") return [at, end + 1];
+      // No `⟧` before the line ends: no placeholder starts before that point either, since every one holds a `⟧`.
+      at = text.indexOf("⟦", end);
+      continue;
+    }
+    at = text.indexOf("⟦", at + 1);
+  }
+  return null;
+}
+
+/** Whether a text carries a placeholder of a view. */
+export function carriesViewPlaceholder(text: string): boolean {
+  return nextPlaceholder(text, 0) !== null;
+}
 
 /** What `rawChangeOf` makes of a change on the view. */
 export type RawChange = { ok: true; raw: string } | { ok: false; problem: "withheld-part" | "too-long" };
@@ -216,7 +248,7 @@ export function rawChangeOf(view: ReaderView, changed: string): RawChange {
   let out = "";
   let at = 0;
   for (const hunk of hunks) {
-    if (VIEW_PLACEHOLDER.test(hunk.with)) return { ok: false, problem: "withheld-part" };
+    if (carriesViewPlaceholder(hunk.with)) return { ok: false, problem: "withheld-part" };
     const raw = view.toRaw(hunk.from, hunk.to);
     if (!raw) return { ok: false, problem: "withheld-part" };
     out += view.raw.slice(at, raw.from) + hunk.with;
@@ -230,7 +262,9 @@ export function rawChangeOf(view: ReaderView, changed: string): RawChange {
 
 /** How many placeholders a text carries. */
 function placeholders(text: string): number {
-  return text.match(new RegExp(VIEW_PLACEHOLDER.source, "gu"))?.length ?? 0;
+  let count = 0;
+  for (let found = nextPlaceholder(text, 0); found; found = nextPlaceholder(text, found[1])) count++;
+  return count;
 }
 
 /**
