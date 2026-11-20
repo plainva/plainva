@@ -187,11 +187,14 @@ const ROW_TAGS: Record<SettingsShell, Record<string, { label: string; desc: stri
     SettingRow: { label: "label", desc: ["desc"] },
     FontSlotRow: { label: "label", desc: [] },
     DayTimeRow: { label: "label", desc: ["desc"] },
+    // A named column of a rule table (Design_Language "Rules as named columns"): its head is the question it asks.
+    RuleColumn: { label: "label", desc: [] },
   },
   mobile: {
     Row: { label: "title", desc: ["subtitle"] },
     SettingField: { label: "label", desc: ["hint"] },
     MobileSettingRow: { label: "label", desc: [] },
+    RuleColumn: { label: "label", desc: [] },
   },
 };
 const CARD_TAGS: Record<SettingsShell, string> = { desktop: "SettingCard", mobile: "SectionLabel" };

@@ -975,7 +975,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   <SettingsPage area="aiVault" active={!inAppWorld && vaultPage === "aiVault"}>
-                    <AiVaultSettingsPage isActiveVault={isActiveVault} onClose={onClose} />
+                    <AiVaultSettingsPage isActiveVault={isActiveVault} onClose={onClose} onOpenAiSettings={() => openArea("app", "ai")} />
                   </SettingsPage>
                   <SettingsPage area="pim" active={!inAppWorld && vaultPage === "pim"}>
                     <PimPage isActiveVault={isActiveVault} onOpenCloudAccounts={openCloudAccounts} />

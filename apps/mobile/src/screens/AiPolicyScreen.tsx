@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Plug, Plus } from "lucide-react";
-import { mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
+import { directFolderOf, mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
 import { AreaBoundary,
   AI_POLICY_FILE,
   Banner,
+  Button,
   changeFolderRules,
   externalStatusText,
   GroupCard,
@@ -43,12 +44,15 @@ export function AiPolicyScreen({
   onOpenSkills,
   onOpenMemory,
   onOpenNote,
+  onOpenAiSettings,
 }: {
   vault: MobileVault;
   onBack: () => void;
   onOpenSkills: (review?: string) => void;
   onOpenMemory: () => void;
   onOpenNote: (path: string) => void;
+  /** The page "AI" of this phone, where the AI is switched on (mockup M5: the notice that it is off has the way there). */
+  onOpenAiSettings: () => void;
 }) {
   const { t } = useTranslation();
   // Skills and memory (plan KI-Harness P3-5): the summary, what waits, and the way into the workshop.
@@ -101,15 +105,29 @@ export function AiPolicyScreen({
   const word = (choice: PolicyChoice | undefined) => (choice === "deny" ? t("ai.policy.deny") : choice === "allow" ? t("ai.policy.allow") : t("ai.policy.inherit"));
   // "Change without asking" (plan "KI direkt schreiben", W3): allowed or not, in the words of the other two questions.
   const writeWord = (choice: AiWriteRule | "inherit" | undefined) => (choice === "direct" ? t("ai.policy.allow") : choice === "ask" ? t("ai.policy.deny") : t("ai.policy.inherit"));
-  // The two questions of a rule, named (plan KI-Oberflächen K6). The rules travel with the vault, the internet switch is
-  // this phone's: the answer stays, and it is said when the internet is off here. Said as what it is - the rule does
-  // not take effect on this device (finding X10, review 2026-11-10): "allowed (internet off)" read as both at once.
-  // A rule that forbids the internet needs no such remark.
-  const webNote = (choice: PolicyChoice) => (aiState.web.enabled || choice === "deny" ? "" : ` (${t("ai.policy.webOff")})`);
-  const line = (rule: FolderPolicyRule | undefined, inherit: boolean) => {
-    const web = rule?.web ?? (inherit ? "inherit" : "allow");
-    return `${t("ai.policy.cloud")}: ${word(rule?.cloud ?? (inherit ? "inherit" : "allow"))} · ${t("ai.policy.web")}: ${word(web)}${webNote(web)} · ${t("ai.policy.write")}: ${writeWord(rule?.write ?? (inherit ? "inherit" : "ask"))}`;
+  // The rules as named columns (mockup M5): the two answers that keep data in or let it out, under the head above the
+  // card. A rule that forbids the internet needs no remark that it is off here; one that allows it is not in effect
+  // while the internet is off on this phone, which the head says once.
+  const columns = (rule: FolderPolicyRule | undefined, inherit: boolean) => (
+    <span className="m-rulecols-values" data-testid="ai-policy-values">
+      <span>{word(rule?.cloud ?? (inherit ? "inherit" : "allow"))}</span>
+      <span>{word(rule?.web ?? (inherit ? "inherit" : "allow"))}</span>
+    </span>
+  );
+  // "Change without asking", the answer that lets something happen (plan "KI direkt schreiben"): a line of its own
+  // under the folder only where it holds there — its own rule or one above it — in the on-state pair, in the words the
+  // columns use, so a folder with a rule of its own and one that takes it from above stay apart.
+  const directLine = (folder: string, rule: FolderPolicyRule | undefined, inherit: boolean) => {
+    const probe = `${folder}${folder && !folder.endsWith("/") ? "/" : ""}.probe.md`;
+    if (directFolderOf(probe, rules) === null) return undefined;
+    return (
+      <span className="m-rule-on" data-testid="ai-policy-direct">
+        {`${t("ai.policy.write")}: ${writeWord(rule?.write ?? (inherit ? "inherit" : "ask"))}`}
+      </span>
+    );
   };
+  // A rule that allows the internet does not take effect while the internet is off on this phone: said once, above.
+  const webOffHere = !aiState.web.enabled && (ruleOf(rules, "")?.web !== "deny" || rules.some((rule) => rule.web === "allow"));
 
   const edit = async (folder: string, inherit: boolean) => {
     const rule = ruleOf(rules, folder);
@@ -165,7 +183,20 @@ export function AiPolicyScreen({
       <div className="m-settings">
         <p className="m-hint">{t("ai.settings.sectionVault")}</p>
         {/* The rules here hold once the AI is on (plan KI-Oberflächen K6): said where it is off on this device. */}
-        {!aiState.settings.enabled && <Banner kind="info" rounded testId="settings-ai-vault-off">{t("ai.settings.vaultOff")}</Banner>}
+        {!aiState.settings.enabled && (
+          <Banner
+            kind="info"
+            rounded
+            testId="settings-ai-vault-off"
+            actions={
+              <Button size="sm" variant="secondary" onClick={onOpenAiSettings} data-testid="settings-ai-vault-open-ai">
+                {t("ai.error.openSetup")}
+              </Button>
+            }
+          >
+            {t("ai.settings.vaultOff")}
+          </Banner>
+        )}
         {/* The internet for this vault (plan KI-Harness P4): off until the user decides, on this device — as on the desktop. */}
         <SectionLabel info={web.enabled ? t("ai.web.settings.sitesDesc") : t("ai.web.settings.desc")}>{t("ai.web.settings.title")}</SectionLabel>
         {/* Fully local (plan KI-Harness P7): no conversation reads a page or searches, whatever this vault allows. */}
@@ -189,13 +220,25 @@ export function AiPolicyScreen({
         </GroupCard>
         <SectionLabel info={t("ai.policy.desc")}>{t("ai.policy.title")}</SectionLabel>
         {problems.length > 0 && <Banner kind="warning" rounded>{t("ai.policy.problems", { lines: problems.join("; ") })}</Banner>}
+        {webOffHere && <p className="m-hint" data-testid="ai-policy-weboff">{`${t("ai.policy.web")}: ${t("ai.policy.webOff")}`}</p>}
         <GroupCard>
           <RowList>
-            <Row wrap title={t("ai.policy.vaultDefault")} subtitle={line(ruleOf(rules, ""), false)} onClick={() => void edit("", false)} />
+            {/* The head of the two columns: a row of the card itself, so its names stand exactly over the answers (mockup M5). */}
+            <Row
+              title={<span aria-hidden="true" />}
+              end={
+                <span className="m-rulecols-values m-rulecols" aria-hidden="true">
+                  <RuleColumn label={t("ai.policy.cloud")} />
+                  <RuleColumn label={t("ai.policy.web")} />
+                </span>
+              }
+              data-testid="ai-policy-head"
+            />
+            <Row wrap title={t("ai.policy.vaultDefault")} subtitle={directLine("", ruleOf(rules, ""), false)} end={columns(ruleOf(rules, ""), false)} onClick={() => void edit("", false)} data-testid="ai-policy-row" />
             {rules
               .filter((r) => r.folder !== "")
               .map((rule) => (
-                <Row key={rule.folder} wrap title={rule.folder} subtitle={line(rule, true)} onClick={() => void edit(rule.folder, true)} />
+                <Row key={rule.folder} wrap title={rule.folder} subtitle={directLine(rule.folder, rule, true)} end={columns(rule, true)} onClick={() => void edit(rule.folder, true)} data-testid="ai-policy-row" />
               ))}
             {free.length > 0 && (
               <Row
@@ -276,4 +319,9 @@ export function AiPolicyScreen({
       {external !== null && external !== "add" && <AreaBoundary area="sheet:externalReview" size="dialog" exit={{ label: t("common.close"), onExit: () => setExternal(null) }}><ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} /></AreaBoundary>}
     </div>
   );
+}
+
+/** The head of one column of the rule table: the question it asks (Design_Language "Rules as named columns"). */
+function RuleColumn({ label }: { label: string }) {
+  return <span>{label}</span>;
 }
