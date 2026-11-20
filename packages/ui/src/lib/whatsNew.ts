@@ -83,6 +83,19 @@ export { getWhatsNewBlogUrl, getWhatsNewReleaseNotesUrl } from "./releaseBlog.mj
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
+    version: "0.9.0",
+    releaseDate: "2026-11-21",
+    highlights: [
+      { icon: "sparkles", experimental: true },
+      { icon: "wand", experimental: true },
+      { icon: "database", experimental: true },
+      { icon: "link" },
+      { icon: "shield" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-9-0",
+    blogLanguages: ["de", "en", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "zh-CN"],
+  },
+  {
     version: "0.8.7",
     releaseDate: "2026-11-04",
     highlights: [
@@ -173,8 +186,7 @@ export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
     version: "0.8.1",
     releaseDate: "2026-09-07",
     highlights: [
-      // "My theme": a palette, not the sparkles -- sparkles is the fallback glyph
-      // of WhatsNewIcon, and the icon test forbids a catalog entry that renders it.
+      // "My theme": a palette.
       { icon: "palette" },
       { icon: "database" },
       // The device's own calendars (EventKit / CalendarContract). The native
