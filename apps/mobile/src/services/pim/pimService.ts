@@ -20,12 +20,12 @@ import { phoneTemplateVault } from "../templateVault";
 import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
-import { pimTargetCredentials } from "./pimTargetCredentials";
+import { pimTargetCredentials, refuseUnconfirmedCalendar } from "./pimTargetCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptedPimConfig, assertEndpointConfirmedIn, confirmationEndpoint, confirmEndpointsIn, confirmTypedEndpointsIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, confirmationEndpoint, confirmEndpointsIn, confirmTypedEndpointsIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -101,6 +101,12 @@ export {
  * the whole shared UI package (Befunde 2026-09-24, Z2).
  */
 
+/** `buildTargetFor` for the sync and "Check connection": an unconfirmed CalDAV address is refused with its name (review of F57, O-5). */
+async function syncTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
+  if (account.provider === "caldav") await refuseUnconfirmedCalendar(vaultId, account.id);
+  return buildTargetFor(vaultId, account);
+}
+
 async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
   // The device account has no credential — the permission is the sign-in
   // (EventKit plan E5/E6), so it is answered before the secret store is asked.
@@ -137,6 +143,7 @@ export async function startPim(vault: MobileVault): Promise<void> {
   await migrateVaultGrants(vault.vaultId).catch((e) => console.error("[pim] moving sign-ins to their accounts failed", e));
   await startPimRuntime(vault, {
     buildTarget: buildTargetFor,
+    syncTarget: syncTargetFor,
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
     parkedMessage: i18n.t("pim.signInRequired"),
@@ -236,12 +243,9 @@ export async function checkPimAccount(vaultId: string, accountId: string): Promi
   // as the provider's answer (plan "Verbinden", V0): no calendar account here
   // is "not connected yet", one without a sign-in here is "not signed in".
   if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
-  // An address this phone has not confirmed is said as such, never "not signed in" (F57, O3).
-  if (row.provider === "caldav") {
-    const creds = await getPimCredentials(vaultId, row.id);
-    if (creds?.kind === "caldav") await assertEndpointConfirmedIn(vaultId, confirmationEndpoint(creds.url));
-  }
-  const target = await buildTargetFor(vaultId, row);
+  // An address this phone has not confirmed is refused with its name, and
+  // the row says Confirm address (F57, O3; `syncTargetFor`).
+  const target = await syncTargetFor(vaultId, row);
   if (!target) throw new ServiceCheckError("signin");
   await target.listCalendars();
 }

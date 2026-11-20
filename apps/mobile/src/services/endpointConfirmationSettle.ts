@@ -1,5 +1,5 @@
 import { PimCacheRepository } from "@plainva/core";
-import { confirmationEndpoint, getPlatformServices, mailboxEndpoints, readSlot, settleEndpointConfirmationsIn } from "@plainva/ui";
+import { adoptEndpointConfirmationsIn, confirmationEndpoint, getPlatformServices, mailboxEndpoints, readSlot, settleEndpointConfirmationsIn } from "@plainva/ui";
 import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import type { MobileVault } from "./vaultService";
 import { getStoredProvider } from "./syncService";
@@ -47,4 +47,17 @@ export async function provenEndpoints(v: Pick<MobileVault, "vaultId" | "db">): P
 /** At vault open, before mail, the sync and the calendar start; every check waits for it. */
 export function settleVaultEndpointConfirmations(v: Pick<MobileVault, "vaultId" | "db">): Promise<void> {
   return settleEndpointConfirmationsIn(v.vaultId, () => provenEndpoints(v));
+}
+
+/**
+ * Before the account transfer puts anything into a vault (review of F57,
+ * A-1): the vault is switched over first, so nothing it is handed is ever
+ * taken as typed there. A vault that existed proves what it holds of its own
+ * now; a new one has nothing and counts as switched over. What the transfer
+ * carries along is confirmed by the transfer itself, exactly what this phone
+ * had confirmed for it.
+ */
+export async function settleBeforeTransfer(target: Pick<MobileVault, "vaultId" | "db">, existing: boolean): Promise<void> {
+  if (existing) await settleVaultEndpointConfirmations(target);
+  else await adoptEndpointConfirmationsIn(target.vaultId, []);
 }

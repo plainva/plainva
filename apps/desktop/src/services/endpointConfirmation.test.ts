@@ -3,6 +3,8 @@ import {
   assertEndpointConfirmed,
   confirmTypedEndpointsIn,
   getPlatformServices,
+  mailboxEndpoints,
+  mailboxEndpointsNotInForm,
   isEndpointConfirmedIn,
   serviceConnectionMessage,
   setPlatformServices,
@@ -194,6 +196,13 @@ describe("a form confirms only what was typed in it (review of F57, O3)", () => 
     expect(await isEndpointConfirmedIn("v", "http://192.168.1.10:80")).toBe(false);
   });
 
+  it("a server the form does not show — Sieve, carried over from the mailbox it found — is never typed in it (O-4)", async () => {
+    const found = { host: "192.168.1.20", port: 993, smtpHost: "192.168.1.20", smtpPort: 587, sieveHost: "192.168.1.21", sievePort: 4190 };
+    expect(mailboxEndpointsNotInForm(found)).toEqual(["sieve://192.168.1.21:4190"]);
+    await expect(confirmTypedEndpointsIn("v", mailboxEndpoints(found), mailboxEndpointsNotInForm(found))).rejects.toMatchObject({ endpoint: "sieve://192.168.1.21:4190" });
+    expect(await isEndpointConfirmedIn("v", "imap://192.168.1.20:993")).toBe(false);
+  });
+
   it("a form that started empty confirms what it sends; a kept endpoint already confirmed goes through", async () => {
     await confirmTypedEndpointsIn("v", ["imap://192.168.1.20:993", "smtp://192.168.1.20:587"], []);
     expect(await isEndpointConfirmedIn("v", "smtp://192.168.1.20:587")).toBe(true);
@@ -233,5 +242,34 @@ describe("a form confirms only what was typed in it (review of F57, O3)", () => 
     await confirmEndpointsIn("v", ["imap://192.168.1.20:993", "smtp://192.168.1.20:587"]);
     await checkMailbox("v", account);
     expect(logins).toEqual(["192.168.1.20"]);
+  });
+});
+
+describe("an account that waits for Confirm says so wherever its state stands (review of F57, O-5)", () => {
+  const t = (key: string, opts?: Record<string, unknown>) => `${key}${opts?.address ? `:${String(opts.address)}` : ""}`;
+  const refusal = new EndpointNotConfirmedError("http://192.168.1.6:80");
+
+  it("the notice above the calendar names the address, never a sign-in", async () => {
+    const { syncProblemReason } = await import("@plainva/ui");
+    const problem = { accountId: "cal", accountLabel: "NAS", provider: "caldav" as const, since: null, error: refusal.message, signIn: true };
+    expect(syncProblemReason(problem, t as never)).toBe("cloudAccounts.confirmAddress:http://192.168.1.6:80");
+  });
+
+  it("the account's row says Confirm address and offers no sign-in", async () => {
+    const { pimAccountFailure } = await import("@plainva/ui");
+    expect(pimAccountFailure(refusal.message, "caldav", t as never)).toMatchObject({ title: "cloudAccounts.confirmAddress:http://192.168.1.6:80", text: "cloudAccounts.confirmAddressHint", signIn: false });
+  });
+
+  it("Check connection reads the refusal as the address to confirm, not as a sign-in", async () => {
+    const { checkAccountConnection } = await import("@plainva/ui");
+    const rows = await checkAccountConnection({
+      services: ["calendar"],
+      covered: async () => null,
+      probe: async () => {
+        throw refusal;
+      },
+      describe: (error) => serviceConnectionMessage(error, t as never),
+    });
+    expect(rows).toEqual([{ service: "calendar", state: "failed", detail: "cloudAccounts.confirmAddress:http://192.168.1.6:80" }]);
   });
 });

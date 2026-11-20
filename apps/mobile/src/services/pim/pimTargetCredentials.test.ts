@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const stored = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock("./pimCredentials", () => ({ getPimCredentials: async () => stored.value }));
 
-import { pimTargetCredentials } from "./pimTargetCredentials";
+import { pimTargetCredentials, refuseUnconfirmedCalendar } from "./pimTargetCredentials";
 
 /**
  * Review of plan "Verbinden", finding 3: an account signed out on this phone
@@ -28,7 +28,7 @@ describe("the credentials a calendar target is built with", () => {
 });
 
 describe("a calendar in the local network (F57)", () => {
-  it("builds no target until this phone confirmed its address", async () => {
+  it("builds no target until this phone confirmed its address, and tells the sync why, naming it", async () => {
     const settings = new Map<string, unknown>();
     const { confirmEndpointsIn, getPlatformServices, setPlatformServices } = await import("@plainva/ui");
     let previous: ReturnType<typeof getPlatformServices> | undefined;
@@ -45,7 +45,9 @@ describe("a calendar in the local network (F57)", () => {
     } as unknown as Parameters<typeof setPlatformServices>[0]);
     stored.value = { kind: "caldav", url: "http://192.168.1.6/caldav", user: "anna", pass: "pw" };
     expect(await pimTargetCredentials("v", "a")).toBeNull();
+    await expect(refuseUnconfirmedCalendar("v", "a")).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: "http://192.168.1.6:80" });
     await confirmEndpointsIn("v", ["http://192.168.1.6:80"]);
     expect(await pimTargetCredentials("v", "a")).toEqual(stored.value);
+    await expect(refuseUnconfirmedCalendar("v", "a")).resolves.toBeUndefined();
   });
 });

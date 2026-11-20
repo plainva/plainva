@@ -60,7 +60,7 @@ vi.mock("@plainva/core", async (original) => ({
 }));
 
 import { confirmationEndpoint, getPlatformServices, isEndpointConfirmedIn, setPlatformServices } from "@plainva/ui";
-import { settleVaultEndpointConfirmations } from "./endpointConfirmationSettle";
+import { settleBeforeTransfer, settleVaultEndpointConfirmations } from "./endpointConfirmationSettle";
 import { mobileSyncStart } from "./fileSyncAccess";
 
 const VAULT = { vaultId: "v1", db: {} as never };
@@ -204,5 +204,33 @@ describe("the switch-over of a vault to F57 on the phone", () => {
     state.stored = { provider: "webdav", creds: { url: FILES, user: "anna", pass: "pw" } };
     await settleVaultEndpointConfirmations(VAULT);
     expect(await isEndpointConfirmedIn("v1", confirmationEndpoint(FILES))).toBe(false);
+  });
+});
+
+describe("a vault the account transfer fills (review of F57, A-1)", () => {
+  it("a new vault is switched over before anything is put in: what the transfer copies is never taken as typed there", async () => {
+    await settleBeforeTransfer(VAULT, false);
+    state.mailboxes = [{ id: "mb", kind: "imap", host: "192.168.1.20", port: 993, user: "anna" }];
+    state.secrets.set("mail_mb", { pass: "copied" });
+    await settleVaultEndpointConfirmations(VAULT);
+    expect(await isEndpointConfirmedIn("v1", "imap://192.168.1.20:993")).toBe(false);
+  });
+
+  it("a vault that existed proves its own passwords first, and nothing the transfer copies afterwards", async () => {
+    state.pimRows = [{ id: "cal", provider: "caldav", config: {} }];
+    state.pimCreds.set("cal", { kind: "caldav", url: CALDAV, user: "anna", pass: "typed-there" });
+    await settleBeforeTransfer(VAULT, true);
+    expect(await isEndpointConfirmedIn("v1", confirmationEndpoint(CALDAV))).toBe(true);
+    state.mailboxes = [{ id: "mb", kind: "imap", host: "192.168.1.20", port: 993, user: "anna" }];
+    state.secrets.set("mail_mb", { pass: "copied" });
+    await settleVaultEndpointConfirmations(VAULT);
+    expect(await isEndpointConfirmedIn("v1", "imap://192.168.1.20:993")).toBe(false);
+  });
+
+  it("is what the transfer does before it copies anything", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const transfer = readFileSync(join(__dirname, "accountVaultTransfer.ts"), "utf8");
+    expect(transfer).toMatch(/await settleBeforeTransfer\(\{ vaultId: id, db \}, !!existing\);\s*await commitVaultTransfer\(/);
   });
 });

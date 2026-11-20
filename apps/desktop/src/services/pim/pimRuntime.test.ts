@@ -111,7 +111,7 @@ describe("building a target for an account", () => {
   });
   // F57 (maintainer, 2026-11-18): a stored password goes to an address without
   // TLS or in a private network only once this device confirmed it.
-  it("builds no target for an unconfirmed address without TLS or in a private network, and one once it is confirmed", async () => {
+  it("builds no target for an unconfirmed address without TLS or in a private network - the sync is told why, with the address - and one once it is confirmed", async () => {
     const settings = new Map<string, unknown>();
     let previous: ReturnType<typeof getPlatformServices> | undefined;
     try { previous = getPlatformServices(); } catch { previous = undefined; }
@@ -128,8 +128,11 @@ describe("building a target for an account", () => {
     for (const url of ["http://cloud.example.com/remote.php/dav", "https://192.168.1.5/remote.php/dav", "https://nas.home.arpa/dav"]) {
       getPimCredentials.mockResolvedValue({ kind: "caldav", url, user: "anna", pass: "pw" });
       expect(await runtime().buildTarget(row("caldav")), url).toBeNull();
+      // The sync and "Check connection" are told why, with the address (review of F57, O-5).
+      await expect(runtime().syncTarget(row("caldav")), url).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: confirmationEndpoint(url) });
       await confirmEndpointsIn("/vault", [confirmationEndpoint(url)]);
       expect(await runtime().buildTarget(row("caldav")), url).not.toBeNull();
+      expect(await runtime().syncTarget(row("caldav")), url).not.toBeNull();
     }
     if (previous) setPlatformServices(previous);
   });

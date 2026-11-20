@@ -63,6 +63,7 @@ describe("the phone lets an entry follow its appointment (3.87 no. 16)", () => {
     const pim = await import("./pimRuntime");
     await pim.startPimRuntime(vault, {
       buildTarget: async () => null,
+      syncTarget: async () => null,
       accountAuthRevision: async () => undefined,
       parkedMessage: "sign-in required",
       onCycle: () => {},

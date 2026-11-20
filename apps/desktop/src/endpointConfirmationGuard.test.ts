@@ -130,4 +130,10 @@ describe("every password connection asks whether this device confirmed the addre
       expect(`${read}: ${(read.match(DOCUMENT_ADDRESS) ?? []).length > 0}`).toBe(`${read}: true`);
     }
   });
+
+  it("Check connection asks the calendar with the builder that names an unconfirmed address (review of F57, O-5)", () => {
+    const modal = sourceFile("apps/desktop/src/components/settings/AccountCheckModal.tsx");
+    expect(modal).toMatch(/const target = await runtime\.syncTarget\(row\);/);
+    expect(modal).not.toMatch(/runtime\.buildTarget\(/);
+  });
 });

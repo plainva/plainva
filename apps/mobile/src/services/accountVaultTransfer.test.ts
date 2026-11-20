@@ -40,6 +40,8 @@ vi.mock("./pim/pimCredentials", () => ({
   getPimCredentials: async (v: string, a: string) => state.secrets.get(`pim-${v}-${a}`),
   savePimCredentials: async (v: string, a: string, c: unknown) => { if (state.failSecret === "pim") throw Error("storageFailed"); state.secrets.set(`pim-${v}-${a}`, c); },
 }));
+// The switch-over before the copy has its own tests (endpointConfirmationSettle.test.ts, A-1).
+vi.mock("./endpointConfirmationSettle", () => ({ settleBeforeTransfer: vi.fn(async () => undefined) }));
 vi.mock("./vaultRegistry", () => ({
   getActiveVaultEntry: async () => state.entries.find(e => e.id === state.active),
   getVaultEntry: async (id: string) => state.entries.find(e => e.id === id), listVaults: async () => state.entries,

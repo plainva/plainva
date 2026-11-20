@@ -10,6 +10,7 @@ import {
   retireSecret,
   mergeLegacySecretsMeta,
   sealSecretsMetaInStore,
+  secretImportedFor,
   storeHoldsSecretsMarks,
   type LocalSecretCandidate,
   type SecretsPortMeta,
@@ -136,7 +137,8 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
 export async function importedSecretOf(vaultId: string): Promise<{ caldav(url: string, user: string): boolean; imap(account: { host: string; port: number; user: string }): boolean }> {
   // Unreadable is no "nothing imported": the caller proves nothing then (F57).
   const meta = await metaStore(vaultId).readMeta();
-  const imported = (binding: Parameters<typeof canonicalSecretId>[0]) => !!meta?.imported[canonicalSecretId(binding)];
+  // Under either name: 0.8.7 marked it under the old one (review of F57, O-1).
+  const imported = (binding: Parameters<typeof secretImportedFor>[1]) => secretImportedFor(meta, binding);
   return {
     caldav: (url, user) => imported(calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user)),
     imap: (account) => imported(imapSecretBinding(familyOfImapHost(account.host) ?? "imap", account.host, account.port, account.user)),

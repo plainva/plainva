@@ -172,3 +172,19 @@ describe("a new password goes only to addresses this phone confirmed (review of 
     expect(filePassword()).toBe("new-password");
   });
 });
+
+describe("each address of a password change is asked on its own (review of F57, O-3)", () => {
+  it("a calendar in the local network alone stops the change before anything is sent", async () => {
+    write(calendarKey, { kind: "caldav", url: "http://192.168.1.6/caldav", user: "user", pass: "old-calendar" });
+    await expect(beginPasswordChange(ports(), "new-password")).rejects.toMatchObject({ phase: "verification", service: "calendar" });
+    expect(state.probes).not.toContain("calendar");
+    expect(read(calendarKey).pass).toBe("old-calendar");
+  });
+
+  it("a mailbox in the local network alone stops the change before anything is sent", async () => {
+    await saveMailAccount(vault, { id: "mail", label: "Before", host: "192.168.1.20", port: 993, user: "user", signature: "Before" }, "old-mail", "edit");
+    await expect(beginPasswordChange(ports(), "new-password")).rejects.toMatchObject({ phase: "verification", service: "mail" });
+    expect(state.probes).not.toContain("mail");
+    expect(read(mailKey)).toEqual({ pass: "old-mail" });
+  });
+});

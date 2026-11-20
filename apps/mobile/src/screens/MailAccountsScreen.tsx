@@ -5,7 +5,7 @@ import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, MoreHorizontal, Pencil, Plus } from "lucide-react";
-import { AreaBoundary, accountInputProps, confirmTypedEndpointsIn, EndpointConfirmBlock, mailboxEndpoints, useEndpointConfirmation, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
+import { AreaBoundary, accountInputProps, confirmTypedEndpointsIn, EndpointConfirmBlock, mailboxEndpoints, mailboxEndpointsNotInForm, useEndpointConfirmation, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, pickDefaultMailAccount, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -391,8 +391,9 @@ export function MailAccountsScreen({
       // Only a server whose endpoint was typed in this form — a new mailbox, or
       // one changed while editing — is confirmed by sending; one the form came
       // with must be confirmed first, also for an edit that keeps the stored
-      // password (review of F57, O3).
-      await confirmTypedEndpointsIn(vault, mailboxEndpoints(account), editing ? mailboxEndpoints(editing) : []);
+      // password (review of F57, O3). A server the form does not show (Sieve,
+      // carried over from the mailbox it found) is never typed (review of F57, O-4).
+      await confirmTypedEndpointsIn(vault, mailboxEndpoints(account), [...(editing ? mailboxEndpoints(editing) : []), ...mailboxEndpointsNotInForm(account)]);
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
       if (mailVaultId() !== vault) throw new ServiceConnectionError("accountChanged");
       // The form edits a mailbox from its page, or connects one (fifth review, 1).

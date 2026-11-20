@@ -496,6 +496,20 @@ function dropLostOldNames(meta: SecretsPortMeta, mark: SecretsMarker): void {
   }
 }
 
+/**
+ * Whether a password came through the settings sync from another device, not
+ * typed here (F57): marked as imported under its name now, or under the one a
+ * device up to 0.8.7 gave it — the mark moves to the new name only in a
+ * secrets round (`carryOldKnowledge`), and the switch-over of the confirmed
+ * addresses runs at vault open, before any round (review of F57, O-1).
+ */
+export function secretImportedFor(meta: SecretsPortMeta | null | undefined, binding: SecretBinding): boolean {
+  if (!meta) return false;
+  if (meta.imported[canonicalSecretId(binding)]) return true;
+  const old = bridgeIdOf(binding);
+  return !!old && !!meta.imported[old];
+}
+
 /** The name a device up to 0.8.7 gave this binding's password (the old type, the user lower-cased). */
 function bridgeIdOf(binding: SecretBinding): string | null {
   if (!isShareableSecretType(binding.secretType)) return null;

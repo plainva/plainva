@@ -24,6 +24,8 @@ export interface PimRuntimeWiring {
   /** A ready provider target for the account, built per cycle from its stored
    * sign-in — never cached, a rotated token must be read again. */
   buildTarget(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null>;
+  /** `buildTarget` for the sync: an unconfirmed CalDAV address is refused with its name (F57; review of F57, O-5). */
+  syncTarget(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null>;
   /** The opaque sign-in revision of an account, never a token. */
   accountAuthRevision(vaultId: string, account: PimAccountRow): Promise<string | undefined>;
   /** What the status says when every account sits on a dead sign-in (N1/S2),
@@ -91,7 +93,7 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
   const cache = new PimCacheRepository(vault.db);
   const worker = new PimWorker({
     cache,
-    buildTarget,
+    buildTarget: (account: PimAccountRow) => wiring.syncTarget(vault.vaultId, account),
     accountAuthRevision: (account) => wiring.accountAuthRevision(vault.vaultId, account),
     // The settings sync's device id, as on the desktop (GitHub issue 174).
     ...(wiring.deviceId ? { deviceId: () => wiring.deviceId!() } : {}),

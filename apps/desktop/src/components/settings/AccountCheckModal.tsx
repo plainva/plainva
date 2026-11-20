@@ -16,8 +16,6 @@ import {
   checkRowActions,
   serviceCheckText,
   ServiceCheckError,
-  assertEndpointConfirmedIn,
-  confirmationEndpoint,
   type CloudAccountRecord,
   type ServiceCheck,
 } from "@plainva/ui";
@@ -26,7 +24,6 @@ import { getAccountToken } from "../../services/accountBroker";
 import { syncTargetFromSlots } from "../../services/cloudAccountsActions";
 import { oauthErrorText } from "../../services/oauthLoopback";
 import type { PimRuntime } from "../../services/pim/pimRuntime";
-import { getPimCredentials } from "../../services/pim/pimCredentials";
 import { serviceLabel } from "./cloudAccountsShared";
 
 /**
@@ -77,12 +74,9 @@ export const AccountCheckModal: React.FC<{
             // The same id the account page shows: on the desktop the card IS the registry record.
             const row = (await runtime.cache.listAccounts()).find((entry) => entry.id === record.services.calendar!.pimAccountId);
             if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
-            // An address this device has not confirmed is said as such, never "not signed in" (F57, O3).
-            if (row.provider === "caldav") {
-              const creds = await getPimCredentials(vaultPath, row.id);
-              if (creds?.kind === "caldav") await assertEndpointConfirmedIn(vaultPath, confirmationEndpoint(creds.url));
-            }
-            const target = await runtime.buildTarget(row);
+            // An address this device has not confirmed is refused with its
+            // name, and the row says Confirm address (F57, O3; `syncTarget`).
+            const target = await runtime.syncTarget(row);
             // No sign-in for it on this device: said in words, with "Sign in" beside it.
             if (!target) throw new ServiceCheckError("signin");
             await target.listCalendars();

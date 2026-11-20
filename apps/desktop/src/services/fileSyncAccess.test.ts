@@ -92,3 +92,34 @@ describe("resolveFileSyncAccess", () => {
     expect(resolveFileSyncAccess(webdav, { drive: false, onedrive: false })).toMatchObject({ provider: "webdav", blocked: null });
   });
 });
+
+describe("the file sync of a vault whose address this device has not confirmed (F57; review of F57, O-3)", () => {
+  it("is stopped at vault open and reads as unconfirmed, until the address is confirmed", async () => {
+    const { confirmEndpointsIn, getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    const { unconfirmedSyncSlots } = await import("./fileSyncAccess");
+    const settings = new Map<string, unknown>();
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try {
+      previous = getPlatformServices();
+    } catch {
+      previous = undefined;
+    }
+    setPlatformServices({
+      ...previous,
+      loadSettings: async () => ({
+        get: async (k: string) => structuredClone(settings.get(k)),
+        set: async (k: string, v: unknown) => void settings.set(k, structuredClone(v)),
+        delete: async (k: string) => void settings.delete(k),
+        keys: async () => [...settings.keys()],
+        save: async () => undefined,
+      }),
+    } as unknown as Parameters<typeof setPlatformServices>[0]);
+    const webdav = { url: "http://192.168.1.5/dav", user: "marco", pass: "pw" };
+    const slots = { ...empty, webdav };
+    const unconfirmed = await unconfirmedSyncSlots("/v", { s3: null, webdav });
+    expect(unconfirmed).toEqual({ webdav: true });
+    expect(resolveFileSyncAccess(slots, { drive: false, onedrive: false }, unconfirmed)).toMatchObject({ blocked: "webdav", signedOut: true, unconfirmed: true });
+    await confirmEndpointsIn("/v", ["http://192.168.1.5:80"]);
+    expect(await unconfirmedSyncSlots("/v", { s3: null, webdav })).toEqual({});
+  });
+});

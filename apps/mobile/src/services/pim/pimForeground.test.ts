@@ -61,6 +61,7 @@ const vault = { vaultId: "v1", db: {} } as unknown as MobileVault;
 // What pimService hands in. The fake worker runs no cycle, so none of it is called.
 const wiring: pim.PimRuntimeWiring = {
   buildTarget: async () => null,
+  syncTarget: async () => null,
   accountAuthRevision: async () => undefined,
   parkedMessage: "sign-in required",
   onCycle: () => {},

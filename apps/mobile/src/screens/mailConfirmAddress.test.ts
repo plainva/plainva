@@ -13,7 +13,7 @@ describe("the phone's mail form", () => {
   const screen = readFileSync(join(__dirname, "MailAccountsScreen.tsx"), "utf8");
 
   it("confirms only a server whose endpoint was typed in it", () => {
-    expect(screen).toMatch(/await confirmTypedEndpointsIn\(vault, mailboxEndpoints\(account\), editing \? mailboxEndpoints\(editing\) : \[\]\);\s*await checkMailLogin/);
+    expect(screen).toMatch(/await confirmTypedEndpointsIn\(vault, mailboxEndpoints\(account\), \[\.\.\.\(editing \? mailboxEndpoints\(editing\) : \[\]\), \.\.\.mailboxEndpointsNotInForm\(account\)\]\);\s*await checkMailLogin/);
     expect(screen).not.toMatch(/confirmEndpointsIn\(/);
   });
 

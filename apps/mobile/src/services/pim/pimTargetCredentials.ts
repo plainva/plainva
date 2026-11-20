@@ -1,4 +1,4 @@
-import { confirmationEndpoint, isEndpointConfirmedIn, isSignedOutSlot } from "@plainva/ui";
+import { assertEndpointConfirmedIn, confirmationEndpoint, isEndpointConfirmedIn, isSignedOutSlot } from "@plainva/ui";
 import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 
 /**
@@ -10,13 +10,24 @@ import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
  * The desktop applies the same rule in `pim/pimRuntime.ts` (`buildTarget`).
  *
  * None either for a CalDAV address without TLS or in a private network that
- * this phone has not confirmed (F57): the password stays here and the card
- * asks to confirm the address. One place for both, so no target is built
- * around it (review of F57, O4).
+ * this phone has not confirmed (F57): the password stays here. One place, so
+ * no target is built around it (review of F57, O4); the sync and "Check
+ * connection" are told why (`refuseUnconfirmedCalendar`).
  */
 export async function pimTargetCredentials(vaultId: string, accountId: string): Promise<PimStoredCredentials | null> {
   const creds = await getPimCredentials(vaultId, accountId);
   if (!creds || isSignedOutSlot(creds)) return null;
   if (creds.kind === "caldav" && !(await isEndpointConfirmedIn(vaultId, confirmationEndpoint(creds.url)))) return null;
   return creds;
+}
+
+/**
+ * For the sync and "Check connection": a CalDAV address this phone has not
+ * confirmed is refused with its name instead of no target, so the account
+ * waits visibly - the calendar's notice, the account's row and the check say
+ * Confirm address (review of F57, O-5).
+ */
+export async function refuseUnconfirmedCalendar(vaultId: string, accountId: string): Promise<void> {
+  const creds = await getPimCredentials(vaultId, accountId);
+  if (creds?.kind === "caldav" && !isSignedOutSlot(creds)) await assertEndpointConfirmedIn(vaultId, confirmationEndpoint(creds.url));
 }

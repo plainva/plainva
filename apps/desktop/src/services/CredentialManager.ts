@@ -3,6 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { WebDavCredentials, S3Credentials } from "@plainva/core";
 import { readSlot, removeSlot, type ICredentialStore } from "@plainva/ui";
 import { legacySlot, slot, type SyncProvider } from "./keychainSlots";
+import { STORE_KEY as SETTINGS_STORE_FILE } from "./settingsStore";
+
+/** The note of where the key of the secrets marks lives, in the settings store (`secure_store.rs`). */
+const MARK_KEY_HOME = "settingsSyncSecretsMarkKeyHome";
 
 /**
  * BYO Google Drive credentials as entered/stored on the desktop. clientId/clientSecret
@@ -135,7 +139,12 @@ export class CredentialManager implements ICredentialStore {
   /**
    * `readSecret` that never takes a keychain that does not answer for an
    * empty slot (F57, the switch-over's proof): the credentials file still
-   * counts, as there; anything else is an error.
+   * counts, as there. An empty slot is empty where the file is where this
+   * device keeps its secrets — the key of the secrets marks was made there
+   * (`settingsSyncSecretsMarkKeyHome`), or, before any note, the keychain is
+   * missing outright ("Platform secure storage failure": Linux without a
+   * Secret Service). A keychain that is there but does not answer (locked,
+   * the prompt declined) stays an error (review of F57, O-2).
    */
   public async readSecretStrict<T>(key: string): Promise<T | null> {
     let fromKeychain: string | null;
@@ -144,10 +153,20 @@ export class CredentialManager implements ICredentialStore {
     } catch (error) {
       const inFile = await (await this.store()).get<T>(key);
       if (inFile) return inFile;
+      if (await this.secretsLiveInFile(error)) return null;
       throw error;
     }
     if (fromKeychain) return JSON.parse(fromKeychain) as T;
     return ((await (await this.store()).get<T>(key)) ?? null) as T | null;
+  }
+
+  /** Whether this device keeps its secrets in the credentials file (`readSecretStrict`). */
+  private async secretsLiveInFile(error: unknown): Promise<boolean> {
+    const settings = await load(SETTINGS_STORE_FILE);
+    const home = await settings.get<string>(MARK_KEY_HOME);
+    if (home === "file") return true;
+    if (home === "keychain") return false;
+    return /Platform secure storage failure/i.test(error instanceof Error ? error.message : String(error));
   }
 
   public async writeSecret<T>(key: string, value: T): Promise<void> {

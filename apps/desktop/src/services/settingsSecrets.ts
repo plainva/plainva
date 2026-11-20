@@ -14,7 +14,7 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
-import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretImportedFor, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -119,7 +119,8 @@ export async function importedSecretSlots(vaultPath: string, cache: Pick<PimRunt
   // Unreadable is no "nothing imported": the caller proves nothing then (F57).
   const meta = await metaStore(vaultPath).readMeta();
   const candidates = await localCandidates(vaultPath, cache ? ({ cache } as PimRuntime) : null);
-  return new Set(candidates.filter((candidate) => meta?.imported[candidate.logicalId]).map((candidate) => candidate.slot));
+  // Under either name: 0.8.7 marked it under the old one (review of F57, O-1).
+  return new Set(candidates.filter((candidate) => secretImportedFor(meta, candidate.binding)).map((candidate) => candidate.slot));
 }
 
 function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {

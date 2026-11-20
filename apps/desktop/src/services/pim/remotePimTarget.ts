@@ -144,6 +144,8 @@ export function createClientPimRuntime(db: IDatabaseAdapter): PimRuntime {
   return {
     cache: new PimCacheRepository(db),
     buildTarget: async (account: PimAccountRow) => createRemotePimTarget(account),
+    // The owner's target answers for this window, and refuses there what it refuses (F57).
+    syncTarget: async (account: PimAccountRow) => createRemotePimTarget(account),
     worker: {
       start: () => {},
       stop: () => {},

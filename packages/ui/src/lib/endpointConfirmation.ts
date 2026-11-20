@@ -179,7 +179,7 @@ export async function settleEndpointConfirmations(res: EndpointConfirmationResou
 export class EndpointNotConfirmedError extends Error {
   readonly status = 401;
   constructor(readonly endpoint: string) {
-    super(`not confirmed on this device: ${endpoint}`);
+    super(`${REFUSAL_PREFIX}${endpoint}`);
     this.name = "EndpointNotConfirmedError";
   }
 }
@@ -191,10 +191,24 @@ export class EndpointNotConfirmedError extends Error {
  * A surface then says **Confirm address: …**, never "signed out".
  */
 export function unconfirmedEndpointOf(error: unknown): string | null {
+  if (typeof error === "string") return unconfirmedEndpointInText(error);
   if (!error || typeof error !== "object") return null;
   const e = error as { name?: unknown; endpoint?: unknown };
   if ((e.name === "EndpointNotConfirmedError" || e.name === "MailEndpointNotConfirmedError") && typeof e.endpoint === "string") return e.endpoint;
   return null;
+}
+
+const REFUSAL_PREFIX = "not confirmed on this device: ";
+
+/**
+ * The address in a refusal kept as text — a calendar's last error, a line in
+ * the diagnostics: `EndpointNotConfirmedError`'s own message.
+ */
+export function unconfirmedEndpointInText(text: string): string | null {
+  const at = text.indexOf(REFUSAL_PREFIX);
+  if (at < 0) return null;
+  const endpoint = text.slice(at + REFUSAL_PREFIX.length).split(/\s/)[0];
+  return endpoint || null;
 }
 
 /** Throws `EndpointNotConfirmedError` unless the endpoint needs no confirmation or is confirmed here. */
@@ -288,6 +302,16 @@ export function mailboxEndpoints(account: { host?: string; port?: number; smtpHo
     account.smtpHost ? mailConfirmationEndpoint("smtp", account.smtpHost, account.smtpPort ?? 587) : null,
     account.sieveHost ? mailConfirmationEndpoint("sieve", account.sieveHost, account.sievePort ?? 4190) : null,
   ];
+}
+
+/**
+ * The servers of a mailbox that a mail form does not show — Sieve, carried
+ * over from the mailbox the form found or edits: never typed in the form, so
+ * never confirmed by sending from it (review of F57, O-4).
+ */
+export function mailboxEndpointsNotInForm(account: { host?: string; port?: number; smtpHost?: string; smtpPort?: number; sieveHost?: string; sievePort?: number }): Array<string | null> {
+  const shown = new Set(mailboxEndpoints({ host: account.host, port: account.port, smtpHost: account.smtpHost, smtpPort: account.smtpPort }));
+  return mailboxEndpoints(account).filter((endpoint) => !!endpoint && !shown.has(endpoint));
 }
 
 /** An address of an account that this device has not confirmed, with the vault whose list it goes in. */
