@@ -193,3 +193,22 @@ test("the start lists what waits as the segment “To decide” shows it (mockup
     close();
   }
 });
+
+test("one line of the field stands level with the send button (review of f169003a1)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const close = await openAiScreen(page, context, false);
+  try {
+    const placed = await page.evaluate(() => {
+      const input = document.querySelector('[data-testid="ai-input"]') as HTMLTextAreaElement;
+      const send = document.querySelector('[data-testid="ai-send"]')!.getBoundingClientRect();
+      const style = getComputedStyle(input);
+      const box = input.getBoundingClientRect();
+      // Where the placeholder's line stands: below the field's top padding, one line high.
+      const line = box.top + parseFloat(style.paddingTop) + parseFloat(style.lineHeight) / 2;
+      return { apart: Math.abs(line - (send.top + send.height / 2)) };
+    });
+    expect(placed.apart, "the line of text and the send button share one middle").toBeLessThanOrEqual(2);
+  } finally {
+    close();
+  }
+});

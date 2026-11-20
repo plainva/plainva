@@ -133,6 +133,14 @@ describe("the marking line never claims more protection than the run gives (revi
     expect(text(q("ai-direct-off-marking"))).toBe(i18n.t("ai.direct.markingOffFolders"));
   });
 
+  it("says nothing about changes while the vault's rules are still being asked", async () => {
+    const { s } = await mcpSession([]);
+    vi.spyOn(s, "directOffer").mockReturnValue(true);
+    vi.spyOn(s, "hasDirectFolders").mockReturnValue(new Promise<boolean>(() => undefined));
+    await show(s, conversation());
+    expect(q("ai-direct-off-marking")).toBeNull();
+  });
+
   it("says nothing about proposals where nothing is proposed (an encrypted workspace)", async () => {
     const { s } = await mcpSession([]);
     vi.spyOn(s, "directOffer").mockReturnValue(false);
@@ -204,6 +212,14 @@ describe("the way to skills and memory (review point 9)", () => {
     await click(q("ai-skills-open"));
     const items = [...document.body.querySelectorAll('[role="menuitem"]')];
     expect(items.map((item) => item.getAttribute("data-testid"))).toEqual(["ai-skills-manage"]);
+  });
+});
+
+describe("a provider without a model (mockup M3)", () => {
+  it("says that the model is what is missing, in the words of the settings", async () => {
+    const { s } = await mcpSession([], { profiles: {} });
+    await show(s, conversation());
+    expect(text(q("ai-setup-model-missing"))).toContain(i18n.t("ai.setup.modelTitle"));
   });
 });
 

@@ -78,6 +78,8 @@ export interface AppRibbonProps {
   onOpenAi?: () => void;
   /** How many things of the AI wait for a decision (plan KI-Oberflächen K11): the button carries a dot and says the number. */
   aiWaiting?: number;
+  /** The AI's running conversation waits for an answer (review O7, R3): a dot, as it stands in no list. */
+  aiAsking?: boolean;
   /**
    * Pop a singleton view out into its own window (multi-window P2). Only the
    * four views have one: a rail button like "new note" is an action, and an
@@ -97,8 +99,10 @@ interface RibbonAction {
   /** Virtual path, for the views that can live in their own window. */
   windowPath?: string;
   testId?: string;
-  /** Something waits behind this button (the AI's "To decide"): a dot on its corner. */
+  /** Something waits behind this button (a question of the AI's running conversation): a dot on its corner. */
   dot?: boolean;
+  /** How many things wait behind this button (the AI's "To decide", mockup M10): the number on its corner. */
+  count?: number;
 }
 
 export function AppRibbon(props: AppRibbonProps) {
@@ -165,7 +169,7 @@ export function AppRibbon(props: AppRibbonProps) {
     journal: { key: "journal", label: t("journal.open", { defaultValue: "Journal öffnen" }), icon: <NotebookText size={ICON.head} />, run: props.onOpenJournal, testId: "ribbon-journal", windowPath: JOURNAL_TAB_PATH },
     palette: { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
     ...(props.onOpenAi
-      ? { ai: { key: "ai", label: props.aiWaiting ? `${t("ai.ask")} · ${t("ai.waitingCount", { count: props.aiWaiting })}` : t("ai.ask"), icon: <Sparkles size={ICON.head} />, run: props.onOpenAi, testId: "ribbon-ai", dot: Boolean(props.aiWaiting) } }
+      ? { ai: { key: "ai", label: props.aiWaiting ? `${t("ai.ask")} · ${t("ai.waitingCount", { count: props.aiWaiting })}` : t("ai.ask"), icon: <Sparkles size={ICON.head} />, run: props.onOpenAi, testId: "ribbon-ai", count: props.aiWaiting ?? 0, dot: !props.aiWaiting && Boolean(props.aiAsking) } }
       : {}),
   };
 
@@ -177,7 +181,7 @@ export function AppRibbon(props: AppRibbonProps) {
   const shown = useMemo(
     () => (visibleAreas(layout) as RibbonId[]).filter((id) => catalog[id] !== undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout, props.onOpenCalendar, props.onOpenMail, props.onOpenAi, props.aiWaiting],
+    [layout, props.onOpenCalendar, props.onOpenMail, props.onOpenAi, props.aiWaiting, props.aiAsking],
   );
 
   /** Which slot the pointer currently sits over (the rail is vertical). */
@@ -221,7 +225,7 @@ export function AppRibbon(props: AppRibbonProps) {
       <button
         key={a.key}
         data-ribbon-key={sortable ? a.key : undefined}
-        className={a.dot ? "pv-iconbtn pv-iconbtn--dot" : "pv-iconbtn"}
+        className={a.dot || a.count ? "pv-iconbtn pv-iconbtn--dot" : "pv-iconbtn"}
         aria-label={a.label}
         data-tip={a.label}
         data-testid={a.testId}
@@ -250,7 +254,13 @@ export function AppRibbon(props: AppRibbonProps) {
         }}
       >
         {a.icon}
-        {a.dot && <span className="pv-iconbtn-dot" aria-hidden="true" data-testid={`${a.testId ?? a.key}-dot`} />}
+        {a.count ? (
+          <span className="pv-iconbtn-dot pv-iconbtn-dot--count" aria-hidden="true" data-testid={`${a.testId ?? a.key}-count`}>
+            {a.count}
+          </span>
+        ) : (
+          a.dot && <span className="pv-iconbtn-dot" aria-hidden="true" data-testid={`${a.testId ?? a.key}-dot`} />
+        )}
       </button>
     );
   };

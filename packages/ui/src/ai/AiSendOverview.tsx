@@ -610,14 +610,16 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         </Button>
       )}
       {/* A setting, not an answer: its own line above the buttons (plan K9). */}
-      {asking && everyRequest && (
-        <span className="pv-ai-overview-every">
-          <Switch checked={everyRequest.value} onChange={everyRequest.onChange} label={t("ai.overview.everyRequest")} />
-          <span aria-hidden="true">{t("ai.overview.everyRequest")}</span>
-        </span>
-      )}
+      {/* The switch "Ask before every request" belongs to the decision and stands in its foot (mockup M8): the foot is
+          pinned while the overview scrolls, and nothing of it is ever covered by the buttons. */}
       {asking && (
         <div className="pv-ai-overview-actions">
+          {everyRequest && (
+            <span className="pv-ai-overview-every">
+              <Switch checked={everyRequest.value} onChange={everyRequest.onChange} label={t("ai.overview.everyRequest")} />
+              <span aria-hidden="true">{t("ai.overview.everyRequest")}</span>
+            </span>
+          )}
           <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel")}
           </Button>

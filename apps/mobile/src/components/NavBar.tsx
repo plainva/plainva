@@ -1,7 +1,7 @@
 import { useRef, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
-import { ICON, useAiWaitingCount } from "@plainva/ui";
+import { ICON, useAiAsking, useAiWaitingCount } from "@plainva/ui";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { haptics } from "../services/haptics";
 import { useAutoHideChrome } from "../hooks/useAutoHideChrome";
@@ -74,6 +74,7 @@ export function NavBar({
 }) {
   const { t } = useTranslation();
   const aiWaiting = useAiWaitingCount(getMobileAiSession());
+  const aiAsking = useAiAsking(getMobileAiSession());
   const pressTimer = useRef<number | null>(null);
   // Reading downwards, the bar draws itself in to labels-off (S11 / the
   // mockup's retreating bar); it opens again on the way back up. Its
@@ -132,7 +133,7 @@ export function NavBar({
             <span className="m-tab-pill">
               <Icon size={ICON.head} />
               {/* Something of the AI waits for a decision (plan KI-Oberflächen K11). */}
-              {id === "ai" && aiWaiting > 0 && <span className="m-tab-dot" aria-hidden="true" data-testid="tab-ai-dot" />}
+              {id === "ai" && (aiWaiting > 0 || aiAsking) && <span className="m-tab-dot" aria-hidden="true" data-testid="tab-ai-dot" />}
             </span>
             {/* Bar-specific short name where one exists (E7) — an ellipsis
                 ("Datenbanke…") is not a shortened label, it is a broken one. */}

@@ -515,7 +515,7 @@
       "title": "Enviar para {{provider}}?",
       "sentTitle": "Enviado para {{provider}}",
       "why": {
-        "first": "Nada foi aprovado nesta sessão ainda.",
+        "first": "Pela primeira vez nesta conversa.",
         "recipient": "Um novo destinatário: {{model}}",
         "dataClass": "Um novo tipo de dado: {{kind}}",
         "folder": "Notas de outra pasta: {{folder}}",
@@ -1449,9 +1449,9 @@
       "now": {
         "none": "Agora: ainda não há nenhum modelo configurado",
         "noneBody": "Adicione um provedor abaixo e escolha um modelo para um perfil.",
-        "cloud": "Agora: Nuvem — um provedor responde",
+        "cloud": "Agora: Nuvem — {{provider}} responde",
         "cloudBody": "Novas conversas começam com {{provider}} · {{model}}. Este dispositivo não calcula nada por conta própria para a IA.",
-        "hybrid": "Agora: Híbrido — este dispositivo faz a triagem, um provedor responde",
+        "hybrid": "Agora: Híbrido — este dispositivo faz a triagem, {{provider}} responde",
         "hybridBody": "Novas conversas começam com {{provider}} · {{model}}. Este dispositivo calcula por conta própria: {{helpers}}.",
         "device": "Agora: um modelo neste dispositivo responde — sem garantia",
         "deviceBody": "Novas conversas começam com {{provider}} · {{model}}. Outro perfil, a internet ou uma ferramenta externa ainda podem se comunicar com o exterior; “Totalmente local” transforma isso em uma garantia.",

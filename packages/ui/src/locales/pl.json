@@ -539,7 +539,7 @@
       "title": "Wysłać do {{provider}}?",
       "sentTitle": "Wysłano do {{provider}}",
       "why": {
-        "first": "W tej sesji nic jeszcze nie zatwierdzono.",
+        "first": "Po raz pierwszy w tej rozmowie.",
         "recipient": "Nowy odbiorca: {{model}}",
         "dataClass": "Nowy rodzaj danych: {{kind}}",
         "folder": "Notatki z innego folderu: {{folder}}",
@@ -1507,9 +1507,9 @@
       "now": {
         "none": "Teraz: nie skonfigurowano jeszcze żadnego modelu",
         "noneBody": "Dodaj poniżej dostawcę i wybierz model dla profilu.",
-        "cloud": "Teraz: Chmura — odpowiada dostawca",
+        "cloud": "Teraz: Chmura — odpowiada {{provider}}",
         "cloudBody": "Nowe rozmowy domyślnie używają modelu: {{provider}} · {{model}}. To urządzenie samo nic nie liczy dla AI.",
-        "hybrid": "Teraz: Hybryda — to urządzenie sortuje, odpowiada dostawca",
+        "hybrid": "Teraz: Hybryda — to urządzenie sortuje, odpowiada {{provider}}",
         "hybridBody": "Nowe rozmowy domyślnie używają modelu: {{provider}} · {{model}}. To urządzenie samo liczy: {{helpers}}.",
         "device": "Teraz: odpowiada model na tym urządzeniu — bez obietnicy",
         "deviceBody": "Nowe rozmowy domyślnie używają modelu: {{provider}} · {{model}}. Przez inny profil, internet lub narzędzie zewnętrzne nadal może coś wychodzić na zewnątrz; „W pełni lokalnie” zamienia to w obietnicę.",

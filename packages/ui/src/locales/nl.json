@@ -491,7 +491,7 @@
       "title": "Verzenden naar {{provider}}?",
       "sentTitle": "Verzonden naar {{provider}}",
       "why": {
-        "first": "In deze sessie is nog niets goedgekeurd.",
+        "first": "Voor het eerst in dit gesprek.",
         "recipient": "Een nieuwe ontvanger: {{model}}",
         "dataClass": "Een nieuw soort gegevens: {{kind}}",
         "folder": "Notities uit een andere map: {{folder}}",
@@ -1391,9 +1391,9 @@
       "now": {
         "none": "Nu: er is nog geen model ingesteld",
         "noneBody": "Voeg hieronder een provider toe en kies een model voor een profiel.",
-        "cloud": "Nu: Cloud — een provider antwoordt",
+        "cloud": "Nu: Cloud — {{provider}} antwoordt",
         "cloudBody": "Nieuwe gesprekken beginnen met {{provider}} · {{model}}. Dit apparaat berekent zelf niets voor de AI.",
-        "hybrid": "Nu: Hybride — dit apparaat sorteert, een provider antwoordt",
+        "hybrid": "Nu: Hybride — dit apparaat sorteert, {{provider}} antwoordt",
         "hybridBody": "Nieuwe gesprekken beginnen met {{provider}} · {{model}}. Dit apparaat rekent zelf: {{helpers}}.",
         "device": "Nu: een model op dit apparaat antwoordt — zonder belofte",
         "deviceBody": "Nieuwe gesprekken beginnen met {{provider}} · {{model}}. Een ander profiel, het internet of een extern hulpmiddel kan nog steeds naar buiten gaan; “Volledig lokaal” maakt daar een belofte van.",

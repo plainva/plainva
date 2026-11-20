@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { useAiWaitingCount, type AiSession, type AiState } from "@plainva/ui";
+import { AiOpenWrites, useAiAsking, useAiWaitingCount, useOpenProposals, type AiSession, type AiState } from "@plainva/ui";
 
 /**
  * The AI's waiting dot after a change of vault (C11 of release 0.9.0): the
@@ -64,5 +64,39 @@ describe("the AI's waiting count", () => {
     expect(host.textContent).toBe("0");
     await act(async () => switchTo("work"));
     expect(host.textContent).toBe("3");
+  });
+});
+
+/** The AI's entry beside the segment "To decide" itself, both read from one session. */
+function EntryAndSegment({ session }: { session: AiSession }) {
+  const state = session.getState();
+  const proposals = useOpenProposals(session, "one");
+  return (
+    <>
+      <span data-testid="count">{useAiWaitingCount(session)}</span>
+      <span data-testid="asking">{String(useAiAsking(session))}</span>
+      <AiOpenWrites state={state.drafts} proposals={proposals} canCreate={false} busy={false} onOpenNote={() => undefined} onCreate={() => undefined} onDiscard={() => undefined} />
+    </>
+  );
+}
+
+describe("the number is what the segment lists (F71 of release 0.9.0, mockup M10)", () => {
+  it("counts the notes with proposals the segment shows — not the skills that wait, not the question being asked", async () => {
+    const { session } = fakeSession();
+    // A skill waits for its approval, and the running conversation asks before it sends: neither stands in the list.
+    const state = session.getState() as unknown as Record<string, unknown>;
+    state.skills = { entries: [{ id: "s1", status: "waiting", source: { kind: "skill" } }], omitted: [], servers: [] };
+    state.consent = { manifest: {} };
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => root!.render(<EntryAndSegment session={session} />));
+    await act(async () => {
+      for (let turns = 0; turns < 6; turns++) await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const rows = host.querySelectorAll('[data-testid="ai-open-proposal"]').length;
+    expect(rows).toBe(3);
+    expect(host.querySelector('[data-testid="count"]')!.textContent).toBe(String(rows));
+    expect(host.querySelector('[data-testid="asking"]')!.textContent).toBe("true");
   });
 });

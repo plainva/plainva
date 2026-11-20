@@ -179,11 +179,14 @@ function AiSettingsBody({ session }: { session: AiSession }) {
                 </SettingRow>
               );
             })}
-            <SettingCardNote>
-              <Button size="sm" variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => setAdding(true)} data-testid="ai-add-provider-open">
-                {t("ai.settings.addProvider")}
-              </Button>
-            </SettingCardNote>
+            {/* While no provider is there, the setup row above is the one way to add one (mockup M3: one card, one name). */}
+            {step !== "provider" && (
+              <SettingCardNote>
+                <Button size="sm" variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => setAdding(true)} data-testid="ai-add-provider-open">
+                  {t("ai.settings.addProvider")}
+                </Button>
+              </SettingCardNote>
+            )}
             {/* The profiles appear once a provider is there (plan Oberfläche O7, M7): before that they could only say "not set up". */}
             {rows.length > 0 && (
               <>

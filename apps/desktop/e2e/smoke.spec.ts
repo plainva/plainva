@@ -8098,7 +8098,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   //    computer reads e-mails and appointments itself. Only "Fully local" is a switch.
   let dialog = await openAppAi();
   let app = dialog.getByTestId('settings-ai');
-  await expect(app).toContainText('Now: Hybrid — this device sorts, a provider answers');
+  await expect(app).toContainText('Now: Hybrid — this device sorts, Anthropic answers');
   await expect(app).toContainText('New conversations start with Anthropic · m-1.');
   await expect(app).toContainText('reading e-mails and appointments (granite3.3:8b)');
   // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
@@ -8169,7 +8169,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   app = dialog.getByTestId('settings-ai');
   await app.getByTestId('ai-local-only').click();
   await expect(app.getByTestId('ai-local-only')).toHaveAttribute('aria-checked', 'false');
-  await expect(app).toContainText('Now: Hybrid — this device sorts, a provider answers');
+  await expect(app).toContainText('Now: Hybrid — this device sorts, Anthropic answers');
   await expect(app).not.toContainText('this rests');
   await expect.poll(async () => (await told()).at(-1)).toBe(false);
 });

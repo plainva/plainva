@@ -26,7 +26,7 @@ import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
 import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
-import { requestAiSettingsIntent } from "./aiSetup";
+import { aiSetupStep, requestAiSettingsIntent } from "./aiSetup";
 import { GROUNDS_NAMED, groundTitles } from "./answerGrounds";
 import type { AiDress, AiSession } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
@@ -156,8 +156,11 @@ function useDirectFolder(session: AiSession | null, path: string | null): string
   return found && found.path === path ? found.folder : null;
 }
 
-/** Whether a folder of the vault lets changes go without asking (F71 of release 0.9.0); false while it is asked. */
-function useHasDirectFolders(session: AiSession | null, key: string): boolean {
+/**
+ * Whether a folder of the vault lets changes go without asking (F71 of release 0.9.0); null while it is asked — the
+ * marking line then says nothing about changes rather than more protection than is known.
+ */
+function useHasDirectFolders(session: AiSession | null, key: string): boolean | null {
   const [found, setFound] = useState<{ key: string; direct: boolean } | null>(null);
   useEffect(() => {
     if (!session) return;
@@ -169,7 +172,7 @@ function useHasDirectFolders(session: AiSession | null, key: string): boolean {
       alive = false;
     };
   }, [session, key]);
-  return found?.key === key && found.direct;
+  return found?.key === key ? found.direct : null;
 }
 
 export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection, start, onOpenSkills }: AiConversationProps) {
@@ -275,10 +278,18 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   if (!choice || !provider) {
     return (
       <div className={cx("pv-ai", touch && "pv-ai--touch")}>
-        <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.setupTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.setupAction")}</Button>}>
-          {/* The phone runs no server of its own (parity decision ai-local-servers): its way without a key is the system's model. */}
-          {touch ? t("ai.empty.setupBodyPhone") : t("ai.empty.setupBody")}
-        </EmptyState>
+        {/* The step that is missing, in the words of the settings (mockup M3): a provider, or — with one there — the model
+            new conversations start with. */}
+        {aiSetupStep(state) === "model" ? (
+          <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.setup.modelTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.setupAction")}</Button>} testId="ai-setup-model-missing">
+            {t("ai.setup.modelBody", { profile: t(`ai.profile.${state.settings.defaultProfile}`) })}
+          </EmptyState>
+        ) : (
+          <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.setupTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.setupAction")}</Button>}>
+            {/* The phone runs no server of its own (parity decision ai-local-servers): its way without a key is the system's model. */}
+            {touch ? t("ai.empty.setupBodyPhone") : t("ai.empty.setupBody")}
+          </EmptyState>
+        )}
       </div>
     );
   }
@@ -784,7 +795,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             {t("ai.direct.marking")}
           </span>
         ) : (
-          directOffer && (
+          directOffer &&
+          directFolders !== null && (
             <span className="pv-ai-marking-web" data-testid="ai-direct-off-marking">
               {directFolders ? t("ai.direct.markingOffFolders") : t("ai.direct.markingOff")}
             </span>

@@ -515,7 +515,7 @@
       "title": "Inviare a {{provider}}?",
       "sentTitle": "Inviato a {{provider}}",
       "why": {
-        "first": "In questa sessione non è ancora stato approvato nulla.",
+        "first": "Per la prima volta in questa conversazione.",
         "recipient": "Un nuovo destinatario: {{model}}",
         "dataClass": "Un nuovo tipo di dati: {{kind}}",
         "folder": "Note da un'altra cartella: {{folder}}",
@@ -1449,9 +1449,9 @@
       "now": {
         "none": "Ora: nessun modello è ancora configurato",
         "noneBody": "Aggiungi un provider qui sotto e scegli un modello per un profilo.",
-        "cloud": "Ora: Cloud — un provider risponde",
+        "cloud": "Ora: Cloud — risponde {{provider}}",
         "cloudBody": "Le nuove conversazioni iniziano con {{provider}} · {{model}}. Questo dispositivo non calcola nulla da sé per l'IA.",
-        "hybrid": "Ora: Ibrido — questo dispositivo smista, un provider risponde",
+        "hybrid": "Ora: Ibrido — questo dispositivo smista, risponde {{provider}}",
         "hybridBody": "Le nuove conversazioni iniziano con {{provider}} · {{model}}. Questo dispositivo calcola da sé: {{helpers}}.",
         "device": "Ora: un modello su questo dispositivo risponde — senza garanzia",
         "deviceBody": "Le nuove conversazioni iniziano con {{provider}} · {{model}}. Un altro profilo, Internet o uno strumento esterno possono comunque comunicare con l'esterno; «Completamente locale» garantisce che non accada.",

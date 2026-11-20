@@ -515,7 +515,7 @@
       "title": "Envoyer à {{provider}} ?",
       "sentTitle": "Envoyé à {{provider}}",
       "why": {
-        "first": "Rien n'a encore été approuvé dans cette session.",
+        "first": "Pour la première fois dans cette conversation.",
         "recipient": "Un nouveau destinataire : {{model}}",
         "dataClass": "Un nouveau type de données : {{kind}}",
         "folder": "Des notes d'un autre dossier : {{folder}}",
@@ -1449,9 +1449,9 @@
       "now": {
         "none": "Actuellement : aucun modèle n'est encore configuré",
         "noneBody": "Ajoutez un fournisseur ci-dessous et choisissez un modèle pour un profil.",
-        "cloud": "Actuellement : Cloud — un fournisseur répond",
+        "cloud": "Actuellement : Cloud — {{provider}} répond",
         "cloudBody": "Les nouvelles conversations commencent avec {{provider}} · {{model}}. Cet appareil ne calcule rien lui-même pour l'IA.",
-        "hybrid": "Actuellement : Hybride — cet appareil trie, un fournisseur répond",
+        "hybrid": "Actuellement : Hybride — cet appareil trie, {{provider}} répond",
         "hybridBody": "Les nouvelles conversations commencent avec {{provider}} · {{model}}. Cet appareil calcule lui-même : {{helpers}}.",
         "device": "Actuellement : un modèle sur cet appareil répond — sans promesse",
         "deviceBody": "Les nouvelles conversations commencent avec {{provider}} · {{model}}. Un autre profil, Internet ou un outil externe peuvent encore communiquer avec l'extérieur ; « Entièrement local » en fait une promesse.",

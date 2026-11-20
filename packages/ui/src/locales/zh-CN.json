@@ -467,7 +467,7 @@
       "title": "发送到{{provider}}？",
       "sentTitle": "已发送至{{provider}}",
       "why": {
-        "first": "本次会话中尚未批准任何内容。",
+        "first": "这是本次对话中的第一次。",
         "recipient": "新的接收方：{{model}}",
         "dataClass": "新的数据类型：{{kind}}",
         "folder": "来自其他文件夹的笔记：{{folder}}",
@@ -1333,9 +1333,9 @@
       "now": {
         "none": "现在：尚未设置模型",
         "noneBody": "在下方添加服务商，并为某个配置选择模型。",
-        "cloud": "现在：云端——由服务商回答",
+        "cloud": "现在：云端——由 {{provider}} 回答",
         "cloudBody": "新对话以 {{provider}} · {{model}} 开始。此设备本身不为 AI 做任何计算。",
-        "hybrid": "现在：混合——此设备筛选，由服务商回答",
+        "hybrid": "现在：混合——此设备筛选，由 {{provider}} 回答",
         "hybridBody": "新对话以 {{provider}} · {{model}} 开始。此设备自行计算：{{helpers}}。",
         "device": "现在：由此设备上的模型回答——但没有承诺",
         "deviceBody": "新对话以 {{provider}} · {{model}} 开始。其他配置、互联网或外部工具仍可能与外界联系；“完全本地”会把这一点变成一项承诺。",
