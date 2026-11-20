@@ -9,6 +9,7 @@
     },
     "waitingCount_other": "{{count}} te beslissen",
     "waitingCount_one": "{{count}} te beslissen",
+    "waitingSomething": "er wacht iets op je",
     "pending": {
       "answerFirst": "Beantwoord eerst de vraag hierboven"
     },
@@ -1391,9 +1392,9 @@
       "now": {
         "none": "Nu: er is nog geen model ingesteld",
         "noneBody": "Voeg hieronder een provider toe en kies een model voor een profiel.",
-        "cloud": "Nu: Cloud — een provider antwoordt",
+        "cloud": "Nu: Cloud — {{provider}} antwoordt",
         "cloudBody": "Nieuwe gesprekken beginnen met {{provider}} · {{model}}. Dit apparaat berekent zelf niets voor de AI.",
-        "hybrid": "Nu: Hybride — dit apparaat sorteert, een provider antwoordt",
+        "hybrid": "Nu: Hybride — dit apparaat sorteert, {{provider}} antwoordt",
         "hybridBody": "Nieuwe gesprekken beginnen met {{provider}} · {{model}}. Dit apparaat rekent zelf: {{helpers}}.",
         "device": "Nu: een model op dit apparaat antwoordt — zonder belofte",
         "deviceBody": "Nieuwe gesprekken beginnen met {{provider}} · {{model}}. Een ander profiel, het internet of een extern hulpmiddel kan nog steeds naar buiten gaan; “Volledig lokaal” maakt daar een belofte van.",

@@ -2808,8 +2808,11 @@ textarea {
   display: flex;
   margin-top: var(--space-5);
 }
+/* Each segment at least as wide as its label (F71 of release 0.9.0): equal shares of a phone's width cut the fourth of
+   the AI's segments to "Gedä…". The room left over is shared; a row too wide for the screen scrolls, as the control
+   itself does, never cuts a label. */
 .m-page > .pv-segmented > .pv-seg-item {
-  flex: 1 1 0;
+  flex: 1 0 auto;
   justify-content: center;
 }
 

@@ -30,14 +30,14 @@ describe("the line that says what holds now", () => {
 
   it("says Cloud where a provider answers and this device computes nothing itself", () => {
     const now = facts({ providers: ["anthropic"], profiles: { balanced: CLOUD } });
-    expect(now.title).toBe("Now: Cloud — a provider answers");
+    expect(now.title).toBe("Now: Cloud — Anthropic answers");
     expect(now.body).toBe("New conversations start with Anthropic · m-1. This device computes nothing for the AI itself.");
   });
 
   it("says Hybrid once this device computes something itself, and names what", () => {
     expect(facts({ profiles: { balanced: CLOUD }, semanticModel: "granite-r2-97m" }).body).toBe("New conversations start with Anthropic · m-1. This device computes itself: search by meaning.");
     const all = facts({ profiles: { balanced: CLOUD, local: LOCAL }, semanticModel: "granite-r2-97m", gists: true });
-    expect(all.title).toBe("Now: Hybrid — this device sorts, a provider answers");
+    expect(all.title).toBe("Now: Hybrid — this device sorts, Anthropic answers");
     expect(all.body).toBe("New conversations start with Anthropic · m-1. This device computes itself: search by meaning, reading e-mails and appointments (granite3.3:8b), and the short summaries.");
   });
 

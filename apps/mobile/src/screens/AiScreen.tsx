@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { History, SquarePen } from "lucide-react";
-import { AiConversation, AiSessionContext, GroupCard, ICON, IconButton, openWriteLines, openWritesCount, Row, RowList, SectionLabel, startAiConversation, useOpenProposals, waitingCount, type OpenWriteLine } from "@plainva/ui";
+import { AiConversation, AiSessionContext, GroupCard, ICON, IconButton, openWriteLines, openWritesCount, Row, RowList, SectionLabel, startAiConversation, useOpenProposals, type OpenWriteLine } from "@plainva/ui";
 import type { ConversationSummary } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useAiSetupDoor } from "../hooks/useAiSetupDoor";
@@ -81,7 +81,8 @@ function useAiStartRows(): { waiting: number; lines: OpenWriteLine[]; recent: Co
   const proposals = useOpenProposals(session);
   if (!state.hasVault) return { waiting: 0, lines: [], recent: [], hasVault: false };
   return {
-    waiting: openWritesCount(state.drafts, proposals) + waitingCount(state.skills.entries),
+    // Exactly what the segment "To decide" lists (mockup M10): skills that wait have their own number at "Skills".
+    waiting: openWritesCount(state.drafts, proposals),
     lines: openWriteLines(t, i18n.language, state.drafts, proposals),
     recent: state.summaries.slice(0, 3),
     hasVault: true,
@@ -104,18 +105,15 @@ function AiStartPage({ onHistory }: { onHistory: (view?: AiHistoryView) => void 
   return (
     <div className="m-ai-start" data-testid="ai-start">
       {/* What waits (F71 of release 0.9.0, mockup M12): the first lines of the segment "To decide", as it shows them;
-          the number beside the heading says how many there are, a tap opens the segment. Skills that wait for an
-          approval have no line of their own there: their count alone stands, as one row. */}
+          the number beside the heading says how many there are, a tap opens the segment. */}
       {waiting > 0 && (
         <>
           <SectionLabel end={<span className="m-row-note" data-testid="ai-start-waiting-count">{waiting}</span>}>{t("ai.write.open.segment")}</SectionLabel>
           <GroupCard>
             <RowList>
-              {lines.length > 0 ? (
-                lines.slice(0, START_WAITING_LINES).map((line) => <Row key={line.key} title={line.title} subtitle={line.detail} onClick={() => onHistory("open")} data-testid="ai-start-waiting" />)
-              ) : (
-                <Row title={t("ai.write.open.segment")} end={<span className="m-row-note">{waiting}</span>} onClick={() => onHistory("open")} data-testid="ai-start-waiting" />
-              )}
+              {lines.slice(0, START_WAITING_LINES).map((line) => (
+                <Row key={line.key} title={line.title} subtitle={line.detail} onClick={() => onHistory("open")} data-testid="ai-start-waiting" />
+              ))}
             </RowList>
           </GroupCard>
         </>
