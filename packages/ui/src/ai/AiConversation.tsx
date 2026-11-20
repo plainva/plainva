@@ -12,6 +12,7 @@ import { MenuItem, MenuSeparator, MenuSurface } from "../components/ui/Menu";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import { toast } from "../services/toastStore";
+import { usePendingMore } from "./pendingMore";
 import { AiAnswer } from "./AiAnswer";
 import { AiContextLens } from "./AiContextLens";
 import { AiEffectApproval } from "./AiEffectApproval";
@@ -261,6 +262,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const folderOfNote = useDirectFolder(session ?? null, activeNote?.path ?? null);
   // Asked again with each conversation and each vault: a rule written meanwhile counts from the next one on.
   const directFolders = useHasDirectFolders(session ?? null, `${state?.hasVault ? "vault" : "none"}:${state?.active?.id ?? "new"}`);
+  // Each waiting card scrolls inside itself; its foot says when more lies above it (review of M8). Asked before any early return.
+  const pendingRef = useRef<HTMLDivElement | null>(null);
+  usePendingMore(pendingRef, Boolean(state?.consent || state?.effect || state?.question || extPrompt));
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {
@@ -1018,7 +1022,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
       {/* A question that waits stands above the composer, never scrolled away (plan KI-Oberflächen K9) — in every dress,
           the dock too, which has the column's full height since plan Oberfläche O7. */}
       {waiting ? (
-        <div className="pv-ai-pending" data-testid="ai-pending">
+        <div className="pv-ai-pending" data-testid="ai-pending" ref={pendingRef}>
         {consent && (
           <AiSendOverview
             manifest={consent.manifest}

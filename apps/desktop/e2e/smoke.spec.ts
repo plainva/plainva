@@ -9488,6 +9488,33 @@ async function o7OpenRelaunch(page: Page) {
   await expect(page.locator('.cm-content').first()).toContainText('Three feature pages');
 }
 
+test('a waiting card in the dock: nothing of it lies under its pinned foot, and its lower edge stays in view (review of M8)', async ({ page }) => {
+  await o7WithAi(page, [o7Says('Short summary of [[Website relaunch]].')]);
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  await expect(dock.getByTestId('ai-consent')).toBeVisible();
+  await page.waitForTimeout(300);
+  const at = await page.evaluate(() => {
+    const card = document.querySelector('[data-testid="ai-dock"] [data-testid="ai-consent"]') as HTMLElement;
+    const foot = card.querySelector('.pv-ai-overview-actions') as HTMLElement;
+    const pending = card.closest('[data-testid="ai-pending"]') as HTMLElement;
+    const footTop = foot.getBoundingClientRect().top;
+    const above = [...card.querySelectorAll("dt, dd, li, p, button, [role='switch'], .pv-ai-overview-head")].filter((el) => !foot.contains(el)) as HTMLElement[];
+    return {
+      covered: above.filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().bottom > footTop + 0.5).map((el) => (el.textContent ?? el.tagName).trim().slice(0, 40)),
+      cardBottom: card.getBoundingClientRect().bottom,
+      pendingBottom: pending.getBoundingClientRect().bottom,
+      viewport: innerHeight,
+    };
+  });
+  expect(at.covered, 'nothing of the card lies under its foot').toEqual([]);
+  expect(at.cardBottom, "the card's lower edge stands inside the pending column").toBeLessThanOrEqual(at.pendingBottom + 0.5);
+  expect(at.cardBottom, 'and on the screen').toBeLessThanOrEqual(at.viewport);
+});
+
 test('the conversation opens in the right column with the week above it; Pop out and Dock move it, remembered', async ({ page }) => {
   await o7WithAi(page);
   await o7OpenRelaunch(page);

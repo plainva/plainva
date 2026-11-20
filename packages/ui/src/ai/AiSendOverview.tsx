@@ -550,7 +550,19 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           </>
         )}
         <dt>{t("ai.overview.size")}</dt>
-        <dd>{estimate}</dd>
+        {/* "Details" on the line of the size, right above the foot (mockup M8): reachable without searching, whatever is
+            open above, and it costs no line of its own on the phone, where the foot is two lines high. */}
+        <dd className="pv-ai-overview-size">
+          {estimate}
+          {asking && hasMore && (
+            <>
+              <span aria-hidden="true"> · </span>
+              <Button size="sm" variant="ghost" className="pv-ai-overview-more" aria-expanded={details} onClick={() => setDetails((open) => !open)} data-testid="ai-overview-more">
+                {details ? t("ai.overview.lessDetails") : t("ai.details")}
+              </Button>
+            </>
+          )}
+        </dd>
         {coverage?.level && (
           <>
             <dt>{t("ai.coverage.label")}</dt>
@@ -604,14 +616,10 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           )}
         </div>
       )}
-      {asking && hasMore && (
-        <Button size="sm" variant="ghost" className="pv-ai-overview-more" aria-expanded={details} onClick={() => setDetails((open) => !open)} data-testid="ai-overview-more">
-          {details ? t("ai.overview.lessDetails") : t("ai.details")}
-        </Button>
-      )}
       {/* A setting, not an answer: its own line above the buttons (plan K9). */}
-      {/* The switch "Ask before every request" belongs to the decision and stands in its foot (mockup M8): the foot is
-          pinned while the overview scrolls, and nothing of it is ever covered by the buttons. */}
+      {/* The switch "Ask before every request" belongs to the decision and stands in its foot (mockup M8). The card is its
+          own scroll area in the pending column and the foot is pinned inside it: what scrolls goes under the foot, the
+          card's edge stays whole, and a line on the foot says when more lies above it. */}
       {asking && (
         <div className="pv-ai-overview-actions">
           {everyRequest && (
