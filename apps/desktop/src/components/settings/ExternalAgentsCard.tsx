@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, Plus, Trash2 } from "lucide-react";
 import { acpCommandText } from "@plainva/core";
-import { agentArgsFromText, agentSeenText, Banner, Button, ICON, IconButton, Modal, SettingCard, SettingCardNote, SettingRow, TextArea, TextInput, toast, useDiscardGuard, type AiSession } from "@plainva/ui";
+import { agentArgsFromText, agentSeenText, Banner, Button, ICON, IconButton, Modal, SettingCardNote, SettingRow, TextArea, TextInput, toast, useDiscardGuard, type AiSession } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 
@@ -19,7 +19,7 @@ const NONE = () => null;
  *
  * Desktop only (parity catalog `ai-external-agents`).
  */
-export function ExternalAgentsCard() {
+export function ExternalAgentsRows() {
   const { t, i18n } = useTranslation();
   const session = getDesktopAiSession();
   const state = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
@@ -50,7 +50,9 @@ export function ExternalAgentsCard() {
 
   return (
     <>
-      <SettingCard label={t("ai.agent.title")} info={t("ai.agent.settings.desc")}>
+      {/* The agents' own heading inside "Other programs" (mockup KI-Oberflächen M2): its rows — "Another agent", "No agent
+          added yet" — need the name of what they list, and what an agent is stays behind its ⓘ. */}
+      <SettingRow label={t("ai.agent.title")} info={t("ai.agent.settings.desc")} />
         {/* Fully local (plan P7): no agent is started. */}
         {state.settings.localOnly && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
         {agents.length === 0 && <SettingCardNote>{t("ai.agent.settings.none")}</SettingCardNote>}
@@ -74,7 +76,6 @@ export function ExternalAgentsCard() {
             {t("ai.agent.settings.addAction")}
           </Button>
         </SettingRow>
-      </SettingCard>
       {adding && <AgentAddDialog session={session} confirmText={confirmText} onClose={() => setAdding(false)} />}
     </>
   );

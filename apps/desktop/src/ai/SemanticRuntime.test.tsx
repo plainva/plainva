@@ -24,7 +24,7 @@ vi.mock("../services/ai/localModels", () => ({
 }));
 vi.mock("../services/appDialogs", () => ({ appConfirm: async () => false }));
 
-import { SemanticSearchCard } from "../components/settings/SemanticSearchCard";
+import { SemanticSearchRows } from "../components/settings/SemanticSearchCard";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -56,7 +56,7 @@ async function open(available: boolean) {
   await act(async () => {
     root!.render(
       <AiSessionContext.Provider value={s}>
-        <SemanticSearchCard session={s} onChooseModel={() => undefined} />
+        <SemanticSearchRows session={s} onChooseModel={() => undefined} />
       </AiSessionContext.Provider>,
     );
   });

@@ -1,6 +1,6 @@
 # Connecting AI apps (Beta)
 
-Last reviewed: 2026-11-18
+Last reviewed: 2026-11-20
 
 AI apps on your computer — Claude Code, Claude Desktop, Cursor, VS Code and others that speak the Model Context Protocol (MCP) — can read your vault through Plainva: search it, read notes and their sections, outlines, backlinks, databases, tasks and recent notes, and open a note in Plainva. They change nothing by themselves: where you allow it, an app may propose changes, and those wait until you decide (see below). This is part of the experimental AI features and works on the desktop only.
 
@@ -14,7 +14,7 @@ Plainva ships a small helper program, `plainva-mcp`, next to the app. An AI app 
 
 ## Switching it on
 
-1. Open **Settings → AI** and switch on **Use AI on this device**; the card **AI apps on this computer** is further down the page.
+1. Open **Settings → AI** and switch on **Use AI on this device**; the rows for AI apps on this computer stand in the card **Other programs**, further down the page.
 2. Switch on **Let AI apps on this computer read this vault**.
 3. Set the app up (see below). The first time it connects, Plainva asks which app it is, which program started it and which folders it may read. Nothing is ticked: choose among the vault's top-level folders or **The whole vault**, then **Allow**. **Deny** turns the app away, and Plainva does not ask about it again for ten minutes. Below the folders stands **May suggest changes** — off unless you tick it; what it allows is described further down.
 

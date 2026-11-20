@@ -52,6 +52,11 @@ const ROW_COMPONENTS: Record<string, string> = {
   AreaRow: "renders a .pv-barrow row (Bars & areas)",
   EmptyState: ".pv-empty brings its own padding (--space-6)",
   CommentNotificationRows: "renders SettingRows (the remark notifications in Notes & filing › Annotations)",
+  SemanticSearchRows: "renders SettingRows, notes and blocks (AI › Without a model on this device)",
+  NoteHintsRows: "renders SettingRows (AI › Without a model on this device)",
+  GistsRows: "renders SettingRows and a note (AI › Without a model on this device)",
+  McpSettingsRows: "renders SettingRows and notes (AI › Other programs)",
+  ExternalAgentsRows: "renders SettingRows and notes (AI › Other programs)",
 };
 
 function tagName(node: ts.JsxElement | ts.JsxSelfClosingElement, file: ts.SourceFile): string {

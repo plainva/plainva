@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Package, Trash2 } from "lucide-react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Switch, toast, type AiSession } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCardNote, SettingRow, Switch, toast, type AiSession } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 import { claudeCodeCommand, mcpClientConfig, mcpRevoke, mcpSetWrites, mcpStatus, mcpWritePackage, type McpAuditEntry, type McpStatus } from "../../services/ai/mcpBridge";
 
@@ -13,7 +13,7 @@ import { claudeCodeCommand, mcpClientConfig, mcpRevoke, mcpSetWrites, mcpStatus,
  * — stage 2 — whether each may propose changes there) and what they asked
  * for lately. Desktop only (parity catalog `mcp-server`).
  */
-export function McpSettingsCard({ session, enabled, resting = false }: { session: AiSession; enabled: boolean; resting?: boolean }) {
+export function McpSettingsRows({ session, enabled, resting = false }: { session: AiSession; enabled: boolean; resting?: boolean }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<McpStatus | null>(null);
 
@@ -67,7 +67,7 @@ export function McpSettingsCard({ session, enabled, resting = false }: { session
   const helper = status?.helperPath ?? null;
 
   return (
-    <SettingCard label={t("ai.mcp.title")}>
+    <>
       {/* Fully local (plan P7): nothing listens — what an app does with what it reads, nobody here can see. */}
       {resting && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
       <SettingRow label={t("ai.mcp.switch")} desc={t("ai.mcp.switchLine")} info={t("ai.mcp.switchDesc")}>
@@ -140,6 +140,6 @@ export function McpSettingsCard({ session, enabled, resting = false }: { session
           </SettingCardNote>
         </>
       )}
-    </SettingCard>
+    </>
   );
 }

@@ -1,12 +1,12 @@
 # Habilidades (Beta)
 
-Última actualización: 2026-11-17
+Última actualización: 2026-11-20
 
 Una habilidad es un conjunto de instrucciones para un trabajo que se repite: preparar una reunión, ordenar tus tareas, un repaso semanal. Plainva incluye catorce y puedes escribir las tuyas. Las habilidades usan el formato abierto Agent Skills —una carpeta con un `SKILL.md`—, así que también funcionan en otras apps de IA que leen ese formato.
 
 ## Usar una habilidad
 
-Inicia una habilidad con un clic: en **Habilidades** bajo el campo de entrada de una conversación vacía (las destacadas primero), en **Habilidades** en la pestaña de IA, en el teléfono en la pantalla de IA, en las habilidades, o desde la paleta de comandos. La conversación funciona entonces con la habilidad: sus instrucciones van incluidas y solo usa las herramientas y carpetas que la habilidad nombra — una habilidad que no nombra herramientas recibe las que solo leen o muestran.
+Inicia una habilidad con un clic: en **Habilidades** bajo el campo de entrada de una conversación vacía (las destacadas primero), en **Habilidades** en la pestaña de IA, en el teléfono en el segmento **Habilidades** de la pantalla **IA**, o desde la paleta de comandos. La conversación funciona entonces con la habilidad: sus instrucciones van incluidas y solo usa las herramientas y carpetas que la habilidad nombra — una habilidad que no nombra herramientas recibe las que solo leen o muestran.
 
 También puedes simplemente preguntar. En una conversación con herramientas la IA conoce los nombres y las descripciones de tus habilidades activas — tantas como quepan en 6.000 caracteres; las demás se pueden seguir iniciando a mano — y carga una cuando tu pregunta encaja: basta con «prepara mi próxima reunión».
 

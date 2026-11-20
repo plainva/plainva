@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, SettingCard, SettingRow, Switch, useLocalEmbeddings, type AiSession } from "@plainva/ui";
+import { Button, SettingRow, Switch, useLocalEmbeddings, type AiSession } from "@plainva/ui";
 
 /**
  * "Next to the open note" in the AI settings (plan KI-Oberflächen K5): the two
@@ -9,7 +9,7 @@ import { Button, SettingCard, SettingRow, Switch, useLocalEmbeddings, type AiSes
  * each on or off for this device, with what of the open vault rests to bring
  * back. Neither needs a model. The phone shows the same group.
  */
-export function NoteHintsCard({ session }: { session: AiSession }) {
+export function NoteHintsRows({ session }: { session: AiSession }) {
   const { t } = useTranslation();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const { controller, state: embeddings } = useLocalEmbeddings();
@@ -17,7 +17,7 @@ export function NoteHintsCard({ session }: { session: AiSession }) {
   // Related notes come from the vectors of search by meaning: offered once it is ready on this device.
   const relatedReady = embeddings?.engine?.kind === "ready";
   return (
-    <SettingCard label={t("ai.settings.nextToNote")}>
+    <>
       {relatedReady && (
         <>
           <SettingRow label={t("ai.related.show")} info={t("ai.related.showDesc")}>
@@ -70,6 +70,6 @@ export function NoteHintsCard({ session }: { session: AiSession }) {
           </Button>
         </SettingRow>
       )}
-    </SettingCard>
+    </>
   );
 }

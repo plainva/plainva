@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { GroupCard, gistsStatusLine, Row, RowList, SectionLabel, Switch, useLocalGists, type AiSession } from "@plainva/ui";
+import { gistsStatusLine, Row, Switch, useLocalGists, type AiSession } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
 
 /**
@@ -8,7 +8,7 @@ import { mConfirm } from "../services/mobileDialogs";
  * the desktop card's switch and status in rows — written only by the model of
  * the profile "Local" on a server counted as local, off until chosen.
  */
-export function MobileGistsSection({ session }: { session: AiSession }) {
+export function MobileGistsRows({ session }: { session: AiSession }) {
   const { t, i18n } = useTranslation();
   const settings = useSyncExternalStore(session.subscribe, session.getState).settings;
   const { controller, state } = useLocalGists();
@@ -18,9 +18,6 @@ export function MobileGistsSection({ session }: { session: AiSession }) {
   };
   return (
     <>
-      <SectionLabel>{t("ai.gists.title")}</SectionLabel>
-      <GroupCard>
-        <RowList>
           <Row
             wrap
             title={t("ai.gists.show")}
@@ -40,8 +37,6 @@ export function MobileGistsSection({ session }: { session: AiSession }) {
             end={<Switch checked={settings.transcriptSummary} label={t("ai.transcribe.summary")} onChange={(on) => void session.updateSettings((s) => ({ ...s, transcriptSummary: on }))} />}
             data-testid="transcript-summary"
           />
-        </RowList>
-      </GroupCard>
     </>
   );
 }
