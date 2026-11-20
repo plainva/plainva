@@ -10,6 +10,7 @@
     "waitingCount_other": "{{count}} a decidir",
     "waitingCount_many": "{{count}} a decidir",
     "waitingCount_one": "{{count}} a decidir",
+    "waitingSomething": "algo espera por você",
     "pending": {
       "answerFirst": "Responda primeiro à pergunta acima"
     },
@@ -1449,9 +1450,9 @@
       "now": {
         "none": "Agora: ainda não há nenhum modelo configurado",
         "noneBody": "Adicione um provedor abaixo e escolha um modelo para um perfil.",
-        "cloud": "Agora: Nuvem — um provedor responde",
+        "cloud": "Agora: Nuvem — {{provider}} responde",
         "cloudBody": "Novas conversas começam com {{provider}} · {{model}}. Este dispositivo não calcula nada por conta própria para a IA.",
-        "hybrid": "Agora: Híbrido — este dispositivo faz a triagem, um provedor responde",
+        "hybrid": "Agora: Híbrido — este dispositivo faz a triagem, {{provider}} responde",
         "hybridBody": "Novas conversas começam com {{provider}} · {{model}}. Este dispositivo calcula por conta própria: {{helpers}}.",
         "device": "Agora: um modelo neste dispositivo responde — sem garantia",
         "deviceBody": "Novas conversas começam com {{provider}} · {{model}}. Outro perfil, a internet ou uma ferramenta externa ainda podem se comunicar com o exterior; “Totalmente local” transforma isso em uma garantia.",

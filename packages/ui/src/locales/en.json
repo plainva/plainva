@@ -9,6 +9,7 @@
     },
     "waitingCount_other": "{{count}} to decide",
     "waitingCount_one": "{{count}} to decide",
+    "waitingSomething": "something waits for you",
     "pending": {
       "answerFirst": "Answer the question above first"
     },
@@ -1391,9 +1392,9 @@
       "now": {
         "none": "Now: no model is set up yet",
         "noneBody": "Add a provider below and choose a model for a profile.",
-        "cloud": "Now: Cloud — a provider answers",
+        "cloud": "Now: Cloud — {{provider}} answers",
         "cloudBody": "New conversations start with {{provider}} · {{model}}. This device computes nothing for the AI itself.",
-        "hybrid": "Now: Hybrid — this device sorts, a provider answers",
+        "hybrid": "Now: Hybrid — this device sorts, {{provider}} answers",
         "hybridBody": "New conversations start with {{provider}} · {{model}}. This device computes itself: {{helpers}}.",
         "device": "Now: a model on this device answers — without a promise",
         "deviceBody": "New conversations start with {{provider}} · {{model}}. Another profile, the internet or an external tool can still reach out; “Fully local” turns this into a promise.",

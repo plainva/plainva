@@ -117,10 +117,10 @@ export function modeFacts(t: T, state: AiState, locale: string): ModeFacts {
     case "none":
       return facts(t("ai.mode.now.none"), t("ai.mode.now.noneBody"));
     case "cloud":
-      return facts(t("ai.mode.now.cloud"), t("ai.mode.now.cloudBody", who));
+      return facts(t("ai.mode.now.cloud", who), t("ai.mode.now.cloudBody", who));
     case "hybrid": {
       const helpers = deviceHelpers(s).map((helper) => t(`ai.mode.helper.${helper}`, { model: s.profiles.local?.model ?? "" }));
-      return facts(t("ai.mode.now.hybrid"), t("ai.mode.now.hybridBody", { ...who, helpers: listAll(helpers, locale) }));
+      return facts(t("ai.mode.now.hybrid", who), t("ai.mode.now.hybridBody", { ...who, helpers: listAll(helpers, locale) }));
     }
     case "device":
       return facts(t("ai.mode.now.device"), t("ai.mode.now.deviceBody", who));

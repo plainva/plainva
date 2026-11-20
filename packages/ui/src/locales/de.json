@@ -9,6 +9,7 @@
     },
     "waitingCount_other": "{{count}} zu entscheiden",
     "waitingCount_one": "{{count}} zu entscheiden",
+    "waitingSomething": "etwas wartet auf Dich",
     "pending": {
       "answerFirst": "Erst die Frage oben beantworten"
     },
@@ -1391,9 +1392,9 @@
       "now": {
         "none": "Jetzt: noch kein Modell eingerichtet",
         "noneBody": "Füge unten einen Anbieter hinzu und wähle ein Modell für ein Profil.",
-        "cloud": "Jetzt: Cloud — ein Anbieter antwortet",
+        "cloud": "Jetzt: Cloud — {{provider}} antwortet",
         "cloudBody": "Neue Gespräche beginnen mit {{provider}} · {{model}}. Dieses Gerät rechnet für die KI nichts selbst.",
-        "hybrid": "Jetzt: Hybrid — dieses Gerät sortiert, ein Anbieter antwortet",
+        "hybrid": "Jetzt: Hybrid — dieses Gerät sortiert, {{provider}} antwortet",
         "hybridBody": "Neue Gespräche beginnen mit {{provider}} · {{model}}. Dieses Gerät rechnet selbst: {{helpers}}.",
         "device": "Jetzt: Ein Modell auf diesem Gerät antwortet — ohne Zusage",
         "deviceBody": "Neue Gespräche beginnen mit {{provider}} · {{model}}. Ein anderes Profil, das Internet oder ein externes Werkzeug können weiter nach draußen gehen; „Voll-lokal“ macht daraus eine Zusage.",

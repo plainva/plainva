@@ -1903,6 +1903,8 @@ button.pv-chip { cursor: pointer; font-family: var(--font-ui); }
    accent colour on the button's corner. The button's label says the number; the dot only draws the eye. */
 .pv-iconbtn--dot { position: relative; }
 .pv-iconbtn-dot { position: absolute; top: var(--space-1); right: var(--space-1); width: 7px; height: 7px; border-radius: 50%; background: var(--accent-color); pointer-events: none; }
+/* The number of what waits (mockup M10): the same mark, wide enough for its figure. */
+.pv-iconbtn-dot--count { top: 0; right: 0; width: auto; height: auto; min-width: var(--space-4); padding: 0 var(--space-1); border-radius: var(--radius-pill); color: var(--accent-on); font-size: var(--text-xs); font-weight: 700; line-height: var(--space-4); text-align: center; }
 .pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
 .pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); border-color: transparent; }
 .pv-tag-parent { color: var(--chip-tag-parent-fg); }
@@ -5224,7 +5226,11 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-overview-sensitive > svg { flex: none; }
 .pv-ai-overview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 .pv-ai-overview-every { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+/* In the foot the switch leads, the buttons stand at the end (mockup M8). */
+.pv-ai-overview-actions > .pv-ai-overview-every { margin-inline-end: auto; }
 .pv-ai-overview-more { align-self: flex-start; }
+/* The size and "Details" on one line (mockup M8). */
+.pv-ai-overview-size { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-1); }
 .pv-ai-overview-hint { display: block; font-size: var(--text-xs); color: var(--text-muted); }
 /* The pictures a request would carry (AI harness P4-5), in the overview that asks: small, and exactly what goes. */
 .pv-ai-overview-pictures { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
@@ -5318,13 +5324,17 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai--withside > .pv-ai-pending,
 .pv-ai--withside > .pv-ai-composer { grid-column: 1; }
 .pv-ai-side { grid-column: 2; grid-row: 1 / span 4; min-height: 0; padding: var(--space-3); overflow-y: auto; border-left: 1px solid var(--border-color-light); }
-/* A question that waits (plan KI-Oberflächen K9): above the composer, never scrolled away with the thread; it scrolls
-   inside itself when it is long, so the field and the thread keep their room. */
-.pv-ai-pending { flex: none; display: flex; flex-direction: column; gap: var(--space-2); max-height: 60%; overflow-y: auto; padding: var(--space-2) var(--space-3) 0; }
-/* The answer of a waiting question keeps a fixed foot (plan Oberfläche O7, D1): however long the overview above it, the
-   buttons stay in view at the bottom of the scrolling question, never cut off — on the dress's own ground, so the text
-   scrolling under them never shows through (review O7). */
-.pv-ai-pending .pv-ai-overview-actions { position: sticky; bottom: 0; padding-block: var(--space-2); background: var(--ai-ground); }
+/* A question that waits (plan KI-Oberflächen K9): above the composer, never scrolled away with the thread. Each card in
+   it is its own scroll area when it is long (F71, review of M8): its edge stays whole — top, bottom, the round
+   corners —, and the field keeps its room. The question comes first: it may take four fifths of the height, the thread keeps
+   a strip (review of M8: at 60 % the usual card of one note was cut on an iPhone and in a low dock). */
+.pv-ai-pending { flex: none; display: flex; flex-direction: column; gap: var(--space-2); max-height: 80%; min-height: 0; overflow: hidden; padding: var(--space-2) var(--space-3); }
+.pv-ai-pending > * { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+/* The answer of a waiting question keeps a fixed foot (plan Oberfläche O7, D1): however long the card above it, the
+   buttons stay in view at the bottom of the card, never cut off — on the card's own ground, so the text scrolling under
+   them never shows through (review O7). A line on the foot says that more lies above it, and only then. */
+.pv-ai-pending .pv-ai-overview-actions { position: sticky; bottom: 0; padding-block: var(--space-2); background: inherit; border-top: 1px solid transparent; }
+.pv-ai-pending > .is-more .pv-ai-overview-actions { border-top-color: var(--border-color-light); }
 /* Under an answer (plan K8): what can be done with it, and the one quiet line of what went where. */
 .pv-ai-actrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
 /* The calm line under an answer (plan Oberfläche O7, M6): what it rests on and where it went, then "Details". */
@@ -5363,8 +5373,11 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-selchips-label { font-size: var(--text-xs); color: var(--text-muted); }
 /* "Transcribe" at a voice note (plan P1.5): the last control of the player, never shrinking. */
 .pv-audio-transcribe { flex: none; }
-/* On a phone the buttons of a question stand one under the other, full width, the answer that goes on at the bottom (K9). */
-.pv-ai-overview--touch .pv-ai-overview-actions { flex-direction: column; align-items: stretch; }
+/* On a phone the foot is two lines (review of M8): the switch on its own, the answers side by side below it — a third
+   line would cover what the card says. A button that does not fit wraps to its own line. */
+.pv-ai-overview--touch .pv-ai-overview-actions { flex-direction: row; flex-wrap: wrap; align-items: stretch; }
+.pv-ai-overview--touch .pv-ai-overview-actions > .pv-ai-overview-every { flex-basis: 100%; }
+.pv-ai-overview--touch .pv-ai-overview-actions > .pv-btn { flex: 1 1 8rem; }
 .pv-ai-inputrow { display: flex; align-items: flex-end; gap: var(--space-2); }
 .pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; resize: none; }
 /* The conversation's field and its send button are one box (F71 of release 0.9.0): the button inside, the box as wide
@@ -5377,7 +5390,14 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   border-radius: var(--radius-lg);
 }
 .pv-ai-inputrow--box:focus-within { border-color: var(--accent-color); box-shadow: 0 0 0 3px var(--state-focus); }
-.pv-ai-inputrow--box > .pv-ai-input { overflow-y: auto; border: 0; background: transparent; box-shadow: none; }
+.pv-ai-inputrow--box > .pv-ai-input {
+  overflow-y: auto;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  /* One line of text in the middle of the field's height, level with the send button beside it. */
+  padding-block: calc((var(--control-md) - 1.45em) / 2);
+}
 /* The box draws the focus (with the composite fields above); the field inside it draws no edge of its own. */
 .pv-ai-inputrow--box > .pv-ai-input:focus { border: 0; }
 .pv-ai-foot { display: flex; justify-content: flex-end; min-width: 0; }
