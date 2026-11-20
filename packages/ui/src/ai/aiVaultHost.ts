@@ -1,5 +1,6 @@
 import {
   buildLinkNameIndex,
+  buildLinkTargetIndex,
   DEFAULT_AI_POLICY,
   deleteFrontmatterPath,
   EDITED_HALF_LIFE_MS,
@@ -8,28 +9,35 @@ import {
   isCloudRecipient,
   ENCRYPTED_WORKSPACE_AI_POLICY,
   isAiHiddenPath,
+  linkTargetName,
+  markdownLinkTarget,
   notePolicyFrom,
   OPENED_HALF_LIFE_MS,
   parsePolicyFile,
   questionTerms,
   readFrontmatterPath,
   readInstructionFile,
+  resolveLinkTargetIndexed,
+  resolveMarkdownLinkIndexed,
   scanInstruction,
   scanVaultInstructions,
   recencySignal,
   setFrontmatterPath,
   updateVaultText,
   VersionHistoryService,
+  wikiLinkParts,
   type AiPolicyDimension,
   type Candidate,
   type ContextNote,
   type ContextPolicyHost,
   type EffectivePolicy,
   type EgressRecipient,
+  type GateRun,
   type InstructionIO,
   type IVaultAdapter,
   type LinkNameIndex,
   type NamedFile,
+  type VaultLinkFile,
   type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
@@ -64,6 +72,13 @@ export const AI_POLICY_FILE = ".agent/policy.yml";
 export interface VaultPolicyHost extends ContextPolicyHost {
   /** The parsed folder rules, re-read at most every few seconds. */
   rules(): Promise<ParsedPolicyFile>;
+  /**
+   * The files of the vault these link targets can lead to, as the link rule
+   * reads them (`VaultQueryService.linkTargetsNamed`): asked when an answer's
+   * links are checked (`unfoundedAmongShown`), for those links alone — one
+   * read of the list and a pass over it. Absent in a host that was given none.
+   */
+  filesNamed?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   /** Forget the cached rules (after the settings wrote the file). */
   invalidate(): void;
 }
@@ -83,6 +98,8 @@ export function createVaultPolicy(opts: {
    * rules keep back. Without it only `resolveLink` is asked.
    */
   fileNames?(): Promise<readonly NamedFile[]>;
+  /** The files these link targets can lead to; without it, a link is read against what the conversation had. */
+  filesNamed?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   /** True inside an encrypted workspace: the cloud is off unless the rules say otherwise. */
   encrypted(): boolean;
   now?: () => number;
@@ -121,6 +138,11 @@ export function createVaultPolicy(opts: {
   };
   return {
     rules,
+    // The rules besides a note's own, as one text: what a verdict kept over messages rests on (`ContextPolicyHost`).
+    async rulesStamp(): Promise<string> {
+      return JSON.stringify([(await rules()).rules, opts.encrypted()]);
+    },
+    ...(opts.filesNamed ? { filesNamed: opts.filesNamed } : {}),
     invalidate() {
       cached = null;
       names = null;
@@ -139,6 +161,54 @@ export function createVaultPolicy(opts: {
       return effectivePolicy(path, own, (await rules()).rules, opts.encrypted() ? ENCRYPTED_WORKSPACE_AI_POLICY : DEFAULT_AI_POLICY);
     },
     resolveLink: opts.resolveLink,
+    // One read of the names for every question of a verdict (`ContextPolicyHost.linkSnapshot`): what a link could
+    // mean, and where a tap leads by the one rule from the note and from nowhere — so a file the names hold is
+    // among the answers whichever of the two a shell's own resolver reads from.
+    ...(opts.fileNames
+      ? {
+          async linkSnapshot() {
+            const files = await opts.fileNames!();
+            const index = buildLinkNameIndex(files);
+            const targets = buildLinkTargetIndex(files);
+            // The names every other question asks from now on, too: a gate without a kept verdict and one with it
+            // read the same names in the same moment (review of R19, wave 2).
+            names = { at: now(), index: Promise.resolve(index) };
+            const opened = (target: string, from: string): string | null => {
+              const name = linkTargetName(target);
+              return name ? resolveLinkTargetIndexed(from, name, targets) : null;
+            };
+            // Where the names place no file, the shell's own resolver may know more: the phone's looks at the files on
+            // disk the index has not read yet — for a link written as a path where the Markdown rule finds nothing in
+            // the index, and for any link the wiki rule finds nothing for (`vaultService.resolveWikiTarget`). It is
+            // asked there, and what it answered is named, so a verdict kept over messages asks it again
+            // (`LinkSnapshot.shellAnswers`). Everywhere else its answer is the index's, which the names hold.
+            const asked = new Map<string, { target: string; from: string; path: string | null }>();
+            const shell = async (target: string, from: string): Promise<string | null> => {
+              const key = `${from}\u0000${target}`;
+              const known = asked.get(key);
+              if (known) return known.path;
+              const path = await opts.resolveLink(target, from).catch(() => null);
+              asked.set(key, { target, from, path });
+              return path;
+            };
+            const unplacedAsPath = (target: string, from: string): boolean => {
+              const named = markdownLinkTarget(target.slice(0, wikiLinkParts(target).headEnd)).target;
+              return (named.includes("/") || /\.(md|base)$/i.test(named)) && resolveMarkdownLinkIndexed(from, named, targets) === null;
+            };
+            return {
+              resolveLink: async (target: string, from: string) => opened(target, from) ?? (await shell(target, from)),
+              async linkCandidates(target: string, from: string): Promise<readonly string[]> {
+                const found = filesALinkCouldMean(index, target, from);
+                const here = opened(target, from);
+                const fromShell = here === null || unplacedAsPath(target, from) ? await shell(target, from) : null;
+                const taps = [here, opened(target, ""), fromShell].filter((path): path is string => path !== null && !found.includes(path));
+                return taps.length ? [...new Set(taps), ...found] : found;
+              },
+              shellAnswers: () => [...asked.values()],
+            };
+          },
+        }
+      : {}),
     async linkCandidates(target: string, fromPath: string): Promise<readonly string[]> {
       // What a tap opens here is always among them — a file the names do not list yet, an attachment found by
       // the shell's own rule —, then everything the spelling could mean under any rule. Where the names cannot
@@ -159,8 +229,8 @@ export interface AiVaultHostInput {
   /** The note open in the shell right now — its saved text. */
   activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
   readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
-  /** Where the user is: gathered by the shell, gated and written by the context package. */
-  situation(): Promise<SituationInput>;
+  /** Where the user is: gathered by the shell, gated and written by the context package; `run` as for `AiVaultHost.situation`. */
+  situation(run?: GateRun): Promise<SituationInput>;
   /** The vault's candidate sources; null in a shell without an index. */
   retrieval: CandidateRetrieval | null;
   /** The tools' access to the vault; null when this shell offers no tools. */
@@ -314,14 +384,14 @@ export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () =>
  */
 export function noteHistorySource(input: {
   index: {
-    getNotesChangedIn(folder: string, since: number, limit?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+    getNotesChangedIn(folder: string, since: number, limit?: number, offset?: number, within?: readonly string[]): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
     getNoteCreated(path: string): Promise<number | null>;
   };
   versions: Pick<InstructionVersions, "list" | "read"> | null;
 }): NoteHistorySource {
   const { index, versions } = input;
   return {
-    changedIn: (folder, since, limit) => index.getNotesChangedIn(folder, since, limit),
+    changedIn: (folder, since, limit, offset, within) => index.getNotesChangedIn(folder, since, limit, offset, within),
     created: (path) => index.getNoteCreated(path),
     versions: async (path) => (versions ? (await versions.list(path)).map((version) => ({ id: version.id, at: version.at })) : []),
     readVersion: (id) => (versions ? versions.read(id) : Promise.resolve(null)),
@@ -378,8 +448,10 @@ export function withNoteRule(text: string, rule: AiPolicyDimension, set: boolean
 /** Where candidates come from (plan §8.1): the index, and what this device opened. */
 export interface CandidateRetrieval {
   searchCandidates(terms: readonly string[], limit: number): Promise<{ path: string; title: string; score: number; snippet: string | null }[]>;
-  linkNeighbors(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
-  recentlyChanged(limit: number): Promise<{ path: string; title: string; mtime: number }[]>;
+  /** `reach` as `VaultQueryService.getLinkNeighbors` takes it. */
+  linkNeighbors(path: string, limit: number, options?: { reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>> }): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
+  /** `offset` and `within` (exact folders) as `VaultQueryService.getRecentlyChangedNotes` takes them. */
+  recentlyChanged(limit: number, offset?: number, within?: readonly string[]): Promise<{ path: string; title: string; mtime: number }[]>;
   /** Opened on this device, newest first (`.plainva/recents.json`). */
   recentlyOpened(): Promise<{ path: string; openedAt: number }[]>;
   now(): number;
@@ -452,6 +524,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.agents ? { agents: { ...input.agents, store: createAcpVaultStore(input.files, input.vaultKey) } } : {}),
     activeNote: input.activeNote,
     readNote: input.readNote,
+    ...(input.policy.filesNamed ? { linkFilesFor: input.policy.filesNamed } : {}),
     situation: input.situation,
     candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
     ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),

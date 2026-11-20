@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-11-06
+Stand: 2026-11-19
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -82,7 +82,7 @@ OKF 0.2 ergänzt fünf **optionale** Top-Level-Felder, mit denen eine Notiz sagt
 | `stale_after` | Datum (`2026-12-31`) oder Zeitpunkt | Ab wann der Inhalt als veraltet gilt. Reine Information — Plainva zeigt einen Hinweis, ändert aber nichts. |
 | `status` | `draft` \| `stable` \| `deprecated` | Der Lebenszyklus-Zustand. Genau diese drei Werte; `draft` und `deprecated` erscheinen als Abzeichen, `stable` bleibt still. |
 
-**Akteure** (`by` in `generated` und `verified`) folgen einer Konvention: ein Mensch ist `human:<Name>`, ein Programm `<produzent>/<version>`. Plainva schreibt `plainva-import/<Version>`, `plainva-mail-capture/<Version>` und `plainva-task-sync/<Version>` — und beim Prüfvermerk `human:<Dein Name>`.
+**Akteure** (`by` in `generated` und `verified`) folgen einer Konvention: ein Mensch ist `human:<Name>`, ein Programm `<produzent>/<version>`. Plainva schreibt `plainva-import/<Version>`, `plainva-mail-capture/<Version>`, `plainva-task-sync/<Version>` und für die KI `plainva-ai/<Modell>` — und beim Prüfvermerk `human:<Dein Name>`. Legt ein anderer Schreiber die Notiz an, steht dort seine Kennung auf diesem Gerät: `mcp:<Client>` für ein Programm über Plainvas MCP-Server, `acp:<Agent>` für einen externen Agenten, `script:<Name>` für ein Skript.
 
 Beispiel einer importierten und später geprüften Notiz:
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **Schreibregeln — wer setzt was:**
 
-- `generated` und `sources` schreiben nur Plainvas **maschinelle** Schreibwege: der Import (ein Zeitpunkt je Lauf; auch der Import-Bericht trägt ihn), die E-Mail-Erfassung (mit `sources: [{ resource: "mid:<Message-ID>" }]`, wenn die Nachricht eine stabile Message-ID hat) und der Aufgaben-Abgleich (nur beim Anlegen einer Notiz — ein späterer Abgleich rührt den Stempel nicht an).
+- `generated` und `sources` schreiben nur Plainvas **maschinelle** Schreibwege: der Import (ein Zeitpunkt je Lauf; auch der Import-Bericht trägt ihn), die E-Mail-Erfassung (mit `sources: [{ resource: "mid:<Message-ID>" }]`, wenn die Nachricht eine stabile Message-ID hat), der Aufgaben-Abgleich (nur beim Anlegen einer Notiz — ein späterer Abgleich rührt den Stempel nicht an), **Als Notiz festhalten** an einer Antwort der KI (die gelesenen Seiten, Notizen und Bilder als `sources`) und jede Notiz und jeder Datenbank-Eintrag, den die KI, ein Programm über den MCP-Server oder ein Skript als Entwurf anlegt — ob Du den Entwurf anlegst oder er mit **Direkt übernehmen** sofort entsteht (mit `sources`, wo der Entwurf welche nennt). Eine Notiz, die ein externer Agent anlegt, trägt nur `generated`. Eine Änderung an einer bestehenden Notiz stempelt nie.
 - `verified` schreibt nur **Als geprüft markieren** (Desktop: Abschnitt **Vertrauen & Herkunft** im Eigenschaften-Bereich; Telefon: das Kontext-Blatt der Notiz) — und hängt an, statt zu überschreiben.
 - Der Editor fasst keines dieser Felder von sich aus an, und **Bestandsnotizen werden nie nachträglich bestempelt**. Fehlt ein Feld, heißt das nur: keine Aussage.
 - `status` und `stale_after` setzt Du selbst (als Eigenschaft oder direkt im Frontmatter). Ein Wert außerhalb von `draft`/`stable`/`deprecated` — etwa die Spalte `status: Offen` einer Aufgaben-Datenbank — ist **kein** Lebenszyklus-Zustand, sondern eine gewöhnliche Eigenschaft; Plainva zeigt dafür kein Abzeichen.

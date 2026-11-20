@@ -169,6 +169,18 @@ export class LocalVaultAdapter implements IVaultAdapter {
     }
   }
 
+  async removeEmptyDir(vaultPath: string): Promise<boolean> {
+    const absolutePath = this.resolvePath(await this.realPath(vaultPath));
+    try {
+      // rmdir(2): refuses a folder that holds anything, hidden entries included.
+      await fs.rmdir(absolutePath);
+    } catch (err) {
+      return (err as NodeJS.ErrnoException)?.code === "ENOENT";
+    }
+    this.spellings.forget(vaultPath);
+    return true;
+  }
+
   async deleteItem(vaultPath: string, recursive: boolean = false): Promise<void> {
     const absolutePath = this.resolvePath(await this.realPath(vaultPath));
     this.spellings.forget(vaultPath);

@@ -1,140 +1,80 @@
-import { htmlToVisibleText, type MarkupNode } from "@plainva/core";
-import { sanitizeEmailHtml } from "./mailSanitize";
+import type { VisibleDocument } from "@plainva/core";
+import { mailHtmlView, type MailHtmlView, type SanitizeEmailOptions } from "./mailSanitize";
 import type { MailMessage } from "./types";
 
 /** The two parts of a message its text can come from. */
 export type MailBodyParts = Pick<MailMessage, "text" | "html">;
 
-/** The attributes `htmlToVisibleText` reads off an element — every one it
- * asks for: a copy without `popover` showed what the reader hides (§ 3.84). */
-const READ_ATTRIBUTES = ["style", "hidden", "popover", "open", "start"];
-
-/** A node of the copied tree — plain data, in the shape `htmlToVisibleText` walks. */
-interface CopiedNode {
-  nodeName: string;
-  value?: string;
-  attrs?: Array<{ name: string; value: string }>;
-  childNodes: CopiedNode[];
-}
+/** What the readers and the assistant are given of an HTML part the pass could not make safe: none of it. */
+const UNREADABLE: MailHtmlView = {
+  html: "",
+  blockedRemote: 0,
+  unreadable: true,
+  document: () => ({ text: "", links: [], shows: false }),
+  shows: () => false,
+};
 
 /**
- * How the platform's tree is read: each of the few things asked of a node is
- * asked through the prototype, never as a property of the node.
- *
- * A node of a parsed document answers to names the MARKUP chose (finding
- * 2026-10-12). `<form><input name="childNodes">` makes `form.childNodes` that
- * input, `name="nodeName"` and `name="getAttribute"` do the same for those, and
- * `<img name="body">` is what `document.body` answers where the engine follows
- * the standard. A walk that read the nodes directly found no children in such
- * a form — or threw and left the work to the portable parser, whose time a
- * sender can drive up at will. The markup read here has been through the
- * sanitizer, which takes such names out; the accessors from the prototypes
- * are the second lock, and the way the sanitizer reads its own tree.
+ * The HTML part as the reader is given it and what the reader shows of it
+ * (`mailHtmlView`). Where the pass cannot make it safe — no DOM, a sanitizer
+ * or shaper that throws, a parse with no body — nobody is given the markup as
+ * it came: not the reader, not the assistant, not a quote (review of
+ * 2026-11-18: a pass that threw handed the reader's frame the raw mail, with
+ * its style sheet, its form and its refresh).
  */
-interface TreeAccess {
-  body(page: Document): Element | undefined;
-  nodeType(node: Node): number;
-  nodeName(node: Node): string;
-  childNodes(node: Node): ArrayLike<Node>;
-  text(node: Node): string;
-  attribute(element: Node, name: string): string | null;
-}
-
-/** `undefined` until asked for; `null` where the platform has no DOM to read with. */
-let access: TreeAccess | null | undefined;
-
-function treeAccess(): TreeAccess | null {
-  if (access !== undefined) return access;
-  access = null;
-  if (typeof DOMParser !== "function" || typeof Document !== "function" || typeof Node !== "function" || typeof Element !== "function" || typeof CharacterData !== "function") {
-    return access;
-  }
-  const getter = (prototype: object, name: string): ((this: unknown) => unknown) | undefined => Object.getOwnPropertyDescriptor(prototype, name)?.get;
-  const nodeType = getter(Node.prototype, "nodeType");
-  const nodeName = getter(Node.prototype, "nodeName");
-  const childNodes = getter(Node.prototype, "childNodes");
-  const data = getter(CharacterData.prototype, "data");
-  const byTagName = Document.prototype.getElementsByTagName;
-  const getAttribute = Element.prototype.getAttribute;
-  if (!nodeType || !nodeName || !childNodes || !data || typeof byTagName !== "function" || typeof getAttribute !== "function") return access;
-  access = {
-    body: (page) => byTagName.call(page, "body")[0],
-    nodeType: (node) => Number(nodeType.call(node)),
-    nodeName: (node) => String(nodeName.call(node)),
-    childNodes: (node) => childNodes.call(node) as ArrayLike<Node>,
-    text: (node) => String(data.call(node)),
-    attribute: (element, name) => getAttribute.call(element as Element, name),
-  };
-  return access;
-}
-
-const ELEMENT_NODE = 1;
-const TEXT_NODE = 3;
-
-/**
- * The HTML part as the platform's own parser reads it, copied into plain
- * objects. That parser is the one the reader's frame uses, and it stops
- * nesting at a depth a page can have. The parsed document is inert: nothing in
- * it runs, and nothing it names is fetched. `null` where there is no such
- * parser, or no body in what it made.
- */
-function readerTree(html: string): MarkupNode | null {
-  const read = treeAccess();
-  if (!read) return null;
-  const body = read.body(new DOMParser().parseFromString(html, "text/html"));
-  if (!body) return null;
-  const root: CopiedNode = { nodeName: "#root", childNodes: [] };
-  // No recursion: the depth is the parser's to bound, not the call stack's.
-  const open: Array<{ from: Node; into: CopiedNode }> = [{ from: body, into: root }];
-  for (let next = open.pop(); next; next = open.pop()) {
-    const children = read.childNodes(next.from);
-    for (let index = 0; index < children.length; index++) {
-      const child = children[index];
-      const type = read.nodeType(child);
-      if (type === TEXT_NODE) {
-        next.into.childNodes.push({ nodeName: "#text", value: read.text(child), childNodes: [] });
-      } else if (type === ELEMENT_NODE) {
-        const attrs: Array<{ name: string; value: string }> = [];
-        for (const name of READ_ATTRIBUTES) {
-          const value = read.attribute(child, name);
-          if (value !== null) attrs.push({ name, value });
-        }
-        const copy: CopiedNode = { nodeName: read.nodeName(child), attrs, childNodes: [] };
-        next.into.childNodes.push(copy);
-        open.push({ from: child, into: copy });
-      }
-    }
-  }
-  return root;
-}
-
-/**
- * The markup the reader's frame is given for this HTML part: what the mail
- * sanitizer leaves of it. The text is read from THAT, so that it cannot hold
- * what the reader does not show for a reason only the sanitizer knows — a form
- * whose controls rename its properties is taken out whole there, with what it
- * holds (finding 2026-10-12: read from the raw markup, the quote could carry
- * words of such a form that were never on screen). Where there is no DOM for
- * the sanitizer to work on, the markup stays as it came.
- */
-function readerMarkup(html: string): string {
+function viewOf(html: string, options?: SanitizeEmailOptions): MailHtmlView {
   try {
-    return sanitizeEmailHtml(html).html;
+    const view = mailHtmlView(html, options);
+    return view.unreadable ? UNREADABLE : view;
   } catch {
-    return html;
+    return UNREADABLE;
   }
+}
+
+/**
+ * The text and the links of an HTML part as the reader shows them: read from
+ * the tree the reader's frame is given — what the mail sanitizer leaves of it
+ * — without what that tree hides from the reader.
+ *
+ * Everything that turns a mail's HTML into words reads it here — the quote,
+ * the filed note, and what the assistant reads of a message (finding
+ * 2026-11-16: the assistant took the raw markup down on a way of its own, and
+ * read words the reader never showed: a form the sanitizer removes, a folded
+ * `<details>`, a popover, a box clipped to no size). One way, so that what a
+ * person reads and what the assistant reads cannot drift apart; and one pass
+ * over a message, shared by all of them (review of 2026-11-17).
+ */
+export function mailHtmlDocument(html: string): VisibleDocument {
+  return viewOf(html).document();
+}
+
+/**
+ * The body the reader shows of a message: its HTML part as the reader is given
+ * it, or `null` where it shows the text part — one rule for both shells'
+ * readers and the assistant (review of 2026-11-16). An HTML part that shows
+ * nothing — blanks, or only what it hides — is not the body when there is a
+ * text part: the reader used to give it its frame, an empty one, while the
+ * assistant read the text part nobody saw. A picture the reader holds back is
+ * a place it offers to load, and counts as something shown.
+ */
+export function mailBodyView(message: MailBodyParts, options?: SanitizeEmailOptions): MailHtmlView | null {
+  const html = message.html;
+  if (!html) return null;
+  const view = viewOf(html, options);
+  // A part that could not be made safe leaves the text part where there is
+  // one; where there is none, the reader shows a sentence instead of the mail.
+  if (!(message.text ?? "").trim()) return view;
+  return view.shows() ? view : null;
+}
+
+/** The HTML part the reader shows as the body (`mailBodyView`), as the mail wrote it; `null` for the text part, and for a part the pass could not make safe. */
+export function mailBodyHtml(message: MailBodyParts): string | null {
+  const view = mailBodyView(message);
+  return view && !view.unreadable ? message.html! : null;
 }
 
 function htmlPartText(html: string): string {
-  const shown = readerMarkup(html);
-  let tree: MarkupNode | null = null;
-  try {
-    tree = readerTree(shown);
-  } catch {
-    /* a platform that refuses the parse: the portable parser reads the same markup */
-  }
-  const copied = tree;
-  return copied ? htmlToVisibleText(shown, () => copied) : htmlToVisibleText(shown);
+  return mailHtmlDocument(html).text;
 }
 
 /**

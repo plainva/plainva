@@ -1,17 +1,21 @@
 import { useTranslation } from "react-i18next";
-import { PanelTop, Sparkles, SquarePen, X } from "lucide-react";
+import { PanelRight, PanelTop, Sparkles, SquarePen, X } from "lucide-react";
 import { editorSelectionReader } from "../../services/editorSelection";
+import { requestSkillsView } from "../../services/ai/desktopAi";
 import { AiConversation, FloatingWindow, ICON, IconButton, startAiConversation, useAiSession } from "@plainva/ui";
 
 /**
- * The companion (plan KI-Harness §19.1, dress A): the quick question over the
- * work, in the shared `FloatingWindow` — the window that already carries peek
- * and compose. It never covers the app for good: it moves, resizes, and turns
- * into the AI tab with the same conversation.
+ * The companion (plan KI-Harness §19.1, dress A): the conversation in the
+ * shared `FloatingWindow` — the window that already carries peek and compose.
+ * Since plan Oberfläche O7 (E1) it is the choice, not the default: the
+ * conversation opens docked in the right column, and "Pop out" there brings
+ * it here. It never covers the app for good: it moves, resizes, docks back
+ * into the column and turns into the AI tab with the same conversation.
  */
 export function AiCompanion({
   activeNote,
   onClose,
+  onDock,
   onOpenAsTab,
   onOpenNote,
   onOpenCreated,
@@ -21,8 +25,10 @@ export function AiCompanion({
 }: {
   activeNote: { path: string; title: string } | null;
   onClose: () => void;
+  /** Back into the right column, from now on on this device (plan Oberfläche O7). */
+  onDock: () => void;
   onOpenAsTab: () => void;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   /** Opens a note the conversation just made — an answer kept as a note — in a tab of its own, beside what is open. */
   onOpenCreated?: (path: string) => void;
   /** `composed`: the model put the address together itself (plan KI-Harness P4); the question before opening says so. */
@@ -48,6 +54,9 @@ export function AiCompanion({
           <IconButton label={t("ai.newConversation")} onClick={() => session && startAiConversation(session, t)} data-testid="ai-companion-new">
             <SquarePen size={ICON.ui} />
           </IconButton>
+          <IconButton label={t("ai.dock")} onClick={onDock} data-testid="ai-companion-dock">
+            <PanelRight size={ICON.ui} />
+          </IconButton>
           <IconButton label={t("ai.openAsTab")} onClick={onOpenAsTab} data-testid="ai-companion-tab">
             <PanelTop size={ICON.ui} />
           </IconButton>
@@ -57,7 +66,7 @@ export function AiCompanion({
         </>
       }
     >
-      <AiConversation selection={editorSelectionReader} dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+      <AiConversation selection={editorSelectionReader} dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} onOpenSkills={() => requestSkillsView()} />
     </FloatingWindow>
   );
 }

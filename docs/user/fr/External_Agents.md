@@ -1,6 +1,6 @@
 # Agents externes (Bêta)
 
-Dernière mise à jour : 2026-11-16
+Dernière mise à jour : 2026-11-18
 
 Un agent externe est un programme d'IA d'un autre éditeur — un agent que vous avez installé sur votre ordinateur et auquel vous vous êtes connecté vous-même, avec votre propre abonnement ou votre propre clé. Plainva peut démarrer un tel agent dans le dossier d'un vault et afficher sa session dans l'onglet IA. Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
 
@@ -69,7 +69,7 @@ Si le programme de l'agent se termine de lui-même, la session le dit, et **Affi
 ## Limites
 
 - Ordinateur uniquement, et uniquement dans la fenêtre principale. Sur le téléphone, il y a l'assistant propre à Plainva.
-- Pas dans un espace chiffré.
+- Pas dans un espace chiffré : aucun agent n'y est démarré, et tant qu'un tel espace est verrouillé ou que cet appareil ne détient aucune clé pour lui, les outils de Plainva ne répondent à aucun agent ni à aucune app.
 - Pas tant que **Entièrement local** est activé : aucun agent ne démarre et aucune connexion ne s'exécute, et une session en cours se termine.
 - Une session à la fois, et pas d'historique : une session terminée ne peut pas être rouverte.
 - On ne peut pas envoyer d'images à un agent, et Plainva ne reporte pas sur la session suivante un mode ou un modèle choisi dans une session.

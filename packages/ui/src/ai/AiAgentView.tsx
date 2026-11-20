@@ -75,7 +75,7 @@ function lineIcon(look: "running" | "done" | "notice" | "failed" | "waiting"): R
   return <Check size={ICON.meta} aria-hidden="true" />;
 }
 
-function AgentStart({ agents, onOpenSettings, toolsOn }: { agents: AiAcpState; onOpenSettings(): void; toolsOn: boolean }) {
+function AgentStart({ agents, onOpenSettings, tools }: { agents: AiAcpState; onOpenSettings(): void; tools: "offered" | "waiting" | "off" }) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const [chosen, setChosen] = useState<string | null>(null);
@@ -118,7 +118,7 @@ function AgentStart({ agents, onOpenSettings, toolsOn }: { agents: AiAcpState; o
         <li>{t("ai.agent.start.fact.signIn")}</li>
       </ul>
       <p className="pv-ext-note" data-testid="ai-agent-tools">
-        {toolsOn ? t("ai.agent.start.toolsOn") : t("ai.agent.start.toolsOff")}
+        {tools === "offered" ? t("ai.agent.start.toolsOn") : tools === "waiting" ? t("ai.agent.start.toolsNotReady") : t("ai.agent.start.toolsOff")}
       </p>
       <div className="pv-ai-rowactions">
         <Button variant="primary" disabled={starting} onClick={start} data-testid="ai-agent-start-action">
@@ -879,9 +879,11 @@ export function AiAgentView({ activeNote, onOpenNote, onOpenPath, onOpenUrl, onO
   const session = useAiSession();
   const state = useAiState();
   useEffect(() => {
-    // What is installed and what was added may have changed since the app looked last.
+    // What is installed and what was added may have changed since the app looked last. On a turn of the MCP switch this
+    // reads before the shell started or stopped the helper — one reading early, by design: the shell reads again once the
+    // switch took effect (useDesktopAi), and of two readings the later one's stands (AiAcp.refresh). Checked 19.11. (F34).
     void session?.agents.refresh();
-  }, [session]);
+  }, [session, state?.settings.mcpEnabled]);
   if (!session || !state || !state.agents.available) return null;
   const current = state.agents.session;
   if (current) return <AgentSession current={current} activeNote={activeNote} onOpenNote={onOpenNote} onOpenPath={onOpenPath} onOpenUrl={onOpenUrl} />;
@@ -902,5 +904,8 @@ export function AiAgentView({ activeNote, onOpenNote, onOpenPath, onOpenUrl, onO
       </EmptyState>
     );
   }
-  return <AgentStart agents={state.agents} onOpenSettings={onOpenSettings} toolsOn={state.settings.mcpEnabled === true} />;
+  // What the line says is what a start would hand over (review of the guide pages): the helper serving this vault, not
+  // the switch alone — switched on and not yet serving is said as such.
+  const tools = state.agents.tools ? "offered" : state.settings.mcpEnabled === true ? "waiting" : "off";
+  return <AgentStart agents={state.agents} onOpenSettings={onOpenSettings} tools={tools} />;
 }

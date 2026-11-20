@@ -265,7 +265,8 @@ export function NoteContextSheet({
   // Which keys are ordinary rows and which are the pinned lifecycle rows is the
   // shared `propertyPanelModel` — the same function the desktop panel and its
   // section count read, so the two shells cannot sort a key differently.
-  const model = useMemo(() => propertyPanelModel(Object.fromEntries(props)), [props]);
+  // "Trust & provenance" only while the AI is on or the note carries such fields (plan Oberfläche O7, D11).
+  const model = useMemo(() => propertyPanelModel(Object.fromEntries(props), { aiOn }), [props, aiOn]);
   const { trust, showStatusRow, showStaleRow } = model;
   const generic = new Set(model.genericKeys);
   const genericProps = props.filter(([k]) => generic.has(k));
@@ -457,58 +458,62 @@ export function NoteContextSheet({
                   </button>
                 );
               })}
-              <div className="m-row m-row--static" data-testid="okf-trust-section">
-                <span className="m-prop-key">{t("trust.title")}</span>
-                <span className="m-prop-val">
-                  <span className={`pv-chip pv-chip--sm${levelClass}`} data-testid="okf-trust-level" data-level={trustLevel}>
-                    {t(TRUST_LEVEL_I18N[trustLevel])}
-                  </span>
-                </span>
-              </div>
-              {generatedAt && (
-                <div className="m-row m-row--static">
-                  <span className="m-prop-key">{t("trust.generated")}</span>
-                  <span className="m-prop-val m-prop-val--wrap">
-                    {trust.generated ? `${formatActor(trust.generated.by, actorWords)} · ` : ""}
-                    {formatStampDate(generatedAt, locale)}
-                  </span>
-                </div>
-              )}
-              {trust.verified.map((v, i) => (
-                <div className="m-row m-row--static" key={`${v.by}-${v.at}-${i}`}>
-                  <span className="m-prop-key">{i === 0 ? t("trust.verified") : ""}</span>
-                  <span className="m-prop-val m-prop-val--wrap">
-                    {formatActor(v.by, actorWords)} · {formatStampDate(v.at, locale)}
-                  </span>
-                </div>
-              ))}
-              {canWrite && (
-                <button className="m-row" data-testid="okf-mark-verified" onClick={markReviewed}>
-                  <Check className="m-accent" size={ICON.head} />
-                  <span>{t("trust.markVerified")}</span>
-                </button>
-              )}
-              {trust.sources.map((s, i) => {
-                const label = s.title ?? s.resource;
-                return /^https?:\/\//i.test(s.resource) ? (
-                  <button
-                    className="m-row"
-                    key={`${s.resource}-${i}`}
-                    onClick={() => {
-                      void getPlatformServices().openExternal(s.resource);
-                    }}
-                  >
-                    <span className="m-prop-key">{i === 0 ? t("trust.sources") : ""}</span>
-                    <span className="m-prop-val">{label}</span>
-                    <ExternalLink className="m-chevron" size={ICON.meta} />
-                  </button>
-                ) : (
-                  <div className="m-row m-row--static" key={`${s.resource}-${i}`}>
-                    <span className="m-prop-key">{i === 0 ? t("trust.sources") : ""}</span>
-                    <span className="m-prop-val">{label}</span>
+              {model.trustShown && (
+                <>
+                  <div className="m-row m-row--static" data-testid="okf-trust-section">
+                    <span className="m-prop-key">{t("trust.title")}</span>
+                    <span className="m-prop-val">
+                      <span className={`pv-chip pv-chip--sm${levelClass}`} data-testid="okf-trust-level" data-level={trustLevel}>
+                        {t(TRUST_LEVEL_I18N[trustLevel])}
+                      </span>
+                    </span>
                   </div>
-                );
-              })}
+                  {generatedAt && (
+                    <div className="m-row m-row--static">
+                      <span className="m-prop-key">{t("trust.generated")}</span>
+                      <span className="m-prop-val m-prop-val--wrap">
+                        {trust.generated ? `${formatActor(trust.generated.by, actorWords)} · ` : ""}
+                        {formatStampDate(generatedAt, locale)}
+                      </span>
+                    </div>
+                  )}
+                  {trust.verified.map((v, i) => (
+                    <div className="m-row m-row--static" key={`${v.by}-${v.at}-${i}`}>
+                      <span className="m-prop-key">{i === 0 ? t("trust.verified") : ""}</span>
+                      <span className="m-prop-val m-prop-val--wrap">
+                        {formatActor(v.by, actorWords)} · {formatStampDate(v.at, locale)}
+                      </span>
+                    </div>
+                  ))}
+                  {canWrite && (
+                    <button className="m-row" data-testid="okf-mark-verified" onClick={markReviewed}>
+                      <Check className="m-accent" size={ICON.head} />
+                      <span>{t("trust.markVerified")}</span>
+                    </button>
+                  )}
+                  {trust.sources.map((s, i) => {
+                    const label = s.title ?? s.resource;
+                    return /^https?:\/\//i.test(s.resource) ? (
+                      <button
+                        className="m-row"
+                        key={`${s.resource}-${i}`}
+                        onClick={() => {
+                          void getPlatformServices().openExternal(s.resource);
+                        }}
+                      >
+                        <span className="m-prop-key">{i === 0 ? t("trust.sources") : ""}</span>
+                        <span className="m-prop-val">{label}</span>
+                        <ExternalLink className="m-chevron" size={ICON.meta} />
+                      </button>
+                    ) : (
+                      <div className="m-row m-row--static" key={`${s.resource}-${i}`}>
+                        <span className="m-prop-key">{i === 0 ? t("trust.sources") : ""}</span>
+                        <span className="m-prop-val">{label}</span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
               {showStatusRow &&
                 (canWrite ? (
                   <button className="m-row" data-testid="okf-status-row" onClick={pickStatus}>

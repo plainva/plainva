@@ -1,5 +1,5 @@
 import type { EgressRecipient } from "../egressGate.js";
-import { withinFolders } from "../skills/narrowing.js";
+import { withinFoldersExactly } from "../skills/narrowing.js";
 import type { ToolDataClass } from "../tools.js";
 import { mcpToolEffect, type McpToolDescriptor, type McpToolEffect } from "./listing.js";
 import { withheldMcpTools, type McpNameIssue } from "./names.js";
@@ -119,7 +119,8 @@ export function mcpCallDecision(request: McpCallRequest): McpCallDecision {
   if (!mcpOffersTools(request.review)) return refuse(request.review.status === "blocked" ? "server-blocked" : "server-new");
   if (withheldMcpTools(request.serverId, request.issues).has(request.tool.name)) return refuse("tool-withheld");
   if (!mcpGrantCovers(request.grant, request.tool)) return refuse("tool-not-granted");
-  if (request.vaultPaths.some((path) => !withinFolders(path, request.grant.folders))) return refuse("path-outside-grant");
+  // Exactly as granted: a folder that only folds to a granted one (`projects` beside `Projects`) is another folder.
+  if (request.vaultPaths.some((path) => !withinFoldersExactly(path, request.grant.folders))) return refuse("path-outside-grant");
   return { allowed: true, preview: true };
 }
 

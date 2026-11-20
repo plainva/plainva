@@ -1,4 +1,4 @@
-import { clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { templateNotesOf, followTemplateNotes, clearPinboardCache, followDailyNaming, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, vaultFolderKind, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   type BackupVaultAdapter,
   ConflictError,
@@ -28,8 +28,9 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
-import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, vaultFolderIsThere } from "@plainva/core";
+import { adoptOwnRemovals, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
+import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, pickVaultFolder, type VaultFolderAccess } from "../platform/vaultFolder";
@@ -48,7 +49,7 @@ import { phoneTemplateVault } from "./templateVault";
 import { getStoredProvider, purgeCredentials, startSyncIfConfigured, stopSyncAndDrain, syncSoon } from "./syncService";
 import { armedLeaveGuards, foreignInputArmed } from "./leaveGuard";
 import { takeScreen } from "./screenStep";
-import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
+import { clearMobileSyncState, mobileSyncDeviceId, restoreMobileAccountsAfterRebuild } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
@@ -64,7 +65,8 @@ import {
   forgetVaultSecrets,
   forgetVaultStoreKeys,
 } from "./vaultForget";
-import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
+import { getMobileSettings, getVaultSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
+import { vaultDefaults } from "./mobileSettingsScope";
 import { configuredDailyNoteType, configuredNoteType } from "./newNote";
 import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText, applyTemplateInteractive } from "./templateInteractive";
 import {
@@ -89,10 +91,16 @@ import {
   scaffoldVaultTemplate,
   createIndexNotices,
   indexUnavailableText,
+  indexDatabaseFailureKind,
+  indexDatabaseFailureMessage,
+  indexDatabaseRebuildOffered,
+  type IndexDatabaseFailureKind,
   type VaultTemplateDefinition,
 } from "@plainva/ui";
+import { finishMobileSetAside, mobileIndexDatabaseWasRebuilt, removeSetAsideMobileIndexDatabases, setAsideMobileIndexDatabase } from "./indexDatabaseRebuild";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
+import { writeNewVault } from "@plainva/ui";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet, type DeletionNetAsk } from "@plainva/ui";
 import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
@@ -118,6 +126,12 @@ export interface MobileVault {
   freshlySeeded: boolean;
   /** Single-use creation opportunity, consumed before showing the chooser. */
   claimTemplateCreation(): boolean;
+  /**
+   * The sandbox folder of a container vault, relative to the app's data
+   * folder; null for a picked folder. What a failed template writes there is
+   * taken back by its path (third review of O8).
+   */
+  containerRoot: string | null;
   /**
    * The storage below the chain (listing, binary reads): the sandbox one, or
    * the external-folder one. Typed to READ only (stability plan R2): seven
@@ -170,6 +184,14 @@ export interface MobileVault {
    * nothing there needs the queue.
    */
   indexClosed: boolean;
+  /**
+   * Why this vault's index database did not open (`indexDatabaseFailureKind`),
+   * on a device — and whether the strip offers to build it anew
+   * (`indexDatabaseRebuildOffered`). Null where it opened.
+   */
+  indexDatabaseFailure: { kind: IndexDatabaseFailureKind; workspace: boolean; message: string } | null;
+  /** Whether this vault is an encrypted workspace: then the index database is never built anew (`indexDatabaseRebuildOffered`). */
+  isEncryptedWorkspace: boolean;
   /** Lets locally created files enqueue for push (called once sync starts). */
   enableSyncEnqueue(): void;
   /** Ends the initial-index enqueue deferral (3c) after the first pull. */
@@ -275,7 +297,7 @@ export async function discardPreparedContainer(vaultId: string, sourceVaultId?: 
 export async function openPreparedVaultDatabase(vaultId: string): Promise<IDatabaseAdapter> {
   if ((await getActiveVaultEntry()).id === vaultId) throw new Error("transfer_destination_active");
   const db = createIndexDatabase(`plainva-${vaultId}`);
-  try { await db.initialize(); await initializeSchema(db); return db; }
+  try { await db.initialize(); await initializeSchema(db); return watchFullTextDamage(db, reportingTo("index:full-text-damaged")); }
   catch (error) { await db.close().catch(() => {}); throw error; }
 }
 
@@ -438,6 +460,47 @@ async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Pr
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: vaultId } }));
 }
 
+/**
+ * The strip's "Rebuild index" for the open vault whose index database is
+ * damaged (`MobileVault.indexDatabaseFailure`): the database is set aside, an
+ * empty one takes its place (`indexDatabaseRebuild.ts`), and the vault opens
+ * again with its index built anew — over the cold index, as on a device that
+ * never saw it. Asked first by the caller.
+ */
+export async function rebuildActiveIndexDatabase(): Promise<boolean> {
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (!current) return false;
+  const failure = current.indexDatabaseFailure;
+  if (failure) {
+    const entry = await getActiveVaultEntry();
+    if (entry.id !== current.vaultId || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return false;
+    // Nothing holds a database that did not open.
+    await setAsideMobileIndexDatabase(entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`);
+    return reloadActiveMobileVault();
+  }
+  // The search's "Rebuild index": the open vault whose full-text index could not be made anew at its open.
+  if (!current.db || (await readFullTextDamage(current.db)).state !== "rebuild-failed") return false;
+  return rebuildOpenMobileIndexDatabase();
+}
+
+/**
+ * The open vault's index database set aside and built anew, the strip's way
+ * (`setAsideMobileIndexDatabase`) — for the search, where the open could not
+ * make the full-text index anew, and for "Rebuild index" in Maintenance where
+ * it fails at the database itself. The vault is closed the ordinary way first
+ * — unsaved input asked about, the notes saved, the running cycle drained,
+ * the database closed — and the file set aside only then. Never in an
+ * encrypted workspace. Asked first by the caller.
+ */
+export async function rebuildOpenMobileIndexDatabase(): Promise<boolean> {
+  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (!current?.db || current.isEncryptedWorkspace) return false;
+  const entry = await getActiveVaultEntry();
+  if (entry.id !== current.vaultId) return false;
+  const name = entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`;
+  return reloadActiveMobileVault(undefined, { beforeReopen: () => setAsideMobileIndexDatabase(name).then(() => undefined) });
+}
+
 /** A reload waiting behind someone else's input (`screenStep.ts`). */
 const RELOAD_STEP = "vault-reload";
 
@@ -457,10 +520,10 @@ const RELOAD_STEP = "vault-reload";
  * resuming a setup) did so because the vault's state changes under it, and
  * only the reloaded vault starts it in the new state.
  */
-export async function reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean> {
+export async function reloadActiveMobileVault(own?: string | readonly string[], opts: ReloadOptions = {}): Promise<boolean> {
   const vaultId = (await getActiveVaultEntry()).id;
   if (foreignInputArmed(own)) {
-    offerReload(vaultId, own);
+    offerReload(vaultId, own, opts);
     return false;
   }
   const current = await retireBoot();
@@ -468,16 +531,27 @@ export async function reloadActiveMobileVault(own?: string | readonly string[]):
   await stopSyncAndDrain();
   // The drain can take a transfer's length: input begun in it is at stake too.
   if (current && foreignInputArmed(own)) {
-    offerReload(vaultId, own);
+    offerReload(vaultId, own, opts);
     return false;
   }
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
-  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+  try {
+    // Between the close and the next open: nothing of this vault holds its files now.
+    await opts.beforeReopen?.();
+  } finally {
+    // Opened again in any case — with the database as it is where the step failed — so nobody is left without a vault.
+    window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+  }
   return true;
 }
 
-function offerReload(vaultId: string, own?: string | readonly string[]): void {
+/** What a reload does between closing the vault and opening it again (the search's "Rebuild index"). */
+interface ReloadOptions {
+  beforeReopen?: () => Promise<void>;
+}
+
+function offerReload(vaultId: string, own?: string | readonly string[], opts: ReloadOptions = {}): void {
   takeScreen(RELOAD_STEP, {
     // A vault switched away from meanwhile has been opened anew already.
     // What is armed when it runs was given up: by "Discard" at the notice's
@@ -486,7 +560,7 @@ function offerReload(vaultId: string, own?: string | readonly string[]): void {
     run: async () => {
       const given = armedLeaveGuards().map((g) => g.id);
       const mine = own === undefined ? [] : typeof own === "string" ? [own] : own;
-      if ((await getActiveVaultEntry()).id === vaultId) await reloadActiveMobileVault([...mine, ...given]);
+      if ((await getActiveVaultEntry()).id === vaultId) await reloadActiveMobileVault([...mine, ...given], opts);
     },
     offer: i18n.t("mobile.vaultReloadOffer"),
     label: i18n.t("mobile.vaultReloadOfferAction"),
@@ -550,6 +624,8 @@ async function forgetVaultData(id: string, pimIds: string[], publicationIds: str
   }).catch(() => [] as string[]);
 
   await attempt("index-db", () => CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`));
+  // And every copy the start set aside as damaged: it holds the notes' text too.
+  await attempt("index-db-set-aside", () => removeSetAsideMobileIndexDatabases(`plainva-${id}`));
   // Drop the connection E2E pin + vault-scoped settings-sync state BEFORE the
   // provider secret is purged (the connection id is derived from it), so
   // re-connecting the same cloud folder never reanimates the fail-closed guard.
@@ -626,12 +702,23 @@ export async function deleteVault(id: string): Promise<string[]> {
  * container. The chosen structure is written before registration and opening;
  * boot never supplements an existing container from a template.
  */
-export async function createLocalVault(name: string, template: VaultTemplateDefinition | null = null): Promise<string> {
-  const id = newVaultId();
-  const adapter = new CapacitorVaultAdapter(`vaults/${id}`);
-  if (await adapter.exists("")) throw new Error("Vault container already exists");
-  await adapter.initialize();
-  await scaffoldVaultTemplate({ adapter, isNewVault: true, template, vaultName: name, subfoldersHeading: i18n.t("indexMd.subfoldersHeading") });
+export async function createLocalVault(name: string, template: VaultTemplateDefinition | null = null): Promise<string | null> {
+  // Each attempt in a container of its own: what a failed one wrote is taken
+  // back — its files, then the folders it made, the container last — and the
+  // person is asked whether to try again (third review of O8, as on the desktop).
+  let id = "";
+  const made = await writeWithRetry(async (onTakenBack) => {
+    id = newVaultId();
+    const root = `vaults/${id}`;
+    const adapter = new CapacitorVaultAdapter(root);
+    if (await adapter.exists("")) throw new Error("Vault container already exists");
+    await ensureVaultsFolder();
+    await writeNewVault(root, sandboxNewVaultPorts, async (track) => {
+      await adapter.initialize();
+      await scaffoldVaultTemplate({ adapter: track(adapter), isNewVault: true, template, vaultName: name, subfoldersHeading: i18n.t("indexMd.subfoldersHeading") });
+    }, { makeFolder: true, onTakenBack });
+  });
+  if (!made) return null;
   await addVault({ id, name });
   await switchVault(id);
   return id;
@@ -769,6 +856,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   // Set when the vault closes or a switch leaves it while it opens (retireBoot).
   const indexAbort = new AbortController();
   signal?.addEventListener("abort", () => indexAbort.abort(), { once: true });
+  const containerRoot = isExternalVault(entry) ? null : isDefaultLocal ? "vault" : `vaults/${entry.id}`;
   const adapter: MobileRawAdapter = isExternalVault(entry)
     ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle, {
       // Closing waits for the scan; a call it hangs on fails at once then.
@@ -778,7 +866,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       onStalled: (call, path, afterMs) => logDiagnostic("folder", `no answer to ${call} "${path}" after ${Math.round(afterMs / 1000)} s — further calls fail at once until the folder answers again`),
       onRecovered: (refused) => logDiagnostic("folder", `the folder answers again (${refused} call(s) failed at once meanwhile)`),
     })
-    : new CapacitorVaultAdapter(isDefaultLocal ? "vault" : `vaults/${entry.id}`);
+    : new CapacitorVaultAdapter(containerRoot ?? "vault");
   const containerExisted = await adapter.exists("");
   await adapter.initialize();
   const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
@@ -857,12 +945,24 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   /** Where this vault's conflict copies and diagnostics say they come from. */
   const chainKind = isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud";
   let db: IDatabaseAdapter | null = null;
+  const indexDatabaseName = isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`;
+  let indexDatabaseFailure: MobileVault["indexDatabaseFailure"] = null;
   try {
-    db = createIndexDatabase(isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`);
+    // A set-aside that stopped half-way is finished first: the database never opens without its log.
+    await finishMobileSetAside(indexDatabaseName);
+    db = createIndexDatabase(indexDatabaseName);
     await db.initialize();
     await initializeSchema(db);
+    // A damaged full-text index met while the vault is open is noted, and the next open makes it anew.
+    db = watchFullTextDamage(db, reportingTo("index:full-text-damaged"));
+    // What a runtime that ended (a crash, a close) left removed and not recorded stays the sync's: taken over before the index looks.
+    await adoptOwnRemovals(db, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(adapter).then((there) => there === true), exists: (p) => adapter.exists(p) }).catch(reportingTo("sync:own-removals"));
     // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
     await logIndexDiagnostics(db, vaultFolderKind(isExternalVault(entry) ? entry.external : null, "app storage"));
+    // Built anew at the start: its calendar and task accounts come back from the vault's copy of the profile, before anything reads them.
+    if (await mobileIndexDatabaseWasRebuilt(indexDatabaseName)) {
+      await restoreMobileAccountsAfterRebuild(entry.id, db, adapter, !isLocal).catch(reportingTo("accounts:restore-after-rebuild"));
+    }
 
     // Retention comes from the global mobile settings (package G); the
     // desktop keeps this per vault, mobile applies one policy to the active
@@ -920,8 +1020,19 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
 
     // What a full scan left out, or why it failed, said once on screen (issue 125).
     const indexNotices = createIndexNotices(toast);
+    // Which notes are templates, by this vault's settings (B26): the index
+    // takes a file's name for a template's `{{title}}`. A change of the
+    // settings (`m-settings-changed`) changes it.
+    // Settings that cannot be read are the vault's defaults: the index opens all the same.
+    const templateNotes = followTemplateNotes({
+      read: async () => templateNotesOf(await getVaultSettings(entry.id).catch(() => vaultDefaults())),
+      event: "m-settings-changed",
+      signal: indexAbort.signal,
+      onError: reportingTo("index:template-titles"),
+    });
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
+      templateNotes: await templateNotes.first,
       // No watcher here: what changes from outside while a scan reads is looked at once more.
       hearsNoChanges: true,
       // A row whose timestamp a reading could not vouch for is read once more by itself, and so is a file owed a reading.
@@ -971,6 +1082,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         void queueLocalDeletion(path);
       },
     });
+    templateNotes.attach(indexer);
     queryService = new VaultQueryService(db);
     // `file.day` (plan Journal-Erweiterungen, X8): the two settings that name a
     // daily note tell every query which day a file name stands for. Set on the
@@ -1061,7 +1173,12 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // syncs says so once, standing, in the strip on top (`indexClosed`, with
     // what is unavailable), and a refused action says its own sentence; a
     // vault without a remote has no strip, so this toast is its one notice.
-    if (Capacitor.isNativePlatform() && isLocal) toast.error(indexUnavailableText(err));
+    if (Capacitor.isNativePlatform()) {
+      // Why, in words, and — for a damaged file outside an encrypted workspace — the offer to build it anew (both shells).
+      const kind = indexDatabaseFailureKind(err);
+      indexDatabaseFailure = { kind, workspace: !!workspaceStatus, message: indexDatabaseFailureMessage(kind, err, !!workspaceStatus) };
+      if (isLocal) toast.error(indexUnavailableText(err));
+    }
     // The search index is optional; durable conflict editing is not. The
     // same file journal is used before and after the database recovers.
     const settings = getMobileSettings();
@@ -1089,6 +1206,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const v: MobileVault = {
     vaultId: entry.id,
     freshlySeeded,
+    containerRoot,
     claimTemplateCreation: () => {
       if (!freshlySeeded || templateCreationClaimed) return false;
       templateCreationClaimed = true;
@@ -1110,6 +1228,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     queryService,
     searchAvailable,
     indexClosed: db === null && !isLocal,
+    indexDatabaseFailure,
+    isEncryptedWorkspace: !!workspaceStatus,
     enableSyncEnqueue: () => {
       syncEnqueueEnabled = true;
     },

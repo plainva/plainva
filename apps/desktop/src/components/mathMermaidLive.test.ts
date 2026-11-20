@@ -143,6 +143,13 @@ describe("mathMermaidLive", () => {
     const s = makeSession("# T\n\n```\nkosten $5 und $10\n```\n\nEnde.");
     expect(mathWidgets(s)).toBe(0);
   });
+  // A formula takes no wiki link (Fehlerliste 0.9.0, B4, F45): the reading
+  // view shows `$x [[A]] y$` as text with its link, and so does the editor —
+  // the phone's read mode is this editor.
+  it("draws no formula over a wiki link, inline or as a block", () => {
+    const s = makeSession("# T\n\nText $x [[A]] y$ und $z$.\n\n$$\na = ![[B]]\n$$\n\nEnde.");
+    expect(mathWidgets(s)).toBe(1);
+  });
 });
 
 // A mermaid fence in a quote or a callout (finding 2026-10-25): every line of

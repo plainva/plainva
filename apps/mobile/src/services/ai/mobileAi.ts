@@ -38,6 +38,7 @@ import {
   setImageExplainer,
   situationEvents,
   situationFrom,
+  situationReach,
   spawnScriptWorker,
   startableSkills,
   startRoutineScheduler,
@@ -47,6 +48,7 @@ import {
   watchRoutineReady,
   withCloudDenied,
   type AiFileStore,
+  type DatabaseReach,
   type AppCommand,
   type AreaOrder,
   type VaultPolicyHost,
@@ -60,6 +62,7 @@ import { createMobileAiEgress, setMobileLocalOnly } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
 import { createMobileMcpHost } from "../../platform/aiMcp";
 import { createMobileMcpBrowser, openMobileMcpPage } from "./mobileMcpBrowser";
+import { openLink } from "../openLink";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
@@ -274,10 +277,13 @@ ${i18n.t("ai.openLinkBuilt")}` : url;
 }
 
 /** A wikilink in an answer names a note as written; the vault's resolver finds its path. */
-export function openAiNoteTarget(vault: MobileVault, target: string, openNote: (path: string) => void): void {
-  void vaultOps.resolveWikiTarget(vault, target, "").then((path) => {
-    if (path) openNote(path);
-  });
+/**
+ * A link in an answer opens as every link of the app does (`planLinkOpen` through `openLink`), by the way it is
+ * written — the same function the source check under the answer asks (review O7, fifth round). A missing note is
+ * not created: the answer is not the user's own text.
+ */
+export function openAiNoteTarget(vault: MobileVault, target: string, openNote: (path: string) => void, kind?: "wiki" | "markdown"): void {
+  void openLink({ text: target, kind: kind ?? "wiki" }, { vault, onOpenNote: openNote, createMissing: false });
 }
 
 /** The areas without the KI screen while the switch is off: no entry leads to a surface that is off. */
@@ -297,6 +303,8 @@ export interface MobileAiNavigation extends MobileDraftNavigation {
   openNote: (path: string) => void;
   /** The AI settings screen (the conversation's "set up" leads there). */
   openSettings?: () => void;
+  /** The skills and the memory (F71 of release 0.9.0): the last entry of a conversation's "Skills" menu leads there. */
+  openSkills?: () => void;
   /** The search screen — where the system's assistant leads for "search", and for a note it may no longer name (plan P4.7). */
   openSearch?: () => void;
   /**
@@ -385,6 +393,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from),
       // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
       fileNames: () => query.linkTargets(),
+      // Where an answer's links lead: the files those links can name, never the whole list (review O7, third round).
+      filesNamed: (targets) => query.linkTargetsNamed(targets),
       encrypted: () => vault.workspaceRuntime !== null,
     });
     // What `run_command` can do: the palette's commands that show something, and the three that take a note or a day.
@@ -396,10 +406,10 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         neighbors: (path, limit) => query.getLinkNeighbors(path, limit),
       });
     /** Checkbox tasks and the task database, as every task view reads them. */
-    const taskRows = async () => {
+    const taskRows = async (options?: DatabaseReach) => {
       const db = getMobileSettings().taskDatabase.trim();
       const [dbRows, notes] = await Promise.all([
-        db ? read(db).then((text) => databaseTaskRows(text, (config) => query.queryDatabaseFiles(config))) : Promise.resolve([]),
+        db ? read(db).then((text) => databaseTaskRows(text, (config) => query.queryDatabaseFiles(config, options))) : Promise.resolve([]),
         query
           .listTasks()
           .then((tasks) => plannerRowsFromTasks(tasks.filter((task) => !task.excluded)))
@@ -511,13 +521,13 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       },
       // The phone's situation: the note the sheet opened over (one editor at a
       // time, no tabs), due tasks, the next appointments, today's daily note.
-      async situation() {
+      async situation(run) {
         const now = new Date();
         const path = sheetNote;
         const text = path ? ((await note(path))?.text ?? null) : null;
         const settings = getMobileSettings();
         const dailyPath = dailyNotePathFor(journalToday(now), { folder: settings.dailyFolder, format: settings.dailyFormat });
-        const [tasks, upcoming, dailyExists] = await Promise.all([taskRows(), events(now, new Date(now.getTime() + 2 * 86_400_000)), vault.files.exists(dailyPath).catch(() => false)]);
+        const [tasks, upcoming, dailyExists] = await Promise.all([taskRows(run ? situationReach((path) => vaultPolicy.policyOf(path), run) : undefined), events(now, new Date(now.getTime() + 2 * 86_400_000)), vault.files.exists(dailyPath).catch(() => false)]);
         return situationFrom({
           now,
           active: path ? { path, kind: "note", text } : null,
@@ -530,8 +540,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       },
       retrieval: {
         searchCandidates: (terms, limit) => query.searchCandidates(terms, limit),
-        linkNeighbors: (path, limit) => query.getLinkNeighbors(path, limit),
-        recentlyChanged: (limit) => query.getRecentlyChangedNotes(limit),
+        linkNeighbors: (path, limit, options) => query.getLinkNeighbors(path, limit, options),
+        recentlyChanged: (limit, offset, within) => query.getRecentlyChangedNotes(limit, offset, within),
         async recentlyOpened() {
           try {
             return parseRecentsFile(await vault.adapter.readTextFile(".plainva/recents.json"));
@@ -548,16 +558,19 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         notesContaining: (needles) => query.notesContaining(needles),
       },
       toolDeps: {
-        async search(q, limit, offset) {
-          const hits = await query.searchFullText(q, limit, offset);
-          return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
+        async search(q, limit, offset, within, withContent) {
+          // With the text the index holds where the search is read through a view, which tests each hit on it.
+          const hits = await query.searchFullText(q, limit, offset, withContent === true, null, within);
+          return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null, content: hit.sourceContent ?? null }));
         },
         readNote: read,
         taskRows,
         todayKey: () => calendarDay(),
         commands,
-        backlinks: (path) => query.getBacklinks(path),
-        queryDatabase: (config) => query.queryDatabaseFiles(config),
+        backlinks: (path, options) => query.getBacklinks(path, options),
+        queryDatabase: (config, options) => query.queryDatabaseFiles(config, options),
+        // A note's title and tags as a reader with a narrower view sees them: the one place every tool names a note from.
+        notesAsSeen: (paths, reach, rule) => query.notesAsSeen(paths, reach, rule),
         events,
         moodKey,
         // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
@@ -654,6 +667,11 @@ export function MobileAiNavigation({ navRef, nav }: { navRef: { current: MobileA
 
 /** The shell's navigation as last rendered, for surfaces outside App (the note's context). */
 let latestNav: MobileAiNavigation | null = null;
+
+/** Opens the skills and the memory from any surface (F71 of release 0.9.0). */
+export function openAiSkills(): void {
+  latestNav?.openSkills?.();
+}
 
 /** Opens the AI settings screen from any surface. */
 export function openAiSettings(): void {

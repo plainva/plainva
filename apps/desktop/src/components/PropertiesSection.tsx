@@ -43,7 +43,8 @@ import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/n
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
 import { resolveGoverningBase, clearGoverningBaseCache, governingBasesBelongTo, governingBaseMemory, type GoverningBase } from "../services/baseSchema";
 import { PropertyRow, AddPropertyPopover, type RelationCandidate } from "./PropertyValues";
-import { parseWikiLinkValue, pathsSharingNames, propertyNameFixed, renamedNoteProperty, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
+import { useAiOn, parseWikiLinkValue, pathsSharingNames, propertyNameFixed, renamedNoteProperty, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
+import { getDesktopAiSession } from "../services/ai/desktopAi";
 import { useWikiResolver } from "../hooks/useWikiResolver";
 import {
   propertyCommentStore,
@@ -233,7 +234,9 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // carry the spec shape leave the generic list. The `plainva` namespace (doc
   // icon, header colour) has its own UI in the editor; it is hidden from the
   // list but stays in `properties`, so apply() writes it back untouched.
-  const model = useMemo(() => propertyPanelModel(properties as Record<string, unknown>), [properties]);
+  // "Trust & provenance" only while the AI is on or the note carries such fields (plan Oberfläche O7, D11).
+  const aiOn = useAiOn(getDesktopAiSession());
+  const model = useMemo(() => propertyPanelModel(properties as Record<string, unknown>, { aiOn }), [properties, aiOn]);
   const { trust, showStatusRow, showStaleRow } = model;
   const visibleKeys = model.genericKeys;
 
@@ -536,6 +539,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     <div className="pv-props">
       {rows.length === 0 ? <p className="pv-prow-hint">{t(unreadable ? "properties.unreadableBlock" : "properties.noProperties")}</p> : rows.map(renderRow)}
 
+      {model.trustShown && (
       <div data-testid="okf-trust-section">
         <PropGroupHead
           icon={<ShieldCheck size={ICON.meta} aria-hidden="true" />}
@@ -568,6 +572,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
           {t("trust.markVerified")}
         </PropActionRow>
       </div>
+      )}
 
       <PropActionRow icon={<Plus size={ICON.ui} />} buttonRef={addBtnRef} expanded={showAdd} onClick={() => setShowAdd((s) => !s)}>
         {t("properties.addProperty")}

@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-11-17
+Ultimo aggiornamento: 2026-11-18
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -184,6 +184,10 @@ Per prima cosa scegli dove scrivere: in una **sottocartella** del vault aperto o
 Le sorgenti che richiedono un accesso — Notion tramite la sua API — chiedono un token nella procedura guidata. Vale per quella sola esecuzione e non viene memorizzato.
 
 I dettagli di ogni sorgente sono in [Importa da un'altra app](Import.md).
+
+## Primo avvio
+
+Al primo avvio l'app chiede come vuoi iniziare: **Inizia in locale**, **Collega un vault cloud** o **Ho già un vault**. Dopo **Inizia in locale** scegli la struttura iniziale; il tour di Plainva è in cima e porta **Consigliato per iniziare**. **Ho già un vault** spiega per il tuo telefono dove può trovarsi un vault e poi prosegue: **Una cartella su questo dispositivo** apre una cartella raggiungibile dal telefono (su iOS nell'app File, su Android per esempio quella di Obsidian o una tenuta aggiornata da Syncthing), **Collega un vault esistente** lo porta dal cloud. Se il tuo vault è solo sul computer, configura lì prima la sincronizzazione con un cloud. Se annulli, la scelta resta sullo schermo. Un vault ancora vuoto mostra in **Home** un solo invito: **Scrivi la tua prima nota**, con il pulsante **Nuova nota**. Sotto le schede, **Importa da Notion, Evernote, Obsidian …** porta all'importazione, e plainva.com e la **Guida utente** ti dicono di più. Se un vault sincronizzato con il cloud è ancora vuoto, **Home** mostra al suo posto **Il tuo vault si sta caricando** finché non termina la prima sincronizzazione dopo l'apertura. Se questa sincronizzazione non riesce, il vault mostra ciò che contiene e lo stato della sincronizzazione dice perché; l'avviso non torna finché non riapri il vault. Se la struttura iniziale non si può creare per intero, l'app lo dice e rimuove ciò che ha scritto e che è ancora come l'ha scritto; un file modificato nel frattempo resta. **Riprova** crea poi la struttura per intero, anche se non è stato possibile rimuovere tutto: solo un file modificato lo impedisce.
 
 ## Sincronizzazione
 

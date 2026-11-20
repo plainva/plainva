@@ -2,6 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ScriptedAcpStep, WriteDraft } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import {
@@ -61,7 +64,8 @@ const label = (key: string, vars?: Record<string, string>) => i18n.t(key, vars) 
  * where a note an agent wrote waits, and where "Create" and "Discard" on its
  * card are answered (plan P5-6).
  */
-function sessionOver(h: AcpHarness, mcpEnabled: boolean): AiSession {
+function sessionOver(h: AcpHarness, mcpEnabled: boolean | (() => boolean)): AiSession {
+  const switched = typeof mcpEnabled === "function" ? mcpEnabled : () => mcpEnabled;
   const drafts = (): { drafts: WriteDraft[]; done: never[] } => ({
     drafts: (h.vault?.drafts ?? []).map((draft) => ({
       id: draft.id,
@@ -76,7 +80,7 @@ function sessionOver(h: AcpHarness, mcpEnabled: boolean): AiSession {
     })),
     done: [],
   });
-  const build = () => ({ agents: h.state(), settings: { mcpEnabled }, drafts: drafts() });
+  const build = () => ({ agents: h.state(), settings: { mcpEnabled: switched() }, drafts: drafts() });
   let state = build();
   return {
     agents: h.agents,
@@ -106,7 +110,7 @@ interface Mounted {
   opened: { notes: string[]; paths: string[]; urls: [string, boolean | undefined][]; settings: number };
 }
 
-async function mount(script: AcpScript = () => ({}), options: { mcpEnabled?: boolean; activeNote?: { path: string; title: string } | null; harness?: Parameters<typeof acpHarness>[1] } = {}): Promise<Mounted> {
+async function mount(script: AcpScript = () => ({}), options: { mcpEnabled?: boolean | (() => boolean); activeNote?: { path: string; title: string } | null; harness?: Parameters<typeof acpHarness>[1] } = {}): Promise<Mounted> {
   await i18n.changeLanguage("en");
   const h = await acpHarness(script, { label, ...options.harness });
   const opened: Mounted["opened"] = { notes: [], paths: [], urls: [], settings: 0 };
@@ -115,7 +119,7 @@ async function mount(script: AcpScript = () => ({}), options: { mcpEnabled?: boo
   root = createRoot(host);
   await act(async () => {
     root!.render(
-      <AiSessionContext.Provider value={sessionOver(h, options.mcpEnabled === true)}>
+      <AiSessionContext.Provider value={sessionOver(h, typeof options.mcpEnabled === "function" ? options.mcpEnabled : options.mcpEnabled === true)}>
         <AiAgentView
           activeNote={options.activeNote ?? null}
           onOpenNote={(target) => void opened.notes.push(target)}
@@ -174,9 +178,41 @@ describe("before an agent is started", () => {
     expect(m.h.native.processes).toEqual([]);
   });
 
-  it("says whether Plainva's tools will be offered", async () => {
-    const m = await mount(undefined, { mcpEnabled: true });
+  it("says whether Plainva's tools will be offered — what a start would hand over, not the switch alone", async () => {
+    const helper = { name: "plainva", command: "/usr/lib/plainva/plainva-mcp", args: ["--app", "com.plainva.app"], env: [] };
+    const m = await mount(undefined, { mcpEnabled: true, harness: { toolbox: helper } });
     expect(find(m.container, "ai-agent-tools")!.textContent).toBe("Plainva's tools are offered to the agent. The first time, Plainva asks you which folders it may read.");
+    act(() => root?.unmount());
+    // Switched on, and the helper does not serve this vault (not started, or failed): the agent would get no tools.
+    const waiting = await mount(undefined, { mcpEnabled: true });
+    expect(find(waiting.container, "ai-agent-tools")!.textContent).toBe(t("ai.agent.start.toolsNotReady"));
+  });
+
+  it("follows the switch both ways: its own early reading is overtaken by the shell's once the helper started or stopped (F34, 19.11.)", async () => {
+    const helper = { name: "plainva", command: "/usr/lib/plainva/plainva-mcp", args: ["--app", "com.plainva.app"], env: [] };
+    let on = false;
+    const m = await mount(undefined, { mcpEnabled: () => on });
+    const line = () => find(m.container, "ai-agent-tools")!.textContent;
+    expect(line()).toBe(t("ai.agent.start.toolsOff"));
+    // Switched on: the view reads at once (its effect on the switch), before the helper serves — "not ready" is what a start would get.
+    on = true;
+    await act(async () => { await m.h.agents.refresh(); await m.h.settle(); });
+    expect(line()).toBe(t("ai.agent.start.toolsNotReady"));
+    // The helper serves; the shell reads again once configureMcp settled (useDesktopAi), and that reading stands.
+    m.h.toolbox = helper;
+    await act(async () => { await m.h.agents.refresh(); await m.h.settle(); });
+    expect(line()).toBe(t("ai.agent.start.toolsOn"));
+    // Switched off: until the helper stopped, a start would still hand the tools over — the line says so, then follows.
+    on = false;
+    await act(async () => { await m.h.agents.refresh(); await m.h.settle(); });
+    expect(line()).toBe(t("ai.agent.start.toolsOn"));
+    m.h.toolbox = null;
+    await act(async () => { await m.h.agents.refresh(); await m.h.settle(); });
+    expect(line()).toBe(t("ai.agent.start.toolsOff"));
+    // The shell's second reading is no accident of timing: it is chained behind the switch taking effect.
+    const shell = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "components", "ai", "useDesktopAi.ts"), "utf8");
+    // Whatever the switch hands over with it (the options grew with the workspace's lock), the reading is chained behind it.
+    expect(shell).toMatch(/void configureMcp\(mcpOn, vault, \{[^}]*\}\)\s*\.catch\(\(\) => undefined\)\s*\.then\(\(\) => session\.agents\.refresh\(\)\);/);
   });
 
   it("leads to the settings where no agent was added, and starts nothing without a vault or inside an encrypted workspace", async () => {

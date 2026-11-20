@@ -11,7 +11,7 @@ import type {
   RawImapEnvelope,
 } from "./types";
 import { threadFields } from "./threading";
-import { base64Bytes, decodeHeaderBlock, parseHeaders, previewFromBodyPrefix } from "./net/mime";
+import { base64Bytes, decodeHeaderBlock, decodeWords, headerAddresses, parseHeaders, previewFromBodyPrefix } from "./net/mime";
 import { MAIL_BULK_LIMIT, type MailBulkAction, type MailBulkResult } from "./bulkActions";
 import { readVacation, vacationSupport, writeVacation, type VacationState } from "./vacation";
 import type { VacationSettings } from "./sieveScript";
@@ -95,11 +95,54 @@ export async function listEnvelopes(
  * happen here rather than twice below.
  */
 function toEnvelope(m: RawImapEnvelope): MailEnvelope {
-  const { messageId, inReplyTo, references, openingHead, openingBody, ...rest } = m;
+  const { messageId, inReplyTo, references, openingHead, openingBody, headLines: lines, ...shown } = m;
+  const rest = { ...shown, ...headAsThePhoneReadsIt(lines, shown) };
   // The opening words, read where the transport did not read them (the
   // desktop): the same reader as the phone's list, over the same bytes.
   const preview = rest.preview ?? (openingBody !== undefined ? openingLine(openingHead ?? "", openingBody) : undefined);
   return { ...rest, ...(preview !== undefined ? { preview } : {}), id: String(m.uid), ...threadFields({ messageId, inReplyTo, references }) };
+}
+
+/**
+ * The head fields a message shows, read out of the header lines its transport
+ * handed on as sent (`headLines`), with the phone's own reader — the subject
+ * with `decodeWords`, an address list with `headerAddresses`. The desktop's
+ * parser leaves an encoded word it cannot read as it was written, and the
+ * desktop showed it so where the phone read it (Fehlerliste 0.9.0 C7). Only
+ * the fields asked for; nothing where there are no lines or they do not read.
+ */
+export function readHead<F extends "subject" | "from" | "to">(headBase64: string | undefined, fields: readonly F[]): Partial<Record<F, string>> {
+  if (headBase64 === undefined) return {};
+  let headers: Map<string, string>;
+  try {
+    headers = parseHeaders(decodeHeaderBlock(base64Bytes(headBase64)));
+  } catch {
+    return {};
+  }
+  const read: Partial<Record<F, string>> = {};
+  for (const field of fields) {
+    const value = headers.get(field);
+    if (value === undefined) continue;
+    read[field] = field === "subject" ? decodeWords(value) : headerAddresses(value);
+  }
+  return read;
+}
+
+/** An encoded word (RFC 2047) as it was written: what a parser that could not read it leaves. */
+const ENCODED_WORD_LEFT = /=\?[^?\s]+\?[bq]\?[^?\s]*\?=/i;
+
+/**
+ * The subject, and a name list the transport's own parser could not read,
+ * as the phone reads them (`readHead`). The subject is always taken from the
+ * lines. An address list only where the transport's reading still holds an
+ * encoded word: elsewhere the desktop's form of a list stands as it does —
+ * how it writes a name with a comma differs from the phone's, and that is not
+ * what this mends.
+ */
+function headAsThePhoneReadsIt(lines: string | undefined, own: { from?: string; to?: string }): Partial<Record<"subject" | "from" | "to", string>> {
+  const fields: Array<"subject" | "from" | "to"> = ["subject"];
+  for (const field of ["from", "to"] as const) if (own[field] !== undefined && ENCODED_WORD_LEFT.test(own[field]!)) fields.push(field);
+  return readHead(lines, fields);
 }
 
 /** The opening line from base64 header lines and body bytes; "" where they do not read. */
@@ -113,8 +156,8 @@ export function openingLine(headBase64: string, bodyBase64: string): string {
 
 export async function fetchMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<MailMessage> {
   if (mailAccountKind(account) === "microsoft") return graphFetchMessage(vaultPath, account, mailbox, id);
-  const m = await withMailCredentials(vaultPath, account, credential => mailTransport().fetchMessage(credential, { mailbox, uid: Number(id) }));
-  return { ...m, id: String(m.uid) };
+  const { headLines, ...m } = await withMailCredentials(vaultPath, account, credential => mailTransport().fetchMessage(credential, { mailbox, uid: Number(id) }));
+  return { ...m, ...headAsThePhoneReadsIt(headLines, m), id: String(m.uid) };
 }
 
 /** Raw RFC822 bytes, base64 (the ".eml beilegen" capture). */

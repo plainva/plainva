@@ -86,7 +86,8 @@ describe("diagnostics export redaction", () => {
   it("is read by both shells right after the vault's database is opened", () => {
     for (const file of ["apps/desktop/src/contexts/VaultContext.tsx", "apps/mobile/src/services/vaultService.ts"]) {
       const source = readFileSync(join(REPO, file), "utf8");
-      const schema = source.search(/await (?:perfMeasure\("vault open: database schema", \(\) => )?initializeSchema\((?:dbAdapter|db)\)\)?;/);
+      // The desktop opens it through openIndexDatabase (services/indexDatabase.ts), which brings the schema up to date.
+      const schema = source.search(/await (?:perfMeasure\("vault open: database schema", \(\) => )?initializeSchema\((?:dbAdapter|db)\)\)?;|await perfMeasure\("vault open: database", \(\) => openIndexDatabase\(path\)\);/);
       expect(schema, file).toBeGreaterThan(-1);
       expect(source.indexOf("await logIndexDiagnostics(", schema), file).toBeGreaterThan(schema);
     }

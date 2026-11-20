@@ -122,6 +122,28 @@ export class CredentialManager implements ICredentialStore {
     return value || null;
   }
 
+  /**
+   * A secret at ONE place, for the key of the secrets marks, which lives in
+   * one place decided once (F67, round twelve): the keychain — which throws
+   * when it does not answer, never "not there" — or the credentials file.
+   */
+  public async readSecretAt<T>(key: string, place: "keychain" | "file"): Promise<T | null> {
+    if (place === "file") return ((await (await this.store()).get<T>(key)) ?? null) as T | null;
+    const value = await invoke<string | null>("keychain_get", { key });
+    return value ? (JSON.parse(value) as T) : null;
+  }
+
+  /** Writes a secret at ONE place (`readSecretAt`); throws when the place does not take it. */
+  public async writeSecretAt<T>(key: string, value: T, place: "keychain" | "file"): Promise<void> {
+    if (place === "keychain") {
+      await invoke("keychain_set", { key, value: JSON.stringify(value) });
+      return;
+    }
+    const store = await this.store();
+    await store.set(key, value);
+    await store.save();
+  }
+
   public async writeSecret<T>(key: string, value: T): Promise<void> {
     const ok = await this.keychainSet(key, JSON.stringify(value));
     if (ok) {

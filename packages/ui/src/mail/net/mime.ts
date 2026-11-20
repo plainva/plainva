@@ -1,5 +1,6 @@
 import { htmlToPlainText } from "@plainva/core";
 import type { MailAttachmentInfo } from "../types";
+import { decoderOrUtf8 } from "./charsets";
 
 /**
  * The MIME reading side of the mobile mail client (mail feinplan G2).
@@ -21,8 +22,9 @@ export interface ParsedPart {
   mime: string;
   name: string | null;
   disposition: string | null;
-  /** Decoded text for text/*; raw bytes otherwise. */
+  /** Decoded text for a text/* part that is not attached as a file. */
   text: string | null;
+  /** The bytes of a file of the message (`isMessageFile`): with the transfer encoding taken off, nothing else. */
   bytes: Uint8Array | null;
   /** 1-based index among the parts a user would call an attachment. */
   index: number;
@@ -36,13 +38,8 @@ export interface ParsedMessage {
   parts: ParsedPart[];
 }
 
-const dec = (label: string) => {
-  try {
-    return new TextDecoder(label, { fatal: false });
-  } catch {
-    return new TextDecoder("utf-8", { fatal: false });
-  }
-};
+/** The decoder of a charset as a mail names it (`charsets.ts`), UTF-8 for a name nobody knows. */
+const dec = (label: string) => decoderOrUtf8(label);
 
 /**
  * A message in the form its structure is read in: one character per byte. A
@@ -127,19 +124,63 @@ export function parseHeaders(head: string): Map<string, string> {
   return out;
 }
 
-/** RFC 2047 encoded words in a header value ("=?utf-8?B?…?="). */
+/** One encoded word: its charset (an RFC 2231 language cut off), its encoding, its data. */
+const ENCODED_WORD = /=\?([^?*]+)(?:\*[^?]*)?\?([bBqQ])\?([^?]*)\?=/g;
+
+/**
+ * RFC 2047 encoded words in a header value ("=?utf-8?B?…?="), read as the
+ * desktop's parser reads them (Fehlerliste 0.9.0 C7, review of 2026-11-16).
+ *
+ * Space between two encoded words is no part of the text (6.2): a long subject
+ * folded between two words, or a Japanese one written as a word per phrase,
+ * reads as one. Neighbouring words of one charset are joined as bytes before
+ * they become text, so a character a generator split between two words — a
+ * UTF-8 "é" — is one character again; ISO-2022-JP returns to ASCII at the end
+ * of each word, so its words are read one by one and joined. Words read one
+ * by one with the space between left a space and a replacement mark.
+ */
 export function decodeWords(value: string): string {
-  return value.replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g, (_all, charset: string, enc: string, data: string) => {
-    try {
-      const bytes =
-        enc.toLowerCase() === "b"
-          ? base64Bytes(data)
-          : qpBytes(data.replace(/_/g, " "));
-      return dec(charset).decode(bytes);
-    } catch {
-      return data;
+  let out = "";
+  let at = 0;
+  /** The bytes of the run of encoded words not yet written, and their charset. */
+  let run: Uint8Array[] = [];
+  let runCharset = "";
+  const flush = (): void => {
+    if (run.length === 0) return;
+    if (/^iso-2022-/.test(runCharset)) {
+      // A stateful charset: each word returns to ASCII at its end and opens
+      // its own escape, so the words are decoded one by one and joined — two
+      // escapes in a row would read as an error (WHATWG encoding).
+      out += run.map((b) => dec(runCharset).decode(b)).join("");
+      run = [];
+      return;
     }
-  });
+    const length = run.reduce((n, b) => n + b.length, 0);
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const b of run) {
+      bytes.set(b, offset);
+      offset += b.length;
+    }
+    out += dec(runCharset).decode(bytes);
+    run = [];
+  };
+  for (const m of value.matchAll(ENCODED_WORD)) {
+    const between = value.slice(at, m.index);
+    const charset = m[1].toLowerCase();
+    if (run.length > 0 && /^[ \t\r\n]*$/.test(between)) {
+      // Space between two encoded words is dropped; a change of charset ends the run.
+      if (charset !== runCharset) flush();
+    } else {
+      flush();
+      out += between;
+    }
+    runCharset = charset;
+    run.push(m[2].toLowerCase() === "b" ? base64Bytes(m[3]) : qpBytes(m[3].replace(/_/g, " ")));
+    at = m.index + m[0].length;
+  }
+  flush();
+  return out + value.slice(at);
 }
 
 /** In `BASE64_VALUE`: the "=" that ends a group. */
@@ -168,8 +209,9 @@ const BASE64_VALUE = (() => {
  * passed over, as RFC 2045 (6.8) asks and as it always was here. That is how
  * the desktop's parser reads a body too (mail-parser 1.0; `mail_imap.rs` holds
  * the table `imapClient.test.ts` holds). In an encoded word of a header it
- * still gives up at a character that is no base64: parity catalog,
- * `mail-base64-reading`.
+ * still gives up at a character that is no base64; the desktop therefore
+ * hands its head lines on as sent and they are read here (`readHead` in
+ * `mailClient.ts`, Fehlerliste 0.9.0 C7).
  */
 export function base64Bytes(s: string): Uint8Array {
   const out = new Uint8Array(Math.ceil((s.length * 3) / 4));
@@ -327,9 +369,40 @@ function dispositionOf(headers: HeaderMap): string | null {
   return (headers.get("content-disposition") ?? "").split(";")[0].trim().toLowerCase() || null;
 }
 
-/** What a reader shows as the words of a message: its plain text or its HTML, unless that is attached as a file. */
+/** Where a list row looks for a message's opening words: a plain text or an HTML part not attached as a file. */
 function showsAsText(mime: string, disposition: string | null): boolean {
   return (mime === "text/plain" || mime === "text/html") && disposition !== "attachment";
+}
+
+/**
+ * Whether a part is words of the message's own text — a plain text or an
+ * HTML part its body is made of — rather than a file (RFC 8621, 4.1.4, the
+ * rule mail-parser follows on the desktop): it is not attached as a file, and
+ * it is the first part where it stands, or it carries no file name and does
+ * not stand in a multipart/related behind the first part. A named text further
+ * down a message — the note Apple Mail attaches inline — is a file.
+ */
+function partOfTheText(mime: string, disposition: string | null, name: string | null, position: number, parent: string): boolean {
+  if ((mime !== "text/plain" && mime !== "text/html") || disposition === "attachment") return false;
+  return position === 0 || (parent !== "multipart/related" && name === null);
+}
+
+/**
+ * THE rule of what is a file of a message, on both shells (Fehlerliste 0.9.0
+ * C6; `attachment_parts` in `mail_imap.rs` follows it, and one set of example
+ * messages holds both, `imapAttachments.test.ts` and `mail_imap.rs`):
+ *
+ * Every part of the message that is not divided into others is a file of it —
+ * whatever its type, named or not, attached or inline, an image the HTML shows
+ * by `cid:` included — except the words of its text: a plain text or an HTML
+ * part that is part of the text (`partOfTheText`), and the one part of a
+ * message of one part that is read as its words (`wordsOfAWholeMessage`). An
+ * enclosed message is one file; the parts inside it are its own. So a picture
+ * the reader does not show in place is never invisible: it is in the list,
+ * can be opened and saved, and goes along with a forward.
+ */
+function isMessageFile(wholeWords: boolean, ofTheText: boolean): boolean {
+  return !wholeWords && !ofTheText;
 }
 
 /** A type and a subtype as the rule spells them (RFC 2045, 5.1: two tokens). */
@@ -351,8 +424,7 @@ const DATA_TEXT = new Set(["calendar", "x-vcalendar", "vcard", "x-vcard", "direc
  * `text/plain charset=us-ascii` without its semicolon (RFC 2045, 5.2). Such a
  * message used to open empty, and was in no list of files either. Not one
  * attached as a file, and not one that is data (`DATA_TEXT`). Inside a
- * multipart such a part is the attachment question of the parity catalog's
- * `mail-attachment-list`, and stays as it is. The desktop reads the same
+ * multipart such a part is a file (`isMessageFile`). The desktop reads the same
  * messages alike (`whole_message_text_part` in `mail_imap.rs`).
  */
 function wordsOfAWholeMessage(headers: HeaderMap): boolean {
@@ -371,8 +443,6 @@ function inDigest(parent: string, headers: HeaderMap): string | null {
   return parent === "multipart/digest" && namedType(headers) === "" ? "message/rfc822" : null;
 }
 
-/** An enclosed message: a file of the message whether it has a name or not, on both shells. */
-const ENCLOSED_MESSAGE = new Set(["message/rfc822", "message/global"]);
 
 /**
  * The delimiter line between the parts of a multipart, in `wireOf` form; null
@@ -481,7 +551,9 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
   /** The message's one part, where it is words of another type than text/plain (`wordsOfAWholeMessage`). */
   let whole: ParsedPart | null = null;
 
-  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, branches: ReadonlyArray<AlternativeBranch>, parent = ""): void => {
+  /** Per part, in the order of `parts`: whether it is words of the message's text (`partOfTheText`). */
+  const ofTheText: boolean[] = [];
+  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, branches: ReadonlyArray<AlternativeBranch>, parent = "", position = 0): void => {
     if (depth > 12) return; // pathological nesting guard
     const type = inDigest(parent, partHeaders) ?? contentType(partHeaders);
     if (type.startsWith("multipart/")) {
@@ -491,35 +563,44 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       const alternative = type === "multipart/alternative" ? ++alternatives : 0;
       splitMultipart(partBody, delimiter).forEach((chunk, child) => {
         const sub = splitHeaders(chunk);
-        walk(headersOf(sub.head), sub.body, depth + 1, alternative ? [...branches, { alternative, child }] : branches, type);
+        walk(headersOf(sub.head), sub.body, depth + 1, alternative ? [...branches, { alternative, child }] : branches, type, child);
       });
       return;
     }
     const disposition = dispositionOf(partHeaders);
-    const name =
-      parseParams(partHeaders.get("content-disposition") ?? "").get("filename") ??
-      parseParams(partHeaders.get("content-type") ?? "").get("name") ??
-      null;
+    // Whether the part is named, as the desktop's parser decides it: by the
+    // first of its file name and its name that is not empty — a name of
+    // blanks names it (mail-parser, `has_part_name`; an empty value is no
+    // value there). The name it is shown and saved by is the first of the two
+    // that is not blank; a part without one is "attachment" (Fehlerliste
+    // 0.9.0 F24, review of 2026-11-17).
+    const fileName = parseParams(partHeaders.get("content-disposition") ?? "").get("filename");
+    const typeName = parseParams(partHeaders.get("content-type") ?? "").get("name");
+    const asked = fileName || typeName;
+    const shown = [fileName, typeName].map((value) => (value === undefined ? "" : trimBlank(value))).find((value) => value !== "") ?? null;
+    const name = asked !== undefined && asked !== "" ? (shown ?? "") : null;
     const wholeWords = depth === 0 && wordsOfAWholeMessage(partHeaders);
     const isText = wholeWords || (type.startsWith("text/") && disposition !== "attachment");
+    const text = partOfTheText(type, disposition, name, position, parent);
     const part: ParsedPart = {
       mime: type,
-      name,
+      name: shown,
       disposition,
       text: isText ? decodeText(partHeaders, partBody) : null,
-      bytes: isText ? null : decodeBody(partHeaders, partBody),
+      bytes: isMessageFile(wholeWords, text) ? decodeBody(partHeaders, partBody) : null,
       index: ++index,
     };
     if (wholeWords) whole = part;
     parts.push(part);
     branchesOf.push(branches);
+    ofTheText.push(text);
   };
 
   walk(headers, body, 0, []);
   // Set inside `walk`, which the narrowing of `let` does not follow.
   const wholePart = whole as ParsedPart | null;
 
-  const first = parts.findIndex((part) => showsAsText(part.mime, part.disposition));
+  const first = parts.findIndex((_, at) => ofTheText[at]);
   let text: string | null = null;
   if (first < 0 && wholePart) {
     text = wholePart.text;
@@ -529,12 +610,14 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
     const own = branchesOf[first];
     const otherVersion = (at: number): boolean =>
       branchesOf[at].some((branch) => own.some((mine) => mine.alternative === branch.alternative && mine.child !== branch.child));
-    text = parts.find((part, at) => part.mime === "text/plain" && part.text !== null && otherVersion(at))?.text ?? null;
+    text = parts.find((part, at) => part.mime === "text/plain" && ofTheText[at] && part.text !== null && otherVersion(at))?.text ?? null;
   }
-  const html = parts.find((p) => p.mime === "text/html" && p.text !== null)?.text ?? null;
+  const html = parts.find((p, at) => p.mime === "text/html" && ofTheText[at] && p.text !== null)?.text ?? null;
+  // A file without a name of its own is listed as the desktop lists it; a
+  // forward names it after its type (`carriedFiles.ts`).
   const attachments: MailAttachmentInfo[] = parts
-    .filter((p) => p.bytes !== null && (p.disposition === "attachment" || p.name !== null || ENCLOSED_MESSAGE.has(p.mime)))
-    .map((p) => ({ index: p.index, name: p.name ?? `part-${p.index}`, mime: p.mime, size: p.bytes?.length ?? 0 }));
+    .filter((p) => p.bytes !== null)
+    .map((p) => ({ index: p.index, name: p.name ?? "attachment", mime: p.mime, size: p.bytes?.length ?? 0 }));
 
   return { headers, text, html, attachments, parts };
 }
@@ -738,4 +821,16 @@ export function headerDate(value: string | undefined): number {
   if (!value) return 0;
   const t = Date.parse(decodeWords(value));
   return Number.isFinite(t) ? t : 0;
+}
+
+/** A blank of a file name: what `trim` takes away and what Rust's `is_whitespace` does (U+0085 besides), as the desktop reads it. */
+const BLANK = /[\s\u0085]/;
+
+/** A file name without the blanks around it (`shown_file_name` in `mail_imap.rs`). */
+function trimBlank(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && BLANK.test(value[start])) start++;
+  while (end > start && BLANK.test(value[end - 1])) end--;
+  return value.slice(start, end);
 }

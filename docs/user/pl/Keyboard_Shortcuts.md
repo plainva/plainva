@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-10-22
+Stan na: 2026-11-16
 
 `F1` (lub **Paleta poleceń → Pokaż skróty klawiszowe**) w każdej chwili otwiera okno skrótów. Grupuje ono każdy skrót i gest myszy w obszary, między którymi przełącza się za pomocą chipów u góry, ma pole wyszukiwania obejmujące wszystkie obszary i automatycznie wykrywa platformę: pokazuje `Ctrl`/`Alt` w Windows i Linux oraz `⌘`/`⌥` w macOS. W tabelach poniżej `Ctrl` oznacza więc `⌘` w macOS, a `Alt` — `⌥`.
 
@@ -10,7 +10,7 @@ Stan na: 2026-10-22
 |---|---|
 | `Ctrl+P` (lub `Ctrl+Shift+P`) | Otwórz paletę poleceń |
 | `Ctrl+O` | Szybkie przełączanie – wyszukiwanie i otwieranie plików |
-| `Ctrl+J` | Zapytaj AI – otwiera asystenta (tylko gdy AI jest włączona, zobacz [Asystent AI](AI_Assistant.md)) |
+| `Ctrl+J` | Zapytaj AI – otwiera rozmowę w prawym pasku bocznym (tylko gdy AI jest włączona, zobacz [Asystent AI](AI_Assistant.md)) |
 | `Ctrl+,` | Otwórz ustawienia |
 | `Ctrl+Plus` / `Ctrl+Minus` | Powiększ / pomniejsz interfejs (80–150 %) |
 | `Ctrl+0` | Zresetuj powiększenie do 100 % |

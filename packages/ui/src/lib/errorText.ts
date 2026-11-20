@@ -19,7 +19,7 @@
  */
 
 import { connectionErrorText } from "./connectionErrorText";
-import { isStructureNeedsIndexError } from "@plainva/core";
+import { isDamagedFullText, isStructureNeedsIndexError } from "@plainva/core";
 import i18n from "i18next";
 
 const INPUT_REJECTIONS = new Map([
@@ -53,6 +53,12 @@ const UNREADABLE_PROPERTIES_BLOCK = ["Frontmatter is not parseable YAML", "Front
  * repeated — whoever shows the sentence has just typed them.
  */
 const PROPERTY_NAME_TAKEN = ["Cannot rename '", "': target key already exists"] as const;
+/**
+ * A value another entry refers to through a YAML anchor
+ * (`sharedByAnchor` in `@plainva/core`): the block reads, so it is not said
+ * as one that does not — the user is told to change it in the note's text.
+ */
+const PROPERTY_SHARED_BY_ANCHOR = ["Frontmatter entry '", "' is shared through a YAML anchor and cannot be changed where it stands"] as const;
 
 function propertiesErrorText(message: string): string | null {
   const said = (key: string, fallback: string) => {
@@ -61,6 +67,9 @@ function propertiesErrorText(message: string): string | null {
   };
   if (message.startsWith(PROPERTY_NAME_TAKEN[0]) && message.endsWith(PROPERTY_NAME_TAKEN[1])) {
     return said("propertyNameTaken", "The note already has a property with the new name.");
+  }
+  if (message.startsWith(PROPERTY_SHARED_BY_ANCHOR[0]) && message.endsWith(PROPERTY_SHARED_BY_ANCHOR[1])) {
+    return said("propertySharedByAnchor", "This property's value is shared with another one through a YAML anchor (& and * in the note's text). Change it in the note's text itself.");
   }
   // Without a translation it is still only the beginning: never the quote.
   const block = UNREADABLE_PROPERTIES_BLOCK.find((start) => message.startsWith(start));
@@ -122,11 +131,28 @@ function inputErrorText(message: string): string {
   return typeof translated === "string" && translated.trim() ? translated : message;
 }
 
+/** A refused database change (`BaseConfigChangeRefusedError`), told by its name: the class does not survive a window boundary. */
+function baseConfigRefusal(err: unknown): { reason: string; viewName: string } | null {
+  const e = err as { name?: unknown; reason?: unknown; viewName?: unknown } | null;
+  if (!e || typeof e !== "object" || e.name !== "BaseConfigChangeRefusedError") return null;
+  if (e.reason !== "viewGone" && e.reason !== "viewUnclear" && e.reason !== "fileChanging") return null;
+  return { reason: e.reason, viewName: typeof e.viewName === "string" ? e.viewName : "" };
+}
+
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
   // A deletion, rename or move refused while the index database is closed
   // (stability plan R5): one sentence that says why and what to do, wherever it surfaces.
   if (isStructureNeedsIndexError(err)) return i18n.t("errors.structureNeedsIndex");
+  // A damaged full-text index (SQLITE_CORRUPT_VTAB): noted where it was met,
+  // made anew at the next open (`watchFullTextDamage`) — not a raw driver text.
+  if (isDamagedFullText(err)) return i18n.t("errors.fullTextDamaged");
+  // A database change whose view cannot be found in the file with certainty (B20): by its reason, in the reader's language.
+  const refusal = baseConfigRefusal(err);
+  if (refusal) {
+    const key = refusal.reason === "viewGone" ? "writeFailed.databaseViewGone" : refusal.reason === "viewUnclear" ? "writeFailed.databaseViewUnclear" : "writeFailed.databaseFileChanging";
+    return i18n.t(key, { name: refusal.viewName });
+  }
   const connection = connectionErrorText(err);
   if (connection) return connection;
   if (typeof err === "string") return inputErrorText(err.trim() || "unknown error");

@@ -1,8 +1,8 @@
 import { loadDesktopBookmarks, publishBookmarks, bindBookmarkVault, retargetDesktopBookmarks } from "./bookmarks";
-import { CommentOperationError, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
+import { CommentOperationError, noteFullTextDamageFound, PimConflictError, type CommentOperationService, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
-import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
+import { getWindowBus, OWNER_LABEL, type BroadcastMap, type RpcMap, type WindowBus } from "./windowBus";
 import { enqueueSend, appendDraftFor, releaseRefusedSend } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
@@ -23,7 +23,7 @@ import {
 import { holdersOf, setHolderVault } from "./vaultRuntimes";
 import { clearDraft, recordDraft, relocateDrafts } from "./draftJournal";
 import { noteDraftWindow, noteDraftsFlushed } from "./windowDraftFlush";
-import { syncStatusStore } from "./syncStatusStore";
+import { syncStatusStore, type SyncStatusSnapshot } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { withPendingWrite } from "./pendingWrites";
 import { runQuickCapture } from "./quickCapture";
@@ -195,6 +195,55 @@ function installEventBridges(vaultPath: string): () => void {
   };
 }
 
+/** The owner's status as the other windows receive it. */
+export function syncStatusPayload(s: SyncStatusSnapshot): BroadcastMap["sync-status"] {
+  return {
+    status: s.status,
+    message: s.message,
+    provider: s.provider,
+    retryAt: s.retryAt ?? null,
+    progress: s.progress ?? null,
+    firstPullDone: s.firstPullDone ?? null,
+    firstPullFailed: s.firstPullFailed ?? null,
+    reason: s.reason ?? null,
+  };
+}
+
+/**
+ * What a window that does not own the vault makes of the owner's mirrored
+ * status — filed under the vault the owner named. Every field the start of a
+ * vault reads travels, `firstPullDone` and `firstPullFailed` included (second
+ * and third review of O8).
+ */
+export function applyMirroredSyncStatus(vault: string, s: BroadcastMap["sync-status"]): void {
+  syncStatusStore.set(vault, {
+    status: s.status as SyncStatusSnapshot["status"],
+    message: s.message ?? null,
+    provider: (s.provider ?? null) as SyncStatusSnapshot["provider"],
+    // `retryAt` is optional, not nullable: null would type-error and read as
+    // "a retry at epoch zero" in the status bar.
+    retryAt: s.retryAt ?? undefined,
+    progress: s.progress ?? null,
+    firstPullDone: s.firstPullDone ?? undefined,
+    firstPullFailed: s.firstPullFailed ?? undefined,
+    reason: (s.reason ?? undefined) as SyncStatusSnapshot["reason"],
+  });
+}
+
+/**
+ * A window that opens asks the owner once for the status as it is (third
+ * review of O8): the mirror sends changes only, so a window opened during a
+ * first pull knew nothing of it until the next change and offered a first
+ * note. No owner runtime for the vault yet: the mirror brings the first status.
+ */
+export async function askSyncStatus(bus: Pick<WindowBus, "request">, vault: string): Promise<void> {
+  try {
+    applyMirroredSyncStatus(vault, await bus.request("sync-status-now", {}, { vaultPath: vault }));
+  } catch {
+    /* silent: no runtime for this vault (yet) — its mirror sends the first status it reaches */
+  }
+}
+
 /**
  * Mirrors the owner's sync status into the other windows (C3).
  *
@@ -212,23 +261,11 @@ export function installSyncStatusMirror(vaultPath: string): () => void {
     const s = syncStatusStore.get(vaultPath);
     // Cheap equality: the store also emits for fields no other window draws
     // (error history, authRecoverable), and every emit here is an IPC message.
-    const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total].join("|");
+    const key = [s.status, s.message, s.provider, s.retryAt, s.progress?.phase, s.progress?.current, s.progress?.total, s.firstPullDone, s.firstPullFailed, s.reason].join("|");
     if (key === last) return;
     last = key;
     void getWindowBus()
-      .then((bus) =>
-        bus.broadcast(
-          "sync-status",
-          {
-            status: s.status,
-            message: s.message,
-            provider: s.provider,
-            retryAt: s.retryAt ?? null,
-            progress: s.progress ?? null,
-          },
-          vaultPath,
-        ),
-      )
+      .then((bus) => bus.broadcast("sync-status", syncStatusPayload(s), vaultPath))
       .catch(() => {});
   });
 }
@@ -295,6 +332,10 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     // A change of a file where it lies, from a window that cannot run it
     // inside this window's gate: the file's state goes out, and what the
     // other window made of it is written only if the file still is that.
+    // A window that opens asks once for the status as it is (third review of O8).
+    await bus.handle("sync-status-now", () => syncStatusPayload(syncStatusStore.get(deps.vaultPath)), { vaultPath: deps.vaultPath }),
+    // An auxiliary window reads the index only: this window notes the damaged full-text index for it.
+    await bus.handle("full-text-damaged", ({ reading }) => (deps.db ? noteFullTextDamageFound(deps.db, reading) : false), { vaultPath: deps.vaultPath }),
     await bus.handle("update-read", ({ path }) => {
       if (!deps.vaultAdapter.readTextFileState) throw new Error("Conflict-safe editing is unavailable");
       return deps.vaultAdapter.readTextFileState(path);

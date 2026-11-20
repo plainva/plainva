@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Última actualización: 2026-11-16
+Última actualización: 2026-11-19
 
 La memoria guarda lo que la IA debe saber sobre ti y tu trabajo sin que tengas que repetírselo: a qué te dedicas, cómo quieres las respuestas, quiénes son tus clientes. Son dos archivos en tu vault. Nada entra en la memoria sin tu sí, y puedes leer, cambiar y eliminar cada entrada.
 
@@ -12,7 +12,7 @@ Lo que está en **Para consultar** no se envía. Cuando una pregunta puede depen
 
 ## Abrir la memoria
 
-En el escritorio, elige **Memoria** en la pestaña de IA, junto a **Habilidades**. En el teléfono es **Memoria** en la pantalla de IA, o **Habilidades y memoria** en la página de inicio del área de IA. **Configuración → IA en este vault** también lleva allí: **Abrir la memoria** bajo **Habilidades y memoria**. Los nombres de archivo de la memoria están tras el ⓘ de la tarjeta **Siempre incluido**; las reglas del vault (`AGENTS.md`) se revisan y se aprueban allí mismo, en la vista de la memoria.
+En el escritorio, elige **Memoria** en la pestaña de IA, junto a **Habilidades**. En el teléfono es **Memoria** en la pantalla de IA, o **Habilidades y memoria**, la última entrada del menú **Habilidades** de una conversación vacía. **Configuración → IA en este vault** también lleva allí: **Abrir la memoria** bajo **Habilidades y memoria**. Los nombres de archivo de la memoria están tras el ⓘ de la tarjeta **Siempre incluido**; las reglas del vault (`AGENTS.md`) se revisan y se aprueban allí mismo, en la vista de la memoria.
 
 ## Añadir una entrada por tu cuenta
 

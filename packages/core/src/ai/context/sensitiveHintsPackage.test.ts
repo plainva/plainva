@@ -100,6 +100,7 @@ describe("sensitivity hints in the package", () => {
       note: async (path: string) => (path === "Finance/Rent.md" ? `Rent is paid to ${IBAN} monthly.` : null),
       area: async (area: string) => (area === "Finance" ? `Rent and bank details, account ${IBAN}.` : area === "Home" ? "Plants and chores." : null),
       vault: async () => null,
+      notes: async (area: string | null) => Object.keys(files).filter((path) => area === null || path.startsWith(`${area}/`)).map((path) => ({ path, text: files[path]! })),
     };
     // Weak matches and no room for evidence or cards: every source is a handle in the map.
     const many = [[{ path: "Finance/Rent.md", title: "Rent", signals: { lexical: 0.2 } }, ...Array.from({ length: 3 }, (_, i) => ({ path: `Home/N${i}.md`, title: `N${i}`, signals: { lexical: 0.1 } }))]];

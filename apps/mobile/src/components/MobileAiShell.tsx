@@ -41,7 +41,7 @@ export function aiShellRoutes(shell: {
   commands: MobileAiNavigation["commands"];
   /** The bar carries the assistant's screen: a tap there is the way to it, otherwise it is pushed. */
   aiInBar: boolean;
-}): { nav: MobileAiNavigation; onOpenNote: (target: string) => void; onOpenScreen: () => void } {
+}): { nav: MobileAiNavigation; onOpenNote: (target: string, kind?: "wiki" | "markdown") => void; onOpenScreen: () => void } {
   const { ai, vault, openNote, push, setNav } = shell;
   const asked = (step: () => void) => () => leaveThen(step);
   return {
@@ -49,6 +49,10 @@ export function aiShellRoutes(shell: {
       openNote: (path) => leaveThen(() => openNote(path)),
       openSearch: asked(() => push({ kind: "search", path: "" })),
       openSettings: asked(() => push({ kind: "settingsArea", path: "ai" })),
+      openSkills: asked(() => {
+        ai.closeSheet();
+        push({ kind: "aihistory", path: "skills" });
+      }),
       openMailDraft: (mail) =>
         leaveThen(() => {
           ai.closeSheet();
@@ -57,7 +61,7 @@ export function aiShellRoutes(shell: {
       openEventEditor: () => void tabTapped("today", setNav, () => ai.closeSheet()),
       commands: shell.commands,
     },
-    onOpenNote: (target) => openAiNoteTarget(vault, target, (path) => leaveThen(() => openNote(path))),
+    onOpenNote: (target, kind) => openAiNoteTarget(vault, target, (path) => leaveThen(() => openNote(path)), kind),
     onOpenScreen: asked(() => setNav((s) => (shell.aiInBar ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai)))),
   };
 }
@@ -110,7 +114,7 @@ export function MobileAiShell({
   ai: Pick<ReturnType<typeof useMobileAi>, "navRef" | "sheet" | "closeSheet" | "notePick" | "closePick">;
   nav: MobileAiNavigation;
   onOpenScreen: () => void;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
 }) {
   const { t } = useTranslation();
   useIntentNavigation(nav);
@@ -126,7 +130,7 @@ export function MobileAiShell({
         <AiSheet
           notePath={ai.sheet.path}
           onClose={ai.closeSheet}
-          onOpenNote={(target) => leaving(() => onOpenNote(target))()}
+          onOpenNote={(target, kind) => leaving(() => onOpenNote(target, kind))()}
           onOpenScreen={leaving(onOpenScreen)}
           onOpenSettings={leaving(() => nav.openSettings?.())}
         />

@@ -361,6 +361,16 @@ export function forgetRemovedAccount(
   return recordAccountAct(map, logicalId, "revived", at, device);
 }
 
+/**
+ * Whether the act that stands for the account this device knows by `localId`
+ * is a removal in this device's map — removed here (`noteAccountRemovedLocally`)
+ * or a removal this device has taken in from the document.
+ */
+export function accountRemovedHere(map: ProfileAccountMap, kind: "pim" | "mail", localId: string): boolean {
+  const logical = (kind === "pim" ? map.pimLocalToLogical : map.mailLocalToLogical)[localId] ?? localId;
+  return mapActs(map)[logical]?.act === "removed";
+}
+
 /** `forgetRemovedAccount` for the id the shell knows (its local id), as `rememberRemovedAccount` takes it. */
 export function forgetRemovedLocalAccount(
   map: ProfileAccountMap,
@@ -703,6 +713,38 @@ export function pimAccountsForProfile(rows: readonly PimAccountRow[], map: Profi
     .sort((a, b) => pimIdentity(a).localeCompare(pimIdentity(b)) || a.id.localeCompare(b.id));
 }
 
+/**
+ * A device whose index database was rebuilt holds its account fields back
+ * until the settings sync has applied the document (`heldBack`): what it
+ * does not know any more — the accounts and choices that went with the
+ * database — is taken from the document, and what it says of an account it
+ * knows is its own word. So a calendar switched off here after the rebuild
+ * goes out as switched off, and an account the document has that is not here
+ * comes back. Nothing removed on purpose (`removedLogical`) is filled in. The
+ * order is the export's, so a value nobody changed reads as unchanged.
+ */
+export function fillHeldAccountField(key: string, documentValue: unknown, exported: unknown, removedLogical: ReadonlySet<string>): unknown {
+  if (key === "pimAccounts") {
+    const mine = Array.isArray(exported) ? (exported as SharedPimAccount[]) : [];
+    const known = new Set(mine.map((a) => a.id));
+    const missing = (Array.isArray(documentValue) ? (documentValue as SharedPimAccount[]) : [])
+      .filter((a) => a && typeof a.id === "string" && !known.has(a.id) && !removedLogical.has(a.id));
+    return [...mine, ...missing].sort((a, b) => pimIdentity(a).localeCompare(pimIdentity(b)) || a.id.localeCompare(b.id));
+  }
+  if (key === "pimSelections") {
+    type Choice = { accountId: string; id: string; selected: boolean };
+    const fill = (mine: readonly Choice[], theirs: readonly Choice[]) => {
+      const known = new Set(mine.map((c) => `${c.accountId}\u0000${c.id}`));
+      return [...mine, ...theirs.filter((c) => c && !known.has(`${c.accountId}\u0000${c.id}`) && !removedLogical.has(c.accountId))]
+        .sort((a, b) => (a.accountId === b.accountId ? a.id.localeCompare(b.id) : a.accountId.localeCompare(b.accountId)));
+    };
+    const mine = (exported ?? {}) as Partial<ProfilePimSelections>;
+    const theirs = (documentValue ?? {}) as Partial<ProfilePimSelections>;
+    return { calendars: fill(mine.calendars ?? [], theirs.calendars ?? []), taskLists: fill(mine.taskLists ?? [], theirs.taskLists ?? []) };
+  }
+  return documentValue;
+}
+
 export function mailAccountsForProfile(rows: readonly MailAccountConfig[], map: ProfileAccountMap): SharedMailAccount[] {
   return rows
     .map((a) => ({ ...sharedMailAccount(a), id: map.mailLocalToLogical[a.id] ?? a.id }))
@@ -846,7 +888,11 @@ export async function importAccountMetadata(
       // account that happens to share an id gets a fresh one instead of
       // overwriting a local account that is not it.
       const collisionMatches = !!idCollision && sameMergeAccount(idCollision, imported);
+      // An account whose row is gone (the index database was rebuilt) comes
+      // back under the id this device knew it by: its sign-in hangs off it.
+      const remembered = mapped && !used.has(mapped) ? mapped : undefined;
       const localId = same?.id
+        ?? remembered
         ?? (idCollision && !collisionMatches ? nextLocalId(imported.id, used, newId) : imported.id);
       used.add(localId);
       pimMap.set(imported.id, localId);

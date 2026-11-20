@@ -2,6 +2,8 @@ import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import { isTextFile } from "../sync/fileType.js";
 import type { SyncProgress, SyncStatus, SyncErrorReason } from "../sync/SyncWorker.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
+import type { OwnDeletionRegister } from "../sync/ownDeletions.js";
+import { ownRemovalStamps } from "../vault/indexedRowStamp.js";
 import { createWorkspaceCatalog, openWorkspaceCatalog, type WorkspaceCatalogPayload } from "./catalog.js";
 import {
   encodeWorkspaceDocument,
@@ -228,6 +230,12 @@ export interface EncryptedWorkspaceWorkerOptions {
    */
   openPublicationRuntime?: (record: WorkspacePublicationRecord) => Promise<PersonalWorkspaceRuntime | null>;
   onPublicationsRefreshed?: (outcomes: PublicationRefreshOutcome[]) => void;
+  /**
+   * Where an incoming deletion carried out here is marked, so the index's
+   * report of the vanished file is not taken for the person's deletion — as
+   * the plain sync does (`OwnDeletionRegister`).
+   */
+  ownDeletions?: OwnDeletionRegister;
 }
 
 /**
@@ -330,6 +338,10 @@ export class EncryptedWorkspaceWorker {
    * with attachments (review of release 0.9.0, the pattern of F51).
    */
   private readonly targetPathsThisPull = new Map<string, string | null>();
+  /** The plaintext hash of what an incoming content operation brings, opened with its path (`queuedWritesAreThisVersion`). */
+  private readonly targetShasThisPull = new Map<string, string | null>();
+  /** The objects whose deletion this pull applies (`applyIncoming`: of two files of one name and text, the one that goes gives the name up). */
+  private readonly deletedThisPull = new Set<string>();
   private readonly foldersToClear = new Set<string>();
   /** Each device's operations this pull applied or found applied, by sequence (`advanceHead`). */
   private readonly appliedThisPull = new Map<string, Map<number, string>>();
@@ -981,6 +993,7 @@ export class EncryptedWorkspaceWorker {
     // and the head this device keeps of that chain stays below it until it is
     // (`advanceHead`).
     this.targetPathsThisPull.clear();
+    this.targetShasThisPull.clear();
     this.appliedThisPull.clear();
     const chained = await this.validateDeviceChains(operations, meta.operationHeads);
     const fresh: typeof operations = [];
@@ -1003,6 +1016,8 @@ export class EncryptedWorkspaceWorker {
     const waiting = await this.waitingOperations(sorted, new Set([...held, ...await this.waitingForOwnChanges(sorted)]));
     this.heldDeviceIds = new Set(sorted.filter((entry) => waiting.has(entry.hash)).map((entry) => entry.document.payload.deviceId));
     const pending = sorted.filter((entry) => !waiting.has(entry.hash));
+    this.deletedThisPull.clear();
+    for (const entry of pending) if (entry.document.payload.operation === "delete") this.deletedThisPull.add(entry.document.payload.objectId);
     const changed: string[] = [];
     let progress = true;
     while (pending.length && progress) {
@@ -1046,6 +1061,7 @@ export class EncryptedWorkspaceWorker {
     await this.clearDeletedFolders();
     await this.verifyRemoteHeads(meta, policy, signal);
     this.targetPathsThisPull.clear();
+    this.targetShasThisPull.clear();
     return changed;
   }
 
@@ -1135,7 +1151,9 @@ export class EncryptedWorkspaceWorker {
     for (const { document, hash } of operations) {
       if (document.payload.operation === "comment") continue;
       // A folder's operation touches what is queued in it; a new object's place is only known once opened (and kept for the apply).
-      if ((await this.pathsTouched(document.payload)).some((path) => pending.some((own) => pathsMeet(path, own)))) waiting.add(hash);
+      if (!(await this.pathsTouched(document.payload)).some((path) => pending.some((own) => pathsMeet(path, own)))) continue;
+      if (await this.queuedWritesAreThisVersion(document.payload)) continue;
+      waiting.add(hash);
     }
     return waiting;
   }
@@ -1157,6 +1175,7 @@ export class EncryptedWorkspaceWorker {
         if (frame.envelopes.some((envelope) => this.runtime.groupKeys.some((key) => key.groupId === envelope.groupId && key.keyEpoch === envelope.keyEpoch))) {
           const metadata = await openPvo1Metadata(bytes, this.runtime.groupKeys.map((key) => ({ groupId: key.groupId, keyEpoch: key.keyEpoch, privateKey: key.hpke.privateKey })));
           path = assertCanonicalVaultPath(metadata.path);
+          this.targetShasThisPull.set(key, metadata.mime === "inode/directory" ? null : metadata.plaintextSha256);
         }
       }
     } catch {
@@ -1317,6 +1336,7 @@ export class EncryptedWorkspaceWorker {
         ? { ...current, currentRevisionId: null, payloadHash: null, deleted: true, modifiedAt: operation.createdAt }
         : { objectId: operation.objectId, path: deletedObjectPath(operation.objectId), currentRevisionId: null, payloadHash: null, plaintextSha256: null, contentKind: "binary", deleted: true, authorMemberId: "", createdAt: operation.createdAt, modifiedAt: operation.createdAt };
       await this.state.recordIncoming({ object, revision: null, operationHash, operationDocument: toBase64(encodeWorkspaceDocument(document)), deviceId: operation.deviceId, sequence: operation.sequence }, setCurrent, meta);
+      if (current) await this.state.forgetOwnRemoval?.(current.path);
       Object.assign(acceptedMeta, meta);
       return setCurrent ? [object.path] : [];
       });
@@ -1395,7 +1415,10 @@ export class EncryptedWorkspaceWorker {
     const branches = fastForward || !current ? null : await this.incomingTakesHead(current, operation.parentRevisionIds[0] ?? null, operationHash);
     const takesHead = fastForward || !!branches?.takes;
     const holdsLocal = !!current && !current.deleted;
-    const locallyChanged = holdsLocal ? await this.localContentChanged(current) : false;
+    // A file that already holds the incoming version is no change of this
+    // device's: a runtime that ended (a crash, a close) after it wrote this
+    // download and before it recorded it — taken over, no conflict copy.
+    const locallyChanged = holdsLocal ? (await this.localContentChanged(current)) && !(await this.holdsBytes(current.path, opened.metadata.plaintextSha256)) : false;
     const pendingLocal = holdsLocal ? await this.state.hasPendingForPath(current.path) : false;
     const setCurrent = takesHead && !locallyChanged && !pendingLocal;
     let objectPath = targetPath;
@@ -1409,10 +1432,19 @@ export class EncryptedWorkspaceWorker {
       } else if (pathOwner && !pathOwner.deleted && pathOwner.objectId !== operation.objectId) {
         // Two objects, one name (the same new note made on two devices): the
         // smaller id keeps it on every device, the other is its conflict copy
-        // everywhere. Two folders of one name are one folder: the other
-        // folder object is retired, here as on every device.
-        const incomingKeeps = operation.objectId < pathOwner.objectId;
-        if (isDirectory && pathOwner.contentKind === "directory") {
+        // everywhere. Two folders of one name are one folder, and two files
+        // of one name with the same text are one file (two devices that both
+        // kept another device's deleted files uploaded each of them anew:
+        // review of release 0.9.0, F63) — the other object is retired, here
+        // as on every device. Where the texts differ, the copy stays. Of two
+        // such files, one whose deletion this pull applies gives the name up:
+        // a device that pulls the deletion and the new upload together keeps
+        // the file, as one that saw the deletion first does.
+        const oneFile = !isDirectory && pathOwner.contentKind !== "directory" && pathOwner.plaintextSha256 === opened.metadata.plaintextSha256;
+        const ownerGoes = this.deletedThisPull.has(pathOwner.objectId);
+        const incomingGoes = this.deletedThisPull.has(operation.objectId);
+        const incomingKeeps = oneFile && ownerGoes !== incomingGoes ? ownerGoes : operation.objectId < pathOwner.objectId;
+        if ((isDirectory && pathOwner.contentKind === "directory") || oneFile) {
           if (incomingKeeps) await this.state.retireObject(pathOwner.objectId);
           else { objectPath = deletedObjectPath(operation.objectId); placed = false; }
         } else if (incomingKeeps) moved.push(...await this.moveToConflictCopy(pathOwner, conflictPath(targetPath, pathOwner.objectId), true));
@@ -1514,6 +1546,44 @@ export class EncryptedWorkspaceWorker {
     return [object.path, copyPath];
   }
 
+  /**
+   * A file that holds exactly the incoming version of its own object is no
+   * change of this device's — also where the index already queued it as
+   * changed at the start (both shells queue that at once), after a runtime
+   * ended between writing this download and recording it. Such queued
+   * writes would send what arrives now, as a version of their own beside
+   * it, and the other device makes a conflict copy of the same text: they
+   * are done, and go, and the operation waits for nothing. Only writes of
+   * exactly this path, not yet prepared for sending, with nothing else of
+   * the queue in or around it; a rename, a deletion or a folder's entry
+   * stays what it is, and the operation waits for it as before.
+   */
+  private async queuedWritesAreThisVersion(operation: WorkspaceOperationPayload): Promise<boolean> {
+    if (operation.operation === "delete" || !operation.payloadHash) return false;
+    const path = await this.incomingTargetPath(operation);
+    const sha256 = this.targetShasThisPull.get(`.pvws/objects/${operation.objectId}/${operation.payloadHash}.pvobj`) ?? null;
+    if (!path || !sha256) return false;
+    const queue = await this.state.listQueue(100_000);
+    const touching = queue.filter((entry) => [entry.path, entry.newPath].some((own) => !!own && pathsMeet(path, own)));
+    if (touching.length === 0 || touching.some((entry) => entry.operation !== "write" || entry.path !== path || entry.newPath !== null || entry.prepared !== null)) return false;
+    const current = await this.state.getObjectByPath(path);
+    if (!current || current.deleted || current.objectId !== operation.objectId || current.contentKind === "directory") return false;
+    if (!(await this.holdsBytes(path, sha256))) return false;
+    for (const entry of touching) await this.state.discardQueue(entry.id);
+    // An entry owed to the queue for a change on disk still counts: then it waits.
+    return !(await this.state.hasPendingForPath(path));
+  }
+
+  /** Whether the file at `path` holds exactly the bytes of `plaintextSha256`. */
+  private async holdsBytes(path: string, plaintextSha256: string | null | undefined): Promise<boolean> {
+    if (!plaintextSha256) return false;
+    try {
+      return sha256Hex(await this.vault.readBinaryFile(path)) === plaintextSha256;
+    } catch {
+      return false;
+    }
+  }
+
   private async localContentChanged(object: WorkspaceObjectRecord): Promise<boolean> {
     if (object.deleted || !(await this.vault.exists(object.path))) return false;
     if (object.contentKind === "directory") return false;
@@ -1596,7 +1666,16 @@ export class EncryptedWorkspaceWorker {
   private async materializeDelete(current: WorkspaceObjectRecord): Promise<void> {
     if (!(await this.vault.exists(current.path))) return;
     if (current.contentKind !== "directory") {
-      if (await this.holdsRecordedState(current, current.path)) await this.vault.deleteItem(current.path);
+      if (await this.holdsRecordedState(current, current.path)) {
+        // Marked before the file goes, in memory and in the database: the index's
+        // report of it is the sync's, also for a runtime that starts after this one
+        // ended between the removal and its record (`adoptOwnRemovals`).
+        // The same stamps as the plain sync marks: the row the index holds and the file's own time.
+        const stamps = await ownRemovalStamps(async () => (await this.state.indexedRow?.(current.path).catch(() => /* silent: a row that cannot be read leaves the file's own time, the mark as before */ null)) ?? null, this.vault, current.path);
+        if (stamps.length > 0) this.options.ownDeletions?.mark(current.path, stamps);
+        await this.state.noteOwnRemoval?.(current.path, stamps);
+        await this.vault.deleteItem(current.path);
+      }
       return;
     }
     if ((await this.vault.listDir(current.path, true)).some((entry) => !entry.isDirectory)) { this.foldersToClear.add(current.path); return; }

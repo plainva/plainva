@@ -13,7 +13,8 @@ import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js"
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
 import { contentSha256Of, isMarkerTakenWithoutMark, readLocalText, type LocalText } from "./localText.js";
-import { encodeIndexedProperty } from "./indexedProperty.js";
+import { decodeIndexedProperty, encodeIndexedProperty } from "./indexedProperty.js";
+import { holdsTemplateToken } from "../templateTokens.js";
 import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
 import { fullTextRowOf, INSERT_FULL_TEXT_ROW } from "../db/fullTextRows.js";
@@ -152,6 +153,17 @@ export interface FolderReconcileReport {
 }
 
 export interface VaultIndexerOptions {
+  /**
+   * Which notes are templates, by the shell's settings (the templates folder,
+   * every template a setting names): a template's title that holds a
+   * placeholder the engine fills in (`title: {{title}}`) names the notes made
+   * from it, not the template, so the index takes its file's name for it
+   * (Fehlerliste 0.9.0, B26). Every reader of `files.title` — links, graph,
+   * lists, search — reads that one answer. Both shells pass it
+   * (`apps/desktop/src/templateNotes.test.ts`); it changes with `setTemplateNotes`.
+   * Without it no note is a template (tests, one-off scans).
+   */
+  templateNotes?: (path: string) => boolean;
   /**
    * The owner's "this vault is being closed". A full scan stops at its next
    * look at it; every read of the indexer under way is answered at once with
@@ -500,6 +512,8 @@ export const MANUAL_REFRESH_TRIGGER = "manual refresh";
 
 export class VaultIndexer {
   private readonly syncRepo: SyncStateRepository;
+  /** `VaultIndexerOptions.templateNotes`, as it stands now (`setTemplateNotes`). */
+  private templateNote: (path: string) => boolean;
   /**
    * Ticks whenever a pass sees a file at a path it was asked about, writes a
    * row for a path or reports a path gone; `touchedAt` holds the tick of a
@@ -515,6 +529,12 @@ export class VaultIndexer {
    */
   private readClock = 0;
   private readonly writtenFrom = new Map<string, number>();
+  /**
+   * Paths announced as new outside a pass (a move no queue took,
+   * `relocatePathInIndex`) and the tick of it, kept while a pass is under
+   * way: a pass that began before does not announce them a second time.
+   */
+  private readonly announcedNewAt = new Map<string, number>();
   /**
    * The journal marks of the readings under way, how many of each
    * (`takeChangeMark`): the change journal is trimmed up to the oldest of
@@ -553,6 +573,7 @@ export class VaultIndexer {
     dbAdapter: IDatabaseAdapter,
     private readonly options?: VaultIndexerOptions
   ) {
+    this.templateNote = options?.templateNotes ?? (() => false);
     // Once the owner calls the index off, no read of it is waited for and
     // nothing of it is written any more (indexerCalledOff.ts): closing a
     // vault must not hang on a read that never answers, and a reading that
@@ -818,6 +839,7 @@ export class VaultIndexer {
       if (--this.openPasses === 0) {
         this.touchedAt.clear();
         this.writtenFrom.clear();
+        this.announcedNewAt.clear();
       }
     }
   }
@@ -1333,7 +1355,7 @@ export class VaultIndexer {
       let mode = "obsidian";
 
       if (fmResult.success && fmResult.data) {
-        if (fmResult.data.title) title = fmResult.data.title;
+        if (fmResult.data.title) title = this.titleOf(fileInfo.path, fmResult.data.title, title);
         if (fmResult.data.type) mode = "okf";
       }
 
@@ -1648,6 +1670,59 @@ export class VaultIndexer {
    * save echo). Returns "needs-full-scan" for directories (renames/creates of
    * folders change many paths at once; the caller falls back to the full scan).
    */
+  /**
+   * The title the index holds for a note: the one its properties give, but
+   * the file's name for a template whose title holds a placeholder the engine
+   * fills in (`templateNotes`, B26).
+   */
+  private titleOf<T>(path: string, given: T, fileName: string): T | string {
+    return this.templateNote(path) && holdsTemplateToken(String(given)) ? fileName : given;
+  }
+
+  /**
+   * Which notes are templates from now on (`VaultIndexerOptions.templateNotes`)
+   * — a setting changed, in this window or another. The notes whose title
+   * that changes are read again (`retitleTemplateNotes`).
+   */
+  async setTemplateNotes(templateNotes: (path: string) => boolean): Promise<number> {
+    this.templateNote = templateNotes;
+    return this.retitleTemplateNotes();
+  }
+
+  /**
+   * Reads again every note whose title in the index is not the one
+   * `templateNotes` gives it now: a template indexed with `{{title}}` as its
+   * title before (an index built before B26, or before its folder was the
+   * templates folder), or a note that is no template any more. Only notes
+   * whose properties give a title with a placeholder can be such a note, and
+   * one query finds them; where every title stands as it should, nothing is
+   * read and nothing is written. Returns how many notes were read again.
+   */
+  async retitleTemplateNotes(): Promise<number> {
+    const rows = await this.dbAdapter.query<{ path: string; title: string | null; type: string | null; value: string | null }>(
+      `SELECT f.path AS path, f.title AS title, p.type AS type, p.value AS value
+         FROM files f JOIN properties p ON p.file_id = f.id AND p.key = 'title'
+        WHERE p.value LIKE '%{{%}}%' AND f.is_deleted = 0`,
+    );
+    const stale: string[] = [];
+    for (const row of rows) {
+      const given = decodeIndexedProperty(row.type, row.value);
+      if (!given) continue;
+      const fileName = (row.path.split("/").pop() ?? row.path).replace(/\.md$/, "");
+      const wanted = String(this.titleOf(row.path, given, fileName));
+      if (wanted !== String(row.title ?? "")) stale.push(row.path);
+    }
+    for (const path of stale) {
+      await this.inPass(async (pass) => {
+        const info = await this.lookAt(path);
+        if (!info || info.isDirectory) return;
+        await this.indexOne(info, pass);
+        this.flushCallbacks(pass);
+      });
+    }
+    return stale.length;
+  }
+
   async indexPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "needs-full-scan"> {
     const outcome = await this.inspectPath(path);
     return outcome === "directory" || outcome === "folder-gone" ? "needs-full-scan" : outcome;
@@ -1986,6 +2061,35 @@ export class VaultIndexer {
    * a file gone is `inspectPathIn`, which asks first whether the path is still
    * its to judge.
    */
+  /**
+   * Whether a move of `from` the app made never reached the sync queue: the
+   * queue's `queueRename` takes the sync rows and the queued uploads of
+   * `from` along to the destination in one transaction, so a synced row or
+   * an upload still waiting under `from` says the move was not queued. A
+   * vault that never synced has neither, and its moves are followed as
+   * before; one that no longer syncs hears of the move and queues nothing.
+   */
+  private async moveNeverQueued(from: string): Promise<boolean> {
+    const under = `(path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY)`;
+    const args = [from, from + "/", from + "/"];
+    try {
+      // A row the remote knows: synced before (the index writes rows of its own, with neither).
+      const row = await this.dbAdapter.queryOne<{ n: number }>(
+        `SELECT 1 AS n FROM sync_state WHERE ${under} AND (base_sha256 IS NOT NULL OR remote_etag IS NOT NULL) LIMIT 1`,
+        args
+      );
+      if (row) return true;
+      const write = await this.dbAdapter.queryOne<{ n: number }>(
+        `SELECT 1 AS n FROM offline_queue WHERE operation = 'write' AND (file_path = ? COLLATE BINARY OR substr(file_path, 1, length(?)) = ? COLLATE BINARY) LIMIT 1`,
+        args
+      );
+      return !!write;
+    } catch {
+      // A store without these tables (an index without sync): nothing was to be queued.
+      return false;
+    }
+  }
+
   async removePathFromIndex(path: string): Promise<void> {
     // Keyed on the PATH, not on sha256(path). `path` is UNIQUE, so this hits
     // exactly the row being de-indexed — including one whose id went stale when
@@ -2031,6 +2135,16 @@ export class VaultIndexer {
    */
   async relocatePathInIndex(from: string, to: string): Promise<void> {
     if (!from || !to || from === to) return;
+    // A move the queue never got (Fehlerliste 0.9.0 A16): its entry was given
+    // up after the file was on disk (owedQueueEntries.ts), and the shell
+    // carried on because the file landed. Following the rows told nobody: the
+    // remote kept the old file and never got the new one, and the next
+    // listing brought the old one back here beside the new. Such a move is
+    // still followed (the rows keep what they know), and reported as what the
+    // disk shows besides — the old path gone, the new one new — the way the
+    // next full scan would have found it.
+    const unqueued = await this.moveNeverQueued(from);
+    let moved: string[] = [];
     const fromPrefix = from + "/";
     const toPrefix = to + "/";
     const move = (p: string): string => (p === from ? to : to + p.substring(from.length));
@@ -2069,13 +2183,24 @@ export class VaultIndexer {
         await tx.execute(`UPDATE fts_notes SET path = ? WHERE rowid = ? AND path IS NOT ?`, [path, Number(num), path]);
       }
       // Asked only while a pass is under way: nobody else holds an older reading.
+      // A move no queue took is reported below, its source by this call: the
+      // pass leaves the destination alone either way.
       if (this.openPasses > 0) {
         for (const { path } of arrived) {
-          this.touch(back(path));
+          if (!unqueued) this.touch(back(path));
           this.touch(path);
         }
       }
+      if (unqueued) await this.markRemoved(arrived.map(({ path }) => back(path)), tx);
+      moved = arrived.map(({ path }) => path);
     });
+    if (unqueued && moved.length > 0) {
+      this.reportRemoved(moved.map(back), this.touchClock);
+      for (const path of moved) {
+        if (this.openPasses > 0) this.announcedNewAt.set(path, ++this.touchClock);
+        this.options?.onNewLocalFile?.(path);
+      }
+    }
   }
 
   /**
@@ -2415,7 +2540,10 @@ export class VaultIndexer {
       for (const m of pass.externalMods) this.options.onExternalModification(m.path, m.oldHash, m.newHash);
     }
     if (this.options?.onNewLocalFile) {
-      for (const path of pass.newLocalFiles) this.options.onNewLocalFile(path);
+      for (const path of pass.newLocalFiles) {
+        if ((this.announcedNewAt.get(path) ?? 0) > pass.since) continue;
+        this.options.onNewLocalFile(path);
+      }
     }
     pass.externalMods = [];
     pass.newLocalFiles = [];
@@ -2471,6 +2599,13 @@ export class VaultIndexer {
     // The files without a timestamp are compared by the session's first full scan and a manual refresh (`hasStamp`).
     const compareUnstamped = !this.unstampedCompared || trigger === MANUAL_REFRESH_TRIGGER;
     const run = this.inPass((pass) => this.indexVaultFullInternal(pass, compareUnstamped))
+      // A full scan reads only what changed; a template whose title the index
+      // still holds from before (B26) is read behind it, by one query that
+      // writes nothing where every title stands as it should.
+      .then(async (report) => {
+        if (!this.options?.scanSignal?.aborted) await this.retitleTemplateNotes().catch((e) => console.warn("[VaultIndexer] reading the templates' titles again failed", e));
+        return report;
+      })
       .then((report) => {
         // Like a failure, not said for a vault that is being closed: a scan
         // past its last look at the signal still gets through, and its

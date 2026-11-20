@@ -563,12 +563,13 @@ test.beforeEach(async ({ page }) => {
         }
         if (cmd === 'plugin:fs|exists') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
-          return !!fs[p];
+          // An empty file is there: '' is a file's text, not its absence.
+          return fs[p] !== undefined;
         }
         if (cmd === 'plugin:fs|stat') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
           const file = fs[p];
-          if (!file) throw new Error('File not found');
+          if (file === undefined) throw new Error('File not found');
           return { isDir: !!file.isDir, isFile: !file.isDir, mtime: Date.now(), size: typeof file === 'string' ? file.length : 0 };
         }
         if (cmd === 'plugin:fs|read_dir') {
@@ -1172,6 +1173,111 @@ test('Base board: a column dragged while the head search hides another keeps the
   const columns = async () => orderOf(String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base'])), 'boardColumnOrder');
   // "No value" closes every board, as at main.
   await expect.poll(columns).toEqual(['paused', 'done', 'active', '__UNGROUPED__']);
+});
+
+test('Base board: a column the head search hides and that was never saved stays before "No value" after a column drag (B17)', async ({ page }) => {
+  // "done" was never saved: it stood after the saved columns and before "No
+  // value". A drag with the search hiding it wrote the shown columns with
+  // "No value" among them, and "done" fell behind "No value".
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Textboard.base'] = [
+      'filters:', '  and:', '    - file.folder == "Projekte"',
+      'views:', '  - type: table', '    name: Textboard', '    order:', '      - file.name', '      - note.status',
+      '    plainva:', '      render: board', '      groupBy: status',
+      '      boardColumnOrder:', '        - active', '        - paused', '',
+    ].join('\n');
+    fs['/test-vault/Projekte/Alpha.md'] = '---\nstatus: active\n---\n# Alpha\n\nSonderfall.\n';
+    fs['/test-vault/Projekte/Beta.md'] = '---\nstatus: paused\n---\n# Beta\n\nSonderfall.\n';
+    fs['/test-vault/Projekte/Gamma.md'] = '---\nstatus: done\n---\n# Gamma\n';
+    (window as any).__dbProps['3'][0] = { key: 'status', value: 'done', type: 'text' };
+  });
+  await page.goto('/');
+  await openBase(page, 'Textboard');
+  const header = (name: string) => page.getByText(name, { exact: true }).first();
+  await expect(header('done')).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('base-search-toggle').click();
+  await page.getByTestId('base-search').locator('input').fill('Sonderfall');
+  await expect(header('done')).toHaveCount(0);
+  const from = (await header('paused').boundingBox())!;
+  const to = (await header('active').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 8, { steps: 3 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  const columns = async () => orderOf(String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base'])), 'boardColumnOrder');
+  await expect.poll(columns).toEqual(['paused', 'active', 'done', '__UNGROUPED__']);
+});
+
+test('Base board: a column drag keeps what another device changed in another view of the file meanwhile (B20)', async ({ page }) => {
+  // The database wrote the copy of the whole .base it loaded on opening: a
+  // view another device changed after that came back as it was.
+  const lines = (sortLines: string[]) => [
+    'filters:', '  and:', '    - file.folder == "Projekte"',
+    'views:', '  - type: table', '    name: Textboard', '    order:', '      - file.name', '      - note.status',
+    '    plainva:', '      render: board', '      groupBy: status',
+    '      boardColumnOrder:', '        - active', '        - done', '        - paused',
+    '  - type: table', '    name: Liste', '    order:', '      - file.name', ...sortLines, '',
+  ].join('\n');
+  await page.addInitScript((text) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Textboard.base'] = text;
+    fs['/test-vault/Projekte/Alpha.md'] = '---\nstatus: active\n---\n# Alpha\n';
+    fs['/test-vault/Projekte/Beta.md'] = '---\nstatus: paused\n---\n# Beta\n';
+    fs['/test-vault/Projekte/Gamma.md'] = '---\nstatus: done\n---\n# Gamma\n';
+    (window as any).__dbProps['3'][0] = { key: 'status', value: 'done', type: 'text' };
+  }, lines([]));
+  await page.goto('/');
+  await openBase(page, 'Textboard');
+  const header = (name: string) => page.getByText(name, { exact: true }).first();
+  await expect(header('done')).toBeVisible({ timeout: 10000 });
+  // Another device sorts "Liste"; the file changes under the open database.
+  const sorted = lines(['    sort:', '      - property: file.name', '        direction: DESC']);
+  await page.evaluate((text) => { (window as any).mockFs['/test-vault/Textboard.base'] = text; }, sorted);
+  const from = (await header('paused').boundingBox())!;
+  const to = (await header('active').boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 8, { steps: 3 });
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
+  const file = async () => String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base']));
+  // The board's list only: the next view follows it in this file.
+  const saved = async () => orderOf((await file()).split('  - type: table\n    name: Liste')[0], 'boardColumnOrder');
+  await expect.poll(saved).toEqual(['paused', 'active', 'done', '__UNGROUPED__']);
+  expect(await file()).toContain('direction: DESC');
+});
+
+test('Base: a database file emptied elsewhere reads as a database without views, and a view added then lands (B20)', async ({ page }) => {
+  // The screen kept the database it showed before the file was emptied, and
+  // measured every change against views the file no longer held: each one was
+  // refused, until the database was opened again.
+  const text = [
+    'views:', '  - type: table', '    name: Textboard', '    order:', '      - file.name', '      - note.status',
+    '    plainva:', '      render: board', '      groupBy: status', '',
+  ].join('\n');
+  await page.addInitScript((t) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Textboard.base'] = t;
+    fs['/test-vault/Projekte/Alpha.md'] = '---\nstatus: active\n---\n# Alpha\n';
+  }, text);
+  await page.goto('/');
+  await openBase(page, 'Textboard');
+  const head = page.locator('.base-view-tab', { hasText: 'Textboard' });
+  await expect(head).toBeVisible({ timeout: 10000 });
+  // Another program empties the file; the watcher reports it.
+  await page.evaluate(() => {
+    (window as any).mockFs['/test-vault/Textboard.base'] = '';
+    window.dispatchEvent(new CustomEvent('plainva-external-update', { detail: { path: 'Textboard.base', vaultPath: '/test-vault' } }));
+  });
+  // The database shows what the file holds now: no view called "Textboard".
+  await expect(head).toHaveCount(0);
+  await page.locator('button.base-view-add').click();
+  await page.getByText(/^\s*(Galerie|Gallery)\s*$/).first().click();
+  const file = async () => String(await page.evaluate(() => (window as any).mockFs['/test-vault/Textboard.base']));
+  await expect.poll(file).toContain('type: cards');
+  expect(await file()).not.toContain('name: Textboard');
 });
 
 test('Base board: color mode "column" tints the whole column and persists (WP3)', async ({ page }) => {

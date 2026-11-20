@@ -24,6 +24,11 @@ export interface MobileLinkContext {
   onOpenNote: (path: string) => void;
   /** A place in the note the link stands in — where the surface can scroll there itself. */
   onSameNoteAnchor?: (anchor: string) => void;
+  /**
+   * A missing note the link names is created (Obsidian parity). False where the link is not the user's own text — an
+   * AI answer's: there a tap on it does nothing, as it always did (review O7, fifth round).
+   */
+  createMissing?: boolean;
 }
 
 export async function openLink(link: LinkToOpen, ctx: MobileLinkContext): Promise<void> {
@@ -58,6 +63,7 @@ export async function openLink(link: LinkToOpen, ctx: MobileLinkContext): Promis
       toast.warning(i18n.t("dialogs.linkNotFoundMsg", { target: outcome.target }));
       return;
     case "create": {
+      if (ctx.createMissing === false) return;
       // The target note does not exist yet — create it (Obsidian parity,
       // maintainer 2026-07-18), then open. The phone honours the same "ask
       // first" setting as the desktop (S39); default off.

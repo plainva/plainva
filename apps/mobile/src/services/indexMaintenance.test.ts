@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { SyncStateRepository, VaultIndexer, type IDatabaseAdapter } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+const asked = vi.hoisted(() => ({ messages: [] as string[], answer: true }));
+vi.mock("./mobileDialogs", () => ({ mConfirm: async (input: { message: string }) => { asked.messages.push(input.message); return asked.answer; } }));
+import i18n from "@plainva/ui/i18n";
 import { rebuildVaultIndex } from "./indexMaintenance";
 import type { MobileVault } from "./vaultService";
 
@@ -65,5 +68,26 @@ describe("rebuilding the index on the phone", () => {
 
   it("says when it could not", async () => {
     expect(await rebuildVaultIndex({ indexer: null } as Pick<MobileVault, "indexer">)).toBe(false);
+  });
+
+  it("failing at the damaged database itself, it offers the strip's way of setting it aside, asked first — never in an encrypted workspace", async () => {
+    // A form nobody notes: FTS5's own configuration changed (Code 1).
+    const damaged = { rebuildIndex: async () => { throw new Error("Error: prepareSQL step failed rc: 1 message: invalid fts5 file format (found 99, expected 4 or 5) - run 'rebuild'"); } };
+    asked.messages = [];
+    const rebuilt: string[] = [];
+    expect(await rebuildVaultIndex({ indexer: damaged, isEncryptedWorkspace: false } as never, async () => { rebuilt.push("set aside"); return true; })).toBe(false);
+    expect(asked.messages).toEqual([i18n.t("indexDatabase.rebuildConfirm")]);
+    expect(rebuilt).toEqual(["set aside"]);
+
+    asked.messages = [];
+    expect(await rebuildVaultIndex({ indexer: damaged, isEncryptedWorkspace: true } as never, async () => { rebuilt.push("again"); return true; })).toBe(false);
+    expect(asked.messages, "not offered in an encrypted workspace").toEqual([]);
+    expect(rebuilt).toEqual(["set aside"]);
+
+    // Answered no: nothing is set aside.
+    asked.answer = false;
+    expect(await rebuildVaultIndex({ indexer: damaged, isEncryptedWorkspace: false } as never, async () => { rebuilt.push("no"); return true; })).toBe(false);
+    expect(rebuilt).toEqual(["set aside"]);
+    asked.answer = true;
   });
 });

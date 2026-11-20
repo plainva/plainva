@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Ban, Check, ChevronDown, CircleAlert, Copy, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, MoreHorizontal, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square, Zap } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core";
@@ -6,9 +6,9 @@ import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
 import { EmptyState } from "../components/ui/EmptyState";
-import { TextArea } from "../components/ui/Field";
+import { GrowingField } from "../components/ui/Field";
 import { IconButton } from "../components/ui/IconButton";
-import { MenuItem, MenuSurface } from "../components/ui/Menu";
+import { MenuItem, MenuSeparator, MenuSurface } from "../components/ui/Menu";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import { toast } from "../services/toastStore";
@@ -27,6 +27,7 @@ import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
 import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
 import { requestAiSettingsIntent } from "./aiSetup";
+import { GROUNDS_NAMED, groundTitles } from "./answerGrounds";
 import type { AiDress, AiSession } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
 import type { McpPromptReview } from "./mcpSession";
@@ -51,7 +52,7 @@ export interface AiConversationProps {
   dress: AiDress;
   /** The note open in the shell, for the context chip. */
   activeNote: { path: string; title: string } | null;
-  onOpenNote: (target: string) => void;
+  onOpenNote: (target: string, kind?: "wiki" | "markdown") => void;
   /**
    * Opens a note this conversation just made — an answer kept as a note (plan
    * P4-6) — by its path. A shell with tabs opens it beside what is open, so
@@ -77,11 +78,11 @@ export interface AiConversationProps {
    */
   start?: ReactNode;
   /**
-   * The dock is a narrow column (plan KI-Oberflächen E4b): a question that
-   * waits is shown there in short, and this opens the conversation where it
-   * has room — the companion.
+   * Opens the skills and the memory — the last entry of the "Skills" menu of an empty conversation (F71 of release
+   * 0.9.0), in every dress: the phone's screen, sheet and note segment lead to its conversations screen on "Skills",
+   * the desktop's column, window and tab to the AI tab's skills. One way to them, from the one place skills are started.
    */
-  onOpenRoomy?: () => void;
+  onOpenSkills?: () => void;
 }
 
 const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
@@ -155,7 +156,23 @@ function useDirectFolder(session: AiSession | null, path: string | null): string
   return found && found.path === path ? found.folder : null;
 }
 
-export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection, start, onOpenRoomy }: AiConversationProps) {
+/** Whether a folder of the vault lets changes go without asking (F71 of release 0.9.0); false while it is asked. */
+function useHasDirectFolders(session: AiSession | null, key: string): boolean {
+  const [found, setFound] = useState<{ key: string; direct: boolean } | null>(null);
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    void session.hasDirectFolders().then((direct) => {
+      if (alive) setFound({ key, direct });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session, key]);
+  return found?.key === key && found.direct;
+}
+
+export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection, start, onOpenSkills }: AiConversationProps) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
@@ -222,12 +239,15 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     return Number.isNaN(date.getTime()) ? iso : replayDate.format(date);
   };
 
-  // Follow the answer while it streams, the way a reader would scroll.
+  // Follow the answer while it streams, the way a reader would scroll. An empty conversation opens at its top (F71 of
+  // release 0.9.0): what it shows is read from the top, and its start page arrives after this ran — a jump to the end
+  // left it scrolled, its first card cut at the top edge.
   const liveText = state?.live?.text ?? "";
+  const streaming = Boolean(state?.live);
   useEffect(() => {
     const el = threadRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [items.length, liveText, state?.live?.tools.length, state?.consent, state?.effect, state?.question]);
+    if (el) el.scrollTop = items.length > 0 || streaming ? el.scrollHeight : 0;
+  }, [items.length, streaming, liveText, state?.live?.tools.length, state?.consent, state?.effect, state?.question]);
 
   // The send overview is answered here: a door outside the conversation relies on the session knowing one is on screen.
   useEffect(() => session?.mountSurface(), [session]);
@@ -236,6 +256,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
 
   // The folder rule of the open note ("Change without asking", plan "KI direkt schreiben"): asked before any early return.
   const folderOfNote = useDirectFolder(session ?? null, activeNote?.path ?? null);
+  // Asked again with each conversation and each vault: a rule written meanwhile counts from the next one on.
+  const directFolders = useHasDirectFolders(session ?? null, `${state?.hasVault ? "vault" : "none"}:${state?.active?.id ?? "new"}`);
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {
@@ -414,11 +436,23 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     if (run.mcp?.calls.length) parts.push(t("ai.ext.runCalls", { n: run.mcp.calls.length }));
     if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
     if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
+    // The check for sources the conversation never had could not be made (review O7, fourth round): said, not taken for "none".
+    if (run.unfoundedUnchecked) parts.push(t("ai.unfoundedUnchecked"));
     return parts.join(" · ");
   };
-  /** The quiet line under an answer (plan KI-Oberflächen K8): to whom, how many notes, what it cost — the rest is in the details. */
+  /**
+   * The quiet line under an answer (plan Oberfläche O7, M6; KI-Oberflächen K8): what it rests on, by name, to whom it
+   * went and what it cost — coverage and the rest are in the details.
+   */
   const shortRunLine = (run: RunMeta) => {
-    const parts = [t("ai.sentShort", { provider: providerLabel(run.providerId), count: run.sent.length })];
+    const parts: string[] = [];
+    const grounds = groundTitles(run);
+    if (grounds.length) {
+      const named = grounds.slice(0, GROUNDS_NAMED).join(", ");
+      const more = grounds.length - GROUNDS_NAMED;
+      parts.push(t("ai.grounds", { notes: more > 0 ? `${named} ${t("ai.groundsMore", { count: more })}` : named }));
+    }
+    parts.push(t("ai.sentTo", { provider: providerLabel(run.providerId) }));
     if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
     return parts.join(" · ");
   };
@@ -561,7 +595,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         const answer = answerBefore(index);
         // A picture is no note an answer could cite (plan P4-5): what counts is the text that went.
         const noteSources = manifest ? manifest.sources.filter((s) => !s.image) : [];
-        const uncited = Boolean(noteSources.some((s) => s.tier === "evidence") && answer !== null && !answer.includes("[["));
+        // A warning only where the answer names a note as its source that the conversation never had (plan Oberfläche
+        // O7, E2): checked once as the run ended, over every text it gave (`RunMeta.unfounded`) — never while drawing.
+        const unfounded = item.run.unfounded ?? [];
         // Coverage after the answer (plan P2b-5): only where notes went, so a statement could have named one.
         const coverage = noteSources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;
         // The pages the run read (plan P4), whatever the answer says of them: the app's own list, so no source goes unnamed.
@@ -589,7 +625,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
                 ))}
               </p>
             )}
-            {uncited && <p className="pv-ai-nocite">{t("ai.noCitation")}</p>}
+            {unfounded.length > 0 && (
+              <p className="pv-ai-nocite" role="note" data-testid="ai-unfounded">
+                {t("ai.unfounded", { count: unfounded.length, notes: unfounded.join(", ") })}
+              </p>
+            )}
             {/* What the run laid down for the user to decide (plan P5): the notes that carry its proposals, and its drafts. */}
             {item.run.writes && (
               <AiRunWrites
@@ -605,8 +645,14 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
                 onUndo={(path) => void undoDirect(active ? active.runs.indexOf(item.run) : -1, path)}
               />
             )}
-            {/* Under an answer, what can be done with it (plan KI-Oberflächen K8): copy it, keep it as a note, and the rest
-                in "…"; beside it the one quiet line of what went where, with the details on request. */}
+            {/* Under an answer, one calm line of what it rests on and where it went, with the details on request (plan
+                Oberfläche O7, M6); under it what can be done with it: copy it, keep it as a note, and the rest in "…". */}
+            <p className="pv-ai-quiet" data-testid="ai-grounds">
+              <span>{shortRunLine(item.run)}</span>
+              <Button size="sm" variant="ghost" className="pv-ai-runline" aria-expanded={open} onClick={() => setOpenRun(open ? null : item.key)} data-testid="ai-run-details">
+                {t("ai.details")}
+              </Button>
+            </p>
             <div className="pv-ai-actrow" data-testid="ai-run-actions">
               {answer !== null && item.run.stop === "answered" && (
                 <Button size="sm" variant="ghost" icon={<Copy size={ICON.meta} />} onClick={() => copyAnswer(answer)} data-testid="ai-copy">
@@ -619,31 +665,23 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
                   {t("ai.capture.action")}
                 </Button>
               )}
-              {/* What this conversation can teach (plan P6-2), and the same question to another model (P9-2): in the run's menu. */}
+              {/* What this conversation can teach (plan P6-2): a button of its own under the last answer (mockup M7, maintainer
+                  19.11.) — the same question to another model (P9-2) stays in the run's menu. */}
               {active && item.key === lastRunKey && item.run.stop === "answered" && (
+                <Button size="sm" variant="ghost" icon={<GraduationCap size={ICON.meta} />} disabled={running || state.learning !== null} onClick={() => openLearnSurface({ kind: "learn", conversationId: active.id })} data-testid="ai-learn-open">
+                  {t("ai.learn.action")}
+                </Button>
+              )}
+              {active && item.key === lastRunKey && item.run.stop === "answered" && manifest && (
                 <span ref={runMenu === item.key ? runMenuAnchor : undefined}>
                   <IconButton size="sm" label={t("common.moreActions")} onClick={() => setRunMenu(item.key)} data-testid="ai-run-more">
                     <MoreHorizontal size={ICON.meta} />
                   </IconButton>
                 </span>
               )}
-              {coverage?.level && coverage.level !== "high" && (
-                <span className="pv-ai-coverage-warn" data-testid="ai-coverage-warn">
-                  {`${t(`ai.coverage.${coverage.level}`)} · ${t("ai.coverage.detail", { cited: number.format(coverage.cited), total: number.format(coverage.statements) })}`}
-                </span>
-              )}
-              <span className="pv-ai-quiet">
-                {shortRunLine(item.run)}
-                <Button size="sm" variant="ghost" className="pv-ai-runline" aria-expanded={open} onClick={() => setOpenRun(open ? null : item.key)} data-testid="ai-run-details">
-                  {t("ai.details")}
-                </Button>
-              </span>
             </div>
             {runMenu === item.key && active && (
               <MenuSurface open onClose={() => setRunMenu(null)} anchorRef={runMenuAnchor} ariaLabel={t("common.moreActions")}>
-                <MenuItem icon={<GraduationCap size={ICON.ui} />} disabled={running || state.learning !== null} onSelect={() => { setRunMenu(null); openLearnSurface({ kind: "learn", conversationId: active.id }); }} data-testid="ai-learn-open">
-                  {t("ai.learn.action")}
-                </MenuItem>
                 {manifest && (
                   <MenuItem icon={<ArrowLeftRight size={ICON.ui} />} onSelect={() => { setRunMenu(null); setOpenRun(item.key); }} data-testid="ai-replay-menu">
                     {t("ai.snapshot.replayAction")}
@@ -676,9 +714,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
 
   /** A question that waits for the user's answer: shown above the composer, the field says why it is closed (plan K9). */
   const waiting = Boolean(consent || effect || question || (extPrompt && !consent && !effect && !question));
-  // The session's own questions show in every dress; the dock names them in short. A server's prompt is this view's own
-  // state (`extPrompt`): it stays where it was started, or nobody could answer or cancel it.
-  const sessionWaiting = Boolean(consent || effect || question);
+  // A server's prompt is this view's own state (`extPrompt`): it stays where it was started, or nobody could answer or cancel it.
   const inputHint = consent || effect || question ? t("ai.pending.answerFirst") : activeNote ? t("ai.placeholderNote", { title: activeNote.title }) : t("ai.placeholder");
   // Larger chips where a thumb taps them (plan K7): at least the touch target of the design language.
   const chipSize = touch ? "md" : "sm";
@@ -686,6 +722,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   // The quick start (plan K7): the featured skills as chips, every startable one in the "All skills" menu.
   const allSkills = startableSkills(t, state.skills.entries);
   const featuredSkills = allSkills.filter((skill) => skill.featured);
+  const skillsInMenu = [...featuredSkills, ...allSkills.filter((skill) => !skill.featured)];
+  const serverPrompts = extPrompt || localOnly ? [] : externalPrompts(state.mcp.servers);
+  // The "Skills" button of an empty conversation: its skills to start, and — where the dress leads there — always the
+  // way to the skills and the memory themselves, also while no skill can be started (F71 of release 0.9.0).
+  const quickStart = items.length === 0 && !live && !consent && state.hasVault && (skillsInMenu.length + serverPrompts.length > 0 || Boolean(onOpenSkills));
   const shownNotice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice : null;
   const notice = shownNotice?.stop ?? null;
   // No answer came back (plan §19.4): the notes that match the question best stand in for it.
@@ -732,11 +773,22 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             {t("ai.style.marking", { count: styleFeatures })}
           </span>
         )}
-        {/* "Apply directly" (plan "KI direkt schreiben"): said for as long as it is on, before the first message too. */}
-        {directOn && (
+        {/* "Apply directly" (plan "KI direkt schreiben"): said for as long as it is on, before the first message too —
+            and what happens to a change while it is off, in the same place (F71 of release 0.9.0): one sentence about
+            changes, the one that holds, never a second one in the conversation that contradicts it. It never claims
+            more protection than the run gives: a run decides per note it writes, so where any folder of the vault lets
+            changes go without asking, the sentence says so. Where nothing is proposed at all (an encrypted workspace,
+            a conversation without writing tools) it says nothing. */}
+        {directOn ? (
           <span className="pv-ai-marking-web" data-testid="ai-direct-marking">
             {t("ai.direct.marking")}
           </span>
+        ) : (
+          directOffer && (
+            <span className="pv-ai-marking-web" data-testid="ai-direct-off-marking">
+              {directFolders ? t("ai.direct.markingOffFolders") : t("ai.direct.markingOff")}
+            </span>
+          )
         )}
         {/* Fully local (plan P7): said for as long as it holds, wherever a conversation is shown. */}
         {localOnly && !rests && (
@@ -778,13 +830,6 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             {active.replayOf.changed > 0 ? ` ${t("ai.replay.headChanged", { count: active.replayOf.changed })}` : ""}
           </Banner>
         )}
-        {items.length === 0 && !live && (
-          <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.startTitle")}>
-            {activeNote ? t("ai.empty.startBody") : t("ai.empty.startBodyVault")}
-          </EmptyState>
-        )}
-        {/* What the dress adds to an empty conversation (plan K11): the phone lists what waits and the last conversations. */}
-        {items.length === 0 && !live && start}
         {items.map((item, index) => renderItem(item, index))}
         {/* A skill reads its instructions before anything goes (Befunde 06.11., B6): the conversation says it is on its way. */}
         {state.preparing && !live && (
@@ -944,18 +989,23 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             <span data-testid="ai-routine-ready">{t("ai.routines.ready", { name: ready.name })}</span>
           </Banner>
         )}
+        {/* The greeting of an empty conversation, to the left like everything around it (F71 of release 0.9.0) — only
+            where nothing else stands there: a start page that lists what waits says enough. Both come after what the
+            person has to know now — a failure before the first answer, a skill on its way, a routine's notice —, which
+            stands at the top of an empty conversation and is never pushed below a tall start page. */}
+        {items.length === 0 && !live && !start && (
+          <EmptyState className="pv-ai-hello" title={t("ai.empty.startTitle")} testId="ai-hello">
+            {activeNote ? t("ai.empty.startBody") : t("ai.empty.startBodyVault")}
+          </EmptyState>
+        )}
+        {/* What the dress adds to an empty conversation (plan K11): the phone lists what waits and the last conversations. */}
+        {items.length === 0 && !live && start}
       </div>
       )}
 
-      {/* A question that waits stands above the composer, never scrolled away (plan KI-Oberflächen K9). The dock is too
-          narrow for it: there it is named in short, with the way to the companion (E4b). */}
-      {sessionWaiting && dress === "dock" && onOpenRoomy ? (
-        <div className="pv-ai-pending">
-          <Banner kind="info" rounded actions={<Button size="sm" variant="secondary" onClick={onOpenRoomy} data-testid="ai-pending-open">{t("ai.pending.open")}</Button>}>
-            {t("ai.pending.short")}
-          </Banner>
-        </div>
-      ) : waiting ? (
+      {/* A question that waits stands above the composer, never scrolled away (plan KI-Oberflächen K9) — in every dress,
+          the dock too, which has the column's full height since plan Oberfläche O7. */}
+      {waiting ? (
         <div className="pv-ai-pending" data-testid="ai-pending">
         {consent && (
           <AiSendOverview
@@ -1004,45 +1054,6 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
       )}
 
       <div className="pv-ai-composer">
-        {/* The quick start, where the thumb is (plan KI-Oberflächen K7): the featured skills of an empty conversation. */}
-        {items.length === 0 && !live && !consent && state.hasVault && (
-          <div className="pv-ai-skills" role="group" aria-label={t("ai.skills.title")} data-testid="ai-skills">
-            {featuredSkills.map((skill) => (
-                <Chip key={skill.id} size={chipSize} icon={<skill.icon size={ICON.meta} />} testId={skill.commandId} onClick={() => startAiSkill(session, t, skill)}>
-                  {skill.title}
-                </Chip>
-              ))}
-            {/* The prompts of foreign servers this vault uses (plan P4.5): started by the user, like a skill — never by the model. */}
-            {!extPrompt &&
-              !localOnly &&
-              externalPrompts(state.mcp.servers).map((prompt) => (
-                <Chip
-                  key={`${prompt.serverId}/${prompt.name}`}
-                  size="sm"
-                  icon={<Plug size={ICON.meta} />}
-                  testId="ai-ext-prompt-chip"
-                  onClick={() => (prompt.args.length ? setExtPrompt({ prompt, review: null }) : startExternalPrompt(prompt, {}))}
-                >
-                  {`${prompt.server} · ${prompt.title}`}
-                </Chip>
-              ))}
-            {/* Every other skill one tap further (plan KI-Oberflächen K7): the AI tab's start list lives here now. */}
-            {allSkills.length > featuredSkills.length && (
-              <span ref={allSkillsAnchor}>
-                <Chip size={chipSize} tone="muted" icon={<Sparkles size={ICON.meta} />} onClick={() => setAllSkillsOpen(true)} testId="ai-skills-all">
-                  {t("ai.skills.all")}
-                </Chip>
-              </span>
-            )}
-            <MenuSurface open={allSkillsOpen} onClose={() => setAllSkillsOpen(false)} anchorRef={allSkillsAnchor} ariaLabel={t("ai.skills.title")}>
-              {allSkills.map((skill) => (
-                <MenuItem key={skill.id} icon={<skill.icon size={ICON.ui} />} onSelect={() => { setAllSkillsOpen(false); startAiSkill(session, t, skill); }} data-testid={skill.commandId.replace(/^ai-skill-/, "ai-skill-menu-")}>
-                  {skill.title}
-                </MenuItem>
-              ))}
-            </MenuSurface>
-          </div>
-        )}
         {selection && hasSelection && !running && !consent && (
           <div className="pv-ai-chips pv-ai-selchips" role="group" aria-label={t("ai.selection.with")} data-testid="ai-selection-actions">
             <span className="pv-ai-selchips-label">{t("ai.selection.with")}</span>
@@ -1078,7 +1089,35 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             </MenuSurface>
           </div>
         )}
-        <div className="pv-ai-chips" aria-label={t("ai.context")}>
+        {/* The conversation's switches first, whole, then what goes with it (F71 of release 0.9.0): a switch carries a
+            state and is never cut at the edge; on a phone the row is one line, and what follows the switches may come
+            in from the right. Every chip has one form; a switch that is on is filled with the accent pair and checked. */}
+        <div className="pv-ai-chips pv-ai-chips--switches" aria-label={t("ai.context")} data-testid="ai-chips">
+          {/* The conversation's options, named (plan KI-Oberflächen K7): before the first message they can be switched;
+              afterwards the marking line says what holds. Only where the vault allows the internet, only where this
+              device keeps a writing style. */}
+          {!active && webOffer && (
+            <Chip size={chipSize} icon={withWeb ? <Check size={ICON.meta} /> : <Globe size={ICON.meta} />} selected={withWeb} onClick={toggleWeb} disabled={running} tip={withWeb ? t("ai.web.toggleOn") : t("ai.web.toggleOff")} testId="ai-web-toggle">
+              {t("ai.web.chip")}
+            </Chip>
+          )}
+          {directOffer && (
+            <Chip
+              size={chipSize}
+              icon={directOn || directFolder !== null ? <Check size={ICON.meta} /> : <Zap size={ICON.meta} />}
+              selected={directOn || directFolder !== null}
+              onClick={toggleDirect}
+              tip={directOn ? t("ai.direct.toggleOn") : directFolder !== null ? t("ai.direct.folderTip") : t("ai.direct.toggleOff")}
+              testId="ai-direct-toggle"
+            >
+              {directFolder !== null && !directOn ? t("ai.direct.chipFolder") : t("ai.direct.chip")}
+            </Chip>
+          )}
+          {!active && state.style.features.length > 0 && (
+            <Chip size={chipSize} icon={withStyle ? <Check size={ICON.meta} /> : <Signature size={ICON.meta} />} selected={withStyle} onClick={toggleStyle} disabled={running} tip={withStyle ? t("ai.style.toggleOn") : t("ai.style.toggleOff")} testId="ai-style-toggle">
+              {t("ai.style.chip")}
+            </Chip>
+          )}
           {activeNote && showActive && !state.excludeActive && (
             <Chip size={chipSize} icon={<FileText size={ICON.meta} />} onRemove={() => session.setExcludeActive(true)} removeLabel={t("ai.removeContext")}>
               {activeNote.title}
@@ -1095,33 +1134,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             </Chip>
           ))}
           {onPickNote && (
-            <Chip size={chipSize} tone="muted" icon={<Plus size={ICON.meta} />} onClick={onPickNote}>
+            <Chip size={chipSize} icon={<Plus size={ICON.meta} />} onClick={onPickNote} testId="ai-pin-note">
               {t("ai.pinNote")}
-            </Chip>
-          )}
-          {/* The conversation's options, named (plan KI-Oberflächen K7): before the first message they can be switched;
-              afterwards the marking line says what holds. Only where the vault allows the internet, only where this
-              device keeps a writing style. */}
-          {!active && webOffer && (
-            <Chip size={chipSize} icon={<Globe size={ICON.meta} />} selected={withWeb} onClick={toggleWeb} disabled={running} tip={withWeb ? t("ai.web.toggleOn") : t("ai.web.toggleOff")} testId="ai-web-toggle">
-              {t("ai.web.chip")}
-            </Chip>
-          )}
-          {!active && state.style.features.length > 0 && (
-            <Chip size={chipSize} icon={<Signature size={ICON.meta} />} selected={withStyle} onClick={toggleStyle} disabled={running} tip={withStyle ? t("ai.style.toggleOn") : t("ai.style.toggleOff")} testId="ai-style-toggle">
-              {t("ai.style.chip")}
-            </Chip>
-          )}
-          {directOffer && (
-            <Chip
-              size={chipSize}
-              icon={<Zap size={ICON.meta} />}
-              selected={directOn || directFolder !== null}
-              onClick={toggleDirect}
-              tip={directOn ? t("ai.direct.toggleOn") : directFolder !== null ? t("ai.direct.folderTip") : t("ai.direct.toggleOff")}
-              testId="ai-direct-toggle"
-            >
-              {directFolder !== null && !directOn ? t("ai.direct.chipFolder") : t("ai.direct.chip")}
             </Chip>
           )}
           {!side && (
@@ -1130,10 +1144,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             </Chip>
           )}
         </div>
-        <div className="pv-ai-inputrow">
-          <TextArea
+        {/* The field with its send button inside it (F71 of release 0.9.0): one line that grows with the text, as wide
+            as everything above it. */}
+        <div className="pv-ai-inputrow pv-ai-inputrow--box">
+          <GrowingField
             className="pv-ai-input"
-            rows={touch ? 2 : 1}
             value={draft}
             placeholder={inputHint}
             aria-label={inputHint}
@@ -1152,9 +1167,56 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
           )}
         </div>
         <div className="pv-ai-foot">
+          {/* The skills behind one button (plan Oberfläche O7, D2): an empty conversation starts with one, the featured
+              ones first, then every other startable one, then the prompts of foreign servers this vault uses (plan
+              P4.5) — started by the user, like a skill, never by the model. */}
+          {quickStart && (
+            <span ref={allSkillsAnchor} className="pv-ai-foot-start">
+              <Button size="sm" variant="ghost" icon={<Sparkles size={ICON.meta} />} onClick={() => setAllSkillsOpen(true)} aria-haspopup="menu" data-testid="ai-skills-open">
+                {t("ai.skills.title")}
+                <ChevronDown size={ICON.meta} aria-hidden="true" />
+              </Button>
+            </span>
+          )}
+          <MenuSurface open={quickStart && allSkillsOpen} onClose={() => setAllSkillsOpen(false)} anchorRef={allSkillsAnchor} ariaLabel={t("ai.skills.title")}>
+            {skillsInMenu.map((skill, n) => (
+              <Fragment key={skill.id}>
+                {n === featuredSkills.length && n > 0 && <MenuSeparator />}
+                <MenuItem icon={<skill.icon size={ICON.ui} />} onSelect={() => { setAllSkillsOpen(false); startAiSkill(session, t, skill); }} data-testid={skill.commandId.replace(/^ai-skill-/, "ai-skill-menu-")}>
+                  {skill.title}
+                </MenuItem>
+              </Fragment>
+            ))}
+            {serverPrompts.length > 0 && skillsInMenu.length > 0 && <MenuSeparator />}
+            {serverPrompts.map((prompt) => (
+              <MenuItem
+                key={`${prompt.serverId}/${prompt.name}`}
+                icon={<Plug size={ICON.ui} />}
+                onSelect={() => {
+                  setAllSkillsOpen(false);
+                  if (prompt.args.length) setExtPrompt({ prompt, review: null });
+                  else startExternalPrompt(prompt, {});
+                }}
+                data-testid="ai-ext-prompt-item"
+              >
+                {`${prompt.server} · ${prompt.title}`}
+              </MenuItem>
+            ))}
+            {/* The way to the skills and the memory themselves (F71 of release 0.9.0): the last entry of the one menu
+                skills are started from, where the empty phone screen had a row of its own. */}
+            {onOpenSkills && (
+              <>
+                {(skillsInMenu.length > 0 || serverPrompts.length > 0) && <MenuSeparator />}
+                <MenuItem icon={<Sparkles size={ICON.ui} />} onSelect={() => { setAllSkillsOpen(false); onOpenSkills(); }} data-testid="ai-skills-manage">
+                  {t("ai.start.skillsAndMemory")}
+                </MenuItem>
+              </>
+            )}
+          </MenuSurface>
           {/* The profile by name: the marking line names the model already (plan KI-Oberflächen K7). */}
           <Button ref={modelButton} size="sm" variant="ghost" onClick={() => setMenuOpen(true)} aria-haspopup="menu" disabled={running} data-tip={`${provider.label} · ${choice.model}`} data-testid="ai-profile-button">
-            {currentProfile ? t(`ai.profile.${currentProfile}`) : choice.model}
+            {/* Named as what it is (F71 of release 0.9.0): "Model: Balanced", not a word alone at the foot. */}
+            {t("ai.profile.button", { profile: currentProfile ? t(`ai.profile.${currentProfile}`) : choice.model })}
             <ChevronDown size={ICON.meta} aria-hidden="true" />
           </Button>
           <MenuSurface open={menuOpen} onClose={() => setMenuOpen(false)} anchorRef={modelButton} ariaLabel={t("ai.settings.profiles")}>

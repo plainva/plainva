@@ -11,6 +11,8 @@ export interface EmptyStateProps {
   /** Optional action (usually a <Button>). */
   action?: ReactNode;
   className?: string;
+  /** Test hook for a state a test must tell apart from other empty states. */
+  testId?: string;
 }
 
 /**
@@ -19,9 +21,9 @@ export interface EmptyStateProps {
  * .base views (which previously had none). UI 2.0 adds an optional emphasis
  * title in the headline type role.
  */
-export function EmptyState({ icon, title, children, action, className }: EmptyStateProps) {
+export function EmptyState({ icon, title, children, action, className, testId }: EmptyStateProps) {
   return (
-    <div role="status" className={cx("pv-empty", className)}>
+    <div role="status" className={cx("pv-empty", className)} data-testid={testId}>
       {icon}
       {title != null ? <div className="pv-empty-title">{title}</div> : null}
       <div className="pv-empty-msg">{children}</div>

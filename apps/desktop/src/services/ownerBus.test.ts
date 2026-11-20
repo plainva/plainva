@@ -77,8 +77,9 @@ vi.mock("./windowBus", async (importOriginal) => {
 });
 
 import { createWindowBus, OWNER_LABEL, type BusTransport } from "./windowBus";
-import { syncStatusStore } from "./syncStatusStore";
-import { installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
+import { readFullTextDamage } from "@plainva/core";
+import { isFirstPullPending, syncStatusStore } from "./syncStatusStore";
+import { applyMirroredSyncStatus, askSyncStatus, installOwnerAppBus, installOwnerBus, installSyncStatusMirror } from "./ownerBus";
 import { resetVaultRuntimes, setHolderVault } from "./vaultRuntimes";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import {
@@ -184,7 +185,7 @@ function createPimTarget(calls: string[], opts: { conflict?: boolean } = {}) {
   } as never;
 }
 
-async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean; indexFails?: boolean } = {}) {
+async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimConflict?: boolean; indexFails?: boolean; db?: import("@plainva/core").IDatabaseAdapter } = {}) {
   const wire = createWire();
   const owner = createWindowBus(wire(OWNER_LABEL), undefined, () => "/vault");
   // The aux window belongs to a vault and says so on every message — that is
@@ -242,6 +243,7 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
   const commentCalls: string[] = [];
   const historyCalls: string[] = [];
   const dispose = await installOwnerBus({
+    ...(opts.db ? { db: opts.db } : {}),
     // The workspace revision history (finding 2026-09-07): records the ask,
     // answers with fixed values so the wire's fidelity is what is tested.
     workspaceHistory: {
@@ -472,6 +474,19 @@ describe("delegated mutations", () => {
     release(); await Promise.all([operation, writing]);
     expect(calls.filter((call) => call === "write:Note.md")).toHaveLength(1);
     dispose();
+  });
+
+  it("notes a damaged full-text index an auxiliary window met: that window only reads the index", async () => {
+    const db = await realSqlite();
+    const { aux, dispose } = await setup({ db });
+    expect(await readFullTextDamage(db)).toEqual({ state: "none" });
+    // A damaged page met while reaching the full-text index, and FTS5's own check finds the index whole: nothing to note.
+    expect(await aux.request("full-text-damaged", { reading: "perhaps" })).toBe(false);
+    expect((await readFullTextDamage(db)).state).toBe("none");
+    expect(await aux.request("full-text-damaged", { reading: "damaged" })).toBe(true);
+    expect((await readFullTextDamage(db)).state).toBe("noted");
+    dispose();
+    await db.close();
   });
 
   it("writes through the owner's adapter and indexes the result", async () => {
@@ -873,6 +888,57 @@ describe("the sync status the other windows see", () => {
     // file of a thousand-file cycle.
     expect(seen.map((s) => s.status)).toEqual(["syncing", "error"]);
     expect(seen[1]?.message).toBe("no route to host");
+    stop();
+    off();
+    dispose();
+  });
+  it("carries the first pull to a window that does not own the vault (second review of O8)", async () => {
+    // The owner files under "/vault"; the client window's own copy is kept apart
+    // under "/client" so the test sees only what crossed the bus.
+    const { aux, dispose } = await setup();
+    const off = await aux.onBroadcast("sync-status", (p) => applyMirroredSyncStatus("/client", p));
+    const stop = installSyncStatusMirror("/vault");
+
+    syncStatusStore.set("/vault", { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(true);
+
+    // The owner's first cycle ends; the status itself need not change for the mark to travel.
+    syncStatusStore.set("/vault", { status: "syncing", message: null, firstPullDone: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(syncStatusStore.get("/client").firstPullDone).toBe(true);
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(false);
+    stop();
+    off();
+    dispose();
+  });
+
+  it("a window opened during the first pull asks once and says \"being loaded\" (third review of O8)", async () => {
+    // The owner reached its state before the window opened: no change follows to carry it.
+    syncStatusStore.set("/vault", { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    const { aux, dispose } = await setup();
+    const asked = await aux.request("sync-status-now", {}, { vaultPath: "/vault" });
+    expect(asked).toMatchObject({ status: "syncing", provider: "drive", firstPullDone: false });
+    // The window files the answer under the vault it holds ("/client" stands for its own copy).
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(false);
+    await askSyncStatus({ request: (async () => asked) as never }, "/client");
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(true);
+    // No runtime answers: nothing is filed, nothing is thrown.
+    await askSyncStatus({ request: (async () => { throw new Error("timeout"); }) as never }, "/other");
+    expect(syncStatusStore.get("/other").firstPullDone).toBeUndefined();
+    dispose();
+  });
+
+  it("carries a failed first pull: the other window shows the vault as it is too (third review of O8)", async () => {
+    const { aux, dispose } = await setup();
+    const off = await aux.onBroadcast("sync-status", (p) => applyMirroredSyncStatus("/client", p));
+    const stop = installSyncStatusMirror("/vault");
+    syncStatusStore.set("/vault", { status: "syncing", message: null, provider: "drive", firstPullDone: false });
+    syncStatusStore.set("/vault", { status: "retrying", message: "offline", retryAt: 5 });
+    syncStatusStore.set("/vault", { status: "syncing", message: null });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(syncStatusStore.get("/client").firstPullFailed).toBe(true);
+    expect(isFirstPullPending(syncStatusStore.get("/client"))).toBe(false);
     stop();
     off();
     dispose();

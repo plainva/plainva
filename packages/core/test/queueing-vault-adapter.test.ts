@@ -72,10 +72,10 @@ describe("QueueingVaultAdapter", () => {
     const deletes = db.queries
       .filter((q) => q.query.includes("INSERT INTO offline_queue") && (q.params as any[])[1] === "delete")
       .map((q) => (q.params as any[])[0]);
-    // Folder op first (natively recursive on every provider), then one op per
-    // FILE as the deterministic fallback; subfolders are not enqueued (their
-    // remote deletion rides on the folder op's recursion).
-    expect(deletes[0]).toBe("proj");
+    // One op per FILE first, the folder op last: a folder goes from the remote
+    // only while it holds no file there (F44), so it waits behind its own files.
+    // Subfolders are not enqueued (the folder op takes empty ones along).
+    expect(deletes[deletes.length - 1]).toBe("proj");
     expect(deletes).toContain("proj/a.md");
     expect(deletes).toContain("proj/sub/b.md");
     expect(deletes.length).toBe(3);

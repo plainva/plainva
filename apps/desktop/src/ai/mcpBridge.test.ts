@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   }),
 }));
 
-const { MCP_LEFT_OUT, MCP_VAULT_CHANGED, configureMcp, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { MCP_JUDGE_BLOCK, MCP_LEFT_OUT, MCP_LOCKED, MCP_NO_KEY, MCP_UNSURE, MCP_VAULT_CHANGED, configureMcp, listenForMcpCalls, mcpCallScope, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -57,16 +57,34 @@ function host(): AiVaultHost {
 /** Whether each call was made as one that may reach the internet. */
 const gates: boolean[] = [];
 
-const call = (tool: string, args: unknown, folders = ["Projects"]) => runMcpCall(host(), { requestId: "r1", clientId: "c1", client: "Test client", vaultKey: "vault-key", tool, args, folders });
+/** The native wall as a vault without folder links has it: the name decides (`answer_path_allowed`). */
+const byName = (folders: readonly string[]) => async (paths: readonly string[]) => paths.map((path) => insideFolders(path, folders));
+const call = (tool: string, args: unknown, folders = ["Projects"], judge = byName(folders)) => runMcpCall(host(), { requestId: "r1", clientId: "c1", client: "Test client", vaultKey: "vault-key", tool, args, folders }, undefined, judge);
 
 describe("the MCP bridge", () => {
   it("a folder grants itself and below, never a sibling that shares its prefix", () => {
     expect(insideFolders("Projects/Offer.md", ["Projects"])).toBe(true);
+    expect(insideFolders("Projects", ["Projects"])).toBe(true);
     expect(insideFolders("ProjectsArchive/Old.md", ["Projects"])).toBe(false);
     expect(insideFolders("Anything.md", [""])).toBe(true);
-    expect(insideFolders("projects/offer.md", ["Projects"])).toBe(true);
-    expect(insideFolders("Cafe\u0301/x.md", ["Caf\u00e9"])).toBe(true);
     expect(insideFolders("x.md", [])).toBe(false);
+  });
+
+  it("compares exactly as both are spelled: a folder that only folds to the granted one is another (review of R19, wave 2)", () => {
+    // Another real folder on a case-sensitive disk, and `ẞ`/`ß`, the Kelvin sign and `K` everywhere.
+    for (const [path, folder] of [
+      ["projects/offer.md", "Projects"],
+      ["STRA\u1e9eE/x.md", "Stra\u00dfe"],
+      ["\u212aELVIN/x.md", "Kelvin"],
+      // A backslash is a character of a name, never a separator; an NFD name is another spelling.
+      ["Projects\\secret.md", "Projects"],
+      ["Cafe\u0301/x.md", "Caf\u00e9"],
+      // A folder spelled in a way no vault path is grants nothing.
+      ["Projects/x.md", "/Projects"],
+      ["Projects/x.md", "Projects/"],
+    ]) {
+      expect(insideFolders(path!, [folder!]), `${path} in ${folder}`).toBe(false);
+    }
   });
 
   it("serves the tools of the MCP surface, says which of them only read, and names the arguments that are paths", () => {
@@ -113,6 +131,91 @@ describe("the MCP bridge", () => {
     expect(search.content).not.toMatch(/Salaries|Secret|ProjectsArchive/);
   });
 
+  it("a twin folder's notes do not exist for a call, so its answer is never withheld for them (review of R19, wave 2)", async () => {
+    files["projects/Twin.md"] = "# Twin\n\nsecretword";
+    try {
+      // The stand-in index returns every note for any query: the twin's hit is in what it found.
+      const twin = await call("search_vault", { query: "secretword", limit: 10 });
+      expect(twin.isError).toBe(false);
+      expect(twin.paths).not.toContain("projects/Twin.md");
+      expect(twin.paths.every((path) => path.startsWith("Projects/"))).toBe(true);
+      expect(twin.content).not.toContain("Twin");
+    } finally {
+      delete files["projects/Twin.md"];
+    }
+  });
+
+  it("a path the native wall refuses is left out before the answer is built, like a note that is not there (review of R19, wave 2)", async () => {
+    // `Projects/link` is a folder link into a folder the app was not given: by name inside, on the disk outside.
+    files["Projects/link/Inner.md"] = "# Inner\n\nsecretword";
+    try {
+      const wall = async (paths: readonly string[]) => paths.map((path) => insideFolders(path, ["Projects"]) && !path.startsWith("Projects/link"));
+      const linked = await call("search_vault", { query: "secretword", limit: 10 }, ["Projects"], wall);
+      expect(linked.paths).not.toContain("Projects/link/Inner.md");
+      expect(linked.content).not.toContain("Inner");
+      const read = await call("read_note", { path: "Projects/link/Inner.md" }, ["Projects"], wall);
+      expect(read).toEqual(await call("read_note", { path: "Projects/Nowhere.md" }, ["Projects"], wall));
+      // A wall that cannot answer fails the call, and says so: it never looks like a note that is not there.
+      const silent = await call("read_note", { path: "Projects/Offer.md" }, ["Projects"], () => Promise.reject(new Error("closed")));
+      expect(silent).toEqual({ content: MCP_UNSURE, isError: true, paths: [] });
+    } finally {
+      delete files["Projects/link/Inner.md"];
+    }
+  });
+
+  it("counts a note left out for its name only where the gate lets it through and the wall judges its folder inside (review of R19, wave 2)", async () => {
+    files["Projects/Kept:1.md"] = "---\nplainva:\n  ai:\n    cloud: deny\n---\nOffer";
+    files["Projects/link/Draft./Odd.md"] = "# Odd\n\nOffer";
+    files["Projects/link/Odd:2.md"] = "# Odd\n\nOffer";
+    files["projects/Odd:3.md"] = "# Odd\n\nOffer";
+    try {
+      const wall = async (paths: readonly string[]) => paths.map((path) => insideFolders(path, ["Projects"]) && !path.startsWith("Projects/link"));
+      const answer = await call("search_vault", { query: "Offer" }, ["Projects"], wall);
+      expect(answer.isError).toBe(false);
+      // Kept by its rules, under a folder link out of the grant, in a twin folder: nothing is counted.
+      expect(answer.content).not.toContain("left out");
+      files["Projects/Odd:1.md"] = "# Odd\n\nOffer";
+      const counted = await call("search_vault", { query: "Offer" }, ["Projects"], wall);
+      expect(counted.content).toContain(MCP_LEFT_OUT(1));
+    } finally {
+      for (const path of ["Projects/Kept:1.md", "Projects/link/Draft./Odd.md", "Projects/link/Odd:2.md", "projects/Odd:3.md", "Projects/Odd:1.md"]) delete files[path];
+    }
+  });
+
+  it("asks the native side in blocks it takes, and never keeps a verdict it could not have (review of R19, wave 2)", async () => {
+    const questions: number[] = [];
+    let fail = true;
+    const judge = async (paths: readonly string[]) => {
+      questions.push(paths.length);
+      if (fail) throw new Error("not now");
+      return paths.map(() => true);
+    };
+    const { scope, unsure } = mcpCallScope([""], judge);
+    const many = Array.from({ length: 2 * MCP_JUDGE_BLOCK + 5 }, (_, i) => `n${i}.md`);
+    await scope.prefetch(many);
+    expect(questions).toEqual([MCP_JUDGE_BLOCK, MCP_JUDGE_BLOCK, 5]);
+    await expect(scope.confirm("n0.md")).rejects.toThrow("not now");
+    expect(unsure()).toBe(true);
+    // Asked again, not answered from what failed.
+    fail = false;
+    questions.length = 0;
+    expect(await scope.confirm("n0.md")).toBe(true);
+    expect(questions).toEqual([1]);
+  });
+
+  it("links in what an app reads stay only where they lead to a note it may read (review of R19, wave 2)", async () => {
+    files["Projects/Links.md"] = "# Links\n\nSee [[Projects/Plan]], [[Finance/Salaries]] and [[Nowhere at all]].";
+    try {
+      const note = await call("read_note", { path: "Projects/Links.md", maxChars: 8000 });
+      expect(note.content).toContain("[[Projects/Plan]]");
+      // Outside the app's folders, and leading nowhere: told alike, so neither says whether a note lies outside.
+      expect(note.content).not.toMatch(/Salaries|Nowhere/);
+      expect(note.content.match(/⟦withheld note⟧/g)).toHaveLength(2);
+    } finally {
+      delete files["Projects/Links.md"];
+    }
+  });
+
   it("refuses what is not a tool of this surface, bad arguments and a missing vault", async () => {
     expect((await call("run_command", { id: "open-graph" })).isError).toBe(true);
     expect((await call("write_note", { path: "Projects/Offer.md" })).isError).toBe(true);
@@ -130,16 +233,20 @@ describe("the MCP bridge", () => {
   });
 
   it("leaves out, and counts, a note whose name the native wall could not judge as it stands (review of R19)", async () => {
+    files["Projects/Draft:1.md"] = "# Odd\n\nOffer";
+    // In a folder whose own name cannot be judged: where that folder leads is not known, so it is left out, uncounted.
     files["Projects/Draft./Odd.md"] = "# Odd\n\nOffer";
     try {
       const answer = await call("search_vault", { query: "Offer" });
       expect(answer.isError).toBe(false);
+      expect(answer.paths).not.toContain("Projects/Draft:1.md");
       expect(answer.paths).not.toContain("Projects/Draft./Odd.md");
       expect(answer.content).toContain(MCP_LEFT_OUT(1));
       // Outside the app's folders nothing is counted: the count says nothing about the rest of the vault.
       const elsewhere = await call("search_vault", { query: "Offer" }, ["Finance"]);
       expect(elsewhere.content).not.toContain("left out");
     } finally {
+      delete files["Projects/Draft:1.md"];
       delete files["Projects/Draft./Odd.md"];
     }
   });
@@ -150,7 +257,8 @@ describe("the MCP bridge", () => {
     expect(first.content).not.toContain("More results");
     const outside = await call("search_vault", { query: "Offer", limit: 1 }, ["Finance"]);
     expect(outside.content).not.toContain("More results");
-    const inside = await call("search_vault", { query: "Offer", limit: 1 });
+    // Two notes the app may see answer "Plan": the offer that links to it, and the plan.
+    const inside = await call("search_vault", { query: "Plan", limit: 1 });
     expect(inside.content).toContain("More results");
   });
 
@@ -199,6 +307,62 @@ describe("what the native side is told to serve", () => {
     expect(sealed.tools.length).toBeGreaterThan(0);
     expect(sealed.tools.every((tool) => tool.kind === "read")).toBe(true);
     expect(sealed.tools.map((tool) => tool.name)).toEqual(open.tools.filter((tool) => tool.kind === "read").map((tool) => tool.name));
+  });
+
+  it("says whether the encrypted workspace is open on this device: locked, or no key here, the native side answers nothing of it", async () => {
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true, closed: "locked" });
+    expect((served() as unknown as { locked: unknown }).locked).toBe("locked");
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true, closed: "no-key" });
+    expect((served() as unknown as { locked: unknown }).locked).toBe("no-key");
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true });
+    expect((served() as unknown as { locked: unknown }).locked).toBeNull();
+  });
+});
+
+/** Wave 2, § 3.2: while the encrypted workspace is locked, the main window answers no call of an app either. */
+describe("a locked workspace", () => {
+  it("answers a forwarded call with the refusal, and a call it was locked during with nothing of what it found", async () => {
+    const answers = () =>
+      vi
+        .mocked(invoke)
+        .mock.calls.filter(([command]) => command === "mcp_call_answer")
+        .map(([, args]) => args as { requestId: string; answer: { content: string; isError: boolean; paths: string[] } });
+    const answerOf = (requestId: string) => answers().find((a) => a.requestId === requestId)?.answer;
+    let closed: "locked" | "no-key" | null = "locked";
+    let looked = 0;
+    const plain = host();
+    // The workspace locks while the vault is read for the call.
+    const watched = {
+      ...plain,
+      tools: (...args: unknown[]) => {
+        looked += 1;
+        closed = "locked";
+        return (plain.tools as (...a: unknown[]) => unknown)(...args);
+      },
+    } as unknown as AiVaultHost;
+    const before = events.handlers.length;
+    const stop = listenForMcpCalls(() => watched, undefined, () => closed);
+    await vi.waitFor(() => expect(events.handlers).toHaveLength(before + 1));
+    const deliver = (requestId: string) =>
+      events.handlers[before]!({ payload: { requestId, clientId: "c1", client: "Test client", vaultKey: "vault-key", tool: "read_note", args: { path: "Projects/Plan.md" }, folders: ["Projects"] } });
+    deliver("locked-before");
+    await vi.waitFor(() => expect(answerOf("locked-before")).toBeDefined());
+    expect(answerOf("locked-before")).toEqual({ content: MCP_LOCKED, isError: true, paths: [] });
+    expect(looked).toBe(0);
+    closed = null;
+    deliver("locked-during");
+    await vi.waitFor(() => expect(answerOf("locked-during")).toBeDefined());
+    expect(looked).toBe(1);
+    expect(answerOf("locked-during")).toEqual({ content: MCP_LOCKED, isError: true, paths: [] });
+    // No key for the workspace on this device: told as that, and nothing is looked at.
+    closed = "no-key";
+    deliver("no-key");
+    await vi.waitFor(() => expect(answerOf("no-key")).toBeDefined());
+    expect(answerOf("no-key")).toEqual({ content: MCP_NO_KEY, isError: true, paths: [] });
+    expect(looked).toBe(1);
+    stop();
+    // The mocked plugin keeps every handler: this one goes, so the tests after it count their own.
+    events.handlers.splice(before, 1);
   });
 });
 

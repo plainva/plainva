@@ -1,12 +1,12 @@
 # Habilidades (Beta)
 
-Última revisão: 2026-11-16
+Última revisão: 2026-11-17
 
 Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz quatorze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
 ## Usar uma habilidade
 
-Inicie uma habilidade com um clique: como uma das habilidades em destaque logo acima do campo de entrada (**Todas as habilidades…** mostra todas elas), em **Habilidades** na aba de IA, no celular na tela de IA, em habilidades, ou pela paleta de comandos. A conversa passa então a usar a habilidade: as instruções dela vão junto, e ela usa só as ferramentas e pastas que nomeia — uma habilidade que não nomeia ferramentas recebe as que apenas leem ou mostram.
+Inicie uma habilidade com um clique: em **Habilidades** sob o campo de entrada de uma conversa vazia (as em destaque primeiro), em **Habilidades** na aba de IA, no celular na tela de IA, em habilidades, ou pela paleta de comandos. A conversa passa então a usar a habilidade: as instruções dela vão junto, e ela usa só as ferramentas e pastas que nomeia — uma habilidade que não nomeia ferramentas recebe as que apenas leem ou mostram.
 
 Você também pode simplesmente perguntar. Em uma conversa com ferramentas, a IA conhece os nomes e as descrições das suas habilidades ativas — tantas quantas cabem em 6.000 caracteres; as outras continuam podendo ser iniciadas à mão — e carrega uma quando a sua pergunta combina — basta “prepare minha próxima reunião”.
 
@@ -43,7 +43,7 @@ Uma execução de teste nunca usa a internet e nunca pergunta: o e-mail que ela 
 
 ## Propor alterações
 
-Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela nomeia as ferramentas para isso: `propose_edit` e `set_property` para sugestões no texto e nas propriedades de uma nota, `create_note`, `create_entry`, `create_task` e `add_journal_entry` para rascunhos, `rename_note`, `move_note` e `delete_note` para planos. **Revisar e aprovar** então nomeia cada uma delas e diz **Pode sugerir alterações, deixar rascunhos e apresentar planos.** Nada muda no vault antes de você aceitar, criar ou confirmar — exceto onde a conversa tem **Aplicar diretamente** ligado ou a nota está em uma pasta com **Alterar sem perguntar**: ali uma habilidade que nomeia `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` ou `add_journal_entry` escreve na hora, com uma versão antes e **Desfazer** (veja **Aplicar diretamente** em [Assistente de IA](AI_Assistant.md)). Uma habilidade que não nomeia ferramentas não propõe nada — uma que você aprovou antes também não ganha nada —, e uma execução de teste não deixa nada. O que são as três formas: **Propor alterações** em [Assistente de IA](AI_Assistant.md).
+Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela nomeia as ferramentas para isso: `propose_edit` e `set_property` para sugestões no texto e nas propriedades de uma nota, `create_note`, `create_entry`, `create_task` e `add_journal_entry` para rascunhos, `rename_note`, `move_note` e `delete_note` para planos. **Revisar e aprovar** então nomeia cada uma delas e diz **Pode sugerir alterações, deixar rascunhos e apresentar planos — eles esperam até você aceitar, criar ou confirmar.** e, abaixo, **Exceto com “Aplicar diretamente” ou numa pasta com “Alterar sem perguntar”: ali altera e cria notas na hora, com Desfazer. Excluir, renomear e mover continuam perguntando.** Nada muda no vault antes de você aceitar, criar ou confirmar — exceto onde a conversa tem **Aplicar diretamente** ligado ou a nota está em uma pasta com **Alterar sem perguntar**: ali uma habilidade que nomeia `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` ou `add_journal_entry` escreve na hora, com uma versão antes e **Desfazer** (veja **Aplicar diretamente** em [Assistente de IA](AI_Assistant.md)). Uma habilidade que não nomeia ferramentas não propõe nada — uma que você aprovou antes também não ganha nada —, e uma execução de teste não deixa nada. O que são as três formas: **Propor alterações** em [Assistente de IA](AI_Assistant.md).
 
 ## Suas próprias habilidades
 

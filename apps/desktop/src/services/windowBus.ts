@@ -86,6 +86,16 @@ export interface BroadcastMap {
     retryAt?: number | null;
     /** Mirrors core's SyncProgress verbatim — see services/syncStatusStore.ts. */
     progress?: { phase: "pull" | "push"; current: number; total: number } | null;
+    /**
+     * The owner's worker and its first cycle (O8): `false` while it runs,
+     * `true` after it, null without a worker. Without it a second window of an
+     * empty synced vault said "being loaded" for ever (second review of O8).
+     */
+    firstPullDone?: boolean | null;
+    /** The first pull failed once since the vault was opened (third review of O8). */
+    firstPullFailed?: boolean | null;
+    /** The worker's reason beside the status: `stalled` keeps "being loaded" (fourth review of O8). */
+    reason?: string | null;
   };
   /** Calendar/task data changed (PIM worker cycle finished). */
   "pim-changed": Record<string, never>;
@@ -174,9 +184,17 @@ export interface RpcMap {
   "tab-transfer-status": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   "tab-transfer-cancel": { args: { id: string }; result: import("./tabTransfer").TransferResult };
   write: { args: { path: string; content: string }; result: void };
+  /** An auxiliary window met a damaged full-text index: the owner notes it, so its next open makes it anew (`watchFullTextDamage`). */
+  "full-text-damaged": { args: { reading: import("@plainva/core").FullTextDamageReading }; result: boolean };
   "editor-write": { args: { path: string; content: string; baseText: string | null }; result: import("@plainva/core").EditorWriteResult };
   /** The two halves of a change of a file where it lies (`RemoteVaultAdapter.updateTextFile`): what the file is … */
   "update-read": { args: { path: string }; result: import("@plainva/core").TextFileState };
+  /**
+   * The owner's sync status as it is now — asked once by a window that opens
+   * while nothing changes: the mirror only sends changes, and a window opened
+   * during a first pull showed the first-note prompt (third review of O8).
+   */
+  "sync-status-now": { args: Record<string, never>; result: BroadcastMap["sync-status"] };
   /** … and the change made of it, written only if the file still is that. `null`: it is not, read again. */
   "update-write": { args: { path: string; expected: import("@plainva/core").TextFileState; next: import("@plainva/core").TextFileChange }; result: import("@plainva/core").TextFileUpdate | null };
   "conflict-read": { args: { path: string }; result: import("@plainva/core").ConflictEditSession | null };
@@ -509,6 +527,8 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   write: "vault",
   "editor-write": "vault",
   "update-read": "vault",
+  "full-text-damaged": "vault",
+  "sync-status-now": "vault",
   "update-write": "vault",
   "conflict-read": "vault",
   "conflict-list": "vault",
@@ -615,6 +635,7 @@ export const RPC_EFFECT: Record<RpcKind, "read" | "write" | "once"> = {
   write: "write",
   "editor-write": "write",
   "update-read": "read",
+  "full-text-damaged": "write",
   "update-write": "write",
   "conflict-read": "read",
   "conflict-list": "read",
@@ -652,6 +673,7 @@ export const RPC_EFFECT: Record<RpcKind, "read" | "write" | "once"> = {
   "comment-state": "read",
   "comment-move": "write",
   "workspace-status": "read",
+  "sync-status-now": "read",
   "workspace-revisions": "read",
   "workspace-revision-read": "read",
   "focus-content": "read",

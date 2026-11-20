@@ -86,6 +86,12 @@ type Data = Record<string, unknown>;
  * for the diagnostics; nothing of the note's text does.
  */
 const notInPlace = (key: string) => new FrontmatterSurgicalError(`Frontmatter is not a YAML map whose entry '${key}' can be changed where it stands`);
+/**
+ * An entry whose value another entry refers to through a YAML anchor: the
+ * message begins with "Frontmatter entry '" and ends as below, the name of
+ * the entry between — no text of the note.
+ */
+const sharedByAnchor = (key: string) => new FrontmatterSurgicalError(`Frontmatter entry '${key}' is shared through a YAML anchor and cannot be changed where it stands`);
 const noMapUnder = (key: string) => new FrontmatterSurgicalError(`Frontmatter is not a YAML map under '${key}'`);
 
 // ── What is written ────────────────────────────────────────────────────────
@@ -980,6 +986,11 @@ function removal(place: Place, map: YAMLMap, pair: Pair): Edit[] | null {
  */
 function commentsBehind(text: string, at: PairPlace): number {
   let end = at.to;
+  // An empty line sets a comment apart from the entry in front of it — also
+  // where it is the entry's own, the empty lines a text keeps (`|+`): such a
+  // comment is no more the entry's than behind any other empty line (Sammelplan
+  // § 3.173 Nr. 5).
+  if (onlyBlanks(text.slice(lineStart(text, at.lastBreak), at.lastBreak))) return end;
   while (end < text.length) {
     const lineBreak = lineEnd(text, end);
     const line = text.slice(end, lineBreak);
@@ -1109,7 +1120,31 @@ function firstMade(place: Place, after: Data, key: string, ways: ReadonlyArray<(
     const next = made(place, way(), after);
     if (next !== null) return next;
   }
-  throw notInPlace(key);
+  throw (sharedThroughAnchor(place, key) ? sharedByAnchor(key) : notInPlace(key));
+}
+
+/**
+ * Whether the entry `key` holds a value — or a part of one — that another
+ * entry refers to (`a: &x 1` with `b: *x`): changed where it stands it would
+ * change for both, written anew it would lose the anchor the other needs
+ * (ADR 0009). The refusal says so, for the block itself reads.
+ */
+function sharedThroughAnchor(place: Place, key: string): boolean {
+  const root = place.doc.contents;
+  const pair = isMap(root) ? pairOf(root, key, place.doc) : null;
+  if (!pair || !isNode(pair.value)) return false;
+  const anchors = new Set<string>();
+  /** Every node under `node`, the node itself first. */
+  const walk = (node: unknown, each: (node: unknown) => void): void => {
+    each(node);
+    if (isMap(node)) for (const item of node.items) { walk(item.key, each); walk(item.value, each); }
+    else if (isSeq(node)) for (const item of node.items) walk(item, each);
+  };
+  walk(pair.value, (node) => { if (isNode(node) && node.anchor) anchors.add(node.anchor); });
+  if (anchors.size === 0) return false;
+  let referred = false;
+  walk(root, (node) => { if (isAlias(node) && anchors.has(node.source)) referred = true; });
+  return referred;
 }
 
 /**
@@ -1182,6 +1217,8 @@ export function setEntry(content: string, path: readonly string[], value: unknow
   // word for and YAML has — a date under `!!timestamp`, which would be written
   // as its text.
   if (sameData(value, dataAt(before, path))) return content;
+  const dated = underTimestampTag(place, before, path, value, data);
+  if (dated !== null) return dated;
   const after = withPath(before, path, data);
   if (sameData(before, after)) return content;
   return firstMade(place, after, path[0], [
@@ -1200,6 +1237,53 @@ export function setEntry(content: string, path: readonly string[], value: unknow
     () => topAnew(place, path[0], after[path[0]]),
     () => topQuoted(place, path[0], after[path[0]]),
   ]);
+}
+
+/**
+ * A text for a value that stands under a tag of its own that reads a date
+ * (`when: !!timestamp 2024-01-02`): the new text goes behind the tag, where
+ * the tag reads it as a date again (Sammelplan § 3.173 Nr. 5). A date is
+ * handed as a text — the field of a property has no other way — or as a
+ * date, which is written as its text; written anew without the tag, it became
+ * a text, and the note lost the type it gave the value. Null where the value stands under no such tag, or where
+ * the tag does not read the new text as a date: then it is written as a text.
+ */
+function underTimestampTag(place: Place, before: Data, path: readonly string[], value: unknown, data: unknown): string | null {
+  if (!(typeof value === "string" || value instanceof Date) || typeof data !== "string" || !(dataAt(before, path) instanceof Date)) return null;
+  let node: unknown = place.doc.contents;
+  for (const key of path) {
+    if (!isMap(node)) return null;
+    const pair = pairOf(node, key, place.doc);
+    if (!pair) return null;
+    node = pair.value;
+  }
+  if (!isScalar(node) || !node.tag || !isCalendarTime(data)) return null;
+  const edits = setEdits(place, path, data);
+  const text = edits && withEdits(place.text, edits);
+  if (text === null) return null;
+  let read: unknown;
+  try {
+    read = dataAt(dataOfBlock(splitDocument(place.content.slice(0, place.at) + text + place.content.slice(place.at + place.text.length)).doc), path);
+  } catch {
+    return null;
+  }
+  if (!(read instanceof Date)) return null;
+  const after = withPath(before, path, read);
+  return sameData(before, after) ? place.content : made(place, edits, after);
+}
+
+/**
+ * Whether `text` is a time of the calendar as YAML writes a timestamp:
+ * `2024-02-03`, with a time of day behind it or not. A day the month has not
+ * (`2024-02-30`) is none — under the tag YAML would read the next month's
+ * day, so such a text is written as the text it is (Fehlerliste 0.9.0, B7).
+ */
+function isCalendarTime(text: string): boolean {
+  const parts = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:(?:[Tt]|[ \t]+)(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[ \t]*(?:Z|[-+]\d{1,2}(?::\d{2})?))?)?$/.exec(text);
+  if (!parts) return false;
+  const [year, month, day] = [Number(parts[1]), Number(parts[2]), Number(parts[3])];
+  if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) return false;
+  return parts[4] === undefined || (Number(parts[4]) < 24 && Number(parts[5]) < 60 && Number(parts[6]) < 60);
 }
 
 /**

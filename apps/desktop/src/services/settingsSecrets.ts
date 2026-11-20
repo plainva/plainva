@@ -14,12 +14,31 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
-const metaKey = (vaultPath: string) => `settingsSyncSecretMeta_${b64(vaultPath)}`;
+/**
+ * The record of a vault's secrets sync, under this version's name. The name
+ * 0.8.7 reads (`LEGACY_META_PREFIX`) is left empty once sealed, so a device
+ * that goes back to 0.8.7 starts like a new one (`secretsMark.ts`, F67).
+ */
+const META_PREFIX = "settingsSyncSecretMarks_";
+const LEGACY_META_PREFIX = "settingsSyncSecretMeta_";
+const metaKey = (vaultPath: string) => `${META_PREFIX}${b64(vaultPath)}`;
+const legacyMetaKey = (vaultPath: string) => `${LEGACY_META_PREFIX}${b64(vaultPath)}`;
+/**
+ * What "Remove account" asked to be tombstoned, under a name of its own: only
+ * bindings, never a mark, so a removal before the marks are sealed writes no
+ * password anywhere (round eleven).
+ */
+const retiredKey = (vaultPath: string) => `settingsSyncSecretRetired_${b64(vaultPath)}`;
+const META_STORAGE = {
+  current: (legacyKey: string) => META_PREFIX + legacyKey.slice(LEGACY_META_PREFIX.length),
+  isLegacy: (key: string) => key.startsWith(LEGACY_META_PREFIX),
+};
 
 async function deviceId(): Promise<string> {
   const store = await getSettingsStore();
@@ -104,21 +123,77 @@ export async function importedSecretSlots(vaultPath: string, cache: Pick<PimRunt
 
 function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
   return {
-    readMeta: async () =>
-      (await getSettingsStore())
-        .get<SecretsPortMeta>(metaKey(vaultPath))
-        .then((m) => migrateSecretsMetaToCanonicalIds(m ?? null)),
+    readMeta: async () => {
+      const store = await getSettingsStore();
+      const current = (await store.get<SecretsPortMeta>(metaKey(vaultPath))) ?? null;
+      const legacy = (await store.get<SecretsPortMeta>(legacyMetaKey(vaultPath))) ?? null;
+      const retired = (await store.get<SecretsPortMeta["retired"]>(retiredKey(vaultPath))) ?? null;
+      const meta = mergeLegacySecretsMeta(current, legacy) ?? (retired ? { entries: {}, imported: {}, quarantine: {} } : null);
+      if (meta && retired) meta.retired = { ...(meta.retired ?? {}), ...retired };
+      return migrateSecretsMetaToCanonicalIds(meta);
+    },
     writeMeta: async (meta) => {
       const store = await getSettingsStore();
-      await store.set(metaKey(vaultPath), meta);
+      const { retired, ...marks } = meta;
+      await store.set(metaKey(vaultPath), marks);
+      if (retired && Object.keys(retired).length > 0) await store.set(retiredKey(vaultPath), retired);
+      else await store.delete(retiredKey(vaultPath));
+      // Taken in by this write: under the old name, nothing stays.
+      await store.delete(legacyMetaKey(vaultPath));
       await store.save();
     },
   };
 }
 
+/** The pending removals alone, for `retireSecret`: it never reads or writes a mark. */
+function retiredStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () => ({ entries: {}, imported: {}, quarantine: {}, retired: (await (await getSettingsStore()).get<SecretsPortMeta["retired"]>(retiredKey(vaultPath))) ?? {} }),
+    writeMeta: async (meta) => {
+      const store = await getSettingsStore();
+      await store.set(retiredKey(vaultPath), meta.retired ?? {});
+      await store.save();
+    },
+  };
+}
+
+/** Where this desktop keeps the key of the marks, decided once (`secretsMark.ts`, round twelve). */
+const MARK_KEY_HOME = "settingsSyncSecretsMarkKeyHome";
+
+/** The key of the marks, in the credentials store at its one place. */
+const markKeySlots = {
+  readSlot: (slot: string) => credentialManager.readSecret(slot),
+  writeSlot: (slot: string, value: unknown) => credentialManager.writeSecret(slot, value),
+  markKeyHome: {
+    read: async () => {
+      const place = await (await getSettingsStore()).get<string>(MARK_KEY_HOME);
+      return place === "keychain" || place === "file" ? place : null;
+    },
+    note: async (place: "keychain" | "file") => {
+      const store = await getSettingsStore();
+      await store.set(MARK_KEY_HOME, place);
+      await store.save();
+    },
+    readAt: (place: "keychain" | "file") => credentialManager.readSecretAt(SECRETS_MARK_KEY_SLOT, place),
+    writeAt: (place: "keychain" | "file", value: string) => credentialManager.writeSecretAt(SECRETS_MARK_KEY_SLOT, value, place),
+  },
+  // One key for the device: the records of every vault count (round twelve).
+  marksOnDevice: async () => storeHoldsSecretsMarks(await getSettingsStore(), (key) => key.startsWith(META_PREFIX) || key.startsWith(LEGACY_META_PREFIX)),
+};
+
+/**
+ * At start, before any vault opens: the secrets metadata of every vault on
+ * this device, open or not, loses the plain marks that up to now carried each
+ * password in `plainva-settings.json` (F67, `secretsMark.ts`). The key of the
+ * new marks lives with the passwords, in the credentials store.
+ */
+export async function sealSecretsMetaAtStart(): Promise<number> {
+  return sealSecretsMetaInStore(await getSettingsStore(), META_STORAGE, markKeySlots);
+}
+
 /** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`). */
 export async function retireCalDavSecret(vaultPath: string, url: string, user: string): Promise<void> {
-  await retireSecret(metaStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+  await retireSecret(retiredStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
 }
 
 /**
@@ -147,6 +222,8 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     accountsReady: async () => pimRuntime !== null,
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
+    markKeyHome: markKeySlots.markKeyHome,
+    marksOnDevice: markKeySlots.marksOnDevice,
     removeSlot: (slot) => credentialManager.removeSecret(slot),
   });
 }

@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-11-06
+Stan na: 2026-11-19
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -82,7 +82,7 @@ OKF 0.2 dodaje pięć **opcjonalnych** pól najwyższego poziomu, którymi notat
 | `stale_after` | data (`2026-12-31`) lub moment | Od kiedy treść liczy się jako nieaktualna. Czysta informacja — Plainva pokazuje podpowiedź i niczego nie zmienia. |
 | `status` | `draft` \| `stable` \| `deprecated` | Stan cyklu życia. Dokładnie te trzy wartości; `draft` i `deprecated` pojawiają się jako odznaka, `stable` pozostaje ciche. |
 
-**Aktorzy** (`by` w `generated` i `verified`) stosują konwencję: osoba to `human:<imię>`, program to `<producent>/<wersja>`. Plainva zapisuje `plainva-import/<wersja>`, `plainva-mail-capture/<wersja>` i `plainva-task-sync/<wersja>` — a przy sprawdzeniu `human:<Twoje imię>`.
+**Aktorzy** (`by` w `generated` i `verified`) stosują konwencję: osoba to `human:<imię>`, program to `<producent>/<wersja>`. Plainva zapisuje `plainva-import/<wersja>`, `plainva-mail-capture/<wersja>`, `plainva-task-sync/<wersja>`, a dla AI `plainva-ai/<model>` — a przy sprawdzeniu `human:<Twoje imię>`. Gdy notatkę tworzy inny autor, stoi tam jego identyfikator na tym urządzeniu: `mcp:<klient>` dla programu przez serwer MCP Plainva, `acp:<agent>` dla zewnętrznego agenta, `script:<nazwa>` dla skryptu.
 
 Przykład zaimportowanej, później sprawdzonej notatki:
 
@@ -105,7 +105,7 @@ stale_after: 2027-08-21
 
 **Reguły zapisu — kto ustawia co:**
 
-- `generated` i `sources` są zapisywane wyłącznie przez **maszynowe** ścieżki zapisu Plainva: importer (jeden moment na przebieg — raport importu też go niesie), przechwytywanie e-maili (z `sources: [{ resource: “mid:<Message-ID>” }]`, gdy wiadomość ma stabilny Message-ID) oraz synchronizacja zadań (tylko gdy tworzy notatkę — kolejna synchronizacja zostawia znacznik bez zmian).
+- `generated` i `sources` są zapisywane wyłącznie przez **maszynowe** ścieżki zapisu Plainva: importer (jeden moment na przebieg — raport importu też go niesie), przechwytywanie e-maili (z `sources: [{ resource: “mid:<Message-ID>” }]`, gdy wiadomość ma stabilny Message-ID), synchronizacja zadań (tylko gdy tworzy notatkę — kolejna synchronizacja zostawia znacznik bez zmian), **Zachowaj jako notatkę** przy odpowiedzi AI (z przeczytanymi stronami, notatkami i obrazami jako `sources`) oraz każda notatka i każdy wpis bazy danych, które AI, program przez serwer MCP lub skrypt tworzy jako szkic — niezależnie od tego, czy szkic tworzysz Ty, czy powstaje od razu przez **Zastosuj od razu** (z `sources`, gdy szkic je podaje). Notatka utworzona przez zewnętrznego agenta ma tylko `generated`. Zmiana istniejącej notatki nigdy nie dodaje znacznika.
 - `verified` jest zapisywane wyłącznie przez **Oznacz jako sprawdzoną** (komputer: sekcja **Zaufanie i pochodzenie** panelu właściwości; telefon: karta kontekstowa notatki) — i dopisuje, zamiast nadpisywać.
 - Edytor nigdy sam nie dotyka żadnego z tych pól, a **istniejące notatki nigdy nie są oznaczane z mocą wsteczną**. Brakujące pole oznacza po prostu: brak stwierdzenia.
 - `status` i `stale_after` ustawiasz sam (jako właściwość albo wprost we frontmatter). Wartość spoza `draft`/`stable`/`deprecated` — powiedzmy kolumna `status: Open` w bazie zadań — **nie jest** stanem cyklu życia, tylko zwykłą właściwością; Plainva nie pokazuje dla niej odznaki.

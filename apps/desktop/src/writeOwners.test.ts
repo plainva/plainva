@@ -20,6 +20,8 @@ type Owner = "person" | "background" | "read" | "chain";
 
 const HANDOFFS: Record<string, Owner> = {
   'const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path), "background");': "chain",
+  // The sync's own removals left unrecorded by a runtime that ended: only asks whether a file is still there.
+  'await adoptOwnRemovals(dbAdapter, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(tauriVaultAdapter).then((there) => there === true), exists: (p) => tauriVaultAdapter.exists(p) }).catch(reportingTo("sync:own-removals"));': "read",
   'await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());': "chain",
   'await tauriVaultAdapter.createDir(".plainva");': "chain",
   "storage: tauriVaultAdapter,": "chain",
@@ -32,6 +34,8 @@ const HANDOFFS: Record<string, Owner> = {
   "const indexer = new VaultIndexer(vaultAdapter, dbAdapter, {": "background",
   "isOwnWrite: (path, sha256) => vaultAdapter.wasWrittenByUs(path, sha256),": "read",
   "exists: (p) => tauriVaultAdapter.exists(p),": "read",
+  // The accounts of a rebuilt index database: it only reads the settings profile's copy in the vault.
+  'await restoreDesktopAccountsAfterRebuild(path, dbAdapter, tauriVaultAdapter).catch(reportingTo("accounts:restore-after-rebuild"));': "read",
   "const deletionJournal = new DeletionJournal(backupVaultAdapter, await getDeviceId());": "background",
   // The task sync: the next start runs it again.
   "readTextFile: (p) => vaultAdapter.readTextFile(p),": "background",

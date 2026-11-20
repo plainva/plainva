@@ -23,6 +23,8 @@ import {
   type ConnectionE2EState,
   type ISyncTarget,
   type IVaultAdapter,
+  type IDatabaseAdapter,
+  PROFILE_SYNC_PATH,
   type Keyfile,
   type MasterKeyBundle,
   type ProfileSettingsPort,
@@ -87,6 +89,7 @@ import {
 } from "@plainva/ui";
 import { PimCacheRepository } from "@plainva/core";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
+import { accountMapKey } from "./profileAccountMap";
 import { profileNoticeStorage } from "./profileNoticeStore";
 import i18n from "@plainva/ui/i18n";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
@@ -106,6 +109,7 @@ import { mobileKeyringCacheKey } from "./vaultForget";
 import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 import { isMemberProfileField } from "@plainva/ui";
+import { accountFieldsHeldBack, fillHeldAccountField, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
 import { mergePersonalDesignValues } from "@plainva/ui";
 import { mobilePersonalDesign } from "./personalDesign";
 
@@ -496,20 +500,15 @@ export async function mobileEncryptionStatus(vault: MobileVault): Promise<"none"
   return (await (vault.belowChain).exists(KEYFILE_PATH)) ? "locked" : "none";
 }
 
-/**
- * The account map lives beside the profile: it ties a device-local account id
- * to the id used in the shared document, so the same account is recognised
- * across devices even though the ids differ (they end up in keychain slots).
- */
-const accountMapKey = (vaultId: string) => `settingsSyncAccountMapMobile_${vaultId}`;
-
 /** Mobile side of the shared account import (plan P3). */
 function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
-  const vaultId = vault.vaultId;
   // Write through a cache built on the vault's own database rather than the PIM
   // runtime: the runtime boots in parallel with the sync worker, and an import
   // that waited for it would simply do nothing on the cycle that matters.
-  const cache = vault.db ? new PimCacheRepository(vault.db) : null;
+  return accountPortsOver(vault.vaultId, vault.db ? new PimCacheRepository(vault.db) : null);
+}
+
+function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): AccountImportPorts {
   return {
     listPimAccounts: async () => (cache ? cache.listAccounts() : []),
     upsertPimAccount: async (row) => {
@@ -544,6 +543,31 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
     // Keeps this device's own confirmed access of a password account (GitHub issue 174).
     deviceId,
   };
+}
+
+/**
+ * The first open of an index database rebuilt at the start: its calendar and
+ * task accounts come back from this vault's copy of the profile before the
+ * vault opens (`restoreAccountsAfterRebuild`). The copy is read as the
+ * settings sync reads it — sealed where this device holds the key.
+ */
+export async function restoreMobileAccountsAfterRebuild(vaultId: string, db: IDatabaseAdapter, raw: IVaultAdapter, vaultSyncs: boolean): Promise<void> {
+  const cache = new PimCacheRepository(db);
+  await restoreAccountsAfterRebuild({
+    state: cache,
+    settingsSyncRuns: vaultSyncs && (await isMobileSettingsSyncEnabled(vaultId)),
+    ports: accountPortsOver(vaultId, cache),
+    readProfileCopy: async () => {
+      const ring = await loadKeyring(vaultId);
+      if (ring) {
+        if (!(await raw.exists(SETTINGS_ENC_PATH))) return null;
+        return new TextDecoder().decode(openBlob(ring.active, await raw.readBinaryFile(SETTINGS_ENC_PATH), "settings") as BufferSource);
+      }
+      // A sealed copy, and no key here now: there is one, it cannot be read yet.
+      if (await raw.exists(SETTINGS_ENC_PATH)) throw new Error("the sealed settings profile cannot be opened without the key");
+      return (await raw.exists(PROFILE_SYNC_PATH)) ? raw.readTextFile(PROFILE_SYNC_PATH) : null;
+    },
+  });
 }
 
 /**
@@ -610,6 +634,14 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
   return {
     normalizeValues: canonicalizeProfileValues,
     mergeObservedValues: mergePersonalDesignValues,
+    // An index database rebuilt at the start speaks for its accounts only once
+    // the document's were applied (`accountFieldsHeldBack`).
+    heldBack: () => accountFieldsHeldBack(vault.db ? new PimCacheRepository(vault.db) : null),
+    // Only what the rebuild took is the document's; a change made here since is this device's (`fillHeldAccountField`).
+    async fillHeldBack(key, documentValue, exportedValue) {
+      const map = normalizeAccountMap(await (await settingsStore()).get<ProfileAccountMap>(accountMapKey(vaultId)));
+      return fillHeldAccountField(key, documentValue, exportedValue, new Set(Object.keys(map.removedLogical ?? {})));
+    },
     async exportValues(): Promise<Record<string, unknown>> {
       const s = await getVaultSettings(vaultId);
       const unknown = (await (await settingsStore()).get<Record<string, unknown>>(unknownKey(vaultId))) ?? {};
@@ -1063,6 +1095,8 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
         },
         onExchange: async (info) => {
           const at = new Date().toISOString();
+          // A cycle went through while the accounts were held: the document's are applied, and they are this device's again.
+          await settleAccountsAfterRebuild(vault.db ? new PimCacheRepository(vault.db) : null);
           await updateDiagnostics(vault.vaultId, (d) => recordProfileExchange(d, at, info));
         },
         onLegacyProfile: (info) => {

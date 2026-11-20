@@ -675,13 +675,14 @@ describe("secretsBundle", () => {
   });
 
   it("a calendar user is compared exactly; an entry of a client up to 0.8.7 (lower-cased) only by the port's fallback (GitHub issue 174)", () => {
-    const calendar = { family: "webdav", service: "calendar" as const, secretType: "caldav-password" as const, user: "Alice", endpoint: "https://dav.example.com" };
+    const calendar = { family: "webdav", service: "calendar" as const, secretType: "caldav-password-2" as const, user: "Alice", endpoint: "https://dav.example.com" };
     expect(bindingMatches(calendar, { family: "webdav", service: "calendar", user: " Alice ", endpoint: "https://dav.example.com/" })).toBe(true);
     expect(bindingMatches(calendar, { family: "webdav", service: "calendar", user: "alice", endpoint: "https://dav.example.com" })).toBe(false);
     expect(bindingMatchesExceptFamily(calendar, { service: "calendar", user: "alice", endpoint: "https://dav.example.com" }, "fold")).toBe(true);
     expect(canonicalSecretId(calendar)).not.toBe(canonicalSecretId({ ...calendar, user: "alice" }));
-    // A user in lower case keeps the name every client gave it.
-    expect(canonicalSecretId({ ...calendar, user: "alice" })).toBe(`s1:calendar:caldav-password:alice@${encodeURIComponent("https://dav.example.com")}`);
+    // The current type names the user exactly; the type of a client up to 0.8.7 lower-cased, as that client does.
+    expect(canonicalSecretId(calendar)).toBe(`s1:calendar:caldav-password-2:Alice@${encodeURIComponent("https://dav.example.com")}`);
+    expect(canonicalSecretId({ ...calendar, secretType: "caldav-password" })).toBe(`s1:calendar:caldav-password:alice@${encodeURIComponent("https://dav.example.com")}`);
   });
 
   it("canonicalSecretId names the credential, not the device's account (P4c)", () => {
@@ -1006,7 +1007,7 @@ describe("SecretsSyncStep", () => {
     entryRev: rev,
     updatedAt: "2026-07-21T00:00:00Z",
     deviceId: "laptop",
-    binding: { family: "fastmail", service: "mail", secretType: "imap-password", user: id, endpoint: "imaps://imap.fastmail.com:993" },
+    binding: { family: "fastmail", service: "mail", secretType: "imap-password-2", user: id, endpoint: "imaps://imap.fastmail.com:993" },
     secret: { pass },
   });
   const bundle = (entries: Record<string, SecretEntry>, bundleRev = 1): SecretsBundle => ({
@@ -1048,6 +1049,38 @@ describe("SecretsSyncStep", () => {
     const sealed = target.remote.get(SECRETS_SYNC_PATH)!;
     expect(isSealedBlob(sealed)).toBe(true);
     expect(openSecretsBundle(mk(), sealed).entries.a.secret).toEqual({ pass: "s1" });
+  });
+
+  it("reports nothing for an import the port calls settled (review 2026-11-18, round seven)", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), bundle({ b: entry("b@x", 1, "s2") })));
+    const store = { bundle: bundle({ a: entry("a@x", 1, "s1") }), imported: [] as SecretsBundle[] };
+    const port = makeSecretsPort(store);
+    const reports: string[] = [];
+    const step = new SecretsSyncStep({
+      port: { ...port, importBundle: async (b) => ({ ...(await port.importBundle(b)), unknownAccounts: ["b"], settled: true }) },
+      masterKey: mk(),
+      now: () => "t",
+      onUnknownAccounts: () => void reports.push("unknown"),
+      onImportResult: () => void reports.push("result"),
+    });
+    await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+    expect(store.imported).toHaveLength(1);
+    expect(reports).toEqual([]);
+  });
+
+  it("imports a document that changes nothing when the port waits for it, and only then (round twelve)", async () => {
+    for (const waits of [true, false]) {
+      const target = new FakeTarget();
+      const vault = new FakeVault();
+      const local = bundle({ a: entry("a@x", 1, "s1") });
+      target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), local));
+      const store = { bundle: local, imported: [] as SecretsBundle[] };
+      const step = new SecretsSyncStep({ port: { ...makeSecretsPort(store), awaitsDocument: () => waits }, masterKey: mk(), now: () => "t" });
+      await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
+      expect(store.imported).toHaveLength(waits ? 1 : 0);
+    }
   });
 
   it("rejects a legacy Google client when a current shell tries to export it", async () => {

@@ -33,8 +33,14 @@ import { filesViaBrokerToken, readStoredProvider, resolveMobileFileAccess } from
  */
 
 export type AccountCard = {
-  /** Stable across reloads and safe in a nav path: family + verified e-mail. */
+  /** Stable across reloads and safe in a nav path: the record's id, else family + verified e-mail. */
   key: string;
+  /**
+   * The keys this card had before the record became the key (review
+   * 2026-11-18, R2): a page saved in the navigation before the update still
+   * finds its card (`findAccountCard`).
+   */
+  formerKeys?: string[];
   family: CloudProviderFamily;
   /** The identity as the user knows it: the e-mail, or a fallback name. */
   label: string;
@@ -89,6 +95,11 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     verified
       ? `${family}|verified:${verifiedProviderIdentityKey(verified)}`
       : `${family}|${cardIdentityKey(family, label) ?? `#${fallback}`}`;
+  // The keys a card had before (`findAccountCard`): the one above, and the one
+  // of the builds up to 0.8.7, which folded the label of every family.
+  const formerKeysOf = (family: CloudProviderFamily, label: string, fallback: string, verified?: VerifiedProviderIdentity) => [
+    ...new Set([keyOf(family, label, fallback, verified), verified ? keyOf(family, label, fallback, verified) : `${family}|${identityKey(label) ?? `#${fallback}`}`]),
+  ];
   // A card that has its registry record is that record's card, whatever its
   // rows are labelled (review 2026-11-18, R1): one record never makes two
   // cards — a calendar labelled "Alice@icloud.com" and a mailbox labelled
@@ -126,6 +137,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     }
     for (const s of card.services) if (!merged.services.includes(s)) merged.services.push(s);
     merged.vaultId = merged.vaultId ?? card.vaultId;
+    if (card.formerKeys) merged.formerKeys = [...new Set([...(merged.formerKeys ?? []), ...card.formerKeys])];
     merged.record = merged.record ?? card.record;
     merged.pimAccountId ??= card.pimAccountId;
     merged.mailAccountId ??= card.mailAccountId;
@@ -157,6 +169,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     );
     add({
       key: cardKey(stored, family, label, entry.id, stored?.verifiedProviderIdentity),
+      formerKeys: formerKeysOf(family, label, entry.id, stored?.verifiedProviderIdentity),
       family,
       label,
       ...(entry.name && entry.name !== label ? { subtitle: entry.name } : {}),
@@ -177,6 +190,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     const bound = records.find(r => r.services.calendar?.pimAccountId === a.id) ?? recordFor(family, a.label, verified);
     add({
       key: cardKey(bound, family, a.label, a.id, verified ?? bound?.verifiedProviderIdentity),
+      formerKeys: formerKeysOf(family, a.label, a.id, verified ?? bound?.verifiedProviderIdentity),
       family,
       label: a.label,
       services: ["calendar"],
@@ -191,6 +205,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     const bound = records.find(r => r.services.mail?.mailAccountId === a.id) ?? recordFor(family, a.label);
     add({
       key: cardKey(bound, family, a.label, a.id, bound?.verifiedProviderIdentity),
+      formerKeys: formerKeysOf(family, a.label, a.id, bound?.verifiedProviderIdentity),
       family,
       label: a.label,
       services: ["mail"],
@@ -226,7 +241,10 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
       if (cardIdentity && recordIdentity) return cardIdentity === recordIdentity;
       return addressIsTheAccount && cardIdentityKey(card.family, card.label) === address;
     });
+    // The key a card of this record alone had before the record became the key.
+    const formerKeys = [...formerKeysOf(record.family, record.label, record.id, record.verifiedProviderIdentity), `${record.family}|#${record.id}`];
     if (owner) {
+      owner.formerKeys = [...new Set([...(owner.formerKeys ?? []), ...formerKeys])];
       owner.record = record;
       owner.verifiedProviderIdentity ??= record.verifiedProviderIdentity;
       for (const service of services) {
@@ -239,6 +257,7 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
     add({
       // Its own card where the address does not say which account it is.
       key: `record:${record.id}`,
+      formerKeys,
       family: record.family,
       label: record.label,
       services: [...services],
@@ -278,4 +297,18 @@ export async function loadAccountCards(): Promise<{ cards: AccountCard[]; record
   if ((await getActiveVaultEntry()).id !== entry.id) throw new Error("account vault changed");
   for (const card of cards) card.recordVaultId = entry.id;
   return { cards, records };
+}
+
+/**
+ * The card a navigation path names: by its key, by the calendar or mailbox it
+ * carries (the way in from the Calendar and E-Mail pages), or — for a page
+ * saved before the update — by a key it had before (review 2026-11-18, R2),
+ * when exactly one card had it. None otherwise: the page then goes back to the
+ * list, never to an empty page.
+ */
+export function findAccountCard(cards: readonly AccountCard[], key: string): AccountCard | null {
+  const direct = cards.find((card) => card.key === key) ?? cards.find((card) => card.pimAccountId === key || card.mailAccountId === key);
+  if (direct) return direct;
+  const former = cards.filter((card) => card.formerKeys?.includes(key));
+  return former.length === 1 ? former[0] : null;
 }

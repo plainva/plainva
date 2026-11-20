@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-16
 
 Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier**) pour ouvrir à tout moment la fenêtre des raccourcis. Elle regroupe tous les raccourcis et gestes de souris en zones que vous changez avec les pastilles en haut, propose un champ de recherche qui couvre toutes les zones, et détecte automatiquement votre plateforme : elle affiche `Ctrl`/`Alt` sous Windows et Linux, et `⌘`/`⌥` sous macOS. Dans les tableaux ci-dessous, `Ctrl` désigne donc `⌘` sous macOS, et `Alt` désigne `⌥`.
 
@@ -10,7 +10,7 @@ Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier*
 |---|---|
 | `Ctrl+P` (ou `Ctrl+Shift+P`) | Ouvrir la palette de commandes |
 | `Ctrl+O` | Sélecteur rapide – rechercher et ouvrir des fichiers |
-| `Ctrl+J` | Demander à l'IA – ouvrir le compagnon (uniquement tant que l'IA est activée, voir [Assistant IA](AI_Assistant.md)) |
+| `Ctrl+J` | Demander à l'IA – ouvrir la conversation dans la barre latérale droite (uniquement tant que l'IA est activée, voir [Assistant IA](AI_Assistant.md)) |
 | `Ctrl+,` | Ouvrir les paramètres |
 | `Ctrl+Plus` / `Ctrl+Minus` | Zoom avant / arrière sur l'interface (80–150 %) |
 | `Ctrl+0` | Réinitialiser le zoom à 100 % |

@@ -268,6 +268,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-24",
   },
   {
+    id: "ai-conversation-docked",
+    title: "The AI conversation docked in the right column beside the note, or popped out into a floating window (plan Oberfläche O7, E1)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "A phone has no column beside the note and no windows to float: the " +
+      "conversation is a screen of its own (Areas > AI) and, at a note, the " +
+      "AI part of the note's sheet - the phone's way of keeping it beside " +
+      "the text (design language: peek window on the desktop, pushed screen " +
+      "or sheet on the phone). What the conversation shows and does is the " +
+      "same shared component in every dress.",
+    verified: "2026-11-16",
+  },
+  {
     id: "ai-external-agents",
     title: "An external agent — another maker's program with its own sign-in — works in the vault, with the settings and commands it offers (Agent Client Protocol, plan KI-Harness P4.6, P9-7)",
     area: "ai",
@@ -385,6 +401,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-24",
   },
   {
+    id: "ai-setup-guided",
+    title: "Setting up the AI in three steps from \"Set up\" to the first answer (plan Oberfläche O7, T9)",
+    area: "ai",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "T9 was found on the phone, where \"Set up\" led to a long page; the " +
+      "three-step sheet is built there. On the desktop \"Set up\" opens " +
+      "Settings > AI, which since O7 also lists the profiles only once a " +
+      "provider exists, and the conversation is begun by hand afterwards. " +
+      "The steps' logic is shared (aiSetupOffer, aiSetupStart, sendGreeting); " +
+      "a desktop dialog over it is still to build - deferred on 2026-11-16 " +
+      "to wave 4 of plan Oberfläche, in the maintainer's open-items plan.",
+    mobile: "yes",
+    verified: "2026-11-16",
+  },
+  {
     id: "ai-system-intents",
     title: "The system's assistant finds notes and takes down entries (Siri and Shortcuts; plan KI-Harness P4.7)",
     area: "ai",
@@ -468,6 +501,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "The phone covers the underlying need through the content font size scale " +
       "and the OS-level display size, both of which reach the same reader.",
     verified: "2026-08-19",
+  },
+  {
+    id: "base-board-column-drag",
+    title: "Reordering the columns of a board by dragging",
+    area: "database",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop drags a board column by its header: a select or status board " +
+      "reorders the property's options, any other board writes the view's " +
+      "boardColumnOrder. The phone shows the board in that saved order (both " +
+      "shells order it with orderBoardGroups) but has no way to change it; a " +
+      "held drag on a column header, as its pinboard has for cards, is not " +
+      "built. Found with B17 of the 0.9.0 defect list; in the maintainer's " +
+      "open-items plan since 2026-11-16.",
+    verified: "2026-11-16",
   },
   {
     id: "base-bulk-range-select",
@@ -839,61 +889,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "date the provider does not expose - a change that leaves every visible " +
       "field alone is invisible to it. Both named on the account card.",
     verified: "2026-09-04",
-  },
-  {
-    id: "mail-attachment-list",
-    title: "Which parts of an IMAP message count as its attachments",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The reader's list of attachments is what a forward carries and what can be " +
-      "saved, and for an IMAP mailbox the two shells build it with two parsers. The " +
-      "desktop's rule is its own (attachment_parts in mail_imap.rs, on top of " +
-      "mail-parser 1.0, whose RFC 8621 list would leave out a picture the body " +
-      "shows): every part that is not text is a file, and a text or HTML part that " +
-      "is in neither body - an embedded image without a name, a named text part, " +
-      "the calendar alternative of an invitation, an attached message. The phone's " +
-      "(net/mime.ts) lists a part only when it carries a file name, is marked as " +
-      "an attachment or is an enclosed message, and never a text part that is not " +
-      "marked so. Both list a named picture of a multipart/mixed with or without a " +
-      "disposition, and an enclosed message with or without a name - the parts of " +
-      "a digest that name no type among them (held by the same messages in " +
-      "imapClient.test.ts and mail_imap.rs, open-items plan 3.78 no. 13). A " +
-      "message of one part in another text type is its text on both (3.78 no. " +
-      "12), not a file. The same message " +
-      "can still show more files on the desktop - one for every unnamed part, the " +
-      "logo of a signature included -, and a forward then carries them from there, " +
-      "each counted against what a forward loads on its own. A Microsoft mailbox " +
-      "is not affected: both shells read Graph's list. " +
-      "Closing this means one rule for what counts, held by the same example " +
-      "messages against both parsers (finding 2026-10-11).",
-    verified: "2026-11-02",
-  },
-  {
-    id: "mail-base64-reading",
-    title: "Reading base64 in an IMAP message that is not written as the rule says",
-    area: "pim",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "For an IMAP mailbox the two shells read a message with two parsers. In a " +
-      "body both read base64 alike since mail-parser 1.0 (one table of examples " +
-      "is held against both, in imapClient.test.ts and in mail_imap.rs): a \"=\" " +
-      "ends a group wherever it stands, a last group without its padding is read, " +
-      "a single character of a group is no byte, and whatever is no base64 is " +
-      "passed over. One thing is left where the desktop's parser reads less than " +
-      "the phone's reader (net/mime.ts): in an encoded word of a header, a " +
-      "character that is no base64 other than a blank, a tab or a line break - a " +
-      "hyphen too - leaves the word as it was written, though RFC 2045 says to " +
-      "pass it over; the subject or a name then shows its encoded form. A " +
-      "Microsoft mailbox is not affected: Graph delivers the message decoded. " +
-      "Closing this means decoding encoded words in mail_imap.rs itself, or a " +
-      "parser that reads them (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
-      "fails on the day the difference is gone).",
-    mobile: "yes",
-    verified: "2026-10-30",
   },
   {
     id: "note-copy-as-email",
@@ -1589,6 +1584,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-26",
   },
   {
+    id: "first-start-tour-one-click",
+    title: "The tour vault on the first start, in one click",
+    area: "vault",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's welcome makes the tour in one click, in a folder of the " +
+      "user's Documents it names beforehand (mockup M8). The phone has no such " +
+      "folder to name: its first vault lives in the app's own storage and " +
+      "exists already when the first screen shows. So the phone's first screen " +
+      "asks where the vault lives (this device, the cloud, one the user has) " +
+      "and 'Start locally' leads to the template sheet with the tour first and " +
+      "marked as recommended - one tap more, the same tour (plan Oberflaeche, " +
+      "O8; mockup M8 'sinngemaess' for the phone).",
+    verified: "2026-11-17",
+  },
+  {
     id: "settings-backup-zip-destination",
     title: "Where the daily ZIP archive goes: choose, reset and open the folder (Backup & version history)",
     area: "vault",
@@ -1630,14 +1643,16 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     kind: "gap",
     desktop: "partial",
     desktopReason:
-      "The desktop does not open such a vault: the database not opening fails the vault " +
-      "open, and the splash names the error. The phone opens it restricted (stability plan " +
-      "R5): reading, writing and creating notes work and reach the sync at the next start " +
-      "with a database; deleting, renaming and moving are refused by the chain " +
-      "(StructureRefusingVaultAdapter) and the strip says so, because the sync queue lives " +
-      "in that database. Whether the phone keeps opening such a vault, or the desktop " +
-      "opens it the same way, is the maintainer's decision (collection plan, R5 rest item).",
+      "Both shells say in words why the database did not open, and for a damaged one outside " +
+      "an encrypted workspace both offer Rebuild index, asked first (indexDatabase.ts in " +
+      "packages/ui). For the other reasons - locked by another program, a full disk, no " +
+      "permission - the desktop does not open the vault and the start says what to do, " +
+      "while the phone opens it restricted (stability plan R5): reading, writing and " +
+      "creating notes work, deleting, renaming and moving are refused by the chain " +
+      "(StructureRefusingVaultAdapter) because the sync queue lives in that database. " +
+      "Whether the desktop opens such a vault restricted too is the maintainer's decision " +
+      "(collection plan, R5 rest item).",
     mobile: "yes",
-    verified: "2026-11-12",
+    verified: "2026-11-17",
   },
 ];

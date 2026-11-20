@@ -1,5 +1,6 @@
 import { addDays, startOfWeek } from "date-fns";
 import { formatMomentLocalized } from "../lib/momentFormat";
+import { scanTemplate, TEMPLATE_CARET_TOKEN, TEMPLATE_EVENT_TOKENS, TEMPLATE_QUESTION_TOKENS, type TemplateToken } from "@plainva/core";
 
 /**
  * The template engine (plan Vorlagen-Engine, P2).
@@ -96,7 +97,7 @@ export interface TemplateEvent {
 }
 
 /** The tokens only a meeting note can fill (E24). */
-const EVENT_TOKENS = new Set(["start", "end", "location", "attendees", "organizer", "link", "description"]);
+const EVENT_TOKENS = TEMPLATE_EVENT_TOKENS;
 
 /**
  * One event token. `{{start}}`/`{{end}}` take a Moment format and a day offset
@@ -169,46 +170,9 @@ export interface LateToken {
   raw: string;
 }
 
-/**
- * One placeholder. `raw` is the exact text matched, so replacement never has to
- * reconstruct it. A leading backslash marks an escape: `\{{date}}` writes the
- * token itself into the note, which is how the handbook can document tokens.
- */
-export interface TemplateToken {
-  raw: string;
-  escaped: boolean;
-  name: string;
-  /** Signed day offset from `{{date+7}}` / `{{daily-1}}`; 0 when absent. */
-  offset: number;
-  /** Everything after the colon — a format string or a prompt label. */
-  arg: string | null;
-  index: number;
-}
-
-/** `\?{{ name [±N] [:arg] }}` — one grammar for every placeholder. */
-const TOKEN_HEAD = /([a-zA-Z_][a-zA-Z_0-9]*)([+-]\d+)?/y;
-
-/** Scan delimiters once; an unterminated argument never rescans every opener. */
-export function scanTemplate(text: string): TemplateToken[] {
-  const out: TemplateToken[] = [];
-  let cursor = 0, close = -1;
-  while (cursor < text.length) {
-    const open = text.indexOf("{{", cursor);
-    if (open < 0) break;
-    if (close < open + 2) close = text.indexOf("}", open + 2);
-    if (close < 0) break;
-    if (text[close + 1] !== "}") { cursor = close + 1; continue; }
-    TOKEN_HEAD.lastIndex = open + 2;
-    const head = TOKEN_HEAD.exec(text);
-    const end = TOKEN_HEAD.lastIndex;
-    if (!head || (end !== close && (text[end] !== ":" || end > close))) { cursor = open + 2; continue; }
-    const escaped = open > 0 && text[open - 1] === "\\";
-    const index = escaped ? open - 1 : open;
-    out.push({ raw: text.slice(index, close + 2), escaped, name: head[1], offset: Number(head[2] ?? 0), arg: end === close ? null : text.slice(end + 1, close), index });
-    cursor = close + 2;
-  }
-  return out;
-}
+// The grammar and the names of the placeholders live in the core
+// (`templateTokens.ts`), where the index reads them too (B26).
+export { scanTemplate, type TemplateToken } from "@plainva/core";
 
 /** The caret marker `{{cursor}}`: placed by `finalizeTemplate`. */
 export function isCursorToken(token: TemplateToken): boolean {
@@ -216,7 +180,7 @@ export function isCursorToken(token: TemplateToken): boolean {
 }
 
 /** Tokens that carry an answer: `{{prompt:Label}}`, `{{prompt:Label|Default}}`, `{{select:Label|A,B}}`, `{{date_prompt:Label}}`. */
-const ANSWERABLE = new Set(["prompt", "select", "date_prompt"]);
+const ANSWERABLE = TEMPLATE_QUESTION_TOKENS;
 
 /** A question's token — the label (in front of the first `|`) is the answer key. */
 export function isAnswerableToken(token: TemplateToken): boolean {
@@ -235,7 +199,7 @@ export function replaceTemplateTokens(text: string, replace: (token: TemplateTok
 }
 
 /** Tokens resolved later, in finalizeTemplate — not here. */
-const DEFERRED = new Set(["cursor"]);
+const DEFERRED: ReadonlySet<string> = new Set([TEMPLATE_CARET_TOKEN]);
 
 /** Tokens that ask the user something. */
 const INTERACTIVE: Record<string, TemplateRequestKind> = {

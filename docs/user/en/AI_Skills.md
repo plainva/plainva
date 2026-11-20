@@ -1,12 +1,12 @@
 # Skills (Beta)
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-17
 
 A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with fourteen of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
 ## Using a skill
 
-Start a skill with one click: as one of the featured skills right above the input field (**All skills…** lists all of them), under **Skills** in the AI tab, on the phone on the AI screen under skills, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names — a skill that names no tools gets those that only read or show.
+Start a skill with one click: under **Skills** below the input field of an empty conversation (the featured ones first), under **Skills** in the AI tab, on the phone on the AI screen under skills, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names — a skill that names no tools gets those that only read or show.
 
 You can also simply ask. In a conversation with tools the AI knows the names and descriptions of your active skills — as many as fit into 6,000 characters, the others stay startable by hand — and loads one when your question matches — "prepare my next meeting" is enough.
 
@@ -43,7 +43,7 @@ A test run never uses the internet, and it never asks: mail it was not allowed t
 
 ## Proposing changes
 
-A skill of your own proposes changes only when its `allowed-tools` line names the tools for it: `propose_edit` and `set_property` for suggestions on a note's text and on its properties, `create_note`, `create_entry`, `create_task` and `add_journal_entry` for drafts, `rename_note`, `move_note` and `delete_note` for plans. **Review and approve** then names each of them and says **May suggest changes, leave drafts and lay out plans.** Nothing in the vault changes before you accept, create or confirm — except where the conversation has **Apply directly** on or the note lies in a folder with **Change without asking**: there a skill that names `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` or `add_journal_entry` writes at once, with a version before and **Undo** (see **Apply directly** in [AI Assistant](AI_Assistant.md)). A skill that names no tools proposes nothing — one you approved earlier gains nothing either — and a test run leaves nothing behind. What the three forms are: **Proposing changes** in [AI Assistant](AI_Assistant.md).
+A skill of your own proposes changes only when its `allowed-tools` line names the tools for it: `propose_edit` and `set_property` for suggestions on a note's text and on its properties, `create_note`, `create_entry`, `create_task` and `add_journal_entry` for drafts, `rename_note`, `move_note` and `delete_note` for plans. **Review and approve** then names each of them and says **May suggest changes, leave drafts and lay out plans — they wait for you to accept, create or confirm.** and, below it, **Except with “Apply directly” or in a folder with “Change without asking”: there it changes and creates notes at once, with Undo. Deleting, renaming and moving still ask.** Nothing in the vault changes before you accept, create or confirm — except where the conversation has **Apply directly** on or the note lies in a folder with **Change without asking**: there a skill that names `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` or `add_journal_entry` writes at once, with a version before and **Undo** (see **Apply directly** in [AI Assistant](AI_Assistant.md)). A skill that names no tools proposes nothing — one you approved earlier gains nothing either — and a test run leaves nothing behind. What the three forms are: **Proposing changes** in [AI Assistant](AI_Assistant.md).
 
 ## Your own skills
 

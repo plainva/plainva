@@ -155,6 +155,20 @@ export function frontmatterSpan(content: string): FrontmatterSpan | null {
   }
 }
 
+/**
+ * Whether the note opens a properties block that nothing closes: its first
+ * line is a fence (`---`, blanks behind it, a byte order mark in front) and
+ * some text follows, but no later line closes it — no block
+ * (`frontmatterSpan` is null). The Markdown parser reads such a line as a
+ * rule, and from there on opens no quote, list item or footnote anywhere in
+ * the note (measured 2026-11-13, `remark-frontmatter` 5 on micromark 4): the
+ * parse budget has to know (`opensNoContainers` in `inlineParseBudget.ts`).
+ */
+export function opensUnclosedProperties(content: string): boolean {
+  const open = fenceEnd(content, byteOrderMarkOf(content).length);
+  return open >= 0 && open < content.length && frontmatterSpan(content) === null;
+}
+
 /** The note's text: what follows its properties block, or all of it where it has none. */
 export function noteBodyOf(content: string): string {
   const span = frontmatterSpan(content);
@@ -281,4 +295,13 @@ export function splitDocument(content: string, options: { sourceTokens?: boolean
   const doc = parseBlockYaml(span.yaml, options);
   const hadEntries = isMap(doc.contents) && doc.contents.items.length > 0;
   return { doc, span, body: content.slice(span.end), hadFrontmatter: true, hadEntries, eol, byteOrderMark, content };
+}
+
+/** Lines folded into one, as YAML folds a flow collection's line breaks: each line trimmed, joined by a blank. */
+export function foldedLines(text: string): string {
+  return text
+    .split(/\r\n|\r|\n/)
+    .map((line) => line.trim())
+    .join(" ")
+    .trim();
 }

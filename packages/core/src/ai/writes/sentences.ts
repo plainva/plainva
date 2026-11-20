@@ -24,6 +24,9 @@ export const WRITE_REFUSALS = {
   ambiguous: "A passage, or the section, is in the note more than once. Quote more of it, or name the section by its whole chain.",
   overlap: "Two of the passages touch. Give them as one edit.",
   unchanged: "The note says this already.",
+  // Of a passage, a property or a text that touches what this conversation is not shown of a note (review of R19,
+  // wave 2): said alike whatever that part holds, and never with a word of it.
+  "withheld-part": "A part of this is not shown to you, so it cannot be changed or written from here.",
   "too-many": "Too many changes for one proposal. Change less at a time.",
   "too-long": "A passage or its replacement is too long.",
   "no-section": "There is no such section. get_outline lists the sections of a note.",

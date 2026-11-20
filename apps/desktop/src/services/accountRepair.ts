@@ -26,6 +26,7 @@ import {
 } from "@plainva/ui/mail";
 import { accountSecretKey, getAccountToken, isAccountSignInOwed } from "./accountBroker";
 import { cloudAccountsRegistryKey } from "./cloudAccounts";
+import { profileAccountMapKey } from "./profileAccountMap";
 import { credentialManager } from "./CredentialManager";
 import { slot } from "./keychainSlots";
 import { readSlot } from "@plainva/ui";
@@ -36,7 +37,6 @@ const b64 = (value: string) => btoa(unescape(encodeURIComponent(value)));
 export const accountRepairJournalKey = (vaultPath: string) => `accountRepairJournal_${b64(vaultPath)}`;
 export const accountRepairNeedsKey = (vaultPath: string) => `accountRepairNeeds_${b64(vaultPath)}`;
 export const accountRepairCleanupJournalKey = (vaultPath: string) => `accountRepairCleanup_${b64(vaultPath)}`;
-export const accountRepairMapKey = (vaultPath: string) => `settingsSyncAccountMap_${b64(vaultPath)}`;
 const accountRepairBackupSlot = (vaultPath: string) => slot.repair(vaultPath);
 
 function hasText(value: unknown): boolean {
@@ -166,7 +166,7 @@ export async function guideDesktopAccountRepair(
   const resources = desktopCleanupResources(store, vaultPath, pimCache, db);
   await recoverAccountRepairCleanup(resources);
   return executeGuidedAccountRepair(
-    desktopAccountRepairPorts(store, vaultPath, accountRepairMapKey(vaultPath)),
+    desktopAccountRepairPorts(store, vaultPath, profileAccountMapKey(vaultPath)),
     selection,
     confirm,
     (cleanup) => cleanupRepairedAccount(resources, cleanup),

@@ -5,6 +5,8 @@
  * option order. `__UNGROUPED__` sits last unless a saved order pins it earlier.
  */
 
+import { reorderShown } from "./pinboardModel";
+
 export const UNGROUPED_KEY = "__UNGROUPED__";
 
 /**
@@ -42,4 +44,26 @@ export function reorderBoardKeys(order: string[], fromKey: string, toKey: string
   const next = order.filter((k) => k !== fromKey);
   next.splice(next.indexOf(toKey), 0, fromKey);
   return next;
+}
+
+/**
+ * The saved column order of a board (`boardColumnOrder`) after its shown
+ * columns were dragged into `shownInNewOrder`.
+ *
+ * Columns the board does not show (a search or a scope hides every card in
+ * them) keep their places: `wholeOrder` is the board's order of ALL its
+ * columns, as it stands without the search. Where it holds a column that is
+ * not shown, that order is written first, so a hidden column that was never
+ * saved stays where it stood instead of falling behind "No value" (finding
+ * B17 of the 0.9.0 defect list). Where everything is shown, the saved order
+ * is reordered as it always was. Saved columns that are gone stay saved.
+ */
+export function boardOrderAfterMove(
+  stored: readonly string[],
+  shownInNewOrder: readonly string[],
+  wholeOrder?: readonly string[],
+): string[] {
+  const shown = new Set(shownInNewOrder);
+  if (!wholeOrder || wholeOrder.every((k) => shown.has(k))) return reorderShown(stored, shownInNewOrder);
+  return reorderShown(reorderShown(stored, wholeOrder), shownInNewOrder);
 }

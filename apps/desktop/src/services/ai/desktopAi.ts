@@ -6,7 +6,7 @@ import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaul
 import type { DirectWriteFiles } from "@plainva/core";
 import { dirtyStore } from "../dirtyStore";
 import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, PimEventRow, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
-import type { EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
+import type { DatabaseReach, EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
   aiDefaultSettings,
   AiSession,
@@ -44,6 +44,7 @@ import {
   proposeSuggestionRound,
   protectedScriptKeys,
   situationFrom,
+  situationReach,
   spawnScriptWorker,
   vaultMailSource,
   withCloudDenied,
@@ -399,6 +400,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     resolveLink: (target) => input.query.resolveNotePath(target),
     // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
     fileNames: () => input.query.linkTargets(),
+    // Where an answer's links lead: the files those links can name, never the whole list (review O7, third round).
+    filesNamed: (targets) => input.query.linkTargetsNamed(targets),
     encrypted: input.encrypted,
   });
   currentPolicy = policy;
@@ -473,10 +476,10 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       }
     : undefined;
   /** Checkbox tasks and the task database, as every task view reads them. */
-  const taskRows = async () => {
+  const taskRows = async (options?: DatabaseReach) => {
     const [db, notes] = await Promise.all([
       getTaskDatabasePath(input.vaultPath)
-        .then(async (dbPath) => databaseTaskRows(dbPath ? await read(dbPath) : null, (config) => input.query.queryDatabaseFiles(config)))
+        .then(async (dbPath) => databaseTaskRows(dbPath ? await read(dbPath) : null, (config) => input.query.queryDatabaseFiles(config, options)))
         .catch(() => []),
       input.query
         .listTasks()
@@ -663,13 +666,13 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       const update = await updateVaultText(input.adapter, path, (text) => withCloudDenied(text));
       if (update.changed) await input.noteChanged?.(path);
     },
-    async situation() {
+    async situation(run) {
       const now = new Date();
       const path = input.documentPath();
       const kind = path && /\.base$/i.test(path) ? "base" : "note";
       const text = path && kind === "note" ? ((await note(path))?.text ?? null) : null;
       const [tasks, events, mood, dailyNotePath] = await Promise.all([
-        taskRows(),
+        taskRows(run ? situationReach((path) => policy.policyOf(path), run) : undefined),
         input.events(now, new Date(now.getTime() + 2 * 86_400_000)).catch(() => []),
         moodKey(),
         readDailyNoteConfig(input.vaultPath)
@@ -683,8 +686,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     },
     retrieval: {
       searchCandidates: (terms, limit) => input.query.searchCandidates(terms, limit),
-      linkNeighbors: (path, limit) => input.query.getLinkNeighbors(path, limit),
-      recentlyChanged: (limit) => input.query.getRecentlyChangedNotes(limit),
+      linkNeighbors: (path, limit, options) => input.query.getLinkNeighbors(path, limit, options),
+      recentlyChanged: (limit, offset, within) => input.query.getRecentlyChangedNotes(limit, offset, within),
       async recentlyOpened() {
         try {
           return parseRecentsFile(await input.adapter.readTextFile(".plainva/recents.json"));
@@ -700,16 +703,19 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       notesContaining: (needles) => input.query.notesContaining(needles),
     },
     toolDeps: {
-      async search(query, limit, offset) {
-        const hits = await input.query.searchFullText(query, limit, offset);
-        return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
+      async search(query, limit, offset, within, withContent) {
+        // With the text the index holds where the search is read through a view, which tests each hit on it.
+        const hits = await input.query.searchFullText(query, limit, offset, withContent === true, null, within);
+        return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null, content: hit.sourceContent ?? null }));
       },
       readNote: read,
       taskRows,
       todayKey: () => calendarDay(),
       commands: input.commands,
-      backlinks: (path) => input.query.getBacklinks(path),
-      queryDatabase: (config) => input.query.queryDatabaseFiles(config),
+      backlinks: (path, options) => input.query.getBacklinks(path, options),
+      queryDatabase: (config, options) => input.query.queryDatabaseFiles(config, options),
+      // A note's title and tags as a reader with a narrower view sees them: the one place every tool names a note from.
+      notesAsSeen: (paths, reach, rule) => input.query.notesAsSeen(paths, reach, rule),
       events: (from, to) => input.events(from, to),
       moodKey,
       // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.

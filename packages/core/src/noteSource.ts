@@ -1,6 +1,6 @@
 import { parseMarkdownTree } from "./markdown-parser.js";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
-import { plainWikiLinkInner, wikiLinkParts } from "./wikiLink.js";
+import { readerWikiLink, readerWikiLinkLead, type ReaderEmbedKind } from "./readerWikiLink.js";
 import { SOURCE_LINE_END } from "./sourceLines.js";
 
 interface SourceNode {
@@ -91,6 +91,13 @@ export function analyzeNoteOutline(raw: string): NoteOutlineNode[] {
   return outline;
 }
 
+/**
+ * A block id where it names its block: ` ^id` at the end of a paragraph,
+ * behind a blank or on a line of its own. The id is the first group; the
+ * match begins at the blank in front of the `^`.
+ */
+export const BLOCK_ID_MARKER = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/;
+
 /** All ranges are UTF-16 offsets in the unmodified note, as in CodeMirror. */
 export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; blocks: NoteBlock[] } {
   const clean = stripAnchorMarkers(raw);
@@ -108,7 +115,7 @@ export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; block
       }
       if (node.type === "paragraph" && node.children?.[node.children.length - 1]?.type === "text") {
         const source = clean.text.slice(node.position.start.offset, node.position.end.offset);
-        const marker = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/.exec(source);
+        const marker = BLOCK_ID_MARKER.exec(source);
         if (marker) {
           const own = source.trim() !== `^${marker[1]}`;
           const listItem = [...ancestors, parent].reverse().find((p) => p.type === "listItem");
@@ -178,10 +185,11 @@ interface ReaderSpan { from: number; to: number; start: number; end: number; exa
 export interface ReaderSource {
   text: string;
   embeds: { from: number; to: number; target: string }[];
+  /** The wiki links and embeds as they stand in `text` (`[start, end)`, in order). */
+  wikiLinks: ReadonlyArray<readonly [number, number]>;
   toRendered(offset: number, edge?: "start" | "end"): number;
   toOriginal(offset: number, edge?: "start" | "end"): number;
 }
-const encodeTarget = (text: string) => encodeURIComponent(text).replace(/[()!'*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 
 /** `@2026-09-24`, not glued to a word or an escape — tried where an `@` stands. */
 const RELATIVE_DATE_AT = /(?<![\w\\])@(\d{4}-\d{2}-\d{2})\b/y;
@@ -195,119 +203,26 @@ function* relativeDates(source: string): Generator<{ index: number; raw: string;
   }
 }
 
-/** An alias longer than this is not looked through for its code spans; it is shown as it is written. */
-const LONGEST_LABEL_READ = 2000;
-
-/**
- * Whether a wiki link's alias can stand as the text of a Markdown link the way
- * it is written — the renderer then shows it as it shows the text around it:
- * `*the* alias` with its emphasis, a code span as one. It can where it keeps
- * to itself: no bracket in it (one would end the link text, or open a link of
- * its own), no `<`, no bare `|` (a table counts the cells of a line by them),
- * no `$` anywhere — once a note's math is read, a `$` pairs with one outside
- * the link, behind a backslash and in a code span too, for math reads
- * neither —, no backslash left over at its end, no `^` at its start (a
- * footnote's sign there), and every code span it opens closed again.
- */
-function labelKeepsToItself(label: string): boolean {
-  if (label.length > LONGEST_LABEL_READ || label.startsWith("^") || label.includes("$")) return false;
-  // A table splits its line at every bar a backslash does not stand in front
-  // of, in a code span too: it does so before anything else is read.
-  for (let at = 0; at < label.length; at++) {
-    if (label[at] === "\\") at++;
-    else if (label[at] === "|") return false;
-  }
-  for (let at = 0; at < label.length; at++) {
-    const char = label[at];
-    if (char === "[" || char === "]" || char === "<") return false;
-    if (char === "\\") {
-      // The backslash and what it stands in front of are one piece — a `\|` the bar it spells.
-      if (++at === label.length) return false;
-    } else if (char === "`") {
-      let run = 1;
-      while (label[at + run] === "`") run++;
-      // A code span ends at the next run of as many backticks.
-      let close = at + run;
-      for (;;) {
-        close = label.indexOf("`", close);
-        if (close < 0) return false;
-        let length = 1;
-        while (label[close + length] === "`") length++;
-        if (length === run) break;
-        close += length;
-      }
-      at = close + run - 1;
-    }
-  }
-  return true;
-}
-
-/** CommonMark's ASCII punctuation: what a backslash in front of it escapes. */
-const ASCII_PUNCTUATION = /[!-/:-@[-\x60{-~]/;
-/** A letter or a digit: a run of `_` between two of them opens and closes nothing. */
-const WORD_CHARACTER = /[\p{L}\p{N}]/u;
-/** An `&` that begins a character reference; one in front of anything else stays an `&`. */
-const CHARACTER_REFERENCE = /&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{0,31});/y;
-
-/**
- * What has to be spelled out in a label, so that the text of a Markdown link
- * shows it character for character as it is written: each such character with
- * its place in the label and its spelling. Only what Markdown would read
- * something into is spelled out — `my_note` and `Tom & Jerry` stand as they
- * are written, and a place in them stays a place in the rendered text.
- *
- * A backtick and a `$` are spelled as character references, not escaped:
- * inside a code span or math a backslash is a character like any other, so
- * `` \` `` would still close a code span opened before the link
- * (`Don`t [[Note|a `` b]]`), and `\$` the math of a `$` before it. A bare `|`
- * is escaped, for a table counts the cells of a line by them; a `\|` stays
- * the bar it spells (`wikiLink.ts`). (A `==…==` the reader marks wherever it
- * stands: it reads the text, not how it is written.)
- */
-function* labelSpellings(label: string): Generator<{ at: number; text: string }> {
-  for (let at = 0; at < label.length; at++) {
-    const char = label[at];
-    if (char === "\\") {
-      const next = label[at + 1];
-      if (next === "|") at++;
-      // It escapes what follows it where that is punctuation — at the label's
-      // end, the bracket that closes the link text.
-      else if (next === undefined || ASCII_PUNCTUATION.test(next)) yield { at, text: "\\\\" };
-    } else if (char === "_") {
-      let end = at;
-      while (label[end + 1] === "_") end++;
-      const inert = at > 0 && end + 1 < label.length && WORD_CHARACTER.test(label[at - 1]) && WORD_CHARACTER.test(label[end + 1]);
-      if (!inert) for (let mark = at; mark <= end; mark++) yield { at: mark, text: "\\_" };
-      at = end;
-    } else if (char === "&") {
-      CHARACTER_REFERENCE.lastIndex = at;
-      if (CHARACTER_REFERENCE.test(label)) yield { at, text: "\\&" };
-    } else if (char === "`") yield { at, text: "&#96;" };
-    else if (char === "$") yield { at, text: "&#36;" };
-    else if (char === "^") {
-      // A footnote's sign only where it opens the link text.
-      if (at === 0) yield { at, text: "\\^" };
-    } else if ("*~[]<>|".includes(char)) yield { at, text: `\\${char}` };
-  }
-}
-
 /**
  * One source map for frontmatter, markers, CRLF, wiki syntax and relative dates.
  * Only prose is transformed — its text nodes and its wiki links; code, HTML
  * and link destinations stay literal. The original bytes are never rewritten
  * in the vault.
  */
-/**
- * What an `![[...]]` embed points at. `note` is the fallback: everything that
- * is neither a picture nor a sound is another note, which the reader expands.
- */
-export type ReaderEmbedKind = "image" | "audio" | "note";
+export type { ReaderEmbedKind } from "./readerWikiLink.js";
 
-export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind } = {}): ReaderSource {
+export function prepareReaderSource(raw: string, options: { formatDate?: (iso: string) => string; embedKind?: (target: string) => ReaderEmbedKind; tables?: boolean } = {}): ReaderSource {
   const clean = stripAnchorMarkers(raw);
   const edits: ReaderEdit[] = [];
+  const paragraphs: SourceNode[] = [];
+  const links: Array<[number, number]> = [];
+  const linkEdits = new Set<ReaderEdit>();
+  const literals: Array<[number, number]> = [];
   const walk = (node: SourceNode, inLink = false) => {
     if (node.position && node.type === "yaml") edits.push({ from: node.position.start.offset, to: node.position.end.offset, text: "" });
+    // A setext heading is a paragraph with a line under it: its lines read as a paragraph's.
+    if (node.type === "paragraph" || (node.type === "heading" && node.position && clean.text.slice(node.position.start.offset, node.position.end.offset).includes("\n"))) paragraphs.push(node);
+    if (node.position && (node.type === "inlineCode" || node.type === "html")) literals.push([node.position.start.offset, node.position.end.offset]);
     if (node.position && node.type === "text" && !inLink && options.formatDate) {
       const start = node.position.start.offset;
       const source = clean.text.slice(start, node.position.end.offset);
@@ -319,49 +234,22 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     // a link cannot hold a link.
     if (node.position && node.type === "wikiLink" && !inLink) {
       const from = node.position.start.offset, to = node.position.end.offset;
+      links.push([from, to]);
       const innerFrom = from + (node.embed ? 3 : 2);
       const inner = clean.text.slice(innerFrom, to - 2);
-      const parts = wikiLinkParts(inner);
       if (inner.length === 0) {
         // `[[]]` names nothing and is shown as it is written.
-      } else if (node.embed) {
-        // The renderer cuts the target at `|` itself.
-        const target = plainWikiLinkInner(inner);
-        // Three kinds, one scheme each, so the renderer branches on the URL
-        // rather than sniffing the extension a second time (plan
-        // Journal-Erweiterungen, X3). The fallback pattern stands for a host
-        // that passes no port - it used to be the only answer.
-        const kind = options.embedKind?.(target)
-          ?? (/\.(?:png|jpe?g|gif|svg|webp|bmp|avif)(?:\||$)/i.test(target) ? "image" : "note");
-        const scheme = kind === "note" ? "embed" : kind;
-        const alt = kind === "image" ? "img" : kind === "audio" ? "audio" : "embed";
-        edits.push({ from, to, text: `![${alt}](wiki-${scheme}://${encodeTarget(target)})`, embed: kind === "note" ? target : undefined });
       } else {
-        const target = inner.slice(0, parts.headEnd);
-        const labelFrom = innerFrom + (parts.aliasStart < 0 ? 0 : parts.aliasStart);
-        const label = clean.text.slice(labelFrom, to - 2);
-        // A name is a file's name, shown as it is written — `[[__init__]]` is
-        // no bold "init", `[[Tom &amp; Jerry]]` no "Tom & Jerry" —, the name
-        // the link opens: what Markdown would read something into is spelled
-        // out. An alias is the text the link shows, shown as the text around
-        // it is where it keeps to itself.
-        const spellings = parts.aliasStart < 0 || !labelKeepsToItself(label) ? [...labelSpellings(label)] : [];
-        // One edit for the link, so that a place in what it hides (`[[`, a
-        // target before an alias) stands for the whole link; a place in the
-        // label, wherever it is not spelled out, is a place in the rendered
-        // label.
-        let text = "[";
-        const visible: NonNullable<ReaderEdit["visible"]> = [];
-        let at = 0;
-        for (const spelled of [...spellings, { at: label.length, text: "" }]) {
-          if (spelled.at > at) {
-            visible.push({ from: labelFrom + at, to: labelFrom + spelled.at, start: text.length, end: text.length + spelled.at - at });
-            text += label.slice(at, spelled.at);
-          }
-          text += spelled.text;
-          at = spelled.at + 1;
-        }
-        edits.push({ from, to, text: `${text}](wiki://${encodeTarget(target)})`, visible });
+        // What the reading view writes for the link (`readerWikiLink.ts`, which
+        // the table budget weighs a wiki link by as well): a place in the label,
+        // wherever it is not spelled out, is a place in the rendered label.
+        const link = readerWikiLink(inner, !!node.embed, options.embedKind);
+        const labelFrom = innerFrom + link.labelStart;
+        // Behind a `]`, an empty comment in front of the link (`readerWikiLinkLead`).
+        const lead = readerWikiLinkLead(clean.text, from, !!node.embed);
+        const edit: ReaderEdit = { from, to, text: lead + link.text, embed: link.embed, visible: node.embed ? undefined : link.visible.map((v) => ({ ...v, from: labelFrom + v.from, to: labelFrom + v.to, start: v.start + lead.length, end: v.end + lead.length })) };
+        edits.push(edit);
+        linkEdits.add(edit);
       }
     }
     if (node.type !== "code" && node.type !== "inlineCode" && node.type !== "html") {
@@ -370,6 +258,49 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     }
   };
   walk(treeFor(clean.text));
+  const linkWithBarIn = (from: number, to: number) => {
+    for (let n = lastStartingBefore(links, to); n >= 0 && links[n][1] > from; n--) {
+      if (links[n][0] >= from && clean.text.slice(links[n][0], links[n][1]).includes("|")) return true;
+    }
+    return false;
+  };
+  // A line as the renderer is handed it, as far as its bars go: a wiki link's bars are gone.
+  const readLine = (from: number, to: number) => {
+    let text = "";
+    let at = from;
+    for (let n = lastStartingBefore(links, from); n < links.length; n++) {
+      if (n < 0 || links[n][1] <= at) continue;
+      if (links[n][0] >= to) break;
+      text += clean.text.slice(at, links[n][0]) + "x";
+      at = links[n][1];
+    }
+    return text + clean.text.slice(at, to);
+  };
+  // A line under a line of a paragraph that a table would read as its
+  // delimiter row stays a line of the paragraph: a link that hides the bar of
+  // its alias (`[[a|b]] | c` over `|---|---|`) takes one cell from the line
+  // above, and the renderer, counting again, found a table where the note has
+  // none (Fehlerliste 0.9.0, B5). Only under a line with such a link — every
+  // other line reads in the note as it reads here —, and never in code: an
+  // empty comment, which the renderer drops, stands behind the line's first
+  // `-`. Only for a renderer that reads tables (`tables`): the plain text of a
+  // card reads the line as it is written.
+  for (const paragraph of options.tables ? paragraphs : []) {
+    if (!paragraph.position) continue;
+    // A heading's underline is its own: the row it would be is never one.
+    const end = paragraph.type === "heading" ? clean.text.lastIndexOf("\n", paragraph.position.end.offset - 1) : paragraph.position.end.offset;
+    let lineFrom = paragraph.position.start.offset;
+    for (let brk = clean.text.indexOf("\n", lineFrom); brk !== -1 && brk < end; ) {
+      const next = clean.text.indexOf("\n", brk + 1);
+      const line = clean.text.slice(brk + 1, Math.min(end, next === -1 ? clean.text.length : next)).replace(/\r$/, "");
+      const dash = delimiterRowDash(line);
+      if (dash >= 0 && linkWithBarIn(lineFrom, brk) && !inLiteral(literals, brk + 1 + dash) && cellsOf(readLine(lineFrom, brk)) === cellsOf(line)) {
+        edits.push({ from: brk + 2 + dash, to: brk + 2 + dash, text: "<!---->" });
+      }
+      lineFrom = brk + 1;
+      brk = next;
+    }
+  }
   // What is read is the text: a byte order mark is the file's, like its `\r`.
   // None is left at the start, however many stand there: the renderer parses
   // this text with a parser of its own, which would skip one and count from
@@ -383,6 +314,9 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   const spans: ReaderSpan[] = [];
   const visible: ReaderSpan[] = [];
   const embeds: ReaderSource["embeds"] = [];
+  // Where the wiki links stand in the text the renderer is handed: a formula
+  // over one gives way to it (`remarkFormulasYieldToLinks`, Fehlerliste 0.9.0, B4).
+  const wikiLinks: Array<readonly [number, number]> = [];
   const parts: string[] = [];
   let cursor = 0, length = 0;
   const add = (from: number, to: number, text: string, exact: boolean) => {
@@ -394,17 +328,39 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     if (edit.from > cursor) add(cursor, edit.from, clean.text.slice(cursor, edit.from), true);
     for (const stretch of edit.visible ?? []) visible.push({ from: stretch.from, to: stretch.to, start: length + stretch.start, end: length + stretch.end, exact: true });
     if (edit.embed) embeds.push({ from: length, to: length + edit.text.length, target: edit.embed });
+    if (linkEdits.has(edit)) wikiLinks.push([length, length + edit.text.length]);
     add(edit.from, edit.to, edit.text, false);
     cursor = edit.to;
   }
   add(cursor, clean.text.length, clean.text.slice(cursor), true);
-  const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => list.find((span) => {
-    const a = original ? span.from : span.start, b = original ? span.to : span.end;
-    return edge === "start" ? a <= offset && offset < b : a < offset && offset <= b;
-  });
+  // The spans lie in order and do not overlap, in the original and in the
+  // rendered text alike: the one an offset falls in is found by halving, not
+  // by walking all of them — the reading view asks for every character of
+  // every text (`rehypeReaderSource`), and a walk made that the square of the
+  // note (2 000 lines: 2.5 s).
+  const choose = (list: ReaderSpan[], offset: number, original: boolean, edge: "start" | "end") => {
+    const startOf = (span: ReaderSpan) => (original ? span.from : span.start);
+    let lo = 0;
+    let hi = list.length;
+    // The last span that starts at or before the offset (strictly before, for an end edge).
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (edge === "start" ? startOf(list[mid]) <= offset : startOf(list[mid]) < offset) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let k = lo - 1; k >= 0; k--) {
+      const span = list[k];
+      const a = startOf(span), b = original ? span.to : span.end;
+      if (edge === "start" ? a <= offset && offset < b : a < offset && offset <= b) return span;
+      // An empty span before it cannot hold the offset either; a span that ends before it ends the search.
+      if (b < offset) return undefined;
+    }
+    return undefined;
+  };
   return {
     text: parts.join(""),
     embeds,
+    wikiLinks,
     toRendered(offset, edge = "start") {
       const at = clean.toClean(Math.max(0, Math.min(raw.length, offset)));
       const span = choose(visible, at, true, edge) ?? choose(spans, at, true, edge);
@@ -417,6 +373,71 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
       return clean.toRaw(span.exact ? span.from + offset - span.start : edge === "start" ? span.from : span.to, edge === "start" ? "after" : "before");
     },
   };
+}
+
+/**
+ * How many cells a table reads in `line` — behind the marks of a quote and
+ * the blanks of a list, split at every bar a backslash does not stand in
+ * front of, the empty cell before a leading and behind a trailing bar not
+ * counted. A table is only one where its first line has as many as its
+ * delimiter row.
+ */
+function cellsOf(line: string): number {
+  let at = 0;
+  for (;;) {
+    while (line[at] === " " || line[at] === "\t") at++;
+    if (line[at] !== ">") break;
+    at++;
+  }
+  const cells: string[] = [""];
+  for (let i = at; i < line.length; i++) {
+    if (line[i] === "\\" && i + 1 < line.length) {
+      cells[cells.length - 1] += line[i] + line[i + 1];
+      i++;
+    } else if (line[i] === "|") cells.push("");
+    else cells[cells.length - 1] += line[i];
+  }
+  if (cells.length > 1 && cells[0].trim() === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
+  return cells.length;
+}
+
+/**
+ * Where the first `-` of a table's delimiter row stands in `line` — behind the
+ * marks of a quote and the blanks of a list: `|---|:-:|`, `-- | --` —, or -1
+ * where the line is none.
+ */
+function delimiterRowDash(line: string): number {
+  let at = 0;
+  for (;;) {
+    while (line[at] === " " || line[at] === "\t") at++;
+    if (line[at] !== ">") break;
+    at++;
+  }
+  const cells = line.slice(at).split("|");
+  if (cells.length > 1 && cells[0].trim() === "") cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1].trim() === "") cells.pop();
+  if (cells.length === 0 || !cells.every((cell) => /^:?-+:?$/.test(cell.trim()))) return -1;
+  return line.indexOf("-", at);
+}
+
+/** Whether `at` stands in one of `stretches` (in order, without overlap). */
+function inLiteral(stretches: ReadonlyArray<readonly [number, number]>, at: number): boolean {
+  const n = lastStartingBefore(stretches, at + 1);
+  return n >= 0 && at < stretches[n][1];
+}
+
+/** In stretches that follow each other without overlap: the last one that starts before `at`, or -1. */
+function lastStartingBefore(stretches: ReadonlyArray<readonly [number, number]>, at: number): number {
+  let low = 0, high = stretches.length - 1, found = -1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (stretches[mid][0] < at) {
+      found = mid;
+      low = mid + 1;
+    } else high = mid - 1;
+  }
+  return found;
 }
 
 /**

@@ -349,8 +349,13 @@ import {
   type RoutineDraft,
   type RoutineNeed,
   type RoutineRun,
+  type Turn,
+  type VaultLinkFile,
+  RUN_UNFOUNDED_CAP,
 } from "@plainva/core";
 import { skillView } from "./aiSkills";
+import { conversationGrounding } from "./answerGrounds";
+import { answerLinksShown, answerLinkTargets, answerMayLink, unfoundedAmongShown } from "./answerLinks";
 import { logEntryText, logMaterial, type FolderLogHost, type LogMaterial } from "./folderLogRun";
 import type { NoteHintsHost } from "./noteHintsHost";
 import { EMPTY_NOTE_HINTS_PREFS, type NoteHintsPrefs, type NoteHintsStore } from "./noteHintsStore";
@@ -432,6 +437,9 @@ export interface AiSessionHost {
   localOnly?(on: boolean): Promise<void>;
 }
 
+/** How long the end of a run waits for the vault to say where an answer's links lead (review O7, third round). */
+const UNFOUNDED_CHECK_MS = 2000;
+
 export interface AiVaultHost {
   /**
    * What this vault's data in the app is filed under on this device
@@ -445,13 +453,24 @@ export interface AiVaultHost {
   /** The note open right now, if any. */
   activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
   readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
-  /** Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. */
-  situation(): Promise<SituationInput>;
+  /**
+   * Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. `run`: the recipient and
+   * whether it may reach the internet — a value the shell computes from several notes (the task database's view)
+   * is computed only from notes that run may see (review of R19, wave 2).
+   */
+  situation(run?: GateRun): Promise<SituationInput>;
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
   /** The recipient decides whether a cloud embedding model may see the question (plan P2b). */
   candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
   /** Note sizes in bytes, as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
+  /**
+   * The files of the vault these link targets can lead to, as the link rule reads them
+   * (`VaultQueryService.linkTargetsNamed`): where the links of an answer lead, as in the editor (plan Oberfläche O7,
+   * E2) — asked for those links alone, never for the whole vault. Absent, an answer's links are read against what the
+   * conversation had.
+   */
+  linkFilesFor?(targets: readonly string[]): Promise<readonly VaultLinkFile[]>;
   policy: ContextPolicyHost;
   /**
    * The tools of a run for this recipient, optionally narrowed (the MCP
@@ -1588,6 +1607,13 @@ export class AiSession {
   private capturing = false;
   /** What the user approved in this app session (E25); a server on this computer needs none. */
   private scope: ApprovedScope | null = null;
+  /**
+   * The vault `scope` was approved in (review O7, F32): an approval names a
+   * recipient, kinds of data and top folders, and "Inbox" or a note at the
+   * root are called the same in every vault — so it holds for that vault
+   * only. `vaultOf`: a new host for the same vault keeps it.
+   */
+  private scopeVault: unknown = null;
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
   /** The request to the internet that waits for an answer, if one does. */
   private effectAnswer: ((answer: EffectAnswer) => void) | null = null;
@@ -1954,6 +1980,11 @@ export class AiSession {
     this.leaveComposerMessage();
     this.answerConsent(false);
     this.vault = vault;
+    // The send overview's approval, and the kinds of tool data approved with it, belong to the vault they were given
+    // in. The same vault attached again keeps them; another vault — or this one after it was closed — begins asking.
+    const owner = vault ? vaultOf(vault) : null;
+    if (owner === null || owner !== this.scopeVault) this.scope = null;
+    this.scopeVault = owner;
     this.set({
       summaries: [],
       active: null,
@@ -4170,7 +4201,15 @@ export class AiSession {
     const active = activeFile.allowed ? activeMemoryFor(read.active, gate) : { entries: [], withheld: read.active.length, left: 0, chars: 0 };
     const lookup = longFile.allowed && read.long.some((entry) => memoryEntryAllowed(entry, gate));
     if (active.entries.length === 0 && active.withheld === 0 && !lookup) return null;
-    const text = memoryText(active.entries);
+    // To a cloud, and with the internet, an entry goes as such a reader sees it: a link in it to a note kept back is
+    // withheld like one in a note (review of R19, wave 2).
+    const seen = async (text: string) => {
+      const places = withholdPlaces(text).text;
+      if (!isCloudRecipient(recipient) && !web) return places;
+      return (await withholdDeniedLinks(places, memoryFileOf("active"), vault.policy, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)).text;
+    };
+    const shown = await Promise.all(active.entries.map(async (entry) => ({ ...entry, text: await seen(entry.text), section: entry.section === null ? null : await seen(entry.section) })));
+    const text = memoryText(shown);
     // What went although a rule restricts it elsewhere: a conversation without the internet may carry an entry kept from it.
     const restricted = AI_POLICY_DIMENSIONS.filter((dimension) => active.entries.length > 0 && (activeFile.denies.includes(dimension) || active.entries.some((entry) => entry.deny.includes(dimension))));
     return { text, lookup, record: { entries: active.entries.length, withheld: active.withheld, left: active.left, tokens: estimateTokens(text), restricted } };
@@ -4715,7 +4754,11 @@ export class AiSession {
     return hasDirectFolder(await vault.folderRules().catch(() => [] as readonly FolderPolicyRule[]));
   }
 
-  /** The same, for the open vault: what the routines' lists offer (plan W4). */
+  /**
+   * The same, for the open vault: what the routines' lists offer (plan W4), and what the marking line of a
+   * conversation says (F71 of release 0.9.0) — a run decides for each note it writes, wherever that lies, so the line
+   * never claims more protection than the run gives.
+   */
   async hasDirectFolders(): Promise<boolean> {
     return this.vault ? this.directFolders(this.vault) : false;
   }
@@ -6645,7 +6688,7 @@ export class AiSession {
     const budget = contextBudgetFor(this.windowOf(provider, choice.model), platform ? undefined : conversation.carried);
     // The tools the conversation carries — what the model may call, as the overview lists them.
     const tools = toolless ? [] : conversation.tools;
-    const situation = conversation.bare ? this.bareSituation() : await vault.situation().catch(() => this.bareSituation());
+    const situation = conversation.bare ? this.bareSituation() : await vault.situation({ recipient, webTools: web }).catch(() => this.bareSituation());
     const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
     const candidates =
       conversation.bare || conversation.pinsOnly ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
@@ -6672,6 +6715,10 @@ export class AiSession {
           resolveLink: vault.policy.resolveLink,
           // Which notes a link could mean: asked by the gate before a note's text goes into the package.
           ...(vault.policy.linkCandidates ? { linkCandidates: vault.policy.linkCandidates } : {}),
+          // What the rules say now, so a verdict on an area's gist is kept over messages while they and the index stay.
+          ...(vault.policy.rulesStamp ? { rulesStamp: () => vault.policy.rulesStamp!() } : {}),
+          // The names read once for a verdict kept over messages, as fresh as the index its stamp is read from.
+          ...(vault.policy.linkSnapshot ? { linkSnapshot: () => vault.policy.linkSnapshot!() } : {}),
           readNote: (path) => vault.readNote(path),
           ...(vault.noteSizes ? { noteSizes: (paths: readonly string[]) => vault.noteSizes!(paths) } : {}),
           ...(gists ? { gists } : {}),
@@ -6892,7 +6939,18 @@ export class AiSession {
   }
 
   /** Sends a message; resolves with how the run ended, or null when nothing was sent. */
-  async send(text: string): Promise<RunStop | null> {
+  /**
+   * The first "Hello" of the setup (plan Oberfläche O7, T9; review O7, O7):
+   * the greeting alone — no open note, no note a search would find, no pin.
+   * It only shows that the answer comes back; the conversation it begins is
+   * the user's own from the next message on, with what every new
+   * conversation carries.
+   */
+  async sendGreeting(text: string): Promise<RunStop | null> {
+    return this.send(text, { greeting: true });
+  }
+
+  async send(text: string, how: { greeting?: true } = {}): Promise<RunStop | null> {
     const message = text.trim();
     const vault = this.vault;
     const choice = this.choice();
@@ -6901,7 +6959,7 @@ export class AiSession {
     if (this.state.active && this.gone(this.state.active.id)) return null;
     this.sending = true;
     try {
-      return (await this.runMessage(message, vault, choice))?.stop ?? null;
+      return (await this.runMessage(message, vault, choice, how.greeting ? { greeting: true } : {}))?.stop ?? null;
     } catch (error) {
       // Whatever broke on the way (a vault read, the store) ends the run as a
       // failure the reader sees — never as a spinner that turns forever.
@@ -6919,9 +6977,9 @@ export class AiSession {
     vault: AiVaultHost,
     choice: ModelChoice,
     // `since`: how many Delete alls of the vault were asked for when the action that sends this began (step 8).
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number } = {},
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number; greeting?: true } = {},
   ): Promise<RunOutcome | null> {
-    const { skills, door, detached, routine, replay } = options;
+    const { skills, door, detached, routine, replay, greeting } = options;
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
     // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
@@ -7038,7 +7096,7 @@ export class AiSession {
         ),
         usage: EMPTY_USAGE,
         runs: [],
-        pins: door ? door.pins : replay ? replay.pins : detached || routine ? [] : this.state.draftPins,
+        pins: door ? door.pins : replay ? replay.pins : detached || routine || greeting ? [] : this.state.draftPins,
         ...(instructions ? { instructions } : {}),
         ...(replay ? { replayOf: replay.of } : {}),
         // Made by a run of the app's own (step 9): the title it gave it, by which it knows it is still its own alone.
@@ -7275,6 +7333,8 @@ export class AiSession {
       ...(detached || routine || replay ? { withoutActive: true } : {}),
       // A folder's log brings its own material: nothing of where the user is, and no note a question would find.
       ...(routine?.log ? { bare: true } : {}),
+      // The setup's "Hello" carries no note at all: neither the open one nor one the greeting would find.
+      ...(greeting ? { withoutActive: true, bare: true } : {}),
       // A replay's sources are the original's, pinned: nothing a search would find besides them.
       ...(replay ? { pinsOnly: true } : {}),
       web,
@@ -7588,6 +7648,40 @@ export class AiSession {
   }
 
   /**
+   * What the run's answer names as a source the conversation never had
+   * (plan Oberfläche O7, E2) — or that this could not be checked: the vault
+   * did not give the files these links can name in time, or failed. The
+   * links of every text the run gave — one before a tool call as much as the
+   * last —, as the answer's view shows them, led where a click on them leads
+   * (`answerLinks.ts`). Without a link, nothing is read and nothing is asked.
+   */
+  private async unfoundedOf(vault: AiVaultHost, runs: readonly RunMeta[], turns: readonly Turn[], pack: ContextPackage): Promise<{ unfounded: string[]; unchecked: boolean }> {
+    const none = { unfounded: [], unchecked: false };
+    const answer = turns
+      .filter((turn) => turn.role === "assistant")
+      .flatMap((turn) => turn.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])))
+      .join("\n\n");
+    if (!answerMayLink(answer)) return none;
+    const grounding = conversationGrounding(runs, runs.length - 1, pack.refs.find((ref) => ref.reasons.includes("active"))?.path);
+    if (grounding.readMore) return none;
+    // The links the answer's view shows, read by the parser it renders with (review O7, fifth round).
+    const links = answerLinksShown(answer);
+    if (links.length === 0) return none;
+    if (!vault.linkFilesFor) return { unfounded: await unfoundedAmongShown(links, grounding, RUN_UNFOUNDED_CAP), unchecked: false };
+    // A guard against a vault that hangs, not a budget: the files come in milliseconds. Late or failed, the run
+    // says it was not checked — never "nothing found" (review O7, fourth round).
+    const late = Symbol("late");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const targets = await answerLinkTargets(links);
+    const files = await Promise.race([
+      vault.linkFilesFor(targets).catch((): typeof late => late),
+      new Promise<typeof late>((resolve) => (timer = setTimeout(() => resolve(late), UNFOUNDED_CHECK_MS))),
+    ]).finally(() => clearTimeout(timer));
+    if (files === late) return { unfounded: [], unchecked: true };
+    return { unfounded: await unfoundedAmongShown(links, { ...grounding, vault: files }, RUN_UNFOUNDED_CAP), unchecked: false };
+  }
+
+  /**
    * One user turn to the model and back — streaming, stop, the run's record
    * and the ledger — for a message typed in the composer and for an action at
    * a selection alike. The context and its approval come in ready.
@@ -7820,6 +7914,21 @@ export class AiSession {
       try {
         // After any deletion asked for before: where that is done by then, nothing is written, and the ledger keeps the run.
         await this.write(vault, record);
+        // The notes the answer names as its source that the conversation never had (plan Oberfläche O7, E2): checked
+        // once, after the run is written — it cannot hold the run up (review O7, third round) —, and before the run
+        // ends, so no other run of this conversation can be written in between. Never while the screen draws.
+        const check = await this.unfoundedOf(vault, record.runs, result.conversation.turns.slice(userTurn + 1), pack).catch(() => ({ unfounded: [], unchecked: true }));
+        if (check.unfounded.length || check.unchecked) {
+          // Onto the conversation as it is stored NOW (review O7, fourth round): a title, a pin, what goes redacted or a
+          // model chosen while it was checked went onto `entry.stored` (`storeChoice`) — never back to the run's own copy.
+          const finding = check.unfounded.length ? { unfounded: check.unfounded } : { unfoundedUnchecked: true as const };
+          const stored = entry.stored ?? record;
+          const at = stored.runs.length - 1;
+          record = { ...stored, runs: stored.runs.map((meta, index) => (index === at ? { ...meta, ...finding } : meta)) };
+          entry.stored = record;
+          if (!this.gone(record.id) && this.state.active?.id === record.id) this.set({ active: this.withUserChoices(record, entry) });
+          await this.write(vault, record);
+        }
         const ledger = await vault.ledger.load();
         await vault.ledger.save(
           appendAiLedgerEntry(ledger, {

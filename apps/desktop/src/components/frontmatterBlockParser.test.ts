@@ -41,6 +41,21 @@ describe("the properties block as a node of the editor's tree", () => {
     }
   });
 
+  it("is what keeps a fence or a comment in a value from taking the note (Sammelplan § 3.43)", () => {
+    // The finding, at the parser without the block: the node a value opens
+    // runs to the end of the note, and the heading and the text are gone.
+    const commentOnItsLine = ["---", "note: |", "  <!-- open", "---", "# Heading", "", "Text #tag", ""].join("\n");
+    for (const [doc, opened] of [[FENCE_IN_VALUE, "FencedCode"], [commentOnItsLine, "CommentBlock"]] as const) {
+      const bare = forceFullParse(EditorState.create({ doc, extensions: [markdown()] }));
+      const taken = [];
+      for (let child = syntaxTree(bare).topNode.firstChild; child; child = child.nextSibling) taken.push(child.name);
+      expect(taken, opened).toContain(opened);
+      expect(taken, opened).not.toContain("ATXHeading1");
+      // With it, the same note reads as it is written.
+      expect(syntaxTree(noteState(doc)).topNode.lastChild?.name, opened).toBe("Paragraph");
+    }
+  });
+
   it("gives the text behind it back its blocks and its tags", () => {
     for (const doc of [FENCE_IN_VALUE, COMMENT_IN_VALUE]) {
       const state = noteState(doc);
