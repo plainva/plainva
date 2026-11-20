@@ -10,7 +10,11 @@ export function usePendingMore(ref: RefObject<HTMLElement | null>, active: boole
     const box = ref.current;
     if (!active || !box) return;
     const update = () => {
-      for (const card of Array.from(box.children) as HTMLElement[]) card.classList.toggle("is-more", card.scrollHeight - card.scrollTop - card.clientHeight > 1);
+      for (const card of Array.from(box.children) as HTMLElement[]) {
+        // A data attribute React never writes: a render that changes the card's class keeps the mark.
+        if (card.scrollHeight - card.scrollTop - card.clientHeight > 1) card.setAttribute("data-more", "");
+        else card.removeAttribute("data-more");
+      }
     };
     const sizes = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
     const watch = () => {
@@ -19,8 +23,13 @@ export function usePendingMore(ref: RefObject<HTMLElement | null>, active: boole
       sizes.observe(box);
       for (const card of Array.from(box.children)) sizes.observe(card);
     };
-    const changes = typeof MutationObserver === "undefined" ? null : new MutationObserver(() => (watch(), update()));
-    changes?.observe(box, { childList: true, subtree: true, characterData: true });
+    // Its own mark is not watched (`data-more`), or setting it would call this again.
+    const changes = typeof MutationObserver === "undefined" ? null : new MutationObserver((records) => {
+      if (records.every((record) => record.type === "attributes" && record.attributeName === "data-more")) return;
+      watch();
+      update();
+    });
+    changes?.observe(box, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["class", "style", "hidden", "open"] });
     box.addEventListener("scroll", update, true);
     watch();
     update();

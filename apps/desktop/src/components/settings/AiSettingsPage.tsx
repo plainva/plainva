@@ -5,6 +5,7 @@ import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, type AiProfileS
 import {
   AI_FEEDBACK_URL,
   aiSetupStep,
+  profilesInOrder,
   Button,
   configuredProviders,
   getPlatformServices,
@@ -34,11 +35,11 @@ import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 import { AiAddProviderDialog, AiKeyDialog, AiModelDialog } from "./AiDialogs";
 import { AiModeRow, AiPrivacyCard } from "./AiModeParts";
-import { ExternalAgentsCard } from "./ExternalAgentsCard";
-import { McpSettingsCard } from "./McpSettingsCard";
-import { SemanticSearchCard } from "./SemanticSearchCard";
-import { NoteHintsCard } from "./NoteHintsCard";
-import { GistsCard } from "./GistsCard";
+import { ExternalAgentsRows } from "./ExternalAgentsCard";
+import { McpSettingsRows } from "./McpSettingsCard";
+import { SemanticSearchRows } from "./SemanticSearchCard";
+import { NoteHintsRows } from "./NoteHintsCard";
+import { GistsRows } from "./GistsCard";
 
 /**
  * Settings → AI, APP world (plan KI-Harness §19.1, plan KI-Oberflächen K2):
@@ -190,7 +191,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
             {/* The profiles appear once a provider is there (plan Oberfläche O7, M7): before that they could only say "not set up". */}
             {rows.length > 0 && (
               <>
-              {AI_PROFILE_IDS.map((id) => (
+              {profilesInOrder(settings.defaultProfile).map((id) => (
                 <SettingRow key={id} label={t(`ai.profile.${id}`)} desc={profileLine(id)}>
                   <div className="pv-ai-rowactions">
                     <Button size="sm" variant="secondary" onClick={() => setModelFor(id)} data-testid={`ai-profile-${id}`}>
@@ -222,13 +223,17 @@ function AiSettingsBody({ session }: { session: AiSession }) {
           {/* What may leave this device, in one place (plan K2): the promise "Fully local", and the question before each request. */}
           <AiPrivacyCard session={session} state={state} />
 
-          {/* What runs on this device without a model (plan K5). */}
-          <SemanticSearchCard session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />
-          <NoteHintsCard session={session} />
-          <GistsCard session={session} />
+          {/* What runs on this device without a model (plan K5): one card, one heading (mockup KI-Oberflächen M2). */}
+          <SettingCard label={t("ai.settings.groupNoModel")}>
+            <SemanticSearchRows session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />
+            <NoteHintsRows session={session} />
+            <GistsRows session={session} />
+          </SettingCard>
           {/* The programs of other makers — only the desktop has them (parity decisions ai-mcp-server, ai-external-agents). */}
-          <McpSettingsCard session={session} enabled={settings.mcpEnabled} resting={settings.localOnly} />
-          <ExternalAgentsCard />
+          <SettingCard label={t("ai.settings.groupOtherApps")}>
+            <McpSettingsRows session={session} enabled={settings.mcpEnabled} resting={settings.localOnly} />
+            <ExternalAgentsRows />
+          </SettingCard>
         </>
       )}
 

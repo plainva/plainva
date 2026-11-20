@@ -1,6 +1,6 @@
 # Agentes externos (Beta)
 
-Última actualización: 2026-11-18
+Última actualización: 2026-11-20
 
 Un agente externo es un programa de IA de otro fabricante: un agente que instalaste en tu ordenador y en el que iniciaste sesión tú mismo, con tu propia suscripción o clave. Plainva puede iniciar un agente así en la carpeta de un vault y mostrar su sesión en la pestaña de IA. Forma parte de las funciones experimentales de IA y solo funciona en el escritorio.
 
@@ -25,7 +25,7 @@ Inicia un agente solo en un vault cuyo contenido pueda llegar al servicio del ag
 ## Añadir un agente
 
 1. Instala el agente tú mismo, como describe su fabricante, e inicia sesión en él en su propio programa.
-2. Abre **Configuración → IA**. En la tarjeta **Agentes externos**, **Encontrado en este ordenador** señala los agentes que Plainva conoce por su nombre y encuentra instalados; **Añadir** añade uno. Para cualquier otro programa que hable el Agent Client Protocol, elige **Añadir agente…** en **Otro agente** y rellena **Nombre**, **Programa** y **Argumentos, uno por línea**.
+2. Abre **Configuración → IA**. En la tarjeta **Otros programas**, en **Agentes externos**, **Encontrado en este ordenador** señala los agentes que Plainva conoce por su nombre y encuentra instalados; **Añadir** añade uno. Para cualquier otro programa que hable el Agent Client Protocol, elige **Añadir agente…** en **Otro agente** y rellena **Nombre**, **Programa** y **Argumentos, uno por línea**.
 3. Tu sistema muestra el comando completo una vez más antes de recordarlo.
 
 Plainva no instala ningún agente ni descarga ninguno. Inicia exactamente el programa que confirmaste, directamente y sin shell. El comando se recuerda en este dispositivo, nunca en el vault. **Quitar** hace que Plainva olvide cómo iniciar un agente; el programa en sí y su inicio de sesión quedan como están.

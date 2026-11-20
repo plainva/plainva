@@ -1,6 +1,6 @@
 # Agents externes (Bêta)
 
-Dernière mise à jour : 2026-11-18
+Dernière mise à jour : 2026-11-20
 
 Un agent externe est un programme d'IA d'un autre éditeur — un agent que vous avez installé sur votre ordinateur et auquel vous vous êtes connecté vous-même, avec votre propre abonnement ou votre propre clé. Plainva peut démarrer un tel agent dans le dossier d'un vault et afficher sa session dans l'onglet IA. Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
 
@@ -25,7 +25,7 @@ Ne démarrez un agent que dans un vault dont le contenu peut atteindre le servic
 ## Ajouter un agent
 
 1. Installez l'agent vous-même, comme son éditeur le décrit, et connectez-vous à lui dans son propre programme.
-2. Ouvrez **Paramètres → IA**. Dans la carte **Agents externes**, **Trouvé sur cet ordinateur** signale les agents que Plainva connaît par leur nom et trouve installés ; **Ajouter** en ajoute un. Pour tout autre programme qui parle l'Agent Client Protocol, choisissez **Ajouter un agent…** sous **Autre agent** et remplissez **Nom**, **Programme** et **Arguments, un par ligne**.
+2. Ouvrez **Paramètres → IA**. Dans la carte **Autres programmes**, sous **Agents externes**, **Trouvé sur cet ordinateur** signale les agents que Plainva connaît par leur nom et trouve installés ; **Ajouter** en ajoute un. Pour tout autre programme qui parle l'Agent Client Protocol, choisissez **Ajouter un agent…** sous **Autre agent** et remplissez **Nom**, **Programme** et **Arguments, un par ligne**.
 3. Votre système affiche la commande entière une fois de plus avant qu'elle ne soit mémorisée.
 
 Plainva n'installe aucun agent et n'en télécharge aucun. Il démarre exactement le programme que vous avez confirmé, directement et sans shell. La commande est mémorisée sur cet appareil, jamais dans le vault. **Retirer** fait oublier à Plainva comment démarrer un agent ; le programme lui-même et sa connexion restent tels quels.

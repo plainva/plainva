@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core";
 import { AreaBoundary,
@@ -38,7 +38,7 @@ import { mobileLocalModels } from "../services/ai/localModels";
  * the send overview's standing approval for a cloud model, pause, removal,
  * withdrawal, and clearing away what is no longer used.
  */
-export function MobileSemanticSection({ session, onChooseModel }: { session: AiSession; onChooseModel: () => void }) {
+export function MobileSemanticSection({ session, onChooseModel, also }: { session: AiSession; onChooseModel: () => void; /** The other rows of the group "Without a model on this device" (mockup KI-Oberflächen M2), in the same card. */ also?: ReactNode }) {
   const { t, i18n } = useTranslation();
   const settings = useSyncExternalStore(session.subscribe, session.getState).settings;
   const { controller, state } = useLocalEmbeddings();
@@ -124,19 +124,21 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
 
   return (
     <>
-      <SectionLabel info={t("ai.semantic.description")}>{t("ai.semantic.title")}</SectionLabel>
+      <SectionLabel>{t("ai.settings.groupNoModel")}</SectionLabel>
       {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
       {searchRests(settings) && <p className="m-hint" data-testid="ai-rests-search">{t("ai.mode.restsHere")}</p>}
       <GroupCard>
         <RowList>
           <Row
             wrap
-            title={t("ai.semantic.now")}
+            title={t("ai.semantic.title")}
+            info={t("ai.semantic.description")}
             subtitle={currentLine}
             end={<span className="m-row-note">{choosing ? t("common.done") : t("ai.semantic.change")}</span>}
             onClick={() => setChoosing((open) => !open)}
             data-testid="semantic-change"
           />
+          {also}
         </RowList>
       </GroupCard>
       {choosing && (

@@ -45,7 +45,7 @@ vi.mock("../../services/ai/mcpBridge", async (importOriginal) => ({
 
 const { McpPairing } = await import("./McpPairing");
 const { McpPlanDialog } = await import("./McpPlanDialog");
-const { McpSettingsCard } = await import("../settings/McpSettingsCard");
+const { McpSettingsRows } = await import("../settings/McpSettingsCard");
 const { mcpPlans } = await import("../../services/ai/mcpPlans");
 
 let root: Root | null = null;
@@ -235,7 +235,7 @@ describe("the apps in the settings", () => {
       if (command === "mcp_set_writes") allowed = (args as { allowed: boolean }).allowed;
       return undefined;
     });
-    await mount(<McpSettingsCard session={session} enabled />);
+    await mount(<McpSettingsRows session={session} enabled />);
     await until(() => $("mcp-writes-switch") !== null);
     const switches = $$("mcp-writes-switch");
     expect(switches).toHaveLength(1);
@@ -257,7 +257,7 @@ describe("the apps in the settings", () => {
   it("says when folders given before no longer count, and how many (review of R19, wave 2)", async () => {
     const stale = { ...status(false), clients: [{ ...status(false).clients[0]!, folders: [], stale: 2 }, { ...status(false).clients[1]!, stale: 0 }] };
     invoke.mockImplementation(async (command: string) => (command === "mcp_status" ? stale : undefined));
-    await mount(<McpSettingsCard session={session} enabled />);
+    await mount(<McpSettingsRows session={session} enabled />);
     await until(() => (host!.textContent ?? "").includes("Claude Code"));
     expect(host!.textContent).toContain("Folders: none in this vault");
     expect(host!.textContent).toContain("2 folders given before no longer count. Remove the app; it asks again and you choose anew.");
@@ -268,7 +268,7 @@ describe("the apps in the settings", () => {
 
   it("the record says what became of a request: a plan that asked, a no, a refusal — never a path or a text", async () => {
     invoke.mockImplementation(async (command: string) => (command === "mcp_status" ? status(true) : undefined));
-    await mount(<McpSettingsCard session={session} enabled />);
+    await mount(<McpSettingsRows session={session} enabled />);
     await until(() => document.querySelector(".pv-mcp-audit") !== null);
     const lines = Array.from(document.querySelectorAll(".pv-mcp-audit li")).map((line) => line.textContent ?? "");
     expect(lines).toHaveLength(4);

@@ -44,7 +44,7 @@ export function MobileSystemAssistantSection({ session }: { session: AiSession }
   const line = settings.systemFind && !resting ? statusLine((key, values) => t(key, values ?? {}), status) : null;
   return (
     <>
-      <SectionLabel info={t("ai.system.captureHint")}>{t("ai.system.title")}</SectionLabel>
+      <SectionLabel info={t("ai.system.captureHint")}>{t("ai.settings.groupOtherApps")}</SectionLabel>
       <GroupCard>
         <RowList>
           <Row

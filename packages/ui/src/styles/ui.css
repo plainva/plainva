@@ -5334,7 +5334,7 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    buttons stay in view at the bottom of the card, never cut off — on the card's own ground, so the text scrolling under
    them never shows through (review O7). A line on the foot says that more lies above it, and only then. */
 .pv-ai-pending .pv-ai-overview-actions { position: sticky; bottom: 0; padding-block: var(--space-2); background: inherit; border-top: 1px solid transparent; }
-.pv-ai-pending > .is-more .pv-ai-overview-actions { border-top-color: var(--border-color-light); }
+.pv-ai-pending > [data-more] .pv-ai-overview-actions { border-top-color: var(--border-color-light); }
 /* Under an answer (plan K8): what can be done with it, and the one quiet line of what went where. */
 .pv-ai-actrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
 /* The calm line under an answer (plan Oberfläche O7, M6): what it rests on and where it went, then "Details". */
@@ -5378,6 +5378,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-overview--touch .pv-ai-overview-actions { flex-direction: row; flex-wrap: wrap; align-items: stretch; }
 .pv-ai-overview--touch .pv-ai-overview-actions > .pv-ai-overview-every { flex-basis: 100%; }
 .pv-ai-overview--touch .pv-ai-overview-actions > .pv-btn { flex: 1 1 8rem; }
+/* Three answers (a page to read: refuse, always for the site, read it): the third choice on a line of its own above,
+   the action and its counterpart side by side below it, the action last (mockup M8). */
+.pv-ai-overview--touch .pv-ai-overview-actions:has(> button:nth-of-type(3)) > button:nth-of-type(2) { flex-basis: 100%; order: -1; }
 .pv-ai-inputrow { display: flex; align-items: flex-end; gap: var(--space-2); }
 .pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; resize: none; }
 /* The conversation's field and its send button are one box (F71 of release 0.9.0): the button inside, the box as wide
