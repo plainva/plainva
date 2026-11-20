@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const stored = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock("./pimCredentials", () => ({ getPimCredentials: async () => stored.value }));
 
-import { pimTargetCredentials, refuseUnconfirmedCalendar } from "./pimTargetCredentials";
+import { pimTargetCredentials, refuseUnconfirmedCalendar, refusingUnconfirmed } from "./pimTargetCredentials";
 
 /**
  * Review of plan "Verbinden", finding 3: an account signed out on this phone
@@ -49,5 +49,14 @@ describe("a calendar in the local network (F57)", () => {
     await confirmEndpointsIn("v", ["http://192.168.1.6:80"]);
     expect(await pimTargetCredentials("v", "a")).toEqual(stored.value);
     await expect(refuseUnconfirmedCalendar("v", "a")).resolves.toBeUndefined();
+  });
+
+  it("the builder the sync and the check ask refuses an unconfirmed CalDAV account before it builds anything", async () => {
+    stored.value = { kind: "caldav", url: "http://192.168.1.7/caldav", user: "anna", pass: "pw" };
+    const build = vi.fn(async () => "target");
+    const sync = refusingUnconfirmed(build);
+    await expect(sync("v", { id: "a", provider: "caldav" })).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: "http://192.168.1.7:80" });
+    expect(build).not.toHaveBeenCalled();
+    await expect(sync("v", { id: "g", provider: "google" })).resolves.toBe("target");
   });
 });

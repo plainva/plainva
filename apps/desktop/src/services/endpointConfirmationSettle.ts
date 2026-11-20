@@ -1,11 +1,11 @@
 import { PimCacheRepository, type IDatabaseAdapter, type S3Credentials, type WebDavCredentials } from "@plainva/core";
-import { confirmationEndpoint, mailboxEndpoints, readSlot, settleEndpointConfirmationsIn, type ICredentialStore } from "@plainva/ui";
+import { afterSecretsSeal, confirmationEndpoint, mailboxEndpoints, readSlot, settleEndpointConfirmationsIn, type ICredentialStore } from "@plainva/ui";
 import { legacySlot, slot } from "./keychainSlots";
 import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { credentialManager } from "./CredentialManager";
 import type { PimStoredCredentials } from "./pim/pimCredentials";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { importedSecretSlots } from "./settingsSecrets";
+import { ensureMarkKeyHome, importedSecretSlots } from "./settingsSecrets";
 
 /**
  * The one-time switch-over of a vault to F57 on the desktop (maintainer,
@@ -58,7 +58,19 @@ export async function provenEndpoints(vaultPath: string, db: IDatabaseAdapter | 
   return proven;
 }
 
-/** At vault open, before the sync, the calendar and mail start. */
+/**
+ * At vault open, before the sync, the calendar and mail start. It runs behind
+ * the sealing at start (`afterSecretsSeal`) and only once the home of the key
+ * of the marks is decided (`ensureMarkKeyHome`): without it this start does
+ * not switch over, and the next one tries again (review of F57, round three,
+ * O-C). A second window seals nothing; it asks the app process for the same
+ * home.
+ */
 export function settleVaultEndpointConfirmations(vaultPath: string, db: IDatabaseAdapter | null): Promise<void> {
-  return settleEndpointConfirmationsIn(vaultPath, () => provenEndpoints(vaultPath, db));
+  return settleEndpointConfirmationsIn(vaultPath, () =>
+    afterSecretsSeal(async () => {
+      await ensureMarkKeyHome();
+      return provenEndpoints(vaultPath, db);
+    }),
+  );
 }

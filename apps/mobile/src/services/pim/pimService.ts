@@ -20,7 +20,7 @@ import { phoneTemplateVault } from "../templateVault";
 import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
-import { pimTargetCredentials, refuseUnconfirmedCalendar } from "./pimTargetCredentials";
+import { pimTargetCredentials, refusingUnconfirmed } from "./pimTargetCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
@@ -102,10 +102,7 @@ export {
  */
 
 /** `buildTargetFor` for the sync and "Check connection": an unconfirmed CalDAV address is refused with its name (review of F57, O-5). */
-async function syncTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
-  if (account.provider === "caldav") await refuseUnconfirmedCalendar(vaultId, account.id);
-  return buildTargetFor(vaultId, account);
-}
+const syncTargetFor = refusingUnconfirmed(buildTargetFor);
 
 async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
   // The device account has no credential — the permission is the sign-in
@@ -753,7 +750,7 @@ export function pimTaskListRuntime(): TaskListRuntime | null {
 export async function pimTargetForAccount(accountId: string): Promise<IPimTarget | null> {
   if (!runtime) return null;
   const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
-  return account ? runtime.buildTarget(account) : null;
+  return account ? runtime.syncTarget(account) : null;
 }
 
 /** The provider target behind a "<accountId> <calendarId>" picker key. */
@@ -772,10 +769,11 @@ export async function pimTargetForCalendarKey(calendarKey: string): Promise<IPim
  * producing duplicates or losing edits on the same calendar.
  */
 const eventTargets: EventTargets = {
+  // An unconfirmed address is refused with its name, so the write says Confirm address (F57; round four).
   async targetFor(accountId: string) {
     if (!runtime) return null;
     const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
-    return account ? runtime.buildTarget(account) : null;
+    return account ? runtime.syncTarget(account) : null;
   },
 };
 
@@ -989,7 +987,8 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   if (!runtime) throw new Error("pim runtime not started");
   const account = (await runtime.cache.listAccounts()).find((a) => a.id === event.accountId);
   if (!account) throw new Error("account not found");
-  const target = await runtime.buildTarget(account);
+  // An unconfirmed address is refused with its name, never "not supported" (F57; round four).
+  const target = await runtime.syncTarget(account);
   if (!target?.respondToEvent) throw new Error("responding is not supported for this account");
   const respond = target.respondToEvent.bind(target);
   const change = { kind: "update" as const, ref: event, patch: { selfResponse: response } };

@@ -49,6 +49,8 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, calls: nu
   ["apps/mobile/src/services/mail/mailRuntime.ts", "a.user.toLowerCase() === address.toLowerCase()", 2, "Microsoft mail: an e-mail address the provider vouches for"],
   ["apps/mobile/src/services/pim/pimService.ts", "source.label.trim().toLowerCase() !== profile?.label?.trim().toLowerCase()", 2, "Google/Microsoft: an e-mail address the provider vouches for"],
   ["apps/mobile/src/services/pim/pimService.ts", "source.label.trim().toLowerCase() === resolvedLabel.trim().toLowerCase()", 2, "the Google/Microsoft branch: a CalDAV row goes through samePimPasswordAccount above it"],
+  ["packages/ui/src/lib/secretsPort.ts", "const user = binding.user.trim().toLowerCase();", 1, "F57: whether a password MAY have come through the sync - a wider match asks once more, it never confirms an address or merges an account"],
+  ["packages/ui/src/lib/secretsPort.ts", "marked = decodeURIComponent(parsed[3]).trim().toLowerCase();", 1, "F57: whether a password MAY have come through the sync - a wider match asks once more, it never confirms an address or merges an account"],
   ["packages/core/src/ai/mcp/oauthRules.ts", "raw.token_type.toLowerCase() !== \"bearer\"", 1, "a protocol keyword (HTTP method, iCalendar value, content type, token type), not an account"],
   ["packages/core/src/pim/CalDavPimTarget.ts", "this.creds.user.toLowerCase()", 1, "the signed-in user as an e-mail address, to find oneself among an event's attendees; decides no account"],
   ["packages/core/src/pim/CalDavPimTarget.ts", ".toUpperCase() === \"COMPLETED\"", 1, "a protocol keyword (HTTP method, iCalendar value, content type, token type), not an account"],

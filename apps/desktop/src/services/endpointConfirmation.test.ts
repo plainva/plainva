@@ -273,3 +273,24 @@ describe("an account that waits for Confirm says so wherever its state stands (r
     expect(rows).toEqual([{ service: "calendar", state: "failed", detail: "cloudAccounts.confirmAddress:http://192.168.1.6:80" }]);
   });
 });
+
+describe("a refused write says what is missing (review of F57, round four)", () => {
+  it("an event write or an invitation answer refused for an unconfirmed address says Confirm address with it", async () => {
+    const { errorText, refusalReason } = await import("@plainva/ui");
+    const i18n = (await import("@plainva/ui/i18n")).default;
+    const refusal = new EndpointNotConfirmedError("http://192.168.1.6:80");
+    const said = i18n.t("cloudAccounts.confirmAddress", { address: "http://192.168.1.6:80" });
+    expect(errorText(refusal)).toBe(said);
+    expect(refusalReason(refusal)).toBe(said);
+    // Anything else keeps its own words, as before.
+    expect(refusalReason(new Error("HTTP 412 Precondition Failed"))).toBe("HTTP 412 Precondition Failed");
+  });
+
+  it("the desktop's calendar hands the refusal to its writes instead of \"no target\"", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const view = readFileSync(join(__dirname, "..", "components", "pimcal", "CalendarView.tsx"), "utf8");
+    expect(view).toMatch(/return await pimRuntime\.syncTarget\(account\);\s*\} catch \(error\) \{[\s\S]{0,200}if \(unconfirmedEndpointOf\(error\)\) throw error;/);
+    expect(view).toMatch(/const reason = refusalReason\(error\);/);
+  });
+});

@@ -25,6 +25,8 @@ vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: async () => [] }));
 vi.mock("./CredentialManager", () => ({
   credentialManager: {
     readSecretStrict: async (k: string) => { if (state.keychainThrows) throw new Error("keychain locked"); return state.secrets.get(k) ?? null; },
+    // The key of the marks, from the app process (secure_store.rs has its own tests).
+    secretsMarkKey: async (fresh: string) => fresh,
     readSecret: async (k: string) => (state.keychainThrows ? null : state.secrets.get(k) ?? null),
   },
 }));
@@ -126,5 +128,46 @@ describe("the switch-over after an update from 0.8.7: desktop coming from 0.8.7"
     state.mailboxes = [{ id: "mb", kind: "imap", host: "192.168.1.20", port: 993, user: "anna", email: "a@b" }];
     const r = await result(v);
     expect(r.imap).toBe(false);
+  });
+});
+
+const NEWHOST = "192.168.1.30";
+const imapNew = () => imapSecretBinding(familyOfImapHost(NEWHOST) ?? "imap", NEWHOST, 993, "anna");
+describe("the import mark hangs at the password, not at its address (review of F57, round three, O-A)", () => {
+  for (const key of ["settingsSyncSecretMeta_", "settingsSyncSecretMarks_"]) {
+    it(`DU5 ${key}: imported for .20, the mailbox moved to .30 by the profile, the same password remembered there: asked`, async () => {
+      const v = `/w${++n}`;
+      state.mailboxes = [{ id: "mb", kind: "imap", host: NEWHOST, port: 993, user: "anna", email: "anna@home" }];
+      state.secrets.set(mailSecretKey(v, "mb"), { pass: "from-other-device" });
+      state.settings.set(`${key}${b64(v)}`, {
+        entries: { [oldId(imap(), "imap-password")]: entry(imap(), "imap-password"), [oldId(imapNew(), "imap-password")]: entry(imapNew(), "imap-password") },
+        imported: { [oldId(imap(), "imap-password")]: true }, quarantine: {},
+      });
+      await settleVaultEndpointConfirmations(v, {} as never);
+      expect(await isEndpointConfirmedIn(v, `imap://${NEWHOST}:993`)).toBe(false);
+    });
+  }
+
+  it("a mailbox typed here beside an imported one of another user stays proven", async () => {
+    const v = `/w${++n}`;
+    state.mailboxes = [
+      { id: "mine", kind: "imap", host: NEWHOST, port: 993, user: "bert", email: "bert@home" },
+      { id: "mb", kind: "imap", host: "192.168.1.20", port: 993, user: "anna", email: "anna@home" },
+    ];
+    state.secrets.set(mailSecretKey(v, "mine"), { pass: "typed-here" });
+    state.secrets.set(mailSecretKey(v, "mb"), { pass: "from-other-device" });
+    state.settings.set(`settingsSyncSecretMarks_${b64(v)}`, { entries: { [oldId(imap(), "imap-password")]: entry(imap(), "imap-password") }, imported: { [oldId(imap(), "imap-password")]: true }, quarantine: {} });
+    await settleVaultEndpointConfirmations(v, {} as never);
+    expect(await isEndpointConfirmedIn(v, `imap://${NEWHOST}:993`)).toBe(true);
+    expect(await isEndpointConfirmedIn(v, "imap://192.168.1.20:993")).toBe(false);
+  });
+
+  it("a mark it cannot read is doubt, and doubt asks", async () => {
+    const v = `/w${++n}`;
+    state.mailboxes = [{ id: "mine", kind: "imap", host: NEWHOST, port: 993, user: "bert", email: "bert@home" }];
+    state.secrets.set(mailSecretKey(v, "mine"), { pass: "typed-here" });
+    state.settings.set(`settingsSyncSecretMarks_${b64(v)}`, { entries: {}, imported: { "an id of an older form": true }, quarantine: {} });
+    await settleVaultEndpointConfirmations(v, {} as never);
+    expect(await isEndpointConfirmedIn(v, `imap://${NEWHOST}:993`)).toBe(false);
   });
 });

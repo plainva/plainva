@@ -56,6 +56,8 @@ export interface PimRuntime {
   worker: PimWorker;
   vaultId: string;
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
+  /** `buildTarget` that refuses an unconfirmed CalDAV address with its name (F57): the sync and the writes that say why. */
+  syncTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
 }
 
 /**
@@ -90,10 +92,12 @@ export function getPimStatus(): PimState {
 export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiring): Promise<void> {
   if (runtime || !vault.db) return;
   const buildTarget = (account: PimAccountRow) => wiring.buildTarget(vault.vaultId, account);
+  // The worker is told why an unconfirmed calendar waits (review of F57, O-5).
+  const syncTarget = (account: PimAccountRow) => wiring.syncTarget(vault.vaultId, account);
   const cache = new PimCacheRepository(vault.db);
   const worker = new PimWorker({
     cache,
-    buildTarget: (account: PimAccountRow) => wiring.syncTarget(vault.vaultId, account),
+    buildTarget: syncTarget,
     accountAuthRevision: (account) => wiring.accountAuthRevision(vault.vaultId, account),
     // The settings sync's device id, as on the desktop (GitHub issue 174).
     ...(wiring.deviceId ? { deviceId: () => wiring.deviceId!() } : {}),
@@ -126,7 +130,7 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
       }
     },
   });
-  runtime = { cache, worker, vaultId: vault.vaultId, buildTarget };
+  runtime = { cache, worker, vaultId: vault.vaultId, buildTarget, syncTarget };
   startTaskSyncRuntime({ vault, cache, buildTarget });
   const accounts = await cache.listAccounts();
   if (accounts.some((a) => a.enabled)) {

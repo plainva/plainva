@@ -19,6 +19,7 @@
  */
 
 import { connectionErrorText } from "./connectionErrorText";
+import { unconfirmedEndpointOf } from "./endpointConfirmation";
 import { isDamagedFullText, isStructureNeedsIndexError } from "@plainva/core";
 import i18n from "i18next";
 
@@ -139,8 +140,20 @@ function baseConfigRefusal(err: unknown): { reason: string; viewName: string } |
   return { reason: e.reason, viewName: typeof e.viewName === "string" ? e.viewName : "" };
 }
 
+/**
+ * The reason of a refused write as its line says it: an address this device
+ * has not confirmed by **Confirm address: …** (F57; review of F57, round
+ * four), anything else in the error's own words, as before.
+ */
+export function refusalReason(err: unknown): string {
+  return unconfirmedEndpointOf(err) ? errorText(err) : err instanceof Error ? err.message : String(err);
+}
+
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
+  // An address this device has not confirmed (F57): what is missing is the confirmation.
+  const unconfirmed = unconfirmedEndpointOf(err);
+  if (unconfirmed) return i18n.t("cloudAccounts.confirmAddress", { address: unconfirmed });
   // A deletion, rename or move refused while the index database is closed
   // (stability plan R5): one sentence that says why and what to do, wherever it surfaces.
   if (isStructureNeedsIndexError(err)) return i18n.t("errors.structureNeedsIndex");

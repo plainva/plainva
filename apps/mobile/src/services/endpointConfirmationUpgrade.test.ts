@@ -127,3 +127,35 @@ describe("the switch-over after an update from 0.8.7: phone coming from 0.8.7", 
     expect(settledKey ? (state.settings.get(settledKey) as { settled?: boolean }).settled : undefined).toBeFalsy();
   });
 });
+
+const NEWHOST = "192.168.1.30";
+const imapNew = () => imapSecretBinding(familyOfImapHost(NEWHOST) ?? "imap", NEWHOST, 993, "anna");
+describe("the import mark hangs at the password, not at its address (review of F57, round three, O-A)", () => {
+  for (const key of ["settingsSyncSecretMetaMobile_", "settingsSyncSecretMarksMobile_"]) {
+    it(`U5 ${key}: imported for .20, the mailbox moved to .30 by the profile: asked`, async () => {
+      const v = `w${++n}`;
+      state.mailboxes = [{ id: "mb", kind: "imap", host: NEWHOST, port: 993, user: "anna" }];
+      state.secrets.set(`mail_${v}_mb`, { pass: "from-other-device" });
+      state.settings.set(`${key}${v}`, {
+        entries: { [oldId(imap(), "imap-password")]: entry(imap(), "imap-password"), [oldId(imapNew(), "imap-password")]: entry(imapNew(), "imap-password") },
+        imported: { [oldId(imap(), "imap-password")]: true }, quarantine: {},
+      });
+      await settleVaultEndpointConfirmations({ vaultId: v, db: {} as never });
+      expect(await isEndpointConfirmedIn(v, `imap://${NEWHOST}:993`)).toBe(false);
+    });
+  }
+
+  it("a mailbox typed here beside an imported one of another user stays proven", async () => {
+    const v = `w${++n}`;
+    state.mailboxes = [
+      { id: "mine", kind: "imap", host: NEWHOST, port: 993, user: "bert" },
+      { id: "mb", kind: "imap", host: "192.168.1.20", port: 993, user: "anna" },
+    ];
+    state.secrets.set(`mail_${v}_mine`, { pass: "typed-here" });
+    state.secrets.set(`mail_${v}_mb`, { pass: "from-other-device" });
+    state.settings.set(`settingsSyncSecretMarksMobile_${v}`, { entries: { [oldId(imap(), "imap-password")]: entry(imap(), "imap-password") }, imported: { [oldId(imap(), "imap-password")]: true }, quarantine: {} });
+    await settleVaultEndpointConfirmations({ vaultId: v, db: {} as never });
+    expect(await isEndpointConfirmedIn(v, `imap://${NEWHOST}:993`)).toBe(true);
+    expect(await isEndpointConfirmedIn(v, "imap://192.168.1.20:993")).toBe(false);
+  });
+});

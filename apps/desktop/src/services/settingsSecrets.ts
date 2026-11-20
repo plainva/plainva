@@ -14,7 +14,7 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
-import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretImportedFor, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretImportedFor, secretsMarker, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -183,6 +183,17 @@ const markKeySlots = {
  */
 export async function sealSecretsMetaAtStart(): Promise<number> {
   return sealSecretsMetaInStore(await getSettingsStore(), META_STORAGE, markKeySlots);
+}
+
+/**
+ * The home of the key of the secrets marks decided and noted (keychain or the
+ * credentials file), by the app process that owns it: what the switch-over of
+ * the confirmed addresses reads a slot by (`readSecretStrict`). Throws where
+ * the keychain does not answer while marks exist; the switch-over then waits
+ * for the next start (review of F57, round three, O-C).
+ */
+export async function ensureMarkKeyHome(): Promise<void> {
+  await secretsMarker(markKeySlots, false);
 }
 
 /** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`). */

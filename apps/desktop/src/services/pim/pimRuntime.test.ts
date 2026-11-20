@@ -128,6 +128,8 @@ describe("building a target for an account", () => {
     for (const url of ["http://cloud.example.com/remote.php/dav", "https://192.168.1.5/remote.php/dav", "https://nas.home.arpa/dav"]) {
       getPimCredentials.mockResolvedValue({ kind: "caldav", url, user: "anna", pass: "pw" });
       expect(await runtime().buildTarget(row("caldav")), url).toBeNull();
+      // The worker asks the builder that says why (review of F57, round three, O-B).
+      await expect((workerOptions[workerOptions.length - 1]!.buildTarget as (a: PimAccountRow) => Promise<unknown>)(row("caldav")), url).rejects.toMatchObject({ name: "EndpointNotConfirmedError" });
       // The sync and "Check connection" are told why, with the address (review of F57, O-5).
       await expect(runtime().syncTarget(row("caldav")), url).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: confirmationEndpoint(url) });
       await confirmEndpointsIn("/vault", [confirmationEndpoint(url)]);

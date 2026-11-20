@@ -31,3 +31,11 @@ export async function refuseUnconfirmedCalendar(vaultId: string, accountId: stri
   const creds = await getPimCredentials(vaultId, accountId);
   if (creds?.kind === "caldav" && !isSignedOutSlot(creds)) await assertEndpointConfirmedIn(vaultId, confirmationEndpoint(creds.url));
 }
+
+/** A target builder for the sync and "Check connection": `build`, after `refuseUnconfirmedCalendar` for a CalDAV account. */
+export function refusingUnconfirmed<A extends { id: string; provider: string }, T>(build: (vaultId: string, account: A) => Promise<T | null>): (vaultId: string, account: A) => Promise<T | null> {
+  return async (vaultId, account) => {
+    if (account.provider === "caldav") await refuseUnconfirmedCalendar(vaultId, account.id);
+    return build(vaultId, account);
+  };
+}

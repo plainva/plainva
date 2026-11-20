@@ -29,6 +29,8 @@ vi.mock("./CredentialManager", () => ({
   },
 }));
 vi.mock("./settingsSecrets", () => ({
+  // The key's home is decided by the app process; its own tests are in secure_store.rs and endpointConfirmationNoKeychain.test.ts.
+  ensureMarkKeyHome: async () => undefined,
   importedSecretSlots: async () => {
     if (state.failing === "imports") throw new Error("settings unreadable");
     return state.imported;

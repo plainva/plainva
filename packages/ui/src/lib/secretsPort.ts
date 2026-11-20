@@ -280,6 +280,16 @@ export function sealSecretsAtStart<T>(run: () => Promise<T>): Promise<T> {
   return serialized(run);
 }
 
+/**
+ * Behind the sealing at start, in the same line (review of F57, round three,
+ * O-C): the switch-over of the confirmed addresses runs here, so the home of
+ * the key of the marks is decided before it reads a slot. `run` must not call
+ * `serialized` itself.
+ */
+export function afterSecretsSeal<T>(run: () => Promise<T>): Promise<T> {
+  return serialized(run);
+}
+
 const emptyImportResult = (): SecretsImportResult => ({
   entries: [],
   imported: [],
@@ -497,17 +507,36 @@ function dropLostOldNames(meta: SecretsPortMeta, mark: SecretsMarker): void {
 }
 
 /**
- * Whether a password came through the settings sync from another device, not
- * typed here (F57): marked as imported under its name now, or under the one a
- * device up to 0.8.7 gave it — the mark moves to the new name only in a
- * secrets round (`carryOldKnowledge`), and the switch-over of the confirmed
- * addresses runs at vault open, before any round (review of F57, O-1).
+ * Whether a password may have come through the settings sync from another
+ * device, not typed here (F57). The mark hangs at the password, not at the
+ * address: any import mark of the same account — same service, the same type
+ * under its name now or the one 0.8.7 gave it, the same user — counts,
+ * whatever address it was taken under. A mailbox whose server was changed
+ * after the import (on another device, through the profile) is still the
+ * imported password (review of F57, rounds two and three, O-1, O-A). A mark
+ * this cannot read is doubt, and doubt asks: it counts as imported.
  */
 export function secretImportedFor(meta: SecretsPortMeta | null | undefined, binding: SecretBinding): boolean {
   if (!meta) return false;
   if (meta.imported[canonicalSecretId(binding)]) return true;
   const old = bridgeIdOf(binding);
-  return !!old && !!meta.imported[old];
+  if (old && meta.imported[old]) return true;
+  const types = new Set<string>([binding.secretType]);
+  if (isShareableSecretType(binding.secretType)) types.add(bridgeSecretTypeOf(binding.secretType));
+  const user = binding.user.trim().toLowerCase();
+  for (const [id, on] of Object.entries(meta.imported)) {
+    if (!on) continue;
+    const parsed = /^s1:([^:]+):([^:]+):([^@]*)@/.exec(id);
+    if (!parsed) return true;
+    let marked: string;
+    try {
+      marked = decodeURIComponent(parsed[3]).trim().toLowerCase();
+    } catch {
+      return true;
+    }
+    if (parsed[1] === binding.service && types.has(parsed[2]) && marked === user) return true;
+  }
+  return false;
 }
 
 /** The name a device up to 0.8.7 gave this binding's password (the old type, the user lower-cased). */
