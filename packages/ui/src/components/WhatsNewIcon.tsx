@@ -38,6 +38,10 @@ import {
   NotebookPen,
   Mic,
   Languages,
+  // The fallback for a name with no branch. Sparkles is the AI's glyph in both
+  // shells (0.9.0 names it), so the fallback is a plain circle that no
+  // highlight uses and the icon test can recognise.
+  Circle,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -46,8 +50,9 @@ import type { WhatsNewIconName } from '../lib/whatsNew';
  *
  * The catalog names an icon, this maps it — so a release entry stays data both
  * shells can read, and neither has to know what lucide calls the glyph. An
- * unknown name falls back rather than rendering nothing: a missing icon would
- * collapse the row's layout, and a release note is not worth a broken dialog.
+ * unknown name falls back to a plain circle rather than rendering nothing: a
+ * missing icon would collapse the row's layout, and a release note is not worth
+ * a broken dialog.
  */
 export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = ({ name, size }) => {
   const Glyph =
@@ -81,6 +86,7 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'journal' ? NotebookPen
     : name === 'mic' ? Mic
     : name === 'languages' ? Languages
-    : Sparkles;
+    : name === 'sparkles' ? Sparkles
+    : Circle;
   return <Glyph size={size} />;
 };
