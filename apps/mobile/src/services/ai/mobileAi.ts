@@ -303,6 +303,8 @@ export interface MobileAiNavigation extends MobileDraftNavigation {
   openNote: (path: string) => void;
   /** The AI settings screen (the conversation's "set up" leads there). */
   openSettings?: () => void;
+  /** The skills and the memory (F71 of release 0.9.0): the last entry of a conversation's "Skills" menu leads there. */
+  openSkills?: () => void;
   /** The search screen — where the system's assistant leads for "search", and for a note it may no longer name (plan P4.7). */
   openSearch?: () => void;
   /**
@@ -665,6 +667,11 @@ export function MobileAiNavigation({ navRef, nav }: { navRef: { current: MobileA
 
 /** The shell's navigation as last rendered, for surfaces outside App (the note's context). */
 let latestNav: MobileAiNavigation | null = null;
+
+/** Opens the skills and the memory from any surface (F71 of release 0.9.0). */
+export function openAiSkills(): void {
+  latestNav?.openSkills?.();
+}
 
 /** Opens the AI settings screen from any surface. */
 export function openAiSettings(): void {

@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Ultimo aggiornamento: 2026-11-16
+Ultimo aggiornamento: 2026-11-19
 
 La memoria contiene ciò che l'IA deve sapere su di te e sul tuo lavoro senza che tu glielo ripeta: che cosa fai, come preferisci ricevere le risposte, chi sono i tuoi clienti. Sono due file nel tuo vault. Nulla entra nella memoria senza il tuo sì, e puoi leggere, modificare ed eliminare ogni voce.
 
@@ -12,7 +12,7 @@ La memoria contiene ciò che l'IA deve sapere su di te e sul tuo lavoro senza ch
 
 ## Aprire la memoria
 
-Sul desktop scegli **Memoria** nella scheda IA, accanto a **Competenze**. Sul telefono è il segmento **Memoria** dello schermo **IA** (o **Competenze e memoria** nella pagina iniziale). Anche **Impostazioni → IA in questo vault** porta lì: **Apri la memoria** sotto **Competenze e memoria**. I nomi dei file della memoria stanno dietro il ⓘ della scheda **Sempre incluso**; le regole del vault (`AGENTS.md`) le controlli e approvi qui, nella vista Memoria, non più tra le competenze.
+Sul desktop scegli **Memoria** nella scheda IA, accanto a **Competenze**. Sul telefono è il segmento **Memoria** dello schermo **IA** (o **Competenze e memoria**, l'ultima voce del menu **Competenze** di una conversazione vuota). Anche **Impostazioni → IA in questo vault** porta lì: **Apri la memoria** sotto **Competenze e memoria**. I nomi dei file della memoria stanno dietro il ⓘ della scheda **Sempre incluso**; le regole del vault (`AGENTS.md`) le controlli e approvi qui, nella vista Memoria, non più tra le competenze.
 
 ## Aggiungere una voce a mano
 

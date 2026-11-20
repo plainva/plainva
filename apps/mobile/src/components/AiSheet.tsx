@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Maximize2, SquarePen } from "lucide-react";
 import { AiConversation, AiSessionContext, ICON, IconButton, noteDisplayName, startAiConversation } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
-import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";
+import { getMobileAiSession, openAiLink, openAiNotePick, openAiSkills } from "../services/ai/mobileAi";
 import { editorSelectionReader } from "../services/editorSelection";
 import { useAiSetupDoor } from "../hooks/useAiSetupDoor";
 
@@ -51,6 +51,7 @@ export function AiSheet({
             onOpenUrl={openAiLink}
             onOpenSettings={setup.open}
             onPickNote={() => openAiNotePick("pin")}
+            onOpenSkills={openAiSkills}
           />
         </div>
       </div>

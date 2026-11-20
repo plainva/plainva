@@ -1,6 +1,6 @@
 # Memory (Beta)
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-19
 
 The memory holds what the AI should know about you and your work without being told again: what you do, how you like your answers, who your clients are. It is two files in your vault. Nothing gets into it without your yes, and you can read, change and delete every entry.
 
@@ -12,7 +12,7 @@ The memory holds what the AI should know about you and your work without being t
 
 ## Opening the memory
 
-On the desktop, choose **Memory** in the AI tab, next to **Skills**. On the phone it is **Memory** on the AI screen, or **Skills and memory** on the start page of the AI area. **Settings → AI in this vault** leads there as well: **Open memory** under **Skills and memory**. The file names of the memory stand behind the ⓘ of the card **Always included**; the rules of the vault (`AGENTS.md`) are reviewed and approved right there in the memory view.
+On the desktop, choose **Memory** in the AI tab, next to **Skills**. On the phone it is **Memory** on the AI screen, or **Skills and memory**, the last entry of the **Skills** menu of an empty conversation. **Settings → AI in this vault** leads there as well: **Open memory** under **Skills and memory**. The file names of the memory stand behind the ⓘ of the card **Always included**; the rules of the vault (`AGENTS.md`) are reviewed and approved right there in the memory view.
 
 ## Adding an entry yourself
 

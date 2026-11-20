@@ -296,7 +296,7 @@
       }
     },
     "empty": {
-      "startBodyVault": "Over alles in je vault. De AI verandert zelf niets: wat ze zou veranderen, legt ze je voor als voorstel.",
+      "startBodyVault": "Over alles in je vault.",
       "setupBodyPhone": "Kies een provider en bewaar zijn sleutel — of gebruik zonder sleutel het model van je telefoon.",
       "setupTitle": "AI instellen",
       "setupBody": "Kies een provider en bewaar zijn sleutel — of gebruik een model op dit apparaat (Ollama, LM Studio).",
@@ -305,7 +305,7 @@
       "offBody": "Zet hem aan in de instellingen. Er wordt pas iets verzonden zodra je iets vraagt.",
       "offAction": "Instellingen openen",
       "startTitle": "Vraag iets",
-      "startBody": "Over de open notitie of over alles in je vault. De AI verandert zelf niets: wat ze zou veranderen, legt ze je voor als voorstel.",
+      "startBody": "Over de open notitie of over alles in je vault.",
       "mainWindowOnly": "De AI werkt in het hoofdvenster.",
       "noVault": "Open een vault om vragen te stellen over je notities."
     },
@@ -453,7 +453,8 @@
       "strong": "Sterk",
       "local": "Lokaal",
       "audio": "Audio",
-      "embedding": "Zoekmodel"
+      "embedding": "Zoekmodel",
+      "button": "Model: {{profile}}"
     },
     "policy": {
       "columns": "Map",
@@ -2667,6 +2668,8 @@
       "toggleOff": "Uit: wijzigingen van de AI wachten als voorstel op jou.",
       "folderTip": "De map van deze notitie heeft “Wijzigen zonder te vragen”.",
       "marking": "De AI en scripts die ze start mogen in dit gesprek notities wijzigen en aanmaken. Verwijderen, hernoemen en verplaatsen vragen nog steeds.",
+      "markingOff": "Wat de AI zou veranderen, legt ze je voor als voorstel.",
+      "markingOffFolders": "Wat de AI zou veranderen, legt ze je voor als voorstel – behalve in mappen met “Wijzigen zonder te vragen”: daar wijzigt ze meteen.",
       "overview": "Direct toepassen",
       "overviewOn": "De AI en scripts die ze start mogen notities wijzigen en aanmaken; verwijderen vraagt nog steeds.",
       "changed": "Gewijzigd: {{list}}",

@@ -1,6 +1,6 @@
 # Gedächtnis (Beta)
 
-Stand: 2026-11-16
+Stand: 2026-11-19
 
 Das Gedächtnis hält fest, was die KI über Dich und Deine Arbeit wissen soll, ohne dass Du es wieder sagst: was Du machst, wie Du Antworten magst, wer Deine Kunden sind. Es sind zwei Dateien in Deinem Vault. Nichts kommt ohne Dein Ja hinein, und Du kannst jeden Eintrag lesen, ändern und löschen.
 
@@ -12,7 +12,7 @@ Das Gedächtnis hält fest, was die KI über Dich und Deine Arbeit wissen soll, 
 
 ## Das Gedächtnis öffnen
 
-Am Desktop wählst Du im KI-Tab **Gedächtnis**, neben **Skills**. Am Telefon ist es **Gedächtnis** auf dem KI-Bildschirm oder **Skills und Gedächtnis** auf der Startseite des KI-Bereichs. Auch **Einstellungen → KI in diesem Vault** führt dorthin: **Gedächtnis öffnen** unter **Skills und Gedächtnis**. Die Dateinamen des Gedächtnisses stehen hinter dem ⓘ der Karte **Immer dabei**; die Regeln des Vaults (`AGENTS.md`) prüfst und gibst Du genau hier in der Gedächtnisansicht frei.
+Am Desktop wählst Du im KI-Tab **Gedächtnis**, neben **Skills**. Am Telefon ist es **Gedächtnis** auf dem KI-Bildschirm oder **Skills und Gedächtnis**, der letzte Eintrag im Menü **Skills** eines leeren Gesprächs. Auch **Einstellungen → KI in diesem Vault** führt dorthin: **Gedächtnis öffnen** unter **Skills und Gedächtnis**. Die Dateinamen des Gedächtnisses stehen hinter dem ⓘ der Karte **Immer dabei**; die Regeln des Vaults (`AGENTS.md`) prüfst und gibst Du genau hier in der Gedächtnisansicht frei.
 
 ## Selbst einen Eintrag anlegen
 

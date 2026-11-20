@@ -296,7 +296,7 @@
       }
     },
     "empty": {
-      "startBodyVault": "About anything in your vault. The AI changes nothing itself: what it would change, it lays before you as a suggestion.",
+      "startBodyVault": "About anything in your vault.",
       "setupBodyPhone": "Choose a provider and store its key — or use your phone's own model without a key.",
       "setupTitle": "Set up the AI",
       "setupBody": "Choose a provider and store its key — or use a model on this device (Ollama, LM Studio).",
@@ -305,7 +305,7 @@
       "offBody": "Switch it on in the settings. Nothing is sent anywhere until you ask something.",
       "offAction": "Open settings",
       "startTitle": "Ask something",
-      "startBody": "About the open note, or about anything in your vault. The AI changes nothing itself: what it would change, it lays before you as a suggestion.",
+      "startBody": "About the open note, or about anything in your vault.",
       "mainWindowOnly": "The AI runs in the main window.",
       "noVault": "Open a vault to ask about your notes."
     },
@@ -453,7 +453,8 @@
       "strong": "Strong",
       "local": "Local",
       "audio": "Audio",
-      "embedding": "Search model"
+      "embedding": "Search model",
+      "button": "Model: {{profile}}"
     },
     "policy": {
       "columns": "Folder",
@@ -2667,6 +2668,8 @@
       "toggleOff": "Off: the AI's changes wait for you as suggestions.",
       "folderTip": "The folder of this note has “Change without asking”.",
       "marking": "The AI, and scripts it starts, may change and create notes in this conversation. Deleting, renaming and moving still ask.",
+      "markingOff": "What the AI would change, it lays before you as a suggestion.",
+      "markingOffFolders": "What the AI would change, it lays before you as a suggestion – except in folders with “Change without asking”: there it changes at once.",
       "overview": "Apply directly",
       "overviewOn": "The AI, and scripts it starts, may change and create notes; deleting still asks.",
       "changed": "Changed: {{list}}",

@@ -318,7 +318,7 @@
       }
     },
     "empty": {
-      "startBodyVault": "Su qualsiasi cosa nel tuo vault. L'IA non cambia nulla da sola: ciò che cambierebbe te lo presenta come proposta.",
+      "startBodyVault": "Su qualsiasi cosa nel tuo vault.",
       "setupBodyPhone": "Scegli un provider e salva la sua chiave — oppure usa senza chiave il modello del tuo telefono.",
       "setupTitle": "Configura l'IA",
       "setupBody": "Scegli un provider e salva la sua chiave — oppure usa un modello su questo dispositivo (Ollama, LM Studio).",
@@ -327,7 +327,7 @@
       "offBody": "Attivala nelle impostazioni. Non viene inviato nulla finché non fai una domanda.",
       "offAction": "Apri le impostazioni",
       "startTitle": "Fai una domanda",
-      "startBody": "Sulla nota aperta o su qualsiasi cosa nel tuo vault. L'IA non cambia nulla da sola: ciò che cambierebbe te lo presenta come proposta.",
+      "startBody": "Sulla nota aperta o su qualsiasi cosa nel tuo vault.",
       "mainWindowOnly": "L'IA funziona nella finestra principale.",
       "noVault": "Apri un vault per fare domande sulle tue note."
     },
@@ -477,7 +477,8 @@
       "strong": "Potente",
       "local": "Locale",
       "audio": "Audio",
-      "embedding": "Modello di ricerca"
+      "embedding": "Modello di ricerca",
+      "button": "Modello: {{profile}}"
     },
     "policy": {
       "columns": "Cartella",
@@ -2751,6 +2752,8 @@
       "toggleOff": "Disattivo: le modifiche dell'IA ti aspettano come proposte.",
       "folderTip": "La cartella di questa nota ha «Modifica senza chiedere».",
       "marking": "L'IA e gli script che avvia possono modificare e creare note in questa conversazione. Eliminare, rinominare e spostare chiedono sempre.",
+      "markingOff": "Ciò che l'IA cambierebbe te lo presenta come proposta.",
+      "markingOffFolders": "Ciò che l'IA cambierebbe te lo presenta come proposta, tranne nelle cartelle con «Modifica senza chiedere»: lì cambia subito.",
       "overview": "Applica direttamente",
       "overviewOn": "L'IA e gli script che avvia possono modificare e creare note; l'eliminazione chiede sempre.",
       "changed": "Modificato: {{list}}",

@@ -217,7 +217,7 @@ export function AiTabView({
           ) : view === "open" ? (
             <AiOpenPanel session={session} state={state.drafts} proposals={proposals} onOpenNote={onOpenPath} onOpenCreated={onOpenPath} />
           ) : (
-            <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+            <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} onOpenSkills={() => setView("skills")} />
           )}
         </section>
       </div>

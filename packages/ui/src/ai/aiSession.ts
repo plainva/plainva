@@ -4754,7 +4754,11 @@ export class AiSession {
     return hasDirectFolder(await vault.folderRules().catch(() => [] as readonly FolderPolicyRule[]));
   }
 
-  /** The same, for the open vault: what the routines' lists offer (plan W4). */
+  /**
+   * The same, for the open vault: what the routines' lists offer (plan W4), and what the marking line of a
+   * conversation says (F71 of release 0.9.0) — a run decides for each note it writes, wherever that lies, so the line
+   * never claims more protection than the run gives.
+   */
   async hasDirectFolders(): Promise<boolean> {
     return this.vault ? this.directFolders(this.vault) : false;
   }
