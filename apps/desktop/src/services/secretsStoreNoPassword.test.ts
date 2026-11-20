@@ -29,6 +29,12 @@ type Account = { id: string; kind: "calendar" | "mail"; user: string };
 type Device = { name: string; legacy: boolean; store: Map<string, unknown>; slots: Map<string, unknown>; accounts: Account[] };
 
 const state = vi.hoisted(() => ({ current: null as null | { store: Map<string, unknown>; slots: Map<string, unknown>; accounts: Array<{ id: string; kind: string; user: string }> } }));
+const markKeyOf = vi.hoisted(() => (fresh: string): string => {
+  const held = state.current!.slots.get("settingsSyncSecretsMarkKey");
+  if (typeof held === "string") return held;
+  state.current!.slots.set("settingsSyncSecretsMarkKey", fresh);
+  return fresh;
+});
 
 vi.mock("./settingsStore", () => ({
   getSettingsStore: vi.fn(async () => ({
@@ -42,9 +48,9 @@ vi.mock("./settingsStore", () => ({
 vi.mock("./CredentialManager", () => ({
   credentialManager: {
     readSecret: vi.fn(async (key: string) => structuredClone(state.current!.slots.get(key) ?? null)),
-    // The key of the marks at its one place; here both places are the slots.
-    readSecretAt: vi.fn(async (key: string) => structuredClone(state.current!.slots.get(key) ?? null)),
-    writeSecretAt: vi.fn(async (key: string, value: unknown) => void state.current!.slots.set(key, structuredClone(value))),
+    // The key of the marks from the app process (`secure_store.rs`, its own
+    // tests there): the key in the slots, or the fresh one made there.
+    secretsMarkKey: vi.fn(async (fresh: string) => markKeyOf(fresh)),
     writeSecret: vi.fn(async (key: string, value: unknown) => void state.current!.slots.set(key, structuredClone(value))),
     removeSecret: vi.fn(async (key: string) => void state.current!.slots.delete(key)),
   },
@@ -345,8 +351,8 @@ describe("the secrets sync keeps no password in the desktop's settings store (F6
     const records = () => stableStringify([...d.store].filter(([name]) => name === LEGACY_KEY || name === CURRENT_KEY));
     const before = records();
     const { credentialManager } = await import("./CredentialManager");
-    vi.mocked(credentialManager.readSecretAt).mockRejectedValueOnce(new Error("keychain locked"));
-    vi.mocked(credentialManager.readSecretAt).mockRejectedValueOnce(new Error("keychain locked"));
+    vi.mocked(credentialManager.secretsMarkKey).mockRejectedValueOnce(new Error("keychain locked"));
+    vi.mocked(credentialManager.secretsMarkKey).mockRejectedValueOnce(new Error("keychain locked"));
     state.current = d;
     await expect(createDesktopSecretsPort(VAULT, pimRuntime).exportBundle()).rejects.toThrow("keychain locked");
     await expect(createDesktopSecretsPort(VAULT, pimRuntime).importBundle({ format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: "t", entries: {} })).rejects.toThrow("keychain locked");
@@ -376,7 +382,7 @@ describe("the secrets sync keeps no password in the desktop's settings store (F6
         });
       }
       const { credentialManager } = await import("./CredentialManager");
-      vi.mocked(credentialManager.readSecretAt).mockRejectedValueOnce(new Error("keychain locked"));
+      vi.mocked(credentialManager.secretsMarkKey).mockRejectedValueOnce(new Error("keychain locked"));
       state.current = d;
       await expect(createDesktopSecretsPort(VAULT2, pimRuntime).exportBundle()).rejects.toThrow("keychain locked");
       expect(d.slots.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
@@ -400,17 +406,13 @@ describe("the secrets sync keeps no password in the desktop's settings store (F6
     const failingKeychain = async () => {
       const { credentialManager } = await import("./CredentialManager");
       const down = () => new Error("Platform secure storage failure: no secret service");
-      vi.mocked(credentialManager.readSecretAt).mockImplementation(async (key: string, place: "keychain" | "file") => {
-        if (place === "keychain") throw down();
-        return structuredClone(state.current!.slots.get(key) ?? null) as never;
-      });
-      vi.mocked(credentialManager.writeSecretAt).mockImplementation(async (key: string, value: unknown, place: "keychain" | "file") => {
-        if (place === "keychain") throw down();
-        state.current!.slots.set(key, structuredClone(value));
+      // The app process makes the key in the file then, where no record holds marks.
+      vi.mocked(credentialManager.secretsMarkKey).mockImplementation(async (fresh: string, marksOnDevice: boolean) => {
+        if (typeof state.current!.slots.get("settingsSyncSecretsMarkKey") !== "string" && marksOnDevice) throw down();
+        return markKeyOf(fresh);
       });
       return () => {
-        vi.mocked(credentialManager.readSecretAt).mockImplementation(async (key: string) => structuredClone(state.current!.slots.get(key) ?? null) as never);
-        vi.mocked(credentialManager.writeSecretAt).mockImplementation(async (key: string, value: unknown) => void state.current!.slots.set(key, structuredClone(value)));
+        vi.mocked(credentialManager.secretsMarkKey).mockImplementation(async (fresh: string) => markKeyOf(fresh));
       };
     };
 
@@ -439,7 +441,7 @@ describe("the secrets sync keeps no password in the desktop's settings store (F6
       const restore = await failingKeychain();
       const { credentialManager } = await import("./CredentialManager");
       // Nothing can be stored either: the start cannot seal.
-      vi.mocked(credentialManager.writeSecretAt).mockImplementation(async () => {
+      vi.mocked(credentialManager.secretsMarkKey).mockImplementation(async () => {
         throw new Error("credentials file is read-only");
       });
       try {

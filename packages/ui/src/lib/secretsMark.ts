@@ -53,31 +53,20 @@ export interface SecretsMarkSlots {
   readSlot(slot: string): Promise<unknown>;
   writeSlot(slot: string, value: unknown): Promise<void>;
   /**
-   * A device with two places for secrets — the keychain and a credentials
-   * file it falls back to (the desktop) — keeps the key in ONE of them,
-   * decided once and noted (round twelve). A host without it reads and
-   * writes the key through its slots.
+   * A desktop: the key belongs to the app process, which looks for it, makes
+   * it from `fresh` where there is none and notes its one place — keychain or
+   * credentials file — under one lock for every window of the app (round
+   * fourteen, `apps/desktop/src-tauri/src/secure_store.rs`). Throws when its
+   * store does not answer. A host without it (the phone, one web view) reads
+   * and writes the key through its slots.
    */
-  markKeyHome?: SecretsMarkKeyHome;
+  ownedKey?(fresh: string, marksOnDevice: boolean): Promise<string>;
   /**
    * Whether any record on this device, of any vault, holds marks of a key
    * (round twelve): a device has one key, and while any of its records was
    * made with it, a store that does not answer never makes a second one.
    */
   marksOnDevice?(): Promise<boolean>;
-}
-
-/** The two places of a desktop: the keychain, and the credentials file beside it. */
-export type SecretsMarkKeyPlace = "keychain" | "file";
-
-export interface SecretsMarkKeyHome {
-  /** The place noted for the key, or null while none is decided. */
-  read(): Promise<SecretsMarkKeyPlace | null>;
-  note(place: SecretsMarkKeyPlace): Promise<void>;
-  /** The key at that place, null when it is not there. The keychain throws when it does not answer. */
-  readAt(place: SecretsMarkKeyPlace): Promise<unknown>;
-  /** Throws when the place does not take it. */
-  writeAt(place: SecretsMarkKeyPlace, value: string): Promise<void>;
 }
 
 /** A mark as this file writes it, with any key; anything else that is not "" is an old plain mark. */
@@ -118,7 +107,9 @@ export async function storeHoldsSecretsMarks(store: ISettingsStore, isRecord: (k
 
 // The first two callers on a fresh device must not each make a key: the
 // second would overwrite the first, and every mark made with it would be
-// wrong. Key reads and the one creation run one after the other.
+// wrong. Key reads and the one creation run one after the other — within
+// this web view; across the windows of a desktop the app process owns it
+// (`ownedKey`).
 let keyQueue: Promise<unknown> = Promise.resolve();
 
 const freshKey = (): string => [...crypto.getRandomValues(new Uint8Array(32))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -129,60 +120,13 @@ const validKey = (stored: unknown): string | null => {
   return null;
 };
 
-/**
- * The key at its one place (round twelve). Once noted, only that place is
- * read: a keychain that does not answer is an error — the round stops and
- * runs again — and the file is neither read nor written for it then; a key
- * in the file is always the file's. So there is never a second key to
- * switch to. Before a place is noted (a first start, or a key made by an
- * earlier build) the key is looked for in both, keychain first, and its
- * place noted; a new key goes to the keychain, or to the file where no
- * keychain answers and nothing on the device holds marks.
- */
-async function homedKey(home: SecretsMarkKeyHome, slots: SecretsMarkSlots, marksExist: boolean): Promise<string> {
-  const place = await home.read();
-  const make = async (where: SecretsMarkKeyPlace): Promise<string> => {
-    const fresh = freshKey();
-    await home.writeAt(where, fresh);
-    if ((await home.readAt(where)) !== fresh) throw new Error("secrets mark key could not be stored");
-    await home.note(where);
-    return fresh;
-  };
-  if (place) {
-    // Missing at its place: the store lost that one item; a new key there,
-    // and the marks of the old one are known as lost (`secretsPort.ts`).
-    return validKey(await home.readAt(place)) ?? make(place);
-  }
-  let silent: unknown = null;
-  let inKeychain: string | null = null;
-  try {
-    inKeychain = validKey(await home.readAt("keychain"));
-  } catch (error) {
-    silent = error;
-  }
-  if (inKeychain) {
-    await home.note("keychain");
-    return inKeychain;
-  }
-  const inFile = validKey(await home.readAt("file"));
-  if (inFile) {
-    await home.note("file");
-    return inFile;
-  }
-  if (silent) {
-    if (marksExist || (await marksOnDevice(slots))) throw silent;
-    return make("file");
-  }
-  try {
-    return await make("keychain");
-  } catch {
-    return make("file");
-  }
-}
-
 async function deviceKey(slots: SecretsMarkSlots, marksExist: boolean): Promise<string> {
   const run = async (): Promise<string> => {
-    if (slots.markKeyHome) return homedKey(slots.markKeyHome, slots, marksExist);
+    if (slots.ownedKey) {
+      const owned = validKey(await slots.ownedKey(freshKey(), marksExist || (await marksOnDevice(slots))));
+      if (!owned) throw new Error("secrets mark key could not be stored");
+      return owned;
+    }
     let stored: unknown;
     try {
       stored = await slots.readSlot(SECRETS_MARK_KEY_SLOT);

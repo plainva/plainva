@@ -819,6 +819,71 @@ describe("after a lost key: one baseline, never winning while it holds what it f
     }
   });
 
+  const synced = async () => {
+    start();
+    const n1 = device("N1", false, row());
+    const n2 = device("N2", false, row());
+    const f = device("F", false, row());
+    for (const pass of ["P1", "P2", "P3"]) {
+      n2.slots.set("r", pass);
+      await rounds([n2, n1, f], 2);
+    }
+    return { n1, n2, f };
+  };
+  const quiet = async (fleet: Device[]) => {
+    for (const d of fleet) [d.pushes, d.reports, d.metaWrites] = [0, 0, 0];
+    await rounds(fleet, 4);
+    return fleet.map((d) => [d.name, d.pushes, d.reports, d.metaWrites]);
+  };
+
+  it("a slot from an old backup on a new, empty target is held and never goes out over the newer password", async () => {
+    const { n1, n2, f } = await synced();
+    n1.slots.set("r", "P1");
+    n1.keyring.clear();
+    remote = null;
+    await rounds([n1, n2, f], 4);
+    expect({ doc: docOf(), N1: n1.slots.get("r"), F: f.slots.get("r") }).toEqual({ doc: "r3:P3", N1: "P1", F: "P3" });
+    expect(await quiet([n1, n2, f])).toEqual([["N1", 0, 0, 0], ["N2", 0, 0, 0], ["F", 0, 0, 0]]);
+  });
+
+  it("a moved phone without the password, on a new, empty target, gets it from the others", async () => {
+    const { n1, n2, f } = await synced();
+    n1.slots.delete("r");
+    n1.keyring.clear();
+    remote = null;
+    await rounds([n1, n2, f], 4);
+    expect({ doc: docOf(), N1: n1.slots.get("r") }).toEqual({ doc: "r3:P3", N1: "P3" });
+  });
+
+  it("a baseline the document confirms later is confirmed for good: no import, no write, no upload after", async () => {
+    const { n1, n2, f } = await synced();
+    n1.keyring.clear();
+    const doc = remote;
+    remote = null;
+    // Alone on an empty target: nothing confirms what it found.
+    await rounds([n1], 2);
+    remote = doc;
+    await rounds([n1, n2, f], 4);
+    expect(Object.values(n1.meta!.entries).map((e) => [!!e.unconfirmed, !!e.sinceLoss, !!e.held])).toEqual([[false, false, false]]);
+    expect(await quiet([n1, n2, f])).toEqual([["N1", 0, 0, 0], ["N2", 0, 0, 0], ["F", 0, 0, 0]]);
+    expect(docOf()).toBe("r3:P3");
+  });
+
+  it("a device that kept its own password against two newer ones sends a password typed later above them (F73)", async () => {
+    start();
+    const n0 = device("N0", false, row());
+    const n1 = device("N1", false, row());
+    n0.slots.set("r", "OWN1");
+    await rounds([n0, n1], 2);
+    for (const pass of ["NEW2", "NEW3"]) {
+      n1.slots.set("r", pass);
+      await rounds([n1, n0], 2);
+    }
+    n0.slots.set("r", "TYP9");
+    await rounds([n0, n1], 3);
+    expect({ doc: docOf(), N0: n0.slots.get("r"), N1: n1.slots.get("r") }).toEqual({ doc: "r4:TYP9", N0: "TYP9", N1: "TYP9" });
+  });
+
   it("a password typed after the first run since the loss goes out above every revision seen, also one this device refused", async () => {
     start();
     const n1 = device("N1", false, row(), { r: "P1" });

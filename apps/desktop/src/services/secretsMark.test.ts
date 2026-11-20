@@ -57,74 +57,45 @@ describe("secrets marks", () => {
     expect(here.slots.has(SECRETS_MARK_KEY_SLOT)).toBe(false);
   });
 
-  describe("one place for the key on a device with a keychain and a file (round twelve)", () => {
-    const desktop = (keychainAnswers = true) => {
-      const places = { keychain: new Map<string, string>(), file: new Map<string, string>() };
-      const state = { noted: null as null | "keychain" | "file", answers: keychainAnswers, fileReads: 0, fileWrites: 0 };
-      const markKeyHome = {
-        read: async () => state.noted,
-        note: async (place: "keychain" | "file") => void (state.noted = place),
-        readAt: async (place: "keychain" | "file") => {
-          if (place === "keychain" && !state.answers) throw new Error("keychain locked");
-          if (place === "file") state.fileReads++;
-          return places[place].get(SECRETS_MARK_KEY_SLOT) ?? null;
-        },
-        writeAt: async (place: "keychain" | "file", value: string) => {
-          if (place === "keychain" && !state.answers) throw new Error("keychain locked");
-          if (place === "file") state.fileWrites++;
-          places[place].set(SECRETS_MARK_KEY_SLOT, value);
+  describe("a key the app process owns, for every window at once (round fourteen)", () => {
+    // What the process does with it — one place, one note, one lock — is
+    // tested in `src-tauri/src/secure_store.rs`; here: what a window asks and takes.
+    const owned = (answer: (fresh: string, marksOnDevice: boolean) => Promise<string>) => {
+      const asked: Array<[string, boolean]> = [];
+      const slotCalls: string[] = [];
+      const slots = {
+        readSlot: async (slot: string) => void slotCalls.push(`read ${slot}`),
+        writeSlot: async (slot: string) => void slotCalls.push(`write ${slot}`),
+        ownedKey: async (fresh: string, marksOnDevice: boolean) => {
+          asked.push([fresh, marksOnDevice]);
+          return answer(fresh, marksOnDevice);
         },
       };
-      return { places, state, slots: { readSlot: async () => null, writeSlot: async () => undefined, markKeyHome } };
+      return { asked, slotCalls, slots };
     };
 
-    it("is decided once and noted; a keychain silent later stops the run and the file is neither read nor written", async () => {
-      const d = desktop();
+    it("asks the process with a fresh key and whether marks exist, marks with what it answers, and never touches the slot", async () => {
+      let held: string | null = null;
+      const d = owned(async (fresh) => (held ??= fresh));
       const first = await secretsMarker(d.slots, false);
-      expect(d.state.noted).toBe("keychain");
-      const key = d.places.keychain.get(SECRETS_MARK_KEY_SLOT);
-      // No mark anywhere yet: still no second key in the file.
-      d.state.answers = false;
-      d.state.fileReads = 0;
-      await expect(secretsMarker(d.slots, false)).rejects.toThrow("keychain locked");
-      expect([d.places.file.size, d.state.fileReads, d.state.fileWrites]).toEqual([0, 0, 0]);
-      d.state.answers = true;
-      const again = await secretsMarker(d.slots, false);
-      expect(again.owns(await first(plain))).toBe(true);
-      expect(d.places.keychain.get(SECRETS_MARK_KEY_SLOT)).toBe(key);
+      const second = await secretsMarker({ ...d.slots, marksOnDevice: async () => true }, false);
+      const third = await secretsMarker(d.slots, true);
+      expect(second.owns(await first(plain)) && third.owns(await first(plain))).toBe(true);
+      expect(d.asked.map(([fresh, marks]) => [/^[0-9a-f]{64}$/.test(fresh), marks])).toEqual([[true, false], [true, true], [true, true]]);
+      expect(new Set(d.asked.map(([fresh]) => fresh)).size).toBe(3);
+      expect(d.slotCalls).toEqual([]);
     });
 
-    it("a key in the file is the file's, whatever the keychain holds", async () => {
-      const d = desktop(false);
-      const first = await secretsMarker(d.slots, false);
-      expect(d.state.noted).toBe("file");
-      d.state.answers = true;
-      d.places.keychain.set(SECRETS_MARK_KEY_SLOT, "a".repeat(64));
-      expect((await secretsMarker(d.slots, true)).owns(await first(plain))).toBe(true);
+    it("a device that cannot say whether it holds marks tells the process it holds some", async () => {
+      const d = owned(async (fresh) => fresh);
+      await secretsMarker({ ...d.slots, marksOnDevice: async () => { throw new Error("store unreadable"); } }, false);
+      expect(d.asked[0][1]).toBe(true);
     });
 
-    it("a key made by an earlier build is found where it is and its place noted, the keychain first", async () => {
-      const inKeychain = desktop();
-      inKeychain.places.keychain.set(SECRETS_MARK_KEY_SLOT, "b".repeat(64));
-      inKeychain.places.file.set(SECRETS_MARK_KEY_SLOT, "c".repeat(64));
-      await secretsMarker(inKeychain.slots, true);
-      expect(inKeychain.state.noted).toBe("keychain");
-      const inFile = desktop(false);
-      inFile.places.file.set(SECRETS_MARK_KEY_SLOT, "c".repeat(64));
-      await secretsMarker(inFile.slots, true);
-      expect(inFile.state.noted).toBe("file");
-      // Not noted, the keychain silent, nothing in the file, marks exist: an error, no key.
-      const silent = desktop(false);
-      await expect(secretsMarker(silent.slots, true)).rejects.toThrow("keychain locked");
-      expect([silent.state.noted, silent.places.file.size]).toEqual([null, 0]);
-    });
-
-    it("a key missing at its place is made there anew, never elsewhere", async () => {
-      const d = desktop();
-      await secretsMarker(d.slots, false);
-      d.places.keychain.clear();
-      await secretsMarker(d.slots, true);
-      expect([d.state.noted, d.places.keychain.size, d.places.file.size]).toEqual(["keychain", 1, 0]);
+    it("a process that does not answer, or answers nothing usable, is an error, never a key", async () => {
+      await expect(secretsMarker(owned(async () => { throw new Error("keychain locked"); }).slots, true)).rejects.toThrow("keychain locked");
+      await expect(secretsMarker(owned(async () => "not a key").slots, false)).rejects.toThrow("unreadable");
+      await expect(secretsMarker(owned(async () => null as unknown as string).slots, false)).rejects.toThrow("could not be stored");
     });
   });
 

@@ -145,26 +145,18 @@ function retiredStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta 
   };
 }
 
-/** Where this desktop keeps the key of the marks, decided once (`secretsMark.ts`, round twelve). */
-const MARK_KEY_HOME = "settingsSyncSecretsMarkKeyHome";
-
-/** The key of the marks, in the credentials store at its one place. */
+/**
+ * The key of the marks: the app process owns it, at its one place (`secretsMark.ts`,
+ * rounds twelve to fourteen). No window reads or writes its slot itself.
+ */
+const notThroughSlots = async (): Promise<never> => {
+  throw new Error(`${SECRETS_MARK_KEY_SLOT} belongs to the app process`);
+};
 const markKeySlots = {
-  readSlot: (slot: string) => credentialManager.readSecret(slot),
-  writeSlot: (slot: string, value: unknown) => credentialManager.writeSecret(slot, value),
-  markKeyHome: {
-    read: async () => {
-      const place = await (await getSettingsStore()).get<string>(MARK_KEY_HOME);
-      return place === "keychain" || place === "file" ? place : null;
-    },
-    note: async (place: "keychain" | "file") => {
-      const store = await getSettingsStore();
-      await store.set(MARK_KEY_HOME, place);
-      await store.save();
-    },
-    readAt: (place: "keychain" | "file") => credentialManager.readSecretAt(SECRETS_MARK_KEY_SLOT, place),
-    writeAt: (place: "keychain" | "file", value: string) => credentialManager.writeSecretAt(SECRETS_MARK_KEY_SLOT, value, place),
-  },
+  readSlot: notThroughSlots,
+  writeSlot: notThroughSlots,
+  // One owner for every window: the app process (round fourteen).
+  ownedKey: (fresh: string, marksOnDevice: boolean) => credentialManager.secretsMarkKey(fresh, marksOnDevice),
   // One key for the device: the records of every vault count (round twelve).
   marksOnDevice: async () => storeHoldsSecretsMarks(await getSettingsStore(), (key) => key.startsWith(META_PREFIX) || key.startsWith(LEGACY_META_PREFIX)),
 };
@@ -210,7 +202,7 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     accountsReady: async () => pimRuntime !== null,
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
-    markKeyHome: markKeySlots.markKeyHome,
+    ownedKey: markKeySlots.ownedKey,
     marksOnDevice: markKeySlots.marksOnDevice,
     removeSlot: (slot) => credentialManager.removeSecret(slot),
   });

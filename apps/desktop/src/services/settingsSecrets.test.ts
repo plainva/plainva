@@ -34,8 +34,12 @@ const slots = new Map<string, unknown>();
 vi.mock("./CredentialManager", () => ({
   credentialManager: {
     readSecret: vi.fn(async (key: string) => slots.get(key) ?? null),
-    readSecretAt: vi.fn(async (key: string) => slots.get(key) ?? null),
-    writeSecretAt: vi.fn(async (key: string, value: unknown) => void slots.set(key, value)),
+    secretsMarkKey: vi.fn(async (fresh: string) => {
+      const held = slots.get("settingsSyncSecretsMarkKey");
+      if (typeof held === "string") return held;
+      slots.set("settingsSyncSecretsMarkKey", fresh);
+      return fresh;
+    }),
     writeSecret: vi.fn(async (key: string, value: unknown) => void slots.set(key, value)),
     removeSecret: vi.fn(async (key: string) => void slots.delete(key)),
   },

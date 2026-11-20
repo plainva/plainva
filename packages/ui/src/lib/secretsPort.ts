@@ -20,7 +20,7 @@ import {
   type SecretsImportResult,
   type SecretsPort,
 } from "@plainva/core";
-import { holdsSecretsMarks, isSecretsMark, sealSecretsMeta, secretsMarker, type SecretsMarker, type SecretsMarkKeyHome } from "./secretsMark";
+import { holdsSecretsMarks, isSecretsMark, sealSecretsMeta, secretsMarker, type SecretsMarker } from "./secretsMark";
 import { logDiagnosticCounted } from "../services/diagnosticsLog";
 
 /**
@@ -183,8 +183,8 @@ export interface SecretsPortHost {
    */
   accountsReady?(): Promise<boolean>;
   readSlot(slot: string): Promise<unknown>;
-  /** The one place of the key of the marks, where a device has two (`secretsMark.ts`). */
-  markKeyHome?: SecretsMarkKeyHome;
+  /** The key of the marks from the app process, for every window at once (`secretsMark.ts`). */
+  ownedKey?(fresh: string, marksOnDevice: boolean): Promise<string>;
   /** Whether any record on this device, of any vault, holds marks of a key (`secretsMark.ts`). */
   marksOnDevice?(): Promise<boolean>;
   writeSlot(slot: string, value: unknown): Promise<void>;
@@ -984,9 +984,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
         if (!entry.tombstone && candidate.secret && !pairImported) {
           if (stableStringify(candidate.secret) !== stableStringify(entry.secret)) {
-            // Seen after a lost key, or beside a held slot: a password typed
-            // here later goes out above it (round twelve).
-            if (previous && (previous.sinceLoss || previous.held) && entry.entryRev > (previous.heldRev ?? 0)) {
+            // Seen and not taken: a password typed here later goes out above
+            // it — after a lost key, beside a held slot, or beside this
+            // device's own password (round twelve; F73).
+            if (previous && entry.entryRev > (previous.heldRev ?? 0)) {
               meta.entries[logicalId] = { ...previous, heldRev: entry.entryRev };
             }
             recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
