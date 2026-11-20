@@ -1,12 +1,12 @@
 # Skills (Beta)
 
-Last reviewed: 2026-11-17
+Last reviewed: 2026-11-20
 
 A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with fourteen of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
 ## Using a skill
 
-Start a skill with one click: under **Skills** below the input field of an empty conversation (the featured ones first), under **Skills** in the AI tab, on the phone on the AI screen under skills, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names — a skill that names no tools gets those that only read or show.
+Start a skill with one click: under **Skills** below the input field of an empty conversation (the featured ones first), under **Skills** in the AI tab, on the phone in the segment **Skills** of the screen **AI**, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names — a skill that names no tools gets those that only read or show.
 
 You can also simply ask. In a conversation with tools the AI knows the names and descriptions of your active skills — as many as fit into 6,000 characters, the others stay startable by hand — and loads one when your question matches — "prepare my next meeting" is enough.
 

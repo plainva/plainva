@@ -1,6 +1,6 @@
 # Busca
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-20
 
 O Plainva oferece três formas de buscar: busca de texto completo em todo o vault, o alternador rápido para abrir arquivos, e localizar e substituir dentro de uma nota.
 
@@ -29,7 +29,7 @@ O campo de busca também se aplica às outras visualizações da barra lateral: 
 
 Com um modelo local, a pesquisa também encontra notas pelo que elas significam — não só pelas palavras, e entre idiomas: uma pergunta em português encontra uma nota em inglês que diz o mesmo. O modelo calcula neste dispositivo; suas notas e os dados de pesquisa calculados a partir delas nunca saem dele.
 
-Ative em **Configurações → IA → Pesquisa por significado** (a IA precisa estar ativada). O cartão mostra uma linha, **Calcula com**, e **Alterar…** abre a escolha do modelo e a medição. Escolha um modelo — o recomendado é **Granite Embedding Multilingual R2 (97M)** — e o Plainva mostra o tamanho, a fonte, a licença e uma duração estimada antes de baixar qualquer coisa. Cada arquivo vem de uma versão fixa no huggingface.co e é verificado pelo SHA-256; não é preciso fazer login. Antes de processar a primeira nota, o Plainva verifica se o modelo calcula corretamente neste dispositivo.
+Ative em **Configurações → IA**, no cartão **Sem modelo neste dispositivo** (a IA precisa estar ativada): a linha **Pesquisa por significado** mostra com o que ele calcula, e **Alterar…** abre a escolha do modelo e a medição. Escolha um modelo — o recomendado é **Granite Embedding Multilingual R2 (97M)** — e o Plainva mostra o tamanho, a fonte, a licença e uma duração estimada antes de baixar qualquer coisa. Cada arquivo vem de uma versão fixa no huggingface.co e é verificado pelo SHA-256; não é preciso fazer login. Antes de processar a primeira nota, o Plainva verifica se o modelo calcula corretamente neste dispositivo.
 
 Em vez de um pacote você pode escolher **Provedor próprio**: então o modelo do perfil **Modelo de pesquisa** calcula os dados de pesquisa — qualquer modelo de embeddings que o seu provedor ofereça, por exemplo `text-embedding-3-small` na OpenAI, `gemini-embedding-001` no Gemini ou `nomic-embed-text` no Ollama. Com Ollama ou LM Studio nada sai do seu computador. Com uma nuvem, o resumo mostra uma vez o que vai para lá — cada nota que as suas regras de privacidade deixam passar, agora e a cada mudança, e as suas perguntas de pesquisa — e **Aprovar de forma permanente** inicia; **Retirar aprovação** nas configurações interrompe. Notas que as suas regras mantêm longe da nuvem ficam de fora, e em um workspace criptografado só calcula um pacote ou um servidor neste computador. Se outro modelo responder com o mesmo nome — um novo `ollama pull`, um servidor que mudou —, o Plainva percebe antes da próxima nota e calcula os dados de pesquisa de novo em vez de misturar dois modelos. Se o provedor não puder ser alcançado, a pesquisa responde pelas palavras e avisa. **Sem uso neste dispositivo** lista pacotes e dados de pesquisa de modelos que você não usa mais; **Remover** os apaga.
 
@@ -49,7 +49,7 @@ O Plainva processa as notas em segundo plano, as alteradas mais recentemente pri
 
 Ao lado da nota aberta, o Plainva mostra até três notas próximas a ela em significado, mas ainda sem link com ela — no computador, na seção **Relacionadas** da barra lateral direita, depois de **Backlinks**; no telefone, na aba **Relacionadas** da folha da nota. Elas vêm dos dados de pesquisa que a pesquisa por significado já guarda neste dispositivo: nada é enviado, nem mesmo a um provedor próprio. Uma sugestão só aparece quando uma nota se destaca claramente do resto do vault; cópias e texto comum de um modelo não contam. Por isso a maioria das notas não tem sugestão, e então a seção desaparece.
 
-Cada sugestão indica as duas seções mais próximas — por exemplo “Produção ↔ Dias de filmagem › Divisão” — e as notas para as quais ambas têm link. **Por que esta sugestão?** mostra o início das duas seções (um clique leva até lá); **Não ajudou** oculta exatamente esse par neste dispositivo e não muda a pesquisa. **Pausar para esta nota** e **Pausar neste vault** ficam no menu da seção; no telefone, abaixo da lista. **Mostrar notas relacionadas** em **Configurações → IA**, no cartão **Ao lado da nota aberta** (junto com os avisos), desativa as sugestões neste dispositivo; ali você também retoma um vault ou notas pausadas e traz de volta as sugestões ocultas.
+Cada sugestão indica as duas seções mais próximas — por exemplo “Produção ↔ Dias de filmagem › Divisão” — e as notas para as quais ambas têm link. **Por que esta sugestão?** mostra o início das duas seções (um clique leva até lá); **Não ajudou** oculta exatamente esse par neste dispositivo e não muda a pesquisa. **Pausar para esta nota** e **Pausar neste vault** ficam no menu da seção; no telefone, abaixo da lista. **Mostrar notas relacionadas** em **Configurações → IA**, no cartão **Sem modelo neste dispositivo** (junto com os avisos), desativa as sugestões neste dispositivo; ali você também retoma um vault ou notas pausadas e traz de volta as sugestões ocultas.
 
 ## Alternador rápido
 

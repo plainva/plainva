@@ -84,7 +84,17 @@ export type ModelFailure =
    * for a model on this device (ADR 0030). A local server would cut it
    * without a word; `needed` and `window` say by how much it misses.
    */
-  | { kind: "window_too_small"; needed: number; window: number };
+  | { kind: "window_too_small"; needed: number; window: number }
+  /**
+   * Nothing was sent: the request is larger than the device sends (the native egress of each shell refuses it before
+   * it connects — MAX_BODY_BYTES on the desktop, the same check on the phone). Mostly an image (F72 of release 0.9.0).
+   */
+  | { kind: "too_large" }
+  /**
+   * Nothing was sent: Plainva put together a request its own egress does not take (a body of the wrong form). A fault
+   * of Plainva's, never of the network or the provider (F72).
+   */
+  | { kind: "invalid_request"; message: string };
 
 /** The code an egress refuses with while the device is fully local. */
 export const LOCAL_ONLY_CODE = "local_only";
@@ -187,6 +197,11 @@ export function failureFromChunk(code: string, message: string): ModelFailure {
       return { kind: "provider_error", message };
     case LOCAL_ONLY_CODE:
       return { kind: "local_only" };
+    // Decided by the native egress of every shell before it connects (F72): never "offline".
+    case "too_large":
+      return { kind: "too_large" };
+    case "invalid_request":
+      return { kind: "invalid_request", message };
     default:
       return { kind: "offline", message };
   }

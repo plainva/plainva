@@ -1,6 +1,6 @@
 # Agenci zewnętrzni (Beta)
 
-Stan na: 2026-11-18
+Stan na: 2026-11-20
 
 Agent zewnętrzny to program AI innego producenta — agent zainstalowany samodzielnie na komputerze, do którego logujesz się samodzielnie, z własną subskrypcją lub kluczem. Plainva może uruchomić takiego agenta w folderze vaultu i pokazać jego sesję na karcie AI. To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -25,7 +25,7 @@ Uruchamiaj agenta tylko w vaulcie, którego zawartość może trafić do usługi
 ## Dodawanie agenta
 
 1. Zainstaluj agenta samodzielnie, tak jak opisuje to jego producent, i zaloguj się do niego w jego własnym programie.
-2. Otwórz **Ustawienia → AI**. Na karcie **Agenci zewnętrzni** napis **Znaleziono na tym komputerze** oznacza agentów, których Plainva zna z nazwy i znajduje zainstalowanych; **Dodaj** dodaje jednego z nich. Dla każdego innego programu, który mówi protokołem Agent Client Protocol, wybierz **Dodaj agenta…** w sekcji **Inny agent** i wypełnij pola **Nazwa**, **Program** oraz **Argumenty, po jednym w wierszu**.
+2. Otwórz **Ustawienia → AI**. Na karcie **Inne programy** pod **Agenci zewnętrzni** napis **Znaleziono na tym komputerze** oznacza agentów, których Plainva zna z nazwy i znajduje zainstalowanych; **Dodaj** dodaje jednego z nich. Dla każdego innego programu, który mówi protokołem Agent Client Protocol, wybierz **Dodaj agenta…** w sekcji **Inny agent** i wypełnij pola **Nazwa**, **Program** oraz **Argumenty, po jednym w wierszu**.
 3. System pokazuje całe polecenie jeszcze raz, zanim zostanie zapamiętane.
 
 Plainva nie instaluje żadnego agenta i żadnego nie pobiera. Uruchamia dokładnie ten program, który został potwierdzony, bezpośrednio i bez powłoki. Polecenie jest zapamiętywane na tym urządzeniu, nigdy w vaulcie. **Usuń** sprawia, że Plainva zapomina, jak uruchomić agenta; sam program i jego logowanie zostają bez zmian.

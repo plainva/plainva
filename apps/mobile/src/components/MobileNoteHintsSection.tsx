@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { GroupCard, Row, RowList, SectionLabel, Switch, useLocalEmbeddings, type AiSession } from "@plainva/ui";
+import { Row, Switch, useLocalEmbeddings, type AiSession } from "@plainva/ui";
 
 /**
  * Settings → AI → "Next to the open note" on the phone (plan KI-Oberflächen
@@ -8,7 +8,7 @@ import { GroupCard, Row, RowList, SectionLabel, Switch, useLocalEmbeddings, type
  * by meaning is ready) and the calm hints, each on or off for this device,
  * and what of the open vault rests, each with the way back.
  */
-export function MobileNoteHintsSection({ session }: { session: AiSession }) {
+export function MobileNoteHintsRows({ session }: { session: AiSession }) {
   const { t } = useTranslation();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const { settings, hints } = state;
@@ -18,9 +18,6 @@ export function MobileNoteHintsSection({ session }: { session: AiSession }) {
   const hidden = hints.available ? hints.prefs.dismissed.length : 0;
   return (
     <>
-      <SectionLabel>{t("ai.settings.nextToNote")}</SectionLabel>
-      <GroupCard>
-        <RowList>
           {relatedReady && (
             <Row
               wrap
@@ -47,8 +44,6 @@ export function MobileNoteHintsSection({ session }: { session: AiSession }) {
           {pausedNotes > 0 && <Row title={t("ai.hints.resumeAll")} onClick={() => void session.resumeAllNoteHints()} data-testid="hints-settings-resume-all" />}
           {hidden > 0 && <Row title={t("ai.hints.hidden", { count: hidden })} />}
           {hidden > 0 && <Row title={t("ai.hints.restore")} onClick={() => void session.restoreNoteHints()} data-testid="hints-settings-restore" />}
-        </RowList>
-      </GroupCard>
     </>
   );
 }
