@@ -438,6 +438,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-agent-settings-status": "layout only — the spinner at the end of the settings row; its words are for a screen reader",
   "pv-said": "text only — italics for a stranger's words inside the app's own sentences, in the colours around them",
   "pv-sr-only": "invisible by design — text a screen reader hears and no theme draws",
+  "pv-rulegrid": "layout only — a grid of Selects and IconButtons the themes already restyle, its head in --text-faint and --text-muted, which the themes override",
   "pv-menu--described": "layout only — how the name and the hint of a MenuItem share its row; the menu's look is the themes' own",
   "pv-related-row": "layout only — see pv-related",
   "pv-related-head": "layout only — see pv-related",

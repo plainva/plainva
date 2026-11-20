@@ -5309,3 +5309,13 @@ textarea {
    the right, as in the mockup; a failure stands above them in the warning tone, with its sender in the sentence. */
 .m-ai-setup-foot { display: flex; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-2); }
 .m-ai-setup-problem { color: var(--warning-text); }
+
+/* Rules as named columns on the phone (F71, mockup KI-Oberflächen M5; Design_Language "Rules as named columns"): two
+   columns, the head as the card's first row, each row's two answers at its end under them. An answer
+   wraps in its column rather than pushing the other one; the folder's name keeps the rest of the row. */
+.m-rulecols-values { --m-rulecol: 5.5rem; display: grid; grid-template-columns: repeat(2, var(--m-rulecol)); gap: var(--space-2); text-align: start; font-size: var(--text-sm); color: var(--text-main); overflow-wrap: anywhere; /* A row's end does not wrap (`.pv-grouprow-end`); a column name or answer longer than its column does. */ white-space: normal; }
+/* The head is the first row of the card, its names in the micro caps of a section heading. */
+.m-rulecols-values.m-rulecols { font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+/* "Change without asking" where it holds: the answer that permits, in the on-state pair (Design_Language, ONE state
+   system) — never a grey side remark. */
+.m-rule-on { display: inline-block; margin-top: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }

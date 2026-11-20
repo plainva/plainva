@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { parsePolicyFile, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
@@ -16,6 +16,8 @@ import {
   ruleOf,
   Select,
   SettingCard,
+  SettingCardActions,
+  SettingCardBlock,
   SettingCardNote,
   SettingRow,
   Switch,
@@ -143,7 +145,7 @@ function InternetCard() {
   );
 }
 
-export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault: boolean; onClose?: () => void }) {
+export function AiVaultSettingsPage({ isActiveVault, onClose, onOpenAiSettings }: { isActiveVault: boolean; onClose?: () => void; /** The page "AI" of this device, where the AI is switched on (mockup M5). */ onOpenAiSettings: () => void }) {
   const { t } = useTranslation();
   const openSkills = (review?: string) => {
     requestSkillsView(review ?? null);
@@ -160,6 +162,17 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
   const [problems, setProblems] = useState<string[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
   const [adding, setAdding] = useState("");
+  // The rule table measures its own width (no size container: its selects open popovers, interactionGrammar): narrower
+  // than its four columns need, each folder stacks its answers under their column names.
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [narrowGrid, setNarrowGrid] = useState(false);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || typeof ResizeObserver === "undefined") return;
+    const sizes = new ResizeObserver(() => setNarrowGrid(grid.getBoundingClientRect().width < NARROW_RULE_GRID));
+    sizes.observe(grid);
+    return () => sizes.disconnect();
+  });
 
   const load = useCallback(async () => {
     if (!vaultAdapter) return;
@@ -224,37 +237,49 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
   // travel with the vault, the internet switch is this device's: the column stays editable, and its head says when
   // the internet is off here.
   const controls = (folder: string, rule: FolderPolicyRule | undefined, withInherit: boolean) => (
-    <div className="pv-ai-rowactions">
+    <>
+      <span className="pv-rulegrid-cell" data-col={t("ai.policy.cloud")}>
       <Select<PolicyChoice>
         ariaLabel={`${t("ai.policy.cloud")} · ${folder || t("ai.policy.vaultDefault")}`}
         value={rule?.cloud ?? (withInherit ? "inherit" : "allow")}
         options={options(withInherit)}
         onChange={(choice) => void save((current) => withRuleValue(current, folder, "cloud", choice))}
       />
+      </span>
+      <span className="pv-rulegrid-cell" data-col={t("ai.policy.web")}>
       <Select<PolicyChoice>
         ariaLabel={`${t("ai.policy.web")} · ${folder || t("ai.policy.vaultDefault")}`}
         value={rule?.web ?? (withInherit ? "inherit" : "allow")}
         options={options(withInherit)}
         onChange={(choice) => void save((current) => withRuleValue(current, folder, "web", choice))}
       />
+      </span>
+      <span className="pv-rulegrid-cell" data-col={t("ai.policy.write")}>
       <Select<AiWriteRule | "inherit">
         ariaLabel={`${t("ai.policy.write")} · ${folder || t("ai.policy.vaultDefault")}`}
         value={rule?.write ?? (withInherit ? "inherit" : "ask")}
         options={writeOptions(withInherit)}
         onChange={(choice) => void save((current) => withWriteRule(current, folder, choice))}
       />
-    </div>
+      </span>
+    </>
   );
 
   return (
     <div className="pv-setpage" data-testid="settings-ai-vault">
       <AreaHead areaId="aiVault" />
       {/* The rules here hold once the AI is on (plan KI-Oberflächen K6): said where it is off on this device. */}
+      {/* With the way there (mockup M5): the AI's switch stands on the page "AI" of this device. */}
       {aiState && !aiState.settings.enabled && (
         <SettingCard>
           <SettingCardNote>
             <span data-testid="settings-ai-vault-off">{t("ai.settings.vaultOff")}</span>
           </SettingCardNote>
+          <SettingCardActions>
+            <Button size="sm" variant="secondary" onClick={onOpenAiSettings} data-testid="settings-ai-vault-open-ai">
+              {t("ai.error.openSetup")}
+            </Button>
+          </SettingCardActions>
         </SettingCard>
       )}
       <InternetCard />
@@ -264,18 +289,36 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
             <Banner kind="warning" rounded>{t("ai.policy.problems", { lines: problems.join("; ") })}</Banner>
           </SettingCardNote>
         )}
-        <SettingRow label={t("ai.policy.columns")} desc={`${t("ai.policy.cloud")} · ${t("ai.policy.web")}${webOn ? "" : ` (${t("ai.policy.webOff")})`} · ${t("ai.policy.write")}`} />
-        <SettingRow label={t("ai.policy.vaultDefault")}>{controls("", vaultRule, false)}</SettingRow>
-        {folderRules.map((rule) => (
-          <SettingRow key={rule.folder} label={rule.folder}>
-            <div className="pv-ai-rowactions">
-              {controls(rule.folder, rule, true)}
-              <IconButton label={t("ai.policy.removeRule")} size="sm" onClick={() => void save((current) => withoutRule(current, rule.folder))}>
-                <Trash2 size={ICON.ui} />
-              </IconButton>
+        {/* The rules as named columns (mockup M5): one head, one row per folder, every answer under its column. */}
+        <SettingCardBlock>
+          <div ref={gridRef} className={narrowGrid ? "pv-rulegrid is-narrow" : "pv-rulegrid"} data-testid="ai-policy-grid">
+            <div className="pv-rulegrid-table">
+              <div className="pv-rulegrid-head" aria-hidden="true">
+                <span>{t("ai.policy.columns")}</span>
+                <RuleColumn label={t("ai.policy.cloud")} />
+                <RuleColumn label={t("ai.policy.web")} note={webOn ? undefined : t("ai.policy.webOff")} />
+                <RuleColumn label={t("ai.policy.write")} />
+                <span />
+              </div>
+              <div className="pv-rulegrid-row" data-testid="ai-policy-row">
+                <span className="pv-rulegrid-name">{t("ai.policy.vaultDefault")}</span>
+                {controls("", vaultRule, false)}
+                <span className="pv-rulegrid-edge" />
+              </div>
+              {folderRules.map((rule) => (
+                <div key={rule.folder} className="pv-rulegrid-row" data-testid="ai-policy-row">
+                  <span className="pv-rulegrid-name">{rule.folder}</span>
+                  {controls(rule.folder, rule, true)}
+                  <span className="pv-rulegrid-edge">
+                    <IconButton label={t("ai.policy.removeRule")} size="sm" onClick={() => void save((current) => withoutRule(current, rule.folder))}>
+                      <Trash2 size={ICON.ui} />
+                    </IconButton>
+                  </span>
+                </div>
+              ))}
             </div>
-          </SettingRow>
-        ))}
+          </div>
+        </SettingCardBlock>
         {free.length > 0 && (
           <SettingRow label={t("ai.policy.addFolder")}>
             <div className="pv-ai-rowactions">
@@ -301,5 +344,18 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
       <RoutinesCard folders={folders} />
       <SkillsCard onOpenSkills={openSkills} onOpenMemory={openMemory} />
     </div>
+  );
+}
+
+/** Below this width (px) the rule table stacks each folder's answers (Design_Language "Rules as named columns"). */
+const NARROW_RULE_GRID = 544;
+
+/** The head of one column of the rule table: the question it asks (Design_Language "Rules as named columns"). */
+function RuleColumn({ label, note }: { label: string; note?: string }) {
+  return (
+    <span>
+      {label}
+      {note && <span className="pv-rulegrid-headnote">{note}</span>}
+    </span>
   );
 }

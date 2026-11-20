@@ -5464,6 +5464,25 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-menu--described .pv-menu-text:last-child { flex: 1 1 auto; max-width: none; }
 /* "AI & automation" in the settings: provider rows, the add dialog, the model picker. */
 .pv-ai-rowactions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+/* Rules as named columns (F71, mockup KI-Oberflächen M5; Design_Language "Rules as named columns"): a head of column
+   names and one row per thing, every answer under its column. The rows are `display: contents`, so one grid lays out
+   all of them and every column starts at the same edge. Narrower than the columns need (`is-narrow`, measured by the
+   page — no size container: the selects open popovers, interactionGrammar), each row stacks its answers, each under
+   its own small column name, and the head goes. */
+.pv-rulegrid-table { display: grid; grid-template-columns: minmax(6rem, 1fr) repeat(3, minmax(7.5rem, max-content)) var(--control-sm); gap: var(--space-2) var(--space-3); align-items: center; }
+.pv-rulegrid-head, .pv-rulegrid-row { display: contents; }
+.pv-rulegrid-head > span { align-self: end; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+.pv-rulegrid-headnote { display: block; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+.pv-rulegrid-name { min-width: 0; overflow-wrap: anywhere; color: var(--text-main); }
+.pv-rulegrid-cell { min-width: 0; }
+.pv-rulegrid-cell > * { width: 100%; }
+.pv-rulegrid-edge { display: flex; justify-content: flex-end; }
+.pv-rulegrid.is-narrow .pv-rulegrid-table { grid-template-columns: minmax(0, 1fr) var(--control-sm); grid-auto-flow: row dense; }
+.pv-rulegrid.is-narrow .pv-rulegrid-head { display: none; }
+.pv-rulegrid.is-narrow .pv-rulegrid-name { grid-column: 1; padding-top: var(--space-2); font-weight: 600; }
+.pv-rulegrid.is-narrow .pv-rulegrid-edge { grid-column: 2; }
+.pv-rulegrid.is-narrow .pv-rulegrid-cell { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(6rem, 40%) minmax(0, 1fr); align-items: center; gap: var(--space-2); }
+.pv-rulegrid.is-narrow .pv-rulegrid-cell::before { content: attr(data-col); font-size: var(--text-sm); color: var(--text-muted); }
 .pv-ai-notewithaction { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .pv-ai-add { display: flex; flex-direction: column; gap: var(--space-2); }
 .pv-ai-lead { margin: 0; color: var(--text-muted); }

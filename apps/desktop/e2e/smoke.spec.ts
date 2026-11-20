@@ -9488,6 +9488,47 @@ async function o7OpenRelaunch(page: Page) {
   await expect(page.locator('.cm-content').first()).toContainText('Three feature pages');
 }
 
+test('AI in this vault: the folder rules are named columns, every answer under its head (mockup M5)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/.agent': { isDir: true },
+      '/test-vault/.agent/policy.yml': 'folders:\n  "/":\n    write: direct\n  Private/:\n    cloud: deny\n',
+      '/test-vault/Private': { isDir: true },
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
+  const grid = dialog.getByTestId('ai-policy-grid');
+  await expect(grid).toBeVisible();
+  await expect(grid.getByTestId('ai-policy-row')).toHaveCount(2);
+  const columns = await grid.evaluate((root) => {
+    const head = [...root.querySelectorAll('.pv-rulegrid-head > span')].slice(1, 4).map((el) => Math.round(el.getBoundingClientRect().left));
+    const rows = [...root.querySelectorAll('[data-testid="ai-policy-row"]')].map((row) => [...row.querySelectorAll('.pv-rulegrid-cell')].map((cell) => Math.round(cell.getBoundingClientRect().left)));
+    const names = [...root.querySelectorAll('.pv-rulegrid-head > span')].slice(1, 4).map((el) => el.firstChild?.textContent);
+    return { head, rows, names };
+  });
+  expect(columns.names).toEqual(['To a provider', 'Onto the internet', 'Change without asking']);
+  for (const row of columns.rows) expect(row, 'every answer starts under its head').toEqual(columns.head);
+});
+
+test('AI in this vault: with the AI off on this device, the notice leads to the page that switches it on (mockup M5)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: false } };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
+  await expect(dialog.getByTestId('settings-ai-vault-off')).toBeVisible();
+  await dialog.getByTestId('settings-ai-vault-open-ai').click();
+  await expect(dialog.getByTestId('settings-ai')).toBeVisible();
+});
+
 test('a waiting card in the dock: nothing of it lies under its pinned foot, and its lower edge stays in view (review of M8)', async ({ page }) => {
   await o7WithAi(page, [o7Says('Short summary of [[Website relaunch]].')]);
   await o7OpenRelaunch(page);
