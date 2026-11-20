@@ -130,7 +130,9 @@ interface SyncState {
   message: string | null;
   /** Set only on the encrypted-workspace "pair/recover this device" error so the
    *  UI can offer a deep-link into Security & Sharing (package F2). */
-  errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out";
+  errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out" | "unconfirmed";
+  /** With `unconfirmed`: the file address waiting for this phone's **Confirm** (F57). */
+  confirmEndpoint?: string;
   /** Wall clock of the next attempt, with `retrying` only (round 3, R4). */
   retryAt?: number;
   /** Wall-clock stamp of the last cycle that finished cleanly (P5). */
@@ -224,7 +226,9 @@ export function deletionLogChecker(): JournalChecker | null {
 function setState(next: {
   status: MobileSyncStatus;
   message: string | null;
-  errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out";
+  errorKind?: "pair-required" | "workspace-integrity" | "authentication" | "signed-out" | "unconfirmed";
+  /** With `unconfirmed`: the file address waiting for this phone's **Confirm** (F57). */
+  confirmEndpoint?: string;
   retryAt?: number;
   rootMissing?: boolean;
   reason?: string;
@@ -462,9 +466,11 @@ async function decideStart(v: MobileVault): Promise<{ decision: MobileSyncStart;
 function standingStatus(decision: MobileSyncStart): Parameters<typeof setState>[0] {
   return decision.start ? { status: "off", message: null } : {
     status: decision.status,
-    message: decision.messageKey ? i18n.t(decision.messageKey) : null,
+    message: decision.messageKey ? i18n.t(decision.messageKey, decision.messageParams) : null,
     // Signed out on this phone: the vault screen leads to the sign-in (finding 3).
     ...(decision.signInNeeded ? { errorKind: "signed-out" as const } : {}),
+    // An address this phone has not confirmed: the vault screen asks for Confirm, not a sign-in (review of F57, O3).
+    ...(decision.confirmEndpoint ? { errorKind: "unconfirmed" as const, confirmEndpoint: decision.confirmEndpoint } : {}),
   };
 }
 

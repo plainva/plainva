@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-11-18
+Stan na: 2026-11-20
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -231,7 +231,7 @@ Android ufa również urzędom certyfikacji zainstalowanym w ustawieniach system
 <!-- endpoint-confirmation-2026-11-18 -->
 ## Adresy bez szyfrowania i lokalne
 
-Gdy hasło konta trafia na adres z `http` albo w sieci lokalnej (na przykład `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` lub nazwę bez kropki), Plainva wysyła je z urządzenia dopiero wtedy, gdy ten adres zostanie tam potwierdzony. Jeśli skonfigurowałeś konto na tym urządzeniu albo już tu działało, adres liczy się jako potwierdzony. Jeśli konto trafiło na urządzenie tylko przez synchronizację, jego karta w **Konta w chmurze** pokazuje wiersz **Potwierdź adres** z adresem; dopóki nie wybierzesz **Potwierdź**, żadne hasło nie trafia tam z tego urządzenia — dla kalendarza i zadań, poczty i plików. Potwierdzenie zostaje na tym urządzeniu i nie jest synchronizowane.
+Gdy hasło konta trafia na adres z `http` albo w sieci lokalnej (na przykład `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` lub nazwę bez kropki), Plainva wysyła je z urządzenia dopiero wtedy, gdy ten adres zostanie tam potwierdzony. Jeśli skonfigurowałeś konto na tym urządzeniu, adres liczy się jako potwierdzony; tak samo, jeśli jego hasło było już na tym urządzeniu w chwili aktualizacji i nie przyszło przez synchronizację. Jeśli konto trafiło na urządzenie tylko przez synchronizację, jego karta w **Konta w chmurze** pokazuje wiersz **Potwierdź adres** z adresem; dopóki nie wybierzesz **Potwierdź**, żadne hasło nie trafia tam z tego urządzenia — dla kalendarza i zadań, poczty i plików. Hasło wpisane tam przy logowaniu lub zmianie hasła również nie potwierdza adresu: Plainva najpierw pyta o adres. Potwierdzenie zostaje na tym urządzeniu i nie jest synchronizowane.
 
 Ograniczenia: publiczna nazwa wskazująca na adres lokalny nie jest rozpoznawana. Potwierdzenie dotyczy adresu, nie sieci: na tym samym urządzeniu w cudzej sieci z tym samym zakresem adresów nie chroni Cię.
 

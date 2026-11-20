@@ -8,6 +8,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/Field";
 import { SettingCard, SettingCardActions, SettingCardBlock, SettingRow } from "../ui/SettingsSurface";
+import { EndpointConfirmBlock, useEndpointConfirmation, type EndpointConfirmEntry } from "./EndpointConfirmBlock";
 
 /** The same durable completion surface in both shells. Ports carry the
  * captured vault and account; UI state contains only non-secret progress. */
@@ -25,6 +26,19 @@ export function AccountPasswordChangePanel({ ports, secret }: { ports: PasswordC
   const [busy, setBusy] = useState(false);
   const [replacePending, setReplacePending] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
+  // The addresses the new password goes to: each unconfirmed one is asked
+  // about first, and the field opens only once all are (review of F57, O3).
+  // A confirmation alone can be all that was missing: the services wake.
+  const [addresses, setAddresses] = useState<EndpointConfirmEntry[] | null>(ports.addresses ? null : []);
+  useEffect(() => {
+    if (!ports.addresses) { setAddresses([]); return; }
+    let alive = true;
+    setAddresses(null);
+    void ports.addresses().then((list) => { if (alive) setAddresses(list); }).catch(() => { if (alive) setErrorKey("cloudAccounts.passwordStorageError"); });
+    return () => { alive = false; };
+  }, [ports]);
+  const confirmation = useEndpointConfirmation(addresses ?? [], useCallback(async () => { await currentPorts.current.activate?.(); }, []));
+  const addressesConfirmed = addresses !== null && confirmation.allConfirmed;
 
   useEffect(() => { currentPorts.current = ports; }, [ports]);
   const reload = useCallback(async () => {
@@ -91,7 +105,8 @@ export function AccountPasswordChangePanel({ ports, secret }: { ports: PasswordC
       </div>)}
     </div></SettingCardBlock>}
     {pending && !replacePending && !busy && checked && <SettingCardActions><Button variant="secondary" onClick={() => setReplacePending(true)}>{t("cloudAccounts.passwordRecheck")}</Button></SettingCardActions>}
-    {(!pending || replacePending) && <SettingRow label={fieldLabel} info={t("cloudAccounts.newPasswordDesc")} wide>
+    {addresses !== null && !confirmation.allConfirmed && <SettingCardBlock><EndpointConfirmBlock confirmation={confirmation} testId="password-change-confirm-address" /></SettingCardBlock>}
+    {(!pending || replacePending) && addressesConfirmed && <SettingRow label={fieldLabel} info={t("cloudAccounts.newPasswordDesc")} wide>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", width: "100%" }}>
         <TextInput id={fieldId} aria-label={fieldLabel} placeholder={t(secret ? connectSecretLabelKey(secret) : "settings.password")} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy || !checked} style={{ flex: "1 1 auto", minWidth: 0 }} data-testid="cloudacct-new-password" />
         <Button variant="secondary" disabled={busy || !checked || !password.trim()} onClick={() => void run(false)} data-testid="cloudacct-update-password">{t(replacePending ? "cloudAccounts.passwordRecheck" : "cloudAccounts.updatePassword")}</Button>

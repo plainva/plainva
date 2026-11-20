@@ -116,7 +116,8 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
  * device's own.
  */
 export async function importedSecretSlots(vaultPath: string, cache: Pick<PimRuntime["cache"], "listAccounts"> | null): Promise<Set<string>> {
-  const meta = await metaStore(vaultPath).readMeta().catch(() => null);
+  // Unreadable is no "nothing imported": the caller proves nothing then (F57).
+  const meta = await metaStore(vaultPath).readMeta();
   const candidates = await localCandidates(vaultPath, cache ? ({ cache } as PimRuntime) : null);
   return new Set(candidates.filter((candidate) => meta?.imported[candidate.logicalId]).map((candidate) => candidate.slot));
 }

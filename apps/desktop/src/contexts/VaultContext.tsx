@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, confirmationEndpoint, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
 import { errorText, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
 import { FEATURES_SAVED_EVENT, featuresSavedFor } from "../services/vaultFeaturesRelay";
@@ -954,7 +954,10 @@ export const VaultProvider: React.FC<{
       // Standing still is said the way the phone says it: paused reads as off,
       // signed out here as "Sign-in needed", with the way to the sign-in (third
       // review, finding 3). Signed out used to end as plain idle.
-      const stoppedStatus = filesRun === "stopped" ? filesStoppedStatus({ pausedHere, signedOut: !!fileAccess.signedOut }) : null;
+      // An address this device has not confirmed is no sign-out: the status
+      // names it and the dialog asks for the confirmation (review of F57, O3).
+      const unconfirmed = fileAccess.unconfirmed ? confirmationEndpoint(fileAccess.blocked === "s3" ? s3Creds?.endpoint : webdavCreds?.url) : null;
+      const stoppedStatus = filesRun === "stopped" ? filesStoppedStatus({ pausedHere, signedOut: !!fileAccess.signedOut, unconfirmed }) : null;
       const signInAccountId = stoppedStatus?.signInNeeded && fileAccess.blocked ? await filesAccountIdForVault(path, fileAccess.blocked) : undefined;
       filesOffAtLoadRef.current = { path, filesOff: filesOffHere };
       // The target is built for a settings-only vault too - it carries the profile.
@@ -1872,13 +1875,14 @@ export const VaultProvider: React.FC<{
       // Preserve the explicit locked status when an encrypted workspace has no
       // key material. The final load-state update below must not turn it idle.
       if (syncWorker || !workspaceSecurityStatus) {
-        if (!syncWorker && stoppedStatus?.signInNeeded) {
+        if (!syncWorker && (stoppedStatus?.signInNeeded || stoppedStatus?.confirmEndpoint)) {
           syncStatusStore.set(path, {
             status: stoppedStatus.status,
-            message: i18n.t(stoppedStatus.messageKey),
+            message: i18n.t(stoppedStatus.messageKey, "params" in stoppedStatus ? stoppedStatus.params : undefined),
             provider: fileAccess.blocked,
-            authRecoverable: true,
+            authRecoverable: stoppedStatus.signInNeeded,
             signInAccountId,
+            confirmEndpoint: stoppedStatus.confirmEndpoint,
           });
         } else if (!syncWorker && heldStart) {
           syncStatusStore.set(path, { status: "retrying", message: i18n.t("workspaceSecurity.folderUnconfirmed"), provider: syncProvider, reason: "encrypted-workspace" });

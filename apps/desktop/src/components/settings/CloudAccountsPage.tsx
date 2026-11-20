@@ -316,7 +316,7 @@ export const CloudAccountsPage: React.FC<{
   useEffect(() => {
     let cancelled = false;
     void Promise.all(
-      records.map(async (r) => [r.id, await accountSignInStateHere(selectedVault, r, fileAccess?.blocked ? (fileAccess.signedOut ? "signedOut" : "blocked") : null)] as const),
+      records.map(async (r) => [r.id, await accountSignInStateHere(selectedVault, r, fileAccess?.blocked && !fileAccess.unconfirmed ? (fileAccess.signedOut ? "signedOut" : "blocked") : null)] as const),
     )
       .then((pairs) => {
         if (cancelled) return;
@@ -348,14 +348,15 @@ export const CloudAccountsPage: React.FC<{
   }, [detail, selectedVault, runtime, factsRevision]);
   /**
    * **Confirm address** (F57): the person lets this device send the stored
-   * password to an address without TLS or in a private network. The calendar
-   * starts again at once, the file sync with the credentials announcement,
-   * and mail asks the list on its next request.
+   * password to an address without TLS or in a private network. Each service
+   * starts again at once: the calendar, the file sync with the credentials
+   * announcement, and mail, which reloads its list.
    */
   const confirmAddress = async (record: CloudAccountRecord, entry: UnconfirmedEndpoint) => {
     await confirmEndpointsIn(entry.vaultKey, [entry.endpoint]);
     if (entry.vaultKey === selectedVault && record.services.files) announceCredentials(false);
     if (runtime && record.services.calendar) await restartPimAccountAfterLogin(runtime, record.services.calendar.pimAccountId).catch(() => undefined);
+    if (record.services.mail) window.dispatchEvent(new CustomEvent("plainva-mail-settings-changed"));
     setFactsRevision((n) => n + 1);
   };
   const detailFamily: AccessFamily | null = detail && (detail.family === "google" || detail.family === "microsoft" || detail.family === "dropbox") ? detail.family : null;

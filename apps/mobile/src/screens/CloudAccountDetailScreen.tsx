@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { notifyMailChanged } from "../services/mail/mailRuntime";
 import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
@@ -264,13 +265,14 @@ export function CloudAccountDetailScreen({
 
   /**
    * **Confirm address** (F57): the person lets this phone send the stored
-   * password to an address without TLS or in a private network; the sync and
-   * the calendar start again, mail asks the list on its next request.
+   * password to an address without TLS or in a private network; the sync,
+   * the calendar and mail start again at once.
    */
   async function confirmAddress(entry: UnconfirmedEndpoint) {
     await confirmEndpointsIn(entry.vaultKey, [entry.endpoint]);
     if (card?.services.includes("files")) await restartSyncIfActive(entry.vaultKey).catch(() => undefined);
     if (card?.pimAccountId) await restartPimAccountAfterLogin(entry.vaultKey, card.pimAccountId).catch(() => undefined);
+    if (card?.services.includes("mail")) notifyMailChanged();
     reload();
   }
 

@@ -26,3 +26,26 @@ describe("the credentials a calendar target is built with", () => {
     expect(await pimTargetCredentials("v", "a")).toEqual(stored.value);
   });
 });
+
+describe("a calendar in the local network (F57)", () => {
+  it("builds no target until this phone confirmed its address", async () => {
+    const settings = new Map<string, unknown>();
+    const { confirmEndpointsIn, getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({
+      ...previous,
+      loadSettings: async () => ({
+        get: async (k: string) => structuredClone(settings.get(k)),
+        set: async (k: string, v: unknown) => void settings.set(k, structuredClone(v)),
+        delete: async (k: string) => void settings.delete(k),
+        keys: async () => [...settings.keys()],
+        save: async () => undefined,
+      }),
+    } as unknown as Parameters<typeof setPlatformServices>[0]);
+    stored.value = { kind: "caldav", url: "http://192.168.1.6/caldav", user: "anna", pass: "pw" };
+    expect(await pimTargetCredentials("v", "a")).toBeNull();
+    await confirmEndpointsIn("v", ["http://192.168.1.6:80"]);
+    expect(await pimTargetCredentials("v", "a")).toEqual(stored.value);
+  });
+});

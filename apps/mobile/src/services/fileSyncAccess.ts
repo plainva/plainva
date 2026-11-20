@@ -1,4 +1,4 @@
-import { confirmationEndpoint, filesRunState, filesStoppedStatus, getPlatformServices, isSignedOutSlot } from "@plainva/ui";
+import { confirmationEndpoint, filesRunState, filesStoppedStatus, getPlatformServices, isEndpointConfirmedIn, isSignedOutSlot } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 
@@ -78,7 +78,7 @@ export function resolveMobileFileAccess(
  */
 export type MobileSyncStart =
   | { start: true; settingsOnly: boolean }
-  | { start: false; status: "off" | "error"; messageKey: string | null; queueLocalChanges: boolean; signInNeeded?: true };
+  | { start: false; status: "off" | "error"; messageKey: string | null; messageParams?: { address: string }; queueLocalChanges: boolean; signInNeeded?: true; confirmEndpoint?: string };
 
 export function mobileSyncStart(input: {
   pausedHere?: boolean;
@@ -97,7 +97,9 @@ export function mobileSyncStart(input: {
   const run = filesRunState({ filesOff: input.filesOff, pausedHere: !!input.pausedHere, signedOut });
   if (run === "stopped") {
     // The same answer the desktop gives (third review, finding 3).
-    const still = filesStoppedStatus({ pausedHere: !!input.pausedHere, signedOut });
+    // An unconfirmed address is named and asked about, never a sign-in (review of F57, O3).
+    const still = filesStoppedStatus({ pausedHere: !!input.pausedHere, signedOut, unconfirmed: input.unconfirmed ? storedProviderEndpoint(input.stored) : null });
+    if (still.confirmEndpoint) return { start: false, status: still.status, messageKey: still.messageKey, messageParams: still.params, queueLocalChanges, confirmEndpoint: still.confirmEndpoint };
     return still.signInNeeded
       ? { start: false, status: still.status, messageKey: still.messageKey, queueLocalChanges, signInNeeded: true }
       : { start: false, status: still.status, messageKey: still.messageKey, queueLocalChanges };
@@ -127,4 +129,13 @@ export function storedProviderEndpoint(stored: MobileSyncProvider | null): strin
   if (stored?.provider === "s3") return confirmationEndpoint(stored.creds.endpoint);
   if (stored?.provider === "webdav") return confirmationEndpoint(stored.creds.url);
   return null;
+}
+
+/**
+ * The stored keys a folder picker may browse with (S3, the files page): only
+ * an address this phone confirmed (F57); until then the account page carries
+ * **Confirm address** and nothing is sent (review of F57, O4).
+ */
+export async function folderPickAllowed(vaultId: string, stored: MobileSyncProvider): Promise<boolean> {
+  return isEndpointConfirmedIn(vaultId, storedProviderEndpoint(stored));
 }

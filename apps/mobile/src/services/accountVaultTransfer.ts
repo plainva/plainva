@@ -1,6 +1,6 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, mailboxEndpoints, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { adoptEndpointConfirmationsIn, assertConnectionIdentity, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, mailboxEndpoints, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { storedProviderEndpoint } from "./fileSyncAccess";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -260,7 +260,10 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     for (const mail of mailAccounts) carried.push(...mailboxEndpoints(mail));
     const kept: Array<string | null> = [];
     for (const endpoint of carried) if (endpoint && await isEndpointConfirmedIn(v.vaultId, endpoint)) kept.push(endpoint);
-    await confirmEndpointsIn(id, [storedProviderEndpoint(p), ...kept]);
+    // A new vault starts with exactly this list and counts as switched over;
+    // an existing one adds it to its own (review of F57, O2).
+    if (existing) await confirmEndpointsIn(id, [storedProviderEndpoint(p), ...kept]);
+    else await adoptEndpointConfirmationsIn(id, [storedProviderEndpoint(p), ...kept]);
     await secrets.writeSecret(syncProviderSlot(id), p);
     if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
     await bindRunTokenToAccount(id, run.family, runServices(run));

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { keychainSlotName, oauthScopeFor, type CloudAccountRecord } from "@plainva/ui";
+import { confirmEndpointsIn, getPlatformServices, isEndpointConfirmedIn, keychainSlotName, oauthScopeFor, setPlatformServices, type CloudAccountRecord } from "@plainva/ui";
 
 /**
  * Regression net for the orchestration layer (control pass 2026-07-20,
@@ -178,13 +178,15 @@ vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn(async () => ({ get: 
 
 import i18n from "@plainva/ui/i18n";
 import { fileBrokerTokenProvider } from "./accountBroker";
-import { buildDriveTarget, buildOneDriveTarget } from "./syncTargets";
+import { buildDriveTarget, buildOneDriveTarget, buildWebDavTarget } from "./syncTargets";
 import {
   announceCredentials,
   holdCredentialsAnnouncements,
   bindConnectResult,
   listSyncFoldersFromSlots,
   passwordServicesOf,
+  runConnectSequence,
+  syncTargetFromSlots,
   updateAccountPassword,
 } from "./cloudAccountsActions";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -480,5 +482,68 @@ describe("held credential announcements", () => {
   it("sends nothing on release when nothing was announced", () => {
     holdCredentialsAnnouncements()();
     expect(heard).toEqual([]);
+  });
+});
+
+/**
+ * F57 on the desktop's account ways (review of F57, O3/O4): a stored password
+ * goes only to an address this device confirmed, and a password typed for an
+ * existing account confirms no address that came with it. Each test fails
+ * when its gate is removed.
+ */
+describe("a password never goes to an address this device has not confirmed", () => {
+  const LAN = "http://192.168.1.5/remote.php/dav/files/marco";
+  const nas: CloudAccountRecord = { id: "N", family: "webdav", label: "marco@nas", services: { files: { provider: "webdav" } } };
+  const confirmations = new Map<string, unknown>();
+  const runtime = { isActive: () => true, cache: { setScopeState: vi.fn() }, worker: { start: vi.fn(), triggerImmediate: vi.fn() } } as unknown as PimRuntime;
+
+  beforeEach(() => {
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    slots.clear();
+    reject.clear();
+    confirmations.clear();
+    vi.mocked(buildWebDavTarget).mockClear();
+    registry.set("/v", [nas]);
+    slots.set("webdav", { url: LAN, user: "marco", pass: "old" });
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try {
+      previous = getPlatformServices();
+    } catch {
+      previous = undefined;
+    }
+    setPlatformServices({
+      ...previous,
+      loadSettings: async () => ({
+        get: async (k: string) => structuredClone(confirmations.get(k)),
+        set: async (k: string, v: unknown) => void confirmations.set(k, structuredClone(v)),
+        delete: async (k: string) => void confirmations.delete(k),
+        keys: async () => [...confirmations.keys()],
+        save: async () => undefined,
+      }),
+    } as unknown as Parameters<typeof setPlatformServices>[0]);
+  });
+
+  it("the file browser of an account sends the stored password nowhere unconfirmed", async () => {
+    await expect(syncTargetFromSlots("/v", "webdav")).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: "http://192.168.1.5:80" });
+    expect(buildWebDavTarget).not.toHaveBeenCalled();
+    await confirmEndpointsIn("/v", ["http://192.168.1.5:80"]);
+    await expect(syncTargetFromSlots("/v", "webdav")).resolves.toBeDefined();
+  });
+
+  it("a service switched on from the page reuses the stored password only for a confirmed address", async () => {
+    const req = { family: "webdav" as const, services: ["files" as const], webdav: { filesUrl: LAN, caldavUrl: "", user: "marco", pass: "old" }, reusesStoredPassword: true };
+    await expect(runConnectSequence("/v", null, req, () => {})).rejects.toMatchObject({ name: "EndpointNotConfirmedError" });
+    expect(buildWebDavTarget).not.toHaveBeenCalled();
+    expect(await isEndpointConfirmedIn("/v", "http://192.168.1.5:80")).toBe(false);
+  });
+
+  it("a new password typed for the account confirms no address it came with, and is sent there only once it is confirmed", async () => {
+    await expect(updateAccountPassword("/v", runtime, nas, "new", () => {})).rejects.toMatchObject({ phase: "verification" });
+    expect(buildWebDavTarget).not.toHaveBeenCalled();
+    expect(slots.get("webdav")).toMatchObject({ pass: "old" });
+    expect(await isEndpointConfirmedIn("/v", "http://192.168.1.5:80")).toBe(false);
+    await confirmEndpointsIn("/v", ["http://192.168.1.5:80"]);
+    await updateAccountPassword("/v", runtime, nas, "new", () => {});
+    expect(slots.get("webdav")).toMatchObject({ pass: "new" });
   });
 });

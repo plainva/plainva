@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoreHorizontal, Users } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, mailboxesSwitchedOn, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, confirmEndpointsIn, mailboxEndpoints, type CloudServiceId, InfoTip } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, mailboxesSwitchedOn, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, mailboxEndpoints, EndpointConfirmBlock, useEndpointConfirmation, type CloudServiceId, InfoTip } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
@@ -9,7 +9,7 @@ import { getSettingsStore } from "../../services/settingsStore";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, refreshCloudAccounts } from "../../services/cloudAccounts";
 import { DEFAULT_MAIL_ACCOUNT_EVENT, loadDefaultMailAccount, saveDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { appConfirm } from "../../services/appDialogs";
-import { checkMailLogin, listMailAccounts, mailAccountKind, pickDefaultMailAccount, setMailPassword, orphanedMailServer, useOrphanedMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailAccounts, mailAccountKind, pickDefaultMailAccount, orphanedMailServer, signInMailboxHere, useOrphanedMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { deviceSignInStates, type DeviceSignInState } from "../../services/deviceSignIn";
 import { AccountMark } from "../settings/cloudAccountsShared";
 import { Select } from "../Select";
@@ -53,7 +53,15 @@ function MailAccountRow({
   const [error, setError] = useState("");
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const oauth = mailAccountKind(account) !== "imap";
-  const needsSignIn = signedIn !== "active";
+  // Its servers this device has not confirmed are asked about first, before
+  // any sign-in: one way, never two offers (review of F57, O3). Confirming can
+  // be all that was missing: mail asks again at once.
+  const endpoints = useMemo(() => (oauth ? [] : mailboxEndpoints(account).map((endpoint) => ({ vaultKey: vaultPath, endpoint }))), [account, oauth, vaultPath]);
+  const confirmation = useEndpointConfirmation(endpoints, useCallback(() => {
+    window.dispatchEvent(new CustomEvent("plainva-mail-settings-changed"));
+    onSignedIn();
+  }, [onSignedIn]));
+  const needsSignIn = signedIn !== "active" && confirmation.allConfirmed;
 
   // The notice's "Sign in on this device" lands HERE, in the same flow every
   // unsigned mailbox already offers — not in a second copy of it.
@@ -71,14 +79,9 @@ function MailAccountRow({
       // Verify BEFORE storing: a wrong password that lands in the keychain
       // looks exactly like a working one until the next fetch fails, and the
       // failure then reads as a server problem rather than a typo.
-      // The password typed here for this mailbox repairs it on this device:
-      // its servers count as confirmed (F57).
-      await confirmEndpointsIn(vaultPath, mailboxEndpoints(account));
-      await checkMailLogin(
-        { kind: account.kind, host: account.host, port: account.port, user: account.user, smtpHost: account.smtpHost, smtpPort: account.smtpPort },
-        pass
-      );
-      await setMailPassword(vaultPath, account.id, pass);
+      // The password typed here never confirms a server it came with: the
+      // block above asked first, and nothing goes to one still unconfirmed (F57, O3).
+      await signInMailboxHere(vaultPath, account, pass);
       setPass("");
       setOpen(false);
       onSignedIn();
@@ -140,6 +143,11 @@ function MailAccountRow({
       {/* The description is deliberately the SAME sentence the phone shows for
           the same situation — two surfaces explaining one fact in two wordings
           is how they drift apart. */}
+      {!oauth && !confirmation.allConfirmed && (
+        <SettingCardBlock>
+          <EndpointConfirmBlock confirmation={confirmation} testId="mail-confirm-address" />
+        </SettingCardBlock>
+      )}
       {needsSignIn && open && !oauth && (
         <SettingRow
           label={t("mail.password", { defaultValue: "Passwort" })}

@@ -1,5 +1,6 @@
 import { errorText } from "../lib/errorText";
 import { isMailCredentialsMissing } from "./credentialsError";
+import { unconfirmedEndpointOf } from "../lib/endpointConfirmation";
 import { GRAPH_UPLOAD_FAILED } from "./graphMail";
 
 /**
@@ -18,6 +19,9 @@ import { GRAPH_UPLOAD_FAILED } from "./graphMail";
  */
 export function mailErrorText(err: unknown, t: (key: string, opts?: Record<string, unknown>) => string): string {
   if (errorText(err).includes("MAIL_BULK_UNSUPPORTED")) return t("mail.bulkReason.unsupported");
+  // One of its servers this device has not confirmed (F57): what is missing is the confirmation.
+  const unconfirmed = unconfirmedEndpointOf(err);
+  if (unconfirmed) return t("cloudAccounts.confirmAddress", { address: unconfirmed });
   if (isMailCredentialsMissing(err)) {
     return t("mail.credentialsMissing", {
       defaultValue: "No password is stored for this mailbox on this device.",

@@ -891,6 +891,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
+    id: "mail-edit-servers",
+    title: "Edit a mailbox's servers in place",
+    area: "pim",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "The phone's mail settings edit an IMAP mailbox in its own form (server, " +
+      "port, SMTP, password; B4). The desktop has no such form: its servers " +
+      "change by connecting the mailbox again in the account wizard, whose " +
+      "fields start empty. The result for the address rule is the same on both " +
+      "(review of F57, O3): an endpoint typed in the form is confirmed by " +
+      "sending, one the form came with must be confirmed first. The desktop " +
+      "form is to build - recorded 2026-11-20 for the maintainer's open-items plan.",
+    mobile: "yes",
+    verified: "2026-11-20",
+  },
+  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

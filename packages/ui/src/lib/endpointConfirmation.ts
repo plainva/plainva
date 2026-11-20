@@ -28,12 +28,49 @@ import { isPrivateHost } from "./insecureUrl.js";
 
 /**
  * A host in a private network: the classifier of the http warning
- * (`isPrivateHost`), plus `.home.arpa` (RFC 8375), which that warning does not
- * name and which stays as it is there.
+ * (`isPrivateHost`), plus what that warning does not name and which stays as
+ * it is there (review of F57, finding 5):
+ * - every way of writing an address the URL parser reads — `3232235786`,
+ *   `0xc0a8010a`, `0300.0250.1.10`, `[::ffff:192.168.1.10]` — read as it
+ *   reads it, so a mail host typed so counts like its URL;
+ * - an IPv4 address mapped into IPv6 (`::ffff:a.b.c.d`), judged as the IPv4
+ *   address it is;
+ * - the unspecified addresses `0.0.0.0` and `::`, which reach this machine;
+ * - site-local IPv6 (`fec0::/10`, deprecated but still routed in some homes);
+ * - `.home.arpa` (RFC 8375), and the names routers give themselves:
+ *   `fritz.box` and its names, `speedport.ip` — exactly these, never the
+ *   public ending `.box`.
  */
 export function isLocalNetworkHost(host: string): boolean {
-  const h = host.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
-  return isPrivateHost(h) || h === "home.arpa" || h.endsWith(".home.arpa");
+  const h = canonicalHost(host);
+  if (!h) return false;
+  const mapped = mappedIpv4(h);
+  if (mapped) return isLocalNetworkHost(mapped);
+  if (h === "0.0.0.0" || h === "::" || /^fe[c-f][0-9a-f]:/.test(h)) return true;
+  if (h === "home.arpa" || h.endsWith(".home.arpa")) return true;
+  if (h === "fritz.box" || h.endsWith(".fritz.box") || h === "speedport.ip") return true;
+  return isPrivateHost(h);
+}
+
+/** The host as the URL parser reads it, without brackets or a final dot; "" when it reads none. */
+function canonicalHost(host: string): string {
+  const raw = host.trim().toLowerCase().replace(/\.$/, "");
+  if (!raw) return "";
+  const literal = raw.includes(":") && !raw.startsWith("[") ? `[${raw}]` : raw;
+  try {
+    return new URL(`http://${literal}/`).hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  } catch {
+    return raw.replace(/^\[|\]$/g, "");
+  }
+}
+
+/** The IPv4 address of an IPv4-mapped IPv6 address (`::ffff:c0a8:10a`, as the parser writes it), or null. */
+function mappedIpv4(h: string): string | null {
+  const m = h.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!m) return null;
+  const hi = parseInt(m[1], 16);
+  const lo = parseInt(m[2], 16);
+  return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
 }
 
 /** "scheme://host:port" of an address that needs this device's confirmation, or null when it needs none (https to a public name, or unreadable). */
@@ -64,7 +101,7 @@ export function mailConfirmationEndpoint(protocol: "imap" | "smtp" | "sieve", ho
 }
 
 function endpointKey(scheme: string, host: string, port: string): string {
-  const h = host.replace(/^\[|\]$/g, "").toLowerCase();
+  const h = canonicalHost(host);
   return `${scheme}://${h.includes(":") ? `[${h}]` : h}${port ? `:${port}` : ""}`;
 }
 
@@ -116,12 +153,15 @@ export async function confirmEndpoints(res: EndpointConfirmationResources, endpo
 }
 
 /**
- * The one-time switch-over of a vault (F57): every endpoint this device has
- * already used successfully, or whose password was typed here, counts as
- * confirmed — a phone that syncs a Nextcloud over `http` at home asks nothing
- * after the update. Runs once per vault, before anything sends; the shells
- * pass what they can prove for each account (`proven`). Afterwards only a
- * set-up, a repair or the person confirm.
+ * The one-time switch-over of a vault (F57): every endpoint whose password
+ * this device holds and was typed here — not taken through the settings sync
+ * — counts as confirmed, so a phone that syncs its own Nextcloud over `http`
+ * at home asks nothing after the update. Runs once per vault, before anything
+ * sends; the shells pass what they can prove for each account (`proven`).
+ * Proof is positive only: no password, no proof. What cannot be read proves
+ * nothing either — `proven` throws, nothing is confirmed, the vault stays
+ * unsettled and the next start runs it again (review of F57, O1/O2).
+ * Afterwards only a set-up or the person confirm.
  */
 export async function settleEndpointConfirmations(res: EndpointConfirmationResources, proven: () => Promise<ReadonlyArray<string | null>>): Promise<void> {
   const current = await load(res);
@@ -142,6 +182,19 @@ export class EndpointNotConfirmedError extends Error {
     super(`not confirmed on this device: ${endpoint}`);
     this.name = "EndpointNotConfirmedError";
   }
+}
+
+/**
+ * The address an error refused, when it is a refusal of an unconfirmed one
+ * (`EndpointNotConfirmedError`, or mail's `MailEndpointNotConfirmedError`) —
+ * by name and field too, as an error that crossed a bridge keeps only data.
+ * A surface then says **Confirm address: …**, never "signed out".
+ */
+export function unconfirmedEndpointOf(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const e = error as { name?: unknown; endpoint?: unknown };
+  if ((e.name === "EndpointNotConfirmedError" || e.name === "MailEndpointNotConfirmedError") && typeof e.endpoint === "string") return e.endpoint;
+  return null;
 }
 
 /** Throws `EndpointNotConfirmedError` unless the endpoint needs no confirmation or is confirmed here. */
@@ -176,6 +229,18 @@ export function settleEndpointConfirmationsIn(vaultKey: string, proven: () => Pr
   return run;
 }
 
+/**
+ * A vault made from another one on this device (the phone's account vault
+ * transfer): it starts with exactly the list the transfer carries over and
+ * counts as switched over — nothing it brings along is proven again.
+ */
+export async function adoptEndpointConfirmationsIn(vaultKey: string, endpoints: ReadonlyArray<string | null>): Promise<void> {
+  const res = await endpointConfirmationsOf(vaultKey);
+  const current = await load(res);
+  const fresh = endpoints.filter((e): e is string => !!e);
+  await persist(res, { version: 1, settled: true, endpoints: [...new Set([...current.endpoints, ...fresh])] });
+}
+
 /** `isEndpointConfirmed` for a vault; a store that cannot be reached confirms nothing. */
 export async function isEndpointConfirmedIn(vaultKey: string, endpoint: string | null): Promise<boolean> {
   if (!endpoint) return true;
@@ -194,7 +259,23 @@ export async function assertEndpointConfirmedIn(vaultKey: string, ...endpoints: 
   }
 }
 
-/** `confirmEndpoints` for a vault: after a set-up or repair here, or the person's **Confirm**. */
+/**
+ * Before a form sends what was typed in it (review of F57, O3): an address is
+ * typed here only when its endpoint — the scheme, host and port it is
+ * confirmed under — is not one the form was filled in with from the account
+ * (`prefilled`; empty for a form that started empty). Such an address is
+ * confirmed by sending; every other one must already be confirmed, or nothing
+ * is sent and nothing confirmed. A password typed in the form never confirms
+ * an address that came with it.
+ */
+export async function confirmTypedEndpointsIn(vaultKey: string, endpoints: ReadonlyArray<string | null>, prefilled: ReadonlyArray<string | null>): Promise<void> {
+  const before = new Set(prefilled.filter((e): e is string => !!e));
+  const wanted = endpoints.filter((e): e is string => !!e);
+  await assertEndpointConfirmedIn(vaultKey, ...wanted.filter((e) => before.has(e)));
+  await confirmEndpointsIn(vaultKey, wanted.filter((e) => !before.has(e)));
+}
+
+/** `confirmEndpoints` for a vault: after a set-up here, or the person's **Confirm**. */
 export async function confirmEndpointsIn(vaultKey: string, endpoints: ReadonlyArray<string | null>): Promise<void> {
   if (!endpoints.some(Boolean)) return;
   await confirmEndpoints(await endpointConfirmationsOf(vaultKey), endpoints);

@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-11-18
+Stand: 2026-11-20
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -231,7 +231,7 @@ Android vertraut zusätzlich den Zertifizierungsstellen, die Du in den Systemein
 <!-- endpoint-confirmation-2026-11-18 -->
 ## Adressen ohne Verschlüsselung oder im lokalen Netz
 
-Geht das Passwort eines Kontos an eine Adresse mit `http` oder im lokalen Netz (zum Beispiel `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` oder einen Namen ohne Punkt), sendet Plainva es auf einem Gerät erst, wenn diese Adresse dort einmal bestätigt ist. Hast Du das Konto auf diesem Gerät eingerichtet, oder hat es hier schon funktioniert, gilt sie als bestätigt. Kam das Konto nur über den Sync auf ein Gerät, zeigt seine Karte unter **Cloud-Konten** die Zeile **Adresse bestätigen** mit der Adresse; bis Du **Bestätigen** wählst, geht von diesem Gerät kein Passwort dorthin — für Kalender und Aufgaben, E-Mail und Dateien. Die Bestätigung bleibt auf diesem Gerät und reist nicht mit.
+Geht das Passwort eines Kontos an eine Adresse mit `http` oder im lokalen Netz (zum Beispiel `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` oder einen Namen ohne Punkt), sendet Plainva es auf einem Gerät erst, wenn diese Adresse dort einmal bestätigt ist. Hast Du das Konto auf diesem Gerät eingerichtet, gilt sie als bestätigt – ebenso, wenn sein Passwort beim Update schon auf diesem Gerät lag und nicht über den Sync kam. Kam das Konto nur über den Sync auf ein Gerät, zeigt seine Karte unter **Cloud-Konten** die Zeile **Adresse bestätigen** mit der Adresse; bis Du **Bestätigen** wählst, geht von diesem Gerät kein Passwort dorthin — für Kalender und Aufgaben, E-Mail und Dateien. Auch ein Passwort, das Du dort eingibst – beim Anmelden oder beim Ändern des Passworts –, bestätigt die Adresse nicht: Plainva fragt zuerst nach ihr. Die Bestätigung bleibt auf diesem Gerät und reist nicht mit.
 
 Grenzen: Ein öffentlicher Name, der auf eine Adresse im lokalen Netz zeigt, wird nicht erkannt. Die Bestätigung gilt der Adresse, nicht dem Netz: Bist Du mit demselben Gerät in einem fremden Netz mit demselben Adressbereich, schützt sie nicht.
 

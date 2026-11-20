@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-11-18
+Laatst bijgewerkt: 2026-11-20
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -231,7 +231,7 @@ Android vertrouwt ook certificeringsinstanties die je in de systeeminstellingen 
 <!-- endpoint-confirmation-2026-11-18 -->
 ## Onversleutelde en lokale adressen
 
-Gaat het wachtwoord van een account naar een adres met `http` of in een lokaal netwerk (bijvoorbeeld `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` of een naam zonder punt), dan stuurt Plainva het vanaf een apparaat pas als dat adres daar is bevestigd. Heb je het account op dit apparaat ingesteld, of werkte het hier al, dan geldt het adres als bevestigd. Kwam het account alleen via de synchronisatie op een apparaat, dan toont zijn kaart onder **Cloudaccounts** de regel **Adres bevestigen** met het adres; tot je **Bevestigen** kiest, gaat er vanaf dit apparaat geen wachtwoord daarheen — voor agenda en taken, e-mail en bestanden. De bevestiging blijft op dit apparaat en reist niet mee.
+Gaat het wachtwoord van een account naar een adres met `http` of in een lokaal netwerk (bijvoorbeeld `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` of een naam zonder punt), dan stuurt Plainva het vanaf een apparaat pas als dat adres daar is bevestigd. Heb je het account op dit apparaat ingesteld, dan geldt het adres als bevestigd; ook als het wachtwoord bij de update al op dit apparaat stond en niet via de synchronisatie kwam. Kwam het account alleen via de synchronisatie op een apparaat, dan toont zijn kaart onder **Cloudaccounts** de regel **Adres bevestigen** met het adres; tot je **Bevestigen** kiest, gaat er vanaf dit apparaat geen wachtwoord daarheen — voor agenda en taken, e-mail en bestanden. Ook een wachtwoord dat je daar invoert, bij het aanmelden of bij het wijzigen van het wachtwoord, bevestigt het adres niet: Plainva vraagt er eerst naar. De bevestiging blijft op dit apparaat en reist niet mee.
 
 Grenzen: een openbare naam die naar een lokaal adres wijst, wordt niet herkend. De bevestiging geldt voor het adres, niet voor het netwerk: met hetzelfde apparaat in het netwerk van iemand anders met hetzelfde adresbereik beschermt ze je niet.
 

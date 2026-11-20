@@ -1,6 +1,7 @@
 import { classifyAuthError } from "./authErrors";
 import type { CloudServiceId } from "./cloudAccounts";
 import { isOwnClientRejected } from "./serviceConnection";
+import { unconfirmedEndpointOf } from "./endpointConfirmation";
 
 /**
  * "Check connection" on an account card (account sign-in plan E6, mockup
@@ -92,6 +93,11 @@ export async function checkAccountConnection(ports: AccountCheckPorts): Promise<
     } catch (error) {
       if (error instanceof ServiceCheckError) {
         results.push(error.state === "signin" ? { service, state: "signin" } : { service, state: "failed", ...(error.key ? { detailKey: error.key } : { detail: ports.describe(error) }) });
+        continue;
+      }
+      // Refused before anything was sent: what is missing is this device's Confirm (F57, O3).
+      if (unconfirmedEndpointOf(error)) {
+        results.push({ service, state: "failed", detail: ports.describe(error) });
         continue;
       }
       if (isOwnClientRejected(error)) {

@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-11-18
+Última actualización: 2026-11-20
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -231,7 +231,7 @@ Android también confía en las autoridades de certificación instaladas en los 
 <!-- endpoint-confirmation-2026-11-18 -->
 ## Direcciones sin cifrar y locales
 
-Cuando la contraseña de una cuenta va a una dirección con `http` o en una red local (por ejemplo `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` o un nombre sin punto), Plainva solo la envía desde un dispositivo una vez que esa dirección se ha confirmado allí. Si configuraste la cuenta en este dispositivo, o ya ha funcionado aquí, la dirección cuenta como confirmada. Si la cuenta llegó a un dispositivo solo a través de la sincronización, su tarjeta en **Cuentas en la nube** muestra la fila **Confirmar dirección** con la dirección; hasta que elijas **Confirmar**, ninguna contraseña va allí desde este dispositivo — para calendario y tareas, correo y archivos. La confirmación se queda en este dispositivo y no viaja.
+Cuando la contraseña de una cuenta va a una dirección con `http` o en una red local (por ejemplo `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` o un nombre sin punto), Plainva solo la envía desde un dispositivo una vez que esa dirección se ha confirmado allí. Si configuraste la cuenta en este dispositivo, la dirección cuenta como confirmada; también si su contraseña ya estaba en este dispositivo en la actualización y no llegó por la sincronización. Si la cuenta llegó a un dispositivo solo a través de la sincronización, su tarjeta en **Cuentas en la nube** muestra la fila **Confirmar dirección** con la dirección; hasta que elijas **Confirmar**, ninguna contraseña va allí desde este dispositivo — para calendario y tareas, correo y archivos. Tampoco una contraseña que escribas allí, al iniciar sesión o al cambiar la contraseña, confirma la dirección: Plainva pregunta primero por ella. La confirmación se queda en este dispositivo y no viaja.
 
 Límites: un nombre público que apunta a una dirección local no se reconoce. La confirmación es para la dirección, no para la red: con el mismo dispositivo en la red de otra persona con el mismo rango de direcciones, no te protege.
 

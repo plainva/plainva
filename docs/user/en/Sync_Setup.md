@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-11-18
+Last updated: 2026-11-20
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -231,7 +231,7 @@ Android also trusts certificate authorities you install in the system settings. 
 <!-- endpoint-confirmation-2026-11-18 -->
 ## Unencrypted and local addresses
 
-When an account's password goes to an address with `http` or on a local network (for example `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` or a name without a dot), Plainva sends it from a device only once that address has been confirmed there. If you set the account up on this device, or it has already worked here, the address counts as confirmed. If the account reached a device only through the sync, its card under **Cloud accounts** shows the row **Confirm address** with the address; until you choose **Confirm**, no password goes there from this device — for calendar and tasks, email and files. The confirmation stays on this device and does not travel.
+When an account's password goes to an address with `http` or on a local network (for example `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` or a name without a dot), Plainva sends it from a device only once that address has been confirmed there. If you set the account up on this device, the address counts as confirmed — and so it does if its password was already on this device at the update and did not come through the sync. If the account reached a device only through the sync, its card under **Cloud accounts** shows the row **Confirm address** with the address; until you choose **Confirm**, no password goes there from this device — for calendar and tasks, email and files. A password you type there, when signing in or changing the password, does not confirm the address either: Plainva asks about it first. The confirmation stays on this device and does not travel.
 
 Limits: a public name that points to a local address is not recognised. The confirmation is for the address, not the network: on the same device in someone else's network with the same address range, it does not protect you.
 

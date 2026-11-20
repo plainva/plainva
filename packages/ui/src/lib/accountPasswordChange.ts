@@ -39,6 +39,12 @@ export interface PasswordChangePorts {
     clear(expected: PasswordChangeJournal): Promise<void>;
   };
   onStatus?(status: PasswordChangeStatus): void;
+  /**
+   * The addresses the new password goes to (review of F57, O3). Each one this
+   * device has not confirmed is asked about first; the password field opens
+   * only once all are, and `verify` sends to none that is not.
+   */
+  addresses?(): Promise<Array<{ vaultKey: string; endpoint: string | null }>>;
   /** Wake consumers only after all stored values are confirmed. Retryable. */
   activate?(): Promise<void>;
 }

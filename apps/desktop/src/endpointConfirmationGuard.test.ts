@@ -20,6 +20,21 @@ import { sourceFile, sourceTexts } from "./test-sourceTree";
  * from there would ask about an address nobody here typed. So each site also
  * names where its address comes from, and the third test fails a function that
  * sends a password and reads an address out of the document.
+ *
+ * What this guard does NOT see (review of F57, O4) — the behaviour tests are
+ * the net for those, one per way (endpointConfirmation.test.ts,
+ * endpointConfirmationSettle.test.ts, cloudAccountsActions.test.ts,
+ * AccountPasswordChangePanel.test.tsx, filesRun.test.ts; on the phone
+ * accountPassword.test.ts, syncStartOrder.test.ts, fileSyncAccess.test.ts,
+ * pimTargetCredentials.test.ts, endpointConfirmationSettle.test.ts):
+ * - whether the check stands BEFORE the send: it counts the sends of a file;
+ * - a send behind a wrapper outside `SEND` (`connectCalDavAccount`,
+ *   `runtime.buildTarget`, `syncTargetFromSlots`, `listProviderFolders`,
+ *   `withMailCredentials`);
+ * - a document address read through a helper at the top level, a
+ *   destructured field, or a mailbox's own `host` (mail rows are documents
+ *   too); the exception below holds per file and per what it reads, not per
+ *   statement.
  */
 
 /** The constructors and calls that send a password to a server. */
@@ -33,6 +48,8 @@ const DOCUMENT_ADDRESS = /\bconfig\??\.(?:url|host|port|endpoint)\b|\bconfirmedA
 
 const STORED_GATED = "a stored password: asks `isEndpointConfirmedIn` / `assertEndpointConfirmedIn` first";
 const TYPED_CONFIRMS = "a password or address typed here: confirms the address with `confirmEndpointsIn` first";
+const NEW_PASSWORD_GATED = "a new password for addresses that came with the account: asks `assertEndpointConfirmedIn` first, confirms none (review of F57, O3)";
+const TYPED_ENDPOINTS = "confirms only an endpoint typed in the form (`confirmTypedEndpointsIn`); one it came with must be confirmed first (review of F57, O3)";
 const PROBE_ONLY = "a probe of what was typed in the form, before anything is stored";
 const DEFINITION = "the definition the listed callers use";
 
@@ -52,20 +69,20 @@ const FROM_CALLER = "its caller, one of the sites listed here";
 
 const ALLOWED: ReadonlyArray<readonly [file: string, calls: number, reason: string, address: string]> = [
   ["apps/desktop/src/components/OnlineVaultSetup.tsx", 6, `${PROBE_ONLY}; the save confirms the address for the new vault`, FROM_FORM],
-  ["apps/desktop/src/components/mail/MailAccountsSection.tsx", 1, TYPED_CONFIRMS, FROM_FORM],
   ["apps/desktop/src/contexts/VaultContext.tsx", 2, `${STORED_GATED} (\`unconfirmedSyncSlots\` into \`resolveFileSyncAccess\`)`, FROM_SLOT],
-  ["apps/desktop/src/services/accountPassword.ts", 4, TYPED_CONFIRMS, `${FROM_SLOT}, for mail the mailbox row on this device; only the password is typed here`],
+  ["apps/desktop/src/services/accountPassword.ts", 4, NEW_PASSWORD_GATED, `${FROM_SLOT}, for mail the mailbox row on this device; only the password is typed here`],
   ["apps/desktop/src/services/accountSignIn.ts", 1, "Gmail app password: imap.gmail.com, a public name over TLS, needs no confirmation", FROM_CODE],
   ["apps/desktop/src/services/cloudAccountsActions.ts", 5, `\`runConnectSequence\` confirms a typed password's addresses or refuses a reused one's; \`syncTargetFromSlots\`: ${STORED_GATED}`, `\`runConnectSequence\`: ${FROM_FORM}; \`syncTargetFromSlots\`: ${FROM_SLOT}`],
   ["apps/desktop/src/services/pim/pimAccounts.ts", 3, "reached only through `runConnectSequence` and the password change, which confirm first", FROM_CALLER],
   ["apps/desktop/src/services/pim/pimRuntime.ts", 1, STORED_GATED, FROM_SLOT],
   ["apps/desktop/src/services/syncTargets.ts", 4, DEFINITION, FROM_CALLER],
-  ["apps/mobile/src/screens/MailAccountsScreen.tsx", 1, TYPED_CONFIRMS, FROM_FORM],
-  ["apps/mobile/src/services/accountPassword.ts", 4, TYPED_CONFIRMS, `${FROM_SLOT}, for mail the mailbox row on this device; only the password is typed here`],
+  ["apps/mobile/src/screens/MailAccountsScreen.tsx", 1, TYPED_ENDPOINTS, FROM_FORM],
+  ["apps/mobile/src/services/accountPassword.ts", 4, NEW_PASSWORD_GATED, `${FROM_SLOT}, for mail the mailbox row on this device; only the password is typed here`],
   ["apps/mobile/src/services/connectProbe.ts", 2, PROBE_ONLY, FROM_FORM],
-  ["apps/mobile/src/services/pim/pimService.ts", 5, `\`buildTargetFor\`: ${STORED_GATED}; add and repair: ${TYPED_CONFIRMS}; \`probeCalDav\`: ${PROBE_ONLY}`, `\`buildTargetFor\`: ${FROM_SLOT}; add, repair and \`probeCalDav\`: ${FROM_FORM}`],
+  ["apps/mobile/src/services/pim/pimService.ts", 5, `\`buildTargetFor\`: ${STORED_GATED} (through \`pimTargetCredentials\`); add and repair (forms that start empty): ${TYPED_CONFIRMS}; \`probeCalDav\`: ${PROBE_ONLY}`, `\`buildTargetFor\`: ${FROM_SLOT}; add, repair and \`probeCalDav\`: ${FROM_FORM}`],
   ["apps/mobile/src/services/syncService.ts", 2, `\`buildTarget\`: ${STORED_GATED} for a stored slot; \`decideStart\` reads unconfirmed as signed out`, `\`buildTarget\`: ${FROM_SLOT}, or the form for a new vault`],
   ["packages/ui/src/mail/mailClient.ts", 1, DEFINITION, FROM_CALLER],
+  ["packages/ui/src/mail/mailboxSignIn.ts", 1, `a password typed for a mailbox whose servers came with it: ${STORED_GATED} (review of F57, O3)`, FROM_CALLER],
 ];
 
 describe("every password connection asks whether this device confirmed the address (F57)", () => {

@@ -1,11 +1,11 @@
 import { sameStoredValue } from "@plainva/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { connectGmailFromCard } from "../services/mail/gmailAuth";
 import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, MoreHorizontal, Pencil, Plus } from "lucide-react";
-import { AreaBoundary, accountInputProps, confirmEndpointsIn, mailboxEndpoints, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
+import { AreaBoundary, accountInputProps, confirmTypedEndpointsIn, EndpointConfirmBlock, mailboxEndpoints, useEndpointConfirmation, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, pickDefaultMailAccount, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -45,6 +45,19 @@ import { listMailAccounts, removeMailAccount } from "@plainva/ui/mail";
  * store); a mailbox that arrived through the settings sync shows the shared
  * "sign in on this device" badge, because credentials never travel.
  */
+/**
+ * The servers of a mailbox this phone has not confirmed (F57), each asked
+ * about before any password goes there: under its row, and above the edit
+ * form, so that "Confirm" comes first and the password after (review of F57,
+ * O3). Confirming can be all that was missing: mail asks again at once.
+ */
+function MailboxConfirm({ account }: { account: MailAccountConfig }) {
+  const vault = mailVaultId();
+  const entries = useMemo(() => (vault ? mailboxEndpoints(account).map((endpoint) => ({ vaultKey: vault, endpoint })) : []), [account, vault]);
+  const confirmation = useEndpointConfirmation(entries, notifyMailChanged);
+  return <EndpointConfirmBlock confirmation={confirmation} testId={`mail-confirm-address-${account.id}`} />;
+}
+
 export function MailAccountsScreen({
   onAddAccount,
   bump,
@@ -375,9 +388,11 @@ export function MailAccountsScreen({
       // account behind (the same guarantee the Microsoft path gives) — and an
       // edit must not break a mailbox that worked a moment ago.
       const oldPassword = existing ? await getMailPassword(vault, existing.id) : null;
-      // The servers were entered in this form on this phone: they count as
-      // confirmed (F57) — also an edit that keeps the stored password.
-      await confirmEndpointsIn(vault, mailboxEndpoints(account));
+      // Only a server whose endpoint was typed in this form — a new mailbox, or
+      // one changed while editing — is confirmed by sending; one the form came
+      // with must be confirmed first, also for an edit that keeps the stored
+      // password (review of F57, O3).
+      await confirmTypedEndpointsIn(vault, mailboxEndpoints(account), editing ? mailboxEndpoints(editing) : []);
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
       if (mailVaultId() !== vault) throw new ServiceConnectionError("accountChanged");
       // The form edits a mailbox from its page, or connects one (fifth review, 1).
@@ -558,11 +573,15 @@ export function MailAccountsScreen({
             : state === "signin"
               ? (imap ? t("deviceSignIn.rowHintStatic") : t("deviceSignIn.rowHintOauth"))
               : "";
-          if (!note) return null;
           return (
-            <p className="m-hint" key={`note-${a.id}`}>
-              {accounts.length > 1 ? `${a.label}: ${note}` : note}
-            </p>
+            <div key={`note-${a.id}`}>
+              {imap && <MailboxConfirm account={a} />}
+              {note && (
+                <p className="m-hint">
+                  {accounts.length > 1 ? `${a.label}: ${note}` : note}
+                </p>
+              )}
+            </div>
           );
         })}
 
@@ -756,6 +775,7 @@ export function MailAccountsScreen({
         {/* The backend switch is hidden once the wizard settled the provider
                 (S0a) — offering it again would let a Microsoft tile end on IMAP. */}
 
+            {kind === "imap" && editing && <MailboxConfirm account={editing} />}
             {kind === "imap" ? (
               <MailImapForm
                 key={editing?.id ?? "new"}

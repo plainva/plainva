@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-11-18
+Ultimo aggiornamento: 2026-11-20
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -231,7 +231,7 @@ Android considera attendibili anche le autorità di certificazione installate ne
 <!-- endpoint-confirmation-2026-11-18 -->
 ## Indirizzi non cifrati e locali
 
-Quando la password di un account va a un indirizzo con `http` o in una rete locale (per esempio `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` o un nome senza punto), Plainva la invia da un dispositivo solo dopo che quell’indirizzo è stato confermato lì. Se hai configurato l’account su questo dispositivo, o qui ha già funzionato, l’indirizzo conta come confermato. Se l’account è arrivato su un dispositivo solo tramite la sincronizzazione, la sua scheda in **Account cloud** mostra la riga **Conferma indirizzo** con l’indirizzo; finché non scegli **Conferma**, nessuna password va lì da questo dispositivo — per calendario e attività, email e file. La conferma resta su questo dispositivo e non viaggia.
+Quando la password di un account va a un indirizzo con `http` o in una rete locale (per esempio `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` o un nome senza punto), Plainva la invia da un dispositivo solo dopo che quell’indirizzo è stato confermato lì. Se hai configurato l’account su questo dispositivo, l’indirizzo conta come confermato; lo stesso se la sua password era già su questo dispositivo al momento dell’aggiornamento e non è arrivata tramite la sincronizzazione. Se l’account è arrivato su un dispositivo solo tramite la sincronizzazione, la sua scheda in **Account cloud** mostra la riga **Conferma indirizzo** con l’indirizzo; finché non scegli **Conferma**, nessuna password va lì da questo dispositivo — per calendario e attività, email e file. Nemmeno una password che inserisci lì, accedendo o cambiando la password, conferma l’indirizzo: Plainva lo chiede prima. La conferma resta su questo dispositivo e non viaggia.
 
 Limiti: un nome pubblico che punta a un indirizzo locale non viene riconosciuto. La conferma vale per l’indirizzo, non per la rete: con lo stesso dispositivo nella rete di qualcun altro con lo stesso intervallo di indirizzi, non ti protegge.
 

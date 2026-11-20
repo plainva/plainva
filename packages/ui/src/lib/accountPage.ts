@@ -285,10 +285,18 @@ export function filesRunState(input: { filesOff: boolean; pausedHere: boolean; s
  * desktop showed such a vault as idle, the phone as "Sign-in needed".
  */
 export type FilesStoppedStatus =
-  | { status: "off"; messageKey: null; signInNeeded: false }
-  | { status: "error"; messageKey: "deviceSignIn.needed"; signInNeeded: true };
+  | { status: "off"; messageKey: null; signInNeeded: false; confirmEndpoint?: undefined }
+  | { status: "error"; messageKey: "deviceSignIn.needed"; signInNeeded: true; confirmEndpoint?: undefined }
+  | { status: "error"; messageKey: "cloudAccounts.confirmAddress"; params: { address: string }; signInNeeded: false; confirmEndpoint: string };
 
-export function filesStoppedStatus(input: { pausedHere: boolean; signedOut: boolean }): FilesStoppedStatus {
+/**
+ * An address this device has not confirmed (F57) is no sign-out: the status
+ * names it and asks for **Confirm**, never for a sign-in (review of F57, O3).
+ */
+export function filesStoppedStatus(input: { pausedHere: boolean; signedOut: boolean; unconfirmed?: string | null }): FilesStoppedStatus {
+  if (!input.pausedHere && input.unconfirmed) {
+    return { status: "error", messageKey: "cloudAccounts.confirmAddress", params: { address: input.unconfirmed }, signInNeeded: false, confirmEndpoint: input.unconfirmed };
+  }
   if (!input.pausedHere && input.signedOut) return { status: "error", messageKey: "deviceSignIn.needed", signInNeeded: true };
   return { status: "off", messageKey: null, signInNeeded: false };
 }

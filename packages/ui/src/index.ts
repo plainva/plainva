@@ -537,6 +537,7 @@ export * from "./lib/passwordCredentialTarget";
 export * from "./lib/protectedCredentialUpdate";
 export * from "./lib/passwordServices";
 export * from "./components/accounts/AccountPasswordChangePanel";
+export * from "./components/accounts/EndpointConfirmBlock";
 
 export * from "./base/pinboardCache";
 export * from "./base/propertySuggestions";

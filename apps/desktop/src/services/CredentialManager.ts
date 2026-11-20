@@ -132,6 +132,24 @@ export class CredentialManager implements ICredentialStore {
     return invoke<string>("secrets_mark_key", { fresh, marksOnDevice });
   }
 
+  /**
+   * `readSecret` that never takes a keychain that does not answer for an
+   * empty slot (F57, the switch-over's proof): the credentials file still
+   * counts, as there; anything else is an error.
+   */
+  public async readSecretStrict<T>(key: string): Promise<T | null> {
+    let fromKeychain: string | null;
+    try {
+      fromKeychain = await invoke<string | null>("keychain_get", { key });
+    } catch (error) {
+      const inFile = await (await this.store()).get<T>(key);
+      if (inFile) return inFile;
+      throw error;
+    }
+    if (fromKeychain) return JSON.parse(fromKeychain) as T;
+    return ((await (await this.store()).get<T>(key)) ?? null) as T | null;
+  }
+
   public async writeSecret<T>(key: string, value: T): Promise<void> {
     const ok = await this.keychainSet(key, JSON.stringify(value));
     if (ok) {

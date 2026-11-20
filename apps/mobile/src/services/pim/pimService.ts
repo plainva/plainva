@@ -25,7 +25,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptedPimConfig, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, assertEndpointConfirmedIn, confirmationEndpoint, confirmEndpointsIn, confirmTypedEndpointsIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -110,13 +110,11 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
   if (account.provider === "device") {
     return isDevicePimSupported() ? new DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
   }
-  // None for an account signed out on this phone (review finding 3).
+  // None for an account signed out on this phone (review finding 3), nor for
+  // a CalDAV address it has not confirmed (F57): `pimTargetCredentials`.
   const creds = await pimTargetCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
-    // Unconfirmed address without TLS or in a private network: no target, the
-    // password stays here and the card asks to confirm it (F57).
-    if (!(await isEndpointConfirmedIn(vaultId, confirmationEndpoint(creds.url)))) return null;
     void allowHttpOrigin(creds.url);
     return new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch);
   }
@@ -238,6 +236,11 @@ export async function checkPimAccount(vaultId: string, accountId: string): Promi
   // as the provider's answer (plan "Verbinden", V0): no calendar account here
   // is "not connected yet", one without a sign-in here is "not signed in".
   if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
+  // An address this phone has not confirmed is said as such, never "not signed in" (F57, O3).
+  if (row.provider === "caldav") {
+    const creds = await getPimCredentials(vaultId, row.id);
+    if (creds?.kind === "caldav") await assertEndpointConfirmedIn(vaultId, confirmationEndpoint(creds.url));
+  }
   const target = await buildTargetFor(vaultId, row);
   if (!target) throw new ServiceCheckError("signin");
   await target.listCalendars();
@@ -632,8 +635,11 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
     await providerTarget.listCalendars();
     await providerTarget.listTaskLists();
   } else {
-    // The repair form, typed here: its address counts as confirmed (F57).
-    await confirmEndpointsIn(target.vaultId, [confirmationEndpoint(creds.url)]);
+    // The repair form starts empty (`signInAgain` in PimAccountsScreen opens
+    // it without the address): what it sends was typed here, and sending
+    // confirms it (F57; review of F57, O3: typed means a form that started
+    // empty or an endpoint other than the one it came with).
+    await confirmTypedEndpointsIn(target.vaultId, [confirmationEndpoint(creds.url)], []);
     await allowHttpOrigin(creds.url);
     const caldav = new CalDavPimTarget(creds, webdavFetch);
     if (!(await caldav.listCalendars()).length) throw new Error("No calendars found on this server.");
