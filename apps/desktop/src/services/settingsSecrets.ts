@@ -145,11 +145,26 @@ function retiredStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta 
   };
 }
 
-/** The key of the marks, from the credentials store: null when it is not there, an error when no store answers. */
+/** Where this desktop keeps the key of the marks, decided once (`secretsMark.ts`, round twelve). */
+const MARK_KEY_HOME = "settingsSyncSecretsMarkKeyHome";
+
+/** The key of the marks, in the credentials store at its one place. */
 const markKeySlots = {
   readSlot: (slot: string) => credentialManager.readSecret(slot),
   writeSlot: (slot: string, value: unknown) => credentialManager.writeSecret(slot, value),
-  readMarkKey: () => credentialManager.readSecretStrict(SECRETS_MARK_KEY_SLOT),
+  markKeyHome: {
+    read: async () => {
+      const place = await (await getSettingsStore()).get<string>(MARK_KEY_HOME);
+      return place === "keychain" || place === "file" ? place : null;
+    },
+    note: async (place: "keychain" | "file") => {
+      const store = await getSettingsStore();
+      await store.set(MARK_KEY_HOME, place);
+      await store.save();
+    },
+    readAt: (place: "keychain" | "file") => credentialManager.readSecretAt(SECRETS_MARK_KEY_SLOT, place),
+    writeAt: (place: "keychain" | "file", value: string) => credentialManager.writeSecretAt(SECRETS_MARK_KEY_SLOT, value, place),
+  },
   // One key for the device: the records of every vault count (round twelve).
   marksOnDevice: async () => storeHoldsSecretsMarks(await getSettingsStore(), (key) => key.startsWith(META_PREFIX) || key.startsWith(LEGACY_META_PREFIX)),
 };
@@ -195,7 +210,7 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     accountsReady: async () => pimRuntime !== null,
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
-    readMarkKey: markKeySlots.readMarkKey,
+    markKeyHome: markKeySlots.markKeyHome,
     marksOnDevice: markKeySlots.marksOnDevice,
     removeSlot: (slot) => credentialManager.removeSecret(slot),
   });

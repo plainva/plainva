@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  SecretsSyncStep,
+  openSecretsBundle,
+  type ISyncTarget,
+  type IVaultAdapter,
   assertShareable,
   canonicalSecretId,
   canonicalizeEndpoint,
@@ -508,7 +512,7 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
       expect(remote!.entries[canonicalSecretId(newBinding({ id: "r", user: "anna" }))]?.secret).toEqual({ pass: "P2" });
     });
 
-    it("a phone restored from the system backup (settings back, keychain not) gets its password with the next change, as before", async () => {
+    it("a phone restored from the system backup (settings back, keychain not) takes the password of the version it knew (round twelve)", async () => {
       start();
       const row = (): Row[] => [{ id: "r", user: "anna" }];
       const n1 = device("N1", false, row(), { r: "P1" });
@@ -519,7 +523,7 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
       n1.pushes = 0;
       n2.pushes = 0;
       await rounds([n2, n1], 4);
-      expect([n2.slots.get("r"), n1.pushes, n2.pushes]).toEqual([undefined, 0, 0]);
+      expect([n2.slots.get("r"), n1.pushes, n2.pushes]).toEqual(["P1", 0, 0]);
       n1.slots.set("r", "P3");
       await rounds([n1, n2], 3);
       expect(n2.slots.get("r")).toBe("P3");
@@ -528,7 +532,7 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
 
   describe("no state without a way out (round eleven)", () => {
     for (const how of ["the document was reset", "the document carries only an older entry"]) {
-      it(`a lost key when ${how}: the device is as without a record, a password typed here arrives`, async () => {
+      it(`a lost key when ${how}: the device holds what it knew, a password typed here after the first run arrives`, async () => {
         start();
         const row = (): Row[] => [{ id: "r", user: "anna" }];
         const n1 = device("N1", false, row(), { r: "P1" });
@@ -544,7 +548,9 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
         remote = older;
         n2.slots.clear();
         await rounds([n1, n2], 4);
-        expect(n2.slots.get("r")).toBe(how.includes("older") ? "P2" : "P1");
+        // N1 publishes what it knew at that version; N2's slot, emptied
+        // without a lost key, stays empty at a version it knows, as on main.
+        expect(n2.slots.get("r")).toBe(how.includes("older") ? "P2" : undefined);
         n1.slots.set("r", "P3");
         await rounds([n1, n2], 4);
         expect(n2.slots.get("r")).toBe("P3");
@@ -554,13 +560,14 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
       });
     }
 
-    it("a password typed here after the key was lost goes out, even the same one again", async () => {
+    it("a password typed here after the first run since the key was lost goes out", async () => {
       start();
       const row = (): Row[] => [{ id: "r", user: "anna" }];
       const n1 = device("N1", false, row(), { r: "P1" });
       const n2 = device("N2", false, row());
       await rounds([n1, n2], 3);
       n1.keyring.clear();
+      await round(n1);
       n1.slots.set("r", "P3");
       await rounds([n1, n2], 6);
       expect([n1.slots.get("r"), n2.slots.get("r")]).toEqual(["P3", "P3"]);
@@ -577,9 +584,15 @@ describe("a mixed fleet of updated devices and devices on 0.8.7", () => {
         // The new phone: settings restored, keychain empty.
         phone.slots.clear();
         phone.keyring.clear();
-        phone.slots.set("r", typed.startsWith("the same") ? "P1" : "P7");
         n1.pushes = 0;
         phone.pushes = 0;
+        // Typed before the first run: the slot it finds; after it: a change.
+        if (typed.startsWith("the same")) phone.slots.set("r", "P1");
+        else {
+          await round(phone);
+          expect(phone.slots.get("r")).toBe("P1");
+          phone.slots.set("r", "P7");
+        }
         await rounds([phone, n1], 5);
         if (typed.startsWith("the same")) {
           expect([phone.slots.get("r"), n1.slots.get("r"), phone.pushes]).toEqual(["P1", "P1", 0]);
@@ -670,8 +683,9 @@ describe("what a device knew ends only with a document it read (round twelve)", 
         await rounds([n2, n1, f], 2);
       }
       n1.keyring.clear();
+      await offline(n1);
       n1.slots.set("r", "NEW4");
-      for (let i = 0; i < off; i++) await offline(n1);
+      for (let i = 1; i < off; i++) await offline(n1);
       await rounds([n1, n2, f], 4);
       expect({ doc: doc(), F: f.slots.get("r") }).toEqual({ doc: "r4:NEW4/N1", F: "NEW4" });
     });
@@ -692,7 +706,7 @@ describe("what a device knew ends only with a document it read (round twelve)", 
   }
 
   for (const how of ["the document was reset", "the document carries only an older entry"]) {
-    it(`a device whose key was lost never starts again at r1 (${how})`, async () => {
+    it(`a device whose key was lost holds what it knew at the version it knew, never r1, never one above (${how})`, async () => {
       start();
       const n1 = device("N1", false, row());
       const n2 = device("N2", false, row());
@@ -706,7 +720,7 @@ describe("what a device knew ends only with a document it read (round twelve)", 
       n1.keyring.clear();
       remote = how.includes("older") ? older : null;
       await rounds([n1], 3);
-      expect(doc()).toBe("r4:P3/N1");
+      expect(doc()).toBe("r3:P3/N1");
       await rounds([n1, n2], 2);
       expect([n2.slots.get("r"), await lostOf(n1)]).toEqual(["P3", 0]);
     });
@@ -758,4 +772,106 @@ describe("\"Remove account\" right after the update (round twelve)", () => {
       expect([current?.tombstone, current?.deviceId, n.slots.get("b"), n.slots.get("r")]).toEqual([true, "L", undefined, "A1"]);
     });
   }
+});
+
+describe("after a lost key: one baseline, never winning while it holds what it found (round thirteen)", () => {
+  const row = (): Row[] => [{ id: "r", user: "anna" }];
+  const entryOf = (user = "anna") => Object.values(remote?.entries ?? {}).find((e) => e.binding.secretType === "caldav-password-2" && e.binding.user === user);
+  const docOf = () => {
+    const e = entryOf();
+    return e && `r${e.entryRev}:${(e.secret as { pass?: string } | undefined)?.pass ?? "-"}`;
+  };
+
+  it("the real sync step reads a document that changes nothing while the device waits, so the password reaches a new target", async () => {
+    start();
+    const n1 = device("N1", false, row(), { r: "P1" });
+    await rounds([n1], 2);
+    n1.keyring.clear();
+    // A new sync target: nothing there; the merge alone changes nothing.
+    let bytes: Uint8Array | null = null;
+    const target = { download: async () => bytes, push: async (op: { content?: Uint8Array }) => void (bytes = op.content ?? null) } as unknown as ISyncTarget;
+    const masterKey = { keyId: "aabbccddeeff0011", masterKey: new Uint8Array(32).fill(7) };
+    for (let i = 0; i < 3; i++) await new SecretsSyncStep({ port: portOf(n1), masterKey, now: tick }).run(target, null as unknown as IVaultAdapter);
+    const published = Object.values(openSecretsBundle(masterKey, bytes!).entries).map((e) => [e.entryRev, (e.secret as { pass?: string }).pass]);
+    expect(published).toEqual([[1, "P1"]]);
+  });
+
+  it("a slot from an old backup is held against the version it knew and never goes out over the newer one, without uploads ever after", async () => {
+    start();
+    const n1 = device("N1", false, row());
+    const n2 = device("N2", false, row());
+    const f = device("F", false, row());
+    for (const pass of ["P1", "P2", "P3"]) {
+      n2.slots.set("r", pass);
+      await rounds([n2, n1, f], 2);
+    }
+    for (const empty of [false, true]) {
+      n1.slots.set("r", "P1");
+      n1.keyring.clear();
+      if (empty) remote = null;
+      await rounds([n1, n2, f], 4);
+      for (const d of [n1, n2, f]) d.pushes = 0;
+      await rounds([n1, n2, f], 4);
+      expect({ doc: docOf(), N1: n1.slots.get("r"), F: f.slots.get("r"), pushes: n1.pushes + n2.pushes + f.pushes }).toEqual({ doc: empty ? "r4:P3" : "r3:P3", N1: "P1", F: "P3", pushes: 0 });
+      // Typing here leads out: the same password typed on N1 is published above everything seen (r4).
+      n1.slots.set("r", "P3");
+      await rounds([n1, n2, f], 2);
+    }
+  });
+
+  it("a password typed after the first run since the loss goes out above every revision seen, also one this device refused", async () => {
+    start();
+    const n1 = device("N1", false, row(), { r: "P1" });
+    const n2 = device("N2", false, row());
+    await rounds([n1, n2], 2);
+    for (const pass of ["P2", "P3"]) {
+      n2.slots.set("r", pass);
+      await rounds([n2, n1], 2);
+    }
+    // N1 typed P1 itself: it keeps its own, as on main.
+    expect([n1.slots.get("r"), docOf()]).toEqual(["P1", "r3:P3"]);
+    n1.keyring.clear();
+    await round(n1);
+    n1.slots.set("r", "NEW");
+    await rounds([n1, n2], 3);
+    // N2 typed P3 itself and keeps it, as on main; the document has NEW above all.
+    expect(docOf()).toBe("r4:NEW");
+  });
+
+  it("a held slot whose key is lost again is held again with a new baseline, waits for nothing, and a password typed here gets out", async () => {
+    start();
+    const n1 = device("N1", false, row());
+    const n2 = device("N2", false, row());
+    n2.slots.set("r", "P2");
+    await rounds([n2, n1], 2);
+    n1.slots.set("r", "OLD");
+    n1.keyring.clear();
+    await rounds([n1, n2], 2);
+    expect(Object.values(n1.meta!.entries).map((e) => !!e.held)).toEqual([true]);
+    n1.keyring.clear();
+    await rounds([n1, n2], 2);
+    const own = await secretsMarker({ readSlot: async (slot) => n1.keyring.get(slot) ?? null, writeSlot: async () => undefined });
+    const record = Object.values(n1.meta!.entries)[0];
+    expect([own.owns(record.held!), own.owns(record.hash), record.sinceLoss, docOf(), n1.slots.get("r")]).toEqual([true, true, undefined, "r1:P2", "OLD"]);
+    n1.slots.set("r", "NEW");
+    await rounds([n1, n2], 2);
+    expect(docOf()).toBe("r2:NEW");
+  });
+
+  it("\"Remove account\" right after the update writes no tombstone from an old name another account here still goes by", async () => {
+    start();
+    const rows = (): Row[] => [{ id: "a", user: "alice" }, { id: "b", user: "Alice" }];
+    const o = device("O", true, [{ id: "a", user: "alice" }], { a: "A1" });
+    const l = device("L", true, [{ id: "a", user: "alice" }]);
+    await rounds([o, l], 3);
+    l.update();
+    l.rows = rows();
+    l.slots.set("b", "B1");
+    await retireSecret(l.host, calDavSecretBinding("webdav", CAL, "Alice"));
+    l.rows = l.rows.filter((r) => r.id !== "b");
+    l.slots.delete("b");
+    await rounds([l, o], 2);
+    expect(entryOf("Alice")?.tombstone).toBeUndefined();
+    expect([l.slots.get("a"), o.slots.get("a")]).toEqual(["A1", "A1"]);
+  });
 });

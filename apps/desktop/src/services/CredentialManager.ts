@@ -123,25 +123,25 @@ export class CredentialManager implements ICredentialStore {
   }
 
   /**
-   * Reads a secret, telling "not there" (null) from "no store answers"
-   * (throws): the keychain, then the credentials file it falls back to. A
-   * keychain that fails and a file without the item is an error, never "not
-   * there" — the key of the secrets marks must not be made anew over marks
-   * that still exist (F67, round nine).
+   * A secret at ONE place, for the key of the secrets marks, which lives in
+   * one place decided once (F67, round twelve): the keychain — which throws
+   * when it does not answer, never "not there" — or the credentials file.
    */
-  public async readSecretStrict<T>(key: string): Promise<T | null> {
-    let fromKeychain: string | null = null;
-    let failure: unknown = null;
-    try {
-      fromKeychain = await invoke<string | null>("keychain_get", { key });
-    } catch (error) {
-      failure = error;
+  public async readSecretAt<T>(key: string, place: "keychain" | "file"): Promise<T | null> {
+    if (place === "file") return ((await (await this.store()).get<T>(key)) ?? null) as T | null;
+    const value = await invoke<string | null>("keychain_get", { key });
+    return value ? (JSON.parse(value) as T) : null;
+  }
+
+  /** Writes a secret at ONE place (`readSecretAt`); throws when the place does not take it. */
+  public async writeSecretAt<T>(key: string, value: T, place: "keychain" | "file"): Promise<void> {
+    if (place === "keychain") {
+      await invoke("keychain_set", { key, value: JSON.stringify(value) });
+      return;
     }
-    if (fromKeychain) return JSON.parse(fromKeychain) as T;
-    const stored = await (await this.store()).get<T>(key);
-    if (stored) return stored;
-    if (failure) throw failure instanceof Error ? failure : new Error(String(failure));
-    return null;
+    const store = await this.store();
+    await store.set(key, value);
+    await store.save();
   }
 
   public async writeSecret<T>(key: string, value: T): Promise<void> {
