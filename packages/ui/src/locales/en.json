@@ -9,6 +9,7 @@
     },
     "waitingCount_other": "{{count}} to decide",
     "waitingCount_one": "{{count}} to decide",
+    "waitingSomething": "something waits for you",
     "pending": {
       "answerFirst": "Answer the question above first"
     },
@@ -491,7 +492,7 @@
       "title": "Send to {{provider}}?",
       "sentTitle": "Sent to {{provider}}",
       "why": {
-        "first": "For the first time in this conversation.",
+        "first": "Nothing has been approved in this session yet.",
         "recipient": "A new recipient: {{model}}",
         "dataClass": "A new kind of data: {{kind}}",
         "folder": "Notes from another folder: {{folder}}",

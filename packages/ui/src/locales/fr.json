@@ -10,6 +10,7 @@
     "waitingCount_other": "{{count}} à décider",
     "waitingCount_many": "{{count}} à décider",
     "waitingCount_one": "{{count}} à décider",
+    "waitingSomething": "quelque chose vous attend",
     "pending": {
       "answerFirst": "Répondez d'abord à la question ci-dessus"
     },
@@ -515,7 +516,7 @@
       "title": "Envoyer à {{provider}} ?",
       "sentTitle": "Envoyé à {{provider}}",
       "why": {
-        "first": "Pour la première fois dans cette conversation.",
+        "first": "Rien n'a encore été approuvé dans cette session.",
         "recipient": "Un nouveau destinataire : {{model}}",
         "dataClass": "Un nouveau type de données : {{kind}}",
         "folder": "Des notes d'un autre dossier : {{folder}}",

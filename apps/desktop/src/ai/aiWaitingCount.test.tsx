@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { AiOpenWrites, useAiAsking, useAiWaitingCount, useOpenProposals, type AiSession, type AiState } from "@plainva/ui";
+import { AiOpenWrites, useAiAttention, useAiWaitingCount, useOpenProposals, type AiSession, type AiState } from "@plainva/ui";
 
 /**
  * The AI's waiting dot after a change of vault (C11 of release 0.9.0): the
@@ -74,7 +74,7 @@ function EntryAndSegment({ session }: { session: AiSession }) {
   return (
     <>
       <span data-testid="count">{useAiWaitingCount(session)}</span>
-      <span data-testid="asking">{String(useAiAsking(session))}</span>
+      <span data-testid="attention">{String(useAiAttention(session))}</span>
       <AiOpenWrites state={state.drafts} proposals={proposals} canCreate={false} busy={false} onOpenNote={() => undefined} onCreate={() => undefined} onDiscard={() => undefined} />
     </>
   );
@@ -97,6 +97,51 @@ describe("the number is what the segment lists (F71 of release 0.9.0, mockup M10
     const rows = host.querySelectorAll('[data-testid="ai-open-proposal"]').length;
     expect(rows).toBe(3);
     expect(host.querySelector('[data-testid="count"]')!.textContent).toBe(String(rows));
-    expect(host.querySelector('[data-testid="asking"]')!.textContent).toBe("true");
+    expect(host.querySelector('[data-testid="attention"]')!.textContent).toBe("true");
+  });
+});
+
+/** The entry's two signs from one session: the number of "To decide", and the dot for what no number counts. */
+function Entry({ session }: { session: AiSession }) {
+  return (
+    <>
+      <span data-testid="count">{useAiWaitingCount(session)}</span>
+      <span data-testid="attention">{String(useAiAttention(session))}</span>
+    </>
+  );
+}
+
+async function entryOf(patch: Record<string, unknown>, vault: "work" | "home" = "home") {
+  const { session, switchTo } = fakeSession();
+  if (vault === "home") switchTo("home");
+  Object.assign(session.getState() as unknown as Record<string, unknown>, patch);
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+  await act(async () => root!.render(<Entry session={session} />));
+  await act(async () => {
+    for (let turns = 0; turns < 6; turns++) await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  return { count: host.querySelector('[data-testid="count"]')!.textContent, attention: host.querySelector('[data-testid="attention"]')!.textContent };
+}
+
+const WAITING_SKILL = { skills: { entries: [{ id: "s1", status: "new", source: { kind: "skill", origin: "vault" } }], omitted: [], servers: [] } };
+
+describe("what no number counts still shows at the AI's entry (F71 of release 0.9.0, review of a9fe33ac2)", () => {
+  it("a skill waiting for its approval, alone: a dot, no number", async () => {
+    expect(await entryOf(WAITING_SKILL)).toEqual({ count: "0", attention: "true" });
+  });
+
+  it("a question of the running conversation, alone: a dot, no number", async () => {
+    expect(await entryOf({ question: { text: "Which folder?" } })).toEqual({ count: "0", attention: "true" });
+  });
+
+  it("a draft and a waiting skill: the number is the draft alone", async () => {
+    const got = await entryOf({ ...WAITING_SKILL, drafts: { drafts: [{ id: "d1" }], done: [] } });
+    expect(got.count).toBe("1");
+  });
+
+  it("nothing at all: neither", async () => {
+    expect(await entryOf({})).toEqual({ count: "0", attention: "false" });
   });
 });

@@ -1,7 +1,7 @@
 import { useRef, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
-import { ICON, useAiAsking, useAiWaitingCount } from "@plainva/ui";
+import { ICON, useAiAttention, useAiWaitingCount } from "@plainva/ui";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { haptics } from "../services/haptics";
 import { useAutoHideChrome } from "../hooks/useAutoHideChrome";
@@ -74,7 +74,7 @@ export function NavBar({
 }) {
   const { t } = useTranslation();
   const aiWaiting = useAiWaitingCount(getMobileAiSession());
-  const aiAsking = useAiAsking(getMobileAiSession());
+  const aiAttention = useAiAttention(getMobileAiSession());
   const pressTimer = useRef<number | null>(null);
   // Reading downwards, the bar draws itself in to labels-off (S11 / the
   // mockup's retreating bar); it opens again on the way back up. Its
@@ -126,14 +126,14 @@ export function NavBar({
             className={`m-tab${activeTab === id ? " is-active" : ""}`}
             key={id}
             // The dot is drawn; the number is said (plan KI-Oberflächen K11), as the desktop's ribbon button says it.
-            aria-label={id === "ai" && aiWaiting > 0 ? `${t(def.barLabelKey ?? def.labelKey)} · ${t("ai.waitingCount", { count: aiWaiting })}` : undefined}
+            aria-label={id !== "ai" ? undefined : aiWaiting > 0 ? `${t(def.barLabelKey ?? def.labelKey)} · ${t("ai.waitingCount", { count: aiWaiting })}` : aiAttention ? `${t(def.barLabelKey ?? def.labelKey)} · ${t("ai.waitingSomething")}` : undefined}
             onClick={() => onPick(id)}
             type="button"
           >
             <span className="m-tab-pill">
               <Icon size={ICON.head} />
-              {/* Something of the AI waits for a decision (plan KI-Oberflächen K11). */}
-              {id === "ai" && (aiWaiting > 0 || aiAsking) && <span className="m-tab-dot" aria-hidden="true" data-testid="tab-ai-dot" />}
+              {/* Something of the AI waits for a decision (plan KI-Oberflächen K11), or asks for a look no number counts (F71). */}
+              {id === "ai" && (aiWaiting > 0 || aiAttention) && <span className="m-tab-dot" aria-hidden="true" data-testid="tab-ai-dot" />}
             </span>
             {/* Bar-specific short name where one exists (E7) — an ellipsis
                 ("Datenbanke…") is not a shortened label, it is a broken one. */}

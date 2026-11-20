@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { SlidersHorizontal } from "lucide-react";
-import { GroupCard, ICON, Row, RowList, SectionLabel, useAiWaitingCount, visibleAreas, type AreaOrder } from "@plainva/ui";
+import { GroupCard, ICON, Row, RowList, SectionLabel, useAiAttention, useAiWaitingCount, visibleAreas, type AreaOrder } from "@plainva/ui";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { SheetGrip } from "./SheetGrip";
 import { TAB_POOL, type TabScreenId } from "../navigation";
@@ -43,6 +43,8 @@ export function AreasSheet({
   const { t } = useTranslation();
   // What of the AI waits for a decision, beside its row (plan KI-Oberflächen K11).
   const aiWaiting = useAiWaitingCount(getMobileAiSession());
+  // What no number counts — a question of the running conversation, a skill waiting for its approval (F71): it is said.
+  const aiAttention = useAiAttention(getMobileAiSession());
   const known = new Set(TAB_POOL.map((d) => d.id));
   const inBar = (order ? (visibleAreas(order) as TabScreenId[]) : TAB_POOL.slice(0, 4).map((d) => d.id)).filter((id) => known.has(id));
   const outside = (order ? (order.order as TabScreenId[]) : TAB_POOL.map((d) => d.id)).filter((id) => known.has(id) && !inBar.includes(id));
@@ -60,7 +62,7 @@ export function AreasSheet({
               data-testid={`areas-${id}`}
               icon={<Icon size={ICON.head} />}
               title={t(def.labelKey)}
-              end={id === "ai" && aiWaiting > 0 ? <span className="m-prop-val" data-testid="areas-ai-waiting">{t("ai.waitingCount", { count: aiWaiting })}</span> : undefined}
+              end={id !== "ai" ? undefined : aiWaiting > 0 ? <span className="m-prop-val" data-testid="areas-ai-waiting">{t("ai.waitingCount", { count: aiWaiting })}</span> : aiAttention ? <span className="m-prop-val" data-testid="areas-ai-attention">{t("ai.waitingSomething")}</span> : undefined}
               onClick={() => onPick(id)}
             />
           );

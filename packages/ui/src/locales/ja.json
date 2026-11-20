@@ -8,6 +8,7 @@
       "recent": "最近"
     },
     "waitingCount_other": "判断待ち{{count}}件",
+    "waitingSomething": "確認待ちがあります",
     "pending": {
       "answerFirst": "先に上の質問に答えてください"
     },
@@ -467,7 +468,7 @@
       "title": "{{provider}}に送信しますか？",
       "sentTitle": "{{provider}}に送信済み",
       "why": {
-        "first": "この会話では初めてです。",
+        "first": "このセッションではまだ何も承認されていません。",
         "recipient": "新しい送信先: {{model}}",
         "dataClass": "新しい種類のデータ: {{kind}}",
         "folder": "別のフォルダーのノート: {{folder}}",

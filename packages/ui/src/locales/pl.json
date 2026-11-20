@@ -11,6 +11,7 @@
     "waitingCount_many": "{{count}} do decyzji",
     "waitingCount_few": "{{count}} do decyzji",
     "waitingCount_one": "{{count}} do decyzji",
+    "waitingSomething": "coś czeka na Ciebie",
     "pending": {
       "answerFirst": "Najpierw odpowiedz na pytanie powyżej"
     },
@@ -539,7 +540,7 @@
       "title": "Wysłać do {{provider}}?",
       "sentTitle": "Wysłano do {{provider}}",
       "why": {
-        "first": "Po raz pierwszy w tej rozmowie.",
+        "first": "W tej sesji nic jeszcze nie zatwierdzono.",
         "recipient": "Nowy odbiorca: {{model}}",
         "dataClass": "Nowy rodzaj danych: {{kind}}",
         "folder": "Notatki z innego folderu: {{folder}}",

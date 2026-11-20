@@ -9,6 +9,7 @@
     },
     "waitingCount_other": "{{count}} zu entscheiden",
     "waitingCount_one": "{{count}} zu entscheiden",
+    "waitingSomething": "etwas wartet auf Dich",
     "pending": {
       "answerFirst": "Erst die Frage oben beantworten"
     },
@@ -491,7 +492,7 @@
       "title": "An {{provider}} senden?",
       "sentTitle": "Gesendet an {{provider}}",
       "why": {
-        "first": "Zum ersten Mal in diesem Gespräch.",
+        "first": "In dieser Sitzung ist noch nichts freigegeben.",
         "recipient": "Ein neuer Empfänger: {{model}}",
         "dataClass": "Eine neue Art von Daten: {{kind}}",
         "folder": "Notizen aus einem weiteren Ordner: {{folder}}",

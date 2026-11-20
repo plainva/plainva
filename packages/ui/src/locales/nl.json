@@ -9,6 +9,7 @@
     },
     "waitingCount_other": "{{count}} te beslissen",
     "waitingCount_one": "{{count}} te beslissen",
+    "waitingSomething": "er wacht iets op je",
     "pending": {
       "answerFirst": "Beantwoord eerst de vraag hierboven"
     },
@@ -491,7 +492,7 @@
       "title": "Verzenden naar {{provider}}?",
       "sentTitle": "Verzonden naar {{provider}}",
       "why": {
-        "first": "Voor het eerst in dit gesprek.",
+        "first": "In deze sessie is nog niets goedgekeurd.",
         "recipient": "Een nieuwe ontvanger: {{model}}",
         "dataClass": "Een nieuw soort gegevens: {{kind}}",
         "folder": "Notities uit een andere map: {{folder}}",

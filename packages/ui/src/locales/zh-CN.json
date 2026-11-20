@@ -8,6 +8,7 @@
       "recent": "最近"
     },
     "waitingCount_other": "{{count}} 项待决定",
+    "waitingSomething": "有内容等你处理",
     "pending": {
       "answerFirst": "请先回答上面的问题"
     },
@@ -467,7 +468,7 @@
       "title": "发送到{{provider}}？",
       "sentTitle": "已发送至{{provider}}",
       "why": {
-        "first": "这是本次对话中的第一次。",
+        "first": "本次会话中尚未批准任何内容。",
         "recipient": "新的接收方：{{model}}",
         "dataClass": "新的数据类型：{{kind}}",
         "folder": "来自其他文件夹的笔记：{{folder}}",
