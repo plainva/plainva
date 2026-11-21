@@ -8,7 +8,7 @@ import PlainvaOrt
  * the desktop's model_store.rs and embedding.rs and the Android plugin: a
  * pinned package file from huggingface.co into Application Support, excluded
  * from backups, checked against its size and SHA-256; the model run in
- * Microsoft's ONNX Runtime (the official pod archive, through `PlainvaOrt`);
+ * Microsoft's ONNX Runtime (the framework of its NuGet package, through `PlainvaOrt`);
  * pooled vectors back to the WebView. Tokenizing stays in TypeScript.
  */
 @objc(LocalModelPlugin)
