@@ -201,12 +201,18 @@ test('ai', async ({ page }) => {
     await page.keyboard.press('Control+j');
     await wait(page, 1000);
     await shot(page, '41-ai-companion-empty');
-    const companion = page.getByTestId('ai-companion');
-    await companion.getByTestId('ai-input').fill('Summarize this note');
-    await companion.getByTestId('ai-send').click();
+    // Docked unless the device chose the floating window (readAiPlacement): the
+    // conversation then lives in `ai-dock`, not in `ai-companion`, so a locator
+    // on `ai-companion` waited for an element that never came and — with the
+    // 10-minute test budget and no bound of its own — hung the walk on 20.11.
+    // Name the control, not its home, and give every wait a bound.
+    const surface = page.locator('[data-testid="ai-dock"], [data-testid="ai-companion"]').first();
+    await surface.waitFor({ state: 'visible', timeout: 10_000 });
+    await surface.getByTestId('ai-input').fill('Summarize this note', { timeout: 10_000 });
+    await surface.getByTestId('ai-send').click({ timeout: 10_000 });
     await wait(page, 1000);
     await shot(page, '42-ai-consent');
-    await companion.getByTestId('ai-consent-send').click({ timeout: 4000 }).catch(() => {});
+    await surface.getByTestId('ai-consent-send').click({ timeout: 4000 }).catch(() => {});
     await wait(page, 2000);
     await shot(page, '43-ai-answer');
   });

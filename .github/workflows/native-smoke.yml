@@ -34,6 +34,7 @@ on:
       - '.github/workflows/updater-manifest.yml'
       - 'apps/desktop/scripts/check-webdriver-server.sh'
       - 'apps/desktop/scripts/driver-warmup.mjs'
+      - 'apps/desktop/scripts/install-msedgedriver.ps1'
       - '.github/workflows/native-smoke.yml'
   workflow_call:
     inputs:
@@ -148,6 +149,10 @@ jobs:
       # 10 s the WebdriverIO service waits for it; three runs failed that way
       # before the app ran (F78). Start it once here, and write how long the
       # first and the second start took into the job summary.
+      - name: Install the msedgedriver that matches WebView2
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./apps/desktop/scripts/install-msedgedriver.ps1
       - name: Start the driver once and measure it
         run: node apps/desktop/scripts/driver-warmup.mjs --label "updater signature (${{ matrix.os }})"
       - name: Updater signature test (Linux)
@@ -239,6 +244,12 @@ jobs:
       # 10 s the WebdriverIO service waits for it; three runs failed that way
       # before the app ran (F78). Start it once here, and write how long the
       # first and the second start took into the job summary.
+      # The service's own msedgedriver download (Windows PowerShell 5.1,
+      # Expand-Archive) failed in every run: "Cannot find an overload for
+      # ExtractToDirectory" (§ 3.183 Nr. 9). Install the matching driver here.
+      - name: Install the msedgedriver that matches WebView2
+        shell: pwsh
+        run: ./apps/desktop/scripts/install-msedgedriver.ps1
       - name: Start the driver once and measure it
         run: node apps/desktop/scripts/driver-warmup.mjs --label "windows"
       - name: Native smoke

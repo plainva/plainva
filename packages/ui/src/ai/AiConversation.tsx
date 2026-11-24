@@ -125,7 +125,10 @@ export function AiWorkingLine({ here }: { here: boolean }) {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     if (!here) return;
-    const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
+    // Counted from the clock, not from the ticks: a timer that is throttled or paused (a background window, a laptop
+    // that slept) delivers fewer ticks than seconds passed, and a tick count would then show the wrong time.
+    const started = Date.now();
+    const timer = setInterval(() => setSeconds(Math.max(0, Math.floor((Date.now() - started) / 1000))), 1000);
     return () => clearInterval(timer);
   }, [here]);
   const counting = here && seconds >= WORKING_HERE_AFTER;

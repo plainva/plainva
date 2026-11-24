@@ -397,6 +397,28 @@ jobs:
   # checking in WKWebView) that the Linux job never compiles; until 2026-10 it
   # was first compiled by a release. Not a required check yet (decision E4:
   # it becomes one once branch protection names it).
+  # The #[cfg(windows)] tests of the desktop crate (mcp/paths.rs owner-only DACL,
+  # mcp/listener.rs named pipe, model_store.rs, vault_walk.rs, atomic_write.rs, ...)
+  # never ran on a Windows machine in CI: `rust` runs on Linux only (§ 3.186 Nr. 4).
+  # Not part of `checks` yet — a required check is the maintainer's call once it
+  # has run green a few times.
+  rust-windows:
+    name: Rust test (Windows)
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+      # tauri::generate_context! embeds frontendDist at compile time.
+      - run: mkdir -p apps/desktop/dist
+        shell: bash
+      - name: cargo test
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+
   rust-macos:
     name: Rust check (macOS)
     needs: verified

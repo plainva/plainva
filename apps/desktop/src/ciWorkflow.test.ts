@@ -31,7 +31,7 @@ describe("the CI workflow", () => {
   it("makes \"Checks\" a gate over every job that used to be part of it, failing unless each one succeeded", () => {
     const gate = Object.entries(jobs).find(([, j]) => j.name === "Checks")!;
     const [gateId, gateJob] = gate;
-    const split = Object.keys(jobs).filter((id) => !["verified", gateId, "webkit", "rust", "core-macos", "rust-macos"].includes(id));
+    const split = Object.keys(jobs).filter((id) => !["verified", gateId, "webkit", "rust", "core-macos", "rust-macos", "rust-windows"].includes(id));
     expect(split.length).toBeGreaterThanOrEqual(5);
     expect(needsOf(gateJob).sort()).toEqual(["verified", ...split].sort());
     // A needed job that failed, was cancelled or skipped must not count as green:
