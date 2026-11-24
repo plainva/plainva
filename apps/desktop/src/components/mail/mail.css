@@ -26,9 +26,13 @@
   background: transparent;
   align-self: stretch;
 }
-.pv-mail-grip:hover,
 .pv-mail-grip.on {
   background: var(--accent-container);
+}
+@media (hover: hover) {
+  .pv-mail-grip:hover {
+    background: var(--accent-container);
+  }
 }
 
 /* Reusable sender/account avatar. --pv-mail-av carries the palette color
@@ -101,8 +105,10 @@
   cursor: pointer;
   transition: filter var(--dur-1) var(--ease-1);
 }
-.pv-mail-compose:hover {
-  filter: brightness(0.94);
+@media (hover: hover) {
+  .pv-mail-compose:hover {
+    filter: brightness(0.94);
+  }
 }
 .pv-mail-flist {
   flex: 1;
@@ -131,8 +137,10 @@
   color: var(--text-muted);
   flex: 0 0 auto;
 }
-.pv-mail-folder:hover {
-  background: var(--state-hover);
+@media (hover: hover) {
+  .pv-mail-folder:hover {
+    background: var(--state-hover);
+  }
 }
 .pv-mail-folder.on {
   background: var(--accent-container);
@@ -278,8 +286,10 @@
   position: relative;
   cursor: pointer;
 }
-.pv-mail-env:hover {
-  background: var(--state-hover);
+@media (hover: hover) {
+  .pv-mail-env:hover {
+    background: var(--state-hover);
+  }
 }
 /* The keyboard's row (2026-09-04): the ring sits inside the row so it reads on
    the selected (accent-container) row too. Mouse clicks never show it. */
@@ -585,8 +595,10 @@
   cursor: pointer;
   transition: filter var(--dur-1) var(--ease-1);
 }
-.pv-mail-capchip:hover {
-  filter: brightness(0.96);
+@media (hover: hover) {
+  .pv-mail-capchip:hover {
+    filter: brightness(0.96);
+  }
 }
 .pv-mail-capchip:disabled {
   opacity: 0.5;
@@ -637,8 +649,10 @@
   cursor: pointer;
   padding: 8px 2px 0;
 }
-.pv-mail-cctoggle:hover {
-  color: var(--accent-color);
+@media (hover: hover) {
+  .pv-mail-cctoggle:hover {
+    color: var(--accent-color);
+  }
 }
 /* Floating compose window (built on the peek-window chrome). */
 .pv-mail-window {
@@ -711,9 +725,11 @@
   color: var(--text-muted);
   cursor: pointer;
 }
-.pv-mail-cmptool:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
+@media (hover: hover) {
+  .pv-mail-cmptool:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+  }
 }
 .pv-mail-cmptool-hint {
   display: inline-flex;
@@ -774,9 +790,13 @@
   text-align: left;
   cursor: pointer;
 }
-.pv-mail-cmpslash-item.on,
-.pv-mail-cmpslash-item:hover {
+.pv-mail-cmpslash-item.on {
   background: var(--bg-hover);
+}
+@media (hover: hover) {
+  .pv-mail-cmpslash-item:hover {
+    background: var(--bg-hover);
+  }
 }
 .pv-mail-cmpattach {
   display: flex;
@@ -794,8 +814,10 @@
   display: inline-flex;
   flex: 0 0 auto;
 }
-.pv-mail-attach-remove:hover {
-  color: var(--text-main);
+@media (hover: hover) {
+  .pv-mail-attach-remove:hover {
+    color: var(--text-main);
+  }
 }
 
 /* ---- A file says what is with it (Design_Language.md) ------------------- */

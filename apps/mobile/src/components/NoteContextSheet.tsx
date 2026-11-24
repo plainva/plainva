@@ -725,6 +725,7 @@ export function NoteContextSheet({
         <AreaBoundary area="sheet:cellEdit" size="dialog" resetKey={`${vault.vaultId}:${edit.notePath}:${edit.col}`} exit={{ label: t("common.close"), onExit: () => setEdit(null) }}>
         <CellEditSheet key={`${vault.vaultId}:${edit.notePath}:${edit.col}`}
           onClose={() => setEdit(null)}
+          onOpenNote={(p) => { setEdit(null); onClose(); onOpenNote(p); }}
           onRename={renamable(edit.col) ? () => { const key = edit.col; setEdit(null); renameProp(key); } : undefined}
           onCommit={(value) => {
             const target = edit;

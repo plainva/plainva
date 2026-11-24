@@ -3537,6 +3537,9 @@
   "editor": {
     "completionHeadings": "Koppen",
     "completionBlocks": "Blokken",
+    "codeCopy": "Code kopiëren",
+    "codeCopied": "Code gekopieerd",
+    "codeCopyFailed": "De code kon niet worden gekopieerd.",
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
     "loading": "Laden...",
     "menu": "Menu",

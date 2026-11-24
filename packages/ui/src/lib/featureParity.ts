@@ -536,23 +536,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
-    id: "base-cell-text-links",
-    title: "Follow a link in the free text of a database cell",
-    area: "database",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "A cell of the desktop's database views draws a wiki link, a Markdown link " +
-      "and a bare URL inside free text as links (renderInlineString in " +
-      "useBaseCells) and opens them through the desktop's opener. The phone shows " +
-      "the same text as text (cellText in BaseScreen): a tap on a cell opens its " +
-      "edit sheet, and nothing there follows a link. Relation chips open on both " +
-      "shells. Found on 2026-10-12 while the opener for a link became one per " +
-      "shell; listed in the maintainer's open-items plan.",
-    verified: "2026-10-22",
-  },
-  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",
@@ -565,24 +548,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "opens a bottom sheet with the row's fields and prev/next. Rendering a full " +
       "editor inside a sheet would nest two scroll surfaces on a small screen.",
     verified: "2026-08-19",
-  },
-  {
-    id: "base-template-assignment",
-    title: "Assigning a template to the databases it belongs to",
-    area: "database",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Both shells let a database name one default template for its new entries. The " +
-      "desktop also assigns templates to databases (plainva.templateFor): the \"Entry\" " +
-      "menu lists the templates of this database first and toggles the assignment, and a " +
-      "template has a dialog for its target databases. The phone creates an entry from " +
-      "the default template or from the folder and type rules, offers no choice among " +
-      "templates there and neither reads nor writes the assignment. Read against the code " +
-      "on 2026-10-21 while the desktop's two assignment surfaces learned to say a template " +
-      "that refuses it; put off that day, listed in the maintainer's open-items plan.",
-    verified: "2026-10-21",
   },
   {
     id: "board-card-color-entry",
@@ -628,22 +593,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "list value as one line of text, because a row of chips per cell does not fit a " +
       "44 px row on a 360 px screen.",
     verified: "2026-09-19",
-  },
-  {
-    id: "code-block-copy",
-    title: "Copy a code block with one button",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop's read mode draws a fenced code block as a card with its language " +
-      "and a copy button (CodeBlock.tsx). The phone shows a note in the editor's live " +
-      "preview only, where the same block is a card too (since 77958a0d3, issue 175) " +
-      "but carries no button: copying it means selecting the lines and Copy in the " +
-      "selection bar. A button on the live-preview card, shared by both editors, " +
-      "closes this; recorded on 2026-11-16 as an open item of the issues of 14 November.",
-    verified: "2026-11-16",
   },
   {
     id: "image-editor",
@@ -814,23 +763,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "to put it inside a word - so the pill opens while the note is being read, which is " +
       "how the phone treats every link in a note.",
     verified: "2026-09-19",
-  },
-  {
-    id: "graph-edge-actions",
-    title: "Remove the links or the relation behind an edge of the graph",
-    area: "graph",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop's menu of an edge opens either note and removes what the edge " +
-      "stands for: the links in the text between the two notes (removeLinksTo) or " +
-      "the relation a property holds (removeRelationLink). The phone's sheet for " +
-      "an edge opens the two notes and offers nothing else (edgeActions in " +
-      "GraphScreen). Found on 2026-10-12 while removing text links was rebuilt to " +
-      "know a Markdown link and to leave properties and code alone; listed in the " +
-      "maintainer's open-items plan.",
-    verified: "2026-10-22",
   },
   {
     id: "blockers-follow-their-event",

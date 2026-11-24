@@ -53,7 +53,8 @@ describe("links: one look per device choice (wish 1, then the maintainer's setti
     // reading mode: ui.css carries the same declarations as the editor theme.
     expect(cssBlock(ui, ".pv-wiki-link")).toEqual(asCss(WIKI_LINK_STYLE));
     expect(cssBlock(ui, ".pv-wiki-link:hover")).toEqual(asCss(WIKI_LINK_HOVER_STYLE));
-    expect(cssBlock(ui, ".pv-wiki-link--unresolved,\n.pv-wiki-link--unresolved:hover")).toEqual(asCss(WIKI_LINK_UNRESOLVED_STYLE));
+    expect(cssBlock(ui, ".pv-wiki-link--unresolved")).toEqual(asCss(WIKI_LINK_UNRESOLVED_STYLE));
+    expect(cssBlock(ui, ".pv-wiki-link--unresolved:hover")).toEqual(asCss(WIKI_LINK_UNRESOLVED_STYLE));
   });
 
   it("is underlined by default, as up to 0.8.5, and the tint is one choice of four", () => {

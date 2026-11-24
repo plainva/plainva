@@ -1,6 +1,6 @@
 import { BaseConfigChangeRefusedError, composeLineage, lineageBetween, readContentBinary, reportingTo, type ViewLineage, type ViewsChange } from "@plainva/ui";
 import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
-import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { usePageSwipe } from "../../lib/usePageSwipe";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CalendarPlus,
   CalendarRange,
+  FilePlus2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -35,6 +36,10 @@ import {
 import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
+import { getPlatformServices, hasInlineLinks, InlineTextLinks } from "@plainva/ui";
+import { openLink } from "../../services/openLink";
+import { createTemplateForBase } from "../../services/templateAssignment";
+import { BaseTemplatesSheet } from "./BaseTemplatesSheet";
 import { isValidNewPropertyName, notesMissingProperty, sayReverseRelationOutcome, sayRewriteOutcome, toast } from "@plainva/ui";
 import { buildWikiTargetSet, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 import { BaseExportDialog } from "@plainva/ui";
@@ -250,6 +255,8 @@ export function BaseScreen({
   const [cellEditCanComment, setCellEditCanComment] = useState(false);
   const [cellEditCanWrite, setCellEditCanWrite] = useState(false);
   const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
+  /** The Templates sheet: the templates of this database first, one entry from any of them, the assignment. */
+  const [showTemplates, setShowTemplates] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [propEdit, setPropEdit] = useState<string | null>(null);
   /** Long-press target (S20): the entry menu, shared by every view. */
@@ -850,6 +857,38 @@ export function BaseScreen({
     return cellText(v);
   };
 
+  /**
+   * Free text of a cell when it carries a link (parity `base-cell-text-links`):
+   * `[[wiki|alias]]`, `[label](target)` or a bare `https://…`. Absent while
+   * rows are being selected, where any tap toggles selection instead.
+   */
+  const inlineLinkText = (col: string, v: unknown): string | null => {
+    if (rowSel.active || isReverse(col)) return null;
+    const input = columnInput(col, v);
+    if (input !== "text" && input !== "url") return null;
+    const raw = typeof v === "string" ? v : input === "text" && Array.isArray(v) ? v.map(String).join(", ") : null;
+    return raw && hasInlineLinks(raw) ? raw : null;
+  };
+
+  /**
+   * A free-text cell with its links alive (parity `base-cell-text-links`): a tap
+   * on a wiki link, a Markdown link or a web address follows it; a tap on any
+   * other word is the cell's and opens its editor, as before.
+   */
+  const cellContent = (r: Row, col: string): ReactNode => {
+    const raw = inlineLinkText(col, r[col]);
+    if (raw) {
+      return (
+        <InlineTextLinks
+          text={raw}
+          onOpenLink={(target, kind) => void openLink({ text: target, kind, sourcePath: rowPath(r) }, { vault, onOpenNote })}
+          onOpenExternal={(url) => void getPlatformServices().openExternal(url).catch(() => undefined)}
+        />
+      );
+    }
+    return displayCell(col, r[col]);
+  };
+
   const openCellEditor = (r: Row, col: string) => {
     if (col.startsWith("file.")) return;
     // A computed reverse column lives in the counterpart notes (Sammelplan
@@ -1161,10 +1200,10 @@ export function BaseScreen({
   // `{Base}_{n}` note. The draft is created first, in the board's folder, with
   // the board's ACTIVE labels and the view's filters: the phone used to drop
   // the labels, and a note captured under a label filter vanished at once.
-  const newPinboardEntry = async () => {
+  const newPinboardEntry = async (templateOverride?: string | null) => {
     if (!config) return;
     const viewKey = `${path}#${viewStateName(view, viewIndex)}`;
-    const opts = { viewIndex, activeLabels: cache.session(viewKey).labels, labelProperty: pinboardLabelProperty(view) };
+    const opts = { viewIndex, activeLabels: cache.session(viewKey).labels, labelProperty: pinboardLabelProperty(view), ...(templateOverride !== undefined ? { templateOverride } : {}) };
     try {
       let plan = await planMobilePinboardEntry(vault, config, opts);
       if (plan.status === "ask-folder") {
@@ -1178,21 +1217,22 @@ export function BaseScreen({
       toast.error(errorText(e));
     }
   };
-  const newItem = () => {
+  /** `templateOverride`: the Templates sheet's choice for this one entry (undefined = the database's default, null = none). */
+  const newItem = (templateOverride?: string | null) => {
     if (!config) return;
     if (effectiveRender === "pinboard") {
-      void newPinboardEntry();
+      void newPinboardEntry(templateOverride);
       return;
     }
     void (async () => {
-      let made = await createBaseItem(vault, path, config, allRows?.length ?? 0, viewIndex);
+      let made = await createBaseItem(vault, path, config, allRows?.length ?? 0, viewIndex, undefined, templateOverride);
       if (made.status === "ask-folder") {
         // No folder decided, or several: ask the one question, then carry on
         // (P2). Cancelled template questions end here — they are not a folder
         // question.
         const asked = await askStorageFolder();
         if (!asked) return;
-        made = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder);
+        made = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder, templateOverride);
       }
       if (made.status === "created") onOpenNote(made.path);
       // The sentence of a new entry and its reason, as the desktop says it (Sammelplan § 3.134 no. 3).
@@ -1427,10 +1467,42 @@ export function BaseScreen({
   };
 
   const propLine = (r: Row, cols: string[], max: number) =>
-    cols.slice(0, max).map((c) =>
+    cols.slice(0, max).map((c) => {
       // A card names the properties that say something — and one that says
       // nothing yet where a value is proposed for it (plan KI-Harness P5-4).
-      displayCell(c, r[c]) || proposedCells.get(rowPath(r))?.has(c) ? (
+      if (!displayCell(c, r[c]) && !proposedCells.get(rowPath(r))?.has(c)) return null;
+      const body = (
+        <>
+          <span className="m-prop-key">{columnLabel(c)}</span>{" "}
+          {isDueCell(c, r) ? <span className="m-taskdue m-taskdue--due">{displayCell(c, r[c])}</span> : cellContent(r, c)}
+          {proposedChip(r, c)}
+          {commentDot(rowPath(r), c)}
+        </>
+      );
+      if (inlineLinkText(c, r[c])) {
+        return (
+          <div
+            className="pv-card pv-card--flat m-basecard-prop"
+            key={c}
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              openCellEditor(r, c);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                openCellEditor(r, c);
+              }
+            }}
+          >
+            {body}
+          </div>
+        );
+      }
+      return (
         <button
           className="pv-card pv-card--flat m-basecard-prop"
           key={c}
@@ -1439,13 +1511,10 @@ export function BaseScreen({
             openCellEditor(r, c);
           }}
         >
-          <span className="m-prop-key">{columnLabel(c)}</span>{" "}
-          {isDueCell(c, r) ? <span className="m-taskdue m-taskdue--due">{displayCell(c, r[c])}</span> : displayCell(c, r[c])}
-          {proposedChip(r, c)}
-          {commentDot(rowPath(r), c)}
+          {body}
         </button>
-      ) : null,
-    );
+      );
+    });
 
   // One delegated hold listener for every row-shaped view (table/list/cards/
   // calendar/timeline). The board and the pinboard keep their own, because a
@@ -1555,7 +1624,7 @@ export function BaseScreen({
               </td>
               {orderedColumns.map((c) => (
                 <td key={c} onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, c))}>
-                  {displayCell(c, r[c])}
+                  {cellContent(r, c)}
                   {proposedChip(r, c)}
                   {commentDot(rowPath(r), c)}
                 </td>
@@ -1578,13 +1647,30 @@ export function BaseScreen({
             {rowSel.active && <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />}
             <span>{rowTitle(r)}</span>
           </button>
-          {orderedColumns[0] && (
+          {orderedColumns[0] && (inlineLinkText(orderedColumns[0], r[orderedColumns[0]]) ? (
+            <span
+              className="pv-chip"
+              role="button"
+              tabIndex={0}
+              onClick={() => openCellEditor(r, orderedColumns[0])}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openCellEditor(r, orderedColumns[0]);
+                }
+              }}
+            >
+              {cellContent(r, orderedColumns[0])}
+              {proposedChip(r, orderedColumns[0])}
+              {commentDot(rowPath(r), orderedColumns[0])}
+            </span>
+          ) : (
             <Chip onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, orderedColumns[0]))}>
               {displayCell(orderedColumns[0], r[orderedColumns[0]]) || (proposedCells.get(rowPath(r))?.has(orderedColumns[0]) ? "" : "—")}
               {proposedChip(r, orderedColumns[0])}
               {commentDot(rowPath(r), orderedColumns[0])}
             </Chip>
-          )}
+          ))}
         </div>
       ))}
     </>
@@ -2443,7 +2529,7 @@ export function BaseScreen({
         className="m-fab-float m-fab-float--above-tabs m-fab-float--pill"
         icon={<Plus size={ICON.head} />}
         label={t("database.newItem", { defaultValue: "+" })}
-        onClick={newItem}
+        onClick={() => newItem()}
       />
       <AppBar
         onBack={onBack}
@@ -2457,6 +2543,9 @@ export function BaseScreen({
           </IconButton>
           <IconButton label={t("database.exportTitle")} disabled={!config || rows == null} onClick={() => setShowExport(true)}>
             <Download size={ICON.touch} />
+          </IconButton>
+          <IconButton label={t("database.templatesSection")} data-testid="base-templates" disabled={!config} onClick={() => setShowTemplates(true)}>
+            <FilePlus2 size={ICON.touch} />
           </IconButton>
           <IconButton label={t("database.configure")} onClick={() => setShowConfig(true)}>
             <Settings2 size={ICON.touch} />
@@ -2589,7 +2678,7 @@ export function BaseScreen({
            the same flow the "+" in the bar runs (N7). */
         <EmptyState
           action={
-            <Button data-testid="base-empty-new" onClick={newItem} variant="tonal">
+            <Button data-testid="base-empty-new" onClick={() => newItem()} variant="tonal">
               {t("database.newItem")}
             </Button>
           }
@@ -2765,6 +2854,7 @@ export function BaseScreen({
             onClose={() => setCellEdit(null)}
             onCommentProperty={cellEditCanComment ? () => { const c = cellEdit; setCellEdit(null); composePropertyComment(c.notePath, c.col); } : undefined}
             onCommit={commitCell}
+            onOpenNote={onOpenNote}
             proposal={proposed ? {
               by: proposedBy(t, proposed.comment, commentAuthors),
               view: proposedCellView(proposed, cellEdit.value, proposedColumn(cellEdit.col)),
@@ -2794,6 +2884,23 @@ export function BaseScreen({
           await shareVaultText(`${stem}-export.${file.extension}`, file.text, file.mime);
           return true;
         }} onClose={() => setShowExport(false)} />}
+      {showTemplates && config && (
+        <AreaBoundary area="sheet:baseTemplates" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowTemplates(false) }}>
+          <BaseTemplatesSheet
+            basePath={path}
+            defaultTemplate={typeof config.newItemTemplate === "string" && config.newItemTemplate ? config.newItemTemplate : null}
+            onClose={() => setShowTemplates(false)}
+            onCreate={(templatePath) => newItem(templatePath)}
+            onCreateTemplate={() => {
+              void createTemplateForBase(vault, path, t("database.newTemplateName"))
+                .then((created) => onOpenNote(created))
+                .catch((e) => toast.error(t("writeFailed.newTemplate", { reason: errorText(e) })));
+            }}
+            onSetDefault={(templatePath) => mutateConfig((cfg) => { if (templatePath) cfg.newItemTemplate = templatePath; else delete cfg.newItemTemplate; })}
+            vault={vault}
+          />
+        </AreaBoundary>
+      )}
       {showConfig && config && (
         <AreaBoundary area="sheet:baseConfig" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowConfig(false) }}>
         <BaseConfigSheet

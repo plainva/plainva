@@ -165,16 +165,23 @@
     inset 2px 2px 0 #FFFFFF,
     var(--shadow-2);
 }
-[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]),
 [data-theme-name="win95"] .pv-menu-item:focus-visible {
   background: #000080;
   color: #FFFFFF;
 }
-[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) .pv-menu-ic,
 [data-theme-name="win95"] .pv-menu-item:focus-visible .pv-menu-ic,
-[data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) .pv-menu-hint,
 [data-theme-name="win95"] .pv-menu-item:focus-visible .pv-menu-hint {
   color: #FFFFFF;
+}
+@media (hover: hover) {
+  [data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: #000080;
+    color: #FFFFFF;
+  }
+  [data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) .pv-menu-ic,
+  [data-theme-name="win95"] .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) .pv-menu-hint {
+    color: #FFFFFF;
+  }
 }
 [data-theme-name="win95"] .pv-menu-sep {
   height: 2px;
@@ -208,9 +215,11 @@
 [data-theme-name="win95"] .pv-modal-header .pv-iconbtn {
   color: #FFFFFF;
 }
-[data-theme-name="win95"] .pv-modal-header .pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.18);
+@media (hover: hover) {
+  [data-theme-name="win95"] .pv-modal-header .pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) {
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.18);
+  }
 }
 
 /* Chrome strips: the title bar is the navy window bar (colors via the
@@ -265,8 +274,7 @@
 [data-theme-name="win95"] ::-webkit-scrollbar-track {
   background: #DFDFDF;
 }
-[data-theme-name="win95"] ::-webkit-scrollbar-thumb,
-[data-theme-name="win95"] ::-webkit-scrollbar-thumb:hover {
+[data-theme-name="win95"] ::-webkit-scrollbar-thumb {
   background: #C0C0C0;
   border: none;
   border-radius: 0;
@@ -276,6 +284,19 @@
     inset 1px 1px 0 #FFFFFF,
     inset -2px -2px 0 #808080,
     inset 2px 2px 0 #DFDFDF;
+}
+@media (hover: hover) {
+  [data-theme-name="win95"] ::-webkit-scrollbar-thumb:hover {
+    background: #C0C0C0;
+    border: none;
+    border-radius: 0;
+    background-clip: border-box;
+    box-shadow:
+      inset -1px -1px 0 #0A0A0A,
+      inset 1px 1px 0 #FFFFFF,
+      inset -2px -2px 0 #808080,
+      inset 2px 2px 0 #DFDFDF;
+  }
 }
 [data-theme-name="win95"] ::-webkit-scrollbar-corner {
   background: #DFDFDF;
@@ -513,10 +534,12 @@
 [data-theme-name="win95"] .pv-peek-head .pv-peek-grip,
 [data-theme-name="win95"] .pv-peek-head .pv-peek-btn,
 [data-theme-name="win95"] .pv-peek-head .pv-iconbtn { color: #FFFFFF; }
-[data-theme-name="win95"] .pv-peek-head .pv-peek-btn:hover:not(:disabled),
-[data-theme-name="win95"] .pv-peek-head .pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) {
-  background: rgba(255, 255, 255, 0.18);
-  color: #FFFFFF;
+@media (hover: hover) {
+  [data-theme-name="win95"] .pv-peek-head .pv-peek-btn:hover:not(:disabled),
+  [data-theme-name="win95"] .pv-peek-head .pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: rgba(255, 255, 255, 0.18);
+    color: #FFFFFF;
+  }
 }
 
 /* FAB: a raised silver tile, never a floating pill. */
@@ -530,11 +553,13 @@
     inset -2px -2px 0 #808080,
     inset 2px 2px 0 #DFDFDF;
 }
-[data-theme-name="win95"] .pv-fab:hover:not(:disabled) { background: #C0C0C0; box-shadow:
-    inset -1px -1px 0 #0A0A0A,
-    inset 1px 1px 0 #FFFFFF,
-    inset -2px -2px 0 #808080,
-    inset 2px 2px 0 #DFDFDF; }
+@media (hover: hover) {
+  [data-theme-name="win95"] .pv-fab:hover:not(:disabled) { background: #C0C0C0; box-shadow:
+      inset -1px -1px 0 #0A0A0A,
+      inset 1px 1px 0 #FFFFFF,
+      inset -2px -2px 0 #808080,
+      inset 2px 2px 0 #DFDFDF; }
+}
 [data-theme-name="win95"] .pv-fab:active:not(:disabled) {
   transform: none;
   box-shadow:

@@ -471,7 +471,7 @@ const anchorHighlightTheme = EditorView.baseTheme({
     background: "var(--bg-primary)",
     lineHeight: "1",
   },
-  ".cm-suggestion-host:hover .cm-suggestion-pill, .cm-suggestion-host--active .cm-suggestion-pill": { display: "inline-flex" },
+  ".cm-suggestion-host--active .cm-suggestion-pill": { display: "inline-flex" },
   ".cm-suggestion-pill__btn": {
     border: "none",
     background: "transparent",
@@ -483,7 +483,6 @@ const anchorHighlightTheme = EditorView.baseTheme({
     fontSize: "var(--text-sm)",
     padding: "0",
   },
-  ".cm-suggestion-pill__btn:hover": { background: "var(--bg-hover)", color: "var(--text-main)" },
 
   // A widget cannot be underlined, so the frame carries the same two states an
   // underline does: quiet while the comment is one of many, solid when it is
@@ -520,7 +519,6 @@ const anchorHighlightTheme = EditorView.baseTheme({
     fontSize: "var(--text-sm)",
   },
   ".cm-anchor-bubble svg": { width: "1em", height: "1em", fontSize: "var(--text-md)" },
-  ".cm-anchor-host:hover .cm-anchor-bubble": { display: "inline-flex" },
   ".cm-anchor-bubble:focus-visible": { display: "inline-flex" },
   // A table cell is small; the picture-sized bubble would cover its text.
   // Finding 2026-09-03 (K2): the cell menu alone was not found. On a touch
@@ -549,9 +547,14 @@ const anchorHighlightTheme = EditorView.baseTheme({
   },
   ".cm-anchor-cell--active .cm-anchor-corner": { borderTopWidth: "13px", borderLeftWidth: "13px" },
   ".cm-anchor-corner:focus-visible": { outline: "2px solid var(--focus-ring, var(--accent-color))", outlineOffset: "1px" },
+  "@media (hover: hover)": {
+    ".cm-suggestion-host:hover .cm-suggestion-pill": { display: "inline-flex" },
+    ".cm-suggestion-pill__btn:hover": { background: "var(--bg-hover)", color: "var(--text-main)" },
+    ".cm-anchor-host:hover .cm-anchor-bubble": { display: "inline-flex" },
+  },
   "@media (hover: none)": {
-    ".cm-anchor-host:hover .cm-anchor-bubble--cell": { display: "none" },
-    ".cm-suggestion-host:hover .cm-suggestion-pill": { display: "none" },
+    ".cm-anchor-bubble--cell": { display: "none" },
+    ".cm-suggestion-pill": { display: "none" },
   },
   // The host is an inline-block around an inline image, so it inherits the
   // baseline gap under it. A few stray pixels of height would skew every

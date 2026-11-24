@@ -54,24 +54,38 @@
 .pv-btn--sm { height: var(--control-sm); padding: 0 var(--space-2); }
 .pv-btn--lg { height: var(--control-lg); padding: 0 var(--space-4); }
 .pv-btn--primary { background: var(--accent-color); color: var(--accent-on); font-weight: 600; }
-.pv-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-color-hover); }
+@media (hover: hover) {
+  .pv-btn--primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-color-hover); }
+}
 /* Tonal (UI 2.0): accent-container fill, medium emphasis between primary and secondary. */
 .pv-btn--tonal { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
-.pv-btn--tonal:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary)); }
+@media (hover: hover) {
+  .pv-btn--tonal:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--accent-color) 24%, var(--bg-primary)); }
+}
 .pv-btn--secondary { border-color: var(--border-color); }
-.pv-btn--secondary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-btn--secondary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
+}
 .pv-btn--ghost { color: var(--text-muted); }
-.pv-btn--ghost:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); color: var(--text-main); }
+@media (hover: hover) {
+  .pv-btn--ghost:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); color: var(--text-main); }
+}
 .pv-btn--ghost:active:not(:disabled):not([aria-disabled="true"]) { background: var(--state-press); }
 .pv-btn--danger { background: var(--error-text); color: var(--error-bg); font-weight: 600; }
-.pv-btn--danger:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(0.94); }
+@media (hover: hover) {
+  .pv-btn--danger:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(0.94); }
+}
 /* Soft/outlined danger (disconnect, remove) — error-tinted, less alarming than the filled danger. */
 .pv-btn--danger-soft { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
-.pv-btn--danger-soft:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--error-text) 12%, var(--bg-primary)); }
+@media (hover: hover) {
+  .pv-btn--danger-soft:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--error-text) 12%, var(--bg-primary)); }
+}
 .pv-btn-ic { display: inline-flex; flex-shrink: 0; }
 /* Inline text-link button (e.g. "use your own app id") — accent, underline on hover. */
 .pv-linkbtn { background: none; border: none; padding: 0; color: var(--accent-color); cursor: pointer; font-family: var(--font-ui); font-size: var(--text-sm); text-align: left; }
-.pv-linkbtn:hover:not(:disabled) { color: var(--accent-color-hover); text-decoration: underline; }
+@media (hover: hover) {
+  .pv-linkbtn:hover:not(:disabled) { color: var(--accent-color-hover); text-decoration: underline; }
+}
 .pv-linkbtn:disabled { opacity: 0.6; cursor: default; }
 
 /* Split button: two pv-btn halves sharing one silhouette. Theme-safe — LCARS
@@ -105,7 +119,9 @@
   flex-shrink: 0;
   transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
 }
-.pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); color: var(--text-main); }
+@media (hover: hover) {
+  .pv-iconbtn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); color: var(--text-main); }
+}
 .pv-iconbtn:active:not(:disabled):not([aria-disabled="true"]) { background: var(--state-press); }
 .pv-iconbtn:disabled { opacity: 0.45; cursor: default; }
 .pv-iconbtn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
@@ -235,7 +251,9 @@ button.pv-searchfield--button {
   font-family: var(--font-ui);
   font-size: var(--text-ui);
 }
-button.pv-searchfield--button:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  button.pv-searchfield--button:hover { background: var(--state-hover); }
+}
 
 /* Inline banner (new primitive, sweep 2026-07-19): the one notice strip for
    editor conflict/draft/managed-index rows, sync hints and form-level errors —
@@ -329,7 +347,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   text-align: left;
   cursor: pointer;
 }
-.pv-selectopt:hover:not(:disabled) { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-selectopt:hover:not(:disabled) { background: var(--state-hover); }
+}
 .pv-selectopt.is-hilite { background: var(--state-highlight); }
 .pv-selectopt:disabled { opacity: 0.45; cursor: default; }
 .pv-selectopt.is-selected { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
@@ -359,8 +379,10 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    up with the body content below it. pointer-events stay off while hidden so the
    collapse toggle underneath keeps working; on hover/focus the grip is draggable. */
 .pv-side-grip { opacity: 0; pointer-events: none; transition: opacity var(--dur-1) var(--ease-1); }
-.pv-side-section:hover .pv-side-grip,
 .pv-side-grip:focus-visible { opacity: 1; pointer-events: auto; }
+@media (hover: hover) {
+  .pv-side-section:hover .pv-side-grip { opacity: 1; pointer-events: auto; }
+}
 
 /* Right-sidebar section header (collapse toggle). Lives in a class — not
    inline styles — so themes can restyle it (LCARS paints the header as a
@@ -413,7 +435,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.pv-side-section-header:hover { background: var(--bg-hover); }
+@media (hover: hover) {
+  .pv-side-section-header:hover { background: var(--bg-hover); }
+}
 .pv-side-section-header .pv-side-section-glyph { display: flex; color: var(--text-muted); }
 .pv-side-section-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
 .pv-side-section-count { display: flex; justify-content: flex-end; min-width: 0; }
@@ -482,7 +506,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 }
 /* Quiet fields: a value looks like text, and gets its frame on hover and
    while it is edited. */
-.pv-prow[data-frame="quiet"] > .pv-prow-value:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-prow[data-frame="quiet"] > .pv-prow-value:hover { background: var(--state-hover); }
+}
 .pv-prow[data-frame="quiet"] > .pv-prow-value:focus-within {
   background: var(--bg-primary);
   box-shadow: inset 0 0 0 1px var(--border-color);
@@ -563,15 +589,20 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    own (the lock names the file's key). */
 .pv-prow-edge[data-keep="true"] > .pv-prow-actions { inset-inline-end: 100%; }
 .pv-prow-actions > * { opacity: 0; pointer-events: none; }
-.pv-prow:hover .pv-prow-actions,
 .pv-prow:focus-within .pv-prow-actions,
 .pv-prow-actions[data-pinned="true"] { background: var(--prow-surface, var(--bg-secondary)); }
-.pv-prow:hover .pv-prow-actions > *,
 .pv-prow:focus-within .pv-prow-actions > *,
 .pv-prow-actions > [data-has="true"] { opacity: 1; pointer-events: auto; }
-/* At rest only what is pinned takes room; the rest of the actions folds away,
-   so a comment count does not stand beside an invisible delete button. */
-.pv-prow:not(:hover):not(:focus-within) .pv-prow-actions > :not([data-has="true"]) { display: none; }
+@media (hover: hover) {
+  .pv-prow:hover .pv-prow-actions { background: var(--prow-surface, var(--bg-secondary)); }
+  .pv-prow:hover .pv-prow-actions > * { opacity: 1; pointer-events: auto; }
+  /* At rest only what is pinned takes room; the rest of the actions folds away,
+     so a comment count does not stand beside an invisible delete button. */
+  .pv-prow:not(:hover):not(:focus-within) .pv-prow-actions > :not([data-has="true"]) { display: none; }
+}
+@media (hover: none) {
+  .pv-prow:not(:focus-within) .pv-prow-actions > :not([data-has="true"]) { display: none; }
+}
 
 /* Below the compact step the name moves above the value — for every row of
    the column at once, because the step is the column's. The value takes the
@@ -657,7 +688,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   color: inherit;
   cursor: pointer;
 }
-.pv-prow-toggle:hover { background: var(--state-hover); color: var(--text-main); }
+@media (hover: hover) {
+  .pv-prow-toggle:hover { background: var(--state-hover); color: var(--text-main); }
+}
 .pv-prow-toggle > svg { transition: transform var(--dur-2) var(--ease-1); }
 .pv-prow-toggle-closed { transform: rotate(-90deg); }
 /* One entry of a value that is a list of links: each on its own line. */
@@ -709,6 +742,7 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    indicator alone, so themes (LCARS pills) can replace the underline without
    also killing the drag feedback. */
 .tabstrip [role="tab"][aria-selected="true"] {
+  color: var(--tab-fg);
   box-shadow: inset 0 -2px 0 0 var(--accent-color);
 }
 /* A tab is as wide as what it holds, up to its most (inline, TAB_MAX_WIDTH):
@@ -738,8 +772,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    hover system (CSS :hover, no JS style mutation; design sweep 2026-07-19). */
 .tabstrip--titlebar { --tab-fg: var(--titlebar-fg); --tab-fg-muted: var(--titlebar-fg-muted); }
 .tabstrip [role="tab"] { color: var(--tab-fg-muted); }
-.tabstrip [role="tab"]:hover,
-.tabstrip [role="tab"][aria-selected="true"] { color: var(--tab-fg); }
+@media (hover: hover) {
+  .tabstrip [role="tab"]:hover { color: var(--tab-fg); }
+}
 .pv-tab-close {
   display: inline-flex;
   align-items: center;
@@ -750,15 +785,22 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   opacity: 0.55;
   flex-shrink: 0;
 }
-.pv-tab-close:hover { opacity: 1; background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-tab-close:hover { opacity: 1; background: var(--state-hover); }
+}
 /* An unsaved tab shows its dot in the ✕'s slot, at full strength; under the
    pointer or the keyboard focus the ✕ takes the slot back. A dot beside the ✕
    widened the tab on the first keystroke and narrowed it on save (2026-10-23). */
 .pv-tab-close[data-dirty] > svg { display: none; }
-.tabstrip [role="tab"]:not(:hover):not(:focus-visible) .pv-tab-close[data-dirty] { opacity: 1; }
-.tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > svg,
+@media (hover: hover) {
+  .tabstrip [role="tab"]:not(:hover):not(:focus-visible) .pv-tab-close[data-dirty] { opacity: 1; }
+  .tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > svg { display: block; }
+  .tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > .pv-tab-dirty { display: none; }
+}
+@media (hover: none) {
+  .tabstrip [role="tab"]:not(:focus-visible) .pv-tab-close[data-dirty] { opacity: 1; }
+}
 .tabstrip [role="tab"]:focus-visible .pv-tab-close[data-dirty] > svg { display: block; }
-.tabstrip [role="tab"]:hover .pv-tab-close[data-dirty] > .pv-tab-dirty,
 .tabstrip [role="tab"]:focus-visible .pv-tab-close[data-dirty] > .pv-tab-dirty { display: none; }
 
 /* Title-bar chrome buttons (sidebar toggles, theme toggle, window controls). */
@@ -775,10 +817,14 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
-.pv-titlebar-btn:hover:not(:disabled) { background: var(--titlebar-hover); color: var(--titlebar-fg); }
+@media (hover: hover) {
+  .pv-titlebar-btn:hover:not(:disabled) { background: var(--titlebar-hover); color: var(--titlebar-fg); }
+}
 .pv-titlebar-btn:disabled { opacity: 0.35; cursor: default; }
 .pv-titlebar-btn--sm { width: 28px; height: 28px; }
-.pv-winbtn--close:hover:not(:disabled) { background: var(--titlebar-close-hover); color: var(--titlebar-close-hover-fg); }
+@media (hover: hover) {
+  .pv-winbtn--close:hover:not(:disabled) { background: var(--titlebar-close-hover); color: var(--titlebar-close-hover-fg); }
+}
 .pv-window-chrome-strip {
   position: absolute;
   top: 0;
@@ -802,7 +848,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   border: 2px solid var(--border-color);
   border-radius: var(--radius-lg);
 }
-.pv-themecard:hover,
+@media (hover: hover) {
+  .pv-themecard:hover { border-color: var(--accent-color); }
+}
 .pv-themecard.is-active { border-color: var(--accent-color); }
 
 /* ------------------------------------------------------------------ menus */
@@ -838,7 +886,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   white-space: nowrap;
   cursor: pointer;
 }
-.pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-menu-item:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
+}
 .pv-menu-item:focus-visible { background: var(--state-highlight); }
 /* Keyboard highlight for a menu whose focus stays in the field below it (the
    mention picker): :focus-visible can never mark that row, so the owner sets
@@ -887,7 +937,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-popover--fixed { position: fixed; left: -9999px; top: -9999px; visibility: hidden; z-index: var(--z-menu); }
 .pv-popover-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); padding: 6px 9px 3px; }
 .pv-popover-row { display: flex; align-items: center; gap: 7px; width: 100%; padding: var(--pad-row-y) 9px; border: none; border-radius: var(--radius-md); background: transparent; color: var(--text-main); cursor: pointer; text-align: left; font-family: var(--font-ui); font-size: var(--text-ui); }
-.pv-popover-row:hover:not(:disabled) { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-popover-row:hover:not(:disabled) { background: var(--state-hover); }
+}
 .pv-popover-row:disabled { opacity: 0.4; cursor: default; }
 .pv-popover-row-active { background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }
 .pv-popover-ic { color: var(--text-muted); flex-shrink: 0; }
@@ -1153,7 +1205,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   color: var(--text-muted);
   cursor: pointer;
 }
-.pv-toast-x:hover { background: var(--bg-hover); color: var(--text-main); }
+@media (hover: hover) {
+  .pv-toast-x:hover { background: var(--bg-hover); color: var(--text-main); }
+}
 .pv-toast-action {
   flex-shrink: 0;
   align-self: center;
@@ -1167,7 +1221,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   cursor: pointer;
   white-space: nowrap;
 }
-.pv-toast-action:hover { filter: brightness(1.05); }
+@media (hover: hover) {
+  .pv-toast-action:hover { filter: brightness(1.05); }
+}
 
 /* ---------------------------------------------------------------- tooltip */
 .pv-tooltip {
@@ -1359,7 +1415,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
     box-shadow var(--dur-1) var(--ease-1),
     background var(--dur-1) var(--ease-1);
 }
-.pv-fab:hover:not(:disabled) { background: var(--accent-color-hover); box-shadow: var(--shadow-2); }
+@media (hover: hover) {
+  .pv-fab:hover:not(:disabled) { background: var(--accent-color-hover); box-shadow: var(--shadow-2); }
+}
 .pv-fab:active:not(:disabled) { transform: scale(0.96); }
 .pv-fab:disabled { opacity: 0.5; cursor: default; }
 .pv-fab--extended { width: auto; padding: 0 var(--space-5); }
@@ -1399,7 +1457,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
 }
-.pv-seg-item:hover:not(.is-active):not(:disabled) { background: var(--state-hover); color: var(--text-main); }
+@media (hover: hover) {
+  .pv-seg-item:hover:not(.is-active):not(:disabled) { background: var(--state-hover); color: var(--text-main); }
+}
 .pv-seg-item:disabled { opacity: 0.45; cursor: default; }
 .pv-seg-item.is-active {
   background: var(--surface);
@@ -1489,7 +1549,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    active row keeps its highlight without a hover flicker. Also a perf win on
    large trees (no per-mouseover style writes). */
 .pv-rowhover { background: transparent; transition: background var(--dur-1) var(--ease-1); }
-.pv-rowhover:hover:not(:disabled) { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-rowhover:hover:not(:disabled) { background: var(--state-hover); }
+}
 
 /* ---------- calendar event states (report 2026-07-29, F7/F8) --------------
    The model always knew whether an appointment was cancelled, tentative or an
@@ -1664,8 +1726,10 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   font-size: var(--text-xs);
   cursor: pointer;
 }
-.pv-overlaychip:hover {
-  background: var(--state-hover);
+@media (hover: hover) {
+  .pv-overlaychip:hover {
+    background: var(--state-hover);
+  }
 }
 .pv-overlaychip.is-on {
   border-color: var(--accent-color);
@@ -1711,7 +1775,9 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   border: 1px solid var(--border-color);
   transition: background var(--dur-1) var(--ease-1), border-color var(--dur-1) var(--ease-1);
 }
-.pv-cardhover:hover:not(:disabled) { background: var(--state-hover); border-color: var(--accent-color); }
+@media (hover: hover) {
+  .pv-cardhover:hover:not(:disabled) { background: var(--state-hover); border-color: var(--accent-color); }
+}
 
 /* Field focus ring (M3 state layer) — replaces the bare border-color change. */
 .pv-field:focus,
@@ -1872,7 +1938,9 @@ button.pv-chip { cursor: pointer; font-family: var(--font-ui); }
   padding: 0;
   line-height: 0;
 }
-.pv-chip-x:hover { color: var(--text-main); background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-chip-x:hover { color: var(--text-main); background: var(--state-hover); }
+}
 
 /* Counter badge (folder/board/unread counts): pill digits, stays round at one
    digit via min-width, never wraps. */
@@ -1923,18 +1991,28 @@ button.pv-chip { cursor: pointer; font-family: var(--font-ui); }
   box-decoration-break: clone;
   cursor: pointer;
 }
-.pv-wiki-link:hover {
-  color: var(--wiki-link-color, var(--accent-color));
-  background-color: var(--wiki-link-bg-hover);
-  text-decoration: underline;
+@media (hover: hover) {
+  .pv-wiki-link:hover {
+    color: var(--wiki-link-color, var(--accent-color));
+    background-color: var(--wiki-link-bg-hover);
+    text-decoration: underline;
+  }
 }
-.pv-wiki-link--unresolved,
-.pv-wiki-link--unresolved:hover {
+.pv-wiki-link--unresolved {
   color: var(--wiki-link-unresolved-color, var(--text-muted));
   background-color: transparent;
   padding: 0;
   font-weight: inherit;
   text-decoration: underline dashed;
+}
+@media (hover: hover) {
+  .pv-wiki-link--unresolved:hover {
+    color: var(--wiki-link-unresolved-color, var(--text-muted));
+    background-color: transparent;
+    padding: 0;
+    font-weight: inherit;
+    text-decoration: underline dashed;
+  }
 }
 /* A link out of the vault in the desktop's reading view: the web link's look
    (Appearance -> Links, linkStyle.ts); the line comes under the pointer when
@@ -1945,8 +2023,10 @@ button.pv-chip { cursor: pointer; font-family: var(--font-ui); }
   text-underline-offset: 3px;
   cursor: pointer;
 }
-.pv-web-link:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .pv-web-link:hover {
+    text-decoration: underline;
+  }
 }
 /* The link look a device chose (Appearance -> Links, linkStyle.ts). The default
    - underlined - is the absence of the attribute; high contrast keeps it for
@@ -1982,7 +2062,9 @@ html:not([data-theme-name="high-contrast"])[data-link-web="color"] {
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
-.pv-tag-pill:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .pv-tag-pill:hover { text-decoration: underline; }
+}
 /* "Colour tags" (device switch, off by default): every tag surface carries
    data-tag-color - the slot hashed from the tag's ROOT - and it means a colour
    only under the switch. The grey slot 0 is never dealt: a tag that stays grey
@@ -2007,7 +2089,9 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 .pv-chip-link { background: var(--chip-link-bg); color: var(--chip-link-fg); border-color: transparent; padding-left: 4px; }
 .pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; min-width: 0; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: var(--text-sm); }
 .pv-chip-link-open > svg { flex: none; }
-.pv-chip-link-open:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .pv-chip-link-open:hover { text-decoration: underline; }
+}
 .pv-chip-0 { background: var(--chip-0-bg); color: var(--chip-0-fg); border-color: transparent; }
 .pv-chip-1 { background: var(--chip-1-bg); color: var(--chip-1-fg); border-color: transparent; }
 .pv-chip-2 { background: var(--chip-2-bg); color: var(--chip-2-fg); border-color: transparent; }
@@ -2066,8 +2150,10 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-effects), color var(--dur-1) var(--ease-effects);
 }
-.pv-navlink:hover {
-  background: var(--state-hover);
+@media (hover: hover) {
+  .pv-navlink:hover {
+    background: var(--state-hover);
+  }
 }
 .pv-navlink:active {
   background: var(--state-press);
@@ -2166,7 +2252,9 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   list-style: none;
 }
 .pv-setgroup-summary::-webkit-details-marker { display: none; }
-.pv-setgroup-summary:hover { color: var(--text-muted); }
+@media (hover: hover) {
+  .pv-setgroup-summary:hover { color: var(--text-muted); }
+}
 .pv-setgroup-chevron { flex-shrink: 0; transition: transform var(--dur-1) var(--ease-1); }
 .pv-setgroup--fold[open] > .pv-setgroup-summary .pv-setgroup-chevron { transform: rotate(90deg); }
 .pv-setcard {
@@ -2258,7 +2346,9 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   color: var(--accent-color);
   cursor: pointer;
 }
-.pv-grouplabel-link:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .pv-grouplabel-link:hover { text-decoration: underline; }
+}
 /* Under a finger the hit area grows past the text without moving the heading:
    the label keeps its rhythm, the target reaches the touch size. */
 [data-density="touch"] .pv-grouplabel-link::after {
@@ -2637,7 +2727,9 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-1), color var(--dur-1) var(--ease-1);
 }
-.pv-infotip:hover { background: var(--state-hover); color: var(--text-main); }
+@media (hover: hover) {
+  .pv-infotip:hover { background: var(--state-hover); color: var(--text-main); }
+}
 .pv-infotip[aria-expanded="true"] { background: var(--accent-container); color: var(--on-accent-container); }
 /* Under a finger the target grows to the touch size; the box does not. */
 [data-density="touch"] .pv-infotip::after {
@@ -2665,7 +2757,9 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   font-weight: 600;
   text-decoration: none;
 }
-.pv-infotip-guide:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .pv-infotip-guide:hover { text-decoration: underline; }
+}
 /* The phone shows the text in its sheet; the live region then carries it
    for the screen reader alone. */
 .pv-infotip-live {
@@ -2897,8 +2991,10 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   font-weight: 600;
   cursor: pointer;
 }
-.pv-vaultcard-switch:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .pv-vaultcard-switch:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Settings window (redesign feedback 2026-07-18): unlike the fixed-height xl
@@ -2973,7 +3069,9 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 }
 .pv-setcard .pv-acct:last-child { border-bottom: none; }
 button.pv-acct { cursor: pointer; }
-button.pv-acct:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  button.pv-acct:hover { background: var(--state-hover); }
+}
 .pv-acct-mark {
   width: 34px;
   height: 34px;
@@ -3088,7 +3186,9 @@ button.pv-acct:hover { background: var(--state-hover); }
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-1), border-color var(--dur-1) var(--ease-1);
 }
-.pv-provtile:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-provtile:hover { background: var(--state-hover); }
+}
 .pv-provtile.is-active {
   border-color: var(--accent-color);
   background: var(--accent-container);
@@ -3268,7 +3368,9 @@ ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
   cursor: pointer;
   text-align: left;
 }
-.pv-cascade-showbtn:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-cascade-showbtn:hover { background: var(--state-hover); }
+}
 .pv-cascade-items {
   max-height: 224px;
   overflow-y: auto;
@@ -3684,7 +3786,9 @@ ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
   font-size: var(--text-md);
   cursor: pointer;
 }
-.pv-journal-slim-row:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-journal-slim-row:hover { background: var(--state-hover); }
+}
 .pv-journal-slim-row .pv-journal-time { flex: none; padding: 0; color: var(--text-faint); }
 .pv-journal-slim-row .pv-journal-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .pv-journal-slim-row--closed .pv-journal-text { color: var(--text-faint); text-decoration: line-through; }
@@ -3761,7 +3865,9 @@ ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
   text-align: start;
   cursor: pointer;
 }
-.pv-journal-card:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-journal-card:hover { background: var(--state-hover); }
+}
 .pv-journal-card--closed { opacity: 0.6; }
 .pv-journal-card-head { display: flex; align-items: center; gap: var(--space-1); }
 .pv-journal-card-image { max-width: 100%; border-radius: var(--radius-xs); }
@@ -4086,7 +4192,9 @@ ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
   white-space: nowrap;
   cursor: pointer;
 }
-.pv-dbinsp-open:hover > b { text-decoration: underline; }
+@media (hover: hover) {
+  .pv-dbinsp-open:hover > b { text-decoration: underline; }
+}
 .pv-dbinsp-open > b { font-weight: 600; }
 .pv-dbinsp-open > small { color: var(--text-faint); font-size: var(--text-sm); }
 /* A note can be a row of several databases. Without a rule between the blocks
@@ -4294,7 +4402,9 @@ ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
   border-color: color-mix(in srgb, currentColor 28%, transparent);
   color: inherit;
 }
-.pv-selbar .pv-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-selbar .pv-btn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--state-hover); }
+}
 .pv-selbar .pv-btn--danger,
 .pv-selbar .pv-btn--danger-soft {
   color: var(--error-text);
@@ -4323,7 +4433,9 @@ ol.pv-wizsteps { margin: 0; padding: 0; list-style: none; }
    keyboard focus, once it is checked, and for EVERY row while a selection
    exists (.is-selecting on the table) so the column reads as one thing. */
 .pv-selcol .pv-check { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
-tr:hover > .pv-selcol .pv-check,
+@media (hover: hover) {
+  tr:hover > .pv-selcol .pv-check { opacity: 1; }
+}
 .pv-selcol .pv-check:focus-visible,
 .pv-selcol .pv-check:checked,
 .is-selecting .pv-selcol .pv-check,
@@ -4433,7 +4545,9 @@ tr.is-selected > td { color: var(--on-accent-container); }
   background: var(--bg-primary);
   cursor: pointer;
 }
-.pv-comment-card:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-comment-card:hover { background: var(--state-hover); }
+}
 /* The active card and its tinted range in the text are ONE thing seen twice. */
 .pv-comment-card.is-active { border-left-color: var(--accent-color); background: var(--accent-container); color: var(--on-accent-container); }
 .pv-comment-card.is-resolved { opacity: 0.6; }
@@ -4464,7 +4578,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   background: none; border: none; border-left: 2px solid var(--accent-color);
   font: inherit; cursor: pointer;
 }
-.pv-comment-card__quote--tap:hover { color: var(--text-main); }
+@media (hover: hover) {
+  .pv-comment-card__quote--tap:hover { color: var(--text-main); }
+}
 .pv-comment-card__replacement {
   display: flex; align-items: flex-start; gap: var(--space-1);
   margin: 0; padding: var(--space-1) var(--space-2);
@@ -4520,7 +4636,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
    focused (K3, decision E3): four ghost buttons on every card were the noise.
    Where there is no hover the row is simply always there. */
 .pv-comment-card__actions--quiet { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
-.pv-comment-card:hover .pv-comment-card__actions--quiet,
+@media (hover: hover) {
+  .pv-comment-card:hover .pv-comment-card__actions--quiet { opacity: 1; }
+}
 .pv-comment-card.is-active .pv-comment-card__actions--quiet,
 .pv-comment-card:focus-within .pv-comment-card__actions--quiet { opacity: 1; }
 @media (hover: none) { .pv-comment-card__actions--quiet { opacity: 1; } }
@@ -4542,7 +4660,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-evtdesc > :last-child { margin-bottom: 0; }
 .pv-evtdesc__head { color: var(--text-main); font-weight: 600; }
 .pv-evtdesc__link { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%; padding: 0 var(--space-2); border: 1px solid var(--border-color); border-radius: var(--radius-xs); background: var(--bg-primary); color: var(--accent-color); text-decoration: none; white-space: nowrap; vertical-align: baseline; }
-.pv-evtdesc__link:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-evtdesc__link:hover { background: var(--state-hover); }
+}
 .pv-evtdesc__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pv-evtdesc__host { color: var(--text-faint); font-size: var(--text-xs); }
 .pv-evtdesc__via { display: block; margin-top: var(--space-1); font-size: var(--text-xs); color: var(--text-faint); }
@@ -4674,7 +4794,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   overflow-wrap: anywhere;
 }
 .pv-comment-card--incoming { cursor: default; }
-.pv-comment-card--incoming:hover { background: var(--bg-primary); }
+@media (hover: hover) {
+  .pv-comment-card--incoming:hover { background: var(--bg-primary); }
+}
 
 /* The vault-wide comment overview (D9).
    The column beside a note answers "what is on THIS note"; this answers "what
@@ -4707,7 +4829,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   font-family: inherit; font-size: var(--text-ui); font-weight: 600;
   cursor: pointer;
 }
-.pv-comment-overview__notehead:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-comment-overview__notehead:hover { background: var(--state-hover); }
+}
 .pv-comment-overview__noteid { display: grid; gap: var(--space-1); min-width: 0; }
 .pv-comment-overview__path { color: var(--text-muted); font-size: var(--text-sm); font-weight: 400; overflow-wrap: anywhere; }
 .pv-comment-overview__badge {
@@ -4761,14 +4885,18 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-datejump-label { font-size: var(--text-md); font-weight: 600; font-variant-numeric: tabular-nums; }
 .pv-datejump-months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
 .pv-datejump-month { border: none; background: transparent; color: var(--text-main); border-radius: var(--radius-xs); padding: var(--space-1) 2px; font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 500; line-height: 1.2; cursor: pointer; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.pv-datejump-month:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-datejump-month:hover { background: var(--state-hover); }
+}
 .pv-datejump-month[aria-pressed="true"] { background: var(--accent-container); color: var(--on-accent-container); }
 .pv-datejump-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
 .pv-datejump-days.has-weeks { grid-template-columns: auto repeat(7, minmax(0, 1fr)); }
 .pv-datejump-wd { font-size: var(--text-xs); color: var(--text-faint); text-align: center; padding: 2px 0; text-transform: uppercase; overflow: hidden; white-space: nowrap; }
 .pv-datejump-wk { display: flex; align-items: center; justify-content: center; font-size: var(--text-xs); color: var(--text-faint); font-variant-numeric: tabular-nums; padding-right: var(--space-1); margin-right: 2px; border-right: 1px solid var(--border-color-light); }
 .pv-datejump-day { position: relative; border: none; background: transparent; color: var(--text-main); border-radius: var(--radius-xs); height: var(--control-md); min-width: 0; padding: 0; font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; cursor: pointer; }
-.pv-datejump-day:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-datejump-day:hover { background: var(--state-hover); }
+}
 .pv-datejump-day.is-outside { color: var(--text-faint); }
 .pv-datejump-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent-color); font-weight: 600; }
 .pv-datejump-day.in-band { background: var(--accent-container); color: var(--on-accent-container); }
@@ -4795,7 +4923,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-datejump-due { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); min-width: 0; }
 .pv-datejump-quick { display: grid; gap: 1px; padding-bottom: var(--space-1); border-bottom: 1px solid var(--border-color-light); }
 .pv-datejump-qitem { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-width: 0; min-height: var(--control-md); padding: var(--space-1) var(--space-2); border: none; border-radius: var(--radius-sm); background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-sm); text-align: left; cursor: pointer; }
-.pv-datejump-qitem:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-datejump-qitem:hover { background: var(--state-hover); }
+}
 .pv-datejump-qitem:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
 .pv-datejump-qitem[aria-pressed="true"] { background: var(--accent-container); color: var(--on-accent-container); font-weight: 500; }
 .pv-datejump-qitem > svg { flex-shrink: 0; }
@@ -4821,7 +4951,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 /* The title that opens it: the period label with a chevron; the accent pair
    while the popover is up, exactly like an active toggle. */
 .pv-datejump-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 3px; border: none; background: transparent; color: var(--text-main); font-family: var(--font-ui); font-size: var(--text-md); font-weight: 600; line-height: 1.2; padding: var(--space-1) var(--space-2); border-radius: var(--radius-xs); cursor: pointer; min-width: 0; text-transform: capitalize; }
-.pv-datejump-trigger:hover { background: var(--state-hover); }
+@media (hover: hover) {
+  .pv-datejump-trigger:hover { background: var(--state-hover); }
+}
 .pv-datejump-trigger[aria-expanded="true"] { background: var(--accent-container); color: var(--on-accent-container); }
 .pv-datejump-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-datejump-trigger > svg { flex-shrink: 0; opacity: 0.6; }

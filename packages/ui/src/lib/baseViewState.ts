@@ -35,7 +35,9 @@ function readMap(vaultKey: string, storage: StorageLike | null): Record<string, 
 /** Stable identifier of a view for persistence: its name, else `#<index>`. */
 export function viewStateName(view: any, index: number): string {
   const n = view?.name;
-  return typeof n === "string" && n.trim() ? n : `#${index}`;
+  // A name YAML reads as a number or a truth value (`name: 2025`) is its text.
+  const text = typeof n === "string" ? n : typeof n === "number" || typeof n === "boolean" ? String(n) : "";
+  return text.trim() ? text : `#${index}`;
 }
 
 export function getLastActiveView(vaultKey: string | null, filePath: string, storage: StorageLike | null = defaultStorage()): string | null {

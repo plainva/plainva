@@ -3537,6 +3537,9 @@
   "editor": {
     "completionHeadings": "Headings",
     "completionBlocks": "Blocks",
+    "codeCopy": "Copy code",
+    "codeCopied": "Code copied",
+    "codeCopyFailed": "The code could not be copied.",
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
     "loading": "Loading...",
     "menu": "Menu",

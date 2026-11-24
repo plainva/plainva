@@ -100,8 +100,6 @@ export const editorTheme = EditorView.theme({
     opacity: 0,
     transition: "opacity var(--dur-1) var(--ease-1)",
   },
-  "&:hover .cm-block-handle": { opacity: 0.5 },
-  ".cm-block-handle:hover": { opacity: 1, backgroundColor: "var(--bg-hover)" },
   // Markdown decoration classes (see LivePreviewPlugin)
   // A block id at the end of a paragraph, while the caret is elsewhere.
   ".cm-md-block-id": {
@@ -205,7 +203,35 @@ export const editorTheme = EditorView.theme({
     borderTopLeftRadius: "var(--radius-md)",
     borderTopRightRadius: "var(--radius-md)",
     paddingTop: "var(--space-1)",
+    position: "relative",
   },
+  // The copy button of the block: in the first line's corner, out of the flow so
+  // the line keeps its height; a finger's hit area comes from --md-copy-hit.
+  ".cm-md-codecopy": {
+    position: "absolute",
+    insetBlockStart: "var(--space-1)",
+    insetInlineEnd: "var(--space-2)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "var(--md-copy-size)",
+    height: "var(--md-copy-size)",
+    padding: "0",
+    border: "none",
+    borderRadius: "var(--radius-sm)",
+    background: "transparent",
+    color: "var(--text-muted)",
+    cursor: "pointer",
+    fontFamily: "var(--font-ui)",
+  },
+  ".cm-md-codecopy::after": {
+    content: '""',
+    position: "absolute",
+    inset: "calc(-1 * var(--md-copy-hit))",
+  },
+  ".cm-md-codecopy svg": { width: "var(--text-md)", height: "var(--text-md)" },
+  ".cm-md-codecopy.is-copied": { color: "var(--accent-color)" },
+  ".cm-md-codecopy:focus-visible": { outline: "2px solid var(--focus-ring, var(--accent-color))", outlineOffset: "1px" },
   ".cm-md-codeblock--last": {
     borderBottomLeftRadius: "var(--radius-md)",
     borderBottomRightRadius: "var(--radius-md)",
@@ -277,12 +303,16 @@ export const editorTheme = EditorView.theme({
     textDecoration: "var(--web-link-decoration)",
     cursor: "pointer",
   },
-  ".cm-md-cell-link:hover": {
-    textDecoration: "underline",
-  },
-  // A wiki link in a cell looks like one in the text (wikiLinkStyle.ts).
   ".cm-md-cell-link.pv-wiki-link": WIKI_LINK_STYLE,
-  ".cm-md-cell-link.pv-wiki-link:hover": WIKI_LINK_HOVER_STYLE,
+  "@media (hover: hover)": {
+    "&:hover .cm-block-handle": { opacity: 0.5 },
+    ".cm-block-handle:hover": { opacity: 1, backgroundColor: "var(--bg-hover)" },
+    ".cm-md-codecopy:hover": { background: "var(--bg-hover)", color: "var(--text-main)" },
+    ".cm-md-cell-link:hover": {
+      textDecoration: "underline",
+    },
+    ".cm-md-cell-link.pv-wiki-link:hover": WIKI_LINK_HOVER_STYLE,
+  },
   // Inline cell editing (TS3): a native field opens in place on click. Since
   // issue 118 it is a textarea as tall as its text: it wraps like the cell it
   // replaces and its height is set from its content, so it has neither a

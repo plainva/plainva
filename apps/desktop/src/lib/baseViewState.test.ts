@@ -20,6 +20,15 @@ describe("baseViewState (shared)", () => {
     expect(resolveViewIndex(views, null)).toBe(0);
   });
 
+  it("keeps a name YAML reads as a number or a truth value findable", () => {
+    const odd = [{ name: 2025 }, { name: true }, { name: "Plain" }];
+    expect(viewStateName(odd[0], 0)).toBe("2025");
+    expect(viewStateName(odd[1], 1)).toBe("true");
+    expect(resolveViewIndex(odd, "2025")).toBe(0);
+    expect(resolveViewIndex(odd, "true")).toBe(1);
+    expect(resolveViewIndex(odd, "Plain")).toBe(2);
+  });
+
   it("remembers per vault and per file, and survives a missing vault key", () => {
     const storage = fakeStorage();
     setLastActiveView("local", "Zettel.base", "Pinnwand", storage);

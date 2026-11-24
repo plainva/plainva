@@ -75,11 +75,17 @@ describe("spliceIntoSequence (D3 splice semantics)", () => {
   it("writes each entry once, also where the stored list held one twice", () => {
     expect(spliceIntoSequence(["a.md", "b.md", "a.md"], ["a.md", "b.md"], ["b.md"], { kind: "before", path: "a.md" })).toEqual(["b.md", "a.md"]);
   });
-  it("drops at the end after the last card shown, also where a list holds a card twice and so draws it twice", () => {
+  it("draws each card once, also where a list holds it twice, and ends at the last card shown", () => {
     const pinned = ["n0.md", "n3.md", "n9.md", "n0.md"];
-    const drawn = orderCards(["n0.md", "n3.md", "n9.md"].map((p) => row(p, 1)), [], pinned).pinned;
-    expect(drawn).toEqual(pinned);
+    const sections = orderCards(["n0.md", "n3.md", "n9.md", "n5.md"].map((p) => row(p, 1)), ["n5.md", "n5.md", "n3.md"], pinned);
+    expect(sections.pinned).toEqual(["n0.md", "n3.md", "n9.md"]);
+    expect(sections.unpinned).toEqual(["n5.md"]);
+    const drawn = sections.pinned;
     expect(spliceIntoSequence(pinned, drawn, ["n3.md"], { kind: "end" })).toEqual(["n0.md", "n9.md", "n3.md"]);
+  });
+  it("lists a path of the order twice only once among the unpinned", () => {
+    const s = orderCards([row("a.md", 1), row("b.md", 2)], ["b.md", "a.md", "b.md"], undefined);
+    expect(s.unpinned).toEqual(["b.md", "a.md"]);
   });
 });
 

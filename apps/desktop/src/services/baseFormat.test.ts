@@ -361,6 +361,11 @@ describe("baseFormat: Obsidian hard requirements (view names, single-rooted filt
     expect(out.views[1].name).toBe("2024");
   });
 
+  it("reads a name YAML parses as a number or a truth value as its text", () => {
+    const cfg = parseBaseConfig("views:\n  - type: table\n    name: 2025\n  - type: table\n    name: true\n  - type: table\n    name: Plain\n");
+    expect(cfg.views.map((v: any) => v.name)).toEqual(["2025", "true", "Plain"]);
+  });
+
   it("never writes an empty views list", () => {
     const out = yaml.parse(serializeBaseConfig({ columns: {}, views: [], _obsidian: {} }));
     expect(out.views).toHaveLength(1);

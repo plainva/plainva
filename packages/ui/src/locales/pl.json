@@ -3715,6 +3715,9 @@
   "editor": {
     "completionHeadings": "Nagłówki",
     "completionBlocks": "Bloki",
+    "codeCopy": "Kopiuj kod",
+    "codeCopied": "Skopiowano kod",
+    "codeCopyFailed": "Nie udało się skopiować kodu.",
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
     "loading": "Ładowanie...",
     "menu": "Menu",

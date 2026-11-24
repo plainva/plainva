@@ -10,6 +10,7 @@ import {
   Check,
   Code,
   Sparkles,
+  Database,
   FolderInput,
   MoreVertical,
   Paintbrush,
@@ -47,6 +48,8 @@ import { resolveGoverningBaseOf } from "../services/baseOps";
 import { forgetKeptText, getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { mobileTemplateFolder } from "../services/templateAssignment";
+import { TemplateTargetsSheet } from "./base/TemplateTargetsSheet";
 import { openLink } from "../services/openLink";
 import { configuredNoteType } from "../services/newNote";
 import { mPrompt } from "../services/mobileDialogs";
@@ -177,6 +180,9 @@ export function NoteScreen({
   }, []);
   const docked = canDock && dockPref;
   const [menu, setMenu] = useState(false);
+  /** "Target databases" of a template note: the sheet that assigns it to databases (parity base-template-assignment). */
+  const [showTemplateTargets, setShowTemplateTargets] = useState(false);
+  const isTemplateFile = path.toLowerCase().endsWith(".md") && path.startsWith(`${mobileTemplateFolder()}/`);
   const [moving, setMoving] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   useEffect(() => {
@@ -1682,6 +1688,11 @@ export function NoteScreen({
         />
         </AreaBoundary>
       )}
+      {showTemplateTargets && (
+        <AreaBoundary area="sheet:templateTargets" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowTemplateTargets(false) }}>
+          <TemplateTargetsSheet vault={vault} templatePath={path} onClose={() => setShowTemplateTargets(false)} />
+        </AreaBoundary>
+      )}
       {menu && (
         <AreaBoundary area="sheet:rowActions" size="dialog" exit={{ label: t("common.close"), onExit: () => setMenu(false) }}>
         <RowActionSheet
@@ -1864,6 +1875,16 @@ export function NoteScreen({
                 insertTemplate();
               },
             },
+            ...(isTemplateFile
+              ? [{
+                  icon: <Database size={ICON.head} />,
+                  label: t("editor.templateTargets"),
+                  onClick: () => {
+                    setMenu(false);
+                    setShowTemplateTargets(true);
+                  },
+                }]
+              : []),
             {
               icon: <FilePlus2 size={ICON.head} />,
               label: t("editor.saveAsTemplate"),

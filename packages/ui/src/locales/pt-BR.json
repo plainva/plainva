@@ -3626,6 +3626,9 @@
   "editor": {
     "completionHeadings": "Títulos",
     "completionBlocks": "Blocos",
+    "codeCopy": "Copiar código",
+    "codeCopied": "Código copiado",
+    "codeCopyFailed": "Não foi possível copiar o código.",
     "unresolvedLinkTip": "A nota ainda não existe – clique para criar",
     "loading": "Carregando...",
     "menu": "Menu",

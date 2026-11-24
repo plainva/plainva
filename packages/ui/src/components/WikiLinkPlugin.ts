@@ -338,13 +338,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
         textDecoration: "var(--web-link-decoration)",
         cursor: "pointer",
       },
-      ".cm-wiki-link:hover": {
-        textDecoration: "underline",
-      },
-      // A wiki link: the look lives in wikiLinkStyle.ts, shared with
-      // table-cell links and the reading views.
       ".cm-wiki-link.cm-wiki-link--note": WIKI_LINK_STYLE,
-      ".cm-wiki-link.cm-wiki-link--note:hover": WIKI_LINK_HOVER_STYLE,
       // lezer-markdown tags the inner `[target]` of `[[wiki]]` (and `[text](url)`)
       // as a Link, so the highlighter paints its own SOLID underline on the token
       // nested inside this mark. It stacked with this mark's underline — invisible
@@ -365,7 +359,14 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
       // clickable — clicking creates the note (Obsidian parity). Kept visually
       // identical to the reading view's `underline dashed` (maintainer: the
       // live-preview link must look the same as in reading mode).
-      ".cm-wiki-link.cm-wiki-link--unresolved, .cm-wiki-link.cm-wiki-link--unresolved:hover": WIKI_LINK_UNRESOLVED_STYLE,
+      ".cm-wiki-link.cm-wiki-link--unresolved": WIKI_LINK_UNRESOLVED_STYLE,
+      "@media (hover: hover)": {
+        ".cm-wiki-link:hover": {
+          textDecoration: "underline",
+        },
+        ".cm-wiki-link.cm-wiki-link--note:hover": WIKI_LINK_HOVER_STYLE,
+        ".cm-wiki-link.cm-wiki-link--unresolved:hover": WIKI_LINK_UNRESOLVED_STYLE,
+      },
     }),
     EditorView.domEventHandlers({
       mousedown: (event, view) => {

@@ -30,7 +30,7 @@ import { REPO, shippedSources } from "./test-sourceTree";
 const SHELLS = ["apps/desktop/src", "apps/mobile/src", "packages/ui/src"];
 
 /** The functions a user-started write goes through, and the sentence their failure gets. */
-const WATCHED = ["createInlineBase", "createTaskDatabase", "createNewTemplate", "saveNoteAsTemplate", "createTemplateIn", "saveNoteAsTemplateIn", "createBaseItem", "promoteTask", "adoptFileAsIndex"];
+const WATCHED = ["createInlineBase", "createTaskDatabase", "createNewTemplate", "saveNoteAsTemplate", "createTemplateIn", "createTemplateForBase", "saveNoteAsTemplateIn", "createBaseItem", "promoteTask", "adoptFileAsIndex"];
 
 interface Site {
   file: string;
@@ -62,6 +62,8 @@ const SITES: Site[] = [
   { file: "apps/desktop/src/AppShell.tsx", writer: "saveNoteAsTemplate", calls: 1, how: "the sentence of a new template, with its reason", says: [said("newTemplate")], within: 700 },
   { file: "apps/desktop/src/services/templateActions.ts", writer: "createTemplateIn", calls: 1, how: "thrown on to createNewTemplate's callers, listed above", says: [/^adapter, \{ folder, noteType \}, stem, assignTo\);\s*\}/], within: 70 },
   { file: "apps/desktop/src/services/templateActions.ts", writer: "saveNoteAsTemplateIn", calls: 1, how: "thrown on to saveNoteAsTemplate's caller, listed above", says: [/^adapter, folder, notePath\);\s*\}/], within: 70 },
+  { file: "apps/mobile/src/services/templateAssignment.ts", writer: "createTemplateIn", calls: 1, how: "thrown on to createTemplateForBase's caller, listed below", says: [/return created;\s*\}/], within: 350 },
+  { file: "apps/mobile/src/screens/base/BaseScreen.tsx", writer: "createTemplateForBase", calls: 1, how: "the sentence of a new template, with its reason", says: [said("newTemplate")], within: 350 },
   { file: "apps/mobile/src/services/templatePrompt.ts", writer: "createTemplateIn", calls: 1, how: "the sentence of a new template, with its reason", says: [said("newTemplate")], within: 400 },
   { file: "apps/mobile/src/screens/NoteScreen.tsx", writer: "saveNoteAsTemplateIn", calls: 1, how: "the sentence of a new template, with its reason", says: [said("newTemplate")], within: 400 },
   // ── A new entry of a database (§ 3.134 no. 3; the desktop's is checked below) ──

@@ -75,6 +75,7 @@ const SHEETS_WITHOUT_TYPED_INPUT: Record<string, string> = {
   "components/MobileMemoryView.tsx": "the field filters the long-term memory and sits outside the compare sheet; the entry and rule forms guard themselves",
   "components/NotePickSheet.tsx": "the field searches the note names; one tap picks and closes",
   "screens/base/BaseConfigSheet.tsx": "every control writes the view at once",
+  "screens/base/TemplateTargetsSheet.tsx": "the field filters the vault's databases; every pick commits at once",
   "screens/GraphScreen.tsx": "the field filters the graph and sits outside the tools sheet",
   "screens/JournalScreen.tsx": "the field filters the journal; the sheet is a day jump that commits on pick",
   "screens/MailListScreen.tsx": "the field searches the mailbox and sits outside the sheet",

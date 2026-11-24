@@ -423,8 +423,10 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
   border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
   margin: 4px 8px 4px 0;
 }
-[data-theme-name="lcars"] .pv-side-section-header:hover {
-  background: var(--lcars-1);
+@media (hover: hover) {
+  [data-theme-name="lcars"] .pv-side-section-header:hover {
+    background: var(--lcars-1);
+  }
 }
 /* The heading sits ON the amber bar, so its text and chevron go black. The
    count badge is NOT part of that bar — it has its own dark container — and a
@@ -452,9 +454,11 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
   background: var(--lcars-4);
   background-clip: padding-box;
 }
-[data-theme-name="lcars"] ::-webkit-scrollbar-thumb:hover {
-  background: var(--lcars-1);
-  background-clip: padding-box;
+@media (hover: hover) {
+  [data-theme-name="lcars"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--lcars-1);
+    background-clip: padding-box;
+  }
 }
 
 /* Red alert: the frame pulses gently. Decoration only; disabled for users
