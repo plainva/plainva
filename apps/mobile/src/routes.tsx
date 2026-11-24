@@ -611,6 +611,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
       onOpenRecent={() => c.push({ kind: "recent", path: "" })}
       onOpenBookmarks={() => c.push({ kind: "bookmarks", path: "" })}
+      onOpenVaults={() => c.push({ kind: "vaults", path: "" })}
       vault={c.vault}
       vaultName={c.vaultName}
     />

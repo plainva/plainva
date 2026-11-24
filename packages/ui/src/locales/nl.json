@@ -5555,6 +5555,8 @@
     "todayInFolder": "Map {{folder}}/",
     "folderCount_one": "1 notitie",
     "folderCount_other": "{{count}} notities",
+    "noteWords_one": "{{count}} woord",
+    "noteWords_other": "{{count}} woorden",
     "baseCount_one": "1 database",
     "baseCount_other": "{{count}} databases",
     "attachmentCount_one": "1 bestand",

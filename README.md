@@ -10,7 +10,7 @@
 
 Plainva is an open-source, local-first Markdown vault editor for Windows, macOS and Linux. It opens existing Obsidian vaults without migration, adds Notion-style databases over plain files, syncs through YOUR storage — and every file it writes stays readable in any text editor, forever.
 
-> **Status: Beta.** Plainva is used daily on real vaults, ships with an extensive test suite (1,500+ tests) and automatic per-file versioning — but it is pre-1.0 software. Keep backups of irreplaceable vaults (Plainva also creates daily ZIP backups by default).
+> **Status: Beta.** Plainva is used daily on real vaults, ships with an extensive test suite (21,000+ automated tests) and automatic per-file versioning — but it is pre-1.0 software. Keep backups of irreplaceable vaults (Plainva also creates daily ZIP backups by default).
 
 ![Plainva editor with live preview and the slash command menu](docs/assets/screenshot-editor.png)
 
@@ -27,6 +27,9 @@ Plainva is an open-source, local-first Markdown vault editor for Windows, macOS 
 - **Databases over plain notes (`.base`)** — tables, boards, calendars, galleries, timelines and a graph view over your notes' frontmatter, including relations with computed reverse columns. The data IS your notes; the `.base` format stays Obsidian-compatible.
 - **Graph** — a context graph beside every note, a semantic-zoom vault map with cleanup tools (orphans, broken links, unlinked mentions) and time travel.
 - **Sync through your storage** — WebDAV/Nextcloud, S3-compatible object storage (R2, MinIO, B2, …), Google Drive, OneDrive and Dropbox. Offline queue, 3-way merge, a visual conflict resolver, and nothing ever leaves your chosen storage. Credentials live in the OS keychain.
+- **Calendar, tasks, mail and journal** — your calendars, task lists and mailboxes beside your notes, plus a daily journal with quick capture.
+- **Mobile (beta)** — Android and iOS/iPadOS apps on the same Markdown files, the same format and the same sync engine.
+- **Optional AI (beta)** — off by default and entirely opt-in; you bring your own key or a local model.
 - **Versioning built in** — every write is snapshotted locally; browse, diff and restore any version, recover deleted files, daily ZIP backups.
 - **Fast on large vaults** — SQLite/FTS5 full-text search as you type, incremental indexing, a measured performance budget (see `docs/engineering/Performance_Notes.md`).
 - **Yours** — 10 UI languages, 13+ themes (including a few delightful secrets), no telemetry, no account, AGPL-licensed.
@@ -79,7 +82,7 @@ On a system below that line the app says so on startup instead of opening a blan
 is the engine, not the app: no released version of Plainva runs below it, so an older build is not a
 way around it.
 
-Cloud providers: WebDAV/Nextcloud, S3, OneDrive and Dropbox work out of the box. Only Google Drive currently requires a free app registration of your own ("bring your own client ID") — the settings link a step-by-step guide, and the [user guide](docs/user/en/Sync_Setup.md) covers every provider.
+Cloud providers: WebDAV/Nextcloud, S3, OneDrive, Dropbox and Google Drive work out of the box — the standard sign-in needs nothing of your own (when your build includes it). For Google Drive, a free app registration of your own ("bring your own client ID") is an optional alternative — the settings link a step-by-step guide, and the [user guide](docs/user/en/Sync_Setup.md) covers every provider.
 
 ## User guide
 

@@ -50,6 +50,7 @@ export function NavigatorScreen({
   onCreateNote,
   onOpenRecent,
   onOpenBookmarks,
+  onOpenVaults,
 }: {
   vault: MobileVault;
   vaultName: string;
@@ -76,6 +77,8 @@ export function NavigatorScreen({
    */
   onOpenRecent?: () => void;
   onOpenBookmarks?: () => void;
+  /** The vault name in the head opens vault switching (the desktop's vault switcher). */
+  onOpenVaults?: () => void;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<NavigatorTab>(getNavigatorTab);
@@ -154,7 +157,17 @@ export function NavigatorScreen({
     <div className="m-page" ref={ptrRef}>
       {/* The vault's own surface, so its state belongs here: the sync cloud sat
           in the shell's head until S11 and would otherwise be nowhere. */}
-      <AppBar large onMenu={onMenu} onSearch={onSearch} subtitle={syncSubtitle} title={vaultName} actions={<SyncIndicator />} />
+      <AppBar
+        large
+        onMenu={onMenu}
+        onSearch={onSearch}
+        onTitleClick={onOpenVaults}
+        subtitle={syncSubtitle}
+        title={vaultName}
+        titleActionLabel={onOpenVaults ? `${vaultName} — ${t("sidebar.switchVault")}` : undefined}
+        titleTestId="home-vault-switch"
+        actions={<SyncIndicator />}
+      />
       {ptrIndicator}
 
       {vaultStart !== "content" && onCreateNote ? (

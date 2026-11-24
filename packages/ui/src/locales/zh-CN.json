@@ -5442,6 +5442,7 @@
     "todayFromTemplate": "来自模板“{{name}}”",
     "todayInFolder": "文件夹 {{folder}}/",
     "folderCount_other": "{{count}} 条笔记",
+    "noteWords_other": "{{count}} 词",
     "baseCount_other": "{{count}} 个数据库",
     "attachmentCount_other": "{{count}} 个文件",
     "aboutTip": "提示：这个标志喜欢被关注。五次。",

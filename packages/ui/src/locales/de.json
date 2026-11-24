@@ -5555,6 +5555,8 @@
     "todayInFolder": "Ordner {{folder}}/",
     "folderCount_one": "1 Notiz",
     "folderCount_other": "{{count}} Notizen",
+    "noteWords_one": "{{count}} Wort",
+    "noteWords_other": "{{count}} Wörter",
     "baseCount_one": "1 Datenbank",
     "baseCount_other": "{{count}} Datenbanken",
     "attachmentCount_one": "1 Datei",

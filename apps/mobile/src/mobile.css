@@ -381,6 +381,51 @@ textarea {
   background: var(--state-highlight);
   border-radius: var(--radius-sm);
 }
+/* A title that opens something (the vault name opens vault switching): it
+   keeps the heading's own look; the chevron is the only sign it is a control. */
+.m-appbar-ttlbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  min-height: var(--touch-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.m-appbar-ttlbtn:active {
+  background: var(--state-highlight);
+  border-radius: var(--radius-sm);
+}
+.m-appbar-ttltext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The note sheet's head: the title, and the note's length beside it — quiet. */
+.m-context-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.m-context-head .m-sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+.m-context-words {
+  flex-shrink: 0;
+  margin: 0 var(--space-2) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 /* With a line of context under the title, the buttons sit level with the
    title, not with the middle of the two lines (feedback 2026-10-29: the menu
    hung between "Heute" and its date). The title line is as tall as a button,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { AreaBoundary, reportVisible, isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
+import { AreaBoundary, countWords, reportVisible, isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, PenLine, Plus } from "lucide-react";
@@ -41,7 +41,7 @@ import {
   type BacklinkSortKey,
   type GroupedBacklink,
 } from "@plainva/ui";
-import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst } from "@plainva/core";
+import { extractFrontmatter, noteBodyOf, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue, renameNoteProperty, resolveGoverningBaseOf } from "../services/baseOps";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -146,6 +146,9 @@ export function NoteContextSheet({
   const [fileText, setFileText] = useState<string | null>(null);
   const hintSession = aiOn ? getMobileAiSession() : null;
   const hints = useNoteHints(hintSession, aiOn ? path : null, noteText ?? fileText);
+  // The note's length, the desktop status bar's count: the body only, so the properties block is no words.
+  const activeText = noteText ?? fileText;
+  const wordCount = activeText === null ? null : countWords(noteBodyOf(activeText));
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
   // A block that cannot be read as properties is said as such — the desktop's
   // panel asks the same question and says the same sentence (ADR 0009,
@@ -387,7 +390,12 @@ export function NoteContextSheet({
           onClick={docked ? undefined : (e) => e.stopPropagation()}
         >
           {!docked && <SheetGrip onClose={onClose} />}
-          <p className="m-sheet-title">{path.split("/").pop()!.replace(/\.md$/i, "")}</p>
+          <div className="m-context-head">
+            <p className="m-sheet-title">{path.split("/").pop()!.replace(/\.md$/i, "")}</p>
+            {wordCount !== null && (
+              <span className="m-context-words" data-testid="note-word-count">{t("mobile.noteWords", { count: wordCount })}</span>
+            )}
+          </div>
           <Segmented
             ariaLabel={t("mobile.noteContext")}
             options={[

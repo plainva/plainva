@@ -5442,6 +5442,7 @@
     "todayFromTemplate": "テンプレート「{{name}}」から",
     "todayInFolder": "フォルダー {{folder}}/",
     "folderCount_other": "{{count}}件のノート",
+    "noteWords_other": "{{count}}単語",
     "baseCount_other": "{{count}}件のデータベース",
     "attachmentCount_other": "{{count}}件のファイル",
     "aboutTip": "ヒント: ロゴは注目されるのが好きです。5回。",
