@@ -92,23 +92,35 @@ const linksBase = [
 
 test("a link inside a free-text database cell opens its target while tapping plain text opens the cell editor", async ({ page, context }) => {
   const sql = await installSqlBridge(context);
-  await context.addInitScript(settings);
+  await context.addInitScript(() => {
+    const w = window as Window & { __opened?: string[] };
+    w.__opened = [];
+    window.open = ((url?: string | URL) => {
+      w.__opened!.push(String(url));
+      return null;
+    }) as typeof window.open;
+    localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
+  });
   try {
     await open(page, [
       ["vault/Links.base", linksBase],
-      ["vault/Items/Row.md", '---\nsummary: "See [[Target]] for details"\n---\n# Row\n'],
+      ["vault/Items/Row.md", '---\nsummary: "See [[Target]] or https://plainva.com/guide"\n---\n# Row\n'],
       ["vault/Target.md", "# Target\n\nReached directly from the cell.\n"],
     ]);
     await page.getByText(/^Links$/).first().click();
     const cell = page.locator("table.m-basetable tbody td").nth(1);
-    await expect(cell).toContainText("See Target for details", { timeout: 20000 });
+    await expect(cell).toContainText("See Target or https://plainva.com/guide", { timeout: 20000 });
 
     // Tapping plain text opens the cell editor sheet.
     await cell.locator("span", { hasText: "See " }).first().click();
     await expect(page.locator(".m-sheet").filter({ hasText: "summary" })).toBeVisible();
     await page.locator(".m-sheet-backdrop").last().click({ position: { x: 5, y: 5 } });
 
-    // Tapping the link follows it to Target.md.
+    // Tapping a bare URL inside free text opens it directly without the sheet.
+    await cell.locator("a.pv-web-link", { hasText: "https://plainva.com/guide" }).click();
+    await expect.poll(() => page.evaluate(() => (window as Window & { __opened?: string[] }).__opened)).toEqual(["https://plainva.com/guide"]);
+
+    // Tapping the wiki link follows it to Target.md.
     await cell.locator(".pv-web-link", { hasText: "Target" }).click();
     await expect(page.locator(".cm-content")).toContainText("Reached directly from the cell.", { timeout: 15000 });
   } finally {

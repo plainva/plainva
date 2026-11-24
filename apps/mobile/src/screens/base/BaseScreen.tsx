@@ -860,13 +860,15 @@ export function BaseScreen({
   /**
    * Free text of a cell when it carries a link (parity `base-cell-text-links`):
    * `[[wiki|alias]]`, `[label](target)` or a bare `https://…`. Absent while
-   * rows are being selected, where any tap toggles selection instead.
+   * rows are being selected (taps toggle selection) and for dedicated `url`
+   * columns, whose entire value is the address and whose tap opens the cell
+   * sheet (for editing and its guarded "Open" action).
    */
   const inlineLinkText = (col: string, v: unknown): string | null => {
     if (rowSel.active || isReverse(col)) return null;
     const input = columnInput(col, v);
-    if (input !== "text" && input !== "url") return null;
-    const raw = typeof v === "string" ? v : input === "text" && Array.isArray(v) ? v.map(String).join(", ") : null;
+    if (input !== "text") return null;
+    const raw = typeof v === "string" ? v : Array.isArray(v) ? v.map(String).join(", ") : null;
     return raw && hasInlineLinks(raw) ? raw : null;
   };
 
