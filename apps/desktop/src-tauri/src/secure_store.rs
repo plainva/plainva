@@ -19,8 +19,9 @@ fn locked<T>(run: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
 /// runtime the wait is announced, so the worker's other tasks move away.
 fn on_lane<T: Send + 'static>(run: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
     if std::thread::current().name() == Some(LANE_NAME) {
-        // Already a step of the queue: it runs here, or it would wait for itself.
-        return locked(run);
+        // Already a step of the queue, which holds the lock (`locked`, not
+        // reentrant): it runs here and now, or it would wait for itself.
+        return run();
     }
     let (answer, answered) = std::sync::mpsc::channel();
     lane()
@@ -97,14 +98,18 @@ static KEYCHAIN_REFUSALS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atom
 
 /// A failure that is the person's "no": macOS says the user cancelled
 /// (errSecUserCanceled, -128) or denied the access, the Secret Service that
-/// the prompt was dismissed. Anything else is the keychain not answering.
+/// the prompt was dismissed. Anything else is the keychain not answering — a
+/// locked keychain that may show no dialog now included.
 fn is_refusal(error: &keyring::Error) -> bool {
     let text = match error {
         keyring::Error::PlatformFailure(inner) | keyring::Error::NoStorageAccess(inner) => inner.to_string(),
         _ => return false,
     }
     .to_lowercase();
-    ["cancel", "denied", "dismissed", "-128", "user interaction is not allowed"].iter().any(|word| text.contains(word))
+    // Not "user interaction is not allowed" (macOS errSecInteractionNotAllowed,
+    // -25308): the keychain is locked and may show no dialog now — it does not
+    // answer yet, which is what the move waits out.
+    ["cancel", "denied", "dismissed", "-128"].iter().any(|word| text.contains(word))
 }
 
 /// A keychain error as text, counted where it is the person's refusal.
@@ -1402,6 +1407,8 @@ mod tests {
         assert!(is_refusal(&keyring::Error::NoStorageAccess("Prompt dismissed".to_string().into())));
         assert!(is_refusal(&platform("access denied")));
         assert!(!is_refusal(&platform("org.freedesktop.DBus.Error.ServiceUnknown")));
+        // macOS errSecInteractionNotAllowed: locked, no dialog allowed now — not yet answering, no one's "no".
+        assert!(!is_refusal(&platform("User interaction is not allowed. (-25308)")));
         assert!(!is_refusal(&keyring::Error::NoEntry));
     }
 
@@ -1455,6 +1462,23 @@ mod tests {
             }
         });
         assert_eq!(*order.lock().unwrap(), (0..=40).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_step_of_the_queue_that_reaches_a_slot_runs_it_in_place_and_answers() {
+        // A step that calls `read_slot`/`write_slot` comes through `on_lane` on the queue's own thread.
+        let (answer, answered) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let inner = tauri::async_runtime::block_on(off_main(|| on_lane(|| Ok(5)).map(|n| n + 1)));
+            let _ = answer.send(inner);
+        });
+        assert_eq!(
+            answered.recv_timeout(std::time::Duration::from_secs(5)),
+            Ok(Ok(6)),
+            "a step that reaches a slot waited for itself and held the queue"
+        );
+        // And the queue goes on.
+        assert_eq!(on_lane(|| Ok(7)), Ok(7));
     }
 
     #[test]
