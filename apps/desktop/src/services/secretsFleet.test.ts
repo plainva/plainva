@@ -944,7 +944,10 @@ describe("after a lost key: one baseline, never winning while it holds what it f
     l.rows = l.rows.filter((r) => r.id !== "b");
     l.slots.delete("b");
     await rounds([l, o], 2);
-    expect(entryOf("Alice")?.tombstone).toBeUndefined();
+    // "Alice" was never published: no tombstone for it (review 2026-11-25,
+    // a name this device knows nothing of is only noted), and none from what
+    // the old name of "alice" knew.
+    expect(entryOf("Alice")).toBeUndefined();
     expect([l.slots.get("a"), o.slots.get("a")]).toEqual(["A1", "A1"]);
   });
 });

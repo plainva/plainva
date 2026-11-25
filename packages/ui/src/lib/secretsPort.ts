@@ -124,15 +124,24 @@ export interface SecretsPortMeta {
        */
       unconfirmed?: true;
       /**
-       * A tombstone that reached an account still on this device: never
-       * applied to it (review 2026-11-25) — the account leaves a device with
-       * the settings profile, which takes its slot along. The mark of the
-       * slot as it was then: while the slot holds it, the tombstone goes out
-       * as it came; a password typed here later is a change.
+       * A tombstone that reached an account still on this device whose
+       * password came through the sync: never applied to it (review
+       * 2026-11-25) — the account leaves a device with the settings profile,
+       * which takes its slot along. The mark of the slot as it was then:
+       * while the slot holds it, the tombstone goes out as it came; a
+       * password typed here later is a change. A password typed here before
+       * is never held: it goes out above the tombstone (`over`).
        */
       kept?: string;
       /** This tombstone was written by "Remove account" on this device (`retireSecret`). */
       removal?: true;
+      /**
+       * This device published its own password above a tombstone it found
+       * for an account still here. When that account then leaves this device
+       * (the profile took it), the tombstone it went over comes back: this
+       * device put the password there, and nobody else would take it out.
+       */
+      over?: true;
     }
   >;
   /** Entries written BY an import — only these may be removed by a tombstone. */
@@ -156,7 +165,7 @@ export interface SecretsPortMeta {
    * not from comparing lists — which cannot tell "gone" from "alice" beside a
    * removed "Alice", or the last account from a runtime still booting.
    */
-  retired?: Record<string, SecretBinding>;
+  retired?: Record<string, RetiredBinding>;
   /**
    * Tombstones seen under an account's OLD name (review 2026-11-18, O1), by id
    * with their time. Never applied — a device up to 0.8.7 cannot say which of
@@ -174,20 +183,54 @@ export interface SecretsPortMeta {
   closedOldNames?: Record<string, string>;
   /**
    * The names — current and old — "Remove account" tombstoned on this
-   * device, with the time of the removal (review 2026-11-25). A value under
-   * one of them that is older than the removal and that this device had not
-   * seen yet is answered by the tombstone again, one revision above it, so
-   * the password leaves the shared document. A value written after the
-   * removal is another device's own act and stays. The name opens again when
-   * its account is on this device again.
+   * device, and where each removal stands (`RemovalState`). The name opens
+   * again when its account is on this device again.
    */
-  removedIds?: Record<string, string>;
+  removedIds?: Record<string, RemovalState>;
   /**
    * The document, accounts and slots the last import took with nothing left
    * open, as a mark (`settledKey`). The same again is settled: nothing is
    * written and nothing reported (round seven).
    */
   settled?: string;
+}
+
+/** A binding "Remove account" asked to be tombstoned, with the moment of that act. */
+export type RetiredBinding = SecretBinding & { removedAt?: string };
+
+/**
+ * Where a removal this device wrote stands (review 2026-11-25, second round).
+ * What a removal beats is decided by what was SEEN, the time of a device only
+ * breaks a tie between two acts that never saw each other:
+ *
+ *  - The tombstone goes out one revision above everything this device knew
+ *    of the name when the account was removed, with the moment of the act
+ *    as its time — not the time of the round that carries it out.
+ *  - `confirmed`: a round of this device found its tombstone as the
+ *    document's entry. A value written later above it was written by a
+ *    device that had it in front of it — the account was added again on
+ *    purpose — and is never answered.
+ *  - Until then, a value the document already carries above the tombstone
+ *    was written without knowledge of it. What the device knew at the act
+ *    (`seen`) decides: it knew nothing of the name (the account came through
+ *    the profile) or only a tombstone (the account had come back) — then the
+ *    account it removed is the one that value belongs to, and the value is
+ *    answered, one revision above it. It knew a password — then the value is
+ *    either a change of that same account it had not seen yet, or a password
+ *    of the account added again after the act; the two acts never saw each
+ *    other, and only here the times of two devices decide, as the last
+ *    tie-breaker: from before the act it is answered, from after it the
+ *    removal yields (`yielded`).
+ *  - While a removal is open the port reads the document every round
+ *    (`awaitsDocument`), so its confirmation is never missed.
+ */
+export interface RemovalState {
+  /** The moment of the act, on this device's clock. */
+  at: string;
+  /** What this device knew of the name at the act. */
+  seen: "none" | "tombstone" | "value";
+  confirmed?: true;
+  yielded?: true;
 }
 
 /** What a shell must provide; everything else is decided above. */
@@ -266,7 +309,7 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   ...(source?.retired ? { retired: Object.fromEntries(Object.entries(source.retired).map(([id, binding]) => [id, { ...binding }])) } : {}),
   ...(source?.oldNameTombstones ? { oldNameTombstones: { ...source.oldNameTombstones } } : {}),
   ...(source?.closedOldNames ? { closedOldNames: { ...source.closedOldNames } } : {}),
-  ...(source?.removedIds ? { removedIds: { ...source.removedIds } } : {}),
+  ...(source?.removedIds ? { removedIds: Object.fromEntries(Object.entries(source.removedIds).map(([id, state]) => [id, { ...state }])) } : {}),
   ...(source?.settled ? { settled: source.settled } : {}),
 });
 
@@ -289,10 +332,12 @@ export async function retireSecret(
   host: Pick<SecretsPortHost, "readMeta" | "writeMeta">,
   binding: SecretBinding,
   remove?: () => Promise<void>,
+  /** The moment of the act (injectable for tests): the tombstone carries it, not the time of the round that writes it. */
+  at: string = new Date().toISOString(),
 ): Promise<void> {
   await serialized(async () => {
     const meta = cloneMeta(await host.readMeta());
-    meta.retired = { ...(meta.retired ?? {}), [canonicalSecretId(binding)]: { ...binding } };
+    meta.retired = { ...(meta.retired ?? {}), [canonicalSecretId(binding)]: { ...binding, removedAt: at } };
     await host.writeMeta(meta);
     await remove?.();
   });
@@ -514,6 +559,16 @@ async function movedHash(mark: SecretsMarker, known: { hash: string; binding: Se
 async function baselineAfterLoss(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker): Promise<boolean> {
   let changed = false;
   for (const [id, record] of Object.entries(meta.entries)) {
+    // A tombstone held for an account still here survives the loss
+    // (review 2026-11-25, second round): its slot is taken as it is now, so
+    // a password that came through the sync stays held, not published again
+    // above the tombstone.
+    if (record.tombstone && record.kept && isLostMark(mark, record.kept)) {
+      const candidate = candidates.find((item) => item.logicalId === id);
+      meta.entries[id] = { ...record, kept: await pairMark(mark, (candidate ?? record).binding, candidate?.secret ?? null) };
+      changed = true;
+      continue;
+    }
     if (record.tombstone || isBridgeSecretType(record.binding.secretType)) continue;
     const hashLost = isLostMark(mark, record.hash);
     const heldLost = !!record.held && isLostMark(mark, record.held);
@@ -586,6 +641,9 @@ function bridgeIdOf(binding: SecretBinding): string | null {
   if (!isShareableSecretType(binding.secretType)) return null;
   return canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType), user: binding.user.toLowerCase() });
 }
+
+/** A removal of this device that has neither found its tombstone in the document nor yielded (`RemovalState`). */
+const openRemoval = (meta: SecretsPortMeta): boolean => Object.values(meta.removedIds ?? {}).some((state) => !state.confirmed && !state.yielded);
 
 /** A name "Remove account" tombstoned here opens again when its account is here again (`removedIds`). */
 function openRemovedIds(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): void {
@@ -668,7 +726,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // The key of the marks was lost while marks of it were here: said in
       // the diagnostics, every round until an import has read the document.
       // A held conflict does not wait; it ends with that import too.
-      waiting = Object.values(meta.entries).some((entry) => entry.sinceLoss);
+      waiting = Object.values(meta.entries).some((entry) => entry.sinceLoss) || openRemoval(meta);
       const lostRecords = Object.values(meta.entries).filter((entry) => entry.sinceLoss && !entry.held).length;
       if (lostRecords > 0) logDiagnosticCounted("settings-sync", `secrets: ${lostRecords} record(s) made with a lost mark key, restored from the shared document`);
       await carryOldKnowledge(meta, candidates, mark);
@@ -717,6 +775,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           binding: candidate.binding,
           secret: candidate.secret,
         };
+        // Above a tombstone this device found for an account still here (it
+        // held none: the password was typed here, or typed after it), the
+        // password goes out — and is this device's to take back (`over`).
+        const over = !!previous?.over || (!!previous?.tombstone && !previous.removal);
         meta.entries[candidate.logicalId] = {
           // Unchanged, the record keeps what it knew besides (the revision seen).
           ...(changed || !previous ? {} : previous),
@@ -725,6 +787,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           updatedAt,
           deviceId: below ? previous!.deviceId : entries[candidate.logicalId].deviceId,
           binding: candidate.binding,
+          ...(over ? { over: true as const } : {}),
         };
       }
 
@@ -747,10 +810,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const old = canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType) });
         meta.closedOldNames = { ...(meta.closedOldNames ?? {}), [old]: stamp };
       };
-      const noteRemoved = (id: string) => {
-        meta.removedIds = { ...(meta.removedIds ?? {}), [id]: stamp };
+      const noteRemoved = (id: string, at: string, seen: RemovalState["seen"]) => {
+        meta.removedIds = { ...(meta.removedIds ?? {}), [id]: { at, seen } };
       };
-      const tombstone = (id: string, removed: SecretBinding) => {
+      const tombstone = (id: string, retired: RetiredBinding) => {
+        const { removedAt, ...removed } = retired;
+        // The moment of the act, not of this round (review 2026-11-25, second round).
+        const at = removedAt ?? stamp;
         let previous = meta.entries[id];
         // Removed before any export of this version moved the record to the
         // account's current name: what this device knew under its old name
@@ -761,14 +827,30 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const known = old ? meta.entries[old] : undefined;
         const knownOld = !!known && !known.tombstone && isBridgeSecretType(known.binding.secretType) && oldFree;
         if (!previous && knownOld && !known!.alias) previous = { ...known!, binding: removed };
-        if (previous && !previous.tombstone && !currentIds.has(id) && isShareableSecretType(previous.binding.secretType)) {
-          const entryRev = previous.entryRev + 1;
-          entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
-          const { kept: _kept, ...rest } = previous;
-          meta.entries[id] = { ...rest, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true, removal: true };
-          noteRemoved(id);
-          closeOldName(previous.binding);
+        if (currentIds.has(id)) return;
+        // Whatever this device knew of the name — a tombstone of its own
+        // earlier removal (the account came back), or a password — the
+        // tombstone goes out one revision above it; what the document holds
+        // above that is answered by the import (`RemovalState`). A name this
+        // device knows nothing of (it got the account through the profile
+        // and removed it at once) is only noted: the import answers the first
+        // value it finds under it, so a name nobody ever published gets no
+        // tombstone.
+        if (!previous) {
+          if (isShareableSecretType(removed.secretType)) {
+            noteRemoved(id, at, "none");
+            closeOldName(removed);
+          }
+          return;
         }
+        const binding = isShareableSecretType(previous.binding.secretType) ? previous.binding : removed;
+        if (!isShareableSecretType(binding.secretType)) return;
+        const entryRev = Math.max(previous.entryRev, previous.heldRev ?? 0) + 1;
+        entries[id] = { entryRev, updatedAt: at, deviceId, binding, tombstone: true };
+        meta.entries[id] = { hash: "", entryRev, updatedAt: at, deviceId, binding, tombstone: true, removal: true };
+        delete meta.imported[id];
+        noteRemoved(id, at, previous.tombstone ? "tombstone" : "value");
+        closeOldName(binding);
         // The old place too (review 2026-11-18, X1): no updated device writes
         // there any more, so the password of a removed account stayed in it
         // for good. Only a name this device knows for this account — its own
@@ -776,11 +858,11 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // while no other account here can mean that name (the twin rule of
         // reading, `oldNameId`).
         if (knownOld) {
-          const entryRev = known!.entryRev + 1;
-          entries[old!] = { entryRev, updatedAt: stamp, deviceId, binding: known!.binding, tombstone: true };
-          const { alias: _alias, kept: _kept, ...rest } = known!;
-          meta.entries[old!] = { ...rest, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true, removal: true };
-          noteRemoved(old!);
+          const oldRev = known!.entryRev + 1;
+          entries[old!] = { entryRev: oldRev, updatedAt: at, deviceId, binding: known!.binding, tombstone: true };
+          const { alias: _alias, kept: _kept, over: _over, ...rest } = known!;
+          meta.entries[old!] = { ...rest, hash: "", entryRev: oldRev, updatedAt: at, deviceId, tombstone: true, removal: true };
+          noteRemoved(old!, at, "value");
         }
       };
       for (const [id, removed] of Object.entries(meta.retired ?? {})) {
@@ -797,11 +879,22 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // every round. Of the old types only the ones "Remove account" wrote
       // here (`removal`); an entry of an old type is otherwise never written.
       for (const [id, previous] of Object.entries(meta.entries)) {
+        // A password this device put above a tombstone, for an account that
+        // has left it since: the tombstone comes back (`over`).
+        if (previous.over && !previous.tombstone && !knownIds.has(id) && isShareableSecretType(previous.binding.secretType)) {
+          const entryRev = previous.entryRev + 1;
+          entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
+          const { over: _over, kept: _kept, ...rest } = previous;
+          meta.entries[id] = { ...rest, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
+          continue;
+        }
         if (!previous.tombstone || entries[id] || currentIds.has(id) || previous.alias) continue;
         if (!isShareableSecretType(previous.binding.secretType) && !(previous.removal && isBridgeSecretType(previous.binding.secretType))) continue;
         republish(id, previous);
       }
 
+      // A removal written in this round is open: the document is read for it.
+      waiting ||= openRemoval(meta);
       if (stableStringify(meta) !== asRead) await host.writeMeta(meta);
       return {
         format: "plainva-secrets",
@@ -826,7 +919,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       await baselineAfterLoss(meta, candidates, mark);
       const key = await settledKey(mark, bundle, candidates);
       const afterLoss = Object.values(meta.entries).some((entry) => entry.sinceLoss);
-      if (meta.settled === key && !sealed && !afterLoss) return { ...emptyImportResult(), settled: true };
+      if (meta.settled === key && !sealed && !afterLoss && !openRemoval(meta)) return { ...emptyImportResult(), settled: true };
       const byId = new Map(candidates.map((candidate) => [candidate.logicalId, candidate]));
       const operations: Array<{
         logicalId: string;
@@ -925,6 +1018,35 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // taken as unchanged, as on a device whose key is whole.
         const atLoss = !!previous && !previous.tombstone && !!(previous.sinceLoss || previous.unconfirmed) && !previous.held;
         const order = previous ? compareEntryVersion(entry, previous) : 1;
+        // A removal this device wrote, still open (`RemovalState`): the
+        // document has its tombstone (confirmed), or a value above it that was
+        // written without knowledge of it — from before the act (answered one
+        // revision above it) or after it (the removal yields).
+        const removal = meta.removedIds?.[logicalId];
+        // Only noted (this device knew nothing of the name): the first value
+        // under it from before the act gets the tombstone, one revision above it.
+        if (removal && !removal.confirmed && !removal.yielded && !previous && isShareableSecretType(entry.binding.secretType)) {
+          if (entry.tombstone) {
+            removal.confirmed = true;
+          } else {
+            // The account came here through the profile: this value is its password.
+            meta.entries[logicalId] = { hash: "", entryRev: entry.entryRev + 1, updatedAt: removal.at, deviceId: await host.deviceId(), binding: entry.binding, tombstone: true, removal: true };
+            recordImportResult(result, logicalId, "unchanged", "removed-here");
+            continue;
+          }
+        }
+        if (removal && !removal.confirmed && !removal.yielded && previous?.tombstone && previous.removal) {
+          if (order === 0 || (entry.tombstone && order > 0)) {
+            removal.confirmed = true;
+          } else if (order > 0) {
+            if (removal.seen !== "value" || entry.updatedAt <= removal.at) {
+              meta.entries[logicalId] = { ...previous, entryRev: entry.entryRev + 1 };
+              recordImportResult(result, logicalId, "unchanged", "removed-here");
+              continue;
+            }
+            removal.yielded = true;
+          }
+        }
         if (previous) {
           if (order < 0) {
             recordImportResult(result, logicalId, "stale", "older-entry");
@@ -961,19 +1083,6 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
               continue;
             }
           }
-        }
-
-        // A value under a name "Remove account" tombstoned here, older than
-        // the removal and above the tombstone this device wrote: a password
-        // it had not seen yet when it removed the account. The tombstone goes
-        // out again one revision above it, so the password leaves the shared
-        // document (`removedIds`). A value written after the removal is
-        // another device's own act and is read as any other.
-        const removedAt = meta.removedIds?.[logicalId];
-        if (removedAt && previous?.tombstone && previous.removal && !entry.tombstone && entry.updatedAt <= removedAt) {
-          meta.entries[logicalId] = { ...previous, entryRev: entry.entryRev + 1 };
-          recordImportResult(result, logicalId, "unchanged", "removed-here");
-          continue;
         }
 
         // The type of a local account this entry may speak for: its own, or —
@@ -1094,7 +1203,11 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // the slot as it is, and goes out again as it came.
         if (entry.tombstone) {
           await rememberEntry(logicalId, entry);
-          meta.entries[logicalId] = { ...meta.entries[logicalId], kept: await pairMark(mark, candidate.binding, candidate.secret) };
+          // A password typed here is never held: it goes out above the
+          // tombstone (`over`), as a password typed here always does.
+          if (!(candidate.secret && !pairImported)) {
+            meta.entries[logicalId] = { ...meta.entries[logicalId], kept: await pairMark(mark, candidate.binding, candidate.secret) };
+          }
           recordImportResult(
             result,
             logicalId,

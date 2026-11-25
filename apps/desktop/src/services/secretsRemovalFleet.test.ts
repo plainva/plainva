@@ -181,7 +181,7 @@ async function removeOnPurpose(d: Device, rowId: string): Promise<void> {
     d.slots.delete(rowId);
   };
   if (d.kind === "new") {
-    await retireSecret(retiredHost(d), newBinding(row), take);
+    await retireSecret(retiredHost(d), newBinding(row), take, tick());
     // A port that does not take the removal into its line leaves it to the caller, as the shells did.
     if (d.rows.some((item) => item.id === rowId)) await take();
     return;

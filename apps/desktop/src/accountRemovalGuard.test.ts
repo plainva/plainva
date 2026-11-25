@@ -29,17 +29,18 @@ type Class = "remove" | "remove-step" | "merge" | "repair" | "profile" | "undo" 
 
 const ROW: Record<Exclude<Kind, "any">, RegExp> = {
   caldav: /\.deleteAccount\(|\bdeletePimAccount\(|\bclearPimCredentials\(|\bremovePimAccount\(/g,
-  imap: /\bremoveMailAccount\(|\bremoveMailAccountOnPurpose\(|\breplaceMailAccounts\(|\bremoveMailSecret\(/g,
+  // And every direct write of the mailbox list: a list written without a row drops it.
+  imap: /\bremoveMailAccount\(|\bremoveMailAccountOnPurpose\(|\breplaceMailAccounts\(|\bremoveMailSecret\(|\.set\(mailAccountsKey\(/g,
 };
 /** The slot names of each kind. */
 const SLOT: Record<Exclude<Kind, "any">, RegExp> = {
   caldav: /pimSecretKey\(|slot\.calendar\(|pimSecretSlot\(|\bkey\(vaultId/,
   imap: /mailSecretKey\(|mailSecretSlot\(/,
 };
-const SLOT_REMOVAL = /removeSecret\(|removeSlot\(/;
-/** A slot removed by a name held in a variable: any kind. */
-const ANY_SLOT_REMOVAL = /removeSecret\((slot|entry\.slot)\)/;
-const DEFINITION = /^\s*(export\s+)?(async\s+)?function\s|^\s*\w+\([^)]*\):\s*Promise<void>;\s*$/;
+const SLOT_REMOVAL = /\bremoveSecret\(|\bremoveSlot\(/;
+/** Every other slot removal — a name in a variable, a store of its own: listed too, as "any". */
+const ANY_SLOT_REMOVAL = /\bremoveSecret\(|\bremoveSlot\(/g;
+const DEFINITION = /^\s*(export\s+)?(async\s+)?function\s|^\s*\w+\??\([^)]*\):\s*Promise<void>;\s*$|^\s*(public\s+)?async\s+removeSecret\(key: string\): Promise<void> \{$/;
 
 const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, kind: Kind, calls: number, cls: Class]> = [
   // "Remove account"
@@ -95,6 +96,14 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, kind: Kin
   ["apps/mobile/src/screens/MailAccountsScreen.tsx", "else await removeMailAccount(vault, account.id);", "imap", 1, "undo"],
   ["apps/mobile/src/services/mail/mailRuntime.ts", "else await removeMailAccount(vault, id);", "imap", 1, "undo"],
   ["apps/mobile/src/services/pim/pimService.ts", "else await clearPimCredentials(owner.vaultId, connectedId);", "caldav", 1, "undo"],
+  // The mailbox list written as a whole
+  ["packages/ui/src/mail/mailAccounts.ts", "await store.set(mailAccountsKey(vaultPath), folded);", "imap", 1, "merge"],
+  ["packages/ui/src/mail/mailAccounts.ts", "await store.set(mailAccountsKey(vaultPath), collapseMailAccountRows(accounts));", "imap", 1, "port"],
+  ["packages/ui/src/mail/mailAccounts.ts", "await store.set(mailAccountsKey(vaultPath), next);", "imap", 1, "other"],
+  ["packages/ui/src/mail/mailAccounts.ts", "await store.set(mailAccountsKey(vaultPath), list); await store.save(); }", "imap", 1, "rollback"],
+  ["packages/ui/src/mail/mailAccounts.ts", "firstFetchAt: stamp } : a)));", "imap", 1, "other"],
+  ["packages/ui/src/mail/mailAccounts.ts", "await store.set(mailAccountsKey(vaultPath), list.filter((a) => a.id !== accountId));", "imap", 1, "other"],
+  ["apps/desktop/src/services/settingsProfile.ts", "await store.set(mailAccountsKey(vaultPath), snapshot.mailAccounts.map((account) => {", "imap", 1, "rollback"],
   // A slot by a name in a variable
   ["packages/ui/src/mail/mailAccounts.ts", "if (previousSecret) await credentials.writeSecret(slot, previousSecret); else await credentials.removeSecret(slot);", "any", 1, "rollback"],
   ["packages/ui/src/lib/accountRepairCleanup.ts", "if (entry.value === null) await resources.credentials.removeSecret(entry.slot);", "any", 1, "rollback"],
@@ -106,9 +115,36 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, kind: Kin
   // The secrets port's own slot access: it never empties the slot of an account still here (`secretsPort.ts`)
   ["apps/desktop/src/services/settingsSecrets.ts", "removeSlot: (slot) => credentialManager.removeSecret(slot),", "any", 1, "port"],
   ["apps/mobile/src/services/mobileSecretsPort.ts", "removeSlot: (slot) => getPlatformServices().credentials.removeSecret(slot),", "any", 1, "port"],
-  // Not an account slot: the keys of an encrypted workspace
+  // The two-name removal every slot goes through, the move between names, the stores' own deletes
+  ["packages/ui/src/lib/keychainSlots.ts", "await credentials.removeSecret(readable);", "any", 1, "port"],
+  ["packages/ui/src/lib/keychainSlots.ts", "if (legacy !== readable) await credentials.removeSecret(legacy)", "any", 1, "port"],
+  ["packages/ui/src/lib/keychainMigration.ts", "await credentials.removeSecret(from);", "any", 1, "other"],
+  ["apps/desktop/src/services/accountCredentialStore.ts", "if (value === null) await credentialManager.removeSecret(key);", "any", 1, "port"],
+  ["apps/mobile/src/services/accountCredentialStore.ts", "if (value === null) await secureCredentialStore.removeSecret(key);", "any", 1, "port"],
+  // The secrets port's rollback of a failed write group (it never empties the slot of an account still here otherwise)
+  ["packages/ui/src/lib/secretsPort.ts", "if (previous == null) await host.removeSlot(slot);", "any", 1, "rollback"],
+  // The guided merge: the card's own grant and the backup of the merge
+  ["packages/ui/src/lib/accountRepairCleanup.ts", "await resources.credentials.removeSecret(journal.backupSlot)", "any", 1, "other"],
+  ["packages/ui/src/lib/accountRepairCleanup.ts", "await resources.credentials.removeSecret(resources.accountSecretSlot(accountId));", "any", 1, "merge"],
+  ["packages/ui/src/lib/accountRepairCleanup.ts", "await resources.credentials.removeSecret(resources.backupSlot)", "any", 1, "other"],
+  // Not a calendar or mailbox password: files sign-ins, card grants, vault keys, workspace keys, OAuth flows in progress
+  ["apps/desktop/src/services/CredentialManager.ts", "await removeSlot(this, slot.files(vaultPath,", "any", 1, "other"],
+  ["apps/desktop/src/services/encryptionSession.ts", "removeSlot(credentialManager, mkCacheKey(vaultPath), legacySlot.encryption(vaultPath));", "any", 1, "other"],
+  ["apps/desktop/src/services/accountBroker.ts", "await removeSlot(credentialManager, slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId));", "any", 1, "other"],
+  ["apps/desktop/src/services/workspaceSecurity/workspaceKeychain.ts", "await credentialManager.removeSecret(secretKey(vaultPath));", "any", 1, "other"],
   ["apps/desktop/src/services/workspaceSecurity/workspaceKeychain.ts", "await credentialManager.removeSecret(slot);", "any", 1, "other"],
-  ["apps/mobile/src/services/mobileWorkspaceSecurity.ts", "await secureCredentialStore.removeSecret(slot);", "any", 1, "other"],
+  ["apps/desktop/src/services/workspaceSecurity/workspacePairing.ts", "await credentialManager.removeSecret(pendingKey(", "any", 1, "other"],
+  ["apps/mobile/src/services/mobileWorkspaceSecurity.ts", "await secureCredentialStore.removeSecret(", "any", 1, "other"],
+  ["apps/mobile/src/services/accountBroker.ts", "await secureCredentialStore.removeSecret(accountSecretKey(vaultId, accountId));", "any", 1, "other"],
+  ["apps/mobile/src/services/oauthService.ts", "removeSecret(PENDING_KEY)", "any", 1, "other"],
+  ["apps/mobile/src/services/oauthService.ts", "removeSecret(FOLDER_KEY)", "any", 1, "other"],
+  ["apps/mobile/src/services/pim/pimOAuth.ts", "removeSecret(RESULT_KEY)", "any", 1, "other"],
+  ["apps/mobile/src/services/pim/pimOAuth.ts", "removeSecret(PENDING_KEY)", "any", 1, "other"],
+  ["apps/mobile/src/services/syncService.ts", "removeSecret(credKeyFor(vaultId))", "any", 1, "other"],
+  ["apps/mobile/src/services/mobileSettingsSync.ts", "removeSecret(cacheKey(vaultId))", "any", 1, "other"],
+  // Forgetting a vault on the phone (the desktop's `vaultForget.ts` above)
+  ["apps/mobile/src/services/vaultForget.ts", "await credentials.removeSecret(key).catch(", "any", 1, "forget"],
+  ["apps/mobile/src/services/vaultRegistry.ts", "await creds.removeSecret(key).catch(reportingTo(\"credentials:forget\"));", "any", 1, "forget"],
 ];
 
 /** The only lines that reach the act (`retireSecret`): "Remove account" of either kind, in either shell. */
@@ -145,7 +181,9 @@ function removals(): Found[] {
         const slot = SLOT_REMOVAL.test(line) && SLOT[kind].test(joined) ? 1 : 0;
         if (calls + slot > 0) out.push({ rel, line: i + 1, kind, calls: calls + slot, text: line.trim() });
       }
-      if (ANY_SLOT_REMOVAL.test(line)) out.push({ rel, line: i + 1, kind: "any", calls: 1, text: line.trim() });
+      const joined = line.trimEnd().endsWith("(") ? [line, ...lines.slice(i + 1, i + 4)].join(" ") : line;
+      const anyKind = SLOT_REMOVAL.test(line) && !SLOT.caldav.test(joined) && !SLOT.imap.test(joined);
+      if (anyKind) out.push({ rel, line: i + 1, kind: "any", calls: line.match(ANY_SLOT_REMOVAL)?.length ?? 1, text: line.trim() });
     });
   }
   return out;

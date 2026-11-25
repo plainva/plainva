@@ -145,6 +145,22 @@ describe("desktop: a mailbox's servers, changed from its row", () => {
     expect(document.querySelector('[data-testid="mail-servers-error"]')?.textContent).toBeTruthy();
   });
 
+  // A server the dialog does not show (Sieve, carried over with the mailbox)
+  // is never typed in it (review of F57, O-4): changing the IMAP server does
+  // not confirm it, so the save sends nothing while it is unconfirmed.
+  it("never takes the mailbox's Sieve server as typed: an unconfirmed one stops the save", async () => {
+    await confirmEndpointsIn(VAULT, [mailConfirmationEndpoint("imap", "192.168.1.20", 993), mailConfirmationEndpoint("smtp", "192.168.1.21", 587)]);
+    await store.set(mailAccountsKey(VAULT), [{ ...mailbox, sieveHost: "192.168.1.60", sievePort: 4190 }]);
+    await openDialog();
+    await type('[data-testid="mail-servers-host"]', "192.168.1.31");
+    await click('[data-testid="mail-servers-save"]');
+
+    expect(logins).toEqual([]);
+    expect((await listMailAccounts(VAULT)).map((a) => a.host)).toEqual(["192.168.1.20"]);
+    expect(await isEndpointConfirmedIn(VAULT, mailConfirmationEndpoint("sieve", "192.168.1.60", 4190))).toBe(false);
+    expect(await isEndpointConfirmedIn(VAULT, mailConfirmationEndpoint("imap", "192.168.1.31", 993))).toBe(false);
+  });
+
   it("is offered on an IMAP mailbox only", async () => {
     await store.set(mailAccountsKey(VAULT), [mailbox, { id: "ms", label: "bert@outlook.example", host: "", port: 0, user: "bert@outlook.example", kind: "microsoft" }]);
     await act(async () => root.render(<MailAccountsSection />));
