@@ -24,7 +24,11 @@ const syncModules = async () => (syncModulesLoaded ??= await import("../services
 // joining, recovery), not with the start (performance plan L5).
 let workspaceModuleLoaded: typeof import("@plainva/core/workspace") | null = null;
 const workspaceModule = async () => (workspaceModuleLoaded ??= await import("@plainva/core/workspace"));
-/** The workspace's module where a workspace is open on this device — its runtime exists only after the load. */
+/**
+ * The workspace's module where a workspace is open on this device — its runtime exists only after the load (the vault
+ * open loads it with the workspace's status). Only for code behind a runtime check (`workspaceControlPlane`);
+ * everything else awaits `workspaceModule()` (held by vaultContextWorkspaceModule.test.ts).
+ */
 const workspaceModuleNow = () => {
   if (!workspaceModuleLoaded) throw new Error("workspace-unavailable-or-locked");
   return workspaceModuleLoaded;
@@ -888,12 +892,17 @@ export const VaultProvider: React.FC<{
         await restoreDesktopAccountsAfterRebuild(path, dbAdapter, tauriVaultAdapter).catch(reportingTo("accounts:restore-after-rebuild"));
       }
 
-      const syncQueue = new (await syncModules()).SyncQueue(dbAdapter);
+      // The sync's modules load once, here (review of L5, 2026-11-25): no check of the open's abort below waits on
+      // a module's load between the check and what it guards.
+      const sync = await syncModules();
+      const syncQueue = new sync.SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));
       // "Locked" and "no key bundle here" are different answers and need different offers
       // (finding 2026-08-25, B6). They used to arrive as the same null.
       const workspaceAccess = workspaceSecurityStatus ? await readWorkspaceRuntime(path) : null;
       const workspaceRuntime = workspaceAccess?.state === "unlocked" ? workspaceAccess.runtime : null;
+      // The module before the runtime: whatever reads the runtime from here on finds the module loaded.
+      if (workspaceSecurityStatus) await workspaceModule();
       workspacePlaneVaultRef.current = path;
       workspaceRuntimeRef.current = workspaceRuntime;
       let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
@@ -1065,7 +1074,7 @@ export const VaultProvider: React.FC<{
       // 2026-09-20): the worker marks a path before it mirrors a remote deletion,
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
       // this, 898 wrongly mirrored files went back up as 898 remote deletions.
-      const ownDeletions = new (await syncModules()).OwnDeletionRegister();
+      const ownDeletions = new sync.OwnDeletionRegister();
       // What a runtime that ended (a crash, a close) left removed and not recorded stays the sync's: taken over before the index looks.
       await adoptOwnRemovals(dbAdapter, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(tauriVaultAdapter).then((there) => there === true), exists: (p) => tauriVaultAdapter.exists(p) }).catch(reportingTo("sync:own-removals"));
       // Which notes are templates, by this vault's settings (B26): the index
@@ -1200,7 +1209,7 @@ export const VaultProvider: React.FC<{
       // confirmed here, so the other devices mirror them instead of guarding
       // against them — and vice versa. Written through the raw adapter (it is a
       // sideband file, not a note); the sync worker merges it every cycle.
-      const deletionJournal = new (await syncModules()).DeletionJournal(backupVaultAdapter, await getDeviceId());
+      const deletionJournal = new sync.DeletionJournal(backupVaultAdapter, await getDeviceId());
       const runTaskSyncNow = async () => {
         if (currentAbortSignal.aborted) return;
         if (taskSyncRunning) {
@@ -1420,7 +1429,7 @@ export const VaultProvider: React.FC<{
         if (driveReady && driveCreds && (driveCreds.refreshToken || driveTokenProvider)) {
           syncProvider = "drive";
           const driveDestination = await readDriveDestination(path);
-          const driveTarget = new (await syncModules()).DriveSyncTarget(
+          const driveTarget = new sync.DriveSyncTarget(
             {
               clientId: driveCreds.clientId,
               clientSecret: driveCreds.clientSecret,
@@ -1447,7 +1456,7 @@ export const VaultProvider: React.FC<{
           target = driveTarget;
         } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || oneDriveTokenProvider)) {
           syncProvider = "onedrive";
-          const oneDriveTarget = new (await syncModules()).OneDriveSyncTarget(
+          const oneDriveTarget = new sync.OneDriveSyncTarget(
             {
               clientId: oneDriveCreds.clientId,
               // Empty for broker-backed accounts: the provider below supplies
@@ -1477,7 +1486,7 @@ export const VaultProvider: React.FC<{
           target = oneDriveTarget;
         } else if (dropboxReady && dropboxCreds && dropboxCreds.refreshToken) {
           syncProvider = "dropbox";
-          const dropboxTarget = new (await syncModules()).DropboxSyncTarget(
+          const dropboxTarget = new sync.DropboxSyncTarget(
             {
               appKey: dropboxCreds.appKey,
               refreshToken: dropboxCreds.refreshToken,
@@ -1498,12 +1507,12 @@ export const VaultProvider: React.FC<{
           target = dropboxTarget;
         } else if (s3Ready && s3Creds) {
           syncProvider = "s3";
-          target = new (await syncModules()).S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
+          target = new sync.S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
         } else if (webdavReady && webdavCreds && webdavCreds.url) {
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of
           // travelling through the webview (issue #48).
-          const webdavTarget = new (await syncModules()).WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
+          const webdavTarget = new sync.WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
           webdavTarget.allowRootCreation = !hasSyncedBefore;
           target = webdavTarget;
         }
@@ -1549,7 +1558,7 @@ export const VaultProvider: React.FC<{
             const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
             if (runner) {
               const sessionCheck = workspaceRuntime ? undefined : settingsOnlyFolderCheck({ ports: remotePorts, binding, provider: syncProvider!, target });
-              const settingsOnly = new (await syncModules()).SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {
+              const settingsOnly = new sync.SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {
                 syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), provider: syncProvider, reason: "encrypted-workspace" });
               });
               loadStarts.start(
@@ -1587,7 +1596,8 @@ export const VaultProvider: React.FC<{
               if (runtime.workspaceId !== workspaceSecurityStatus.workspaceId) {
                 throw new Error("The stored workspace key bundle does not match this vault.");
               }
-              const objectStore = (await workspaceModule()).createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target);
+              const workspace = await workspaceModule();
+              const objectStore = workspace.createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target);
               const activeSecurityStatus = workspaceSecurityStatus;
               // The open-time reconcile sweep (A1 mtime-skip) is O(changed files),
               // but on a network mount the listDir alone can be slow. When the
@@ -1598,7 +1608,7 @@ export const VaultProvider: React.FC<{
               const startEncryptedWorkspace = async (): Promise<EncryptedWorkspaceWorker | null> => {
                 const { perfMeasure } = await import("../services/perfMetrics");
                 await perfMeasure("encrypted workspace reconcile (open)", () =>
-                  workspaceModuleNow().initializePersonalWorkspaceMigration({
+                  workspace.initializePersonalWorkspaceMigration({
                     store: objectStore,
                     state: workspaceStateStore,
                     vault: backupVaultAdapter,
@@ -1616,7 +1626,7 @@ export const VaultProvider: React.FC<{
                   }));
                 if (currentAbortSignal.aborted) return null;
                 const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId })) ?? undefined;
-                const worker = new (await workspaceModule()).EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
+                const worker = new workspace.EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
                   ownDeletions,
                   sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
@@ -1711,7 +1721,7 @@ export const VaultProvider: React.FC<{
             // IPC boundary as a number array (issue #48). The resolver only
             // answers for files past the threshold, and only targets that can
             // stream ever get asked — everything else keeps the buffer path.
-            const engine = new (await syncModules()).SyncEngine(
+            const engine = new sync.SyncEngine(
               syncQueue,
               target,
               vaultAdapter,
@@ -1728,7 +1738,7 @@ export const VaultProvider: React.FC<{
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
-            const fileWorker = new (await syncModules()).SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });
+            const fileWorker = new sync.SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });
             // Bound to this folder now (no file confirmed with it yet): where the
             // folder already holds notes, the starter content nobody changed stays
             // here - the one rule the phone's copy follows too (third review 2026-10-27).
@@ -3044,29 +3054,30 @@ export const VaultProvider: React.FC<{
   // Device-JOIN (pairing request) — the counterpart to approve (package C1). A
   // joining device has a sync connection but no workspace runtime yet, so the
   // object store is built directly from the raw target (no control plane).
-  const joinObjectStore = () => {
+  // It loads the workspace's module itself (review of L5, 2026-11-25): a vault with a plain sync has none loaded,
+  // and the check for a workspace to join found none for it — the module was asked for synchronously and threw.
+  const joinObjectStore = async () => {
     const target = syncTargetRef.current;
     const provider = syncProviderRef.current;
     if (!state.vaultPath || !target || !provider) throw new Error("workspace-no-connection");
-    return { store: workspaceModuleNow().createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath: state.vaultPath };
+    const vaultPath = state.vaultPath;
+    return { store: (await workspaceModule()).createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath };
   };
 
   const detectJoinableWorkspace = async (): Promise<{ workspaceId: string; fingerprint: string } | null> => {
     if (!syncTargetRef.current || !syncProviderRef.current || state.workspaceSecurityStatus) return null;
-    try { return await detectRemoteWorkspace(joinObjectStore().store); }
+    try { return await detectRemoteWorkspace((await joinObjectStore()).store); }
     catch (error) { console.warn("[VaultContext] detectJoinableWorkspace failed", error); return null; }
   };
 
   const beginWorkspaceJoin = async (invite: WorkspaceInvite, deviceName: string): Promise<PendingJoin> => {
-    await workspaceModule();
-    const { store, vaultPath } = joinObjectStore();
+    const { store, vaultPath } = await joinObjectStore();
     const result = await beginWorkspaceJoinFlow({ vaultPath, store, invite, deviceName });
     return { shortCode: result.shortCode, fingerprint: result.fingerprint, expiresAt: result.expiresAt };
   };
 
   const pollWorkspaceJoin = async (fallbackPassphrase?: string): Promise<boolean> => {
-    await workspaceModule();
-    const { store, vaultPath } = joinObjectStore();
+    const { store, vaultPath } = await joinObjectStore();
     const runtime = await completeWorkspaceJoin({ vaultPath, store, fallbackPassphrase });
     if (!runtime) return false;
     await loadVault(vaultPath);

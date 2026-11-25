@@ -196,6 +196,10 @@ describe("every surface of the desktop shell is an area of its own", () => {
     expect(editor).toMatch(/<AreaBoundary area="editor:selectionToolbar" size="quiet">\s*<SelectionToolbar\b/);
   });
 
+  it("a database embedded in a note is an area of its own: its failure takes the embed, not the tab (review of L5)", () => {
+    expect(read(`${SRC}/components/MarkdownReader.tsx`)).toMatch(/<AreaBoundary area="embed:base"[^>]*>\s*<Suspense\b[^\n]*?<BaseViewer\b[^\n]*?<\/Suspense><\/AreaBoundary>/);
+  });
+
   it("the dialog and the floating window carry a boundary around their content", () => {
     expect(read(`${UI}/components/ui/Modal.tsx`)).toMatch(/<AreaBoundary area=\{`dialog:\$\{testId \?\? "modal"\}`\}[^>]*>\s*\{children\}\s*<\/AreaBoundary>/);
     expect(read(`${UI}/components/ui/FloatingWindow.tsx`)).toMatch(/<AreaBoundary area=\{`window:[^>]*>\{children\}<\/AreaBoundary>/);

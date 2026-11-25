@@ -79,9 +79,9 @@ import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, useRowSelection, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, flushPendingSave, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedCellView, proposedOutcomeWords, ProposedValueChip, ProposedValuesBar, type ProposedCell, type ProposedColumn } from "@plainva/ui";
-import { fillPlanLines, FillProgressBanner, inferColumnType, useBaseAi } from "@plainva/ui";
-import { fillColumnOf, fillRows, type FillColumn } from "@plainva/ui/ai";
-import { getMobileAiSession } from "../../services/ai/mobileAi";
+import { fillPlanLines, FillProgressBanner, inferColumnType, useAiModule, useBaseAi } from "@plainva/ui";
+import type { FillColumn } from "@plainva/ui/ai";
+import { useMobileAiSession } from "../../services/ai/mobileAiLoader";
 import { mobileCommentOperations } from "../../services/commentOperations";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
@@ -729,23 +729,26 @@ export function BaseScreen({
   // The assistant at this database (plan KI-Harness P5-4), the desktop's
   // twin: a column filled with proposed values, and a filter from a sentence.
   // Absent while the AI is off on this device — no door of it is drawn then.
-  const baseAi = useBaseAi(getMobileAiSession(), path, { sealed: vault.workspaceRuntime !== null });
+  // The session as the loader holds it: a database never makes it, so it loads nothing of the AI while the AI is
+  // off (review of L5, 2026-11-25) — the desktop's database reads the shell's session the same way.
+  const baseAi = useBaseAi(useMobileAiSession(), path, { sealed: vault.workspaceRuntime !== null });
+  const aiHarness = useAiModule();
   /** The column as a run fills it; null for one no run takes, and while filling is not offered here. */
   const fillColumnFor = (col: string): FillColumn | null => {
-    if (!baseAi?.canFill || !rows) return null;
+    if (!baseAi?.canFill || !rows || !aiHarness) return null;
     const schema = config?.columns?.[col];
-    return fillColumnOf(col, columnLabel(col), schema, schema?.input ? undefined : inferColumnType(rows, col));
+    return aiHarness.fillColumnOf(col, columnLabel(col), schema, schema?.input ? undefined : inferColumnType(rows, col));
   };
   // The plan first, as a question: how many entries, that each note is read on its own, that nothing is written.
   const askFill = useStableHandler(async (col: string) => {
     const column = fillColumnFor(col);
-    if (!column || !baseAi || !rows) return;
+    if (!column || !baseAi || !rows || !aiHarness) return;
     // An entry a value already waits for is not asked again: a second run must not lay a second value beside the first.
     const rowsByPath = new Map(rows.map((r) => [String(r["file.path"] ?? ""), r]));
     const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
     for (const [notePath, comments] of noteComments) { if (rowsByPath.has(notePath)) entries.push({ path: notePath, comments }); }
     const waiting = new Set(entries.length > 0 ? buildProposedCells(entries, (notePath) => rowsByPath.get(notePath), [col]).keys() : []);
-    const plan = fillRows(rows, col, waiting);
+    const plan = aiHarness.fillRows(rows, col, waiting);
     const lines = fillPlanLines(t, plan, baseAi.model);
     if (plan.missing === 0) {
       toast.info(lines[0]!);

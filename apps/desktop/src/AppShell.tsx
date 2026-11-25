@@ -1893,7 +1893,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   />
                   </AreaBoundary>
                 )}
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <div data-pane-body={i} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   {path ? (
                     // One boundary per tab (stability plan R3): a view that
                     // fails takes its tab, never the window, and the way out

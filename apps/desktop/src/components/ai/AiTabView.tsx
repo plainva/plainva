@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, MoreHorizontal, SquarePen } from "lucide-react";
 import {
+  AiSessionContext,
   Button,
   conversationRowActions,
   EmptyState,
@@ -29,7 +30,7 @@ import {
   useAiState,
 } from "@plainva/ui/ai";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
-import { AI_MEMORY_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, takeMemoryRequest, takeSkillsRequest, takeWaitingRequest } from "../../services/ai/desktopAi";
+import { AI_MEMORY_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, getDesktopAiSession, takeMemoryRequest, takeSkillsRequest, takeWaitingRequest } from "../../services/ai/desktopAi";
 import { MemoryView } from "./MemoryView";
 import { SkillsWorkshop } from "./SkillsWorkshop";
 import { editorSelectionReader } from "../../services/editorSelection";
@@ -39,7 +40,36 @@ import { editorSelectionReader } from "../../services/editorSelection";
  * conversation as the companion, with room for its history. Choosing a
  * conversation here opens it everywhere — there is one conversation state.
  */
-export function AiTabView({
+type AiTabProps = {
+  activeNote: { path: string; title: string } | null;
+  onOpenNote: (target: string) => void;
+  /** `composed`: the model put the address together itself (plan KI-Harness P4); the question before opening says so. */
+  onOpenUrl: (url: string, composed?: boolean) => void;
+  onOpenSettings: () => void;
+  onPickNote?: () => void;
+  /** Picks a note as an example of the writing style (plan P9-3): the same picker as for pinning one. */
+  onPickStyleExample?: () => void;
+  /** Opens a file of the vault in a tab — a skill's SKILL.md from the workshop. */
+  onOpenPath: (path: string) => void;
+};
+
+/**
+ * The tab asks for the session itself, as every surface of the AI does in both shells (review of L5, 2026-11-25):
+ * the layout restores the tab with the AI switched off, and the shell's session is made only when the switch is on
+ * or a surface asks — the tab stood empty. Asking makes the session and tells the shell (`desktopAiLoader.adopt`),
+ * whose host mounts from then on; the phone's AI screens ask `getMobileAiSession()` the same way.
+ */
+export function AiTabView(props: AiTabProps) {
+  const fromShell = useAiSession();
+  const session = useMemo(() => fromShell ?? getDesktopAiSession(), [fromShell]);
+  return (
+    <AiSessionContext.Provider value={session}>
+      <AiTabBody {...props} />
+    </AiSessionContext.Provider>
+  );
+}
+
+function AiTabBody({
   activeNote,
   onOpenNote,
   onOpenUrl,

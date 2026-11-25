@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { setNoteLinksVaultLoading } from "@plainva/ui";
+import { setNoteLinksVaultLoading, toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
+import { loadBootModules } from "../services/bootModules";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
@@ -87,9 +89,18 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         stagger = null;
         // The sync and the calendars come from chunks of their own (performance plan L5): both are loaded first, so
         // the steps below run in the order and with the gaps they always had.
-        const staggered = Promise.all([import("../services/syncService"), pimServiceModule()]);
-        void staggered.then(([{ startSyncIfConfigured }, { startPim }]) => {
-        if (!current()) return;
+        // A load that fails is said as a sync error and tried again (`bootModules.ts`), never left as a silent sync.
+        const staggered = loadBootModules({
+          load: () => Promise.all([import("../services/syncService"), pimServiceModule()]),
+          current,
+          onFailure: (e) => {
+            console.error("[boot] the sync's and the calendars' modules did not load", e);
+            toast.error(`${i18n.t("mobile.syncError")}: ${e instanceof Error ? e.message : String(e)}`);
+          },
+        });
+        void staggered.then((loaded) => {
+        if (!loaded || !current()) return;
+        const [{ startSyncIfConfigured }, { startPim }] = loaded;
         stagger?.cancel();
         stagger = staggerAfterFirstPaint([
           () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
@@ -109,7 +120,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
           // The screens likely to open soon load while the app idles, so their first use does not wait (performance plan L5).
           () => { if (current()) prefetchDeferredParts(); },
         ]);
-        }, (e: unknown) => console.error("[boot] the sync's and the calendars' modules did not load", e));
+        });
       }, (error: unknown) => {
         if (!current()) return;
         console.error("[boot] the vault did not open", error);

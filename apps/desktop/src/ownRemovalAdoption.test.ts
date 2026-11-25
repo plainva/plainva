@@ -22,7 +22,7 @@ describe("the notes of the sync's own removals are taken over before the index l
     it(file, () => {
       const source = read(file);
       // The register's class may come from the sync's own module, loaded with the vault (performance plan L5).
-      const register = Math.max(source.indexOf("const ownDeletions = new OwnDeletionRegister();"), source.indexOf("const ownDeletions = new (await syncModules()).OwnDeletionRegister();"));
+      const register = Math.max(source.indexOf("const ownDeletions = new OwnDeletionRegister();"), source.indexOf("const ownDeletions = new sync.OwnDeletionRegister();"));
       const adopt = source.indexOf("await adoptOwnRemovals(", register);
       const indexer = source.indexOf("new VaultIndexer(", register);
       expect(register).toBeGreaterThan(-1);
@@ -33,10 +33,10 @@ describe("the notes of the sync's own removals are taken over before the index l
 
   it("and the workspace worker of both shells marks into the same register", () => {
     const desktop = read("apps/desktop/src/contexts/VaultContext.tsx");
-    const at = desktop.indexOf("new (await workspaceModule()).EncryptedWorkspaceWorker(");
+    const at = desktop.indexOf("new workspace.EncryptedWorkspaceWorker(");
     expect(desktop.slice(at, at + 300)).toContain("ownDeletions,");
     const phone = read("apps/mobile/src/services/syncService.ts");
-    const there = phone.indexOf("new (await workspaceModule()).EncryptedWorkspaceWorker(");
+    const there = phone.indexOf("new workspace.EncryptedWorkspaceWorker(");
     expect(phone.slice(there, there + 300)).toContain("ownDeletions: v.ownDeletions,");
   });
 });

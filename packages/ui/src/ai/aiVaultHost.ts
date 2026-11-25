@@ -45,6 +45,7 @@ import {
   type ParsedPolicyFile,
   type SituationInput,
   type ToolManifest,
+  AI_POLICY_FILE,
 } from "@plainva/core/ai";
 import { deleteWithNet } from "../lib/deletionNet";
 import type { AcpVaultAccess } from "./acpFiles";
@@ -68,8 +69,8 @@ import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnipp
  * what the policy says about it (ADR 0018).
  */
 
-/** Where folder rules live. Plainva writes no marker files into the user's folders. */
-export const AI_POLICY_FILE = ".agent/policy.yml";
+// Where folder rules live: the core's constant, so a reader of the rules needs no part of the harness.
+export { AI_POLICY_FILE };
 
 export interface VaultPolicyHost extends ContextPolicyHost {
   /** The parsed folder rules, re-read at most every few seconds. */

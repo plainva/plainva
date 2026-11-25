@@ -44,7 +44,7 @@ import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { FullTextDamageNotice, useSearchDamageNotice } from "../components/FullTextDamageNotice";
-import { getMobileAiSession } from "../services/ai/mobileAi";
+import { mobileAiLoader } from "../services/ai/mobileAiLoader";
 import { SortSheet } from "../components/SortSheet";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
 
@@ -368,7 +368,7 @@ export function SearchScreen({
           {meaningOn && (
             <div className="pv-resulthead">
               <span />
-              <ActiveSearchModeSwitch onChange={(mode) => void getMobileAiSession().updateSettings((s) => ({ ...s, searchMode: mode }))} />
+              <ActiveSearchModeSwitch onChange={(mode) => void mobileAiLoader.session()?.updateSettings((s) => ({ ...s, searchMode: mode }))} />
             </div>
           )}
           {(nameMatches.length > 0 || bothGroups) && (

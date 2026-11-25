@@ -14,7 +14,11 @@
  * - the entry file on its own: the start chunk that holds the shell's
  *   `src/main.tsx` (with `strictExecutionOrder` the module `index.html` names
  *   is a stub that only imports it);
- * - which module families the start files carry, read from their source maps.
+ * - which module families the start files carry, read from their source maps;
+ * - that no source module stands in two chunks of the build (it would run twice, with two copies of its state);
+ * - what it loads shortly after the start without anyone doing anything (`afterStart.mjs`: the built bundle opened
+ *   in a browser with the AI switched off, until it goes quiet), raw and gzipped, apart from the start bytes — so a
+ *   saving that only moved bytes to a moment later shows as that. `--no-browser` leaves this out.
  *
  * The rules (`bundle-baseline.json`):
  * - start bytes and the entry file may not grow by more than `growth` over the
@@ -22,7 +26,8 @@
  *   dependency's patch release adds). A smaller build passes and says so: lower
  *   the baseline with `--update`, so the next growth is measured from there.
  * - `mustNotStart`: module families that must not be in the start files (the AI
- *   harness of both packages, the import adapters). Armed since package L5:
+ *   harness of both packages, the import adapters) — nor among the files loaded
+ *   shortly after the start, with the AI switched off. Armed since package L5:
  *   each rule carries `"expected": "pass"` per shell and fails the gate the day
  *   the family is back in the start files. A rule that is still to be met says
  *   `"fail"` (reported as a known failure); once its family is out, the gate
@@ -40,6 +45,7 @@ import * as path from "node:path";
 import * as zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { startFiles } from "./startFiles.mjs";
+import { filesLoadedUntilQuiet } from "./afterStart.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const BASELINE = path.join(ROOT, "scripts", "perf", "bundle-baseline.json");
@@ -49,6 +55,7 @@ const SHELLS = { desktop: "apps/desktop", mobile: "apps/mobile" };
 const args = process.argv.slice(2);
 const update = args.includes("--update");
 const skipBuild = args.includes("--skip-build");
+const browser = !args.includes("--no-browser");
 const jsonAt = args.includes("--json") ? path.resolve(args[args.indexOf("--json") + 1]) : null;
 
 function build(shell) {
@@ -72,6 +79,35 @@ function familyOf(source) {
   }
   const m = /((?:packages\/(?:core|ui)|apps\/(?:desktop|mobile))\/src\/(?:[^/]+\/){0,2})/.exec(s);
   return m ? m[1] : null;
+}
+
+/** Bytes, gzipped bytes and module families of a set of built files. */
+function weigh(dir, paths) {
+  let raw = 0;
+  let gzip = 0;
+  const sources = new Map();
+  for (const file of paths) {
+    const bytes = fs.readFileSync(path.join(dir, file));
+    raw += bytes.length;
+    gzip += zlib.gzipSync(bytes).length;
+    const map = path.join(dir, file + ".map");
+    if (file.endsWith(".js") && fs.existsSync(map)) {
+      const parsed = JSON.parse(fs.readFileSync(map, "utf8"));
+      parsed.sources.forEach((source, i) => {
+        const family = familyOf(source);
+        if (family) sources.set(family, (sources.get(family) ?? 0) + (parsed.sourcesContent?.[i]?.length ?? 0));
+      });
+    }
+  }
+  return { bytes: raw, gzipBytes: gzip, families: Object.fromEntries([...sources].sort((a, b) => b[1] - a[1])) };
+}
+
+/** What the shell loads after its start files until it goes quiet, with nobody doing anything. */
+async function measureAfterStart(shell, dir, start) {
+  const { files, errors } = await filesLoadedUntilQuiet({ root: ROOT, shell, dir });
+  const after = files.filter((file) => !start.includes(file));
+  const weighed = weigh(dir, after);
+  return { files: after, afterBytes: weighed.bytes, afterGzipBytes: weighed.gzipBytes, families: weighed.families, errors };
 }
 
 function measure(shell, dir) {
@@ -100,9 +136,35 @@ function measure(shell, dir) {
     }
   }
   if (!entry) throw new Error(`${shell}: no entry module in ${path.join(dir, "index.html")}`);
+  const twice = modulesInMoreThanOneChunk(dir);
   if (!entry.holdsMain) throw new Error(`${shell}: no start file holds apps/${shell}/src/main.tsx (source maps missing?)`);
   const families = Object.fromEntries([...sources].sort((a, b) => b[1] - a[1]));
-  return { files: files.map((f) => f.path), startBytes: raw, startGzipBytes: gzip, entryBytes: entry.bytes, entry: entry.path, families };
+  return { files: files.map((f) => f.path), startBytes: raw, startGzipBytes: gzip, entryBytes: entry.bytes, entry: entry.path, families, twice };
+}
+
+/**
+ * Source modules that stand in more than one chunk of the whole build (every `.js` with a source map, not only the
+ * start). A module in two chunks runs twice and keeps two copies of its state — two loaders, two registries, two
+ * stores: the AI's session loader would answer `null` in one and the session in the other. The build plugin that
+ * rewrites imports of the package entries (`scripts/vite/barrelImports.mjs`) must never cause that; neither may
+ * anything else. Workers are their own world and are left out.
+ */
+function modulesInMoreThanOneChunk(dir) {
+  const where = new Map();
+  const assets = path.join(dir, "assets");
+  for (const file of fs.readdirSync(assets)) {
+    if (!file.endsWith(".js.map") || /worker/i.test(file)) continue;
+    const { sources } = JSON.parse(fs.readFileSync(path.join(assets, file), "utf8"));
+    for (const source of new Set(sources.map((s) => s.split(String.fromCharCode(92)).join("/").replace(/\?.*$/, "")))) {
+      if (!/(?:packages|apps)\/[^/]+\/src\/|node_modules\//.test(source)) continue;
+      // A language's locale file is cut into one module per area at build time (`localeAreas.mjs`): each part is a
+      // module of its own with keys of its own, and none holds state.
+      if (/\/packages\/ui\/src\/locales\/[^/]+\.json$/.test(source)) continue;
+      if (!where.has(source)) where.set(source, []);
+      where.get(source).push(file.replace(/\.map$/, ""));
+    }
+  }
+  return [...where].filter(([, chunks]) => chunks.length > 1).map(([source, chunks]) => `${source} (${chunks.join(", ")})`);
 }
 
 /** Whether `prefix` (a family like `packages/core/src/ai/`) is among the measured families. */
@@ -116,12 +178,22 @@ const measured = {};
 for (const shell of Object.keys(SHELLS)) {
   const dir = skipBuild ? path.join(OUT, shell) : build(shell);
   measured[shell] = measure(shell, dir);
+  if (browser) {
+    console.log(`opening ${shell} until it goes quiet …`);
+    measured[shell].afterStart = await measureAfterStart(shell, dir, measured[shell].files);
+  }
 }
 if (jsonAt) fs.writeFileSync(jsonAt, JSON.stringify(measured, null, 2) + "\n");
 
 if (update) {
   for (const shell of Object.keys(SHELLS)) {
-    baseline.shells[shell] = { startBytes: measured[shell].startBytes, startGzipBytes: measured[shell].startGzipBytes, entryBytes: measured[shell].entryBytes };
+    const after = measured[shell].afterStart;
+    baseline.shells[shell] = {
+      startBytes: measured[shell].startBytes,
+      startGzipBytes: measured[shell].startGzipBytes,
+      entryBytes: measured[shell].entryBytes,
+      ...(after ? { afterStartBytes: after.afterBytes, afterStartGzipBytes: after.afterGzipBytes } : baseline.shells[shell]?.afterStartBytes ? { afterStartBytes: baseline.shells[shell].afterStartBytes, afterStartGzipBytes: baseline.shells[shell].afterStartGzipBytes } : {}),
+    };
   }
   baseline.recorded = new Date().toISOString().slice(0, 10);
   fs.writeFileSync(BASELINE, JSON.stringify(baseline, null, 2) + "\n");
@@ -142,11 +214,19 @@ for (const shell of Object.keys(SHELLS)) {
   const budget = baseline.budgets?.[shell] ?? {};
   console.log(`  ${shell}: start ${mb(now.startBytes)} (${mb(now.startGzipBytes)} gzip) in ${now.files.length} files, entry ${kb(now.entryBytes)}`);
   console.log(`    baseline start ${mb(was.startBytes)}, entry ${kb(was.entryBytes)}; budget start ${budget.startBytes ? mb(budget.startBytes) : "-"}, entry ${budget.entryBytes ? kb(budget.entryBytes) : "-"}`);
-  for (const key of ["startBytes", "entryBytes"]) {
+  const after = now.afterStart;
+  if (after) {
+    console.log(`    shortly after the start, nobody doing anything: ${mb(after.afterBytes)} (${mb(after.afterGzipBytes)} gzip) in ${after.files.length} files — together ${mb(now.startBytes + after.afterBytes)}`);
+    if (was.afterStartBytes) console.log(`    baseline shortly after ${mb(was.afterStartBytes)}`);
+    for (const error of after.errors) failures.push(`${shell}: the page failed while it started: ${error}`);
+    now.afterStartBytes = after.afterBytes;
+  }
+  for (const key of ["startBytes", "entryBytes", ...(after && was.afterStartBytes ? ["afterStartBytes"] : [])]) {
     if (now[key] > was[key] * growth) failures.push(`${shell}: ${key} ${now[key]} is more than ${Math.round(baseline.growth * 100)} % over the baseline ${was[key]}`);
     else if (now[key] < was[key] / growth) notes.push(`${shell}: ${key} shrank from ${was[key]} to ${now[key]} — lower the baseline with --update`);
     if (budget[key] && now[key] > budget[key]) notes.push(`${shell}: ${key} ${now[key]} is over the budget of ${budget[key]} (plan § 4; packages L5)`);
   }
+  for (const doubled of now.twice) failures.push(`${shell}: a module stands in more than one chunk, and would run twice: ${doubled}`);
   for (const rule of baseline.mustNotStart) {
     const found = carries(now.families, rule.family);
     const fails = found.length > 0;
@@ -156,6 +236,11 @@ for (const shell of Object.keys(SHELLS)) {
     else if (fails) failures.push(`${shell}: ${rule.family} must not be in the start files, found ${detail}`);
     else if (expected === "fail") failures.push(`${shell}: ${rule.family} is no longer in the start files — set its "expected" for ${shell} to "pass" in bundle-baseline.json, so the rule holds from now on`);
     else console.log(`    ok: ${rule.family} is not in the start files`);
+    if (after) {
+      const later = carries(after.families, rule.family);
+      if (later.length > 0) failures.push(`${shell}: ${rule.family} loads shortly after the start with the AI switched off, found ${later.map(([family, chars]) => `${family} ${kb(chars)}`).join(", ")}`);
+      else console.log(`    ok: ${rule.family} does not load shortly after the start`);
+    }
   }
 }
 for (const note of notes) console.log(`  note: ${note}`);

@@ -20,7 +20,7 @@ import { openLink } from '../services/openLink';
 import { TasksQueryView } from './tasks/TasksQueryView';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
-import { ICON } from "@plainva/ui";
+import { AreaBoundary, ICON } from "@plainva/ui";
 import { deferredPart } from "../lib/deferredParts";
 
 // An embedded database loads its viewer with the first one (performance plan L5).
@@ -244,7 +244,8 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
   const base = result.path?.toLowerCase().endsWith(".base");
   return <div className={base ? "embedded-note embedded-note--base" : "embedded-note"}>
     {result.error ? <p role="status">{result.error}</p> : base && result.path
-      ? <Suspense fallback={<div className="embedded-note">{t("editor.loading")}</div>}><BaseViewer activePath={result.path} onOpenPath={onOpenPath} embedded hostPath={hostPath} /></Suspense>
+      // A boundary of its own (review of L5, 2026-11-25): a database that fails to load or draw takes its embed, never the tab.
+      ? <AreaBoundary area="embed:base" size="section" resetKey={result.path}><Suspense fallback={<div className="embedded-note">{t("editor.loading")}</div>}><BaseViewer activePath={result.path} onOpenPath={onOpenPath} embedded hostPath={hostPath} /></Suspense></AreaBoundary>
       : <MarkdownReader content={result.content ?? ""} onOpenPath={onOpenPath} embedDepth={depth + 1} sourcePath={result.path} />}
     {result.path && <Button variant="ghost" size="sm" onClick={open}>{t("noteEmbed.openSource")}: {target}</Button>}
   </div>;

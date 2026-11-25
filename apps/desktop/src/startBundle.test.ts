@@ -135,20 +135,7 @@ describe("named imports of the packages' entries go to the defining module in a 
     expect(rewrite(unknown)).toBe(unknown);
   });
 
-  it("places every value an entry exports on a module that declares it", () => {
-    expect.hasAssertions();
-    for (const [spec, entry] of Object.entries(PACKAGE_BARRELS)) {
-      const names = [...read(entry).matchAll(/export \{([^}]*)\} from/g)].flatMap((m) => m[1]!.split(",")).map((x) => x.trim()).filter((x) => x && !x.startsWith("type ")).map((x) => x.split(/\s+as\s+/).pop()!);
-      for (const name of names.slice(0, 40)) {
-        const out = rewrite(`import { ${name} } from "${spec}";`);
-        const placed = /import \{ (\w+)(?: as \w+)? \} from "([^"]+)"/.exec(out);
-        expect(placed, `${spec}: ${name}`).not.toBeNull();
-        const [, own, file] = placed!;
-        if (file!.startsWith("@plainva/")) continue;
-        expect(read(file!), `${own} in ${file}`).toMatch(new RegExp(`export (?:async )?(?:function\\*?|class|const|let|var|enum) ${own}\\b`));
-      }
-    }
-  });
+  // Every value of every entry, bound as TypeScript binds it: `barrelBindings.test.ts` (review of L5, 2026-11-25).
 });
 
 describe("the locale files by area", () => {

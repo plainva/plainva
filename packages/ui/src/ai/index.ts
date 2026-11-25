@@ -12,6 +12,7 @@ export * from "./transcript";
 export * from "./AiConversation";
 export * from "./aiStores";
 export * from "./aiVaultHost";
+export * from "./baseAiParts";
 export * from "./aiSettingsModel";
 export * from "./localMode";
 export * from "./aiSetup";

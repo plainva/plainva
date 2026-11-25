@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
 import { packageBarrels } from "../../scripts/vite/packageBarrels.mjs";
 import { localeAreas } from "../../scripts/vite/localeAreas.mjs";
+import { startChunk } from "../../scripts/vite/startChunk.mjs";
 import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
 import { e2eBundleBuild, e2eBundlePlugins } from "./scripts/e2e-bundle.mjs";
 
@@ -16,13 +17,14 @@ const labsEnv = (): Record<string, string | undefined> => ({ ...process.env, PLA
 
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => {
+  const start = startChunk(/apps\/desktop\/src\/main\.tsx$/);
   // Unit tests run in one fixed zone, set before any worker starts (R9, scripts/test-clock.mjs).
   if (mode === "test") pinTestTimeZone();
   // The bundle the E2E suite runs against in CI (`--mode e2e`, R10); nothing for any other mode.
   const root = fileURLToPath(new URL(".", import.meta.url));
   return {
   // Named imports of the shared packages go to the defining module in a build; the locale files load by area (performance plan L5).
-  plugins: [packageBarrels(), localeAreas(), react(), ...e2eBundlePlugins(mode, root)],
+  plugins: [packageBarrels(), localeAreas(), start.plugin, react(), ...e2eBundlePlugins(mode, root)],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   define: buildInfoDefine(mode === "labs" ? labsEnv() : undefined),
   // The installed SDK has a deliberately smaller API. Both shells and every
@@ -122,7 +124,8 @@ export default defineConfig(async ({ mode }) => {
         // closes the class for every module instead of rewriting each read.
         strictExecutionOrder: true,
         manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
+          // What the entry reaches through static imports goes into one chunk, `start` (startChunk.mjs).
+          if (!id.includes("node_modules")) return start.chunkOf(id);
 
           if (id.includes("@codemirror") || id.includes("@lezer") || id.includes("@uiw/")) {
             // Statisch benoetigter Sprach-Stack des Markdown-Editors: lang-markdown
@@ -145,7 +148,7 @@ export default defineConfig(async ({ mode }) => {
             return "react";
           }
 
-          return undefined;
+          return start.chunkOf(id);
         },
       },
     },

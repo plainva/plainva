@@ -110,6 +110,9 @@ export interface ParsedPolicyFile {
   problems: string[];
 }
 
+/** Where folder rules live. Plainva writes no marker files into the user's folders. */
+export const AI_POLICY_FILE = ".agent/policy.yml";
+
 /**
  * Parses `.agent/policy.yml`. Never throws: a file that does not parse yields
  * no rules and a problem — and because a missing rule falls back to the

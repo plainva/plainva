@@ -1,6 +1,5 @@
-import { Compartment, StateField, type EditorState, type Extension } from "@codemirror/state";
+import { Compartment, StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemirror/view";
-import { presentableDiff } from "@codemirror/merge";
 
 /**
  * The suggestion mode inside the editor (plan Vorschlagsmodus, V2; word-level
@@ -19,6 +18,10 @@ import { presentableDiff } from "@codemirror/merge";
  * reader decides on. The merge package's own unified view worked in lines,
  * and a one-word edit became a whole paragraph in red and a whole paragraph
  * in green (finding 2026-09-03).
+ *
+ * The merge package loads with the mode, not with the editor (performance plan L5): `start` sets the base at once and
+ * asks for the package; until it is there — the first moments of the mode — the change list is the one stretch
+ * between the common start and the common end of the two texts, and the marks follow when it arrives.
  */
 export interface SuggestionChunk {
   /** Range in the BASE document that goes away (empty for a pure insertion). */
@@ -53,6 +56,39 @@ class DeletedWidget extends WidgetType {
   }
 }
 
+interface DiffChange {
+  fromA: number;
+  toA: number;
+  fromB: number;
+  toB: number;
+}
+type Diff = (a: string, b: string) => readonly DiffChange[];
+
+let diff: Diff | null = null;
+let loading: Promise<void> | null = null;
+
+/** Loads the word diff of the merge package; resolves at once once it is there. */
+export function loadSuggestionDiff(): Promise<void> {
+  loading ??= import("@codemirror/merge").then((merge) => {
+    diff = merge.presentableDiff;
+  });
+  return loading;
+}
+
+/** The changes between the two texts: the word diff, or until it has loaded the one stretch that differs. */
+function changesBetween(a: string, b: string): readonly DiffChange[] {
+  if (diff) return diff(a, b);
+  if (a === b) return [];
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let end = 0;
+  while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
+  return [{ fromA: start, toA: a.length - end, fromB: start, toB: b.length - end }];
+}
+
+/** The word diff arrived: draw the marks again. */
+const diffLoaded = StateEffect.define<null>();
+
 const insertedMark = Decoration.mark({ class: "cm-suggest-ins" });
 
 function buildDecorations(state: EditorState): DecorationSet {
@@ -60,7 +96,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   if (base === null) return Decoration.none;
   const current = state.doc.toString();
   const ranges = [];
-  for (const change of presentableDiff(base, current)) {
+  for (const change of changesBetween(base, current)) {
     const gone = base.slice(change.fromA, change.toA);
     if (gone.length > 0) ranges.push(Decoration.widget({ widget: new DeletedWidget(gone), side: -1 }).range(change.fromB));
     if (change.toB > change.fromB) ranges.push(insertedMark.range(change.fromB, change.toB));
@@ -70,7 +106,7 @@ function buildDecorations(state: EditorState): DecorationSet {
 
 const decorationField = StateField.define<DecorationSet>({
   create: buildDecorations,
-  update: (deco, tr) => (tr.docChanged ? buildDecorations(tr.state) : deco),
+  update: (deco, tr) => (tr.docChanged || tr.effects.some((e) => e.is(diffLoaded)) ? buildDecorations(tr.state) : deco),
   provide: (field) => EditorView.decorations.from(field),
 });
 
@@ -110,6 +146,13 @@ export function createSuggestMode() {
         ]),
       });
       onChunks?.(0);
+      if (!diff) {
+        void loadSuggestionDiff().then(() => {
+          if (suggestionBase(view.state) === null) return;
+          view.dispatch({ effects: diffLoaded.of(null) });
+          onChunks?.(suggestionChunks(view.state).length);
+        });
+      }
     },
     /** Leaves the mode and puts the base back; the copy's edits are gone. */
     stop(view: EditorView): void {
@@ -136,7 +179,7 @@ export function suggestionChunks(state: EditorState): SuggestionChunk[] {
   const original = suggestionBase(state);
   if (original === null) return [];
   const current = state.doc.toString();
-  return presentableDiff(original, current).map((change) => ({
+  return changesBetween(original, current).map((change) => ({
     fromA: change.fromA,
     toA: change.toA,
     replacement: current.slice(change.fromB, change.toB),

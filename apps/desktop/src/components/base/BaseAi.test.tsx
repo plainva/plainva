@@ -7,17 +7,18 @@ import i18n from "@plainva/ui/i18n";
 import {
   FillPlanBody,
   FillProgressBanner,
-  FilterInWords,
   fillPlanLines,
-  filterRuleWords,
-  reportFill,
   toast,
   toastStore,
+  loadAiModule,
   useBaseAi,
   type BaseAi,
 } from "@plainva/ui";
 import {
   AiSendOverview,
+  FilterInWords,
+  filterRuleWords,
+  reportFill,
   type AiSession,
   type AiState,
   type FillColumn,
@@ -39,6 +40,8 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 beforeAll(async () => {
+  // The assistant at a database reads the provider's name from the harness, which is loaded wherever it is offered.
+  await loadAiModule();
   await i18n.changeLanguage("en");
 });
 

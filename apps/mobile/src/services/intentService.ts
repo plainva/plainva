@@ -1,5 +1,5 @@
 import { Preferences } from "@capacitor/preferences";
-import { DEFAULT_AI_POLICY, effectivePolicy, gateDecision, notePolicyFrom, parsePolicyFile, systemFindOn, type EgressRecipient, type ParsedPolicyFile } from "@plainva/core/ai";
+import type { EgressRecipient, ParsedPolicyFile } from "@plainva/core/ai";
 import {
   buildIntentDirectory,
   calendarDay,
@@ -21,7 +21,7 @@ import {
   type IntentOrder,
   type IntentRefTable,
 } from "@plainva/ui";
-import { AI_POLICY_FILE, type AiSession } from "@plainva/ui/ai";
+import type { AiSession } from "@plainva/ui/ai";
 import { mobileAiLoader, mobileAiSwitch } from "./ai/mobileAiLoader";
 import i18n from "@plainva/ui/i18n";
 import { clearIntentDirectory, clearIntentOrders, onIntentOrders, readIntentOrdersRaw, systemIntentsAvailable, writeIntentDirectory } from "../platform/intentBridge";
@@ -115,6 +115,7 @@ export async function gatherIntentDirectory(sources: IntentDirectorySources, now
    */
   if (folder.problems.length > 0) return none("rules");
   try {
+    const { DEFAULT_AI_POLICY, effectivePolicy, gateDecision, notePolicyFrom } = await policyModule();
     const [notes, own] = await Promise.all([sources.notes(NOTE_QUERY_LIMIT), sources.ownRules()]);
     const allowed = (path: string) =>
       gateDecision(effectivePolicy(path, notePolicyFrom({ plainva: own.get(path) }), folder.rules, DEFAULT_AI_POLICY), SYSTEM_ASSISTANT_RUN).allowed;
@@ -202,6 +203,12 @@ function once<T>(load: () => Promise<T>): () => Promise<T> {
 }
 
 const vaultServiceModule = once(() => import("./vaultService"));
+/**
+ * The AI's policy — folder rules, a note's own rule, the gate — loads only once the AI is on (review of L5,
+ * 2026-11-25): this service starts with every start, and its static imports of the policy carried the harness into
+ * the phone with the AI switched off. The directory is built only while the switch is on.
+ */
+const policyModule = once(() => import("@plainva/core/ai"));
 const vaultRegistryModule = once(() => import("./vaultRegistry"));
 
 /** The AI settings of this device, once they are read; null where they never arrive. */
@@ -219,6 +226,7 @@ async function aiSettings(): Promise<{ enabled: boolean; systemFind: boolean } |
     // While the device is fully local (plan KI-Harness P7) the list of titles is not kept: the switch reads as off.
     return state.loaded ? { enabled: state.settings.enabled, systemFind: systemFindOn(state.settings) } : null;
   };
+  const { systemFindOn } = await policyModule();
   const now = loaded();
   if (now) return now;
   return new Promise((resolve) => {
@@ -259,7 +267,10 @@ async function sourcesOfOpenVault(): Promise<IntentDirectorySources> {
     secret,
     notes: (limit) => (query ? query.getRecentlyChangedNotes(limit) : Promise.reject(new Error("no index"))),
     ownRules: () => (query ? query.getOwnAiRules() : Promise.reject(new Error("no index"))),
-    folderRules: async () => ((await vault.files.exists(AI_POLICY_FILE)) ? parsePolicyFile(await vault.files.readTextFile(AI_POLICY_FILE)) : { rules: [], problems: [] }),
+    folderRules: async () => {
+      const { AI_POLICY_FILE, parsePolicyFile } = await policyModule();
+      return (await vault.files.exists(AI_POLICY_FILE)) ? parsePolicyFile(await vault.files.readTextFile(AI_POLICY_FILE)) : { rules: [], problems: [] };
+    },
   };
 }
 
@@ -575,7 +586,8 @@ export function initIntentService(): void {
   // The switch itself: off wipes the list at once, on writes it.
   // The switch is followed once the AI is loaded — at the start when it is on, or when a surface of the AI made it
   // (performance plan L5). Until then the switch is off, and the list is wiped as the session's first word would.
-  const attach = (session: AiSession) => {
+  const attach = async (session: AiSession) => {
+      const { systemFindOn } = await policyModule();
       if (!wired) return;
       let before = "";
       unsubscribeAi = session.subscribe(() => {
@@ -591,13 +603,13 @@ export function initIntentService(): void {
       });
   };
   const made = mobileAiLoader.session();
-  if (made) attach(made);
+  if (made) void attach(made);
   else {
     const stopWaiting = mobileAiLoader.subscribe(() => {
       const session = mobileAiLoader.session();
       if (!session) return;
       stopWaiting();
-      attach(session);
+      void attach(session);
     });
     unsubscribeAi = stopWaiting;
     void mobileAiSwitch().then(

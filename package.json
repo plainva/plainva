@@ -33,7 +33,9 @@
   },
   "pnpm": {
     "overrides": {
-      "katex": "0.19.1"
+      "mermaid>katex": "0.19.1",
+      "rehype-katex>katex": "0.19.1",
+      "micromark-extension-math>katex": "0.19.1"
     }
   }
 }

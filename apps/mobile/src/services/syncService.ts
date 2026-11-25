@@ -495,6 +495,9 @@ let settingsOnlySync: SettingsOnlySync | null = null;
  * changes queue meanwhile (finding 4) and the first-sync deferral holds.
  */
 async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
+  // The sync's modules load first (review of L5, 2026-11-25): between a check of the generation and what it guards
+  // no load of a module may wait — a stop in that wait would let a stale start build its service.
+  const sync = await syncModules();
   v.enableSyncEnqueue();
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
@@ -507,7 +510,7 @@ async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generati
   if (worker || settingsOnlySync || generation !== startGeneration) return;
   // No listing shows a genesis here: one look per session, never one per run.
   const sessionCheck = v.workspaceRuntime ? undefined : await mobileSettingsOnlyCheck(v, p, rawTarget).catch(() => undefined);
-  settingsOnlySync = new (await syncModules()).SettingsOnlySync(runner, target, v.belowChain, syncIntervalMs(), undefined, sessionCheck, () => {
+  settingsOnlySync = new sync.SettingsOnlySync(runner, target, v.belowChain, syncIntervalMs(), undefined, sessionCheck, () => {
     setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
   });
   settingsOnlySync.start();
@@ -1372,6 +1375,10 @@ export async function openDriveDestination(vaultId: string) {
 }
 
 async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
+  // The sync's modules, and the workspace's for an encrypted vault, load first (review of L5, 2026-11-25): between a
+  // check of the generation and what it guards no load of a module may wait.
+  const sync = await syncModules();
+  const workspace = v.workspaceRuntime || v.workspaceState ? await workspaceModule() : null;
   v.enableSyncEnqueue();
   // Origin policy (P4.3): user-configured servers must be allowed on the
   // native bridge before requests fly. Fire-and-forget is safe — a request
@@ -1390,26 +1397,26 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // Drive only: the folder id learned by NAME, kept until a full listing of it
   // has held — then stored, so the id addresses the folder from now on (A4).
   let resolvedDriveRoot: { id: string; path: string } | null = null;
-  if (rawTarget instanceof (await syncModules()).DriveSyncTarget && !(await readDriveDestination(v.vaultId, p)).id) {
+  if (rawTarget instanceof sync.DriveSyncTarget && !(await readDriveDestination(v.vaultId, p)).id) {
     rawTarget.onRootFolderResolved = (info) => { resolvedDriveRoot = { id: info.id, path: info.path }; };
   }
   if (await holdForEncryptedRemote(v, p, rawTarget, generation)) return;
   const { target, runner: settingsSync } = await prepareMobileSettingsSync(v, p, rawTarget);
-  if (v.workspaceRuntime && v.workspaceState) {
-    const objectStore = (await workspaceModule()).createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
+  if (workspace && v.workspaceRuntime && v.workspaceState) {
+    const objectStore = workspace.createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
     // Encrypting/indexing the local vault at join time can take minutes on a
     // large vault; surface it as determinate sync progress instead of a silent
     // freeze (package F1, Punkt 14).
     setState({ status: "syncing", message: null });
     // What changed while Plainva was closed is asked like a change from
     // outside while it runs (release 0.9.0 A3).
-    await (await workspaceModule()).initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }), permissions: v.workspacePermissions });
+    await workspace.initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }), permissions: v.workspacePermissions });
     if (generation !== startGeneration) {
       // Stopped meanwhile (finding 4): no worker, and no "syncing" left standing.
       await settleCancelledStart(v);
       return;
     }
-    const encrypted = new (await workspaceModule()).EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.belowChain, v.workspaceRuntime, {
+    const encrypted = new workspace.EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.belowChain, v.workspaceRuntime, {
       intervalMs: syncIntervalMs(),
       ownDeletions: v.ownDeletions,
       // The workspace worker runs its sideband AFTER pull and push, so the
@@ -1459,7 +1466,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   }
   // Large writes stream from disk instead of crossing the bridge as base64
   // (issue #48); below the threshold nothing changes.
-  const engine = new (await syncModules()).SyncEngine(
+  const engine = new sync.SyncEngine(
     v.syncQueue!,
     target,
     v.files,
@@ -1488,10 +1495,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // Deletion journal (feedback round 2026-09-01, P1): the deletions a person
   // confirmed here reach the other devices as an intent, and theirs reach us.
   // Raw adapter — it is a sideband file, not a note.
-  const journal = new (await syncModules()).DeletionJournal(v.belowChain, await mobileSyncDeviceId());
+  const journal = new sync.DeletionJournal(v.belowChain, await mobileSyncDeviceId());
   if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   deletionJournal = journal;
-  const w = new (await syncModules()).SyncWorker(engine, target, v.syncRepo!, v.belowChain, v.syncQueue!, syncIntervalMs(), {
+  const w = new sync.SyncWorker(engine, target, v.syncRepo!, v.belowChain, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,

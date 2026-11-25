@@ -22,7 +22,7 @@ describe("how a vault's file sync runs on this device (B3)", () => {
     expect(vault).toMatch(/filesRunState\(\{ filesOff: filesOffHere, pausedHere, signedOut: !!fileAccess\.signedOut \}\)/);
     // With the per-run guard against an encrypted workspace's folder (R8).
     // The sync's module loads with the first vault that syncs (performance plan L5).
-    expect(vault).toMatch(/new \(await syncModules\(\)\)\.SettingsOnlySync\(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, \(\) => \{/);
+    expect(vault).toMatch(/new sync\.SettingsOnlySync\(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, \(\) => \{/);
     expect(vault).toMatch(/window\.addEventListener\(CLOUD_ACCOUNTS_EVENT, handleFilesSwitch\)/);
   });
 });
