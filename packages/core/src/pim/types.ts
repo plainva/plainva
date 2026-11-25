@@ -285,6 +285,14 @@ export interface PimEventDraft {
    * `undefined` leaves the link as it is, `null` removes it — the blocker
    * becomes an ordinary event (K3: "move only this blocker"). */
   blockOf?: string | null;
+  /**
+   * Creates only: the uid the new event is to carry, where the provider lets
+   * the client name it (CalDAV). Made once per create of the person
+   * (`newPimCreateUid`) and sent with every try of it, so a "Try again" finds
+   * the event it already left on the server instead of making a second one
+   * (issue 119). Providers that name their own ids ignore it.
+   */
+  createAs?: string;
   /** The event's own list of its blockers (K3). `undefined` leaves the remote
    * list untouched — every ordinary write — and an array REPLACES it; an empty
    * one clears it. */
@@ -330,6 +338,8 @@ export interface PimTaskDraft {
    */
   notes?: string;
   completed: boolean;
+  /** Creates only: as `PimEventDraft.createAs`. */
+  createAs?: string;
 }
 
 /**

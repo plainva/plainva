@@ -46,6 +46,16 @@ import { eventSubstanceOf, sameEventSubstance, type PimEventSubstance } from "./
 /** Safety valve: a broken RRULE must never spin the expansion forever. */
 const MAX_INSTANCES_PER_SERIES = 500;
 
+/**
+ * How long a read gives an object Plainva has just written to show up (issue
+ * 119): the pauses between the reads, about five and a half seconds in all.
+ * iCloud accepts a new object and answers a GET for it with 404 for a moment
+ * after; a server that shows its writes at once never waits.
+ */
+const READ_AFTER_WRITE_WAITS_MS = [250, 750, 1_500, 3_000] as const;
+
+const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 export class CalDavPimTarget implements IPimTarget {
   readonly provider = "caldav" as const;
   private base: URL;
@@ -56,7 +66,9 @@ export class CalDavPimTarget implements IPimTarget {
 
   constructor(
     private creds: WebDavCredentials,
-    private fetchFn: FetchFn = (...args) => globalThis.fetch(...args)
+    private fetchFn: FetchFn = (...args) => globalThis.fetch(...args),
+    /** The pause between two reads of a just-written object (tests pass their own clock). */
+    private wait: (ms: number) => Promise<void> = pause
   ) {
     this.base = new URL(creds.url.endsWith("/") ? creds.url : creds.url + "/");
   }
@@ -399,15 +411,87 @@ export class CalDavPimTarget implements IPimTarget {
   }
 
   async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
-    const uid = generateUid();
+    const uid = draft.createAs ?? generateUid();
     const href = this.resolve(joinCollection(calendarId, `${uid}.ics`));
-    const res = await this.rawRequest(href, {
-      method: "PUT",
-      headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
-      body: buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)),
-    });
-    if (!res.ok) throw await pimRequestError("caldav create event", res);
-    return { uid, etag: await this.etagAfterWrite(href, res), href };
+    const etag = await this.createObject(href, "event", buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)));
+    return { uid, etag, href };
+  }
+
+  /**
+   * PUTs a new object and hands back its etag - only once the server holds it
+   * (issue 119).
+   *
+   * A server that rewrites what it is sent names no etag in its answer (RFC
+   * 4791 5.3.4), so the object is read back. iCloud answers that read with 404
+   * for a moment after the create. Taken for "etag unknown", that 404 made a
+   * create count as written that the server did not show: the event stood on
+   * screen without an etag, the first edit read it, met the same 404 and said
+   * "caldav read 404 before update" - and where the server never kept it, the
+   * event left the screen three minutes later without a word. Now the read
+   * gives the object time to show. One that still does not is sent once more:
+   * a 412 says the server holds it, a new 201 that it had dropped it and has it
+   * now. Only an object that is not shown after that is a refused create, and
+   * what the person typed stays with "Try again".
+   *
+   * `If-None-Match: *` makes every second send safe. The address is the
+   * create's own uid (`createAs`, the same for every try of one create), so an
+   * object already standing there is this create, landed after all: it is
+   * read, never written a second time.
+   */
+  private async createObject(href: string, what: "event" | "task", body: string): Promise<string | undefined> {
+    const put = () =>
+      this.rawRequest(href, {
+        method: "PUT",
+        headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
+        body,
+      });
+    let res = await put();
+    for (let attempt = 0; ; attempt++) {
+      // 412: an object already stands at this address - this create, landed.
+      const landed = res.status === 412;
+      if (!landed) {
+        if (!res.ok) throw await pimRequestError(`caldav create ${what}`, res);
+        const said = res.headers.get("ETag");
+        if (said) return said;
+      }
+      let read: Response;
+      try {
+        read = await this.readAfterWrite(href);
+      } catch {
+        // No answer at all: the server took the object, its etag is unknown -
+        // which the 412 handling of an edit or a delete copes with.
+        return undefined;
+      }
+      if (read.status !== 404 && read.status !== 410) return read.ok ? (read.headers.get("ETag") ?? undefined) : undefined;
+      // The server said it holds the object and still does not show it: its
+      // word stands, the etag stays unknown.
+      if (landed) return undefined;
+      // Accepted and not shown: ask once more by sending it again. A server
+      // that kept it answers 412 (no second event); one that dropped it takes
+      // it now.
+      if (attempt > 0) {
+        throw new PimRequestError(`caldav create ${what}: the server accepted it but does not show it (${read.status})`, read.status);
+      }
+      res = await put();
+    }
+  }
+
+  /**
+   * GET of an object Plainva has just created. A 404 is asked again after a
+   * pause, a few times, before it counts: a server that shows its own writes
+   * late (iCloud) must not turn a create into "written" that it does not hold.
+   * Edits and deletes do not wait - an event gone there is gone (a blocker
+   * deleted elsewhere is passed over at once), and the event an edit most often
+   * meets just after its create is one this read has already seen.
+   */
+  private async readAfterWrite(href: string): Promise<Response> {
+    let res = await this.rawRequest(href, { method: "GET", headers: {} });
+    for (const ms of READ_AFTER_WRITE_WAITS_MS) {
+      if (res.status !== 404 && res.status !== 410) return res;
+      await this.wait(ms);
+      res = await this.rawRequest(href, { method: "GET", headers: {} });
+    }
+    return res;
   }
 
   async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
@@ -500,15 +584,10 @@ export class CalDavPimTarget implements IPimTarget {
   }
 
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
-    const uid = generateUid();
+    const uid = draft.createAs ?? generateUid();
     const href = this.resolve(joinCollection(listId, `${uid}.ics`));
-    const res = await this.rawRequest(href, {
-      method: "PUT",
-      headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
-      body: buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)),
-    });
-    if (!res.ok) throw await pimRequestError("caldav create task", res);
-    return { uid, etag: await this.etagAfterWrite(href, res), href };
+    const etag = await this.createObject(href, "task", buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)));
+    return { uid, etag, href };
   }
 
   async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }> {
@@ -697,6 +776,16 @@ function findComponent(
 // ---- write helpers --------------------------------------------------------
 
 function generateUid(): string {
+  return newPimCreateUid();
+}
+
+/**
+ * The uid for ONE create of the person (`PimEventDraft.createAs`): made once
+ * when the form is saved, sent with every try of it, so "Try again" after an
+ * answer that never came or a read-back that failed cannot leave the event on
+ * the server twice (issue 119).
+ */
+export function newPimCreateUid(): string {
   return `plainva-${globalThis.crypto.randomUUID()}`;
 }
 
