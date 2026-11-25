@@ -7,12 +7,14 @@ import { fillNoteTasks, TASK_READING } from "../src/db/noteTasks.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { SyncQueue } from "../src/sync/SyncQueue.js";
 import { fixtureFiles } from "../scripts/perf/fixtureVault.js";
+import { VaultQueryService } from "../src/vault/VaultQueryService.js";
 import { initializeSchema as initializeSchemaV090 } from "./fixtures/v090/Schema.js";
 import { VaultIndexer as VaultIndexerV090 } from "./fixtures/v090/VaultIndexer.js";
 import {
   counted,
   expectEveryMixAnswersAsTheScan,
   expectSameAsScan,
+  listTasksByScan,
   notesWithoutRow,
   random,
   randomNote,
@@ -171,6 +173,40 @@ describe("the task table answers as the scan of every note did", () => {
     await indexer.indexVaultFull();
     expect(await notesWithoutRow(db)).toBe(0);
     expect(await counted(db, `SELECT count(*) AS n FROM note_tasks WHERE reading = ${TASK_READING} AND tasks <> ''`)).toBe(1);
+  });
+});
+
+describe("the list reads the table", () => {
+  it("takes a row that counts at its word, whatever the full-text row says now", async () => {
+    const files = new MemoryVaultAdapter(1_000);
+    await files.writeTextFile("A.md", "- [ ] from the reading\n- [x] and its second\n");
+    await files.writeTextFile("B.md", "- [ ] b\n");
+    const { db } = await indexed(files);
+    // The full-text row of A says something else now; its files row and its task row are as indexed.
+    await db.execute(`UPDATE fts_notes SET content = '- [ ] a text the table never read' WHERE path = 'A.md'`);
+    const listed = await new VaultQueryService(db).listTasks();
+    expect(listed.filter((t) => t.path === "A.md").map((t) => t.text)).toEqual(["from the reading", "and its second"]);
+    // What a scan of the text would say instead.
+    expect((await listTasksByScan(db)).filter((t) => t.path === "A.md").map((t) => t.text)).toEqual(["a text the table never read"]);
+  });
+
+  it("reads no note's text where every note has a row that counts, and only those of the notes without one", async () => {
+    const files = new MemoryVaultAdapter(1_000);
+    await writeRandomNotes(files, 61, 60);
+    const { db } = await indexed(files);
+    let texts = 0;
+    const query = db.query.bind(db);
+    db.query = async <T,>(sql: string, params?: unknown[]) => {
+      const rows = await query<T>(sql, params);
+      if (/note_tasks/.test(sql) && /fts_notes/.test(sql)) texts += (rows as Array<{ content?: unknown }>).filter((row) => row.content != null).length;
+      return rows;
+    };
+    await new VaultQueryService(db).listTasks();
+    expect(texts).toBe(0);
+    await db.execute(`DELETE FROM note_tasks WHERE file_rowid IN (SELECT rowid FROM files WHERE path LIKE '%.md' ORDER BY rowid LIMIT 7)`);
+    texts = 0;
+    await new VaultQueryService(db).listTasks();
+    expect(texts).toBe(7);
   });
 });
 

@@ -27,7 +27,7 @@ import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
-import { noteTasksOf, noteTasksRowCounts, tasksOfRow } from "../db/noteTasks.js";
+import { noteTasksRowCounts, tasksOfRow } from "../db/noteTasks.js";
 import { buildLinkTargetIndex, linkFilesNamed, linkTargetName, noteLinkResolver, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownTargetIndexed, resolveNotePathIndexed, type LinkCorpusFile, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { buildLinkNameIndex, filesALinkCouldMean, type LinkNameIndex } from "../ai/linkNames.js";
 import { mayHoldAWithheldLink, redactDeniedLinksIn } from "../ai/egressGate.js";
@@ -1010,19 +1010,38 @@ export class VaultQueryService {
     // the same join). In descending order of that row's number: the rows this
     // build writes are numbered `-files.rowid`, so this is the order the notes
     // came into the index, as it was before index format 9; rows kept from an
-    // older index keep their own numbers (fullTextRows.ts). `CROSS JOIN`
-    // keeps SQLite from starting at the full-text table, which would read
-    // every note's text: a note without tasks is passed over before its
-    // full-text row is looked up, and only a note without a row that counts
-    // brings its text along.
+    // older index keep their own numbers (fullTextRows.ts).
+    //
+    // Two ways to the same answer, by whether any note lacks a row that
+    // counts (asked first, and the question stops at the first such note):
+    // - none does — `files` first, a note without tasks passed over before
+    //   its full-text row is looked up (`CROSS JOIN` keeps SQLite from
+    //   starting at the full-text table), and no text read at all;
+    // - some do (an index the next full pass has not filled in yet, notes an
+    //   older build wrote, rows of another reading) — the full-text table
+    //   first, in its own order, as before the table: no sort, and only the
+    //   notes without a row that counts are scanned.
+    const lacking = await this.db.queryOne<{ lacking: number }>(
+      `SELECT EXISTS (SELECT 1 FROM files f
+         WHERE f.mode IS NOT 'attachment' AND f.path LIKE '%.md'
+           AND NOT EXISTS (SELECT 1 FROM note_tasks t WHERE ${noteTasksRowCounts("f", "t")})) AS lacking`,
+      [],
+    );
+    const whole = lacking != null && Number(lacking.lacking) === 0;
     const rows = await this.db.query<{ path: string; title: string | null; excluded: number | null; tasks: string | null; content: string | null }>(
-      `SELECT f.path AS path, n.title AS title, t.excluded AS excluded, t.tasks AS tasks,
-              CASE WHEN t.file_rowid IS NULL THEN n.content END AS content
-       FROM files f
-       LEFT JOIN note_tasks t ON ${noteTasksRowCounts("f", "t")}
-       CROSS JOIN fts_notes n ON n.rowid = ${fullTextRowOf("f")} AND n.path = f.path
-       WHERE t.file_rowid IS NULL OR t.tasks <> ''
-       ORDER BY n.rowid DESC`,
+      whole
+        ? `SELECT f.path AS path, n.title AS title, t.excluded AS excluded, t.tasks AS tasks, NULL AS content
+           FROM files f
+           JOIN note_tasks t ON ${noteTasksRowCounts("f", "t")}
+           CROSS JOIN fts_notes n ON n.rowid = ${fullTextRowOf("f")} AND n.path = f.path
+           WHERE t.tasks <> ''
+           ORDER BY n.rowid DESC`
+        : `SELECT n.path AS path, n.title AS title, t.excluded AS excluded, t.tasks AS tasks,
+                  CASE WHEN t.file_rowid IS NULL THEN n.content END AS content
+           FROM fts_notes n
+           JOIN files f ON f.path = n.path AND ${fullTextRowOf("f")} = n.rowid
+           LEFT JOIN note_tasks t ON ${noteTasksRowCounts("f", "t")}
+           ORDER BY n.rowid DESC`,
       [],
     );
     const out: TaskRecord[] = [];
@@ -1044,10 +1063,11 @@ export class VaultQueryService {
     return out;
   }
 
-  /** A note's tasks scanned from its text, as the task table holds them (`noteTasksOf`). */
+  /** A note's tasks scanned from its text, as the list always read them (`noteTasksOf` holds the same in the table). */
   private tasksFromText(content: string): { excluded: boolean; tasks: ScannedTask[] } {
-    const row = noteTasksOf(content);
-    return { excluded: row.excluded, tasks: tasksOfRow(row.tasks) };
+    const tasks = scanTasks(content);
+    // Truth stays in the file: `plainva.tasks: false` opts a note out; read only for a note with tasks.
+    return { excluded: tasks.length > 0 && readFrontmatterPath(content, ["plainva", "tasks"]) === false, tasks };
   }
 
   /**

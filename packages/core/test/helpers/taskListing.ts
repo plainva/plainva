@@ -106,8 +106,13 @@ export const TASK_LINES = [
   "- [ ] task\r",
   "- [ ] 中文任务 #标签",
   "| a | b |",
+  "- [ ] dated ➕ 2026-01-02 ⏳ 2026-02-03 🛫 2026-02-01",
+  "- [ ] highest 🔺",
+  "- [ ] lowest ⏬ 🔽",
+  "- [ ] repeats 🔁 every 2 days when done",
+  "- [ ] twin 🆔 same 🔁 every week",
 ];
-export const FRONTMATTERS = ["", "---\ntitle: T\n---\n", "---\nplainva:\n  tasks: false\n---\n", "---\nplainva:\n  tasks: true\n---\n", "---\ntags: [a]\n# comment\n---\n", "---\n"];
+export const FRONTMATTERS = ["", "---\ntitle: T\n---\n", "---\nplainva:\n  tasks: false\n---\n", "---\nplainva:\n  tasks: true\n---\n", "---\ntags: [a]\n# comment\n---\n", "---\n", "---\nplainva:\n  repeat: weekly\n---\n", "---\nplainva:\n  pim:\n    uid: abc\n---\n"];
 const FOLDERS = ["", "Projects/", "Journal/", "Notes/deep/", ".obsidian/", "Templates/"];
 
 export function randomNote(r: ReturnType<typeof random>): string {
