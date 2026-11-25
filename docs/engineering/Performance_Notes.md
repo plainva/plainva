@@ -343,9 +343,12 @@ answers the same, byte for byte and in the same order, in every state the table 
 half filled in, whole, rows of another reading, notes an older build wrote in between
 (`packages/core/test/helpers/taskListing.ts`, run in the core and over both shells' database
 adapters: `apps/desktop/src/adapters/noteTasksTable.test.ts`,
-`apps/mobile/src/noteTasksTable.test.ts`). The SQL joins `files` to the table first and looks up a
-note's full-text row only for a note with tasks (`CROSS JOIN`); a note whose row counts never
-brings its text.
+`apps/mobile/src/noteTasksTable.test.ts`). It first asks whether any note lacks a row that counts
+(the question stops at the first one). If none does, the SQL joins `files` to the table first and
+looks up a note's full-text row only for a note with tasks (`CROSS JOIN`), and no note's text is
+read. If some do, it reads the full-text table in its own order as before the table and scans only
+the notes without a row that counts. Tests hold that a row that counts is taken at its word against
+another full-text row, and that a whole table brings no note's text.
 
 **Filling in.** No index format: the table is additive. An index from before it, notes an older
 build wrote and rows of another reading are filled in by the full pass once it has written
@@ -365,14 +368,21 @@ that makes `files` anew drops the trigger with it: in both cases the hash keeps 
 behind from ever counting for another text, and this build's next open creates the trigger again
 (`IF NOT EXISTS`).
 
-**Measured** with `pnpm perf:core` on one machine (Linux, i9-13905H, Node 24; 10 000 notes,
-32 046 tasks), before and after: `listTasks` 484 ms -> 60 ms; with the table half filled in
-311 ms, without it 549 ms (the scan as before, plus the join). Filling in once from the index's
-own text: 667 ms for all 10 000 notes, 370 ms for half. Cold index 26.1 s -> 26.1 s, pass without
-changes 215 -> 174 ms, save median 2.8 -> 3.0 ms. The save's p95 (of 40 saves) was 4.1 ms
-before and 6.9 / 7.9 ms in the two runs after; the save now scans the note's task lines and
-writes one more row — a single run per state cannot tell that from the spread here, the gate's
-runs in CI decide. Of the 60 ms most is decoding the rows' JSON.
+**Measured** on one machine (Linux, i9-13905H, Node 24; 10 000 notes, 32 046 tasks).
+`scripts/perf/task-list-cost.ts` lists in turns, on one index, in each state of the table and as
+the list was before it (that statement, word for word), the fastest of seven: whole 67 ms, half
+filled in 285 ms, without the table 487 ms, as before 479 ms — without the table the list costs
+what it did, the question first and the join on top within 2 %. That state lasts from an update
+until the end of the first full pass, and after a rise of `TASK_READING`. Filling in once from the
+index's own text: 680 ms for all 10 000 notes, 364 ms for half (`pnpm perf:core`, which also shows
+`listTasks` 484 -> 60-65 ms; cold index and the pass without changes unchanged within their spread).
+Of the 60 ms most is decoding the rows' JSON.
+
+**The save.** `pnpm perf:core` showed the p95 of 40 saves at 4.1 ms before and 6.7-7.9 ms after.
+`scripts/perf/save-cost.ts` saves one note 400 times with the task row and 400 times without, in
+blocks taking turns on the same index: p50 2.78 / 2.67 ms, p95 9.24 / 9.67 ms. Reading that note's
+task lines costs 0.02 ms and the statement 0.01 ms. The rise was this machine's spread between
+runs, not the row.
 
 ## Reading ahead in the full scan (performance plan L2, 2026-11-25)
 
@@ -383,9 +393,13 @@ files a transaction of the scan writes are read ahead of the loop that indexes t
 (`packages/core/src/vault/readAhead.ts`, `VaultIndexer.readScanGroup`):
 
 - **Which files, when.** Up to eight reads at a time — single files, or where the adapter reads
-  many files in one call (`readFilesForIndex`, the desktop) two groups of eight — and never more
-  than 16 MB of what is read and not yet taken (weighed by the listing's size, then by what was
-  read; a file heavier than the bound is read on its own). Only within a transaction: every read
+  many files in one call (`readFilesForIndex`, the desktop) two calls of eight files each. One
+  bound holds what a transaction has: its readings taken and those still ahead together at most the
+  16 MB a transaction holds, weighed by the listing's size until a reading is in and by what was
+  read from then on; a reading taken keeps its weight until the transaction writes, so reads begun
+  after the transaction's time is reached still fit the bound. A file heavier than the bound is
+  read on its own. The one excess left: files whose listing names a size far below what they hold,
+  read at the same time, before the first of them is in. Only within a transaction: every read
   begins after the transaction's change mark, so a save or move that lands during a read is seen
   by `changesSince` and the file is read once more, as before. Once the transaction's time or text
   is reached nothing new is begun, and what was begun is written in it. `scanTransactionMs: 0` (a

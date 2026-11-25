@@ -243,10 +243,11 @@ export interface VaultIndexerOptions {
    */
   scanTransactionMs?: number;
   /**
-   * How many reads of the full scan are in flight at once (default 8: one
-   * file each, or two groups of eight where the adapter reads many files in
-   * one call, `readFilesForIndex`). 1 reads one file at a time, as the scan
-   * did before it read ahead; a test compares the two.
+   * How many reads of the full scan are in flight at once (default 8 single
+   * files; where the adapter reads many files in one call,
+   * `readFilesForIndex`, two calls of up to that many files each). 1 reads
+   * one file at a time, as the scan did before it read ahead; a test
+   * compares the two.
    */
   scanReadsAhead?: number;
 }
@@ -434,6 +435,8 @@ interface ScanGroupReading {
 const SCAN_READS_AHEAD = 8;
 /** Files in one call where the adapter reads many at once (`readFilesForIndex`). */
 const SCAN_GROUP_SIZE = 8;
+/** Calls in flight at once where the adapter reads many files in one call: two groups of eight. */
+const SCAN_GROUPS_AHEAD = 2;
 
 /** Whether a file is read as text for the index (a note, or text by its name), else only hashed. */
 const readsAsText = (file: VaultFileInfo): boolean => file.name.endsWith(".md") || isTextFile(file.path);
@@ -3110,10 +3113,17 @@ export class VaultIndexer {
           // time or text is reached nothing new is read — what was begun is
           // written here.
           const slice = work.slice(next, Math.min(work.length, next + LOOKUP_SLICE));
+          // What is held counts against one bound: the readings this
+          // transaction took and those still ahead, by what was read once a
+          // reading is in (the listing's size until then), together at most
+          // `SCAN_TRANSACTION_TEXT` — the bound of what a transaction holds.
           const ahead = createReadAhead(slice, (group) => this.readScanGroup(group), {
-            groups: many ? Math.max(1, Math.ceil(readsAhead / SCAN_GROUP_SIZE)) : readsAhead,
+            groups: many ? (readsAhead > 1 ? SCAN_GROUPS_AHEAD : 1) : readsAhead,
             groupSize: many ? Math.min(readsAhead, SCAN_GROUP_SIZE) : 1,
+            maxWeight: SCAN_TRANSACTION_TEXT,
             weightOf: (item) => Math.max(0, item.file.size ?? 0),
+            weighResult: (read) => (read.reading?.kind === "text" ? read.reading.read.text.length : 0),
+            holdTaken: true,
             signal,
           });
           let reached = false;

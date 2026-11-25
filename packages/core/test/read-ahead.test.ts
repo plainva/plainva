@@ -204,4 +204,21 @@ describe("createReadAhead", () => {
     leaving.abort(new Error("the vault is closed"));
     await expect(taken).rejects.toThrow(/the vault is closed/);
   });
+
+  it("keeps the weight of what was taken where the caller holds it (holdTaken)", async () => {
+    const MB = 1024 * 1024;
+    const started: number[] = [];
+    const ahead = createReadAhead(Array.from({ length: 6 }, (_, i) => i), async (group) => {
+      started.push(...group);
+      return group.map(() => 9 * MB);
+    }, { groups: 4, maxWeight: 16 * MB, weightOf: () => 9 * MB, weighResult: (bytes: number) => bytes, holdTaken: true });
+    expect(await ahead.take(0)).toBe(9 * MB);
+    await flush();
+    await flush();
+    // One taken, held: a second of 9 MB would pass the bound, so none is read ahead.
+    expect(started).toEqual([0]);
+    expect(await ahead.take(1)).toBe(9 * MB);
+    await flush();
+    expect(started).toEqual([0, 1]);
+  });
 });

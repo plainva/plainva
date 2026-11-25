@@ -43,6 +43,14 @@ export interface ReadAheadOptions<T, R = unknown> {
    * holds the bound with that weight until it is taken.
    */
   weighResult?: (reading: R) => number;
+  /**
+   * A reading handed out keeps its weight against the bound (default false:
+   * it gives it back once it is in). For a caller that holds every reading
+   * until it is done with all of them — the full scan holds a transaction's
+   * readings until the transaction writes —, the bound is then one on all
+   * that was read.
+   */
+  holdTaken?: boolean;
   /** Ends a waiting `take` at once when aborted. */
   signal?: AbortSignal;
 }
@@ -150,12 +158,15 @@ export function createReadAhead<T, R>(
       taken = index + 1;
       while (index >= issued) startGroup(true);
       const reading = readings[index];
-      // Its weight no longer holds the bound once its reading is here and handed out.
-      void reading.then(() => undefined, () => undefined).then(() => {
-        weightAhead -= held[index] ?? 0;
-        held[index] = 0;
-        fill();
-      });
+      // Its weight no longer holds the bound once its reading is here and handed out —
+      // unless the caller holds what it takes (`holdTaken`).
+      if (!options.holdTaken) {
+        void reading.then(() => undefined, () => undefined).then(() => {
+          weightAhead -= held[index] ?? 0;
+          held[index] = 0;
+          fill();
+        });
+      }
       // Begin the next reads now, while the caller works on this one.
       fill();
       return untilAborted(reading, options.signal);

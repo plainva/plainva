@@ -1,4 +1,4 @@
-import { browser, $ } from "@wdio/globals";
+import { browser } from "@wdio/globals";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -41,7 +41,8 @@ describe("reading for the index over the bridge", () => {
   });
 
   it("I1 reads a generated vault one by one and in groups, with the same answers", async () => {
-    await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 60_000 });
+    // The bridge, not a vault: this spec reads a folder of its own.
+    await browser.waitUntil(async () => browser.execute(() => !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__), { timeout: 60_000, interval: 500 });
     const result = await browser.executeAsync(
       (root: string, asked: Array<{ path: string; text: boolean }>, done: (result: unknown) => void) => {
         const internals = (window as unknown as { __TAURI_INTERNALS__: { invoke: (cmd: string, args?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__;
@@ -132,10 +133,18 @@ describe("reading for the index over the bridge", () => {
       hashes: { inTurn: Record<string, string>; eightAtATime: Record<string, string>; grouped: Record<string, string>; attachments: Record<string, string> };
     };
     if (result.error) throw new Error(`the page could not read the folder: ${result.error}`);
-    const expected = Object.fromEntries(files.filter((f) => f.text).map((f) => [f.path, f.sha256]));
-    if (JSON.stringify(result.hashes.inTurn) !== JSON.stringify(expected)) throw new Error("one by one: a hash is not the file's");
-    if (JSON.stringify(result.hashes.grouped) !== JSON.stringify(expected)) throw new Error("in groups: a hash is not the file's");
-    if (JSON.stringify(result.hashes.eightAtATime) !== JSON.stringify(expected)) throw new Error("eight at a time: a hash is not the file's");
+    // The adapter's way hashes the text it was handed, the group's way the bytes on disk: the same for a UTF-8 file.
+    const expected = new Map(files.filter((f) => f.text).map((f) => [f.path, f.sha256]));
+    const differs = (way: string, got: Record<string, string>) => {
+      const wrong = [...expected].filter(([path, sha]) => got[path] !== sha);
+      if (wrong.length > 0) {
+        const [path, sha] = wrong[0];
+        throw new Error(`${way}: ${wrong.length} of ${expected.size} hashes are not the file's, the first ${path} (${got[path] ?? "missing"} for ${sha})`);
+      }
+    };
+    differs("in groups", result.hashes.grouped);
+    differs("one by one", result.hashes.inTurn);
+    differs("eight at a time", result.hashes.eightAtATime);
     for (const [path, sha] of Object.entries(result.hashes.attachments)) {
       if (files.find((f) => f.path === path)?.sha256 !== sha) throw new Error(`an attachment's hash from Rust is not its own: ${path}`);
     }

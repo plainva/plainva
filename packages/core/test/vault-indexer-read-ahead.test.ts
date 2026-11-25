@@ -170,6 +170,7 @@ describe("a full scan that reads ahead", () => {
     await fill(vault);
     const db = takingTurns(await realSqlite());
     await new VaultIndexer(vault, db, { monotonicNow: steppingClock() }).indexVaultFull();
+    expect(vault.most).toBeGreaterThan(1);
     expect(await dump(db)).toEqual(reference);
   });
 
@@ -195,6 +196,8 @@ describe("a full scan that reads ahead", () => {
     };
     await indexer.indexVaultFull();
     expect(saved).not.toBeNull();
+    // The target was read while earlier files were still being read: ahead.
+    expect(vault.most).toBeGreaterThan(1);
     await saved;
     const row = await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [target]);
     expect(row?.content).toContain("while the scan read ahead");
@@ -218,6 +221,8 @@ describe("a full scan that reads ahead", () => {
     };
     const db = takingTurns(await realSqlite());
     const report = await new VaultIndexer(vault, db, { monotonicNow: steppingClock(), scanTransactionMs: Number.POSITIVE_INFINITY }).indexVaultFull();
+    // The reads were in flight together and came back out of order.
+    expect(vault.most).toBeGreaterThan(1);
     expect(report.skipped).toEqual([names[3], names[4], names[30]].map((path) => ({ path, reason: "unreadable" })));
     expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [gone])).toBeNull();
     expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [names[3]])).toBeNull();
@@ -232,9 +237,29 @@ describe("a full scan that reads ahead", () => {
     for (let i = 0; i < 6; i++) await vault.writeTextFile(`n${i}.md`, `# ${i}\n`);
     const db = takingTurns(await realSqlite());
     await new VaultIndexer(vault, db, { monotonicNow: steppingClock(), scanTransactionMs: Number.POSITIVE_INFINITY }).indexVaultFull();
-    // Two films of 9 MB are more than the 16 MB bound: at most one is read at a time.
+    // Two films of 9 MB are more than the 16 MB bound: at most one is read at a time —
+    // while the small notes were read several at once.
     expect(vault.mostBytes).toBeLessThan(18 * MB);
+    expect(vault.most).toBeGreaterThan(1);
     expect((await db.query(`SELECT path FROM files`)).length).toBe(10);
+  });
+
+  it("holds no more than a transaction's bound of text, what it took and what is ahead together", async () => {
+    // Six notes of 9 MB: two are more than the 16 MB a transaction holds. A
+    // reading taken keeps its weight until its transaction writes, so no
+    // third is read into a transaction that holds two — the bound is one on
+    // all that was read, not on what is ahead alone.
+    const vault = new SlowVault(1_700_000_000_000);
+    await vault.initialize();
+    const MB = 1024 * 1024;
+    for (let i = 0; i < 6; i++) await vault.writeTextFile(`big/n${i}.md`, `# ${i}\n${"x".repeat(9 * MB)}\n`);
+    const inner = takingTurns(await realSqlite());
+    let transactions = 0;
+    const db: IDatabaseAdapter = { ...inner, transaction: <T,>(fn: (tx: SqlStatements) => Promise<T>) => { transactions++; return inner.transaction(fn); } };
+    await new VaultIndexer(vault, db, { monotonicNow: steppingClock(), scanTransactionMs: Number.POSITIVE_INFINITY }).indexVaultFull();
+    expect(transactions).toBeGreaterThanOrEqual(3);
+    expect(vault.mostBytes).toBeLessThan(19 * MB);
+    expect((await db.query(`SELECT path FROM files`)).length).toBe(6);
   });
 
   it("reads in groups where the host reads many files in one call, with the same index, and sends the rest the ordinary way", async () => {
@@ -259,7 +284,9 @@ describe("a full scan that reads ahead", () => {
     for (const broken of ["throws", "short", "wrong kind"] as const) {
       const vault = new ManyAtOnceVault(1_700_000_000_000);
       await fill(vault);
+      let asked = 0;
       vault.readFilesForIndex = async (requests: readonly IndexReadRequest[]) => {
+        asked++;
         if (broken === "throws") throw new Error("the bridge is down");
         if (broken === "short") return [];
         // A text answer for a file asked for as bytes, and the other way round.
@@ -267,6 +294,7 @@ describe("a full scan that reads ahead", () => {
       };
       const db = takingTurns(await realSqlite());
       await new VaultIndexer(vault, db, { monotonicNow: steppingClock(), scanTransactionMs: Number.POSITIVE_INFINITY }).indexVaultFull();
+      expect(asked, broken).toBeGreaterThan(0);
       expect(await dump(db), broken).toEqual(reference);
     }
   });
@@ -299,6 +327,7 @@ describe("a full scan that reads ahead", () => {
         onProgress: (current) => { if (current === 15) leaving.abort(); },
       });
       await expect(indexer.indexVaultFull()).rejects.toThrow();
+      expect(vault.most).toBeGreaterThan(1);
       for (let i = 0; i < 30; i++) await tick();
       expect(strays).toEqual([]);
       expect(vault.inFlight).toBe(0);
@@ -307,7 +336,8 @@ describe("a full scan that reads ahead", () => {
     }
   });
 
-  it("keeps the row of a note saved and indexed between two transactions while its reading was ahead", async () => {
+  // As before (a transaction of no time reads nothing ahead): one file per transaction, the next read while the one before writes.
+  it("keeps the row of a note saved and indexed between two transactions, one file each (held as before)", async () => {
     const vault = new SlowVault(1_700_000_000_000);
     await fill(vault);
     const db = takingTurns(await realSqlite());
@@ -378,6 +408,8 @@ describe("a full scan that reads ahead", () => {
       onProgress: (current) => { if (current === 4) leaving.abort(); },
     });
     await expect(indexer.indexVaultFull()).rejects.toThrow();
+    // It was reading ahead when it was called off.
+    expect(vault.most).toBeGreaterThan(1);
     const begunAtAbort = vault.begun.length;
     for (let i = 0; i < 40; i++) await tick();
     // What was in flight settles; nothing new begins (the reads ahead are at most 8).
@@ -390,7 +422,7 @@ describe("a full scan that reads ahead", () => {
     ["one read per call, a bound the scan never reaches", false, 60_000],
     ["many reads per call (the desktop)", true, 100],
     ["many reads per call, a bound the scan never reaches", true, 60_000],
-  ] as const)("keeps no transaction open while it waits for a read: %s", async (_name, many, txMs) => {
+  ] as const)("keeps no transaction open while it waits for a read: %s (held as before, now with reads ahead)", async (_name, many, txMs) => {
     // A transaction used to wait inside itself for the reading of the file it
     // was at: a large file on slow media held it open for as long as the read
     // took, and every other writer of the index waited behind it. Here a read
@@ -483,6 +515,8 @@ describe("whose reading stands: the one whose look at the file began later ", ()
     expect(scanReadT).toBeGreaterThanOrEqual(1);
     expect(await vault.readTextFile(T)).toContain("c3");
     expect(await indexed(db, T)).toContain("c3 written elsewhere");
+    // The scan read ahead while this happened.
+    expect(vault.most).toBeGreaterThan(1);
   });
 
   it("a file the app removed while its reading was ahead is not brought back into the index", async () => {
@@ -501,6 +535,8 @@ describe("whose reading stands: the one whose look at the file began later ", ()
     expect(removed).toBe(true);
     expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [X])).toBeNull();
     expect(await indexed(db, X)).toBe("");
+    // The scan read ahead while this happened.
+    expect(vault.most).toBeGreaterThan(1);
   });
 
   it("a file the app moved while its reading was ahead is not written back at its old place", async () => {
@@ -519,6 +555,8 @@ describe("whose reading stands: the one whose look at the file began later ", ()
     expect(moved).toBe(true);
     expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [A])).toBeNull();
     expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [B])).not.toBeNull();
+    // The scan read ahead while this happened.
+    expect(vault.most).toBeGreaterThan(1);
   });
 
   it("a file the one call leaves to the ordinary read takes its place where that read begins", async () => {
@@ -584,6 +622,8 @@ describe("saves, moves and closes while the scan reads ahead", () => {
     // No search row and no sync row left for a file that is not there.
     expect((await db.query(`SELECT path FROM fts_notes WHERE path = ?`, [T])).length).toBe(0);
     expect(await db.queryOne(`SELECT path FROM sync_state WHERE path = ?`, [T])).toBeNull();
+    // The scan read ahead while this happened.
+    expect(vault.most).toBeGreaterThan(1);
   });
 
   it("a file read by a call for many files whose order against a save cannot be told is read again (the desktop's one read path)", async () => {
@@ -646,6 +686,8 @@ describe("saves, moves and closes while the scan reads ahead", () => {
     expect(vault.begun.indexOf(X)).toBeGreaterThan(vault.begun.indexOf(names[1]));
     const row = await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [X]);
     expect(row?.content).toContain("changed elsewhere");
+    // The scan read ahead while this happened.
+    expect(vault.most).toBeGreaterThan(1);
   });
 
   it("a vault closed while a read ahead never answers: the scan ends, and so does whenIdle, which the close waits for", async () => {
