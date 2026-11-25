@@ -562,7 +562,8 @@ describe("the hosts' queueing answers what happened, and only a queued or refuse
     expect((await state.listQueue()).filter((e) => e.operation === "delete")).toEqual([]);
     for (const p of names) expect(await markOf(p)).toBe(1);
     failing = false;
-    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 3, writes: 0, failed: 0 });
+    // A and B are queued, C was refused: the report counts what was queued.
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 2, writes: 0, failed: 0 });
     expect((await state.listQueue()).filter((e) => e.operation === "delete").map((e) => e.path)).toEqual(["A.md", "B.md"]);
     for (const p of names) expect(await markOf(p)).toBe(0);
   });
@@ -581,8 +582,8 @@ describe("the hosts' queueing answers what happened, and only a queued or refuse
       }
       return true;
     });
-    // The write above lands before the entry: the checks of B and C come after it.
-    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 3, writes: 0, failed: 0 });
+    // The write above lands before the entry: the checks of B and C come after it. Two are queued, and the report says two.
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 2, writes: 0, failed: 0 });
     expect((await state.listQueue()).filter((e) => e.operation === "delete").map((e) => e.path)).toEqual(["A.md", "C.md"]);
     // B's mark goes as every mark of a file that is back: the next pass judges it.
     for (const p of names) expect(await markOf(p)).toBe(0);
@@ -605,5 +606,29 @@ describe("the hosts' queueing answers what happened, and only a queued or refuse
     };
     await sweepPlainOwed(db, h);
     expect(await queued()).toEqual(["delete Bulk/a.md", "delete Bulk/c.md"]);
+  });
+
+  it("F4: a look right before the entry that fails queues nothing and keeps every mark — the file may still be gone", async () => {
+    expect.hasAssertions();
+    const names = ["P/a.md", "P/b.md"];
+    await owedDeletion(...names);
+    const { plain, failing } = failingQueue();
+    failing.on = false;
+    const { h } = desktopShaped(plain);
+    // The sweep's own looks go through; the share drops right after them, and the look at b throws.
+    let looks = 0;
+    const look = h.stillGone;
+    h.stillGone = async (p) => {
+      looks += 1;
+      if (looks > names.length && p === "P/b.md") throw new Error("the share is not there");
+      return look(p);
+    };
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 0, writes: 0, failed: 2 });
+    expect(await queued()).toEqual([]);
+    for (const p of names) expect(await markOf(p), p).toBe(1);
+    // The next start, with the share back: both are queued.
+    looks = -100;
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 2, writes: 0, failed: 0 });
+    expect(await queued()).toEqual(["delete P/a.md", "delete P/b.md"]);
   });
 });

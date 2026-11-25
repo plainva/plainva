@@ -144,6 +144,12 @@ export async function clearWorkspaceMarksAlreadyUp(db: SqlStatements): Promise<v
  */
 export type OwedOutcome = "queued" | "refused" | "failed";
 
+/** What came of several deletions queued as one (`LocalQueueing.deletions`), and how many of them were queued. */
+export interface QueuedDeletions {
+  outcome: OwedOutcome;
+  queued: number;
+}
+
 export interface OwedSweepHandlers {
   /** The vault's own folder is reachable: without it, every file looks gone. */
   vaultIsThere: () => Promise<boolean>;
@@ -158,7 +164,7 @@ export interface OwedSweepHandlers {
    * them or none, so the mass-deletion question is never asked of a slice
    * (review F4).
    */
-  removeAll?: (paths: readonly string[], stillGone: (path: string) => Promise<boolean>) => Promise<OwedOutcome>;
+  removeAll?: (paths: readonly string[], stillGone: (path: string) => Promise<boolean>) => Promise<OwedOutcome | QueuedDeletions>;
   /** Queues the change the way the index's `onExternalModification` does (workspace only). */
   write?: (path: string) => Promise<OwedOutcome>;
 }
@@ -199,10 +205,12 @@ async function sweepRemovals(db: SqlStatements, workspace: boolean, h: OwedSweep
   await clearMarks(db, back);
   if (gone.length === 0) return none;
   if (h.removeAll) {
-    const outcome = await h.removeAll(gone, h.stillGone).catch((): OwedOutcome => /* silent: counted as failed, the sweep's report names the count and the mark stays for the next start */ "failed");
+    const answer = await h.removeAll(gone, h.stillGone).catch((): OwedOutcome => /* silent: counted as failed, the sweep's report names the count and the mark stays for the next start */ "failed");
+    const { outcome, queued } = typeof answer === "string" ? { outcome: answer, queued: answer === "queued" ? gone.length : 0 } : answer;
     if (outcome === "failed") return { queued: 0, failed: gone.length };
+    // Queued, refused or back on disk: nothing more is owed for any of them.
     await clearMarks(db, gone);
-    return { queued: outcome === "queued" ? gone.length : 0, failed: 0 };
+    return { queued, failed: 0 };
   }
   let queued = 0;
   let failed = 0;
@@ -281,7 +289,7 @@ export interface LocalQueueingTargets {
 export interface LocalQueueing {
   deletion(path: string): Promise<OwedOutcome>;
   /** `stillGone` is asked for each path right before the one entry is made (default: the targets' own). */
-  deletions(paths: readonly string[], stillGone?: (path: string) => Promise<boolean>): Promise<OwedOutcome>;
+  deletions(paths: readonly string[], stillGone?: (path: string) => Promise<boolean>): Promise<QueuedDeletions>;
   change(path: string): Promise<OwedOutcome>;
 }
 
@@ -349,36 +357,34 @@ export function createLocalQueueing(t: LocalQueueingTargets): LocalQueueing {
       if (!t.queuesChanges()) {
         let worst: OwedOutcome = "refused";
         for (const path of paths) if ((await deletion(path)) === "failed") worst = "failed";
-        return worst;
+        return { outcome: worst, queued: 0 };
       }
       const allowed: string[] = [];
       for (const path of paths) {
         if (!queuesForTheRemote(path)) continue;
         const verdict = await asked(path, false);
-        if (verdict === "failed") return "failed";
+        if (verdict === "failed") return { outcome: "failed", queued: 0 };
         if (verdict) allowed.push(path);
       }
       const workspace = t.workspace?.() ?? null;
       const plain = t.plain?.() ?? null;
-      if (!workspace && !plain) return allowed.length === 0 ? "refused" : "failed";
-      // Looked at right before the entry, once all checks are through.
-      const goneNow = async () => {
-        if (!stillGone) return allowed;
-        const still: string[] = [];
-        for (const path of allowed) if (await stillGone(path).catch(() => false)) still.push(path);
-        return still;
-      };
+      if (!workspace && !plain) return { outcome: allowed.length === 0 ? "refused" : "failed", queued: 0 };
       let queued = 0;
       const made = await run(async () => {
-        const due = await goneNow();
+        // Looked at right before the entry, once all checks are through. A
+        // look that fails says nothing about the file: the whole entry fails
+        // and every mark stays, as when the sweep's own look cannot tell.
+        const due: string[] = [];
+        for (const path of allowed) if (!stillGone || (await stillGone(path))) due.push(path);
         queued = due.length;
         if (due.length === 0) return;
         if (workspace) await workspace.enqueueDeletions(due);
         // The queue skips a path asked again.
         else await plain!.queueDeletePaths(due);
       });
-      if (made === "queued" && queued === 0) return "refused";
-      return answer(made);
+      if (made !== "queued") return { outcome: answer(made), queued: 0 };
+      if (queued === 0) return { outcome: "refused", queued: 0 };
+      return { outcome: answer(made), queued };
     },
     async change(path) {
       if (!queuesForTheRemote(path) || !t.queuesChanges()) return "refused";
