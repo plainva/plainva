@@ -144,9 +144,11 @@ describe("what of a note is read as text (L14)", () => {
     expect(read("./Editor.tsx")).toMatch(/<ReadAsTextNotice state=\{isReadMode \? undefined : readAsTextState\} content=\{isReadMode \? content : undefined\}/);
     expect(read("./Editor.tsx")).toMatch(/onReadAsText: setReadAsTextState,/);
     expect(read("../../../mobile/src/EditorHost.tsx")).toMatch(/<ReadAsTextNotice state=\{readAsTextState\}/);
-    // One note budget a shell, set at its start: today both shells read with the one calibrated on 128 MB.
-    // A shell given a budget of its own is an asymmetry, and an entry in the parity catalog.
-    for (const main of ["../main.tsx", "../../../mobile/src/main.tsx"]) expect(read(main), main).toMatch(/setPlatformServices\(\{\n(?:\s*\/\/[^\n]*\n)*\s*noteBudget: NOTE_BUDGET,/);
+    // One note budget a shell, set at its start: the phone's calibrated on 128 MB, the desktop's on 512 MB — an
+    // asymmetry with its entry in the parity catalog.
+    expect(read("../main.tsx")).toMatch(/setPlatformServices\(\{\n(?:\s*\/\/[^\n]*\n)*\s*noteBudget: DESKTOP_NOTE_BUDGET,/);
+    expect(read("../../../mobile/src/main.tsx")).toMatch(/setPlatformServices\(\{\n(?:\s*\/\/[^\n]*\n)*\s*noteBudget: NOTE_BUDGET,/);
+    expect(read("../../../../packages/ui/src/lib/featureParity.ts")).toMatch(/id: "note-read-formatted-up-to",/);
     // The reading view reads the note's stretches (the original and its preparation handed in), the editor's.
     expect(read("./MarkdownReader.tsx")).toMatch(/boundReaderMarkdown\(source\.text, \{ original: content, source \}\)/);
   });

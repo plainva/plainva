@@ -314,7 +314,7 @@ describe("the note's budget (L14)", () => {
     // the shell's budget reads a block as text (the safe side: what it keeps formatted, main reads under the heap too); at
     // main's limit over the calibrated ratio plus 5 % it does not yet (a change of the weights that reads a form as text
     // earlier shows here). `perf:notes -- --check` reads the notes at the thresholds themselves.
-    const { shells } = JSON.parse(readFileSync(new URL("../scripts/perf/noteBudgetShells.json", import.meta.url), "utf8")) as { shells: Record<string, { factor: number; parses: string[]; forms: Record<string, { main: number; ratio: number }> }> };
+    const { shells } = JSON.parse(readFileSync(new URL("../scripts/perf/noteBudgetShells.json", import.meta.url), "utf8")) as { shells: Record<string, { factor: number; parses: string[]; forms: Record<string, { main: number; ratio: number; lowerBound?: boolean }> }> };
     const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
     const asText = (form: string, n: number) => overBudgetInlineRanges(wrap(NOTE_FORMS[form](n))).some((range) => range.block);
     expect(Object.keys(shells.phone.forms).length).toBeGreaterThanOrEqual(42);
@@ -323,9 +323,11 @@ describe("the note's budget (L14)", () => {
         // The editor's limit is a named one: its parse is the whole note, whatever the budget.
         if (parses.includes("editor")) continue;
         setNoteBudget(NOTE_BUDGET * factor);
-        for (const [form, { main, ratio }] of Object.entries(forms)) {
+        for (const [form, { main, ratio, lowerBound }] of Object.entries(forms)) {
           expect(ratio, `${shell} ${form}: the safe side`).toBeGreaterThanOrEqual(1.13);
           expect(asText(form, main), `${shell} ${form}: formatted at main's limit ${main}`).toBe(true);
+          // A form measured on its safe side only holds a lower bound of main's limit, no ratio of the early side.
+          if (lowerBound) continue;
           const earliest = Math.floor(main / (ratio * 1.05));
           expect(asText(form, earliest), `${shell} ${form}: text at ${earliest}, below the calibrated ratio ${ratio}`).toBe(false);
         }

@@ -1585,12 +1585,23 @@ const LINE_HEADING = 3;
 export const NOTE_BUDGET = 25_710_000;
 
 /**
+ * The desktop's note budget: four times `NOTE_BUDGET`, calibrated on a heap of
+ * 512 MB with its reading view among its readers (2026-11-25,
+ * `noteBudgetShells.json`): of seven forms measured exactly, lines of inline
+ * HTML bind it (`main` reads 4.91 times the phone's threshold there; at four
+ * times the budget 1.23), and every other form keeps 1.13 or more. 512 MB is
+ * a named assumption for a computer of 8 GB with several windows, no limit of
+ * the platform.
+ */
+export const DESKTOP_NOTE_BUDGET = 4 * NOTE_BUDGET;
+
+/**
  * The note's budget this app reads with: `NOTE_BUDGET`, calibrated on 128 MB,
  * unless the shell sets another at its start (`setNoteBudget`). One value for
  * every reader of a shell — the index, the note-source parse, the editor and
- * the reading view —, so that they decide alike; both shells set
- * `NOTE_BUDGET` today. A shell with more memory may be given a budget of its
- * own, calibrated with `perf:notes` under its heap; the weights stay.
+ * the reading view —, so that they decide alike: the phone sets `NOTE_BUDGET`,
+ * the desktop `DESKTOP_NOTE_BUDGET`, each calibrated with `perf:notes` under
+ * its heap; the weights are the same.
  */
 let noteBudget = NOTE_BUDGET;
 

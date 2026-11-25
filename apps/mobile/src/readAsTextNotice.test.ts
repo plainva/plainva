@@ -22,7 +22,8 @@ describe("a note read partly as text, on the phone (L14)", () => {
     expect(host).toMatch(/createEditorSession\(/);
   });
 
-  it("reads with the note budget the desktop reads with, set at the start", () => {
+  it("reads with its own note budget, calibrated on 128 MB, set at the start (the desktop's is four times it, a catalog entry)", () => {
+    expect.hasAssertions();
     expect(readFileSync(new URL("./main.tsx", import.meta.url), "utf8")).toMatch(/setPlatformServices\(\{\n(?:\s*\/\/[^\n]*\n)*\s*noteBudget: NOTE_BUDGET,/);
   });
 

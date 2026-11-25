@@ -790,82 +790,91 @@ emphasis forms, 2 310 notes of three local vaults) gave the same tree in the ind
 note-source parse and the reading view under 4.0.2 and 4.0.3. `micromark-core-commonmark` stays at
 2.0.3: its 2.0.4 changes emphasis next to punctuation.
 
-The weights were calibrated anew on 2026-11-19 against `main` (`0b194026e`, micromark 4.0.3): for
-each of 42 forms the most units `main` reads under 128 MB in the index parse, the note-source parse
-and the reading view as the core runs it — or, where `main`'s own paragraph budget reads them as text
-before that, the most it reads formatted — against the most the note's budget reads with no block as
-text (`perf:notes -- --calibrate`, `--features`). The safe side is the hard condition, and measured:
-a note at its threshold times 1.05 passes under the heap in three runs of three, each its own
-process — `main`'s limit is known to some 5 to 8 % only, since V8 close to its heap's end varies, so
-every form keeps a ratio of 1.13 or more. The early side is as low as weights of countable parts
-allow: a fit in log space over the 37 forms without a table brings them to 1.13 to 2.78, a
-thematic break (`---`, `***`) weighing as one node, its characters and nothing more. One form is
-left out: one line of `x]` is read as written by the paragraph budget before the note's, as on `main`. A window of 1.1 to 1.3 for every form is not reachable with them — the best fit
-without the safe side spread from 0.71 to 1.77, with it no fit stayed under 2.1 —: the memory follows
-the nodes the parses make, not the characters, words and marks the scan counts (lines of long words
-against a line of `x x …`, lists with a link against tasks with one). Weighing by the nodes the
-consumers make is a package of its own after the release (L14b). The table below is held in
-`noteBudgetForms.json`: `perf:notes -- --check` reads each form at its threshold and three and ten
-times over it under the heap, and holds its ratio between 1.0 and the calibrated one plus 5 %;
-`note-budget.test.ts` holds the same thresholds by the scan alone.
+**The calibration per shell (2026-11-25).** A shell's budget is calibrated on its own readers under its
+own heap (`perf:notes -- --calibrate --shell <name>`, `noteBudgetShells.json`): the phone reads a note
+with the index (the parse, and the reading of its links and tags) and the note source (the parse, its
+headings and block ids) under 128 MB — its read mode is its editor —, the desktop with those and the
+reading view under 512 MB (a named assumption for a computer of 8 GB with several windows; no
+platform limit). For each of 42 forms `main`'s limit is the most units its readers read with the
+note's budget off under the heap — or, where `main`'s own paragraph budget reads the form as text
+before that, the most it reads formatted (one paragraph of sentences) —, against the most the note's
+budget reads with no block as text, its threshold. The safe side is the hard condition: every
+form keeps `main`'s limit at 1.13 times its threshold or more (`main`'s limit is known to some 5 to
+8 %: V8 close to its heap's end varies). The weights are those of a linear program over the forms'
+countable parts on the phone's limits (lp_solve, every form aimed at 1.16): the latest form is read
+as text at 2.27 times its threshold, against 2.82 with the weights of 2026-11-19. Weighing by the
+nodes the parses make (L14b) was measured and does not help: at `main`'s limits the parse holds 78 000
+(prose in one paragraph) to 505 000 (escapes) events of micromark and 0 to 137 000 nodes in the
+same 128 MB — the memory follows neither alone, and no further countable part (words in long lines,
+one-character words, continuation lines) lowers the linear program's optimum. `perf:notes -- --check
+--shell <name>` reads each form at its threshold and three and ten times over it under the shell's
+heap and holds its ratio; the performance workflow runs it for both shells.
 
-| Form | `main` under 128 MB up to | Formatted on this branch up to | Ratio |
+On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
+
+| Form | `main` on the phone up to | Formatted up to | Ratio |
 |---|---:|---:|---:|
-| callouts of two lines with a link | 3 607 | 3 205 | 1.13 |
-| lines of inline HTML | 12 578 | 11 075 | 1.14 |
-| list items with a wiki link | 4 836 | 4 192 | 1.15 |
-| lines of a Markdown link and a URL | 9 317 | 8 051 | 1.16 |
-| journal lines `- 10:00 …` with a link and a tag | 3 677 | 3 165 | 1.16 |
-| one line of `x x …` (words) | 158 925 | 135 286 | 1.17 |
-| paragraphs of `` `a `` × 40 | 1 781 | 1 516 | 1.17 |
+| paragraphs of eighty `]` | 14 000 | 12 079 | 1.16 |
+| callouts of two lines with a link | 5 143 | 4 437 | 1.16 |
+| lines of fenced code | 78 694 | 67 849 | 1.16 |
+| paragraphs of `&amp;` × 16 | 3 596 | 3 104 | 1.16 |
+| footnote references and definitions | 3 653 | 3 150 | 1.16 |
+| lines of inline HTML | 16 705 | 14 422 | 1.16 |
+| lines of links run together | 69 787 | 60 109 | 1.16 |
+| ordered items | 8 431 | 7 271 | 1.16 |
+| paragraphs of `*a` × 40 | 1 652 | 1 427 | 1.16 |
+| tables of two rows between blank lines | 3 216 | 2 773 | 1.16 |
+| paragraphs of `` `a `` × 40 | 2 115 | 1 824 | 1.16 |
+| lines of a Markdown link and a URL | 9 181 | 7 914 | 1.16 |
 | tables of 50 rows of sixteen cells | 26 | 22 | 1.18 |
-| tables of 50 rows of three cells | 82 | 69 | 1.19 |
-| lines of fenced code | 78 694 | 65 103 | 1.21 |
-| lines of links run together | 70 671 | 58 472 | 1.21 |
-| footnote references and definitions | 3 490 | 2 893 | 1.21 |
-| lines of embeds run together | 68 916 | 57 046 | 1.21 |
-| paragraphs of `&amp;` × 16 | 3 487 | 2 893 | 1.21 |
-| tables of two rows between blank lines | 3 257 | 2 450 | 1.33 |
-| paragraphs of `*a` × 40 | 1 321 | 957 | 1.38 |
-| paragraphs of eighty `]` | 13 177 | 9 478 | 1.39 |
-| headings | 19 644 | 13 506 | 1.45 |
-| tables of 1 200 rows | 3 | 2 | 1.50 |
-| the performance script's note of tables of 50 rows | 62 | 41 | 1.51 |
-| ordered items | 8 538 | 4 904 | 1.74 |
-| tasks `- [ ] task n due` | 7 700 | 4 223 | 1.82 |
-| list items `- item n` | 8 961 | 4 734 | 1.89 |
-| tasks with a wiki link and emphasis | 6 097 | 3 139 | 1.94 |
-| done items with a link and a date | 6 771 | 3 477 | 1.95 |
-| thematic breaks between blank lines | 39 466 | 18 860 | 2.09 |
-| paragraphs of eighty `[` | 2 638 | 1 239 | 2.13 |
-| nested items | 7 939 | 3 717 | 2.14 |
-| lines of a mail address and a `www.` | 22 835 | 10 361 | 2.20 |
-| lines of two formulas | 18 034 | 8 063 | 2.24 |
-| paragraphs of eighty `*` (thematic breaks) | 39 923 | 17 852 | 2.24 |
-| paragraphs of `\*` × 40 | 2 035 | 910 | 2.24 |
-| lines of emphasis, strike-through and code | 6 991 | 3 079 | 2.27 |
-| items between blank lines | 8 624 | 3 786 | 2.28 |
-| paragraphs of `![` × 40 | 4 462 | 1 922 | 2.32 |
-| short paragraphs between blank lines | 12 782 | 5 433 | 2.35 |
-| sentences run together in one paragraph | 9 984 | 4 228 | 2.36 |
-| paragraphs of `<a` × 40 | 11 411 | 4 659 | 2.45 |
-| prose, lines of twelve words | 19 534 | 7 625 | 2.56 |
-| lines three quotes deep | 20 594 | 7 993 | 2.58 |
-| quote lines | 26 100 | 9 875 | 2.64 |
-| lines of two tags | 49 761 | 17 903 | 2.78 |
+| lines of embeds run together | 68 916 | 58 602 | 1.18 |
+| lines three quotes deep | 20 336 | 17 224 | 1.18 |
+| list items `- item n` | 8 876 | 6 871 | 1.29 |
+| one line of `x x …` (words) | 161 408 | 124 174 | 1.30 |
+| nested items | 7 939 | 6 004 | 1.32 |
+| tables of 1 200 rows | 4 | 3 | 1.33 |
+| tasks `- [ ] task n due` | 7 784 | 5 786 | 1.35 |
+| list items with a wiki link | 8 253 | 5 717 | 1.44 |
+| tables of 50 rows of three cells | 110 | 76 | 1.45 |
+| done items with a link and a date | 7 194 | 4 739 | 1.52 |
+| tasks with a wiki link and emphasis | 6 287 | 4 144 | 1.52 |
+| journal lines `- 10:00 …` with a link and a tag | 6 554 | 4 185 | 1.57 |
+| the performance script's note of tables of 50 rows | 74 | 45 | 1.64 |
+| lines of emphasis, strike-through and code | 6 991 | 4 203 | 1.66 |
+| lines of two tags | 50 538 | 30 390 | 1.66 |
+| items between blank lines | 8 758 | 5 020 | 1.74 |
+| quote lines | 26 507 | 15 243 | 1.74 |
+| sentences run together in one paragraph | 10 000 | 5 091 | 1.96 |
+| lines of two formulas | 18 879 | 9 409 | 2.01 |
+| thematic breaks between blank lines | 39 466 | 18 600 | 2.12 |
+| short paragraphs between blank lines | 13 240 | 5 936 | 2.23 |
+| paragraphs of eighty `*` (thematic breaks) | 39 423 | 17 618 | 2.24 |
+| paragraphs of `<a` × 40 | 11 767 | 5 215 | 2.26 |
+| paragraphs of `\*` × 40 | 2 009 | 887 | 2.26 |
+| paragraphs of `![` × 40 | 4 406 | 1 946 | 2.26 |
+| lines of a mail address and a `www.` | 23 633 | 10 411 | 2.27 |
+| headings | 19 398 | 8 551 | 2.27 |
+| paragraphs of eighty `[` | 2 638 | 1 162 | 2.27 |
+| prose, lines of twelve words | 19 774 | 8 710 | 2.27 |
 
-A ratio above 1 is how much earlier than `main` a note of that form is read partly as text; at the
-top, lines of two tags (2.78), quote lines (2.64, three deep 2.58), prose (2.56), paragraphs of `<a`
-(2.45), a paragraph of sentences (2.36, against the 9 984 `main`'s paragraph budget reads formatted)
-and short paragraphs (2.35). Callouts, inline HTML and lists with a wiki link (1.13, 1.14, 1.15) are read
-formatted to a little under where `main` runs out.
+The editor's own parse is the whole note, whatever the budget (CodeMirror with the app's syntax
+extensions, as both shells build it): measured as a named limit under 128 MB, it reads five to a
+hundred times the phone's threshold.
 
-At three times their limit every form is read under 128 MB in the index parse, the note-source parse
-and the reading view as the core runs it; so are notes of 4 to 10 MB (60 000 lines of prose, 40 000
-short paragraphs, 200 000 linked items, 50 000 small tables). A note whose text alone, read as one
-line of stand-ins, outgrows the heap — far beyond 10 MB — is not bounded by this; the editor loads
-such a file as it did before. `perf:notes -- --check` holds the forms, `--hunt` (the performance
-workflow, every push and daily on main) draws mixed notes from a tenth to five times the budget.
+| Form | The editor under 128 MB up to | The phone's threshold |
+|---|---:|---:|
+| tasks `- [ ] task n due` | 30 752 | 5 786 |
+| list items with a wiki link | 31 086 | 5 717 |
+| list items `- item n` | 37 926 | 6 871 |
+| short paragraphs between blank lines | 82 149 | 5 936 |
+| quote lines | 269 674 | 15 243 |
+| prose, lines of twelve words | 181 942 | 8 710 |
+| tables of 50 rows of three cells | 7 265 | 76 |
+| tables of 1 200 rows | 290 | 3 |
+
+At three and ten times their thresholds every form is read under the shell's heap as the app reads
+it, at most 10 MB of note; a note whose text alone, read as one line of stand-ins, outgrows the heap
+— far beyond 10 MB — is not bounded by this; the editor loads such a file as it did before.
 
 The scan weighs every line of a note longer than 5 000 characters, one look into a table of
 character kinds a character (`noteLineCost`). Measured on 2026-11-25 for every form at 4 to 7 MB:

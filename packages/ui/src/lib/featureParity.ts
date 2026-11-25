@@ -687,6 +687,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-29",
   },
   {
+    id: "note-read-formatted-up-to",
+    title: "How large a note may grow before its heaviest parts are shown as text",
+    area: "editor",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The phone reads a note formatted up to a budget calibrated on a heap of " +
+      "128 MB with its index and its note source (its read mode is its editor); " +
+      "the desktop's budget is four times that, calibrated on 512 MB with its " +
+      "reading view among its readers (noteBudgetShells.json). A phone's WebView " +
+      "ends the app's process for its memory without a word, a computer has the " +
+      "memory. Every phone shows the same parts of a note formatted, every " +
+      "desktop the same; the facts of a part shown as text - its links, tags " +
+      "and block ids - are read on both shells alike, and both say so over the note.",
+    verified: "2026-11-25",
+  },
+  {
     id: "print-note",
     title: "Print a note or save it as PDF",
     area: "editor",

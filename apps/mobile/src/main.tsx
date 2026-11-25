@@ -100,8 +100,8 @@ installBridgeMeter();
 installBridgeLimit();
 
 setPlatformServices({
-  // The note's budget this shell reads with (L14): one value for its index, its editor and its reading view;
-  // both shells read with the one calibrated on 128 MB.
+  // The note's budget this shell reads with: one value for its index, its note source and its editor, calibrated on
+  // 128 MB (the desktop's is four times it, parity entry note-read-formatted-up-to).
   noteBudget: NOTE_BUDGET,
   loadSettings: async () => capacitorSettingsStore,
   credentials: secureCredentialStore,

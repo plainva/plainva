@@ -138,9 +138,13 @@ jobs:
         run: pnpm --filter @plainva/core perf:tables -- --hunt 200 --seed 956860 --minutes 20
 
   notes:
-    name: Note budget search
+    name: Note budget search (${{ matrix.shell }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [phone, desktop]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -160,13 +164,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Generated notes of a seed drawn anew on every run, blocks of every kind
-      # mixed, from a tenth to five times the note's budget, each read as the
-      # app reads it — the index parse, the note-source parse and the reading
-      # view — under a heap of 128 MB, in time, and with a scan linear in the
-      # note (scripts/perf/note-budget.ts, `--hunt`; L14). A note that does not
-      # pass names its seed and number.
+      # mixed, from a tenth to five times the shell's note budget, each read as
+      # the app reads it — the index and the note source, on the desktop the
+      # reading view as well — under the shell's heap, in time, and with a scan
+      # linear in the note (scripts/perf/note-budget.ts, `--hunt`). A note that
+      # does not pass names its seed and number.
       - name: Notes over the budget under a capped heap
-        run: pnpm --filter @plainva/core perf:notes -- --hunt 40 --minutes 20
+        run: pnpm --filter @plainva/core perf:notes -- --hunt 40 --minutes 20 --shell ${{ matrix.shell }}
 
   notes-check:
     name: Note budget check (${{ matrix.shell }}, ${{ matrix.group }}/4)
