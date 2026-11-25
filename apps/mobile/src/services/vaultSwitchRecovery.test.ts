@@ -26,7 +26,7 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "renewAfterSyncGaveUp", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
+const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "renewAfterSyncGaveUp", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "retiredStart", "reloadActiveMobileVault", "offerReload"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -35,7 +35,7 @@ ts.forEachChild(file, (node) => {
 const found = parts.map((part) => /function (\w+)/.exec(part)?.[1]);
 for (const name of ["switchVault", "retireBoot", "reloadActiveMobileVault"]) if (!found.includes(name)) throw new Error(`${name} missing`);
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(initial); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null;\n" +
+  "let bootPromise = Promise.resolve(initial); let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null;\n" +
     "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\";\n" +
     parts.join("\n") +
     "\nreturn { switchVault, reloadActiveMobileVault, renewAfterSyncGaveUp, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; } };",

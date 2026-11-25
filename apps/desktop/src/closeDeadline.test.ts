@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import i18n from "@plainva/ui/i18n";
-import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, syncStateBindingFor, toast, toastStore, waitForClosingSyncPlace, waitWithDeadline } from "@plainva/ui";
+import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, syncStateBindingFor, toast, toastStore, waitForClosingSyncPlace, waitForClosingVault, waitWithDeadline } from "@plainva/ui";
 
 /**
  * Closing, switching or reloading a vault waits within a deadline, in both
@@ -55,6 +55,20 @@ describe("the deadline of a close", () => {
     expect(messages()).toEqual([i18n.t("closing.savingGaveUpMany", { count: 3 })]);
   });
 
+  it("takes the notice of an open that waits for the same vault's close down when that open is called off", async () => {
+    expect.hasAssertions();
+    const abort = new AbortController();
+    let done = false;
+    const waiting = waitForClosingVault(new Promise<void>(() => undefined), "Notes", { signal: abort.signal }).then(() => { done = true; });
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(messages()).toEqual([i18n.t("closing.stillClosing", { vault: "Notes" })]);
+    // THE DEFECT: the notice of an open whose provider went stood until the old close ended — for good where a save hung.
+    abort.abort();
+    await waiting;
+    expect(done).toBe(true);
+    expect(messages()).toEqual([]);
+  });
+
   it("holds a sync start at a folder where another vault still closes, says so after 5 s (text 8), and takes the notice down once it has ended", async () => {
     expect.hasAssertions();
     const folder = syncStateBindingFor({ provider: "s3", s3: { endpoint: "https://s3.example.test", bucket: "notes" } });
@@ -92,12 +106,20 @@ describe("the deadline of a close", () => {
     // A step that stops the sync to work on the vault does so within the deadline (`stopSyncForStep`), and never by
     // waiting for the worker without end; the vault it leaves opens anew with its sync held until the step reloads it.
     expect(desktop, "no step waits for the worker without end").not.toMatch(/state\.syncWorker\?\.stopAndDrain\(\)/);
-    for (const flow of ["const activateWorkspace", "const lockWorkspace", "const resumeWorkspaceSetup", "const restoreWorkspaceRecovery", "const tearDownWorkspace"]) {
+    // Each step goes through `workspaceSteps.ts` (the stopped sync, the new runtime's handles, the hold ending on every
+    // way out — its own tests), and takes nothing of the runtime from the closure it began in.
+    for (const [flow, through] of [["const activateWorkspace", "withSyncStopped(stepPorts("], ["const lockWorkspace", "lockWorkspaceStep(stepPorts("], ["const resumeWorkspaceSetup", "withSyncStopped(stepPorts("], ["const restoreWorkspaceRecovery", "withSyncStopped(stepPorts("], ["const decommissionWorkspace", "leaveWorkspace(stepPorts("], ["const liftWorkspaceEncryption", "leaveWorkspace(stepPorts("]] as const) {
       const at = desktop.indexOf(flow);
       expect(at, flow).toBeGreaterThan(-1);
-      expect(desktop.slice(at, desktop.indexOf("\n  };\n", at)), flow).toContain("stopSyncForStep()");
+      const body = desktop.slice(at, desktop.indexOf("\n  };\n", at));
+      expect(body, flow).toContain(through);
+      const step = body.slice(body.indexOf(through));
+      expect(step, `${flow}: no handle from the closure`).not.toMatch(/state\.(belowChainAdapter|dbAdapter|syncWorker)|syncTargetRef\.current|\bloadVault\(/);
     }
-    expect(desktop.match(/if \(syncHeldRef\.current !== path\)/g), "every sync start of a load asks the hold").toHaveLength(3);
+    expect(desktop.match(/startSyncOf\(\(\) => (settingsOnly|worker|fileWorker)\.start\(\)\)/g), "every sync start of a load waits for its folder and asks the hold").toHaveLength(3);
+    expect(desktop).toMatch(/const startSyncOf = [\s\S]*?syncPlaceFree\.then\(\(\) => \{\s*if \(currentAbortSignal\.aborted \|\| syncHeldRef\.current === path\) return;/);
+    // The vault opens meanwhile: nothing of the load waits for the folder.
+    expect(desktop).not.toMatch(/await [^;\n]*waitForClosingSyncPlace\(/);
     expect(desktop).toMatch(/const reloadVault = async[\s\S]*syncHeldRef\.current = null;[\s\S]*await loadVault\(state\.vaultPath\)/);
 
     const phone = readFileSync(join(ROOT, "apps/mobile/src/services/vaultService.ts"), "utf8");

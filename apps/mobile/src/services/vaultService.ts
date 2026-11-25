@@ -31,7 +31,6 @@ import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions
 import { adoptOwnRemovals, createVaultCallOff, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
-import { countOrphanedRequestsIn } from "../adapters/webdavHttp";
 import { vaultEntryName } from "./vaultEntryName";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -175,6 +174,12 @@ export interface MobileVault {
    * database. `dispose` makes the same attempt before it closes the database.
    */
   flushOwed(): Promise<void>;
+  /**
+   * Counts a request of this runtime's sync that the app gave up waiting for
+   * while the native call still runs at the provider (`webdavFetchCountedIn`):
+   * the runtime has not ended until it has.
+   */
+  countRequest?(call: Promise<unknown>): void;
   /** False once called off: a step that writes past the fenced storage (settings, keychain) applies nothing more. */
   allowsWrites?(): boolean;
   workspaceRuntime: PersonalWorkspaceRuntime | null;
@@ -339,6 +344,8 @@ let bootPromise: Promise<MobileVault> | null = null;
 let bootSettled = false;
 /** Stops the scan of the boot that is running — a switch away does not wait it out. */
 let bootAbort: AbortController | null = null;
+/** The vault the running start opens, once known: a retired start is parked under it (`retireBoot`). */
+let bootEntry: VaultEntry | null = null;
 /** The vault the last switch left: where "back" on the boot surface leads (issue 143). */
 let previousVaultId: string | null = null;
 
@@ -348,7 +355,12 @@ export function getMobileVault(): Promise<MobileVault> {
     const settle = () => { if (bootAbort === abort) bootSettled = true; };
     bootAbort = abort;
     bootSettled = false;
-    bootPromise = getActiveVaultEntry().then((entry) => boot(entry, abort.signal));
+    bootEntry = null;
+    bootPromise = getActiveVaultEntry().then((entry) => {
+      if (bootAbort === abort) bootEntry = entry;
+      if (abort.signal.aborted) throw retiredStart();
+      return boot(entry, abort.signal);
+    });
     bootPromise.then(settle, settle);
   }
   return bootPromise;
@@ -373,7 +385,24 @@ const ABANDON_BOOT_AFTER_MS = 2_000;
 function retireBoot(): Promise<MobileVault | null> {
   const pending = bootPromise;
   if (!pending) return Promise.resolve(null);
-  return retiredBoot(pending, bootSettled, () => bootAbort?.abort(), ABANDON_BOOT_AFTER_MS);
+  const entry = bootEntry;
+  return retiredBoot(pending, bootSettled, () => bootAbort?.abort(), ABANDON_BOOT_AFTER_MS, (left) => {
+    // A start that still opens after it was retired is a runtime at its vault all the same: closed once it
+    // answers, and the next start of the vault waits for its end (`closingVaults`).
+    if (!entry) return;
+    const ended = left.then((vault) => vault.ended(), () => undefined).catch(reportingTo("vault:runtime-ended"));
+    for (const key of closingKeys(entry.id, entry.external)) {
+      closingVaults.set(key, ended);
+      void ended.finally(() => {
+        if (closingVaults.get(key) === ended) closingVaults.delete(key);
+      });
+    }
+  });
+}
+
+/** What a retired start answers: it opened nothing (`retireBoot`). */
+function retiredStart(): Error {
+  return Object.assign(new Error("the start of this vault was retired before it opened"), { name: "AbortError" });
 }
 
 /**
@@ -1037,12 +1066,13 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   signal?.addEventListener("abort", () => indexAbort.abort(), { once: true });
   const containerRoot = isExternalVault(entry) ? null : isDefaultLocal ? "vault" : `vaults/${entry.id}`;
   // Never two runtimes at one vault: a previous one of this vault ends first (text 7).
-  await waitForClosingVault(closingAt(entry.id, entry.external), vaultEntryName(entry.name));
+  await waitForClosingVault(closingAt(entry.id, entry.external), vaultEntryName(entry.name), { signal });
+  // A start that a switch, a reload or a delete retired while it waited opens nothing: the next start of this vault
+  // is the one that opens it — never two runtimes at one vault.
+  if (signal?.aborted) throw retiredStart();
   // Fenced: a close that gives up waiting calls this runtime off, and then
   // nothing of it writes the vault or its index database any more (`createVaultCallOff`).
   const callOff = createVaultCallOff();
-  // A native request this runtime gives up waiting for still runs at the provider: it is counted here until it ends.
-  countOrphanedRequestsIn((call) => callOff.track(call));
   const opened: MobileRawAdapter = isExternalVault(entry)
     ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle, {
       // Closing waits for the scan; a call it hangs on fails at once then.
@@ -1415,6 +1445,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     },
     flushOwed: async () => {
       await ownQueue?.flush();
+    },
+    countRequest: (call) => {
+      void callOff.track(call);
     },
     workspaceRuntime,
     workspaceState,

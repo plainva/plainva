@@ -49,7 +49,7 @@ function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: nu
 function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: SuspendedDeletionInfo): void {
   void askSuspendedDeletionsWith(worker, info, (question) => mConfirm({ ...question, danger: true }));
 }
-import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
+import { allowHttpOrigin, webdavFetch, webdavFetchCountedIn } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
 import { rotateLegacyFileGrant } from "./accountGrantMigration";
@@ -532,7 +532,7 @@ async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generati
   v.enableSyncEnqueue();
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
-  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId, undefined, v.countRequest);
   // The profile is plain text: it never goes next to a workspace this device
   // has not joined (R8) - the same gate as the file worker's, before the
   // target is used for anything.
@@ -1202,7 +1202,9 @@ function reportRootFolderCreated(name: string): void {
   });
 }
 
-async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string, context?: ServiceConnectionContext): Promise<ISyncTarget> {
+async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string, context?: ServiceConnectionContext, counted?: MobileVault["countRequest"]): Promise<ISyncTarget> {
+  // A vault's sync: what it gives up waiting for still counts for its runtime (`webdavFetchCountedIn`).
+  const fetcher = counted ? webdavFetchCountedIn(counted) : webdavFetch;
   // A stored sign-in goes only to an address this phone confirmed (F57); a
   // probe before saving (`credKey === null`) sends what was typed here.
   if (credKey !== null && vaultId) await assertEndpointConfirmedIn(vaultId, storedProviderEndpoint(p));
@@ -1218,7 +1220,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
   };
   switch (p.provider) {
     case "s3":
-      return new S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
+      return new S3SyncTarget(p.creds, fetcher, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
     case "drive": {
       const destination = credKey === null ? { path: p.creds.rootFolderName, id: undefined } : await readDriveDestination(vaultId ?? "", p);
       const target = new DriveSyncTarget(
@@ -1232,7 +1234,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
           rootFolderName: destination.path || undefined,
           rootFolderId: destination.id,
         },
-        webdavFetch,
+        fetcher,
         MOBILE_REQUEST_TIMEOUT_MS,
         mobileSyncUploader,
       );
@@ -1264,7 +1266,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
           refreshToken: p.creds.refreshToken,
           rootFolderName: (credKey === null ? p.creds.rootFolderName : await readSyncRootFolder(vaultId ?? "", "onedrive", p)) || undefined,
         },
-        webdavFetch,
+        fetcher,
         MOBILE_REQUEST_TIMEOUT_MS,
         mobileSyncUploader,
       );
@@ -1295,7 +1297,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
           refreshToken: p.creds.refreshToken,
           rootPath: (credKey === null ? p.creds.rootPath : await readSyncRootFolder(vaultId ?? "", "dropbox", p)) || undefined,
         },
-        webdavFetch,
+        fetcher,
         MOBILE_REQUEST_TIMEOUT_MS,
         undefined,
         mobileSyncUploader,
@@ -1309,7 +1311,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       return target;
     }
     default:
-      return new WebDavSyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, mobileSyncUploader);
+      return new WebDavSyncTarget(p.creds, fetcher, MOBILE_REQUEST_TIMEOUT_MS, mobileSyncUploader);
   }
 }
 
@@ -1490,7 +1492,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // racing the registration fails ONE cycle and the next one self-heals.
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
-  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId, undefined, v.countRequest);
   // A vault that has synced before never gets a freshly created remote folder
   // (finding 2026-09-20): not finding it is then an error with a way out, not
   // a reason to compare every known file against an empty one. Probes and

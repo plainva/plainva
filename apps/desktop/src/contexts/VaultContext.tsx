@@ -29,6 +29,7 @@ import { closeVaultRuntime } from "../services/closeRuntime";
 import { vaultLabel } from "../services/vaultNames";
 import { awaitVaultTeardown } from "../services/vaultTeardown";
 import { stopSyncForStep as stopSyncForStepIn } from "../services/stepSyncStop";
+import { leaveWorkspace, lockWorkspaceStep, withSyncStopped, type StepPorts } from "../services/workspaceSteps";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
@@ -841,7 +842,9 @@ export const VaultProvider: React.FC<{
       }
       // Never two runtimes at one vault: a previous one opens the way only once
       // it has ended — its close through and none of its calls open (text 7).
-      await perfMeasure("vault open: previous drain", () => waitForClosingVault(awaitVaultTeardown(path), vaultLabel(path)));
+      await perfMeasure("vault open: previous drain", () => waitForClosingVault(awaitVaultTeardown(path), vaultLabel(path), { signal: currentAbortSignal }));
+      // Called off while it waited (its provider went): it opens nothing.
+      if (currentAbortSignal.aborted) return;
 
       // Which extra file types this vault opens as text (C15). It belongs to
       // the vault, so it is installed with the vault and not by whoever first
@@ -1552,9 +1555,17 @@ export const VaultProvider: React.FC<{
             identity: await filesIdentityForVault(path, syncProvider!),
           });
           // Never two runtimes at one place, and the folder at the provider is one: another vault bound to the
-          // same folder that still closes is waited for before anything of this sync starts (text 8).
+          // same folder that still closes is waited for before anything of this sync starts (text 8). The vault
+          // opens meanwhile; only its sync waits, as on the phone.
           syncPlaceRef.current = binding;
-          await perfMeasure("vault open: same sync folder closing", () => waitForClosingSyncPlace(binding));
+          const syncPlaceFree = waitForClosingSyncPlace(binding);
+          /** A sync start of this load: once the folder is free, unless the load was called off or a step holds the sync. */
+          const startSyncOf = (begin: () => void) => () => {
+            void syncPlaceFree.then(() => {
+              if (currentAbortSignal.aborted || syncHeldRef.current === path) return;
+              begin();
+            });
+          };
           // The plain sync and an encrypted workspace in its folder (R8). A
           // vault that knows nothing about its folder - nearly every vault -
           // costs one local read: its worker starts as before, and its first
@@ -1590,8 +1601,8 @@ export const VaultProvider: React.FC<{
                 },
                 () => {
                   settingsOnlyRef.current = settingsOnly;
-                  // Held for a step (`stopSyncForStep`): the step's reload starts it.
-                  if (syncHeldRef.current !== path) settingsOnly.start();
+                  // Once the folder is free; held for a step (`stopSyncForStep`), the step's reload starts it.
+                  startSyncOf(() => settingsOnly.start())();
                 },
               );
             }
@@ -1706,8 +1717,8 @@ export const VaultProvider: React.FC<{
                     }
                   }
                 };
-                // Held for a step (`stopSyncForStep`): the step's reload starts it.
-                if (!loadStarts.start(worker, () => { if (syncHeldRef.current !== path) worker.start(); })) return null;
+                // Once the folder is free; held for a step (`stopSyncForStep`), the step's reload starts it.
+                if (!loadStarts.start(worker, startSyncOf(() => worker.start()))) return null;
                 return worker;
               };
               if (deferWorkspaceReconcile) {
@@ -1874,8 +1885,8 @@ export const VaultProvider: React.FC<{
                 toast.info(kept);
               }
             };
-            // Held for a step (`stopSyncForStep`): the step's reload starts it.
-            if (!loadStarts.start(fileWorker, () => { if (syncHeldRef.current !== path) fileWorker.start(); })) return null;
+            // Once the folder is free; held for a step (`stopSyncForStep`), the step's reload starts it.
+            if (!loadStarts.start(fileWorker, startSyncOf(() => fileWorker.start()))) return null;
             return fileWorker;
             };
             if (branch === "plain") {
@@ -2857,20 +2868,13 @@ export const VaultProvider: React.FC<{
    *
    * Answers what the step works on — the runtime on screen, or the new one.
    */
-  const stopSyncForStep = async (): Promise<{ db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; target: ISyncTarget | null; provider: SyncProviderId | null }> => {
-    const path = state.vaultPath;
-    const now = () => ({
-      db: runtimeRef.current?.db ?? state.dbAdapter,
-      belowChain: runtimeRef.current?.belowChain ?? state.belowChainAdapter,
-      target: syncTargetRef.current,
-      provider: syncProviderRef.current,
-    });
-    if (!path) return now();
-    await stopSyncForStepIn({
+  /** The runtime of the vault on screen, as a step that stopped the sync works on it (`workspaceSteps.ts`). */
+  type StepRuntime = { db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; target: ISyncTarget | null; provider: SyncProviderId | null };
+  const stepPorts = (path: string): StepPorts<StepRuntime> => ({
+    stopSync: () => stopSyncForStepIn({
       path,
       vault: vaultLabel(path),
       worker: runtimeRef.current?.path === path ? runtimeRef.current.worker : state.syncWorker,
-      owed: owedRef.current,
       fence: callOffRef.current,
       forgetWorker: () => {
         if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker: null };
@@ -2879,8 +2883,32 @@ export const VaultProvider: React.FC<{
         syncHeldRef.current = path;
       },
       reopen: () => loadVault(path),
-    });
-    return now();
+    }),
+    // Read at the moment the step asks: after "renewed" the runtime the vault was opened anew with.
+    runtime: () => ({
+      db: runtimeRef.current?.path === path ? runtimeRef.current.db : state.dbAdapter,
+      belowChain: runtimeRef.current?.path === path ? runtimeRef.current.belowChain : state.belowChainAdapter,
+      target: syncTargetRef.current,
+      provider: syncProviderRef.current,
+    }),
+    // The step left without opening the vault anew (an error, a refusal): the sync its new runtime holds starts now.
+    endHold: () => {
+      if (syncHeldRef.current === path) {
+        syncHeldRef.current = null;
+        // As every sync start: once no other vault closes at its folder (text 8).
+        const place = syncPlaceRef.current;
+        void (place ? waitForClosingSyncPlace(place) : Promise.resolve()).then(() => {
+          if (runtimeRef.current?.path !== path || syncHeldRef.current === path) return;
+          runtimeRef.current.worker?.start();
+          settingsOnlyRef.current?.start();
+        });
+      }
+    },
+  });
+  /** Opens the vault anew at the end of a step: the hold of its sync ends, the reloaded vault syncs again. */
+  const reopenAfterStep = async (path: string, isNewConnection?: boolean): Promise<void> => {
+    syncHeldRef.current = null;
+    await loadVault(path, isNewConnection);
   };
 
   /** The start's rebuild: set the damaged file aside and open the vault again (its accounts come back in `loadVault`). */
@@ -2947,8 +2975,8 @@ export const VaultProvider: React.FC<{
   const underActivationOverlay = async <T,>(vaultPath: string, kind: "activate" | "resume", onProgress: ((done: number, total: number) => void) | undefined, run: (report: (done: number, total: number) => void) => Promise<T>): Promise<T> => {
     workspaceActivationStore.start(vaultPath, kind);
     try {
+      // The run opens the vault anew itself, inside the stopped sync (`withSyncStopped`).
       const result = await run((done, total) => { workspaceActivationStore.progress(done, total); onProgress?.(done, total); });
-      await reloadVault();
       workspaceActivationStore.finish();
       return result;
     } catch (error) {
@@ -2962,33 +2990,28 @@ export const VaultProvider: React.FC<{
       throw new Error("workspace-no-connection");
     }
     const vaultPath = state.vaultPath;
-    let dbAdapter = state.dbAdapter;
-    let backupAdapter = state.belowChainAdapter;
-    let rawTarget = syncTargetRef.current;
     const provider = workspaceProviderName(syncProviderRef.current);
-    return underActivationOverlay(vaultPath, "activate", onProgress, async (report) => {
-      // Within the deadline; where the vault had to be left, the step goes on with its new runtime.
-      const on = await stopSyncForStep();
-      dbAdapter = on.db ?? dbAdapter;
-      backupAdapter = on.belowChain ?? backupAdapter;
-      rawTarget = on.target ?? rawTarget;
-      const workspaceState = new SqlWorkspaceStateStore(dbAdapter);
+    return underActivationOverlay(vaultPath, "activate", onProgress, (report) => withSyncStopped(stepPorts(vaultPath), async (on) => {
+      // Every handle from the runtime on screen now (`workspaceSteps.ts`).
+      if (!on.db || !on.belowChain || !on.target) throw new Error("workspace-no-connection");
+      const workspaceState = new SqlWorkspaceStateStore(on.db);
       workspaceStateRef.current = workspaceState;
       const result = await activatePreparedPersonalWorkspace({
         draftId,
         vaultPath,
         provider,
-        rawTarget,
-        rawVault: backupAdapter,
+        rawTarget: on.target,
+        rawVault: on.belowChain,
         state: workspaceState,
         onProgress: report,
       });
       // Keep the legacy queue intact until encrypted initialization succeeds. It
       // is ignored from now on, but clearing it earlier could lose pending work if
       // the selected remote turns out to contain another workspace.
-      await dbAdapter.execute("DELETE FROM offline_queue");
+      await on.db.execute("DELETE FROM offline_queue");
+      await reopenAfterStep(vaultPath);
       return { queued: result.queued, total: result.total };
-    });
+    }));
   };
 
   const unlockWorkspace = async (passphrase?: string): Promise<void> => {
@@ -3006,18 +3029,18 @@ export const VaultProvider: React.FC<{
 
   const lockWorkspace = async (): Promise<void> => {
     if (!state.vaultPath || !state.workspaceSecurityStatus) throw new Error("workspace-not-configured");
+    const vaultPath = state.vaultPath;
+    const status = state.workspaceSecurityStatus;
     // Closed for every app from the moment the lock begins, while the sync still drains with the keys (round 11 of the
     // review of wave 2, § 3.2); undone only where the lock does not go through.
-    const lock = beginWorkspaceLock(state.vaultPath);
-    try {
-      await stopSyncForStep();
-    } catch (error) {
-      lock.undo();
-      throw error;
-    }
-    lockWorkspaceRuntime(state.vaultPath);
-    await saveWorkspaceSecurityStatus(state.vaultPath, { ...state.workspaceSecurityStatus, phase: "locked", lastError: null });
-    await reloadVault();
+    await lockWorkspaceStep(stepPorts(vaultPath), {
+      begin: () => beginWorkspaceLock(vaultPath),
+      lock: async () => {
+        lockWorkspaceRuntime(vaultPath);
+        await saveWorkspaceSecurityStatus(vaultPath, { ...status, phase: "locked", lastError: null });
+      },
+      reopen: () => reopenAfterStep(vaultPath),
+    });
   };
 
   const cleanupRemotePlaintext = async (onProgress?: (done: number, total: number) => void): Promise<number> => {
@@ -3031,28 +3054,23 @@ export const VaultProvider: React.FC<{
       throw new Error("workspace-no-connection");
     }
     const vaultPath = state.vaultPath;
-    let dbAdapter = state.dbAdapter;
-    let backupAdapter = state.belowChainAdapter;
-    let rawTarget = syncTargetRef.current;
     const provider = workspaceProviderName(syncProviderRef.current);
-    return underActivationOverlay(vaultPath, "resume", onProgress, async (report) => {
-      // Within the deadline; where the vault had to be left, the step goes on with its new runtime.
-      const on = await stopSyncForStep();
-      dbAdapter = on.db ?? dbAdapter;
-      backupAdapter = on.belowChain ?? backupAdapter;
-      rawTarget = on.target ?? rawTarget;
-      const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(dbAdapter);
+    return underActivationOverlay(vaultPath, "resume", onProgress, (report) => withSyncStopped(stepPorts(vaultPath), async (on) => {
+      // Every handle from the runtime on screen now (`workspaceSteps.ts`).
+      if (!on.db || !on.belowChain || !on.target) throw new Error("workspace-no-connection");
+      const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(on.db);
       workspaceStateRef.current = workspaceState;
       const result = await resumePersonalWorkspaceSetup({
         vaultPath,
         provider,
-        rawTarget,
-        rawVault: backupAdapter,
+        rawTarget: on.target,
+        rawVault: on.belowChain,
         state: workspaceState,
         onProgress: report,
       });
+      await reopenAfterStep(vaultPath);
       return { queued: result.queued, total: result.total };
-    });
+    }));
   };
 
   const changeWorkspacePassphrase = async (currentPassphrase: string, nextPassphrase: string): Promise<void> => {
@@ -3470,16 +3488,18 @@ export const VaultProvider: React.FC<{
 
   const restoreWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }): Promise<void> => {
     if (!state.vaultPath || !state.dbAdapter || !state.belowChainAdapter || !syncTargetRef.current || !syncProviderRef.current) throw new Error("workspace-no-connection");
-    // Within the deadline; where the vault had to be left, the step goes on with its new runtime.
-    const on = await stopSyncForStep();
-    if (!on.db || !on.belowChain || !on.target || !on.provider) throw new Error("workspace-no-connection");
-    const store = createProviderWorkspaceObjectStore(workspaceProviderName(on.provider), on.target);
-    const restored = await restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
-    await publishWorkspaceGovernanceUpdate(store, restored);
-    await persistWorkspaceRuntime({ vaultPath: state.vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
-    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(on.db);
-    await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: on.belowChain, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
-    await reloadVault();
+    const vaultPath = state.vaultPath;
+    await withSyncStopped(stepPorts(vaultPath), async (on) => {
+      // Every handle from the runtime on screen now (`workspaceSteps.ts`).
+      if (!on.db || !on.belowChain || !on.target || !on.provider) throw new Error("workspace-no-connection");
+      const store = createProviderWorkspaceObjectStore(workspaceProviderName(on.provider), on.target);
+      const restored = await restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
+      await publishWorkspaceGovernanceUpdate(store, restored);
+      await persistWorkspaceRuntime({ vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
+      const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(on.db);
+      await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: on.belowChain, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
+      await reopenAfterStep(vaultPath);
+    });
   };
 
   const rotateWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string }): Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }> => {
@@ -3897,8 +3917,7 @@ export const VaultProvider: React.FC<{
    * a keychain cannot be enumerated to find a slot whose id is gone.
    */
   const tearDownWorkspace = async (path: string): Promise<void> => {
-    // Stop the worker first so no cycle races the teardown — within the deadline (`stopSyncForStep`).
-    await stopSyncForStep().catch(reportingTo("workspace:teardown"));
+    // The worker is stopped first, by the step (`leaveWorkspace`), so no cycle races the teardown.
     const publicationIds = await workspaceStateRef.current
       ?.listPublications()
       .then((records) => records.map((record) => record.publicationId))
@@ -3919,9 +3938,12 @@ export const VaultProvider: React.FC<{
     // What the folder is afterwards (R8): the remote is not touched, so the
     // workspace lives on for every other device. Read before the teardown.
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
-    await tearDownWorkspace(path);
-    if (state.belowChainAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.belowChainAdapter), departure);
-    await loadVault(path);
+    await leaveWorkspace(stepPorts(path), {
+      tearDown: () => tearDownWorkspace(path),
+      // Through the lowest link of the runtime on screen now — after "renewed" the old one refuses every write.
+      markDeparted: (belowChain) => markEncryptedRemoteDeparted(encryptedRemoteFilePorts(belowChain), departure),
+      reopen: () => reopenAfterStep(path),
+    });
   };
 
   const liftWorkspaceEncryption = async (): Promise<void> => {
@@ -3938,9 +3960,12 @@ export const VaultProvider: React.FC<{
     // notes (R8). Asked before anything is torn down.
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
     if (departure.sole !== true) throw new Error(i18n.t("workspaceSecurity.liftNotSole"));
-    await tearDownWorkspace(path);
-    if (state.belowChainAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.belowChainAdapter), departure);
-    await loadVault(path, true);
+    await leaveWorkspace(stepPorts(path), {
+      tearDown: () => tearDownWorkspace(path),
+      // Through the lowest link of the runtime on screen now — after "renewed" the old one refuses every write.
+      markDeparted: (belowChain) => markEncryptedRemoteDeparted(encryptedRemoteFilePorts(belowChain), departure),
+      reopen: () => reopenAfterStep(path, true),
+    });
   };
 
   /**

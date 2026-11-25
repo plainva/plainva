@@ -2134,6 +2134,8 @@ describe("SyncWorker", () => {
         // The notice goes once the next cycle runs.
         const afterStuck = statuses.slice(statuses.findIndex((x) => x.r === "stuck") + 1);
         expect(afterStuck.some((x) => x.s === "syncing"), "the next cycle is said").toBe(true);
+        // THE DEFECT: the abandoned cycle, ending at last, said its own status over the notice of a stuck sync.
+        expect(afterStuck[0]?.s, "the abandoned cycle says nothing more: the next cycle is the first word after the notice").toBe("syncing");
         expect(statuses.at(-1)?.r, "and the notice is gone").not.toBe("stuck");
         worker.stop();
       } finally {

@@ -190,18 +190,23 @@ function raceAbort<T>(call: Promise<T>, signal: AbortSignal): Promise<T> {
  * bridge cannot cancel a call: after the request's own time limit the JS
  * side goes on (`raceAbort`), while the native call runs on until its plugin
  * gives up — up to an hour for a large transfer — and may still reach the
- * provider. Such a call belongs to the vault runtime that sent it: counted
- * there (`VaultCallOff.track`), the same vault opens again only once it has
- * ended — never two runtimes at one vault, also not at the provider.
+ * provider. A request of a vault's sync belongs to the vault runtime that
+ * sent it: counted there (`VaultCallOff.track`), the same vault opens again
+ * only once it has ended — never two runtimes at one vault, also not at the
+ * provider. Mail, calendars and sign-ins send through `webdavFetch`, which
+ * counts nothing: their calls are no vault runtime's.
  */
-let orphanedRequestsOwner: ((call: Promise<unknown>) => unknown) | null = null;
+type RequestCounter = (call: Promise<unknown>) => unknown;
 
-/** The runtime that counts the native requests it sends from now on and then gives up waiting for (null: none). */
-export function countOrphanedRequestsIn(owner: ((call: Promise<unknown>) => unknown) | null): void {
-  orphanedRequestsOwner = owner;
+/** The bridge's fetch for one vault runtime's sync: what it gives up waiting for is counted by `count`. */
+export function webdavFetchCountedIn(count: RequestCounter): typeof fetch {
+  if (!Capacitor.isNativePlatform()) return webdavFetch;
+  return (input, init) => nativeFetchCounted(input, init, count);
 }
 
-const nativeFetch: typeof fetch = async (input, init) => {
+const nativeFetch: typeof fetch = (input, init) => nativeFetchCounted(input, init, null);
+
+const nativeFetchCounted = async (input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1], count: RequestCounter | null): Promise<Response> => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
   const signal = init?.signal ?? null;
@@ -268,12 +273,13 @@ const nativeFetch: typeof fetch = async (input, init) => {
         // silent: the request failed; there is no body to remove.
       });
       // Given up before the plugin answered: the runtime that sent it counts it until the native call has ended.
-      const owner = orphanedRequestsOwner;
-      let settled = false;
-      void call.then(() => { settled = true; }, () => { settled = true; });
-      signal.addEventListener("abort", () => {
-        if (!settled) owner?.(call.then(() => undefined, () => undefined));
-      }, { once: true });
+      if (count) {
+        let settled = false;
+        void call.then(() => { settled = true; }, () => { settled = true; });
+        signal.addEventListener("abort", () => {
+          if (!settled) count(call.then(() => undefined, () => undefined));
+        }, { once: true });
+      }
     }
     res = signal ? await raceAbort(call, signal) : await call;
     bytes = await bodyOf(res);

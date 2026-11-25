@@ -61,10 +61,14 @@ test('switching away from a note whose save hangs goes on after 30 s, and the va
   const otherLine = sidebar(page).locator('button[aria-haspopup]').filter({ hasText: 'zweiter-vault' });
   await expect(otherLine, 'the person went on').toBeVisible({ timeout: 20_000 });
 
+  // Nobody goes back: nothing opens the first vault, so nothing says it is still closing — past the notice's 5 s.
+  const stillClosing = page.getByText('“test-vault” is still closing – then Plainva opens it again.');
+  await page.waitForTimeout(8_000);
+  await expect(stillClosing, 'no open of the vault that was left').toHaveCount(0);
+
   // Back to the first vault while its save still hangs: it waits, and says so (text 7).
   await otherLine.click();
   await sidebar(page).getByText('test-vault', { exact: true }).click();
-  const stillClosing = page.getByText('“test-vault” is still closing – then Plainva opens it again.');
   await expect(stillClosing).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(3_000);
   await expect(stillClosing, 'it stands while the save hangs').toBeVisible();

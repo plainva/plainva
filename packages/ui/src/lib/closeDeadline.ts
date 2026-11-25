@@ -100,14 +100,22 @@ export async function waitWithDeadline(work: Promise<unknown>, step: () => Close
  * `noticeAfterMs` on says so, until it has ended. No deadline: the wait is
  * bounded by the requests' own time limits.
  */
-export async function waitForClosingVault(ended: Promise<unknown>, vault: string, options: Pick<CloseDeadlineOptions, "noticeAfterMs"> = {}): Promise<void> {
+export async function waitForClosingVault(ended: Promise<unknown>, vault: string, options: Pick<CloseDeadlineOptions, "noticeAfterMs"> & { signal?: AbortSignal } = {}): Promise<void> {
   let notice: number | null = null;
+  const { signal } = options;
+  if (signal?.aborted) return;
   const timer = setTimeout(() => {
     notice = toast.progress(i18n.t("closing.stillClosing", { vault }));
   }, options.noticeAfterMs ?? CLOSE_NOTICE_AFTER_MS);
+  let onAbort = () => {};
   try {
-    await ended;
+    // The notice lives as long as the open that shows it: an open called off meanwhile stops waiting, and its notice goes.
+    await Promise.race([ended, new Promise<void>((resolve) => {
+      onAbort = () => resolve();
+      signal?.addEventListener("abort", onAbort, { once: true });
+    })]);
   } finally {
+    signal?.removeEventListener("abort", onAbort);
     clearTimeout(timer);
     if (notice !== null) toast.dismiss(notice);
   }
