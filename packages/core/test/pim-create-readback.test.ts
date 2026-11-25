@@ -1,6 +1,6 @@
 import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
-import { describe, expect, it } from "vitest";
-import { CalDavPimTarget } from "../src/pim/CalDavPimTarget.ts";
+import { describe, expect, it, vi } from "vitest";
+import { CalDavPimTarget, forgetCreatedAddress } from "../src/pim/CalDavPimTarget.ts";
 import { PimNotShownYetError } from "../src/pim/types.ts";
 import type { PimEventDraft, PimTaskDraft } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
@@ -51,11 +51,16 @@ function laggingServer(options: {
   relocate?: boolean;
   /** Answers 412 to the very first create although nothing is stored. */
   refuseFirst?: boolean;
+  /** Puts every new object under an address of its own WITHOUT saying where. */
+  relocateSilently?: boolean;
+  /** The answer to the second PUT: an error status, or a connection that breaks. */
+  failSecondPut?: 503 | 409 | "network";
 }) {
   let now = 0;
   let revision = 0;
   let drops = options.dropFirstPuts ?? 0;
   let refuseFirst = options.refuseFirst ?? false;
+  let puts = 0;
   const objects = new Map<string, Stored>();
   const requests: string[] = [];
   const fetchFn: FetchFn = async (input, init) => {
@@ -64,11 +69,21 @@ function laggingServer(options: {
     requests.push(`${method} ${url.slice(CAL.length)}`);
     const held = objects.get(url);
     if (method === "PUT") {
+      puts += 1;
+      if (puts === 2 && options.failSecondPut) {
+        if (options.failSecondPut === "network") throw new TypeError("network connection was lost");
+        return new Response("busy", { status: options.failSecondPut });
+      }
       if (refuseFirst) {
         refuseFirst = false;
         return new Response(null, { status: 412 });
       }
       if (headerOf(init, "If-None-Match") === "*" && held && (!options.lateWrites || now >= held.visibleAt)) return new Response(null, { status: 412 });
+      if (options.relocateSilently && headerOf(init, "If-None-Match") === "*") {
+        revision += 1;
+        objects.set(`${CAL}server-${revision}.ics`, { text: String(init?.body), etag: `"r${revision}"`, visibleAt: now });
+        return new Response(null, { status: 201 });
+      }
       if (options.relocate) {
         revision += 1;
         const at = `${CAL}server-${revision}.ics`;
@@ -91,6 +106,22 @@ function laggingServer(options: {
       if (!held || now < held.visibleAt) return new Response("Not Found", { status: 404 });
       return new Response(held.text, { status: 200, headers: { ETag: held.etag } });
     }
+    if (method === "DELETE") {
+      if (!held || now < held.visibleAt) return new Response(null, { status: 404 });
+      const ifMatch = headerOf(init, "If-Match");
+      if (ifMatch && ifMatch !== held.etag) return new Response(null, { status: 412 });
+      objects.delete(url);
+      return new Response(null, { status: 204 });
+    }
+    if (method === "REPORT") {
+      // calendar-query on a UID: the shown objects that carry it.
+      const uid = /<c:text-match[^>]*>([^<]*)</.exec(String(init?.body))?.[1] ?? "";
+      const found = [...objects.entries()].filter(([, o]) => now >= o.visibleAt && o.text.includes(`UID:${uid}`));
+      const body = `<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">${found
+        .map(([href, o]) => `<d:response><d:href>${new URL(href).pathname}</d:href><d:propstat><d:prop><d:getetag>${o.etag}</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>`)
+        .join("")}</d:multistatus>`;
+      return new Response(body, { status: 207 });
+    }
     return new Response(null, { status: 405 });
   };
   const waits: number[] = [];
@@ -98,7 +129,8 @@ function laggingServer(options: {
     waits.push(ms);
     now += ms;
   };
-  return { objects, requests, waits, fetchFn, target: new CalDavPimTarget(creds, fetchFn, wait) };
+  const preload = (href: string, text: string) => objects.set(href, { text, etag: '"pre"', visibleAt: 0 });
+  return { objects, requests, waits, fetchFn, preload, target: new CalDavPimTarget(creds, fetchFn, wait) };
 }
 
 const weekly: PimEventDraft = {
@@ -233,6 +265,82 @@ describe("CalDAV: a new event the server shows late", () => {
     const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-ask-1" });
     await expect(target.eventExists({ calendarId: CAL, uid: created.uid, href: created.href })).resolves.toBe(true);
     await expect(target.eventExists({ calendarId: CAL, uid: "x", href: `${CAL}x.ics` })).resolves.toBe(false);
+  });
+
+  it("an error on the second send does not make an accepted create 'not saved' (503, 409, a broken connection)", async () => {
+    expect.hasAssertions();
+    for (const failSecondPut of [503, 409, "network"] as const) {
+      const { target, objects } = laggingServer({ lagMs: 60_000, failSecondPut });
+      const uid = `plainva-2nd-${failSecondPut}`;
+      await expect(target.createEvent(CAL, { ...weekly, createAs: uid })).resolves.toEqual({ uid, href: `${CAL}${uid}.ics` });
+      expect([failSecondPut, objects.size]).toEqual([failSecondPut, 1]);
+    }
+  });
+
+  it("a later try of the same create finds its own object by the uid it carries - however long ago the first try was", async () => {
+    expect.hasAssertions();
+    const { target, objects, preload } = laggingServer({ lagMs: 0 });
+    const uid = "plainva-day-old";
+    // Left by a try of this create a day ago, in another run of the app.
+    preload(`${CAL}${uid}.ics`, ["BEGIN:VCALENDAR", "BEGIN:VEVENT", `UID:${uid}`, "DTSTART:20261201T090000Z", "SUMMARY:Team sync", "END:VEVENT", "END:VCALENDAR"].join("\r\n"));
+    await expect(target.createEvent(CAL, { ...weekly, createAs: uid })).resolves.toEqual({ uid, etag: '"pre"', href: `${CAL}${uid}.ics` });
+    expect(objects.size).toBe(1);
+  });
+
+  it("something else at the address (another uid) is an error, never 'landed'", async () => {
+    expect.hasAssertions();
+    const { target, preload } = laggingServer({ lagMs: 0 });
+    preload(`${CAL}plainva-clash.ics`, ["BEGIN:VCALENDAR", "BEGIN:VEVENT", "UID:somebody-else", "END:VEVENT", "END:VCALENDAR"].join("\r\n"));
+    await expect(target.createEvent(CAL, { ...weekly, createAs: "plainva-clash" })).rejects.toThrow("caldav create event: the address is taken");
+  });
+
+  it("a server that stores the object under an address of its own without saying so: found by its uid - one object, held there", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 0, relocateSilently: true });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-silent" });
+    expect(created).toEqual({ uid: "plainva-silent", etag: '"r1"', href: `${CAL}server-1.ics` });
+    expect(objects.size).toBe(1);
+    // Asked by the address the client first chose, it is found by its uid.
+    await expect(target.eventExists({ calendarId: CAL, uid: "plainva-silent", href: `${CAL}plainva-silent.ics` })).resolves.toBe(true);
+  });
+
+  it("deleting a new event the server does not show yet waits for it and deletes it - never 'done' while it lives on", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 14_000 });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-del-1" });
+    await target.deleteEvent({ calendarId: CAL, uid: created.uid, etag: created.etag, href: created.href });
+    expect(objects.size).toBe(0);
+  });
+
+  it("deleting a new event the server still does not show says so - the event is not reported gone", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 60_000 });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-del-2" });
+    await expect(target.deleteEvent({ calendarId: CAL, uid: created.uid, href: created.href })).rejects.toBeInstanceOf(PimNotShownYetError);
+    expect(objects.size).toBe(1);
+  });
+
+  it("the same for a task - and its reason names a task", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 60_000 });
+    const created = await target.createTask(CAL, { title: "Buy paint", completed: false, createAs: "plainva-task-del" });
+    await expect(target.deleteTask({ listId: CAL, uid: created.uid, href: created.href })).rejects.toThrow("your provider does not show this new task yet - try again in a moment");
+    await expect(target.updateTask({ listId: CAL, uid: created.uid, href: created.href }, { title: "Buy paint", completed: true })).rejects.toThrow("this new task");
+    expect(objects.size).toBe(1);
+  });
+
+  it("a new event stays 'not shown yet' past ten minutes - until a sync lists it, and from then on a 404 means gone", async () => {
+    expect.hasAssertions();
+    const { target } = laggingServer({ lagMs: 3600_000 });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-eleven" });
+    const later = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 11 * 60_000);
+    try {
+      await expect(target.updateEvent({ calendarId: CAL, uid: created.uid, href: created.href }, weekly)).rejects.toBeInstanceOf(PimNotShownYetError);
+      forgetCreatedAddress(created.href!);
+      await expect(target.updateEvent({ calendarId: CAL, uid: created.uid, href: created.href }, weekly)).rejects.toThrow("caldav read 404 before update");
+    } finally {
+      later.mockRestore();
+    }
   });
 
   it("a task follows the same rule", async () => {

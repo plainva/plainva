@@ -59,40 +59,48 @@ const READ_AFTER_WRITE_WAITS_MS = [250, 750, 1_500, 3_000] as const;
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * The objects this app created a moment ago, by address, and when (issue 119).
- * A target is built per write, so this lives beside the class: the edit that
- * follows a create meets a new target. Only these objects get the patience of
- * the read-back before an edit; for every other object a 404 means gone, at
- * once (a blocker deleted elsewhere is passed over without waiting).
+ * The objects this app created and no sync has listed yet, by address (issue
+ * 119). A target is built per write, so this lives beside the class: the edit
+ * that follows a create meets a new target. Every operation on such an
+ * address reads a 404 as "not shown yet" - with the read-back's patience -
+ * never as "gone". It ends when a sync lists the object
+ * (`forgetCreatedAddress`, called by `watchCreatedEvents`); a day at most, so
+ * the map cannot grow without end. For every other object a 404 means gone,
+ * at once (a blocker deleted elsewhere is passed over without waiting).
  */
 const justCreated = new Map<string, number>();
-const JUST_CREATED_MS = 10 * 60_000;
-
-/**
- * The addresses a create has been sent to, and when (issue 119): an answer
- * 412 to a create counts as "landed" only for an address sent to before - in
- * the same call, or in an earlier try of the same create. Kept for a day.
- */
-const sentCreates = new Map<string, number>();
-const SENT_CREATES_MS = 24 * 3600_000;
-
-/** Marks `href` as sent to; returns whether it had been sent to before. */
-function createSent(href: string, now: number): boolean {
-  for (const [known, at] of sentCreates) if (now - at > SENT_CREATES_MS) sentCreates.delete(known);
-  const before = sentCreates.has(href);
-  sentCreates.set(href, now);
-  return before;
-}
+const JUST_CREATED_MAX_MS = 24 * 3600_000;
 
 function noteCreated(href: string, now: number): void {
-  for (const [known, at] of justCreated) if (now - at > JUST_CREATED_MS) justCreated.delete(known);
+  for (const [known, at] of justCreated) if (now - at > JUST_CREATED_MAX_MS) justCreated.delete(known);
   justCreated.set(href, now);
 }
 
 function createdMomentsAgo(href: string, now: number): boolean {
   const at = justCreated.get(href);
-  return at !== undefined && now - at <= JUST_CREATED_MS;
+  return at !== undefined && now - at <= JUST_CREATED_MAX_MS;
 }
+
+/** A sync lists the object now: from here on a 404 at its address means gone. */
+export function forgetCreatedAddress(href: string): void {
+  justCreated.delete(href);
+}
+
+const isMissing = (status: number): boolean => status === 404 || status === 410;
+
+/** The UID inside a calendar object's text, or null where it cannot be read. */
+function uidOfObject(text: string): string | null {
+  try {
+    const cal = new ICAL.Component(ICAL.parse(text));
+    const comp = cal.getFirstSubcomponent("vevent") ?? cal.getFirstSubcomponent("vtodo");
+    const uid = comp?.getFirstPropertyValue("uid");
+    return uid ? String(uid) : null;
+  } catch {
+    return null;
+  }
+}
+
+const xmlText = (text: string): string => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export class CalDavPimTarget implements IPimTarget {
   readonly provider = "caldav" as const;
@@ -450,7 +458,7 @@ export class CalDavPimTarget implements IPimTarget {
 
   async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
     const uid = draft.createAs;
-    const { href, etag } = await this.createObject(this.resolve(joinCollection(calendarId, `${uid}.ics`)), "event", buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)));
+    const { href, etag } = await this.createObject(calendarId, uid, "event", buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)));
     return { uid, etag, href };
   }
 
@@ -462,58 +470,108 @@ export class CalDavPimTarget implements IPimTarget {
    * 4791 5.3.4), so the object is read back. iCloud answers that read with 404
    * for a moment after the create; taken for "etag unknown", the first edit
    * read it again, met the same 404 and said "caldav read 404 before update".
-   * Now the read gives the object time to show. One that still does not is
-   * sent once more with `If-None-Match: *` - a server that dropped it takes it
-   * now; one that holds it answers 412 or, where its write side is as late as
-   * its read side, takes the same object again at the same address. After two
-   * accepted sends the object counts as held, its etag unknown: an edit of it
+   * Now the read gives the object time to show, and where it still answers
+   * 404 the collection is asked for the UID (a server may store the object
+   * under an address of its own and not say so). One still not found is sent
+   * once more with `If-None-Match: *`. Whatever the server accepted is never
+   * reported as refused: after two accepted sends, or an error on the second
+   * one, the object counts as held, its etag unknown - every operation on it
    * then waits for it (`justCreated`), and the screen asks the provider later
-   * whether it is there (`watchCreatedEvents`). Nothing is refused that the
-   * server accepted.
+   * (`watchCreatedEvents`).
    *
-   * A 412 counts as "this create, landed" only where this address was sent
-   * before - in this call, or in an earlier try of the same create
-   * (`createAs` is the same for every try). On a first send it is somebody
-   * else's object, and an error. A server that puts the object under its own
-   * address and says so (`Location`) is read there, and never sent again.
+   * A 412 means something stands at this address. It is this create where it
+   * carries this create's UID (`createAs`, a UUID, the same for every try of
+   * one create) - however long ago the earlier try was. Anything else there is
+   * somebody else's object, and an error.
    */
-  private async createObject(href: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
-    const placed = await this.putNewObject(href, what, body);
+  private async createObject(collection: string, uid: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
+    const placed = await this.putNewObject(collection, uid, what, body);
     noteCreated(placed.href, Date.now());
     return placed;
   }
 
-  private async putNewObject(href: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
-    const put = async () => {
-      const sentBefore = createSent(href, Date.now());
-      const res = await this.rawRequest(href, {
-        method: "PUT",
-        headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
-        body,
-      });
-      if (res.status === 412 && !sentBefore) throw await pimRequestError(`caldav create ${what}: the address is taken`, res);
-      if (res.status !== 412 && !res.ok) throw await pimRequestError(`caldav create ${what}`, res);
-      return res;
-    };
-    let res = await put();
+  private async putNewObject(collection: string, uid: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
+    const href = this.resolve(joinCollection(collection, `${uid}.ics`));
+    let accepted = false;
     for (let sends = 1; ; sends++) {
-      const location = res.ok ? res.headers.get("Location") : null;
-      const at = location ? this.resolve(location) : href;
-      const said = res.ok ? res.headers.get("ETag") : null;
-      if (said && at === href) return { href, etag: said };
-      let read: Response;
+      let res: Response;
       try {
-        read = await this.readAfterWrite(at);
-      } catch {
-        // No answer at all: the server took the object, its etag is unknown.
-        return { href: at };
+        res = await this.rawRequest(href, {
+          method: "PUT",
+          headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
+          body,
+        });
+      } catch (error) {
+        if (accepted) return { href };
+        throw error;
       }
-      if (read.status !== 404 && read.status !== 410) return { href: at, ...(read.ok && read.headers.get("ETag") ? { etag: read.headers.get("ETag")! } : {}) };
-      // Not shown. Held where the server said so (412), where it lives under
-      // an address of the server's own, or after the second accepted send.
-      if (res.status === 412 || at !== href || sends >= 2) return { href: at };
-      res = await put();
+      if (res.status === 412) {
+        const found = await this.locateCreated(href, collection, uid, what, { strict: true });
+        if (found) return found;
+        if (accepted) return { href };
+        throw await pimRequestError(`caldav create ${what}: the address is taken`, res);
+      }
+      if (!res.ok) {
+        if (accepted) return { href };
+        throw await pimRequestError(`caldav create ${what}`, res);
+      }
+      accepted = true;
+      const location = res.headers.get("Location");
+      const at = location ? this.resolve(location) : href;
+      const said = res.headers.get("ETag");
+      if (said && at === href) return { href, etag: said };
+      const found = await this.locateCreated(at, collection, uid, what, { strict: false });
+      if (found) return found;
+      // Not shown, not found by its UID. Held where the server named its own
+      // address, or after the second accepted send.
+      if (at !== href || sends >= 2) return { href: at };
     }
+  }
+
+  /**
+   * Where an object this app created stands now: read at `href` with the
+   * read-back's patience, and where that still answers 404, looked up by its
+   * UID in the collection. `strict` (after a 412): only an object that is
+   * shown and carries `uid` counts; otherwise an unreadable answer counts as
+   * held at `href`.
+   */
+  private async locateCreated(href: string, collection: string, uid: string, what: "event" | "task", { strict }: { strict: boolean }): Promise<{ href: string; etag?: string } | null> {
+    let read: Response;
+    try {
+      read = await this.readAfterWrite(href);
+    } catch {
+      return strict ? null : { href };
+    }
+    if (read.ok) {
+      const etag = read.headers.get("ETag") ?? undefined;
+      if (!strict) return { href, ...(etag ? { etag } : {}) };
+      return uidOfObject(await read.text()) === uid ? { href, ...(etag ? { etag } : {}) } : null;
+    }
+    if (!isMissing(read.status)) return strict ? null : { href };
+    const elsewhere = await this.findByUid(collection, uid, what).catch(() => null);
+    return elsewhere;
+  }
+
+  /** The object carrying `uid` in a collection, by a calendar-query on its UID (RFC 4791 9.7.5). */
+  private async findByUid(collection: string, uid: string, what: "event" | "task"): Promise<{ href: string; etag?: string } | null> {
+    const xml = await this.davRequest(
+      this.resolve(collection),
+      "REPORT",
+      "1",
+      `<?xml version="1.0" encoding="utf-8"?>
+       <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+         <d:prop><d:getetag/></d:prop>
+         <c:filter>
+           <c:comp-filter name="VCALENDAR">
+             <c:comp-filter name="${what === "task" ? "VTODO" : "VEVENT"}">
+               <c:prop-filter name="UID"><c:text-match collation="i;octet">${xmlText(uid)}</c:text-match></c:prop-filter>
+             </c:comp-filter>
+           </c:comp-filter>
+         </c:filter>
+       </c:calendar-query>`,
+    );
+    const entry = parseCalDavMultistatus(xml).find((e) => !!e.href);
+    return entry?.href ? { href: this.resolve(entry.href), ...(entry.etag ? { etag: entry.etag } : {}) } : null;
   }
 
   /**
@@ -612,8 +670,15 @@ export class CalDavPimTarget implements IPimTarget {
         method: "DELETE",
         headers: guard ? { "If-Match": guard } : {},
       });
-      // Already gone = success (the file sync's not-found-on-delete lesson).
-      if (res.ok || res.status === 404 || res.status === 410) return;
+      // Already gone = success (the file sync's not-found-on-delete lesson) -
+      // except for an object this app just created: there a 404 is "not shown
+      // yet", and the object is waited for and deleted then (issue 119).
+      // Once shown, a later 404 is a deletion like any other.
+      if (attempt === 0 && isMissing(res.status) && createdMomentsAgo(href, Date.now())) {
+        guard = await this.shownAfterCreate(href, "event");
+        continue;
+      }
+      if (res.ok || isMissing(res.status)) return;
       if (res.status !== 412) throw new Error(`caldav delete ${res.status}`);
       const current = await this.readObject(href);
       if (current.gone) return;
@@ -623,17 +688,24 @@ export class CalDavPimTarget implements IPimTarget {
     }
   }
 
+  /**
+   * Whether the server holds an event (issue 119): read at its address with
+   * the read-back's patience, and where that answers 404, looked up by its UID
+   * in the calendar - a server may keep it under an address of its own.
+   */
   async eventExists(ref: PimEventRef): Promise<boolean> {
-    if (!ref.href) throw new Error("caldav lookup needs the object href");
-    const res = await this.rawRequest(ref.href, { method: "GET", headers: {} });
-    if (res.status === 404 || res.status === 410) return false;
-    if (!res.ok) throw new PimRequestError(`caldav read ${res.status}`, res.status);
-    return true;
+    const uid = ref.uid.split("#")[0]!;
+    if (ref.href) {
+      const res = await this.readAfterWrite(ref.href);
+      if (res.ok) return true;
+      if (!isMissing(res.status)) throw new PimRequestError(`caldav read ${res.status}`, res.status);
+    }
+    return !!(await this.findByUid(ref.calendarId, uid, "event"));
   }
 
   async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
     const uid = draft.createAs;
-    const { href, etag } = await this.createObject(this.resolve(joinCollection(listId, `${uid}.ics`)), "task", buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)));
+    const { href, etag } = await this.createObject(listId, uid, "task", buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)));
     return { uid, etag, href };
   }
 
@@ -643,12 +715,29 @@ export class CalDavPimTarget implements IPimTarget {
 
   async deleteTask(ref: PimTaskRef): Promise<void> {
     if (!ref.href) throw new Error("caldav delete needs the object href");
-    const res = await this.rawRequest(ref.href, {
-      method: "DELETE",
-      headers: ref.etag ? { "If-Match": ref.etag } : {},
-    });
-    if (res.status === 412) throw new PimConflictError();
-    if (!res.ok && res.status !== 404 && res.status !== 410) throw await pimRequestError("caldav delete task", res);
+    let guard = ref.etag;
+    for (let attempt = 0; ; attempt++) {
+      const res = await this.rawRequest(ref.href, {
+        method: "DELETE",
+        headers: guard ? { "If-Match": guard } : {},
+      });
+      // A task this app just created answers 404 while it is not shown yet (issue 119).
+      // Once shown, a later 404 is a deletion like any other.
+      if (attempt === 0 && isMissing(res.status) && createdMomentsAgo(ref.href, Date.now())) {
+        guard = await this.shownAfterCreate(ref.href, "task");
+        continue;
+      }
+      if (res.status === 412) throw new PimConflictError();
+      if (!res.ok && !isMissing(res.status)) throw await pimRequestError("caldav delete task", res);
+      return;
+    }
+  }
+
+  /** The etag of an object this app just created, once the server shows it; `PimNotShownYetError` where it still does not. */
+  private async shownAfterCreate(href: string, what: "event" | "task"): Promise<string | undefined> {
+    const read = await this.readAfterWrite(href);
+    if (isMissing(read.status)) throw new PimNotShownYetError(what);
+    return read.ok ? (read.headers.get("ETag") ?? undefined) : undefined;
   }
 
   /**
@@ -662,12 +751,17 @@ export class CalDavPimTarget implements IPimTarget {
     componentName: "vevent" | "vtodo",
     mutate: (comp: InstanceType<typeof ICAL.Component>) => void
   ): Promise<{ etag?: string }> {
-    return this.readModifyPutObject(href, knownEtag, (cal) => {
-      const target = findComponent(cal, componentName, null);
-      if (!target) throw new Error(`caldav object has no ${componentName}`);
-      mutate(target);
-      bumpRevision(target);
-    });
+    return this.readModifyPutObject(
+      href,
+      knownEtag,
+      (cal) => {
+        const target = findComponent(cal, componentName, null);
+        if (!target) throw new Error(`caldav object has no ${componentName}`);
+        mutate(target);
+        bumpRevision(target);
+      },
+      { what: componentName === "vtodo" ? "task" : "event" },
+    );
   }
 
   /**
@@ -684,6 +778,8 @@ export class CalDavPimTarget implements IPimTarget {
       expect?: { substance: PimEventSubstance; calendarId: string; uid: string };
       /** Deleting an occurrence: a series that is gone has nothing left to delete. */
       goneIsDone?: boolean;
+      /** What the object is, for the "not shown yet" reason. */
+      what?: "event" | "task";
     } = {}
   ): Promise<{ etag?: string }> {
     if (!href) throw new Error("caldav update needs the object href");
@@ -698,7 +794,7 @@ export class CalDavPimTarget implements IPimTarget {
       // Still not shown, though this app just created it: not gone, not
       // refused - the provider has not caught up yet, and the person is told
       // exactly that (`PimNotShownYetError`).
-      if (fresh && (getRes.status === 404 || getRes.status === 410)) throw new PimNotShownYetError();
+      if (fresh && isMissing(getRes.status)) throw new PimNotShownYetError(options.what ?? "event");
       if (options.goneIsDone && (getRes.status === 404 || getRes.status === 410)) return {};
       // With its status (K3): a blocker that is gone answers 404 here, and the
       // caller has to tell "gone" from "refused".

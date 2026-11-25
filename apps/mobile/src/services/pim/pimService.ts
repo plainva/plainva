@@ -293,8 +293,17 @@ export async function listPimEvents(rangeStartTs: number, rangeEndTs: number): P
  */
 export async function listShownPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<ShownEventRow[]> {
   const cached = await listPimEvents(rangeStartTs, rangeEndTs);
-  // A new series is drawn by its occurrences in this window until a sync lists it (issue 119).
-  const shown = applyPendingEventWrites(cached, pendingEventWrites.snapshot(), { startTs: rangeStartTs, endTs: rangeEndTs });
+  // A new series is drawn by its occurrences in this window until a sync
+  // lists it, and a hidden calendar draws nothing from the overlay either (issue 119).
+  const writes = pendingEventWrites.snapshot();
+  const creates = writes.some((write) => write.kind === "create");
+  const [accounts, calendars] = creates && runtime ? await Promise.all([runtime.cache.listAccounts(), runtime.cache.listCalendars()]).catch(() => [null, null] as const) : [null, null];
+  const shownCalendar =
+    accounts && calendars
+      ? (accountId: string, calendarId: string) =>
+          accounts.some((a) => a.id === accountId && a.enabled) && calendars.some((c) => c.accountId === accountId && c.id === calendarId && c.selected)
+      : undefined;
+  const shown = applyPendingEventWrites(cached, writes, { startTs: rangeStartTs, endTs: rangeEndTs }, shownCalendar);
   // The chain mark of a blocker and of an event that has blockers is drawn
   // from the linkage (K3) — derived here, once, for every screen that lists
   // events. Until then the phone had the action and no sign of its result.
@@ -346,6 +355,16 @@ function wirePendingEventWrites(): void {
   pendingWritesWired = true;
   pendingEventWrites.subscribe(() => window.dispatchEvent(new CustomEvent("m-pim-changed")));
   window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
+}
+
+/**
+ * Leaves the vault's calendars: the runtime stops, and the events still drawn
+ * from the overlay go with the vault (issue 119). A restart in the SAME vault
+ * (`restartPimAfterImport`) keeps them: they wait for their evidence there.
+ */
+export function leavePimVault(): void {
+  stopPim();
+  pendingEventWrites.clear();
 }
 
 /**

@@ -391,8 +391,8 @@ export interface PimWriteResult {
  * crosses.
  */
 export class PimNotShownYetError extends Error {
-  constructor() {
-    super("your provider does not show this new event yet - try again in a moment");
+  constructor(what: "event" | "task" = "event") {
+    super(`your provider does not show this new ${what} yet - try again in a moment`);
     this.name = "PimNotShownYetError";
   }
 }

@@ -46,7 +46,8 @@ describe("calendar event writes", () => {
           throw new Error("locked");
         }),
       },
-      a2: { createEvent: vi.fn(async () => ({ uid: "u2" })) },
+      // The copy is shown at once (an etag in the answer), so the source is deleted in the same step.
+      a2: { createEvent: vi.fn(async () => ({ uid: "u2", etag: '"e2"' })) },
     });
     const out = await updateCalendarEvent(t, event, draft, { accountId: "a2", calendarId: "c2" });
     expect(out.kind).toBe("duplicate");

@@ -1,4 +1,4 @@
-import { eventSubstanceOf, expandEventDraft, PimConflictError, type PimEventCreate, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
+import { eventSubstanceOf, expandEventDraft, PIM_WINDOW_FUTURE_DAYS, PIM_WINDOW_PAST_DAYS, PimConflictError, type PimEventCreate, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
 import { logDiagnostic } from "../services/diagnosticsLog";
 import { createUidFor, forgetCreateUid } from "./createUids";
 import { isPendingEventUid, PENDING_EVENT_UID_PREFIX, type CreatedEventChange, type EtagStamp } from "./pendingEventWrites";
@@ -49,8 +49,6 @@ export function draftToRow(
 }
 
 const DAY_MS = 24 * 3600_000;
-/** How far ahead a new series is drawn before a sync lists it: the views the person can scroll to in that time. */
-const NEW_SERIES_AHEAD_MS = 400 * DAY_MS;
 
 /**
  * What the screen holds of a created event until a sync lists it (issue 119).
@@ -66,11 +64,13 @@ const NEW_SERIES_AHEAD_MS = 400 * DAY_MS;
  * `draft` stays with the change: should the provider turn out not to hold the
  * event, "Try again" has what the person typed.
  */
-export function createChange(row: PimEventRow, draft: PimEventDraft): CreatedEventChange {
+export function createChange(row: PimEventRow, draft: PimEventDraft, now: number = Date.now()): CreatedEventChange {
   if (!draft.recurrence) return { kind: "create", row, draft };
   let expanded: ReturnType<typeof expandEventDraft>;
   try {
-    expanded = expandEventDraft(draft, { uid: row.uid, calendarId: row.calendarId, href: row.href, etag: row.etag }, row.start.ts - DAY_MS, row.start.ts + NEW_SERIES_AHEAD_MS);
+    // The window a sync fetches (`PimWorker`), not one of its own: the screen
+    // shows the occurrences the sync will bring - no more, no fewer.
+    expanded = expandEventDraft(draft, { uid: row.uid, calendarId: row.calendarId, href: row.href, etag: row.etag }, now - PIM_WINDOW_PAST_DAYS * DAY_MS, now + PIM_WINDOW_FUTURE_DAYS * DAY_MS);
   } catch {
     return { kind: "create", row, draft };
   }
@@ -121,8 +121,12 @@ export function sameEventRef(
 }
 
 export type EventWriteOutcome =
-  /** Written; `rows` replaces the affected rows optimistically. */
-  | { kind: "written"; rows: PimEventRow[]; removed?: { accountId: string; calendarId: string; uid: string } }
+  /**
+   * Written; `rows` replaces the affected rows optimistically. A move whose
+   * copy the provider did not show yet keeps its source (`sourceKept`); it is
+   * deleted once a sync lists the copy (`watchCreatedEvents`).
+   */
+  | { kind: "written"; rows: PimEventRow[]; removed?: { accountId: string; calendarId: string; uid: string }; sourceKept?: true }
   /** The remote moved first — nothing was written, re-pull and reopen. */
   | { kind: "conflict" }
   /** Written, but the source copy of a move could not be deleted. */
@@ -187,6 +191,12 @@ export async function updateCalendarEvent(
     const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, create), "no writable target for the destination account");
     forgetCreateUid("move", where, moved);
     const rows = [{ ...draftToRow(moveTo!.accountId, moveTo!.calendarId, res.uid, draft), etag: res.etag, href: res.href }];
+    // The source goes only once the copy is shown (issue 119). Shown at once -
+    // an etag from the answer or the read-back, the rule outside iCloud - it
+    // goes in this same step. Not shown yet: it stays at the provider until a
+    // sync lists the copy. Should the app close in between, both stand - two
+    // events, never none.
+    if (!res.etag) return { kind: "written", rows, sourceKept: true };
     const removed = { accountId: event.accountId, calendarId: event.calendarId, uid: event.uid };
     try {
       const oldTarget = await targets.targetFor(event.accountId);

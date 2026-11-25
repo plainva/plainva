@@ -160,6 +160,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // with the vault - not in a view (issue 119): by the cache whatever range
   // is shown, and by asking the provider when no sync lists it. In every
   // window; an auxiliary window asks through the central one.
+  // The overlay belongs to the vault: it is emptied when the vault is left,
+  // not when the runtime is made anew for the same vault.
+  useEffect(() => () => pendingEventWrites.clear(), [vaultPath]);
   useEffect(() => {
     const runtime = pimRuntime;
     if (!runtime) return;

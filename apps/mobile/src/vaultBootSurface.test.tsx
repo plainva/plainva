@@ -39,7 +39,7 @@ vi.mock("./services/vaultRegistry", () => ({
 }));
 vi.mock("./services/conflictState", () => ({ bindConflictStore: vi.fn() }));
 vi.mock("./services/syncService", () => ({ startSyncIfConfigured: vi.fn(async () => {}) }));
-vi.mock("./services/pim/pimService", () => ({ startPim: vi.fn(async () => {}), stopPim: vi.fn(), restartPimAfterImport: vi.fn(async () => {}) }));
+vi.mock("./services/pim/pimService", () => ({ startPim: vi.fn(async () => {}), stopPim: vi.fn(), leavePimVault: vi.fn(), restartPimAfterImport: vi.fn(async () => {}) }));
 vi.mock("./services/pim/pimOAuth", () => ({ resumePimOAuthResult: vi.fn(async () => {}) }));
 vi.mock("./services/mail/mailRuntime", () => ({ startMobileMail: vi.fn(), stopMobileMail: vi.fn() }));
 vi.mock("./services/endpointConfirmationSettle", () => ({ settleVaultEndpointConfirmations: vi.fn(async () => {}) }));

@@ -309,7 +309,7 @@ export function useEventEditor({
       // On screen until the cache has it, as on the desktop (issue 119): the
       // phone showed a new block only after the next cycle.
       onCreated: (accountId, calendarId, res) =>
-        showWrittenEvents(pendingEventWrites, [{ kind: "create", row: { ...draftToRow(accountId, calendarId, res.uid, draft), etag: res.etag, href: res.href } }]),
+        showWrittenEvents(pendingEventWrites, [{ kind: "create", what: "blocker", row: { ...draftToRow(accountId, calendarId, res.uid, draft), etag: res.etag, href: res.href } }]),
     });
     if (ok > 0) {
       toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));

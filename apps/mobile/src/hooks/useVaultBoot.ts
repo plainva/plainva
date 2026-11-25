@@ -4,7 +4,7 @@ import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
 import { startSyncIfConfigured } from "../services/syncService";
-import { isPimRuntimeReady, restartPimAfterImport, startPim, stopPim } from "../services/pim/pimService";
+import { isPimRuntimeReady, leavePimVault, restartPimAfterImport, startPim } from "../services/pim/pimService";
 import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
 import { resumePimOAuthResult } from "../services/pim/pimOAuth";
 import { startMobileMail, stopMobileMail } from "../services/mail/mailRuntime";
@@ -113,7 +113,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
       stagger = null;
       stopReconcile?.();
       stopReconcile = null;
-      stopPim();
+      leavePimVault();
       stopMobileMail();
       setVault(null);
       handlersRef.current.onSwitching();

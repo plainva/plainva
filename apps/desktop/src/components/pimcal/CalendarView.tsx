@@ -247,8 +247,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     const grid = buildMonthCells(viewDate, weekStartDay);
     return { cells: grid, gridDays: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
   }, [viewMode, viewDate, selectedDate, weekStartDay]);
-  // A new series is drawn by its occurrences in this window until a sync lists it (issue 119).
-  const events = useShownEvents(cachedEvents, pendingEventWrites, { startTs: rangeStartTs, endTs: rangeEndTs });
+  // A new series is drawn by its occurrences in this window until a sync lists
+  // it, and a hidden calendar draws nothing from the overlay either (issue 119).
+  const shownCalendar = useCallback(
+    (accountId: string, calendarId: string) =>
+      accounts.some((a) => a.id === accountId && a.enabled) && calendars.some((c) => c.accountId === accountId && c.id === calendarId && c.selected),
+    [accounts, calendars],
+  );
+  const events = useShownEvents(cachedEvents, pendingEventWrites, { startTs: rangeStartTs, endTs: rangeEndTs }, shownCalendar);
   // The month's week column: a narrow first column, so cells and bars move
   // one column right (their placement is explicit).
   const monthWeeks = showWeeks && cells.length > 0 ? isoWeeksForCells(cells) : null;
@@ -1620,7 +1626,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           // Shown until the cache has it, like every other written event (issue
           // 119). A recurring block expands at the provider; the overlay knows
           // its occurrences by their series and steps aside for them.
-          showWrittenEvents(pendingEventWrites, [{ kind: "create", row: { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href } }]);
+          showWrittenEvents(pendingEventWrites, [{ kind: "create", what: "blocker", row: { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href } }]);
         },
       });
       if (ok > 0) {

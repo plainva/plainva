@@ -65,7 +65,8 @@ beforeEach(async () => {
     if (op.kind === "createEvent") {
       const uid = `new-${++made}`;
       calendars.get(op.calendarId!)!.push(uid);
-      return { ok: true, uid };
+      // Shown at once (an etag in the answer): the source goes in the same step.
+      return { ok: true, uid, etag: `"${uid}"` };
     }
     if (op.kind === "deleteEvent") calendars.set(op.ref!.calendarId, calendars.get(op.ref!.calendarId)!.filter((uid) => uid !== op.ref!.uid));
     return { ok: true };
