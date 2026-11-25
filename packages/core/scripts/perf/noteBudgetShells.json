@@ -1,8 +1,287 @@
 {
-  "measured": "to be filled by perf:notes -- --calibrate --shell <name>",
+  "measured": "2026-11-25, branch feature/l14-note-memory against main 07d3ee30a (the note's budget off, its own paragraph and table budgets kept): main = the most units the shell's readers of main read under the heap, or the most main reads formatted where its paragraph budget reads the form as text before; branch = the most units the note's budget reads with no block as text; ratio = main / branch",
   "shells": {
-    "phone": { "heap": 128, "parses": ["index", "tree"], "factor": 1, "measured": "", "forms": {} },
-    "desktop": { "heap": 512, "parses": ["index", "tree", "reader"], "factor": 1, "measured": "", "forms": {} },
-    "editor": { "heap": 128, "parses": ["editor"], "factor": 1, "measured": "", "forms": {} }
+    "phone": {
+      "heap": 128,
+      "parses": [
+        "index",
+        "tree"
+      ],
+      "factor": 1,
+      "measured": "2026-11-25: the index (parse, links and tags) and the note source (parse, headings and block ids) under 128 MB; the phone's read mode is its editor",
+      "forms": {
+        "prose": {
+          "main": 19774,
+          "branch": 8710,
+          "ratio": 2.27
+        },
+        "paras": {
+          "main": 13240,
+          "branch": 5936,
+          "ratio": 2.23
+        },
+        "emails": {
+          "main": 23633,
+          "branch": 10411,
+          "ratio": 2.27
+        },
+        "urls": {
+          "main": 9181,
+          "branch": 7914,
+          "ratio": 1.16
+        },
+        "items": {
+          "main": 8876,
+          "branch": 6871,
+          "ratio": 1.29
+        },
+        "linked": {
+          "main": 8253,
+          "branch": 5717,
+          "ratio": 1.44
+        },
+        "tasks": {
+          "main": 7784,
+          "branch": 5786,
+          "ratio": 1.35
+        },
+        "taskem": {
+          "main": 6287,
+          "branch": 4144,
+          "ratio": 1.52
+        },
+        "done": {
+          "main": 7194,
+          "branch": 4739,
+          "ratio": 1.52
+        },
+        "journal": {
+          "main": 6554,
+          "branch": 4185,
+          "ratio": 1.57
+        },
+        "quotes": {
+          "main": 26507,
+          "branch": 15243,
+          "ratio": 1.74
+        },
+        "callouts": {
+          "main": 5143,
+          "branch": 4437,
+          "ratio": 1.16
+        },
+        "xwords": {
+          "main": 161408,
+          "branch": 124174,
+          "ratio": 1.3
+        },
+        "nested": {
+          "main": 7939,
+          "branch": 6004,
+          "ratio": 1.32
+        },
+        "ordered": {
+          "main": 8431,
+          "branch": 7271,
+          "ratio": 1.16
+        },
+        "loose": {
+          "main": 8758,
+          "branch": 5020,
+          "ratio": 1.74
+        },
+        "quote3": {
+          "main": 20336,
+          "branch": 17224,
+          "ratio": 1.18
+        },
+        "headings": {
+          "main": 19398,
+          "branch": 8551,
+          "ratio": 2.27
+        },
+        "code": {
+          "main": 78694,
+          "branch": 67849,
+          "ratio": 1.16
+        },
+        "links": {
+          "main": 69787,
+          "branch": 60109,
+          "ratio": 1.16
+        },
+        "tagsl": {
+          "main": 50538,
+          "branch": 30390,
+          "ratio": 1.66
+        },
+        "sentences": {
+          "main": 10000,
+          "branch": 5091,
+          "ratio": 1.96
+        },
+        "footnotes": {
+          "main": 3653,
+          "branch": 3150,
+          "ratio": 1.16
+        },
+        "embeds": {
+          "main": 68916,
+          "branch": 58602,
+          "ratio": 1.18
+        },
+        "html": {
+          "main": 16705,
+          "branch": 14422,
+          "ratio": 1.16
+        },
+        "maths": {
+          "main": 18879,
+          "branch": 9409,
+          "ratio": 2.01
+        },
+        "emphasis": {
+          "main": 6991,
+          "branch": 4203,
+          "ratio": 1.66
+        },
+        "opens": {
+          "main": 2638,
+          "branch": 1162,
+          "ratio": 2.27
+        },
+        "starred": {
+          "main": 1652,
+          "branch": 1427,
+          "ratio": 1.16
+        },
+        "tables2": {
+          "main": 3216,
+          "branch": 2773,
+          "ratio": 1.16
+        },
+        "tables50": {
+          "main": 110,
+          "branch": 76,
+          "ratio": 1.45
+        },
+        "bigtables": {
+          "main": 4,
+          "branch": 3,
+          "ratio": 1.33
+        },
+        "manytables": {
+          "main": 74,
+          "branch": 45,
+          "ratio": 1.64
+        },
+        "rules": {
+          "main": 39466,
+          "branch": 18600,
+          "ratio": 2.12
+        },
+        "brackets": {
+          "main": 14000,
+          "branch": 12079,
+          "ratio": 1.16
+        },
+        "stars": {
+          "main": 39423,
+          "branch": 17618,
+          "ratio": 2.24
+        },
+        "images": {
+          "main": 4406,
+          "branch": 1946,
+          "ratio": 2.26
+        },
+        "ticks": {
+          "main": 2115,
+          "branch": 1824,
+          "ratio": 1.16
+        },
+        "entities": {
+          "main": 3596,
+          "branch": 3104,
+          "ratio": 1.16
+        },
+        "escapes": {
+          "main": 2009,
+          "branch": 887,
+          "ratio": 2.26
+        },
+        "angles": {
+          "main": 11767,
+          "branch": 5215,
+          "ratio": 2.26
+        },
+        "densetables": {
+          "main": 26,
+          "branch": 22,
+          "ratio": 1.18
+        }
+      }
+    },
+    "desktop": {
+      "heap": 512,
+      "parses": [
+        "index",
+        "tree",
+        "reader"
+      ],
+      "factor": 1,
+      "measured": "",
+      "forms": {}
+    },
+    "editor": {
+      "heap": 128,
+      "parses": [
+        "editor"
+      ],
+      "factor": 1,
+      "measured": "2026-11-25: the editor's own parse of the whole note (CodeMirror with the app's syntax extensions, as both shells build it) under 128 MB; branch = the phone's threshold, for comparison — the note's budget does not change the editor's parse, so its limit is a named one",
+      "forms": {
+        "prose": {
+          "main": 181942,
+          "branch": 8710,
+          "ratio": 20.89
+        },
+        "paras": {
+          "main": 82149,
+          "branch": 5936,
+          "ratio": 13.84
+        },
+        "items": {
+          "main": 37926,
+          "branch": 6871,
+          "ratio": 5.52
+        },
+        "linked": {
+          "main": 31086,
+          "branch": 5717,
+          "ratio": 5.44
+        },
+        "tasks": {
+          "main": 30752,
+          "branch": 5786,
+          "ratio": 5.31
+        },
+        "quotes": {
+          "main": 269674,
+          "branch": 15243,
+          "ratio": 17.69
+        },
+        "tables50": {
+          "main": 7265,
+          "branch": 76,
+          "ratio": 95.59
+        },
+        "bigtables": {
+          "main": 290,
+          "branch": 3,
+          "ratio": 96.67
+        }
+      }
+    }
   }
 }

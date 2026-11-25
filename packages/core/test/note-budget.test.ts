@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { NOTE_BUDGET, overBudgetInlineRanges, boundMarkdownForParse, readAsTextParts, restoreBoundedTree } from "../src/inlineParseBudget.ts";
+import { NOTE_BUDGET, overBudgetInlineRanges, boundMarkdownForParse, readAsTextParts, restoreBoundedTree, setNoteBudget } from "../src/inlineParseBudget.ts";
 import { parseMarkdownAst, parseMarkdownTree, type MarkdownTreeNode } from "../src/markdown-parser.ts";
 import { analyzeNoteSource } from "../src/noteSource.ts";
 import { renameNoteLinks } from "../src/linkRewrite.ts";
@@ -307,21 +307,33 @@ describe("the note's budget (L14)", () => {
     }
   });
 
-  it("reads every calibrated form formatted up to no more than main reads under 128 MB, and no earlier than calibrated", () => {
-    // `noteBudgetForms.json`: main's limit under 128 MB per form and the ratio of the calibration (2026-11-19). At
-    // main's limit the note's budget reads a block as text (the safe side: what it keeps formatted, main reads under
-    // the heap too); at main's limit over the calibrated ratio plus 5 % it does not yet (a change of the weights that
-    // reads a form as text earlier shows here). `perf:notes -- --check` reads the notes at the thresholds themselves.
-    const { forms } = JSON.parse(readFileSync(new URL("../scripts/perf/noteBudgetForms.json", import.meta.url), "utf8")) as { forms: Record<string, { main: number; ratio: number }> };
+  it("reads every calibrated form of each shell formatted up to no more than main reads under its heap, and no earlier than calibrated", () => {
+    expect.hasAssertions();
+    // `noteBudgetShells.json`: per shell, main's limit under the shell's heap and readers per form, and the ratio of the
+    // calibration (2026-11-25). Every ratio keeps 1.13 or more (main's limit is known to some 5 to 8 %). At main's limit
+    // the shell's budget reads a block as text (the safe side: what it keeps formatted, main reads under the heap too); at
+    // main's limit over the calibrated ratio plus 5 % it does not yet (a change of the weights that reads a form as text
+    // earlier shows here). `perf:notes -- --check` reads the notes at the thresholds themselves.
+    const { shells } = JSON.parse(readFileSync(new URL("../scripts/perf/noteBudgetShells.json", import.meta.url), "utf8")) as { shells: Record<string, { factor: number; parses: string[]; forms: Record<string, { main: number; ratio: number }> }> };
     const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
     const asText = (form: string, n: number) => overBudgetInlineRanges(wrap(NOTE_FORMS[form](n))).some((range) => range.block);
-    expect(Object.keys(forms).length).toBeGreaterThanOrEqual(42);
-    for (const [form, { main, ratio }] of Object.entries(forms)) {
-      expect(asText(form, main), `${form}: formatted at main's limit ${main}`).toBe(true);
-      const earliest = Math.floor(main / (ratio * 1.05));
-      expect(asText(form, earliest), `${form}: text at ${earliest}, below the calibrated ratio ${ratio}`).toBe(false);
+    expect(Object.keys(shells.phone.forms).length).toBeGreaterThanOrEqual(42);
+    try {
+      for (const [shell, { factor, parses, forms }] of Object.entries(shells)) {
+        // The editor's limit is a named one: its parse is the whole note, whatever the budget.
+        if (parses.includes("editor")) continue;
+        setNoteBudget(NOTE_BUDGET * factor);
+        for (const [form, { main, ratio }] of Object.entries(forms)) {
+          expect(ratio, `${shell} ${form}: the safe side`).toBeGreaterThanOrEqual(1.13);
+          expect(asText(form, main), `${shell} ${form}: formatted at main's limit ${main}`).toBe(true);
+          const earliest = Math.floor(main / (ratio * 1.05));
+          expect(asText(form, earliest), `${shell} ${form}: text at ${earliest}, below the calibrated ratio ${ratio}`).toBe(false);
+        }
+      }
+    } finally {
+      setNoteBudget(NOTE_BUDGET);
     }
-  }, 300 * SECONDS);
+  }, 600 * SECONDS);
 
   it("reads a table twelve and twenty-four quotes deep at its threshold under 128 MB, and one row more as text", () => {
     expect.hasAssertions();
