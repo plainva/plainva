@@ -4,21 +4,38 @@ use std::sync::Mutex;
 // conditional journal update must not race a different webview's reconnect.
 static STORE_LOCK: Mutex<()> = Mutex::new(());
 
+/// `run` under the lock. A step that panicked while holding it poisons it;
+/// what it guards (nothing but the order of the steps) is whole all the same,
+/// so the next step takes it as it is.
 fn locked<T>(run: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
-    let step = || {
-        let _guard = STORE_LOCK
-            .lock()
-            .map_err(|_| "secure store lock failed".to_string())?;
-        run()
-    };
-    // On a worker of the async runtime (an async command of another module
-    // that reaches a slot), waiting for the lock or for the keychain's dialog
-    // must not hold the worker's other tasks: the runtime moves them away.
+    let _guard = STORE_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    run()
+}
+
+/// The one way to the keychain for a caller that waits for its answer where
+/// it stands (`read_slot`, `write_slot`: the AI egress, the MCP client): the
+/// step goes into the keychain's queue (`lane`) like a command's, in the
+/// order it arrives, and this thread waits for it. On a worker of the async
+/// runtime the wait is announced, so the worker's other tasks move away.
+fn on_lane<T: Send + 'static>(run: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
+    if std::thread::current().name() == Some(LANE_NAME) {
+        // Already a step of the queue: it runs here, or it would wait for itself.
+        return locked(run);
+    }
+    let (answer, answered) = std::sync::mpsc::channel();
+    lane()
+        .send(Box::new(move || {
+            let _ = answer.send(locked(run));
+        }))
+        .map_err(|_| "the keychain's thread is gone".to_string())?;
+    let wait = move || answered.recv().map_err(|_| "a keychain step ended without an answer".to_string())?;
     match tokio::runtime::Handle::try_current() {
-        Ok(runtime) if runtime.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => tokio::task::block_in_place(step),
-        _ => step(),
+        Ok(runtime) if runtime.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => tokio::task::block_in_place(wait),
+        _ => wait(),
     }
 }
+
+const LANE_NAME: &str = "plainva-keychain";
 
 /// Runs `run` under the lock on the keychain's own thread, never on the thread
 /// that serves the windows. A synchronous command runs on the app's main
@@ -51,10 +68,11 @@ fn lane() -> &'static std::sync::mpsc::Sender<Step> {
     LANE.get_or_init(|| {
         let (queue, steps) = std::sync::mpsc::channel::<Step>();
         std::thread::Builder::new()
-            .name("plainva-keychain".into())
+            .name(LANE_NAME.into())
             .spawn(move || {
                 for step in steps {
-                    // A step that panics answers nothing (its caller hears so); the next one still runs.
+                    // A step that panics answers nothing (its caller hears so); the next one still
+                    // runs, and takes the lock the panic left poisoned (`locked`).
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(step));
                 }
             })
@@ -70,6 +88,31 @@ static KEYCHAIN_ANSWERS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 
 fn answered() {
     KEYCHAIN_ANSWERS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// How often the person turned a keychain dialog down, where the platform
+/// says so (`is_refusal`): after one, a failed move is not tried again in
+/// this run (`MoveGate`).
+static KEYCHAIN_REFUSALS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A failure that is the person's "no": macOS says the user cancelled
+/// (errSecUserCanceled, -128) or denied the access, the Secret Service that
+/// the prompt was dismissed. Anything else is the keychain not answering.
+fn is_refusal(error: &keyring::Error) -> bool {
+    let text = match error {
+        keyring::Error::PlatformFailure(inner) | keyring::Error::NoStorageAccess(inner) => inner.to_string(),
+        _ => return false,
+    }
+    .to_lowercase();
+    ["cancel", "denied", "dismissed", "-128", "user interaction is not allowed"].iter().any(|word| text.contains(word))
+}
+
+/// A keychain error as text, counted where it is the person's refusal.
+fn failure(error: keyring::Error) -> String {
+    if is_refusal(&error) {
+        KEYCHAIN_REFUSALS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+    error.to_string()
 }
 
 /// The keychain entry for `key` in THIS installation's namespace: the release
@@ -105,18 +148,20 @@ fn generic(key: &str) -> Result<&str, String> {
 /// Native access for the module that owns a slot (the AI egress). Never a
 /// command: nothing here is reachable from the web view.
 pub(crate) fn read_slot(app: &tauri::AppHandle, key: &str) -> Result<Option<String>, String> {
-    locked(|| read(&entry(app, key)?))
+    let (app, key) = (app.clone(), key.to_string());
+    on_lane(move || read(&entry(&app, &key)?))
 }
 
 pub(crate) fn write_slot(app: &tauri::AppHandle, key: &str, value: Option<&str>) -> Result<(), String> {
-    locked(|| write(&entry(app, key)?, value))
+    let (app, key, value) = (app.clone(), key.to_string(), value.map(str::to_string));
+    on_lane(move || write(&entry(&app, &key)?, value.as_deref()))
 }
 
 fn read(entry: &keyring::Entry) -> Result<Option<String>, String> {
     let value = match entry.get_password() {
         Ok(value) => Some(value),
         Err(keyring::Error::NoEntry) => None,
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(failure(e)),
     };
     answered();
     Ok(value)
@@ -124,10 +169,10 @@ fn read(entry: &keyring::Entry) -> Result<Option<String>, String> {
 
 fn write(entry: &keyring::Entry, value: Option<&str>) -> Result<(), String> {
     match value {
-        Some(value) => entry.set_password(value).map_err(|e| e.to_string())?,
+        Some(value) => entry.set_password(value).map_err(failure)?,
         None => match entry.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => {}
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(failure(e)),
         },
     }
     answered();
@@ -294,20 +339,33 @@ fn move_to_keychain(places: &impl MarkKeyPlaces, key: String) -> String {
 ///
 /// At the first ask of a run where the file is the noted place. One that
 /// failed is tried again in the same run once the keychain has answered
-/// another request since — the anlass is a keychain that did not answer at
-/// the start (D-Bus not ready at login, a cancelled prompt), and a password
-/// read or written later shows it answers now. A dialog that was turned down
-/// asks for no new one by itself: without another answer, no new try.
+/// another request since — the reason for the move is a keychain that did
+/// not answer at the start (D-Bus not ready at login), and a password read
+/// or written later shows it answers now. Not after the person turned the
+/// move's dialog down, where the platform says so (`is_refusal`), and never
+/// more than `MOVE_TRIES` times in one run: a dialog nobody wants is not
+/// shown at every round of the secrets sync.
 pub(crate) struct MoveGate {
     state: Mutex<MoveState>,
 }
 
+/// The most tries of the move in one run of the app.
+pub(crate) const MOVE_TRIES: u32 = 3;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum MoveState {
     NotTried,
-    /// Failed when the keychain had answered this many requests.
-    FailedAt(u64),
+    /// Failed `tries` times, the last when the keychain had answered this many requests.
+    FailedAt { answers: u64, tries: u32 },
+    /// Turned down by the person, or tried `MOVE_TRIES` times: not again in this run.
+    GivenUp,
     Done,
+}
+
+/// What the gate counts: the keychain's answers and the person's refusals (`KEYCHAIN_ANSWERS`, `KEYCHAIN_REFUSALS`).
+pub(crate) struct KeychainCounts<'a> {
+    pub answers: &'a dyn Fn() -> u64,
+    pub refusals: &'a dyn Fn() -> u64,
 }
 
 impl MoveGate {
@@ -318,28 +376,39 @@ impl MoveGate {
     fn may_try(&self, answers: u64) -> bool {
         match *self.state.lock().unwrap_or_else(|p| p.into_inner()) {
             MoveState::NotTried => true,
-            MoveState::FailedAt(then) => answers > then,
-            MoveState::Done => false,
+            MoveState::FailedAt { answers: then, .. } => answers > then,
+            MoveState::GivenUp | MoveState::Done => false,
         }
     }
 
-    fn tried(&self, moved: bool, answers: u64) {
-        *self.state.lock().unwrap_or_else(|p| p.into_inner()) = if moved { MoveState::Done } else { MoveState::FailedAt(answers) };
+    fn tried(&self, moved: bool, refused: bool, answers: u64) {
+        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        let tries = match *state {
+            MoveState::FailedAt { tries, .. } => tries + 1,
+            _ => 1,
+        };
+        *state = if moved {
+            MoveState::Done
+        } else if refused || tries >= MOVE_TRIES {
+            MoveState::GivenUp
+        } else {
+            MoveState::FailedAt { answers, tries }
+        };
     }
 }
 
 static MOVE_GATE: MoveGate = MoveGate::new();
 
-/// `mark_key` with the move as the gate allows it; `answers` counts the
-/// keychain's answers (`KEYCHAIN_ANSWERS`). Call only under `locked`.
-pub(crate) fn mark_key_moving(places: &impl MarkKeyPlaces, fresh: &str, marks_on_device: bool, gate: &MoveGate, answers: &dyn Fn() -> u64) -> Result<String, String> {
+/// `mark_key` with the move as the gate allows it. Call only under `locked`.
+pub(crate) fn mark_key_moving(places: &impl MarkKeyPlaces, fresh: &str, marks_on_device: bool, gate: &MoveGate, counts: &KeychainCounts) -> Result<String, String> {
     let in_file = places.noted()? == Some(MarkKeyPlace::File);
-    let try_move = in_file && gate.may_try(answers());
+    let try_move = in_file && gate.may_try((counts.answers)());
+    let refusals_before = (counts.refusals)();
     let key = mark_key(places, fresh, marks_on_device, try_move)?;
     if try_move {
         // Counted after the try: its own answers are no sign the keychain answers again.
         let moved = places.noted().ok().flatten() == Some(MarkKeyPlace::Keychain);
-        gate.tried(moved, answers());
+        gate.tried(moved, (counts.refusals)() > refusals_before, (counts.answers)());
     }
     Ok(key)
 }
@@ -402,7 +471,8 @@ pub async fn secrets_mark_key(app: tauri::AppHandle, fresh: String, marks_on_dev
         let credentials = app.store(CREDENTIALS_STORE).map_err(|e| e.to_string())?;
         // Under the lock: of two windows starting at once, one tries.
         let answers = || KEYCHAIN_ANSWERS.load(std::sync::atomic::Ordering::SeqCst);
-        mark_key_moving(&AppMarkKeyPlaces { app: &app, settings, credentials }, &fresh, marks_on_device, &MOVE_GATE, &answers)
+        let refusals = || KEYCHAIN_REFUSALS.load(std::sync::atomic::Ordering::SeqCst);
+        mark_key_moving(&AppMarkKeyPlaces { app: &app, settings, credentials }, &fresh, marks_on_device, &MOVE_GATE, &KeychainCounts { answers: &answers, refusals: &refusals })
     })
     .await
 }
@@ -464,17 +534,17 @@ mod tests {
         body: String,
         command: bool,
         is_async: bool,
+        /// It takes `self`: what a method call (`.name(`) can mean.
+        method: bool,
     }
 
-    /// Every function of the app's sources, and the names each file takes in
-    /// with `use` (name -> module path it comes from). Test modules are left out.
-    /// Per module: each name it takes in with `use`, and the module path it comes from.
-    type Imports = std::collections::HashMap<Vec<String>, Vec<(String, Vec<String>)>>;
+    /// Per module: each name it takes in with `use`, the module path it comes from, and its name there (`*`: all of them).
+    type Imports = std::collections::HashMap<Vec<String>, Vec<(String, Vec<String>, String)>>;
 
-    fn sources() -> (Vec<Function>, Imports) {
+    /// The app's sources: each file's module path and text.
+    fn app_files() -> Vec<(Vec<String>, String)> {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut found = Vec::new();
-        let mut imports = std::collections::HashMap::new();
+        let mut files = Vec::new();
         for file in walkdir::WalkDir::new(&root).into_iter().filter_map(Result::ok) {
             if file.path().extension().and_then(|e| e.to_str()) != Some("rs") {
                 continue;
@@ -484,26 +554,33 @@ mod tests {
             if matches!(module.last().map(String::as_str), Some("mod" | "lib" | "main")) {
                 module.pop();
             }
-            let text = std::fs::read_to_string(file.path()).unwrap();
+            files.push((module, std::fs::read_to_string(file.path()).unwrap()));
+        }
+        files
+    }
+
+    fn sources(files: &[(Vec<String>, String)]) -> (Vec<Function>, Imports, Vec<String>) {
+        let mut found = Vec::new();
+        let mut imports = std::collections::HashMap::new();
+        let mut unparsed = Vec::new();
+        for (module, text) in files {
+            let module = module.clone();
             let text = text.split("#[cfg(test)]\nmod tests").next().unwrap();
-            // `use a::b::{c, d};` and `use a::b::c;`: the names this file calls without a path.
+            // Every `use` of the file, over as many lines as it takes: the names it calls without a path.
             let mut taken = Vec::new();
-            for line in text.lines().map(str::trim).filter(|l| l.starts_with("use ") || l.starts_with("pub use ") || l.starts_with("pub(crate) use ")) {
-                let path = line.split("use ").nth(1).unwrap_or("").trim_end_matches(';');
-                let (base, names) = match path.split_once("::{") {
-                    Some((base, rest)) => (base, rest.trim_end_matches('}').split(',').map(|n| n.trim().to_string()).collect::<Vec<_>>()),
-                    None => match path.rsplit_once("::") {
-                        Some((base, name)) => (base, vec![name.to_string()]),
-                        None => continue,
-                    },
+            let mut rest = text;
+            while let Some(at) = find_use(rest) {
+                let statement = &rest[at..];
+                let Some(end) = statement.find(';') else {
+                    unparsed.push(format!("{}: a use without its end", module.join("::")));
+                    break;
                 };
-                let resolved = resolve(&module, base);
-                for name in names {
-                    let name = name.split(" as ").next().unwrap_or("").trim().to_string();
-                    if !name.is_empty() {
-                        taken.push((name, resolved.clone()));
-                    }
+                let tree = statement[..end].split_once("use ").map(|(_, tree)| tree).unwrap_or("");
+                let tree: String = tree.split_whitespace().collect::<Vec<_>>().join(" ");
+                if !use_tree(&module, "", &tree, &mut taken) {
+                    unparsed.push(format!("{}: use {tree}", module.join("::")));
                 }
+                rest = &statement[end + 1..];
             }
             imports.insert(module.clone(), taken);
             let lines: Vec<&str> = text.lines().collect();
@@ -520,10 +597,136 @@ mod tests {
             }
             for (n, (i, name, command, is_async)) in starts.iter().enumerate() {
                 let end = starts.get(n + 1).map(|s| s.0).unwrap_or(lines.len());
-                found.push(Function { module: module.clone(), name: name.clone(), body: lines[*i..end].join("\n"), command: *command, is_async: *is_async });
+                let body = lines[*i..end].join("\n");
+                let signature = body.split_once('(').map(|(_, rest)| rest.split(')').next().unwrap_or("")).unwrap_or("");
+                let method = signature.trim_start().trim_start_matches('&').trim_start_matches("mut ").starts_with("self");
+                found.push(Function { module: module.clone(), name: name.clone(), body, command: *command, is_async: *is_async, method });
             }
         }
-        (found, imports)
+        (found, imports, unparsed)
+    }
+
+    /// `text` without its comments and the contents of its string literals (each left as `""`).
+    fn code_only(text: &str) -> String {
+        let chars: Vec<char> = text.chars().collect();
+        let mut out = String::with_capacity(text.len());
+        let mut i = 0;
+        while i < chars.len() {
+            match chars[i] {
+                '/' if chars.get(i + 1) == Some(&'/') => {
+                    while i < chars.len() && chars[i] != '\n' {
+                        i += 1;
+                    }
+                }
+                '/' if chars.get(i + 1) == Some(&'*') => {
+                    i += 2;
+                    while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                        i += 1;
+                    }
+                    i += 2;
+                }
+                'r' if chars.get(i + 1) == Some(&'#') || (chars.get(i + 1) == Some(&'"') && (i == 0 || !(chars[i - 1].is_alphanumeric() || chars[i - 1] == '_'))) => {
+                    // A raw string: r"…" or r#"…"#.
+                    let mut j = i + 1;
+                    let mut hashes = 0;
+                    while chars.get(j) == Some(&'#') {
+                        hashes += 1;
+                        j += 1;
+                    }
+                    if chars.get(j) != Some(&'"') {
+                        out.push(chars[i]);
+                        i += 1;
+                        continue;
+                    }
+                    j += 1;
+                    let close: String = std::iter::once('"').chain(std::iter::repeat_n('#', hashes)).collect();
+                    let rest: String = chars[j..].iter().collect();
+                    let end = rest.find(&close).map(|at| j + rest[..at].chars().count() + close.chars().count()).unwrap_or(chars.len());
+                    out.push_str("\"\"");
+                    i = end;
+                }
+                '"' => {
+                    i += 1;
+                    while i < chars.len() && chars[i] != '"' {
+                        if chars[i] == '\\' {
+                            i += 1;
+                        }
+                        i += 1;
+                    }
+                    i += 1;
+                    out.push_str("\"\"");
+                }
+                c => {
+                    out.push(c);
+                    i += 1;
+                }
+            }
+        }
+        out
+    }
+
+    /// Where the next `use` statement of `text` begins: at the start of a line, after `pub`/`pub(crate)`.
+    fn find_use(text: &str) -> Option<usize> {
+        let mut offset = 0;
+        for line in text.split_inclusive('\n') {
+            let trimmed = line.trim_start();
+            let body = trimmed.strip_prefix("pub(crate) ").or_else(|| trimmed.strip_prefix("pub ")).unwrap_or(trimmed);
+            if body.starts_with("use ") {
+                return Some(offset + (line.len() - trimmed.len()));
+            }
+            offset += line.len();
+        }
+        None
+    }
+
+    /// The names a use tree takes in, below `prefix`: (name here, module it comes from, its name there).
+    /// False where the tree cannot be read; the guard then fails rather than miss a way.
+    fn use_tree(module: &[String], prefix: &str, tree: &str, taken: &mut Vec<(String, Vec<String>, String)>) -> bool {
+        let tree = tree.trim();
+        let joined = |part: &str| if prefix.is_empty() { part.to_string() } else { format!("{prefix}::{part}") };
+        if let Some(open) = tree.find('{') {
+            if !tree.ends_with('}') {
+                return false;
+            }
+            let base = tree[..open].trim().trim_end_matches("::");
+            let inner = &tree[open + 1..tree.len() - 1];
+            let mut depth = 0;
+            let mut start = 0;
+            let mut parts = Vec::new();
+            for (i, c) in inner.char_indices() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    ',' if depth == 0 => {
+                        parts.push(&inner[start..i]);
+                        start = i + 1;
+                    }
+                    _ => {}
+                }
+            }
+            parts.push(&inner[start..]);
+            let below = if base.is_empty() { prefix.to_string() } else { joined(base) };
+            return parts.into_iter().filter(|p| !p.trim().is_empty()).all(|part| use_tree(module, &below, part, taken));
+        }
+        let (path, alias) = match tree.split_once(" as ") {
+            Some((path, alias)) => (path.trim(), Some(alias.trim())),
+            None => (tree, None),
+        };
+        let whole = joined(path);
+        let (from, name) = match whole.rsplit_once("::") {
+            Some((from, name)) => (from.to_string(), name.to_string()),
+            None => (String::new(), whole.clone()),
+        };
+        if !name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '*') || name.is_empty() {
+            return false;
+        }
+        if name == "self" {
+            let (parent, last) = from.rsplit_once("::").unwrap_or(("", from.as_str()));
+            taken.push((alias.unwrap_or(last).to_string(), resolve(module, parent), last.to_string()));
+            return true;
+        }
+        taken.push((alias.unwrap_or(&name).to_string(), resolve(module, &from), name));
+        true
     }
 
     /// A path written in `module` (`crate::a::b`, `super::c`, `self::d`, `e::f`) as a module path of the crate.
@@ -552,94 +755,117 @@ mod tests {
         out
     }
 
-    /// No command that runs on the main thread reaches the keychain, directly
-    /// or through any function of the app (finding F74 of the release list):
-    /// while the system's dialog was open, every window stood still. Calls are
-    /// resolved by module path, `use` and the calling file — never skipped by
-    /// name, so a common name cannot hide a real way there.
-    #[test]
-    fn no_synchronous_command_reaches_the_keychain() {
-        let (functions, imports) = sources();
-        // Which functions a call of `name`, written with `path` before it (or none), in `module` can mean.
+    /// What the guard finds in `files`: the commands that reach the keychain
+    /// synchronously, all that reach it, every function that does, and the uses it cannot read.
+    struct Findings {
+        synchronous: Vec<String>,
+        commands: Vec<String>,
+        reaching: Vec<String>,
+        unparsed: Vec<String>,
+    }
+
+    fn analyse(files: &[(Vec<String>, String)]) -> Findings {
+        let (functions, imports, unparsed) = sources(files);
+        let in_module = |m: &[String], name: &str| functions.iter().enumerate().filter(|(_, f)| f.name == name && f.module == m).map(|(i, _)| i).collect::<Vec<_>>();
+        // What `name` means in `module` through its uses: an import of that name, or a glob.
+        let imported = |module: &[String], name: &str| -> Vec<usize> {
+            let mut found = Vec::new();
+            for (taken, from, there) in imports.get(module).into_iter().flatten() {
+                if taken == name {
+                    found.extend(in_module(from, there));
+                } else if taken == "*" {
+                    found.extend(in_module(from, name));
+                }
+            }
+            found
+        };
+        // The modules a path's first segment names through this file's uses (`oauth::forget`, `Store::open`).
+        let imported_module = |module: &[String], first: &str| -> Vec<Vec<String>> {
+            imports.get(module).into_iter().flatten().filter(|(taken, _, _)| taken == first).map(|(_, from, there)| {
+                let mut whole = from.clone();
+                whole.push(there.clone());
+                whole
+            }).collect()
+        };
+        // Which functions a mention of `name`, written with `path` before it (or none), in `module` can mean.
         let targets = |module: &[String], path: Option<&str>, name: &str| -> Vec<usize> {
-            let in_module = |m: &[String]| functions.iter().enumerate().filter(|(_, f)| f.name == name && f.module == m).map(|(i, _)| i).collect::<Vec<_>>();
             match path {
-                Some("Self") => in_module(module),
+                Some(".") => in_module(module, name).into_iter().filter(|&i| functions[i].method).collect(),
+                Some("Self") => in_module(module, name),
                 Some(path) => {
-                    // `a::b::name(`: the module `a::b` as written here, or at the crate's top level.
-                    let mut found = in_module(&resolve(module, path));
-                    if found.is_empty() {
-                        found = in_module(&resolve(&[], path));
+                    let (first, rest) = path.split_once("::").unwrap_or((path, ""));
+                    let mut found = in_module(&resolve(module, path), name);
+                    found.extend(in_module(&resolve(&[], path), name));
+                    for base in imported_module(module, first) {
+                        let mut whole = base;
+                        whole.extend(rest.split("::").filter(|p| !p.is_empty()).map(str::to_string));
+                        found.extend(in_module(&whole, name));
+                        // A type's function: one of that name where the type comes from.
+                        found.extend(in_module(&whole[..whole.len().saturating_sub(1)], name));
                     }
-                    // `oauth::forget(` where this file took `oauth` in with `use`.
-                    if found.is_empty() {
-                        let (first, rest) = path.split_once("::").unwrap_or((path, ""));
-                        for (taken, from) in imports.get(module).into_iter().flatten() {
-                            if taken == first {
-                                let mut whole = from.clone();
-                                whole.push(first.to_string());
-                                whole.extend(rest.split("::").filter(|p| !p.is_empty()).map(str::to_string));
-                                found.extend(in_module(&whole));
-                            }
-                        }
-                    }
-                    // A type's function (`Store::open`): a function of that name in the modules this file takes the type from.
-                    if found.is_empty() && path.chars().next().is_some_and(char::is_uppercase) {
-                        let first = path.split("::").next().unwrap_or(path);
-                        for (taken, from) in imports.get(module).into_iter().flatten() {
-                            if taken == first {
-                                found.extend(in_module(from));
-                            }
-                        }
-                        found.extend(in_module(module));
+                    if first.chars().next().is_some_and(char::is_uppercase) {
+                        found.extend(in_module(module, name));
                     }
                     found
                 }
                 None => {
-                    let own = in_module(module);
+                    let own = in_module(module, name);
                     if !own.is_empty() {
                         return own;
                     }
-                    imports.get(module).into_iter().flatten().filter(|(taken, _)| taken == name).flat_map(|(_, from)| in_module(from)).collect()
+                    imported(module, name)
                 }
             }
         };
-        // Every call in a body: the name, and the path written before it.
-        let calls = |body: &str| -> Vec<(Option<String>, String)> {
+        // Every mention of a name in a body — a call, or a function handed on as a value — and the path written before it.
+        // Comments and string literals are no mention.
+        let mentions = |body: &str| -> Vec<(Option<String>, String)> {
+            let chars: Vec<char> = code_only(body).chars().collect();
+            let word = |c: char| c.is_alphanumeric() || c == '_';
             let mut out = Vec::new();
-            let bytes: Vec<char> = body.chars().collect();
             let mut i = 0;
-            while i < bytes.len() {
-                if bytes[i] == '(' && i > 0 {
-                    let mut j = i;
-                    while j > 0 && (bytes[j - 1].is_alphanumeric() || bytes[j - 1] == '_') {
-                        j -= 1;
-                    }
-                    let name: String = bytes[j..i].iter().collect();
-                    let before = if j > 0 { bytes[j - 1] } else { ' ' };
-                    if !name.is_empty() && before == '.' {
-                        // A method: one of that name in the calling module (its impls), the most it can be told by text.
-                        out.push((Some("Self".to_string()), name));
-                    } else if !name.is_empty() && !name.chars().next().unwrap().is_ascii_digit() && before != '!' {
-                        let mut k = j;
-                        while k >= 2 && bytes[k - 1] == ':' && bytes[k - 2] == ':' {
-                            k -= 2;
-                            while k > 0 && (bytes[k - 1].is_alphanumeric() || bytes[k - 1] == '_') {
-                                k -= 1;
-                            }
-                        }
-                        let path: String = bytes[k..j].iter().collect();
-                        let path = path.trim_end_matches("::");
-                        out.push(((!path.is_empty()).then(|| path.to_string()), name));
+            while i < chars.len() {
+                if !word(chars[i]) || (i > 0 && word(chars[i - 1])) {
+                    i += 1;
+                    continue;
+                }
+                let start = i;
+                while i < chars.len() && word(chars[i]) {
+                    i += 1;
+                }
+                let name: String = chars[start..i].iter().collect();
+                if name.chars().next().unwrap().is_ascii_digit() || (i < chars.len() && (chars[i] == '!' || (chars[i] == ':' && chars.get(i + 1) == Some(&':')))) {
+                    continue;
+                }
+                let before = if start > 0 { chars[start - 1] } else { ' ' };
+                if before == '.' {
+                    // A method: one of that name in the calling module (its impls), the most it can be told by text.
+                    out.push((Some(".".to_string()), name));
+                    continue;
+                }
+                let mut k = start;
+                while k >= 2 && chars[k - 1] == ':' && chars[k - 2] == ':' {
+                    k -= 2;
+                    while k > 0 && word(chars[k - 1]) {
+                        k -= 1;
                     }
                 }
-                i += 1;
+                let path: String = chars[k..start].iter().collect();
+                let path = path.trim_end_matches("::");
+                out.push(((!path.is_empty()).then(|| path.to_string()), name));
             }
             out
         };
         let touches = |f: &Function| f.body.contains("keyring::") || f.body.contains("keyring::Entry");
         let mut reaching: Vec<bool> = functions.iter().map(touches).collect();
-        let edges: Vec<Vec<usize>> = functions.iter().map(|f| calls(&f.body).into_iter().flat_map(|(path, name)| targets(&f.module, path.as_deref(), &name)).collect()).collect();
+        // A body's own name and its parameters are no mention of another function.
+        let edges: Vec<Vec<usize>> = functions
+            .iter()
+            .map(|f| {
+                let body = f.body.split_once(&format!("fn {}", f.name)).map(|(_, rest)| rest).unwrap_or(&f.body);
+                mentions(body).into_iter().flat_map(|(path, name)| targets(&f.module, path.as_deref(), &name)).collect()
+            })
+            .collect();
         let mut grew = true;
         while grew {
             grew = false;
@@ -651,12 +877,36 @@ mod tests {
             }
         }
         let name_of = |i: usize| format!("{}::{}", functions[i].module.join("::"), functions[i].name);
-        let synchronous: Vec<String> = (0..functions.len()).filter(|&i| functions[i].command && !functions[i].is_async && reaching[i]).map(name_of).collect();
-        if std::env::var_os("PLAINVA_KEYCHAIN_GUARD_LIST").is_some() {
-            let commands: Vec<String> = (0..functions.len()).filter(|&i| functions[i].command && reaching[i]).map(name_of).collect();
-            eprintln!("commands that reach the keychain: {commands:?}");
+        if let Some(which) = std::env::var_os("PLAINVA_KEYCHAIN_GUARD_WHY") {
+            for (i, callees) in edges.iter().enumerate() {
+                if name_of(i) == which.to_string_lossy() {
+                    let via: Vec<String> = callees.iter().filter(|&&c| reaching[c]).map(|&c| name_of(c)).collect();
+                    eprintln!("{} reaches the keychain through {via:?}", name_of(i));
+                }
+            }
         }
-        assert!(synchronous.is_empty(), "commands that reach the keychain on the main thread: {synchronous:?}");
+        Findings {
+            synchronous: (0..functions.len()).filter(|&i| functions[i].command && !functions[i].is_async && reaching[i]).map(name_of).collect(),
+            commands: (0..functions.len()).filter(|&i| functions[i].command && reaching[i]).map(name_of).collect(),
+            reaching: (0..functions.len()).filter(|&i| reaching[i]).map(name_of).collect(),
+            unparsed,
+        }
+    }
+
+    /// No command that runs on the main thread reaches the keychain, directly
+    /// or through any function of the app (finding F74 of the release list):
+    /// while the system's dialog was open, every window stood still. Calls and
+    /// functions handed on as values are resolved by module path, `use` (over
+    /// any number of lines) and the calling module — never skipped by name;
+    /// a use the guard cannot read fails it rather than hide a way.
+    #[test]
+    fn no_synchronous_command_reaches_the_keychain() {
+        let found = analyse(&app_files());
+        assert!(found.unparsed.is_empty(), "uses the guard cannot read, so it cannot follow what they take in: {:?}", found.unparsed);
+        if std::env::var_os("PLAINVA_KEYCHAIN_GUARD_LIST").is_some() {
+            eprintln!("commands that reach the keychain: {:?}", found.commands);
+        }
+        assert!(found.synchronous.is_empty(), "commands that reach the keychain on the main thread: {:?}", found.synchronous);
         // The guard sees what it is meant to see.
         for known in [
             "secure_store::keychain_get",
@@ -667,8 +917,24 @@ mod tests {
             "mcp_client::registry::mcp_client_remove",
             "mcp_client::oauth::mcp_client_oauth_sign_out",
         ] {
-            assert!((0..functions.len()).any(|i| reaching[i] && name_of(i) == known), "{known} is not seen to reach the keychain");
+            assert!(found.commands.iter().any(|c| c == known), "{known} is not seen to reach the keychain");
         }
+    }
+
+    /// The guard on code it must not miss: a function taken in by a use over
+    /// several lines, one handed on as a value, and a use it cannot read.
+    #[test]
+    fn the_keychain_guard_follows_multi_line_uses_and_function_values_and_fails_on_what_it_cannot_read() {
+        let store = (vec!["secure_store".to_string()], "pub(crate) fn read_slot(key: &str) -> Option<String> {\n    keyring::Entry::new(\"s\", key).ok()?.get_password().ok()\n}\n".to_string());
+        let module = |name: &str, text: &str| (vec![name.to_string()], text.to_string());
+        let multi_line = module("a", "use crate::{\n    secure_store::{\n        read_slot,\n    },\n};\n\n#[tauri::command]\npub fn a_get(key: String) -> Option<String> {\n    read_slot(&key)\n}\n");
+        let value = module("b", "#[tauri::command]\npub fn b_get(key: String) -> Option<String> {\n    let f = crate::secure_store::read_slot;\n    f(&key)\n}\n");
+        let aliased = module("c", "use crate::secure_store::read_slot as fetch;\n\n#[tauri::command]\npub fn c_get(key: String) -> Option<String> {\n    fetch(&key)\n}\n");
+        let found = analyse(&[store.clone(), multi_line, value, aliased]);
+        assert_eq!(found.synchronous, vec!["a::a_get".to_string(), "b::b_get".to_string(), "c::c_get".to_string()]);
+        assert!(found.reaching.iter().any(|f| f == "secure_store::read_slot"));
+        let broken = module("d", "use crate::secure_store::{read_slot;\n");
+        assert!(!analyse(&[store, broken]).unparsed.is_empty());
     }
 
     /// The keychain runs on a thread of its own: the caller's thread goes on
@@ -760,6 +1026,8 @@ mod tests {
         keychain_writes: usize,
         /// Every request that reached the keychain, answered or not.
         keychain_asks: usize,
+        /// Writes the person turned down (`keychain_refuses`), as the platform reports them.
+        keychain_refusals: u64,
     }
 
     #[derive(Clone)]
@@ -813,7 +1081,11 @@ mod tests {
                     d.keychain_asks += 1;
                 }
                 match place {
-                MarkKeyPlace::Keychain if d.keychain_silent || d.keychain_refuses => Err("keychain does not take it".to_string()),
+                MarkKeyPlace::Keychain if d.keychain_silent => Err("keychain does not take it".to_string()),
+                MarkKeyPlace::Keychain if d.keychain_refuses => {
+                    d.keychain_refusals += 1;
+                    Err("keychain does not take it".to_string())
+                }
                 MarkKeyPlace::Keychain => {
                     d.keychain_writes += 1;
                     d.keychain = Some(serde_json::Value::String(key.to_string()));
@@ -1069,7 +1341,9 @@ mod tests {
         let gate = MoveGate::new();
         let answers = std::sync::atomic::AtomicU64::new(0);
         let count = || answers.load(std::sync::atomic::Ordering::SeqCst);
-        let ask = || locked(|| mark_key_moving(&places, &fresh(0), true, &gate, &count));
+        let none = || 0;
+        let counts = KeychainCounts { answers: &count, refusals: &none };
+        let ask = || locked(|| mark_key_moving(&places, &fresh(0), true, &gate, &counts));
         assert_eq!(ask(), Ok(fresh(7)));
         let tried = places.device.lock().unwrap().keychain_asks;
         assert!(tried > 0);
@@ -1086,51 +1360,110 @@ mod tests {
     }
 
     #[test]
-    fn a_dialog_turned_down_asks_for_no_new_one_by_itself() {
+    fn a_dialog_turned_down_asks_for_no_new_one_in_this_run() {
+        // The person turns the move's dialog down, and the platform says so.
         let places = Places::new(Device { keychain_refuses: true, ..in_the_file() }, 0);
         let gate = MoveGate::new();
         let answers = std::sync::atomic::AtomicU64::new(0);
         let count = || answers.load(std::sync::atomic::Ordering::SeqCst);
+        let refused = || places.device.lock().unwrap().keychain_refusals;
+        let counts = KeychainCounts { answers: &count, refusals: &refused };
         for _ in 0..5 {
-            assert_eq!(locked(|| mark_key_moving(&places, &fresh(0), true, &gate, &count)), Ok(fresh(7)));
+            assert_eq!(locked(|| mark_key_moving(&places, &fresh(0), true, &gate, &counts)), Ok(fresh(7)));
+            // Every secrets round reads a password meanwhile: the keychain answers.
+            answers.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
         let device = places.device.lock().unwrap();
-        // One try: the write the person turned down; the file stays the place.
-        assert_eq!(device.keychain_asks, 1);
+        assert_eq!(device.keychain_asks, 1, "one dialog: the one turned down");
         assert_eq!((device.note, device.file.clone()), (Some(MarkKeyPlace::File), Some(serde_json::Value::String(fresh(7)))));
     }
 
     #[test]
-    fn keychain_steps_run_in_the_order_they_arrive() {
-        // The first step holds the keychain (its dialog open); forty more arrive meanwhile, one right after the other.
+    fn a_move_is_tried_at_most_three_times_in_one_run() {
+        // A keychain that answers other requests and never takes this one, without a refusal the platform names.
+        let places = Places::new(Device { keychain_silent: true, ..in_the_file() }, 0);
+        let gate = MoveGate::new();
+        let answers = std::sync::atomic::AtomicU64::new(0);
+        let count = || answers.load(std::sync::atomic::Ordering::SeqCst);
+        let none = || 0;
+        let counts = KeychainCounts { answers: &count, refusals: &none };
+        for _ in 0..10 {
+            assert_eq!(locked(|| mark_key_moving(&places, &fresh(0), true, &gate, &counts)), Ok(fresh(7)));
+            answers.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        // Each try asks the keychain once (its write, which it does not take).
+        assert_eq!(places.device.lock().unwrap().keychain_asks as u32, MOVE_TRIES);
+    }
+
+    #[test]
+    fn the_person_s_no_is_told_from_a_keychain_that_does_not_answer() {
+        let platform = |text: &str| keyring::Error::PlatformFailure(text.to_string().into());
+        assert!(is_refusal(&platform("The user canceled the operation. (-128)")));
+        assert!(is_refusal(&keyring::Error::NoStorageAccess("Prompt dismissed".to_string().into())));
+        assert!(is_refusal(&platform("access denied")));
+        assert!(!is_refusal(&platform("org.freedesktop.DBus.Error.ServiceUnknown")));
+        assert!(!is_refusal(&keyring::Error::NoEntry));
+    }
+
+    /// A command as Tauri runs it: an async task, spawned as its message
+    /// arrives, whose body reaches the keychain once it runs — a generic
+    /// keychain command through `off_main`, a command of the AI egress or the
+    /// MCP client through `read_slot`/`write_slot` (`on_lane`).
+    fn command(generic: bool, step: impl FnOnce() + Send + 'static) -> tauri::async_runtime::JoinHandle<Result<(), String>> {
+        tauri::async_runtime::spawn(async move {
+            if generic {
+                off_main(move || {
+                    step();
+                    Ok(())
+                })
+                .await
+            } else {
+                on_lane(move || {
+                    step();
+                    Ok(())
+                })
+            }
+        })
+    }
+
+    #[test]
+    fn keychain_steps_run_in_the_order_the_commands_arrive() {
+        // The first command holds the keychain (its dialog open); forty more arrive meanwhile,
+        // a millisecond apart, of both kinds — the order their messages came in is the order they run.
         let order = Arc::new(Mutex::new(Vec::new()));
         let (release, released) = std::sync::mpsc::channel::<()>();
         let first = {
             let order = Arc::clone(&order);
-            tauri::async_runtime::spawn(off_main(move || {
+            command(true, move || {
                 let _ = released.recv();
                 order.lock().unwrap().push(0);
-                Ok(())
-            }))
-        };
-        let steps: Vec<_> = (1..=40)
-            .map(|n| {
-                let order = Arc::clone(&order);
-                tauri::async_runtime::spawn(off_main(move || {
-                    order.lock().unwrap().push(n);
-                    Ok(())
-                }))
             })
-            .collect();
+        };
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let mut commands = Vec::new();
+        for n in 1..=40 {
+            let order = Arc::clone(&order);
+            commands.push(command(n % 2 == 0, move || order.lock().unwrap().push(n)));
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
         std::thread::sleep(std::time::Duration::from_millis(30));
         release.send(()).unwrap();
         tauri::async_runtime::block_on(async {
             first.await.unwrap().unwrap();
-            for step in steps {
-                step.await.unwrap().unwrap();
+            for command in commands {
+                command.await.unwrap().unwrap();
             }
         });
         assert_eq!(*order.lock().unwrap(), (0..=40).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_step_that_panics_leaves_the_queue_and_the_lock_to_the_next() {
+        // It panics while it holds the lock (`locked`), and so poisons it.
+        let panicked = tauri::async_runtime::block_on(off_main(|| -> Result<(), String> { panic!("a keychain step that panics") }));
+        assert!(panicked.is_err());
+        assert_eq!(tauri::async_runtime::block_on(off_main(|| Ok(7))), Ok(7));
+        assert_eq!(on_lane(|| Ok(8)), Ok(8));
     }
 
     #[test]
