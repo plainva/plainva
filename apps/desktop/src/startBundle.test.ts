@@ -7,7 +7,6 @@ import { readAiAppSettings } from "@plainva/core/ai";
 import type { AiSession } from "@plainva/ui/ai";
 import { barrelImports } from "../../../scripts/vite/barrelImports.mjs";
 import { PACKAGE_BARRELS } from "../../../scripts/vite/packageBarrels.mjs";
-import { localeArea, readLocaleAreas } from "../../../scripts/vite/localeAreas.mjs";
 
 /**
  * What keeps the start bundle small (performance plan L5), held where a change would loosen it unnoticed. The bundle
@@ -138,19 +137,3 @@ describe("named imports of the packages' entries go to the defining module in a 
   // Every value of every entry, bound as TypeScript binds it: `barrelBindings.test.ts` (review of L5, 2026-11-25).
 });
 
-describe("the locale files by area", () => {
-  it("cut each language into parts that are whole, apart, and fit together again", () => {
-    expect.hasAssertions();
-    const areas = readLocaleAreas();
-    expect(Object.keys(areas).sort()).toEqual(["ai", "mail", "settings"]);
-    const dir = join(UI, "locales");
-    for (const file of readdirSync(dir).filter((name) => name.endsWith(".json"))) {
-      const messages = JSON.parse(read(join(dir, file))) as Record<string, unknown>;
-      const parts = ["core", ...Object.keys(areas)].map((area) => localeArea(messages, area, areas));
-      const keys = parts.flatMap((part) => Object.keys(part));
-      expect(new Set(keys).size, file).toBe(keys.length);
-      expect(keys.sort(), file).toEqual(Object.keys(messages).sort());
-      expect(Object.assign({}, ...parts), file).toEqual(messages);
-    }
-  });
-});

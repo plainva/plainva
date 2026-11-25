@@ -34,6 +34,18 @@ file("pkg/clash/one.ts", "export const twice = 1;\n");
 file("pkg/clash/two.ts", "export const twice = 2;\n");
 file("pkg/clash/index.ts", 'export * from "./one";\nexport * from "./two";\n');
 file("pkg/broken.ts", "export const = ;\n");
+// `export { local as exported }` of a local binding (review of L5, round 2).
+file("pkg/rename/m.ts", "const local = 5;\nexport { local as exported };\n");
+file("pkg/rename/index.ts", 'export * from "./m";\n');
+// An ambiguity in a sub-barrel that the entry shadows with a name of its own: the language is fine with it.
+file("pkg/shadow/y.ts", "export const a = 1;\nexport const yOnly = 1;\n");
+file("pkg/shadow/z.ts", "export const a = 2;\nexport const zOnly = 2;\n");
+file("pkg/shadow/sub.ts", 'export * from "./y";\nexport * from "./z";\n');
+file("pkg/shadow/index.ts", 'export * from "./sub";\nexport const a = 0;\n');
+// One name exported by name from two modules: a syntax error of the language.
+file("pkg/dup/x.ts", "export const a = 1;\n");
+file("pkg/dup/y.ts", "export const a = 2;\n");
+file("pkg/dup/index.ts", 'export { a } from "./x";\nexport { a } from "./y";\n');
 const entry = file(
   "pkg/index.ts",
   [
@@ -54,6 +66,10 @@ const plugin = barrelImports({
   "@pkg/sideeffect": join(root, "pkg/sideeffect/index.ts"),
   "@pkg/clash": join(root, "pkg/clash/index.ts"),
   "@pkg/broken": join(root, "pkg/broken.ts"),
+  "@pkg/rename": join(root, "pkg/rename/index.ts"),
+  "@pkg/shadow": join(root, "pkg/shadow/index.ts"),
+  "@pkg/shadow/sub": join(root, "pkg/shadow/sub.ts"),
+  "@pkg/dup": join(root, "pkg/dup/index.ts"),
 }) as unknown as { transform(code: string, id: string): { code: string } | null };
 const rewrite = (code: string) => plugin.transform(code, join(root, "app/probe.ts"))?.code ?? code;
 const at = (rel: string) => JSON.stringify(join(root, rel));
@@ -137,6 +153,22 @@ describe("the build plugin's import forms", () => {
     expect.hasAssertions();
     expect(() => rewrite('import { twice } from "@pkg/clash";')).toThrow(/comes from two `export \*`/);
     expect(() => rewrite('import { anything } from "@pkg/broken";')).toThrow(/does not parse/);
+  });
+
+  it("binds `export { local as exported }` under the exported name", () => {
+    expect.hasAssertions();
+    expect(rewrite('import { exported } from "@pkg/rename";')).toBe(`import { exported } from ${at("pkg/rename/m.ts")};`);
+  });
+
+  it("lets an entry shadow an ambiguous name of a sub-barrel, and stops only at an import of the ambiguous name", () => {
+    expect.hasAssertions();
+    expect(rewrite('import { zOnly, a } from "@pkg/shadow";')).toBe(`import { zOnly } from ${at("pkg/shadow/z.ts")}; import { a } from ${at("pkg/shadow/index.ts")};`);
+    expect(() => rewrite('import { a } from "@pkg/shadow/sub";')).toThrow(/comes from two `export \*`/);
+  });
+
+  it("stops the build at a name exported twice by name", () => {
+    expect.hasAssertions();
+    expect(() => rewrite('import { a } from "@pkg/dup";')).toThrow(/is exported twice/);
   });
 
   it("keeps the lines of the file: every rewritten statement stays on its line", () => {

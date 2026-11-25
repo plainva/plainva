@@ -67,16 +67,38 @@ type Diff = (a: string, b: string) => readonly DiffChange[];
 let diff: Diff | null = null;
 let loading: Promise<void> | null = null;
 
-/** Loads the word diff of the merge package; resolves at once once it is there. */
-export function loadSuggestionDiff(): Promise<void> {
-  loading ??= import("@codemirror/merge").then((merge) => {
-    diff = merge.presentableDiff;
-  });
+/** The waits between the tries of one load: at once, after 250 ms, after 1 s. */
+const DIFF_RETRY_MS = [250, 1000] as const;
+
+/**
+ * Loads the word diff of the merge package; resolves at once once it is there. A load that fails is tried again a
+ * few times, and a load that gave up is not kept: the next ask tries anew (review of L5, 2026-11-25).
+ */
+export function loadSuggestionDiff(load: () => Promise<{ presentableDiff: Diff }> = () => import("@codemirror/merge")): Promise<void> {
+  if (diff) return Promise.resolve();
+  loading ??= (async () => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        diff = (await load()).presentableDiff;
+        return;
+      } catch (error) {
+        if (attempt >= DIFF_RETRY_MS.length) {
+          loading = null;
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, DIFF_RETRY_MS[attempt]));
+      }
+    }
+  })();
   return loading;
 }
 
-/** The changes between the two texts: the word diff, or until it has loaded the one stretch that differs. */
-function changesBetween(a: string, b: string): readonly DiffChange[] {
+/**
+ * The changes between the two texts for the DRAWING only: the word diff, or until it has loaded the one stretch
+ * between the common start and the common end. What is written — the chunks a proposal is made of — never comes from
+ * this stretch: `suggestionChunks` asks the word diff and nothing else.
+ */
+function drawnChanges(a: string, b: string): readonly DiffChange[] {
   if (diff) return diff(a, b);
   if (a === b) return [];
   let start = 0;
@@ -96,7 +118,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   if (base === null) return Decoration.none;
   const current = state.doc.toString();
   const ranges = [];
-  for (const change of changesBetween(base, current)) {
+  for (const change of drawnChanges(base, current)) {
     const gone = base.slice(change.fromA, change.toA);
     if (gone.length > 0) ranges.push(Decoration.widget({ widget: new DeletedWidget(gone), side: -1 }).range(change.fromB));
     if (change.toB > change.fromB) ranges.push(insertedMark.range(change.fromB, change.toB));
@@ -141,17 +163,21 @@ export function createSuggestMode() {
           decorationField,
           suggestTheme,
           EditorView.updateListener.of((update) => {
-            if (update.docChanged && onChunks) onChunks(suggestionChunks(update.state).length);
+            if (update.docChanged && onChunks) onChunks(drawnChunkCount(update.state));
           }),
         ]),
       });
       onChunks?.(0);
       if (!diff) {
-        void loadSuggestionDiff().then(() => {
-          if (suggestionBase(view.state) === null) return;
-          view.dispatch({ effects: diffLoaded.of(null) });
-          onChunks?.(suggestionChunks(view.state).length);
-        });
+        // A load that fails here is asked again by the send (`suggestionChunksReady`); the drawing stays coarse.
+        void loadSuggestionDiff().then(
+          () => {
+            if (suggestionBase(view.state) === null) return;
+            view.dispatch({ effects: diffLoaded.of(null) });
+            onChunks?.(drawnChunkCount(view.state));
+          },
+          () => undefined,
+        );
       }
     },
     /** Leaves the mode and puts the base back; the copy's edits are gone. */
@@ -171,17 +197,41 @@ export function suggestionBase(state: EditorState): string | null {
   return state.field(baseField, false) ?? null;
 }
 
+/** How many changes the count beside the mode shows: drawing only, coarse until the word diff is there. */
+function drawnChunkCount(state: EditorState): number {
+  const original = suggestionBase(state);
+  return original === null ? 0 : drawnChanges(original, state.doc.toString()).length;
+}
+
+/** The word diff is not loaded: a proposal is never made of anything else (review of L5, 2026-11-25). */
+export class SuggestionDiffNotLoaded extends Error {
+  constructor() {
+    super("suggestion-diff-not-loaded");
+    this.name = "SuggestionDiffNotLoaded";
+  }
+}
+
 /**
  * The changes between base and copy, as the shell writes them - base order,
- * front to back, one per changed clause rather than one per paragraph.
+ * front to back, one per changed clause rather than one per paragraph. Only
+ * from the word diff: before it is loaded this throws, and a shell asks
+ * `suggestionChunksReady`, which waits for it.
  */
 export function suggestionChunks(state: EditorState): SuggestionChunk[] {
   const original = suggestionBase(state);
   if (original === null) return [];
+  if (!diff) throw new SuggestionDiffNotLoaded();
   const current = state.doc.toString();
-  return changesBetween(original, current).map((change) => ({
+  return diff(original, current).map((change) => ({
     fromA: change.fromA,
     toA: change.toA,
     replacement: current.slice(change.fromB, change.toB),
   }));
+}
+
+/** The chunks of this state once the word diff is loaded (loading it, and trying again, where it is not). */
+export async function suggestionChunksReady(state: EditorState): Promise<SuggestionChunk[]> {
+  if (suggestionBase(state) === null) return [];
+  await loadSuggestionDiff();
+  return suggestionChunks(state);
 }

@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
 import { packageBarrels } from "../../scripts/vite/packageBarrels.mjs";
-import { localeAreas } from "../../scripts/vite/localeAreas.mjs";
 import { startChunk } from "../../scripts/vite/startChunk.mjs";
 import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
 import { e2eBuildDefine } from "./scripts/e2e-build-env.mjs";
@@ -16,7 +15,7 @@ export default defineConfig(({ mode }) => {
   if (mode === "test") pinTestTimeZone();
   return {
   // Named imports of the shared packages go to the defining module in a build; the locale files load by area (performance plan L5).
-  plugins: [packageBarrels(), localeAreas(), start.plugin, react()],
+  plugins: [packageBarrels(), start.plugin, react()],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   // The e2e build (`--mode e2e`, the smoke:prod script) also ships the fake
   // provider's standard Google client; every other mode gets nothing from it.

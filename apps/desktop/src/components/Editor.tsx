@@ -3290,11 +3290,14 @@ export const Editor: React.FC<{
   const finishCommentRound = useStableHandler((operation: CommentOperation) => {
     const session = sessionRef.current;
     if (!session || !activePath || !suggestingRef.current || !saveState.isActive()) return;
-    const { base, chunks } = session.suggestion();
-    if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(activePath, base, chunks, currentSuggestNote.current))) return;
-    suggestParkRef.current.delete(activePath);
-    forgetPark(activePath);
-    stopSuggesting();
+    const notePath = activePath;
+    void session.suggestion().then(({ base, chunks }) => {
+      if (sessionRef.current !== session || !suggestingRef.current || !saveState.isActive()) return;
+      if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(notePath, base, chunks, currentSuggestNote.current))) return;
+      suggestParkRef.current.delete(notePath);
+      forgetPark(notePath);
+      stopSuggesting();
+    }, reportingTo("suggestion:round"));
   });
   useEffect(() => {
     if (!commentOperations || !vaultPath || !activePath) return;
@@ -3303,10 +3306,13 @@ export const Editor: React.FC<{
   const sendSuggestions = useStableHandler(async () => {
     const session = sessionRef.current;
     if (!session || !activePath || !commentOperations) return;
-    const { base, chunks } = session.suggestion();
+    const copy = session.view.state.doc.toString();
+    // The proposal of this moment, from the word diff — waited for, never a coarser stand-in (review of L5).
+    let proposal: Awaited<ReturnType<typeof session.suggestion>>;
+    try { proposal = await session.suggestion(); } catch (error) { reportCommentFailure(error); return; }
+    const { base, chunks } = proposal;
     if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
     if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
-    const copy = session.view.state.doc.toString();
     const capturedNote = suggestNote;
     const current = () => saveState.isActive() && sessionRef.current === session && suggestingRef.current
       && session.view.state.doc.toString() === copy && currentSuggestNote.current === capturedNote;

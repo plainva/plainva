@@ -32,13 +32,8 @@ import {
   type SearchSort,
   type SearchSortKey,
 } from "@plainva/ui";
-import {
-  ActiveSearchModeSwitch,
-  ActiveSemanticCoverage,
-  FoundChip,
-  meaningActive,
-  useLocalEmbeddings,
-} from "@plainva/ui/ai";
+import { meaningActive, useLocalEmbeddings } from "@plainva/ui";
+import { deferredAiPart } from "../lib/deferredParts";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
@@ -47,6 +42,12 @@ import { FullTextDamageNotice, useSearchDamageNotice } from "../components/FullT
 import { mobileAiLoader } from "../services/ai/mobileAiLoader";
 import { SortSheet } from "../components/SortSheet";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
+
+// The parts of meaning search come with the AI: drawn once it is loaded, nothing before — the search itself loads no
+// code of the AI while the AI is off (review of L5, round 2, 2026-11-25).
+const ActiveSearchModeSwitch = deferredAiPart("ActiveSearchModeSwitch");
+const ActiveSemanticCoverage = deferredAiPart("ActiveSemanticCoverage");
+const FoundChip = deferredAiPart("FoundChip");
 
 /** First plain search term (no operators/exclusions) — the jump target. */
 const jumpTermOf = (q: string): string => {

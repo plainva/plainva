@@ -136,7 +136,7 @@ Since package L5 (2026-11-25) none of the three is in the start files of either 
 rule carries `"expected": "pass"` per shell: the gate fails the day one of them is back. A rule
 still to be met would say `"fail"` and be reported as a known failure until it is flipped, so a
 fixed rule is armed, never silently left loose (see "Start bundle (L5)" below). The locale file the start waits for is loaded dynamically and
-not counted (B2 of the plan names it; L5 splits it). Recorded 2026-11-10: desktop 7.37 MB in 98
+not counted (B2 of the plan names it). Recorded 2026-11-10: desktop 7.37 MB in 98
 start files (entry 88 KB), phone 8.40 MB in 60 (entry 1 079 KB) — more than the review's 7.3 MB,
 because this count takes every `modulepreload` and style sheet. Source characters of the
 forbidden families in the start files: `packages/ui/src/ai/` about 1.5 MB, `packages/core/src/ai/`
@@ -1153,8 +1153,8 @@ shells built with source maps; the baseline before is the release commit of 0.9.
 | Phone | after | 4 454 456 | 1 330 240 | 5 | 4 472 | 1 384 774 (451 292) |
 
 Desktop −49 %, phone −44 %. "Shortly after" is what the shell loads once its first picture stands, with nobody
-doing anything and the AI switched off (the parts loaded ahead while it idles, the locale areas' other parts are
-not among them: locale files are dynamic and not counted) — measured by the gate since the review of L5, so a
+doing anything and the AI switched off (the parts loaded ahead while it idles, and the language's locale file with the English one: they load before the first
+picture, but `index.html` does not name them, so the start bytes leave them out) — measured by the gate since the review of L5, so a
 saving that only moved bytes to a moment later shows as that. The three `mustNotStart` rules hold for the start and
 for that moment, in both shells. Both shells are still over the plan's 3.5 MB: what is left is listed at the end.
 
@@ -1226,16 +1226,16 @@ way the app does (reading view with its fallback, the editor's preview, mermaid 
 error messages) with both versions and fails on any other difference; the review's comparison over 142 formulas
 from the test vaults found the same.
 
-**Locale files by area.** The source stays one file per language. `scripts/vite/localeAreas.mjs`
-cuts `<lang>.json?area=<name>` at build time: `ai`, `settings` (with `settingsSync`) and `mail`
-(`packages/ui/src/localeAreas.json`), `core` is everything else. The areas load side by side with the core, and the
-start waits for all of them (review of L5): a message the start puts up reads its text when it is made, and with
-the areas landing a moment after the core such a message stayed empty. A language switched to waits for all of its
-areas too. An area that fails to load is tried again — at once a few times, then on the next ask (a language
-switch, the window coming back online) — never kept as a failure until a restart (`lib/localeAreaLoads.ts`). A
-missing key reads as the default text of its call when it has one (`t(key, { defaultValue })`, `t(key, "…")`),
-else as the key; `i18nDefaults.test.ts` puts every call with a default in the sources through the real set-up. Not
-counted by the gate (the files load dynamically).
+**Locale files: one per language, as before.** L5 first cut each language into areas (`ai`, `settings`, `mail`,
+the rest) at build time, loaded beside the core. The second review measured what that brought: nothing. The locale
+files were never part of the static start (they load with `i18nReady`, before the first picture, and the gate does
+not count them), all areas arrived in the same millisecond as the core, and a start that waits for all of them —
+which a message the start puts up needs — waits just as long. What was left was four requests instead of one, a
+build plugin, a second error mode (an area that never loads: the app starts a second later and the settings read
+raw keys) and special handling of missing keys. So the split is gone: one file per language, as on `main`. The
+fault the special handling caused stays fixed: a call with a default text (`t(key, { defaultValue })`,
+`t(key, "…")`) reads its default when the key is missing — i18next's own behaviour again, held over every such call
+in the sources by `i18nDefaults.test.ts`.
 
 **Ways to keep it.** A part loads through `lazyPart` (`packages/ui/src/lib/lazyPart.ts`): one
 component per loader, drawn at once once it was loaded ahead, and a failed load is shown by the
@@ -1245,6 +1245,23 @@ part renders, so no shared function runs at module load (moduleInitBoundary.test
 `prefetch` (the phone's frequent screens, the desktop's database viewer and local graph — never a
 part of the AI) is loaded while the app idles after the start. What these loads carry is measured by the gate as
 "shortly after the start" (below), so a part loaded ahead cannot bring the AI with it unnoticed.
+
+**What is written never depends on whether a chunk has loaded** (review of L5, round 2). A part loaded on demand may
+draw less until it is there — never write, index, queue or send something else. Every place L5 turned from static
+to loaded on demand that has an answer of its own until the load:
+
+| Place | Until the load | Why it cannot reach a file, the index, a queue or a request |
+|---|---|---|
+| The suggestion mode's word diff (`suggestMode.ts`) | the marks and the count drawn as one stretch | the chunks a proposal is made of come from the word diff only: `suggestionChunks` throws without it, `session.suggestion()` waits for it (and tries a failed load again) — `suggestModeDiffLoad.test.ts` |
+| A component of the harness (`aiComponent`, `deferredAiPart`) | draws nothing | a drawing; nothing of the AI acts while its module is not there |
+| The provider's name at a database (`useBaseAi`) | the provider's id | shown in the plan only; a run is the session's (`fillProperty`) |
+| The columns a run fills, a filter in words (`BaseViewer`, `BaseConfigPanel`, the phone's twins) | none offered | no door is drawn; the panels read the harness through `useAiModule`, so they draw again when it arrives |
+| The AI's session in the start (`desktopAiLoader`, `mobileAiLoader`) | `null`: what a window without the AI sees | every surface of the AI that opens asks for the session itself (the desktop's tab, the phone's AI screens); a routine, a confirmation, a write of the AI exist only in a session |
+| The switch at the phone's settings row (`SettingsScreen`) | an empty summary | a drawing |
+| A parked suggestion's block count on the phone (`NoteScreen`) | 0 in the banner | a drawing; resuming waits for the reconcile |
+
+The rest waits: the sync's and the workspace's modules, the mail transport, the PIM service, the intent directory's
+policy and the note's mail actions are awaited before their first use.
 
 **First use of a part loaded on demand** (this machine, headless Chromium, the chunk and the imports
 it adds, over a local server; median of 5): desktop AI host 110 ms, database viewer 110 ms, local
@@ -1269,13 +1286,21 @@ families may not be among it either. Two surfaces of the start loaded the harnes
 phone's system-assistant directory imported the AI's policy at the start, and the database viewer, which the
 desktop loads ahead, imported the column-fill helpers. The policy now loads when the directory is built (only while
 the AI is on); the database's AI parts moved into the harness (`ai/baseAiParts.tsx`, drawn through `aiComponent`),
-and no database, search or settings screen of the phone makes the session any more (`useMobileAiSession`).
+and no database, search or settings screen of the phone makes the session any more (`useMobileAiSession`). Opening
+a surface loads no code of the AI either (review of L5, round 2): the phone's search draws its meaning-search parts
+through `aiComponent`, and the desktop's settings mount the two AI pages — and load their code — the first time one
+of them is shown, not with the dialog (which loaded 222 modules of the AI before). The gate measures only the start
+and the moment after it, not the surfaces (follow-up in the maintainer's plan).
 
 **The build plugin, by the parser.** `barrelImports.mjs` reads every module with the parser the build uses (oxc,
 through Vite), not by text: an import inside a string, a template or a comment stays as it is, and a string that
 looks like a comment cannot hide the exports after it. An entry with an import for its effect alone is never
-stepped over. A form it cannot place — a name two `export *` hand on from different modules, `export =`, a module
-that does not parse — stops the build with the file and the reason. `barrelImports.test.ts` holds each input form;
+stepped over. A form it cannot place — an import of a name two `export *` hand on from different modules (a name
+an entry shadows is fine, as in the language), a name exported twice, `export =`, a module that does not parse —
+stops the build with the file and the reason. A module the entries reach only through their re-exports now runs only
+where something imports a name from it: `barrelLoadCode.test.ts` lists every such module that runs code at load
+(a statement, an import for its effect, an initializer that registers, installs, subscribes or touches a global)
+with why skipping it is safe, and fails on a new one. `barrelImports.test.ts` holds each input form;
 `barrelBindings.test.ts` binds every value export of all seven entries (over 5 000) through the type checker and
 fails where the plugin's target is another declaration than the entry's. The gate fails when a source module stands
 in more than one chunk of a build (it would run twice, with two copies of its state).

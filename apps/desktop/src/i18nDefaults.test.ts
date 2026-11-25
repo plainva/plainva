@@ -1,17 +1,16 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import i18n, { missingKey } from "@plainva/ui/i18n";
+import i18n from "@plainva/ui/i18n";
 import { AVAILABLE_THEMES } from "@plainva/ui";
 
 /**
  * A call with a default text shows that text when the key is in no locale file (review of L5, 2026-11-25).
  *
- * `i18n.ts` gives i18next a handler for missing keys, so that a key of an area still on its way reads as nothing
- * for that moment. i18next calls it for a call with a default text too, and hands the default as its second value;
- * the handler once passed over it, and `t("themes.names.win95", { defaultValue: "Windows 95" })` read as its key in
- * both shells' theme pickers. Here every call in the sources that carries a default text — dynamic keys with a probe
- * in place of each `${…}` — goes through the real i18n set-up.
+ * A handler for missing keys (`parseMissingKeyHandler`) once passed over the default i18next hands it, and
+ * `t("themes.names.win95", { defaultValue: "Windows 95" })` read as its key in both shells' theme pickers. Here every
+ * call in the sources that carries a default text — dynamic keys with a probe in place of each `${…}` — goes through
+ * the real i18n set-up, so no set-up of i18n can take the defaults away again unnoticed.
  */
 const ROOT = join(__dirname, "../../..");
 const SOURCES = ["apps/desktop/src", "apps/mobile/src", "packages/ui/src", "packages/core/src"];
@@ -77,8 +76,7 @@ describe("a call with a default text", () => {
 
   it("a missing key without a default reads as the key", () => {
     expect.hasAssertions();
-    expect(missingKey("palette.group.zzProbe")).toBe("palette.group.zzProbe");
-    expect(missingKey("palette.group.zzProbe", "Fallback")).toBe("Fallback");
     expect(i18n.t("palette.group.zzProbe")).toBe("palette.group.zzProbe");
+    expect(i18n.t("palette.group.zzProbe", "Fallback")).toBe("Fallback");
   });
 });
