@@ -50,7 +50,7 @@ const anyFn = () => new Proxy({} as Record<string, unknown>, {
 vi.mock("./syncService", () => {
   const service = anyFn();
   // What a close takes off the sync (`detachSync`): nothing runs here.
-  service.detachSync = () => ({ drain: async () => {}, place: null });
+  service.detachSync = () => ({ drain: async () => {}, place: null, running: false });
   return service;
 });
 vi.mock("./mobileWorkspaceSecurity", () => anyFn());

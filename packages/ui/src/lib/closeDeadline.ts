@@ -22,10 +22,13 @@ export const CLOSE_GIVE_UP_AFTER_MS = 30_000;
 export type CloseWaitStep =
   | { kind: "saving"; names: readonly string[] }
   | { kind: "sync"; vault: string }
-  | { kind: "opening"; vault: string };
+  | { kind: "opening"; vault: string }
+  // The index finishing its last step: the close has called the scan off, so this is short; nothing to say.
+  | { kind: "index" };
 
-/** The notice while it waits (texts 1–3). */
-export function closeWaitText(step: CloseWaitStep): string {
+/** The notice while it waits (texts 1–3); null where there is nothing the person would need to hear. */
+export function closeWaitText(step: CloseWaitStep): string | null {
+  if (step.kind === "index") return null;
   if (step.kind === "saving") {
     return step.names.length === 1 ? i18n.t("closing.savingWait", { name: step.names[0] }) : i18n.t("closing.savingWaitMany", { count: step.names.length });
   }
@@ -33,8 +36,9 @@ export function closeWaitText(step: CloseWaitStep): string {
   return i18n.t("closing.openingWait", { vault: step.vault });
 }
 
-/** What it says when it goes on without the step (texts 4–6). */
-export function closeGaveUpText(step: CloseWaitStep): string {
+/** What it says when it goes on without the step (texts 4–6); null where nothing is said. */
+export function closeGaveUpText(step: CloseWaitStep): string | null {
+  if (step.kind === "index") return null;
   if (step.kind === "saving") {
     return step.names.length === 1 ? i18n.t("closing.savingGaveUp", { name: step.names[0] }) : i18n.t("closing.savingGaveUpMany", { count: step.names.length });
   }
@@ -67,17 +71,18 @@ export async function waitWithDeadline(work: Promise<unknown>, step: () => Close
   let giveUpTimer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<"gave-up">((resolve) => {
     noticeTimer = setTimeout(() => {
-      notice = toast.progress(closeWaitText(step()));
+      const text = closeWaitText(step());
+      if (text !== null) notice = toast.progress(text);
     }, noticeAfter);
     giveUpTimer = setTimeout(() => resolve("gave-up"), giveUpAfter);
   });
   try {
     const outcome = await Promise.race([work.then(() => "done" as const), deadline]);
     if (outcome === "gave-up") {
-      const said = step();
+      const said = closeGaveUpText(step());
       if (notice !== null) toast.dismiss(notice);
       notice = null;
-      toast.warning(closeGaveUpText(said));
+      if (said !== null) toast.warning(said);
       // What it gave up on goes on by itself; a failure of it later is no failure of the close.
       work.catch(() => undefined);
     }

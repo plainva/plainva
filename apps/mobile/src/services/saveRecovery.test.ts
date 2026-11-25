@@ -102,7 +102,7 @@ function harness(vault: MobileVault) {
     syncSoon: () => {}, toast: { warning: () => {}, error: () => {} }, i18n: { t: (s: string) => s },
     stopSyncAndDrain: stopped, setActiveVault: activated, reloadMobileSettingsForActiveVault: async () => {},
     // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
-    detachSync: () => ({ drain: () => stopped(), place: null }),
+    detachSync: () => ({ drain: () => stopped(), place: null, running: true }),
     startSyncIfConfigured: async () => {}, foreignInputArmed: () => false, takeScreen: () => true,
     window: events, CustomEvent,
     LOCAL_VAULT_ID: "local",

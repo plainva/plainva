@@ -61,9 +61,14 @@ export function closeVaultRuntime(runtime: ClosingRuntime, deps: CloseRuntimeDep
       step = { kind: "saving", names: deps.pendingWritePaths(path).map(closeWaitNoteName) };
       await deps.settlePendingWrites(path);
     }
-    step = { kind: "sync", vault: path ? deps.vaultLabel(path) : "" };
-    await worker?.stopAndDrain();
-    await settingsOnly?.stopAndDrain();
+    // Only what really runs is named: without a sync there is no sync step to wait for (texts 2 and 5).
+    if (worker || settingsOnly) {
+      step = { kind: "sync", vault: path ? deps.vaultLabel(path) : "" };
+      await worker?.stopAndDrain();
+      await settingsOnly?.stopAndDrain();
+    }
+    // The index's last step: its scan was called off with the load's signal, so it ends at once — said nowhere.
+    step = { kind: "index" };
     await indexer?.whenIdle?.();
     await indexQueue?.whenIdle();
   })();
@@ -72,7 +77,7 @@ export function closeVaultRuntime(runtime: ClosingRuntime, deps: CloseRuntimeDep
     // Given up in the sync step: the runtime is called off right after the owed entries' last attempt, so the step
     // stops at its next call; the person does not wait for it. Given up on a save: it finishes in the background
     // (text 4) — a local write is never overtaken — and the runtime goes after it.
-    if ((await waitWithDeadline(drain, saving)) === "gave-up" && step.kind === "sync") void callOffAfterOwed();
+    if ((await waitWithDeadline(drain, saving)) === "gave-up" && step.kind !== "saving") void callOffAfterOwed();
   })();
   const ended = (async () => {
     await drain.catch(() => undefined);

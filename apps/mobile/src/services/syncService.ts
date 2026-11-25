@@ -1095,6 +1095,8 @@ export interface DetachedSync {
   drain: () => Promise<void>;
   /** The folder they synced with: the close parks its runtime's end under it (`parkClosingSyncPlace`). */
   place: SyncStateBinding | null;
+  /** Whether it took anything: a close without a sync names no sync step (texts 2 and 5). */
+  running: boolean;
 }
 
 /** Takes the running sync off the app's state; `quiet`: what it reports while it drains is not said any more. */
@@ -1123,6 +1125,7 @@ function takeSync(quiet: boolean): DetachedSync {
       if (w) await w.stopAndDrain();
     },
     place: w || settingsOnly ? place : null,
+    running: !!(w || settingsOnly),
   };
 }
 

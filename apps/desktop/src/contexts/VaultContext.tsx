@@ -795,6 +795,8 @@ export const VaultProvider: React.FC<{
     }
 
     activeLoadPathRef.current = path;
+    // The load that opened the vault on screen: a reload of it calls that load off first, as a close does.
+    const previousLoad = loadAbortRef.current;
     const loadController = new AbortController();
     loadAbortRef.current = loadController;
     const currentAbortSignal = loadController.signal;
@@ -824,6 +826,9 @@ export const VaultProvider: React.FC<{
         settingsOnlyRef.current = null;
         settingsOnly?.stop();
         state.syncWorker?.stop();
+        // As `teardownVault`: the previous load's signal goes, so its index stops scanning and the close does not
+        // wait out a full scan (nor name it as a sync step).
+        previousLoad?.abort();
         await closeVaultRuntime({ path, worker: state.syncWorker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence, owed, syncPlace }).closed;
       }
       // Never two runtimes at one vault: a previous one opens the way only once

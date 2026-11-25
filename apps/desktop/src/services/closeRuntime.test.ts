@@ -223,3 +223,26 @@ describe("closing a vault's runtime that synced with a folder", () => {
     expect(started, "starts once the old runtime has ended").toBe(true);
   });
 });
+
+/**
+ * The close names only what it really waits for. A vault without a sync has
+ * no sync step: waiting for its index (a scan its load's signal has called
+ * off) said "A sync step is still running" — and a reload waited out a whole
+ * scan under that text.
+ */
+describe("closing a vault's runtime without a sync", () => {
+  it("names no sync step while it waits for the index, and calls the runtime off silently if the index does not end", async () => {
+    expect.hasAssertions();
+    const fence = createVaultCallOff();
+    const index = hanging();
+    const { closed } = closeVaultRuntime({ path: VAULT, worker: null, settingsOnly: null, indexer: { whenIdle: () => index.promise }, indexQueue: null, fence }, deps([]));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(messages(), "no notice for a sync that does not run").toEqual([]);
+    await vi.advanceTimersByTimeAsync(25_000);
+    await closed;
+    expect(messages()).toEqual([]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fence.calledOff, "the runtime goes all the same").toBe(true);
+    index.resolve();
+  });
+});

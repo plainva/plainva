@@ -55,7 +55,7 @@ function harness(active: string) {
     reportingTo: () => () => {},
     stopSyncAndDrain,
     // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
-    detachSync: () => ({ drain: () => stopSyncAndDrain(), place: null }),
+    detachSync: () => ({ drain: () => stopSyncAndDrain(), place: null, running: true }),
     setActiveVault: vi.fn(async (id: string) => { now = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),
     getActiveVaultEntry: async () => ({ id: now, name: "" }),
@@ -119,6 +119,22 @@ describe("removing a vault on the phone", () => {
     ended.resolve();
     await removal;
     expect(h.removed).toEqual(["vaults/work"]);
+  });
+
+  it("waits for its saves and its start within ONE deadline, not one after the other", async () => {
+    expect.hasAssertions();
+    const h = harness("work");
+    const boot = hanging<MobileVault>();
+    h.setBoot(boot.promise, false);
+    const save = hanging();
+    h.deps.noteSaver.flushAll.mockImplementationOnce(() => save.promise);
+    void h.deleteVault("work");
+    await vi.advanceTimersByTimeAsync(20_000);
+    save.resolve();
+    await vi.advanceTimersByTimeAsync(10_000);
+    // THE DEFECT: the start got a deadline of its own after the saves' — 50 s here, up to a minute.
+    expect(messages(), "30 s for the whole wait").toContain(i18n.t("closing.openingGaveUp", { vault: "Work" }));
+    boot.resolve(vault("work"));
   });
 
   it("of the open vault whose sync step hangs: called off after the deadline, removed once the step's call ended", async () => {

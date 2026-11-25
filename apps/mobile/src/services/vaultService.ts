@@ -31,6 +31,7 @@ import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions
 import { adoptOwnRemovals, createVaultCallOff, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
+import { countOrphanedRequestsIn } from "../adapters/webdavHttp";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, pickVaultFolder, type VaultFolderAccess } from "../platform/vaultFolder";
@@ -457,13 +458,14 @@ async function settleBeforeClosing(current: MobileVault | null): Promise<Settled
     if (current) await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
     step = { kind: "saving", names: [] };
     await noteSaver.flushAll();
-    step = { kind: "sync", vault };
+    // Only what really runs is named: without a sync there is no sync step to wait for (texts 2 and 5).
+    step = detached.running ? { kind: "sync", vault } : { kind: "index" };
     await detached.drain();
   })();
   const now = (): CloseWaitStep => (step.kind === "saving" ? { kind: "saving", names: noteSaver.pendingPaths().map(closeWaitNoteName) } : step);
   const outcome = await waitWithDeadline(drain, now);
   const gaveUp = outcome === "gave-up";
-  const calledOff = gaveUp && step.kind === "sync" && !!current;
+  const calledOff = gaveUp && step.kind !== "saving" && !!current;
   if (calledOff) {
     // What is owed to the sync queue gets its last attempt first (bounded), then nothing of the runtime writes any
     // more: called off at once, the attempt would meet a fenced database and the entry would be gone. The person
@@ -785,23 +787,24 @@ async function forgetVaultData(id: string, pimIds: string[], publicationIds: str
 /** Answers the parts of the vault's app data that could not be removed (empty when all went). */
 export async function deleteVault(id: string): Promise<string[]> {
   if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be deleted");
-  // The pending saves, within the deadline (texts 1 and 4): one given up on finishes in the background, and the
-  // removal waits for it below all the same — the vault's runtime ends only after its saves (`leaveVault`).
-  const saves = noteSaver.flushAll();
-  await waitWithDeadline(saves, () => {
-    const names = noteSaver.pendingPaths().map(closeWaitNoteName);
-    return { kind: "saving", names };
-  });
-  // A vault still opening is waited for within the deadline (texts 3 and 6);
-  // after it, the removal goes on without it, and the switch below closes it
-  // once it answers (`retireBoot`).
+  // One deadline for the whole wait (texts 1, 3, 4 and 6), not one after the other: the pending saves, then a vault
+  // still opening. A save given up on finishes in the background, and the removal waits for it below all the same —
+  // the vault's runtime ends only after its saves (`leaveVault`). A vault still opening is left to the switch below,
+  // which closes it once it answers (`retireBoot`).
   const booting = bootPromise;
+  const name = booting ? ((await getVaultEntry(id).catch(() => null))?.name ?? "") : "";
   const got: { vault: MobileVault | null } = { vault: null };
-  if (booting) {
-    const name = (await getVaultEntry(id).catch(() => null))?.name ?? "";
-    const opened = booting.then((v) => { got.vault = v; }, () => undefined);
-    if ((await waitWithDeadline(opened, () => ({ kind: "opening", vault: name }))) === "gave-up") got.vault = null;
-  }
+  const waiting: { on: "saving" | "opening" } = { on: "saving" };
+  const waited = (async () => {
+    await noteSaver.flushAll();
+    if (!booting) return;
+    waiting.on = "opening";
+    await booting.then((v) => { got.vault = v; }, () => undefined);
+  })();
+  const outcome = await waitWithDeadline(waited, (): CloseWaitStep => (waiting.on === "saving"
+    ? { kind: "saving", names: noteSaver.pendingPaths().map(closeWaitNoteName) }
+    : { kind: "opening", vault: name }));
+  if (outcome === "gave-up" && waiting.on === "opening") got.vault = null;
   const current = got.vault;
   // PIM rows live in the vault's own index database, which `switchVault` closes
   // — so they have to be read while it is still open. A vault that is not the
@@ -1010,6 +1013,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   // Fenced: a close that gives up waiting calls this runtime off, and then
   // nothing of it writes the vault or its index database any more (`createVaultCallOff`).
   const callOff = createVaultCallOff();
+  // A native request this runtime gives up waiting for still runs at the provider: it is counted here until it ends.
+  countOrphanedRequestsIn((call) => callOff.track(call));
   const opened: MobileRawAdapter = isExternalVault(entry)
     ? new ExternalVaultAdapter(getVaultFolderPlugin(), entry.external.handle, {
       // Closing waits for the scan; a call it hangs on fails at once then.

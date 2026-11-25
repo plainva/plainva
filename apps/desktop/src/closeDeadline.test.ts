@@ -78,12 +78,14 @@ describe("the deadline of a close", () => {
     expect(close).toMatch(/deps\.flushDrafts\(path\)[\s\S]*deps\.settlePendingWrites\(path\)[\s\S]*worker\?\.stopAndDrain\(\)[\s\S]*settingsOnly\?\.stopAndDrain\(\)[\s\S]*indexer\?\.whenIdle[\s\S]*indexQueue\?\.whenIdle\(\)/);
     // Called off only after what is owed to the sync queue has had its last attempt — in a healthy close as after a give-up.
     expect(close).toMatch(/const callOffAfterOwed = \(\) => flushOwed\(\)\.then\(\(\) => fence\?\.callOff\(\)\)/);
-    expect(close).toMatch(/waitWithDeadline\(drain, saving\)\) === "gave-up" && step\.kind === "sync"\) void callOffAfterOwed\(\)/);
+    expect(close).toMatch(/waitWithDeadline\(drain, saving\)\) === "gave-up" && step\.kind !== "saving"\) void callOffAfterOwed\(\)/);
     expect(close).toMatch(/await callOffAfterOwed\(\);\s*await fence\?\.ended\(\);[\s\S]*noteVaultTeardown\(path, ended\)/);
     // The close and a reload of the same vault go that one way; the open waits for the end (text 7).
     const teardown = desktop.slice(desktop.indexOf("const teardownVault = async"), desktop.indexOf("const teardownVaultRef"));
     expect(teardown).toContain("closeVaultRuntime({ path, worker, settingsOnly,");
     expect(desktop).toMatch(/state\.vaultPath === path && \(state\.syncWorker \|\| callOffRef\.current\)[\s\S]*closeVaultRuntime\([\s\S]*waitForClosingVault\(awaitVaultTeardown\(path\)/);
+    // A reload calls the previous load off first, as a close does: its index stops scanning, and the close does not wait it out.
+    expect(desktop).toMatch(/const previousLoad = loadAbortRef\.current;[\s\S]*state\.vaultPath === path && \(state\.syncWorker \|\| callOffRef\.current\)[\s\S]*previousLoad\?\.abort\(\);\s*await closeVaultRuntime\(/);
     // Every runtime is fenced from its start, and a called-off load calls its runtime off.
     expect(desktop).toMatch(/const callOff = createVaultCallOff\(\);[\s\S]*loadStarts\.fence\(callOff\);[\s\S]*callOff\.storage\(new TauriVaultAdapter\(path\)\)[\s\S]*callOff\.database\(openedDatabase\)/);
 
@@ -91,7 +93,7 @@ describe("the deadline of a close", () => {
     const settle = phone.slice(phone.indexOf("async function settleBeforeClosing"), phone.indexOf("function leaveVault"));
     // The sync is taken off the vault first, before anything awaits, and drained after the saves.
     expect(settle).toMatch(/^async function settleBeforeClosing[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*const detached = detachSync\(\);/);
-    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*noteSaver\.flushAll\(\)[\s\S]*detached\.drain\(\)[\s\S]*waitWithDeadline\(drain, now\)[\s\S]*step\.kind === "sync"[\s\S]*left\.flushOwed\(\)[\s\S]*left\.callOff\(\)/);
+    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*noteSaver\.flushAll\(\)[\s\S]*detached\.drain\(\)[\s\S]*waitWithDeadline\(drain, now\)[\s\S]*step\.kind !== "saving"[\s\S]*left\.flushOwed\(\)[\s\S]*left\.callOff\(\)/);
     // The vault closes after the drain (never under a save still running), and is called off only after it closed.
     const leave = phone.slice(phone.indexOf("async function leaveVault"), phone.indexOf("\n}\n", phone.indexOf("async function leaveVault")));
     expect(leave).toMatch(/settled\.drain[\s\S]*\.then\(\(\) => current\.dispose\(\)\)[\s\S]*await disposed;\s*await current\.ended\(\);/);
@@ -102,6 +104,7 @@ describe("the deadline of a close", () => {
     }
     // The boot of a vault waits for the end of its previous runtime (text 7), before its own fence.
     expect(phone).toMatch(/waitForClosingVault\(closingAt\(entry\.id, entry\.external\)[\s\S]*const callOff = createVaultCallOff\(\);[\s\S]*callOff\.storage\(opened\)[\s\S]*callOff\.database\(/);
-    expect(phone).toMatch(/waitWithDeadline\(opened, \(\) => \(\{ kind: "opening"/);
+    // Deleting a vault: one deadline over its saves and a start still opening (text 6).
+    expect(phone).toMatch(/await noteSaver\.flushAll\(\);[\s\S]*waiting\.on = "opening";[\s\S]*waitWithDeadline\(waited, [\s\S]*\{ kind: "opening", vault: name \}/);
   });
 });

@@ -58,7 +58,7 @@ function harness(start: string, initial: MobileVault = vault(start)) {
     reportingTo: () => () => {},
     stopSyncAndDrain,
     // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
-    detachSync: vi.fn(() => { order.push("detach"); return { drain: () => stopSyncAndDrain(), place: null as SyncStateBinding | null }; }),
+    detachSync: vi.fn(() => { order.push("detach"); return { drain: () => stopSyncAndDrain(), place: null as SyncStateBinding | null, running: true }; }),
     setActiveVault: vi.fn(async (id: string) => { order.push(`active:${id}`); active = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),
     getActiveVaultEntry: async () => ({ id: active, name: "" }),
@@ -199,6 +199,24 @@ describe("the sync of the vault a switch leaves", () => {
   });
 });
 
+describe("what a switch says while it waits", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("names a sync step only where a sync runs", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    const h = harness("notes");
+    let done!: () => void;
+    // Nothing of the sync ran; what is left of the close takes a while (a stand-in that hangs).
+    h.deps.detachSync.mockImplementationOnce(() => ({ drain: () => new Promise<void>((r) => (done = r)), place: null, running: false }));
+    const switching = h.switchVault("work");
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(toastStore.get().map((t) => t.message).filter((m) => /sync/i.test(m)), "no sync step is named").toEqual([]);
+    done();
+    await switching;
+  });
+});
+
 describe("the place of the runtime a switch leaves", () => {
   afterEach(() => resetClosingSyncPlacesForTests());
 
@@ -208,7 +226,7 @@ describe("the place of the runtime a switch leaves", () => {
     let end!: () => void;
     const initial = { ...vault("notes"), ended: vi.fn(() => new Promise<void>((r) => (end = r))) } as unknown as MobileVault;
     const h = harness("notes", initial);
-    h.deps.detachSync.mockImplementationOnce(() => ({ drain: async () => {}, place: folder }));
+    h.deps.detachSync.mockImplementationOnce(() => ({ drain: async () => {}, place: folder, running: true }));
     await h.switchVault("work");
     // Another entry on the same folder: its sync start waits for this runtime (`waitForClosingSyncPlace`).
     expect(closingAtSyncPlace(folder).map((c) => c.vault)).toHaveLength(1);

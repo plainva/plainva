@@ -60,7 +60,7 @@ async function harness(opts: { workspace?: boolean; failed?: boolean } = {}) {
     reportingTo: () => () => {},
     stopSyncAndDrain,
     // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
-    detachSync: () => ({ drain: () => stopSyncAndDrain(), place: null }),
+    detachSync: () => ({ drain: () => stopSyncAndDrain(), place: null, running: true }),
     getActiveVaultEntry: async () => ({ id: "v1", name: "" }),
     setAsideMobileIndexDatabase: vi.fn(async (name: string) => { order.push(`set aside ${name}`); return `${name}.broken-1`; }),
     indexDatabaseRebuildOffered,
