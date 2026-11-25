@@ -1060,7 +1060,7 @@ export const VaultProvider: React.FC<{
           vaultIsThere: () => vaultFolderIsThere(vaultAdapter).then((there) => there === true),
           stillGone: async (p: string) => !(await vaultAdapter.exists(p)),
           remove: queueLocalDeletion,
-          removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
+          removeAll: (paths: readonly string[], stillGone: (path: string) => Promise<boolean>) => localQueueing.deletions(paths, stillGone),
           write: enqueueLocalChange,
         };
         (kind === "plain" ? sweepPlainOwed(dbAdapter, handlers) : sweepWorkspaceOwed(dbAdapter, handlers))

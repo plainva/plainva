@@ -1,5 +1,5 @@
 import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "@plainva/core";
-import { TransactionTurns, takeStatement, transactionLabel } from "@plainva/ui";
+import { TransactionTurns, takeRead, takeStatement, transactionLabel } from "@plainva/ui";
 
 /**
  * IDatabaseAdapter over a REAL SQLite that lives outside the browser.
@@ -124,9 +124,14 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
     await takeStatement(this.turns, () => this.run(query, params));
   }
 
-  /** A read takes no turn, as on the phone. */
-  async query<T = unknown>(query: string, params?: unknown[] | Record<string, unknown>): Promise<T[]> {
+  /** One read on the bridge, outside any turn: what a turn runs. */
+  private async all<T>(query: string, params?: unknown[] | Record<string, unknown>): Promise<T[]> {
     return (await this.conn().all(this.dbName, query, toPositional(params))) as T[];
+  }
+
+  /** A read, in its turn, as on the phone: never inside the transaction that is open. */
+  async query<T = unknown>(query: string, params?: unknown[] | Record<string, unknown>): Promise<T[]> {
+    return takeRead(this.turns, () => this.all<T>(query, params));
   }
 
   async queryOne<T = unknown>(query: string, params?: unknown[] | Record<string, unknown>): Promise<T | null> {
@@ -165,8 +170,8 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
         };
         const tx: SqlStatements = {
           execute: async (query, params) => { live(); await this.run(query, params); },
-          query: async (query, params) => { live(); return this.query(query, params); },
-          queryOne: async (query, params) => { live(); return this.queryOne(query, params); },
+          query: async <R,>(query: string, params?: unknown[] | Record<string, unknown>) => { live(); return this.all<R>(query, params); },
+          queryOne: async <R,>(query: string, params?: unknown[] | Record<string, unknown>) => { live(); return (await this.all<R>(query, params))[0] ?? null; },
           runBatch: async (statements) => {
             live();
             for (const s of statements) await this.run(s.sql, s.params);

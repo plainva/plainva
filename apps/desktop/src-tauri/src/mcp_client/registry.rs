@@ -281,7 +281,7 @@ pub struct McpServerInfo {
 }
 
 #[tauri::command]
-pub fn mcp_client_servers(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>) -> Result<Vec<McpServerInfo>, String> {
+pub async fn mcp_client_servers(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>) -> Result<Vec<McpServerInfo>, String> {
     only_main(&window)?;
     let servers = with_registry(&app, &state, |registry| registry.servers.clone())?;
     let mut out = Vec::new();
@@ -377,7 +377,7 @@ fn forget_secrets(app: &AppHandle, state: &McpClientState, id: &str) -> Result<(
 }
 
 #[tauri::command]
-pub fn mcp_client_remove(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String) -> Result<(), String> {
+pub async fn mcp_client_remove(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String) -> Result<(), String> {
     only_main(&window)?;
     super::program::stop(&state, &server_id);
     forget_secrets(&app, &state, &server_id)?;
@@ -401,7 +401,7 @@ fn slot_for(app: &AppHandle, state: &McpClientState, id: &str, name: Option<&str
 
 /// Stores a credential. Write-only: no command returns it.
 #[tauri::command]
-pub fn mcp_client_secret_set(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, name: Option<String>, value: String) -> Result<(), String> {
+pub async fn mcp_client_secret_set(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, name: Option<String>, value: String) -> Result<(), String> {
     only_main(&window)?;
     let slot = slot_for(&app, &state, &server_id, name.as_deref())?;
     let value = value.trim();
@@ -416,14 +416,14 @@ pub fn mcp_client_secret_set(window: tauri::Window, app: AppHandle, state: State
 }
 
 #[tauri::command]
-pub fn mcp_client_secret_present(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, name: Option<String>) -> Result<bool, String> {
+pub async fn mcp_client_secret_present(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, name: Option<String>) -> Result<bool, String> {
     only_main(&window)?;
     let slot = slot_for(&app, &state, &server_id, name.as_deref())?;
     Ok(crate::secure_store::read_slot(&app, &slot)?.is_some())
 }
 
 #[tauri::command]
-pub fn mcp_client_secret_delete(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, name: Option<String>) -> Result<(), String> {
+pub async fn mcp_client_secret_delete(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, name: Option<String>) -> Result<(), String> {
     only_main(&window)?;
     let slot = slot_for(&app, &state, &server_id, name.as_deref())?;
     crate::secure_store::write_slot(&app, &slot, None)

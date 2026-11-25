@@ -1,6 +1,7 @@
 import { assertLegacyCommentOrigin, sameLegacyComment, sameRetractionAuthor, type LegacyCommentOrigin } from "../comments/legacyCommentImport.js";
 import { projectCommentRecords } from "../comments/commentProjection.js";
 import { isCommentDecisionProof, type CommentDecisionProof, type SuggestionDecisionState } from "../comments/commentDecisions.js";
+import type { BatchStatement } from "../db/IDatabaseAdapter.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { runStatementsAtomic } from "../db/batch.js";
 import type { OwedStructure } from "../vault/owedQueueEntries.js";
@@ -488,6 +489,12 @@ export interface WorkspaceStateStore {
    */
   enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null, options?: WorkspaceEnqueueOptions): Promise<number>;
   /**
+   * Queues the deletions of `paths` at once, as `enqueue("delete", …)` would
+   * one by one: a cycle that reads the queue meanwhile sees all of them or
+   * none, so the mass-deletion guard is never asked about a slice of them.
+   */
+  enqueueDeletions(paths: readonly string[]): Promise<void>;
+  /**
    * Lets the store answer for entries owed to its queue for changes already on
    * disk (`WorkspaceQueueingVaultAdapter`, D4): `hasPendingForPath` and
    * `listQueuedPaths` count them. Returns what detaches them.
@@ -716,6 +723,9 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath: target, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null, confirmedAt };
     this.queue.push(item);
     return item.id;
+  }
+  async enqueueDeletions(paths: readonly string[]): Promise<void> {
+    for (const path of paths) await this.enqueue("delete", path);
   }
   async listQueue(limit = Number.MAX_SAFE_INTEGER): Promise<WorkspaceQueuedMutation[]> {
     return this.queue.slice(0, limit).map(clone);
@@ -1280,6 +1290,32 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     // a mark the next sweep finds queued and drops.
     if (operation === "delete") await this.db.execute(`DELETE FROM index_removed WHERE path = ?`, [path]);
     return row.id;
+  }
+  /**
+   * One batch, so one transaction of its own (and one turn on the phone's
+   * connection): every deletion and the index's marks they settle, or none.
+   * Each insert skips a path whose newest entry is this very deletion, as
+   * `enqueue` does; a path named twice is queued once.
+   */
+  async enqueueDeletions(paths: readonly string[]): Promise<void> {
+    const statements: BatchStatement[] = [];
+    const queuedAt = Date.now();
+    for (const path of new Set(paths)) {
+      const later = laterTouches([path]);
+      statements.push(
+        {
+          sql: `INSERT INTO workspace_queue (operation,path,new_path,queued_at,confirmed_at)
+                SELECT 'delete',?,NULL,?,NULL WHERE NOT EXISTS (
+                  SELECT 1 FROM workspace_queue same
+                   WHERE same.operation = 'delete' AND same.path = ? AND same.new_path IS NULL AND same.prepared_json IS NULL
+                     AND NOT EXISTS (SELECT 1 FROM workspace_queue later WHERE later.id > same.id AND (${later.sql}))
+                )`,
+          params: [path, queuedAt, path, ...later.params],
+        },
+        { sql: `DELETE FROM index_removed WHERE path = ?`, params: [path] },
+      );
+    }
+    await runStatementsAtomic(this.db, statements);
   }
   async listQueue(limit = Number.MAX_SAFE_INTEGER): Promise<WorkspaceQueuedMutation[]> {
     const safeLimit = Number.isSafeInteger(limit) ? Math.max(1, Math.min(limit, 100_000)) : 100_000;

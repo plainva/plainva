@@ -336,6 +336,18 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
     },
 
     /**
+     * `read`, but a journal file that cannot be read is an error, never "no
+     * entry": for a caller that gives a text up when its entry is gone
+     * (the desktop's saves of left notes, `leftNoteSaveDue.ts`).
+     */
+    async readStrict(scope: S, notePath: string): Promise<DraftJournalEntry | null> {
+      const owner = layout.owner(scope, notePath);
+      const entries: DraftJournalEntry[] = [];
+      for (const file of filesOf(scope, notePath)) entries.push(...(await entriesIn(file)).filter((entry) => isDraftOf(entry, owner)));
+      return offeredDraft(entries, owner);
+    },
+
+    /**
      * The draft to offer, held for the offer (3.125): one of `ownSession` is
      * lifted into a session of its own first, so typing on and the next
      * confirmed save cannot replace or clear it; it stays until `adopt` or

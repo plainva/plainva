@@ -534,3 +534,20 @@ describe("the first pull of a vault (O8: a cloud vault arriving is not an empty 
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
   });
 });
+
+describe("the plain sync's first cycle (stability plan R22)", () => {
+  it("queues what the index found and an ended app never queued, once the first cycle has looked — not before", async () => {
+    expect.hasAssertions();
+    const markFirstSyncComplete = vi.fn();
+    const sweepOwedToRemote = vi.fn();
+    const plainVault = { ...vault, markFirstSyncComplete, sweepOwedToRemote } as unknown as MobileVault;
+    await startSyncIfConfigured(plainVault);
+    const plain = state.workerHooks[state.workerHooks.length - 1];
+    expect(plain?.onFirstCycleComplete).toBeTypeOf("function");
+    // Before the first cycle has looked, nothing is swept: the remote base is not known yet.
+    expect(sweepOwedToRemote).not.toHaveBeenCalled();
+    plain!.onFirstCycleComplete!({ skipped: [], conflictCopies: [] });
+    expect(sweepOwedToRemote).toHaveBeenCalledTimes(1);
+    expect(sweepOwedToRemote).toHaveBeenCalledWith("plain");
+  });
+});

@@ -71,7 +71,7 @@ describe("desktop: the Rust egress", () => {
   });
 
   it("keeps the generic keychain commands away from the AI slots", () => {
-    const commands = [...secureStore.matchAll(/#\[tauri::command\]\s*pub fn (keychain_\w+)\(([^)]*)\)[^{]*\{([\s\S]*?)\n\}/g)];
+    const commands = [...secureStore.matchAll(/#\[tauri::command\]\s*pub (?:async )?fn (keychain_\w+)\(([^)]*)\)[^{]*\{([\s\S]*?)\n\}/g)];
     expect(commands.map((c) => c[1]).sort()).toEqual(["keychain_compare_and_set", "keychain_delete", "keychain_get", "keychain_set"]);
     for (const [, name, , body] of commands) expect(body, name).toContain("generic(&key)?");
     expect(secureStore).toMatch(/fn generic\(key: &str\)[\s\S]*?starts_with\(crate::ai_egress::AI_KEY_PREFIX\)/);
