@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, sameSyncTarget, syncStateBindingFor, type CloudAccountRecord } from "@plainva/ui";
+import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, sameSyncTarget, syncStateBindingFor, toast, toastStore, type CloudAccountRecord } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -579,7 +580,7 @@ describe("the sync of a vault that closes", () => {
  * late upload of the old runtime would land over what the new one sent.
  */
 describe("a sync start at a folder where another vault's runtime still closes", () => {
-  afterEach(() => resetClosingSyncPlacesForTests());
+  afterEach(() => { resetClosingSyncPlacesForTests(); toast.clearAll(); });
 
   const folder = (url: string) => syncStateBindingFor({ provider: "webdav", webdav: { url, user: "u" } });
 
@@ -593,6 +594,26 @@ describe("a sync start at a folder where another vault's runtime still closes", 
     end();
     await starting;
     expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+  });
+
+  it("stops waiting when the sync is stopped meanwhile, and its notice (text 8) goes with it", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    try {
+      parkClosingSyncPlace(folder(state.url), "Other entry", new Promise<void>(() => undefined));
+      const starting = startSyncIfConfigured(vault);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(toastStore.get().map((t) => t.message)).toEqual([i18n.t("closing.stillClosingSameFolder", { vault: "Other entry" })]);
+      // The vault is closed while its sync still waits for the folder.
+      detachSync();
+      await vi.advanceTimersByTimeAsync(0);
+      await starting;
+      // THE DEFECT: the notice stood after the vault that waited was closed.
+      expect(toastStore.get().map((t) => t.message)).toEqual([]);
+      expect(state.workers).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not wait for a runtime closing at another folder", async () => {

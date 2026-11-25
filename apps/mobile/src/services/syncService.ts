@@ -521,9 +521,20 @@ let syncPlace: SyncStateBinding | null = null;
  * false when a stop came meanwhile.
  */
 async function waitForSyncPlace(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<SyncStateBinding | null | false> {
+  const signal = startsSignal;
   const place = await mobileSyncBinding(v, p).catch(() => null);
-  if (place) await waitForClosingSyncPlace(place);
+  // A stop called meanwhile ends the wait, and its notice (text 8) with it.
+  if (place) await waitForClosingSyncPlace(place, { signal });
   return generation === startGeneration ? place : false;
+}
+
+/** Aborted by every stop (`startGeneration`): a start still waiting for its folder stops waiting. */
+let startsAbort = new AbortController();
+let startsSignal = startsAbort.signal;
+function stopStarts(): void {
+  startsAbort.abort();
+  startsAbort = new AbortController();
+  startsSignal = startsAbort.signal;
 }
 
 async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
@@ -1058,6 +1069,7 @@ export function syncSoon(): void {
 
 export function stopSync(): void {
   startGeneration += 1;
+  stopStarts();
   syncPlace = null;
   if (encryptedRemoteRetry) { clearTimeout(encryptedRemoteRetry); encryptedRemoteRetry = null; }
   held = null;
@@ -1140,6 +1152,7 @@ export interface DetachedSync {
 /** Takes the running sync off the app's state; `quiet`: what it reports while it drains is not said any more. */
 function takeSync(quiet: boolean): DetachedSync {
   startGeneration += 1;
+  stopStarts();
   const place = syncPlace;
   syncPlace = null;
   if (encryptedRemoteRetry) { clearTimeout(encryptedRemoteRetry); encryptedRemoteRetry = null; }

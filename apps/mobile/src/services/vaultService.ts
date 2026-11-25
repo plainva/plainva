@@ -573,7 +573,14 @@ export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: 
   await leaveVault(current, { drain: Promise.all([left.drain, saved.catch(() => undefined)]).then(() => undefined), gaveUp: true, place: left.place, vault });
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current.vaultId } }));
-  return getMobileVault();
+  const fresh = await getMobileVault();
+  // Another vault opened meanwhile (a switch during the step): the step never goes on with that one's runtime.
+  if (fresh.vaultId !== current.vaultId) {
+    const message = i18n.t("closing.stepNotRun", { vault });
+    toast.warning(message);
+    throw Object.assign(new Error(message), { name: "StepNotRunError" });
+  }
+  return fresh;
 }
 async function switchTo(id: string): Promise<void> {
   // Already opening this very vault: stopping its boot to start it again would only lose the scan so far.

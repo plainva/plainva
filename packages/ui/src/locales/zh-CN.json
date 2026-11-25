@@ -8238,6 +8238,8 @@
     "syncGaveUp": "“{{vault}}”的同步步骤未能完成。Plainva 会停止它并继续；不会丢失任何内容——下一次同步会补上缺少的部分。",
     "openingGaveUp": "“{{vault}}”未能打开完成。Plainva 会在它响应后将其关闭并删除。",
     "stillClosing": "“{{vault}}”仍在关闭中，完成后 Plainva 会重新打开它。",
-    "stillClosingSameFolder": "“{{vault}}”使用同一个同步文件夹，仍在关闭中，完成后开始同步。"
+    "stillClosingSameFolder": "“{{vault}}”使用同一个同步文件夹，仍在关闭中，完成后开始同步。",
+    "stepNotRun": "该步骤未执行：“{{vault}}”在此期间已关闭，或无法再次打开。未做任何更改；请打开仓库后重试。",
+    "stepDoneVaultClosed": "“{{vault}}”的步骤已完成。仓库在此期间已关闭；下次会照常打开。"
   }
 }

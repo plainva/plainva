@@ -42,7 +42,7 @@ describe("a step that stops the sync on the desktop", () => {
     expect.hasAssertions();
     const order: string[] = [];
     const worker = { stop: vi.fn(), stopAndDrain: async () => { order.push("drained"); } };
-    const outcome = await stopSyncForStep({ path: VAULT, vault: "Notes", worker, fence: createVaultCallOff(), forgetWorker: () => order.push("forget"), holdSync: () => order.push("hold"), reopen: async () => { order.push("reopen"); } });
+    const outcome = await stopSyncForStep({ path: VAULT, vault: "Notes", worker, fence: createVaultCallOff(), forgetWorker: () => order.push("forget"), reopen: async () => { order.push("reopen"); } });
     expect(outcome).toBe("same");
     expect(worker.stop).toHaveBeenCalled();
     expect(order).toEqual(["drained"]);
@@ -50,7 +50,7 @@ describe("a step that stops the sync on the desktop", () => {
 
   it("does nothing without a sync", async () => {
     expect.hasAssertions();
-    expect(await stopSyncForStep({ path: VAULT, vault: "Notes", worker: null, fence: null, forgetWorker: () => {}, holdSync: () => {}, reopen: async () => {} })).toBe("same");
+    expect(await stopSyncForStep({ path: VAULT, vault: "Notes", worker: null, fence: null, forgetWorker: () => {}, reopen: async () => {} })).toBe("same");
   });
 
   it("after 30 s leaves the vault in the close's order: a save that is still on its way lands, and the vault opens anew once the cycle it left has ended", async () => {
@@ -61,7 +61,6 @@ describe("a step that stops the sync on the desktop", () => {
     const storage = fence.storage({ writeTextFile: async (p: string, v: string) => { files.set(p, v); } } as never) as unknown as { writeTextFile(p: string, v: string): Promise<void> };
     const cycle = hanging();
     const worker = { stop: vi.fn(), stopAndDrain: () => cycle.promise };
-    let held = false;
     let reopened = false;
     let save = "none";
     const stopping = stopSyncForStep({
@@ -70,7 +69,6 @@ describe("a step that stops the sync on the desktop", () => {
       worker,
       fence,
       forgetWorker: () => order.push("forget"),
-      holdSync: () => { held = true; },
       // As `loadVault` with the vault on screen: the editor's save fires as the vault reloads (its debounce, the
       // unmount flush), the old runtime closes in the close's order, and the open waits for its end.
       reopen: async () => {
@@ -96,7 +94,6 @@ describe("a step that stops the sync on the desktop", () => {
     expect(files.get("Note.md")).toBe("typed");
     expect(order).toEqual(["forget", "drafts", "saves", "owed"]);
     expect(fence.calledOff, "called off after the saves").toBe(true);
-    expect(held, "the new runtime's sync is held for the step").toBe(true);
     // Never two runtimes at one vault: the new one opens once the cycle the step left has ended.
     await vi.advanceTimersByTimeAsync(10_000);
     expect(reopened).toBe(false);

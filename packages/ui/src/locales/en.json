@@ -8410,6 +8410,8 @@
     "syncGaveUp": "The sync step of “{{vault}}” did not finish. Plainva stops it and goes on; nothing is lost – the next sync catches up on what is missing.",
     "openingGaveUp": "“{{vault}}” did not finish opening. Plainva closes it and removes it as soon as it answers.",
     "stillClosing": "“{{vault}}” is still closing – then Plainva opens it again.",
-    "stillClosingSameFolder": "“{{vault}}” uses the same sync folder and is still closing – then the sync starts."
+    "stillClosingSameFolder": "“{{vault}}” uses the same sync folder and is still closing – then the sync starts.",
+    "stepNotRun": "The step did not run: “{{vault}}” was closed meanwhile or could not be opened again. Nothing was changed; open the vault and try again.",
+    "stepDoneVaultClosed": "The step for “{{vault}}” is done. The vault was closed meanwhile; it opens as usual next time."
   }
 }

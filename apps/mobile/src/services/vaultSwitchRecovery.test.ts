@@ -64,7 +64,8 @@ function harness(start: string, initial: MobileVault = vault(start)) {
     setActiveVault: vi.fn(async (id: string) => { order.push(`active:${id}`); active = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),
     // The vault opened anew after a step left it (`renewAfterSyncGaveUp`).
-    getMobileVault: vi.fn(async () => vault(`${start} anew`)),
+    getMobileVault: vi.fn(async () => ({ ...vault(start), anew: true })),
+    toast,
     getActiveVaultEntry: async () => ({ id: active, name: "" }),
     startSyncIfConfigured: vi.fn(async (v: MobileVault) => { syncStarted.push(v.vaultId); }),
     foreignInputArmed,
@@ -252,7 +253,7 @@ describe("a step that gave up waiting for the sync", () => {
     let cycleEnded!: () => void;
     const drain = new Promise<void>((r) => (cycleEnded = r));
     const fresh = await h.renewAfterSyncGaveUp({ drain, place: null });
-    expect((fresh as MobileVault).vaultId, "the step goes on with the vault opened anew").toBe("notes anew");
+    expect(fresh as unknown as { anew?: boolean }, "the step goes on with the vault opened anew").toMatchObject({ vaultId: "notes", anew: true });
     expect(h.events, "the screens follow as on a reload").toEqual(["notes"]);
     expect(order, "never over a save still running").toEqual([]);
     saved();
@@ -261,6 +262,19 @@ describe("a step that gave up waiting for the sync", () => {
     expect(initial.dispose).not.toHaveBeenCalled();
     cycleEnded();
     await vi.waitFor(() => expect(order).toContain("dispose"));
+  });
+});
+
+describe("a step that gave up waiting for the sync, while another vault was opened", () => {
+  it("does not go on with the other vault's runtime: it says the step did not run", async () => {
+    expect.hasAssertions();
+    const h = harness("notes");
+    // A switch during the step: the vault that opens now is another one.
+    h.deps.getMobileVault.mockImplementationOnce(async () => ({ ...vault("work"), anew: true }));
+    const outcome = await h.renewAfterSyncGaveUp({ drain: Promise.resolve(), place: null }).then((v) => (v as MobileVault).vaultId, (e: Error) => e.name);
+    // THE DEFECT: the step went on with whatever vault opened — the wizard on the wrong vault.
+    expect(outcome).toBe("StepNotRunError");
+    expect(toastStore.get().map((t) => t.message)).toContain("closing.stepNotRun");
   });
 });
 

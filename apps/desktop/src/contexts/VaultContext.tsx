@@ -1,6 +1,6 @@
 import { afterTaskSyncResume, clearPinboardCache, confirmationEndpoint, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { errorText, reportBackground, reportingTo, waitForClosingVault, waitForClosingSyncPlace, type SyncStateBinding, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
+import { errorText, reportBackground, reportingTo, waitForClosingVault, type SyncStateBinding, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
 import { FEATURES_SAVED_EVENT, featuresSavedFor } from "../services/vaultFeaturesRelay";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
@@ -29,7 +29,8 @@ import { closeVaultRuntime } from "../services/closeRuntime";
 import { vaultLabel } from "../services/vaultNames";
 import { awaitVaultTeardown } from "../services/vaultTeardown";
 import { stopSyncForStep as stopSyncForStepIn } from "../services/stepSyncStop";
-import { leaveWorkspace, lockWorkspaceStep, withSyncStopped, type StepPorts } from "../services/workspaceSteps";
+import { createStepPorts, leaveWorkspace, lockWorkspaceStep, withSyncStopped, type StepPorts } from "../services/workspaceSteps";
+import { createSyncGate, takeVaultSync, vaultSyncTaken } from "../services/syncGate";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
@@ -705,8 +706,8 @@ export const VaultProvider: React.FC<{
   // The runtime of the vault on screen as the last load left it — read by a reload and by a step that left the
   // vault (`stopSyncForStep`): React's state of the render that began them may be older than the runtime.
   const runtimeRef = useRef<{ path: string; worker: VaultState["syncWorker"]; indexer: VaultState["indexer"]; indexQueue: VaultState["indexQueue"]; db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"] } | null>(null);
-  // The vault whose sync a step holds (`stopSyncForStep`): its load starts no sync until the step reloads it.
-  const syncHeldRef = useRef<string | null>(null);
+  // Set when this provider's vault is left (`teardownVault`): a step still running opens it no more.
+  const providerGoneRef = useRef(false);
   // Recents, the last-vault memory, auto-open and the three lifecycle entry
   // points live one level up (contexts/AppContext.tsx) — they outlive any
   // single vault. They are re-exported through this context so the sixty-one
@@ -1558,14 +1559,11 @@ export const VaultProvider: React.FC<{
           // same folder that still closes is waited for before anything of this sync starts (text 8). The vault
           // opens meanwhile; only its sync waits, as on the phone.
           syncPlaceRef.current = binding;
-          const syncPlaceFree = waitForClosingSyncPlace(binding);
-          /** A sync start of this load: once the folder is free, unless the load was called off or a step holds the sync. */
-          const startSyncOf = (begin: () => void) => () => {
-            void syncPlaceFree.then(() => {
-              if (currentAbortSignal.aborted || syncHeldRef.current === path) return;
-              begin();
-            });
-          };
+          // Everything of this sync that reaches the folder goes through the gate (`syncGate.ts`): once the folder
+          // is free and no step holds the sync, and never once this load is called off.
+          const syncGate = createSyncGate({ path, place: binding, signal: currentAbortSignal });
+          /** A sync start of this load, through the gate: again after every step that took the sync. */
+          const startSyncOf = (begin: () => void) => () => syncGate.start(begin);
           // The plain sync and an encrypted workspace in its folder (R8). A
           // vault that knows nothing about its folder - nearly every vault -
           // costs one local read: its worker starts as before, and its first
@@ -1721,8 +1719,10 @@ export const VaultProvider: React.FC<{
                 if (!loadStarts.start(worker, startSyncOf(() => worker.start()))) return null;
                 return worker;
               };
-              if (deferWorkspaceReconcile) {
-                void startEncryptedWorkspace()
+              // The reconcile writes to the folder at the provider: it waits for the gate, in the background where
+              // the folder is not free now or a step holds the sync — the vault opens meanwhile.
+              if (deferWorkspaceReconcile || !syncGate.freeNow() || vaultSyncTaken(path)) {
+                void syncGate.once(startEncryptedWorkspace)
                   .then((worker) => {
                     if (!worker || currentAbortSignal.aborted) { if (worker) loadStarts.late(worker); return; }
                     if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker };
@@ -1895,7 +1895,8 @@ export const VaultProvider: React.FC<{
               // Held: asked in the background once the load has settled; a
               // verdict that allows it starts the sync step, nothing else.
               const fact = remoteFact!;
-              heldStart = () => {
+              // The look at the folder reads the provider: through the gate as well.
+              heldStart = () => void syncGate.once(async () => {
                 encryptedRemoteRetryRef.current?.cancel();
                 encryptedRemoteRetryRef.current = askHeldFolder({
                   signal: currentAbortSignal,
@@ -1915,7 +1916,7 @@ export const VaultProvider: React.FC<{
                     }).catch((error) => console.error("[VaultContext] starting the sync of a held folder failed", error));
                   },
                 });
-              };
+              });
             }
           }
         }
@@ -2594,7 +2595,7 @@ export const VaultProvider: React.FC<{
     loadAbortRef.current?.abort();
     activeLoadPathRef.current = null;
     runtimeRef.current = null;
-    syncHeldRef.current = null;
+    providerGoneRef.current = true;
 
     if (state.vaultPath) syncStatusStore.reset(state.vaultPath);
     setState(s => ({
@@ -2851,8 +2852,6 @@ export const VaultProvider: React.FC<{
    */
   const reloadVault = async (): Promise<void> => {
     if (!state.vaultPath) return;
-    // A step that held the sync is through: the reloaded vault syncs again.
-    syncHeldRef.current = null;
     await loadVault(state.vaultPath);
   };
 
@@ -2870,44 +2869,37 @@ export const VaultProvider: React.FC<{
    */
   /** The runtime of the vault on screen, as a step that stopped the sync works on it (`workspaceSteps.ts`). */
   type StepRuntime = { db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; target: ISyncTarget | null; provider: SyncProviderId | null };
-  const stepPorts = (path: string): StepPorts<StepRuntime> => ({
-    stopSync: () => stopSyncForStepIn({
+  const stepPorts = (path: string): StepPorts<StepRuntime> => createStepPorts<StepRuntime>({
+    vault: vaultLabel(path),
+    // The step holds the vault's sync for its length, against every start — also one still waiting for its folder.
+    take: () => takeVaultSync(path),
+    stop: () => stopSyncForStepIn({
       path,
       vault: vaultLabel(path),
-      worker: runtimeRef.current?.path === path ? runtimeRef.current.worker : state.syncWorker,
+      worker: runtimeRef.current?.path === path ? runtimeRef.current.worker : null,
       fence: callOffRef.current,
       forgetWorker: () => {
         if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker: null };
       },
-      holdSync: () => {
-        syncHeldRef.current = path;
+      // A window that left the vault meanwhile does not open it again: nothing of the step runs then (`runtime()`).
+      reopen: async () => {
+        if (!providerGoneRef.current) await loadVault(path);
       },
-      reopen: () => loadVault(path),
     }),
-    // Read at the moment the step asks: after "renewed" the runtime the vault was opened anew with.
-    runtime: () => ({
-      db: runtimeRef.current?.path === path ? runtimeRef.current.db : state.dbAdapter,
-      belowChain: runtimeRef.current?.path === path ? runtimeRef.current.belowChain : state.belowChainAdapter,
-      target: syncTargetRef.current,
-      provider: syncProviderRef.current,
-    }),
-    // The step left without opening the vault anew (an error, a refusal): the sync its new runtime holds starts now.
-    endHold: () => {
-      if (syncHeldRef.current === path) {
-        syncHeldRef.current = null;
-        // As every sync start: once no other vault closes at its folder (text 8).
-        const place = syncPlaceRef.current;
-        void (place ? waitForClosingSyncPlace(place) : Promise.resolve()).then(() => {
-          if (runtimeRef.current?.path !== path || syncHeldRef.current === path) return;
-          runtimeRef.current.worker?.start();
-          settingsOnlyRef.current?.start();
-        });
-      }
+    // The runtime on screen as the last load left it — after "renewed" the new one — and never what the step's
+    // caller held: without one of this vault (the window left it, it did not open again) the step does not run.
+    current: () => {
+      const live = runtimeRef.current;
+      if (providerGoneRef.current || live?.path !== path) return null;
+      return { db: live.db, belowChain: live.belowChain, target: syncTargetRef.current, provider: syncProviderRef.current };
     },
   });
-  /** Opens the vault anew at the end of a step: the hold of its sync ends, the reloaded vault syncs again. */
+  /** Opens the vault anew at the end of a step — unless its window has left it: then the step is done and says so. */
   const reopenAfterStep = async (path: string, isNewConnection?: boolean): Promise<void> => {
-    syncHeldRef.current = null;
+    if (providerGoneRef.current) {
+      toast.info(i18n.t("closing.stepDoneVaultClosed", { vault: vaultLabel(path) }));
+      return;
+    }
     await loadVault(path, isNewConnection);
   };
 

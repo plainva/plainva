@@ -12,6 +12,13 @@ const mocks = vi.hoisted(() => ({
   cancel: vi.fn(async (_o: { id: string }) => {}),
 }));
 
+// A large body is laid out in a file first; here that write takes a moment and keeps nothing.
+vi.mock("../platform/atomicFile", async (original) => ({
+  ...(await original<typeof import("../platform/atomicFile")>()),
+  atomicWriteBytes: () => new Promise<void>((resolve) => setTimeout(resolve, 5)),
+}));
+vi.mock("@capacitor/filesystem", () => ({ Directory: { Data: "DATA" }, Filesystem: { deleteFile: async () => {} } }));
+
 vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => true },
   registerPlugin: () => mocks,
@@ -98,6 +105,19 @@ describe("webdavFetch (native bridge)", () => {
     // THE DEFECT: the plugin was never told; the native call ran on up to the plugin's limit of an hour.
     expect(sent.requestId).toEqual(expect.any(String));
     expect(mocks.cancel).toHaveBeenCalledWith({ id: sent.requestId });
+  });
+
+  it("sends nothing where the request was given up while its large body was being laid out", async () => {
+    expect.hasAssertions();
+    mocks.request.mockClear();
+    const controller = new AbortController();
+    // A body over one bridge part is written to a file first; the abort comes during that write.
+    const big = new Uint8Array(8 * 1024 * 1024 + 1);
+    const pending = webdavFetch("https://example.com/Big.bin", { method: "PUT", body: big, signal: controller.signal }).catch((e: Error) => e.name);
+    controller.abort();
+    expect(await pending).toBe("AbortError");
+    // THE DEFECT: the request went out all the same, neither cancelled nor counted.
+    expect(mocks.request).not.toHaveBeenCalled();
   });
 
   it("cancels nothing for a request that was answered, and a build without cancel is no failure", async () => {

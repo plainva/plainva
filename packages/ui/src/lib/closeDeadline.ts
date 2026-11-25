@@ -166,21 +166,29 @@ export function closingAtSyncPlace(place: SyncStateBinding): ReadonlyArray<{ vau
  * waits for (text 8). No deadline: the old runtime's requests end by their
  * own time limits.
  */
-export async function waitForClosingSyncPlace(place: SyncStateBinding, options: Pick<CloseDeadlineOptions, "noticeAfterMs"> = {}): Promise<void> {
+export async function waitForClosingSyncPlace(place: SyncStateBinding, options: Pick<CloseDeadlineOptions, "noticeAfterMs"> & { signal?: AbortSignal } = {}): Promise<void> {
+  const { signal } = options;
   let waiting = closingAtSyncPlace(place);
-  if (waiting.length === 0) return;
+  if (waiting.length === 0 || signal?.aborted) return;
   let notice: number | null = null;
   const timer = setTimeout(() => {
     const now = closingAtSyncPlace(place);
     if (now.length > 0) notice = toast.progress(i18n.t("closing.stillClosingSameFolder", { vault: now[0].vault }));
   }, options.noticeAfterMs ?? CLOSE_NOTICE_AFTER_MS);
+  // The notice lives as long as the start that shows it: one called off meanwhile stops waiting, and its notice goes.
+  let onAbort = () => {};
+  const calledOff = new Promise<void>((resolve) => {
+    onAbort = () => resolve();
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
   try {
     // One that parks here meanwhile is waited for too.
-    while (waiting.length > 0) {
-      await Promise.all(waiting.map((parked) => parked.ended));
+    while (waiting.length > 0 && !signal?.aborted) {
+      await Promise.race([Promise.all(waiting.map((parked) => parked.ended)), calledOff]);
       waiting = closingAtSyncPlace(place);
     }
   } finally {
+    signal?.removeEventListener("abort", onAbort);
     clearTimeout(timer);
     if (notice !== null) toast.dismiss(notice);
   }

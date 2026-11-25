@@ -117,10 +117,17 @@ describe("the deadline of a close", () => {
       expect(step, `${flow}: no handle from the closure`).not.toMatch(/state\.(belowChainAdapter|dbAdapter|syncWorker)|syncTargetRef\.current|\bloadVault\(/);
     }
     expect(desktop.match(/startSyncOf\(\(\) => (settingsOnly|worker|fileWorker)\.start\(\)\)/g), "every sync start of a load waits for its folder and asks the hold").toHaveLength(3);
-    expect(desktop).toMatch(/const startSyncOf = [\s\S]*?syncPlaceFree\.then\(\(\) => \{\s*if \(currentAbortSignal\.aborted \|\| syncHeldRef\.current === path\) return;/);
+    expect(desktop).toMatch(/const syncGate = createSyncGate\(\{ path, place: binding, signal: currentAbortSignal \}\);[\s\S]*?const startSyncOf = \(begin: \(\) => void\) => \(\) => syncGate\.start\(begin\);/);
+    // What reaches the folder before a worker does goes through the gate as well (its behaviour: `syncGate.test.ts`).
+    expect(desktop).toMatch(/void syncGate\.once\(startEncryptedWorkspace\)/);
+    expect(desktop).toMatch(/heldStart = \(\) => void syncGate\.once\(/);
     // The vault opens meanwhile: nothing of the load waits for the folder.
     expect(desktop).not.toMatch(/await [^;\n]*waitForClosingSyncPlace\(/);
-    expect(desktop).toMatch(/const reloadVault = async[\s\S]*syncHeldRef\.current = null;[\s\S]*await loadVault\(state\.vaultPath\)/);
+    // The ports of every step: the sync taken for the step's length, and its runtime only from what the last load
+    // left — no fallback to the closure (`createStepPorts`; the steps' behaviour: `workspaceSteps.test.ts`).
+    const ports = desktop.slice(desktop.indexOf("const stepPorts = (path: string)"), desktop.indexOf("const reopenAfterStep"));
+    expect(ports).toContain("take: () => takeVaultSync(path)");
+    expect(ports, "no handle of the step from the closure").not.toMatch(/state\.(belowChainAdapter|dbAdapter|syncWorker)/);
 
     const phone = readFileSync(join(ROOT, "apps/mobile/src/services/vaultService.ts"), "utf8");
     const settle = phone.slice(phone.indexOf("async function settleBeforeClosing"), phone.indexOf("function leaveVault"));

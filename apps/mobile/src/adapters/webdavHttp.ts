@@ -102,6 +102,8 @@ async function bodyOf(res: NativeResponse): Promise<Uint8Array> {
 /** Log only a bounded code/method, never the native exception (which may
  * contain credentials, private paths or certificate subject names). */
 async function requestNative(options: Parameters<WebDavHttpNative["request"]>[0], signal?: AbortSignal | null) {
+  // Given up while the body was being laid out (a large one is written to a file first): nothing goes out.
+  if (signal?.aborted) throw abortError(signal);
   void sweepHttpFiles();
   // A request the app gives up waiting for is cancelled in the plugin as well, so it does not run on until the
   // plugin's own limit (up to an hour) and reach the provider late; where it ran on all the same — an older build
