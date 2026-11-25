@@ -329,8 +329,8 @@ Tauri stand-in — a lower bound).
 | Re-reading after a save, p95 | ≤ 15 ms | 7.7–18.2 ms, median 5.5–7.0 ms (48.7 / 42.2 ms before L1) | core gate |
 | Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 64–77 ms | core gate |
 | List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks) | core gate |
-| Start bytes per shell | ≤ 3.5 MB | desktop 7.49 MB (2.33 MB gzip, 98 files), phone 7.56 MB (2.30 MB gzip, 60 files) — on main of 2026-11-11; after L5 (2026-11-25): desktop 4.17 MB (1.36 MB gzip), phone 4.91 MB (1.59 MB gzip) | bundle gate |
-| Phone entry file | ≤ 400 KB | 1 096 KB (desktop entry 93 KB); after L5: 288 KB (desktop 304 KB) | bundle gate |
+| Start bytes per shell | ≤ 3.5 MB | desktop 7.49 MB (2.33 MB gzip, 98 files), phone 7.56 MB (2.30 MB gzip, 60 files) — on main of 2026-11-11; after L5 (2026-11-25): desktop 4.17 MB (1.36 MB gzip), phone 4.92 MB (1.61 MB gzip) | bundle gate |
+| Phone entry file | ≤ 400 KB | 1 096 KB (desktop entry 93 KB); after L5: 290 KB (desktop 306 KB) | bundle gate |
 | Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 966.2 ms, p50 57.3 ms, max 1275.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
 | Search in the sidebar, typing to first hit (browser) | — | `project` 479 ms, `review meeting` 88 ms, `Müller` 102 ms, `garden` 38 ms | browser report |
 | Navigation to an editable note, warm index | ≤ 1.5 s | 2.35 s (tree 1.52 s); first start 6.87 s | browser report |
@@ -1148,9 +1148,9 @@ shells built with source maps; the baseline before is the release commit of 0.9.
 | Shell | | Start | gzip | Entry file |
 |---|---|---|---|---|
 | Desktop | before (0.9.0) | 7 804 033 | 2 427 962 | 95 942 |
-| Desktop | after | 4 168 872 | 1 356 479 | 304 442 |
+| Desktop | after | 4 172 364 | 1 358 735 | 305 500 |
 | Phone | before (0.9.0) | 7 892 524 | 2 412 166 | 1 132 589 |
-| Phone | after | 4 906 643 | 1 594 525 | 288 222 |
+| Phone | after | 4 918 989 | 1 607 289 | 289 806 |
 
 Desktop −47 %, phone −38 %; the phone's entry file is under its budget of 400 KB. The desktop's
 entry file grew because the start chunk that holds `main.tsx` now carries what the old shared
@@ -1163,7 +1163,9 @@ initialisation of a barrel — `packages/ui/src/index.ts`, `packages/core/src/in
 `export * from` hundreds of modules — runs every module it re-exports. One
 `import { toast } from "@plainva/ui"` in the start therefore carried the whole package: the AI
 harness, the database views, the template catalogue, even the parity catalogue that no runtime
-code reads. `"sideEffects": false` and `treeshake.moduleSideEffects` change nothing here.
+code reads. `"sideEffects": false` and `treeshake.moduleSideEffects` change nothing here — and would be wrong: the import
+barrel registers its adapters while it loads. The plugin never steps over a module that runs code of its own at
+load (`runsCodeAtLoad`); a name such a module hands on is imported from it.
 `scripts/vite/barrelImports.mjs` (wired by `scripts/vite/packageBarrels.mjs` in both
 `vite.config.ts`) rewrites, in a build only, every named import, named re-export and
 `const { … } = await import(…)` of a package entry to the module that defines each name; it
@@ -1242,4 +1244,4 @@ editor is part of the start by design (a note is one of the three screens that s
 its Markdown and the embedded HTML/CSS/JavaScript grammars and `@codemirror/merge` (parked
 suggestions). The next steps: the workspace's document hashing apart from its signing, the folder
 identities apart from the targets, the workspace lock and status apart from the workspace's
-runtime on the phone, and the start's many small chunks (257 and 350 files) merged.
+runtime on the phone, and the start's many small chunks (262 and 368 files) merged.

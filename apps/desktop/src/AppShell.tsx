@@ -614,6 +614,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // (performance plan L5); until then the shell reads an AI that is off.
   const aiRequested = useDesktopAiRequested();
   useEffect(() => {
+    // The AI was started with the window (main.tsx) when its switch is on; asking again does nothing twice.
     void startDesktopAiIfOn().catch(reportingTo("ai:start"));
     // What is likely to open soon loads while the window idles, so its first use does not wait (performance plan L5).
     return prefetchDeferredParts();
@@ -640,6 +641,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const rightShown = !rightCollapsed || ai.dockOpen;
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
+  // The AI's shortcut while its switch is on but the AI is still loading (performance plan L5): kept, and carried out
+  // the moment the AI is there — not lost to the moment of the load.
+  const aiLoading = aiRequested && !ai.session;
+  const aiToggleWaiting = useRef(false);
+  useEffect(() => {
+    if (!aiEnabled || !aiToggleWaiting.current) return;
+    aiToggleWaiting.current = false;
+    toggleAiCompanion();
+  }, [aiEnabled, toggleAiCompanion]);
   // What waits for a decision in the AI (plan KI-Oberflächen K11): the ribbon's AI button carries it.
   const aiWaiting = aiReport.waiting;
   const aiAttention = aiReport.attention;
@@ -996,6 +1006,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "w") {
         e.preventDefault();
         closeActiveTab();
+      } else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j" && !aiEnabled && aiLoading) {
+        e.preventDefault();
+        aiToggleWaiting.current = true;
       } else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j" && aiEnabled) {
         // Ask AI: the companion over the work (plan KI-Harness §19.1, dress A).
         e.preventDefault();
@@ -1059,7 +1072,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote, capabilities, aiEnabled, toggleAiCompanion]);
+  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote, capabilities, aiEnabled, aiLoading, toggleAiCompanion]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).

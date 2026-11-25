@@ -84,11 +84,18 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         // the first picture, a short gap apart, and all at once at the first
         // touch (bootStagger.ts, performance plan L4).
         stagger?.cancel();
+        stagger = null;
+        // The sync and the calendars come from chunks of their own (performance plan L5): both are loaded first, so
+        // the steps below run in the order and with the gaps they always had.
+        const staggered = Promise.all([import("../services/syncService"), pimServiceModule()]);
+        void staggered.then(([{ startSyncIfConfigured }, { startPim }]) => {
+        if (!current()) return;
+        stagger?.cancel();
         stagger = staggerAfterFirstPaint([
-          () => { if (current()) void import("../services/syncService").then(({ startSyncIfConfigured }) => startSyncIfConfigured(v)).catch((e) => console.error("[boot] sync start failed", e)); },
+          () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
           () => {
             if (!current()) return;
-            const pim = pimServiceModule().then(({ startPim }) => startPim(v));
+            const pim = startPim(v);
             void (first ? pim.then(resumePimOAuthResult) : pim).catch((e) => console.error("[boot] pim start failed", e));
           },
           () => {
@@ -102,6 +109,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
           // The screens likely to open soon load while the app idles, so their first use does not wait (performance plan L5).
           () => { if (current()) prefetchDeferredParts(); },
         ]);
+        }, (e: unknown) => console.error("[boot] the sync's and the calendars' modules did not load", e));
       }, (error: unknown) => {
         if (!current()) return;
         console.error("[boot] the vault did not open", error);

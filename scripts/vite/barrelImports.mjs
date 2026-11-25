@@ -35,12 +35,22 @@ const stripComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, "").replac
 let packageEntries = {};
 const targetOf = (from, spec) => (spec.startsWith(".") ? resolveFile(from, spec) : (packageEntries[spec] ?? null));
 
+/**
+ * Whether a module runs code of its own while it loads — a statement that is no import, export or declaration
+ * (`defaultImportRegistry.register(…)` in the import barrel). Such a module is never stepped over: a name it hands on
+ * is imported from it, so its code runs as it did.
+ */
+function runsCodeAtLoad(source) {
+  return /^(?!export\b|import\b|const\b|let\b|var\b|function\b|class\b|interface\b|type\b|enum\b|declare\b|async\b|abstract\b|[})\]]|$|\s)\S/m.test(source);
+}
+
 /** Names a module exports, each with the module and name that define it. */
 function exportsOf(file, seen = new Map()) {
   if (seen.has(file)) return seen.get(file);
   const names = new Map();
   seen.set(file, names);
   const source = stripComments(fs.readFileSync(file, "utf8"));
+  const own = runsCodeAtLoad(source);
   // Re-exports of names: `export { a, b as c } from "./x"` (types included; they never reach the bundle).
   for (const m of source.matchAll(/export\s+(type\s+)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g)) {
     if (m[1]) continue;
@@ -51,7 +61,7 @@ function exportsOf(file, seen = new Map()) {
       const [imported, local = imported] = item.split(/\s+as\s+/).map((s) => s.trim());
       if (!target) continue;
       const inner = exportsOf(target, seen).get(imported);
-      names.set(local, inner ?? { file: target, name: imported });
+      names.set(local, own ? { file, name: local } : (inner ?? { file: target, name: imported }));
     }
   }
   // Local declarations.
@@ -86,7 +96,7 @@ function exportsOf(file, seen = new Map()) {
   for (const m of source.matchAll(/export\s+\*\s+from\s*["']([^"']+)["']/g)) {
     const target = targetOf(file, m[1]);
     if (!target) continue;
-    for (const [name, origin] of exportsOf(target, seen)) if (!names.has(name)) names.set(name, origin);
+    for (const [name, origin] of exportsOf(target, seen)) if (!names.has(name)) names.set(name, own ? { file, name } : origin);
   }
   return names;
 }

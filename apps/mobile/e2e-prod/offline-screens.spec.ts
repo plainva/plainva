@@ -46,6 +46,8 @@ test("every screen of the phone opens from the bundle without a network", async 
     return route.abort("internetdisconnected");
   });
   page.on("requestfailed", (request) => {
+    // A load the next reload cut off (a part loaded ahead while the app idled) is no file that did not load.
+    if (request.failure()?.errorText === "net::ERR_ABORTED") return;
     if (/\.(js|css|json)(\?|$)/.test(request.url()) && new URL(request.url()).origin === origin) failed.push(request.url());
   });
   page.on("pageerror", (error) => errors.push(String(error.stack || error.message).slice(0, 300)));

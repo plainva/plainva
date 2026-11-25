@@ -120,6 +120,12 @@ describe("named imports of the packages' entries go to the defining module in a 
     expect(out.split("\n")).toHaveLength(2);
   });
 
+  it("never steps over an entry that runs code of its own while it loads (the import adapters register there)", () => {
+    expect.hasAssertions();
+    const out = rewrite('import { defaultImportRegistry, ImportRegistry } from "@plainva/core/import";');
+    expect(out).toMatch(/import \{ defaultImportRegistry, ImportRegistry \} from "[^"]*packages\/core\/src\/import\/index\.ts";/);
+  });
+
   it("takes a dynamic import of names the same way, and leaves what it cannot place on the entry", () => {
     expect.hasAssertions();
     const dynamic = rewrite('const { getVaultTemplates } = await import("@plainva/ui");');
