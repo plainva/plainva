@@ -24,7 +24,7 @@ import {
   mailSecretKey,
   replaceMailAccounts,
 } from "@plainva/ui/mail";
-import { accountSecretKey, getAccountToken } from "./accountBroker";
+import { accountSecretKey, getAccountToken, isAccountSignInOwed } from "./accountBroker";
 import { cloudAccountsRegistryKey } from "./cloudAccounts";
 import { profileAccountMapKey } from "./profileAccountMap";
 import { credentialManager } from "./CredentialManager";
@@ -142,6 +142,7 @@ function desktopCleanupResources(
     listMailAccounts: () => listMailAccounts(vaultPath),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultPath, accounts),
     accountSecretSlot: (accountId) => accountSecretKey(vaultPath, accountId),
+    owedSignIn: (accountId) => Promise.resolve().then(() => isAccountSignInOwed(vaultPath, accountId)).catch(() => false),
     pimSecretSlot: (accountId) => pimSecretKey(vaultPath, accountId),
     mailSecretSlot: (accountId) => mailSecretKey(vaultPath, accountId),
   };

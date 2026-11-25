@@ -1,8 +1,9 @@
 import { getMailPassword, type MailAccountConfig } from "./mailAccounts";
 import { mailAccessTokenFor } from "./graphMail";
-import { MailCredentialsMissingError } from "./credentialsError";
+import { MailCredentialsMissingError, MailEndpointNotConfirmedError } from "./credentialsError";
 import type { ImapCreds } from "./transport";
 import { isMailOAuthRejection } from "./net/xoauth2";
+import { isEndpointConfirmedIn, mailboxEndpoints } from "../lib/endpointConfirmation";
 
 export async function mailCredentials(vaultPath: string, account: MailAccountConfig, force = false): Promise<ImapCreds> {
   if (account.kind === "gmail") {
@@ -13,6 +14,14 @@ export async function mailCredentials(vaultPath: string, account: MailAccountCon
   }
   const pass = await getMailPassword(vaultPath, account.id);
   if (!pass) throw new MailCredentialsMissingError();
+  // A stored password goes to a mail server in a private network only once this
+  // device confirmed it (F57): IMAP, SMTP and Sieve all take it from here. Until
+  // then nothing is sent and the mailbox says **Confirm address** with the
+  // address, never "sign in": a password typed here confirms no server it came
+  // with (review of F57, O3).
+  for (const endpoint of mailboxEndpoints(account)) {
+    if (endpoint && !(await isEndpointConfirmedIn(vaultPath, endpoint))) throw new MailEndpointNotConfirmedError(endpoint);
+  }
   return { host: account.host, port: account.port, user: account.user, pass };
 }
 

@@ -1259,3 +1259,51 @@ every operation") and failed honestly. It now states the new one: the connection
 is kept, probed with `NOOP` before reuse, and closed on release — which is what
 had to stay true. **Red counter-proof run**: with `withConn` back to
 open-per-operation, the reuse assertion fails.
+
+## Parser corpus 0.8.7 vs 0.9.0 (§ 3.185 Nr. 8, 2026-11-24)
+
+0.9.0 moved `micromark` 4.0.2 → 4.0.3 and `micromark-core-commonmark` 2.0.3 → 2.0.4 (with
+`micromark-extension-gfm-table` 2.1.1 → 2.1.2 and `mdast-util-to-hast` 13.2.1 → 13.2.2). The comparison
+the L14 note had planned (`Uebergaben_nach_0.9.0/L14_Korpus_micromark_4.0.3_2026-11-13.md`) was run for
+both sides with the exact versions each tag's lock file pins.
+
+**Method (reproducible).** `packages/core/scripts/perf/parser-corpus-digest.ts` writes one hash per text and
+per reading; `parser-corpus-compare.ts` lists every text where a reading differs. Run the digest in a
+checkout of each release (for `v0.8.7`: `git worktree add ../x v0.8.7`, `pnpm install --frozen-lockfile`, copy
+`parser-corpus-digest.ts`, `parserCorpusForms.ts` and `parser-corpus-compare.ts` in), then compare. Six
+readings per text: the index's AST (`parseMarkdownAst`), the editor tree, the CommonMark tree, the reading
+view's hast from the raw and from the prepared source, and what the index takes from the AST (links, tags,
+front matter).
+
+**Corpus: 4247 texts** — the hand-made forms (`HARD_FORMS`) (emphasis next to punctuation, Unicode, strikethrough, wiki
+links, tags, code, math, tables, indented/fenced code, HTML blocks, setext, line endings, BOM, an unclosed
+`---`) and each of them again as a 100-line paragraph; the 1000-note perf fixture vault (without the long-table
+note, see below); the table corpus (`NASTY_TABLES`); the 652 examples of the CommonMark
+0.31.2 spec; and every note of the maintainer's local test vaults (named by a hash of the path only; no content
+is part of this document).
+
+**Result: 5 of 4247 texts differ, all of one kind — `*` directly next to `_`, inside a word:**
+
+| Input | 0.8.7 | 0.9.0 |
+| --- | --- | --- |
+| `a*_b_*c` | a, emphasis(emphasis(b)), c | `a*`, emphasis(b), `*c` |
+| `a**_b_**c` | a, strong(emphasis(b)), c | `a**`, emphasis(b), `**c` |
+| `word*_x_word` | `word*_x_word` (the same in both) | differs only as a 100-line paragraph |
+
+The five differing texts are the forms `attn_intraword_star_underscore` and
+`attn_intraword_double_star_underscore`, their two 100-line paragraph variants, and `word*_x_word` as a
+paragraph; in each of them the five AST/hast readings follow the parser, so the
+index, the editor tree and the reading view agree with each other on each side. Links, tags and front matter
+facts are identical everywhere. Tables, the fixture vault, the spec examples and the test vaults are identical
+in every reading.
+
+**Cause and decision.** `micromark-core-commonmark` 2.0.4 (`lib/attention.js`) no longer lets `*` and `_`
+count as punctuation when it decides whether a delimiter run can open or close. By the CommonMark flanking
+rule the first `*` of `a*_b_*c` (a letter before it, a punctuation mark after it) is not left-flanking, so it
+cannot open emphasis: the 0.9.0 reading is the specification's, the 0.8.7 reading was the deviation. Taken as a
+deliberate, specification-conforming change, **without a lock file change; it can be reverted** by pinning
+`micromark-core-commonmark` back to 2.0.3 (the 0.8.7 column above returns). It touches only
+intraword `*_…_*` combinations, which notes hardly contain. (Maintainer decision, 2026-11-24.)
+
+**Not part of the digest: the long-table note.** With `gfm-table` 2.1.1 the 20,000-row note takes minutes;
+`packages/core/test/gfm-table-parse.test.ts` already proves 2.1.1 and 2.1.2 produce the same tree on it.

@@ -64,6 +64,8 @@ vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: vi.fn(async () => []), sa
 vi.mock("./accountBroker", () => ({
   brokerFamily: vi.fn(() => null),
   claimPendingMailbox: vi.fn(),
+  claimPendingCalendar: vi.fn(),
+  holdPendingBrokerAccount: vi.fn(() => () => undefined),
   fileBrokerTokenProvider: vi.fn(),
   clearAccountToken: vi.fn(),
   getAccountToken: vi.fn(async () => null),

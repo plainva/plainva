@@ -135,3 +135,35 @@ describe("the sync state belongs to the folder, not the account (third review, f
   });
 });
 
+
+describe("an S3 or WebDAV address this phone has not confirmed (F57; review of F57, O3/O4)", () => {
+  const s3: MobileSyncProvider = { provider: "s3", creds: { endpoint: "http://192.168.1.7:9000", region: "us-east-1", bucket: "b", accessKeyId: "k", secretAccessKey: "s" } } as MobileSyncProvider;
+
+  it("stands still, names the address and asks for Confirm, never for a sign-in", () => {
+    expect(mobileSyncStart({ filesOff: false, entryProvider: "s3", stored: s3, unconfirmed: true })).toMatchObject({
+      start: false, status: "error", messageKey: "cloudAccounts.confirmAddress", messageParams: { address: "http://192.168.1.7:9000" }, confirmEndpoint: "http://192.168.1.7:9000",
+    });
+    expect(mobileSyncStart({ filesOff: false, entryProvider: "s3", stored: s3, unconfirmed: true })).not.toHaveProperty("signInNeeded");
+  });
+
+  it("opens no folder picker with the stored keys until it is confirmed", async () => {
+    const { confirmEndpointsIn, getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    const { folderPickAllowed } = await import("./fileSyncAccess");
+    const settings = new Map<string, unknown>();
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({
+      ...previous,
+      loadSettings: async () => ({
+        get: async (k: string) => structuredClone(settings.get(k)),
+        set: async (k: string, v: unknown) => void settings.set(k, structuredClone(v)),
+        delete: async (k: string) => void settings.delete(k),
+        keys: async () => [...settings.keys()],
+        save: async () => undefined,
+      }),
+    } as unknown as Parameters<typeof setPlatformServices>[0]);
+    expect(await folderPickAllowed("v", s3)).toBe(false);
+    await confirmEndpointsIn("v", ["http://192.168.1.7:9000"]);
+    expect(await folderPickAllowed("v", s3)).toBe(true);
+  });
+});

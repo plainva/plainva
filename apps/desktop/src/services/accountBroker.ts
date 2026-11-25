@@ -1,7 +1,6 @@
 import {
   brokerCardsFor,
   brokerFamily,
-  brokeredSubsystemId,
   describeBrokerLookup as describeSharedBrokerLookup,
   createServiceGrantProbe,
   resolveFileBrokerAccount,
@@ -43,7 +42,15 @@ import { forgetGraphMailRuntime } from "@plainva/ui/mail";
 import { credentialManager } from "./CredentialManager";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
-import { readSlot, removeSlot } from "@plainva/ui";
+import {
+  forgiveSignInDeletion,
+  isSignInDeletionOwed,
+  readSlot,
+  removeSlot,
+  settleOwedSignInDeletions,
+  type ISettingsStore,
+  type OwedSignInResources,
+} from "@plainva/ui";
 import { legacySlot, slot } from "./keychainSlots";
 import { accountCredentialStore } from "./accountCredentialStore";
 
@@ -56,7 +63,54 @@ export function accountSecretKey(vaultPath: string, accountId: string): string {
   return slot.account(vaultPath, accountId);
 }
 
+/** The settings store, reached lazily (the resources are built synchronously). */
+const lazySettings: ISettingsStore = {
+  get: async <T,>(key: string) => (await getSettingsStore()).get<T>(key),
+  set: async (key, value) => (await getSettingsStore()).set(key, value),
+  delete: async (key) => (await getSettingsStore()).delete(key),
+  keys: async () => (await getSettingsStore()).keys(),
+  save: async () => (await getSettingsStore()).save(),
+};
+
+/**
+ * The card sign-ins "Remove account" could not delete in this vault, owed
+ * until they are gone (`owedSignInDeletions.ts`). Device-local: the key is no
+ * profile field, so it never travels.
+ */
+export function owedSignInResources(vaultPath: string): OwedSignInResources {
+  return {
+    store: lazySettings,
+    storeKey: `owedSignInDeletions_${btoa(unescape(encodeURIComponent(vaultPath)))}`,
+    deleteSignIn: (accountId) =>
+      withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
+        if (!(await isSignInDeletionOwed(owedSignInResources(vaultPath), accountId))) return;
+        forgetAccountBroker(vaultPath, accountId);
+        // Both names, the current and the one before (ADR 0005 shape).
+        await removeSlot(credentialManager, slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId));
+        await forgetAccountMailRuntime(vaultPath, accountId);
+      }),
+  };
+}
+
+/**
+ * Whether the card's sign-in is owed a deletion here — then nothing may copy,
+ * move or use it (review 2026-11-18): the repair, the grant migration, the
+ * move to the readable names. An unreadable list counts as owed nothing.
+ */
+export async function isAccountSignInOwed(vaultPath: string, cardId: string): Promise<boolean> {
+  return isSignInDeletionOwed(owedSignInResources(vaultPath), cardId);
+}
+
+/** Tries the vault's owed sign-in deletions again (when the vault opens, before every new sign-in). */
+export async function settleOwedAccountSignIns(vaultPath: string): Promise<string[]> {
+  return settleOwedSignInDeletions(owedSignInResources(vaultPath));
+}
+
 async function readAccountCredentialsUnlocked(vaultPath: string, accountId: string): Promise<unknown> {
+  // A card whose removal could not delete its sign-in is not signed in here,
+  // even when the card came back through another device's settings: the
+  // owed deletion wins until the card is signed in again on this device.
+  if (await isSignInDeletionOwed(owedSignInResources(vaultPath), accountId)) return null;
   for (const key of [slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId)]) {
     const raw = await accountCredentialStore.read(key);
     if (raw !== null) {
@@ -92,7 +146,17 @@ async function writeRotatedAccountToken(vaultPath: string, accountId: string, ne
 }
 
 export async function saveAccountToken(vaultPath: string, accountId: string, token: StoredAccountToken, expected?: StoredAccountToken | null): Promise<void> {
+  // Before every new sign-in the owed deletions are tried again; one that
+  // still fails is said, and this sign-in goes on.
+  await settleOwedAccountSignIns(vaultPath).catch(() => undefined);
   await withAccountCredentialLock(accountSecretKey(vaultPath, accountId), async () => {
+    // Signed in again here: the leftover of the removed sign-in goes first
+    // (nothing of it may be merged into the new one), then the debt, so it
+    // never takes this sign-in.
+    if (await isSignInDeletionOwed(owedSignInResources(vaultPath), accountId)) {
+      await removeSlot(credentialManager, slot.account(vaultPath, accountId), legacySlot.account(vaultPath, accountId));
+      await forgiveSignInDeletion(owedSignInResources(vaultPath), accountId);
+    }
     await updateAccountCredentials(accountCredentialStore, accountSecretKey(vaultPath, accountId), (raw) => {
       if (expected !== undefined) {
         const current = primaryAccountToken(raw);
@@ -353,10 +417,68 @@ interface PendingBrokerAccount {
   family: "microsoft" | "google";
   /** The mailbox this connect creates — the one mailbox the marker answers. */
   mailAccountId?: string;
+  /** The calendar row this connect creates or signs in again — the one row it answers. */
+  pimAccountId?: string;
 }
-let pendingAccount: PendingBrokerAccount | null = null;
+
+/**
+ * One marker per card, keyed by vault and card (Fehlerliste C3), held by every
+ * connect running at that card (Fehlerliste F36 A3).
+ *
+ * A single module-wide marker let a second connect replace the first one's,
+ * and the first one's end then cleared the second's: whichever validation ran
+ * next found no marker, or the wrong account's. Nothing in the interface stops
+ * two connects from binding at the same time — the settings area can be left
+ * and opened again while a consent waits in the browser, and the account
+ * page's own sign-in runs beside the wizard's.
+ *
+ * Two connects at the SAME card share its marker: both draw the card's own
+ * sign-in, so the mailboxes and calendar rows either of them named are
+ * answered, and the marker goes when the last of them ends. Replacing it, as
+ * before, dropped what the first connect had named while it was still running.
+ */
+interface PendingCard {
+  vaultPath: string;
+  accountId: string;
+  family: "microsoft" | "google";
+  mailAccountIds: Set<string>;
+  pimAccountIds: Set<string>;
+  holders: number;
+}
+const pendingAccounts = new Map<string, PendingCard>();
+const pendingKey = (vaultPath: string, accountId: string) => `${vaultPath}\u0000${accountId}`;
+
+/**
+ * Marks a connect as running and returns the call that ends it. Ending only
+ * ends this connect: another connect at the same card keeps the marker and
+ * everything it named.
+ */
+export function holdPendingBrokerAccount(next: PendingBrokerAccount): () => void {
+  const key = pendingKey(next.vaultPath, next.accountId);
+  const entry: PendingCard = pendingAccounts.get(key)
+    ?? { vaultPath: next.vaultPath, accountId: next.accountId, family: next.family, mailAccountIds: new Set(), pimAccountIds: new Set(), holders: 0 };
+  entry.family = next.family;
+  entry.holders += 1;
+  if (next.mailAccountId) entry.mailAccountIds.add(next.mailAccountId);
+  if (next.pimAccountId) entry.pimAccountIds.add(next.pimAccountId);
+  pendingAccounts.set(key, entry);
+  let ended = false;
+  return () => {
+    if (ended) return;
+    ended = true;
+    entry.holders -= 1;
+    if (entry.holders <= 0 && pendingAccounts.get(key) === entry) pendingAccounts.delete(key);
+  };
+}
+
+/** Starts the card's marker afresh (what it named is dropped), as `holdPendingBrokerAccount`; `null` ends every connect. */
 export function setPendingBrokerAccount(next: PendingBrokerAccount | null): void {
-  pendingAccount = next;
+  if (!next) {
+    pendingAccounts.clear();
+    return;
+  }
+  pendingAccounts.delete(pendingKey(next.vaultPath, next.accountId));
+  holdPendingBrokerAccount(next);
 }
 
 /**
@@ -372,19 +494,33 @@ export function setPendingBrokerAccount(next: PendingBrokerAccount | null): void
  * saved a moment ago. So the marker answers the mailbox that was named, and no
  * other.
  */
-export function claimPendingMailbox(vaultPath: string, mailAccountId: string): void {
-  if (pendingAccount && pendingAccount.vaultPath === vaultPath) pendingAccount = { ...pendingAccount, mailAccountId };
+export function claimPendingMailbox(vaultPath: string, accountId: string, mailAccountId: string): void {
+  pendingAccounts.get(pendingKey(vaultPath, accountId))?.mailAccountIds.add(mailAccountId);
 }
 
-/** Whether the account being connected right now answers this question. */
-function pendingAnswers(
-  pending: PendingBrokerAccount,
-  records: CloudAccountRecord[],
-  service: CloudServiceId,
-  subsystemId: string
-): boolean {
-  if (service === "mail") return pending.mailAccountId === subsystemId;
-  return !belongsToAnotherAccount(records, service, subsystemId, pending.accountId);
+/**
+ * The same for the calendar row (Fehlerliste C2, Sammelplan § 3.107 Nr. 3).
+ *
+ * The calendar answered every row no card claimed, for as long as a connect
+ * ran: a calendar with a sign-in of its own and no card — connected before the
+ * account cards, or arrived with the settings of another device — drew the
+ * token minted for the account being connected, and kept it, because the
+ * calendar's auth caches the broker's answer. The connect's own validations
+ * never needed that rule: they run on the probe of the card's grant, and the
+ * new row starts only after its card is written.
+ */
+export function claimPendingCalendar(vaultPath: string, accountId: string, pimAccountId: string): void {
+  pendingAccounts.get(pendingKey(vaultPath, accountId))?.pimAccountIds.add(pimAccountId);
+}
+
+/** The connect running in this vault that named this subsystem, if any. */
+function pendingFor(vaultPath: string, service: CloudServiceId, subsystemId: string): PendingCard | undefined {
+  for (const pending of pendingAccounts.values()) {
+    if (pending.vaultPath !== vaultPath) continue;
+    if (service === "mail" && pending.mailAccountIds.has(subsystemId)) return pending;
+    if (service === "calendar" && pending.pimAccountIds.has(subsystemId)) return pending;
+  }
+  return undefined;
 }
 
 /** Resolve only a service whose stored grant covers it. Both shells use the
@@ -404,16 +540,13 @@ export async function brokerTokenProvider(
   // Nobody asking is nobody to answer — not even the connect in progress.
   if (!subsystemId) return undefined;
   const records = await loadCloudAccounts(vaultPath);
-  if (
-    pendingAccount &&
-    pendingAccount.vaultPath === vaultPath &&
-    pendingAnswers(pendingAccount, records, service, subsystemId)
-  ) {
-    const minted = await getAccountToken(vaultPath, pendingAccount.accountId, service, pendingAccount.family);
+  const pending = pendingFor(vaultPath, service, subsystemId);
+  if (pending) {
+    const minted = await getAccountToken(vaultPath, pending.accountId, service, pending.family);
     // The same scope rule as below: a consent that just covered file sync must
     // not be handed to the calendar mid-connect either.
-    if (minted && tokenCoversService(minted, service, pendingAccount.family)) {
-      const { accountId, family } = pendingAccount;
+    if (minted && tokenCoversService(minted, service, pending.family)) {
+      const { accountId, family } = pending;
       return async (force: boolean) => {
         const broker = getAccountBroker(vaultPath, accountId, family);
         if (force) broker.forget();
@@ -461,38 +594,6 @@ export async function fileBrokerTokenProvider(vaultPath: string, binding: FileBr
     if (force) broker.forget();
     return broker.getAccessToken("files", binding);
   };
-}
-
-/**
- * Whether the asking subsystem already belongs to a card OTHER than the one
- * being connected right now.
- *
- * The pending marker exists so the validations that run DURING a connect find
- * the freshly minted token, before the registry record exists. But the workers
- * keep running meanwhile — and the marker outlived its connect, so from the
- * moment a second account was added, every service of the vault drew that
- * account's token: the Google calendar was handed the MICROSOFT access token
- * and Google answered 401 UNAUTHENTICATED "Expected OAuth 2 access token",
- * which reads exactly like a revoked sign-in. Deleting the new account made it
- * disappear, because that removed the token the marker pointed at (finding
- * 2026-07-30).
- *
- * A subsystem that some card already claims is never part of the connect in
- * progress, so it keeps its own path. That only holds when the subsystem is
- * named: mail asked without its mailbox until 2026-10-12, so for the length of
- * a connect every OAuth mailbox of the vault drew the token just minted for
- * the new account.
- *
- * This is the calendar's rule. Mail no longer asks it: the connect names the
- * mailbox it creates (`claimPendingMailbox`), and the marker answers that one.
- */
-function belongsToAnotherAccount(
-  records: CloudAccountRecord[],
-  service: CloudServiceId,
-  subsystemId: string,
-  pendingId: string
-): boolean {
-  return records.some((r) => r.id !== pendingId && brokeredSubsystemId(r, service) === subsystemId);
 }
 
 /**

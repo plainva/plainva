@@ -33,6 +33,8 @@ on:
       - 'packages/ui/src/locales/**'
       - '.github/workflows/updater-manifest.yml'
       - 'apps/desktop/scripts/check-webdriver-server.sh'
+      - 'apps/desktop/scripts/driver-warmup.mjs'
+      - 'apps/desktop/scripts/install-msedgedriver.ps1'
       - '.github/workflows/native-smoke.yml'
   workflow_call:
     inputs:
@@ -74,6 +76,13 @@ jobs:
       # Built without the smoke feature: the binary check must find nothing.
       - name: No embedded WebDriver server in a build without the feature
         run: bash apps/desktop/scripts/check-webdriver-server.sh apps/desktop/src-tauri/target/debug/plainva-desktop
+      # The first start of a tauri-driver binary that is new on this runner
+      # (compiled by cargo or unpacked from the cache) can take longer than the
+      # 10 s the WebdriverIO service waits for it; three runs failed that way
+      # before the app ran (F78). Start it once here, and write how long the
+      # first and the second start took into the job summary.
+      - name: Start the driver once and measure it
+        run: node apps/desktop/scripts/driver-warmup.mjs --label "linux"
       - name: Native smoke
         run: xvfb-run --auto-servernum pnpm --filter desktop test:native
       - name: Upload driver logs
@@ -135,6 +144,17 @@ jobs:
           extra=""
           if [ "$RUNNER_OS" = "Windows" ]; then extra="--config src-tauri/tauri.smoke.conf.json"; fi
           pnpm --filter desktop exec tauri build --debug --no-bundle $extra --config "$PLAINVA_UPDATER_TEST_DIR/tauri.updater-test.conf.json"
+      # The first start of a tauri-driver binary that is new on this runner
+      # (compiled by cargo or unpacked from the cache) can take longer than the
+      # 10 s the WebdriverIO service waits for it; three runs failed that way
+      # before the app ran (F78). Start it once here, and write how long the
+      # first and the second start took into the job summary.
+      - name: Install the msedgedriver that matches WebView2
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./apps/desktop/scripts/install-msedgedriver.ps1
+      - name: Start the driver once and measure it
+        run: node apps/desktop/scripts/driver-warmup.mjs --label "updater signature (${{ matrix.os }})"
       - name: Updater signature test (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum pnpm --filter desktop test:native:updater
@@ -219,6 +239,19 @@ jobs:
           if (-not $q.HasExited) { Stop-Process -Id $q.Id -Force }
           Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
           Remove-Item Env:WEBVIEW2_USER_DATA_FOLDER; Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
+      # The first start of a tauri-driver binary that is new on this runner
+      # (compiled by cargo or unpacked from the cache) can take longer than the
+      # 10 s the WebdriverIO service waits for it; three runs failed that way
+      # before the app ran (F78). Start it once here, and write how long the
+      # first and the second start took into the job summary.
+      # The service's own msedgedriver download (Windows PowerShell 5.1,
+      # Expand-Archive) failed in every run: "Cannot find an overload for
+      # ExtractToDirectory" (§ 3.183 Nr. 9). Install the matching driver here.
+      - name: Install the msedgedriver that matches WebView2
+        shell: pwsh
+        run: ./apps/desktop/scripts/install-msedgedriver.ps1
+      - name: Start the driver once and measure it
+        run: node apps/desktop/scripts/driver-warmup.mjs --label "windows"
       - name: Native smoke
         run: pnpm --filter desktop test:native
       - name: Upload driver logs

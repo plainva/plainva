@@ -10,6 +10,7 @@ import { resumePimOAuthResult } from "../services/pim/pimOAuth";
 import { startMobileMail, stopMobileMail } from "../services/mail/mailRuntime";
 import { healMailAccounts } from "@plainva/ui/mail";
 import { staggerAfterFirstPaint, type BootStagger } from "../services/bootStagger";
+import { settleVaultEndpointConfirmations } from "../services/endpointConfirmationSettle";
 
 /**
  * Where the boot of the active vault stands — what the shell shows while it
@@ -70,6 +71,9 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         setBoot({ kind: "ready" });
         bindConflictStore(v.vaultId); // unresolved conflicts survive the restart (P1)
         handlersRef.current.onOpened(v, first);
+        // F57: the one-time switch-over takes what already worked here as
+        // confirmed; every send path waits for it, so it starts first.
+        void settleVaultEndpointConfirmations(v).catch((e) => console.error("[boot] confirming the addresses in use failed", e));
         // Binds the mailboxes to this vault and takes the mail sign-in: no
         // database work, and a sign-in may come back at any moment.
         startMobileMail(v);

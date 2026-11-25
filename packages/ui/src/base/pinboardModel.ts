@@ -42,10 +42,13 @@ export function orderCards(
   pinned: string[] | undefined,
 ): PinboardSections {
   const present = new Map(rows.map((r) => [r.path, r]));
-  const pinnedClean = (pinned ?? []).filter((p) => present.has(p));
+  // Each card once: a list that holds a path twice (a hand-edited file, two
+  // devices writing at once) would draw the card twice.
+  const pinnedClean = once(pinned).filter((p) => present.has(p));
   const pinnedSet = new Set(pinnedClean);
-  const listed = (order ?? []).filter((p) => present.has(p) && !pinnedSet.has(p));
-  const listedSet = new Set(order ?? []);
+  const orderOnce = once(order);
+  const listed = orderOnce.filter((p) => present.has(p) && !pinnedSet.has(p));
+  const listedSet = new Set(orderOnce);
   const unarranged = rows
     .filter((r) => !listedSet.has(r.path) && !pinnedSet.has(r.path))
     .sort((a, b) => {

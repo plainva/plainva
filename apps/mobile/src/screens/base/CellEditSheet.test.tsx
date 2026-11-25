@@ -130,3 +130,28 @@ describe("the door to filling the cell's column", () => {
     host.remove();
   });
 });
+
+describe("free-text links inside CellEditSheet (parity: base-cell-text-links)", () => {
+  it("lists web and note links found in the cell's text so they stay followable", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const onOpenNote = vi.fn();
+    await act(async () =>
+      root.render(
+        <CellEditSheet
+          vault={vault}
+          target={{ ...target, value: "see [[Other|The other]] and https://example.com" }}
+          rows={[]}
+          onCommit={() => {}}
+          onClose={() => {}}
+          onOpenNote={onOpenNote}
+        />,
+      ),
+    );
+    const links = [...host.querySelectorAll<HTMLButtonElement>('[data-testid="cell-inline-link"]')];
+    expect(links.map((b) => b.textContent)).toEqual(["The other", "https://example.com"]);
+    act(() => root.unmount());
+    host.remove();
+  });
+});

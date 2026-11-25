@@ -24,7 +24,7 @@ import * as pim from "./pimRuntime";
  * and nothing else.
  */
 
-const { triggered, started, scopeState } = vi.hoisted(() => ({ triggered: { count: 0 }, started: vi.fn(), scopeState: vi.fn(async () => {}) }));
+const { triggered, started, scopeState, workerOptions } = vi.hoisted(() => ({ triggered: { count: 0 }, started: vi.fn(), scopeState: vi.fn(async () => {}), workerOptions: [] as Array<{ buildTarget?: (account: unknown) => Promise<unknown> }> }));
 
 const { rescheduleReminders } = vi.hoisted(() => ({ rescheduleReminders: vi.fn() }));
 vi.mock("../reminderScheduler", () => ({ rescheduleReminders }));
@@ -46,6 +46,7 @@ vi.mock("@plainva/core", () => {
     setScopeState = scopeState;
   }
   class FakeWorker {
+    constructor(options: { buildTarget?: (account: unknown) => Promise<unknown> }) { workerOptions.push(options); }
     start() { started(); }
     stop() {}
     triggerImmediate() {
@@ -60,7 +61,8 @@ const vault = { vaultId: "v1", db: {} } as unknown as MobileVault;
 
 // What pimService hands in. The fake worker runs no cycle, so none of it is called.
 const wiring: pim.PimRuntimeWiring = {
-  buildTarget: async () => null,
+  buildTarget: vi.fn(async () => null),
+  syncTarget: vi.fn(async () => null),
   accountAuthRevision: async () => undefined,
   parkedMessage: "sign-in required",
   onCycle: () => {},
@@ -150,5 +152,14 @@ describe("pimForegroundSync", () => {
     expect(triggered.count).toBe(0);
     expect(rescheduleReminders).not.toHaveBeenCalled();
     await pim.startPimRuntime(vault, wiring); // leave the module as the other tests expect it
+  });
+});
+
+describe("the worker's builder (review of F57, round three, O-B)", () => {
+  it("is the one that refuses an unconfirmed calendar with its address, so the account waits visibly", async () => {
+    const account = { id: "a1", provider: "caldav" };
+    await workerOptions[workerOptions.length - 1]!.buildTarget!(account);
+    expect(wiring.syncTarget).toHaveBeenCalledWith("v1", account);
+    expect(wiring.buildTarget).not.toHaveBeenCalled();
   });
 });

@@ -20,6 +20,8 @@ Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para
 
 **Contas de e-mail sem senha.** Uma configuração que falhou ao salvar podia deixar uma entrada sem senha (Plainva 0.8.3 no desktop). A área **E-mail** aponta uma vez as contas que não têm senha neste dispositivo e nunca baixaram e-mails aqui. **Ver** mostra a lista. Se você usa uma dessas contas em outro dispositivo, escolha **Entrar** — esse é então o caminho certo. **Remover** apaga a entrada depois de perguntar, em todos os dispositivos que sincronizam as configurações deste vault, nunca e-mails ou arquivos. **Depois** oculta o aviso. O Plainva nunca remove nada por conta própria.
 
+Um servidor de e-mail em uma rede local só recebe a senha de um dispositivo depois que o endereço dele for confirmado nele: [Endereços sem criptografia e locais](Sync_Setup.md#endereços-sem-criptografia-e-locais).
+
 ## Lendo e-mails
 
 Abra a aba de e-mail pela barra de ações à esquerda (ícone de e-mail) ou pela paleta de comandos (**Abrir e-mail**). A lista mostra sua caixa de entrada da mais recente para a mais antiga (não lidas em negrito, **Carregar mais** avança para mais páginas). Selecionar uma mensagem a abre em um **visualizador em sandbox**:

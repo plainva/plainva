@@ -1,7 +1,7 @@
 import {
   rawChangeOf,
   type ReaderView,
-  VIEW_PLACEHOLDER,
+  carriesViewPlaceholder,
   AI_POLICY_DIMENSIONS,
   MEMORY_DRAFT_TOOL_NAMES,
   MEMORY_LIMITS,
@@ -252,12 +252,12 @@ export interface WriteRun {
 }
 
 /**
- * Whether any text a tool's arguments would write carries a placeholder of a view (`VIEW_PLACEHOLDER`). Not what only
+ * Whether any text a tool's arguments would write carries a placeholder of a view (`carriesViewPlaceholder`). Not what only
  * points into a note — the passage an edit looks for, the section an addition goes to —: those are read on the view,
  * and may name a placeholder where the reader sees one.
  */
 function carriesPlaceholder(value: unknown, depth = 0): boolean {
-  if (typeof value === "string") return VIEW_PLACEHOLDER.test(value);
+  if (typeof value === "string") return carriesViewPlaceholder(value);
   if (depth > 6 || value === null || typeof value !== "object") return false;
   return Object.entries(value as Record<string, unknown>).some(([key, item]) => !LOCATORS.has(key) && carriesPlaceholder(item, depth + 1));
 }

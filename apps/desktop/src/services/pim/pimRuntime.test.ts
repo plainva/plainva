@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PimAccountRow } from "@plainva/core";
 
-const { getPimCredentials, scopeState, started, triggered } = vi.hoisted(() => ({ getPimCredentials: vi.fn(), scopeState: vi.fn(), started: vi.fn(), triggered: vi.fn() }));
+const { getPimCredentials, scopeState, started, triggered, workerOptions } = vi.hoisted(() => ({ getPimCredentials: vi.fn(), scopeState: vi.fn(), started: vi.fn(), triggered: vi.fn(), workerOptions: [] as Array<Record<string, unknown>> }));
 vi.mock("./pimCredentials", () => ({ getPimCredentials, savePimCredentials: vi.fn() }));
 vi.mock("./pimAuth", () => ({ buildPimAuthProvider: () => ({ getAccessToken: async () => "token" }) }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
@@ -10,12 +10,14 @@ vi.mock("@plainva/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@plainva/core")>()),
   PimCacheRepository: class { setScopeState = scopeState; },
   PimWorker: class {
+    constructor(options: Record<string, unknown>) { workerOptions.push(options); }
     start = started;
     triggerImmediate = triggered;
     stop() {}
   },
 }));
 
+import { confirmationEndpoint, confirmEndpointsIn, getPlatformServices, setPlatformServices } from "@plainva/ui";
 import { createPimRuntime, restartPimAccountAfterLogin } from "./pimRuntime";
 
 /**
@@ -45,6 +47,21 @@ describe("building a target for an account", () => {
     // A Google account signed out here does not fall back to the card's (deleted) grant either.
     getPimCredentials.mockResolvedValue({ kind: "google", clientId: "cid", clientSecret: "sec", refreshToken: "", signedOutHere: true });
     expect(await runtime().buildTarget(row("google"))).toBeNull();
+  });
+
+  // Review 2026-11-18, fourth round (inject, outage): the worker had a way to
+  // sign in at an address another device put into the shared row, and the
+  // password went there before the server could prove anything. A device sends
+  // its password only to the address of its own sign-in.
+  it("gives the worker no way to sign in anywhere but the address of this device's own sign-in", async () => {
+    workerOptions.length = 0;
+    runtime();
+    expect(workerOptions).toHaveLength(1);
+    expect(Object.keys(workerOptions[0]).sort()).not.toContain("otherAccess");
+    getPimCredentials.mockResolvedValue({ kind: "caldav", url: "https://cloud.example.com/remote.php/dav", user: "anna", pass: "pw" });
+    const target = await runtime().buildTarget({ ...row("caldav"), config: { url: "https://evil.example/remote.php/dav", user: "anna" } });
+    expect(target?.confirmedAccess?.()).toBeUndefined();
+    expect((target as unknown as { creds: { url: string } }).creds.url).toBe("https://cloud.example.com/remote.php/dav");
   });
 
   it("still builds one for a CalDAV server without a password", async () => {
@@ -91,5 +108,34 @@ describe("building a target for an account", () => {
   it("still skips a CalDAV account without stored credentials", async () => {
     getPimCredentials.mockResolvedValue(null);
     expect(await runtime().buildTarget(row("caldav"))).toBeNull();
+  });
+  // F57 (maintainer, 2026-11-18): a stored password goes to an address without
+  // TLS or in a private network only once this device confirmed it.
+  it("builds no target for an unconfirmed address without TLS or in a private network - the sync is told why, with the address - and one once it is confirmed", async () => {
+    const settings = new Map<string, unknown>();
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({
+      ...previous,
+      loadSettings: async () => ({
+        get: async (key: string) => settings.get(key),
+        set: async (key: string, value: unknown) => void settings.set(key, value),
+        delete: async (key: string) => void settings.delete(key),
+        keys: async () => [...settings.keys()],
+        save: async () => undefined,
+      }),
+    } as unknown as Parameters<typeof setPlatformServices>[0]);
+    for (const url of ["http://cloud.example.com/remote.php/dav", "https://192.168.1.5/remote.php/dav", "https://nas.home.arpa/dav"]) {
+      getPimCredentials.mockResolvedValue({ kind: "caldav", url, user: "anna", pass: "pw" });
+      expect(await runtime().buildTarget(row("caldav")), url).toBeNull();
+      // The worker asks the builder that says why (review of F57, round three, O-B).
+      await expect((workerOptions[workerOptions.length - 1]!.buildTarget as (a: PimAccountRow) => Promise<unknown>)(row("caldav")), url).rejects.toMatchObject({ name: "EndpointNotConfirmedError" });
+      // The sync and "Check connection" are told why, with the address (review of F57, O-5).
+      await expect(runtime().syncTarget(row("caldav")), url).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: confirmationEndpoint(url) });
+      await confirmEndpointsIn("/vault", [confirmationEndpoint(url)]);
+      expect(await runtime().buildTarget(row("caldav")), url).not.toBeNull();
+      expect(await runtime().syncTarget(row("caldav")), url).not.toBeNull();
+    }
+    if (previous) setPlatformServices(previous);
   });
 });

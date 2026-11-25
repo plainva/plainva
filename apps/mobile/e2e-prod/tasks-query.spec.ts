@@ -70,10 +70,21 @@ test.describe("tasks queries on the phone", () => {
       await rows.filter({ hasText: "Petition einreichen" }).getByTestId("task-planner-toggle").click();
       await expect.poll(() => readFile(page, "Projekte/Bahn.md")).toMatch(/- \[x\] Petition einreichen #rettediebahn 📅 2026-10-30 ⏫ ✅ \d{4}-\d{2}-\d{2}/);
 
-      // Holding a row opens the sheet of the Tasks tab.
+      // The list follows the tick through the index, after the file: the done task leaves "not done", its subtree is
+      // laid out anew, and the rows below move up. A press taken before that lands where the row was (F75 of release
+      // 0.9.0: twice in a row on a loaded runner). So: the new list first, then a row that stands still.
+      await expect(rows.filter({ hasText: "Petition einreichen" })).toHaveCount(0, { timeout: 15000 });
       const row = rows.filter({ hasText: "Treffen mit Verband" }).first();
-      const box = await row.boundingBox();
+      let box = await row.boundingBox();
+      for (let i = 0; i < 20; i++) {
+        await page.waitForTimeout(100);
+        const again = await row.boundingBox();
+        if (box && again && again.x === box.x && again.y === box.y) break;
+        box = again;
+      }
       if (!box) throw new Error("no row");
+
+      // Holding a row opens the sheet of the Tasks tab.
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.down();
       await page.waitForTimeout(700);

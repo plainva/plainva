@@ -46,6 +46,11 @@ export interface SyncStatusSnapshot {
    * to that card instead of the sync settings.
    */
   signInAccountId?: string;
+  /**
+   * The vault's file address waits for this device's **Confirm** (F57): what
+   * is missing is the confirmation, not a sign-in — the dialog asks it.
+   */
+  confirmEndpoint?: string;
   /** With `retrying` only: wall clock of the next attempt (round 3, R4). */
   retryAt?: number;
   /**
@@ -102,6 +107,7 @@ export interface SyncErrorEntry {
   reason?: SyncErrorReason;
   authRecoverable?: boolean;
   signInAccountId?: string;
+  confirmEndpoint?: string;
   listingIncomplete?: ListingIncompleteInfo | null;
 }
 export type SyncErrorSnapshot = SyncErrorEntry;
@@ -151,6 +157,7 @@ export const syncStatusStore = {
       merged.authRecoverable = undefined;
     }
     if ((next.status !== undefined || next.message !== undefined) && next.signInAccountId === undefined) merged.signInAccountId = undefined;
+    if ((next.status !== undefined || next.message !== undefined) && next.confirmEndpoint === undefined) merged.confirmEndpoint = undefined;
     if ((next.status !== undefined || next.message !== undefined) && next.workspaceFailure === undefined) merged.workspaceFailure = undefined;
     st.snapshot = merged;
     if (
@@ -165,6 +172,7 @@ export const syncStatusStore = {
         reason: merged.reason,
         authRecoverable: merged.authRecoverable,
         ...(merged.signInAccountId ? { signInAccountId: merged.signInAccountId } : {}),
+        ...(merged.confirmEndpoint ? { confirmEndpoint: merged.confirmEndpoint } : {}),
         workspaceFailure: merged.workspaceFailure,
         listingIncomplete: merged.listingIncomplete ?? null,
       });
@@ -219,6 +227,7 @@ export function captureSyncErrorSnapshot(vaultPath: string | null): SyncErrorSna
       reason: current.reason,
       authRecoverable: current.authRecoverable,
       ...(current.signInAccountId ? { signInAccountId: current.signInAccountId } : {}),
+      ...(current.confirmEndpoint ? { confirmEndpoint: current.confirmEndpoint } : {}),
       listingIncomplete: current.listingIncomplete ?? null,
     };
   }

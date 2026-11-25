@@ -1,6 +1,6 @@
 # Geheugen (Beta)
 
-Laatst bijgewerkt: 2026-11-16
+Laatst bijgewerkt: 2026-11-19
 
 Het geheugen bewaart wat de AI over jou en je werk moet weten zonder dat je het opnieuw hoeft te vertellen: wat je doet, hoe je je antwoorden het liefst wilt hebben, wie je klanten zijn. Het zijn twee bestanden in je vault. Er komt niets in zonder jouw ja, en je kunt elk item lezen, wijzigen en verwijderen.
 
@@ -12,7 +12,7 @@ Het geheugen bewaart wat de AI over jou en je werk moet weten zonder dat je het 
 
 ## Het geheugen openen
 
-Kies op de desktop **Geheugen** in het AI-tabblad, naast **Vaardigheden**. Op de telefoon is dat het segment **Geheugen** van het scherm **AI** (of **Vaardigheden en geheugen** op de startpagina). Ook **Instellingen → AI in deze vault** leidt erheen: **Geheugen openen** onder **Vaardigheden en geheugen**. De bestandsnamen van het geheugen staan achter het ⓘ van de kaart **Altijd erbij**; de regels van de vault (`AGENTS.md`) controleer en keur je hier goed, in de geheugenweergave, niet meer bij de vaardigheden.
+Kies op de desktop **Geheugen** in het AI-tabblad, naast **Vaardigheden**. Op de telefoon is dat het segment **Geheugen** van het scherm **AI** (of **Vaardigheden en geheugen**, de laatste ingang van het menu **Vaardigheden** van een leeg gesprek). Ook **Instellingen → AI in deze vault** leidt erheen: **Geheugen openen** onder **Vaardigheden en geheugen**. De bestandsnamen van het geheugen staan achter het ⓘ van de kaart **Altijd erbij**; de regels van de vault (`AGENTS.md`) controleer en keur je hier goed, in de geheugenweergave, niet meer bij de vaardigheden.
 
 ## Zelf een item toevoegen
 

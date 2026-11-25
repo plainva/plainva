@@ -21,7 +21,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, FirstNotePrompt, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler, useVaultEmptiness } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, FirstNotePrompt, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiAttention, useAiWaitingCount, useStableHandler, useVaultEmptiness } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -141,7 +141,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         })
         .catch(() => undefined);
     };
-    refresh();
+    // Empty calendar rows that only duplicate another of the same Nextcloud go
+    // first, once per vault and runtime (GitHub issue 174), so the cards never show them.
+    const runtime = pimRuntime;
+    void (runtime
+      ? import("./services/pim/pimAccounts").then((m) => m.foldEmptyCalendarDuplicates(runtime, vaultPath)).catch((e) => console.error("[cloudAccounts] empty duplicates", e))
+      : Promise.resolve()
+    ).then(() => { if (alive) refresh(); });
     window.addEventListener("plainva-cloud-accounts-changed", refresh);
     window.addEventListener("plainva-credentials-saved", refresh);
     return () => {
@@ -625,6 +631,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
   // What waits for a decision in the AI (plan KI-Oberflächen K11): the ribbon's AI button carries it.
   const aiWaiting = useAiWaitingCount(ai.session ?? null);
+  const aiAttention = useAiAttention(ai.session ?? null);
 
   /**
    * The communications window: mail beside the calendar (multi-window P4, E4).
@@ -1550,6 +1557,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onOpenJournal={() => openView(JOURNAL_TAB_PATH)}
         onOpenAi={ai.enabled ? ai.openCompanion : undefined}
         aiWaiting={aiWaiting}
+        aiAttention={aiAttention}
         onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}

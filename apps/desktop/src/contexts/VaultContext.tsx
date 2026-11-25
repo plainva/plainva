@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, confirmationEndpoint, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
 import { errorText, reportBackground, reportingTo, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
 import { FEATURES_SAVED_EVENT, featuresSavedFor } from "../services/vaultFeaturesRelay";
@@ -18,9 +18,10 @@ import { VaultIndexer, VaultQueryService, GraphService, type BackupVaultAdapter,
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
-import { fileBrokerTokenProvider } from "../services/accountBroker";
+import { fileBrokerTokenProvider, settleOwedAccountSignIns } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
-import { resolveFileSyncAccess } from "../services/fileSyncAccess";
+import { resolveFileSyncAccess, unconfirmedSyncSlots } from "../services/fileSyncAccess";
+import { settleVaultEndpointConfirmations } from "../services/endpointConfirmationSettle";
 import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore } from "../services/syncStatusStore";
@@ -914,6 +915,12 @@ export const VaultProvider: React.FC<{
       // Every handoff of a link of the chain is named in `writeOwners.test.ts`.
       const personBelowChain = countWrites(backupVaultAdapter, "person");
 
+      // F57: the one-time switch-over takes what already worked here as
+      // confirmed, before the sync, the calendar or mail send a password.
+      await settleVaultEndpointConfirmations(path, dbAdapter).catch((e) =>
+        console.error("[VaultContext] confirming the addresses in use failed", e),
+      );
+
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below. The five
       // slots are independent keychain entries: read side by side, not one
@@ -935,7 +942,8 @@ export const VaultProvider: React.FC<{
       const filesViaBroker = { drive: !!driveTokenProvider, onedrive: !!oneDriveTokenProvider };
       const fileAccess = resolveFileSyncAccess(
         { drive: driveCreds, onedrive: oneDriveCreds, dropbox: dropboxCreds, s3: s3Creds, webdav: webdavCreds },
-        filesViaBroker
+        filesViaBroker,
+        await unconfirmedSyncSlots(path, { s3: s3Creds, webdav: webdavCreds }),
       );
       // Files switched off for the vault (E3) or paused on this device: the
       // vault opens without a target and queues nothing (plan "Verbinden", V2/V3).
@@ -946,7 +954,10 @@ export const VaultProvider: React.FC<{
       // Standing still is said the way the phone says it: paused reads as off,
       // signed out here as "Sign-in needed", with the way to the sign-in (third
       // review, finding 3). Signed out used to end as plain idle.
-      const stoppedStatus = filesRun === "stopped" ? filesStoppedStatus({ pausedHere, signedOut: !!fileAccess.signedOut }) : null;
+      // An address this device has not confirmed is no sign-out: the status
+      // names it and the dialog asks for the confirmation (review of F57, O3).
+      const unconfirmed = fileAccess.unconfirmed ? confirmationEndpoint(fileAccess.blocked === "s3" ? s3Creds?.endpoint : webdavCreds?.url) : null;
+      const stoppedStatus = filesRun === "stopped" ? filesStoppedStatus({ pausedHere, signedOut: !!fileAccess.signedOut, unconfirmed }) : null;
       const signInAccountId = stoppedStatus?.signInNeeded && fileAccess.blocked ? await filesAccountIdForVault(path, fileAccess.blocked) : undefined;
       filesOffAtLoadRef.current = { path, filesOff: filesOffHere };
       // The target is built for a settings-only vault too - it carries the profile.
@@ -1279,6 +1290,11 @@ export const VaultProvider: React.FC<{
         onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
 
+      // A sign-in "Remove account" could not delete is tried again first: it
+      // must be gone before anything reads the vault's sign-ins.
+      await settleOwedAccountSignIns(path).catch((e) =>
+        console.error("[VaultContext] deleting owed sign-ins failed", e),
+      );
       // A calendar or mailbox that still signs in on its own hands that sign-in
       // to its card before the calendar starts (account sign-in plan K2).
       await perfMeasure("vault open: account grants", () => migrateVaultGrants(path)).catch((e) =>
@@ -1859,13 +1875,14 @@ export const VaultProvider: React.FC<{
       // Preserve the explicit locked status when an encrypted workspace has no
       // key material. The final load-state update below must not turn it idle.
       if (syncWorker || !workspaceSecurityStatus) {
-        if (!syncWorker && stoppedStatus?.signInNeeded) {
+        if (!syncWorker && (stoppedStatus?.signInNeeded || stoppedStatus?.confirmEndpoint)) {
           syncStatusStore.set(path, {
             status: stoppedStatus.status,
-            message: i18n.t(stoppedStatus.messageKey),
+            message: i18n.t(stoppedStatus.messageKey, "params" in stoppedStatus ? stoppedStatus.params : undefined),
             provider: fileAccess.blocked,
-            authRecoverable: true,
+            authRecoverable: stoppedStatus.signInNeeded,
             signInAccountId,
+            confirmEndpoint: stoppedStatus.confirmEndpoint,
           });
         } else if (!syncWorker && heldStart) {
           syncStatusStore.set(path, { status: "retrying", message: i18n.t("workspaceSecurity.folderUnconfirmed"), provider: syncProvider, reason: "encrypted-workspace" });

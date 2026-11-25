@@ -1896,6 +1896,34 @@
     </div>
   </section>
 
+  <section id="rule-columns">
+    <h2>Rules as named columns</h2>
+    <p class="sec-sub">F71 of release 0.9.0, mockup KI-Oberflächen M5. The folder rules of “AI in this vault”: a head of column names, one row per folder, one select per question, the row's action at the edge. On the phone two columns at the end of each row; the third question, which lets the AI change without asking, is a line in the on-state pair only where it holds.</p>
+    <div style="display: flex; gap: var(--space-4); flex-wrap: wrap; align-items: flex-start">
+      <div class="card" style="width: 560px">
+        <div style="display: grid; grid-template-columns: minmax(6rem, 1fr) repeat(3, 8rem) 1.5rem; gap: var(--space-2) var(--space-3); align-items: center; font-size: var(--text-sm)">
+          <span style="font-size: var(--text-xs); text-transform: uppercase; color: var(--text-faint)">Folder</span>
+          <span style="font-size: var(--text-xs); text-transform: uppercase; color: var(--text-faint)">To a provider</span>
+          <span style="font-size: var(--text-xs); text-transform: uppercase; color: var(--text-faint)">Onto the internet</span>
+          <span style="font-size: var(--text-xs); text-transform: uppercase; color: var(--text-faint)">Change without asking</span>
+          <span></span>
+          <span>Whole vault</span><span class="pvbtn">allowed ▾</span><span class="pvbtn">allowed ▾</span><span class="pvbtn">not allowed ▾</span><span></span>
+          <span>Health/</span><span class="pvbtn">not allowed ▾</span><span class="pvbtn">as the vault ▾</span><span class="pvbtn">as the vault ▾</span><span>🗑</span>
+        </div>
+      </div>
+      <div class="card" style="width: 300px; font-size: var(--text-sm)">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-3); font-size: var(--text-xs); text-transform: uppercase; color: var(--text-faint)"><span style="width: 6rem">To a provider</span><span style="width: 6rem">Onto the internet</span></div>
+        <div style="display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--border-color)">
+          <span style="flex: 1">Whole vault<br><span style="display: inline-block; margin-top: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--accent-container); color: var(--on-accent-container); font-weight: 600">Change without asking: allowed</span></span>
+          <span style="width: 6rem">allowed</span><span style="width: 6rem">allowed</span>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--border-color)">
+          <span style="flex: 1">Health/<br><span style="display: inline-block; margin-top: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--accent-container); color: var(--on-accent-container); font-weight: 600">Change without asking: as the vault</span></span><span style="width: 6rem">not allowed</span><span style="width: 6rem">as the vault</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= FRAGEN ================= -->
   <section id="fragen">
     <h2><span class="no">13</span>Entscheidungen</h2>

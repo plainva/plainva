@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-11-18
+Last updated: 2026-11-20
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -227,6 +227,13 @@ When adding files on mobile, Plainva shows the source, destination and collision
 ## Certificates for self-hosted servers
 
 Android also trusts certificate authorities you install in the system settings. This applies to all Plainva connections that use Android’s platform configuration, not just one WebDAV server. Desktop HTTP connections include system certificate authorities alongside public roots; iOS uses its system trust settings. Certificate validity and the server hostname are still checked. An expired, not-yet-valid or wrong-host certificate must be corrected on the server or in the configured address. Plainva never offers an option to accept every certificate. If the operating system does not identify the exact trust failure, Plainva reports that verification failed without guessing its cause. Native mobile HTTP failures appear in the diagnostic export as a method and error code, without credentials, certificate subjects or private server paths.
+
+<!-- endpoint-confirmation-2026-11-18 -->
+## Unencrypted and local addresses
+
+When an account's password goes to an address with `http` or on a local network (for example `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` or a name without a dot), Plainva sends it from a device only once that address has been confirmed there. If you set the account up on this device, the address counts as confirmed — and so it does if its password was already on this device at the update and did not come through the sync. If the account reached a device only through the sync, its card under **Cloud accounts** shows the row **Confirm address** with the address; until you choose **Confirm**, no password goes there from this device — for calendar and tasks, email and files. A password you type there, when signing in or changing the password, does not confirm the address either: Plainva asks about it first. The confirmation stays on this device and does not travel.
+
+Limits: a public name that points to a local address is not recognised. The confirmation is for the address, not the network: on the same device in someone else's network with the same address range, it does not protect you.
 
 <!-- workspace-retry-2026-09-14 -->
 ## Automatic retries and missing sync history

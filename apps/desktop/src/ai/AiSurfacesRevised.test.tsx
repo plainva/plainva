@@ -72,7 +72,8 @@ describe("the conversation's foot and the field", () => {
     const { s } = await mcpSession([], { profiles: { balanced: CLOUD, local: LOCAL } });
     const view = await show(s, conversation());
     expect(text(view.querySelector(".pv-ai-marking"))).toContain("m-1");
-    expect(text(q("ai-profile-button"))).toBe("Balanced");
+    // Named as what it is (F71 of release 0.9.0): "Model: Balanced", not a word alone at the foot.
+    expect(text(q("ai-profile-button"))).toBe("Model: Balanced");
     expect(q("ai-profile-button")!.getAttribute("data-tip")).toBe("Anthropic · m-1");
   });
 

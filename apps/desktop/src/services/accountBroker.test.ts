@@ -47,6 +47,7 @@ import {
   brokerFamily,
   calendarGrantProbe,
   brokerTokenProvider,
+  claimPendingCalendar,
   claimPendingMailbox,
   fileBrokerTokenProvider,
   describeBrokerLookup,
@@ -58,6 +59,7 @@ import {
   replaceAccountClientRegistration,
   saveAccountToken,
   resetGrantSharingForTests,
+  holdPendingBrokerAccount,
   setPendingBrokerAccount,
 } from "./accountBroker";
 
@@ -277,10 +279,28 @@ describe("the broker answers for the account that is asking", () => {
       expect(await provider?.(false)).toBe("AT-GOOGLE");
     });
 
-    it("still serves the connect it belongs to", async () => {
-      // No card claims this subsystem yet — exactly the mid-connect case.
+    it("serves the calendar the connect named", async () => {
+      claimPendingCalendar(V, "m1", "pim-just-created");
       const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
       expect(await provider?.(false)).toBe("AT-MICROSOFT");
+    });
+
+    /**
+     * A calendar row no card claims is not part of the connect: a row with a
+     * sign-in of its own (connected before the account cards, or a second
+     * Microsoft account) drew the token minted for the account being
+     * connected, and kept it, because the calendar's auth caches its broker
+     * answer (Sammelplan § 3.107 Nr. 3, Fehlerliste C2).
+     */
+    it("does not serve a calendar row the connect did not name", async () => {
+      expect(await brokerTokenProvider(V, "calendar", "pim-of-nobody")).toBeUndefined();
+      claimPendingCalendar(V, "m1", "pim-just-created");
+      expect(await brokerTokenProvider(V, "calendar", "pim-of-nobody")).toBeUndefined();
+    });
+
+    it("ignores a calendar named for another vault", async () => {
+      claimPendingCalendar("/another-vault", "m1", "pim-just-created");
+      expect(await brokerTokenProvider(V, "calendar", "pim-just-created")).toBeUndefined();
     });
 
     it("answers nobody when nobody says who is asking", async () => {
@@ -309,13 +329,13 @@ describe("the broker answers for the account that is asking", () => {
       });
 
       it("serves the mailbox the connect named", async () => {
-        claimPendingMailbox(V, "mail-just-created");
+        claimPendingMailbox(V, "m1", "mail-just-created");
         const provider = await brokerTokenProvider(V, "mail", "mail-just-created");
         expect(await provider?.(false)).toBe("AT-MICROSOFT");
       });
 
       it("serves it even when a card without a sign-in was written for it meanwhile", async () => {
-        claimPendingMailbox(V, "mail-just-created");
+        claimPendingMailbox(V, "m1", "mail-just-created");
         cloudRecords.push({ id: "found", family: "microsoft", label: "", services: { mail: { mailAccountId: "mail-just-created" } } });
         const provider = await brokerTokenProvider(V, "mail", "mail-just-created");
         expect(await provider?.(false)).toBe("AT-MICROSOFT");
@@ -324,27 +344,93 @@ describe("the broker answers for the account that is asking", () => {
       it("does not serve a mailbox the connect did not name", async () => {
         // Before the connect names its mailbox, and after.
         expect(await brokerTokenProvider(V, "mail", "mail-of-nobody")).toBeUndefined();
-        claimPendingMailbox(V, "mail-just-created");
+        claimPendingMailbox(V, "m1", "mail-just-created");
         expect(await brokerTokenProvider(V, "mail", "mail-of-nobody")).toBeUndefined();
       });
 
       it("ignores a name given for another vault", async () => {
-        claimPendingMailbox("/another-vault", "mail-just-created");
+        claimPendingMailbox("/another-vault", "m1", "mail-just-created");
         expect(await brokerTokenProvider(V, "mail", "mail-just-created")).toBeUndefined();
       });
 
       it("forgets the name with the marker", async () => {
-        claimPendingMailbox(V, "mail-just-created");
+        claimPendingMailbox(V, "m1", "mail-just-created");
         setPendingBrokerAccount({ vaultPath: V, accountId: "m1", family: "microsoft" });
         expect(await brokerTokenProvider(V, "mail", "mail-just-created")).toBeUndefined();
       });
 
-      it("leaves the calendar's rule as it was", async () => {
-        claimPendingMailbox(V, "mail-just-created");
-        const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
-        expect(await provider?.(false)).toBe("AT-MICROSOFT");
+      it("names the mailbox and the calendar apart", async () => {
+        claimPendingMailbox(V, "m1", "mail-just-created");
+        expect(await brokerTokenProvider(V, "calendar", "mail-just-created")).toBeUndefined();
+        expect(await brokerTokenProvider(V, "calendar", "pim-just-created")).toBeUndefined();
         const own = await brokerTokenProvider(V, "calendar", "pim-google");
         expect(await own?.(false)).toBe("AT-GOOGLE");
+      });
+    });
+
+    /**
+     * Two connects at once: nothing in the interface stops a second one while
+     * the first is still binding (the settings area can be left and opened
+     * again while a consent is open in the browser, and the account page's
+     * own sign-in runs beside the wizard's). One marker for the whole module
+     * meant the second replaced the first, and the first's end cleared the
+     * second's (Fehlerliste C3).
+     */
+    describe("and a second account is connected at the same time", () => {
+      let releaseSecond: () => void = () => undefined;
+      beforeEach(() => {
+        secrets.set(accountSecretKey(V, "m1"), {
+          clientId: "mid", refreshToken: "RT-M", scopes: `${microsoftScopeFor("calendar")} ${microsoftScopeFor("mail")}`,
+        });
+        secrets.set(accountSecretKey(V, "m2"), {
+          clientId: "mid", refreshToken: "RT-M2", scopes: `${microsoftScopeFor("calendar")} ${microsoftScopeFor("mail")}`,
+        });
+        forgetAccountBroker(V, "m2");
+        releaseSecond = holdPendingBrokerAccount({ vaultPath: V, accountId: "m2", family: "microsoft" });
+      });
+
+      it("keeps the first connect's marker", async () => {
+        claimPendingMailbox(V, "m1", "mail-first");
+        claimPendingMailbox(V, "m2", "mail-second");
+        expect(await (await brokerTokenProvider(V, "mail", "mail-first"))?.(false)).toBe("AT-MICROSOFT");
+        expect(await (await brokerTokenProvider(V, "mail", "mail-second"))?.(false)).toBe("AT-MICROSOFT");
+        expect(getAccountBroker(V, "m1", "microsoft")).not.toBe(getAccountBroker(V, "m2", "microsoft"));
+      });
+
+      it("ends one connect without ending the other", async () => {
+        claimPendingCalendar(V, "m1", "pim-first");
+        claimPendingCalendar(V, "m2", "pim-second");
+        releaseSecond();
+        expect(await brokerTokenProvider(V, "calendar", "pim-second")).toBeUndefined();
+        expect(await (await brokerTokenProvider(V, "calendar", "pim-first"))?.(false)).toBe("AT-MICROSOFT");
+      });
+
+      it("hands each named row the sign-in of its own connect", async () => {
+        claimPendingCalendar(V, "m1", "pim-first");
+        claimPendingCalendar(V, "m2", "pim-second");
+        vi.mocked(microsoftAuthFetch).mockClear();
+        await (await brokerTokenProvider(V, "calendar", "pim-second"))?.(false);
+        const second = vi.mocked(microsoftAuthFetch).mock.calls.map((call) => JSON.stringify(call)).join("\n");
+        expect(second).toContain("RT-M2");
+        vi.mocked(microsoftAuthFetch).mockClear();
+        await (await brokerTokenProvider(V, "calendar", "pim-first"))?.(false);
+        const first = vi.mocked(microsoftAuthFetch).mock.calls.map((call) => JSON.stringify(call)).join("\n");
+        expect(first).toMatch(/RT-M(?!2)/);
+        expect(first).not.toContain("RT-M2");
+      });
+
+      it("lets two connects of the same card run side by side (red before: the second replaced the first)", async () => {
+        setPendingBrokerAccount(null);
+        const releaseFirst = holdPendingBrokerAccount({ vaultPath: V, accountId: "m1", family: "microsoft" });
+        claimPendingMailbox(V, "m1", "mail-first");
+        const releaseAgain = holdPendingBrokerAccount({ vaultPath: V, accountId: "m1", family: "microsoft" });
+        claimPendingMailbox(V, "m1", "mail-again");
+        expect(await brokerTokenProvider(V, "mail", "mail-first")).toBeDefined();
+        releaseFirst();
+        releaseFirst();
+        expect(await brokerTokenProvider(V, "mail", "mail-again")).toBeDefined();
+        releaseAgain();
+        expect(await brokerTokenProvider(V, "mail", "mail-again")).toBeUndefined();
       });
     });
   });

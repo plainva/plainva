@@ -1,9 +1,10 @@
-import { sameStoredValue, type DriveSyncTarget } from "@plainva/core";
-import { reportingTo } from "@plainva/ui";
+import { CONFIRMED_ACCESS_KEY, sameStoredValue, type DriveSyncTarget } from "@plainva/core";
+import { assertEndpointConfirmedIn, confirmationEndpoint, confirmEndpointsIn, mailboxEndpoints, reportingTo } from "@plainva/ui";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
   accountOAuthServices,
+  adoptPreferenceForCard,
   tokenCoversService,
   identityKey,
   withBoundCard,
@@ -15,8 +16,10 @@ import {
   type ServiceConnectionContext,
   assertConnectionIdentity,
   ServiceConnectionError,
+  oweSignInDeletion,
   removeAccountCard,
   signOutAccountHere,
+  droppingOwnConfirmedAccess,
   withServiceOff,
   type ServiceSignInSlot,
 } from "@plainva/ui";
@@ -48,6 +51,7 @@ import {
   claimPendingMailbox,
   fileBrokerTokenProvider,
   clearAccountToken,
+  owedSignInResources,
   getAccountToken,
 } from "./accountBroker";
 import i18n from "@plainva/ui/i18n";
@@ -107,6 +111,22 @@ export interface ConnectRequest {
   webdav?: { filesUrl: string; caldavUrl: string; user: string; pass: string };
   s3?: S3TargetCreds & { prefix?: string };
   imap?: { email: string; host: string; port: number; smtpHost?: string; smtpPort?: number; pass: string; label?: string };
+  /**
+   * The password was taken from a stored slot of this account, not typed here
+   * (the account page switching on another service). It goes only to
+   * addresses this device already confirmed; a typed one confirms the
+   * addresses it is sent to (F57, `endpointConfirmation.ts`).
+   */
+  reusesStoredPassword?: boolean;
+}
+
+/** Every address a connect request sends its password to that needs this device's confirmation. */
+export function connectRequestEndpoints(req: ConnectRequest): Array<string | null> {
+  return [
+    ...(req.webdav ? [confirmationEndpoint(req.webdav.filesUrl), confirmationEndpoint(req.webdav.caldavUrl)] : []),
+    ...(req.s3 ? [confirmationEndpoint(req.s3.endpoint)] : []),
+    ...(req.imap ? mailboxEndpoints({ host: req.imap.host, port: req.imap.port, smtpHost: req.imap.smtpHost, smtpPort: req.imap.smtpPort }) : []),
+  ];
 }
 
 export interface ConnectResult {
@@ -201,7 +221,9 @@ async function connectCalendar(
     case "mailboxorg":
     case "webdav": {
       const w = req.webdav!;
-      const row = await connectCalDavAccount(runtime, vaultPath, { url: w.caldavUrl, user: w.user, pass: w.pass });
+      // A reconnect at a card lands in that card's calendar row, as on the phone.
+      const prefer = adoptPreferenceForCard(await loadCloudAccounts(vaultPath), req.context?.cloudAccountId);
+      const row = await connectCalDavAccount(runtime, vaultPath, { url: w.caldavUrl, user: w.user, pass: w.pass, prefer });
       // Suites sign in with the mail address — prefer it over the subsystem's
       // user@host label so the registry card carries a mergeable identity.
       return { id: row.id, label: identityKey(w.user) ? w.user : row.label };
@@ -211,7 +233,7 @@ async function connectCalendar(
   }
 }
 
-export async function connectMicrosoftMailAccount(vaultPath: string, clientId: string, viaBroker?: boolean): Promise<{ id: string; address: string }> {
+export async function connectMicrosoftMailAccount(vaultPath: string, clientId: string, viaBroker: boolean, cardId: string): Promise<{ id: string; address: string }> {
   if (!viaBroker) throw new ServiceConnectionError("needsConsent");
   const refreshToken = "";
   const id = newId();
@@ -219,7 +241,7 @@ export async function connectMicrosoftMailAccount(vaultPath: string, clientId: s
   // just minted, or the one of the card the connect reuses — before any
   // card points at it. The broker hands that sign-in to the mailbox the
   // connect names and to no other, so the name comes first.
-  claimPendingMailbox(vaultPath, id);
+  claimPendingMailbox(vaultPath, cardId, id);
   const account: MailAccountConfig = { id, label: "Microsoft", host: "", port: 0, user: "", kind: "microsoft", clientId };
   await saveMicrosoftMailAccount(vaultPath, account, refreshToken, "connect");
   try {
@@ -275,6 +297,11 @@ export async function runConnectSequence(
   const result: ConnectResult = {};
   const selected = SERVICE_ORDER.filter((s) => req.services.includes(s));
   if (req.context && req.context.vaultId !== vaultPath) throw new ServiceConnectionError("accountChanged");
+  // F57: a typed password confirms the addresses it is sent to here; a stored
+  // one is sent only to addresses this device already confirmed.
+  const endpoints = connectRequestEndpoints(req);
+  if (req.reusesStoredPassword) await assertEndpointConfirmedIn(vaultPath, ...endpoints);
+  else await confirmEndpointsIn(vaultPath, endpoints);
   for (const service of selected) {
     onStatus(service, { state: "pending" });
     try {
@@ -430,11 +457,13 @@ export async function syncTargetFromSlots(vaultPath: string, provider: SyncProvi
   if (provider === "webdav") {
     const creds = await credentialManager.getWebDavCredentials(vaultPath);
     if (!creds) throw noFileAccessError();
+    await assertEndpointConfirmedIn(vaultPath, confirmationEndpoint(creds.url));
     return buildWebDavTarget(creds);
   }
   if (provider === "s3") {
     const creds = await credentialManager.getS3Credentials(vaultPath);
     if (!creds) throw noFileAccessError();
+    await assertEndpointConfirmedIn(vaultPath, confirmationEndpoint(creds.endpoint));
     return buildS3Target({ ...creds, forcePathStyle: creds.forcePathStyle ?? true });
   }
   if (provider === "drive") {
@@ -609,6 +638,8 @@ export async function removeCloudAccount(
     disable: async (service) => { await disableAccountService(vaultPath, runtime, record, service); },
     // The account-wide token outlives its services otherwise (E9.2).
     clearCardGrant: () => clearAccountToken(vaultPath, record.id),
+    // A grant the keychain would not let go of is owed and made up for (maintainer, 2026-11-17).
+    oweCardGrant: (error) => oweSignInDeletion(owedSignInResources(vaultPath), record.id, error),
     dropRecord: async () => {
       const stored = await loadCloudAccounts(vaultPath);
       await saveCloudAccounts(vaultPath, stored.filter((r) => r.id !== record.id));
@@ -642,6 +673,13 @@ export async function signOutCloudAccountHere(
     slots.push({ keys: [mailSecretKey(vaultPath, mail), legacyMailSecretKey(vaultPath, mail)] });
   }
   await signOutAccountHere({ store: accountCredentialStore, serviceSlots: slots, clearCardGrant: () => clearAccountToken(vaultPath, record.id) });
+  // This device no longer reaches the account: its confirmed access leaves
+  // the row, and with the next settings round every other device (review
+  // 2026-11-18). A row that is not there has nothing to give up.
+  if (pim && runtime) {
+    const device = await import("./settingsProfile").then((m) => m.getDeviceId()).catch(() => null);
+    await runtime.cache.updateAccountConfigValue(pim, CONFIRMED_ACCESS_KEY, droppingOwnConfirmedAccess(device)).catch(reportingTo("pim:sign-out-access"));
+  }
   // The calendar says what it now is at once, not at its next turn.
   if (pim) await restartPimAccountAfterLogin(runtime, pim).catch(() => undefined);
   return refreshCloudAccounts(vaultPath, runtime);

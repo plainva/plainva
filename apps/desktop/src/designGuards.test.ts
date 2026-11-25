@@ -438,6 +438,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-agent-settings-status": "layout only — the spinner at the end of the settings row; its words are for a screen reader",
   "pv-said": "text only — italics for a stranger's words inside the app's own sentences, in the colours around them",
   "pv-sr-only": "invisible by design — text a screen reader hears and no theme draws",
+  "pv-rulegrid": "layout only — a grid of Selects and IconButtons the themes already restyle, its head in --text-faint and --text-muted, which the themes override",
   "pv-menu--described": "layout only — how the name and the hint of a MenuItem share its row; the menu's look is the themes' own",
   "pv-related-row": "layout only — see pv-related",
   "pv-related-head": "layout only — see pv-related",
@@ -638,5 +639,65 @@ describe("a control that waits (aria-disabled) shows no hover and no press", () 
       `.pv-menu-item:hover:not([aria-disabled="true"]) .pv-menu-ic {}`,
     ].join("\n");
     expect(unguardedPresses(css)).toEqual([".pv-btn--primary:hover:not(:disabled)", ".pv-btn:not(:disabled):hover", ":is(.pv-btn, .pv-chip):hover", '.pv-menu:not([aria-disabled="true"]) .pv-menu-item:hover']);
+  });
+});
+
+/**
+ * Selectors in a stylesheet that carry `:hover` without sitting inside an
+ * enclosing `@media (hover: hover)` block (section 3.183 #5: sticky touch hover).
+ */
+function unguardedHovers(css: string): string[] {
+  const out: string[] = [];
+  const clean = css
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '""');
+  const stack: string[] = [];
+  let buf = "";
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if (ch === "{") {
+      const head = buf.trim().replace(/\s+/g, " ");
+      if (head && !head.startsWith("@")) {
+        const guarded = stack.some(
+          (ctx) => /^@media\b/i.test(ctx) && /\(\s*hover\s*:\s*hover\s*\)/i.test(ctx) && !/\bnot\s*\(\s*hover\s*:\s*hover\s*\)/i.test(ctx),
+        );
+        if (!guarded) {
+          for (const selector of topLevel(head, /,/)) {
+            if (/:hover\b/.test(selector)) out.push(selector);
+          }
+        }
+      }
+      stack.push(head);
+      buf = "";
+    } else if (ch === ";") {
+      buf = "";
+    } else if (ch === "}") {
+      stack.pop();
+      buf = "";
+    } else {
+      buf += ch;
+    }
+  }
+  return out;
+}
+
+describe("hover rules are guarded by @media (hover: hover) (sticky touch hover)", () => {
+  it("wraps every :hover selector across app and theme stylesheets inside @media (hover: hover)", () => {
+    const sheets = [...Object.values(STYLE_FILES), ...themeFiles().filter((rel) => rel.endsWith(".css"))];
+    expect(sheets.flatMap((rel) => unguardedHovers(sourceFile(rel)).map((selector) => `${rel}: ${selector}`))).toEqual([]);
+  });
+
+  it("flags bare or (hover: none) :hover rules while allowing @media (hover: hover)", () => {
+    const css = [
+      `.a:hover { color: red; }`,
+      `.b:focus-visible, .b:hover { color: blue; }`,
+      `.c:not(:hover) { opacity: 1; }`,
+      `@media (hover: none) { .d:hover { display: none; } }`,
+      `@media (hover: hover) { .e:hover { color: green; } }`,
+      `@media (hover: hover) { .f:not(:hover):not(:focus-visible) { display: none; } }`,
+      `/* .commented:hover { color: red; } */`,
+      `.ok:focus-visible { outline: 2px solid; }`,
+    ].join("\n");
+    expect(unguardedHovers(css)).toEqual([".a:hover", ".b:hover", ".c:not(:hover)", ".d:hover"]);
   });
 });

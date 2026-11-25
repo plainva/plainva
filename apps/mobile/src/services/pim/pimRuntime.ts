@@ -24,6 +24,8 @@ export interface PimRuntimeWiring {
   /** A ready provider target for the account, built per cycle from its stored
    * sign-in — never cached, a rotated token must be read again. */
   buildTarget(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null>;
+  /** `buildTarget` for the sync: an unconfirmed CalDAV address is refused with its name (F57; review of F57, O-5). */
+  syncTarget(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null>;
   /** The opaque sign-in revision of an account, never a token. */
   accountAuthRevision(vaultId: string, account: PimAccountRow): Promise<string | undefined>;
   /** What the status says when every account sits on a dead sign-in (N1/S2),
@@ -33,6 +35,12 @@ export interface PimRuntimeWiring {
   onCycle(info: PimCycleInfo): void;
   /** The device's calendar/reminder store reported a change (diagnostics only). */
   onDeviceChanged?(): void;
+  /**
+   * The settings sync's device id: under it the worker records how THIS
+   * device reached a password account (GitHub issue 174). Passed in, so the
+   * runtime does not load the settings sync.
+   */
+  deviceId?(): Promise<string>;
 }
 
 type PimUiStatus = "off" | "idle" | "syncing" | "error";
@@ -48,6 +56,8 @@ export interface PimRuntime {
   worker: PimWorker;
   vaultId: string;
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
+  /** `buildTarget` that refuses an unconfirmed CalDAV address with its name (F57): the sync and the writes that say why. */
+  syncTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
 }
 
 /**
@@ -82,11 +92,15 @@ export function getPimStatus(): PimState {
 export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiring): Promise<void> {
   if (runtime || !vault.db) return;
   const buildTarget = (account: PimAccountRow) => wiring.buildTarget(vault.vaultId, account);
+  // The worker is told why an unconfirmed calendar waits (review of F57, O-5).
+  const syncTarget = (account: PimAccountRow) => wiring.syncTarget(vault.vaultId, account);
   const cache = new PimCacheRepository(vault.db);
   const worker = new PimWorker({
     cache,
-    buildTarget,
+    buildTarget: syncTarget,
     accountAuthRevision: (account) => wiring.accountAuthRevision(vault.vaultId, account),
+    // The settings sync's device id, as on the desktop (GitHub issue 174).
+    ...(wiring.deviceId ? { deviceId: () => wiring.deviceId!() } : {}),
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: wiring.parkedMessage,
@@ -116,7 +130,7 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
       }
     },
   });
-  runtime = { cache, worker, vaultId: vault.vaultId, buildTarget };
+  runtime = { cache, worker, vaultId: vault.vaultId, buildTarget, syncTarget };
   startTaskSyncRuntime({ vault, cache, buildTarget });
   const accounts = await cache.listAccounts();
   if (accounts.some((a) => a.enabled)) {

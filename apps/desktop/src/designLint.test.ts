@@ -26,8 +26,9 @@ import { sourceFile, sourceTexts, type SourceText } from "./test-sourceTree";
  * Deliberately NOT scanned: styles/tokens.css, base-colors.css and themes/*.css
  * (token definitions are made of literals), *.test.* files, and
  * src/components/ui/ (the primitives own the canonical implementations).
- * Note: the hex rule can match non-color uses (e.g. "#anchor" fragments);
- * such matches are budgeted like any other — only increases fail.
+ * Note: issue numbers and anchors inside comments (e.g. "// issue #170") are
+ * stripped for the hex rule; non-color hex-length literals in code (e.g.
+ * "#abc" fragments) are budgeted like any other — only increases fail.
  */
 
 const SRC = "apps/desktop/src";
@@ -94,7 +95,14 @@ const RULES: Record<string, RegExp> = {
 
 /** Rules that describe React markup and style objects, not stylesheets. */
 const TSX_ONLY = new Set<keyof typeof RULES>(["nakedInput", "nakedButton", "rawSpacing"]);
-const MARKUP_RULES = new Set<keyof typeof RULES>(["nakedSelect", "nakedInput", "nakedButton"]);
+/** Rules whose matches inside comments are prose (tags, issue numbers) rather
+ * than shipped markup or hex color literals. */
+const COMMENT_STRIPPED_RULES = new Set<keyof typeof RULES>([
+  "nakedSelect",
+  "nakedInput",
+  "nakedButton",
+  "hex",
+]);
 
 type Counts = Partial<Record<keyof typeof RULES, number>>;
 
@@ -322,16 +330,24 @@ function countNativeTitleAttrs(source: string): number {
   return count;
 }
 
-/** Prose is not markup: a comment that NAMES a native <select> (the mobile
- * dialog module opens by explaining that it replaces the OS dropdowns) is not
- * one. Only the markup rule strips comments — the value rules deliberately
- * count literals wherever they stand. */
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+/** Prose is not markup or hex literals: a comment that names a native <select>
+ * or references an issue number like #170 is not shipped UI or color code.
+ * Preserves string literals (including URLs containing "//") while stripping
+ * block and line comments. */
+function stripComments(source: string, isStylesheet = false): string {
+  if (isStylesheet) {
+    return source.replace(/"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|\/\*[\s\S]*?\*\//g, (m) =>
+      m[0] === '"' || m[0] === "'" ? m : " "
+    );
+  }
+  return source.replace(
+    /"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\\n])*`|\/\*[\s\S]*?\*\/|(?<![:\w/])\/\/[^\n]*/g,
+    (m) => (m[0] === '"' || m[0] === "'" || m[0] === "`" ? m : " ")
+  );
 }
 
 function countFile(source: string, isStylesheet = false): Counts {
-  const markupSource = stripComments(source);
+  const commentFreeSource = stripComments(source, isStylesheet);
   const counts: Counts = {};
   for (const [rule, re] of Object.entries(RULES)) {
     const key = rule as keyof typeof RULES;
@@ -339,7 +355,7 @@ function countFile(source: string, isStylesheet = false): Counts {
     const n =
       rule === "titleAttr"
         ? countNativeTitleAttrs(source)
-        : ((MARKUP_RULES.has(key) ? markupSource : source).match(re) || []).length;
+        : ((COMMENT_STRIPPED_RULES.has(key) ? commentFreeSource : source).match(re) || []).length;
     if (n > 0) counts[key] = n;
   }
   return counts;
@@ -428,6 +444,29 @@ describe("note text runs in either direction (issue #111)", () => {
     for (const logical of ["paddingInlineStart: 8", "margin-inline-end: 4px", "borderInlineStart: 0", "textAlign: 'start'"]) {
       expect(logical.match(PHYSICAL_INLINE), logical).toBeNull();
     }
+  });
+});
+
+describe("hex rule ignores comments (issue #170)", () => {
+  it("does not count issue numbers in line or block comments as hex colors", () => {
+    expect.hasAssertions();
+    const sample = [
+      "// issue #170",
+      "const count = 1; // issue #170",
+      "/* see #170 and #deadbeef */",
+      "{/* JSX issue #170 */}",
+      'const url = "https://example.com"; // issue #170',
+    ].join("\n");
+    expect(countFile(sample)).toEqual({});
+    expect(countFile("/* issue #170 */", true)).toEqual({});
+  });
+
+  it('still counts real "#170" literals in code and stylesheets', () => {
+    expect.hasAssertions();
+    expect(countFile('const c = "#170"; // issue #170')).toEqual({ hex: 1 });
+    expect(countFile("const c = `#170`;")).toEqual({ hex: 1 });
+    expect(countFile('const url = "https://example.com#170"; // issue #170')).toEqual({ hex: 1 });
+    expect(countFile("/* issue #170 */ .chip { color: #170; }", true)).toEqual({ hex: 1 });
   });
 });
 

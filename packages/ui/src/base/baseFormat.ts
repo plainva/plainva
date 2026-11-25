@@ -316,7 +316,9 @@ function normalizeViewIn(v: any): Record<string, any> {
   const out: Record<string, any> = {
     type: pv.render ?? fromObsidianViewType(v.type),
   };
-  if (v.name != null) out.name = v.name;
+  // YAML reads `name: 2025` as a number and `name: true` as a truth value; a
+  // view is found, shown and renamed by its name, so it is a string from here on.
+  if (v.name != null) out.name = String(v.name);
   if (Array.isArray(v.order)) out.order = v.order.map((c: any) => fromPropId(String(c)));
   if (Array.isArray(v.sort)) {
     out.sort = v.sort

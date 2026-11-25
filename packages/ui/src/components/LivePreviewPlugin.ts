@@ -10,6 +10,7 @@ import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
 import { isEditorInteractive } from "./editorInteractive";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
+import { toast } from "../services/toastStore";
 import { isAnchorMarkerText } from "./anchorMarkerHide";
 import { listDepthAt, listItemTextStart } from "./listIndent";
 import { editorLineDirection } from "./textDirectionExtension";
@@ -257,6 +258,83 @@ class DateChipWidget extends WidgetType {
     span.textContent = formatRelativeDate(this.iso, new Date(), locale);
     span.title = this.iso;
     return span;
+  }
+}
+
+/** The code of a fenced block (the lines between the fences) as the reading view's copy button gives it. */
+export function fencedCodeText(state: EditorState, startLine: number, endLine: number): string {
+  const lastLine = state.doc.line(endLine);
+  const closed = endLine > startLine && /^\s*(`{3,}|~{3,})\s*$/.test(lastLine.text);
+  const lastCode = closed ? endLine - 1 : endLine;
+  if (lastCode <= startLine) return "";
+  return state.sliceDoc(state.doc.line(startLine + 1).from, state.doc.line(lastCode).to);
+}
+
+const COPY_PATHS: ReadonlyArray<readonly [string, Record<string, string>]> = [
+  ["rect", { x: "9", y: "9", width: "13", height: "13", rx: "2", ry: "2" }],
+  ["path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" }],
+];
+const CHECK_PATHS: ReadonlyArray<readonly [string, Record<string, string>]> = [["path", { d: "M20 6 9 17l-5-5" }]];
+
+function copyIcon(paths: ReadonlyArray<readonly [string, Record<string, string>]>): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) svg.setAttribute(k, v);
+  for (const [tag, attrs] of paths) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    svg.appendChild(el);
+  }
+  return svg;
+}
+
+/**
+ * The one-click copy button on the card of a fenced code block, as the reading
+ * view's block has it (both shells: a tap or a click copies the code, not the
+ * fences). It sits at the end of the fence line; on a phone the hit area grows
+ * to --touch-sm without growing the line (tokens.css --md-copy-hit).
+ */
+export class CodeCopyWidget extends WidgetType {
+  constructor(readonly code: string) { super(); }
+  eq(other: CodeCopyWidget) { return other.code === this.code; }
+  ignoreEvent() { return true; }
+  toDOM() {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cm-md-codecopy";
+    const label = i18n.t("editor.codeCopy");
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+    btn.appendChild(copyIcon(COPY_PATHS));
+    // The caret stays where it is: pressing the button is no click into the note.
+    let resetTimer: ReturnType<typeof setTimeout> | null = null;
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!navigator.clipboard?.writeText) {
+        toast.error(i18n.t("editor.codeCopyFailed"));
+        return;
+      }
+      navigator.clipboard.writeText(this.code).then(
+        () => {
+          btn.classList.add("is-copied");
+          const done = i18n.t("editor.codeCopied");
+          btn.setAttribute("aria-label", done);
+          btn.title = done;
+          btn.replaceChildren(copyIcon(CHECK_PATHS));
+          if (resetTimer !== null) clearTimeout(resetTimer);
+          resetTimer = setTimeout(() => {
+            resetTimer = null;
+            btn.classList.remove("is-copied");
+            btn.setAttribute("aria-label", label);
+            btn.title = label;
+            btn.replaceChildren(copyIcon(COPY_PATHS));
+          }, 1200);
+        },
+        () => toast.error(i18n.t("editor.codeCopyFailed")),
+      );
+    });
+    return btn;
   }
 }
 
@@ -843,6 +921,12 @@ export function markdownDecorationPlugin(isLive: boolean) {
                   const fromLine = Math.max(startLine, state.doc.lineAt(from).number);
                   const toLine = Math.min(endLine, state.doc.lineAt(Math.min(to, state.doc.length)).number);
                   for (let i = fromLine; i <= toLine; i++) codeLineClass.set(i, codeBlockLineClass(i, startLine, endLine));
+                  // One click copies the code (not the fences). Only the block's
+                  // fenced form carries it; an indented block has no fence line.
+                  if (name === "FencedCode" && startLine >= fromLine && startLine <= toLine) {
+                    const code = fencedCodeText(state, startLine, endLine);
+                    if (code) decos.push(Decoration.widget({ widget: new CodeCopyWidget(code), side: 1 }).range(state.doc.line(startLine).to));
+                  }
                   return;
                 }
                 if (name === "CodeInfo") {

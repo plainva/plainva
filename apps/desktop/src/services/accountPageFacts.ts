@@ -1,4 +1,4 @@
-import type { CloudAccountRecord, CloudServiceId } from "@plainva/ui";
+import { confirmationEndpoint, mailboxEndpoints, unconfirmedEndpointsOf, type CloudAccountRecord, type CloudServiceId, type UnconfirmedEndpoint } from "@plainva/ui";
 import { listMailAccounts } from "@plainva/ui/mail";
 import i18n from "@plainva/ui/i18n";
 import { credentialManager } from "./CredentialManager";
@@ -19,17 +19,20 @@ export interface AccountPageFacts {
   /** The own app key of a Dropbox account, when one is stored. */
   appKey?: string;
   summaries: Partial<Record<CloudServiceId, string>>;
+  /** Addresses without TLS or in a private network this device has not confirmed (F57): one **Confirm address** row each. */
+  unconfirmed: UnconfirmedEndpoint[];
 }
 
 export async function readAccountPageFacts(vaultPath: string, record: CloudAccountRecord, runtime: PimRuntime | null): Promise<AccountPageFacts> {
-  const facts: AccountPageFacts = { summaries: {} };
+  const facts: AccountPageFacts = { summaries: {}, unconfirmed: [] };
+  const endpoints: Array<string | null> = [];
   const files = record.services.files?.provider;
   if (files === "webdav") {
     const creds = await credentialManager.getWebDavCredentials(vaultPath).catch(() => null);
-    if (creds) { facts.user = creds.user; facts.server = creds.url; }
+    if (creds) { facts.user = creds.user; facts.server = creds.url; endpoints.push(confirmationEndpoint(creds.url)); }
   } else if (files === "s3") {
     const creds = await credentialManager.getS3Credentials(vaultPath).catch(() => null);
-    if (creds) { facts.accessKeyId = creds.accessKeyId; facts.server = creds.endpoint; }
+    if (creds) { facts.accessKeyId = creds.accessKeyId; facts.server = creds.endpoint; endpoints.push(confirmationEndpoint(creds.endpoint)); }
   } else if (files === "dropbox") {
     const creds = await credentialManager.getDropboxCredentials(vaultPath).catch(() => null);
     if (creds?.appKey) facts.appKey = creds.appKey;
@@ -44,6 +47,7 @@ export async function readAccountPageFacts(vaultPath: string, record: CloudAccou
     if (creds?.kind === "caldav") {
       facts.user ??= creds.user;
       facts.server ??= creds.url;
+      endpoints.push(confirmationEndpoint(creds.url));
     }
     if (runtime?.isActive()) {
       const [calendars, lists] = await Promise.all([
@@ -64,8 +68,10 @@ export async function readAccountPageFacts(vaultPath: string, record: CloudAccou
       if ((mailbox.kind ?? "imap") === "imap") {
         facts.user ??= mailbox.user;
         facts.server ??= `${mailbox.host}:${mailbox.port}`;
+        endpoints.push(...mailboxEndpoints(mailbox));
       }
     }
   }
+  facts.unconfirmed = await unconfirmedEndpointsOf(endpoints.map((endpoint) => ({ vaultKey: vaultPath, endpoint })));
   return facts;
 }

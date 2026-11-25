@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, PanelTop, Sparkles, SquarePen, X } from "lucide-react";
 import { editorSelectionReader } from "../../services/editorSelection";
+import { requestSkillsView } from "../../services/ai/desktopAi";
 import { AiConversation, ICON, IconButton } from "@plainva/ui";
 
 export interface AiDockProps {
@@ -77,7 +78,7 @@ export function AiDockSection({ activeNote, onNewConversation, onOpenNote, onOpe
           <X size={ICON.ui} />
         </IconButton>
       </div>
-      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} onOpenSkills={() => requestSkillsView()} />
     </section>
   );
 }

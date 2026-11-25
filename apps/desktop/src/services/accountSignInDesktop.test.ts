@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   grants: new Map<string, StoredAccountToken[]>(),
   announced: [] as boolean[],
   pending: [] as (string | null)[],
+  claimed: [] as string[],
   calendarConnects: 0,
   mailboxes: [] as { id: string; kind?: string; user: string }[],
 }));
@@ -56,8 +57,12 @@ vi.mock("./accountBroker", () => ({
   saveAccountToken: vi.fn(async (_v: string, id: string, token: StoredAccountToken) => { h.grants.set(id, [...(h.grants.get(id) ?? []), token]); }),
   getAccountToken: vi.fn(async (_v: string, id: string) => (h.grants.get(id) ?? []).slice(-1)[0] ?? null),
   getAccountBroker: vi.fn(() => ({ getAccessToken: vi.fn(async () => "access-from-broker") })),
-  setPendingBrokerAccount: vi.fn((marker: { accountId: string } | null) => { h.pending.push(marker?.accountId ?? null); }),
+  holdPendingBrokerAccount: vi.fn((marker: { accountId: string }) => {
+    h.pending.push(marker.accountId);
+    return () => { h.pending.push(null); };
+  }),
   claimPendingMailbox: vi.fn(),
+  claimPendingCalendar: vi.fn((_v: string, cardId: string, pimId: string) => { h.claimed.push(`${cardId}:${pimId}`); }),
 }));
 vi.mock("./cloudAccountsActions", () => ({
   announceCredentials: vi.fn((isNew: boolean) => { h.announced.push(isNew); }),
@@ -104,6 +109,7 @@ beforeEach(() => {
   h.grants = new Map();
   h.announced = [];
   h.pending = [];
+  h.claimed = [];
   h.calendarConnects = 0;
   h.mailboxes = [];
 });
@@ -142,6 +148,8 @@ describe("connecting a Google account on the desktop", () => {
     // One reload, after everything; the pending marker spans the binding only.
     expect(h.announced).toEqual([true]);
     expect(h.pending[h.pending.length - 1]).toBeNull();
+    // The calendar row the connect created is the one row its marker answers (C2).
+    expect(h.claimed).toEqual([`${h.registry[0].id}:pim-1`]);
   });
 
   it("says which service was left unticked instead of stopping at the first", async () => {

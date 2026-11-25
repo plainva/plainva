@@ -197,6 +197,12 @@ jobs:
         working-directory: apps/mobile
         run: npx cap sync ios
 
+      # The local Swift package LocalModels links ONNX Runtime from a folder this
+      # step fills (Microsoft's NuGet package, pinned by size and SHA-256).
+      # Xcode cannot resolve its packages without it.
+      - name: Fetch ONNX Runtime for iOS
+        run: node apps/mobile/scripts/fetch-onnxruntime-ios.mjs
+
       - name: Test the share queue, the widget store and the vault folder listing
         working-directory: apps/mobile/ios/App
         run: |

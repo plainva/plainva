@@ -239,7 +239,7 @@ function makePass(raw: string): Pass {
     if (!paints) {
       const style = read.attribute(node, "style");
       paints =
-        (style !== null && PAINTS_IN_STYLE.test(style)) ||
+        (style !== null && paintsInStyle(style)) ||
         read.attribute(node, "bgcolor") !== null ||
         read.attribute(node, "background") !== null ||
         (read.nodeName(node).toLowerCase() === "font" && read.attribute(node, "color") !== null);
@@ -335,8 +335,23 @@ export interface MailCanvas {
   dark: boolean;
 }
 
-/** A colour in a style, as `mailHtmlPaintsItself` finds one in the markup. */
-const PAINTS_IN_STYLE = /\b(background|color)\b[^:;"']*:/i;
+/**
+ * Whether a style names a colour, as `mailHtmlPaintsItself` finds one in the markup: `background` or `color` as a word
+ * before a `:` that no `;` or quote stands between — what `/\b(background|color)\b[^:;"']*:/i` matches. Read once,
+ * stretch by stretch between those marks: the expression read the rest of the stretch again from every `color` in it,
+ * quadratic in a long style (code scanning, js/polynomial-redos).
+ */
+function paintsInStyle(style: string): boolean {
+  let from = 0;
+  for (let at = 0; at < style.length; at++) {
+    const mark = style[at];
+    if (mark !== ":" && mark !== ";" && mark !== '"' && mark !== "'") continue;
+    if (mark === ":" && COLOUR_WORD.test(style.slice(from, at))) return true;
+    from = at + 1;
+  }
+  return false;
+}
+const COLOUR_WORD = /\b(?:background|color)\b/i;
 
 /** A colour value as computed styles report it — nothing that could close the rule. */
 const SAFE_COLOUR = /^(#[0-9a-f]{3,8}|(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\([0-9a-z.,%\s/+-]*\)|[a-z]+)$/i;
@@ -353,9 +368,24 @@ const SAFE_COLOUR = /^(#[0-9a-f]{3,8}|(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|col
  * `<style>` blocks never reach this point (the sanitizer removes them).
  */
 export function mailHtmlPaintsItself(sanitizedHtml: string): boolean {
-  if (/<[a-z][^>]*\s(bgcolor|background)\s*=/i.test(sanitizedHtml)) return true;
-  if (/<font\b[^>]*\scolor\s*=/i.test(sanitizedHtml)) return true;
-  return /\sstyle\s*=\s*("[^"]*|'[^']*)\b(background|color)\b[^:;"']*:/i.test(sanitizedHtml);
+  // What `/<[a-z][^>]*\s(bgcolor|background)\s*=/i` and `/<font\b[^>]*\scolor\s*=/i` match, read once: a match
+  // never crosses a `>`, so each stretch between two is looked at from the first tag opening in it. The expressions
+  // read the rest of the stretch again from every `<a` in it (code scanning, js/polynomial-redos).
+  for (const stretch of sanitizedHtml.split(">")) {
+    const tag = stretch.search(/<[a-z]/i);
+    if (tag < 0) continue;
+    if (/\s(?:bgcolor|background)\s*=/i.test(stretch.slice(tag + 2))) return true;
+    const font = stretch.search(/<font\b/i);
+    if (font >= 0 && /\scolor\s*=/i.test(stretch.slice(font + 5))) return true;
+  }
+  // A `style` attribute's value, up to its closing quote (or the end), that names a colour.
+  const styles = /\sstyle\s*=\s*(["'])/gi;
+  for (let found = styles.exec(sanitizedHtml); found; found = styles.exec(sanitizedHtml)) {
+    const start = found.index + found[0].length;
+    const close = sanitizedHtml.indexOf(found[1]!, start);
+    if (paintsInStyle(sanitizedHtml.slice(start, close < 0 ? sanitizedHtml.length : close))) return true;
+  }
+  return false;
 }
 
 export interface MailFrameOptions extends SanitizeEmailOptions {

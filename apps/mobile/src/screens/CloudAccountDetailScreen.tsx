@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { notifyMailChanged } from "../services/mail/mailRuntime";
 import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
@@ -38,9 +39,13 @@ import { AreaBoundary,
   type CloudProviderFamily,
   type CloudServiceId,
   type ServiceCheck,
+  confirmEndpointsIn,
+  type UnconfirmedEndpoint,
 } from "@plainva/ui";
+import { restartSyncIfActive } from "../services/syncService";
+import { restartPimAccountAfterLogin } from "../services/pim/pimService";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
-import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
+import { findAccountCard, loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { mobilePasswordChangePorts } from "../services/accountPassword";
 import { canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
 import { AccessUnavailableError, beginMobileSignIn, deviceAccess, readDeviceAccess, saveDeviceAccess } from "../services/accountSignIn";
@@ -122,7 +127,7 @@ export function CloudAccountDetailScreen({
     const turn = ++loadGeneration.current;
     void loadAccountCards()
       .then(async ({ cards }) => {
-        const found = cards.find((c) => c.key === accountKey) ?? null;
+        const found = findAccountCard(cards, accountKey);
         let unifiable = false, here = false;
         const vaultId = found?.recordVaultId ?? null;
         if (found && vaultId) {
@@ -258,6 +263,19 @@ export function CloudAccountDetailScreen({
     })();
   }
 
+  /**
+   * **Confirm address** (F57): the person lets this phone send the stored
+   * password to an address without TLS or in a private network; the sync,
+   * the calendar and mail start again at once.
+   */
+  async function confirmAddress(entry: UnconfirmedEndpoint) {
+    await confirmEndpointsIn(entry.vaultKey, [entry.endpoint]);
+    if (card?.services.includes("files")) await restartSyncIfActive(entry.vaultKey).catch(() => undefined);
+    if (card?.pimAccountId) await restartPimAccountAfterLogin(entry.vaultKey, card.pimAccountId).catch(() => undefined);
+    if (card?.services.includes("mail")) notifyMailChanged();
+    reload();
+  }
+
   /** Section 3's password entry - and "Sign in" of a password account. */
   function openPassword() {
     if (!card || !loginVaultId) return;
@@ -376,15 +394,17 @@ export function CloudAccountDetailScreen({
     })();
   };
 
-  // An account can disappear while its page is open. Saying so beats an empty page.
-  if (ready && !card) {
-    return (
-      <div className="m-page">
-        <AppBar onBack={onBack} title={t("settings.sectionCloudAccounts")} />
-        <p className="m-hint">{t("cloudAccounts.noneYet")}</p>
-      </div>
-    );
-  }
+  // An account can disappear while its page is open, and a page saved before
+  // an update can name it by a key no card has any more (review 2026-11-18,
+  // R2): either way the page goes back to the list, never to an empty page.
+  const missing = ready && !card;
+  const wentBack = useRef(false);
+  useEffect(() => {
+    if (!missing || wentBack.current) return;
+    wentBack.current = true;
+    onBack();
+  }, [missing, onBack]);
+  if (missing) return null;
 
   const lastCheck = card ? lastChecks.get(card.key) : undefined;
 
@@ -486,6 +506,17 @@ export function CloudAccountDetailScreen({
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                     onClick={openPassword}
                   />
+                  {facts?.unconfirmed.map((entry) => (
+                    <Row
+                      key={`${entry.vaultKey}|${entry.endpoint}`}
+                      data-testid="cloudacct-confirm-address"
+                      icon={<Server size={ICON.ui} />}
+                      title={t("cloudAccounts.confirmAddress", { address: entry.endpoint })}
+                      subtitle={t("cloudAccounts.confirmAddressHint")}
+                      wrap
+                      end={<Button variant="secondary" size="sm" onClick={() => void confirmAddress(entry)}>{t("cloudAccounts.confirmAddressAction")}</Button>}
+                    />
+                  ))}
                 </>
               )}
               {model.access.kind === "permission" && (

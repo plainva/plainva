@@ -9,7 +9,7 @@ import { WhatsNewIcon, WHATS_NEW_CATALOG } from '@plainva/ui';
  *
  * The union type catches the other direction — a catalog entry naming an icon
  * that does not exist will not compile. It cannot catch a name that IS in the
- * union but has no branch in the mapping: that one falls through to Sparkles,
+ * union but has no branch in the mapping: that one falls through to Circle,
  * so the release ships the wrong glyph and nothing goes red. Adding an icon
  * means touching two files, which is exactly where that drift happens — 0.6.3
  * added four at once.
@@ -34,9 +34,10 @@ describe("what's new icons", () => {
       act(() => root.render(<WhatsNewIcon name={name} size={18} />));
       const svg = host.querySelector('svg');
       if (!svg) missing.push(name);
-      // The fallback: "sparkles" is deliberately not a member of the union, so
-      // no catalog name may render it.
-      else if (svg.getAttribute('class')?.includes('lucide-sparkles')) fellThrough.push(name);
+      // The fallback glyph is a plain circle; no catalog name may render it.
+      // Compared as a whole class token: "lucide-circle" is a prefix of other
+      // glyphs' classes.
+      else if ((svg.getAttribute('class') ?? '').split(/\s+/).includes('lucide-circle')) fellThrough.push(name);
       act(() => root.unmount());
       host.remove();
     }

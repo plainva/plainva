@@ -1,6 +1,6 @@
 # Mémoire (Bêta)
 
-Dernière mise à jour : 2026-11-16
+Dernière mise à jour : 2026-11-19
 
 La mémoire conserve ce que l'IA doit savoir sur vous et votre travail sans qu'on ait à le lui répéter : ce que vous faites, comment vous voulez qu'on vous réponde, qui sont vos clients. Elle se compose de deux fichiers dans votre vault. Rien n'y entre sans votre oui, et vous pouvez lire, modifier et supprimer chaque entrée.
 
@@ -12,7 +12,7 @@ La mémoire conserve ce que l'IA doit savoir sur vous et votre travail sans qu'o
 
 ## Ouvrir la mémoire
 
-Sur l'ordinateur, choisissez **Mémoire** dans l'onglet IA, à côté de **Compétences**. Sur le téléphone, c'est **Mémoire** sur l'écran IA, ou **Compétences et mémoire** sur la page de départ de la rubrique IA. **Paramètres → IA dans ce vault** y mène aussi : **Ouvrir la mémoire** sous **Compétences et mémoire**. Les noms de fichiers de la mémoire se trouvent derrière le ⓘ de la carte **Toujours inclus** ; les règles du vault (`AGENTS.md`) se vérifient et s'approuvent là même, dans la vue de la mémoire.
+Sur l'ordinateur, choisissez **Mémoire** dans l'onglet IA, à côté de **Compétences**. Sur le téléphone, c'est **Mémoire** sur l'écran IA, ou **Compétences et mémoire**, la dernière entrée du menu **Compétences** d'une conversation vide. **Paramètres → IA dans ce vault** y mène aussi : **Ouvrir la mémoire** sous **Compétences et mémoire**. Les noms de fichiers de la mémoire se trouvent derrière le ⓘ de la carte **Toujours inclus** ; les règles du vault (`AGENTS.md`) se vérifient et s'approuvent là même, dans la vue de la mémoire.
 
 ## Ajouter une entrée soi-même
 

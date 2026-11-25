@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff, FolderOpen } from "lucide-react";
-import { AreaBoundary, Banner, Button, EmptyState, GroupCard, RowList, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, unionScope, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
+import { AreaBoundary, Banner, confirmationEndpoint, isEndpointConfirmedIn, Button, EmptyState, GroupCard, RowList, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, unionScope, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
   connectProvider,
@@ -119,7 +119,10 @@ export function AddVaultScreen({
       setRunScope(runConsentScope(q.family, runServices(q)));
       if (q.family !== "google" && q.family !== "microsoft" && record?.services.calendar) {
         const creds = await getPimCredentials(q.context.vaultId, record.services.calendar.pimAccountId);
-        if (alive && creds?.kind === "caldav") setWebdav(old => ({ ...old, user: creds.user, pass: creds.pass, url: old.url || (/\/remote\.php\/dav(?:\/|$)/.test(creds.url) ? creds.url.replace(/\/remote\.php\/dav.*$/, `/remote.php/dav/files/${encodeURIComponent(creds.user)}`) : "") }));
+        // The calendar's stored password fills the form only where this phone
+        // confirmed its address (F57); otherwise it is typed here.
+        const confirmed = creds?.kind === "caldav" && await isEndpointConfirmedIn(q.context.vaultId, confirmationEndpoint(creds.url));
+        if (alive && creds?.kind === "caldav" && confirmed) setWebdav(old => ({ ...old, user: creds.user, pass: creds.pass, url: old.url || (/\/remote\.php\/dav(?:\/|$)/.test(creds.url) ? creds.url.replace(/\/remote\.php\/dav.*$/, `/remote.php/dav/files/${encodeURIComponent(creds.user)}`) : "") }));
       }
     });
     return () => {

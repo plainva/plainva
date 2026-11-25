@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Check, ChevronRight, Cloud, FolderOpen, KeyRound, Pencil, RefreshCw, Stethoscope, Trash2, Unplug, Upload } from "lucide-react";
 import { mConfirm, mPrompt } from "./services/mobileDialogs";
@@ -10,6 +10,7 @@ import {
   syncNow,
   nameCollisionResolver,
   unverifiedFilesUploader,
+  restartSyncIfActive,
 } from "./services/syncService";
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
@@ -19,7 +20,7 @@ import { deleteVault, reloadActiveMobileVault, switchVault, vaultOps, type Mobil
 import { exportVault } from "./services/vaultExport";
 import { getMobileSettings } from "./services/mobileSettings";
 import { groupNameCollisions } from "@plainva/core";
-import { Banner, Button, NameCollisionsNotice, UnverifiedFilesNotice, resolveNameCollisionCases, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
+import { Banner, Button, EndpointConfirmBlock, NameCollisionsNotice, useEndpointConfirmation, UnverifiedFilesNotice, resolveNameCollisionCases, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 import { syncStateLabel } from "./components/syncSubtitle";
 import { vaultEntryName } from "./services/vaultEntryName";
@@ -30,6 +31,13 @@ import { vaultEntryName } from "./services/vaultEntryName";
 const providerNameOf = (provider: string) => familyLabel(familyOfSyncProvider(provider as SyncProviderId));
 
 /** The vault record, re-read whenever the registry changes. */
+/** The vault's file address, asked about where the status names it (review of F57, O3). */
+function FilesConfirmAddress({ vaultId, endpoint }: { vaultId: string; endpoint: string }) {
+  const entries = useMemo(() => [{ vaultKey: vaultId, endpoint }], [vaultId, endpoint]);
+  const confirmation = useEndpointConfirmation(entries, useCallback(() => restartSyncIfActive(vaultId), [vaultId]));
+  return <EndpointConfirmBlock confirmation={confirmation} testId="vault-files-confirm-address" />;
+}
+
 function useVaultEntry(vaultId: string): VaultEntry | null {
   const [entry, setEntry] = useState<VaultEntry | null>(null);
   useEffect(() => {
@@ -272,6 +280,11 @@ export function VaultSyncScreen({
         {/* Signed out on this phone: the status says "Sign-in needed" and leads
             to the account, where the sign-in is - as the desktop's sync dialog
             does (third review, finding 3). */}
+        {/* An address this phone has not confirmed (F57): Confirm here, and the
+            sync starts again - never "Sign in" (review of F57, O3). */}
+        {isActive && status.errorKind === "unconfirmed" && status.confirmEndpoint && (
+          <FilesConfirmAddress vaultId={vaultId} endpoint={status.confirmEndpoint} />
+        )}
         {isActive && status.errorKind === "signed-out" && (
           <Button variant="tonal" onClick={onOpenFilesAccount} data-testid="vault-files-signin">
             {t("deviceSignIn.submit")}

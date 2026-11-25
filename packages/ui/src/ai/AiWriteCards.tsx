@@ -639,13 +639,39 @@ export interface AiOpenWritesProps {
   touch?: boolean;
 }
 
+/**
+ * One line per thing that waits for the user (F71 of release 0.9.0): a note with open proposals by its name, under it
+ * how many changes, by whom and when; a draft by its title, under it by whom and when. The segment "To decide" and the
+ * phone's start page read the same lines, so the two never say a thing two ways.
+ */
+export interface OpenWriteLine {
+  key: string;
+  title: string;
+  detail: string;
+}
+
+export function openWriteLines(t: Translate, language: string, state: WriteDraftState, proposals: readonly OpenProposal[] | null): OpenWriteLine[] {
+  const when = (iso: string) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? "" : new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(date);
+  };
+  const notes = (proposals ?? []).map((proposal) => ({
+    key: `proposal:${proposal.path}:${proposal.authorId}`,
+    title: noteName(proposal.path),
+    detail: [t("ai.write.open.changes", { count: proposal.changes }), machineAuthorLabel(t, proposal.authorId, proposal.authorLabel), when(proposal.at)].filter(Boolean).join(" · "),
+  }));
+  const drafts = state.drafts.map((draft) => ({
+    key: `draft:${draft.id}`,
+    title: draft.title,
+    detail: [machineAuthorLabel(t, draft.author.id, draft.author.label), when(draft.createdAt)].filter(Boolean).join(" · "),
+  }));
+  return [...notes, ...drafts];
+}
+
 /** Everything that waits for the user, whoever laid it down: the proposals on notes, and the drafts of this device. */
 export function AiOpenWrites({ state, proposals, canCreate, busy, onOpenNote, onCreate, onDiscard, taskList, touch }: AiOpenWritesProps) {
   const { t, i18n } = useTranslation();
-  const when = (iso: string) => {
-    const date = new Date(iso);
-    return Number.isNaN(date.getTime()) ? "" : new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(date);
-  };
+  const lines = new Map(openWriteLines(t, i18n.language, state, proposals).map((line) => [line.key, line]));
   if (state.drafts.length === 0 && proposals !== null && proposals.length === 0) {
     return (
       <div data-testid="ai-open-empty">
@@ -669,9 +695,7 @@ export function AiOpenWrites({ state, proposals, canCreate, busy, onOpenNote, on
                 <Button size="sm" variant="ghost" className="pv-ai-overview-note" onClick={() => onOpenNote(proposal.path)} data-testid="ai-open-proposal">
                   {noteName(proposal.path)}
                 </Button>
-                <span className="pv-ai-overview-form">
-                  {[t("ai.write.open.changes", { count: proposal.changes }), machineAuthorLabel(t, proposal.authorId, proposal.authorLabel), when(proposal.at)].filter(Boolean).join(" · ")}
-                </span>
+                <span className="pv-ai-overview-form">{lines.get(`proposal:${proposal.path}:${proposal.authorId}`)?.detail}</span>
               </li>
             ))}
           </ul>

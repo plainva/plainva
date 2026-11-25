@@ -20,6 +20,8 @@ Connecter le compte valide l'identification avant que quoi que ce soit ne soit e
 
 **Comptes e-mail sans mot de passe.** Une configuration qui échouait à l’enregistrement pouvait laisser une entrée sans mot de passe (Plainva 0.8.3 sur ordinateur). La zone **E-mail** signale une fois les comptes qui n’ont pas de mot de passe sur cet appareil et n’y ont jamais récupéré d’e-mails. **Voir** affiche la liste. Si vous utilisez un tel compte sur un autre appareil, choisissez **Se connecter** — c’est alors la bonne voie. **Retirer** supprime l’entrée après confirmation, sur tous les appareils qui synchronisent les réglages de ce vault, jamais d’e-mails ni de fichiers. **Plus tard** masque l’avis. Plainva ne retire jamais rien de lui-même.
 
+Un serveur de messagerie sur un réseau local ne reçoit le mot de passe d’un appareil qu’une fois son adresse confirmée sur celui-ci : [Adresses non chiffrées et locales](Sync_Setup.md#adresses-non-chiffrées-et-locales).
+
 ## Lire les e-mails
 
 Ouvrez l'onglet e-mail depuis la barre d'actions à gauche (icône enveloppe) ou la palette de commandes (**Ouvrir les e-mails**). La liste montre votre boîte de réception du plus récent au plus ancien (non lus en gras, **Charger plus** charge la suite). Sélectionner un message l'ouvre dans une **visionneuse cloisonnée** :

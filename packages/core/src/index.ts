@@ -132,6 +132,7 @@ export { FULL_TEXT_DAMAGED_MARK, fullTextDamageNoted, noteFullTextDamage, noteFu
 export { migratePathIdentity, PATH_IDENTITY_VERSION, type PathIdentityReport } from "./db/pathIdentityMigration.js";
 export * from "./db/batch.js";
 export * from "./pim/types.js";
+export * from "./pim/confirmedAccess.js";
 export * from "./pim/eventSubstance.js";
 export * from "./pim/blockLinks.js";
 export * from "./pim/requestError.js";

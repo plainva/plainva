@@ -11,7 +11,7 @@ import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } fr
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
 import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShared";
-import { segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
+import { InlineTextLinks, safeHref, tagColorAttrs } from "@plainva/ui";
 import { FILE_DAY, parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
 import { isWikiTargetResolved, wikiTargetPath } from "@plainva/ui";
@@ -482,29 +482,9 @@ export function useBaseCells({
   // Render links inside free text like the editor does (plan W4/P11):
   // [[wikilinks|alias]], [label](target) and bare URLs become clickable; other
   // text stays plain. Returns the raw string when it contains no link.
-  const renderInlineString = (text: string, rowPath?: string): React.ReactNode => {
-    const segments = segmentInlineText(text);
-    if (!segments.some((s) => s.type !== "text")) return text;
-    const linkStyle: React.CSSProperties = { color: "var(--accent-color)", textDecoration: "underline", cursor: "pointer" };
-    return (
-      <span>
-        {segments.map((seg, i) => {
-          if (seg.type === "text") return <span key={i}>{seg.text}</span>;
-          if (seg.type === "url") {
-            return <a key={i} href={safeHref(seg.target)} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{seg.target}</a>;
-          }
-          if (seg.type === "markdown") {
-            const label = seg.text || seg.target;
-            if (/^https?:\/\//.test(seg.target)) {
-              return <a key={i} href={safeHref(seg.target)} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{label}</a>;
-            }
-            return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openTextLink(seg.target, "markdown", e, rowPath); }}>{label}</span>;
-          }
-          return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openTextLink(seg.target, "wiki", e, rowPath); }}>{seg.display}</span>;
-        })}
-      </span>
-    );
-  };
+  const renderInlineString = (text: string, rowPath?: string): React.ReactNode => (
+    <InlineTextLinks text={text} onOpenLink={(target, kind, ev) => openTextLink(target, kind, ev, rowPath)} />
+  );
 
   // Render select/status/multiselect/relation values as colored chips using the curated
   // `.base` colors, so every view shows typed values instead of raw text. Returns null

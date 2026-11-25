@@ -24,6 +24,19 @@ export class MailCredentialsMissingError extends Error {
   }
 }
 
+/**
+ * The mailbox has its password here, but one of its servers is an address
+ * this device has not confirmed (F57): nothing was sent. It is a missing
+ * credential to every caller that parks a mailbox on one — and it names the
+ * address, so a surface says **Confirm address: …** instead of "sign in".
+ */
+export class MailEndpointNotConfirmedError extends MailCredentialsMissingError {
+  constructor(readonly endpoint: string) {
+    super();
+    this.name = "MailEndpointNotConfirmedError";
+  }
+}
+
 export function isMailCredentialsMissing(err: unknown): boolean {
   return (
     err instanceof MailCredentialsMissingError ||

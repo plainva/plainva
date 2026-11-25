@@ -21,7 +21,6 @@ import {
   semanticRunFailureText,
   semanticUnusedLine,
   searchRests,
-  SettingCard,
   SettingCardBlock,
   SettingCardNote,
   SettingRow,
@@ -46,7 +45,7 @@ import { desktopLocalModels } from "../../services/ai/localModels";
  * away. The same choice as the phone's AI screen (`semanticModelRows`,
  * `semanticSourceOf`, `semanticFailureText`).
  */
-export function SemanticSearchCard({ session, onChooseModel }: { session: AiSession; onChooseModel: () => void }) {
+export function SemanticSearchRows({ session, onChooseModel }: { session: AiSession; onChooseModel: () => void }) {
   const { t, i18n } = useTranslation();
   const settings = useAiState()?.settings;
   const { controller, state } = useLocalEmbeddings();
@@ -145,10 +144,9 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
 
   return (
     <>
-    <SettingCard label={t("ai.semantic.title")} info={t("ai.semantic.description")}>
       {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
       {settings && searchRests(settings) && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
-      <SettingRow label={t("ai.semantic.now")} desc={currentLine}>
+      <SettingRow label={t("ai.semantic.title")} desc={currentLine} info={t("ai.semantic.description")}>
         <Button size="sm" variant="secondary" onClick={() => setChoosing((open) => !open)} aria-expanded={choosing} data-testid="semantic-change">
           {choosing ? t("common.done") : t("ai.semantic.change")}
         </Button>
@@ -296,7 +294,6 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
           </Button>
         </SettingRow>
       )}
-    </SettingCard>
     {asking && <LoadDialog spec={asking} onClose={() => setAsking(null)} onLoad={() => void load(asking)} />}
     </>
   );

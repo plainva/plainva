@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
-import { AreaBoundary, appendWikiLink, errorText, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink, consumeGraphTrail, GRAPH_TRAIL_EVENT, trailFocus, trailFolders, type VaultMapFocus, reportingTo } from "@plainva/ui";
+import { AreaBoundary, appendWikiLink, errorText, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink, consumeGraphTrail, GRAPH_TRAIL_EVENT, trailFocus, trailFolders, type VaultMapFocus, reportingTo, removeLinksTo, removeRelationLink } from "@plainva/ui";
 import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, Button, GroupCard, ICON, IconButton, Row, RowList, SearchField, Switch } from "@plainva/ui";
 import { AlertTriangle, ChevronRight, Clock, Crosshair, FileText, Flame, ImageDown, Maximize2, Minus, MousePointerSquareDashed, PinOff, Plus, SlidersHorizontal, Trash2, Link2, Waypoints } from "lucide-react";
 import { mActions, mConfirm, mSelect } from "../services/mobileDialogs";
 import { type MobileVault } from "../services/vaultService";
+import { syncSoon } from "../services/syncService";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SheetGrip } from "../components/SheetGrip";
@@ -575,14 +576,87 @@ export function GraphScreen({
     return acts;
   };
 
+  /** Takes the text links of one note to another out of the note, after asking (the desktop's edge menu, same sentences). */
+  const removeEdgeTextLinks = async (source: string, target: string) => {
+    const service = vault.queryService;
+    if (!service) return;
+    const ok = await mConfirm({
+      title: t("graph.edgeRemoveLinks"),
+      message: t("graph.edgeRemoveLinksMsg", { source: titleOf(source), target: titleOf(target) }),
+      danger: true,
+      confirmLabel: t("common.remove"),
+    });
+    if (!ok) return;
+    try {
+      const n = await removeLinksTo(vault.files, service, source, target);
+      // The text no longer holds such a link (the note changed since the graph was drawn): say so, never nothing.
+      if (n > 0) {
+        await vault.reindexPaths([source]).catch(reportingTo("index:paths"));
+        syncSoon();
+        toast.success(t("graph.edgeRemoved", { n }));
+      } else {
+        toast.warning(t("graph.edgeNothingRemoved", { source: titleOf(source), target: titleOf(target) }));
+      }
+      setReload((r) => r + 1);
+    } catch {
+      toast.error(t("graph.cleanupActionFailed"));
+    }
+  };
+
+  /** Takes one relation entry out of the source note's property, after asking. */
+  const removeEdgeRelation = async (source: string, target: string, propertyKey: string) => {
+    const service = vault.queryService;
+    if (!service) return;
+    const ok = await mConfirm({
+      title: t("graph.edgeRemoveRelation"),
+      message: t("graph.edgeRemoveRelationMsg", { property: propertyKey, source: titleOf(source), target: titleOf(target) }),
+      danger: true,
+      confirmLabel: t("common.remove"),
+    });
+    if (!ok) return;
+    try {
+      const n = await removeRelationLink(vault.files, service, source, target, propertyKey);
+      if (n > 0) {
+        await vault.reindexPaths([source]).catch(reportingTo("index:paths"));
+        syncSoon();
+        toast.success(t("graph.edgeRemoved", { n }));
+      }
+      setReload((r) => r + 1);
+    } catch (e) {
+      // A relation is a property of the source note: the sentence a property write gets.
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+    }
+  };
+
   const edgeActions = (edgeId: string) => {
     const entries = model?.bundles.get(edgeId) ?? [];
     const first = entries[0];
     if (!first) return [];
-    return [
+    const open = [
       { icon: <FileText size={ICON.head} />, label: titleOf(first.source), onClick: () => { setEdgeSheet(null); onOpenNote(first.source); } },
       { icon: <FileText size={ICON.head} />, label: titleOf(first.target), onClick: () => { setEdgeSheet(null); onOpenNote(first.target); } },
     ];
+    // One removal per entry of the edge, as many as the desktop's menu lists
+    // (the first five): a text link, or one relation property each.
+    const removals = entries.slice(0, 5).map((entry) => {
+      const relation = entry.propertyKey;
+      return relation
+        ? {
+            icon: <Trash2 size={ICON.head} />,
+            label: `${t("graph.edgeRemoveRelation")} · ${relation}`,
+            danger: true,
+            testId: `graph-edge-remove-relation-${relation}`,
+            onClick: () => { setEdgeSheet(null); void removeEdgeRelation(entry.source, entry.target, relation); },
+          }
+        : {
+            icon: <Trash2 size={ICON.head} />,
+            label: t("graph.edgeRemoveLinks"),
+            danger: true,
+            testId: "graph-edge-remove-links",
+            onClick: () => { setEdgeSheet(null); void removeEdgeTextLinks(entry.source, entry.target); },
+          };
+    });
+    return [...open, ...removals];
   };
 
   return (

@@ -923,6 +923,67 @@ test('AI settings from a conversation: "Set up" opens the page "AI", not the fir
   await expect(page.getByTestId('ai-setup-provider')).toBeVisible();
 });
 
+// An empty conversation opens at its top on the desktop too (F71 of release 0.9.0, point 1): the conversation followed
+// "the answer" to its end the moment it opened, so where the column is lower than what an empty conversation shows —
+// a short window, the column under its week — the greeting stood cut at its top edge. The same shared conversation the
+// phone shows; the desktop has no start page, so here it is the greeting alone.
+test('AI dock in a low column: the empty conversation opens at its top, the greeting whole', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      return orig(cmd, args, options);
+    };
+  });
+  // A short window: the column under the week has less height than the empty conversation shows.
+  await page.setViewportSize({ width: 1280, height: 340 });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  // The greeting is the conversation's empty state (`.pv-empty`), whatever else it is called.
+  const hello = dock.locator('.pv-ai-thread > .pv-empty');
+  await expect(hello).toBeVisible();
+  await page.waitForTimeout(300);
+  const placed = await dock.evaluate((el) => {
+    const thread = el.querySelector('.pv-ai-thread') as HTMLElement;
+    const hello = el.querySelector('.pv-ai-thread > .pv-empty') as HTMLElement;
+    return {
+      scrollTop: thread.scrollTop,
+      threadTop: thread.getBoundingClientRect().top,
+      helloTop: hello.getBoundingClientRect().top,
+    };
+  });
+  expect(placed.scrollTop, 'the empty conversation is not scrolled').toBe(0);
+  expect(placed.helloTop, 'the greeting begins inside the conversation, not above it').toBeGreaterThanOrEqual(placed.threadTop);
+});
+
+// A switch of the conversation that is on stays filled under the pointer (F71 of release 0.9.0, review point 6): the
+// chip's hover look outweighed the "on" look, and a chip just switched on looked like one that is off.
+test('AI dock: a switch that is on stays filled under the pointer', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  const chip = dock.getByTestId('ai-lens-open');
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.move(5, 5);
+  const resting = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await chip.hover();
+  const hovered = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(hovered).toBe(resting);
+});
+
 test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Icons.md'] = "---\ntype: Note\n---\n\nIcon test body\n";
@@ -7641,8 +7702,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   // From the docked conversation the dialog opens too; the column lies under a dialog and stays where it is.
   await page.keyboard.press('Control+j');
   const dock = page.getByTestId('ai-dock');
-  await dock.getByTestId('ai-run-more').last().click();
-  await page.getByTestId('ai-learn-open').click();
+  await dock.getByTestId('ai-learn-open').last().click();
   await expect(page.getByTestId('ai-learn')).toBeVisible();
   await expect(dock).toBeVisible();
   await page.getByTestId('ai-learn').getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -7653,8 +7713,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   const companion = page.getByTestId('ai-companion');
   await expect(companion).toBeVisible();
   await expect(dock).toHaveCount(0);
-  await companion.getByTestId('ai-run-more').last().click();
-  await page.getByTestId('ai-learn-open').click();
+  await companion.getByTestId('ai-learn-open').last().click();
   await expect(page.getByTestId('ai-learn')).toBeVisible();
   await expect(page.getByTestId('ai-companion')).toHaveCount(0);
   await page.getByTestId('ai-learn').getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -7664,8 +7723,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   expect(await requests()).toHaveLength(1);
 
   // 2. "Learn from this conversation" stands under its last answer. The dialog says what would go where; nothing has gone.
-  await tab.getByTestId('ai-run-more').last().click();
-  await page.getByTestId('ai-learn-open').click();
+  await tab.getByTestId('ai-learn-open').last().click();
   const learn = page.getByTestId('ai-learn');
   await expect(learn.getByTestId('ai-learn-recipient')).toContainText('m-1');
   await expect(learn.getByTestId('ai-learn-kinds')).toHaveText('Entries for the memory · Rules · A skill, or other instructions for one');
@@ -8040,7 +8098,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   //    computer reads e-mails and appointments itself. Only "Fully local" is a switch.
   let dialog = await openAppAi();
   let app = dialog.getByTestId('settings-ai');
-  await expect(app).toContainText('Now: Hybrid — this device sorts, a provider answers');
+  await expect(app).toContainText('Now: Hybrid — this device sorts, Anthropic answers');
   await expect(app).toContainText('New conversations start with Anthropic · m-1.');
   await expect(app).toContainText('reading e-mails and appointments (granite3.3:8b)');
   // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
@@ -8111,7 +8169,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   app = dialog.getByTestId('settings-ai');
   await app.getByTestId('ai-local-only').click();
   await expect(app.getByTestId('ai-local-only')).toHaveAttribute('aria-checked', 'false');
-  await expect(app).toContainText('Now: Hybrid — this device sorts, a provider answers');
+  await expect(app).toContainText('Now: Hybrid — this device sorts, Anthropic answers');
   await expect(app).not.toContainText('this rests');
   await expect.poll(async () => (await told()).at(-1)).toBe(false);
 });
@@ -9429,6 +9487,123 @@ async function o7OpenRelaunch(page: Page) {
   await page.getByText('Website relaunch', { exact: true }).click();
   await expect(page.locator('.cm-content').first()).toContainText('Three feature pages');
 }
+
+test('AI in this vault: the folder rules are named columns, every answer under its head (mockup M5)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/.agent': { isDir: true },
+      '/test-vault/.agent/policy.yml': 'folders:\n  "/":\n    write: direct\n  Private/:\n    cloud: deny\n',
+      '/test-vault/Private': { isDir: true },
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
+  const grid = dialog.getByTestId('ai-policy-grid');
+  await expect(grid).toBeVisible();
+  await expect(grid.getByTestId('ai-policy-row')).toHaveCount(2);
+  const columns = await grid.evaluate((root) => {
+    const head = [...root.querySelectorAll('.pv-rulegrid-head > span')].slice(1, 4).map((el) => Math.round(el.getBoundingClientRect().left));
+    const rows = [...root.querySelectorAll('[data-testid="ai-policy-row"]')].map((row) => [...row.querySelectorAll('.pv-rulegrid-cell')].map((cell) => Math.round(cell.getBoundingClientRect().left)));
+    const names = [...root.querySelectorAll('.pv-rulegrid-head > span')].slice(1, 4).map((el) => el.firstChild?.textContent);
+    return { head, rows, names };
+  });
+  expect(columns.names).toEqual(['To a provider', 'Onto the internet', 'Change without asking']);
+  for (const row of columns.rows) expect(row, 'every answer starts under its head').toEqual(columns.head);
+});
+
+test('AI in this vault: in a narrow window each folder stacks its answers under their column names, nothing overlaps (mockup M5)', async ({ page }) => {
+  await page.setViewportSize({ width: 760, height: 900 });
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/.agent': { isDir: true },
+      '/test-vault/.agent/policy.yml': 'folders:\n  "/":\n    write: direct\n  Private/:\n    cloud: deny\n',
+      '/test-vault/Private': { isDir: true },
+    });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
+  const grid = dialog.getByTestId('ai-policy-grid');
+  await expect(grid).toHaveClass(/is-narrow/);
+  const laid = await grid.evaluate((root) => {
+    const card = root.closest('.pv-setcard')!.getBoundingClientRect();
+    const box = (el: Element) => el.getBoundingClientRect();
+    const rows = [...root.querySelectorAll('[data-testid="ai-policy-row"]')].map((row) => {
+      const parts = [row.querySelector('.pv-rulegrid-name')!, ...row.querySelectorAll('.pv-rulegrid-cell'), row.querySelector('.pv-rulegrid-edge')!];
+      const rects = parts.map(box);
+      const overlaps: string[] = [];
+      for (let a = 0; a < rects.length; a++) for (let b = a + 1; b < rects.length; b++) {
+        const r = rects[a]!, q = rects[b]!;
+        if (r.width && q.width && r.left < q.right - 0.5 && q.left < r.right - 0.5 && r.top < q.bottom - 0.5 && q.top < r.bottom - 0.5) overlaps.push(`${a}/${b}`);
+      }
+      const cells = [...row.querySelectorAll('.pv-rulegrid-cell')];
+      return {
+        names: cells.map((cell) => getComputedStyle(cell, '::before').content.replace(/^"|"$/g, '')),
+        stacked: cells.every((cell, i) => i === 0 || box(cell).top >= box(cells[i - 1]!).bottom - 0.5),
+        overlaps,
+        inside: rects.every((r) => r.left >= card.left - 0.5 && r.right <= card.right + 0.5),
+      };
+    });
+    return { width: box(root).width, head: getComputedStyle(root.querySelector('.pv-rulegrid-head')!).display, rows };
+  });
+  expect(laid.width).toBeLessThan(544);
+  expect(laid.head, 'the head goes').toBe('none');
+  for (const row of laid.rows) {
+    expect(row.names).toEqual(['To a provider', 'Onto the internet', 'Change without asking']);
+    expect(row.stacked, 'the answers stand one under the other').toBe(true);
+    expect(row.overlaps, 'nothing of a folder lies on another part of it').toEqual([]);
+    expect(row.inside, 'nothing runs out of the card').toBe(true);
+  }
+  if (process.env.PLAINVA_EVIDENCE) await dialog.screenshot({ path: test.info().outputPath('m5-desktop-schmal.png') });
+});
+
+test('AI in this vault: with the AI off on this device, the notice leads to the page that switches it on (mockup M5)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: false } };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
+  await expect(dialog.getByTestId('settings-ai-vault-off')).toBeVisible();
+  await dialog.getByTestId('settings-ai-vault-open-ai').click();
+  await expect(dialog.getByTestId('settings-ai')).toBeVisible();
+});
+
+test('a waiting card in the dock: nothing of it lies under its pinned foot, and its lower edge stays in view (review of M8)', async ({ page }) => {
+  await o7WithAi(page, [o7Says('Short summary of [[Website relaunch]].')]);
+  await o7OpenRelaunch(page);
+  await page.keyboard.press('Control+j');
+  const dock = page.getByTestId('ai-dock');
+  await dock.getByTestId('ai-input').fill('Summarize this note');
+  await dock.getByTestId('ai-send').click();
+  await expect(dock.getByTestId('ai-consent')).toBeVisible();
+  await page.waitForTimeout(300);
+  const at = await page.evaluate(() => {
+    const card = document.querySelector('[data-testid="ai-dock"] [data-testid="ai-consent"]') as HTMLElement;
+    const foot = card.querySelector('.pv-ai-overview-actions') as HTMLElement;
+    const pending = card.closest('[data-testid="ai-pending"]') as HTMLElement;
+    const footTop = foot.getBoundingClientRect().top;
+    const above = [...card.querySelectorAll("dt, dd, li, p, button, [role='switch'], .pv-ai-overview-head")].filter((el) => !foot.contains(el)) as HTMLElement[];
+    return {
+      covered: above.filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().bottom > footTop + 0.5).map((el) => (el.textContent ?? el.tagName).trim().slice(0, 40)),
+      cardBottom: card.getBoundingClientRect().bottom,
+      pendingBottom: pending.getBoundingClientRect().bottom,
+      viewport: innerHeight,
+    };
+  });
+  expect(at.covered, 'nothing of the card lies under its foot').toEqual([]);
+  expect(at.cardBottom, "the card's lower edge stands inside the pending column").toBeLessThanOrEqual(at.pendingBottom + 0.5);
+  expect(at.cardBottom, 'and on the screen').toBeLessThanOrEqual(at.viewport);
+});
 
 test('the conversation opens in the right column with the week above it; Pop out and Dock move it, remembered', async ({ page }) => {
   await o7WithAi(page);

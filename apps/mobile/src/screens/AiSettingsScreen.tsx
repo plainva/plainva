@@ -6,6 +6,7 @@ import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointI
 import { AreaBoundary,
   AI_FEEDBACK_URL,
   addableProviders,
+  profilesInOrder,
   aiSetupStep,
   configuredProviders,
   getPlatformServices,
@@ -27,8 +28,8 @@ import { AreaBoundary,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { MobileSemanticSection } from "../components/MobileSemanticSection";
-import { MobileNoteHintsSection } from "../components/MobileNoteHintsSection";
-import { MobileGistsSection } from "../components/MobileGistsSection";
+import { MobileNoteHintsRows } from "../components/MobileNoteHintsSection";
+import { MobileGistsRows } from "../components/MobileGistsSection";
 import { MobileSystemAssistantSection } from "../components/MobileSystemAssistantSection";
 import { AiModelSheet } from "../components/AiModelSheet";
 import { AiSetupSheet } from "../components/AiSetupSheet";
@@ -271,7 +272,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
                 <Row icon={<Plus size={ICON.ui} />} title={t("ai.settings.addProvider")} onClick={() => void addProvider()} data-testid="ai-add-provider-open" />
                 {/* The profiles appear once a provider is there (plan Oberfläche O7, M7): before that they could only say "not set up". */}
                 {rows.length > 0 &&
-                  AI_PROFILE_IDS.map((id) => (
+                  profilesInOrder(settings.defaultProfile).map((id) => (
                     <Row key={id} wrap title={t(`ai.profile.${id}`)} subtitle={profileLine(id)} onClick={() => void profileActions(id)} data-testid={`ai-profile-${id}`} />
                   ))}
               </RowList>
@@ -326,10 +327,17 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
             )}
             <p className="m-hint">{t("ai.settings.privacyVaultNote")}</p>
 
-            {/* What runs on this device without a model (plan K5). */}
-            <MobileSemanticSection session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />
-            <MobileNoteHintsSection session={session} />
-            <MobileGistsSection session={session} />
+            {/* What runs on this device without a model (plan K5): one heading, one card (mockup KI-Oberflächen M2). */}
+            <MobileSemanticSection
+              session={session}
+              onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)}
+              also={
+                <>
+                  <MobileNoteHintsRows session={session} />
+                  <MobileGistsRows session={session} />
+                </>
+              }
+            />
             {/* The system's assistant — only the phone has it (parity entry ai-system-intents). */}
             {settings.enabled && <MobileSystemAssistantSection session={session} />}
 

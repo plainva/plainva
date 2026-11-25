@@ -92,7 +92,7 @@ describe("the mode line and the privacy card", () => {
   it("says what holds now, and that only the switch promises something", async () => {
     const { s } = await mcpSession([], { profiles: { balanced: CLOUD } });
     const card = await show(s, <Card session={s} onSetUp={() => undefined} />);
-    expect(text(card)).toContain("Now: Cloud — a provider answers");
+    expect(text(card)).toContain("Now: Cloud — Anthropic answers");
     expect(text(card)).toContain("New conversations start with Anthropic · m-1.");
     expect(q("ai-local-only")!.getAttribute("aria-checked")).toBe("false");
     expect(await infoText(card, "Privacy")).toContain("Only “Fully local” is a switch, because only it promises something.");
@@ -116,7 +116,7 @@ describe("the mode line and the privacy card", () => {
     // Off again: the card is as it was.
     await click(q("ai-local-only"));
     expect(s.getState().settings.localOnly).toBe(false);
-    expect(text(card)).toContain("Now: Hybrid — this device sorts, a provider answers");
+    expect(text(card)).toContain("Now: Hybrid — this device sorts, Anthropic answers");
   });
 
   it("without a model on this device says what is missing and offers the way there", async () => {

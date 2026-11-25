@@ -1,6 +1,7 @@
 import { isLocalStoreBusy, isRequestSendFailure, type PimSyncProblem } from "@plainva/core";
 import { classifyAuthError } from "../lib/authErrors";
 import { withoutUrlPaths } from "../services/pimCycleReport";
+import { unconfirmedEndpointInText } from "../lib/endpointConfirmation";
 
 /**
  * The line above the calendar (plan Befunde 2026-10-06, K1).
@@ -39,6 +40,10 @@ export const TASK_NOTE_PROBLEM_PREFIX = "plainva:task-note:";
 /** Why, in a sentence. A reason this cannot name is shown in the provider's own
  * words — shortened and without the path of any address, never withheld. */
 export function syncProblemReason(problem: PimSyncProblem, t: Translate): string {
+  // An address this device has not confirmed (F57): what is missing is the
+  // confirmation, not a sign-in (review of F57, O-5).
+  const unconfirmed = unconfirmedEndpointInText(problem.error);
+  if (unconfirmed) return t("cloudAccounts.confirmAddress", { address: unconfirmed });
   if (problem.signIn) return t("pim.problemSignIn");
   // What the task reconciler could not carry into the notes (B2): Plainva's
   // own reason, said in the reader's language.

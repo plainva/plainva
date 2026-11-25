@@ -74,7 +74,9 @@ export const AccountCheckModal: React.FC<{
             // The same id the account page shows: on the desktop the card IS the registry record.
             const row = (await runtime.cache.listAccounts()).find((entry) => entry.id === record.services.calendar!.pimAccountId);
             if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
-            const target = await runtime.buildTarget(row);
+            // An address this device has not confirmed is refused with its
+            // name, and the row says Confirm address (F57, O3; `syncTarget`).
+            const target = await runtime.syncTarget(row);
             // No sign-in for it on this device: said in words, with "Sign in" beside it.
             if (!target) throw new ServiceCheckError("signin");
             await target.listCalendars();

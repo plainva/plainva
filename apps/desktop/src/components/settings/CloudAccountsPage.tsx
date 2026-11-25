@@ -37,6 +37,8 @@ import {
   toast,
   type AccountRepairNeed,
   type CloudAccountRecord,
+  confirmEndpointsIn,
+  type UnconfirmedEndpoint,
   type CloudServiceId,
   type GuidedAccountRepairPlan,
   type DeviceSignInState,
@@ -76,9 +78,11 @@ import {
   passwordServicesOf,
   runConnectSequence,
   holdCredentialsAnnouncements,
+  announceCredentials,
   type ConnectRequest,
   type ServiceRunStatus,
 } from "../../services/cloudAccountsActions";
+import { restartPimAccountAfterLogin } from "../../services/pim/pimRuntime";
 import {
   guideDesktopAccountRepair,
   loadDesktopAccountRepairNeeds,
@@ -312,7 +316,7 @@ export const CloudAccountsPage: React.FC<{
   useEffect(() => {
     let cancelled = false;
     void Promise.all(
-      records.map(async (r) => [r.id, await accountSignInStateHere(selectedVault, r, fileAccess?.blocked ? (fileAccess.signedOut ? "signedOut" : "blocked") : null)] as const),
+      records.map(async (r) => [r.id, await accountSignInStateHere(selectedVault, r, fileAccess?.blocked && !fileAccess.unconfirmed ? (fileAccess.signedOut ? "signedOut" : "blocked") : null)] as const),
     )
       .then((pairs) => {
         if (cancelled) return;
@@ -335,12 +339,26 @@ export const CloudAccountsPage: React.FC<{
   const detail = mode.kind === "detail" || mode.kind === "service" ? records.find((r) => r.id === mode.id) : undefined;
   /** What the open account's page shows besides its state: who signs in where, one line per service. */
   const [facts, setFacts] = useState<{ id: string; facts: AccountPageFacts } | null>(null);
+  const [factsRevision, setFactsRevision] = useState(0);
   useEffect(() => {
     if (!detail) return;
     let alive = true;
     void readAccountPageFacts(selectedVault, detail, runtime).then((next) => { if (alive) setFacts({ id: detail.id, facts: next }); }).catch(() => undefined);
     return () => { alive = false; };
-  }, [detail, selectedVault, runtime]);
+  }, [detail, selectedVault, runtime, factsRevision]);
+  /**
+   * **Confirm address** (F57): the person lets this device send the stored
+   * password to an address without TLS or in a private network. Each service
+   * starts again at once: the calendar, the file sync with the credentials
+   * announcement, and mail, which reloads its list.
+   */
+  const confirmAddress = async (record: CloudAccountRecord, entry: UnconfirmedEndpoint) => {
+    await confirmEndpointsIn(entry.vaultKey, [entry.endpoint]);
+    if (entry.vaultKey === selectedVault && record.services.files) announceCredentials(false);
+    if (runtime && record.services.calendar) await restartPimAccountAfterLogin(runtime, record.services.calendar.pimAccountId).catch(() => undefined);
+    if (record.services.mail) window.dispatchEvent(new CustomEvent("plainva-mail-settings-changed"));
+    setFactsRevision((n) => n + 1);
+  };
   const detailFamily: AccessFamily | null = detail && (detail.family === "google" || detail.family === "microsoft" || detail.family === "dropbox") ? detail.family : null;
   // A failure belongs to the page it happened on.
   useEffect(() => { setFailure(null); }, [detail?.id]);
@@ -446,6 +464,8 @@ export const CloudAccountsPage: React.FC<{
       flavor: record.flavor,
       services: [service],
       consentServices: [service],
+      // A password taken from a slot, not typed: it goes only where this device confirmed (F57).
+      reusesStoredPassword: true,
     };
     if (record.family === "webdav") {
       // Derive the missing endpoint from the stored files slot (same server).
@@ -920,6 +940,17 @@ export const CloudAccountsPage: React.FC<{
                   {t("accountAccess.change")}
                 </Button>
               </SettingRow>
+              {accountFacts?.unconfirmed.map((entry) => (
+                <SettingRow
+                  key={`${entry.vaultKey}|${entry.endpoint}`}
+                  label={t("cloudAccounts.confirmAddress", { address: entry.endpoint })}
+                  desc={t("cloudAccounts.confirmAddressHint")}
+                >
+                  <Button variant="secondary" size="sm" data-testid="cloudacct-confirm-address" onClick={() => void confirmAddress(detail, entry)}>
+                    {t("cloudAccounts.confirmAddressAction")}
+                  </Button>
+                </SettingRow>
+              ))}
             </>
           )}
 

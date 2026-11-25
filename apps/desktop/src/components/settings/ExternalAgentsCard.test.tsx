@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
 import type { AiSession } from "@plainva/ui";
 import { acpHarness, lastOf, type AcpHarness } from "../../ai/acpTestHost";
-import { ExternalAgentsCard } from "./ExternalAgentsCard";
+import { ExternalAgentsRows } from "./ExternalAgentsCard";
 
 /**
  * Settings → AI & automation → "External agents" with the real controller
@@ -52,7 +52,7 @@ async function mount(h: AcpHarness, localOnly = false): Promise<void> {
   document.body.appendChild(host);
   root = createRoot(host);
   await act(async () => {
-    root!.render(<ExternalAgentsCard />);
+    root!.render(<ExternalAgentsRows />);
     await h.settle();
   });
 }

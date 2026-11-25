@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AreaBoundary, applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
+import { AreaBoundary, applyEventChanges, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
 import { parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -119,7 +119,7 @@ export function useEventEditor({
 
   /** A write the provider refused: said once, with the way to try it again. */
   const reportRefused = (err: unknown, retry: () => void, what: "save" | "delete" = "save") => {
-    const reason = err instanceof Error ? err.message : String(err);
+    const reason = refusalReason(err);
     // The same line the desktop writes, so a diagnostics export says why.
     logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
     // A refused deletion said "was not saved" (issue 119).
@@ -302,7 +302,7 @@ export function useEventEditor({
           const target = await pimTargetForAccount(accountId);
           return target ? { target } : { target: null, reason: t("pim.blockNoTarget", { defaultValue: "Konto nicht angemeldet" }) };
         } catch (error) {
-          return { target: null, reason: error instanceof Error ? error.message : String(error) };
+          return { target: null, reason: refusalReason(error) };
         }
       },
       draft,
@@ -342,7 +342,7 @@ export function useEventEditor({
       await respondToPimEvent(e, response);
       toast.success(t("pim.rsvpSent", { defaultValue: "Antwort gesendet" }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      toast.error(refusalReason(err));
     }
   };
 

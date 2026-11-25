@@ -3,6 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { WebDavCredentials, S3Credentials } from "@plainva/core";
 import { readSlot, removeSlot, type ICredentialStore } from "@plainva/ui";
 import { legacySlot, slot, type SyncProvider } from "./keychainSlots";
+import { STORE_KEY as SETTINGS_STORE_FILE } from "./settingsStore";
+
+/** The note of where the key of the secrets marks lives, in the settings store (`secure_store.rs`). */
+const MARK_KEY_HOME = "settingsSyncSecretsMarkKeyHome";
 
 /**
  * BYO Google Drive credentials as entered/stored on the desktop. clientId/clientSecret
@@ -120,6 +124,46 @@ export class CredentialManager implements ICredentialStore {
     // Keychain unavailable: store fallback.
     const value = await (await this.store()).get<T>(key);
     return value || null;
+  }
+
+  /**
+   * The key of the secrets marks (F67): the app process looks for it, makes
+   * it from `fresh` where there is none and notes its one place, under the
+   * lock every window shares (round fourteen, `secure_store.rs`). Throws when
+   * the keychain where it lives does not answer.
+   */
+  public secretsMarkKey(fresh: string, marksOnDevice: boolean): Promise<string> {
+    return invoke<string>("secrets_mark_key", { fresh, marksOnDevice });
+  }
+
+  /**
+   * `readSecret` that never takes a keychain that does not answer for an
+   * empty slot (F57, the switch-over's proof): the credentials file still
+   * counts, as there. An empty slot is empty where the file is where this
+   * device keeps its secrets — the key of the secrets marks was made there
+   * (`settingsSyncSecretsMarkKeyHome` = "file", noted by the app process
+   * before the switch-over reads: `ensureMarkKeyHome`). Anywhere else a
+   * keychain that does not answer is an error; no error text decides it
+   * (review of F57, O-2, O-C).
+   */
+  public async readSecretStrict<T>(key: string): Promise<T | null> {
+    let fromKeychain: string | null;
+    try {
+      fromKeychain = await invoke<string | null>("keychain_get", { key });
+    } catch (error) {
+      const inFile = await (await this.store()).get<T>(key);
+      if (inFile) return inFile;
+      if (await this.secretsLiveInFile()) return null;
+      throw error;
+    }
+    if (fromKeychain) return JSON.parse(fromKeychain) as T;
+    return ((await (await this.store()).get<T>(key)) ?? null) as T | null;
+  }
+
+  /** Whether this device keeps its secrets in the credentials file (`readSecretStrict`): only by the note. */
+  private async secretsLiveInFile(): Promise<boolean> {
+    const settings = await load(SETTINGS_STORE_FILE);
+    return (await settings.get<string>(MARK_KEY_HOME)) === "file";
   }
 
   public async writeSecret<T>(key: string, value: T): Promise<void> {

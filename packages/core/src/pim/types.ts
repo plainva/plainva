@@ -1,4 +1,5 @@
 import type { PimEventSubstance } from "./eventSubstance.js";
+import type { ConfirmedAccess } from "./confirmedAccess.js";
 
 /**
  * PIM object sync (Gesamtplan PIM-Ausbau 2026-07-17): calendars and tasks
@@ -388,6 +389,15 @@ export interface IPimTarget {
   /** Every collection of the account — event calendars AND (CalDAV) reminder
    * lists, told apart by `supportsEvents` / `supportsTasks`. */
   listCalendars(): Promise<PimCalendar[]>;
+  /**
+   * How this device reached the account, after a successful `listCalendars`:
+   * the address and user it signed in with and, when the server stated one,
+   * the account's own address (CalDAV: the `current-user-principal`, resolved
+   * to an absolute URL). It names the account the credentials signed in to —
+   * whether "Anna" and "anna" are one account is the server's to say. Only a
+   * password target has one (see `confirmedAccess.ts`).
+   */
+  confirmedAccess?(): ConfirmedAccess | undefined;
   /** All event instances of the calendar overlapping [rangeStart, rangeEnd)
    * (UTC ms). Recurring series arrive EXPANDED (server-side for Google/Graph,
    * ical.js for CalDAV) plus one master row carrying `recurrence`. */

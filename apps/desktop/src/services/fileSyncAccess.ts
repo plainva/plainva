@@ -1,5 +1,5 @@
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
-import { isSignedOutSlot, type SyncProviderId } from "@plainva/ui";
+import { confirmationEndpoint, isEndpointConfirmedIn, isSignedOutSlot, type SyncProviderId } from "@plainva/ui";
 import { fileBrokerTokenProvider } from "./accountBroker";
 import {
   credentialManager,
@@ -47,10 +47,28 @@ export interface FileSyncAccess {
    * on this device" (plan "Verbinden", V2): signing in is the fix.
    */
   signedOut?: boolean;
+  /**
+   * The blocked provider's address has no TLS or is in a private network, and
+   * this device never confirmed it (F57): its password stays here until the
+   * account page's **Confirm address**.
+   */
+  unconfirmed?: boolean;
+}
+
+/** WebDAV and S3 addresses this device has not confirmed (`endpointConfirmation.ts`). */
+export type UnconfirmedSlots = Partial<Record<"s3" | "webdav", boolean>>;
+
+/** Which of the vault's password slots point at an address this device never confirmed. */
+export async function unconfirmedSyncSlots(vaultPath: string, slots: Pick<SyncSlots, "s3" | "webdav">): Promise<UnconfirmedSlots> {
+  const [s3, webdav] = await Promise.all([
+    slots.s3 ? isEndpointConfirmedIn(vaultPath, confirmationEndpoint(slots.s3.endpoint)).then((ok) => !ok) : false,
+    slots.webdav ? isEndpointConfirmedIn(vaultPath, confirmationEndpoint(slots.webdav.url)).then((ok) => !ok) : false,
+  ]);
+  return { ...(s3 ? { s3 } : {}), ...(webdav ? { webdav } : {}) };
 }
 
 /** Pure decision, so both callers can be tested without a keychain. */
-export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive: boolean; onedrive: boolean }): FileSyncAccess {
+export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive: boolean; onedrive: boolean }, unconfirmed: UnconfirmedSlots = {}): FileSyncAccess {
   const { drive, onedrive, dropbox, s3, webdav } = slots;
   const ready: Record<SyncProviderId, boolean> = {
     // Broker-backed accounts keep their ONE refresh token in the account slot
@@ -60,8 +78,8 @@ export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive:
     onedrive: !!(onedrive && onedrive.clientId && (onedrive.refreshToken || filesViaBroker.onedrive)),
     // Dropbox has no broker family: its token is always its own.
     dropbox: !!(dropbox && dropbox.appKey && dropbox.refreshToken),
-    s3: !!(s3 && s3.endpoint && s3.bucket && s3.accessKeyId && s3.secretAccessKey && s3.region),
-    webdav: !!(webdav && webdav.url && !isSignedOutSlot(webdav)),
+    s3: !!(s3 && s3.endpoint && s3.bucket && s3.accessKeyId && s3.secretAccessKey && s3.region) && !unconfirmed.s3,
+    webdav: !!(webdav && webdav.url && !isSignedOutSlot(webdav)) && !unconfirmed.webdav,
   };
 
   // Same precedence as the settings form; the XOR rule means at most one slot
@@ -95,8 +113,10 @@ export function resolveFileSyncAccess(slots: SyncSlots, filesViaBroker: { drive:
 
   const blockedSlot = blocked ? slots[blocked] : null;
   // Only the mark sign-out leaves says "signed out"; an empty password alone is a server without one.
-  const signedOut = !!blockedSlot && isSignedOutSlot(blockedSlot);
-  return { provider, ready, blocked, ...(signedOut ? { signedOut } : {}) };
+  const notConfirmed = (blocked === "s3" || blocked === "webdav") && !!unconfirmed[blocked];
+  // Unconfirmed reads as signed out: nothing of the vault goes there, the settings profile included.
+  const signedOut = (!!blockedSlot && isSignedOutSlot(blockedSlot)) || notConfirmed;
+  return { provider, ready, blocked, ...(signedOut ? { signedOut } : {}), ...(notConfirmed ? { unconfirmed: true } : {}) };
 }
 
 /** Reads this vault's slots (a missing/unreadable slot counts as absent). */
@@ -118,5 +138,5 @@ export async function readFileSyncAccess(vaultPath: string): Promise<FileSyncAcc
     drive: !!(slots.drive && await fileBrokerTokenProvider(vaultPath, { provider: "drive", ...slots.drive })),
     onedrive: !!(slots.onedrive && await fileBrokerTokenProvider(vaultPath, { provider: "onedrive", ...slots.onedrive })),
   };
-  return resolveFileSyncAccess(slots, viaBroker);
+  return resolveFileSyncAccess(slots, viaBroker, await unconfirmedSyncSlots(vaultPath, slots));
 }

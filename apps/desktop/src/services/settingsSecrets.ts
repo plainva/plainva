@@ -1,9 +1,12 @@
-import { canonicalSecretId, canonicalizeEndpoint, type SecretBinding, type SecretsPort } from "@plainva/core";
+import { canonicalSecretId, type SecretsPort } from "@plainva/core";
 import {
+  calDavSecretBinding,
   createSecretsPort,
+  imapSecretBinding,
   familyOfCalDavUrl,
   familyOfImapHost,
   migrateSecretsMetaToCanonicalIds,
+  retireSecret,
   type CloudAccountRecord,
   type LocalSecretCandidate,
   type SecretsPortMeta,
@@ -11,12 +14,31 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretImportedFor, secretsMarker, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
 
 const b64 = (p: string) => btoa(unescape(encodeURIComponent(p)));
-const metaKey = (vaultPath: string) => `settingsSyncSecretMeta_${b64(vaultPath)}`;
+/**
+ * The record of a vault's secrets sync, under this version's name. The name
+ * 0.8.7 reads (`LEGACY_META_PREFIX`) is left empty once sealed, so a device
+ * that goes back to 0.8.7 starts like a new one (`secretsMark.ts`, F67).
+ */
+const META_PREFIX = "settingsSyncSecretMarks_";
+const LEGACY_META_PREFIX = "settingsSyncSecretMeta_";
+const metaKey = (vaultPath: string) => `${META_PREFIX}${b64(vaultPath)}`;
+const legacyMetaKey = (vaultPath: string) => `${LEGACY_META_PREFIX}${b64(vaultPath)}`;
+/**
+ * What "Remove account" asked to be tombstoned, under a name of its own: only
+ * bindings, never a mark, so a removal before the marks are sealed writes no
+ * password anywhere (round eleven).
+ */
+const retiredKey = (vaultPath: string) => `settingsSyncSecretRetired_${b64(vaultPath)}`;
+const META_STORAGE = {
+  current: (legacyKey: string) => META_PREFIX + legacyKey.slice(LEGACY_META_PREFIX.length),
+  isLegacy: (key: string) => key.startsWith(LEGACY_META_PREFIX),
+};
 
 async function deviceId(): Promise<string> {
   const store = await getSettingsStore();
@@ -60,13 +82,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
       if (!url || !user) continue;
-      const binding: SecretBinding = {
-        family: familyFor(cloud, "calendar", account.id, familyOfCalDavUrl(url) ?? "webdav"),
-        service: "calendar",
-        secretType: "caldav-password",
-        user: user.trim().toLowerCase(),
-        endpoint: canonicalizeEndpoint(url),
-      };
+      const binding = calDavSecretBinding(familyFor(cloud, "calendar", account.id, familyOfCalDavUrl(url) ?? "webdav"), url, user);
       candidates.push({
         logicalId: canonicalSecretId(binding),
         slot,
@@ -81,14 +97,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
     if (mailAccountKind(account) !== "imap") continue;
     const stored = await credentialManager.readSecret<{ pass?: string; refreshToken?: string }>(mailSecretKey(vaultPath, account.id));
     const slot = mailSecretKey(vaultPath, account.id);
-    const scheme = account.port === 993 ? "imaps" : "imap+starttls";
-    const binding: SecretBinding = {
-      family: familyFor(cloud, "mail", account.id, familyOfImapHost(account.host) ?? "imap"),
-      service: "mail",
-      secretType: "imap-password",
-      user: account.user.trim().toLowerCase(),
-      endpoint: canonicalizeEndpoint(`${scheme}://${account.host}:${account.port}`),
-    };
+    const binding = imapSecretBinding(familyFor(cloud, "mail", account.id, familyOfImapHost(account.host) ?? "imap"), account.host, account.port, account.user);
     candidates.push({
       logicalId: canonicalSecretId(binding),
       slot,
@@ -98,6 +107,98 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
     });
   }
   return candidates;
+}
+
+/**
+ * The keychain slots whose password came through the settings sync from
+ * another device (`meta.imported`) — not typed here. The one-time switch-over
+ * of F57 (`endpointConfirmationSettle.ts`) takes every other one as this
+ * device's own.
+ */
+export async function importedSecretSlots(vaultPath: string, cache: Pick<PimRuntime["cache"], "listAccounts"> | null): Promise<Set<string>> {
+  // Unreadable is no "nothing imported": the caller proves nothing then (F57).
+  const meta = await metaStore(vaultPath).readMeta();
+  const candidates = await localCandidates(vaultPath, cache ? ({ cache } as PimRuntime) : null);
+  // Under either name: 0.8.7 marked it under the old one (review of F57, O-1).
+  return new Set(candidates.filter((candidate) => secretImportedFor(meta, candidate.binding)).map((candidate) => candidate.slot));
+}
+
+function metaStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () => {
+      const store = await getSettingsStore();
+      const current = (await store.get<SecretsPortMeta>(metaKey(vaultPath))) ?? null;
+      const legacy = (await store.get<SecretsPortMeta>(legacyMetaKey(vaultPath))) ?? null;
+      const retired = (await store.get<SecretsPortMeta["retired"]>(retiredKey(vaultPath))) ?? null;
+      const meta = mergeLegacySecretsMeta(current, legacy) ?? (retired ? { entries: {}, imported: {}, quarantine: {} } : null);
+      if (meta && retired) meta.retired = { ...(meta.retired ?? {}), ...retired };
+      return migrateSecretsMetaToCanonicalIds(meta);
+    },
+    writeMeta: async (meta) => {
+      const store = await getSettingsStore();
+      const { retired, ...marks } = meta;
+      await store.set(metaKey(vaultPath), marks);
+      if (retired && Object.keys(retired).length > 0) await store.set(retiredKey(vaultPath), retired);
+      else await store.delete(retiredKey(vaultPath));
+      // Taken in by this write: under the old name, nothing stays.
+      await store.delete(legacyMetaKey(vaultPath));
+      await store.save();
+    },
+  };
+}
+
+/** The pending removals alone, for `retireSecret`: it never reads or writes a mark. */
+function retiredStore(vaultPath: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () => ({ entries: {}, imported: {}, quarantine: {}, retired: (await (await getSettingsStore()).get<SecretsPortMeta["retired"]>(retiredKey(vaultPath))) ?? {} }),
+    writeMeta: async (meta) => {
+      const store = await getSettingsStore();
+      await store.set(retiredKey(vaultPath), meta.retired ?? {});
+      await store.save();
+    },
+  };
+}
+
+/**
+ * The key of the marks: the app process owns it, at its one place (`secretsMark.ts`,
+ * rounds twelve to fourteen). No window reads or writes its slot itself.
+ */
+const notThroughSlots = async (): Promise<never> => {
+  throw new Error(`${SECRETS_MARK_KEY_SLOT} belongs to the app process`);
+};
+const markKeySlots = {
+  readSlot: notThroughSlots,
+  writeSlot: notThroughSlots,
+  // One owner for every window: the app process (round fourteen).
+  ownedKey: (fresh: string, marksOnDevice: boolean) => credentialManager.secretsMarkKey(fresh, marksOnDevice),
+  // One key for the device: the records of every vault count (round twelve).
+  marksOnDevice: async () => storeHoldsSecretsMarks(await getSettingsStore(), (key) => key.startsWith(META_PREFIX) || key.startsWith(LEGACY_META_PREFIX)),
+};
+
+/**
+ * At start, before any vault opens: the secrets metadata of every vault on
+ * this device, open or not, loses the plain marks that up to now carried each
+ * password in `plainva-settings.json` (F67, `secretsMark.ts`). The key of the
+ * new marks lives with the passwords, in the credentials store.
+ */
+export async function sealSecretsMetaAtStart(): Promise<number> {
+  return sealSecretsMetaInStore(await getSettingsStore(), META_STORAGE, markKeySlots);
+}
+
+/**
+ * The home of the key of the secrets marks decided and noted (keychain or the
+ * credentials file), by the app process that owns it: what the switch-over of
+ * the confirmed addresses reads a slot by (`readSecretStrict`). Throws where
+ * the keychain does not answer while marks exist; the switch-over then waits
+ * for the next start (review of F57, round three, O-C).
+ */
+export async function ensureMarkKeyHome(): Promise<void> {
+  await secretsMarker(markKeySlots, false);
+}
+
+/** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`). */
+export async function retireCalDavSecret(vaultPath: string, url: string, user: string): Promise<void> {
+  await retireSecret(retiredStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
 }
 
 /**
@@ -114,15 +215,7 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     // Metadata written before P4c is keyed by the old per-device names; the
     // candidates above are now named canonically. Migrating on read keeps the
     // two in step (the port persists the result on its next export).
-    readMeta: async () =>
-      (await getSettingsStore())
-        .get<SecretsPortMeta>(metaKey(vaultPath))
-        .then((m) => migrateSecretsMetaToCanonicalIds(m ?? null)),
-    writeMeta: async (meta) => {
-      const store = await getSettingsStore();
-      await store.set(metaKey(vaultPath), meta);
-      await store.save();
-    },
+    ...metaStore(vaultPath),
     candidates: () => localCandidates(vaultPath, pimRuntime),
     // Without the PIM runtime this device does NOT know its full account
     // picture: the mail candidates are complete, the calendar ones are missing.
@@ -134,6 +227,8 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     accountsReady: async () => pimRuntime !== null,
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
+    ownedKey: markKeySlots.ownedKey,
+    marksOnDevice: markKeySlots.marksOnDevice,
     removeSlot: (slot) => credentialManager.removeSecret(slot),
   });
 }

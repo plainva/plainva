@@ -162,9 +162,17 @@ export async function migrateVaultKeychainSlots(
   const store = await getSettingsStore();
   if (((await store.get<number>(markerKey(vaultPath))) ?? 0) >= MIGRATION_VERSION) return;
 
+  // A card's sign-in that is owed a deletion is not moved (review
+  // 2026-11-18): it is deleted under both names, and never adopted on the way.
+  const ids = await vaultSlotIds(vaultPath);
+  const owed = new Set<string>();
+  for (const id of ids.accounts) {
+    const isOwed = await import("./accountBroker").then((m) => m.isAccountSignInOwed(vaultPath, id)).catch(() => false);
+    if (isOwed) owed.add(slot.account(vaultPath, id));
+  }
   const report = await migrateKeychainSlots(
     credentials,
-    slotMigrations(vaultPath, await vaultSlotIds(vaultPath)),
+    slotMigrations(vaultPath, ids).filter((pair) => !owed.has(pair.to)),
   );
   if (report.migrated.length) {
     console.log(`[keychainSlots] renamed ${report.migrated.length} keychain entr(ies) for ${vaultPath}`);

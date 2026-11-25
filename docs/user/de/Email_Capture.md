@@ -20,6 +20,8 @@ Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; 
 
 **E-Mail-Konten ohne Passwort.** Eine Einrichtung, die beim Speichern scheiterte, konnte einen Eintrag ohne Passwort zurücklassen (Plainva 0.8.3 am Desktop). Der Bereich **E-Mail** weist einmal auf Konten hin, die auf diesem Gerät kein Passwort haben und hier noch nie Mails abgerufen haben. **Ansehen** zeigt die Liste. Nutzt Du ein solches Konto auf einem anderen Gerät, wähle **Anmelden** — das ist dann der richtige Weg. **Entfernen** löscht den Eintrag nach einer Rückfrage auf allen Geräten, die die Einstellungen dieses Vaults abgleichen, nie Mails oder Dateien. **Später** blendet den Hinweis aus. Von sich aus entfernt Plainva nichts.
 
+Ein Mailserver im lokalen Netz bekommt das Passwort von einem Gerät erst, wenn seine Adresse dort bestätigt ist: [Adressen ohne Verschlüsselung oder im lokalen Netz](Sync_Setup.md#adressen-ohne-verschlüsselung-oder-im-lokalen-netz).
+
 ## Mails lesen
 
 Öffne den Mail-Tab über die linke Aktionsleiste (Brief-Symbol) oder die Befehlspalette (**E-Mail öffnen**). Die Liste zeigt Deinen Posteingang, Neueste zuerst (Ungelesene fett, **Mehr laden** blättert weiter). Eine ausgewählte Nachricht öffnet sich im **Sandbox-Viewer**:

@@ -1,9 +1,9 @@
-import { logDiagnostic, withServiceOff, type CloudAccountRecord, type CloudServiceId, type SyncProviderId } from "@plainva/ui";
+import { confirmationEndpoint, logDiagnostic, mailboxEndpoints, unconfirmedEndpointsOf, withServiceOff, type CloudAccountRecord, type CloudServiceId, type SyncProviderId, type UnconfirmedEndpoint } from "@plainva/ui";
 import { listMailAccounts } from "@plainva/ui/mail";
 import i18n from "@plainva/ui/i18n";
 import type { AccountCard } from "./cloudAccountCards";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { readStoredProvider } from "./fileSyncAccess";
+import { readStoredProvider, storedProviderEndpoint } from "./fileSyncAccess";
 import { readSyncRootFolder } from "./syncRootFolder";
 import { getPimCredentials } from "./pim/pimCredentials";
 import { listPimCalendars, listPimTaskLists } from "./pim/pimService";
@@ -18,20 +18,24 @@ export interface MobileAccountFacts {
   server?: string;
   accessKeyId?: string;
   summaries: Partial<Record<CloudServiceId, string>>;
+  /** Addresses without TLS or in a private network this phone has not confirmed (F57): one **Confirm address** row each. */
+  unconfirmed: UnconfirmedEndpoint[];
 }
 
 export async function readMobileAccountFacts(vaultId: string, card: AccountCard): Promise<MobileAccountFacts> {
-  const facts: MobileAccountFacts = { summaries: {} };
+  const facts: MobileAccountFacts = { summaries: {}, unconfirmed: [] };
+  const endpoints: Array<{ vaultKey: string; endpoint: string | null }> = [];
   if (card.services.includes("files") && card.vaultId) {
     const stored = await readStoredProvider(card.vaultId);
     if (stored?.provider === "webdav") { facts.user = stored.creds.user; facts.server = stored.creds.url; }
     if (stored?.provider === "s3") { facts.accessKeyId = stored.creds.accessKeyId; facts.server = stored.creds.endpoint; }
+    endpoints.push({ vaultKey: card.vaultId, endpoint: storedProviderEndpoint(stored) });
     const folder = stored ? await readSyncRootFolder(card.vaultId, stored.provider, stored).catch(() => "") : "";
     facts.summaries.files = folder ? i18n.t("cloudAccounts.filesSummary", { folder }) : card.subtitle ?? i18n.t("connection.connected");
   }
   if (card.pimAccountId) {
     const creds = await getPimCredentials(vaultId, card.pimAccountId).catch(() => null);
-    if (creds?.kind === "caldav") { facts.user ??= creds.user; facts.server ??= creds.url; }
+    if (creds?.kind === "caldav") { facts.user ??= creds.user; facts.server ??= creds.url; endpoints.push({ vaultKey: vaultId, endpoint: confirmationEndpoint(creds.url) }); }
     const [calendars, lists] = await Promise.all([listPimCalendars().catch(() => []), listPimTaskLists().catch(() => [])]);
     facts.summaries.calendar = i18n.t("cloudAccounts.calendarSummary", {
       calendars: calendars.filter((calendar) => calendar.accountId === card.pimAccountId && calendar.selected).length,
@@ -42,9 +46,14 @@ export async function readMobileAccountFacts(vaultId: string, card: AccountCard)
     const mailbox = (await listMailAccounts(vaultId).catch(() => [])).find((entry) => entry.id === card.mailAccountId);
     if (mailbox) {
       facts.summaries.mail = mailbox.user;
-      if ((mailbox.kind ?? "imap") === "imap") { facts.user ??= mailbox.user; facts.server ??= `${mailbox.host}:${mailbox.port}`; }
+      if ((mailbox.kind ?? "imap") === "imap") {
+        facts.user ??= mailbox.user;
+        facts.server ??= `${mailbox.host}:${mailbox.port}`;
+        endpoints.push(...mailboxEndpoints(mailbox).map((endpoint) => ({ vaultKey: vaultId, endpoint })));
+      }
     }
   }
+  facts.unconfirmed = await unconfirmedEndpointsOf(endpoints);
   return facts;
 }
 

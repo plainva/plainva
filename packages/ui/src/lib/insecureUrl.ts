@@ -14,7 +14,7 @@
  */
 
 /** RFC 1918 / RFC 4193 / loopback / link-local — "inside my own network". */
-function isPrivateHost(host: string): boolean {
+export function isPrivateHost(host: string): boolean {
   const h = host.toLowerCase().replace(/^\[|\]$/g, ""); // strip IPv6 brackets
 
   if (h === "localhost" || h.endsWith(".localhost")) return true;
@@ -26,7 +26,8 @@ function isPrivateHost(host: string): boolean {
   // others are the reserved private-use TLDs people actually use at home.
   if (/\.(local|internal|lan|home|intranet|localdomain)$/.test(h)) return true;
   // A bare hostname with no dot cannot be a public name.
-  if (!h.includes(".") && !/^\d+$/.test(h)) return true;
+  // An IPv6 literal has no dot either and is not a name (above: the private ranges).
+  if (!h.includes(".") && !h.includes(":") && !/^\d+$/.test(h)) return true;
 
   const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (v4) {

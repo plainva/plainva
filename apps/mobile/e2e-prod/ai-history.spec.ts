@@ -99,14 +99,18 @@ test("AI history analysis: the phone looks back from its own index — a note ma
     await seedExampleNote(page, NOTE);
     await expect.poll(() => sql.count("plainva-index", "files WHERE path = 'Example.md'"), { timeout: 20_000 }).toBe(1);
 
-    // 1. The skill, from the skills of the conversations screen: a new conversation bound to it.
+    // 1. The skill, from the segment "Skills" of the AI's second screen: a new conversation bound to it. The segment
+    //    "Conversations" lists conversations alone (mockup KI-Oberflächen M10, F71 of release 0.9.0).
     await page.getByTestId("tab-areas").click();
     await page.getByTestId("areas-ai").click();
     await page.getByTestId("ai-history-open").click();
-    const start = page.getByTestId("ai-history-skill-history");
+    await expect(page.getByTestId("ai-history-screen")).toBeVisible();
+    await expect(page.locator('[data-testid^="ai-history-skill-"]')).toHaveCount(0);
+    await page.getByTestId("ai-history-skills").click();
+    const start = page.getByTestId("ai-skill-row").filter({ hasText: "History analysis" });
     await start.scrollIntoViewIfNeeded();
-    await expect(start).toContainText("History analysis");
     await start.click();
+    await page.getByTestId("ai-skill-action-run").click();
     const conversation = page.getByTestId("ai-conversation");
     await expect(conversation.getByText(/the kick-off for Monday was planned/)).toBeVisible({ timeout: 20_000 });
 

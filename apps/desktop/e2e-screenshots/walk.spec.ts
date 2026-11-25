@@ -60,10 +60,14 @@ const esc = async (page: Page) => { await page.keyboard.press('Escape'); await w
 const toggleMode = (page: Page, axis: 'source' | 'read') =>
   page.evaluate((a) => window.dispatchEvent(new CustomEvent('plainva-toggle-view-mode', { detail: { axis: a } })), axis);
 
-async function mainApp(page: Page, extra?: string) {
+/**
+ * The main window over the review vault. `extra` runs before the app as a function with its argument: what a scene
+ * needs goes to the page as data, never spliced into the text of a script (code scanning, js/bad-code-sanitization).
+ */
+async function mainApp<Arg>(page: Page, extra?: { run: (arg: Arg) => void; arg: Arg }) {
   await page.addInitScript({ content: MOCK.main() });
   await page.addInitScript(installReviewVault);
-  if (extra) await page.addInitScript({ content: extra });
+  if (extra) await page.addInitScript(extra.run, extra.arg);
   await page.goto('/');
   await page.getByTestId('file-tree').waitFor({ timeout: 30_000 });
   await wait(page, 1500);
@@ -168,26 +172,47 @@ test('ai', async ({ page }) => {
     ['message_stop', { type: 'message_stop' }],
   ].map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join('');
   const script = [sse('Here is a short summary of **Website relaunch**:\n\n- Three feature pages instead of six\n- Screenshots are still missing\n\nThe next step is collecting screenshots.')];
-  await mainApp(page, `(() => { const script = ${JSON.stringify(script)};
-    window.__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
-    const orig = window.__TAURI_INTERNALS__.invoke;
-    window.__TAURI_INTERNALS__.invoke = async (cmd, args, options) => {
-      if (cmd === 'ai_key_present') return true;
-      if (cmd === 'ai_http') { const text = script.shift(); const send = (c) => args.onEvent.onmessage(c); if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' }); else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); } return null; }
-      return orig(cmd, args, options);
-    }; })();`);
+  await mainApp(page, {
+    arg: script,
+    run: (answers: string[]) => {
+      const queue = [...answers];
+      const w = window as unknown as {
+        __E2E_STORE_SEED: unknown;
+        __TAURI_INTERNALS__: { invoke: (cmd: string, args: { onEvent: { onmessage: (chunk: unknown) => void } }, options?: unknown) => Promise<unknown> };
+      };
+      w.__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+      const orig = w.__TAURI_INTERNALS__.invoke;
+      w.__TAURI_INTERNALS__.invoke = async (cmd, args, options) => {
+        if (cmd === 'ai_key_present') return true;
+        if (cmd === 'ai_http') {
+          const text = queue.shift();
+          const send = (c: unknown) => args.onEvent.onmessage(c);
+          if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+          else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+          return null;
+        }
+        return orig(cmd, args, options);
+      };
+    },
+  });
   await step('open note', () => openRelaunch(page));
   await shot(page, '40-ai-main');
   await step('companion', async () => {
     await page.keyboard.press('Control+j');
     await wait(page, 1000);
     await shot(page, '41-ai-companion-empty');
-    const companion = page.getByTestId('ai-companion');
-    await companion.getByTestId('ai-input').fill('Summarize this note');
-    await companion.getByTestId('ai-send').click();
+    // Docked unless the device chose the floating window (readAiPlacement): the
+    // conversation then lives in `ai-dock`, not in `ai-companion`, so a locator
+    // on `ai-companion` waited for an element that never came and — with the
+    // 10-minute test budget and no bound of its own — hung the walk on 20.11.
+    // Name the control, not its home, and give every wait a bound.
+    const surface = page.locator('[data-testid="ai-dock"], [data-testid="ai-companion"]').first();
+    await surface.waitFor({ state: 'visible', timeout: 10_000 });
+    await surface.getByTestId('ai-input').fill('Summarize this note', { timeout: 10_000 });
+    await surface.getByTestId('ai-send').click({ timeout: 10_000 });
     await wait(page, 1000);
     await shot(page, '42-ai-consent');
-    await companion.getByTestId('ai-consent-send').click({ timeout: 4000 }).catch(() => {});
+    await surface.getByTestId('ai-consent-send').click({ timeout: 4000 }).catch(() => {});
     await wait(page, 2000);
     await shot(page, '43-ai-answer');
   });

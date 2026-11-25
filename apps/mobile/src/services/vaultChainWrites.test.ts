@@ -727,7 +727,17 @@ async function whileOneIsOpen<T>(holder: () => Promise<unknown>, flow: () => Pro
   });
   const flowing = flow();
   await Promise.race([askedOne, flowing.then(() => {}, () => {})]);
-  await hops(8);
+  // Quiet, not "eight turns": the flow's ask reaches the stand-in through more than one turn, and a slow disk
+  // elsewhere in the flow (a file read between two statements) must not let the release come before a refusal
+  // that is on its way. Gone on once nothing moved for eight turns in a row; capped, so a flow that never
+  // settles fails on its own assertions instead of hanging here.
+  const moved = () => `${asked}/${phoneSqlite.counts.refused}/${phoneSqlite.counts.begun}`;
+  for (let quiet = 0, last = moved(), turns = 0; quiet < 8 && turns < 400; turns++) {
+    await hops(1);
+    const now = moved();
+    quiet = now === last ? quiet + 1 : 0;
+    last = now;
+  }
   onAsk = null;
   held.release();
   return { holding, flowing };
@@ -846,10 +856,20 @@ describe.each(["android", "ios"] as const)("one connection, two flows (%s)", (pl
     const read = raw.readTextFile.bind(raw), write = raw.writeTextFile.bind(raw);
     const begun = new Set<string>(), finished = new Set<string>();
     let mostAtOnce = 0;
+    // No note goes on past its first read until a second one has begun: whether two are under way at once must not
+    // depend on how fast the disk answers (a first note that was read and written before the second one began
+    // looked exactly like the old one-at-a-time gate). A gate that lets only one through never sees a second,
+    // gives up after a while and fails on `mostAtOnce` below instead of hanging.
+    let seenTwo!: () => void;
+    const twoUnderWay = new Promise<void>((resolve) => { seenTwo = resolve; });
     raw.readTextFile = async (path) => {
       if (APART.includes(path) && !begun.has(path)) {
         begun.add(path);
         mostAtOnce = Math.max(mostAtOnce, begun.size - finished.size);
+        if (mostAtOnce > 1) seenTwo();
+        let giveUp: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([twoUnderWay, new Promise<void>((resolve) => { giveUp = setTimeout(resolve, 3000); })]);
+        clearTimeout(giveUp);
       }
       return read(path);
     };

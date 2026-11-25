@@ -4,7 +4,6 @@ import { ChoiceMark } from "../../components/ChoiceMark";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mActions, mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
-import { getMobileSettings } from "../../services/mobileSettings";
 import { useSettingsState } from "../../hooks/useSettingsState";
 import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
@@ -12,7 +11,8 @@ import { AreaBoundary, ColumnSummarySelect, useFilterRuleDraft, type ViewsChange
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
 import { addFilterRules, FilterInWords, filterSchemaOf, inferColumnType, type BaseAi } from "@plainva/ui";
-import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, offeredViewTypes, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, offeredViewTypes, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, groupTemplatesForBase, ICON, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { loadScopedTemplates } from "../../services/templateAssignment";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -178,12 +178,14 @@ export function BaseConfigSheet({
   }, [config]);
   const pickTemplate = () => {
     void (async () => {
-      const templates = await listTemplates(vault.files, getMobileSettings().templateFolder);
+      const { items } = await loadScopedTemplates(vault);
+      const groups = groupTemplatesForBase(items, basePath, newItemTemplate || null);
+      const ordered = [...groups.forBase, ...groups.others];
       const picked = await mSelect({
         title: t("database.templatesSection"),
         options: [
           { value: "", label: t("database.noTemplate") },
-          ...templates.map((tp) => ({ value: tp.path, label: tp.title })),
+          ...ordered.map((tp) => ({ value: tp.path, label: tp.title })),
         ],
         value: newItemTemplate,
       });

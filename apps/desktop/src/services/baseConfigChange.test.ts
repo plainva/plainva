@@ -143,7 +143,7 @@ describe("a database view change lands on the file as it lies there (B20)", () =
   it("finds a view whose name YAML reads as a number or a truth value", async () => {
     const f = fakeFiles(BASE);
     const shown = loadBaseConfigText(BASE);
-    expect(shown.views.map((v: any) => v.name)).toEqual(["Table", "Cards", 2024, true]);
+    expect(shown.views.map((v: any) => v.name)).toEqual(["Table", "Cards", "2024", "true"]);
     // The other device wrote the names quoted: the same views.
     f.files["Tasks.base"] = BASE.replace("name: 2024", 'name: "2024"').replace("name: true", 'name: "true"') + "";
     f.files["Tasks.base"] = serializeBaseConfig(withView(loadBaseConfigText(f.files["Tasks.base"]), "Table", { coverImage: "note.cover" }));

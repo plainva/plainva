@@ -228,6 +228,7 @@ function settingsAreaScreen(path: string, ctx: RouteContext): ReactNode {
           }}
           onOpenMemory={() => ctx.push({ kind: "aihistory", path: "memory" })}
           onOpenNote={ctx.openNote}
+          onOpenAiSettings={() => ctx.push({ kind: "settingsArea", path: "ai" })}
         />
       );
     // An unknown id is a bug, not a screen. It used to render About, which
@@ -610,6 +611,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
       onOpenRecent={() => c.push({ kind: "recent", path: "" })}
       onOpenBookmarks={() => c.push({ kind: "bookmarks", path: "" })}
+      onOpenVaults={() => c.push({ kind: "vaults", path: "" })}
       vault={c.vault}
       vaultName={c.vaultName}
     />

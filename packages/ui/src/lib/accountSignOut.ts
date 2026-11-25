@@ -141,6 +141,12 @@ export interface AccountRemovalPorts {
   /** Turns one service of the card off in this vault. */
   disable(service: CloudServiceId): Promise<void>;
   clearCardGrant(): Promise<void>;
+  /**
+   * Writes the grant's deletion down as owed when `clearCardGrant` failed
+   * (`oweSignInDeletion`, which also says so): it is tried again, and until it
+   * succeeds the card does not count as signed in here.
+   */
+  oweCardGrant?(error: unknown): Promise<void>;
   /** Takes the card out of the vault's registry. */
   dropRecord(): Promise<void>;
 }
@@ -156,8 +162,15 @@ export async function removeAccountCard(ports: AccountRemovalPorts): Promise<voi
   }
   // The card goes either way (a card without its grant is what an earlier
   // version left, and removing it must not stop there) — but a grant that is
-  // still on the device is said: the person believes the sign-in is gone.
-  await ports.clearCardGrant().catch((error: unknown) =>
-    reportVisible("account:grant", error, i18n.t("errors.background.accountSignInKept", { reason: errorText(error) })));
+  // still on the device is said, and its deletion is owed and made up for
+  // (maintainer, 2026-11-17): the person believes the sign-in is gone.
+  await ports.clearCardGrant().catch(async (error: unknown) => {
+    if (ports.oweCardGrant) {
+      await ports.oweCardGrant(error).catch(() =>
+        reportVisible("account:grant", error, i18n.t("errors.background.accountSignInKept", { reason: errorText(error) })));
+    } else {
+      reportVisible("account:grant", error, i18n.t("errors.background.accountSignInKept", { reason: errorText(error) }));
+    }
+  });
   await ports.dropRecord();
 }

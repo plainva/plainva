@@ -236,6 +236,13 @@ textarea {
 [data-window="expanded"] .m-app.has-fab {
   --m-page-bottom: calc(var(--m-fab-space) - var(--m-bar-space) + var(--m-bar-inset));
 }
+/* With the keyboard up the bar and the FAB are hidden (below), so the strip they reserve is free as well (F71 of release
+   0.9.0): the reservation stayed, an empty band between the keyboard and whatever ends the page — under the AI's
+   composer about 100px of a phone's remaining height. Written after the variants it overrides, at their specificity. */
+.m-app.is-keyboard-open,
+[data-window] .m-app.is-keyboard-open {
+  --m-page-bottom: 0px;
+}
 /* The rail carries Settings; the app bar's gear gives way there (finding X8). */
 [data-window="medium"] .m-appbar-settings,
 [data-window="expanded"] .m-appbar-settings {
@@ -373,6 +380,51 @@ textarea {
 .m-appbar-subbtn:active {
   background: var(--state-highlight);
   border-radius: var(--radius-sm);
+}
+/* A title that opens something (the vault name opens vault switching): it
+   keeps the heading's own look; the chevron is the only sign it is a control. */
+.m-appbar-ttlbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  min-height: var(--touch-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.m-appbar-ttlbtn:active {
+  background: var(--state-highlight);
+  border-radius: var(--radius-sm);
+}
+.m-appbar-ttltext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The note sheet's head: the title, and the note's length beside it — quiet. */
+.m-context-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.m-context-head .m-sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+.m-context-words {
+  flex-shrink: 0;
+  margin: 0 var(--space-2) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 /* With a line of context under the title, the buttons sit level with the
    title, not with the middle of the two lines (feedback 2026-10-29: the menu
@@ -781,8 +833,10 @@ textarea {
   cursor: pointer;
   transition: background var(--dur-1) var(--ease-effects), color var(--dur-1) var(--ease-effects);
 }
-.m-tabbar--rail .m-railtool:hover {
-  background: var(--state-hover);
+@media (hover: hover) {
+  .m-tabbar--rail .m-railtool:hover {
+    background: var(--state-hover);
+  }
 }
 .m-tabbar--rail .m-railtool[aria-pressed="true"] {
   background: var(--accent-container);
@@ -2801,8 +2855,11 @@ textarea {
   display: flex;
   margin-top: var(--space-5);
 }
+/* Each segment at least as wide as its label (F71 of release 0.9.0): equal shares of a phone's width cut the fourth of
+   the AI's segments to "Gedä…". The room left over is shared; a row too wide for the screen scrolls, as the control
+   itself does, never cuts a label. */
 .m-page > .pv-segmented > .pv-seg-item {
-  flex: 1 1 0;
+  flex: 1 0 auto;
   justify-content: center;
 }
 
@@ -3443,6 +3500,15 @@ textarea {
   box-shadow: var(--shadow-2);
   font-size: var(--text-ui);
   font-weight: 600;
+}
+
+/* With the keyboard up the bar it floats above is hidden (F71 of release 0.9.0, review): the selection bar takes the
+   bar's place at the foot, and the page keeps the room it covers — the strip the hidden bar reserved is otherwise free
+   (`--m-page-bottom: 0px` above), and the rows under the selection bar could not be scrolled out from under it. */
+.m-app.is-keyboard-open .m-selectbar { bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); }
+.m-app.is-keyboard-open:has(.m-selectbar),
+[data-window] .m-app.is-keyboard-open:has(.m-selectbar) {
+  --m-page-bottom: calc(var(--touch-md) + var(--space-6));
 }
 
 /* Mail carries five actions; wrap before a long count label can push the last
@@ -5185,6 +5251,15 @@ textarea {
 /* Something of the AI waits for a decision (plan KI-Oberflächen K11): the desktop's waiting dot on the bar's pill. */
 .m-tab-dot { position: absolute; top: var(--space-1); right: var(--space-3); width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--accent-color); pointer-events: none; }
 .m-ai-page .pv-ai { flex: 1; min-height: 0; }
+/* The composer ends where the content of every other page ends, at the reserved strip above the floating bar (F71 of
+   release 0.9.0): its own bottom padding stood on top of that strip, about 35px between the foot and the bar. */
+.m-ai-page .pv-ai-composer { padding-bottom: var(--space-1); }
+/* The greeting of an empty conversation is no card (F71 of release 0.9.0): it is the conversation's first line, at its
+   top and to the left, not an empty surface standing in for content. */
+.m-page .pv-ai-hello { border: 0; background: transparent; padding: var(--space-2) 0; }
+/* Typing with the keyboard up (F71): the foot — the skills and the model — gives its height to the conversation and
+   comes back when the keyboard goes. */
+.m-app.is-keyboard-open .pv-ai-foot { display: none; }
 /* The AI segment of the note's context: bounded, so its thread scrolls inside the sheet or the docked column. */
 .m-ai-segment { display: flex; flex-direction: column; height: 56vh; }
 .m-ai-segment > .pv-ai { flex: 1; min-height: 0; }
@@ -5281,3 +5356,13 @@ textarea {
    the right, as in the mockup; a failure stands above them in the warning tone, with its sender in the sentence. */
 .m-ai-setup-foot { display: flex; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-2); }
 .m-ai-setup-problem { color: var(--warning-text); }
+
+/* Rules as named columns on the phone (F71, mockup KI-Oberflächen M5; Design_Language "Rules as named columns"): two
+   columns, the head as the card's first row, each row's two answers at its end under them. An answer
+   wraps in its column rather than pushing the other one; the folder's name keeps the rest of the row. */
+.m-rulecols-values { --m-rulecol: 5.5rem; display: grid; grid-template-columns: repeat(2, var(--m-rulecol)); gap: var(--space-2); text-align: start; font-size: var(--text-sm); color: var(--text-main); overflow-wrap: anywhere; /* A row's end does not wrap (`.pv-grouprow-end`); a column name or answer longer than its column does. */ white-space: normal; }
+/* The head is the first row of the card, its names in the micro caps of a section heading. */
+.m-rulecols-values.m-rulecols { font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); }
+/* "Change without asking" where it holds: the answer that permits, in the on-state pair (Design_Language, ONE state
+   system) — never a grey side remark. */
+.m-rule-on { display: inline-block; margin-top: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--accent-container); color: var(--on-accent-container); font-weight: 600; }

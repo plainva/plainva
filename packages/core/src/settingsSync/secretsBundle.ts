@@ -19,12 +19,46 @@ import type { MasterKeyBundle } from "../crypto/keyfile.js";
 import { utf8Decode, utf8Encode } from "../crypto/cryptoPrimitives.js";
 import { trimEndChars } from "../textScan.js";
 
-/** The static, shareable secret types. Everything else is refused. */
-export const SHAREABLE_SECRET_TYPES = ["caldav-password", "imap-password"] as const;
+/**
+ * The static, shareable secret types a current device writes. Everything else
+ * is refused for an export.
+ *
+ * They are their own types, not the ones clients up to 0.8.7 write (review
+ * 2026-11-18, round six): such a client lower-cases every user and writes an
+ * entry it reads back unchanged, but without anything a newer device adds to
+ * it — so whether an entry is old or new can only be told by its PLACE, which
+ * an old client neither removes nor adds. An old client passes an entry of a
+ * type it does not know through unchanged: it never applies it, never keeps it
+ * and never writes a tombstone for it (it counts it as "rejected" in its
+ * diagnostics). A current device in turn reads the old types
+ * (`BRIDGE_SECRET_TYPES`) and never writes them. The cost, named for the
+ * release texts: a device on 0.8.7 receives no password from an updated one.
+ */
+export const SHAREABLE_SECRET_TYPES = ["caldav-password-2", "imap-password-2"] as const;
 export type ShareableSecretType = (typeof SHAREABLE_SECRET_TYPES)[number];
 
 export function isShareableSecretType(type: string): type is ShareableSecretType {
   return (SHAREABLE_SECRET_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * The types clients up to 0.8.7 wrote, with the user lower-cased. A current
+ * device reads them for the single account each can mean and never writes one
+ * — not as a value, not as a tombstone.
+ */
+export const BRIDGE_SECRET_TYPES = ["caldav-password", "imap-password"] as const;
+export type BridgeSecretType = (typeof BRIDGE_SECRET_TYPES)[number];
+
+export function isBridgeSecretType(type: string): type is BridgeSecretType {
+  return (BRIDGE_SECRET_TYPES as readonly string[]).includes(type);
+}
+
+/** The type an entry of a client up to 0.8.7 has for a current device, and back. */
+export function currentSecretTypeOf(type: BridgeSecretType): ShareableSecretType {
+  return type === "caldav-password" ? "caldav-password-2" : "imap-password-2";
+}
+export function bridgeSecretTypeOf(type: ShareableSecretType): BridgeSecretType {
+  return type === "caldav-password-2" ? "caldav-password" : "imap-password";
 }
 
 /**
@@ -34,7 +68,7 @@ export function isShareableSecretType(type: string): type is ShareableSecretType
  */
 export const LEGACY_SECRET_TYPES = ["google-pim-client"] as const;
 export type LegacySecretType = (typeof LEGACY_SECRET_TYPES)[number];
-export type SecretType = ShareableSecretType | LegacySecretType;
+export type SecretType = ShareableSecretType | BridgeSecretType | LegacySecretType;
 
 export function isLegacySecretType(type: string): type is LegacySecretType {
   return (LEGACY_SECRET_TYPES as readonly string[]).includes(type);
@@ -45,7 +79,11 @@ export interface SecretBinding {
   family: string;
   service: "calendar" | "mail" | "files";
   secretType: SecretType;
-  /** Lowercased user/login. */
+  /**
+   * The user/login exactly as the account signs in with it, only trimmed
+   * (`secretBindingUser`); a mail user lower-cased. Clients up to 0.8.7 wrote
+   * every user lower-cased, in the old types (`BRIDGE_SECRET_TYPES`).
+   */
   user: string;
   /** Canonical endpoint fingerprint (see canonicalizeEndpoint). */
   endpoint: string;
@@ -142,8 +180,31 @@ export function canonicalSecretId(
   } catch {
     endpoint = binding.endpoint.trim();
   }
-  const user = binding.user.trim().toLowerCase();
+  // An old type is named as clients up to 0.8.7 name it, the user
+  // lower-cased. A current type names the user as the account signs in with
+  // it: "Alice" and "alice" are two accounts on a server that tells them
+  // apart, and one name for both let the second password overwrite the first
+  // and land in the other row's slot (GitHub issue 174).
+  const user = isBridgeSecretType(binding.secretType)
+    ? binding.user.trim().toLowerCase()
+    : bindingUserKey(binding.service, binding.user);
   return `s1:${binding.service}:${binding.secretType}:${encodeURIComponent(user)}@${encodeURIComponent(endpoint)}`;
+}
+
+/** The user as a binding carries it: exactly as the account signs in with it, only trimmed. */
+export function secretBindingUser(user: string): string {
+  return user.trim();
+}
+
+/**
+ * The user as the secret rules compare it. A mailbox is one account in any
+ * case of its address (`mailIdentity`), so a mail user is folded; a calendar or
+ * files user is compared exactly — "Alice" and "alice" may be two accounts of
+ * one CalDAV server.
+ */
+function bindingUserKey(service: SecretBinding["service"], user: string): string {
+  const exact = secretBindingUser(user);
+  return service === "mail" ? exact.toLowerCase() : exact;
 }
 
 /** True when a synced entry's binding matches an observed local account. */
@@ -166,7 +227,8 @@ export function bindingMatches(binding: SecretBinding, observed: { family: strin
  */
 export function bindingMatchesExceptFamily(
   binding: SecretBinding,
-  observed: { service: SecretBinding["service"]; user: string; endpoint: string }
+  observed: { service: SecretBinding["service"]; user: string; endpoint: string },
+  userCase: "exact" | "fold" = "exact",
 ): boolean {
   let observedEndpoint: string;
   try {
@@ -174,9 +236,11 @@ export function bindingMatchesExceptFamily(
   } catch {
     return false;
   }
+  const user = bindingUserKey(binding.service, binding.user);
+  const observedUser = bindingUserKey(observed.service, observed.user);
   return (
     binding.service === observed.service &&
-    binding.user === observed.user.trim().toLowerCase() &&
+    (userCase === "exact" ? user === observedUser : user.toLowerCase() === observedUser.toLowerCase()) &&
     binding.endpoint === observedEndpoint
   );
 }

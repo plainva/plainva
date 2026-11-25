@@ -1,6 +1,7 @@
 import { connectionFailureCode, isRequestSendFailure } from "@plainva/core";
 import { classifyAuthError, isApiNotEnabled } from "./authErrors";
 import { serviceConnectionFailure, type ConnectionTranslate } from "./serviceConnection";
+import { unconfirmedEndpointInText } from "./endpointConfirmation";
 
 /**
  * A calendar account's provider by its name (finding 2026-10-30): the phone
@@ -42,6 +43,10 @@ export interface PimAccountFailureView {
  * which are about a first sign-in.
  */
 export function pimAccountFailure(message: string, provider: string, t: ConnectionTranslate): PimAccountFailureView {
+  // An address this device has not confirmed (F57): no failure of the
+  // account, no sign-in to offer - the address waits for Confirm (review of F57, O-5).
+  const unconfirmed = unconfirmedEndpointInText(message);
+  if (unconfirmed) return { title: t("cloudAccounts.confirmAddress", { address: unconfirmed }), text: t("cloudAccounts.confirmAddressHint"), raw: message, signIn: false };
   // The desktop's HTTP stack words a request that never got an answer as "error
   // sending request for url (…)"; that is no connection too — unless a
   // certificate is the reason, which `connectionFailureCode` names.

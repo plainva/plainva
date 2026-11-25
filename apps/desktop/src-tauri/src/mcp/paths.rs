@@ -1002,7 +1002,10 @@ pub(crate) mod tests {
     #[test]
     fn a_stored_grant_grants_only_what_it_names_as_it_stands() {
         let vault = shaped_vault();
-        for name in ["Notes", " Notes", "Plain", "Deep/Inner", "Deep/Inner "] {
+        // Win32 strips trailing spaces from directory names, so a trailing-space twin cannot exist on Windows;
+        // a leading-space twin does and exercises the same ambiguity under 0.8.7's trim.
+        let inner_twin = if cfg!(windows) { "Deep/ Inner" } else { "Deep/Inner " };
+        for name in ["Notes", " Notes", "Plain", "Deep/Inner", inner_twin] {
             std::fs::create_dir_all(vault.path().join(name)).unwrap();
         }
         let stored = folders(&["/", "", "Notes", " Notes", "Plain", "Plain/", "Deep/Inner", "Missing", "node_modules"]);
@@ -1032,7 +1035,8 @@ pub(crate) mod tests {
         assert_eq!(effective_grant(vault.path(), &folders(&[nfc]), true), folders(&[nfc]), "chosen under this build, as it stands");
         // Below a folder stored in its other form, the walk goes on through that form.
         std::fs::remove_dir(vault.path().join(nfc)).unwrap();
-        for name in ["Inner", "Inner "] {
+        let inner_twin = if cfg!(windows) { " Inner" } else { "Inner " };
+        for name in ["Inner", inner_twin] {
             std::fs::create_dir_all(vault.path().join("Cafe\u{301}").join(name)).unwrap();
         }
         assert!(effective_grant(vault.path(), &folders(&[&format!("{nfc}/Inner")]), false).is_empty());

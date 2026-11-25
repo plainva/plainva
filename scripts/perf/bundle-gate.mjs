@@ -38,6 +38,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
+import { startFiles } from "./startFiles.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const BASELINE = path.join(ROOT, "scripts", "perf", "bundle-baseline.json");
@@ -58,21 +59,6 @@ function build(shell) {
     stdio: ["ignore", "inherit", "inherit"],
   });
   return dir;
-}
-
-/** The files `index.html` loads before anything else, in its order. */
-function startFiles(html) {
-  const files = [];
-  for (const match of html.matchAll(/<(script|link)\b([^>]*)>/g)) {
-    const attrs = match[2];
-    const ref = /\b(?:src|href)="([^"]+)"/.exec(attrs)?.[1];
-    if (!ref || /^(?:[a-z]+:)?\/\//i.test(ref)) continue;
-    const isModule = match[1] === "script" && /type="module"/.test(attrs);
-    const isPreload = match[1] === "link" && /rel="modulepreload"/.test(attrs);
-    const isStyle = match[1] === "link" && /rel="stylesheet"/.test(attrs);
-    if (isModule || isPreload || isStyle) files.push({ path: ref.replace(/^\//, ""), entry: isModule });
-  }
-  return files;
 }
 
 /** The module family of a source path from a source map, or null. */
