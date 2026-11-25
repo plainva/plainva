@@ -152,9 +152,11 @@ export interface OwedSweepHandlers {
   /** Queues the deletion the way the index's `onLocalFileDeleted` does, and says what came of it. */
   remove: (path: string) => Promise<OwedOutcome>;
   /**
-   * Queues several deletions in one transaction, where the host can (the
-   * plain queue): a cycle that reads the queue meanwhile sees all of them or
-   * none, so the mass-deletion question is never asked of a slice (review F4).
+   * Queues several deletions in one transaction (`LocalQueueing.deletions`:
+   * the plain queue and the encrypted workspace's, a permission check first
+   * where there is one): a cycle that reads the queue meanwhile sees all of
+   * them or none, so the mass-deletion question is never asked of a slice
+   * (review F4).
    */
   removeAll?: (paths: readonly string[]) => Promise<OwedOutcome>;
   /** Queues the change the way the index's `onExternalModification` does (workspace only). */
@@ -252,7 +254,11 @@ export interface LocalQueueingTargets {
   /** An encrypted workspace's permission check, where it has one; false refuses and keeps a fork. */
   permission?: () => ((path: string, isChange: boolean) => Promise<boolean>) | null;
   /** The encrypted workspace's queue, where the vault is one. */
-  workspace?: () => { enqueue(operation: "write" | "delete", path: string): Promise<unknown> } | null;
+  workspace?: () => {
+    enqueue(operation: "write" | "delete", path: string): Promise<unknown>;
+    /** Several deletions in one transaction (`WorkspaceStateStore.enqueueDeletions`). */
+    enqueueDeletions(paths: readonly string[]): Promise<unknown>;
+  } | null;
   /** The plain sync's queue. */
   plain?: () => { queueWrite(path: string): Promise<unknown>; queueDeletePaths(paths: readonly string[]): Promise<unknown> } | null;
   /** Without a sync target: what a deletion still does (the desktop drops the stale sync row). */
@@ -327,22 +333,35 @@ export function createLocalQueueing(t: LocalQueueingTargets): LocalQueueing {
   };
   return {
     deletion,
+    /**
+     * Several deletions as ONE entry in the queue's terms (review F4): a cycle
+     * that reads the queue meanwhile sees all of them or none, so the
+     * mass-deletion question is never asked of a slice — in the plain queue,
+     * in the encrypted workspace's, and where a permission check comes first.
+     * Every path is asked before anything is queued; a check that fails
+     * queues nothing (the marks wait for the next start), a refusal leaves
+     * that path out. Answers `queued` when anything was queued.
+     */
     async deletions(paths) {
-      const workspace = t.workspace?.() ?? null;
-      const plain = t.plain?.() ?? null;
-      const ours = paths.filter(queuesForTheRemote);
-      if (t.permission?.() || workspace || !plain || !t.queuesChanges() || ours.length !== paths.length) {
-        // One by one: a permission check per path, or nothing to batch.
+      if (!t.queuesChanges()) {
         let worst: OwedOutcome = "refused";
-        for (const path of paths) {
-          const outcome = await deletion(path);
-          if (outcome === "failed") return "failed";
-          if (outcome === "queued") worst = "queued";
-        }
+        for (const path of paths) if ((await deletion(path)) === "failed") worst = "failed";
         return worst;
       }
-      // One transaction for all of them (review F4); the queue skips a path asked again.
-      return answer(await run(() => plain.queueDeletePaths(paths)));
+      const allowed: string[] = [];
+      for (const path of paths) {
+        if (!queuesForTheRemote(path)) continue;
+        const verdict = await asked(path, false);
+        if (verdict === "failed") return "failed";
+        if (verdict) allowed.push(path);
+      }
+      if (allowed.length === 0) return "refused";
+      const workspace = t.workspace?.() ?? null;
+      if (workspace) return answer(await run(() => workspace.enqueueDeletions(allowed)));
+      const plain = t.plain?.() ?? null;
+      if (!plain) return "failed";
+      // The queue skips a path asked again.
+      return answer(await run(() => plain.queueDeletePaths(allowed)));
     },
     async change(path) {
       if (!queuesForTheRemote(path) || !t.queuesChanges()) return "refused";

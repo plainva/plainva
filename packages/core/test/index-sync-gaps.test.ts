@@ -9,6 +9,7 @@ import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { SyncQueue } from "../src/sync/SyncQueue.js";
 import { createLocalQueueing, sweepPlainOwed, sweepWorkspaceOwed, type OwedSweepHandlers } from "../src/sync/owedToRemote.js";
 import { SqlWorkspaceStateStore } from "../src/workspace/state.js";
+import { isMassFileDeletion, vanishingFiles } from "../src/sync/massDeletion.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
 
 /**
@@ -427,6 +428,7 @@ describe("the hosts' queueing answers what happened, and only a queued or refuse
       permission: () => async (p) => { offered.push(p); return p !== "Refused.md"; },
       workspace: () => ({
         enqueue: async (op, p) => { if (fail) throw new Error("database is locked"); return state.enqueue(op, p); },
+        enqueueDeletions: (ps) => state.enqueueDeletions(ps),
       }),
       onError: () => {},
     });
@@ -484,5 +486,84 @@ describe("the hosts' queueing answers what happened, and only a queued or refuse
     expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 12, writes: 0, failed: 0 });
     expect(failing.deletionCalls, "one call: one transaction").toBe(1);
     expect(await queued()).toHaveLength(12);
+  });
+
+  /** The workspace's queueing as both hosts build it: its permission check, its store; a cycle reads the queue at every check. */
+  function workspaceShaped(state: SqlWorkspaceStateStore, verdict: (p: string) => boolean | "throws") {
+    const seen: number[] = [];
+    const local = createLocalQueueing({
+      queuesChanges: () => true,
+      permission: () => async (p) => {
+        // What a sync cycle that runs meanwhile finds queued for deletion.
+        seen.push((await state.listQueue()).filter((e) => e.operation === "delete").length);
+        const answer = verdict(p);
+        if (answer === "throws") throw new Error("the workspace is locked");
+        return answer;
+      },
+      workspace: () => state,
+      plain: () => null,
+      onError: () => {},
+    });
+    const h: OwedSweepHandlers = {
+      vaultIsThere: () => vault.exists(""),
+      stillGone: async (p) => !(await vault.exists(p)),
+      remove: local.deletion,
+      removeAll: local.deletions,
+      write: local.change,
+    };
+    return { h, seen };
+  }
+
+  /** Owed deletions in an encrypted workspace: notes the workspace has as live objects. */
+  async function owedWorkspaceDeletions(state: SqlWorkspaceStateStore, names: string[]) {
+    for (const p of names) await vault.writeTextFile(p, `# ${p}\n`);
+    await new VaultIndexer(vault, db).indexVaultFull("open");
+    for (const [i, p] of names.entries()) {
+      const id = await state.enqueue("write", p);
+      const sha = (await db.queryOne<{ sha256: string }>("SELECT sha256 FROM files WHERE path = ?", [p]))!.sha256;
+      await state.commitQueued(id, {
+        object: { objectId: `o:${p}`, path: p, currentRevisionId: `r:${p}`, payloadHash: "ph", plaintextSha256: sha, contentKind: "text", deleted: false, authorMemberId: "m", createdAt: "2026-11-11T00:00:00Z", modifiedAt: "2026-11-11T00:00:00Z" },
+        revision: null, operationHash: `op:${i}`, operationDocument: "{}", deviceId: "d", sequence: i + 1,
+      }, {} as never);
+    }
+    for (const p of names) await fs.rm(onDisk(p));
+    await new VaultIndexer(vault, db, { onLocalFileDeleted: () => {} }).indexVaultFull("automatic refresh");
+    for (const p of names) expect(await markOf(p), `the scene: ${p} is marked`).toBe(1);
+  }
+
+  it("F4 in the encrypted workspace, with its permission check: a cycle sees all of the deletions or none, so the mass-deletion question is asked", async () => {
+    expect.hasAssertions();
+    const state = new SqlWorkspaceStateStore(db);
+    const names = Array.from({ length: 12 }, (_, i) => `Bulk/n${String(i).padStart(2, "0")}.md`);
+    await owedWorkspaceDeletions(state, names);
+    const { h, seen } = workspaceShaped(state, () => true);
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 12, writes: 0, failed: 0 });
+    // One by one, a cycle in between saw 1, 2, … 11 deletions: never a mass deletion, each sent.
+    expect(seen).toEqual(Array(12).fill(0));
+    const deletions = (await state.listQueue()).filter((e) => e.operation === "delete").map((e) => e.path);
+    expect(deletions).toEqual(names);
+    // What the worker's guard asks at its next cycle: all twelve of the twelve live files — the question comes.
+    const live = (await state.listObjects(false)).filter((o) => !o.deleted && o.contentKind !== "directory").map((o) => o.path);
+    expect(isMassFileDeletion(vanishingFiles(deletions, live), live.length)).toBe(true);
+    for (const p of names) expect(await markOf(p)).toBe(0);
+    // Asked again: queued once.
+    await state.enqueueDeletions(names);
+    expect((await state.listQueue()).filter((e) => e.operation === "delete")).toHaveLength(12);
+  });
+
+  it("F4 in the encrypted workspace: a refused path is left out, a check that fails queues nothing and keeps every mark", async () => {
+    expect.hasAssertions();
+    const state = new SqlWorkspaceStateStore(db);
+    const names = ["A.md", "B.md", "C.md"];
+    await owedWorkspaceDeletions(state, names);
+    let failing = true;
+    const { h } = workspaceShaped(state, (p) => (p === "B.md" && failing ? "throws" : p !== "C.md"));
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 0, writes: 0, failed: 3 });
+    expect((await state.listQueue()).filter((e) => e.operation === "delete")).toEqual([]);
+    for (const p of names) expect(await markOf(p)).toBe(1);
+    failing = false;
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 3, writes: 0, failed: 0 });
+    expect((await state.listQueue()).filter((e) => e.operation === "delete").map((e) => e.path)).toEqual(["A.md", "B.md"]);
+    for (const p of names) expect(await markOf(p)).toBe(0);
   });
 });
