@@ -17,8 +17,6 @@ export interface ByteExactDav {
   /** Collections by decoded vault-relative path ("" is the vault folder). */
   folders: Set<string>;
   log: string[];
-  /** Every PROPFIND, with the depth it asked for ("0", "1", "infinity"). */
-  propfinds: Array<{ path: string; depth: string }>;
   url: string;
 }
 
@@ -31,14 +29,6 @@ export interface ByteExactDavOptions {
   weakEtags?: boolean;
   /** The server's clock: a PUT without `X-OC-Mtime` records this time. Absent: such a PUT records none. */
   clock?: () => number;
-  /**
-   * The entity tag a collection lists (`getetag` on a folder):
-   * - "none" (default): none, as Apache mod_dav and many others;
-   * - "subtree": one that changes with any change anywhere below, as Nextcloud and ownCloud;
-   * - "children": one that changes only when an entry right inside it comes or goes — a
-   *   folder's time on disk —, not when a file below is written anew nor anything deeper.
-   */
-  collectionEtags?: "none" | "subtree" | "children";
 }
 
 export function byteExactDav(base = "https://dav.example.com/dav/Vault/", options: ByteExactDavOptions = {}): ByteExactDav {
@@ -46,7 +36,6 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
   const files = new Map<string, { bytes: Uint8Array; etag: string; modified?: number }>();
   const folders = new Set<string>([""]);
   const log: string[] = [];
-  const propfinds: Array<{ path: string; depth: string }> = [];
   let seq = 0;
   const tag = (etag: string) => (options.weakEtags ? `W/"${etag}"` : `"${etag}"`);
 
@@ -59,23 +48,9 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
   };
   const parent = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
   const href = (p: string, collection: boolean) => `${basePath}${enc(p)}${collection && p ? "/" : ""}`;
-  /** A collection's entity tag, from what lies below it now (`collectionEtags`). */
-  const collectionTag = (p: string): string | null => {
-    const mode = options.collectionEtags ?? "none";
-    if (mode === "none") return null;
-    const inside = (q: string) => (p === "" ? q !== "" : q.startsWith(`${p}/`));
-    const parts = mode === "subtree"
-      ? [...[...folders].filter(inside).map((q) => `d:${q}`), ...[...files].filter(([q]) => inside(q)).map(([q, f]) => `f:${q}:${f.etag}`)]
-      : [...folders, ...files.keys()].filter((q) => inside(q) && parent(q) === p).map((q) => `n:${q}`);
-    let h = 2166136261;
-    for (const ch of parts.sort().join("\n")) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
-    return `c${h.toString(16)}`;
-  };
   const entry = (p: string) => {
     if (folders.has(p)) {
-      const ctag = collectionTag(p);
-      const etagProp = ctag === null ? "" : `<d:getetag>${tag(ctag)}</d:getetag>`;
-      return `<d:response><d:href>${href(p, true)}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype>${etagProp}</d:prop></d:propstat></d:response>`;
+      return `<d:response><d:href>${href(p, true)}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>`;
     }
     const f = files.get(p)!;
     const modified = f.modified === undefined ? "" : `<d:getlastmodified>${new Date(f.modified).toUTCString()}</d:getlastmodified>`;
@@ -95,7 +70,6 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
     switch (method) {
       case "PROPFIND": {
         const depth = headers.get("Depth") ?? "infinity";
-        propfinds.push({ path: p, depth });
         if (!folders.has(p) && !files.has(p)) return status(404);
         if (files.has(p) || depth === "0") return multistatus([p]);
         const inside = (q: string) => (p === "" ? q !== "" : q.startsWith(`${p}/`));
@@ -172,5 +146,5 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
         return status(405);
     }
   };
-  return { fetch, files, folders, log, propfinds, url: base };
+  return { fetch, files, folders, log, url: base };
 }

@@ -216,28 +216,23 @@ describe("WebDavSyncTarget", () => {
     expect(mockFetch.mock.calls[1][1].headers["X-OC-Mtime"]).toBeUndefined();
   });
 
-  it("never takes a cursor it did not hand out: no request, and the worker is sent on to a full listing", async () => {
-    // A cursor is only ever the vault folder's tag on a server shown to change
-    // it with every change below (webdavRootTag.ts); any other is no answer.
-    const pullRes = await target.pull("some-opaque-cursor");
-    expect(mockFetch).not.toHaveBeenCalled();
-    expect(pullRes.needsFullListing).toBe(true);
-    expect(pullRes.etagMap.size).toBe(0);
-    expect(pullRes.nextCursor).toBeUndefined();
-    // And without a cursor a pull is the full listing, as always.
+  it("ignores the optional cursor argument and always returns a full listing", async () => {
     const mockXml = `<d:multistatus xmlns:d="DAV:">
         <d:response>
           <d:href>/remote.php/webdav/note.md</d:href>
           <d:propstat><d:prop><d:getetag>"aaa"</d:getetag></d:prop></d:propstat>
         </d:response>
       </d:multistatus>`;
+
     mockFetch.mockResolvedValueOnce({ ok: true, text: async () => mockXml });
-    const full = await target.pull();
+
+    // Passing a cursor must not change behaviour: still a full PROPFIND, and the
+    // cursor-only fields (deleted/nextCursor) stay undefined for WebDAV.
+    const pullRes = await target.pull("some-opaque-cursor");
     expect(mockFetch.mock.calls[0][1].method).toBe("PROPFIND");
-    expect(full.etagMap.get("note.md")).toBe("aaa");
-    expect(full.deleted).toBeUndefined();
-    // No tag for the vault folder in that listing: no cursor is handed out.
-    expect(await target.getStartCursor()).toBe("");
+    expect(pullRes.etagMap.get("note.md")).toBe("aaa");
+    expect(pullRes.deleted).toBeUndefined();
+    expect(pullRes.nextCursor).toBeUndefined();
   });
 
   // P1.5 — the former regex scan missed exactly these server-dependent shapes.
