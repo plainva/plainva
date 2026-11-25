@@ -22,20 +22,36 @@ export interface LeftNoteSaveState {
   /** The editor's journal session and the revision its text was journaled under. */
   sessionId: string;
   revision: number;
-  /** What the editor last knew the file to hold, in the editor's text; null before it loaded. */
+  /**
+   * Whether that entry was written to the journal. A journal that could not
+   * take it (a full disk takes the vault's write and the journal's at once)
+   * holds nothing of this text: then its absence proves nothing, and the
+   * retry is the text's only keeper.
+   */
+  journaled: boolean;
+  /** What the editor last knew the file to hold, in the editor's text; null before it loaded one. */
   persisted: string | null;
 }
 
 export interface LeftNoteSaveSources {
-  /** The journal's newest entry for the note, of any session. */
+  /** The journal's newest entry for the note, of any session; rejects when the journal cannot be read. */
   newestDraft: () => Promise<{ sessionId?: string; revision: number } | null>;
   readTextFile: (path: string) => Promise<string>;
 }
 
+/**
+ * Gives way only on proof: the entry this editor wrote is no longer the
+ * journal's newest, or the file holds something else than what it knew, or
+ * is gone. A journal that cannot be read, an entry that was never written, a
+ * file that cannot be read for another reason, and a note that was never
+ * loaded (a new one whose first save failed) prove nothing: the retry goes on.
+ */
 export async function leftNoteSaveDue(state: LeftNoteSaveState, sources: LeftNoteSaveSources): Promise<boolean> {
-  if (state.persisted === null) return false;
-  const newest = await sources.newestDraft();
-  if (!newest || newest.sessionId !== state.sessionId || newest.revision !== state.revision) return false;
+  if (state.journaled) {
+    const newest = await sources.newestDraft().then((entry) => ({ entry }), () => null);
+    if (newest && (!newest.entry || newest.entry.sessionId !== state.sessionId || newest.entry.revision !== state.revision)) return false;
+  }
+  if (state.persisted === null) return true;
   let raw: string;
   try {
     raw = await sources.readTextFile(state.path);

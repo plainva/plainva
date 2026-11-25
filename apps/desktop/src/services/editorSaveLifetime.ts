@@ -29,6 +29,8 @@ export class EditorSaveLifetime {
    */
   kept: KeptText | null = null;
   baseInput: string | null = null;
+  /** The newest revision whose text the draft journal took (`recordDraft` went through). */
+  journaledRevision = -1;
   savedRevision = -1;
   discardedRevision = -1;
   activeWrites = 0;
@@ -65,7 +67,7 @@ export class EditorSaveLifetime {
   isActive(): boolean { return this.active; }
   setTransferFrozen(frozen: boolean): void { this.transferFrozen = frozen; }
   recover(draft: { revision: number; sessionId?: string }): void { this.recoveredDraft = draft; }
-  update(patch: Partial<Pick<EditorSaveLifetime, "dirty" | "persisted" | "revision" | "shape" | "kept" | "baseInput" | "savedRevision" | "discardedRevision" | "activeWrites" | "recoveredDraft">>): void {
+  update(patch: Partial<Pick<EditorSaveLifetime, "dirty" | "persisted" | "revision" | "shape" | "kept" | "baseInput" | "savedRevision" | "discardedRevision" | "activeWrites" | "recoveredDraft" | "journaledRevision">>): void {
     Object.assign(this, patch);
   }
   nextRevision(): number { return ++this.revision; }

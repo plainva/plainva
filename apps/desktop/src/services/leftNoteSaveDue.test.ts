@@ -34,7 +34,7 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   stat: async () => ({ mtime: new Date() }),
 }));
 
-const { clearDraft, readDraft, recordDraft } = await import("./draftJournal");
+const { clearDraft, readDraft, readDraftStrict, recordDraft } = await import("./draftJournal");
 const { leftNoteSaveDue } = await import("./leftNoteSaveDue");
 
 const VAULT = "/vaults/main";
@@ -47,9 +47,9 @@ const disk = new Map<string, string>();
 const gone = () => Object.assign(new Error(`File or directory not found: ${NOTE}`), { name: "VaultFileNotFoundError", code: "FILE_NOT_FOUND" });
 
 const due = () => leftNoteSaveDue(
-  { path: NOTE, sessionId: A, revision: 4, persisted: "# A\n" },
+  { path: NOTE, sessionId: A, revision: 4, journaled: true, persisted: "# A\n" },
   {
-    newestDraft: () => readDraft(VAULT, NOTE),
+    newestDraft: () => readDraftStrict(VAULT, NOTE),
     readTextFile: async (p) => {
       const text = disk.get(p);
       if (text === undefined) throw gone();
@@ -105,9 +105,40 @@ describe("a save of a note window A left", () => {
   it("goes on while the file cannot be read for another reason: a folder that is away is what the retry waits out", async () => {
     expect.hasAssertions();
     const away = leftNoteSaveDue(
-      { path: NOTE, sessionId: A, revision: 4, persisted: "# A\n" },
-      { newestDraft: () => readDraft(VAULT, NOTE), readTextFile: async () => { throw Object.assign(new Error("The vault folder cannot be reached"), { name: "VaultUnreachableError" }); } },
+      { path: NOTE, sessionId: A, revision: 4, journaled: true, persisted: "# A\n" },
+      { newestDraft: () => readDraftStrict(VAULT, NOTE), readTextFile: async () => { throw Object.assign(new Error("The vault folder cannot be reached"), { name: "VaultUnreachableError" }); } },
     );
     expect(await away).toBe(true);
+  });
+
+  it("goes on where the journal never took the text: its absence there proves nothing (a full disk fails the vault and the journal at once)", async () => {
+    expect.hasAssertions();
+    files.clear();
+    const owed = await leftNoteSaveDue(
+      { path: NOTE, sessionId: A, revision: 4, journaled: false, persisted: "# A\n" },
+      { newestDraft: () => readDraftStrict(VAULT, NOTE), readTextFile: async (p) => disk.get(p) ?? "" },
+    );
+    expect(owed).toBe(true);
+  });
+
+  it("goes on where the journal cannot be read: that is no proof the entry is gone", async () => {
+    expect.hasAssertions();
+    // The journal file of the note is torn.
+    for (const key of [...files.keys()]) files.set(key, "{ torn");
+    await expect(readDraftStrict(VAULT, NOTE)).rejects.toThrow();
+    // The lenient read the offer uses says "none" for it…
+    expect(await readDraft(VAULT, NOTE)).toBeNull();
+    // …and the saver does not take that for a draft discarded elsewhere.
+    expect(await due()).toBe(true);
+  });
+
+  it("goes on for a note that was never loaded — a new one whose first save failed — also while its file is not there yet", async () => {
+    expect.hasAssertions();
+    disk.clear();
+    const owed = await leftNoteSaveDue(
+      { path: NOTE, sessionId: A, revision: 4, journaled: true, persisted: null },
+      { newestDraft: () => readDraftStrict(VAULT, NOTE), readTextFile: async () => { throw gone(); } },
+    );
+    expect(owed).toBe(true);
   });
 });

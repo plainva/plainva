@@ -863,7 +863,10 @@ export const Editor: React.FC<{
     // Closing captures the final buffer even before the 400-ms journal timer.
     // Confirmations only clear the draft of this particular editor lifetime.
     const journal = import("../services/draftJournal").then(async ({ recordDraft }) => {
-      if (draftVault) await recordDraft(draftVault, path, val, revAtSave, saveState.id);
+      if (!draftVault) return;
+      await recordDraft(draftVault, path, val, revAtSave, saveState.id);
+      // Kept there: a left save may give way once the entry is gone (`leftNoteSaveDue`).
+      saveState.update({ journaledRevision: Math.max(saveState.journaledRevision, revAtSave) });
     }).catch((error) => { console.error("Could not journal the pending note save", error); });
     // The file turned into no text while this editor held changes — another
     // program saved it in another encoding, or a pull brought such a version
@@ -1046,9 +1049,9 @@ export const Editor: React.FC<{
             stillDue: async () => !saveState.isActive() && !EditorSaveLifetime.holds(draftVault, path) && !saveState.transferFrozen
               && saveState.revision === revAtSave && revAtSave > saveState.savedRevision && revAtSave > saveState.discardedRevision
               && await leftNoteSaveDue(
-                { path, sessionId: saveState.id, revision: revAtSave, persisted: saveState.persisted },
+                { path, sessionId: saveState.id, revision: revAtSave, journaled: saveState.journaledRevision >= revAtSave, persisted: saveState.persisted },
                 {
-                  newestDraft: () => import("../services/draftJournal").then(({ readDraft }) => readDraft(draftVault, path)),
+                  newestDraft: () => import("../services/draftJournal").then(({ readDraftStrict }) => readDraftStrict(draftVault, path)),
                   readTextFile: (p) => vaultAdapter.readTextFile(p),
                 },
               ),

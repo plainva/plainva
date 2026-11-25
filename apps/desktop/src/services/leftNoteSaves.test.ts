@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SAVE_RETRY_LIMIT } from "@plainva/ui";
 import { EditorSaveLifetime } from "./editorSaveLifetime";
 import { settlePendingWrites, withPendingWrite } from "./pendingWrites";
-import { adoptLeftNoteSave, endLeftNoteSaves, hasLeftNoteSave, leftNoteSaveEpoch, releaseLeftNoteSave, resetLeftNoteSavesForTests, wakeLeftNoteSaves, type LeftNoteSave } from "./leftNoteSaves";
+import { adoptLeftNoteSave, endLeftNoteSaves, hasLeftNoteSave, leftNoteSaveEpoch, releaseLeftNoteSave, resetLeftNoteSavesForTests, STILL_DUE_LIMIT_MS, wakeLeftNoteSaves, type LeftNoteSave } from "./leftNoteSaves";
 
 /**
  * A failed save of a note the editor left is tried again by itself, as the
@@ -218,6 +218,39 @@ describe("a left save handed over again from its own failure", () => {
     expect(save.retry).toHaveBeenCalledTimes(1);
     due = false;
     await vi.advanceTimersByTimeAsync(60_000);
+    expect(save.retry).toHaveBeenCalledTimes(1);
+    expect(hasLeftNoteSave("/v", "a.md")).toBe(false);
+  });
+
+  it("counts a question that never answers as a failed try: the entry lives on, is tried again by the rule, and wakes", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    let hangs = true;
+    let asks = 0;
+    const save = { ...left({ fails: 0 }), stillDue: () => { asks += 1; return hangs ? new Promise<boolean>(() => {}) : true; } };
+    adoptLeftNoteSave(save, held);
+    await vi.advanceTimersByTimeAsync(1_000 + STILL_DUE_LIMIT_MS);
+    expect(asks).toBe(1);
+    expect(save.retry).not.toHaveBeenCalled();
+    expect(hasLeftNoteSave("/v", "a.md")).toBe(true);
+    // The next try comes by the rule (two seconds after the first failure), and the drive is back.
+    hangs = false;
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(asks).toBe(2);
+    expect(save.retry).toHaveBeenCalledTimes(1);
+    expect(hasLeftNoteSave("/v", "a.md")).toBe(false);
+  });
+
+  it("counts a question that fails as a failed try, not as the end", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    let throws = true;
+    const save = { ...left({ fails: 0 }), stillDue: async () => { if (throws) throw new Error("the journal could not be read"); return true; } };
+    adoptLeftNoteSave(save, held);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(hasLeftNoteSave("/v", "a.md")).toBe(true);
+    throws = false;
+    await vi.advanceTimersByTimeAsync(2_000);
     expect(save.retry).toHaveBeenCalledTimes(1);
     expect(hasLeftNoteSave("/v", "a.md")).toBe(false);
   });

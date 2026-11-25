@@ -59,8 +59,11 @@ describe("the desktop editor tries a failed save again", () => {
     expect(left).toMatch(/!saveState\.isActive\(\) && !EditorSaveLifetime\.holds\(draftVault, path\)/);
     expect(left).toMatch(/revAtSave > saveState\.savedRevision && revAtSave > saveState\.discardedRevision/);
     // Owned elsewhere, written elsewhere, moved or deleted: asked of the journal and the file before each try.
-    expect(left).toMatch(/&& await leftNoteSaveDue\(\s*\{ path, sessionId: saveState\.id, revision: revAtSave, persisted: saveState\.persisted \}/);
-    expect(left).toMatch(/newestDraft: \(\) => import\("\.\.\/services\/draftJournal"\)\.then\(\(\{ readDraft \}\) => readDraft\(draftVault, path\)\)/);
+    expect(left).toMatch(/&& await leftNoteSaveDue\(\s*\{ path, sessionId: saveState\.id, revision: revAtSave, journaled: saveState\.journaledRevision >= revAtSave, persisted: saveState\.persisted \}/);
+    // A journal that cannot be read answers so, never "no entry".
+    expect(left).toMatch(/newestDraft: \(\) => import\("\.\.\/services\/draftJournal"\)\.then\(\(\{ readDraftStrict \}\) => readDraftStrict\(draftVault, path\)\)/);
+    // Only an entry that was written counts as proof.
+    expect(editor).toMatch(/await recordDraft\(draftVault, path, val, revAtSave, saveState\.id\);\s*\/\/[^\n]*\n\s*saveState\.update\(\{ journaledRevision: Math\.max\(saveState\.journaledRevision, revAtSave\) \}\);/);
     // A save of a runtime that closed is refused (`leftNoteSaves.ts`).
     expect(left).toMatch(/epoch: saveState\.epoch,/);
     // The pane's last try is the save that is handed over when it fails.
