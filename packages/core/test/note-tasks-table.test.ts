@@ -190,6 +190,25 @@ describe("the list reads the table", () => {
     expect((await listTasksByScan(db)).filter((t) => t.path === "A.md").map((t) => t.text)).toEqual(["a text the table never read"]);
   });
 
+  it("asks the full-text table only for the notes with tasks where every note has a row that counts", async () => {
+    const files = new MemoryVaultAdapter(1_000);
+    await writeRandomNotes(files, 62, 60);
+    for (let i = 0; i < 20; i++) await files.writeTextFile(`Plain/no tasks ${i}.md`, `just a note ${i}\n`);
+    const { db } = await indexed(files);
+    const withTasks = await counted(db, `SELECT count(*) AS n FROM note_tasks WHERE tasks <> ''`);
+    let rows = -1;
+    const query = db.query.bind(db);
+    db.query = async <T,>(sql: string, params?: unknown[]) => {
+      const out = await query<T>(sql, params);
+      if (/note_tasks/.test(sql) && /fts_notes/.test(sql)) rows = out.length;
+      return out;
+    };
+    await new VaultQueryService(db).listTasks();
+    // The whole table's way: no row for a note without tasks, so its full-text row is never read.
+    expect(rows).toBe(withTasks);
+    expect(rows).toBeLessThan(await counted(db, `SELECT count(*) AS n FROM files WHERE path LIKE '%.md'`));
+  });
+
   it("reads no note's text where every note has a row that counts, and only those of the notes without one", async () => {
     const files = new MemoryVaultAdapter(1_000);
     await writeRandomNotes(files, 61, 60);
