@@ -610,7 +610,7 @@ describe("calendar writes from another window", () => {
 
     const res = await aux.request("pim-write", {
       accountId: "acc-1",
-      op: { kind: "createEvent", calendarId: "cal-1", draft: { title: "Standup", allDay: false, start: { ts: 1 }, end: { ts: 2 } } },
+      op: { kind: "createEvent", calendarId: "cal-1", draft: { title: "Standup", allDay: false, start: { ts: 1 }, end: { ts: 2 }, createAs: "plainva-standup" } },
     });
 
     // One refresh token now serves files, calendar and mail of an account

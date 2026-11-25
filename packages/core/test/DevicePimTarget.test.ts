@@ -1,6 +1,10 @@
+import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
 import { describe, expect, it } from "vitest";
 import { DevicePimTarget, deviceFieldVersion, deviceHandleOf, deviceUpdateSpan, anchorSeriesDraft, PimConflictError } from "../src/index.js";
 import type { DeviceCollection, DeviceEventDraft, DeviceEventHandle, DeviceEventRecord, DevicePimPort, DeviceReminderDraft, DeviceReminderRecord } from "../src/index.js";
+
+/** Every create names its uid (issue 119): a fresh one per call here. */
+const withUid = <T extends object>(draft: T): T & { createAs: string } => ({ ...draft, createAs: newPimCreateUid() });
 
 /**
  * The device provider against a fake port (plan EventKit K1). What is pinned:
@@ -146,7 +150,7 @@ describe("DevicePimTarget", () => {
   it("keeps the etag promise: a moved version refuses the write, a matching one goes through", async () => {
     const port = new FakePort();
     const t = target(port);
-    const created = await t.createEvent("cal-1", { title: "A", start: { ts: day0 }, end: { ts: day0 + H }, allDay: false });
+    const created = await t.createEvent("cal-1", withUid({ title: "A", start: { ts: day0 }, end: { ts: day0 + H }, allDay: false }));
     expect(created.etag).toBe("m1");
     // Someone else edited on the device: the version moved.
     port.eventRows[0].version = "m9";
@@ -161,10 +165,10 @@ describe("DevicePimTarget", () => {
   it("a recurrence in the draft becomes the platform's rule; leaving it out leaves the rule alone", async () => {
     const port = new FakePort();
     const t = target(port);
-    const created = await t.createEvent("cal-1", {
+    const created = await t.createEvent("cal-1", withUid({
       title: "Standup", start: { ts: day0 }, end: { ts: day0 + H }, allDay: false,
       recurrence: { freq: "weekly", interval: 1, byWeekday: ["MO", "WE"] },
-    });
+    }));
     expect(port.eventRows[0].rrule).toBe("FREQ=WEEKLY;BYDAY=MO,WE");
     expect(created.uid).toBe(`cal-1:e1@${day0}`);
     // A drag moves the time and says nothing about the rule.
@@ -186,7 +190,7 @@ describe("DevicePimTarget", () => {
   it("reminders round-trip as tasks with the version as etag", async () => {
     const port = new FakePort();
     const t = target(port);
-    const created = await t.createTask("list-1", { title: "Milch", due: "2026-09-08", completed: false });
+    const created = await t.createTask("list-1", withUid({ title: "Milch", due: "2026-09-08", completed: false }));
     expect(created).toEqual({ uid: "r1", etag: "m1" });
     const { tasks } = await t.pullTasks("list-1");
     expect(tasks).toEqual([{ uid: "r1", listId: "list-1", title: "Milch", notes: undefined, due: "2026-09-08", completed: false, etag: "m1" }]);
@@ -243,7 +247,7 @@ describe("DevicePimTarget", () => {
     expect(cols.map((c) => c.id)).toEqual(["cal-1", "cal-ro"]);
     expect(await t.listTaskLists(cols)).toEqual([]);
     expect(await t.pullTasks("list-1")).toEqual({ tasks: [] });
-    await expect(t.createTask("list-1", { title: "x", completed: false })).rejects.toThrow(/no reminder store/);
+    await expect(t.createTask("list-1", withUid({ title: "x", completed: false }))).rejects.toThrow(/no reminder store/);
   });
 
   it("the field version is stable and moves with a visible change", () => {

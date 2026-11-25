@@ -1,5 +1,6 @@
-import { eventSubstanceOf, expandEventDraft, PimConflictError, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
+import { eventSubstanceOf, expandEventDraft, PimConflictError, type PimEventCreate, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
 import { logDiagnostic } from "../services/diagnosticsLog";
+import { createUidFor, forgetCreateUid } from "./createUids";
 import { isPendingEventUid, PENDING_EVENT_UID_PREFIX, type CreatedEventChange, type EtagStamp } from "./pendingEventWrites";
 
 /**
@@ -159,7 +160,7 @@ export async function createCalendarEvent(
   targets: EventTargets,
   accountId: string,
   calendarId: string,
-  draft: PimEventDraft,
+  draft: PimEventCreate,
   // A create cannot conflict: there is nothing there yet to have moved.
 ): Promise<{ kind: "written"; rows: PimEventRow[] }> {
   const res = await timedWrite(targets, accountId, "create", (target) => target.createEvent(calendarId, draft), "no writable target for this account");
@@ -178,7 +179,13 @@ export async function updateCalendarEvent(
 ): Promise<EventWriteOutcome> {
   const moving = !!moveTo && (moveTo.accountId !== event.accountId || moveTo.calendarId !== event.calendarId);
   if (moving) {
-    const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, draft), "no writable target for the destination account");
+    // The copy a move makes is named by what it moves and where (issue 119):
+    // the move tried again finds the copy the first try left.
+    const moved = { account: event.accountId, calendar: event.calendarId, uid: event.uid, etag: event.etag ?? null, draft };
+    const where = `${moveTo!.accountId} ${moveTo!.calendarId}`;
+    const create: PimEventCreate = { ...draft, createAs: draft.createAs ?? createUidFor("move", where, moved) };
+    const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, create), "no writable target for the destination account");
+    forgetCreateUid("move", where, moved);
     const rows = [{ ...draftToRow(moveTo!.accountId, moveTo!.calendarId, res.uid, draft), etag: res.etag, href: res.href }];
     const removed = { accountId: event.accountId, calendarId: event.calendarId, uid: event.uid };
     try {

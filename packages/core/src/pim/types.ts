@@ -343,6 +343,17 @@ export interface PimTaskDraft {
 }
 
 /**
+ * What a create is sent with: the draft and the uid of this create of the
+ * person (issue 119). Required, so no caller can create without one: "Try
+ * again" sends the same uid, and a provider that lets the client name the
+ * event (CalDAV) finds the event the first try left instead of making a
+ * second one. `newPimCreateUid` makes one; `createUidFor` keeps one per
+ * action across tries.
+ */
+export type PimEventCreate = PimEventDraft & { createAs: string };
+export type PimTaskCreate = PimTaskDraft & { createAs: string };
+
+/**
  * What a task update reports back.
  *
  * `task` is the task as the provider holds it right after the write, where
@@ -372,6 +383,20 @@ export interface PimWriteResult {
 /** The remote object changed since we last saw it (HTTP 412 / etag mismatch).
  * Callers re-pull and re-reconcile instead of overwriting blindly — the same
  * philosophy as the file sync's remoteEtag guard. */
+/**
+ * An edit of an event this app created a moment ago, which the provider does
+ * not show yet (issue 119). Not "gone" and not "refused": the change can be
+ * sent again in a moment. Its message is what the person reads after "The
+ * event was not saved:" - also in an auxiliary window, where only the message
+ * crosses.
+ */
+export class PimNotShownYetError extends Error {
+  constructor() {
+    super("your provider does not show this new event yet - try again in a moment");
+    this.name = "PimNotShownYetError";
+  }
+}
+
 export class PimConflictError extends Error {
   /**
    * The object's etag as the target read it back after the refusal, where it
@@ -442,7 +467,7 @@ export interface IPimTarget {
   listTaskLists(collections?: PimCalendar[]): Promise<PimTaskList[]>;
   pullTasks(listId: string): Promise<PullTasksResult>;
   /** Creates a single event; recurring events are out of scope until stage 4. */
-  createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult>;
+  createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult>;
   /** Updates a single event. Throws PimConflictError when the remote object
    * moved past `ref.etag`. Providers preserve fields the draft does not carry
    * (partial update / read-modify-write). */
@@ -476,7 +501,7 @@ export interface IPimTarget {
    * stays on screen.
    */
   eventExists?(ref: PimEventRef): Promise<boolean>;
-  createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult>;
+  createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult>;
   /** Updates a task (title/due/completed/notes). Etag-guarded where the
    * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */
   updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<PimTaskUpdateResult>;

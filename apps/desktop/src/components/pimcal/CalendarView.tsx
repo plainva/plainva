@@ -8,8 +8,8 @@ import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts, pickDefaultMailAccount } from "@plainva/ui/mail";
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
-import { checkUnlistedCreates, createChange, errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
-import { PimConflictError, newPimCreateUid, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
+import { createChange, errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { PimConflictError, newPimCreateUid, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventCreate, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
   deleteEventWithBlockers,
@@ -1047,7 +1047,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * keeps its uid (`createAs`) for the same reason at the provider.
    */
   const startCreate = useCallback(
-    (accountId: string, calId: string, draft: PimEventDraft, seeded?: () => void) => {
+    (accountId: string, calId: string, draft: PimEventCreate, seeded?: () => void) => {
       const action = newWriteAction("event-create");
       const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
       const create = () => {
@@ -1074,26 +1074,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   );
 
   /**
-   * A created event no sync has listed for a while is asked about (issue
-   * 119): the provider confirmed it, so it is not taken off the screen for
-   * being unlisted. Only one the provider says it does not hold leaves -
-   * with a message and the way to create it again.
-   */
-  useEffect(() => {
-    const check = () =>
-      void checkUnlistedCreates(pendingEventWrites, targetFor, (created) => {
-        logDiagnostic("calendar", "created event not held by the provider");
-        const draft = created.draft;
-        toast.error(
-          t("pim.eventCreateLost", { title: created.row.title, defaultValue: "Der neue Termin „{{title}}“ fehlt in Deinem Kalender: der Anbieter hat ihn nicht behalten." }),
-          draft ? { label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }), run: () => startCreate(created.row.accountId, created.row.calendarId, draft) } : undefined,
-        );
-      });
-    const timer = window.setInterval(check, 60_000);
-    return () => window.clearInterval(timer);
-  }, [targetFor, startCreate, t]);
-
-  /**
    * The save gate. A create writes straight away. An edit on a SERIES instance
    * first asks what it should apply to — but only when something actually
    * changed: a form closed unchanged writes nothing and shows no dialog.
@@ -1118,7 +1098,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       }
       // One uid for this create, kept by "Try again": a create that did land
       // after all is found under it, never made twice (issue 119).
-      const draft: PimEventDraft = { ...eventFormToDraft(values), createAs: newPimCreateUid() };
+      const draft: PimEventCreate = { ...eventFormToDraft(values), createAs: newPimCreateUid() };
       const [accountId, ...rest] = values.calendarKey.split(" ");
       const calId = rest.join(" ");
       if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));

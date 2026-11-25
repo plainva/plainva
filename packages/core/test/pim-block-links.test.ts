@@ -1,3 +1,4 @@
+import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GooglePimTarget, GOOGLE_BLOCK_SLOTS } from "../src/pim/GooglePimTarget.ts";
 import { GraphPimTarget, GRAPH_BLOCK_OF_PROPERTY_ID, GRAPH_BLOCKS_PROPERTY_ID } from "../src/pim/GraphPimTarget.ts";
@@ -9,6 +10,9 @@ import { PimRequestError } from "../src/pim/requestError.ts";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.ts";
 import type { PimAuthProvider, PimBlockRef, PimEvent, PimEventDraft } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
+
+/** Every create names its uid (issue 119): a fresh one per call here. */
+const withUid = <T extends object>(draft: T): T & { createAs: string } => ({ ...draft, createAs: newPimCreateUid() });
 
 /**
  * The reverse half of the blocker linkage (K3): an event carries the list of
@@ -274,7 +278,7 @@ describe("CalDAV: an X- property on the event", () => {
       if (init?.method === "PUT") body = String(init.body);
       return new Response("", { status: 201 });
     });
-    await new CalDavPimTarget(creds, fetchFn).createEvent(collection, d);
+    await new CalDavPimTarget(creds, fetchFn).createEvent(collection, withUid(d));
     return body;
   }
 

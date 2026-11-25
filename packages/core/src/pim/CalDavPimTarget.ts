@@ -13,10 +13,12 @@ import type {
   PimBlockRef,
   PimCalendar,
   PimEvent,
+  PimEventCreate,
   PimEventDraft,
   PimEventLinks,
   PimEventRef,
   PimTask,
+  PimTaskCreate,
   PimTaskDraft,
   PimTaskList,
   PimTaskRef,
@@ -25,7 +27,7 @@ import type {
   PullEventsDeltaResult,
   PullTasksResult,
 } from "./types.js";
-import { PimConflictError } from "./types.js";
+import { PimConflictError, PimNotShownYetError } from "./types.js";
 import { htmlToMarkdown } from "./htmlToMarkdown.js";
 import { normalizeTitle } from "./seriesTitle.js";
 import { sortedMinutes } from "./eventFields.js";
@@ -65,6 +67,22 @@ const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
  */
 const justCreated = new Map<string, number>();
 const JUST_CREATED_MS = 10 * 60_000;
+
+/**
+ * The addresses a create has been sent to, and when (issue 119): an answer
+ * 412 to a create counts as "landed" only for an address sent to before - in
+ * the same call, or in an earlier try of the same create. Kept for a day.
+ */
+const sentCreates = new Map<string, number>();
+const SENT_CREATES_MS = 24 * 3600_000;
+
+/** Marks `href` as sent to; returns whether it had been sent to before. */
+function createSent(href: string, now: number): boolean {
+  for (const [known, at] of sentCreates) if (now - at > SENT_CREATES_MS) sentCreates.delete(known);
+  const before = sentCreates.has(href);
+  sentCreates.set(href, now);
+  return before;
+}
 
 function noteCreated(href: string, now: number): void {
   for (const [known, at] of justCreated) if (now - at > JUST_CREATED_MS) justCreated.delete(known);
@@ -430,74 +448,70 @@ export class CalDavPimTarget implements IPimTarget {
     });
   }
 
-  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
-    const uid = draft.createAs ?? generateUid();
-    const href = this.resolve(joinCollection(calendarId, `${uid}.ics`));
-    const etag = await this.createObject(href, "event", buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)));
+  async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
+    const uid = draft.createAs;
+    const { href, etag } = await this.createObject(this.resolve(joinCollection(calendarId, `${uid}.ics`)), "event", buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)));
     return { uid, etag, href };
   }
 
   /**
-   * PUTs a new object and hands back its etag - only once the server holds it
-   * (issue 119).
+   * PUTs a new object (issue 119) and hands back where it stands and, where
+   * the server shows it, its etag.
    *
    * A server that rewrites what it is sent names no etag in its answer (RFC
    * 4791 5.3.4), so the object is read back. iCloud answers that read with 404
-   * for a moment after the create. Taken for "etag unknown", that 404 made a
-   * create count as written that the server did not show: the event stood on
-   * screen without an etag, the first edit read it, met the same 404 and said
-   * "caldav read 404 before update" - and where the server never kept it, the
-   * event left the screen three minutes later without a word. Now the read
-   * gives the object time to show. One that still does not is sent once more:
-   * a 412 says the server holds it, a new 201 that it had dropped it and has it
-   * now. Only an object that is not shown after that is a refused create, and
-   * what the person typed stays with "Try again".
+   * for a moment after the create; taken for "etag unknown", the first edit
+   * read it again, met the same 404 and said "caldav read 404 before update".
+   * Now the read gives the object time to show. One that still does not is
+   * sent once more with `If-None-Match: *` - a server that dropped it takes it
+   * now; one that holds it answers 412 or, where its write side is as late as
+   * its read side, takes the same object again at the same address. After two
+   * accepted sends the object counts as held, its etag unknown: an edit of it
+   * then waits for it (`justCreated`), and the screen asks the provider later
+   * whether it is there (`watchCreatedEvents`). Nothing is refused that the
+   * server accepted.
    *
-   * `If-None-Match: *` makes every second send safe. The address is the
-   * create's own uid (`createAs`, the same for every try of one create), so an
-   * object already standing there is this create, landed after all: it is
-   * read, never written a second time.
+   * A 412 counts as "this create, landed" only where this address was sent
+   * before - in this call, or in an earlier try of the same create
+   * (`createAs` is the same for every try). On a first send it is somebody
+   * else's object, and an error. A server that puts the object under its own
+   * address and says so (`Location`) is read there, and never sent again.
    */
-  private async createObject(href: string, what: "event" | "task", body: string): Promise<string | undefined> {
-    const etag = await this.putNewObject(href, what, body);
-    noteCreated(href, Date.now());
-    return etag;
+  private async createObject(href: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
+    const placed = await this.putNewObject(href, what, body);
+    noteCreated(placed.href, Date.now());
+    return placed;
   }
 
-  private async putNewObject(href: string, what: "event" | "task", body: string): Promise<string | undefined> {
-    const put = () =>
-      this.rawRequest(href, {
+  private async putNewObject(href: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
+    const put = async () => {
+      const sentBefore = createSent(href, Date.now());
+      const res = await this.rawRequest(href, {
         method: "PUT",
         headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
         body,
       });
+      if (res.status === 412 && !sentBefore) throw await pimRequestError(`caldav create ${what}: the address is taken`, res);
+      if (res.status !== 412 && !res.ok) throw await pimRequestError(`caldav create ${what}`, res);
+      return res;
+    };
     let res = await put();
-    for (let attempt = 0; ; attempt++) {
-      // 412: an object already stands at this address - this create, landed.
-      const landed = res.status === 412;
-      if (!landed) {
-        if (!res.ok) throw await pimRequestError(`caldav create ${what}`, res);
-        const said = res.headers.get("ETag");
-        if (said) return said;
-      }
+    for (let sends = 1; ; sends++) {
+      const location = res.ok ? res.headers.get("Location") : null;
+      const at = location ? this.resolve(location) : href;
+      const said = res.ok ? res.headers.get("ETag") : null;
+      if (said && at === href) return { href, etag: said };
       let read: Response;
       try {
-        read = await this.readAfterWrite(href);
+        read = await this.readAfterWrite(at);
       } catch {
-        // No answer at all: the server took the object, its etag is unknown -
-        // which the 412 handling of an edit or a delete copes with.
-        return undefined;
+        // No answer at all: the server took the object, its etag is unknown.
+        return { href: at };
       }
-      if (read.status !== 404 && read.status !== 410) return read.ok ? (read.headers.get("ETag") ?? undefined) : undefined;
-      // The server said it holds the object and still does not show it: its
-      // word stands, the etag stays unknown.
-      if (landed) return undefined;
-      // Accepted and not shown: ask once more by sending it again. A server
-      // that kept it answers 412 (no second event); one that dropped it takes
-      // it now.
-      if (attempt > 0) {
-        throw new PimRequestError(`caldav create ${what}: the server accepted it but does not show it (${read.status})`, read.status);
-      }
+      if (read.status !== 404 && read.status !== 410) return { href: at, ...(read.ok && read.headers.get("ETag") ? { etag: read.headers.get("ETag")! } : {}) };
+      // Not shown. Held where the server said so (412), where it lives under
+      // an address of the server's own, or after the second accepted send.
+      if (res.status === 412 || at !== href || sends >= 2) return { href: at };
       res = await put();
     }
   }
@@ -617,10 +631,9 @@ export class CalDavPimTarget implements IPimTarget {
     return true;
   }
 
-  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
-    const uid = draft.createAs ?? generateUid();
-    const href = this.resolve(joinCollection(listId, `${uid}.ics`));
-    const etag = await this.createObject(href, "task", buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)));
+  async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
+    const uid = draft.createAs;
+    const { href, etag } = await this.createObject(this.resolve(joinCollection(listId, `${uid}.ics`)), "task", buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)));
     return { uid, etag, href };
   }
 
@@ -680,7 +693,12 @@ export class CalDavPimTarget implements IPimTarget {
       // An object this app created a moment ago may not show yet (issue 119):
       // it is given the read-back's patience - also a delete of one of its
       // occurrences, which would otherwise take "not shown" for "done".
-      const getRes = createdMomentsAgo(href, Date.now()) ? await this.readAfterWrite(href) : await this.rawRequest(href, { method: "GET", headers: {} });
+      const fresh = createdMomentsAgo(href, Date.now());
+      const getRes = fresh ? await this.readAfterWrite(href) : await this.rawRequest(href, { method: "GET", headers: {} });
+      // Still not shown, though this app just created it: not gone, not
+      // refused - the provider has not caught up yet, and the person is told
+      // exactly that (`PimNotShownYetError`).
+      if (fresh && (getRes.status === 404 || getRes.status === 410)) throw new PimNotShownYetError();
       if (options.goneIsDone && (getRes.status === 404 || getRes.status === 410)) return {};
       // With its status (K3): a blocker that is gone answers 404 here, and the
       // caller has to tell "gone" from "refused".
@@ -828,10 +846,6 @@ function findComponent(
 }
 
 // ---- write helpers --------------------------------------------------------
-
-function generateUid(): string {
-  return newPimCreateUid();
-}
 
 /**
  * The uid for ONE create of the person (`PimEventDraft.createAs`): made once

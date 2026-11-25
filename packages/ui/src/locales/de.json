@@ -6139,7 +6139,7 @@
     "eventConflict": "Der Termin wurde extern geändert — Ansicht aktualisiert.",
     "eventWriteFailed": "Speichern beim Anbieter fehlgeschlagen.",
     "eventWriteRefused": "Der Termin wurde nicht gespeichert: {{reason}}",
-    "eventCreateLost": "Der neue Termin „{{title}}“ fehlt in Deinem Kalender: der Anbieter hat ihn nicht behalten.",
+    "eventCreateLost": "Dein Anbieter hat den neuen Termin „{{title}}“ nicht.",
     "eventDeleteRefused": "Der Termin wurde nicht gelöscht: {{reason}}",
     "eventWriteRetry": "Erneut versuchen",
     "eventSending": "wird gesendet",

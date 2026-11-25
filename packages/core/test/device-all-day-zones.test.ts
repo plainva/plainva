@@ -1,5 +1,9 @@
+import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
 import { afterEach, describe, expect, it } from "vitest";
 import { DevicePimTarget, type DeviceAllDayAnchor, type DeviceEventDraft, type DeviceEventHandle, type DeviceEventRecord, type DevicePimPort } from "../src/index.js";
+
+/** Every create names its uid (issue 119): a fresh one per call here. */
+const withUid = <T extends object>(draft: T): T & { createAs: string } => ({ ...draft, createAs: newPimCreateUid() });
 
 /**
  * An all-day event on the device calendar, in zones on both sides of UTC
@@ -53,7 +57,7 @@ describe("an all-day event on the device calendar, in every zone", () => {
         const target = new DevicePimTarget(port);
         const stored = (date: string) => (at === "utc" ? Date.parse(`${date}T00:00:00Z`) : new Date(`${date}T00:00:00`).getTime());
 
-        const made = await target.createEvent("cal", { title: "Holiday", allDay: true, start: formDay("2026-11-11"), end: formDay("2026-11-12") });
+        const made = await target.createEvent("cal", withUid({ title: "Holiday", allDay: true, start: formDay("2026-11-11"), end: formDay("2026-11-12") }));
         expect([port.rows[0]!.startTs, port.rows[0]!.endTs]).toEqual([stored("2026-11-11"), stored("2026-11-12")]);
 
         const read = (await target.pullEvents("cal", 0, Date.UTC(2027, 0, 1))).events[0]!;
@@ -71,7 +75,7 @@ describe("an all-day event on the device calendar, in every zone", () => {
     process.env.TZ = "Europe/Berlin";
     const port = new Port("local");
     const target = new DevicePimTarget(port);
-    await target.createEvent("cal", { title: "Weekend", allDay: true, start: formDay("2026-10-24"), end: formDay("2026-10-26") });
+    await target.createEvent("cal", withUid({ title: "Weekend", allDay: true, start: formDay("2026-10-24"), end: formDay("2026-10-26") }));
     expect([port.rows[0]!.startTs, port.rows[0]!.endTs]).toEqual([new Date(2026, 9, 24).getTime(), new Date(2026, 9, 26).getTime()]);
     const read = (await target.pullEvents("cal", 0, Date.UTC(2027, 0, 1))).events[0]!;
     expect([read.start.date, read.end.date]).toEqual(["2026-10-24", "2026-10-26"]);

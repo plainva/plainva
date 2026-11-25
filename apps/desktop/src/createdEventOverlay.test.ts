@@ -1,8 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { CalDavPimTarget, expandIcsEvents, type FetchFn, type PimEventDraft, type PimEventRow } from "@plainva/core";
+import { describe, expect, it, vi } from "vitest";
+import { CalDavPimTarget, expandIcsEvents, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventDraft, type PimEventRow } from "@plainva/core";
+
+const bus = vi.hoisted(() => ({ request: (() => Promise.reject(new Error("no bus"))) as unknown }));
+vi.mock("./services/windowBus", () => ({ getWindowBus: async () => bus }));
+
+import { createRemotePimTarget } from "./services/pim/remotePimTarget";
 import {
   applyPendingEventWrites,
-  checkUnlistedCreates,
+  CREATED_EVENT_GIVE_UP_MS,
+  settleCreatedEvents,
+  watchCreatedEvents,
   createCalendarEvent,
   createChange,
   draftToRow,
@@ -27,7 +34,7 @@ import {
 const CAL = "https://dav.example.org/cal/home/personal/";
 const DAY = 24 * 3600_000;
 const start = Date.parse("2026-12-01T09:00:00Z");
-const weekly: PimEventDraft = {
+const weekly: PimEventCreate = {
   title: "Team sync",
   start: { ts: start },
   end: { ts: start + 30 * 60_000 },
@@ -42,9 +49,14 @@ function headerOf(init: RequestInit | undefined, name: string): string | undefin
   return key ? h[key] : undefined;
 }
 
-/** A CalDAV server like iCloud: it rewrites what it stores, names no etag in its answer, honours If-None-Match. */
-function davServer() {
-  const objects = new Map<string, { text: string; etag: string }>();
+/**
+ * A CalDAV server like iCloud: it rewrites what it stores, names no etag in
+ * its answer, honours If-None-Match, and shows a new object only `lagMs` after
+ * it took it - on its own clock, which moves while the client waits.
+ */
+function davServer({ lagMs }: { lagMs: number } = { lagMs: 1_000 }) {
+  let now = 0;
+  const objects = new Map<string, { text: string; etag: string; visibleAt: number }>();
   let revision = 0;
   const fetchFn: FetchFn = async (input, init) => {
     const url = String(input);
@@ -53,20 +65,20 @@ function davServer() {
     if (method === "PUT") {
       if (headerOf(init, "If-None-Match") === "*" && held) return new Response(null, { status: 412 });
       revision += 1;
-      objects.set(url, { text: String(init?.body).replace("PRODID:-//Plainva//Plainva//EN", "PRODID:-//Example//Server//EN"), etag: `"r${revision}"` });
+      objects.set(url, { text: String(init?.body).replace("PRODID:-//Plainva//Plainva//EN", "PRODID:-//Example//Server//EN"), etag: `"r${revision}"`, visibleAt: now + lagMs });
       return new Response(null, { status: 201 });
     }
-    if (method === "GET") return held ? new Response(held.text, { status: 200, headers: { ETag: held.etag } }) : new Response("Not Found", { status: 404 });
+    if (method === "GET") return held && now >= held.visibleAt ? new Response(held.text, { status: 200, headers: { ETag: held.etag } }) : new Response("Not Found", { status: 404 });
     if (method === "DELETE") {
       objects.delete(url);
       return new Response(null, { status: 204 });
     }
     return new Response(null, { status: 405 });
   };
-  return { objects, target: new CalDavPimTarget({ url: "https://dav.example.org/cal/home/", user: "u", pass: "p" }, fetchFn, async () => {}) };
+  return { objects, target: new CalDavPimTarget({ url: "https://dav.example.org/cal/home/", user: "u", pass: "p" }, fetchFn, async (ms) => void (now += ms)) };
 }
 
-async function createOnScreen(store: PendingEventWrites, target: CalDavPimTarget, draft: PimEventDraft) {
+async function createOnScreen(store: PendingEventWrites, target: CalDavPimTarget, draft: PimEventCreate) {
   const id = store.reserve();
   const { uid: _uid, ...shown } = draftToRow("a1", CAL, "", draft);
   const targets = { targetFor: async () => target };
@@ -117,7 +129,7 @@ describe("a new series on screen (issue 119)", () => {
     const store = new PendingEventWrites();
     const created = await createOnScreen(store, target, weekly);
     const listed: PimEventRow = { ...created, uid: `${created.uid}#2026-12-08T09:00:00Z`, seriesMaster: created.uid, start: { ts: start + 7 * DAY }, end: { ts: start + 7 * DAY + 30 * 60_000 } };
-    store.reconcile([listed], Date.now());
+    store.reconcile([listed], 1_000);
     expect(applyPendingEventWrites([listed], store.snapshot(), { startTs: start - DAY, endTs: start + 28 * DAY })).toEqual([listed]);
   });
 
@@ -137,61 +149,124 @@ describe("a new series on screen (issue 119)", () => {
 });
 
 describe("a new event no sync lists yet (issue 119)", () => {
-  const single: PimEventDraft = { ...weekly, recurrence: undefined };
+  const single: PimEventCreate = { ...weekly, recurrence: undefined, createAs: "plainva-1" };
+  const created = { ...draftToRow("a1", CAL, "plainva-1", single), href: `${CAL}plainva-1.ics` };
   const settledCreate = (store: PendingEventWrites, row: PimEventRow, at: number, draft: PimEventDraft = single) => {
     const id = store.begin(createChange(row, draft));
     store.settle(id, undefined, at);
   };
-  const created = { ...draftToRow("a1", CAL, "plainva-1", { ...weekly, recurrence: undefined }), href: `${CAL}plainva-1.ics` };
+
+  /** The cache as the vault holds it: every range, shown or not. */
+  function cache(init: { rows?: PimEventRow[]; enabled?: boolean; selected?: boolean; account?: boolean } = {}) {
+    const state = { rows: init.rows ?? [], enabled: init.enabled ?? true, selected: init.selected ?? true, account: init.account ?? true };
+    return {
+      state,
+      findEventsByUid: async (uid: string) => state.rows.filter((row) => row.uid === uid || row.seriesMaster === uid),
+      listAccounts: async () => (state.account ? [{ id: "a1", provider: "caldav", label: "x", config: {}, enabled: state.enabled } as unknown as PimAccountRow] : []),
+      listCalendars: async () => [{ accountId: "a1", id: CAL, name: "Personal", selected: state.selected } as PimCalendar & { accountId: string; selected: boolean }],
+    };
+  }
+  const shownNow = (store: PendingEventWrites) => applyPendingEventWrites([], store.snapshot());
 
   it("is not taken off the screen when the overlay's time runs out", () => {
     expect.hasAssertions();
     const store = new PendingEventWrites();
     settledCreate(store, created, 0);
     store.reconcile([], SETTLED_EVENT_WRITE_TTL_MS * 10);
-    expect(applyPendingEventWrites([], store.snapshot()).map((row) => row.uid)).toEqual(["plainva-1"]);
+    expect(shownNow(store).map((row) => row.uid)).toEqual(["plainva-1"]);
   });
 
-  it("is asked about after that time - held, it stays, and is asked again only after another such time", async () => {
+  it("ends once a sync has it - in any range, not only the one shown - and is never called lost after that", async () => {
     expect.hasAssertions();
     const store = new PendingEventWrites();
     settledCreate(store, created, 0);
-    const asked: string[] = [];
-    const targetFor = async () => ({ eventExists: async (ref: { uid: string }) => (asked.push(ref.uid), true) });
+    // The week on screen does not hold it; the cache does (next month).
+    const vault = cache({ rows: [{ ...created, etag: '"r1"' }] });
     const gone: CreatedEventChange[] = [];
-    await checkUnlistedCreates(store, targetFor, (c) => gone.push(c), SETTLED_EVENT_WRITE_TTL_MS - 1);
-    expect(asked).toEqual([]);
-    await checkUnlistedCreates(store, targetFor, (c) => gone.push(c), SETTLED_EVENT_WRITE_TTL_MS + 1);
-    await checkUnlistedCreates(store, targetFor, (c) => gone.push(c), SETTLED_EVENT_WRITE_TTL_MS + 2);
-    expect(asked).toEqual(["plainva-1"]);
+    const exists = vi.fn(async () => false);
+    await settleCreatedEvents(store, { cache: vault, targetFor: async () => ({ provider: "caldav", eventExists: exists }) as never, onGone: (c) => gone.push(c) }, 60_000);
+    expect(shownNow(store)).toEqual([]);
+    // Deleted elsewhere later: the cache is the truth, nothing is "lost".
+    vault.state.rows = [];
+    await settleCreatedEvents(store, { cache: vault, targetFor: async () => ({ provider: "caldav", eventExists: exists }) as never, onGone: (c) => gone.push(c) }, SETTLED_EVENT_WRITE_TTL_MS * 2);
     expect(gone).toEqual([]);
-    expect(applyPendingEventWrites([], store.snapshot())).toHaveLength(1);
+    expect(exists).not.toHaveBeenCalled();
   });
 
-  it("leaves only when the provider says it is not there - with what the person typed, for 'Try again'", async () => {
-    expect.hasAssertions();
-    const { target } = davServer();
-    const store = new PendingEventWrites();
-    settledCreate(store, created, 0);
-    const gone: CreatedEventChange[] = [];
-    await checkUnlistedCreates(store, async () => target, (c) => gone.push(c), SETTLED_EVENT_WRITE_TTL_MS + 1);
-    expect(applyPendingEventWrites([], store.snapshot())).toEqual([]);
-    expect(gone.map((c) => [c.row.uid, c.draft?.title])).toEqual([["plainva-1", "Team sync"]]);
-  });
-
-  it("a provider that cannot be asked, or does not answer, keeps it", async () => {
+  it("no sync has it: the provider is asked after the overlay's time - held, it stays, asked again only after another such time", async () => {
     expect.hasAssertions();
     const store = new PendingEventWrites();
     settledCreate(store, created, 0);
+    const asked: number[] = [];
+    const deps = { cache: cache(), targetFor: async () => ({ provider: "caldav", eventExists: async () => (asked.push(1), true) }) as never, onGone: () => undefined };
+    await settleCreatedEvents(store, deps, SETTLED_EVENT_WRITE_TTL_MS - 1);
+    await settleCreatedEvents(store, deps, SETTLED_EVENT_WRITE_TTL_MS + 1);
+    await settleCreatedEvents(store, deps, SETTLED_EVENT_WRITE_TTL_MS + 2);
+    expect(asked).toHaveLength(1);
+    expect(shownNow(store)).toHaveLength(1);
+  });
+
+  it("no sync ever had it and the provider does not hold it: it leaves with what the person typed, for 'Try again'", async () => {
+    expect.hasAssertions();
+    const { target } = davServer({ lagMs: 0 });
+    const store = new PendingEventWrites();
+    settledCreate(store, created, 0);
     const gone: CreatedEventChange[] = [];
-    await checkUnlistedCreates(store, async () => ({}), (c) => gone.push(c), SETTLED_EVENT_WRITE_TTL_MS + 1);
-    await checkUnlistedCreates(
-      store,
-      async () => ({ eventExists: async () => Promise.reject(new Error("offline")) }),
-      (c) => gone.push(c),
-      SETTLED_EVENT_WRITE_TTL_MS * 3,
-    );
-    expect(gone).toEqual([]);
-    expect(applyPendingEventWrites([], store.snapshot())).toHaveLength(1);
+    await settleCreatedEvents(store, { cache: cache(), targetFor: async () => target, onGone: (c) => gone.push(c) }, SETTLED_EVENT_WRITE_TTL_MS + 1);
+    expect(shownNow(store)).toEqual([]);
+    expect(gone.map((c) => [c.row.uid, c.draft?.title, c.draft?.createAs])).toEqual([["plainva-1", "Team sync", "plainva-1"]]);
+  });
+
+  it("a hidden calendar, an account switched off or removed: it leaves without a word", async () => {
+    expect.hasAssertions();
+    for (const state of [{ selected: false }, { enabled: false }, { account: false }]) {
+      const store = new PendingEventWrites();
+      settledCreate(store, created, 0);
+      const gone: CreatedEventChange[] = [];
+      await settleCreatedEvents(store, { cache: cache(state), targetFor: async () => null, onGone: (c) => gone.push(c) }, 60_000);
+      expect([state, shownNow(store).length, gone.length]).toEqual([state, 0, 0]);
+    }
+  });
+
+  it("a provider that does not answer keeps it - but nothing is drawn from here longer than the hourly full refresh needs", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    settledCreate(store, created, 0);
+    const deps = { cache: cache(), targetFor: async () => ({ provider: "caldav", eventExists: async () => Promise.reject(new Error("offline")) }) as never, onGone: () => undefined };
+    await settleCreatedEvents(store, deps, SETTLED_EVENT_WRITE_TTL_MS * 3);
+    expect(shownNow(store)).toHaveLength(1);
+    await settleCreatedEvents(store, deps, CREATED_EVENT_GIVE_UP_MS + 1);
+    expect(shownNow(store)).toEqual([]);
+  });
+
+  it("the device's own calendars cannot be asked: the overlay ends after its time, as before", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    settledCreate(store, created, 0);
+    const deps = { cache: cache(), targetFor: async () => ({ provider: "device" }) as never, onGone: () => undefined };
+    await settleCreatedEvents(store, deps, SETTLED_EVENT_WRITE_TTL_MS + 1);
+    expect(shownNow(store)).toEqual([]);
+  });
+
+  it("an auxiliary window asks through the central one", async () => {
+    expect.hasAssertions();
+    const sent: unknown[] = [];
+    bus.request = vi.fn(async (_kind: string, args: { op: { kind: string } }) => (sent.push(args.op), { ok: true, exists: false })) as never;
+    const remote = createRemotePimTarget({ id: "a1", provider: "caldav" } as unknown as PimAccountRow);
+    const store = new PendingEventWrites();
+    settledCreate(store, created, 0);
+    const gone: CreatedEventChange[] = [];
+    await settleCreatedEvents(store, { cache: cache(), targetFor: async () => remote, onGone: (c) => gone.push(c) }, SETTLED_EVENT_WRITE_TTL_MS + 1);
+    expect(sent).toEqual([{ kind: "eventExists", ref: { calendarId: CAL, uid: "plainva-1", href: `${CAL}plainva-1.ics` } }]);
+    expect(gone).toHaveLength(1);
+  });
+
+  it("closing the vault stops the watch and takes the overlay along", () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    settledCreate(store, created, 0);
+    const stop = watchCreatedEvents(store, { cache: cache(), targetFor: async () => null });
+    stop();
+    expect(store.snapshot()).toEqual([]);
   });
 });

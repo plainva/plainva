@@ -6270,7 +6270,7 @@
     "eventConflict": "O evento foi alterado remotamente — visualização atualizada.",
     "eventWriteFailed": "Falha ao salvar no provedor.",
     "eventWriteRefused": "O evento não foi salvo: {{reason}}",
-    "eventCreateLost": "O novo evento “{{title}}” não está no seu calendário: o provedor não o manteve.",
+    "eventCreateLost": "Seu provedor não tem o novo evento “{{title}}”.",
     "eventDeleteRefused": "O evento não foi excluído: {{reason}}",
     "eventWriteRetry": "Tentar novamente",
     "eventSending": "enviando",

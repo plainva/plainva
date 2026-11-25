@@ -4,6 +4,7 @@ import {
   type IDatabaseAdapter,
   type IPimTarget,
   type PimAccountRow,
+  type PimEventCreate,
   type PimEventDraft,
   type PimEventRef,
 } from "@plainva/core";
@@ -88,7 +89,7 @@ export function withWriteAttempt(target: IPimTarget | null, attempt: string): IP
   if (!target || id === undefined) return target;
   return {
     ...target,
-    async createEvent(calendarId: string, draft: PimEventDraft) {
+    async createEvent(calendarId: string, draft: PimEventCreate) {
       const res = await send(id, { kind: "createEvent", calendarId, draft }, `${attempt}:${nameOf(JSON.stringify([calendarId, draft]))}`);
       return { uid: res.uid ?? "", etag: res.etag, href: res.href };
     },
@@ -111,9 +112,15 @@ export function createRemotePimTarget(account: PimAccountRow): IPimTarget {
     createTask: () => unavailable("createTask"),
     updateTask: () => unavailable("updateTask"),
     deleteTask: () => unavailable("deleteTask"),
-    async createEvent(calendarId: string, draft: PimEventDraft) {
+    async createEvent(calendarId: string, draft: PimEventCreate) {
       const res = await send(id, { kind: "createEvent", calendarId, draft });
       return { uid: res.uid ?? "", etag: res.etag, href: res.href };
+    },
+    /** Asked in the central window (issue 119); a provider that cannot be asked there cannot be asked here either. */
+    async eventExists(ref: PimEventRef) {
+      const res = await send(id, { kind: "eventExists", ref });
+      if (typeof res.exists !== "boolean") throw new Error("this provider cannot be asked about an event");
+      return res.exists;
     },
     async updateEvent(ref: PimEventRef, draft: PimEventDraft) {
       const res = await send(id, { kind: "updateEvent", ref, draft });

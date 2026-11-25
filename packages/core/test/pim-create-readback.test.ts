@@ -1,8 +1,12 @@
+import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
 import { describe, expect, it } from "vitest";
 import { CalDavPimTarget } from "../src/pim/CalDavPimTarget.ts";
-import { PimRequestError } from "../src/pim/requestError.ts";
+import { PimNotShownYetError } from "../src/pim/types.ts";
 import type { PimEventDraft, PimTaskDraft } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
+
+/** Every create names its uid (issue 119): a fresh one per call here. */
+const withUid = <T extends object>(draft: T): T & { createAs: string } => ({ ...draft, createAs: newPimCreateUid() });
 
 /**
  * A new event the server accepted but does not show yet (issue 119).
@@ -38,10 +42,20 @@ interface Stored {
   visibleAt: number;
 }
 
-function laggingServer(options: { lagMs: number; dropFirstPuts?: number }) {
+function laggingServer(options: {
+  lagMs: number;
+  dropFirstPuts?: number;
+  /** The write side as late as the read side: `If-None-Match: *` sees only shown objects, and a PUT over one not shown yet replaces it at its address. */
+  lateWrites?: boolean;
+  /** Puts every new object under an address of its own and names it in `Location`. */
+  relocate?: boolean;
+  /** Answers 412 to the very first create although nothing is stored. */
+  refuseFirst?: boolean;
+}) {
   let now = 0;
   let revision = 0;
   let drops = options.dropFirstPuts ?? 0;
+  let refuseFirst = options.refuseFirst ?? false;
   const objects = new Map<string, Stored>();
   const requests: string[] = [];
   const fetchFn: FetchFn = async (input, init) => {
@@ -50,7 +64,17 @@ function laggingServer(options: { lagMs: number; dropFirstPuts?: number }) {
     requests.push(`${method} ${url.slice(CAL.length)}`);
     const held = objects.get(url);
     if (method === "PUT") {
-      if (headerOf(init, "If-None-Match") === "*" && held) return new Response(null, { status: 412 });
+      if (refuseFirst) {
+        refuseFirst = false;
+        return new Response(null, { status: 412 });
+      }
+      if (headerOf(init, "If-None-Match") === "*" && held && (!options.lateWrites || now >= held.visibleAt)) return new Response(null, { status: 412 });
+      if (options.relocate) {
+        revision += 1;
+        const at = `${CAL}server-${revision}.ics`;
+        objects.set(at, { text: String(init?.body), etag: `"r${revision}"`, visibleAt: now });
+        return new Response(null, { status: 201, headers: { Location: at } });
+      }
       const ifMatch = headerOf(init, "If-Match");
       if (ifMatch && (!held || now < held.visibleAt || held.etag !== ifMatch)) return new Response(null, { status: 412 });
       revision += 1;
@@ -60,7 +84,7 @@ function laggingServer(options: { lagMs: number; dropFirstPuts?: number }) {
         return new Response(null, { status: 201 });
       }
       const text = String(init?.body).replace("PRODID:-//Plainva//Plainva//EN", "PRODID:-//Example//Server//EN");
-      objects.set(url, { text, etag: `"r${revision}"`, visibleAt: held ? now : now + options.lagMs });
+      objects.set(url, { text, etag: `"r${revision}"`, visibleAt: held ? (options.lateWrites ? held.visibleAt : now) : now + options.lagMs });
       return new Response(null, { status: held ? 204 : 201 });
     }
     if (method === "GET") {
@@ -89,7 +113,7 @@ describe("CalDAV: a new event the server shows late", () => {
   it("is read back until the server shows it, and the first edit after it goes through", async () => {
     expect.hasAssertions();
     const { target, waits } = laggingServer({ lagMs: 1_000 });
-    const created = await target.createEvent(CAL, weekly);
+    const created = await target.createEvent(CAL, withUid(weekly));
     // The edit the report failed on, with the etag the create handed back.
     const edited = await target.updateEvent({ calendarId: CAL, uid: created.uid, etag: created.etag, href: created.href }, { ...weekly, title: "Team sync (moved)" });
     expect(created.etag).toBe('"r1"');
@@ -115,22 +139,53 @@ describe("CalDAV: a new event the server shows late", () => {
     expect(objects.size).toBe(1);
   });
 
-  it("a create the server drops twice is refused with that reason - never counted as written", async () => {
+  it("a create the server accepted twice and still does not show counts as held - not refused", async () => {
     expect.hasAssertions();
     const { target, objects } = laggingServer({ lagMs: 0, dropFirstPuts: 2 });
     const draft = { ...weekly, createAs: "plainva-try-2" };
-    const refusal = await target.createEvent(CAL, draft).then(
-      () => null,
-      (error: unknown) => error,
-    );
-    expect(refusal).toBeInstanceOf(PimRequestError);
-    expect((refusal as PimRequestError).status).toBe(404);
-    expect((refusal as Error).message).toBe("caldav create event: the server accepted it but does not show it (404)");
+    // Accepted twice: nothing the server accepted is refused. Whether it holds
+    // it is asked later, by the screen (`watchCreatedEvents`).
+    await expect(target.createEvent(CAL, draft)).resolves.toEqual({ uid: "plainva-try-2", href: `${CAL}plainva-try-2.ics` });
     expect(objects.size).toBe(0);
-    // "Try again" is the same create, under the same uid: it lands now.
+    await expect(target.eventExists({ calendarId: CAL, uid: "plainva-try-2", href: `${CAL}plainva-try-2.ics` })).resolves.toBe(false);
+    // "Try again" is the same create, under the same uid: it lands now, once.
     const again = await target.createEvent(CAL, draft);
     expect(again.uid).toBe("plainva-try-2");
     expect(objects.size).toBe(1);
+  });
+
+  it("a server whose write side is as late as its read side: held after the second send, one object, never 'not saved'", async () => {
+    expect.hasAssertions();
+    const { target, objects, requests } = laggingServer({ lagMs: 15_000, lateWrites: true });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-late-1" });
+    expect(created).toEqual({ uid: "plainva-late-1", href: `${CAL}plainva-late-1.ics` });
+    expect(objects.size).toBe(1);
+    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(2);
+  });
+
+  it("a server that puts the object under its own address is read there - one object per try, never sent twice", async () => {
+    expect.hasAssertions();
+    const { target, objects, requests } = laggingServer({ lagMs: 0, relocate: true });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-moved-1" });
+    expect(created).toEqual({ uid: "plainva-moved-1", etag: '"r1"', href: `${CAL}server-1.ics` });
+    expect(objects.size).toBe(1);
+    expect(requests).toEqual(["PUT plainva-moved-1.ics", "GET server-1.ics"]);
+  });
+
+  it("412 on the first send of a fresh uid is somebody else's object - an error, never 'landed'", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 0, refuseFirst: true });
+    await expect(target.createEvent(CAL, { ...weekly, createAs: "plainva-taken-1" })).rejects.toThrow("caldav create event: the address is taken");
+    expect(objects.size).toBe(0);
+  });
+
+  it("an edit of a new event the server still does not show says exactly that - not 'read 404 before update'", async () => {
+    expect.hasAssertions();
+    const { target } = laggingServer({ lagMs: 20_000 });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-slow-3" });
+    const edit = target.updateEvent({ calendarId: CAL, uid: created.uid, etag: created.etag, href: created.href }, { ...weekly, title: "Moved" });
+    await expect(edit).rejects.toBeInstanceOf(PimNotShownYetError);
+    await expect(edit).rejects.toThrow("your provider does not show this new event yet - try again in a moment");
   });
 
   it("'Try again' after an answer that never came finds the event it already left - no second one", async () => {
@@ -184,7 +239,7 @@ describe("CalDAV: a new event the server shows late", () => {
     expect.hasAssertions();
     const { target } = laggingServer({ lagMs: 1_000 });
     const task: PimTaskDraft = { title: "Buy paint", completed: false };
-    const created = await target.createTask(CAL, task);
+    const created = await target.createTask(CAL, withUid(task));
     expect(created.etag).toBe('"r1"');
     await expect(target.updateTask({ listId: CAL, uid: created.uid, etag: created.etag, href: created.href }, { ...task, completed: true })).resolves.toEqual({ etag: '"r2"' });
   });
@@ -196,7 +251,7 @@ describe("CalDAV: a new event the server shows late", () => {
       requests.push(init?.method ?? "GET");
       return new Response(null, { status: 201, headers: { ETag: '"said"' } });
     };
-    const created = await new CalDavPimTarget(creds, fetchFn, async () => {}).createEvent(CAL, weekly);
+    const created = await new CalDavPimTarget(creds, fetchFn, async () => {}).createEvent(CAL, withUid(weekly));
     expect(created.etag).toBe('"said"');
     expect(requests).toEqual(["PUT"]);
   });

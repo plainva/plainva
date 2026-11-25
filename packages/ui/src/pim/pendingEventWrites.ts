@@ -104,11 +104,10 @@ export const isPendingEventUid = (uid: string): boolean => uid.startsWith(PENDIN
  * accepted a write and then never lists it (a calendar hidden in between, an
  * account switched off) must not leave a ghost on screen.
  *
- * Not for a created event (issue 119): the provider confirmed it holds it, and
- * an event that vanished because a sync had not listed it yet was exactly the
- * report. After this long unlisted it is asked about (`checkUnlistedCreates`)
- * - and asked again every such interval - and leaves only when the provider
- * says it is not there, with a message.
+ * Not for a created event (issue 119): an event that vanished because a sync
+ * had not listed it yet was exactly the report. `watchCreatedEvents` settles
+ * those - by the cache, whatever range a view shows, and by asking the
+ * provider after this long.
  */
 export const SETTLED_EVENT_WRITE_TTL_MS = 3 * 60_000;
 
@@ -215,8 +214,8 @@ export function applyPendingEventWrites(
 export function unsettledEventWrites(rows: readonly PimEventRow[], writes: readonly PendingEventWrite[], now: number): PendingEventWrite[] {
   return writes.filter((write) => {
     if (write.state === "sending") return true;
-    // A created event stays until a sync lists it, or the provider says it
-    // is not there (`checkUnlistedCreates`).
+    // A created event is settled by `watchCreatedEvents`, not by a timeout:
+    // the rows here are only the range a view shows.
     if (write.kind === "create") return !listsCreated(rows, write.row);
     if (now - (write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS) return false;
     if (write.kind === "stamp") return rows.some((row) => stamps(row, write));
@@ -305,56 +304,22 @@ export class PendingEventWrites {
     if (this.writes.length > 0) this.set([]);
   }
 
-  /**
-   * The created events no sync has listed for `SETTLED_EVENT_WRITE_TTL_MS`
-   * since they were written or last asked about - each marked as asked now,
-   * so two runs never ask twice.
-   */
-  takeUnlistedCreates(now: number = Date.now()): CreatedEventChange[] {
-    const due = this.writes.filter(
-      (write): write is PendingEventWrite & CreatedEventChange =>
-        write.kind === "create" && write.state === "settled" && now - (write.checkedAt ?? write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS,
-    );
-    if (due.length === 0) return [];
-    const ids = new Set(due.map((write) => write.id));
-    this.writes = this.writes.map((write) => (ids.has(write.id) ? { ...write, checkedAt: now } : write));
-    return due.map(({ row, occurrences, draft }) => ({ kind: "create", row, ...(occurrences ? { occurrences } : {}), ...(draft ? { draft } : {}) }));
+  /** The created events the provider accepted that the views still draw from this overlay (`watchCreatedEvents`). */
+  settledCreates(): Array<CreatedEventChange & { id: number; settledAt: number; checkedAt?: number }> {
+    return this.writes
+      .filter((write): write is PendingEventWrite & CreatedEventChange => write.kind === "create" && write.state === "settled")
+      .map((write) => ({ kind: "create" as const, row: write.row, ...(write.occurrences ? { occurrences: write.occurrences } : {}), ...(write.draft ? { draft: write.draft } : {}), id: write.id, settledAt: write.settledAt ?? 0, ...(write.checkedAt !== undefined ? { checkedAt: write.checkedAt } : {}) }));
   }
 
-  /** A created event the provider says it does not hold: it leaves the screen. */
+  /** The provider was asked about a created event now; asked again only after another `SETTLED_EVENT_WRITE_TTL_MS`. */
+  markChecked(id: number, now: number): void {
+    this.writes = this.writes.map((write) => (write.id === id ? { ...write, checkedAt: now } : write));
+  }
+
+  /** A created event that leaves the overlay: a sync has it, or it is not to be shown, or the provider does not hold it. */
   dropCreated(ref: PendingEventRef): void {
     const kept = this.writes.filter((write) => !(write.kind === "create" && sameRef(write.row, ref)));
     if (kept.length !== this.writes.length) this.set(kept);
-  }
-}
-
-/**
- * Asks the provider about every created event no sync has listed for a while
- * (issue 119). A create counts as written only once the provider holds it, so
- * such an event is not taken off the screen for not being listed: a sync may
- * not have reached it. Held - it stays, and is asked about again later. Not
- * there - it leaves, and `onGone` says so (with what the person typed, for
- * "Try again"). A provider that cannot be asked, or does not answer, keeps it.
- */
-export async function checkUnlistedCreates(
-  store: PendingEventWrites,
-  targetFor: (accountId: string) => Promise<{ eventExists?: (ref: { calendarId: string; uid: string; etag?: string; href?: string }) => Promise<boolean> } | null>,
-  onGone: (created: CreatedEventChange) => void,
-  now: number = Date.now(),
-): Promise<void> {
-  for (const created of store.takeUnlistedCreates(now)) {
-    const { row } = created;
-    let held: boolean;
-    try {
-      const target = await targetFor(row.accountId);
-      if (!target?.eventExists) continue;
-      held = await target.eventExists({ calendarId: row.calendarId, uid: row.uid, etag: row.etag, href: row.href });
-    } catch {
-      continue;
-    }
-    if (held) continue;
-    store.dropCreated(row);
-    onGone(created);
   }
 }
 

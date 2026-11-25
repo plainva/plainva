@@ -9,10 +9,12 @@ import type {
   PimBlockRef,
   PimCalendar,
   PimEvent,
+  PimEventCreate,
   PimEventDraft,
   PimEventLinks,
   PimEventRef,
   PimTask,
+  PimTaskCreate,
   PimTaskDraft,
   PimTaskList,
   PimTaskRef,
@@ -308,7 +310,7 @@ export class GooglePimTarget implements IPimTarget {
 
   // ---- write side (stage 3) ----------------------------------------------
 
-  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+  async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
     // `sendUpdates=all` makes Google email the invitees — the native invite that
     // Gmail renders as an event (same uid, RSVP syncs back). Only when asked.
     const notify = draft.notifyAttendees ? "?sendUpdates=all" : "";
@@ -400,7 +402,7 @@ export class GooglePimTarget implements IPimTarget {
     }
   }
 
-  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+  async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
     const res = await this.request(`${TASKS_BASE}/lists/${encodeURIComponent(listId)}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

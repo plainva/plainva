@@ -1,3 +1,4 @@
+import { createUidFor, forgetCreateUid } from "./createUids";
 import { readFrontmatterPath, setFrontmatterPath, updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { verifiedProviderIdentityOf } from "../lib/accountProfile";
 
@@ -145,7 +146,7 @@ export interface CreateProviderTaskOptions {
   draft: ProviderTaskDraft;
   /** The provider call. Injected so this module stays free of the PIM runtime
    * and can be tested without one. */
-  createTask(listId: string, draft: { title: string; due?: string; notes?: string; completed: boolean }): Promise<{ uid: string }>;
+  createTask(listId: string, draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string }): Promise<{ uid: string }>;
 }
 
 export type CreateProviderTaskResult =
@@ -164,8 +165,12 @@ export async function createProviderTask(
   opts: CreateProviderTaskOptions
 ): Promise<CreateProviderTaskResult> {
   let uid: string;
+  // The task of this note in this list, the same uid for every try (issue 119).
+  const where = `${opts.accountId} ${opts.listId}`;
+  const what = { note: opts.notePath, title: opts.draft.title };
   try {
     const res = await opts.createTask(opts.listId, {
+      createAs: createUidFor("provider-task", where, what),
       title: opts.draft.title,
       ...(opts.draft.due ? { due: opts.draft.due } : {}),
       ...(opts.draft.notes ? { notes: opts.draft.notes } : {}),
@@ -174,6 +179,7 @@ export async function createProviderTask(
       completed: false,
     });
     uid = res.uid;
+    forgetCreateUid("provider-task", where, what);
   } catch {
     return { ok: false, reason: "createFailed" };
   }

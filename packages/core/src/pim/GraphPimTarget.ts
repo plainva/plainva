@@ -7,11 +7,13 @@ import type {
   PimAuthProvider,
   PimCalendar,
   PimEvent,
+  PimEventCreate,
   PimEventDraft,
   PimEventLinks,
   PimRecurrence,
   PimEventRef,
   PimTask,
+  PimTaskCreate,
   PimTaskDraft,
   PimTaskList,
   PimTaskRef,
@@ -327,7 +329,7 @@ export class GraphPimTarget implements IPimTarget {
 
   // ---- write side (stage 3) ----------------------------------------------
 
-  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+  async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
     const res = await this.request(`${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -400,7 +402,7 @@ export class GraphPimTarget implements IPimTarget {
     }
   }
 
-  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+  async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
     const res = await this.request(`${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

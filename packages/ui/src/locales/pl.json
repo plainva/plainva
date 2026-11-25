@@ -6401,7 +6401,7 @@
     "eventConflict": "Wydarzenie zostało zmienione zdalnie — widok odświeżono.",
     "eventWriteFailed": "Zapis u dostawcy nie powiódł się.",
     "eventWriteRefused": "Wydarzenie nie zostało zapisane: {{reason}}",
-    "eventCreateLost": "Nowego wydarzenia „{{title}}” brakuje w Twoim kalendarzu: dostawca go nie zachował.",
+    "eventCreateLost": "Twój dostawca nie ma nowego wydarzenia „{{title}}”.",
     "eventDeleteRefused": "Wydarzenie nie zostało usunięte: {{reason}}",
     "eventWriteRetry": "Spróbuj ponownie",
     "eventSending": "wysyłanie",

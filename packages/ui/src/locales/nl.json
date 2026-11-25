@@ -6139,7 +6139,7 @@
     "eventConflict": "De afspraak is extern gewijzigd — weergave vernieuwd.",
     "eventWriteFailed": "Opslaan bij de provider is mislukt.",
     "eventWriteRefused": "De afspraak is niet opgeslagen: {{reason}}",
-    "eventCreateLost": "De nieuwe afspraak ‘{{title}}’ ontbreekt in je agenda: de provider heeft hem niet bewaard.",
+    "eventCreateLost": "Je provider heeft de nieuwe afspraak ‘{{title}}’ niet.",
     "eventDeleteRefused": "De afspraak is niet verwijderd: {{reason}}",
     "eventWriteRetry": "Opnieuw proberen",
     "eventSending": "wordt verzonden",

@@ -12,6 +12,7 @@ import {
   type PimEventRow,
   type PimCalendar,
   type PimTaskList,
+  type PimEventCreate,
   type PimEventDraft,
 } from "@plainva/core";
 import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
@@ -33,12 +34,9 @@ import {
   accountToAdoptInto,
   adoptAccountInto,
   calendarPickerOptions,
-  checkUnlistedCreates,
   createCalendarEvent,
   createChange,
-  refusalReason,
-  toast,
-  type CreatedEventChange,
+  watchCreatedEvents,
   applyPendingEventWrites,
   deleteEventWithBlockers,
   detachBlockerAndUpdate,
@@ -146,6 +144,7 @@ export async function startPim(vault: MobileVault): Promise<void> {
   await startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     syncTarget: syncTargetFor,
+    watchCreatedEvents: (cache, targetFor) => watchCreatedEvents(pendingEventWrites, { cache, targetFor }),
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
     parkedMessage: i18n.t("pim.signInRequired"),
@@ -347,25 +346,6 @@ function wirePendingEventWrites(): void {
   pendingWritesWired = true;
   pendingEventWrites.subscribe(() => window.dispatchEvent(new CustomEvent("m-pim-changed")));
   window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
-  // A created event no sync has listed for a while is asked about (issue 119):
-  // it leaves the screen only when the provider says it does not hold it -
-  // with a message and the way to create it again.
-  window.setInterval(() => void checkUnlistedCreates(pendingEventWrites, (accountId) => eventTargets.targetFor(accountId), reportCreateLost), 60_000);
-}
-
-function reportCreateLost(created: CreatedEventChange): void {
-  logDiagnostic("pim", "created event not held by the provider");
-  const draft = created.draft;
-  const key = `${created.row.accountId} ${created.row.calendarId}`;
-  toast.error(
-    i18n.t("pim.eventCreateLost", { title: created.row.title }),
-    draft
-      ? {
-          label: i18n.t("pim.eventWriteRetry"),
-          run: () => void createPimEvent(key, draft).catch((err: unknown) => toast.error(i18n.t("pim.eventWriteRefused", { reason: refusalReason(err) }))),
-        }
-      : undefined,
-  );
 }
 
 /**
@@ -809,7 +789,7 @@ const eventTargets: EventTargets = {
  * then for a whole cycle over every account before the new event appeared —
  * the row the shared writer hands back was thrown away.
  */
-export async function createPimEvent(calendarKey: string, draft: PimEventDraft) {
+export async function createPimEvent(calendarKey: string, draft: PimEventCreate) {
   const key = splitCalendarKey(calendarKey);
   if (!key) throw new Error("no writable calendar selected");
   const id = pendingEventWrites.reserve();

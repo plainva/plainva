@@ -25,7 +25,7 @@ import type { AiSettingsIntent, BookmarkEntry } from "@plainva/ui";
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
-import type { CommentPathMove, CommentStoreState, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
+import type { CommentPathMove, CommentStoreState, PimEventCreate, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
 import type { WorkspaceSecurityPublicStatus } from "./workspaceSecurity/workspaceKeychain";
 import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
@@ -165,10 +165,12 @@ export type BroadcastChannel = keyof BroadcastMap;
  * as this and the owner calls it there.
  */
 export type PimWriteOp =
-  | { kind: "createEvent"; calendarId: string; draft: PimEventDraft }
+  | { kind: "createEvent"; calendarId: string; draft: PimEventCreate }
   | { kind: "updateEvent"; ref: PimEventRef; draft: PimEventDraft }
   | { kind: "deleteEvent"; ref: PimEventRef }
-  | { kind: "respondToEvent"; ref: PimEventRef; response: "accepted" | "declined" | "tentative" };
+  | { kind: "respondToEvent"; ref: PimEventRef; response: "accepted" | "declined" | "tentative" }
+  /** Whether the provider holds an event this window created (issue 119); `exists` stays out where it cannot be asked. */
+  | { kind: "eventExists"; ref: PimEventRef };
 
 /**
  * Requests an auxiliary window sends to the owner.
@@ -299,7 +301,7 @@ export interface RpcMap {
   "pim-write": {
     args: { accountId: string; op: PimWriteOp };
     /** `currentEtag`: what a conflict read back, for "delete anyway" (R2). */
-    result: { ok: true; etag?: string; uid?: string; href?: string } | { conflict: true; currentEtag?: string };
+    result: { ok: true; etag?: string; uid?: string; href?: string; exists?: boolean } | { conflict: true; currentEtag?: string };
   };
   /**
    * Toggle a bookmark. The list is owner state — its sidebar renders it — so

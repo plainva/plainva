@@ -6270,7 +6270,7 @@
     "eventConflict": "El evento cambió de forma remota — vista actualizada.",
     "eventWriteFailed": "No se pudo guardar en el proveedor.",
     "eventWriteRefused": "El evento no se guardó: {{reason}}",
-    "eventCreateLost": "El nuevo evento «{{title}}» falta en tu calendario: el proveedor no lo conservó.",
+    "eventCreateLost": "Tu proveedor no tiene el nuevo evento «{{title}}».",
     "eventDeleteRefused": "El evento no se eliminó: {{reason}}",
     "eventWriteRetry": "Reintentar",
     "eventSending": "enviando",

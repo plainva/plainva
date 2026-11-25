@@ -69,7 +69,7 @@ import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
-import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
+import { markFreshNote, pendingEventWrites, watchCreatedEvents, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { errorText, styleOutcomeText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
@@ -156,6 +156,21 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       window.removeEventListener("plainva-credentials-saved", refresh);
     };
   }, [vaultPath, pimRuntime]);
+  // A created event the calendar still draws from its overlay is settled here,
+  // with the vault - not in a view (issue 119): by the cache whatever range
+  // is shown, and by asking the provider when no sync lists it. In every
+  // window; an auxiliary window asks through the central one.
+  useEffect(() => {
+    const runtime = pimRuntime;
+    if (!runtime) return;
+    return watchCreatedEvents(pendingEventWrites, {
+      cache: runtime.cache,
+      targetFor: async (accountId) => {
+        const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
+        return account ? runtime.syncTarget(account) : null;
+      },
+    });
+  }, [pimRuntime]);
   // One mailbox stored several times under one id folds back into one row
   // when the vault opens (finding 2026-11-06, M2; the phone does the same in
   // its vault boot).

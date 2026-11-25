@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AreaBoundary, applyEventChanges, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
-import { newPimCreateUid, parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
+import { newPimCreateUid, parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventCreate, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
@@ -463,7 +463,7 @@ export function useEventEditor({
     setSheet(null);
     // One uid for this create, kept by "Try again": a create that did land
     // after all is found under it, never made twice (issue 119).
-    const draft: PimEventDraft = { ...values.draft, createAs: newPimCreateUid() };
+    const draft: PimEventCreate = { ...values.draft, createAs: newPimCreateUid() };
     const create = () => {
       void createPimEvent(values.calendarKey, draft).then(
         () => seeded?.(),
