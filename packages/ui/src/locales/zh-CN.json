@@ -8240,6 +8240,6 @@
     "stillClosing": "“{{vault}}”仍在关闭中，完成后 Plainva 会重新打开它。",
     "stillClosingSameFolder": "“{{vault}}”使用同一个同步文件夹，仍在关闭中，完成后开始同步。",
     "stepNotRun": "该步骤未执行：“{{vault}}”在此期间已关闭，或无法再次打开。未做任何更改；请打开仓库后重试。",
-    "stepDoneVaultClosed": "“{{vault}}”的步骤已完成。仓库在此期间已关闭；下次会照常打开。"
+    "stepInterrupted": "“{{vault}}”的步骤未完成：仓库在执行期间被关闭。请打开仓库，查看还缺少什么。"
   }
 }

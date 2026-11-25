@@ -24,7 +24,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { assertEndpointConfirmedIn, waitForClosingSyncPlace, waitWithDeadline, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
+import { assertEndpointConfirmedIn, isStepNoticeError, StepNoticeError, stepNotRun, waitForClosingSyncPlace, waitWithDeadline, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
 import { assertEmptyRemoteVault, firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -590,6 +590,7 @@ function followFilesSwitch(): Promise<void> {
     const off = await filesOffForVault(v.vaultId);
     if ((off && worker) || (!off && settingsOnlySync)) {
       const renewed = await stopAndDrainNow();
+      if (renewed === LEFT) return;
       await startSyncDecided(renewed ?? v);
     }
   });
@@ -600,6 +601,7 @@ export function restartSyncIfActive(vaultId: string): Promise<void> {
   return inStartChain(async () => {
     if ((await getActiveVaultEntry()).id !== vaultId) return;
     const renewed = await stopAndDrainNow();
+    if (renewed === LEFT) return;
     await startSyncDecided(renewed ?? (await getMobileVault()));
   });
 }
@@ -1124,19 +1126,33 @@ let syncHeldFor: string | null = null;
  * Answers the vault the step goes on with: null — the one it has (the sync
  * ended in time, or none ran); after the deadline, the new runtime.
  */
-export async function stopSyncForStep(): Promise<MobileVault | null> {
+export async function stopSyncForStep(options: { say?: boolean } = {}): Promise<MobileVault | null> {
+  // The step's vault, from its first line on: it is compared with at every point after, and the step never goes on
+  // with another vault — one switched to while the step waited included.
+  const entry = await getActiveVaultEntry().catch(() => null);
+  const vault = vaultEntryName(entry?.name);
+  const notRun = () => (options.say === false ? new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run") : stepNotRun(vault));
+  const stillOnIt = async () => {
+    if (!entry || (await getActiveVaultEntry().catch(() => null))?.id !== entry.id) throw notRun();
+  };
   const taken = takeSync(false);
   const drain = taken.drain();
   if (!taken.running) {
     await drain;
+    await stillOnIt();
     return null;
   }
-  const entry = await getActiveVaultEntry().catch(() => null);
-  const outcome = await waitWithDeadline(drain, () => ({ kind: "sync", vault: vaultEntryName(entry?.name) }));
+  const outcome = await waitWithDeadline(drain, () => ({ kind: "sync", vault }));
+  await stillOnIt();
   if (outcome === "done" || !entry) return null;
   syncHeldFor = entry.id;
-  // The one way of leaving the vault and opening it anew (vaultService).
-  return renewAfterSyncGaveUp({ drain: drain.catch(() => undefined), place: taken.place });
+  try {
+    // The one way of leaving the vault and opening it anew (vaultService), for this vault only.
+    return await renewAfterSyncGaveUp({ drain: drain.catch(() => undefined), place: taken.place, vaultId: entry.id, vault, notRun });
+  } catch (error) {
+    if (syncHeldFor === entry.id) syncHeldFor = null;
+    throw error;
+  }
 }
 
 /** What a close took off (`detachSync`). */
@@ -1184,9 +1200,19 @@ function takeSync(quiet: boolean): DetachedSync {
  * The stop itself; inside the chain a restart calls it directly, and waiting on the chain there would wait on itself.
  * Within the deadline (`stopSyncForStep`): answers the vault's new runtime where it had to leave the old one.
  */
-function stopAndDrainNow(): Promise<MobileVault | null> {
-  return stopSyncForStep();
+async function stopAndDrainNow(): Promise<MobileVault | null | typeof LEFT> {
+  // Inside the start chain the step is a restart of the sync: where its vault was left meanwhile there is nothing to
+  // restart, and nothing to say.
+  try {
+    return await stopSyncForStep({ say: false });
+  } catch (error) {
+    if (isStepNoticeError(error)) return LEFT;
+    throw error;
+  }
 }
+
+/** A restart whose vault was left meanwhile (`stopAndDrainNow`): it starts nothing. */
+const LEFT = Symbol("left");
 
 /**
  * Per-request timeout handed to every sync target on device. The native
@@ -1476,6 +1502,8 @@ export async function changeRemoteFolder(v: MobileVault, folder: string, folderI
   if (!stored || !canChangeRemoteFolder(stored.provider)) throw new Error("remote folder is not changeable for this provider");
   await inStartChain(async () => {
     const renewed = await stopAndDrainNow();
+    // Its vault was left meanwhile: the folder is not changed for a vault that is not on screen any more.
+    if (renewed === LEFT) return;
     // The three OAuth providers keep the folder in the settings now, so it
     // survives an account being removed; WebDAV and S3 keep theirs in the
     // connection, where a reconnect shows it in the form.
@@ -1727,6 +1755,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
 export function restartSync(v: MobileVault): Promise<void> {
   return inStartChain(async () => {
     const renewed = await stopAndDrainNow();
+    if (renewed === LEFT) return;
     await startSyncDecided(renewed ?? v);
   });
 }

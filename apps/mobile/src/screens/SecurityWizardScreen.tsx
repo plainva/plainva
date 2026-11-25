@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, ShieldCheck, Upload } from "lucide-react";
-import { Button, ICON, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, toast } from "@plainva/ui";
+import { Button, ICON, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, stepFailureSaid, toast } from "@plainva/ui";
+import { vaultEntryName } from "../services/vaultEntryName";
+import { getVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -202,7 +204,9 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
       onDone();
     } catch (error) {
       console.error("[SecurityWizardScreen] activation failed", error);
-      toast.error(t(flow === "workspace" ? "workspaceSecurity.activationFailed" : "workspaceSecurity.setupFailed"));
+      // A step's own notice (not run, did not finish) is the one word: no second one.
+      const name = vaultEntryName((await getVaultEntry(vault.vaultId).catch(() => null))?.name);
+      if (!stepFailureSaid(error, name)) toast.error(t(flow === "workspace" ? "workspaceSecurity.activationFailed" : "workspaceSecurity.setupFailed"));
       setStep(2);
       setMigration(null);
     } finally { setBusyAction(null); }

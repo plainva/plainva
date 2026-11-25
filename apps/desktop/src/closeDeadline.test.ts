@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import i18n from "@plainva/ui/i18n";
-import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, syncStateBindingFor, toast, toastStore, waitForClosingSyncPlace, waitForClosingVault, waitWithDeadline } from "@plainva/ui";
+import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, stepFailureSaid, stepNotRun, syncStateBindingFor, toast, toastStore, waitForClosingSyncPlace, waitForClosingVault, waitWithDeadline } from "@plainva/ui";
 
 /**
  * Closing, switching or reloading a vault waits within a deadline, in both
@@ -53,6 +53,31 @@ describe("the deadline of a close", () => {
     await vi.advanceTimersByTimeAsync(25_000);
     expect(await waited).toBe("gave-up");
     expect(messages()).toEqual([i18n.t("closing.savingGaveUpMany", { count: 3 })]);
+  });
+
+  it("says a step's failure once: its own notice, or that it did not finish where its runtime was called off", async () => {
+    expect.hasAssertions();
+    vi.useRealTimers();
+    const notRun = stepNotRun("Notes");
+    expect(messages()).toEqual([i18n.t("closing.stepNotRun", { vault: "Notes" })]);
+    // The caller (the overlay, a settings page) sees a step's own notice and says nothing more.
+    expect(stepFailureSaid(notRun, "Notes")).toBe(true);
+    expect(messages()).toHaveLength(1);
+    toast.clearAll();
+    expect(stepFailureSaid(Object.assign(new Error("vault storage.writeTextFile: the vault's runtime was called off"), { name: "CalledOffError" }), "Notes")).toBe(true);
+    expect(messages()).toEqual([i18n.t("closing.stepInterrupted", { vault: "Notes" })]);
+    toast.clearAll();
+    expect(stepFailureSaid(new Error("wrong recovery code"), "Notes"), "any other failure is the caller's to say").toBe(false);
+    expect(messages()).toEqual([]);
+  });
+
+  it("marks the provider gone only when it is taken down, not on a teardown inside it (the index rebuilt, then the vault loaded again)", () => {
+    const desktop = readFileSync(join(ROOT, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
+    const teardown = desktop.slice(desktop.indexOf("const teardownVault = async"), desktop.indexOf("const teardownVaultRef"));
+    // THE DEFECT: `teardownVault` set the mark, and "Rebuild index" calls it before it loads the vault again in the
+    // same provider — every step after said "did not run" with the vault open.
+    expect(teardown).not.toContain("providerGoneRef");
+    expect(desktop).toMatch(/useEffect\(\(\) => \{\s*providerGoneRef\.current = false;\s*return \(\) => \{\s*providerGoneRef\.current = true;\s*\};\s*\}, \[\]\);/);
   });
 
   it("takes the notice of an open that waits for the same vault's close down when that open is called off", async () => {
@@ -119,7 +144,9 @@ describe("the deadline of a close", () => {
     expect(desktop.match(/startSyncOf\(\(\) => (settingsOnly|worker|fileWorker)\.start\(\)\)/g), "every sync start of a load waits for its folder and asks the hold").toHaveLength(3);
     expect(desktop).toMatch(/const syncGate = createSyncGate\(\{ path, place: binding, signal: currentAbortSignal \}\);[\s\S]*?const startSyncOf = \(begin: \(\) => void\) => \(\) => syncGate\.start\(begin\);/);
     // What reaches the folder before a worker does goes through the gate as well (its behaviour: `syncGate.test.ts`).
-    expect(desktop).toMatch(/void syncGate\.once\(startEncryptedWorkspace\)/);
+    expect(desktop).toMatch(/void syncGate\.stoppable\(\(signal\) => startEncryptedWorkspace\(signal\)\)/);
+    // A step stops a reconcile that runs already, as it stops a worker (`runningVaultSyncStep`).
+    expect(desktop).toMatch(/runtimeRef\.current\.worker : null\) \?\? runningVaultSyncStep\(path\)/);
     expect(desktop).toMatch(/heldStart = \(\) => void syncGate\.once\(/);
     // The vault opens meanwhile: nothing of the load waits for the folder.
     expect(desktop).not.toMatch(/await [^;\n]*waitForClosingSyncPlace\(/);

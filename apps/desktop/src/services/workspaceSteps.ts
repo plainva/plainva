@@ -1,5 +1,5 @@
-import i18n from "@plainva/ui/i18n";
-import { toast } from "@plainva/ui";
+import { isCalledOffError } from "@plainva/core";
+import { stepInterrupted, stepNotRun } from "@plainva/ui";
 
 /**
  * The steps on a vault's workspace that stop its sync first — activating,
@@ -25,16 +25,14 @@ export interface StepPorts<R> {
   take(): () => void;
   /** Stops the sync within the deadline; "renewed": the vault was opened anew, `runtime()` is the new one. */
   stopSync(): Promise<"same" | "renewed">;
-  /** The runtime on screen now; throws where there is none of this vault. */
+  /** The runtime on screen now; throws where there is none of this vault (`stepNotRun`). */
   runtime(): R;
-}
-
-/** A step found no runtime of its vault: nothing of it ran. */
-export class StepNotRunError extends Error {
-  constructor(vault: string) {
-    super(i18n.t("closing.stepNotRun", { vault }));
-    this.name = "StepNotRunError";
-  }
+  /**
+   * What a failure of the step's work is said as: a call refused because the
+   * runtime was called off while the step ran — the vault was closed — is
+   * that the step did not finish (`stepInterrupted`), never a raw error.
+   */
+  failed(error: unknown): unknown;
 }
 
 /**
@@ -54,10 +52,9 @@ export function createStepPorts<R>(parts: {
     runtime: () => {
       const now = parts.current();
       if (now) return now;
-      const error = new StepNotRunError(parts.vault);
-      toast.warning(error.message);
-      throw error;
+      throw stepNotRun(parts.vault);
     },
+    failed: (error) => (isCalledOffError(error) ? stepInterrupted(parts.vault) : error),
   };
 }
 
@@ -65,7 +62,12 @@ export async function withSyncStopped<R, T>(ports: StepPorts<R>, run: (on: R) =>
   const giveBack = ports.take();
   try {
     await ports.stopSync();
-    return await run(ports.runtime());
+    const on = ports.runtime();
+    try {
+      return await run(on);
+    } catch (error) {
+      throw ports.failed(error);
+    }
   } finally {
     giveBack();
   }
@@ -110,7 +112,11 @@ export async function lockWorkspaceStep<R>(
       lock.undo();
       throw error;
     }
-    await steps.lock(on);
+    try {
+      await steps.lock(on);
+    } catch (error) {
+      throw ports.failed(error);
+    }
     await steps.reopen();
   } finally {
     giveBack();

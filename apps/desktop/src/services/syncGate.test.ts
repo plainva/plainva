@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "@plainva/ui/i18n";
 import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, syncStateBindingFor, toast, toastStore } from "@plainva/ui";
-import { createSyncGate, resetVaultSyncTakenForTests, takeVaultSync } from "./syncGate";
+import { createSyncGate, resetVaultSyncTakenForTests, runningVaultSyncStep, takeVaultSync } from "./syncGate";
 
 /**
  * The desktop's gate to a vault's sync folder (`syncGate.ts`): what a load of
@@ -126,5 +126,53 @@ describe("the gate to a vault's sync folder", () => {
     giveBack();
     await reconcile;
     expect(order).toEqual(["teardown of the workspace", "reconcile"]);
+  });
+});
+
+/**
+ * A reconcile of an encrypted workspace that had passed the gate already when
+ * a step took the sync (a warm open runs it at once in the background): the
+ * step stops it as it stops a worker, within the same deadline, and it runs
+ * again — from its start — once the step gives the sync back.
+ */
+describe("a reconcile already running when a step takes the sync", () => {
+  it("is stopped and waited for before the step's teardown, and runs again after the step", async () => {
+    expect.hasAssertions();
+    const load = new AbortController();
+    const gate = createSyncGate({ path: VAULT, place: null, signal: load.signal });
+    const rows = new Set<string>();
+    const order: string[] = [];
+    let runs = 0;
+    const reconcile = gate.stoppable(async (signal) => {
+      runs += 1;
+      rows.add("row-a");
+      // A slow listing; a stop ends it.
+      await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+      if (signal.aborted) return null;
+      rows.add("row-b");
+      return "worker";
+    });
+    await tick();
+    // The step: takes the sync, stops what runs (the reconcile — there is no worker yet), waits for it, tears down.
+    const giveBack = takeVaultSync(VAULT);
+    const running = runningVaultSyncStep(VAULT);
+    expect(running, "the step finds the running reconcile").not.toBeNull();
+    running!.stop();
+    await running!.stopAndDrain();
+    order.push("reconcile ended");
+    rows.clear();
+    order.push("cleared");
+    await tick();
+    // THE DEFECT (probe d8): the reconcile ran on beside the teardown and wrote after the clear.
+    expect([...rows]).toEqual([]);
+    expect(order).toEqual(["reconcile ended", "cleared"]);
+    expect(runs, "not again while the step holds the sync").toBe(1);
+    giveBack();
+    await tick();
+    expect(runs, "again from its start once the step gave the sync back").toBe(2);
+    // The load ends: the second run ends with it, and nothing runs again.
+    load.abort();
+    expect(await reconcile, "it ended with the load, with nothing to answer").toBeNull();
+    expect(runs).toBe(2);
   });
 });

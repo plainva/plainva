@@ -1,6 +1,7 @@
 import i18n from "i18next";
 import { toast } from "../services/toastStore";
 import { sameSyncTarget, type SyncStateBinding } from "./syncStateBinding";
+import { isCalledOffError } from "@plainva/core";
 
 /**
  * Closing, switching or removing a vault waits for what is still under way —
@@ -197,4 +198,52 @@ export async function waitForClosingSyncPlace(place: SyncStateBinding, options: 
 /** Tests only. */
 export function resetClosingSyncPlacesForTests(): void {
   parkedSyncPlaces.clear();
+}
+
+/**
+ * A step that stopped the sync to work on a vault, and ended with a notice
+ * of its own — that nothing of it ran (`closing.stepNotRun`: the vault was
+ * left or did not open again before the step's work began), or that it did
+ * not finish (`closing.stepInterrupted`: the vault was closed while it ran).
+ * The notice is shown where the error is made; the caller says nothing more.
+ */
+export class StepNoticeError extends Error {
+  constructor(message: string, readonly kind: "not-run" | "interrupted") {
+    super(message);
+    this.name = kind === "not-run" ? "StepNotRunError" : "StepInterruptedError";
+  }
+}
+
+/** Nothing of the step ran: says so, and answers the error to throw. */
+export function stepNotRun(vault: string): StepNoticeError {
+  const error = new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run");
+  toast.warning(error.message);
+  return error;
+}
+
+/** The step did not finish because its vault was closed while it ran: says so, and answers the error to throw. */
+export function stepInterrupted(vault: string): StepNoticeError {
+  const error = new StepNoticeError(i18n.t("closing.stepInterrupted", { vault }), "interrupted");
+  toast.warning(error.message);
+  return error;
+}
+
+/** Whether `error` is a step's own notice (`StepNoticeError`): the caller shows no failure of its own then. */
+export function isStepNoticeError(error: unknown): error is StepNoticeError {
+  return error instanceof Error && (error.name === "StepNotRunError" || error.name === "StepInterruptedError");
+}
+
+/**
+ * Whether a step's failure is said already, so its caller shows no failure
+ * of its own: the step's own notice (`StepNoticeError`), or a call refused
+ * because the vault's runtime was called off while the step ran — then the
+ * vault was closed meanwhile, and that is what is said (`stepInterrupted`).
+ */
+export function stepFailureSaid(error: unknown, vault: string): boolean {
+  if (isStepNoticeError(error)) return true;
+  if (isCalledOffError(error)) {
+    stepInterrupted(vault);
+    return true;
+  }
+  return false;
 }

@@ -218,9 +218,9 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(ctx).toContain("const tearDownWorkspace");
     const teardown = ctx.slice(ctx.indexOf("const tearDownWorkspace"));
     const decommission = teardown.slice(teardown.indexOf("const decommissionWorkspace"));
-    expect(decommission).toContain("tearDown: () => tearDownWorkspace(path)");
+    expect(decommission).toContain("tearDown: (on) => tearDownWorkspace(path, on.workspaceState)");
     expect(decommission.slice(decommission.indexOf("const liftWorkspaceEncryption"))).toContain(
-      "tearDown: () => tearDownWorkspace(path)"
+      "tearDown: (on) => tearDownWorkspace(path, on.workspaceState)"
     );
 
     // The ordering is the whole point: a publication's credential slot is named

@@ -93,6 +93,7 @@ describe("leaving the workspace", () => {
       // THE DEFECT: the step fell back on the closure's adapter of the old runtime — torn down, the note lost, "done".
       expect(outcome).toBe("StepNotRunError");
       expect(tornDown, "nothing torn down").toBe(false);
+      expect(toastStore.get().map((t) => t.message), "one notice").toEqual([i18n.t("closing.stepNotRun", { vault: "Notes" })]);
       expect([...world.oldFiles.keys()]).toEqual([]);
       expect(toastStore.get().map((t) => t.message)).toContain(i18n.t("closing.stepNotRun", { vault: "Notes" }));
     });
@@ -103,6 +104,32 @@ describe("leaving the workspace", () => {
     const { world, ports, reopen } = vaultOnScreen("same");
     await expect(leaveWorkspace(ports, { tearDown: async () => { throw new Error("keychain"); }, markDeparted: departed, reopen })).rejects.toThrow("keychain");
     expect(world.worker.running).toBe(true);
+  });
+});
+
+describe("leaving the workspace while its window leaves the vault", () => {
+  it("ends with the word that the step did not finish — never a raw error — and tears nothing of the keychain down", async () => {
+    expect.hasAssertions();
+    const { world, ports, reopen } = vaultOnScreen("same");
+    // The runtime the step works on is called off midway: the window left the vault.
+    const fence = createVaultCallOff();
+    const state = fence.database({ execute: async () => {} } as never) as unknown as { execute(sql: string): Promise<void> };
+    let keychain = "kept";
+    const outcome = await leaveWorkspace(ports, {
+      tearDown: async () => {
+        fence.callOff();
+        // As `tearDownWorkspace`: the called-off state store refuses, and that ends the teardown before the keychain.
+        await state.execute("DELETE FROM workspace_objects");
+        keychain = "cleared";
+      },
+      markDeparted: departed,
+      reopen,
+    }).then(() => "done", (e: Error) => e.name);
+    // THE DEFECT: a raw CalledOffError reached the caller — neither notice was said.
+    expect(outcome).toBe("StepInterruptedError");
+    expect(keychain).toBe("kept");
+    expect(toastStore.get().map((t) => t.message)).toEqual([i18n.t("closing.stepInterrupted", { vault: "Notes" })]);
+    expect(world.worker.running, "the sync is given back").toBe(true);
   });
 });
 

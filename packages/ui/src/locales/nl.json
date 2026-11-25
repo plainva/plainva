@@ -8412,6 +8412,6 @@
     "stillClosing": "‘{{vault}}’ wordt nog gesloten – daarna opent Plainva hem weer.",
     "stillClosingSameFolder": "‘{{vault}}’ gebruikt dezelfde synchronisatiemap en wordt nog gesloten – daarna start de synchronisatie.",
     "stepNotRun": "De stap is niet uitgevoerd: ‘{{vault}}’ is intussen gesloten of kon niet opnieuw worden geopend. Er is niets gewijzigd; open de vault en probeer het opnieuw.",
-    "stepDoneVaultClosed": "De stap voor ‘{{vault}}’ is klaar. De vault is intussen gesloten; hij opent de volgende keer zoals gewoonlijk."
+    "stepInterrupted": "De stap voor ‘{{vault}}’ is niet afgerond: de vault werd gesloten terwijl hij liep. Open hem en kijk wat er nog ontbreekt."
   }
 }

@@ -8412,6 +8412,6 @@
     "stillClosing": "„{{vault}}“ wird noch geschlossen – danach öffnet Plainva ihn wieder.",
     "stillClosingSameFolder": "„{{vault}}“ nutzt denselben Sync-Ordner und wird noch geschlossen – danach startet der Sync.",
     "stepNotRun": "Der Schritt ist nicht gelaufen: „{{vault}}“ war inzwischen geschlossen oder ließ sich nicht wieder öffnen. Geändert wurde nichts; öffne den Vault und versuche es noch einmal.",
-    "stepDoneVaultClosed": "Der Schritt für „{{vault}}“ ist abgeschlossen. Der Vault war inzwischen geschlossen; er öffnet beim nächsten Mal wie gewohnt."
+    "stepInterrupted": "Der Schritt für „{{vault}}“ ist nicht fertig geworden: der Vault wurde währenddessen geschlossen. Öffne ihn und sieh nach, was noch fehlt."
   }
 }

@@ -557,10 +557,12 @@ async function leaveVault(current: MobileVault, settled: Pick<SettledClose, "dra
  * as on a reload; the step goes on with the new runtime, which opens once the
  * old one has ended (text 7).
  */
-export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: SyncStateBinding | null }): Promise<MobileVault> {
+export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: SyncStateBinding | null; vaultId: string; vault: string; notRun: () => Error }): Promise<MobileVault> {
+  // Only the step's own vault is left and opened anew: one switched to meanwhile is never closed for it, and the
+  // step never goes on with its runtime.
+  if ((await getActiveVaultEntry().catch(() => null))?.id !== left.vaultId || (bootEntry && bootEntry.id !== left.vaultId)) throw left.notRun();
   const current = await retireBoot();
-  if (!current) return getMobileVault();
-  const vault = vaultEntryName((await getVaultEntry(current.vaultId).catch(() => null))?.name);
+  if (!current || current.vaultId !== left.vaultId) throw left.notRun();
   const saved = (async () => {
     await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
     await noteSaver.flushAll();
@@ -570,16 +572,12 @@ export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: 
     .then(() => current.flushOwed())
     .catch(reportingTo("sync:owed-before-call-off"))
     .finally(() => current.callOff());
-  await leaveVault(current, { drain: Promise.all([left.drain, saved.catch(() => undefined)]).then(() => undefined), gaveUp: true, place: left.place, vault });
+  await leaveVault(current, { drain: Promise.all([left.drain, saved.catch(() => undefined)]).then(() => undefined), gaveUp: true, place: left.place, vault: left.vault });
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current.vaultId } }));
   const fresh = await getMobileVault();
-  // Another vault opened meanwhile (a switch during the step): the step never goes on with that one's runtime.
-  if (fresh.vaultId !== current.vaultId) {
-    const message = i18n.t("closing.stepNotRun", { vault });
-    toast.warning(message);
-    throw Object.assign(new Error(message), { name: "StepNotRunError" });
-  }
+  // Another vault opened meanwhile (a switch during the reopen): the step never goes on with that one's runtime.
+  if (fresh.vaultId !== left.vaultId) throw left.notRun();
   return fresh;
 }
 async function switchTo(id: string): Promise<void> {

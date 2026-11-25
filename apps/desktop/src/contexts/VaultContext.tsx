@@ -1,6 +1,6 @@
 import { afterTaskSyncResume, clearPinboardCache, confirmationEndpoint, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { errorText, reportBackground, reportingTo, waitForClosingVault, type SyncStateBinding, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
+import { errorText, isStepNoticeError, reportBackground, reportingTo, waitForClosingVault, type SyncStateBinding, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
 import { FEATURES_SAVED_EVENT, featuresSavedFor } from "../services/vaultFeaturesRelay";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
@@ -30,7 +30,7 @@ import { vaultLabel } from "../services/vaultNames";
 import { awaitVaultTeardown } from "../services/vaultTeardown";
 import { stopSyncForStep as stopSyncForStepIn } from "../services/stepSyncStop";
 import { createStepPorts, leaveWorkspace, lockWorkspaceStep, withSyncStopped, type StepPorts } from "../services/workspaceSteps";
-import { createSyncGate, takeVaultSync, vaultSyncTaken } from "../services/syncGate";
+import { createSyncGate, runningVaultSyncStep, takeVaultSync, vaultSyncTaken } from "../services/syncGate";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
@@ -56,7 +56,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspa
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId, restoreDesktopAccountsAfterRebuild } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { adoptOwnRemovals, createVaultCallOff, type VaultCallOff, CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
+import { adoptOwnRemovals, createVaultCallOff, isCalledOffError, type VaultCallOff, CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -705,9 +705,16 @@ export const VaultProvider: React.FC<{
   const syncPlaceRef = useRef<SyncStateBinding | null>(null);
   // The runtime of the vault on screen as the last load left it — read by a reload and by a step that left the
   // vault (`stopSyncForStep`): React's state of the render that began them may be older than the runtime.
-  const runtimeRef = useRef<{ path: string; worker: VaultState["syncWorker"]; indexer: VaultState["indexer"]; indexQueue: VaultState["indexQueue"]; db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"] } | null>(null);
-  // Set when this provider's vault is left (`teardownVault`): a step still running opens it no more.
+  const runtimeRef = useRef<{ path: string; worker: VaultState["syncWorker"]; indexer: VaultState["indexer"]; indexQueue: VaultState["indexQueue"]; db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; workspaceState?: SqlWorkspaceStateStore | null } | null>(null);
+  // Set exactly when this provider is taken down (its unmount): a step still running opens the vault no more. A
+  // teardown inside the provider (the index rebuilt, then the vault loaded again) is no leaving.
   const providerGoneRef = useRef(false);
+  useEffect(() => {
+    providerGoneRef.current = false;
+    return () => {
+      providerGoneRef.current = true;
+    };
+  }, []);
   // Recents, the last-vault memory, auto-open and the three lifecycle entry
   // points live one level up (contexts/AppContext.tsx) — they outlive any
   // single vault. They are re-exported through this context so the sixty-one
@@ -1633,7 +1640,7 @@ export const VaultProvider: React.FC<{
               // DB), so run the sweep + worker start in the BACKGROUND (A2) — like
               // the warm full-index pass right above. A COLD open still blocks with
               // a determinate splash bar so the encrypted setup shows progress.
-              const startEncryptedWorkspace = async (): Promise<EncryptedWorkspaceWorker | null> => {
+              const startEncryptedWorkspace = async (signal: AbortSignal = currentAbortSignal): Promise<EncryptedWorkspaceWorker | null> => {
                 const { perfMeasure } = await import("../services/perfMetrics");
                 await perfMeasure("encrypted workspace reconcile (open)", () =>
                   initializePersonalWorkspaceMigration({
@@ -1642,7 +1649,7 @@ export const VaultProvider: React.FC<{
                     vault: backupVaultAdapter,
                     runtime,
                     recoveryConfirmedAt: activeSecurityStatus.recoveryConfirmedAt,
-                    signal: currentAbortSignal,
+                    signal,
                     // What changed while Plainva was closed is asked like a
                     // change from outside while it runs (release 0.9.0 A3).
                     permissions: permissionedWorkspaceAdapter,
@@ -1652,7 +1659,7 @@ export const VaultProvider: React.FC<{
                         ? { ...s, loadingProgress: { current: done, total, message: i18n.t("workspaceSecurity.reconcileProgress") } }
                         : s),
                   }));
-                if (currentAbortSignal.aborted) return null;
+                if (signal.aborted || currentAbortSignal.aborted) return null;
                 const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId, allows: callOff.allows })) ?? undefined;
                 const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
@@ -1722,7 +1729,8 @@ export const VaultProvider: React.FC<{
               // The reconcile writes to the folder at the provider: it waits for the gate, in the background where
               // the folder is not free now or a step holds the sync — the vault opens meanwhile.
               if (deferWorkspaceReconcile || !syncGate.freeNow() || vaultSyncTaken(path)) {
-                void syncGate.once(startEncryptedWorkspace)
+                // A step that begins while it runs stops it within its deadline, and it runs again after the step.
+                void syncGate.stoppable((signal) => startEncryptedWorkspace(signal))
                   .then((worker) => {
                     if (!worker || currentAbortSignal.aborted) { if (worker) loadStarts.late(worker); return; }
                     if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker };
@@ -1969,6 +1977,7 @@ export const VaultProvider: React.FC<{
       runtimeRef.current = {
         path, worker: syncWorker, indexer, indexQueue, db: dbAdapter,
         belowChain: personBelowChain,
+        workspaceState: workspaceStateRef.current,
       };
       setState(s => ({
         ...s,
@@ -2595,7 +2604,6 @@ export const VaultProvider: React.FC<{
     loadAbortRef.current?.abort();
     activeLoadPathRef.current = null;
     runtimeRef.current = null;
-    providerGoneRef.current = true;
 
     if (state.vaultPath) syncStatusStore.reset(state.vaultPath);
     setState(s => ({
@@ -2868,7 +2876,7 @@ export const VaultProvider: React.FC<{
    * Answers what the step works on — the runtime on screen, or the new one.
    */
   /** The runtime of the vault on screen, as a step that stopped the sync works on it (`workspaceSteps.ts`). */
-  type StepRuntime = { db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; target: ISyncTarget | null; provider: SyncProviderId | null };
+  type StepRuntime = { db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; target: ISyncTarget | null; provider: SyncProviderId | null; workspaceState: SqlWorkspaceStateStore | null };
   const stepPorts = (path: string): StepPorts<StepRuntime> => createStepPorts<StepRuntime>({
     vault: vaultLabel(path),
     // The step holds the vault's sync for its length, against every start — also one still waiting for its folder.
@@ -2876,7 +2884,8 @@ export const VaultProvider: React.FC<{
     stop: () => stopSyncForStepIn({
       path,
       vault: vaultLabel(path),
-      worker: runtimeRef.current?.path === path ? runtimeRef.current.worker : null,
+      // The worker — or, before there is one, the reconcile of the encrypted workspace still running (`stoppable`).
+      worker: (runtimeRef.current?.path === path ? runtimeRef.current.worker : null) ?? runningVaultSyncStep(path),
       fence: callOffRef.current,
       forgetWorker: () => {
         if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker: null };
@@ -2891,15 +2900,15 @@ export const VaultProvider: React.FC<{
     current: () => {
       const live = runtimeRef.current;
       if (providerGoneRef.current || live?.path !== path) return null;
-      return { db: live.db, belowChain: live.belowChain, target: syncTargetRef.current, provider: syncProviderRef.current };
+      return { db: live.db, belowChain: live.belowChain, target: syncTargetRef.current, provider: syncProviderRef.current, workspaceState: live.workspaceState ?? null };
     },
   });
-  /** Opens the vault anew at the end of a step — unless its window has left it: then the step is done and says so. */
+  /**
+   * Opens the vault anew at the end of a step — unless its window has left it: the step is done then, and says so
+   * itself (its own "done"); the vault opens as usual the next time it is opened.
+   */
   const reopenAfterStep = async (path: string, isNewConnection?: boolean): Promise<void> => {
-    if (providerGoneRef.current) {
-      toast.info(i18n.t("closing.stepDoneVaultClosed", { vault: vaultLabel(path) }));
-      return;
-    }
+    if (providerGoneRef.current) return;
     await loadVault(path, isNewConnection);
   };
 
@@ -2972,7 +2981,9 @@ export const VaultProvider: React.FC<{
       workspaceActivationStore.finish();
       return result;
     } catch (error) {
-      workspaceActivationStore.fail(error instanceof Error ? error.message : String(error));
+      // A step's own notice (not run, did not finish) is the one word: the overlay goes without a second one.
+      if (isStepNoticeError(error)) workspaceActivationStore.finish();
+      else workspaceActivationStore.fail(error instanceof Error ? error.message : String(error));
       throw error;
     }
   };
@@ -3908,13 +3919,16 @@ export const VaultProvider: React.FC<{
    * `clearWorkspaceState()` drops that table. Read first, clear afterwards —
    * a keychain cannot be enumerated to find a slot whose id is gone.
    */
-  const tearDownWorkspace = async (path: string): Promise<void> => {
-    // The worker is stopped first, by the step (`leaveWorkspace`), so no cycle races the teardown.
-    const publicationIds = await workspaceStateRef.current
+  const tearDownWorkspace = async (path: string, workspaceState: SqlWorkspaceStateStore | null): Promise<void> => {
+    // The worker is stopped first, by the step (`leaveWorkspace`), so no cycle races the teardown. The state store is
+    // the step's runtime's (`on`); one called off meanwhile — the vault was closed — ends the teardown here, said by
+    // the step (`stepInterrupted`), before anything of the keychain goes.
+    const onlyCalledOff = (error: unknown) => { if (isCalledOffError(error)) throw error; };
+    const publicationIds = await workspaceState
       ?.listPublications()
       .then((records) => records.map((record) => record.publicationId))
-      .catch(() => [] as string[]);
-    await workspaceStateRef.current?.clearWorkspaceState().catch(reportingTo("workspace:teardown"));
+      .catch((error: unknown) => { onlyCalledOff(error); return [] as string[]; });
+    await workspaceState?.clearWorkspaceState().catch((error: unknown) => { onlyCalledOff(error); reportBackground("workspace:teardown", error); });
     lockWorkspaceRuntime(path);
     await clearPublicationRuntimes(path, publicationIds ?? []);
     await clearWorkspaceRuntime(path);
@@ -3931,7 +3945,7 @@ export const VaultProvider: React.FC<{
     // workspace lives on for every other device. Read before the teardown.
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
     await leaveWorkspace(stepPorts(path), {
-      tearDown: () => tearDownWorkspace(path),
+      tearDown: (on) => tearDownWorkspace(path, on.workspaceState),
       // Through the lowest link of the runtime on screen now — after "renewed" the old one refuses every write.
       markDeparted: (belowChain) => markEncryptedRemoteDeparted(encryptedRemoteFilePorts(belowChain), departure),
       reopen: () => reopenAfterStep(path),
@@ -3953,7 +3967,7 @@ export const VaultProvider: React.FC<{
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
     if (departure.sole !== true) throw new Error(i18n.t("workspaceSecurity.liftNotSole"));
     await leaveWorkspace(stepPorts(path), {
-      tearDown: () => tearDownWorkspace(path),
+      tearDown: (on) => tearDownWorkspace(path, on.workspaceState),
       // Through the lowest link of the runtime on screen now — after "renewed" the old one refuses every write.
       markDeparted: (belowChain) => markEncryptedRemoteDeparted(encryptedRemoteFilePorts(belowChain), departure),
       reopen: () => reopenAfterStep(path, true),

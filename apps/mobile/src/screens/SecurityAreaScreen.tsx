@@ -11,12 +11,13 @@ import { useLongPress } from "../lib/useLongPress";
 import { AreaBoundary, Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, workspaceDeparture, dismissEncryptedRemote, encryptedRemoteDismissable, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup, reportingTo } from "@plainva/ui";
 import { decodeWorkspaceInvite, encodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
-import { useForeignLegacyComments } from "@plainva/ui";
+import { useForeignLegacyComments, stepFailureSaid } from "@plainva/ui";
+import { vaultEntryName } from "../services/vaultEntryName";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, mobileEncryptedRemotePorts, quarantineSync, restartSyncIfActive, stopSyncForStep } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
-import { getActiveVaultEntry } from "../services/vaultRegistry";
+import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
@@ -68,6 +69,11 @@ type ConnectionState =
  */
 const QR_EDGE = 232;
 
+
+/** The name of the step's vault, as the list shows it (for its notices). */
+async function stepVaultName(vaultId: string): Promise<string> {
+  return vaultEntryName((await getVaultEntry(vaultId).catch(() => null))?.name);
+}
 
 /**
  * The sync stopped for a step on the workspace, within the deadline
@@ -739,7 +745,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await refresh();
     } catch (error) {
       console.error("[SecurityAreaScreen] resuming setup failed", error);
-      toast.error(`${t("workspaceSecurity.setupFailed")} ${errorText(error)}`);
+      // A step's own notice (not run, did not finish) is the one word: no second one.
+      if (!stepFailureSaid(error, await stepVaultName(vault.vaultId))) toast.error(`${t("workspaceSecurity.setupFailed")} ${errorText(error)}`);
       await refresh();
     } finally { setBusyAction(null); setResumeProgress(null); }
   };
@@ -777,7 +784,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await reloadActiveMobileVault("security-area");
     } catch (error) {
       console.error("[SecurityAreaScreen] lift encryption failed", error);
-      toast.error(`${t("workspaceSecurity.liftEncryptionFailed")} ${errorText(error)}`);
+      if (!stepFailureSaid(error, await stepVaultName(vault.vaultId))) toast.error(`${t("workspaceSecurity.liftEncryptionFailed")} ${errorText(error)}`);
     } finally { setBusyAction(null); }
   };
 
@@ -803,7 +810,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await reloadActiveMobileVault("security-area");
     } catch (error) {
       console.error("[SecurityAreaScreen] workspace decommission failed", error);
-      toast.error(`${t("workspaceSecurity.decommissionFailed")} ${errorText(error)}`);
+      if (!stepFailureSaid(error, await stepVaultName(vault.vaultId))) toast.error(`${t("workspaceSecurity.decommissionFailed")} ${errorText(error)}`);
     } finally { setBusyAction(null); }
   };
 

@@ -23,6 +23,19 @@ import { closingAtSyncPlace, waitForClosingSyncPlace, type SyncStateBinding } fr
  */
 
 const taken = new Map<string, number>();
+/** What of a vault's sync runs now outside its worker — the reconcile at the open — and can be stopped (`stoppable`). */
+const running = new Map<string, { stop(): void; ended: Promise<void> }>();
+
+/**
+ * What of the vault's sync runs now without a worker yet: the reconcile of an
+ * encrypted workspace at the open. A step stops it as it stops a worker —
+ * within the same deadline — and it runs again once the step gives the sync
+ * back (`stoppable`).
+ */
+export function runningVaultSyncStep(path: string): { stop(): void; stopAndDrain(): Promise<void> } | null {
+  const now = running.get(path);
+  return now ? { stop: () => now.stop(), stopAndDrain: () => now.ended } : null;
+}
 const wakers = new Map<string, Set<() => void>>();
 
 /** Whether a step holds the sync of this vault now. */
@@ -56,6 +69,13 @@ export interface SyncGate {
   start(begin: () => void): void;
   /** Runs `run` one time, as soon as the folder is free and no step holds the sync; never once the load is called off. */
   once<T>(run: () => Promise<T>): Promise<T | undefined>;
+  /**
+   * As `once`, for work a step may stop while it runs (the reconcile at the
+   * open): it is handed a signal, `runningVaultSyncStep` finds it, and one a
+   * step stopped runs again — from its start — once the step gives the sync
+   * back. Answers its result, or undefined where the load was called off.
+   */
+  stoppable<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T | undefined>;
   /** Whether nothing of another vault closes at the folder right now (an open can then go on at once). */
   freeNow(): boolean;
 }
@@ -102,6 +122,35 @@ export function createSyncGate(options: { path: string; place: SyncStateBinding 
       if (allowed()) return run();
       return new Promise<void>((go) => waiting.add(go)).then(() => (signal.aborted ? undefined : run()));
     },
+    stoppable<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T | undefined> {
+      const once = this.once.bind(this);
+      const go = async (): Promise<T | undefined> => {
+        const outcome = await once(async () => {
+          const stopped = new AbortController();
+          const off = () => stopped.abort();
+          signal.addEventListener("abort", off, { once: true });
+          let byStep = false;
+          const work = run(stopped.signal);
+          const entry = { stop: () => { byStep = true; stopped.abort(); }, ended: work.then(() => undefined, () => undefined) };
+          running.set(path, entry);
+          try {
+            const result = await work;
+            return { result, byStep };
+          } catch (error) {
+            if (byStep) return { result: undefined, byStep };
+            throw error;
+          } finally {
+            if (running.get(path) === entry) running.delete(path);
+            signal.removeEventListener("abort", off);
+          }
+        });
+        if (!outcome) return undefined;
+        // Stopped by a step: again from its start, once the step gives the sync back (`once` waits for that).
+        if (outcome.byStep && !signal.aborted) return go();
+        return outcome.result;
+      };
+      return go();
+    },
     freeNow: () => free,
   };
 }
@@ -110,4 +159,5 @@ export function createSyncGate(options: { path: string; place: SyncStateBinding 
 export function resetVaultSyncTakenForTests(): void {
   taken.clear();
   wakers.clear();
+  running.clear();
 }

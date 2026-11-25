@@ -8584,6 +8584,6 @@
     "stillClosing": "«{{vault}}» si sta ancora chiudendo, poi Plainva lo riapre.",
     "stillClosingSameFolder": "«{{vault}}» usa la stessa cartella di sincronizzazione e si sta ancora chiudendo, poi la sincronizzazione parte.",
     "stepNotRun": "Il passaggio non è stato eseguito: «{{vault}}» è stato chiuso nel frattempo o non si è potuto riaprire. Non è cambiato nulla; apri il vault e riprova.",
-    "stepDoneVaultClosed": "Il passaggio per «{{vault}}» è completato. Il vault è stato chiuso nel frattempo; la prossima volta si apre come sempre."
+    "stepInterrupted": "Il passaggio per «{{vault}}» non è stato completato: il vault è stato chiuso mentre era in corso. Aprilo e controlla che cosa manca ancora."
   }
 }

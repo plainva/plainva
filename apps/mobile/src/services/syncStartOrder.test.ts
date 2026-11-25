@@ -46,6 +46,8 @@ const state = vi.hoisted(() => ({
   brokenStore: false,
   /** The addresses this phone confirmed (F57). */
   confirmedEndpoints: new Set<string>(),
+  /** The vault on screen (a switch during a step moves it). */
+  activeId: "v",
   /** Holds every worker's drain (a cycle that waits for a provider). */
   drainGate: null as null | Promise<void>,
   /** The vault left and opened anew when a step gave up waiting for its sync (vaultService). */
@@ -134,7 +136,7 @@ vi.mock("./cloudAccountsStore", () => ({
 }));
 vi.mock("./vaultRegistry", async (original) => ({
   ...await original<typeof import("./vaultRegistry")>(),
-  getActiveVaultEntry: async () => ({ id: "v" }),
+  getActiveVaultEntry: async () => ({ id: state.activeId }),
   newVaultId: () => "added",
   addVault: async () => undefined,
   getVaultEntry: async () => ({ id: "v", provider: "webdav", pausedHere: state.pausedHere, syncedBefore: state.syncedBefore }),
@@ -209,6 +211,7 @@ beforeEach(() => {
   state.brokenStore = false;
   state.confirmedEndpoints.clear();
   state.drainGate = null;
+  state.activeId = "v";
 });
 
 afterEach(async () => {
@@ -641,6 +644,27 @@ describe("a sync start at a folder where another vault's runtime still closes", 
  */
 describe("a step that stops the sync", () => {
   afterEach(() => { vi.useRealTimers(); state.renew.mockReset(); });
+
+  for (const when of ["within the deadline", "after the deadline"] as const) {
+    it(`does not go on where the vault was switched away from while it waited (${when})`, async () => {
+      expect.hasAssertions();
+      await startSyncIfConfigured(vault);
+      let answer!: () => void;
+      state.drainGate = new Promise<void>((r) => (answer = r));
+      vi.useFakeTimers();
+      const stopping = stopSyncForStep().then((v) => (v === null ? "the vault it has" : "a runtime"), (e: Error) => e.name);
+      await vi.advanceTimersByTimeAsync(10_000);
+      // The person switches to another vault while the step waits for its cycle.
+      state.activeId = "work";
+      if (when === "within the deadline") answer();
+      await vi.advanceTimersByTimeAsync(20_000);
+      // THE DEFECT: the step went on — with its own, now closed runtime, or with the other vault's opened anew.
+      expect(await stopping).toBe("StepNotRunError");
+      expect(state.renew, "the vault on screen now is not left for the step").not.toHaveBeenCalled();
+      vi.useRealTimers();
+      answer();
+    });
+  }
 
   it("goes on with the vault it has where the sync ends in time", async () => {
     expect.hasAssertions();
