@@ -58,7 +58,7 @@ export const StoredCredentialsCard: React.FC<{ keychainStatus: string }> = ({ ke
       });
       if (!ok) return;
       try {
-        await removeStoredCredential(entry.slot);
+        await removeStoredCredential(entry.slot, entry.kind);
         setEntries((list) => (list ?? []).filter((e) => e.slot !== entry.slot));
       } catch (e) {
         console.error("[storedCredentials] removal failed", e);

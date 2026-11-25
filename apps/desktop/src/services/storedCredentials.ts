@@ -1,7 +1,8 @@
 import { credentialManager } from "./CredentialManager";
+import { accountCredentialStore } from "./accountCredentialStore";
 import { getSettingsStore } from "./settingsStore";
 import { collectVaultKeychainSlots } from "./vaultForget";
-import { isReadableSlotName } from "@plainva/ui";
+import { isReadableSlotName, isSignedOutSlot, signOutAccountHere } from "@plainva/ui";
 
 /**
  * "Stored access" — what Plainva has put in the OS keychain, and for whom (P5b).
@@ -121,7 +122,10 @@ export async function listStoredCredentials(): Promise<StoredCredentialEntry[]> 
     for (const slot of await candidateSlots(vaultPath)) {
       let present: boolean;
       try {
-        present = (await credentialManager.readSecret(slot)) !== null;
+        const value = await credentialManager.readSecret(slot);
+        // A slot "Sign out on this device" (or a removal here) left holds no
+        // access, only the mark that keeps it signed out.
+        present = value !== null && !isSignedOutSlot(value);
       } catch {
         // An unreadable slot is reported as absent rather than failing the
         // whole listing: one locked entry must not hide the other findings.
@@ -142,7 +146,20 @@ export async function listStoredCredentials(): Promise<StoredCredentialEntry[]> 
   );
 }
 
-/** Removes one stored access. Always explicit; nothing here is automatic (E2). */
-export async function removeStoredCredential(slot: string): Promise<void> {
+/**
+ * Removes one stored access. Always explicit; nothing here is automatic (E2).
+ *
+ * The password of a calendar account or a mailbox counts as "Sign out on this
+ * device" (maintainer, 2026-11-18): its slot keeps the sign-out mark
+ * (`signOutAccountHere`), so the secrets sync never fills it again from
+ * another device and writes no tombstone for it; only a sign-in here does.
+ * A slot without a password to take (an OAuth leftover) and every other
+ * kind are removed.
+ */
+export async function removeStoredCredential(slot: string, kind?: StoredCredentialKind): Promise<void> {
+  if (kind === "calendar" || kind === "mail") {
+    await signOutAccountHere({ store: accountCredentialStore, serviceSlots: [{ keys: [slot] }], clearCardGrant: async () => undefined });
+    if (isSignedOutSlot(await credentialManager.readSecret(slot))) return;
+  }
   await credentialManager.removeSecret(slot);
 }

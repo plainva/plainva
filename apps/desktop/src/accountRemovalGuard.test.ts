@@ -100,8 +100,9 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, kind: Kin
   ["packages/ui/src/lib/accountRepairCleanup.ts", "if (entry.value === null) await resources.credentials.removeSecret(entry.slot);", "any", 1, "rollback"],
   ["packages/ui/src/lib/accountRepairCleanup.ts", "await resources.replaceMailAccounts(journal.mailAccounts);", "imap", 1, "rollback"],
   ["apps/desktop/src/services/vaultForget.ts", "slots.map((slot) => credentialManager.removeSecret(slot))", "any", 1, "forget"],
-  // Settings › stored access: as "Sign out on this device" (maintainer, 2026-11-18)
-  ["apps/desktop/src/services/storedCredentials.ts", "await credentialManager.removeSecret(slot);", "any", 1, "signed-out"],
+  // Settings › stored access: a calendar or mailbox password is signed out (the mark stays,
+  // maintainer, 2026-11-18); what is removed here is any other kind, or a slot with no password to take
+  ["apps/desktop/src/services/storedCredentials.ts", "await credentialManager.removeSecret(slot);", "any", 1, "other"],
   // The secrets port's own slot access: it never empties the slot of an account still here (`secretsPort.ts`)
   ["apps/desktop/src/services/settingsSecrets.ts", "removeSlot: (slot) => credentialManager.removeSecret(slot),", "any", 1, "port"],
   ["apps/mobile/src/services/mobileSecretsPort.ts", "removeSlot: (slot) => getPlatformServices().credentials.removeSecret(slot),", "any", 1, "port"],
@@ -185,6 +186,10 @@ describe("every way a calendar account or a mailbox goes away is listed with wha
     expect(body("apps/desktop/src/services/pim/pimAccounts.ts", "export async function removePimAccount(")).toMatch(/retireRemovedCalDavSecret\(runtime, vaultPath, accountId, take\)/);
     expect(body("apps/mobile/src/services/pim/pimService.ts", "export async function removePimAccount(")).toMatch(/retireRemovedCalDavSecret\(current\.vaultId, accountId, take\)/);
     expect(body("packages/ui/src/mail/mailAccounts.ts", "export async function removeMailAccountOnPurpose(")).toMatch(/await retire\(vaultPath, \{[^}]+\}, take\)/);
+    // Stored access signs a calendar or mailbox password out before anything is removed (maintainer, 2026-11-18).
+    expect(body("apps/desktop/src/services/storedCredentials.ts", "export async function removeStoredCredential(")).toMatch(
+      /if \(kind === "calendar" \|\| kind === "mail"\) \{\s*await signOutAccountHere\([\s\S]*?if \(isSignedOutSlot\(await credentialManager\.readSecret\(slot\)\)\) return;\s*\}\s*await credentialManager\.removeSecret\(slot\);/,
+    );
     // Every line that reaches the act is one of the listed ones.
     const reaching: string[] = [];
     for (const [rel, all] of text) {

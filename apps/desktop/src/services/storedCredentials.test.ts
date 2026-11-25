@@ -134,6 +134,25 @@ describe("listStoredCredentials", () => {
     expect(await listStoredCredentials()).toEqual([]);
   });
 
+  // Removing a stored calendar or mailbox password counts as "Sign out on this
+  // device" (maintainer, 2026-11-18): the slot keeps the sign-out mark, so a
+  // newer password from another device does not sign it in again through the
+  // secrets sync (`signedOutHere` in the shared port), and the list no longer
+  // shows it. Every other kind of slot is removed as before.
+  it("signs a calendar or mailbox password out instead of deleting its slot, and lists it no more", async () => {
+    store.set("recentVaults", [LIVE]);
+    store.set(`mailAccounts_${b64(LIVE)}`, [{ id: "m1", label: "a", host: "imap.example.com", port: 993, user: "a@example.com" }]);
+    const mail = mailSecretKey(LIVE, "m1");
+    slots.set(mail, { pass: "app-password" });
+    const listed = (await listStoredCredentials()).find((entry) => entry.slot === mail);
+    expect(listed?.kind).toBe("mail");
+
+    await removeStoredCredential(mail, "mail");
+
+    expect(slots.get(mail)).toEqual({ pass: "", signedOutHere: true });
+    expect((await listStoredCredentials()).some((entry) => entry.slot === mail)).toBe(false);
+  });
+
   it("removes exactly the one slot it was asked to", async () => {
     slots.set(`mkcache_${b64(LIVE)}`, "cached-key");
     slots.set(`mkcache_${b64(GONE)}`, "cached-key");
