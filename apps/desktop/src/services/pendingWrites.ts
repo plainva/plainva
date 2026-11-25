@@ -15,8 +15,12 @@
  * `settlePendingWrites` is what makes closing a vault safe: the last window
  * looking away tears the runtime down, and a write started by an editor that
  * unmounted a moment earlier must be FINISHED, not merely started, before the
- * runtime counts as gone.
+ * runtime counts as gone. A save of a left note that is still tried again
+ * (`leftNoteSaves.ts`) is not tried any more from then on; its text stays in
+ * the draft journal.
  */
+
+import { endLeftNoteSaves } from "./leftNoteSaves";
 
 const pending = new Map<string, Promise<void>>();
 
@@ -53,6 +57,8 @@ export async function trackPendingWrite(
  * failed write is finished too and its error was reported where it happened.
  */
 export async function settlePendingWrites(vaultPath: string): Promise<void> {
+  // A save of a note an editor left is not tried again in a vault that closes.
+  endLeftNoteSaves(vaultPath);
   const prefix = vaultPath + "\u0000";
   for (;;) {
     const runs: Promise<void>[] = [];

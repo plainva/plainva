@@ -897,7 +897,7 @@ pub fn mcp_client_oauth_status(window: tauri::Window, app: AppHandle, state: Sta
 }
 
 #[tauri::command]
-pub fn mcp_client_oauth_sign_out(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String) -> Result<(), String> {
+pub async fn mcp_client_oauth_sign_out(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String) -> Result<(), String> {
     only_main(&window)?;
     forget(&app, &state, &server_id)
 }

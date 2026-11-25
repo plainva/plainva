@@ -325,6 +325,11 @@ export async function readDraft(
   return journal().read(vaultPath, notePath, diskText);
 }
 
+/** `readDraft`, but a journal that cannot be read rejects instead of answering "none". */
+export async function readDraftStrict(vaultPath: string, notePath: string): Promise<DraftEntry | null> {
+  return journal().readStrict(vaultPath, notePath);
+}
+
 /**
  * The drafts the journal holds for a note from before this run of the app —
  * of editors that held changes when the app went —, each handed out once per
