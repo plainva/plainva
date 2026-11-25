@@ -221,4 +221,29 @@ describe("createReadAhead", () => {
     await flush();
     expect(started).toEqual([0, 1]);
   });
+
+  it("weighs a reading taken before it came in by what was read, where the caller holds it", async () => {
+    const MB = 1024 * 1024;
+    // The listing says 1 KB; each file holds 50 MB.
+    const reader = controlledReader();
+    const answers = new Map<number, number>();
+    const ahead = createReadAhead(Array.from({ length: 6 }, (_, i) => i), async (group) => {
+      const out = await reader.read(group);
+      return out.map((_, k) => answers.get(group[k]) ?? 0);
+    }, { groups: 2, maxWeight: 16 * MB, weightOf: () => 1024, weighResult: (bytes: number) => bytes, holdTaken: true });
+    const first = ahead.take(0);
+    await flush();
+    // Two reads start: the listing weighs next to nothing.
+    expect(reader.pending.flatMap((c) => c.group)).toEqual([0, 1]);
+    // Only the one already taken turns out heavy.
+    answers.set(0, 50 * MB);
+    answers.set(1, 1024);
+    reader.answer(0);
+    reader.answer(0);
+    await first;
+    await flush();
+    await flush();
+    // Item 0 was taken before its 50 MB came in: they count, and nothing more starts.
+    expect(reader.pending).toEqual([]);
+  });
 });

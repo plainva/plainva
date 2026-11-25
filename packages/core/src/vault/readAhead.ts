@@ -127,7 +127,9 @@ export function createReadAhead<T, R>(
         // weighed as the answer comes in, before anything new may start.
         if (weighResult) {
           for (let i = from; i < to; i++) {
-            if (i < taken) continue;
+            // A reading taken already gives its weight back once it is in —
+            // unless the caller holds it (`holdTaken`): then it counts as read.
+            if (i < taken && !options.holdTaken) continue;
             const real = Math.max(0, weighResult(results[i - from]));
             weightAhead += real - (held[i] ?? 0);
             held[i] = real;

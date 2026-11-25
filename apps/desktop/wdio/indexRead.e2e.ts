@@ -14,9 +14,12 @@ import { fixtureFiles } from "../../../packages/core/scripts/perf/fixtureVault";
  * ahead, the desktop reads a group of files in one call
  * (`read_files_for_index`), hashed in Rust. Here the page reads the same
  * folder of generated notes all three ways, in the same run — one by one in
- * turn, one by one eight at a time, and in groups — and every way must hand
- * back the same text and the same hash for every file. The times go to the
- * log and to `wdio-logs/index-read.json`; they are a measurement, not a gate.
+ * turn, one by one eight at a time, and in groups —, each way twice in
+ * turns (A B C C B A), and every way must hand back the same text and the
+ * same hash for every file. It is the reading pattern at the bridge, not a
+ * run of the indexer: what the index's own first run gains is not measured
+ * here. The times go to the log and to `wdio-logs/index-read.json`; they are
+ * a measurement, not a gate.
  */
 
 const COUNT = Number(process.env.PLAINVA_INDEX_READ_NOTES ?? 3000);
@@ -41,6 +44,9 @@ describe("reading for the index over the bridge", () => {
   });
 
   it("I1 reads a generated vault one by one and in groups, with the same answers", async () => {
+    // The page reads 3 003 notes six times over the bridge (about 15 s one way
+    // on a Linux runner): a limit of its own for the script, not the driver's default.
+    await browser.setTimeout({ script: 300_000 });
     // The bridge, not a vault: this spec reads a folder of its own.
     await browser.waitUntil(async () => browser.execute(() => !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__), { timeout: 60_000, interval: 500 });
     const result = await browser.executeAsync(
@@ -59,77 +65,88 @@ describe("reading for the index over the bridge", () => {
             const sha256 = hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text))));
             return { path, text: String(text), sha256 };
           };
-          const answers: Record<string, Map<string, { text: string; sha256: string }>> = {};
-          const times: Record<string, number> = {};
-
-          let began = performance.now();
-          const inTurn = new Map<string, { text: string; sha256: string }>();
-          for (const file of textFiles) {
-            const one = await readOne(file.path);
-            inTurn.set(one.path, one);
-          }
-          times.oneByOneInTurnMs = performance.now() - began;
-          answers.inTurn = inTurn;
-
-          began = performance.now();
-          const eightAtATime = new Map<string, { text: string; sha256: string }>();
-          let next = 0;
-          await Promise.all(Array.from({ length: 8 }, async () => {
-            while (next < textFiles.length) {
-              const file = textFiles[next++];
+          type Read = Map<string, { text: string; sha256: string }>;
+          const inTurnWay = async (): Promise<Read> => {
+            const out: Read = new Map();
+            for (const file of textFiles) {
               const one = await readOne(file.path);
-              eightAtATime.set(one.path, one);
+              out.set(one.path, one);
             }
-          }));
-          times.oneByOneEightAtATimeMs = performance.now() - began;
-          answers.eightAtATime = eightAtATime;
-
-          // As the scan asks: groups of eight, two groups at a time.
-          began = performance.now();
-          const grouped = new Map<string, { text: string; sha256: string }>();
-          const groups: Array<Array<{ path: string; text: boolean }>> = [];
-          for (let i = 0; i < textFiles.length; i += 8) groups.push(textFiles.slice(i, i + 8));
-          let nextGroup = 0;
+            return out;
+          };
+          const eightWay = async (): Promise<Read> => {
+            const out: Read = new Map();
+            let next = 0;
+            await Promise.all(Array.from({ length: 8 }, async () => {
+              while (next < textFiles.length) {
+                const file = textFiles[next++];
+                const one = await readOne(file.path);
+                out.set(one.path, one);
+              }
+            }));
+            return out;
+          };
           let fallbacks = 0;
-          await Promise.all(Array.from({ length: 2 }, async () => {
-            while (nextGroup < groups.length) {
-              const group = groups[nextGroup++];
-              const out = (await invoke("read_files_for_index", { rootId, files: group.map((f) => ({ relPath: f.path, text: f.text })) })) as Array<{ kind: string; text?: string; sha256?: string }>;
-              out.forEach((answer, i) => {
-                if (answer.kind === "text") grouped.set(group[i].path, { text: answer.text!, sha256: answer.sha256! });
-                else fallbacks++;
-              });
-            }
-          }));
-          times.inGroupsMs = performance.now() - began;
-          answers.grouped = grouped;
+          // As the scan asks: groups of eight, two calls at a time.
+          const groupWay = async (): Promise<Read> => {
+            const out: Read = new Map();
+            const groups: Array<Array<{ path: string; text: boolean }>> = [];
+            for (let i = 0; i < textFiles.length; i += 8) groups.push(textFiles.slice(i, i + 8));
+            let nextGroup = 0;
+            await Promise.all(Array.from({ length: 2 }, async () => {
+              while (nextGroup < groups.length) {
+                const group = groups[nextGroup++];
+                const answer = (await invoke("read_files_for_index", { rootId, files: group.map((f) => ({ relPath: f.path, text: f.text })) })) as Array<{ kind: string; text?: string; sha256?: string }>;
+                answer.forEach((one, i) => {
+                  if (one.kind === "text") out.set(group[i].path, { text: one.text!, sha256: one.sha256! });
+                  else fallbacks++;
+                });
+              }
+            }));
+            return out;
+          };
+          // Each way twice, in turns and in the reverse order the second time
+          // (A B C C B A): the first way does not alone pay for a cold start.
+          const ways: Record<string, () => Promise<Read>> = { oneByOneInTurn: inTurnWay, oneByOneEightAtATime: eightWay, inGroups: groupWay };
+          const order = ["oneByOneInTurn", "oneByOneEightAtATime", "inGroups", "inGroups", "oneByOneEightAtATime", "oneByOneInTurn"];
+          const times: Record<string, number[]> = {};
+          const answers: Record<string, Read> = {};
+          for (const way of order) {
+            const began = performance.now();
+            answers[way] = await ways[way]();
+            (times[way] ??= []).push(Math.round(performance.now() - began));
+          }
+          const inTurn = answers.oneByOneInTurn;
+          const eightAtATime = answers.oneByOneEightAtATime;
+          const grouped = answers.inGroups;
 
           // Attachments: hashed in Rust, never carried over the bridge (their hash is checked against the file's).
           const attachments = asked.filter((f) => !f.text).slice(0, 200);
-          began = performance.now();
+          const attachmentsBegan = performance.now();
           const attachmentHashes: Record<string, string> = {};
           for (let i = 0; i < attachments.length; i += 8) {
             const group = attachments.slice(i, i + 8);
             const out = (await invoke("read_files_for_index", { rootId, files: group.map((f) => ({ relPath: f.path, text: false })) })) as Array<{ kind: string; sha256?: string }>;
             out.forEach((answer, k) => { if (answer.kind === "bytes") attachmentHashes[group[k].path] = answer.sha256!; });
           }
-          times.attachmentsInGroupsMs = performance.now() - began;
+          const attachmentsMs = Math.round(performance.now() - attachmentsBegan);
 
           const asRecord = (map: Map<string, { text: string; sha256: string }>) => Object.fromEntries([...map].map(([p, v]) => [p, v.sha256]));
           done({
             notes: textFiles.length,
             attachments: attachments.length,
             times,
+            attachmentsMs,
             fallbacks,
-            hashes: { inTurn: asRecord(answers.inTurn), eightAtATime: asRecord(answers.eightAtATime), grouped: asRecord(answers.grouped), attachments: attachmentHashes },
-            sameText: [...answers.inTurn].every(([p, v]) => answers.grouped.get(p)?.text === v.text && answers.eightAtATime.get(p)?.text === v.text),
+            hashes: { inTurn: asRecord(inTurn), eightAtATime: asRecord(eightAtATime), grouped: asRecord(grouped), attachments: attachmentHashes },
+            sameText: [...inTurn].every(([p, v]) => grouped.get(p)?.text === v.text && eightAtATime.get(p)?.text === v.text),
           });
         })().catch((error) => done({ error: String(error) }));
       },
       folder,
       files.map(({ path, text }) => ({ path, text })),
     ) as {
-      error?: string; notes: number; attachments: number; times: Record<string, number>; fallbacks: number; sameText: boolean;
+      error?: string; notes: number; attachments: number; times: Record<string, number[]>; attachmentsMs: number; fallbacks: number; sameText: boolean;
       hashes: { inTurn: Record<string, string>; eightAtATime: Record<string, string>; grouped: Record<string, string>; attachments: Record<string, string> };
     };
     if (result.error) throw new Error(`the page could not read the folder: ${result.error}`);
@@ -150,7 +167,7 @@ describe("reading for the index over the bridge", () => {
     }
     if (!result.sameText) throw new Error("the three ways handed out different text");
     if (result.fallbacks !== 0) throw new Error(`${result.fallbacks} plain UTF-8 notes went to the fallback`);
-    const report = { platform: process.platform, notes: result.notes, attachments: result.attachments, times: result.times };
+    const report = { platform: process.platform, notes: result.notes, attachments: result.attachments, timesMs: result.times, attachmentsMs: result.attachmentsMs, order: "A B C C B A" };
     console.log(`[index-read] ${JSON.stringify(report)}`);
     mkdirSync("wdio-logs", { recursive: true });
     writeFileSync(join("wdio-logs", "index-read.json"), JSON.stringify(report, null, 2));

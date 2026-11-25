@@ -378,11 +378,13 @@ index's own text: 680 ms for all 10 000 notes, 364 ms for half (`pnpm perf:core`
 `listTasks` 484 -> 60-65 ms; cold index and the pass without changes unchanged within their spread).
 Of the 60 ms most is decoding the rows' JSON.
 
-**The save.** `pnpm perf:core` showed the p95 of 40 saves at 4.1 ms before and 6.7-7.9 ms after.
-`scripts/perf/save-cost.ts` saves one note 400 times with the task row and 400 times without, in
-blocks taking turns on the same index: p50 2.78 / 2.67 ms, p95 9.24 / 9.67 ms. Reading that note's
-task lines costs 0.02 ms and the statement 0.01 ms. The rise was this machine's spread between
-runs, not the row.
+**The save.** `pnpm perf:core` showed the p95 of 40 saves at 4.1 ms before and 6.7-7.9 ms after
+(one run each). `scripts/perf/save-cost.ts` compares this branch with and without the task row,
+not with `main`: one note saved 400 times each way, in blocks taking turns on the same index,
+gave p50 2.78 / 2.67 ms and p95 9.24 / 9.67 ms; the review's three runs of it put the row at
++0.06 to +0.11 ms per save in the mean, the trigger included. Reading that note's task lines alone
+costs 0.02 ms and the statement 0.01 ms. What moved the p95 between the two core runs is not
+measured; the row costs about a tenth of a millisecond.
 
 ## Reading ahead in the full scan (performance plan L2, 2026-11-25)
 
@@ -394,12 +396,18 @@ files a transaction of the scan writes are read ahead of the loop that indexes t
 
 - **Which files, when.** Up to eight reads at a time — single files, or where the adapter reads
   many files in one call (`readFilesForIndex`, the desktop) two calls of eight files each. One
-  bound holds what a transaction has: its readings taken and those still ahead together at most the
-  16 MB a transaction holds, weighed by the listing's size until a reading is in and by what was
-  read from then on; a reading taken keeps its weight until the transaction writes, so reads begun
-  after the transaction's time is reached still fit the bound. A file heavier than the bound is
-  read on its own. The one excess left: files whose listing names a size far below what they hold,
-  read at the same time, before the first of them is in. Only within a transaction: every read
+  bound holds what a transaction has, in characters of text: its readings taken and those still
+  ahead together at most the 16 M characters a transaction holds (`SCAN_TRANSACTION_TEXT`). A
+  reading counts by its text once it is in, taken or not; until then by the listing's size in
+  bytes, which is never below the characters of a UTF-8 text of that size; an attachment, only
+  hashed, holds nothing once it is in. A reading taken keeps its weight until the transaction
+  writes, so reads begun after the transaction's time is reached still fit the bound. A file
+  heavier than the bound is read on its own. **The true bound:** nothing new begins once the
+  bound is reached, but what is in flight is read to its end — at most 8 files at a time (16 on the
+  desktop, two calls of eight). Where those files' listing names a size below what they hold, a
+  transaction can hold up to those 8 or 16 files at their real size on top of the bound; there is
+  no limit per file for the index's reading (a note is read whole), so the largest possible is the
+  sum of the 8 or 16 largest files that a listing names too small. Only within a transaction: every read
   begins after the transaction's change mark, so a save or move that lands during a read is seen
   by `changesSince` and the file is read once more, as before. Once the transaction's time or text
   is reached nothing new is begun, and what was begun is written in it. `scanTransactionMs: 0` (a
@@ -433,11 +441,14 @@ over a bridge — three calls per note into Rust on the desktop, one through the
 — and a slow medium, which the core does not see. On Windows the first version of this change
 measured 71.3 -> 43.4 s at the core (`feature/w2-open`, 2026-11-11).
 
-**In the built app** (native smoke, `apps/desktop/wdio/indexRead.e2e.ts`, GitHub runners,
-2026-11-25, run 45678975296): the page reads the same 3 003 generated notes the three ways, in one
-run, and every way hands back each file's hash. One by one in turn as the adapter read them (two
+**At the bridge of the built app** (native smoke, `apps/desktop/wdio/indexRead.e2e.ts`, GitHub
+runners, 2026-11-25, run 45678975296): the page reads the same 3 003 generated notes the three
+ways and every way hands back each file's hash. One by one in turn as the adapter read them (two
 path calls, the read, the hash in JavaScript) / one by one, eight at a time / in groups of eight
-through `read_files_for_index`, two calls at a time:
+through `read_files_for_index`, two calls at a time. This is the reading pattern at the bridge,
+not a run of the indexer: what the index's own first run in the app gains is not measured. The
+numbers below are one run per platform in a fixed order, so the first way also paid for the cold
+start; the spec now runs each way twice in turns (A B C C B A) and logs both:
 
 | | one by one | eight at a time | in groups |
 |---|---|---|---|

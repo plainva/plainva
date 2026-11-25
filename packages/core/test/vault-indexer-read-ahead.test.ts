@@ -130,10 +130,22 @@ const sha256Hex = async (bytes: Uint8Array) =>
 /** A vault that reads many files in one call, as the desktop's bridge into Rust does. */
 class ManyAtOnceVault extends SlowVault {
   calls: IndexReadRequest[][] = [];
+  /** Calls in flight now, and the most there were at once. */
+  callsInFlight = 0;
+  mostCalls = 0;
   /** Paths the one call leaves to the ordinary read. */
   leaveToOrdinary = new Set<string>();
   async readFilesForIndex(requests: readonly IndexReadRequest[]): Promise<IndexReadResult[]> {
     this.calls.push([...requests]);
+    this.callsInFlight++;
+    this.mostCalls = Math.max(this.mostCalls, this.callsInFlight);
+    try {
+      return await this.answerMany(requests);
+    } finally {
+      this.callsInFlight--;
+    }
+  }
+  private async answerMany(requests: readonly IndexReadRequest[]): Promise<IndexReadResult[]> {
     await tick();
     const out: IndexReadResult[] = [];
     for (const request of requests) {
@@ -253,13 +265,40 @@ describe("a full scan that reads ahead", () => {
     await vault.initialize();
     const MB = 1024 * 1024;
     for (let i = 0; i < 6; i++) await vault.writeTextFile(`big/n${i}.md`, `# ${i}\n${"x".repeat(9 * MB)}\n`);
+    // And forty of 1 MB: when a transaction reaches its bound, the reads in flight must not
+    // have been begun past it (they would join the transaction that took the sixteenth).
+    for (let i = 0; i < 40; i++) await vault.writeTextFile(`mid/m${String(i).padStart(2, "0")}.md`, `# ${i}\n${"y".repeat(MB)}\n`);
     const inner = takingTurns(await realSqlite());
-    let transactions = 0;
-    const db: IDatabaseAdapter = { ...inner, transaction: <T,>(fn: (tx: SqlStatements) => Promise<T>) => { transactions++; return inner.transaction(fn); } };
+    // The text each transaction writes into the full-text table: what it held.
+    const held: number[][] = [];
+    const db: IDatabaseAdapter = {
+      ...inner,
+      transaction: <T,>(fn: (tx: SqlStatements) => Promise<T>) => inner.transaction(async (tx) => {
+        const texts: number[] = [];
+        const counting: SqlStatements = {
+          ...tx,
+          execute: async (sql: string, params?: unknown[]) => {
+            if (/INTO fts_notes/.test(sql)) texts.push(String((params ?? [])[0] ?? "").length);
+            return tx.execute(sql, params);
+          },
+          ...(tx.runBatch ? { runBatch: async (statements: Parameters<NonNullable<SqlStatements["runBatch"]>>[0]) => {
+            for (const statement of statements) if (/INTO fts_notes/.test(statement.sql)) texts.push(String((statement.params ?? [])[0] ?? "").length);
+            return tx.runBatch!(statements);
+          } } : {}),
+        };
+        try { return await fn(counting); } finally { held.push(texts); }
+      }),
+    };
     await new VaultIndexer(vault, db, { monotonicNow: steppingClock(), scanTransactionMs: Number.POSITIVE_INFINITY }).indexVaultFull();
-    expect(transactions).toBeGreaterThanOrEqual(3);
-    expect(vault.mostBytes).toBeLessThan(19 * MB);
-    expect((await db.query(`SELECT path FROM files`)).length).toBe(6);
+    // Every transaction holds at most the bound and the one note that reached it: all but its
+    // largest note together stay within 16 M characters. Two notes of 9 MB never get a third.
+    const SLACK = 64 * 1024;
+    for (const texts of held.filter((t) => t.length > 0)) {
+      const total = texts.reduce((a, b) => a + b, 0);
+      expect(total - Math.max(...texts), `a transaction of ${texts.length} notes`).toBeLessThanOrEqual(16 * MB + SLACK);
+    }
+    expect(Math.max(...held.map((t) => t.reduce((a, b) => a + b, 0)))).toBeLessThan(19 * MB);
+    expect((await db.query(`SELECT path FROM files`)).length).toBe(46);
   });
 
   it("reads in groups where the host reads many files in one call, with the same index, and sends the rest the ordinary way", async () => {
@@ -272,6 +311,8 @@ describe("a full scan that reads ahead", () => {
     expect(await dump(db)).toEqual(reference);
     expect(vault.calls.length).toBeGreaterThan(1);
     expect(Math.max(...vault.calls.map((c) => c.length))).toBeLessThanOrEqual(8);
+    // Two calls of eight in flight at once, never more.
+    expect(vault.mostCalls).toBe(2);
     // The note, the attachments and the `.csv` are asked for the way they are indexed.
     const asked = new Map(vault.calls.flat().map((r) => [r.path, r.text]));
     expect(asked.get(names[0])).toBe(true);

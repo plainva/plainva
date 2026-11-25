@@ -3113,10 +3113,13 @@ export class VaultIndexer {
           // time or text is reached nothing new is read — what was begun is
           // written here.
           const slice = work.slice(next, Math.min(work.length, next + LOOKUP_SLICE));
-          // What is held counts against one bound: the readings this
-          // transaction took and those still ahead, by what was read once a
-          // reading is in (the listing's size until then), together at most
-          // `SCAN_TRANSACTION_TEXT` — the bound of what a transaction holds.
+          // What is held counts against one bound, in characters of text:
+          // the readings this transaction took and those still ahead,
+          // together at most `SCAN_TRANSACTION_TEXT` — the bound of what a
+          // transaction holds. A reading counts by its text once it is in,
+          // taken or not; until then by the listing's size in bytes, which is
+          // never below the characters of a UTF-8 text of that size. An
+          // attachment is only hashed: once in, it holds nothing.
           const ahead = createReadAhead(slice, (group) => this.readScanGroup(group), {
             groups: many ? (readsAhead > 1 ? SCAN_GROUPS_AHEAD : 1) : readsAhead,
             groupSize: many ? Math.min(readsAhead, SCAN_GROUP_SIZE) : 1,
