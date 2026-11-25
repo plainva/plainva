@@ -433,8 +433,9 @@ pub async fn db_tx_close(state: tauri::State<'_, DbTransactions>, db_path: Strin
     Ok(())
 }
 
-/// What lib.rs runs when a webview loads a page or its window goes.
-pub fn release_owner_later<R: tauri::Runtime>(app: &tauri::AppHandle<R>, owner: String, why: &'static str) {
+/// What lib.rs runs when a webview loads a page or its window goes. The
+/// handle says how many transactions went back (the tests wait for it).
+pub fn release_owner_later<R: tauri::Runtime>(app: &tauri::AppHandle<R>, owner: String, why: &'static str) -> tauri::async_runtime::JoinHandle<usize> {
     use tauri::Manager;
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -443,16 +444,22 @@ pub fn release_owner_later<R: tauri::Runtime>(app: &tauri::AppHandle<R>, owner: 
         if n > 0 {
             eprintln!("[db_tx] rolled back {n} transaction(s) of {owner}: {why}");
         }
-    });
+        n
+    })
 }
 
 /// The timer behind `IDLE_LIMIT`, started once in lib.rs's setup.
 pub fn start_reaper<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    start_reaper_every(app, REAP_EVERY);
+}
+
+/// `start_reaper` with its interval: the tests run it in milliseconds.
+pub(crate) fn start_reaper_every<R: tauri::Runtime>(app: &tauri::AppHandle<R>, every: Duration) {
     use tauri::Manager;
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         loop {
-            tokio::time::sleep(REAP_EVERY).await;
+            tokio::time::sleep(every).await;
             let n = app.state::<DbTransactions>().reap(Instant::now()).await;
             if n > 0 {
                 eprintln!("[db_tx] rolled back {n} transaction(s) that sent nothing for {} s", IDLE_LIMIT.as_secs());
@@ -740,5 +747,111 @@ mod tests {
             eprintln!("[db_tx] three statements: {per_tx:?} as one transaction on the kept connection; {per_turn:?} committed one by one on a held connection (before R1)");
             assert_eq!(count(&url, "SELECT COUNT(*) FROM files").await, 1200);
         });
+    }
+
+    // --- The wiring in lib.rs (Sammelplan of the stability review) --------
+    //
+    // The methods above are tested on their own; these hold the three places
+    // the app calls them: the reaper started at setup, and a webview's
+    // transactions going back when its page loads or its window goes.
+
+    fn mock_app() -> tauri::App<tauri::test::MockRuntime> {
+        tauri::test::mock_builder()
+            .manage(DbTransactions::default())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap()
+    }
+
+    #[test]
+    fn a_page_that_loads_or_a_window_that_goes_takes_its_own_transactions_back_and_no_others() {
+        use tauri::Manager;
+        let (_d, url) = tmp_url();
+        block(setup(&url));
+        let app = mock_app();
+        let txs = app.state::<DbTransactions>();
+        let (aux, main) = block(async {
+            let aux = txs.begin(&url, "aux").await.unwrap();
+            let (sql, params) = put("aux.md");
+            txs.execute(aux, sql, params).await.unwrap();
+            let other = tmp_url();
+            block_on_setup(&other.1).await;
+            let main = txs.begin(&other.1, "main").await.unwrap();
+            (aux, (main, other))
+        });
+        for why in ["its page loaded", "its window was closed"] {
+            let n = block(release_owner_later(app.handle(), "aux".into(), why)).unwrap();
+            assert_eq!(n, if why == "its page loaded" { 1 } else { 0 }, "{why}");
+        }
+        // What it wrote went back, and its handle is gone; the other window's transaction is untouched.
+        assert_eq!(block(count(&url, "SELECT COUNT(*) FROM files")), 0);
+        assert!(block(txs.execute(aux, "SELECT 1".into(), vec![])).is_err());
+        let (main, (_d2, other_url)) = main;
+        let (sql, params) = put("main.md");
+        assert_eq!(block(txs.execute(main, sql, params)).unwrap(), 1);
+        block(txs.commit(main)).unwrap();
+        assert_eq!(block(count(&other_url, "SELECT COUNT(*) FROM files")), 1);
+    }
+
+    async fn block_on_setup(url: &str) {
+        setup(url).await;
+    }
+
+    #[test]
+    fn the_reaper_the_app_starts_rolls_back_a_transaction_that_sent_nothing() {
+        use tauri::Manager;
+        let (_d, url) = tmp_url();
+        block(setup(&url));
+        let app = mock_app();
+        start_reaper_every(app.handle(), Duration::from_millis(20));
+        let txs = app.state::<DbTransactions>();
+        let stale = block(txs.begin(&url, "main")).unwrap();
+        let (sql, params) = put("stale.md");
+        block(txs.execute(stale, sql, params)).unwrap();
+        block(txs.age(stale, IDLE_LIMIT));
+        let began = Instant::now();
+        while txs.open_count() > 0 {
+            assert!(began.elapsed() < Duration::from_secs(5), "the reaper never came");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(block(txs.execute(stale, "SELECT 1".into(), vec![])).is_err());
+        assert_eq!(block(count(&url, "SELECT COUNT(*) FROM files")), 0);
+        // A transaction that is in use is left alone by the next rounds.
+        let fresh = block(txs.begin(&url, "main")).unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        assert_eq!(txs.open_count(), 1);
+        block(txs.rollback(fresh)).unwrap();
+    }
+
+    /// The text of lib.rs from `from` to the next `until`.
+    fn lib_between(from: &str, until: &str) -> String {
+        let lib = include_str!("lib.rs");
+        let start = lib.find(from).unwrap_or_else(|| panic!("lib.rs no longer has {from:?}"));
+        let rest = &lib[start..];
+        rest[..rest.find(until).unwrap_or(rest.len())].to_string()
+    }
+
+    #[test]
+    fn lib_rs_starts_the_reaper_and_hands_a_webview_s_end_to_the_transactions() {
+        let lib = include_str!("lib.rs");
+        assert!(lib.contains(".manage(db_tx::DbTransactions::default())"));
+        // The reaper is started in setup, once.
+        assert!(lib_between(".setup(|app| {", "\n        })\n").contains("db_tx::start_reaper(app.handle());"));
+        assert_eq!(lib.matches("db_tx::start_reaper(").count(), 1);
+        // A page that starts loading has lost the JavaScript that knew its transactions.
+        let page = lib_between(".on_page_load(|webview, payload| {", "\n        })\n");
+        let started = page.find("if payload.event() == tauri::webview::PageLoadEvent::Started {").expect("the page load is not asked whether it started");
+        let release = page.find(r#"db_tx::release_owner_later(webview.app_handle(), webview.label().to_string(), "its page loaded");"#).expect("a loading page keeps its transactions");
+        assert!(release > started);
+        // A window that is gone, not one that is asked to close (it may stay).
+        let window = lib_between(".on_window_event(|window, event| {", "\n        })\n");
+        let destroyed = window.find("if matches!(event, tauri::WindowEvent::Destroyed) {").expect("the window event is not asked whether it was destroyed");
+        let gone = window.find(r#"db_tx::release_owner_later(window.app_handle(), window.label().to_string(), "its window was closed");"#).expect("a closed window keeps its transactions");
+        assert!(gone > destroyed && gone < window[destroyed..].find('}').map(|end| destroyed + end).unwrap());
+        // The owner a transaction is released by is the webview that began it.
+        let begin = include_str!("db_tx.rs");
+        assert!(begin.contains("state.begin(&db_path, webview.label()).await"));
+        for command in ["db_tx_begin", "db_tx_execute", "db_tx_select", "db_tx_batch", "db_tx_commit", "db_tx_rollback", "db_tx_close"] {
+            assert!(lib.contains(&format!("db_tx::{command},")), "{command} is not registered");
+        }
     }
 }
