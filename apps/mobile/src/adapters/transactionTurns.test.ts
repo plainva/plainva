@@ -79,4 +79,45 @@ describe("transaction turns on the phone's one connection", () => {
     await vi.advanceTimersByTimeAsync(0);
     await expect(later).resolves.toBe("later");
   });
+
+  it("let reads asked for together share one turn, and make what comes after them wait for the last", async () => {
+    expect.hasAssertions();
+    const turns = new TransactionTurns();
+    const order: string[] = [];
+    let releaseTx!: () => void;
+    void turns.take(() => new Promise<void>((r) => { releaseTx = r; }).then(() => { order.push("tx"); }));
+    const ends: Array<() => void> = [];
+    const read = (name: string) => turns.read(() => new Promise<void>((r) => { order.push(`${name} begins`); ends.push(() => { order.push(`${name} ends`); r(); }); }));
+    const a = read("a");
+    const b = read("b");
+    const after = turns.take(async () => { order.push("after"); });
+    const c = read("c");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(order).toEqual([]);
+    releaseTx();
+    await new Promise((r) => setTimeout(r, 0));
+    // a and b run side by side; c, asked for after a transaction, waits for it.
+    expect(order).toEqual(["tx", "a begins", "b begins"]);
+    ends[1]();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(order).not.toContain("after");
+    ends[0]();
+    await Promise.all([a, b, after]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(order).toEqual(["tx", "a begins", "b begins", "b ends", "a ends", "after", "c begins"]);
+    ends[2]();
+    await c;
+  });
+
+  it("give a read up after its wait, without running it", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    const turns = new TransactionTurns();
+    void turns.take(() => new Promise<void>(() => {}), "transaction");
+    const ran = vi.fn(async () => []);
+    const failed = turns.read(ran).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(await failed).toBeInstanceOf(TransactionTurnTimeout);
+    expect(ran).not.toHaveBeenCalled();
+  });
 });

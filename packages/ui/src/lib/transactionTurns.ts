@@ -54,9 +54,19 @@ import { logDiagnostic } from "../services/diagnosticsLog";
  * without a turn; a body that sends a write to the adapter instead waits for
  * itself, and gives up after `TURN_WAIT_MS` like any turn. Under the unit
  * tests it gives up after `STATEMENT_WAIT_IN_TESTS_MS`, and the error names
- * where the transaction it waited for was opened (`takeStatement`). Reads take
- * no turn: nothing of them can be rolled back, and a search must not wait for
- * a full scan.
+ * where the transaction it waited for was opened (`takeStatement`).
+ *
+ * Reads take turns too, on the phone (`read`, `takeRead`). They used to take
+ * none — nothing of a read can be rolled back — but on one connection a read
+ * sent while a transaction is open runs IN it and sees what it has written so
+ * far: a note's row in `files` without its properties yet, sorted differently,
+ * for a query that met an index pass half-way. The desktop never had this: its
+ * reads go to the pool, outside the transaction's connection, and see what was
+ * committed. Here a read waits for the transaction in front of it and nothing
+ * else: reads that arrive one after the other share ONE turn and run side by
+ * side, and a transaction asked for meanwhile waits for them. A full scan does
+ * not hold the reads off for its whole length either — it gives the connection
+ * back between its transactions (`scanTransactionMs`).
  */
 export const TURN_WAIT_MS = 60_000;
 
@@ -104,6 +114,22 @@ export function takeStatement<T>(turns: TransactionTurns, work: () => Promise<T>
   });
 }
 
+/**
+ * A read, in its turn (`TransactionTurns.read`). Under the unit tests it waits
+ * `STATEMENT_WAIT_IN_TESTS_MS` at most, like a statement: a body that reads
+ * through the adapter instead of its handle waits for itself.
+ */
+export function takeRead<T>(turns: TransactionTurns, work: () => Promise<T>): Promise<T> {
+  if (!underUnitTests()) return turns.read(work);
+  return turns.read(work, STATEMENT_WAIT_IN_TESTS_MS).catch((error: unknown) => {
+    if (!(error instanceof TransactionTurnTimeout)) throw error;
+    throw new Error(
+      `A read sent to the database adapter waited ${STATEMENT_WAIT_IN_TESTS_MS} ms for the ${error.holder}. ` +
+      "A transaction's body that reads through the adapter instead of its handle (tx) waits for itself.",
+    );
+  });
+}
+
 /** A transaction that waited `TURN_WAIT_MS` for its turn and was not run. */
 export class TransactionTurnTimeout extends Error {
   constructor(readonly holder: string, readonly heldMs: number) {
@@ -116,6 +142,12 @@ export class TransactionTurns {
   private last: Promise<unknown> = Promise.resolve();
   /** The turn that runs now, and since when: what a turn that gives up names. */
   private running: { label: string; since: number } | null = null;
+
+  /**
+   * The reads that share the turn at the end of the line, while it is still
+   * there: a read asked for after them joins them instead of waiting for them.
+   */
+  private reads: { tail: Promise<unknown>; active: number; gate: Promise<void>; finish: () => void } | null = null;
 
   constructor(
     private readonly waitMs = TURN_WAIT_MS,
@@ -156,5 +188,36 @@ export class TransactionTurns {
     // the one this one was waiting for.
     this.last = before.then(() => (gaveUp ? undefined : turn)).catch(() => {});
     return turn;
+  }
+
+  /**
+   * Runs the read `work` once every transaction, batch, statement or close
+   * asked for before it is through — side by side with the reads asked for
+   * right before or after it, which share its turn. What is asked for after
+   * the shared turn waits until the last of its reads has ended. Gives up
+   * like `take` (`TransactionTurnTimeout`, never run).
+   */
+  read<T>(work: () => Promise<T>, waitMs = this.waitMs): Promise<T> {
+    let group = this.reads;
+    if (!group || group.tail !== this.last) {
+      let open!: () => void;
+      let finish!: () => void;
+      const finished = new Promise<void>((resolve) => { finish = resolve; });
+      const started = new Promise<void>((resolve) => { open = resolve; });
+      const turn = this.take(() => { open(); return finished; }, "read", waitMs);
+      const fresh = { tail: this.last, active: 0, gate: Promise.race([started, turn.then(() => {})]), finish };
+      group = fresh;
+      this.reads = fresh;
+    }
+    const mine = group;
+    mine.active += 1;
+    const done = () => {
+      mine.active -= 1;
+      if (mine.active > 0) return;
+      // The last of them: the turn ends, and nothing joins it any more.
+      if (this.reads === mine) this.reads = null;
+      mine.finish();
+    };
+    return mine.gate.then(work).finally(done);
   }
 }
