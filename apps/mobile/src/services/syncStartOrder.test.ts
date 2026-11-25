@@ -27,6 +27,8 @@ const state = vi.hoisted(() => ({
   settings: new Map<string, unknown>(),
   /** What happened, in order: a reset of the sync state, a worker built. */
   log: [] as string[],
+  /** The registry's entry as written, patch by patch. */
+  updates: [] as string[],
   settingsOnly: [] as Array<{ running: boolean }>,
   /** The sync records confirm remote files (cleared with them). */
   confirmed: false,
@@ -143,6 +145,7 @@ vi.mock("./vaultRegistry", async (original) => ({
   addVault: async () => undefined,
   getVaultEntry: async () => ({ id: "v", provider: "webdav", pausedHere: state.pausedHere, syncedBefore: state.syncedBefore }),
   updateVault: async (_id: string, patch: { pausedHere?: boolean; syncedBefore?: boolean }) => {
+    state.updates.push(JSON.stringify(patch));
     if (patch.pausedHere !== undefined) state.pausedHere = patch.pausedHere;
     if (patch.syncedBefore !== undefined) state.syncedBefore = patch.syncedBefore;
   },
@@ -178,7 +181,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, detachSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep } from "./syncService";
+import { connectProvider, detachSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withVaultSyncStopped } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -199,6 +202,7 @@ beforeEach(() => {
   state.url = "https://dav.example.test/vault";
   state.settings.clear();
   state.log.length = 0;
+  state.updates.length = 0;
   state.gate = null;
   state.joinGate = null;
   state.confirmed = false;
@@ -700,13 +704,15 @@ describe("a step that stops the sync", () => {
     expect(await stopping).toBe("StepNotRunError");
   });
 
-  it("on a vault's sign-in (no runtime of its own) stops only that vault's sync, and goes on where another is on screen", async () => {
+  it("a restart for a vault that is not on screen stops nothing of the one that is", async () => {
     expect.hasAssertions();
     await startSyncIfConfigured(vault);
-    state.screen = otherVault();
-    // A password changed for "v" while "work" is open: nothing to stop for "v", and the step writes its sign-in.
-    expect(await stopSyncForStep({ vaultId: "v" })).toBeNull();
-    expect(running().workers, "the other vault's sync runs on").toBe(1);
+    const runningWorker = state.workers[state.workers.length - 1];
+    const built = state.workers.length;
+    // THE DEFECT (N11): asked for "work" with "v" on screen, the restart stopped and started "v"'s sync.
+    await restartSyncIfActive("work");
+    expect(runningWorker?.running, "the vault on screen keeps its worker").toBe(true);
+    expect(state.workers.length, "no worker built anew").toBe(built);
   });
 
   it("a restart in the start chain for a runtime no longer on screen starts nothing", async () => {
@@ -755,6 +761,85 @@ describe("a step that stops the sync", () => {
     await restartSyncIfActive("v");
     expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
     answer();
+  });
+});
+
+/**
+ * A step on a vault's sign-ins — a password, the broker, the files taken out
+ * — belongs to the vault, not to a runtime of it (`withVaultSyncStopped`): it
+ * holds the vault's sync from its first line to its end, stops what runs of
+ * it then, and never says it did not run (review B2 round 5, s1/s2).
+ */
+describe("a step on a vault's sign-ins", () => {
+  afterEach(() => { vi.useRealTimers(); state.renew.mockReset(); toast.clearAll(); });
+  const otherVault = () => ({ ...vault, vaultId: "work" }) as MobileVault;
+
+  it("stops only that vault's sync, and runs where another vault is on screen", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    state.screen = otherVault();
+    let ran = false;
+    await withVaultSyncStopped("v", async () => { ran = true; });
+    expect(ran).toBe(true);
+    expect(running().workers, "the other vault's sync runs on").toBe(1);
+  });
+
+  for (const start of ["startSyncAfterBoot", "startSyncIfConfigured"] as const) {
+    it(`leaves no sync of the vault running when it was left and opened again in the wait — files taken out (${start})`, async () => {
+      expect.hasAssertions();
+      await startSyncIfConfigured(vault);
+      let answer!: () => void;
+      state.drainGate = new Promise<void>((r) => (answer = r));
+      const disconnecting = disconnectFiles("v").then(() => "done", (e: Error) => e.name);
+      await new Promise((r) => setTimeout(r, 10));
+      // Away and back within the wait: the new runtime of the vault starts its sync.
+      state.drainGate = null;
+      const fresh = { ...vault } as MobileVault;
+      state.screen = fresh;
+      await (start === "startSyncAfterBoot" ? startSyncAfterBoot(fresh) : startSyncIfConfigured(fresh));
+      answer();
+      expect(await disconnecting).toBe("done");
+      // THE DEFECT (probe s1): the step compared with the runtime it began on; the new one's worker kept the sign-in.
+      expect(running().workers, "no sync runs for the account's files once they are taken out").toBe(0);
+    });
+  }
+
+  it("never says it did not run where its renew after the deadline meets a switch — it writes, and says nothing", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    state.drainGate = new Promise<void>(() => undefined);
+    // As vaultService does where the vault was left before the renew's turn: the step's runtime is not on screen.
+    state.renew.mockImplementationOnce(async (left: { drain: Promise<void>; notRun?: () => Error }) => { throw left.notRun!(); });
+    vi.useFakeTimers();
+    const disconnecting = disconnectFiles("v").then(() => "done", (e: Error) => e.name);
+    await vi.advanceTimersByTimeAsync(31_000);
+    const outcome = await disconnecting;
+    vi.useRealTimers();
+    // THE DEFECT (probe s2): "Nothing was changed" was said, and then the sign-in was taken out.
+    expect(outcome).toBe("done");
+    expect(toastStore.get().map((t) => t.message).filter((m) => /did not run|nicht gelaufen/.test(m))).toEqual([]);
+    expect(state.updates, "the files are taken out").toEqual(['{"pausedHere":false}']);
+  });
+
+  it("starts the vault's sync again where the step fails: it changed nothing", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    await expect(withVaultSyncStopped("v", async () => { throw new Error("keychain locked"); })).rejects.toThrow("keychain locked");
+    await vi.waitFor(() => expect(running().workers).toBe(1));
+  });
+
+  it("holds every start of the vault while it runs, and lets the one after it start", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    let during = -1;
+    await withVaultSyncStopped("v", async () => {
+      await startSyncAfterBoot(vault);
+      await startSyncIfConfigured(vault);
+      during = running().workers;
+    });
+    expect(during, "nothing of the vault's sync starts while the step holds it").toBe(0);
+    await restartSyncIfActive("v");
+    expect(running().workers).toBe(1);
   });
 });
 

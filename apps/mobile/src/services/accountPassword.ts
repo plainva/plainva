@@ -4,7 +4,7 @@ import { getMailPassword, listMailAccounts, mailAccountKind, mailSecretKey, chec
 import { protectedSecrets } from "../platform/protectedSecrets";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { loadCloudAccounts } from "./cloudAccountsStore";
-import { getStoredProvider, restartSyncIfActive, stopSyncForStep } from "./syncService";
+import { getStoredProvider, restartSyncIfActive, withVaultSyncStopped } from "./syncService";
 import { storedProviderEndpoint } from "./fileSyncAccess";
 import { syncProviderSlot } from "./syncSlot";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
@@ -61,10 +61,8 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             void allowHttpOrigin(value.creds.endpoint);
             await new S3SyncTarget({ ...value.creds, secretAccessKey }, webdavFetch).listFolders("");
           },
-          beforeWrite: async () => {
-            // A step on the vault's sign-in: it stops that vault's sync where it is on screen, and nothing else.
-            await stopSyncForStep({ vaultId });
-          },
+          // A step on the vault's sign-in: the vault's sync is held across the write, what runs of it stopped first.
+          around: (write) => withVaultSyncStopped(vaultId, write),
         }));
         else if (service === "files") targets.push(createPasswordCredentialTarget({
           service, key: syncProviderSlot(vaultId), store: protectedSecrets,
@@ -80,10 +78,8 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             void allowHttpOrigin(value.creds.url);
             await new WebDavSyncTarget({ ...value.creds, pass }, webdavFetch).listFolders("");
           },
-          beforeWrite: async () => {
-            // A step on the vault's sign-in: it stops that vault's sync where it is on screen, and nothing else.
-            await stopSyncForStep({ vaultId });
-          },
+          // A step on the vault's sign-in: the vault's sync is held across the write, what runs of it stopped first.
+          around: (write) => withVaultSyncStopped(vaultId, write),
         }));
         else if (service === "calendar") {
           const id = record.services.calendar!.pimAccountId;

@@ -80,12 +80,31 @@ export interface SyncGate {
   freeNow(): boolean;
 }
 
+/**
+ * The gates of each load, by its signal: a step that began to tear the
+ * runtime's workspace down retires them (`retireSyncGates`) — that runtime
+ * gets nothing of its sync back, whether the vault then opens anew or not.
+ */
+const gatesOfLoad = new WeakMap<AbortSignal, Set<() => void>>();
+
+/**
+ * The runtime of the load `signal` gets nothing of its sync back: every gate
+ * it made starts nothing any more — not a worker a step stopped, not a
+ * reconcile a step stopped, not one still waiting for its folder. The next
+ * load of the vault makes its own gates.
+ */
+export function retireSyncGates(signal: AbortSignal): void {
+  for (const retire of [...(gatesOfLoad.get(signal) ?? [])]) retire();
+}
+
 export function createSyncGate(options: { path: string; place: SyncStateBinding | null; signal: AbortSignal }): SyncGate {
   const { path, place, signal } = options;
   let free = !place || closingAtSyncPlace(place).length === 0;
+  let retired = false;
   const starts = new Set<() => void>();
   const waiting = new Set<() => void>();
-  const allowed = () => free && !signal.aborted && !vaultSyncTaken(path);
+  const allowed = () => free && !signal.aborted && !retired && !vaultSyncTaken(path);
+  const over = () => signal.aborted || retired;
   const wake = () => {
     if (!allowed()) return;
     for (const begin of [...starts]) begin();
@@ -105,6 +124,14 @@ export function createSyncGate(options: { path: string; place: SyncStateBinding 
   };
   if (signal.aborted) unhook();
   else signal.addEventListener("abort", unhook, { once: true });
+  const ofLoad = gatesOfLoad.get(signal) ?? new Set<() => void>();
+  gatesOfLoad.set(signal, ofLoad);
+  ofLoad.add(() => {
+    if (retired) return;
+    retired = true;
+    starts.clear();
+    unhook();
+  });
   if (!free && place) {
     // The notice of text 8 lives as long as this load (`signal`).
     void waitForClosingSyncPlace(place, { signal }).then(() => {
@@ -114,13 +141,14 @@ export function createSyncGate(options: { path: string; place: SyncStateBinding 
   }
   return {
     start(begin) {
-      if (signal.aborted) return;
+      if (over()) return;
       starts.add(begin);
       if (allowed()) begin();
     },
     once<T>(run: () => Promise<T>): Promise<T | undefined> {
       if (allowed()) return run();
-      return new Promise<void>((go) => waiting.add(go)).then(() => (signal.aborted ? undefined : run()));
+      if (over()) return Promise.resolve(undefined);
+      return new Promise<void>((go) => waiting.add(go)).then(() => (over() ? undefined : run()));
     },
     stoppable<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T | undefined> {
       const once = this.once.bind(this);
@@ -145,8 +173,9 @@ export function createSyncGate(options: { path: string; place: SyncStateBinding 
           }
         });
         if (!outcome) return undefined;
-        // Stopped by a step: again from its start, once the step gives the sync back (`once` waits for that).
-        if (outcome.byStep && !signal.aborted) return go();
+        // Stopped by a step: again from its start, once the step gives the sync back (`once` waits for that) — never
+        // on a runtime the step retired (`retireSyncGates`).
+        if (outcome.byStep && !over()) return go();
         return outcome.result;
       };
       return go();

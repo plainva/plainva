@@ -30,7 +30,7 @@ import { vaultLabel } from "../services/vaultNames";
 import { awaitVaultTeardown } from "../services/vaultTeardown";
 import { stopSyncForStep as stopSyncForStepIn } from "../services/stepSyncStop";
 import { createStepPorts, leaveWorkspace, lockWorkspaceStep, rethrowCalledOff, withSyncStopped, type StepPorts } from "../services/workspaceSteps";
-import { createSyncGate, runningVaultSyncStep, takeVaultSync, vaultSyncTaken } from "../services/syncGate";
+import { createSyncGate, retireSyncGates, runningVaultSyncStep, takeVaultSync, vaultSyncTaken } from "../services/syncGate";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
@@ -705,7 +705,7 @@ export const VaultProvider: React.FC<{
   const syncPlaceRef = useRef<SyncStateBinding | null>(null);
   // The runtime of the vault on screen as the last load left it — read by a reload and by a step that left the
   // vault (`stopSyncForStep`): React's state of the render that began them may be older than the runtime.
-  const runtimeRef = useRef<{ path: string; worker: VaultState["syncWorker"]; indexer: VaultState["indexer"]; indexQueue: VaultState["indexQueue"]; db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; workspaceState?: SqlWorkspaceStateStore | null } | null>(null);
+  const runtimeRef = useRef<{ path: string; load: AbortSignal; worker: VaultState["syncWorker"]; indexer: VaultState["indexer"]; indexQueue: VaultState["indexQueue"]; db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; workspaceState?: SqlWorkspaceStateStore | null } | null>(null);
   // Set exactly when this provider is taken down (its unmount): a step still running opens the vault no more. A
   // teardown inside the provider (the index rebuilt, then the vault loaded again) is no leaving.
   const providerGoneRef = useRef(false);
@@ -1975,7 +1975,7 @@ export const VaultProvider: React.FC<{
       // never waits for the network (R8, review point B).
       if (!currentAbortSignal.aborted) heldStart?.();
       runtimeRef.current = {
-        path, worker: syncWorker, indexer, indexQueue, db: dbAdapter,
+        path, load: currentAbortSignal, worker: syncWorker, indexer, indexQueue, db: dbAdapter,
         belowChain: personBelowChain,
         workspaceState: workspaceStateRef.current,
       };
@@ -2881,7 +2881,7 @@ export const VaultProvider: React.FC<{
     vault: vaultLabel(path),
     // The step holds the vault's sync for its length, against every start — also one still waiting for its folder.
     take: () => takeVaultSync(path),
-    stop: () => stopSyncForStepIn({
+    stop: (step) => stopSyncForStepIn({
       path,
       vault: vaultLabel(path),
       // The worker — or, before there is one, the reconcile of the encrypted workspace still running (`stoppable`).
@@ -2891,17 +2891,24 @@ export const VaultProvider: React.FC<{
         if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker: null };
       },
       // A window that left the vault meanwhile does not open it again: nothing of the step runs then (`runtime()`).
+      // The runtime the step's own reopen opened is the step's from here on (`renewed`, before anything else runs).
+      // Only the step's own runtime is left and opened anew: one another reload replaced meanwhile is not.
       reopen: async () => {
-        if (!providerGoneRef.current) await loadVault(path);
+        if (providerGoneRef.current || !step.mine()) return;
+        await loadVault(path);
+        step.renewed();
       },
     }),
-    // The runtime on screen as the last load left it — after "renewed" the new one — and never what the step's
-    // caller held: without one of this vault (the window left it, it did not open again) the step does not run.
+    // The runtime on screen as the last load left it, with that load — the step goes on only on its own (the one it
+    // began on, or the one its reopen opened), never on what the step's caller held or another reload opened: without
+    // it (the window left the vault, another load replaced it, it did not open again) the step does not run.
     current: () => {
       const live = runtimeRef.current;
       if (providerGoneRef.current || live?.path !== path) return null;
-      return { db: live.db, belowChain: live.belowChain, target: syncTargetRef.current, provider: syncProviderRef.current, workspaceState: live.workspaceState ?? null };
+      return { load: live.load, runtime: { db: live.db, belowChain: live.belowChain, target: syncTargetRef.current, provider: syncProviderRef.current, workspaceState: live.workspaceState ?? null } };
     },
+    // That load's sync gates start nothing more (`retireSyncGates`): its workspace is being torn down.
+    retire: (load) => retireSyncGates(load),
   });
   /**
    * Opens the vault anew at the end of a step — unless its window has left it: the step is done then, and says so
@@ -3061,7 +3068,8 @@ export const VaultProvider: React.FC<{
     return underActivationOverlay(vaultPath, "resume", onProgress, (report) => withSyncStopped(stepPorts(vaultPath), async (on) => {
       // Every handle from the runtime on screen now (`workspaceSteps.ts`).
       if (!on.db || !on.belowChain || !on.target) throw new Error("workspace-no-connection");
-      const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(on.db);
+      // The state store of the step's own runtime (`on`).
+      const workspaceState = on.workspaceState ?? new SqlWorkspaceStateStore(on.db);
       workspaceStateRef.current = workspaceState;
       const result = await resumePersonalWorkspaceSetup({
         vaultPath,
@@ -3499,7 +3507,8 @@ export const VaultProvider: React.FC<{
       const restored = await restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
       await publishWorkspaceGovernanceUpdate(store, restored);
       await persistWorkspaceRuntime({ vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
-      const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(on.db);
+      // The state store of the step's own runtime (`on`), never the one a load opened meanwhile.
+      const workspaceState = on.workspaceState ?? new SqlWorkspaceStateStore(on.db);
       await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: on.belowChain, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
       await reopenAfterStep(vaultPath);
     });

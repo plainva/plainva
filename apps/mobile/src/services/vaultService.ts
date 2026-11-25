@@ -353,10 +353,12 @@ let screenBoot: { of: Promise<MobileVault>; vault: MobileVault } | null = null;
  * The vault runtime on screen now — the one the current start opened — or
  * null while a start runs or none is open. Read without waiting: a step
  * compares its own runtime with it after every wait, and a switch in between
- * can never slip past a read of "the active vault".
+ * can never slip past a read of "the active vault". Only the start that is
+ * `bootPromise` now counts: a later start that failed leaves the runtime of
+ * the one before it behind in `screenBoot`, closed and gone from the screen.
  */
 export function runtimeOnScreen(): MobileVault | null {
-  return screenBoot && bootPromise && screenBoot.of === bootPromise && bootSettled ? screenBoot.vault : null;
+  return screenBoot && bootPromise && screenBoot.of === bootPromise ? screenBoot.vault : null;
 }
 /** The vault the last switch left: where "back" on the boot surface leads (issue 143). */
 let previousVaultId: string | null = null;
@@ -431,6 +433,30 @@ export async function previousMobileVault(): Promise<VaultEntry | null> {
   return entry && entry.id !== active.id ? entry : null;
 }
 
+/**
+ * Every transition that leaves or replaces the runtime on screen — a switch,
+ * a step's renew after its sync gave up, a reload, an index rebuild — runs
+ * here, one after the other (review B2, round 5). Each one checks at its turn
+ * the start it was called for (`bootPromise` then, or the step's runtime)
+ * and does nothing where that is no longer on screen; two of them never
+ * close or open the screen's runtime across each other, so there are never
+ * two runtimes at one vault and never one opened that nobody closes.
+ *
+ * A transition ends when the next start has begun (`bootPromise = null`, the
+ * event), not when it has opened: the person who switches again does not wait
+ * for a boot, which the next switch retires (`retireBoot`). And a transition
+ * never waits on the sync's start chain (`syncService.inStartChain`): a step
+ * inside that chain may wait here for its renew, and the two would wait on
+ * each other. A guard test keeps `bootPromise = null` and `retireBoot(`
+ * inside this queue.
+ */
+let screenTransitions: Promise<void> = Promise.resolve();
+function inScreenTransitions<T>(run: () => Promise<T>): Promise<T> {
+  const mine = screenTransitions.then(run);
+  screenTransitions = mine.then(() => undefined, () => undefined);
+  return mine;
+}
+
 /** The switch under way, by the vault it goes to. */
 let switching: { id: string; done: Promise<void> } | null = null;
 
@@ -445,12 +471,12 @@ let switching: { id: string; done: Promise<void> } | null = null;
  * first had just begun (`bootPromise = null`, its vault never closed) and
  * dropped the stacks a second time, with whatever the first flow had put on
  * top after it. A switch to the vault already being switched to is now that
- * same switch; a switch to another waits for it.
+ * same switch; a switch to another waits for it — as every transition of the
+ * screen's runtime waits for the one before it (`inScreenTransitions`).
  */
 export function switchVault(id: string): Promise<void> {
   if (switching?.id === id) return switching.done;
-  const before = switching?.done.catch(() => undefined) ?? Promise.resolve();
-  const mine = { id, done: before.then(() => switchTo(id)) };
+  const mine = { id, done: inScreenTransitions(() => switchTo(id)) };
   switching = mine;
   const over = () => {
     if (switching === mine) switching = null;
@@ -572,25 +598,31 @@ async function leaveVault(current: MobileVault, settled: Pick<SettledClose, "dra
  * old one has ended (text 7).
  */
 export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: SyncStateBinding | null; runtime: MobileVault; vault: string; notRun: () => Error }): Promise<MobileVault> {
-  // Only the step's own runtime is left and opened anew — the very instance the step began with. One on screen now
-  // that is another vault's, or the same vault's opened again meanwhile, is never closed for it.
-  if (runtimeOnScreen() !== left.runtime) throw left.notRun();
-  const current = left.runtime;
-  const saved = (async () => {
-    await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
-    await noteSaver.flushAll();
-  })();
-  void saved
-    .catch(() => undefined)
-    .then(() => current.flushOwed())
-    .catch(reportingTo("sync:owed-before-call-off"))
-    .finally(() => current.callOff());
-  await leaveVault(current, { drain: Promise.all([left.drain, saved.catch(() => undefined)]).then(() => undefined), gaveUp: true, place: left.place, vault: left.vault });
-  bootPromise = null;
-  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current.vaultId } }));
-  const fresh = await getMobileVault();
-  // Another vault opened meanwhile (a switch during the reopen): the step never goes on with that one's runtime.
-  if (fresh.vaultId !== current.vaultId) throw left.notRun();
+  const { starting } = await inScreenTransitions(async () => {
+    // Only the step's own runtime is left and opened anew — the very instance the step began with, checked at the
+    // renew's turn. One on screen now that is another vault's, or the same vault's opened again meanwhile, is never
+    // closed for it; nor is anything opened then.
+    if (runtimeOnScreen() !== left.runtime) throw left.notRun();
+    const current = left.runtime;
+    const saved = (async () => {
+      await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
+      await noteSaver.flushAll();
+    })();
+    void saved
+      .catch(() => undefined)
+      .then(() => current.flushOwed())
+      .catch(reportingTo("sync:owed-before-call-off"))
+      .finally(() => current.callOff());
+    await leaveVault(current, { drain: Promise.all([left.drain, saved.catch(() => undefined)]).then(() => undefined), gaveUp: true, place: left.place, vault: left.vault });
+    bootPromise = null;
+    window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current.vaultId } }));
+    // The turn ends with the start begun, not opened: a switch meanwhile retires it as any start.
+    return { starting: getMobileVault() };
+  });
+  // The step goes on only with the very runtime its renew opened, and only while that is on screen: one a switch
+  // retired meanwhile (closed when it answers), one that did not open, or one of another vault is no vault to go on with.
+  const fresh = await starting.catch(() => null);
+  if (!fresh || runtimeOnScreen() !== fresh || fresh.vaultId !== left.runtime.vaultId) throw left.notRun();
   return fresh;
 }
 async function switchTo(id: string): Promise<void> {
@@ -650,10 +682,14 @@ async function switchTo(id: string): Promise<void> {
  * sync starts again through the one start (so a pause and "files off" are
  * still asked). Without an open vault — its boot was stopped for the step —
  * the vault boots again.
+ *
+ * Inside a transition (`inScreenTransitions`): the start is begun, not waited
+ * for — it runs in the sync's start chain, where a step may wait for the very
+ * transition this is.
  */
 async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Promise<void> {
   if (current) {
-    await startSyncIfConfigured(current).catch((e: unknown) => console.error("[switch] sync restart failed", e));
+    void startSyncIfConfigured(current).catch((e: unknown) => console.error("[switch] sync restart failed", e));
     return;
   }
   bootPromise = null;
@@ -668,19 +704,21 @@ async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Pr
  * never saw it. Asked first by the caller.
  */
 export async function rebuildActiveIndexDatabase(): Promise<boolean> {
-  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+  // The start this rebuild is for: the reload checks it at its turn (`inScreenTransitions`).
+  const of = bootPromise;
+  const current = of ? await of.catch(() => null) : null;
   if (!current) return false;
   const failure = current.indexDatabaseFailure;
   if (failure) {
     const entry = await getActiveVaultEntry();
     if (entry.id !== current.vaultId || !indexDatabaseRebuildOffered(failure.kind, failure.workspace)) return false;
-    // Nothing holds a database that did not open.
-    await setAsideMobileIndexDatabase(entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`);
-    return reloadActiveMobileVault();
+    // Nothing holds a database that did not open; it is set aside at the reload's turn, never for a vault left meanwhile.
+    const name = entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`;
+    return reloadActiveMobileVault(undefined, { of, beforeReopen: () => setAsideMobileIndexDatabase(name).then(() => undefined) });
   }
   // The search's "Rebuild index": the open vault whose full-text index could not be made anew at its open.
   if (!current.db || (await readFullTextDamage(current.db)).state !== "rebuild-failed") return false;
-  return rebuildOpenMobileIndexDatabase();
+  return rebuildOpenIndexDatabaseOf(of);
 }
 
 /**
@@ -692,13 +730,18 @@ export async function rebuildActiveIndexDatabase(): Promise<boolean> {
  * the database closed — and the file set aside only then. Never in an
  * encrypted workspace. Asked first by the caller.
  */
-export async function rebuildOpenMobileIndexDatabase(): Promise<boolean> {
-  const current = bootPromise ? await bootPromise.catch(() => null) : null;
+export function rebuildOpenMobileIndexDatabase(): Promise<boolean> {
+  return rebuildOpenIndexDatabaseOf(bootPromise);
+}
+
+/** `rebuildOpenMobileIndexDatabase` for the start `of` — the one its caller was for. */
+async function rebuildOpenIndexDatabaseOf(of: Promise<MobileVault> | null): Promise<boolean> {
+  const current = of ? await of.catch(() => null) : null;
   if (!current?.db || current.isEncryptedWorkspace) return false;
   const entry = await getActiveVaultEntry();
   if (entry.id !== current.vaultId) return false;
   const name = entry.id === LOCAL_VAULT_ID ? "plainva-index" : `plainva-${entry.id}`;
-  return reloadActiveMobileVault(undefined, { beforeReopen: () => setAsideMobileIndexDatabase(name).then(() => undefined) });
+  return reloadActiveMobileVault(undefined, { of, beforeReopen: () => setAsideMobileIndexDatabase(name).then(() => undefined) });
 }
 
 /** A reload waiting behind someone else's input (`screenStep.ts`). */
@@ -720,40 +763,48 @@ const RELOAD_STEP = "vault-reload";
  * resuming a setup) did so because the vault's state changes under it, and
  * only the reloaded vault starts it in the new state.
  */
-export async function reloadActiveMobileVault(own?: string | readonly string[], opts: ReloadOptions = {}): Promise<boolean> {
-  const vaultId = (await getActiveVaultEntry()).id;
-  if (foreignInputArmed(own)) {
-    offerReload(vaultId, own, opts);
-    return false;
-  }
-  const current = await retireBoot();
-  const settled = await settleBeforeClosing(current);
-  // The drain can take a transfer's length: input begun in it is at stake too —
-  // unless the runtime was called off: then there is only forwards.
-  if (current && !settled.calledOff && foreignInputArmed(own)) {
-    offerReload(vaultId, own, opts);
-    return false;
-  }
-  if (current) await leaveVault(current, settled);
-  bootPromise = null;
-  try {
-    // Between the close and the next open, once the old runtime has ENDED: nothing of this vault holds its files
-    // or its database now — also after a close that gave up and left them to finish in the background (text 7).
-    if (opts.beforeReopen) {
-      const entry = current ? await getVaultEntry(current.vaultId).catch(() => null) : null;
-      await waitForClosingVault(closingAt(vaultId, current?.external), vaultEntryName(entry?.name));
-      await opts.beforeReopen();
+export function reloadActiveMobileVault(own?: string | readonly string[], opts: ReloadOptions = {}): Promise<boolean> {
+  // The start this reload is for, as it is called: at its turn, a vault switched away from or opened anew meanwhile
+  // is not reloaded for it (`inScreenTransitions`) — it is no longer the vault the reload was asked for.
+  const of = opts.of !== undefined ? opts.of : bootPromise;
+  return inScreenTransitions(async () => {
+    if (bootPromise !== of) return false;
+    const vaultId = (await getActiveVaultEntry()).id;
+    if (foreignInputArmed(own)) {
+      offerReload(vaultId, own, { ...opts, of });
+      return false;
     }
-  } finally {
-    // Opened again in any case — with the database as it is where the step failed — so nobody is left without a vault.
-    window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
-  }
-  return true;
+    const current = await retireBoot();
+    const settled = await settleBeforeClosing(current);
+    // The drain can take a transfer's length: input begun in it is at stake too —
+    // unless the runtime was called off: then there is only forwards.
+    if (current && !settled.calledOff && foreignInputArmed(own)) {
+      offerReload(vaultId, own, { ...opts, of });
+      return false;
+    }
+    if (current) await leaveVault(current, settled);
+    bootPromise = null;
+    try {
+      // Between the close and the next open, once the old runtime has ENDED: nothing of this vault holds its files
+      // or its database now — also after a close that gave up and left them to finish in the background (text 7).
+      if (opts.beforeReopen) {
+        const entry = current ? await getVaultEntry(current.vaultId).catch(() => null) : null;
+        await waitForClosingVault(closingAt(vaultId, current?.external), vaultEntryName(entry?.name));
+        await opts.beforeReopen();
+      }
+    } finally {
+      // Opened again in any case — with the database as it is where the step failed — so nobody is left without a vault.
+      window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+    }
+    return true;
+  });
 }
 
 /** What a reload does between closing the vault and opening it again (the search's "Rebuild index"). */
 interface ReloadOptions {
   beforeReopen?: () => Promise<void>;
+  /** The start the reload is for (its caller read it before its own waits); by default the one on screen as it is called. */
+  of?: Promise<MobileVault> | null;
 }
 
 function offerReload(vaultId: string, own?: string | readonly string[], opts: ReloadOptions = {}): void {

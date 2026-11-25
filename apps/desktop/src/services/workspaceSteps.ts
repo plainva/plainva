@@ -12,11 +12,14 @@ import { stepInterrupted, stepNotRun } from "@plainva/ui";
  *    sync is given back and starts again;
  * 2. the sync stops within the close's deadline (`stopSyncForStep`); a cycle
  *    that does not end in time is left, and the vault opens anew ("renewed");
- * 3. every handle the step uses comes from the runtime on screen at that
- *    moment (`runtime()`), never from what the caller held before: after
- *    "renewed" the old runtime is called off and refuses every write. Where
- *    there is no runtime of the vault — the window left it, or it did not
- *    open again — the step fails, says so, and changes nothing.
+ * 3. every handle the step uses comes from the very runtime the step was
+ *    begun on (`runtime()`) — the one on screen when it took the sync, or,
+ *    after "renewed", the one its own reopen opened — never from what the
+ *    caller held before, and never from a runtime another reload opened
+ *    meanwhile: after "renewed" the old runtime is called off and refuses
+ *    every write. Where that runtime is not on screen any more — the window
+ *    left the vault, another reload replaced it, or it did not open again —
+ *    the step fails, says so, and changes nothing.
  */
 
 /** What a step reaches the vault's runtime through. */
@@ -25,8 +28,14 @@ export interface StepPorts<R> {
   take(): () => void;
   /** Stops the sync within the deadline; "renewed": the vault was opened anew, `runtime()` is the new one. */
   stopSync(): Promise<"same" | "renewed">;
-  /** The runtime on screen now; throws where there is none of this vault (`stepNotRun`). */
+  /** The step's runtime, while it is on screen; throws where it is not (`stepNotRun`). */
   runtime(): R;
+  /**
+   * The step's runtime gets nothing of its sync back: from here on the step
+   * tears down what that sync works on (the workspace), and the vault opens
+   * anew — or, where that fails, stays without its sync.
+   */
+  retire(): void;
   /**
    * What a failure of the step's work is said as: a call refused because the
    * runtime was called off while the step ran — the vault was closed — is
@@ -37,22 +46,42 @@ export interface StepPorts<R> {
 
 /**
  * The ports of a step on the vault at `path`, from the shell's own parts:
- * `current()` is the runtime as the last load left it (`runtimeRef`) or null
- * — never a fallback to what the step's caller held.
+ * `current()` is the runtime as the last load left it (`runtimeRef`) with
+ * that load (one per load), or null — never a fallback to what the step's
+ * caller held. The step keeps the load it began on; its stop reopens the
+ * vault only while that is on screen (`mine`), and the load its reopen opened
+ * becomes the step's (`renewed`).
  */
 export function createStepPorts<R>(parts: {
   vault: string;
   take(): () => void;
-  stop(): Promise<"same" | "renewed">;
-  current(): R | null;
+  /**
+   * Stops the sync; its reopen asks `mine` first (only the step's own runtime
+   * is left and opened anew) and calls `renewed` right after it opened.
+   */
+  stop(step: { mine(): boolean; renewed(): void }): Promise<"same" | "renewed">;
+  current(): { load: AbortSignal; runtime: R } | null;
+  retire(load: AbortSignal): void;
 }): StepPorts<R> {
+  let mine: AbortSignal | null = null;
   return {
-    take: parts.take,
-    stopSync: parts.stop,
+    take: () => {
+      mine = parts.current()?.load ?? null;
+      return parts.take();
+    },
+    stopSync: () => parts.stop({
+      mine: () => mine !== null && parts.current()?.load === mine,
+      renewed: () => {
+        mine = parts.current()?.load ?? null;
+      },
+    }),
     runtime: () => {
       const now = parts.current();
-      if (now) return now;
+      if (now && mine !== null && now.load === mine) return now.runtime;
       throw stepNotRun(parts.vault);
+    },
+    retire: () => {
+      if (mine) parts.retire(mine);
     },
     failed: (error) => (isCalledOffError(error) ? stepInterrupted(parts.vault) : error),
   };
@@ -86,14 +115,18 @@ export async function leaveWorkspace<R extends { belowChain: unknown }>(
 ): Promise<void> {
   await withSyncStopped(ports, async (on) => {
     if (!on.belowChain) throw new Error("workspace-no-connection");
+    // The teardown begins: nothing of the workspace's sync starts again on this runtime — a reconcile or a worker the
+    // step stopped would run anew once the sync is given back, on a workspace half gone. Whether the vault then opens
+    // anew or not.
+    ports.retire();
     try {
       await steps.tearDown(on);
       await steps.markDeparted(on.belowChain as NonNullable<R["belowChain"]>);
     } catch (error) {
-      // The teardown has begun: nothing of the workspace may start again on this runtime — a reconcile the step
-      // stopped would run anew once the sync is given back. The vault opens anew instead (its load sees the workspace
-      // as far as it is gone), and the failure is said by the caller.
-      await steps.reopen().catch(() => undefined);
+      // The vault opens anew instead (its load sees the workspace as far as it is gone), and the failure is said by
+      // the caller — with a reopen that failed as well, both.
+      const reopened = await steps.reopen().then(() => null, (reopenError: unknown) => reopenError);
+      if (reopened) throw new AggregateError([error, reopened], `${messageOf(error)} · ${messageOf(reopened)}`, { cause: error });
       throw error;
     }
     await steps.reopen();
@@ -139,4 +172,8 @@ export async function lockWorkspaceStep<R>(
  */
 export function rethrowCalledOff(error: unknown): void {
   if (isCalledOffError(error)) throw error;
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

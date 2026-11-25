@@ -26,7 +26,7 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "renewAfterSyncGaveUp", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "retiredStart", "runtimeOnScreen", "reloadActiveMobileVault", "offerReload"];
+const NAMES = ["inScreenTransitions", "switchVault", "switchTo", "settleBeforeClosing", "renewAfterSyncGaveUp", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "retiredStart", "runtimeOnScreen", "reloadActiveMobileVault", "offerReload"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -36,7 +36,7 @@ const found = parts.map((part) => /function (\w+)/.exec(part)?.[1]);
 for (const name of ["switchVault", "retireBoot", "reloadActiveMobileVault"]) if (!found.includes(name)) throw new Error(`${name} missing`);
 const compiled = ts.transpileModule(
   "let bootPromise = Promise.resolve(initial); let screenBoot = { of: bootPromise, vault: initial }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null;\n" +
-    "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\";\n" +
+    "let screenTransitions = Promise.resolve(); const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\";\n" +
     parts.join("\n") +
     "\nreturn { switchVault, reloadActiveMobileVault, renewAfterSyncGaveUp, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; void p.then((v) => { if (bootPromise === p) screenBoot = { of: p, vault: v }; }); } };",
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
@@ -45,6 +45,7 @@ const compiled = ts.transpileModule(
 const vault = (id: string) => ({ vaultId: id, callOff: vi.fn(), ended: vi.fn(async () => {}), flushOwed: vi.fn(async () => {}), dispose: vi.fn(async () => {}) }) as unknown as MobileVault & { dispose: ReturnType<typeof vi.fn>; callOff: ReturnType<typeof vi.fn> };
 
 function harness(start: string, initial: MobileVault = vault(start)) {
+  const openAnew = vi.fn(async (): Promise<MobileVault> => ({ ...vault(start), anew: true }) as unknown as MobileVault);
   let active = start;
   const events: Array<string | undefined> = [];
   const syncStarted: string[] = [];
@@ -63,8 +64,8 @@ function harness(start: string, initial: MobileVault = vault(start)) {
     detachSync: vi.fn(() => { order.push("detach"); return { drain: () => stopSyncAndDrain(), place: null as SyncStateBinding | null, running: true }; }),
     setActiveVault: vi.fn(async (id: string) => { order.push(`active:${id}`); active = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),
-    // The vault opened anew after a step left it (`renewAfterSyncGaveUp`).
-    getMobileVault: vi.fn(async () => ({ ...vault(start), anew: true })),
+    // The vault opened anew after a step left it (`renewAfterSyncGaveUp`): its start is the one on screen once it answers.
+    getMobileVault: (() => { const p = openAnew(); api.setBoot(p); return p; }),
     toast,
     getActiveVaultEntry: async () => ({ id: active, name: "" }),
     startSyncIfConfigured: vi.fn(async (v: MobileVault) => { syncStarted.push(v.vaultId); }),
@@ -76,14 +77,21 @@ function harness(start: string, initial: MobileVault = vault(start)) {
     CustomEvent,
     console: { error: () => {} },
   };
-  const api = new Function(...Object.keys(deps), compiled)(...Object.values(deps)) as {
+  let api: {
     switchVault(id: string): Promise<void>;
     reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean>;
     renewAfterSyncGaveUp(left: { drain: Promise<void>; place: null; runtime: MobileVault; vault: string; notRun: () => Error }): Promise<MobileVault>;
     boot(): Promise<MobileVault> | null;
     setBoot(p: Promise<MobileVault>): void;
   };
-  return { ...api, deps, events, syncStarted, order, active: () => active };
+  api = new Function(...Object.keys(deps), compiled)(...Object.values(deps)) as {
+    switchVault(id: string): Promise<void>;
+    reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean>;
+    renewAfterSyncGaveUp(left: { drain: Promise<void>; place: null; runtime: MobileVault; vault: string; notRun: () => Error }): Promise<MobileVault>;
+    boot(): Promise<MobileVault> | null;
+    setBoot(p: Promise<MobileVault>): void;
+  };
+  return { ...api, deps: { ...deps, getMobileVault: openAnew }, events, syncStarted, order, active: () => active };
 }
 
 beforeEach(() => {

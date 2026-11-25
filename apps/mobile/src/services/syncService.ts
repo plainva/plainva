@@ -435,6 +435,8 @@ function inStartChain(step: () => Promise<void>): Promise<void> {
 let startGeneration = 0;
 
 async function startSyncDecided(v: MobileVault, how: { afterBoot?: boolean } = {}): Promise<void> {
+  // A step on the vault's sign-ins holds its sync (`withVaultSyncStopped`): nothing starts before it is through.
+  if (signInHolds.has(v.vaultId)) return;
   if (how.afterBoot && syncHeldFor === v.vaultId) return;
   // Any other start is the step's own (a restart, a resume): the hold is over.
   if (!how.afterBoot) syncHeldFor = null;
@@ -799,28 +801,27 @@ export async function switchProviderToAccountBroker(
    */
   adopt?: { clientSecret?: string },
 ): Promise<void> {
-  const stored = await getStoredProvider(vaultId);
   if (!record.services.files) return;
-  if (!stored || stored.provider !== record.services.files.provider
-    || (stored.provider !== "drive" && stored.provider !== "onedrive") || (!adopt && stored.creds.clientId !== clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
-  const existing: MobileSyncProvider = adopt && stored.creds.clientId !== clientId
-    ? (stored.provider === "drive"
-      ? { provider: "drive", creds: { ...stored.creds, clientId, clientSecret: adopt.clientSecret ?? "", refreshToken: "", nativeGoogle: undefined } }
-      : { provider: "onedrive", creds: { ...stored.creds, clientId, refreshToken: "" } })
-    : stored;
-  if (existing !== stored) await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), existing);
-  const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
-  await probe.getAccessToken();
-  // A step on the vault's sign-in: it stops that vault's sync where it is on screen, and nothing else.
-  await stopSyncForStep({ vaultId });
-  if (!sameStoredValue(await getStoredProvider(vaultId), existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
-  let merged: MobileSyncProvider;
-  if (existing.provider === "drive") merged = { provider: "drive", creds: { ...existing.creds, refreshToken: "", nativeGoogle: undefined } };
-  else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };
-  else return; // password- or key-based providers have nothing to hand over
-  await rotateLegacyFileGrant(credKeyFor(vaultId), existing.provider, existing.creds, "");
+  const files = record.services.files;
+  // A step on the vault's sign-in: its sync is held from before the first write to the slot to the last, and what
+  // runs of it is stopped first — no cycle signs in with a slot half handed over.
+  await withVaultSyncStopped(vaultId, async () => {
+    const stored = await getStoredProvider(vaultId);
+    if (!stored || stored.provider !== files.provider
+      || (stored.provider !== "drive" && stored.provider !== "onedrive") || (!adopt && stored.creds.clientId !== clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+    const existing: MobileSyncProvider = adopt && stored.creds.clientId !== clientId
+      ? (stored.provider === "drive"
+        ? { provider: "drive", creds: { ...stored.creds, clientId, clientSecret: adopt.clientSecret ?? "", refreshToken: "", nativeGoogle: undefined } }
+        : { provider: "onedrive", creds: { ...stored.creds, clientId, refreshToken: "" } })
+      : stored;
+    if (existing !== stored) await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), existing);
+    const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
+    await probe.getAccessToken();
+    if (!sameStoredValue(await getStoredProvider(vaultId), existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+    // Password- or key-based providers have nothing to hand over.
+    if (existing.provider === "drive" || existing.provider === "onedrive") await rotateLegacyFileGrant(credKeyFor(vaultId), existing.provider, existing.creds, "");
+  });
   // Through the one start: a sign-in never undoes "Pause sync" or files off (second review, B2/B4).
-  void merged;
   await restartSyncIfActive(vaultId);
 }
 
@@ -833,14 +834,16 @@ export async function switchProviderToAccountBroker(
  * the vault no longer has.
  */
 export async function disconnectFiles(vaultId: string): Promise<void> {
-  // A step on the vault's sign-in: it stops that vault's sync where it is on screen, and nothing else.
-  await stopSyncForStep({ vaultId });
-  if (runtimeOnScreen()?.vaultId === vaultId) setState({ status: "off", message: null });
-  // The queue and the per-file records stay: they belong to the folder, not the
-  // account, and the next file sync keeps them for the same folder and drops
-  // them for another (third review, finding 1). The desktop does the same.
-  await purgeCredentials(vaultId);
-  await updateVault(vaultId, { provider: undefined, pausedHere: false });
+  // A step on the vault's sign-in: the vault's sync is held from here to the end, and what runs of it is stopped —
+  // nothing of it starts again for an account the vault no longer has.
+  await withVaultSyncStopped(vaultId, async () => {
+    if (runtimeOnScreen()?.vaultId === vaultId) setState({ status: "off", message: null });
+    // The queue and the per-file records stay: they belong to the folder, not the
+    // account, and the next file sync keeps them for the same folder and drops
+    // them for another (third review, finding 1). The desktop does the same.
+    await purgeCredentials(vaultId);
+    await updateVault(vaultId, { provider: undefined, pausedHere: false });
+  });
 }
 
 /**
@@ -1118,40 +1121,39 @@ let syncHeldFor: string | null = null;
 
 /**
  * Stops the sync of the vault on screen for a step that then works on the
- * vault — the security wizard, a password, files switched off — within the
- * close's deadline (texts 2 and 5), never without end. A cycle that does
- * not end in time is left: the vault's runtime is called off (after its
- * saves and its owed queue entries), the vault opens anew, and the step goes
- * on with the new runtime, whose sync waits for the step (`startSyncAfterBoot`)
- * until it starts it again. Never two runtimes at one vault: the new one
- * opens once the old one has ended (text 7).
+ * vault's runtime — the security wizard, resuming, lifting or leaving a
+ * workspace, a new remote folder — within the close's deadline (texts 2 and
+ * 5), never without end. A cycle that does not end in time is left: the
+ * vault's runtime is called off (after its saves and its owed queue
+ * entries), the vault opens anew, and the step goes on with the new runtime,
+ * whose sync waits for the step (`startSyncAfterBoot`) until it starts it
+ * again. Never two runtimes at one vault: the new one opens once the old one
+ * has ended (text 7).
  *
  * Answers the vault the step goes on with: null — the one it has (the sync
- * ended in time, or none ran); after the deadline, the new runtime.
+ * ended in time, or none ran); after the deadline, the new runtime. Where the
+ * step's runtime is not on screen — before the call, in the wait, or when the
+ * renew's turn comes — nothing is done and the step did not run (`notRun`).
+ * A step on a vault's sign-ins has no runtime of its own: `withVaultSyncStopped`.
  */
 export async function stopSyncForStep(step: StepTarget, options: { say?: boolean } = {}): Promise<MobileVault | null> {
   // The step's vault and runtime come with it, from the press on: nothing here reads "the active vault" to learn
-  // what the step is for. After every wait the runtime on screen is compared with the step's own — the same
-  // instance — and a switch, also away and back, never lets the step go on with another runtime.
-  const runtime = step.runtime === undefined ? (runtimeOnScreen()?.vaultId === step.vaultId ? runtimeOnScreen() : null) : step.runtime;
-  const vault = vaultEntryName((await getVaultEntry(step.vaultId).catch(() => null))?.name);
-  const notRun = () => (options.say === false ? new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run") : stepNotRun(vault));
-  // A step on the runtime (the workspace's) needs it on screen; a step on the vault's sign-ins only stops a sync
-  // that runs for that vault — none runs where it is not open, and nothing else is stopped for it.
+  // what the step is for. Before the sync is taken (no wait in between), and after every wait, the runtime on screen
+  // is compared with the step's own — the same instance — and a switch, also away and back, never lets the step go
+  // on with another runtime.
+  const { runtime } = step;
   const onScreen = () => runtime !== null && runtime.vaultId === step.vaultId && runtimeOnScreen() === runtime;
-  const gone = (): null => {
-    if (step.runtime === undefined) return null;
-    throw notRun();
-  };
-  if (!onScreen()) return gone();
+  const named = async () => vaultEntryName((await getVaultEntry(step.vaultId).catch(() => null))?.name);
+  const notRunIn = (vault: string) => () => (options.say === false ? new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run") : stepNotRun(vault));
+  if (!onScreen()) throw notRunIn(await named())();
   const taken = takeSync(false);
+  // Nothing ran: nothing to wait for — the step goes on with its runtime as it is now.
+  if (!taken.running) return null;
   const drain = taken.drain();
-  if (!taken.running) {
-    await drain;
-    return onScreen() ? null : gone();
-  }
+  const vault = await named();
+  const notRun = notRunIn(vault);
   const outcome = await waitWithDeadline(drain, () => ({ kind: "sync", vault }));
-  if (!onScreen()) return gone();
+  if (!onScreen()) throw notRun();
   if (outcome === "done") return null;
   syncHeldFor = step.vaultId;
   try {
@@ -1159,21 +1161,70 @@ export async function stopSyncForStep(step: StepTarget, options: { say?: boolean
     return await renewAfterSyncGaveUp({ drain: drain.catch(() => undefined), place: taken.place, runtime: runtime!, vault, notRun });
   } catch (error) {
     if (syncHeldFor === step.vaultId) syncHeldFor = null;
-    if (step.runtime === undefined && isStepNoticeError(error)) return null;
     throw error;
   }
 }
 
-/**
- * What a step that stops the sync is for: its vault, and — for a step that
- * works on the vault's runtime (the workspace's) — that runtime, as the
- * step's caller had it. Without `runtime` the step works on the vault's
- * sign-ins only (a password, the broker, files off): it stops the sync where
- * that vault is on screen, and otherwise nothing.
- */
+/** What a step that stops the sync works on: its vault, and the runtime of it as the step's caller had it. */
 export interface StepTarget {
   vaultId: string;
-  runtime?: MobileVault | null;
+  runtime: MobileVault | null;
+}
+
+/**
+ * The steps on a vault's sign-ins hold its sync for their whole length (`withVaultSyncStopped`), by vault: while a
+ * hold is in place no start of that vault puts anything in place — not one of the runtime on screen, not one of a
+ * runtime opened meanwhile (away and back), not one after the step's renew.
+ */
+const signInHolds = new Map<string, number>();
+
+/**
+ * A step on a vault's sign-ins — a new password, the broker taking over, the
+ * files taken out — belongs to the vault, not to a runtime of it: it changes
+ * what the vault's sync signs in with. So it holds the vault's sync from the
+ * first line to its end. What runs for this vault on screen at that moment is
+ * taken, in the same synchronous run as the hold, and stopped within the
+ * close's deadline; a cycle that does not end in time is left as for any step
+ * (`renewAfterSyncGaveUp`, its runtime opened anew). Where the vault is not on
+ * screen nothing of another vault is stopped. The step never says it did not
+ * run: it runs either way, and nothing of this vault's sync runs meanwhile.
+ *
+ * Where `body` fails, the vault's sync starts again through the one start —
+ * the step changed nothing; where it succeeds, its caller starts the sync as
+ * the new state has it (a restart), or none runs any more (files taken out).
+ */
+export async function withVaultSyncStopped<T>(vaultId: string, body: () => Promise<T>): Promise<T> {
+  signInHolds.set(vaultId, (signInHolds.get(vaultId) ?? 0) + 1);
+  let failed = false;
+  try {
+    const runtime = runtimeOnScreen();
+    if (runtime?.vaultId === vaultId) await stopForSignIn(runtime);
+    return await body();
+  } catch (error) {
+    failed = true;
+    throw error;
+  } finally {
+    const left = (signInHolds.get(vaultId) ?? 1) - 1;
+    if (left > 0) signInHolds.set(vaultId, left);
+    else signInHolds.delete(vaultId);
+    const now = runtimeOnScreen();
+    if (failed && left === 0 && now?.vaultId === vaultId) void startSyncIfConfigured(now).catch((e: unknown) => console.error("[sync] start after a failed sign-in step failed", e));
+  }
+}
+
+/** The stop of `withVaultSyncStopped`: taken at once (no wait before it), then drained within the deadline. */
+async function stopForSignIn(runtime: MobileVault): Promise<void> {
+  const taken = takeSync(false);
+  if (!taken.running) return;
+  const drain = taken.drain();
+  const vault = vaultEntryName((await getVaultEntry(runtime.vaultId).catch(() => null))?.name);
+  if ((await waitWithDeadline(drain, () => ({ kind: "sync", vault }))) === "done") return;
+  // Given up: the runtime is left and opened anew where it is still on screen; its sync stays held by the step.
+  // Where it is not (a switch meanwhile), nothing of it runs either — a quiet notice, never said, is all that comes.
+  const quiet = () => new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run");
+  await renewAfterSyncGaveUp({ drain: drain.catch(() => undefined), place: taken.place, runtime, vault, notRun: quiet }).catch((error: unknown) => {
+    if (!isStepNoticeError(error)) throw error;
+  });
 }
 
 /** What a close took off (`detachSync`). */

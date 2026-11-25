@@ -26,7 +26,7 @@ vi.mock("@capacitor/preferences", () => ({Preferences: {get: async () => ({value
 vi.mock("../platform/capacitorPlatform", () => ({capacitorCredentialStore: {}}));
 vi.mock("./syncService", () => ({
   getStoredProvider: async (id: string) => getPlatformServices().credentials.readSecret(syncProviderSlot(id)),
-  stopSyncForStep: async () => null, restartSyncIfActive: async () => {},
+  withVaultSyncStopped: async (_vaultId: string, body: () => Promise<unknown>) => body(), restartSyncIfActive: async () => {},
 }));
 vi.mock("./vaultRegistry", () => ({getActiveVaultEntry: async () => ({id:vault})}));
 vi.mock("./pim/pimService", () => ({restartPimAccountAfterLogin: vi.fn(), listPimAccounts: async () => []}));

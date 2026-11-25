@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
 import { encryptedRemoteFilePorts, markEncryptedRemoteDeparted, toast, toastStore } from "@plainva/ui";
 import { createVaultCallOff } from "@plainva/core";
-import { createSyncGate, resetVaultSyncTakenForTests, runningVaultSyncStep, takeVaultSync } from "./syncGate";
+import { createSyncGate, resetVaultSyncTakenForTests, retireSyncGates, runningVaultSyncStep, takeVaultSync } from "./syncGate";
 import { createStepPorts, leaveWorkspace, lockWorkspaceStep, rethrowCalledOff, withSyncStopped } from "./workspaceSteps";
 
 /**
@@ -32,34 +32,48 @@ type Runtime = { belowChain: ReturnType<typeof memVault> | null; name: string };
  * "same" stops the worker in time; "renewed" leaves the old runtime (called
  * off) and opens the vault anew — or, with `reopenFails`, does not manage to.
  */
-function vaultOnScreen(how: "same" | "renewed", options: { reopenFails?: boolean } = {}) {
+function vaultOnScreen(how: "same" | "renewed", options: { reopenFails?: boolean; reloadedMeanwhile?: boolean } = {}) {
   const fence = createVaultCallOff();
   const oldFiles: Files = new Map();
   const old: Runtime = { name: "old", belowChain: fence.storage(memVault(oldFiles) as never) as unknown as ReturnType<typeof memVault> };
   const fresh: Runtime = { name: "new", belowChain: memVault() };
-  const worker = { running: false, start() { this.running = true; }, stop() { this.running = false; } };
-  const world: { live: Runtime | null; worker: typeof worker; oldFiles: Files; fresh: Runtime; reopened: number } = { live: old, worker, oldFiles, fresh, reopened: 0 };
-  const load = () => createSyncGate({ path: VAULT, place: null, signal: new AbortController().signal }).start(() => world.worker.start());
-  load();
+  const other: Runtime = { name: "another reload's", belowChain: memVault() };
+  const newWorker = () => ({ running: false, start() { this.running = true; }, stop() { this.running = false; } });
+  const world: { live: { load: AbortSignal; runtime: Runtime } | null; worker: ReturnType<typeof newWorker>; oldFiles: Files; fresh: Runtime; other: Runtime; reopened: number } = { live: null, worker: newWorker(), oldFiles, fresh, other, reopened: 0 };
+  // A load: one signal, one gate, its runtime on screen, its worker started through the gate.
+  const load = (runtime: Runtime) => {
+    const signal = new AbortController().signal;
+    world.live = { load: signal, runtime };
+    const worker = newWorker();
+    world.worker = worker;
+    createSyncGate({ path: VAULT, place: null, signal }).start(() => worker.start());
+  };
+  load(old);
   const ports = createStepPorts<Runtime>({
     vault: "Notes",
     take: () => takeVaultSync(VAULT),
-    stop: async () => {
+    stop: async (step) => {
       world.worker.stop();
+      // Another reload of the vault while the step waited for its sync (a window's "reload", the index rebuilt).
+      if (options.reloadedMeanwhile) load(other);
       if (how === "same") return "same";
+      // As `stepPorts`: only the step's own runtime is left and opened anew.
+      const own = step.mine();
+      if (!own) return "renewed";
       fence.callOff();
       world.live = null;
       if (!options.reopenFails) {
         // The vault opens anew: a new runtime with a new worker, started through its load's gate.
-        world.live = fresh;
-        world.worker = { running: false, start() { this.running = true; }, stop() { this.running = false; } };
-        load();
+        load(fresh);
+        step.renewed();
       }
       return "renewed";
     },
     current: () => world.live,
+    retire: (signal) => retireSyncGates(signal),
   });
-  const reopen = async () => { world.reopened += 1; };
+  // The step's reopen at its end (`reopenAfterStep`): a load of its own, with a gate of its own.
+  const reopen = async () => { world.reopened += 1; load({ name: "reopened", belowChain: memVault() }); };
   return { world, ports, reopen };
 }
 
@@ -133,6 +147,34 @@ describe("leaving the workspace while its window leaves the vault", () => {
   });
 });
 
+/** The ports of a step on the vault whose load `signal` runs the reconcile of its workspace (the step's stop stops that). */
+function reconcilePorts(signal: AbortSignal) {
+  const live = { load: signal, runtime: { belowChain: {}, name: "on screen" } };
+  return createStepPorts<{ belowChain: object; name: string }>({
+    vault: "Notes",
+    take: () => takeVaultSync(VAULT),
+    // The step's stop, as `stepPorts` has it: the reconcile is what runs.
+    stop: async () => { const running = runningVaultSyncStep(VAULT)!; running.stop(); await running.stopAndDrain(); return "same"; },
+    current: () => live,
+    retire: (load) => retireSyncGates(load),
+  });
+}
+
+/** A load with the reconcile of its workspace running (a warm open), counting its runs. */
+async function reconcileRunning() {
+  const load = new AbortController();
+  const gate = createSyncGate({ path: VAULT, place: null, signal: load.signal });
+  const counted = { runs: 0, rows: [] as string[] };
+  const reconcile = gate.stoppable(async (signal) => {
+    counted.runs += 1;
+    counted.rows.push(`row#${counted.runs}`);
+    await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+    return null;
+  });
+  await new Promise((r) => setTimeout(r, 0));
+  return { load, reconcile, counted };
+}
+
 describe("leaving the workspace where noting the departure fails after the teardown began", () => {
   it("opens the vault anew instead of giving the sync back to the old runtime: the reconcile it stopped does not run again", async () => {
     expect.hasAssertions();
@@ -148,13 +190,7 @@ describe("leaving the workspace where noting the departure fails after the teard
       return null;
     });
     await new Promise((r) => setTimeout(r, 0));
-    const ports = createStepPorts<{ belowChain: object; name: string }>({
-      vault: "Notes",
-      take: () => takeVaultSync(VAULT),
-      // The step's stop, as `stepPorts` has it: the reconcile is what runs.
-      stop: async () => { const running = runningVaultSyncStep(VAULT)!; running.stop(); await running.stopAndDrain(); return "same"; },
-      current: () => ({ belowChain: {}, name: "on screen" }),
-    });
+    const ports = reconcilePorts(load.signal);
     let reopened = 0;
     const outcome = await leaveWorkspace(ports, {
       tearDown: async () => { rows.length = 0; },
@@ -169,6 +205,57 @@ describe("leaving the workspace where noting the departure fails after the teard
     expect(runs, "the reconcile is not run again").toBe(1);
     expect(rows).toEqual([]);
   });
+
+  it("gives the sync back to the old runtime neither when the reopen fails as well: its reconcile does not run again, and both failures are said", async () => {
+    expect.hasAssertions();
+    const { load, reconcile, counted } = await reconcileRunning();
+    const outcome = await leaveWorkspace(reconcilePorts(load.signal), {
+      tearDown: async () => { counted.rows.length = 0; },
+      markDeparted: async () => { throw new Error("disk full"); },
+      // The reload fails before it calls the old load off.
+      reopen: async () => { throw new Error("reopen failed"); },
+    }).then(() => "done", (e: Error) => e.message);
+    await new Promise((r) => setTimeout(r, 20));
+    // THE DEFECT (probe d11): the failed reopen was swallowed, the sync went back, the reconcile ran on the half torn-down runtime.
+    expect(counted.runs, "the reconcile is not run again on the torn-down runtime").toBe(1);
+    expect(counted.rows).toEqual([]);
+    expect(outcome).toContain("disk full");
+    expect(outcome, "the failed reopen is said too").toContain("reopen failed");
+    load.abort();
+    await reconcile;
+  });
+
+  it("gives the sync back to the old runtime neither when the teardown went through and the reopen fails", async () => {
+    expect.hasAssertions();
+    const { load, reconcile, counted } = await reconcileRunning();
+    const outcome = await leaveWorkspace(reconcilePorts(load.signal), {
+      tearDown: async () => {},
+      markDeparted: async () => {},
+      reopen: async () => { throw new Error("reopen failed"); },
+    }).then(() => "done", (e: Error) => e.message);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(outcome).toBe("reopen failed");
+    expect(counted.runs).toBe(1);
+    load.abort();
+    await reconcile;
+  });
+});
+
+describe("a step whose runtime another reload replaced while it waited for the sync", () => {
+  for (const how of ["same", "renewed"] as const) {
+    it(`(${how}) works on nothing — neither on the runtime of that reload — and says the step did not run, as the phone does`, async () => {
+      expect.hasAssertions();
+      const { world, ports } = vaultOnScreen(how, { reloadedMeanwhile: true });
+      let ranOn: string | null = null;
+      const outcome = await withSyncStopped(ports, async (on) => { ranOn = on.name; }).then(() => "done", (e: Error) => e.name);
+      // THE DEFECT: the runtime was found by its path alone — the step went on with the one the other reload opened.
+      expect(outcome).toBe("StepNotRunError");
+      expect(ranOn).toBeNull();
+      expect(world.live?.runtime.name, "the step's stop opened nothing anew for it").toBe("another reload's");
+      expect(toastStore.get().map((t) => t.message)).toEqual([i18n.t("closing.stepNotRun", { vault: "Notes" })]);
+      expect(world.worker.running, "that reload's sync runs once the step is through").toBe(true);
+    });
+  }
 });
 
 describe("locking the workspace", () => {

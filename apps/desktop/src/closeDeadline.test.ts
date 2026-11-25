@@ -82,22 +82,37 @@ describe("the deadline of a close", () => {
     const renew = body(phone, "export async function renewAfterSyncGaveUp(");
     expect(renew, "renewAfterSyncGaveUp").not.toMatch(/getActiveVaultEntry\(|retireBoot\(/);
     expect(renew).toMatch(/^[^\n]*\n[\s\S]*?if \(runtimeOnScreen\(\) !== left\.runtime\) throw left\.notRun\(\);/);
-    // The one read of the runtime after its reopen is compared at once.
-    expect(renew).toMatch(/const fresh = await getMobileVault\(\);\s*\/\/[^\n]*\n\s*if \(fresh\.vaultId !== current\.vaultId\) throw left\.notRun\(\);/);
+    // The runtime the renew opened is compared as the instance on screen — not by its vault's id (review B2 r5a).
+    expect(renew).toMatch(/const fresh = await starting\.catch\(\(\) => null\);\s*if \(!fresh \|\| runtimeOnScreen\(\) !== fresh \|\| /);
     // Every step on the phone hands its vault in; none asks the registry what is active to decide what it is for.
-    for (const [file, head] of [
-      ["apps/mobile/src/services/syncService.ts", "export async function switchProviderToAccountBroker("],
-      ["apps/mobile/src/services/syncService.ts", "export async function disconnectFiles("],
-      ["apps/mobile/src/services/syncService.ts", "export async function changeRemoteFolder("],
-      ["apps/mobile/src/services/syncService.ts", "export function restartSyncIfActive("],
+    for (const [file, head, through] of [
+      ["apps/mobile/src/services/syncService.ts", "export async function switchProviderToAccountBroker(", /await withVaultSyncStopped\(vaultId, /],
+      ["apps/mobile/src/services/syncService.ts", "export async function disconnectFiles(", /await withVaultSyncStopped\(vaultId, /],
+      ["apps/mobile/src/services/syncService.ts", "export async function changeRemoteFolder(", /stopSyncForStep\(\{ vaultId: v\.vaultId, runtime: v \}\)/],
+      ["apps/mobile/src/services/syncService.ts", "export function restartSyncIfActive(", /stopAndDrainNow\(v\)/],
     ] as const) {
       const fn = body(readFileSync(join(ROOT, file), "utf8"), head);
       expect(fn, head).not.toMatch(/getActiveVaultEntry\(/);
-      expect(fn, head).toMatch(/stopSyncForStep\(\{ vaultId|stopAndDrainNow\(v\)/);
+      expect(fn, head).toMatch(through);
     }
+    // The broker writes nothing to the slot before the sync is held (review B2 r5): the first write is inside the hold.
+    const broker = body(sync, "export async function switchProviderToAccountBroker(");
+    expect(broker.indexOf("withVaultSyncStopped(")).toBeLessThan(broker.indexOf("writeSecret("));
     const password = readFileSync(join(ROOT, "apps/mobile/src/services/accountPassword.ts"), "utf8");
-    expect(password.match(/await stopSyncForStep\(\{ vaultId \}\);/g), "the password's steps").toHaveLength(2);
-    expect(password).not.toMatch(/getActiveVaultEntry\(\)\)\.id === vaultId\) await stopSyncForStep/);
+    expect(password.match(/around: \(write\) => withVaultSyncStopped\(vaultId, write\),/g), "the password's steps").toHaveLength(2);
+    // A step on a vault's sign-ins holds and takes in one synchronous run: nothing awaited before the take.
+    const signIn = body(sync, "export async function withVaultSyncStopped<");
+    expect(signIn.indexOf("await stopForSignIn(runtime)")).toBeGreaterThan(0);
+    expect(signIn.slice(0, signIn.indexOf("await stopForSignIn(runtime)"))).not.toMatch(/await /);
+    const take = body(sync, "async function stopForSignIn(");
+    expect(take.slice(0, take.indexOf("takeSync(false)"))).not.toMatch(/await /);
+    // A step on the desktop keeps the state store of its own runtime (`on`), never the one a load opened meanwhile.
+    const desktop = readFileSync(join(ROOT, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
+    for (const head of ["const restoreWorkspaceRecovery = async", "const resumeWorkspaceSetup = async"]) {
+      const fn = desktop.slice(desktop.indexOf(head), desktop.indexOf("\n  };\n", desktop.indexOf(head)));
+      expect(fn, head).not.toMatch(/workspaceStateRef\.current \?\?/);
+      expect(fn, head).toMatch(/on\.workspaceState \?\? new SqlWorkspaceStateStore\(on\.db\)/);
+    }
   });
 
   it("every caller of a step that can end with its own notice says no second one", () => {
@@ -214,7 +229,7 @@ describe("the deadline of a close", () => {
     // The vault closes after the drain (never under a save still running), and is called off only after it closed.
     const leave = phone.slice(phone.indexOf("async function leaveVault"), phone.indexOf("\n}\n", phone.indexOf("async function leaveVault")));
     expect(leave).toMatch(/settled\.drain[\s\S]*\.then\(\(\) => current\.dispose\(\)\)[\s\S]*await disposed;\s*await current\.ended\(\);/);
-    for (const name of ["async function switchTo", "export async function reloadActiveMobileVault"]) {
+    for (const name of ["async function switchTo", "export function reloadActiveMobileVault"]) {
       const body = phone.slice(phone.indexOf(name), phone.indexOf("\n}\n", phone.indexOf(name)));
       expect(body, name).toContain("await settleBeforeClosing(current)");
       expect(body, name).toContain("await leaveVault(current, settled");
