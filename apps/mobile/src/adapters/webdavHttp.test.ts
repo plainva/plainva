@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   request: vi.fn<(o: unknown) => Promise<{ status: number; headers: Record<string, string>; bodyBase64: string }>>(),
   allowOrigin: vi.fn(async () => {}),
+  cancel: vi.fn(async (_o: { id: string }) => {}),
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -83,6 +84,37 @@ describe("webdavFetch (native bridge)", () => {
     answer({ status: 201, headers: {}, bodyBase64: "" });
     await ending;
     expect(ended).toBe(true);
+  });
+
+  it("cancels a request it gives up waiting for in the plugin too, by the request's own id", async () => {
+    expect.hasAssertions();
+    mocks.cancel.mockClear();
+    mocks.request.mockReturnValueOnce(new Promise(() => {}));
+    const controller = new AbortController();
+    const pending = webdavFetch("https://example.com/Note.md", { method: "PUT", body: "v1", signal: controller.signal }).catch((e: Error) => e.name);
+    controller.abort();
+    expect(await pending).toBe("AbortError");
+    const sent = mocks.request.mock.calls[mocks.request.mock.calls.length - 1][0] as { requestId?: string };
+    // THE DEFECT: the plugin was never told; the native call ran on up to the plugin's limit of an hour.
+    expect(sent.requestId).toEqual(expect.any(String));
+    expect(mocks.cancel).toHaveBeenCalledWith({ id: sent.requestId });
+  });
+
+  it("cancels nothing for a request that was answered, and a build without cancel is no failure", async () => {
+    expect.hasAssertions();
+    mocks.cancel.mockClear();
+    mocks.request.mockResolvedValueOnce({ status: 200, headers: {}, bodyBase64: btoa("ok") });
+    const controller = new AbortController();
+    expect((await webdavFetch("https://example.com/x", { method: "GET", signal: controller.signal })).status).toBe(200);
+    controller.abort();
+    expect(mocks.cancel).not.toHaveBeenCalled();
+
+    mocks.cancel.mockRejectedValueOnce(new Error("not implemented"));
+    mocks.request.mockReturnValueOnce(new Promise(() => {}));
+    const second = new AbortController();
+    const pending = webdavFetch("https://example.com/y", { method: "GET", signal: second.signal }).catch((e: Error) => e.name);
+    second.abort();
+    expect(await pending).toBe("AbortError");
   });
 
   it("counts nothing for a request that was answered", async () => {

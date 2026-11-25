@@ -27,8 +27,16 @@ interface WebDavHttpNative {
     bodyFilePath?: string;
     bodyOffset?: number;
     bodyLength?: number;
+    /** Names the request for `cancel`. */
+    requestId?: string;
   }): Promise<NativeResponse>;
   allowOrigin(options: { origin: string }): Promise<void>;
+  /**
+   * Cancels the named request where it still runs (OkHttp `Call.cancel`,
+   * `URLSessionTask.cancel`): its answer then is a failure. Nothing where it
+   * has ended; a build without the method refuses the call.
+   */
+  cancel(options: { id: string }): Promise<void>;
 }
 
 /**
@@ -95,6 +103,20 @@ async function bodyOf(res: NativeResponse): Promise<Uint8Array> {
  * contain credentials, private paths or certificate subject names). */
 async function requestNative(options: Parameters<WebDavHttpNative["request"]>[0], signal?: AbortSignal | null) {
   void sweepHttpFiles();
+  // A request the app gives up waiting for is cancelled in the plugin as well, so it does not run on until the
+  // plugin's own limit (up to an hour) and reach the provider late; where it ran on all the same — an older build
+  // without `cancel` — the runtime that sent it still counts it (`webdavFetchCountedIn`).
+  let cancel = () => {};
+  if (signal) {
+    const id = crypto.randomUUID();
+    options = { ...options, requestId: id };
+    cancel = () => {
+      void Promise.resolve().then(() => WebDavHttp.cancel({ id })).catch(() => {
+        // silent: an older build has no `cancel`; the request then ends by the plugin's own limit.
+      });
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+  }
   try {
     return await WebDavHttp.request(options);
   } catch (error) {
@@ -103,6 +125,8 @@ async function requestNative(options: Parameters<WebDavHttpNative["request"]>[0]
     const method = /^(GET|HEAD|POST|PUT|DELETE|OPTIONS|PROPFIND|MKCOL|MOVE|COPY|REPORT)$/.test(options.method) ? options.method : "OTHER";
     logDiagnostic("native-http", `${method}: ${code}`);
     throw Object.assign(new Error(code), { code });
+  } finally {
+    signal?.removeEventListener("abort", cancel);
   }
 }
 

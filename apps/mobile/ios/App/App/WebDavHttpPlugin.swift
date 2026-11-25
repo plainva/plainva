@@ -23,12 +23,34 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "WebDavHttp"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "request", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "allowOrigin", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "allowOrigin", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise)
     ]
 
     /** User-configured origins (scheme://host[:port]) — WebDAV servers, S3 endpoints. */
     private static var allowedOrigins = Set<String>()
     private static let originLock = NSLock()
+
+    /// The tasks still running, by the id the web layer gave them: a request it gives up waiting for is
+    /// cancelled here (`cancel`), so it does not run on until the resource timeout and reach the provider late.
+    private static var running: [String: URLSessionTask] = [:]
+    private static let runningLock = NSLock()
+
+    private static func forget(_ id: String) {
+        runningLock.lock()
+        running.removeValue(forKey: id)
+        runningLock.unlock()
+    }
+
+    @objc func cancel(_ call: CAPPluginCall) {
+        if let id = call.getString("id") {
+            WebDavHttpPlugin.runningLock.lock()
+            let task = WebDavHttpPlugin.running.removeValue(forKey: id)
+            WebDavHttpPlugin.runningLock.unlock()
+            task?.cancel()
+        }
+        call.resolve()
+    }
 
     /** Fixed provider hosts (suffix match on the host, https only). Mirrors PROVIDER_HOST_SUFFIXES. */
     private static let providerHostSuffixes = [
@@ -184,7 +206,9 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 req.httpBody = body.data(using: .utf8)
             }
         }
+        let requestId = call.getString("requestId")
         let completion: (Data?, URLResponse?, Error?) -> Void = { data, response, error in
+            if let id = requestId { WebDavHttpPlugin.forget(id) }
             if let temp = stagedTemp { try? FileManager.default.removeItem(at: temp) }
             if let error = error {
                 let code = WebDavHttpPlugin.failureCode(error)
@@ -247,11 +271,18 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 "bodyBase64": payload.base64EncodedString(),
             ])
         }
+        let task: URLSessionTask
         if let file = uploadFile {
-            session.uploadTask(with: req, fromFile: file, completionHandler: completion).resume()
+            task = session.uploadTask(with: req, fromFile: file, completionHandler: completion)
         } else {
-            session.dataTask(with: req, completionHandler: completion).resume()
+            task = session.dataTask(with: req, completionHandler: completion)
         }
+        if let id = requestId {
+            WebDavHttpPlugin.runningLock.lock()
+            WebDavHttpPlugin.running[id] = task
+            WebDavHttpPlugin.runningLock.unlock()
+        }
+        task.resume()
     }
 
     /** URLSession retains platform trust evaluation; no authentication-challenge override. */
