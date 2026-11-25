@@ -6270,6 +6270,7 @@
     "eventConflict": "L’evento è cambiato in remoto — vista aggiornata.",
     "eventWriteFailed": "Salvataggio presso il provider non riuscito.",
     "eventWriteRefused": "L’evento non è stato salvato: {{reason}}",
+    "eventCreateLost": "Il nuovo evento «{{title}}» manca dal tuo calendario: il provider non l’ha conservato.",
     "eventDeleteRefused": "L’evento non è stato eliminato: {{reason}}",
     "eventWriteRetry": "Riprova",
     "eventSending": "invio in corso",

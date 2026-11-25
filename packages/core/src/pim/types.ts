@@ -468,6 +468,14 @@ export interface IPimTarget {
    * the provider notify the organiser. Providers without native scheduling
    * (or where the user is not an attendee) may leave this undefined. */
   respondToEvent?(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<{ etag?: string } | void>;
+  /**
+   * Whether the provider holds this event now (issue 119): a created event
+   * that no sync has listed for a while is asked about before it leaves the
+   * screen. `false` only for "not there"; anything else the provider says is
+   * thrown. Providers that cannot be asked leave it undefined - their event
+   * stays on screen.
+   */
+  eventExists?(ref: PimEventRef): Promise<boolean>;
   createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult>;
   /** Updates a task (title/due/completed/notes). Etag-guarded where the
    * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */

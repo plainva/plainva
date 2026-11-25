@@ -56,6 +56,26 @@ const READ_AFTER_WRITE_WAITS_MS = [250, 750, 1_500, 3_000] as const;
 
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * The objects this app created a moment ago, by address, and when (issue 119).
+ * A target is built per write, so this lives beside the class: the edit that
+ * follows a create meets a new target. Only these objects get the patience of
+ * the read-back before an edit; for every other object a 404 means gone, at
+ * once (a blocker deleted elsewhere is passed over without waiting).
+ */
+const justCreated = new Map<string, number>();
+const JUST_CREATED_MS = 10 * 60_000;
+
+function noteCreated(href: string, now: number): void {
+  for (const [known, at] of justCreated) if (now - at > JUST_CREATED_MS) justCreated.delete(known);
+  justCreated.set(href, now);
+}
+
+function createdMomentsAgo(href: string, now: number): boolean {
+  const at = justCreated.get(href);
+  return at !== undefined && now - at <= JUST_CREATED_MS;
+}
+
 export class CalDavPimTarget implements IPimTarget {
   readonly provider = "caldav" as const;
   private base: URL;
@@ -439,6 +459,12 @@ export class CalDavPimTarget implements IPimTarget {
    * read, never written a second time.
    */
   private async createObject(href: string, what: "event" | "task", body: string): Promise<string | undefined> {
+    const etag = await this.putNewObject(href, what, body);
+    noteCreated(href, Date.now());
+    return etag;
+  }
+
+  private async putNewObject(href: string, what: "event" | "task", body: string): Promise<string | undefined> {
     const put = () =>
       this.rawRequest(href, {
         method: "PUT",
@@ -480,9 +506,9 @@ export class CalDavPimTarget implements IPimTarget {
    * GET of an object Plainva has just created. A 404 is asked again after a
    * pause, a few times, before it counts: a server that shows its own writes
    * late (iCloud) must not turn a create into "written" that it does not hold.
-   * Edits and deletes do not wait - an event gone there is gone (a blocker
-   * deleted elsewhere is passed over at once), and the event an edit most often
-   * meets just after its create is one this read has already seen.
+   * Edits and deletes wait only for an object this app created a moment ago
+   * (`justCreated`); for any other an event gone there is gone at once (a
+   * blocker deleted elsewhere is passed over without waiting).
    */
   private async readAfterWrite(href: string): Promise<Response> {
     let res = await this.rawRequest(href, { method: "GET", headers: {} });
@@ -583,6 +609,14 @@ export class CalDavPimTarget implements IPimTarget {
     }
   }
 
+  async eventExists(ref: PimEventRef): Promise<boolean> {
+    if (!ref.href) throw new Error("caldav lookup needs the object href");
+    const res = await this.rawRequest(ref.href, { method: "GET", headers: {} });
+    if (res.status === 404 || res.status === 410) return false;
+    if (!res.ok) throw new PimRequestError(`caldav read ${res.status}`, res.status);
+    return true;
+  }
+
   async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
     const uid = draft.createAs ?? generateUid();
     const href = this.resolve(joinCollection(listId, `${uid}.ics`));
@@ -643,7 +677,10 @@ export class CalDavPimTarget implements IPimTarget {
     const expect = options.expect;
     let known = knownEtag;
     for (let attempt = 0; ; attempt++) {
-      const getRes = await this.rawRequest(href, { method: "GET", headers: {} });
+      // An object this app created a moment ago may not show yet (issue 119):
+      // it is given the read-back's patience - also a delete of one of its
+      // occurrences, which would otherwise take "not shown" for "done".
+      const getRes = createdMomentsAgo(href, Date.now()) ? await this.readAfterWrite(href) : await this.rawRequest(href, { method: "GET", headers: {} });
       if (options.goneIsDone && (getRes.status === 404 || getRes.status === 410)) return {};
       // With its status (K3): a blocker that is gone answers 404 here, and the
       // caller has to tell "gone" from "refused".
@@ -733,6 +770,23 @@ export class CalDavPimTarget implements IPimTarget {
       return false;
     }
   }
+}
+
+/**
+ * The occurrences a new series has in a window, expanded exactly as a pull
+ * expands it (issue 119): the object Plainva sends for the draft, read by
+ * `expandIcsEvents`. The series' own row is left out, as the day query leaves
+ * it out. For the screen until a sync lists the series - not a second
+ * expansion that could disagree with the one after it.
+ */
+export function expandEventDraft(
+  draft: PimEventDraft,
+  ids: { uid: string; calendarId: string; href?: string; etag?: string },
+  rangeStartTs: number,
+  rangeEndTs: number,
+): PimEvent[] {
+  const ics = buildIcsObject(ids.uid, "vevent", (vevent) => applyEventDraft(vevent, draft));
+  return expandIcsEvents(ics, ids.calendarId, ids.href ?? "", ids.etag, rangeStartTs, rangeEndTs).filter((row) => !!row.seriesMaster);
 }
 
 /** Instance key suffix of an expanded occurrence uid (`uid#<recurrenceId>`). */

@@ -364,6 +364,13 @@ export class GraphPimTarget implements IPimTarget {
     return { etag: data["@odata.etag"] };
   }
 
+  async eventExists(ref: PimEventRef): Promise<boolean> {
+    const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}?$select=id`);
+    if (res.status === 404 || res.status === 410) return false;
+    if (!res.ok) throw await pimRequestError("graph read event", res);
+    return true;
+  }
+
   async deleteEvent(ref: PimEventRef): Promise<void> {
     const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}`, {
       method: "DELETE",

@@ -8,7 +8,7 @@ import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts, pickDefaultMailAccount } from "@plainva/ui/mail";
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
-import { errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { checkUnlistedCreates, createChange, errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, newPimCreateUid, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -189,7 +189,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // What the cache holds, and on top of it what the user just did (issue 119):
   // a write shows from the moment it is made, not from the provider's answer.
   const [cachedEvents, setEvents] = useState<PimEventRow[]>([]);
-  const events = useShownEvents(cachedEvents);
   const [status, setStatus] = useState<{ status: string; message?: string }>({ status: "idle" });
   // Accounts and calendars that are not being synced — the line above the grid.
   const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
@@ -248,6 +247,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     const grid = buildMonthCells(viewDate, weekStartDay);
     return { cells: grid, gridDays: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
   }, [viewMode, viewDate, selectedDate, weekStartDay]);
+  // A new series is drawn by its occurrences in this window until a sync lists it (issue 119).
+  const events = useShownEvents(cachedEvents, pendingEventWrites, { startTs: rangeStartTs, endTs: rangeEndTs });
   // The month's week column: a narrow first column, so cells and bars move
   // one column right (their placement is explicit).
   const monthWeeks = showWeeks && cells.length > 0 ? isoWeeksForCells(cells) : null;
@@ -1040,6 +1041,59 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   );
 
   /**
+   * Creates an event the person typed. One action of the person: this form's
+   * event. "Try again" on a failed write is the same action — in another
+   * window the central one then does not create it twice (A15), and the draft
+   * keeps its uid (`createAs`) for the same reason at the provider.
+   */
+  const startCreate = useCallback(
+    (accountId: string, calId: string, draft: PimEventDraft, seeded?: () => void) => {
+      const action = newWriteAction("event-create");
+      const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
+      const create = () => {
+        const id = pendingEventWrites.reserve();
+        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
+        void writeEventOptimistically(
+          pendingEventWrites,
+          // A series shows its occurrences from the first moment (issue 119).
+          createChange(pendingEventRow(id, shown), draft),
+          () => createCalendarEvent(actionTargets, accountId, calId, draft),
+          (out) => out.rows.map((row) => createChange(row, draft)),
+          id,
+        ).then(
+          () => {
+            refreshAfterWrite();
+            seeded?.();
+          },
+          (error) => reportWriteFailure(error, create),
+        );
+      };
+      create();
+    },
+    [reportWriteFailure, targetFor, refreshAfterWrite]
+  );
+
+  /**
+   * A created event no sync has listed for a while is asked about (issue
+   * 119): the provider confirmed it, so it is not taken off the screen for
+   * being unlisted. Only one the provider says it does not hold leaves -
+   * with a message and the way to create it again.
+   */
+  useEffect(() => {
+    const check = () =>
+      void checkUnlistedCreates(pendingEventWrites, targetFor, (created) => {
+        logDiagnostic("calendar", "created event not held by the provider");
+        const draft = created.draft;
+        toast.error(
+          t("pim.eventCreateLost", { title: created.row.title, defaultValue: "Der neue Termin „{{title}}“ fehlt in Deinem Kalender: der Anbieter hat ihn nicht behalten." }),
+          draft ? { label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }), run: () => startCreate(created.row.accountId, created.row.calendarId, draft) } : undefined,
+        );
+      });
+    const timer = window.setInterval(check, 60_000);
+    return () => window.clearInterval(timer);
+  }, [targetFor, startCreate, t]);
+
+  /**
    * The save gate. A create writes straight away. An edit on a SERIES instance
    * first asks what it should apply to — but only when something actually
    * changed: a form closed unchanged writes nothing and shows no dialog.
@@ -1073,31 +1127,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // Whoever handed this appointment over hears of it once the calendar took it — not before, and not on a failure.
       const seeded = seedSaved.current;
       seedSaved.current = null;
-      // One action of the person: this form's event. "Try again" on a failed
-      // write is the same action — in another window the central one then
-      // does not create it twice (A15) — and the next form is a new one.
-      const action = newWriteAction("event-create");
-      const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
-      const create = () => {
-        const id = pendingEventWrites.reserve();
-        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
-        void writeEventOptimistically(
-          pendingEventWrites,
-          { kind: "create", row: pendingEventRow(id, shown) },
-          () => createCalendarEvent(actionTargets, accountId, calId, draft),
-          (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
-          id,
-        ).then(
-          () => {
-            refreshAfterWrite();
-            seeded?.();
-          },
-          (error) => reportWriteFailure(error, create),
-        );
-      };
-      create();
+      startCreate(accountId, calId, draft, seeded ?? undefined);
     },
-    [editState, saveEventForm, reportWriteFailure, targetFor, refreshAfterWrite, t]
+    [editState, saveEventForm, startCreate, t]
   );
 
   // ---- drag reschedule (move/resize existing single events) ----------------

@@ -6008,6 +6008,7 @@
     "eventConflict": "该日程已在远端被修改——视图已刷新。",
     "eventWriteFailed": "保存到服务商失败。",
     "eventWriteRefused": "日程未保存：{{reason}}",
+    "eventCreateLost": "新日程“{{title}}”不在你的日历中：服务商没有保留它。",
     "eventDeleteRefused": "日程未删除：{{reason}}",
     "eventWriteRetry": "重试",
     "eventSending": "正在发送",

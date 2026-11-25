@@ -33,7 +33,12 @@ import {
   accountToAdoptInto,
   adoptAccountInto,
   calendarPickerOptions,
+  checkUnlistedCreates,
   createCalendarEvent,
+  createChange,
+  refusalReason,
+  toast,
+  type CreatedEventChange,
   applyPendingEventWrites,
   deleteEventWithBlockers,
   detachBlockerAndUpdate,
@@ -289,7 +294,8 @@ export async function listPimEvents(rangeStartTs: number, rangeEndTs: number): P
  */
 export async function listShownPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<ShownEventRow[]> {
   const cached = await listPimEvents(rangeStartTs, rangeEndTs);
-  const shown = applyPendingEventWrites(cached, pendingEventWrites.snapshot());
+  // A new series is drawn by its occurrences in this window until a sync lists it (issue 119).
+  const shown = applyPendingEventWrites(cached, pendingEventWrites.snapshot(), { startTs: rangeStartTs, endTs: rangeEndTs });
   // The chain mark of a blocker and of an event that has blockers is drawn
   // from the linkage (K3) — derived here, once, for every screen that lists
   // events. Until then the phone had the action and no sign of its result.
@@ -341,6 +347,25 @@ function wirePendingEventWrites(): void {
   pendingWritesWired = true;
   pendingEventWrites.subscribe(() => window.dispatchEvent(new CustomEvent("m-pim-changed")));
   window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
+  // A created event no sync has listed for a while is asked about (issue 119):
+  // it leaves the screen only when the provider says it does not hold it -
+  // with a message and the way to create it again.
+  window.setInterval(() => void checkUnlistedCreates(pendingEventWrites, (accountId) => eventTargets.targetFor(accountId), reportCreateLost), 60_000);
+}
+
+function reportCreateLost(created: CreatedEventChange): void {
+  logDiagnostic("pim", "created event not held by the provider");
+  const draft = created.draft;
+  const key = `${created.row.accountId} ${created.row.calendarId}`;
+  toast.error(
+    i18n.t("pim.eventCreateLost", { title: created.row.title }),
+    draft
+      ? {
+          label: i18n.t("pim.eventWriteRetry"),
+          run: () => void createPimEvent(key, draft).catch((err: unknown) => toast.error(i18n.t("pim.eventWriteRefused", { reason: refusalReason(err) }))),
+        }
+      : undefined,
+  );
 }
 
 /**
@@ -791,9 +816,10 @@ export async function createPimEvent(calendarKey: string, draft: PimEventDraft) 
   const { uid: _uid, ...shown } = draftToRow(key.accountId, key.calendarId, "", draft);
   const out = await writeEventOptimistically(
     pendingEventWrites,
-    { kind: "create", row: pendingEventRow(id, shown) },
+    // A series shows its occurrences from the first moment (issue 119).
+    createChange(pendingEventRow(id, shown), draft),
     () => createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft),
-    (written) => written.rows.map((row) => ({ kind: "create" as const, row })),
+    (written) => written.rows.map((row) => createChange(row, draft)),
     id,
   );
   pimSyncNow({ afterWrite: true });

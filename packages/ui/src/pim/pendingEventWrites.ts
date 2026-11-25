@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { sameStoredValue, type PimEventRow } from "@plainva/core";
+import { sameStoredValue, type PimEventDraft, type PimEventRow } from "@plainva/core";
 
 /**
  * What the user just did to a calendar event, shown BEFORE the provider has
@@ -33,10 +33,25 @@ export interface PendingEventRef {
 }
 
 export type PendingEventChange =
-  | { kind: "create"; row: PimEventRow }
+  | CreatedEventChange
   | { kind: "update"; ref: PendingEventRef; patch: Partial<PimEventRow> }
   | { kind: "delete"; ref: PendingEventRef }
   | EtagStamp;
+
+/**
+ * A created event (issue 119). `row` is the event itself - for a series its
+ * own row, which the day views never draw. A series is drawn by
+ * `occurrences`: the ones the series has, expanded the way a pull expands it
+ * (`createChange`), so the screen shows from the start what the next sync
+ * shows. `draft` is what the person typed, kept for "Try again" should the
+ * provider turn out not to hold the event after all.
+ */
+export interface CreatedEventChange {
+  kind: "create";
+  row: PimEventRow;
+  occurrences?: PimEventRow[];
+  draft?: PimEventDraft;
+}
 
 /**
  * The etag a write left an event with (issue 119, R2).
@@ -72,6 +87,8 @@ export type PendingEventWrite = PendingEventChange & {
   state: "sending" | "settled";
   /** Set when the provider accepted it; a settled overlay does not wait forever. */
   settledAt?: number;
+  /** A created event no sync listed yet: when the provider was last asked whether it holds it. */
+  checkedAt?: number;
 };
 
 /** A cached row as the views show it: `pending` while its write is on the way. */
@@ -86,6 +103,12 @@ export const isPendingEventUid = (uid: string): boolean => uid.startsWith(PENDIN
  * How long a settled overlay waits for the cache to catch up. A provider that
  * accepted a write and then never lists it (a calendar hidden in between, an
  * account switched off) must not leave a ghost on screen.
+ *
+ * Not for a created event (issue 119): the provider confirmed it holds it, and
+ * an event that vanished because a sync had not listed it yet was exactly the
+ * report. After this long unlisted it is asked about (`checkUnlistedCreates`)
+ * - and asked again every such interval - and leaves only when the provider
+ * says it is not there, with a message.
  */
 export const SETTLED_EVENT_WRITE_TTL_MS = 3 * 60_000;
 
@@ -152,8 +175,16 @@ function patchApplied(row: PimEventRow, patch: Partial<PimEventRow>): boolean {
   return (Object.keys(patch) as Array<keyof PimEventRow>).every((key) => sameValue(row[key], patch[key]));
 }
 
-/** The cached rows with every pending write laid over them. */
-export function applyPendingEventWrites(rows: readonly PimEventRow[], writes: readonly PendingEventWrite[]): ShownEventRow[] {
+/**
+ * The cached rows with every pending write laid over them. `range` is the
+ * window the caller shows: a created series is drawn by its occurrences in it
+ * (without a window, by all of them the overlay holds).
+ */
+export function applyPendingEventWrites(
+  rows: readonly PimEventRow[],
+  writes: readonly PendingEventWrite[],
+  range?: { startTs: number; endTs: number },
+): ShownEventRow[] {
   if (writes.length === 0) return rows as ShownEventRow[];
   let shown: ShownEventRow[] = rows.slice();
   for (const write of writes) {
@@ -171,7 +202,10 @@ export function applyPendingEventWrites(rows: readonly PimEventRow[], writes: re
     } else if (!listsCreated(shown, write.row)) {
       // A settled create carries its real uid: once the cache lists that
       // event, the cached row is the one shown and this one steps aside.
-      shown.push(sending ? { ...write.row, pending: true } : write.row);
+      const drawn = write.occurrences
+        ? write.occurrences.filter((row) => !range || (row.start.ts < range.endTs && row.end.ts >= range.startTs))
+        : [write.row];
+      for (const row of drawn) shown.push(sending ? { ...row, pending: true } : row);
     }
   }
   return shown;
@@ -181,8 +215,10 @@ export function applyPendingEventWrites(rows: readonly PimEventRow[], writes: re
 export function unsettledEventWrites(rows: readonly PimEventRow[], writes: readonly PendingEventWrite[], now: number): PendingEventWrite[] {
   return writes.filter((write) => {
     if (write.state === "sending") return true;
-    if (now - (write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS) return false;
+    // A created event stays until a sync lists it, or the provider says it
+    // is not there (`checkUnlistedCreates`).
     if (write.kind === "create") return !listsCreated(rows, write.row);
+    if (now - (write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS) return false;
     if (write.kind === "stamp") return rows.some((row) => stamps(row, write));
     // A deleted series waits until none of its occurrences is listed (R7).
     if (write.kind === "delete") return rows.some((row) => reaches(row, write.ref));
@@ -268,6 +304,58 @@ export class PendingEventWrites {
   clear(): void {
     if (this.writes.length > 0) this.set([]);
   }
+
+  /**
+   * The created events no sync has listed for `SETTLED_EVENT_WRITE_TTL_MS`
+   * since they were written or last asked about - each marked as asked now,
+   * so two runs never ask twice.
+   */
+  takeUnlistedCreates(now: number = Date.now()): CreatedEventChange[] {
+    const due = this.writes.filter(
+      (write): write is PendingEventWrite & CreatedEventChange =>
+        write.kind === "create" && write.state === "settled" && now - (write.checkedAt ?? write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS,
+    );
+    if (due.length === 0) return [];
+    const ids = new Set(due.map((write) => write.id));
+    this.writes = this.writes.map((write) => (ids.has(write.id) ? { ...write, checkedAt: now } : write));
+    return due.map(({ row, occurrences, draft }) => ({ kind: "create", row, ...(occurrences ? { occurrences } : {}), ...(draft ? { draft } : {}) }));
+  }
+
+  /** A created event the provider says it does not hold: it leaves the screen. */
+  dropCreated(ref: PendingEventRef): void {
+    const kept = this.writes.filter((write) => !(write.kind === "create" && sameRef(write.row, ref)));
+    if (kept.length !== this.writes.length) this.set(kept);
+  }
+}
+
+/**
+ * Asks the provider about every created event no sync has listed for a while
+ * (issue 119). A create counts as written only once the provider holds it, so
+ * such an event is not taken off the screen for not being listed: a sync may
+ * not have reached it. Held - it stays, and is asked about again later. Not
+ * there - it leaves, and `onGone` says so (with what the person typed, for
+ * "Try again"). A provider that cannot be asked, or does not answer, keeps it.
+ */
+export async function checkUnlistedCreates(
+  store: PendingEventWrites,
+  targetFor: (accountId: string) => Promise<{ eventExists?: (ref: { calendarId: string; uid: string; etag?: string; href?: string }) => Promise<boolean> } | null>,
+  onGone: (created: CreatedEventChange) => void,
+  now: number = Date.now(),
+): Promise<void> {
+  for (const created of store.takeUnlistedCreates(now)) {
+    const { row } = created;
+    let held: boolean;
+    try {
+      const target = await targetFor(row.accountId);
+      if (!target?.eventExists) continue;
+      held = await target.eventExists({ calendarId: row.calendarId, uid: row.uid, etag: row.etag, href: row.href });
+    } catch {
+      continue;
+    }
+    if (held) continue;
+    store.dropCreated(row);
+    onGone(created);
+  }
 }
 
 /**
@@ -300,15 +388,34 @@ function foldIntoCreates(writes: readonly PendingEventWrite[], settled: readonly
     const created = (write: PendingEventWrite): write is Extract<PendingEventWrite, { kind: "create" }> =>
       write.kind === "create" && write.state === "settled" && write.id !== change.id;
     if (change.kind === "delete") {
-      // Gone: nothing of it is to be shown any more.
-      out = out.filter((write) => !(created(write) && reaches(write.row, change.ref)));
-    } else if (change.kind === "update") {
-      if (!out.some((write) => created(write) && sameRef(write.row, change.ref))) continue;
+      // Gone: nothing of it is to be shown any more - or, for one occurrence
+      // of a new series, that occurrence.
       out = out
-        .map((write) => (created(write) && sameRef(write.row, change.ref) ? { ...write, row: { ...write.row, ...change.patch } } : write))
+        .filter((write) => !(created(write) && reaches(write.row, change.ref)))
+        .map((write) => (created(write) && write.occurrences ? { ...write, occurrences: write.occurrences.filter((row) => !sameRef(row, change.ref)) } : write));
+    } else if (change.kind === "update") {
+      const touches = (write: PendingEventWrite): boolean =>
+        created(write) && (sameRef(write.row, change.ref) || !!write.occurrences?.some((row) => sameRef(row, change.ref)));
+      if (!out.some(touches)) continue;
+      const wide = seriesWidePatch(change.patch);
+      out = out
+        .map((write) =>
+          created(write) && touches(write)
+            ? {
+                ...write,
+                row: sameRef(write.row, change.ref) ? { ...write.row, ...change.patch } : write.row,
+                ...(write.occurrences
+                  ? { occurrences: write.occurrences.map((row) => (sameRef(row, change.ref) ? { ...row, ...change.patch } : occurrenceOf(row, change.ref) ? { ...row, ...wide } : row)) }
+                  : {}),
+              }
+            : write,
+        )
         .filter((write) => write.id !== change.id);
     } else {
-      out = out.map((write) => (created(write) && stamps(write.row, change) ? { ...write, row: { ...write.row, etag: change.etag } } : write));
+      const stamp = (row: PimEventRow): PimEventRow => (stamps(row, change) ? { ...row, etag: change.etag } : row);
+      out = out.map((write) =>
+        created(write) ? { ...write, row: stamp(write.row), ...(write.occurrences ? { occurrences: write.occurrences.map(stamp) } : {}) } : write,
+      );
     }
   }
   return out;
@@ -348,10 +455,19 @@ export async function writeEventOptimistically<T>(
 }
 
 /** The cached rows as a view should draw them, kept current while writes come and go. */
-export function useShownEvents(rows: readonly PimEventRow[], store: PendingEventWrites = pendingEventWrites): ShownEventRow[] {
+export function useShownEvents(
+  rows: readonly PimEventRow[],
+  store: PendingEventWrites = pendingEventWrites,
+  range?: { startTs: number; endTs: number },
+): ShownEventRow[] {
   const writes = useSyncExternalStore(store.subscribe, store.snapshot, store.snapshot);
   useEffect(() => {
     store.reconcile(rows);
   }, [rows, writes, store]);
-  return useMemo(() => applyPendingEventWrites(rows, writes), [rows, writes]);
+  const startTs = range?.startTs;
+  const endTs = range?.endTs;
+  return useMemo(
+    () => applyPendingEventWrites(rows, writes, startTs !== undefined && endTs !== undefined ? { startTs, endTs } : undefined),
+    [rows, writes, startTs, endTs],
+  );
 }

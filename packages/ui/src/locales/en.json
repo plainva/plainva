@@ -6139,6 +6139,7 @@
     "eventConflict": "The event changed remotely — view refreshed.",
     "eventWriteFailed": "Saving to the provider failed.",
     "eventWriteRefused": "The event was not saved: {{reason}}",
+    "eventCreateLost": "The new event “{{title}}” is missing from your calendar: the provider did not keep it.",
     "eventDeleteRefused": "The event was not deleted: {{reason}}",
     "eventWriteRetry": "Try again",
     "eventSending": "sending",

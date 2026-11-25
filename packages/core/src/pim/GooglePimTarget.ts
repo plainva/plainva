@@ -357,6 +357,15 @@ export class GooglePimTarget implements IPimTarget {
     return { etag: data.etag };
   }
 
+  async eventExists(ref: PimEventRef): Promise<boolean> {
+    const res = await this.request(`${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`);
+    if (res.status === 404 || res.status === 410) return false;
+    if (!res.ok) throw await pimRequestError("google read event", res);
+    // A deleted event stays readable for a while, marked cancelled.
+    const body = (await res.json()) as { status?: string };
+    return body.status !== "cancelled";
+  }
+
   async deleteEvent(ref: PimEventRef): Promise<void> {
     const res = await this.request(
       `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`,

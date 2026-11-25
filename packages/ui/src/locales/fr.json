@@ -6270,6 +6270,7 @@
     "eventConflict": "L’événement a été modifié à distance — vue actualisée.",
     "eventWriteFailed": "L’enregistrement chez le fournisseur a échoué.",
     "eventWriteRefused": "L’événement n’a pas été enregistré : {{reason}}",
+    "eventCreateLost": "Le nouvel événement « {{title}} » manque dans votre calendrier : le fournisseur ne l’a pas conservé.",
     "eventDeleteRefused": "L’événement n’a pas été supprimé : {{reason}}",
     "eventWriteRetry": "Réessayer",
     "eventSending": "envoi en cours",

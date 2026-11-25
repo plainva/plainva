@@ -1,6 +1,6 @@
-import { eventSubstanceOf, PimConflictError, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
+import { eventSubstanceOf, expandEventDraft, PimConflictError, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
 import { logDiagnostic } from "../services/diagnosticsLog";
-import type { EtagStamp } from "./pendingEventWrites";
+import { isPendingEventUid, PENDING_EVENT_UID_PREFIX, type CreatedEventChange, type EtagStamp } from "./pendingEventWrites";
 
 /**
  * Writing a calendar event, in ONE place (S24).
@@ -45,6 +45,45 @@ export function draftToRow(
     ...(draft.blockOf !== undefined ? { blockOf: draft.blockOf ?? undefined } : {}),
     ...(draft.blocks !== undefined ? { blocks: draft.blocks.length > 0 ? draft.blocks : undefined } : {}),
   };
+}
+
+const DAY_MS = 24 * 3600_000;
+/** How far ahead a new series is drawn before a sync lists it: the views the person can scroll to in that time. */
+const NEW_SERIES_AHEAD_MS = 400 * DAY_MS;
+
+/**
+ * What the screen holds of a created event until a sync lists it (issue 119).
+ *
+ * A series is drawn by its occurrences, not by one row at its first start -
+ * a new weekly meeting stood on screen once, and the person took the repeat
+ * for lost. The occurrences come from the expansion a pull uses
+ * (`expandEventDraft`), so the sync that follows shows the same ones. They can
+ * be edited where they carry the ids a pull gives them (CalDAV: the object's
+ * address and `uid#<recurrence id>`); elsewhere the provider names its
+ * occurrences itself, so until the sync they are shown, not written against.
+ *
+ * `draft` stays with the change: should the provider turn out not to hold the
+ * event, "Try again" has what the person typed.
+ */
+export function createChange(row: PimEventRow, draft: PimEventDraft): CreatedEventChange {
+  if (!draft.recurrence) return { kind: "create", row, draft };
+  let expanded: ReturnType<typeof expandEventDraft>;
+  try {
+    expanded = expandEventDraft(draft, { uid: row.uid, calendarId: row.calendarId, href: row.href, etag: row.etag }, row.start.ts - DAY_MS, row.start.ts + NEW_SERIES_AHEAD_MS);
+  } catch {
+    return { kind: "create", row, draft };
+  }
+  const addressed = !!row.href && !isPendingEventUid(row.uid);
+  const occurrences = expanded.map(
+    (occurrence): PimEventRow => ({
+      ...occurrence,
+      accountId: row.accountId,
+      uid: addressed || isPendingEventUid(occurrence.uid) ? occurrence.uid : `${PENDING_EVENT_UID_PREFIX}${occurrence.uid}`,
+      href: row.href,
+      etag: row.etag,
+    }),
+  );
+  return { kind: "create", row, occurrences, draft };
 }
 
 /**

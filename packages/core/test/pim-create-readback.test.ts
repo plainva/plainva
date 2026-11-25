@@ -153,6 +153,33 @@ describe("CalDAV: a new event the server shows late", () => {
     expect(objects.size).toBe(1);
   });
 
+  it("an edit right after a create the server confirmed only by 412 waits for it as the read-back did", async () => {
+    expect.hasAssertions();
+    // Longer than the read-back, the second send and its read-back together (11 s).
+    const { target, waits } = laggingServer({ lagMs: 12_000 });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-slow-2" });
+    expect(created.etag).toBeUndefined();
+    const before = waits.length;
+    await expect(target.updateEvent({ calendarId: CAL, uid: created.uid, etag: created.etag, href: created.href }, { ...weekly, title: "Moved" })).resolves.toEqual({ etag: '"r2"' });
+    expect(waits.length).toBeGreaterThan(before);
+  });
+
+  it("an edit of any other object that is not there is refused at once, without waiting", async () => {
+    expect.hasAssertions();
+    const { target, waits, requests } = laggingServer({ lagMs: 0 });
+    await expect(target.updateEvent({ calendarId: CAL, uid: "elsewhere", href: `${CAL}elsewhere.ics` }, weekly)).rejects.toThrow("caldav read 404 before update");
+    expect(waits).toEqual([]);
+    expect(requests).toEqual(["GET elsewhere.ics"]);
+  });
+
+  it("asks whether it holds an event: there, or not there", async () => {
+    expect.hasAssertions();
+    const { target } = laggingServer({ lagMs: 0 });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-ask-1" });
+    await expect(target.eventExists({ calendarId: CAL, uid: created.uid, href: created.href })).resolves.toBe(true);
+    await expect(target.eventExists({ calendarId: CAL, uid: "x", href: `${CAL}x.ics` })).resolves.toBe(false);
+  });
+
   it("a task follows the same rule", async () => {
     expect.hasAssertions();
     const { target } = laggingServer({ lagMs: 1_000 });
