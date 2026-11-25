@@ -15,8 +15,8 @@
  * template or a comment is no import (review of L5, 2026-11-25 — the first version matched text). A module that runs
  * code while it loads — a statement that is no declaration, or an import for its effect alone (`import "./x"`) — is
  * never stepped over. A form it cannot place safely stops the build with the file and the reason, never a silent
- * guess: a name two `export *` hand on from different modules (the language exports neither), `export =`, a parse
- * error. A name the map cannot place, a default or namespace import, and a dynamic import whose names are not plain
+ * guess: an import of a name two `export *` hand on from different modules (the language exports neither), a name
+ * exported twice, `export =`, a parse error. A name the map cannot place, a default or namespace import, and a dynamic import whose names are not plain
  * keep the entry.
  */
 import * as fs from "node:fs";
@@ -96,20 +96,25 @@ function exportsOf(file, seen = new Map()) {
     }
   }
   const stars = [];
+  // A name exported twice by name is a syntax error of the language: the build stops rather than take one.
+  const explicit = (name) => {
+    if (names.has(name)) throw new Error(`[plainva-barrel-imports] ${file}: \`${name}\` is exported twice`);
+    return name;
+  };
   for (const node of program.body) {
     if (node.type === "TSExportAssignment" || node.type === "TSNamespaceExportDeclaration") throw new Error(`[plainva-barrel-imports] ${file}: \`export =\` cannot be placed`);
     if (node.type === "ExportAllDeclaration") {
       if (node.exportKind === "type") continue;
       // `export * as ns from "./x"`: the namespace is this module's binding.
-      if (node.exported) names.set(nameOf(node.exported), self(nameOf(node.exported)));
+      if (node.exported) names.set(explicit(nameOf(node.exported)), self(nameOf(node.exported)));
       else stars.push(node);
       continue;
     }
     if (node.type !== "ExportNamedDeclaration" || node.exportKind === "type") continue;
     if (node.declaration) {
       const d = node.declaration;
-      if (d.type === "VariableDeclaration") for (const decl of d.declarations) for (const n of bindingNames(decl.id)) names.set(n, self(n));
-      else if ((d.type === "FunctionDeclaration" || d.type === "ClassDeclaration" || d.type === "TSEnumDeclaration") && d.id && !d.declare) names.set(d.id.name, self(d.id.name));
+      if (d.type === "VariableDeclaration" && !d.declare) for (const decl of d.declarations) for (const n of bindingNames(decl.id)) names.set(explicit(n), self(n));
+      else if ((d.type === "FunctionDeclaration" || d.type === "ClassDeclaration" || d.type === "TSEnumDeclaration") && d.id && !d.declare) names.set(explicit(d.id.name), self(d.id.name));
       continue;
     }
     if (node.source) {
@@ -120,7 +125,8 @@ function exportsOf(file, seen = new Map()) {
         const local = nameOf(s.exported);
         const name = nameOf(s.local);
         if (!target) continue;
-        names.set(local, own ? self(local) : (exportsOf(target, seen).get(name) ?? { file: target, name }));
+        const inner = exportsOf(target, seen).get(name);
+        names.set(explicit(local), own ? self(local) : inner && !inner.ambiguous ? inner : { file: target, name });
       }
       continue;
     }
@@ -130,11 +136,14 @@ function exportsOf(file, seen = new Map()) {
       const local = nameOf(s.local);
       const exported = nameOf(s.exported);
       const via = imported.get(local);
-      names.set(exported, own ? self(exported) : via ? (exportsOf(via.target, seen).get(via.name) ?? { file: via.target, name: via.name }) : self(local));
+      // A local binding is this module's export under the EXPORTED name (`export { local as exported }`).
+      const inner = via ? exportsOf(via.target, seen).get(via.name) : null;
+      names.set(explicit(exported), own || !via ? self(exported) : inner && !inner.ambiguous ? inner : { file: via.target, name: via.name });
     }
   }
   // `export * from "./x"`: everything x exports, unless named here already. A name two stars hand on from different
-  // modules is exported by neither (the language makes it ambiguous): the build stops rather than pick one.
+  // modules is exported by neither (the language makes it ambiguous): it is kept as such, and only an import of
+  // exactly that name stops the build — a name this module or one above names itself shadows it, as in the language.
   const fromStar = new Map();
   for (const node of stars) {
     const target = targetOf(file, node.source.value);
@@ -142,13 +151,14 @@ function exportsOf(file, seen = new Map()) {
     for (const [name, origin] of exportsOf(target, seen)) {
       if (names.has(name) || name === "default") continue;
       const was = fromStar.get(name);
-      if (was && (was.file !== origin.file || was.name !== origin.name)) {
-        throw new Error(`[plainva-barrel-imports] ${file}: \`${name}\` comes from two \`export *\` (${was.file}, ${origin.file}); the language exports neither — name it once`);
+      if (origin.ambiguous || (was && (was.ambiguous || was.file !== origin.file || was.name !== origin.name))) {
+        fromStar.set(name, { ambiguous: [...new Set([...(was?.ambiguous ?? (was ? [was.file] : [])), ...(origin.ambiguous ?? [origin.file])])] });
+        continue;
       }
       fromStar.set(name, origin);
     }
   }
-  for (const [name, origin] of fromStar) names.set(name, own ? self(name) : origin);
+  for (const [name, origin] of fromStar) names.set(name, own && !origin.ambiguous ? self(name) : origin);
   return names;
 }
 
@@ -216,6 +226,7 @@ export function barrelImports(barrels) {
           const imported = nameOf(isImport ? s.imported : s.local);
           const local = nameOf(isImport ? s.local : s.exported);
           const origin = map.get(imported);
+          if (origin?.ambiguous) throw new Error(`[plainva-barrel-imports] ${file}: \`${imported}\` of ${spec} comes from two \`export *\` (${origin.ambiguous.join(", ")}); the language exports neither — name it once`);
           const item = imported === local ? imported : `${imported} as ${local}`;
           if (!origin) {
             unplaced.add(`${spec}:${imported}`);
@@ -247,6 +258,7 @@ export function barrelImports(barrels) {
         let placed = true;
         for (const p of props) {
           const origin = map.get(p.key.name);
+          if (origin?.ambiguous) throw new Error(`[plainva-barrel-imports] ${file}: \`${p.key.name}\` of ${source.value} comes from two \`export *\` (${origin.ambiguous.join(", ")}); the language exports neither — name it once`);
           if (!origin) {
             placed = false;
             break;

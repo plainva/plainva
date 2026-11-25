@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
 import { packageBarrels } from "../../scripts/vite/packageBarrels.mjs";
-import { localeAreas } from "../../scripts/vite/localeAreas.mjs";
 import { startChunk } from "../../scripts/vite/startChunk.mjs";
 import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
 import { e2eBundleBuild, e2eBundlePlugins } from "./scripts/e2e-bundle.mjs";
@@ -24,7 +23,7 @@ export default defineConfig(async ({ mode }) => {
   const root = fileURLToPath(new URL(".", import.meta.url));
   return {
   // Named imports of the shared packages go to the defining module in a build; the locale files load by area (performance plan L5).
-  plugins: [packageBarrels(), localeAreas(), start.plugin, react(), ...e2eBundlePlugins(mode, root)],
+  plugins: [packageBarrels(), start.plugin, react(), ...e2eBundlePlugins(mode, root)],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   define: buildInfoDefine(mode === "labs" ? labsEnv() : undefined),
   // The installed SDK has a deliberately smaller API. Both shells and every

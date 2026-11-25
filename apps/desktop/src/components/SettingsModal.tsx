@@ -66,9 +66,12 @@ import { SyncPage, type SyncProvider } from "./settings/SyncPage";
 import { PimPage, MailPage, ContentPage, JournalPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 import { BarsPage } from "./settings/BarsPage";
 import { CloudAccountsPage } from "./settings/CloudAccountsPage";
-import { AiSettingsPage } from "./settings/AiSettingsPage";
-import { AiVaultSettingsPage } from "./settings/AiVaultSettingsPage";
+import { deferredPart } from "../lib/deferredParts";
 import { SecuritySharingPage } from "./security/SecuritySharingPage";
+
+// The AI's pages bring the harness: loaded when one is first shown (review of L5, round 2).
+const AiSettingsPage = deferredPart(() => import("./settings/AiSettingsPage").then((m) => m.AiSettingsPage));
+const AiVaultSettingsPage = deferredPart(() => import("./settings/AiVaultSettingsPage").then((m) => m.AiVaultSettingsPage));
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -93,13 +96,22 @@ const GENERAL = "general";
  * page carries its own overflow, so a short page shows no scrollbar at all.
  * Inactive pages are visibility-hidden: not clickable, not focusable, not in
  * the a11y tree — their handlers can only fire while their area is active. */
-const SettingsPage: React.FC<{ area: string; active: boolean; children: React.ReactNode }> = ({ area, active, children }) => (
-  <div className="pv-setpage custom-scrollbar" data-active={active ? "true" : "false"}>
-    {/* Every page an area of its own (stability plan R3): a page that fails
-        leaves the settings, their navigation and every other page. */}
-    <AreaBoundary area={`settings:${area}`}>{children}</AreaBoundary>
-  </div>
-);
+/**
+ * A page of the settings. `whenOpened`: its content mounts the first time the page is shown, not with the dialog —
+ * the AI's pages, whose code is the harness's and loads with them (review of L5, round 2, 2026-11-25: opening the
+ * settings loaded 222 modules of the AI with the dialog).
+ */
+const SettingsPage: React.FC<{ area: string; active: boolean; whenOpened?: boolean; children: React.ReactNode }> = ({ area, active, whenOpened, children }) => {
+  const [opened, setOpened] = useState(active);
+  if (active && !opened) setOpened(true);
+  return (
+    <div className="pv-setpage custom-scrollbar" data-active={active ? "true" : "false"}>
+      {/* Every page an area of its own (stability plan R3): a page that fails
+          leaves the settings, their navigation and every other page. */}
+      <AreaBoundary area={`settings:${area}`}>{!whenOpened || opened ? <React.Suspense fallback={null}>{children}</React.Suspense> : null}</AreaBoundary>
+    </div>
+  );
+};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId, initialConnect }) => {
   const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex, openVault, closeVault, removeRecentVault } = useVault();
@@ -920,7 +932,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                     />
                   </SettingsPage>
-                  <SettingsPage area="ai" active={inAppWorld && appPage === "ai"}>
+                  <SettingsPage area="ai" active={inAppWorld && appPage === "ai"} whenOpened>
                     <AiSettingsPage />
                   </SettingsPage>
                   <SettingsPage area="about" active={inAppWorld && appPage === "about"}>
@@ -974,7 +986,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onOpenSecurityArea={setSecurityArea}
                     />
                   </SettingsPage>
-                  <SettingsPage area="aiVault" active={!inAppWorld && vaultPage === "aiVault"}>
+                  <SettingsPage area="aiVault" active={!inAppWorld && vaultPage === "aiVault"} whenOpened>
                     <AiVaultSettingsPage isActiveVault={isActiveVault} onClose={onClose} onOpenAiSettings={() => openArea("app", "ai")} />
                   </SettingsPage>
                   <SettingsPage area="pim" active={!inAppWorld && vaultPage === "pim"}>

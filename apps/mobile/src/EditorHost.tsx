@@ -240,7 +240,7 @@ export function EditorHost({
       const session = sessionRef.current;
       const db = vault.db;
       if (!session || !db || !suggestingRef.current) return;
-      const { base } = session.suggestion();
+      const base = session.suggestionBase();
       if (base === null) return;
       void writeParkedSuggestion(db, { path, base, copy: session.view.state.doc.toString(), note: suggestNoteRef.current, savedAt: new Date().toISOString() }).catch(reportingTo("suggestion:park"));
     }, 500);
@@ -801,12 +801,14 @@ export function EditorHost({
     };
     const stopObservingRounds = observeCompletedCommentRounds(mobileCommentOperations(vault), vault.vaultId, path, (operation) => {
       if (sessionRef.current !== session || !suggestingRef.current) return;
-      const { base, chunks } = session.suggestion();
-      if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(path, base, chunks, suggestNoteRef.current))) return;
-      suggestingRef.current = false;
-      session.setSuggesting(false);
-      forgetPark();
-      window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { vaultId: vault.vaultId, path, sent: operation.markers.length } }));
+      void session.suggestion().then(({ base, chunks }) => {
+        if (sessionRef.current !== session || !suggestingRef.current) return;
+        if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(path, base, chunks, suggestNoteRef.current))) return;
+        suggestingRef.current = false;
+        session.setSuggesting(false);
+        forgetPark();
+        window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { vaultId: vault.vaultId, path, sent: operation.markers.length } }));
+      }, reportingTo("suggestion:round"));
     });
     const unregisterCommentEditor = registerCommentEditor(vault.vaultId, path, () => {
       const revision = noteSaver.getRevision(path, vault);
@@ -1101,10 +1103,12 @@ export function EditorHost({
       const copy = session.view.state.doc.toString();
       const current = () => sessionRef.current === session && suggestingRef.current
         && session.view.state.doc.toString() === copy && suggestNoteRef.current === note;
-      const { base, chunks } = session.suggestion();
+      // The proposal of this moment, from the word diff — waited for, never a coarser stand-in (review of L5).
+      const proposal = session.suggestion();
       void (async () => {
         try {
           await starting;
+          const { base, chunks } = await proposal;
           if (base === null || !chunks.length) { toast.info(t("comments.suggestNothing")); return; }
           if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
           const batchId = createWorkspaceObjectId();

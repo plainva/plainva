@@ -12,39 +12,6 @@ import { suggestionBase, suggestionChunks } from "@plainva/ui";
  */
 const BASE = "The contract runs until the end of the year.\nThe electrician is a separate firm.\nReserve 10 %.\n";
 
-/**
- * The merge package loads with the mode (performance plan L5). In its first moments the change list is the one
- * stretch that differs, and the word diff takes over when it arrives — the same text proposed either way.
- */
-describe("suggest mode before the word diff has loaded", () => {
-  it("starts at once with the base, reports the one differing stretch, then the word changes", async () => {
-    expect.hasAssertions();
-    const mode = createSuggestMode();
-    const view = new EditorView({ state: EditorState.create({ doc: BASE, extensions: [mode.extension] }), parent: document.body });
-    const counts: number[] = [];
-    try {
-      mode.start(view, (n) => counts.push(n));
-      expect(suggestionBase(view.state)).toBe(BASE);
-      const first = BASE.indexOf("contract");
-      const last = BASE.indexOf("10 %");
-      view.dispatch({ changes: [{ from: first, to: first + 8, insert: "lease" }, { from: last, to: last + 2, insert: "15" }] });
-      const coarse = suggestionChunks(view.state);
-      if (coarse.length === 1) {
-        // Still loading: one stretch from the first change to the last, and it rebuilds the copy.
-        expect(coarse[0].fromA).toBe(first);
-        expect(BASE.slice(0, coarse[0].fromA) + coarse[0].replacement + BASE.slice(coarse[0].toA)).toBe(view.state.doc.toString());
-      }
-      await loadSuggestionDiff();
-      await Promise.resolve();
-      expect(suggestionChunks(view.state)).toHaveLength(2);
-      expect(counts[counts.length - 1]).toBe(2);
-      expect(view.dom.querySelectorAll(".cm-suggest-del")).toHaveLength(2);
-    } finally {
-      view.destroy();
-    }
-  });
-});
-
 describe("suggest mode", () => {
   beforeAll(() => loadSuggestionDiff());
 

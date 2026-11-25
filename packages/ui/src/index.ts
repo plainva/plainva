@@ -267,7 +267,7 @@ export * from "./lib/wordDiff";
 export * from "./components/SuggestionDiff";
 export * from "./components/PublicationFeedback";
 export * from "./lib/publicationFeedback";
-export { suggestionBase, suggestionChunks, type SuggestionChunk } from "./components/suggestMode";
+export { suggestionBase, suggestionChunks, suggestionChunksReady, SuggestionDiffNotLoaded, type SuggestionChunk } from "./components/suggestMode";
 export { reconcileParkedSuggestion, parkedSuggestionBlocks, type ReconciledSuggestion } from "./components/suggestionPark";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";

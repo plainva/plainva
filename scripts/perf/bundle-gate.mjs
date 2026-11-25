@@ -157,9 +157,6 @@ function modulesInMoreThanOneChunk(dir) {
     const { sources } = JSON.parse(fs.readFileSync(path.join(assets, file), "utf8"));
     for (const source of new Set(sources.map((s) => s.split(String.fromCharCode(92)).join("/").replace(/\?.*$/, "")))) {
       if (!/(?:packages|apps)\/[^/]+\/src\/|node_modules\//.test(source)) continue;
-      // A language's locale file is cut into one module per area at build time (`localeAreas.mjs`): each part is a
-      // module of its own with keys of its own, and none holds state.
-      if (/\/packages\/ui\/src\/locales\/[^/]+\.json$/.test(source)) continue;
       if (!where.has(source)) where.set(source, []);
       where.get(source).push(file.replace(/\.map$/, ""));
     }
