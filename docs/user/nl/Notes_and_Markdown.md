@@ -258,7 +258,7 @@ Bij het toevoegen verschijnen bekende namen met type en gebruiksaantal. Bestaand
 
 ## Zeer grote notities
 
-Een notitie kan zo groot worden dat een apparaat haar niet meer opgemaakt kan lezen: een tabel met duizenden rijen, een lijst met tienduizenden items, megabytes tekst in één alinea. Zodat ze toch op elk apparaat opent, leest Plainva dan de zwaarste delen als platte tekst. Boven de notitie staat **Deze notitie is erg groot. Een deel ervan wordt als tekst getoond.**; de ⓘ ernaast legt uit wat dat betekent, en **Ga erheen** brengt je in de editor naar de eerste zulke plek.
+Een notitie kan zo groot worden dat een apparaat haar niet meer opgemaakt kan lezen: een tabel met duizenden rijen, een lijst met tienduizenden items, megabytes tekst in één alinea. Zodat ze toch op elk apparaat opent, leest Plainva dan de zwaarste delen als platte tekst. Op een computer ligt die grens ongeveer vier keer zo hoog als op een telefoon, die minder geheugen heeft. Boven de notitie staat **Deze notitie is erg groot. Een deel ervan wordt als tekst getoond.**; de ⓘ ernaast legt uit wat dat betekent, en **Ga erheen** brengt je in de editor naar de eerste zulke plek.
 
 In deze delen ontbreekt alleen de opmaak: tabellen, lijsten, links en nadruk verschijnen als brontekst. Verder telt de tekst als elke andere: zoeken vindt hem, zijn links verschijnen in backlinks en de graaf, zijn tags en taken worden gevonden, en als je een notitie hernoemt, herschrijft Plainva ook zijn links. Koppen en eigenschappen blijven zo lang mogelijk behouden. Splits de notitie in meerdere en alles is weer opgemaakt.
 

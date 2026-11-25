@@ -230,8 +230,254 @@
         "reader"
       ],
       "factor": 4,
-      "measured": "",
-      "forms": {}
+      "measured": "2026-11-25: the index, the note source and the reading view under 512 MB, the budget four times NOTE_BUDGET. The seven forms that may bind the factor measured exactly (main = the most units main's readers read under the heap); every other form on its safe side alone (lowerBound: main's readers read 1.13 times its threshold under the heap, which perf:notes -- --check measures on every run)",
+      "forms": {
+        "prose": {
+          "main": 39378,
+          "branch": 34847,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "paras": {
+          "main": 26837,
+          "branch": 23749,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "emails": {
+          "main": 47037,
+          "branch": 41625,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "urls": {
+          "main": 246725,
+          "branch": 218340,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "items": {
+          "main": 31057,
+          "branch": 27484,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "linked": {
+          "main": 39552,
+          "branch": 22867,
+          "ratio": 1.73
+        },
+        "tasks": {
+          "main": 26157,
+          "branch": 23147,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "taskem": {
+          "main": 18733,
+          "branch": 16577,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "done": {
+          "main": 21423,
+          "branch": 18958,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "journal": {
+          "main": 30972,
+          "branch": 16746,
+          "ratio": 1.85
+        },
+        "quotes": {
+          "main": 68889,
+          "branch": 60963,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "callouts": {
+          "main": 23953,
+          "branch": 17750,
+          "ratio": 1.35
+        },
+        "xwords": {
+          "main": 561364,
+          "branch": 496782,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "nested": {
+          "main": 27141,
+          "branch": 24018,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "ordered": {
+          "main": 32867,
+          "branch": 29085,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "loose": {
+          "main": 22694,
+          "branch": 20083,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "quote3": {
+          "main": 77841,
+          "branch": 68885,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "headings": {
+          "main": 38649,
+          "branch": 34202,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "code": {
+          "main": 306125,
+          "branch": 270907,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "links": {
+          "main": 270823,
+          "branch": 239666,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "tagsl": {
+          "main": 137388,
+          "branch": 121582,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "sentences": {
+          "main": 1465600,
+          "branch": 1296991,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "footnotes": {
+          "main": 14238,
+          "branch": 12600,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "embeds": {
+          "main": 264068,
+          "branch": 233688,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "html": {
+          "main": 70751,
+          "branch": 57681,
+          "ratio": 1.23
+        },
+        "maths": {
+          "main": 42524,
+          "branch": 37631,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "emphasis": {
+          "main": 19001,
+          "branch": 16815,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "opens": {
+          "main": 5255,
+          "branch": 4650,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "starred": {
+          "main": 7431,
+          "branch": 5710,
+          "ratio": 1.3
+        },
+        "tables2": {
+          "main": 12536,
+          "branch": 11093,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "tables50": {
+          "main": 347,
+          "branch": 307,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "bigtables": {
+          "main": 19,
+          "branch": 13,
+          "ratio": 1.46
+        },
+        "manytables": {
+          "main": 206,
+          "branch": 182,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "rules": {
+          "main": 84084,
+          "branch": 74410,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "brackets": {
+          "main": 54608,
+          "branch": 48325,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "stars": {
+          "main": 79646,
+          "branch": 70483,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "images": {
+          "main": 8801,
+          "branch": 7788,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "ticks": {
+          "main": 9461,
+          "branch": 7299,
+          "ratio": 1.3
+        },
+        "entities": {
+          "main": 14033,
+          "branch": 12418,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "escapes": {
+          "main": 4011,
+          "branch": 3549,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "angles": {
+          "main": 23576,
+          "branch": 20863,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "densetables": {
+          "main": 101,
+          "branch": 89,
+          "ratio": 1.13,
+          "lowerBound": true
+        }
+      }
     },
     "editor": {
       "heap": 128,

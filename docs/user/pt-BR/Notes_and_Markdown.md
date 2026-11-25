@@ -258,7 +258,7 @@ Ao adicionar uma propriedade, nomes conhecidos aparecem com tipo e frequência. 
 
 ## Notas muito grandes
 
-Uma nota pode crescer tanto que um dispositivo não consegue mais lê-la formatada: uma tabela com milhares de linhas, uma lista com dezenas de milhares de itens, megabytes de texto em um parágrafo. Para que ela ainda assim abra em qualquer dispositivo, o Plainva lê as partes mais pesadas como texto simples. Acima da nota aparece **Esta nota é muito grande. Uma parte é exibida como texto.**; o ⓘ ao lado explica o que isso significa, e **Ir até lá** leva você no editor ao primeiro lugar assim.
+Uma nota pode crescer tanto que um dispositivo não consegue mais lê-la formatada: uma tabela com milhares de linhas, uma lista com dezenas de milhares de itens, megabytes de texto em um parágrafo. Para que ela ainda assim abra em qualquer dispositivo, o Plainva lê as partes mais pesadas como texto simples. Num computador esse limite fica cerca de quatro vezes mais alto que num celular, que tem menos memória. Acima da nota aparece **Esta nota é muito grande. Uma parte é exibida como texto.**; o ⓘ ao lado explica o que isso significa, e **Ir até lá** leva você no editor ao primeiro lugar assim.
 
 Nessas partes falta apenas a formatação: tabelas, listas, links e ênfases aparecem como texto-fonte. No mais, o texto conta como qualquer outro: a busca o encontra, seus links aparecem nos backlinks e no grafo, suas tags e tarefas são encontradas, e ao renomear uma nota o Plainva também reescreve seus links. Títulos e propriedades são mantidos pelo maior tempo possível. Divida a nota em várias e tudo volta a ser formatado.
 

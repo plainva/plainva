@@ -1,50 +1,59 @@
 /**
- * Where the note budget of the parse budget comes from (Gesamtplan Leistung
- * L14; `NOTE_BUDGET` and `noteLineCost` in `src/inlineParseBudget.ts`).
+ * Where the note budget of the parse budget comes from (`NOTE_BUDGET`,
+ * `DESKTOP_NOTE_BUDGET` and `noteLineCost` in `src/inlineParseBudget.ts`).
  *
- *   pnpm --filter @plainva/core perf:notes -- --calibrate [forms] [--heap <mb>] [--parses index,tree]   # per form: where main runs out, where the budget begins (long)
+ *   pnpm --filter @plainva/core perf:notes -- --calibrate [forms] --shell <name> [--out <file>] [--hint-factor <k>] [--safe-at <x>] [--child-ms <ms>]   # per form: where main runs out, where the budget begins (long)
  *   pnpm --filter @plainva/core perf:notes -- --check [--shell phone|desktop] [--group k/n] [--forms a,b]   # every form at its threshold and far over it (minutes)
- *   pnpm --filter @plainva/core perf:notes -- --hunt <n> [--seed <s>] [--minutes <m>]
+ *   pnpm --filter @plainva/core perf:notes -- --hunt <n> [--shell <name>] [--seed <s>] [--minutes <m>]
+ *   pnpm --filter @plainva/core perf:notes -- --features <forms> <units>   # what a unit of each form weighs by each weight (for a fit)
  *
- * The criterion, the table budget's one for a whole note: the index parse
- * (`parseMarkdownAst` with Obsidian syntax), the note-source parse
- * (`parseMarkdownTree`) and the reading view as the core can run it (the note
- * prepared, its own ranges and the note's, GFM, the HTML tree) each read the
- * note in a process whose V8 old space is capped at `HEAP_MB`.
+ * A shell (`noteBudgetShells.json`) is a heap, the readers it reads a note
+ * with and its budget as a multiple of `NOTE_BUDGET`: the phone the index (the
+ * parse, and the reading of its links and tags) and the note source (the
+ * parse, its headings and block ids) under 128 MB; the desktop those and the
+ * reading view as the core can run it (the note prepared, its own ranges and
+ * the note's, GFM, the HTML tree) under 512 MB; the editor's own parse of the
+ * whole note as a named limit. Each reader reads the note in a process of its
+ * own whose V8 old space is capped at the heap.
  *
- * `--check`: for each form of `noteBudgetForms.json` — `main`'s limit under
- * 128 MB and the ratio measured when the weights were last calibrated — the
- * largest note the note's budget reads with no block as text (its threshold)
- * times 1.05 is read formatted in three runs, and notes of three and of ten
- * times the threshold are read as the app reads them. Each must pass under
- * the heap — the safe side, stable: V8 close to the end of its heap varies,
- * and a form that passes in some runs and not in others is named —, and the ratio of
+ * `--calibrate`: for each form (or the forms named), the most units the
+ * shell's readers read with the note's budget off under the heap — the inline
+ * and table budgets kept, as `main` reads: where it runs out of memory —,
+ * searched from the last limit of the phone (times `--hint-factor`), beside
+ * the most the shell's budget reads with no block as text (its threshold), and
+ * the ratio of the two, one JSON line a form to `--out`. At 1 or more a note at
+ * the threshold passes (the safe side); above 1 the budget reads a note as text
+ * that `main` still reads formatted under the heap. `--safe-at <x>`: only
+ * whether the readers read x times the threshold, for a form whose exact limit
+ * does not bind the shell's budget. A reader slower than `--child-ms` counts
+ * as one that does not read the note, apart from one that runs out of memory.
+ * The weights are fitted with `--features` and a linear program to bring every
+ * form to 1.13 or a little more (`main`'s limit is measured to some 5 to 8 %)
+ * and the early side as low as weights of countable parts allow (2026-11-25:
+ * 1.16 to 2.27 over 42 forms on the phone).
+ *
+ * `--check`: for each form of the shell, the note at its threshold times 1.05
+ * — times its ratio for a form measured on its safe side alone — is read
+ * formatted in three runs, as `main` reads it; on the phone each reader reads
+ * the note at its threshold as the app does under the least heap `main`'s
+ * reader needs there (no more need than `main`); notes of three and of ten
+ * times the threshold are read as the app reads them, and the scan with the
+ * note's budget takes at most `SCAN_FACTOR` times the scan without it. Each
+ * must pass under the heap — V8 close to the end of its heap varies, and a form
+ * that passes in some runs and not in others is named —, and the ratio of
  * `main`'s limit to the threshold must stay between 1.0 and the measured ratio
  * plus 5 %, so that a change of the weights that reads a form as text earlier
- * than calibrated shows. `--heap <mb> --factor <k>`: the same under another
- * heap, with the note's budget `k` times `NOTE_BUDGET` (a shell with more
- * memory, Gesamtplan Leistung § 3a); there only the safe side counts.
- *
- * `--calibrate`: for each form (or the forms named, comma-separated), the
- * most units the three parses read with the note's budget off under the capped
- * heap — the inline and table budgets kept, as `main` reads before L14: where
- * it runs out of memory — beside the most
- * the note's budget reads with no block as text, and the ratio of the two.
- * At 1 or more a note at the threshold passes (the safe side); above 1 the
- * budget reads a note as text that `main` still reads formatted under the
- * heap. The weights are fitted to bring every form to 1.13 or a little more
- * (`main`'s limit is measured to some 5 to 8 %) and the early side as low as
- * weights of countable parts allow (2026-11-19: 1.13 to 2.78 over 42 forms,
- * `noteBudgetForms.json`); `--features` gives the parts a fit reads.
+ * than calibrated shows.
  *
  * `--hunt`: generated notes of a seed drawn anew (or given), blocks of every
  * kind mixed — prose, words, link literals, lists plain, linked, nested and
  * of tasks, quotes, headings, fenced code, small tables, blank lines or none
- * between them — from a tenth to five times the budget, each read as the app
- * reads it under the capped heap — the reading view up to 5 MB of note, the
- * index and the note parse up to 10 MB —, in time (`HUNT_PARSE_MS`), and with a scan
- * whose time grows with the note (eight times the note, at most sixteen times
- * the time). A note that does not pass prints its seed and number.
+ * between them — from a tenth to five times the shell's budget, each read as
+ * the app reads it under the shell's heap — the reading view up to 5 MB of note
+ * a 128 MB, the index and the note parse up to 10 MB —, in time
+ * (`HUNT_PARSE_MS`), and with a scan whose time grows with the note (eight
+ * times the note, at most sixteen times the time). A note that does not pass
+ * prints its seed and number.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -377,13 +386,16 @@ function check(args: string[]): boolean {
     const n = readAsItIs(form);
     // The safe side, stable rather than close: the note at its threshold times 1.05, read formatted (the note's
     // budget off, as `main` reads it), passes in three runs of three, each a process of its own.
-    const runs = [0, 1, 2].map(() => passes(form, Math.ceil(n * 1.05), false));
+    // A form measured on its safe side alone (`lowerBound`) is read at the ratio it holds to, 1.13: each check measures
+    // that lower bound anew.
+    const margin = lowerBound ? ratio : 1.05;
+    const runs = [0, 1, 2].map(() => passes(form, Math.ceil(n * margin), false));
     const passed = runs.filter((run) => run.ok).length;
     const at1 = { ok: passed === 3, why: passed === 0 ? runs[0].why : `${3 - passed} of 3 runs ${runs.find((run) => !run.ok)?.why}, the form varies` };
     // No more need than main: each reader of the app reads the note at its threshold, nothing of it read as text,
-    // under the least heap main's reader reads it under.
+    // under the least heap main's reader reads it under — where memory is short, on the phone's 128 MB.
     const more: string[] = [];
-    for (const parse of shellParses) {
+    for (const parse of heapMb <= HEAP_MB ? shellParses : []) {
       const least = leastHeap(form, n, parse, false);
       const kept = heapMb;
       heapMb = least;
@@ -405,7 +417,7 @@ function check(args: string[]): boolean {
     all &&= ok;
     console.log(
       `         ${form.padEnd(11)} formatted up to ${String(n).padStart(7)}   main ${String(main).padStart(7)}   ratio ${now.toFixed(2)} (calibrated ${ratio.toFixed(2)})${inRatio ? "" : " FAIL"}` +
-        `   at it x 1.05 ${at1.ok ? "pass 3/3" : `FAIL (${at1.why})`}   at it ${more.length ? `FAIL (${more.join(", ")})` : "no more than main"}` +
+        `   at it x ${margin} ${at1.ok ? "pass 3/3" : `FAIL (${at1.why})`}   at it ${more.length ? `FAIL (${more.join(", ")})` : heapMb <= HEAP_MB ? "no more than main" : "(need not measured)"}` +
         `   at 3 x ${over.ok ? "pass" : `FAIL (${over.why})`}   at 10 x ${far.ok ? "pass" : `FAIL (${far.why})`}` +
         `   scan ${Math.round(scan.with)} / ${Math.round(scan.without)} ms${scanOk ? "" : " FAIL"}`,
     );
@@ -528,8 +540,8 @@ function features(args: string[]): void {
 
 async function calibrate(args: string[]): Promise<void> {
   const { name } = useShell(args);
-  // Where to begin each form's search: the limits of the calibration of 2026-11-19 (128 MB, three readers), times `--hint-factor`.
-  const hints = (JSON.parse(readFileSync(path.join(path.dirname(HERE), "noteBudgetForms.json"), "utf8")) as { forms: Record<string, { main: number }> }).forms;
+  // Where to begin each form's search: the phone's limits of the last calibration, times `--hint-factor`.
+  const hints = shellsCalibrated().phone.forms;
   const hintFactor = args.includes("--hint-factor") ? Number(args[args.indexOf("--hint-factor") + 1]) : 1;
   if (args.includes("--child-ms")) childMs = Number(args[args.indexOf("--child-ms") + 1]);
   // `--safe-at <x>`: no search, only whether the readers read the note at x times its threshold with the note's budget

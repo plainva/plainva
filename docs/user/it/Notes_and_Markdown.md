@@ -258,7 +258,7 @@ Aggiungendo una proprietà vengono proposti nomi noti con tipo e frequenza. I no
 
 ## Note molto grandi
 
-Una nota può diventare così grande che un dispositivo non riesce più a leggerla formattata: una tabella di migliaia di righe, un elenco di decine di migliaia di voci, megabyte di testo in un paragrafo. Perché si apra comunque su ogni dispositivo, Plainva legge allora le sue parti più pesanti come testo semplice. Sopra la nota compare **Questa nota è molto grande. Una parte viene mostrata come testo.**; la ⓘ accanto spiega cosa significa e **Vai lì** ti porta nell'editor al primo punto interessato.
+Una nota può diventare così grande che un dispositivo non riesce più a leggerla formattata: una tabella di migliaia di righe, un elenco di decine di migliaia di voci, megabyte di testo in un paragrafo. Perché si apra comunque su ogni dispositivo, Plainva legge allora le sue parti più pesanti come testo semplice. Su un computer questo limite è circa quattro volte più alto che su un telefono, che ha meno memoria. Sopra la nota compare **Questa nota è molto grande. Una parte viene mostrata come testo.**; la ⓘ accanto spiega cosa significa e **Vai lì** ti porta nell'editor al primo punto interessato.
 
 In queste parti manca solo la formattazione: tabelle, elenchi, link ed enfasi appaiono come testo sorgente. Per il resto il testo conta come qualsiasi altro: la ricerca lo trova, i suoi link compaiono nei backlink e nel grafo, i suoi tag e le sue attività vengono trovati e, quando rinomini una nota, Plainva riscrive anche i suoi link. Titoli e proprietà vengono mantenuti il più a lungo possibile. Dividi la nota in più note e tutto torna formattato.
 

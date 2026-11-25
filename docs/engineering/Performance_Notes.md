@@ -857,6 +857,27 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | paragraphs of eighty `[` | 2 638 | 1 162 | 2.27 |
 | prose, lines of twelve words | 19 774 | 8 710 | 2.27 |
 
+On the desktop (index, note source and reading view, 512 MB; `DESKTOP_NOTE_BUDGET`, four times
+`NOTE_BUDGET`): the seven forms the reading view could bind, measured exactly — `main` reads 4.91
+(lines of inline HTML) to 7.40 (journal lines) times the phone's threshold of them under 512 MB, so
+four times the budget keeps every one at 1.23 or more:
+
+| Form | `main` on the desktop up to | Formatted up to | Ratio |
+|---|---:|---:|---:|
+| lines of inline HTML | 70 751 | 57 681 | 1.23 |
+| paragraphs of `*a` × 40 | 7 431 | 5 710 | 1.30 |
+| paragraphs of `` `a `` × 40 | 9 461 | 7 299 | 1.30 |
+| callouts of two lines with a link | 23 953 | 17 750 | 1.35 |
+| tables of 1 200 rows | 19 | 13 | 1.46 |
+| list items with a wiki link | 39 552 | 22 867 | 1.73 |
+| journal lines `- 10:00 …` with a link and a tag | 30 972 | 16 746 | 1.85 |
+
+The other 35 forms are measured on their safe side alone: `main`'s readers read 1.13 times
+their threshold at four times the budget under 512 MB, and `perf:notes -- --check --shell desktop`
+reads them there on every run of the performance workflow (three runs of each). A search for their
+exact limits under 512 MB is out of reach: one paragraph of 100 000 lines takes micromark minutes a
+parse (below, *Named limits*).
+
 The editor's own parse is the whole note, whatever the budget (CodeMirror with the app's syntax
 extensions, as both shells build it): measured as a named limit under 128 MB, it reads five to a
 hundred times the phone's threshold.
@@ -942,9 +963,10 @@ tables on every push since.
 
 **One budget a shell.** The note's budget is a value each shell sets at its start (`setNoteBudget`),
 and every reader of that shell — the index, the note-source parse, the editor and the reading view —
-weighs against it, so that they decide alike. Both shells set `NOTE_BUDGET`, calibrated on 128 MB,
-today; a shell with more memory may be given a budget of its own, calibrated with `perf:notes` under
-its heap, with the same weights.
+weighs against it, so that they decide alike. The phone sets `NOTE_BUDGET`, calibrated on 128 MB, the
+desktop `DESKTOP_NOTE_BUDGET`, four times it, calibrated on 512 MB with the reading view among its
+readers; the weights are the same. The asymmetry is a decision of the parity catalog
+(`note-read-formatted-up-to`): what a part shown as text keeps is the same in both shells.
 
 **Named limits of the note's budget (2026-11-25).** Each is wanted, not overlooked:
 

@@ -258,7 +258,7 @@ Przy dodawaniu właściwości pojawiają się znane nazwy z typem i liczbą uży
 
 ## Bardzo duże notatki
 
-Notatka może urosnąć tak bardzo, że urządzenie nie zdoła jej już odczytać ze sformatowaniem: tabela z tysiącami wierszy, lista z dziesiątkami tysięcy elementów, megabajty tekstu w jednym akapicie. Aby mimo to otwierała się na każdym urządzeniu, Plainva czyta wtedy jej najcięższe części jako zwykły tekst. Nad notatką widać **Ta notatka jest bardzo duża. Część jest pokazywana jako tekst.**; ⓘ obok wyjaśnia, co to znaczy, a **Przejdź tam** przenosi w edytorze do pierwszego takiego miejsca.
+Notatka może urosnąć tak bardzo, że urządzenie nie zdoła jej już odczytać ze sformatowaniem: tabela z tysiącami wierszy, lista z dziesiątkami tysięcy elementów, megabajty tekstu w jednym akapicie. Aby mimo to otwierała się na każdym urządzeniu, Plainva czyta wtedy jej najcięższe części jako zwykły tekst. Na komputerze ta granica jest mniej więcej cztery razy wyżej niż na telefonie, który ma mniej pamięci. Nad notatką widać **Ta notatka jest bardzo duża. Część jest pokazywana jako tekst.**; ⓘ obok wyjaśnia, co to znaczy, a **Przejdź tam** przenosi w edytorze do pierwszego takiego miejsca.
 
 W tych częściach brakuje tylko formatowania: tabele, listy, linki i wyróżnienia pojawiają się jako tekst źródłowy. Poza tym tekst liczy się jak każdy inny: wyszukiwanie go znajduje, jego linki pojawiają się w linkach zwrotnych i w grafie, jego tagi i zadania są odnajdywane, a przy zmianie nazwy notatki Plainva przepisuje także jego linki. Nagłówki i właściwości są zachowywane tak długo, jak to możliwe. Podziel notatkę na kilka, a wszystko znów będzie sformatowane.
 
