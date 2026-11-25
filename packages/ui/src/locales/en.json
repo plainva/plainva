@@ -283,6 +283,11 @@
       "localOnly": "“Fully local” is on, and {{provider}} does not run on this device. Nothing was sent. Choose a model on this device, or switch “Fully local” off.",
       "windowTooSmall": "This request needs about {{needed}} tokens; the window stated for {{model}} is {{window}}. Nothing was sent. Raise the window at the server and in the profile, switch “Can call tools” off for this model, or leave notes out.",
       "tooLarge": "The request is too large to send — nothing was sent. Usually an image is too big.",
+      "unreachable": "No connection to {{provider}} — nothing was sent. Your question is back in the field.",
+      "noAnswer": "{{provider}} did not answer. The request may have arrived.",
+      "imageTooBig": "Usually an image is too big.",
+      "sendAgain": "Send again",
+      "leaveOutImage": "Leave out the image",
       "invalidRequest": "Plainva could not put this request together — nothing was sent. Please report this as a bug.",
       "openSetup": "Open settings",
       "platform": {
@@ -779,6 +784,7 @@
       "byProvider": "The text was read by {{provider}}, in requests of their own without tools."
     },
     "image": {
+      "notSent": "not sent",
       "action": "Explain image",
       "ask": "Explain this image.",
       "title": "Image: {{name}}",

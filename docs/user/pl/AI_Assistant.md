@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-11-20
+Stan na: 2026-11-25
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama zmienia notatkę tylko tam, gdzie na to pozwolisz (**Zastosuj od razu**). Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -67,6 +67,8 @@ Pod każdą odpowiedzią są **Kopiuj** i **Zachowaj jako notatkę**, a pod osta
 Pytanie, które czeka na Twoją odpowiedź — przegląd przed wysłaniem, strona, wyszukiwanie, narzędzie, pytanie serwera — stoi nad polem wprowadzania, a nie w przewijanej rozmowie; pole mówi wtedy „Najpierw odpowiedz na pytanie powyżej”. Bez względu na długość pytania jego przyciski pozostają widoczne u dołu — także w pasku bocznym.
 
 Gdy coś pójdzie źle, komunikat nazywa źródło (to urządzenie, sieć, dostawca lub Plainva) i podaje dokładne rozwiązanie; bez połączenia na urządzeniu też to mówi.
+
+**Zapytanie, które nigdy nie opuściło urządzenia.** Gdy Plainva zdecydowała, zanim cokolwiek wysłano — brak jakiegokolwiek połączenia z dostawcą, zapytanie za duże do wysłania, brakujący klucz — komunikat mówi, że nic nie zostało wysłane, a pytanie, które wpisano, wraca do pola: **Wyślij ponownie** wysyła je, gdy połączenie wróci. **Zapytanie, które mogło dotrzeć.** Gdy dostawca nie odpowiedział albo połączenie zerwało się po nawiązaniu, pytanie i jego zapis zostają w rozmowie, bo dostawca mógł je otrzymać; **Wyślij ponownie** wysyła to samo pytanie jeszcze raz w tym samym miejscu, bez drugiej kopii. Gdy zapytanie z obrazem było za duże, **Pomiń obraz** wysyła je ponownie bez obrazu; obraz zostaje w rozmowie z oznaczeniem **nie wysłano**. To, co wpisujesz w pole, zostaje na tym urządzeniu dla każdej rozmowy, dopóki tego nie wyślesz, także po ponownym uruchomieniu.
 
 Link w odpowiedzi otwiera się dopiero po potwierdzeniu jego adresu, a obrazy w odpowiedziach nigdy nie są wczytywane.
 

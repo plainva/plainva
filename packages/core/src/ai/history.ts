@@ -82,6 +82,12 @@ export interface RunMeta {
    * counted — on the low side.
    */
   unreached?: true;
+  /**
+   * What this run left out of its user turn (plan Umsetzung 0.9.x, B7): "image" — the run was "Leave out the image",
+   * sent again without the turn's pictures. The conversation is append-only, so the turn keeps them; this says they
+   * did not go this time.
+   */
+  left?: "image"[];
   costUsd?: number;
   /** The send overview of this run: what went where, by path and section — never content. */
   manifest?: EgressManifest;
@@ -538,6 +544,7 @@ function readRun(raw: unknown): RunMeta[] {
       stop: r.stop,
       ...(typeof r.failure === "string" ? { failure: r.failure } : {}),
       ...(r.unreached === true ? { unreached: true as const } : {}),
+      ...(Array.isArray(r.left) && r.left.includes("image") ? { left: ["image" as const] } : {}),
       ...(typeof r.costUsd === "number" && Number.isFinite(r.costUsd) && r.costUsd >= 0 ? { costUsd: r.costUsd } : {}),
       ...(readManifest(r.manifest) ? { manifest: readManifest(r.manifest)! } : {}),
       ...(Array.isArray(r.skills)

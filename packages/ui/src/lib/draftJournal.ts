@@ -674,3 +674,213 @@ export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJo
 }
 
 export type DraftWriter<S> = ReturnType<typeof createDraftWriter<S>>;
+
+// ------------------------------------------------------------------ the AI composer's drafts
+
+/**
+ * A picture in the AI composer's draft, as a message carries it (`ImagePart` of the core, kept structural here so this
+ * module brings nothing of the AI into the start).
+ */
+export interface ComposerDraftImage {
+  type: "image";
+  mime: string;
+  data: string;
+  name: string;
+  width: number;
+  height: number;
+  path?: string;
+}
+
+/**
+ * What the AI composer holds before a message goes (plan Umsetzung 0.9.x, B7; M9): the words, pictures, the notes
+ * pinned and the model chosen for a conversation not begun yet, and the switches of its start. Kept per conversation —
+ * `new` for one not begun yet — on this device only, beside the vault's other AI data: never in the vault, never
+ * synced. A question that went back into the field (nothing was sent) is here too, so a restart does not lose it.
+ */
+export interface ComposerDraft {
+  text: string;
+  images?: ComposerDraftImage[];
+  pins?: string[];
+  choice?: { providerId: string; model: string } | null;
+  web?: boolean;
+  style?: boolean;
+  direct?: boolean;
+  excludeActive?: boolean;
+  redact?: string[];
+  leaveOut?: string[];
+  originals?: string[];
+}
+
+/** The key of a conversation not begun yet. */
+export const NEW_COMPOSER_DRAFT = "new";
+
+interface StoredComposerDraft extends ComposerDraft {
+  savedAt: number;
+}
+
+export interface ComposerDraftStore {
+  /** The draft of a conversation (`new` for one not begun yet); null where there is none. */
+  load(key: string): Promise<ComposerDraft | null>;
+  /** Keeps the draft; an empty one is removed. */
+  save(key: string, draft: ComposerDraft): Promise<void>;
+  /** Removes the draft (it was sent). */
+  clear(key: string): Promise<void>;
+}
+
+/** A draft holds nothing worth keeping. */
+export function isEmptyComposerDraft(draft: ComposerDraft): boolean {
+  return (
+    !draft.text.trim() &&
+    !draft.images?.length &&
+    !draft.pins?.length &&
+    !draft.choice &&
+    !draft.web &&
+    !draft.style &&
+    !draft.direct &&
+    !draft.excludeActive &&
+    !draft.redact?.length &&
+    !draft.leaveOut?.length &&
+    !draft.originals?.length
+  );
+}
+
+const COMPOSER_KEY = /^[A-Za-z0-9_-]{1,128}$/;
+const strings = (value: unknown): string[] | undefined => (Array.isArray(value) ? value.filter((s): s is string => typeof s === "string").slice(0, 500) : undefined);
+
+function readComposerImage(raw: unknown): ComposerDraftImage[] {
+  if (!raw || typeof raw !== "object") return [];
+  const r = raw as Partial<ComposerDraftImage>;
+  if (r.type !== "image" || typeof r.mime !== "string" || typeof r.data !== "string" || typeof r.name !== "string") return [];
+  const size = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+  return [{ type: "image", mime: r.mime, data: r.data, name: r.name, width: size(r.width), height: size(r.height), ...(typeof r.path === "string" ? { path: r.path } : {}) }];
+}
+
+/** One stored draft, read defensively: what does not have its shape is left out, never trusted. */
+function readComposerDraft(raw: unknown): StoredComposerDraft | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<StoredComposerDraft>;
+  if (typeof r.text !== "string" || typeof r.savedAt !== "number" || !Number.isFinite(r.savedAt)) return null;
+  const choice = r.choice && typeof r.choice === "object" && typeof r.choice.providerId === "string" && typeof r.choice.model === "string" ? { providerId: r.choice.providerId, model: r.choice.model } : null;
+  const images = Array.isArray(r.images) ? r.images.flatMap(readComposerImage) : [];
+  const list = (name: "pins" | "redact" | "leaveOut" | "originals") => {
+    const value = strings(r[name]);
+    return value?.length ? { [name]: value } : {};
+  };
+  return {
+    text: r.text,
+    savedAt: r.savedAt,
+    ...(images.length ? { images } : {}),
+    ...list("pins"),
+    ...(choice ? { choice } : {}),
+    ...(r.web === true ? { web: true } : {}),
+    ...(r.style === true ? { style: true } : {}),
+    ...(r.direct === true ? { direct: true } : {}),
+    ...(r.excludeActive === true ? { excludeActive: true } : {}),
+    ...list("redact"),
+    ...list("leaveOut"),
+    ...list("originals"),
+  };
+}
+
+export interface ComposerDraftStoreOptions {
+  /** Where the file lies: the vault's AI data folder of the shell (`AiFileStore`), which writes a file as one step. */
+  storage: Pick<DraftJournalStorage, "read" | "write" | "remove">;
+  file: string;
+  now?: () => number;
+  /** How many conversations keep a draft; the oldest go first (default 50). */
+  maxEntries?: number;
+  /** How long a draft is kept (default thirty days). */
+  retentionMs?: number;
+  /** The pictures a draft keeps, in base64 characters all told (default 12 MB); a draft past it keeps its words. */
+  maxImageChars?: number;
+}
+
+/**
+ * The AI composer's drafts of one vault on this device (B7). One small file, every operation in one lane: a late save
+ * never lands after a newer one, a clear after a save stays a clear. A file that cannot be read is not written over.
+ */
+export function createComposerDraftStore(options: ComposerDraftStoreOptions): ComposerDraftStore {
+  const now = options.now ?? Date.now;
+  const maxEntries = options.maxEntries ?? 50;
+  const retentionMs = options.retentionMs ?? 30 * 24 * 60 * 60 * 1000;
+  const maxImageChars = options.maxImageChars ?? 12 * 1024 * 1024;
+  let lane: Promise<unknown> = Promise.resolve();
+  let held: Map<string, StoredComposerDraft> | null = null;
+
+  const serial = <T>(work: () => Promise<T>): Promise<T> => {
+    const run = lane.catch(() => undefined).then(work);
+    lane = run.catch(() => undefined);
+    return run;
+  };
+
+  /** THROWS where the file is there and cannot be read: nothing is written over it then. */
+  async function entries(): Promise<Map<string, StoredComposerDraft>> {
+    if (held) return held;
+    const raw = await options.storage.read(options.file);
+    const out = new Map<string, StoredComposerDraft>();
+    if (raw !== null) {
+      const parsed = JSON.parse(raw) as { version?: unknown; drafts?: unknown };
+      if (parsed && typeof parsed === "object" && parsed.drafts && typeof parsed.drafts === "object") {
+        for (const [key, value] of Object.entries(parsed.drafts as Record<string, unknown>)) {
+          const draft = COMPOSER_KEY.test(key) ? readComposerDraft(value) : null;
+          if (draft) out.set(key, draft);
+        }
+      }
+    }
+    held = out;
+    return out;
+  }
+
+  async function store(map: Map<string, StoredComposerDraft>): Promise<void> {
+    const cutoff = now() - retentionMs;
+    const kept = [...map].filter(([, draft]) => draft.savedAt >= cutoff).sort((a, b) => b[1].savedAt - a[1].savedAt).slice(0, maxEntries);
+    held = new Map(kept);
+    if (kept.length === 0) await options.storage.remove(options.file);
+    else await options.storage.write(options.file, JSON.stringify({ version: 1, drafts: Object.fromEntries(kept) }));
+  }
+
+  return {
+    load(key) {
+      if (!COMPOSER_KEY.test(key)) return Promise.resolve(null);
+      return serial(async () => {
+        try {
+          const draft = (await entries()).get(key);
+          if (!draft || draft.savedAt < now() - retentionMs) return null;
+          const { savedAt: _savedAt, ...rest } = draft;
+          return rest;
+        } catch {
+          return null;
+        }
+      });
+    },
+    save(key, draft) {
+      if (!COMPOSER_KEY.test(key)) return Promise.resolve();
+      return serial(async () => {
+        const map = new Map(await entries());
+        if (isEmptyComposerDraft(draft)) {
+          if (!map.delete(key)) return;
+        } else {
+          // Pictures past the bound are not kept: the words always are.
+          let chars = 0;
+          const images = (draft.images ?? []).filter((image) => (chars += image.data.length) <= maxImageChars);
+          const { images: _images, ...rest } = draft;
+          map.set(key, { ...rest, ...(images.length ? { images } : {}), savedAt: now() });
+        }
+        await store(map);
+      }).catch(() => {
+        // Best effort, like every draft: the field still holds the words. The next read goes to the disk.
+        held = null;
+      });
+    },
+    clear(key) {
+      if (!COMPOSER_KEY.test(key)) return Promise.resolve();
+      return serial(async () => {
+        const map = new Map(await entries());
+        if (!map.delete(key)) return;
+        await store(map);
+      }).catch(() => {
+        held = null;
+      });
+    },
+  };
+}

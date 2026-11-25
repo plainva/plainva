@@ -26,7 +26,7 @@ import { AiRunOverview } from "./AiRunOverview";
 import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
-import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
+import { conversationFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
 import { aiSetupStep, requestAiSettingsIntent } from "./aiSetup";
 import { GROUNDS_NAMED, groundTitles } from "./answerGrounds";
 import type { AiDress, AiSession } from "./aiSession";
@@ -106,6 +106,65 @@ const isRuleHeld = (stop: RunStop): boolean => isKeptOnDevice(stop) || isLocalOn
 
 /** How a provider answers a picture its model cannot read (plan P4-5): it turns the request down. */
 const PICTURE_REFUSALS = new Set<ModelFailure["kind"]>(["refused_by_provider", "provider_error"]);
+
+/** Failures after which the same turn may simply go again (B7): nothing else is to be fixed first. */
+const SEND_AGAIN_FAILURES = new Set<ModelFailure["kind"]>(["offline", "unreachable", "stream_broken", "rate_limited", "overloaded", "provider_error"]);
+
+/** How long the field waits after a key before its draft is kept (B7). */
+const COMPOSER_DRAFT_MS = 400;
+
+/** The words of a question that comes back into a field that may hold words already: after them, not over them. */
+export function withReturned(current: string, text: string): string {
+  if (!current.trim()) return text;
+  return current.includes(text) ? current : `${current}\n\n${text}`;
+}
+
+/**
+ * The composer's draft (plan Umsetzung 0.9.x, B7): loaded when a conversation opens — `""` stands for one not begun —,
+ * kept a moment after each key and when the conversation changes, and a question that went back into the field taken
+ * in once. What was typed meanwhile stays first.
+ */
+function useComposerDraft(session: AiSession | null, state: ReturnType<typeof useAiState> | null, draft: string, setDraft: (update: (current: string) => string) => void): void {
+  const key = state?.active?.id ?? "";
+  const ready = Boolean(session && state?.loaded && state.hasVault);
+  const epoch = state?.vaultEpoch ?? 0;
+  // What the field shows belongs to this conversation once its draft was read: nothing is kept for it before.
+  const loadedFor = useRef<string | null>(null);
+  const latest = useRef({ key, draft });
+  latest.current = { key, draft };
+  useEffect(() => {
+    if (!session || !ready) return;
+    loadedFor.current = null;
+    let live = true;
+    const own = `${epoch}:${key}`;
+    void session.composerDraft(key).then((kept) => {
+      if (!live) return;
+      loadedFor.current = own;
+      if (kept?.text) setDraft((current) => (current.trim() ? current : kept.text));
+      if (kept && !key) session.restoreStartDrafts(kept);
+      const back = session.takeReturned(key);
+      if (back) setDraft((current) => withReturned(current, back));
+    });
+    return () => {
+      live = false;
+      // Leaving a conversation keeps what its field holds; the next one starts from its own.
+      if (loadedFor.current === own) session.keepComposerDraft(key, latest.current.draft);
+      loadedFor.current = null;
+      setDraft(() => "");
+    };
+  }, [session, ready, key, epoch, setDraft]);
+  const returned = state?.returned;
+  useEffect(() => {
+    if (!session || !returned || returned.conversationId !== key || loadedFor.current === null) return;
+    const back = session.takeReturned(key);
+    if (back) setDraft((current) => withReturned(current, back));
+  }, [session, returned, key, setDraft]);
+  useEffect(() => {
+    if (!session || !ready || loadedFor.current !== `${epoch}:${key}`) return;
+    const timer = setTimeout(() => session.keepComposerDraft(key, draft), COMPOSER_DRAFT_MS);
+    return () => clearTimeout(timer);
+  }, [session, ready, key, epoch, draft]);
+}
 
 /** Seconds of silence after which the line of a model on this device says where the thinking happens, and counts. */
 export const WORKING_HERE_AFTER = 10;
@@ -268,6 +327,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   // Each waiting card scrolls inside itself; its foot says when more lies above it (review of M8). Asked before any early return.
   const pendingRef = useRef<HTMLDivElement | null>(null);
   usePendingMore(pendingRef, Boolean(state?.consent || state?.effect || state?.question || extPrompt));
+  // The field's draft per conversation, kept on this device (B7), and a question that went back into it.
+  useComposerDraft(session ?? null, state ?? null, draft, setDraft);
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {
@@ -410,9 +471,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     const text = draft.trim();
     if (!text || running || routine || consent || effect || question || !state.hasVault || rests) return;
     setDraft("");
-    // Nothing sent (the overview was cancelled, or a rule held — the conversation stays on this device, the device is fully local): the words come back to the field.
+    // Sent: its draft goes with it. Should nothing leave the device after all, the session puts the question back (B7).
+    session.clearComposerDraft(state.active?.id ?? "");
+    // Nothing sent because the overview was cancelled: the words come back to the field.
     void session.send(text).then((stop) => {
-      if (stop === null || isRuleHeld(stop)) setDraft((current) => current || text);
+      if (stop === null) setDraft((current) => withReturned(current, text));
     });
   };
   // A conversation that ran on this device does not go to a cloud (ADR 0018): the way on is a new one, with the model that was chosen.
@@ -580,7 +643,16 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             {item.images?.map((picture, i) => (
               <figure key={i} className="pv-ai-figure">
                 <AiPicture picture={picture} alt={picture.name} />
-                <figcaption>{picture.name}</figcaption>
+                <figcaption>
+                  {picture.name}
+                  {/* Left out when the turn went again (B7): the picture stays in the conversation, it did not go. */}
+                  {item.imagesNotSent && (
+                    <span className="pv-ai-overview-hint" data-testid="ai-image-not-sent">
+                      {" · "}
+                      {t("ai.image.notSent")}
+                    </span>
+                  )}
+                </figcaption>
               </figure>
             ))}
             {item.text && <div className="pv-ai-usertext">{item.text}</div>}
@@ -747,6 +819,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const quickStart = items.length === 0 && !live && !consent && state.hasVault && (skillsInMenu.length + serverPrompts.length > 0 || Boolean(onOpenSkills));
   const shownNotice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice : null;
   const notice = shownNotice?.stop ?? null;
+  // The conversation's last turn, where it may go again in place (B7): the user's own, whose latest run failed.
+  const retryable = notice?.kind === "failed" && !shownNotice?.returned ? session.retryable(active) : null;
   // No answer came back (plan §19.4): the notes that match the question best stand in for it.
   const related = notice?.kind === "failed" ? (shownNotice?.related ?? []) : [];
   // A provider that turns a request down says so in its own words; where the conversation carries a picture, a model that reads none is the usual reason.
@@ -757,13 +831,27 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     ? notice.kind === "failed"
       ? providerWords
         ? t(notice.failure.kind === "refused_by_provider" ? "ai.error.refusedShort" : "ai.error.providerErrorShort", { provider: provider.label })
-        : aiFailureText(t, notice.failure, failureRecipient(provider), choice.model)
+        : conversationFailureText(t, notice.failure, failureRecipient(provider), choice.model, { returned: shownNotice?.returned === true, images: retryable?.images ?? 0 })
       : STOP_KEYS[notice.kind]
         ? t(STOP_KEYS[notice.kind]!)
         : null
     : null;
   const sender = notice?.kind === "failed" && !isRuleHeld(notice) ? failureSender(notice.failure, failureRecipient(provider)) : null;
   const noticeDetails = shownNotice !== null && noticeDetailsFor === shownNotice;
+  /**
+   * What a failure offers to do at once (B7): "Leave out the image" where the request was too large with pictures in the
+   * turn, "Send again" where the question went back into the field because no connection stood, and "Send again" in
+   * place where the request may have arrived. Never while a run is on its way.
+   */
+  const againAction = (failure: ModelFailure): { label: string; run: () => void; testId: string } | null => {
+    if (running) return null;
+    if (retryable && retryable.images > 0 && (failure.kind === "too_large" || failure.kind === "context_too_long")) {
+      return { label: t("ai.error.leaveOutImage"), run: () => void session.retryLast({ withoutImages: true }), testId: "ai-notice-leave-image" };
+    }
+    if (shownNotice?.returned && failure.kind === "unreachable") return { label: t("ai.error.sendAgain"), run: send, testId: "ai-notice-send-again" };
+    if (retryable && SEND_AGAIN_FAILURES.has(failure.kind)) return { label: t("ai.error.sendAgain"), run: () => void session.retryLast(), testId: "ai-notice-send-again" };
+    return null;
+  };
   /** The fix of a failure, where it is one dialog: the key of this provider, the model of this profile (plan K10). */
   const fixAction = (failure: ModelFailure): { label: string; run: () => void } | null => {
     if (failure.kind === "no_key" || failure.kind === "invalid_key") {
@@ -916,6 +1004,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               notice!.kind === "failed" && fixAction(notice!.failure) ? (
                 <Button size="sm" variant="secondary" onClick={fixAction(notice!.failure)!.run} data-testid="ai-notice-fix">
                   {fixAction(notice!.failure)!.label}
+                </Button>
+              ) : notice!.kind === "failed" && againAction(notice!.failure) ? (
+                <Button size="sm" variant="secondary" onClick={againAction(notice!.failure)!.run} data-testid={againAction(notice!.failure)!.testId}>
+                  {againAction(notice!.failure)!.label}
                 </Button>
               ) : notice!.kind === "failed" && SETUP_FAILURES.has(notice!.failure.kind) ? (
                 <Button size="sm" variant="secondary" onClick={onOpenSettings}>

@@ -305,6 +305,11 @@
       "localOnly": "« Entièrement local » est activé, et {{provider}} ne tourne pas sur cet appareil. Rien n'a été envoyé. Choisissez un modèle sur cet appareil, ou désactivez « Entièrement local ».",
       "windowTooSmall": "Cette requête nécessite environ {{needed}} jetons ; la fenêtre de contexte indiquée pour {{model}} est de {{window}}. Rien n'a été envoyé. Augmentez-la sur le serveur et dans le profil, désactivez « Peut appeler des outils » pour ce modèle, ou retirez des notes.",
       "tooLarge": "La requête est trop volumineuse pour être envoyée — rien n'a été envoyé. En général, une image est trop grande.",
+      "unreachable": "Pas de connexion à {{provider}} — rien n'a été envoyé. Votre question est de nouveau dans le champ.",
+      "noAnswer": "{{provider}} n'a pas répondu. La requête est peut-être arrivée.",
+      "imageTooBig": "En général, une image est trop grande.",
+      "sendAgain": "Renvoyer",
+      "leaveOutImage": "Laisser l'image de côté",
       "invalidRequest": "Plainva n'a pas pu préparer cette requête — rien n'a été envoyé. Merci de le signaler comme bogue.",
       "openSetup": "Ouvrir les paramètres",
       "platform": {
@@ -824,6 +829,7 @@
       "byProvider": "Le texte a été lu par {{provider}}, dans des requêtes à part, sans outils."
     },
     "image": {
+      "notSent": "non envoyée",
       "action": "Expliquer l'image",
       "ask": "Expliquez cette image.",
       "title": "Image : {{name}}",

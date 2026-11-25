@@ -212,6 +212,7 @@ export function routineFailureOf(stop: RunStop): RoutineFailure {
         case "invalid_key":
           return "key";
         case "offline":
+        case "unreachable":
         case "stream_broken":
         case "overloaded":
         case "rate_limited":

@@ -55,4 +55,24 @@ public class AiNetRulesTest {
         AiLocalOnly.set(false);
         assertFalse(AiLocalOnly.on());
     }
+
+    /** B7: only a connection that provably never stood, before any byte of the request, is "unreachable". */
+    @Test
+    public void aConnectionThatNeverStoodIsUnreachable() {
+        assertEquals("unreachable", AiNetRules.failureCode(new java.net.UnknownHostException("api.example.com"), false));
+        assertEquals("unreachable", AiNetRules.failureCode(new java.net.ConnectException("Failed to connect"), false));
+        assertEquals("unreachable", AiNetRules.failureCode(new java.io.IOException("wrapped", new java.net.NoRouteToHostException("no route")), false));
+    }
+
+    @Test
+    public void whatWasWrittenMayHaveArrived() {
+        assertEquals("HTTP_NETWORK_ERROR", AiNetRules.failureCode(new java.net.ConnectException("Failed to connect"), true));
+        assertEquals("HTTP_TIMEOUT", AiNetRules.failureCode(new java.net.SocketTimeoutException("timeout"), false));
+        assertEquals("HTTP_NETWORK_ERROR", AiNetRules.failureCode(new java.io.IOException("unexpected end of stream"), false));
+    }
+
+    @Test
+    public void aCertificateIsNamedNotUnreachable() {
+        assertEquals("TLS_HANDSHAKE_FAILED", AiNetRules.failureCode(new javax.net.ssl.SSLHandshakeException("handshake"), false));
+    }
 }

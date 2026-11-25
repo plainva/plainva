@@ -2,6 +2,7 @@ import type { HttpRequestSpec, ProviderEndpoint, ModelRequest } from "./provider
 import { buildRequest } from "./providers.js";
 import { createSseParser, createStreamDecoder, type StreamEvent, type StopReason } from "./streams.js";
 import { parseRetryAfterMs } from "../sync/httpRetry.js";
+import { connectionFailureCode } from "../sync/connectionFailure.js";
 
 /**
  * The shells' native AI egress, as the core sees it (ADR 0017): the desktop
@@ -57,6 +58,20 @@ export type ModelFailure =
   | { kind: "refused_by_provider"; status: number; message: string }
   | { kind: "unknown_endpoint"; message: string }
   | { kind: "offline"; message: string }
+  /**
+   * Nothing was sent: the device never had a connection to the recipient — its name did not resolve, the connection was
+   * refused, there was no route, the device has no network (plan Umsetzung 0.9.x, B7). The native egress of each shell
+   * says so only where the connection provably never stood; whatever broke after it stood is `offline`, which may have
+   * arrived.
+   */
+  | { kind: "unreachable"; message: string }
+  /**
+   * The secure connection was not accepted (F72): the certificate expired, is not valid yet, names another host or
+   * comes from an authority this device does not trust — `code` says which, in the codes every shell's sync already
+   * speaks (`connectionFailure.ts`). Said as what it is, not as "could not reach". Of the second class: nothing says
+   * where in the exchange each platform's TLS stopped.
+   */
+  | { kind: "certificate"; code: "TLS_CERTIFICATE_EXPIRED" | "TLS_CERTIFICATE_NOT_YET_VALID" | "TLS_HOSTNAME_MISMATCH" | "TLS_CERTIFICATE_UNTRUSTED" | "TLS_HANDSHAKE_FAILED"; message: string }
   | { kind: "stream_broken"; message: string }
   | { kind: "provider_error"; message: string; code?: string }
   /**
@@ -173,6 +188,30 @@ export function failureFromHttp(status: number, body: string, retryAfter?: strin
   return { kind: "refused_by_provider", status, message };
 }
 
+/**
+ * The two classes of a failed request (plan Umsetzung 0.9.x, B7; M9, F71). "never_sent": the device decided before
+ * anything left it — a check on the device, or a connection that provably never stood. Only then may anything say
+ * "nothing was sent", and only then does a typed question go back into the field. Every other failure is
+ * "maybe_sent": a provider answered, the time ran out, or the connection broke after it stood; the request may have
+ * arrived, so the conversation keeps it with its record. In doubt, the second class.
+ */
+export type FailureClass = "never_sent" | "maybe_sent";
+
+const NEVER_SENT: ReadonlySet<ModelFailure["kind"]> = new Set<ModelFailure["kind"]>([
+  "local_only",
+  "kept_on_device",
+  "window_too_small",
+  "unknown_endpoint",
+  "no_key",
+  "invalid_request",
+  "too_large",
+  "unreachable",
+]);
+
+export function failureClassOf(failure: ModelFailure): FailureClass {
+  return NEVER_SENT.has(failure.kind) ? "never_sent" : "maybe_sent";
+}
+
 export function failureFromChunk(code: string, message: string): ModelFailure {
   switch (code) {
     case "no_key":
@@ -202,8 +241,19 @@ export function failureFromChunk(code: string, message: string): ModelFailure {
       return { kind: "too_large" };
     case "invalid_request":
       return { kind: "invalid_request", message };
-    default:
+    // The connection never stood (B7): decided by the native egress, never guessed from a message.
+    case "unreachable":
+      return { kind: "unreachable", message };
+    // The phone's own codes for a failure after the request may have gone (Android, F72): a time-out is the provider
+    // that did not answer, like `idle_timeout` on the desktop and iOS — never "could not reach".
+    case "HTTP_TIMEOUT":
+      return { kind: "stream_broken", message };
+    default: {
+      // A certificate the device did not accept (F72): the phone names it in its code, the desktop in its message.
+      const tls = connectionFailureCode(`${code} ${message}`);
+      if (tls && tls.startsWith("TLS_")) return { kind: "certificate", code: tls as Extract<ModelFailure, { kind: "certificate" }>["code"], message };
       return { kind: "offline", message };
+    }
   }
 }
 

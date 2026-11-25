@@ -20,8 +20,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.EventListener;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -51,7 +53,29 @@ public class AiNetPlugin extends Plugin {
     private static final int MAX_ERROR_BODY_BYTES = 64 * 1024;
     private static final String[] ALLOWED_HEADERS = { "content-type", "accept", "anthropic-version", "anthropic-beta" };
 
+    /**
+     * Marks a request whose headers began to go out (plan Umsetzung 0.9.x, B7): the request carries the mark as its
+     * tag, so one listener without state serves every call of both clients.
+     */
+    private static final EventListener WRITE_WATCH = new EventListener() {
+        private void mark(Call c) {
+            AtomicBoolean written = c.request().tag(AtomicBoolean.class);
+            if (written != null) written.set(true);
+        }
+
+        @Override
+        public void requestHeadersStart(Call c) {
+            mark(c);
+        }
+
+        @Override
+        public void requestBodyStart(Call c) {
+            mark(c);
+        }
+    };
+
     static final OkHttpClient client = new OkHttpClient.Builder()
+        .eventListener(WRITE_WATCH)
         .connectTimeout(20, TimeUnit.SECONDS)
         // Read timeout = silence between two bytes: a live stream never trips it.
         .readTimeout(AiNetRules.SILENCE_SECONDS, TimeUnit.SECONDS)
@@ -240,6 +264,9 @@ public class AiNetPlugin extends Plugin {
 
         call.setKeepAlive(true);
         final String scrubKey = key;
+        // Whether any of the request was written (B7): only before that can a failure be "unreachable" (`WRITE_WATCH`).
+        final AtomicBoolean written = new AtomicBoolean(false);
+        builder.tag(AtomicBoolean.class, written);
         Call http = (AiNetRules.silenceSeconds(url.host()) == AiNetRules.LOCAL_SILENCE_SECONDS ? patient : client).newCall(builder.build());
         running.put(requestId, http);
         http.enqueue(new Callback() {
@@ -248,7 +275,7 @@ public class AiNetPlugin extends Plugin {
                 running.remove(requestId);
                 JSObject out = chunk(c.isCanceled() ? "cancelled" : "failed");
                 if (!c.isCanceled()) {
-                    out.put("code", HttpFailure.code(e));
+                    out.put("code", AiNetRules.failureCode(e, written.get()));
                     out.put("message", redact(e.getMessage(), scrubKey));
                 }
                 call.resolve(out);

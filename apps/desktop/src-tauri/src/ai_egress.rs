@@ -461,7 +461,7 @@ pub async fn ai_http(
             _ = &mut cancel_rx => return AiChunk::Cancelled,
             result = tokio::time::timeout(idle, builder.send()) => match result {
                 Err(_) => return AiChunk::Failed { code: "idle_timeout".into(), message: "the provider did not answer".into() },
-                Ok(Err(e)) => return AiChunk::Failed { code: "network".into(), message: redact(&e.to_string(), key.as_deref()) },
+                Ok(Err(e)) => return AiChunk::Failed { code: send_failure_code(&e).into(), message: redact(&error_chain(&e), key.as_deref()) },
                 Ok(Ok(response)) => response,
             },
         };
@@ -521,6 +521,50 @@ pub async fn ai_http(
     }
     let _ = on_event.send(outcome);
     Ok(())
+}
+
+/// An error with every cause it carries (F72): reqwest says only "error sending request" at the top, the certificate or
+/// the refused connection is below it — the web view reads the cause from the words.
+fn error_chain(e: &reqwest::Error) -> String {
+    let mut text = e.to_string();
+    let mut source: Option<&(dyn std::error::Error + 'static)> = std::error::Error::source(e);
+    let mut depth = 0;
+    while let Some(err) = source {
+        if depth >= 8 {
+            break;
+        }
+        text.push_str(": ");
+        text.push_str(&err.to_string());
+        source = err.source();
+        depth += 1;
+    }
+    text.chars().take(1000).collect()
+}
+
+/// What a failed `send()` is called (plan Umsetzung 0.9.x, B7): "unreachable" only where the connection provably never
+/// stood — the name did not resolve, or the connection was refused or found no route —, so nothing of the request left
+/// the device. Everything else is "network", which may have arrived: a connection that broke after it stood, a TLS
+/// handshake the device did not accept, a connect that ran out of time. Each request has a client of its own, so no
+/// pooled connection can have carried part of it before a new one failed.
+pub(crate) fn send_failure_code(e: &reqwest::Error) -> &'static str {
+    if !e.is_connect() || e.is_timeout() {
+        return "network";
+    }
+    let mut source: Option<&(dyn std::error::Error + 'static)> = std::error::Error::source(e);
+    while let Some(err) = source {
+        if let Some(io) = err.downcast_ref::<std::io::Error>() {
+            use std::io::ErrorKind;
+            if matches!(io.kind(), ErrorKind::ConnectionRefused | ErrorKind::HostUnreachable | ErrorKind::NetworkUnreachable | ErrorKind::AddrNotAvailable) {
+                return "unreachable";
+            }
+        }
+        // hyper's connector names a failed lookup so, before any connection is tried.
+        if err.to_string() == "dns error" {
+            return "unreachable";
+        }
+        source = err.source();
+    }
+    "network"
 }
 
 #[tauri::command]
@@ -633,6 +677,45 @@ pub async fn ai_endpoint_remove(window: tauri::Window, app: AppHandle, state: St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A request as `ai_http` sends it: a client of its own, no redirects, the connect bound.
+    async fn send_to(url: &str) -> reqwest::Error {
+        let client = reqwest::Client::builder().connect_timeout(CONNECT_TIMEOUT).redirect(reqwest::redirect::Policy::none()).build().unwrap();
+        client.post(url).body("{\"q\":1}").send().await.expect_err("the request must fail")
+    }
+
+    #[tokio::test]
+    async fn a_refused_connection_never_carried_the_request() {
+        // A port that was free a moment ago: nothing listens on it, the connection is refused.
+        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+        let error = send_to(&format!("http://127.0.0.1:{port}/v1/messages")).await;
+        assert_eq!(send_failure_code(&error), "unreachable", "{error:?}");
+    }
+
+    #[tokio::test]
+    async fn a_name_that_does_not_resolve_never_carried_the_request() {
+        // `.invalid` never resolves (RFC 2606); a machine without DNS fails at the same step.
+        let error = send_to("http://plainva-egress-test.invalid/v1/messages").await;
+        assert_eq!(send_failure_code(&error), "unreachable", "{error:?}");
+    }
+
+    #[tokio::test]
+    async fn a_connection_that_broke_after_it_stood_may_have_carried_it() {
+        use tokio::io::AsyncReadExt;
+        // A server that takes the request and hangs up without an answer: the provider may have it.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut buffer = [0u8; 4096];
+            let read = socket.read(&mut buffer).await.unwrap();
+            assert!(read > 0, "the request reached the server");
+            drop(socket);
+        });
+        let error = send_to(&format!("http://127.0.0.1:{port}/v1/messages")).await;
+        server.await.unwrap();
+        assert_eq!(send_failure_code(&error), "network", "{error:?}");
+    }
 
     fn openai() -> Endpoint {
         builtin("openai").unwrap()

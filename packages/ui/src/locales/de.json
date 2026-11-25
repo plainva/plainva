@@ -283,6 +283,11 @@
       "localOnly": "„Voll-lokal“ ist an, und {{provider}} läuft nicht auf diesem Gerät. Es wurde nichts gesendet. Wähle ein Modell auf diesem Gerät, oder schalte „Voll-lokal“ aus.",
       "windowTooSmall": "Diese Anfrage braucht etwa {{needed}} Token; als Fenster für {{model}} sind {{window}} angegeben. Es wurde nichts gesendet. Vergrößere das Fenster am Server und im Profil, schalte „Kann Werkzeuge aufrufen“ für dieses Modell aus, oder lass Notizen weg.",
       "tooLarge": "Die Anfrage ist zu groß zum Senden — es wurde nichts gesendet. Meist ist ein Bild zu groß.",
+      "unreachable": "Keine Verbindung zu {{provider}} — es wurde nichts gesendet. Deine Frage steht wieder im Feld.",
+      "noAnswer": "{{provider}} hat nicht geantwortet. Die Anfrage kann angekommen sein.",
+      "imageTooBig": "Meist ist ein Bild zu groß.",
+      "sendAgain": "Erneut senden",
+      "leaveOutImage": "Bild weglassen",
       "invalidRequest": "Plainva konnte diese Anfrage nicht zusammenstellen — es wurde nichts gesendet. Bitte melde das als Fehler.",
       "openSetup": "Einstellungen öffnen",
       "platform": {
@@ -779,6 +784,7 @@
       "byProvider": "Den Text hat {{provider}} gelesen, in eigenen Anfragen ohne Werkzeuge."
     },
     "image": {
+      "notSent": "nicht gesendet",
       "action": "Bild erklären",
       "ask": "Erkläre dieses Bild.",
       "title": "Bild: {{name}}",

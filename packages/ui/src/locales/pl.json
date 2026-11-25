@@ -327,6 +327,11 @@
       "localOnly": "Włączone jest „W pełni lokalnie”, a {{provider}} nie działa na tym urządzeniu. Nic nie zostało wysłane. Wybierz model na tym urządzeniu albo wyłącz „W pełni lokalnie”.",
       "windowTooSmall": "To zapytanie potrzebuje około {{needed}} tokenów; okno kontekstowe podane dla modelu {{model}} wynosi {{window}}. Nic nie zostało wysłane. Zwiększ okno na serwerze i w profilu, wyłącz „Może wywoływać narzędzia” dla tego modelu albo pomiń notatki.",
       "tooLarge": "Zapytanie jest za duże, by je wysłać — nic nie zostało wysłane. Zwykle za duży jest obraz.",
+      "unreachable": "Brak połączenia z {{provider}} — nic nie zostało wysłane. Twoje pytanie znów jest w polu.",
+      "noAnswer": "{{provider}} nie odpowiedział. Żądanie mogło dotrzeć.",
+      "imageTooBig": "Zwykle obraz jest za duży.",
+      "sendAgain": "Wyślij ponownie",
+      "leaveOutImage": "Pomiń obraz",
       "invalidRequest": "Plainva nie mógł przygotować tego zapytania — nic nie zostało wysłane. Zgłoś to jako błąd.",
       "openSetup": "Otwórz ustawienia",
       "platform": {
@@ -869,6 +874,7 @@
       "byProvider": "Tekst odczytał {{provider}}, w osobnych zapytaniach, bez narzędzi."
     },
     "image": {
+      "notSent": "nie wysłano",
       "action": "Wyjaśnij obraz",
       "ask": "Wyjaśnij ten obraz.",
       "title": "Obraz: {{name}}",

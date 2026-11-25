@@ -1,5 +1,8 @@
 package com.plainva.app;
 
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
+import java.net.UnknownHostException;
 import java.util.Locale;
 
 /**
@@ -44,5 +47,22 @@ final class AiNetRules {
 
     static int silenceSeconds(String host) {
         return onThisDevice(host) ? LOCAL_SILENCE_SECONDS : SILENCE_SECONDS;
+    }
+
+    /**
+     * What a failed request is called (plan Umsetzung 0.9.x, B7; F72). "unreachable" only where the connection
+     * provably never stood — the name did not resolve, the connection was refused or found no route — and not a
+     * byte of the request was written ({@code written}: the call began its headers). Otherwise the sync's own codes
+     * say what it was: a certificate the device did not accept, the time running out, a network failure; those may
+     * have arrived.
+     */
+    static String failureCode(Throwable error, boolean written) {
+        if (!written) {
+            Throwable cause = error;
+            for (int depth = 0; cause != null && depth < 16; depth++, cause = cause.getCause()) {
+                if (cause instanceof UnknownHostException || cause instanceof ConnectException || cause instanceof NoRouteToHostException) return "unreachable";
+            }
+        }
+        return HttpFailure.code(error);
     }
 }

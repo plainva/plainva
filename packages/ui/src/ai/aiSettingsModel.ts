@@ -76,11 +76,15 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
     case "unknown_endpoint":
       return t("ai.error.unknownEndpoint");
     case "offline":
+    case "unreachable":
       // The device knows when it has no network at all: then that is said, not the provider blamed (plan KI-Oberflächen K10).
       if (!here && deviceOffline()) return t("ai.error.deviceOffline");
       return here ? t("ai.error.offlineHere", { provider }) : t("ai.error.offline", { provider });
     case "stream_broken":
       return here ? t("ai.error.streamBrokenHere", { provider }) : t("ai.error.streamBroken");
+    case "certificate":
+      // The words the sync already says for the same certificate (F72).
+      return t(`connectionFailure.${failure.code}`);
     case "provider_error":
       return t("ai.error.providerError", { provider, message: failure.message });
     case "platform_unavailable":
@@ -96,6 +100,22 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
     case "invalid_request":
       return t("ai.error.invalidRequest");
   }
+}
+
+/**
+ * A failure as the conversation says it (plan Umsetzung 0.9.x, B7; M9), by its class. "Nothing was sent" and "your
+ * question is back in the field" stand only over a request of the first class whose question went back (`returned`);
+ * a request that may have arrived says so. `images`: the pictures of the turn that failed.
+ */
+export function conversationFailureText(t: T, failure: ModelFailure, recipient: FailureRecipient, model: string, how: { returned?: boolean; images?: number } = {}): string {
+  const provider = recipient.label;
+  if (failure.kind === "unreachable" && how.returned) return t("ai.error.unreachable", { provider });
+  // No answer, or one that broke off, from a provider elsewhere: the request may have arrived. A server on this device
+  // and a device without any network keep their own words.
+  if ((failure.kind === "offline" || failure.kind === "stream_broken") && !recipient.here && !deviceOffline()) return t("ai.error.noAnswer", { provider });
+  // The provider said "too large" of a turn with pictures: mostly one of them.
+  if (failure.kind === "context_too_long" && (how.images ?? 0) > 0) return `${aiFailureText(t, failure, recipient, model)} ${t("ai.error.imageTooBig")}`;
+  return aiFailureText(t, failure, recipient, model);
 }
 
 /** Whether this device has no network at all, as far as the browser knows. */
@@ -117,6 +137,10 @@ export function failureSender(failure: ModelFailure, recipient: FailureRecipient
       if (recipient.here) return "device";
       return deviceOffline() ? "network" : "provider";
     case "stream_broken":
+      return recipient.here ? "device" : "network";
+    // No connection ever stood (B7): the way there, or this device's own server.
+    case "unreachable":
+    case "certificate":
       return recipient.here ? "device" : "network";
     case "invalid_key":
     case "rate_limited":

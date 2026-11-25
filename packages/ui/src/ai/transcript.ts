@@ -8,7 +8,7 @@ import { calledToolName, contextStampPath, directOutcomeOf, EFFECT_DECLINED, ima
  */
 export type TranscriptItem =
   /** `images`: the pictures the message carried (plan KI-Harness P4-5), as they were sent. */
-  | { kind: "user"; key: string; text: string; context: string[]; images?: ImagePart[] }
+  | { kind: "user"; key: string; text: string; context: string[]; images?: ImagePart[]; imagesNotSent?: true }
   | { kind: "answer"; key: string; text: string }
   | { kind: "steps"; key: string; steps: { id: string; name: string; state: StepState; effect?: StepEffect }[] }
   | { kind: "run"; key: string; run: RunMeta };
@@ -35,11 +35,16 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
   const turns = record.conversation.turns;
   const runs = [...record.runs].sort((a, b) => a.userTurn - b.userTurn);
   // A run's line goes after the last turn before the next run began.
-  const runAfter = new Map<number, RunMeta>();
+  // Two runs of one turn (B7, "Send again" in place) both keep their line: the first's record is not overwritten.
+  const runAfter = new Map<number, RunMeta[]>();
   runs.forEach((run, i) => {
-    const end = (runs[i + 1]?.userTurn ?? turns.length) - 1;
-    runAfter.set(end, run);
+    const next = runs.slice(i + 1).find((later) => later.userTurn !== run.userTurn);
+    const end = (next?.userTurn ?? turns.length) - 1;
+    runAfter.set(end, [...(runAfter.get(end) ?? []), run]);
   });
+  // The pictures of a turn whose last run left them out (B7): they stay in the conversation, said as not sent.
+  const lastRunOf = new Map<number, RunMeta>();
+  for (const run of runs) lastRunOf.set(run.userTurn, run);
   let steps: Extract<TranscriptItem, { kind: "steps" }> | null = null;
   const stepIndex = new Map<string, { state: StepState; effect?: StepEffect }>();
   turns.forEach((turn, index) => {
@@ -57,7 +62,8 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
       const images = imagesOf(turn.parts);
       if (words || context.length || images.length) {
         steps = null;
-        items.push({ kind: "user", key: `u${index}`, text: words, context, ...(images.length ? { images } : {}) });
+        const notSent = images.length > 0 && Boolean(lastRunOf.get(index)?.left?.includes("image"));
+        items.push({ kind: "user", key: `u${index}`, text: words, context, ...(images.length ? { images } : {}), ...(notSent ? { imagesNotSent: true as const } : {}) });
       }
     } else {
       const text = turn.parts.filter((p) => p.type === "text").map((p) => p.text).join("");
@@ -77,11 +83,11 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
         stepIndex.set(part.id, step);
       }
     }
-    const run = runAfter.get(index);
-    if (run) {
+    const ended = runAfter.get(index) ?? [];
+    ended.forEach((run, n) => {
       steps = null;
-      items.push({ kind: "run", key: `r${index}`, run });
-    }
+      items.push({ kind: "run", key: n === 0 ? `r${index}` : `r${index}-${n}`, run });
+    });
   });
   return items;
 }

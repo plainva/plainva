@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-11-20
+Last reviewed: 2026-11-25
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It changes a note itself only where you let it (**Apply directly**). The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -67,6 +67,8 @@ Under each answer, **Copy** copies the answer and **Keep as a note** keeps it (s
 A question that waits for you — the send overview, a page, a search, a tool, a question from a server — stands above the input field, not in the scrolling conversation; the field then says “Answer the question above first”. However long the question, its buttons stay in view at its foot — in the sidebar too.
 
 If something fails, the message names who it comes from — this device, the network, the provider or Plainva — and offers the exact fix: **Enter a new key** for a key, **Change model** for an unknown model. A provider's own error text is behind **Details**. Offline, the notice says that this device is offline and to send the question again.
+
+**A request that never left the device.** Where Plainva decided before anything was sent — no connection to the provider at all, a request too large to send, a missing key —, the message says that nothing was sent, and a question you typed goes back into the field: **Send again** sends it once the connection is back. **A request that may have arrived.** Where the provider did not answer, or the connection broke off after it stood, the question and its record stay in the conversation, because the provider may have received it; **Send again** sends the same question once more in its place, without a second copy of it. Where a request with a picture was too large, **Leave out the image** sends it again without the picture; the picture stays in the conversation, marked **not sent**. What you type in the field is kept on this device for each conversation until you send it, also across a restart.
 
 A link in an answer opens only after you confirmed its address, and images in answers are never loaded.
 

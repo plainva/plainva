@@ -185,8 +185,12 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
                   AiNetPlugin.rawBodyAllowed(url, type) else {
                 call.resolve(["type": "failed", "code": "invalid_request", "message": "raw bodies go only to a transcription endpoint"]); return
             }
-            guard let data = Data(base64Encoded: encoded), data.count <= AiNetPlugin.maxBodyBytes else {
-                call.resolve(["type": "failed", "code": "too_large", "message": "request too large or not base64"]); return
+            // A body of the wrong form is Plainva's own fault, not one too large (F72): said apart, as on the desktop.
+            guard let data = Data(base64Encoded: encoded) else {
+                call.resolve(["type": "failed", "code": "invalid_request", "message": "the body is not base64"]); return
+            }
+            guard data.count <= AiNetPlugin.maxBodyBytes else {
+                call.resolve(["type": "failed", "code": "too_large", "message": "request too large"]); return
             }
             payload = data
             rawType = type
@@ -195,8 +199,11 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
             if endpoint.officialOpenAi && (url.path.hasSuffix("/responses") || url.path.hasSuffix("/chat/completions")) {
                 body["store"] = false
             }
-            guard let data = try? JSONSerialization.data(withJSONObject: body), data.count <= AiNetPlugin.maxBodyBytes else {
-                call.resolve(["type": "failed", "code": "too_large", "message": "request too large or not JSON"]); return
+            guard JSONSerialization.isValidJSONObject(body), let data = try? JSONSerialization.data(withJSONObject: body) else {
+                call.resolve(["type": "failed", "code": "invalid_request", "message": "the body is not JSON"]); return
+            }
+            guard data.count <= AiNetPlugin.maxBodyBytes else {
+                call.resolve(["type": "failed", "code": "too_large", "message": "request too large"]); return
             }
             payload = data
         }
@@ -306,7 +313,8 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
             if error.code == NSURLErrorCancelled {
                 stream.call.resolve(["type": "cancelled"])
             } else {
-                stream.call.resolve(["type": "failed", "code": "network", "message": AiNetPlugin.redact(error.localizedDescription, stream.key)])
+                let code = AiNetPlugin.failureCode(error, answered: stream.status != 0, bytesSent: task.countOfBytesSent)
+                stream.call.resolve(["type": "failed", "code": code, "message": AiNetPlugin.redact(error.localizedDescription, stream.key)])
             }
         } else if stream.status >= 300 {
             let text = String(data: stream.errorBody, encoding: .utf8) ?? ""
@@ -319,6 +327,31 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         }
         stream.call.keepAlive = false
         bridge?.releaseCall(stream.call)
+    }
+
+    /// What a failed task is called (plan Umsetzung 0.9.x, B7; F72). "unreachable" only where the connection provably
+    /// never stood — no network, a host that is not found or does not take the connection, a lookup that failed — and
+    /// nothing came back and no byte of the body went. A certificate the device did not accept is named in the codes the
+    /// sync speaks (`connectionFailure.ts`); the time running out is the provider that did not answer. Everything else
+    /// is "network": it may have arrived.
+    static func failureCode(_ error: NSError, answered: Bool, bytesSent: Int64) -> String {
+        guard error.domain == NSURLErrorDomain else { return "network" }
+        switch error.code {
+        case NSURLErrorNotConnectedToInternet, NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed:
+            return !answered && bytesSent == 0 ? "unreachable" : "network"
+        case NSURLErrorServerCertificateHasBadDate:
+            return "TLS_CERTIFICATE_EXPIRED"
+        case NSURLErrorServerCertificateNotYetValid:
+            return "TLS_CERTIFICATE_NOT_YET_VALID"
+        case NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasUnknownRoot:
+            return "TLS_CERTIFICATE_UNTRUSTED"
+        case NSURLErrorSecureConnectionFailed:
+            return "TLS_HANDSHAKE_FAILED"
+        case NSURLErrorTimedOut:
+            return "idle_timeout"
+        default:
+            return "network"
+        }
     }
 
     // MARK: user endpoints

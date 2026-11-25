@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-11-20
+Laatst bijgewerkt: 2026-11-25
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het alleen zelf waar jij dat toestaat (**Direct toepassen**). De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -67,6 +67,8 @@ Onder elk antwoord staan **Kopiëren**, **Bewaren als notitie** en, onder het la
 Een vraag die op jou wacht — het overzicht vóór het verzenden, een pagina, een zoekopdracht, een hulpmiddel, een vraag van een server — staat boven het invoerveld, niet in het scrollende gesprek; het veld zegt dan ‘Beantwoord eerst de vraag hierboven’. Hoe lang de vraag ook is, haar knoppen blijven onderaan zichtbaar — ook in de zijbalk.
 
 Gaat er iets mis, dan noemt de melding wie de bron is (dit apparaat, het netwerk, de provider of Plainva) en biedt ze de precieze oplossing; zonder verbinding op het apparaat zegt ze dat ook.
+
+**Een verzoek dat het apparaat nooit heeft verlaten.** Heeft Plainva beslist voordat er iets verzonden werd — helemaal geen verbinding met de provider, een verzoek dat te groot is om te verzenden, een ontbrekende sleutel —, dan zegt de melding dat er niets is verzonden, en een vraag die je hebt getypt staat weer in het veld: **Opnieuw verzenden** verstuurt hem zodra de verbinding terug is. **Een verzoek dat kan zijn aangekomen.** Heeft de provider niet geantwoord, of is de verbinding weggevallen nadat ze stond, dan blijven de vraag en het overzicht ervan in het gesprek, want de provider kan hem hebben ontvangen; **Opnieuw verzenden** verstuurt dezelfde vraag nog een keer op zijn plaats, zonder tweede kopie. Was een verzoek met een afbeelding te groot, dan verstuurt **Afbeelding weglaten** het opnieuw zonder de afbeelding; de afbeelding blijft in het gesprek, gemarkeerd als **niet verzonden**. Wat je in het veld typt, blijft per gesprek op dit apparaat bewaard tot je het verzendt, ook na een herstart.
 
 Een link in een antwoord opent pas nadat je het adres ervan hebt bevestigd, en afbeeldingen in antwoorden worden nooit geladen.
 

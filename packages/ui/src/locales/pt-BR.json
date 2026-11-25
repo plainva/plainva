@@ -305,6 +305,11 @@
       "localOnly": "“Totalmente local” está ligado, e {{provider}} não roda neste dispositivo. Nada foi enviado. Escolha um modelo neste dispositivo ou desligue “Totalmente local”.",
       "windowTooSmall": "Esta solicitação precisa de cerca de {{needed}} tokens; a janela informada para {{model}} é de {{window}}. Nada foi enviado. Aumente a janela no servidor e no perfil, desative “Pode chamar ferramentas” para este modelo ou deixe notas de fora.",
       "tooLarge": "A solicitação é grande demais para enviar — nada foi enviado. Geralmente uma imagem é grande demais.",
+      "unreachable": "Sem conexão com {{provider}} — nada foi enviado. Sua pergunta voltou para o campo.",
+      "noAnswer": "{{provider}} não respondeu. A solicitação pode ter chegado.",
+      "imageTooBig": "Normalmente uma imagem é grande demais.",
+      "sendAgain": "Enviar de novo",
+      "leaveOutImage": "Deixar a imagem de fora",
       "invalidRequest": "O Plainva não conseguiu montar esta solicitação — nada foi enviado. Informe isso como um erro.",
       "openSetup": "Abrir configurações",
       "platform": {
@@ -824,6 +829,7 @@
       "byProvider": "O texto foi lido por {{provider}}, em solicitações à parte, sem ferramentas."
     },
     "image": {
+      "notSent": "não enviada",
       "action": "Explicar imagem",
       "ask": "Explique esta imagem.",
       "title": "Imagem: {{name}}",

@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-11-20
+Stand: 2026-11-25
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen vor — als Vorschläge an einer Notiz, als Entwürfe für Neues oder als Plan, den Du bestätigst. Eine Notiz ändert es nur selbst, wo Du es erlaubst (**Direkt übernehmen**). Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -67,6 +67,8 @@ Unter jeder Antwort kopiert **Kopieren** die Antwort und **Als Notiz festhalten*
 Eine Frage, die auf Dich wartet — die Sende-Übersicht, eine Seite, eine Suche, ein Werkzeug, eine Frage eines Servers —, steht über dem Eingabefeld, nicht im scrollenden Gespräch; das Feld sagt dann „Erst die Frage oben beantworten“. Wie lang die Frage auch ist, ihre Knöpfe bleiben an ihrem Fuß sichtbar — auch in der Seitenleiste.
 
 Schlägt etwas fehl, nennt die Meldung, von wem sie kommt — von diesem Gerät, vom Netz, vom Anbieter oder von Plainva — und bietet die passende Abhilfe an: **Neuen Schlüssel eingeben** bei einem Schlüssel, **Modell ändern** bei einem unbekannten Modell. Der eigene Fehlertext eines Anbieters steht hinter **Einzelheiten**. Ohne Netz sagt die Meldung, dass dieses Gerät offline ist und Du die Frage danach erneut senden sollst.
+
+**Eine Anfrage, die das Gerät nie verlassen hat.** Hat Plainva entschieden, bevor etwas gesendet wurde — gar keine Verbindung zum Anbieter, eine Anfrage, die zu groß zum Senden ist, ein fehlender Schlüssel —, sagt die Meldung, dass nichts gesendet wurde, und eine Frage, die Du getippt hast, steht wieder im Feld: **Erneut senden** schickt sie, sobald die Verbindung wieder steht. **Eine Anfrage, die angekommen sein kann.** Hat der Anbieter nicht geantwortet oder ist die Verbindung abgebrochen, nachdem sie stand, bleiben die Frage und ihr Beleg im Gespräch, denn der Anbieter kann sie erhalten haben; **Erneut senden** schickt dieselbe Frage an ihrer Stelle noch einmal, ohne zweite Kopie. War eine Anfrage mit einem Bild zu groß, schickt **Bild weglassen** sie ohne das Bild noch einmal; das Bild bleibt im Gespräch, mit dem Vermerk **nicht gesendet**. Was Du ins Feld tippst, bleibt je Gespräch auf diesem Gerät erhalten, bis Du es sendest, auch über einen Neustart hinweg.
 
 Ein Link in einer Antwort öffnet sich erst, nachdem Du seine Adresse bestätigt hast, und Bilder in Antworten werden nie geladen.
 

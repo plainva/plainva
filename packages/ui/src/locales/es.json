@@ -305,6 +305,11 @@
       "localOnly": "«Totalmente local» está activado y {{provider}} no se ejecuta en este dispositivo. No se envió nada. Elige un modelo en este dispositivo o desactiva «Totalmente local».",
       "windowTooSmall": "Esta solicitud necesita unos {{needed}} tokens; la ventana indicada para {{model}} es de {{window}}. No se envió nada. Amplía la ventana en el servidor y en el perfil, desactiva «Puede llamar a herramientas» para este modelo o deja fuera algunas notas.",
       "tooLarge": "La solicitud es demasiado grande para enviarla: no se envió nada. Normalmente una imagen es demasiado grande.",
+      "unreachable": "Sin conexión con {{provider}}: no se envió nada. Tu pregunta vuelve a estar en el campo.",
+      "noAnswer": "{{provider}} no respondió. Es posible que la solicitud haya llegado.",
+      "imageTooBig": "Normalmente una imagen es demasiado grande.",
+      "sendAgain": "Enviar de nuevo",
+      "leaveOutImage": "Omitir la imagen",
       "invalidRequest": "Plainva no pudo preparar esta solicitud: no se envió nada. Infórmalo como error, por favor.",
       "openSetup": "Abrir configuración",
       "platform": {
@@ -824,6 +829,7 @@
       "byProvider": "El texto lo leyó {{provider}}, en solicitudes aparte y sin herramientas."
     },
     "image": {
+      "notSent": "no enviada",
       "action": "Explicar imagen",
       "ask": "Explica esta imagen.",
       "title": "Imagen: {{name}}",

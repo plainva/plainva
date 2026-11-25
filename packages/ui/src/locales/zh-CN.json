@@ -261,6 +261,11 @@
       "localOnly": "“完全本地”已开启，而 {{provider}} 不在此设备上运行。没有发送任何内容。请选择此设备上的模型，或关闭“完全本地”。",
       "windowTooSmall": "此请求大约需要 {{needed}} 个 Token；为 {{model}} 标明的窗口是 {{window}}。没有发送任何内容。请在服务器端和配置中调大窗口，为此模型关闭“可调用工具”，或者少附带一些笔记。",
       "tooLarge": "请求太大，无法发送——没有发送任何内容。通常是图片太大。",
+      "unreachable": "无法连接到 {{provider}}——未发送任何内容。你的问题已放回输入框。",
+      "noAnswer": "{{provider}} 没有回应。请求可能已经送达。",
+      "imageTooBig": "通常是图片太大。",
+      "sendAgain": "再次发送",
+      "leaveOutImage": "去掉图片",
       "invalidRequest": "Plainva 无法组装此请求——没有发送任何内容。请将此作为错误报告。",
       "openSetup": "打开设置",
       "platform": {
@@ -734,6 +739,7 @@
       "byProvider": "文本由{{provider}}在单独的、不带工具的请求中读取。"
     },
     "image": {
+      "notSent": "未发送",
       "action": "解释图片",
       "ask": "请解释这张图片。",
       "title": "图片：{{name}}",

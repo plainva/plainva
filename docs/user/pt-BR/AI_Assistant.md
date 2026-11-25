@@ -1,6 +1,6 @@
 # Assistente de IA (Beta)
 
-Última revisão: 2026-11-20
+Última revisão: 2026-11-25
 
 O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações — como sugestões em uma nota, como rascunhos de algo novo ou como um plano que você confirma. Ele só muda uma nota sozinho onde você permite (**Aplicar diretamente**). O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
@@ -67,6 +67,8 @@ Sob cada resposta, **Copiar** copia a resposta e **Manter como nota** a mantém 
 Uma pergunta que espera por você — o resumo de envio, uma página, uma pesquisa, uma ferramenta, uma pergunta de um servidor — fica acima do campo de entrada, não na conversa que rola; o campo então diz “Responda primeiro à pergunta acima”. Por mais longa que seja a pergunta, seus botões continuam visíveis na base — também na barra lateral.
 
 Quando algo falha, a mensagem diz de quem ela vem — deste dispositivo, da rede, do provedor ou do Plainva — e oferece o remédio exato: **Digitar uma nova chave** para uma chave, **Trocar modelo** para um modelo desconhecido. O texto de erro do próprio provedor fica atrás de **Detalhes**. Sem rede, a mensagem diz que este dispositivo está offline e que você deve enviar a pergunta de novo depois.
+
+**Uma solicitação que nunca saiu do dispositivo.** Quando o Plainva decidiu antes que qualquer coisa fosse enviada — nenhuma conexão com o provedor, uma solicitação grande demais para enviar, uma chave que falta —, a mensagem diz que nada foi enviado, e uma pergunta que você digitou volta para o campo: **Enviar de novo** a envia assim que a conexão voltar. **Uma solicitação que pode ter chegado.** Quando o provedor não respondeu, ou a conexão caiu depois de estabelecida, a pergunta e seu registro ficam na conversa, porque o provedor pode tê-la recebido; **Enviar de novo** envia a mesma pergunta mais uma vez no mesmo lugar, sem uma segunda cópia. Quando uma solicitação com uma imagem era grande demais, **Deixar a imagem de fora** a envia de novo sem a imagem; a imagem fica na conversa, marcada como **não enviada**. O que você digita no campo fica guardado neste dispositivo para cada conversa até você enviar, também depois de reiniciar.
 
 Um link em uma resposta só abre depois que você confirma o endereço dele, e imagens em respostas nunca são carregadas.
 

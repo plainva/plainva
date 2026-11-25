@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-11-20
+Dernière mise à jour : 2026-11-25
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications — sous forme de propositions sur une note, de brouillons pour ce qui est nouveau, ou d'un plan que vous confirmez. Il ne modifie une note lui-même que là où vous l'autorisez (**Appliquer directement**). L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -67,6 +67,8 @@ Sous chaque réponse, **Copier** copie la réponse et **Conserver comme note** l
 Une question qui attend votre réponse — l'aperçu d'envoi, une page, une recherche, un outil, une question d'un serveur — se place au-dessus du champ de saisie, pas dans la conversation qui défile ; le champ indique alors « Répondez d'abord à la question ci-dessus ». Quelle que soit la longueur de la question, ses boutons restent visibles en bas — dans la barre latérale aussi.
 
 Quand quelque chose échoue, le message indique de qui il vient — cet appareil, le réseau, le fournisseur ou Plainva — et propose le remède exact : **Saisir une nouvelle clé** pour une clé, **Changer de modèle** pour un modèle inconnu. Le texte d'erreur propre à un fournisseur se trouve derrière **Détails**. Hors ligne, le message dit que cet appareil est hors ligne et qu'il faut renvoyer la question ensuite.
+
+**Une requête qui n'a jamais quitté l'appareil.** Quand Plainva a tranché avant que quoi que ce soit ne parte — aucune connexion au fournisseur, une requête trop volumineuse pour être envoyée, une clé manquante —, le message dit que rien n'a été envoyé, et une question que vous avez saisie revient dans le champ : **Renvoyer** l'envoie dès que la connexion est rétablie. **Une requête qui est peut-être arrivée.** Quand le fournisseur n'a pas répondu, ou que la connexion s'est rompue après s'être établie, la question et son relevé restent dans la conversation, car le fournisseur l'a peut-être reçue ; **Renvoyer** envoie la même question une fois de plus à sa place, sans en faire de copie. Quand une requête avec une image était trop volumineuse, **Laisser l'image de côté** la renvoie sans l'image ; l'image reste dans la conversation, marquée **non envoyée**. Ce que vous saisissez dans le champ est conservé sur cet appareil pour chaque conversation jusqu'à l'envoi, même après un redémarrage.
 
 Un lien dans une réponse ne s'ouvre qu'après confirmation de son adresse, et les images dans les réponses ne sont jamais chargées.
 

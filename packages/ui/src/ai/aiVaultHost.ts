@@ -62,6 +62,7 @@ import type { NoteHintsHost } from "./noteHintsHost";
 import { createNoteHintsStore } from "./noteHintsStore";
 import type { WriteRun } from "./writeTools";
 import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps, type NoteHistorySource } from "./vaultTools";
+import { createComposerDraftStore } from "../lib/draftJournal";
 
 /**
  * The vault side of the AI session, built the same way in both shells: the
@@ -517,6 +518,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     : null;
   return {
     ...stores,
+    // What the AI composer holds before a message goes (B7): beside the vault's other AI data, never in the vault.
+    composerDrafts: createComposerDraftStore({ storage: input.files, file: `${input.vaultKey}/composer-drafts.json` }),
     // What this vault's data is filed under on this device: a script's approval is signed for it (plan P5.5).
     key: input.vaultKey,
     // This vault's choices about foreign MCP servers (plan P4.5): beside its other AI data, never in the vault.
