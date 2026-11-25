@@ -18,6 +18,7 @@ import { holdsTemplateToken } from "../templateTokens.js";
 import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
 import { fullTextRowOf, INSERT_FULL_TEXT_ROW } from "../db/fullTextRows.js";
+import { fillNoteTasks, noteTasksStatement } from "../db/noteTasks.js";
 import { INDEX_REMOVED_TABLE } from "../sync/owedToRemote.js";
 import { indexChangeMark, indexChangedSince, noteIndexChange, trimIndexChanges } from "../db/indexChanges.js";
 
@@ -1014,6 +1015,30 @@ export class VaultIndexer {
   /**
    * Generates a stable unique ID for a file based on its relative path.
    */
+  /**
+   * Fills in the task table's rows a note lacks — an index from before the
+   * table, rows an older build wrote — from the index's own text, once the
+   * pass is through (db/noteTasks.ts). Never fails the pass: the list of
+   * tasks reads a note without its row from its text, as it always did.
+   */
+  private async fillTaskTable(): Promise<void> {
+    const signal = this.options?.scanSignal;
+    try {
+      // Between its slices it asks the pass's signal: a vault being closed is
+      // not filled in any further, and the next open goes on where it ended.
+      await fillNoteTasks(this.dbAdapter, { signal });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      console.warn("[VaultIndexer] could not fill in the task table; the list of tasks reads those notes' text", error);
+    }
+  }
+
+  /** Writes a note's row of the task table, after its `files` row (db/noteTasks.ts). */
+  private async writeNoteTasks(path: string, sha256: string | null, content: string, writer: SqlWriter): Promise<void> {
+    const statement = noteTasksStatement(path, sha256, content);
+    await writer.execute(statement.sql, statement.params as unknown[]);
+  }
+
   private async generateFileId(path: string): Promise<string> {
     return await sha256Hash(path);
   }
@@ -1465,6 +1490,8 @@ export class VaultIndexer {
         INSERT_FULL_TEXT_ROW,
         [content, title, fileInfo.path, segmentedIndexText(content), segmentedIndexText(String(title ?? "")), fileInfo.path]
       );
+      // The note's tasks, from the same text (db/noteTasks.ts).
+      await this.writeNoteTasks(fileInfo.path, sha256, content, writer);
 
       // Update sync state ONLY if this is a newly discovered file (an orphaned
       // row counts as none, see judgeSyncState). We must not overwrite
@@ -1529,6 +1556,7 @@ export class VaultIndexer {
         INSERT_FULL_TEXT_ROW,
         [content, fileInfo.name.replace(/\.md$/, ""), fileInfo.path, segmentedIndexText(content), segmentedIndexText(fileInfo.name.replace(/\.md$/, "")), fileInfo.path]
       );
+      await this.writeNoteTasks(fileInfo.path, sha256, content, writer);
       if (!oldSyncState) {
         await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
       }
@@ -2730,7 +2758,11 @@ export class VaultIndexer {
     try {
       const report = await this.scanFrom(pass, dbFiles, startsEmpty, startedAt, compareUnstamped);
       if (compareUnstamped) this.unstampedCompared = true;
-      if (!this.options?.hearsNoChanges || report.added + report.changed === 0) return report;
+      if (!this.options?.hearsNoChanges || report.added + report.changed === 0) {
+        // Once the pass has written all it writes.
+        await this.fillTaskTable();
+        return report;
+      }
       // Once more, against the rows as they are now (`hearsNoChanges`).
       signal?.throwIfAborted();
       const after = await this.dbAdapter.query<IndexedAtScanStart>(
@@ -2739,6 +2771,7 @@ export class VaultIndexer {
       // A pass of its own: what the first one wrote is what this one judges.
       // It does not compare the files without a timestamp again: the first one did (`hasStamp`).
       const again = await this.scanFrom({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock }, after, false, Date.now(), false);
+      await this.fillTaskTable();
       return {
         ...again,
         added: report.added + again.added,

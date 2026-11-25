@@ -27,6 +27,7 @@ import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
+import { noteTasksOf, noteTasksRowCounts, tasksOfRow } from "../db/noteTasks.js";
 import { buildLinkTargetIndex, linkFilesNamed, linkTargetName, noteLinkResolver, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownTargetIndexed, resolveNotePathIndexed, type LinkCorpusFile, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { buildLinkNameIndex, filesALinkCouldMean, type LinkNameIndex } from "../ai/linkNames.js";
 import { mayHoldAWithheldLink, redactDeniedLinksIn } from "../ai/egressGate.js";
@@ -993,44 +994,60 @@ export class VaultQueryService {
   }
 
   /**
-   * Every GFM task checkbox in the vault (B4 vault-wide Tasks view). Reads the
-   * note text straight from the FTS index (no extra file I/O) and extracts task
-   * lines with {@link scanTasks}; each task keeps its note path/title and the
-   * document-order ordinal that toggleTaskAtIndex needs to flip it back.
+   * Every GFM task checkbox in the vault (B4 vault-wide Tasks view). Each
+   * task keeps its note path/title and the document-order ordinal that
+   * toggleTaskAtIndex needs to flip it back.
+   *
+   * From the index's task table (db/noteTasks.ts): one row per note with
+   * tasks, written when the note was indexed. A note whose row does not
+   * count — an index the next full pass has not filled in yet, a note an
+   * older build wrote — is scanned from its text in the index with
+   * {@link scanTasks}, as the list always did; the answer is the same.
    */
   async listTasks(): Promise<TaskRecord[]> {
     await this.dayOfPathReady();
-    // Only rows that belong to a file (FULL_TEXT_ROW_IS_FILED). `rowid DESC`:
-    // the rows this build writes are numbered `-files.rowid`, so this is the
-    // order the notes came into the index, as it was before index format 9;
-    // rows kept from an older index keep their own numbers (fullTextRows.ts).
-    // The other readers of the whole table below read the same way.
-    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
-      `SELECT path, title, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
+    // Only notes with a full-text row that is theirs (FULL_TEXT_ROW_IS_FILED,
+    // the same join). In descending order of that row's number: the rows this
+    // build writes are numbered `-files.rowid`, so this is the order the notes
+    // came into the index, as it was before index format 9; rows kept from an
+    // older index keep their own numbers (fullTextRows.ts). `CROSS JOIN`
+    // keeps SQLite from starting at the full-text table, which would read
+    // every note's text: a note without tasks is passed over before its
+    // full-text row is looked up, and only a note without a row that counts
+    // brings its text along.
+    const rows = await this.db.query<{ path: string; title: string | null; excluded: number | null; tasks: string | null; content: string | null }>(
+      `SELECT f.path AS path, n.title AS title, t.excluded AS excluded, t.tasks AS tasks,
+              CASE WHEN t.file_rowid IS NULL THEN n.content END AS content
+       FROM files f
+       LEFT JOIN note_tasks t ON ${noteTasksRowCounts("f", "t")}
+       CROSS JOIN fts_notes n ON n.rowid = ${fullTextRowOf("f")} AND n.path = f.path
+       WHERE t.file_rowid IS NULL OR t.tasks <> ''
+       ORDER BY n.rowid DESC`,
       [],
     );
     const out: TaskRecord[] = [];
     for (const r of rows) {
       // A hidden note's tasks are not listed (E8).
       if (!r.path || isHiddenPath(r.path)) continue;
-      const content = r.content ?? "";
-      const scanned = scanTasks(content);
-      if (scanned.length === 0) continue;
+      const read = r.tasks != null ? { excluded: !!r.excluded, tasks: tasksOfRow(r.tasks) } : this.tasksFromText(r.content ?? "");
+      if (read.tasks.length === 0) continue;
       const title = r.title || r.path.split("/").pop()!.replace(/\.md$/i, "");
-      // Truth stays in the file: a note opts out of task aggregation by carrying
-      // `plainva.tasks: false` in its frontmatter (templates, drafts, …). The
-      // frontmatter parse only runs for notes that actually contain tasks.
-      const excluded = readFrontmatterPath(content, ["plainva", "tasks"]) === false;
       // A daily note is where the journal writes its tasks, each behind the
       // time it was noted (plan Rückmeldungen 2026-11-05): that stamp is the
       // entry's, not the task's name. In any other note the text is the name.
       const daily = this.dayOfPath?.(r.path) != null;
-      for (const task of scanned) {
+      for (const task of read.tasks) {
         const stamp = daily ? splitJournalStamp(task.text) : null;
-        out.push({ path: r.path, title, excluded, ...task, ...(stamp ? { journalTime: stamp.time } : {}) });
+        out.push({ path: r.path, title, excluded: read.excluded, ...task, ...(stamp ? { journalTime: stamp.time } : {}) });
       }
     }
     return out;
+  }
+
+  /** A note's tasks scanned from its text, as the task table holds them (`noteTasksOf`). */
+  private tasksFromText(content: string): { excluded: boolean; tasks: ScannedTask[] } {
+    const row = noteTasksOf(content);
+    return { excluded: row.excluded, tasks: tasksOfRow(row.tasks) };
   }
 
   /**

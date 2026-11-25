@@ -316,6 +316,64 @@ median 7.0 ms, p95 9.5 ms, search 73 ms, `listTasks` 615 ms, pass without change
 core baseline was recorded again on that state. Whether the short transactions cost the cold
 index that much or the machine was busier is not separated (one run each).
 
+## The task table (performance plan L8, 2026-11-25)
+
+`listTasks` read the text of every note from `fts_notes` and scanned it with `scanTasks` on every
+call; the tasks view calls it after every save, and so do reminders, widgets and the Tasks
+queries. Since L8 the index keeps each note's tasks as it read them (`note_tasks`,
+`packages/core/src/db/noteTasks.ts`): one row per note this build indexed, also for a note without
+a task (empty `tasks`), written in the same statements as the `files` row and the full-text row,
+from the very text that goes into `fts_notes`.
+
+**The key.** A row counts only where its row number, its `sha256` and its `reading` match: the
+`files` row's number and hash, and `TASK_READING`, the way this build reads tasks. Tasks are a
+function of the note's text alone — `scanTasks` and the `plainva.tasks` key of the properties
+block (`excluded`) — so a row that matches is right whatever wrote the `files` row. Neither number
+alone would do: SQLite hands out a `files` row number again (the largest one, once its row is
+gone), and the full-text row is numbered after it (`-files.rowid`). `TASK_READING` is raised with
+every change to what a row would hold for the same text (a field or rule of `scanTasks`, the
+reading of `plainva.tasks`, the text the indexer hands over); rows of another reading then no
+longer count, and the next full pass reads them anew. `note-tasks-reading.test.ts` holds the output
+for a fixed corpus by its hash under the number it belongs to and fails when the output changes
+while the number stays. What depends on more than the text stays in the query: the title (from the
+full-text row), hidden paths, daily notes and their journal stamps.
+
+**Reading.** A note without a row that counts is scanned from its text, as before; `listTasks`
+answers the same, byte for byte and in the same order, in every state the table can be in — none,
+half filled in, whole, rows of another reading, notes an older build wrote in between
+(`packages/core/test/helpers/taskListing.ts`, run in the core and over both shells' database
+adapters: `apps/desktop/src/adapters/noteTasksTable.test.ts`,
+`apps/mobile/src/noteTasksTable.test.ts`). The SQL joins `files` to the table first and looks up a
+note's full-text row only for a note with tasks (`CROSS JOIN`); a note whose row counts never
+brings its text.
+
+**Filling in.** No index format: the table is additive. An index from before it, notes an older
+build wrote and rows of another reading are filled in by the full pass once it has written
+everything it writes (`fillNoteTasks`), from the index's own text — no file is read, nothing is
+parsed but the task lines — in slices of 200 notes, each its own batch (on the phone one
+transaction holds one slice). Between slices it asks the pass's signal: a vault being closed is
+not filled in any further, and the next open goes on where it ended. A slice is written only for
+the text it read (the hash in the statement), so a note saved meanwhile keeps the row its save
+wrote.
+
+**Older builds** (tested with the schema and indexer of 0.9.0, frozen from the tag in
+`packages/core/test/fixtures/v090/`): 0.9.0 opens such a database, indexes, deletes, moves and
+rebuilds without a failure and leaves the table alone; a deleted `files` row takes its row along
+through the trigger `files_tasks_go`, which lives in the database and so fires for 0.9.0 as well.
+A `REPLACE` of an older build fires no delete trigger and leaves a row behind, and an older build
+that makes `files` anew drops the trigger with it: in both cases the hash keeps the rows left
+behind from ever counting for another text, and this build's next open creates the trigger again
+(`IF NOT EXISTS`).
+
+**Measured** with `pnpm perf:core` on one machine (Linux, i9-13905H, Node 24; 10 000 notes,
+32 046 tasks), before and after: `listTasks` 484 ms -> 60 ms; with the table half filled in
+311 ms, without it 549 ms (the scan as before, plus the join). Filling in once from the index's
+own text: 667 ms for all 10 000 notes, 370 ms for half. Cold index 26.1 s -> 26.1 s, pass without
+changes 215 -> 174 ms, save median 2.8 -> 3.0 ms. The save's p95 (of 40 saves) was 4.1 ms
+before and 6.9 / 7.9 ms in the two runs after; the save now scans the note's task lines and
+writes one more row — a single run per state cannot tell that from the spread here, the gate's
+runs in CI decide. Of the 60 ms most is decoding the rows' JSON.
+
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
 Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers
@@ -328,7 +386,7 @@ Tauri stand-in — a lower bound).
 | Pass without changes | ≤ 500 ms | 692–907 ms (a plain walk of the folder: 813–834 ms) | core gate |
 | Re-reading after a save, p95 | ≤ 15 ms | 7.7–18.2 ms, median 5.5–7.0 ms (48.7 / 42.2 ms before L1) | core gate |
 | Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 64–77 ms | core gate |
-| List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks) | core gate |
+| List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks); 60 ms after L8 (2026-11-25, another machine: 484 ms before) | core gate |
 | Start bytes per shell | ≤ 3.5 MB | desktop 7.49 MB (2.33 MB gzip, 98 files), phone 7.56 MB (2.30 MB gzip, 60 files) — on main of 2026-11-11 | bundle gate |
 | Phone entry file | ≤ 400 KB | 1 096 KB (desktop entry 93 KB) | bundle gate |
 | Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 966.2 ms, p50 57.3 ms, max 1275.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
