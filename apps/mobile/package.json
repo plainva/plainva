@@ -23,7 +23,7 @@
     "@capacitor/core": "^8.6.2",
     "@capacitor/dialog": "^8.0.0",
     "@capacitor/filesystem": "^8.1.5",
-    "@capacitor/geolocation": "^8.2.4",
+    "@capacitor/geolocation": "^8.2.5",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.6.2",
     "@capacitor/keyboard": "^8.0.6",
@@ -36,7 +36,7 @@
     "date-fns": "^4.4.0",
     "fflate": "^0.8.3",
     "i18next": "^26.7.1",
-    "lucide-react": "^1.73.0",
+    "lucide-react": "^1.77.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-i18next": "^17.1.12",
@@ -51,7 +51,7 @@
     "@vitejs/plugin-react": "^6.3.0",
     "typescript": "~6.0.3",
     "vite": "^8.3.8",
-    "vitest": "^5.1.0",
+    "vitest": "^5.1.1",
     "webdav-server": "^2.6.3"
   }
 }
