@@ -1,5 +1,8 @@
 import { visit } from "unist-util-visit";
 
+/** How many nodes one `splice` takes at a time: a call's arguments live on the stack. */
+const SPLICE_PIECE = 10_000;
+
 /** `[!info]`: ASCII letters and `-` between `[!` and `]`. */
 function calloutAt(text: string, at: number): { index: number; end: number; raw: string } | null {
   if (text[at] !== "[" || text[at + 1] !== "!") return null;
@@ -90,7 +93,9 @@ export default function remarkObsidianPreserve() {
         newNodes.push({ type: "text", value: text.slice(lastIndex), position: positionAt(lastIndex, text.length) });
       }
 
-      parent.children.splice(index, 1, ...newNodes);
+      // In pieces: spread into one call, the nodes of a stretch read as text with 100 000 markers overran the stack.
+      parent.children.splice(index, 1);
+      for (let at = 0; at < newNodes.length; at += SPLICE_PIECE) parent.children.splice(index + at, 0, ...newNodes.slice(at, at + SPLICE_PIECE));
       return index + newNodes.length;
     });
   };

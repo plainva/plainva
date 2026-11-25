@@ -24,8 +24,9 @@ test.beforeEach(async ({ page }) => {
     const shortLines = Array.from({ length: 1_250 }, () => ']'.repeat(80)).join('\n');
     const emphasis = '*a'.repeat(150_000);
     const table = ['| a | b |', '|---|---|', ...Array.from({ length: 6_000 }, (_, i) => `| row ${i} | [[n${i}]] |`)].join('\n');
-    // Over the desktop's note budget (four times the phone's; B1 of release 0.9.0 was 20 000 such items: 4 s and 409 MB at main).
-    const list = Array.from({ length: 60_000 }, (_, i) => `- [ ] item ${i} [[Note ${i}]]`).join('\n');
+    // Over the desktop's note budget (four times the phone's) and within the four budgets read in pieces (about three;
+    // B1 of release 0.9.0 was 20 000 such items: 4 s and 409 MB at main).
+    const list = Array.from({ length: 50_000 }, (_, i) => `- [ ] item ${i} [[Note ${i}]]`).join('\n');
     const around = (stretch: string) => `# Title\n\nBefore [[Kept]] and *em*.\n\n${stretch}\n\n## After\n\nThe end.\n`;
     (window as any).mockFs = {
       '/test-vault': { isDir: true },
@@ -254,7 +255,7 @@ test('a note over its budget: the notice over the note, its heaviest block as so
   await expect(reader.locator('em', { hasText: 'em' })).toHaveCount(1);
   // The same decision as the editor's: the list is text there too, and the notice stays.
   await expect(reader.locator('li')).toHaveCount(0);
-  await expect(reader.getByText('[[Note 59999]]', { exact: false })).toHaveCount(1);
+  await expect(reader.getByText('[[Note 49999]]', { exact: false })).toHaveCount(1);
   await expect(notice).toBeVisible();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('read-as-text-reader.png') });
 

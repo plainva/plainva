@@ -24,8 +24,9 @@ const NOTES: Record<string, string> = {
   "ShortLines.md": around(Array.from({ length: 1_250 }, () => "]".repeat(80)).join("\n")),
   "Emphasis.md": around("*a".repeat(150_000)),
   "BigTable.md": around(["| a | b |", "|---|---|", ...Array.from({ length: 6_000 }, (_, i) => `| row ${i} | [[n${i}]] |`)].join("\n")),
-  // Over the note's budget (L14, B1 of release 0.9.0: 4 s and 409 MB at main).
-  "BigList.md": around(Array.from({ length: 20_000 }, (_, i) => `- [ ] item ${i} [[Note ${i}]]`).join("\n")),
+  // Over the note's budget and within the four budgets read in pieces, so that every link of it is read (about three
+  // budgets; B1 of release 0.9.0 was 20 000 such items: 4 s and 409 MB at main).
+  "BigList.md": around(Array.from({ length: 12_000 }, (_, i) => `- [ ] item ${i} [[Note ${i}]]`).join("\n")),
   "Remote.md": [
     "# Remote",
     "",

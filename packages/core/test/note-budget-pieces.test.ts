@@ -289,3 +289,15 @@ describe("what the note's budget leaves unread", () => {
     expect(renameNoteLinks(note, new Map([["Gone", "New"]])).unplaced).toBe(0);
   });
 });
+
+describe("a stretch read as text with many callout markers", () => {
+  it("is read for the index without overrunning the stack: the markers' nodes are put in place in pieces", () => {
+    expect.hasAssertions();
+    // A callout's marker (`[!note]`) becomes a node of its own for the serializer: in a block read as text, whose
+    // characters the tree holds as one text, 150 000 of them were spread into one call and overran the stack.
+    const note = `# T\n\n${Array.from({ length: 150_000 }, (_, i) => `> [!note] Title ${i}`).join("\n")}\n`;
+    expect(readAsTextParts(note).ranges.some((range) => range.block)).toBe(true);
+    const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });
+    expect(ast.children.length).toBeGreaterThan(0);
+  }, 120 * SECONDS);
+});

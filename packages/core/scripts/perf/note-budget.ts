@@ -81,7 +81,13 @@ let heapMb = HEAP_MB;
 let shellParses: readonly string[] = ["index", "tree", "reader"];
 let budgetFactor = Number(process.env.PLAINVA_NOTE_BUDGET_FACTOR ?? 1);
 if (budgetFactor !== 1) setNoteBudget(NOTE_BUDGET * budgetFactor);
-const HUNT_PARSE_MS = 20_000;
+/**
+ * How long a parse of the hunt may take: linear in the note, for a parse that grows faster than the note is what it
+ * looks for. micromark reads 2 to 4 µs a character on the runner (a note of 6 MB in about 25 s, which on `main`
+ * runs out of 128 MB instead), and what a shell's budget reads formatted grows with the budget.
+ */
+const HUNT_PARSE_MS = 5_000;
+const HUNT_PARSE_MS_PER_MB = 6_000;
 /** The largest note `--check` reads: beyond it a note's text alone, read as one line of stand-ins, outgrows the heap (Performance_Notes.md). */
 const FAR_CHARS = 10_000_000;
 /**
@@ -400,8 +406,9 @@ function check(args: string[]): boolean {
       const kept = heapMb;
       heapMb = least;
       // Close to its heap's end V8 varies, and at the threshold the app's reader runs main's way (nothing is read as
-      // text): one pass of three runs under main's least heap counts.
-      const own = least > 0 && [0, 1, 2].some(() => passes(form, n, true, 1, [parse]).ok);
+      // text): both are read three times under main's least heap, and the app's may pass once less than main's.
+      const count = (bounded: boolean) => [0, 1, 2].filter(() => passes(form, n, bounded, 1, [parse]).ok).length;
+      const own = least > 0 && count(true) >= count(false) - 1;
       heapMb = kept;
       if (!own) more.push(`${parse} needs more than ${least} MB`);
     }
@@ -605,7 +612,8 @@ function hunt(args: string[]): boolean {
     tried++;
     // The time of a parse grows with what a shell's budget reads formatted: at four times the phone's, the desktop reads
     // notes of 10 MB formatted that took the phone's readers no more than the phone's budget — on main as long.
-    const why = !run.ok ? run.why : run.slowest > HUNT_PARSE_MS * budgetFactor ? `a parse took ${run.slowest} ms` : scanIsLinear(name);
+    const most = (HUNT_PARSE_MS + (HUNT_PARSE_MS_PER_MB * noteOf(name, 0).length) / 1e6) * budgetFactor;
+    const why = !run.ok ? run.why : run.slowest > most ? `a parse took ${run.slowest} ms, more than ${Math.round(most)}` : scanIsLinear(name);
     if (why) {
       failed.push(name);
       console.log(`FAIL     ${name} (${noteOf(name, 0).length} chars): ${why}`);
