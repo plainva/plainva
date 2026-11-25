@@ -1,35 +1,22 @@
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../../hooks/useLeaveGuard";
-import { accountInputProps, Banner, Button, connectAccessPlan, connectSecretLabelKey, foldMachineText, getPlatformServices, presetById, presetForEmail, TextInput } from "@plainva/ui";
-import type { MailAccountConfig } from "@plainva/ui/mail";
+import { accountInputProps, Banner, Button, connectSecretLabelKey, getPlatformServices, TextInput } from "@plainva/ui";
+import { useImapMailboxForm, type MailAccountConfig, type ImapFormValues } from "@plainva/ui/mail";
+
+export type { ImapFormValues };
 
 /**
- * Connecting or editing an IMAP mailbox on the phone (mail feinplan G4 / B4).
+ * Connecting or editing an IMAP mailbox on the phone (mail feinplan G4 / B4),
+ * in its sheet. What the form holds, fills in and submits is the shared
+ * `useImapMailboxForm` — the desktop's dialog on the mailbox row is the same
+ * form (review 2026-11-25).
  *
  * Until now mobile could only add a mailbox the provider catalog knew, and told
  * everyone else to "connect it on the desktop" — while the desktop simply lets
  * you type host, port and SMTP. That sentence is gone: the address still picks
  * a preset (the usual case stays address + app password), and **Advanced**
  * opens the same fields the desktop has, pre-filled from the preset.
- *
- * Editing an existing mailbox uses the same form. An untouched password field
- * means "keep the stored one" — a server move must not force the user to dig
- * out an app password again.
  */
-
-export interface ImapFormValues {
-  label: string;
-  host: string;
-  port: number;
-  smtpHost: string;
-  smtpPort: number;
-  user: string;
-  /** Empty while editing = keep the stored password. */
-  pass: string;
-}
-
-const DEFAULTS = { host: "", port: 993, smtpHost: "", smtpPort: 587 };
 
 export function MailImapForm({
   editing,
@@ -65,17 +52,8 @@ export function MailImapForm({
   onUseMicrosoft?: () => void;
 }) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState(editing?.user ?? prefill?.user ?? "");
-  const [pass, setPass] = useState(editing ? "" : (prefill?.pass ?? ""));
-  const [advanced, setAdvanced] = useState(false);
-  const [server, setServer] = useState({
-    host: editing?.host ?? DEFAULTS.host,
-    port: editing?.port ?? DEFAULTS.port,
-    smtpHost: editing?.smtpHost ?? DEFAULTS.smtpHost,
-    smtpPort: editing?.smtpPort ?? DEFAULTS.smtpPort,
-  });
-  /** Set once the user edits a server field: the preset stops overwriting it. */
-  const [serverTouched, setServerTouched] = useState(!!editing);
+  const form = useImapMailboxForm({ editing, presetId, prefill });
+  const { email, setEmail, pass, setPass, advanced, setAdvanced, effective, preset, plan, complete, serverTouched } = form;
 
   // The app password typed here exists only in this state until submit. The bar
   // sits above the form and a tap on it clears the overlay, so without this the
@@ -83,34 +61,7 @@ export function MailImapForm({
   // draft and the vault credentials, on a screen the sweep never reached (S45).
   // The guard lives in the form, not the host screen, because the form owns the
   // secret; the host only receives it once submit has run.
-  useLeaveGuard(
-    "mail-imap",
-    !!(pass || email !== (editing?.user ?? "") || serverTouched !== !!editing),
-    t("mobile.leaveCredentials"),
-  );
-  // The address wins; the tile fills the gap when it matches nothing.
-  // Read as a machine reads it: a keyboard set to Japanese types full-width forms
-  // no preset and no server answers to (§ 3.43; the connect step does the same).
-  const address = foldMachineText(email);
-  const preset = presetForEmail(address) ?? (presetId ? presetById(presetId) : null);
-
-  // The address picks the preset — but never over values the user typed, and
-  // never over the account being edited.
-  useEffect(() => {
-    if (serverTouched || !preset) return;
-    setServer({ host: preset.host, port: preset.port, smtpHost: preset.smtpHost, smtpPort: preset.smtpPort });
-  }, [preset, serverTouched]);
-
-  const effective = preset && !serverTouched
-    ? { host: preset.host, port: preset.port, smtpHost: preset.smtpHost, smtpPort: preset.smtpPort }
-    : server;
-  // What the provider demands and where to get it - the same description as
-  // the sign-in step of both shells (settings plan 2026-10-29): the secret by
-  // its name, the step to create it with the provider's page, Bridge, "enable
-  // IMAP first", and the Outlook dead end with the way to Microsoft.
-  const plan = connectAccessPlan({ family: "imap", services: ["mail"], providerName: preset?.label ?? "IMAP", preset });
-  const complete =
-    email.trim() !== "" && effective.host.trim() !== "" && (editing ? true : pass !== "") && !plan.useTileInstead;
+  useLeaveGuard("mail-imap", form.dirty, t("mobile.leaveCredentials"));
 
   const field = (key: "host" | "smtpHost", label: string) => (
     <label className="m-field">
@@ -118,10 +69,7 @@ export function MailImapForm({
       <TextInput
         {...accountInputProps("address")}
         value={effective[key]}
-        onChange={(e) => {
-          setServerTouched(true);
-          setServer((s) => ({ ...s, [key]: e.target.value }));
-        }}
+        onChange={(e) => form.setServer(key, e.target.value)}
       />
     </label>
   );
@@ -132,11 +80,7 @@ export function MailImapForm({
       <TextInput
         {...accountInputProps("port")}
         value={String(effective[key])}
-        onChange={(e) => {
-          setServerTouched(true);
-          const n = Number(e.target.value.replace(/\D/g, ""));
-          setServer((s) => ({ ...s, [key]: Number.isFinite(n) ? n : 0 }));
-        }}
+        onChange={(e) => form.setServer(key, e.target.value)}
       />
     </label>
   );
@@ -224,17 +168,7 @@ export function MailImapForm({
       <Button
         variant="primary"
         disabled={busy || !available || !complete}
-        onClick={() =>
-          onSubmit({
-            label: address,
-            host: foldMachineText(effective.host),
-            port: effective.port,
-            smtpHost: foldMachineText(effective.smtpHost),
-            smtpPort: effective.smtpPort,
-            user: address,
-            pass,
-          })
-        }
+        onClick={() => onSubmit(form.values())}
       >
         {editing ? t("common.save") : t("mail.connect")}
       </Button>

@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-11-18
+Laatst bijgewerkt: 2026-11-25
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -19,6 +19,8 @@ Bij het verbinden wordt de aanmelding gevalideerd voordat er iets wordt opgeslag
 **Aanmelden op een tweede apparaat.** Komt een postbus mee via de instellingensynchronisatie, dan reist het wachtwoord niet automatisch mee — aanmeldingen worden alleen overgedragen als je de synchronisatie van inloggegevens zelf inschakelt. Zo'n postbus toont in het gebied **E-mail** de knop **Aanmelden**: voer het wachtwoord in, Plainva controleert het bij de provider en bewaart het pas daarna in de sleutelhanger. Bij een Microsoft-postbus leidt dezelfde knop naar **Cloudaccounts**, want daar verloopt de aanmelding in de browser. Blijft de berichtenlijst daardoor leeg, dan staat dezelfde melding met dezelfde knop ook daar — je hoeft daarvoor niet zelf naar de instellingen te zoeken.
 
 **E-mailaccounts zonder wachtwoord.** Een instelling die bij het opslaan mislukte, kon een vermelding zonder wachtwoord achterlaten (Plainva 0.8.3 op de desktop). Het gedeelte **E-mail** wijst één keer op accounts die op dit apparaat geen wachtwoord hebben en hier nog nooit mail hebben opgehaald. **Bekijken** toont de lijst. Gebruik je zo’n account op een ander apparaat, kies dan **Aanmelden** — dat is dan de juiste weg. **Verwijderen** wist de vermelding na een vraag op alle apparaten die de instellingen van deze vault synchroniseren, nooit mail of bestanden. **Later** verbergt de melding. Plainva verwijdert nooit zelf iets.
+
+**De servers van een mailbox wijzigen.** In het gedeelte **E-mail** opent **Bewerken** (het potlood) naast een via IMAP verbonden mailbox zijn formulier, op de desktop net als op de telefoon: het adres, het wachtwoord en **IMAP-server**, **IMAP-poort**, **SMTP-server** en **SMTP-poort**, ingevuld vanuit de mailbox. Blijft het wachtwoordveld leeg, dan blijft het opgeslagen wachtwoord. Een server die je daar wijzigt, telt als door jou ingevoerd; een die je laat zoals hij was, krijgt het wachtwoord alleen als dit apparaat hem heeft bevestigd (bij een server in een lokaal netwerk).
 
 Een mailserver in een lokaal netwerk krijgt het wachtwoord van een apparaat pas als zijn adres daar is bevestigd: [Onversleutelde en lokale adressen](Sync_Setup.md#onversleutelde-en-lokale-adressen).
 

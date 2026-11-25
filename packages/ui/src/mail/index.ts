@@ -15,6 +15,7 @@ export * from "./credentialsError";
 export * from "./mailErrorText";
 export * from "./mailAccounts";
 export * from "./mailboxSignIn";
+export * from "./imapMailboxForm";
 export * from "./orphanedMailAccounts";
 export * from "./useOrphanedMailAccounts";
 export * from "./gmailAccount";

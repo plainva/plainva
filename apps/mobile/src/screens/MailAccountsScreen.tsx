@@ -5,7 +5,7 @@ import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, MoreHorizontal, Pencil, Plus } from "lucide-react";
-import { AreaBoundary, accountInputProps, confirmTypedEndpointsIn, EndpointConfirmBlock, mailboxEndpoints, mailboxEndpointsNotInForm, useEndpointConfirmation, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
+import { AreaBoundary, accountInputProps, EndpointConfirmBlock, mailboxEndpoints, useEndpointConfirmation, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, pickDefaultMailAccount, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -33,7 +33,7 @@ import { useConnectionRun } from "../hooks/useConnectionRun";
 import { recordConnectOutcome, skipConnectStep } from "../services/connectQueue";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import { bindMailToConnection } from "../services/cloudAccountConnections";
-import { listMailAccounts, removeMailAccount } from "@plainva/ui/mail";
+import { confirmImapFormEndpoints, imapMailboxFromForm, listMailAccounts, removeMailAccount } from "@plainva/ui/mail";
 
 /**
  * Mobile mail accounts (mail feinplan G1). Stage one connects Microsoft only:
@@ -373,27 +373,13 @@ export function MailAccountsScreen({
       if (context?.cloudAccountId && !record) throw new ServiceConnectionError("accountChanged");
       if (record?.label.includes("@") && record.label.trim().toLowerCase() !== v.user.trim().toLowerCase()) throw new ServiceConnectionError("wrongAccount");
       const existing = editing ?? accounts.find(a => a.id === record?.services.mail?.mailAccountId) ?? accounts.find(a => mailAccountKind(a) === "imap" && a.host === v.host && a.port === v.port && a.user.toLowerCase() === v.user.toLowerCase());
-      const account: MailAccountConfig = {
-        ...existing,
-        id: existing?.id ?? crypto.randomUUID(),
-        label: v.label,
-        host: v.host,
-        port: v.port,
-        user: v.user,
-        smtpHost: v.smtpHost || undefined,
-        smtpPort: v.smtpHost ? v.smtpPort : undefined,
-        kind: "imap",
-      };
+      const account = imapMailboxFromForm(existing, v, () => crypto.randomUUID());
       // Verify before storing: a rejected password must not leave a broken
       // account behind (the same guarantee the Microsoft path gives) — and an
       // edit must not break a mailbox that worked a moment ago.
       const oldPassword = existing ? await getMailPassword(vault, existing.id) : null;
-      // Only a server whose endpoint was typed in this form — a new mailbox, or
-      // one changed while editing — is confirmed by sending; one the form came
-      // with must be confirmed first, also for an edit that keeps the stored
-      // password (review of F57, O3). A server the form does not show (Sieve,
-      // carried over from the mailbox it found) is never typed (review of F57, O-4).
-      await confirmTypedEndpointsIn(vault, mailboxEndpoints(account), [...(editing ? mailboxEndpoints(editing) : []), ...mailboxEndpointsNotInForm(account)]);
+      // The address rule of the form, as on the desktop's (`confirmImapFormEndpoints`, F57).
+      await confirmImapFormEndpoints(vault, account, editing ?? undefined);
       await checkMailLogin({ host: account.host, port: account.port, user: account.user, kind: "imap" }, password);
       if (mailVaultId() !== vault) throw new ServiceConnectionError("accountChanged");
       // The form edits a mailbox from its page, or connects one (fifth review, 1).

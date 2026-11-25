@@ -82,6 +82,7 @@ const ALLOWED: ReadonlyArray<readonly [file: string, calls: number, reason: stri
   ["apps/mobile/src/services/pim/pimService.ts", 5, `\`buildTargetFor\`: ${STORED_GATED} (through \`pimTargetCredentials\`); add and repair (forms that start empty): ${TYPED_CONFIRMS}; \`probeCalDav\`: ${PROBE_ONLY}`, `\`buildTargetFor\`: ${FROM_SLOT}; add, repair and \`probeCalDav\`: ${FROM_FORM}`],
   ["apps/mobile/src/services/syncService.ts", 2, `\`buildTarget\`: ${STORED_GATED} for a stored slot; \`decideStart\` reads unconfirmed as signed out`, `\`buildTarget\`: ${FROM_SLOT}, or the form for a new vault`],
   ["packages/ui/src/mail/mailClient.ts", 1, DEFINITION, FROM_CALLER],
+  ["packages/ui/src/mail/imapMailboxForm.ts", 1, `${TYPED_ENDPOINTS}; the edit form of both shells (\`saveEditedImapMailbox\`)`, FROM_FORM],
   ["packages/ui/src/mail/mailboxSignIn.ts", 1, `a password typed for a mailbox whose servers came with it: ${STORED_GATED} (review of F57, O3)`, FROM_CALLER],
 ];
 
@@ -102,7 +103,8 @@ describe("every password connection asks whether this device confirmed the addre
   it("mail takes a stored password only through mailCredentials, which asks first", () => {
     expect(sourceFile("packages/ui/src/mail/mailCredentials.ts")).toMatch(/isEndpointConfirmedIn\(vaultPath, endpoint\)/);
     for (const { rel, text } of sourceTexts(["packages/ui/src/mail"], "shipped")) {
-      if (rel.endsWith("mailCredentials.ts") || rel.endsWith("mailAccounts.ts")) continue;
+      // The edit form takes the stored password only after its address rule (`confirmImapFormEndpoints`).
+      if (rel.endsWith("mailCredentials.ts") || rel.endsWith("mailAccounts.ts") || rel.endsWith("imapMailboxForm.ts")) continue;
       expect(`${rel}: ${/\bgetMailPassword\(/.test(text)}`).toBe(`${rel}: false`);
     }
   });

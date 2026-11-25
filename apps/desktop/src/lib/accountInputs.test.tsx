@@ -89,14 +89,22 @@ describe("the account forms of both shells", () => {
     }
   });
 
-  it("the phone's IMAP form: hosts, ports, address and password, and the address and hosts are read as a machine reads them", () => {
+  it("the IMAP form of both shells: hosts, ports, address and password, and the address and hosts are read as a machine reads them", () => {
     const form = read("apps/mobile/src/screens/mail/MailImapForm.tsx");
-    expect(inputOf(form, "setServer((s) => ({ ...s, [key]: e.target.value }))")).toContain('accountInputProps("address")');
-    expect(inputOf(form, "setServer((s) => ({ ...s, [key]: Number.isFinite(n)")).toContain('accountInputProps("port")');
+    expect(inputOf(form, "value={effective[key]}")).toContain('accountInputProps("address")');
+    expect(inputOf(form, "value={String(effective[key])}")).toContain('accountInputProps("port")');
     expect(inputOf(form, "setEmail(e.target.value)")).toContain('accountInputProps("email")');
     expect(inputOf(form, "setPass(e.target.value)")).toContain('accountInputProps("secret")');
+    // The desktop's dialog on the mailbox row (review 2026-11-25), the same keyboards.
+    const dialog = read("apps/desktop/src/components/mail/MailServersDialog.tsx");
+    expect(inputOf(dialog, "value={form.effective[key]}")).toContain('accountInputProps("address")');
+    expect(inputOf(dialog, "value={String(form.effective[key])}")).toContain('accountInputProps("port")');
+    expect(inputOf(dialog, "form.setEmail(e.target.value)")).toContain('accountInputProps("email")');
+    expect(inputOf(dialog, "form.setPass(e.target.value)")).toContain('accountInputProps("secret")');
+    // What both submit: the shared form.
+    const shared = read("packages/ui/src/mail/imapMailboxForm.ts");
     for (const value of ["host: foldMachineText(effective.host)", "smtpHost: foldMachineText(effective.smtpHost)", "user: address", "const address = foldMachineText(email)"]) {
-      expect(form).toContain(value);
+      expect(shared).toContain(value);
     }
   });
 

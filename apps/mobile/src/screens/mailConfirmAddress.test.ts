@@ -13,8 +13,13 @@ describe("the phone's mail form", () => {
   const screen = readFileSync(join(__dirname, "MailAccountsScreen.tsx"), "utf8");
 
   it("confirms only a server whose endpoint was typed in it", () => {
-    expect(screen).toMatch(/await confirmTypedEndpointsIn\(vault, mailboxEndpoints\(account\), \[\.\.\.\(editing \? mailboxEndpoints\(editing\) : \[\]\), \.\.\.mailboxEndpointsNotInForm\(account\)\]\);\s*await checkMailLogin/);
+    // The rule of the form both shells share (review 2026-11-25).
+    expect(screen).toMatch(/await confirmImapFormEndpoints\(vault, account, editing \?\? undefined\);\s*await checkMailLogin/);
     expect(screen).not.toMatch(/confirmEndpointsIn\(/);
+    const shared = readFileSync(join(__dirname, "../../../../packages/ui/src/mail/imapMailboxForm.ts"), "utf8");
+    expect(shared).toMatch(/await confirmTypedEndpointsIn\(vaultKey, mailboxEndpoints\(account\), \[\.\.\.\(editing \? mailboxEndpoints\(editing\) : \[\]\), \.\.\.mailboxEndpointsNotInForm\(account\)\]\);/);
+    // The desktop's dialog saves through the same rule, before the login check.
+    expect(shared).toMatch(/await confirmImapFormEndpoints\(vaultKey, account, editing\);\s*await checkMailLogin/);
   });
 
   it("asks for each unconfirmed server under its row and above the edit form", () => {

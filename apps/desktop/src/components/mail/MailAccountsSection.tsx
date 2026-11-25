@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MoreHorizontal, Users } from "lucide-react";
+import { MoreHorizontal, Pencil, Users } from "lucide-react";
 import { Banner, Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, mailboxesSwitchedOn, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, mailboxEndpoints, EndpointConfirmBlock, useEndpointConfirmation, type CloudServiceId, InfoTip } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
@@ -13,6 +13,7 @@ import { listMailAccounts, mailAccountKind, pickDefaultMailAccount, orphanedMail
 import { deviceSignInStates, type DeviceSignInState } from "../../services/deviceSignIn";
 import { AccountMark } from "../settings/cloudAccountsShared";
 import { Select } from "../Select";
+import { MailServersDialog } from "./MailServersDialog";
 
 /**
  * One mailbox row. It stays quiet while the mailbox works: a row only grows an
@@ -52,6 +53,7 @@ function MailAccountRow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const [editing, setEditing] = useState(false);
   const oauth = mailAccountKind(account) !== "imap";
   // Its servers this device has not confirmed are asked about first, before
   // any sign-in: one way, never two offers (review of F57, O3). Confirming can
@@ -125,6 +127,13 @@ function MailAccountRow({
             {t("cloudAccounts.manageAccount")}
           </Button>
         )}
+        {/* The servers of an IMAP mailbox change in place, in the form the phone
+            edits them with (review 2026-11-25). */}
+        {!oauth && (
+          <IconButton label={t("common.edit")} size="sm" onClick={() => setEditing(true)} data-testid={`mail-account-edit-${account.id}`}>
+            <Pencil size={ICON.ui} />
+          </IconButton>
+        )}
         {/* "Set as default" lives in the row menu, the mark beside the name
             (the pattern of the default AI profile, plan KI-Oberflaechen E3). */}
         {onSetDefault && (
@@ -133,6 +142,17 @@ function MailAccountRow({
           </IconButton>
         )}
       </div>
+      {editing && (
+        <MailServersDialog
+          vaultPath={vaultPath}
+          account={account}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            onSignedIn();
+          }}
+        />
+      )}
       {menuAt && onSetDefault && (
         <MenuSurface open onClose={() => setMenuAt(null)} at={menuAt} ariaLabel={t("common.moreActions")}>
           <MenuItem onSelect={() => { setMenuAt(null); onSetDefault(); }} data-testid="mail-account-set-default">
