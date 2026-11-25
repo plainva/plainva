@@ -20,21 +20,56 @@ fn locked<T>(run: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
     }
 }
 
-/// Runs `run` under the lock on a thread of its own, never on the thread that
-/// serves the windows. A synchronous command runs on the app's main thread,
-/// and while the system's unlock or access dialog of the keychain was open
-/// (a locked keyring on Linux, the first access on macOS) every window of the
-/// app stood still. A keychain call that waits now only makes its own caller
-/// wait; the lock still makes every keychain step of every window take turns.
-async fn off_main<T: Send + 'static>(run: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
-    off_ui(move || locked(run)).await
+/// Runs `run` under the lock on the keychain's own thread, never on the thread
+/// that serves the windows. A synchronous command runs on the app's main
+/// thread, and while the system's unlock or access dialog of the keychain was
+/// open (a locked keyring on Linux, the first access on macOS) every window of
+/// the app stood still. A keychain call that waits now only makes its own
+/// caller wait.
+///
+/// One thread, one queue: the steps run in the order they are handed over,
+/// which is the order the commands arrive in — two writes to one slot sent
+/// right after each other land in that order (a thread per call, all waiting
+/// for the lock, would let them overtake each other). The step is queued when
+/// this is called, not when the future is first polled.
+fn off_main<T: Send + 'static>(run: impl FnOnce() -> Result<T, String> + Send + 'static) -> impl std::future::Future<Output = Result<T, String>> {
+    let (answer, answered) = tokio::sync::oneshot::channel();
+    let queued = lane().send(Box::new(move || {
+        let _ = answer.send(locked(run));
+    }));
+    async move {
+        queued.map_err(|_| "the keychain's thread is gone".to_string())?;
+        answered.await.map_err(|_| "a keychain step ended without an answer".to_string())?
+    }
 }
 
-/// Runs `run` on a thread of its own, off the async runtime's workers.
-async fn off_ui<T: Send + 'static>(run: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
-    tauri::async_runtime::spawn_blocking(run)
-        .await
-        .map_err(|e| format!("secure store task failed: {e}"))?
+type Step = Box<dyn FnOnce() + Send>;
+
+/// The keychain's thread and its queue, made on first use.
+fn lane() -> &'static std::sync::mpsc::Sender<Step> {
+    static LANE: std::sync::OnceLock<std::sync::mpsc::Sender<Step>> = std::sync::OnceLock::new();
+    LANE.get_or_init(|| {
+        let (queue, steps) = std::sync::mpsc::channel::<Step>();
+        std::thread::Builder::new()
+            .name("plainva-keychain".into())
+            .spawn(move || {
+                for step in steps {
+                    // A step that panics answers nothing (its caller hears so); the next one still runs.
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(step));
+                }
+            })
+            .expect("the keychain's thread could not be started");
+        queue
+    })
+}
+
+/// How often the keychain has answered a request (a value, "no such entry",
+/// a write taken): what lets a move of the key that failed be tried again in
+/// the same run (`MoveGate`).
+static KEYCHAIN_ANSWERS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn answered() {
+    KEYCHAIN_ANSWERS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 }
 
 /// The keychain entry for `key` in THIS installation's namespace: the release
@@ -78,21 +113,25 @@ pub(crate) fn write_slot(app: &tauri::AppHandle, key: &str, value: Option<&str>)
 }
 
 fn read(entry: &keyring::Entry) -> Result<Option<String>, String> {
-    match entry.get_password() {
-        Ok(value) => Ok(Some(value)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.to_string()),
-    }
+    let value = match entry.get_password() {
+        Ok(value) => Some(value),
+        Err(keyring::Error::NoEntry) => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    answered();
+    Ok(value)
 }
 
 fn write(entry: &keyring::Entry, value: Option<&str>) -> Result<(), String> {
     match value {
-        Some(value) => entry.set_password(value).map_err(|e| e.to_string()),
+        Some(value) => entry.set_password(value).map_err(|e| e.to_string())?,
         None => match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(e.to_string()),
+            Ok(()) | Err(keyring::Error::NoEntry) => {}
+            Err(e) => return Err(e.to_string()),
         },
     }
+    answered();
+    Ok(())
 }
 
 fn conditional_update(
@@ -165,7 +204,8 @@ fn valid_mark_key(stored: Option<serde_json::Value>) -> Result<Option<String>, S
 
 /// The key of this device, made from `fresh` where there is none. Call only
 /// under `locked`. With `try_move`, a key that lives in the file moves to the
-/// keychain if it answers now (`move_to_keychain`).
+/// keychain if it answers now (`move_to_keychain`); a copy a finished move
+/// left in the file goes in any case.
 ///
 /// Once a place is noted only that place counts: a keychain that does not
 /// answer is an error (the round stops and runs again), and a key missing
@@ -193,7 +233,7 @@ pub(crate) fn mark_key(places: &impl MarkKeyPlaces, fresh: &str, marks_on_device
         return match valid_mark_key(places.read(place)?)? {
             Some(key) if place == MarkKeyPlace::File && try_move => Ok(move_to_keychain(places, key)),
             Some(key) => {
-                if place == MarkKeyPlace::Keychain && try_move {
+                if place == MarkKeyPlace::Keychain {
                     // A move that ended before the file's copy was removed: what the note says is the key.
                     if let Ok(Some(_)) = places.read(MarkKeyPlace::File) {
                         let _ = places.forget_file();
@@ -235,9 +275,9 @@ pub(crate) fn mark_key(places: &impl MarkKeyPlaces, fresh: &str, marks_on_device
 /// it back as the same key, note the keychain — the note is the step that
 /// moves it — and only then remove the copy in the file. Whatever fails
 /// before the note leaves the file as the place, with its key, and the move
-/// is tried again on a later start; a keychain slot written meanwhile is
+/// is tried again (`MoveGate`); a keychain slot written meanwhile is
 /// overwritten then, since only the noted place counts. After the note, a
-/// copy left in the file is never read and is removed on a later start.
+/// copy left in the file is never read and is removed at the next ask.
 fn move_to_keychain(places: &impl MarkKeyPlaces, key: String) -> String {
     let moved = places
         .write(MarkKeyPlace::Keychain, &key)
@@ -250,10 +290,59 @@ fn move_to_keychain(places: &impl MarkKeyPlaces, key: String) -> String {
     key
 }
 
-/// Whether this run of the app has tried the move yet: once per start, so
-/// that a keychain that asks and is turned down is not asked again and again
-/// while the app runs.
-static MOVE_TRIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// When the move of the key to the keychain is tried (`move_to_keychain`).
+///
+/// At the first ask of a run where the file is the noted place. One that
+/// failed is tried again in the same run once the keychain has answered
+/// another request since — the anlass is a keychain that did not answer at
+/// the start (D-Bus not ready at login, a cancelled prompt), and a password
+/// read or written later shows it answers now. A dialog that was turned down
+/// asks for no new one by itself: without another answer, no new try.
+pub(crate) struct MoveGate {
+    state: Mutex<MoveState>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum MoveState {
+    NotTried,
+    /// Failed when the keychain had answered this many requests.
+    FailedAt(u64),
+    Done,
+}
+
+impl MoveGate {
+    pub(crate) const fn new() -> Self {
+        MoveGate { state: Mutex::new(MoveState::NotTried) }
+    }
+
+    fn may_try(&self, answers: u64) -> bool {
+        match *self.state.lock().unwrap_or_else(|p| p.into_inner()) {
+            MoveState::NotTried => true,
+            MoveState::FailedAt(then) => answers > then,
+            MoveState::Done => false,
+        }
+    }
+
+    fn tried(&self, moved: bool, answers: u64) {
+        *self.state.lock().unwrap_or_else(|p| p.into_inner()) = if moved { MoveState::Done } else { MoveState::FailedAt(answers) };
+    }
+}
+
+static MOVE_GATE: MoveGate = MoveGate::new();
+
+/// `mark_key` with the move as the gate allows it; `answers` counts the
+/// keychain's answers (`KEYCHAIN_ANSWERS`). Call only under `locked`.
+pub(crate) fn mark_key_moving(places: &impl MarkKeyPlaces, fresh: &str, marks_on_device: bool, gate: &MoveGate, answers: &dyn Fn() -> u64) -> Result<String, String> {
+    let in_file = places.noted()? == Some(MarkKeyPlace::File);
+    let try_move = in_file && gate.may_try(answers());
+    let key = mark_key(places, fresh, marks_on_device, try_move)?;
+    if try_move {
+        // Counted after the try: its own answers are no sign the keychain answers again.
+        let moved = places.noted().ok().flatten() == Some(MarkKeyPlace::Keychain);
+        gate.tried(moved, answers());
+    }
+    Ok(key)
+}
 
 struct AppMarkKeyPlaces<'a, R: tauri::Runtime> {
     app: &'a tauri::AppHandle<R>,
@@ -311,9 +400,9 @@ pub async fn secrets_mark_key(app: tauri::AppHandle, fresh: String, marks_on_dev
     off_main(move || {
         let settings = app.store(SETTINGS_STORE).map_err(|e| e.to_string())?;
         let credentials = app.store(CREDENTIALS_STORE).map_err(|e| e.to_string())?;
-        // Taken under the lock: of two windows starting at once, one tries.
-        let try_move = !MOVE_TRIED.swap(true, std::sync::atomic::Ordering::SeqCst);
-        mark_key(&AppMarkKeyPlaces { app: &app, settings, credentials }, &fresh, marks_on_device, try_move)
+        // Under the lock: of two windows starting at once, one tries.
+        let answers = || KEYCHAIN_ANSWERS.load(std::sync::atomic::Ordering::SeqCst);
+        mark_key_moving(&AppMarkKeyPlaces { app: &app, settings, credentials }, &fresh, marks_on_device, &MOVE_GATE, &answers)
     })
     .await
 }
@@ -367,17 +456,56 @@ mod tests {
     use std::cell::RefCell;
     use std::sync::Arc;
 
-    /// Every function of the app's sources: its file, its name, its text,
-    /// whether it is a command, and whether it is async. Test modules are left out.
-    fn functions() -> Vec<(String, String, String, bool, bool)> {
+    /// A function of the app's sources: its module path (`mcp_client::oauth`),
+    /// its name, its text, whether it is a command, and whether it is async.
+    struct Function {
+        module: Vec<String>,
+        name: String,
+        body: String,
+        command: bool,
+        is_async: bool,
+    }
+
+    /// Every function of the app's sources, and the names each file takes in
+    /// with `use` (name -> module path it comes from). Test modules are left out.
+    /// Per module: each name it takes in with `use`, and the module path it comes from.
+    type Imports = std::collections::HashMap<Vec<String>, Vec<(String, Vec<String>)>>;
+
+    fn sources() -> (Vec<Function>, Imports) {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut found = Vec::new();
+        let mut imports = std::collections::HashMap::new();
         for file in walkdir::WalkDir::new(&root).into_iter().filter_map(Result::ok) {
             if file.path().extension().and_then(|e| e.to_str()) != Some("rs") {
                 continue;
             }
+            let rel = file.path().strip_prefix(&root).unwrap().with_extension("");
+            let mut module: Vec<String> = rel.iter().map(|p| p.to_string_lossy().into_owned()).collect();
+            if matches!(module.last().map(String::as_str), Some("mod" | "lib" | "main")) {
+                module.pop();
+            }
             let text = std::fs::read_to_string(file.path()).unwrap();
             let text = text.split("#[cfg(test)]\nmod tests").next().unwrap();
+            // `use a::b::{c, d};` and `use a::b::c;`: the names this file calls without a path.
+            let mut taken = Vec::new();
+            for line in text.lines().map(str::trim).filter(|l| l.starts_with("use ") || l.starts_with("pub use ") || l.starts_with("pub(crate) use ")) {
+                let path = line.split("use ").nth(1).unwrap_or("").trim_end_matches(';');
+                let (base, names) = match path.split_once("::{") {
+                    Some((base, rest)) => (base, rest.trim_end_matches('}').split(',').map(|n| n.trim().to_string()).collect::<Vec<_>>()),
+                    None => match path.rsplit_once("::") {
+                        Some((base, name)) => (base, vec![name.to_string()]),
+                        None => continue,
+                    },
+                };
+                let resolved = resolve(&module, base);
+                for name in names {
+                    let name = name.split(" as ").next().unwrap_or("").trim().to_string();
+                    if !name.is_empty() {
+                        taken.push((name, resolved.clone()));
+                    }
+                }
+            }
+            imports.insert(module.clone(), taken);
             let lines: Vec<&str> = text.lines().collect();
             let mut starts = Vec::new();
             for (i, line) in lines.iter().enumerate() {
@@ -392,75 +520,154 @@ mod tests {
             }
             for (n, (i, name, command, is_async)) in starts.iter().enumerate() {
                 let end = starts.get(n + 1).map(|s| s.0).unwrap_or(lines.len());
-                found.push((file.path().display().to_string(), name.clone(), lines[*i..end].join("\n"), *command, *is_async));
+                found.push(Function { module: module.clone(), name: name.clone(), body: lines[*i..end].join("\n"), command: *command, is_async: *is_async });
             }
         }
-        found
+        (found, imports)
+    }
+
+    /// A path written in `module` (`crate::a::b`, `super::c`, `self::d`, `e::f`) as a module path of the crate.
+    fn resolve(module: &[String], path: &str) -> Vec<String> {
+        let mut parts = path.split("::").filter(|p| !p.is_empty()).peekable();
+        let mut out: Vec<String> = match parts.peek().copied() {
+            Some("crate") => {
+                parts.next();
+                Vec::new()
+            }
+            Some("self") => {
+                parts.next();
+                module.to_vec()
+            }
+            Some("super") => module.to_vec(),
+            // A path of the module's own children, or of the crate's top level.
+            _ => module.to_vec(),
+        };
+        for part in parts {
+            if part == "super" {
+                out.pop();
+            } else {
+                out.push(part.to_string());
+            }
+        }
+        out
     }
 
     /// No command that runs on the main thread reaches the keychain, directly
     /// or through any function of the app (finding F74 of the release list):
-    /// while the system's dialog was open, every window stood still.
+    /// while the system's dialog was open, every window stood still. Calls are
+    /// resolved by module path, `use` and the calling file — never skipped by
+    /// name, so a common name cannot hide a real way there.
     #[test]
     fn no_synchronous_command_reaches_the_keychain() {
-        let functions = functions();
-        // A call of `name`: not a method (`.entry(`), not part of a longer name (`set_locked(`);
-        // whether it was written with a path before it (`oauth::forget(`).
-        let calls = |body: &str, name: &str| -> (bool, bool) {
-            let call = format!("{name}(");
-            let mut plain = false;
-            let mut qualified = false;
-            for (at, _) in body.match_indices(&call) {
-                match body[..at].chars().next_back() {
-                    Some(c) if c.is_alphanumeric() || c == '_' || c == '.' => {}
-                    Some(':') => qualified = true,
-                    _ => plain = true,
+        let (functions, imports) = sources();
+        // Which functions a call of `name`, written with `path` before it (or none), in `module` can mean.
+        let targets = |module: &[String], path: Option<&str>, name: &str| -> Vec<usize> {
+            let in_module = |m: &[String]| functions.iter().enumerate().filter(|(_, f)| f.name == name && f.module == m).map(|(i, _)| i).collect::<Vec<_>>();
+            match path {
+                Some("Self") => in_module(module),
+                Some(path) => {
+                    // `a::b::name(`: the module `a::b` as written here, or at the crate's top level.
+                    let mut found = in_module(&resolve(module, path));
+                    if found.is_empty() {
+                        found = in_module(&resolve(&[], path));
+                    }
+                    // `oauth::forget(` where this file took `oauth` in with `use`.
+                    if found.is_empty() {
+                        let (first, rest) = path.split_once("::").unwrap_or((path, ""));
+                        for (taken, from) in imports.get(module).into_iter().flatten() {
+                            if taken == first {
+                                let mut whole = from.clone();
+                                whole.push(first.to_string());
+                                whole.extend(rest.split("::").filter(|p| !p.is_empty()).map(str::to_string));
+                                found.extend(in_module(&whole));
+                            }
+                        }
+                    }
+                    // A type's function (`Store::open`): a function of that name in the modules this file takes the type from.
+                    if found.is_empty() && path.chars().next().is_some_and(char::is_uppercase) {
+                        let first = path.split("::").next().unwrap_or(path);
+                        for (taken, from) in imports.get(module).into_iter().flatten() {
+                            if taken == first {
+                                found.extend(in_module(from));
+                            }
+                        }
+                        found.extend(in_module(module));
+                    }
+                    found
+                }
+                None => {
+                    let own = in_module(module);
+                    if !own.is_empty() {
+                        return own;
+                    }
+                    imports.get(module).into_iter().flatten().filter(|(taken, _)| taken == name).flat_map(|(_, from)| in_module(from)).collect()
                 }
             }
-            (plain, qualified)
         };
-        // Names too common to follow by text; none of them is a way to the keychain outside this module.
-        let common = ["read", "write", "entry", "new", "get", "set", "save", "delete", "remove", "forget", "run", "step"];
-        let defines = |file: &str, name: &str| functions.iter().any(|(f, n, ..)| f == file && n == name);
-        // Where the keychain is touched: the keyring crate, and this module's ways to it.
-        let mut reaching: std::collections::HashSet<(String, String)> = functions
-            .iter()
-            .filter(|(_, _, body, _, _)| {
-                body.contains("keyring::")
-                    || body.contains("secure_store::")
-                    || ["entry", "entry_of", "locked", "off_main", "off_ui"].iter().any(|way| calls(body, way).0)
-            })
-            .map(|(file, name, ..)| (file.clone(), name.clone()))
-            .collect();
+        // Every call in a body: the name, and the path written before it.
+        let calls = |body: &str| -> Vec<(Option<String>, String)> {
+            let mut out = Vec::new();
+            let bytes: Vec<char> = body.chars().collect();
+            let mut i = 0;
+            while i < bytes.len() {
+                if bytes[i] == '(' && i > 0 {
+                    let mut j = i;
+                    while j > 0 && (bytes[j - 1].is_alphanumeric() || bytes[j - 1] == '_') {
+                        j -= 1;
+                    }
+                    let name: String = bytes[j..i].iter().collect();
+                    let before = if j > 0 { bytes[j - 1] } else { ' ' };
+                    if !name.is_empty() && before == '.' {
+                        // A method: one of that name in the calling module (its impls), the most it can be told by text.
+                        out.push((Some("Self".to_string()), name));
+                    } else if !name.is_empty() && !name.chars().next().unwrap().is_ascii_digit() && before != '!' {
+                        let mut k = j;
+                        while k >= 2 && bytes[k - 1] == ':' && bytes[k - 2] == ':' {
+                            k -= 2;
+                            while k > 0 && (bytes[k - 1].is_alphanumeric() || bytes[k - 1] == '_') {
+                                k -= 1;
+                            }
+                        }
+                        let path: String = bytes[k..j].iter().collect();
+                        let path = path.trim_end_matches("::");
+                        out.push(((!path.is_empty()).then(|| path.to_string()), name));
+                    }
+                }
+                i += 1;
+            }
+            out
+        };
+        let touches = |f: &Function| f.body.contains("keyring::") || f.body.contains("keyring::Entry");
+        let mut reaching: Vec<bool> = functions.iter().map(touches).collect();
+        let edges: Vec<Vec<usize>> = functions.iter().map(|f| calls(&f.body).into_iter().flat_map(|(path, name)| targets(&f.module, path.as_deref(), &name)).collect()).collect();
         let mut grew = true;
         while grew {
             grew = false;
-            let followed: Vec<(String, String)> = reaching.iter().filter(|(_, r)| !common.contains(&r.as_str())).cloned().collect();
-            for (file, name, body, _, _) in &functions {
-                let key = (file.clone(), name.clone());
-                if reaching.contains(&key) {
-                    continue;
-                }
-                // An unqualified call means the function of the same file where it has one.
-                let reaches = followed.iter().any(|(rf, rn)| {
-                    let (plain, qualified) = calls(body, rn);
-                    qualified || (plain && (rf == file || !defines(file, rn)))
-                });
-                if reaches {
-                    reaching.insert(key);
+            for (i, callees) in edges.iter().enumerate() {
+                if !reaching[i] && callees.iter().any(|&c| reaching[c]) {
+                    reaching[i] = true;
                     grew = true;
                 }
             }
         }
-        let synchronous: Vec<&String> = functions
-            .iter()
-            .filter(|(file, name, _, command, is_async)| *command && !*is_async && reaching.contains(&(file.clone(), name.clone())))
-            .map(|(_, name, ..)| name)
-            .collect();
+        let name_of = |i: usize| format!("{}::{}", functions[i].module.join("::"), functions[i].name);
+        let synchronous: Vec<String> = (0..functions.len()).filter(|&i| functions[i].command && !functions[i].is_async && reaching[i]).map(name_of).collect();
+        if std::env::var_os("PLAINVA_KEYCHAIN_GUARD_LIST").is_some() {
+            let commands: Vec<String> = (0..functions.len()).filter(|&i| functions[i].command && reaching[i]).map(name_of).collect();
+            eprintln!("commands that reach the keychain: {commands:?}");
+        }
         assert!(synchronous.is_empty(), "commands that reach the keychain on the main thread: {synchronous:?}");
         // The guard sees what it is meant to see.
-        for known in ["keychain_get", "secrets_mark_key", "ai_key_set", "mcp_client_secret_present", "mcp_client_servers", "mcp_client_remove"] {
-            assert!(reaching.iter().any(|(_, name)| name == known), "{known} is not seen to reach the keychain");
+        for known in [
+            "secure_store::keychain_get",
+            "secure_store::secrets_mark_key",
+            "ai_egress::ai_key_set",
+            "mcp_client::registry::mcp_client_secret_present",
+            "mcp_client::registry::mcp_client_servers",
+            "mcp_client::registry::mcp_client_remove",
+            "mcp_client::oauth::mcp_client_oauth_sign_out",
+        ] {
+            assert!((0..functions.len()).any(|i| reaching[i] && name_of(i) == known), "{known} is not seen to reach the keychain");
         }
     }
 
@@ -551,6 +758,8 @@ mod tests {
         file_reads: usize,
         file_writes: usize,
         keychain_writes: usize,
+        /// Every request that reached the keychain, answered or not.
+        keychain_asks: usize,
     }
 
     #[derive(Clone)]
@@ -579,13 +788,18 @@ mod tests {
             Ok(())
         }
         fn read(&self, place: MarkKeyPlace) -> Result<Option<serde_json::Value>, String> {
-            self.step(|d| match place {
+            self.step(|d| {
+                if place == MarkKeyPlace::Keychain {
+                    d.keychain_asks += 1;
+                }
+                match place {
                 MarkKeyPlace::Keychain if d.keychain_silent => Err("keychain does not answer".to_string()),
                 MarkKeyPlace::Keychain if d.keychain_answers_other => Ok(Some(serde_json::Value::String("a".repeat(64)))),
                 MarkKeyPlace::Keychain => Ok(d.keychain.clone()),
                 MarkKeyPlace::File => {
                     d.file_reads += 1;
                     Ok(d.file.clone())
+                }
                 }
             })
         }
@@ -594,7 +808,11 @@ mod tests {
             Ok(())
         }
         fn write(&self, place: MarkKeyPlace, key: &str) -> Result<(), String> {
-            self.step(|d| match place {
+            self.step(|d| {
+                if place == MarkKeyPlace::Keychain {
+                    d.keychain_asks += 1;
+                }
+                match place {
                 MarkKeyPlace::Keychain if d.keychain_silent || d.keychain_refuses => Err("keychain does not take it".to_string()),
                 MarkKeyPlace::Keychain => {
                     d.keychain_writes += 1;
@@ -605,6 +823,7 @@ mod tests {
                     d.file_writes += 1;
                     d.file = Some(serde_json::Value::String(key.to_string()));
                     Ok(())
+                }
                 }
             })
         }
@@ -840,6 +1059,78 @@ mod tests {
         assert_eq!(obtain_mark_key(&places, &fresh(0), true, false), Ok(fresh(7)));
         let device = places.device.lock().unwrap();
         assert_eq!((device.keychain_writes, device.note), (0, Some(MarkKeyPlace::File)));
+    }
+
+
+    #[test]
+    fn a_move_that_failed_is_tried_again_once_the_keychain_answered_another_request() {
+        // The start: D-Bus is not ready yet, the keychain does not answer.
+        let places = Places::new(Device { keychain_silent: true, ..in_the_file() }, 0);
+        let gate = MoveGate::new();
+        let answers = std::sync::atomic::AtomicU64::new(0);
+        let count = || answers.load(std::sync::atomic::Ordering::SeqCst);
+        let ask = || locked(|| mark_key_moving(&places, &fresh(0), true, &gate, &count));
+        assert_eq!(ask(), Ok(fresh(7)));
+        let tried = places.device.lock().unwrap().keychain_asks;
+        assert!(tried > 0);
+        // Asked again in the same run with nothing answered meanwhile: no new try, no new request.
+        assert_eq!(ask(), Ok(fresh(7)));
+        assert_eq!(places.device.lock().unwrap().keychain_asks, tried);
+        // A password is read: the keychain answers now.
+        places.device.lock().unwrap().keychain_silent = false;
+        answers.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(ask(), Ok(fresh(7)));
+        let device = places.device.lock().unwrap();
+        assert_eq!((device.note, device.file.clone()), (Some(MarkKeyPlace::Keychain), None));
+        assert_eq!(device.keychain, Some(serde_json::Value::String(fresh(7))));
+    }
+
+    #[test]
+    fn a_dialog_turned_down_asks_for_no_new_one_by_itself() {
+        let places = Places::new(Device { keychain_refuses: true, ..in_the_file() }, 0);
+        let gate = MoveGate::new();
+        let answers = std::sync::atomic::AtomicU64::new(0);
+        let count = || answers.load(std::sync::atomic::Ordering::SeqCst);
+        for _ in 0..5 {
+            assert_eq!(locked(|| mark_key_moving(&places, &fresh(0), true, &gate, &count)), Ok(fresh(7)));
+        }
+        let device = places.device.lock().unwrap();
+        // One try: the write the person turned down; the file stays the place.
+        assert_eq!(device.keychain_asks, 1);
+        assert_eq!((device.note, device.file.clone()), (Some(MarkKeyPlace::File), Some(serde_json::Value::String(fresh(7)))));
+    }
+
+    #[test]
+    fn keychain_steps_run_in_the_order_they_arrive() {
+        // The first step holds the keychain (its dialog open); forty more arrive meanwhile, one right after the other.
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let (release, released) = std::sync::mpsc::channel::<()>();
+        let first = {
+            let order = Arc::clone(&order);
+            tauri::async_runtime::spawn(off_main(move || {
+                let _ = released.recv();
+                order.lock().unwrap().push(0);
+                Ok(())
+            }))
+        };
+        let steps: Vec<_> = (1..=40)
+            .map(|n| {
+                let order = Arc::clone(&order);
+                tauri::async_runtime::spawn(off_main(move || {
+                    order.lock().unwrap().push(n);
+                    Ok(())
+                }))
+            })
+            .collect();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        release.send(()).unwrap();
+        tauri::async_runtime::block_on(async {
+            first.await.unwrap().unwrap();
+            for step in steps {
+                step.await.unwrap().unwrap();
+            }
+        });
+        assert_eq!(*order.lock().unwrap(), (0..=40).collect::<Vec<_>>());
     }
 
     #[test]
