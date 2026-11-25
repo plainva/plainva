@@ -356,7 +356,8 @@ describe("a full scan that reads ahead", () => {
     const callsAtAbort = vault.calls.length;
     const begunAtAbort = vault.begun.length;
     // The calls in flight end in their own time (each file a few turns).
-    for (let i = 0; i < 400 && vault.inFlight > 0; i++) await tick();
+    // Their hashes are worked out off the event loop: wait by time, not by turns.
+    for (let i = 0; i < 500 && vault.inFlight > 0; i++) await new Promise((resolve) => setTimeout(resolve, 10));
     for (let i = 0; i < 40; i++) await tick();
     expect(vault.inFlight).toBe(0);
     expect(vault.calls.length).toBe(callsAtAbort);

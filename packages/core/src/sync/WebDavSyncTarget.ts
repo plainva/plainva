@@ -1,3 +1,4 @@
+import { RootTagWatch, ROOT_TAG_CURSOR } from "./webdavRootTag.js";
 import { syncHttpError, SyncRootMissingError } from "./errorKind.js";
 import { fetchWithTransferTimeout, discardResponse } from "./transferTimeout.js";
 import { parseDavListing } from "./xmlListing.js";
@@ -454,10 +455,53 @@ export class WebDavSyncTarget implements ISyncTarget {
    */
   public allowRootCreation = true;
 
-  // WebDAV has no incremental change token: the `cursor` argument from the
-  // ISyncTarget contract is intentionally ignored and a full PROPFIND listing is
-  // always returned. Deletions are derived by the worker from the listing diff.
-  public async pull(_cursor?: string): Promise<PullResult> {
+  /**
+   * Whether this server's vault folder tells every change below it by its own
+   * entity tag, learned from its full listings (`webdavRootTag.ts`).
+   */
+  private readonly rootTagWatch = new RootTagWatch();
+
+  /**
+   * The vault folder's entity tag as the cursor of the next pull — only where
+   * this server is shown to change it with every change below
+   * (`RootTagWatch.proven`). Elsewhere "", which the worker takes for no
+   * cursor: every cycle stays a full listing, as before.
+   */
+  public async getStartCursor(): Promise<string> {
+    if (!this.rootTagWatch.proven) return "";
+    const tag = await this.rootEntityTag();
+    return tag === null ? "" : ROOT_TAG_CURSOR + tag;
+  }
+
+  /** The vault folder's own entity tag (one `PROPFIND`, `Depth: 0`), null where it lists none. */
+  private async rootEntityTag(): Promise<string | null> {
+    const res = await this.request("PROPFIND", this.creds.url, {
+      headers: { ...this.headers, "Depth": "0", "Content-Type": "application/xml; charset=utf-8" },
+      body: `<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:resourcetype/></d:prop></d:propfind>`,
+    });
+    this.rememberEffectiveBase(res);
+    if (!res.ok) throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
+    for (const resp of this.parseListing(await res.text())) {
+      if (resp.href && resp.isCollection && trimEndChars(this.relativeHref(resp.href), "/") === "" && resp.etag !== undefined) {
+        return resp.etag.replace(/"/g, "");
+      }
+    }
+    return null;
+  }
+
+  // A pull without a cursor is a full PROPFIND listing; deletions are derived
+  // by the worker from the listing diff. A pull with the cursor of
+  // `getStartCursor` asks the vault folder's tag alone: unchanged, nothing
+  // changed below it (the server is shown to work so); changed, or no longer
+  // trusted, the worker follows with a full listing at once
+  // (`needsFullListing`).
+  public async pull(cursor?: string): Promise<PullResult> {
+    if (cursor !== undefined && cursor !== "") {
+      if (!cursor.startsWith(ROOT_TAG_CURSOR) || !this.rootTagWatch.proven) return { etagMap: new Map(), needsFullListing: true };
+      const tag = await this.rootEntityTag();
+      if (tag !== null && ROOT_TAG_CURSOR + tag === cursor) return { etagMap: new Map(), nextCursor: cursor };
+      return { etagMap: new Map(), needsFullListing: true };
+    }
     const res = await this.request("PROPFIND", this.creds.url, {
       headers: {
         ...this.headers,
@@ -499,10 +543,16 @@ export class WebDavSyncTarget implements ISyncTarget {
     // reported so the worker can create locally missing (possibly empty)
     // folders. Internal collections (.plainva, .git, …) stay out.
     const folders: string[] = [];
+    // The vault folder's own tag in this listing (`RootTagWatch`).
+    let rootTag: string | undefined;
+    // Every folder the listing holds, internal ones included: what the watch compares.
+    const everyFolder: string[] = [];
     for (const resp of responses) {
       if (!resp.href) continue;
       if (resp.isCollection) {
         const rel = trimEndChars(this.relativeHref(resp.href), "/");
+        if (rel === "" && resp.etag !== undefined) rootTag = resp.etag.replace(/"/g, "");
+        if (rel) everyFolder.push(rel);
         if (
           rel &&
           !rel.includes(".CONFLICT") &&
@@ -521,6 +571,7 @@ export class WebDavSyncTarget implements ISyncTarget {
     }
 
     console.log(`[WebDAV] PROPFIND ${this.creds.url} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
+    this.rootTagWatch.observe({ rootTag, files: etagMap, folders: everyFolder });
     return { etagMap, folders, mtimeMap };
   }
 
