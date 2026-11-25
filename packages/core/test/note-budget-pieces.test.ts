@@ -236,7 +236,7 @@ describe("the cases of the review of the link search (2026-11-19), at the real b
     expect.hasAssertions();
     const note = `# T\n\n${filler}\n\n| a | b |\n|---|---|\n| [t](<Old.md>) | [u](Old.md) |\n`;
     setNoteBudget(1);
-    setPieceShare(1e12);
+    setPieceShare(1e12, false, Infinity);
     const got = renameNoteLinks(note, new Map([["Old.md", "x|y.md"]])).content;
     setNoteBudget(Number.MAX_SAFE_INTEGER);
     expect(got).toBe(renameNoteLinks(note, new Map([["Old.md", "x|y.md"]])).content);
@@ -247,7 +247,7 @@ describe("the cases of the review of the link search (2026-11-19), at the real b
     const rows = Array.from({ length: 2_500 }, (_, i) => `| r${i} [[Row${i % 3}]] | ${"word ".repeat(20)} [x](Old.md) |`).join("\n");
     const note = `# T\n\nlead line [[Lead]] and [y](Old.md)\nsecond line [[Second]]\n| a | b |\n|---|---|\n${rows}\nafter [[After]]\n\n# End\n`;
     setNoteBudget(1);
-    setPieceShare(1e12);
+    setPieceShare(1e12, false, Infinity);
     const got = readNoteLinks(note).links.map((link) => `${link.type}:${link.target}@${link.start}`);
     const index = JSON.stringify(extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note));
     setNoteBudget(Number.MAX_SAFE_INTEGER);

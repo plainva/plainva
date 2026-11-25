@@ -129,33 +129,36 @@ describe("the note's budget (L14)", () => {
   }, 60 * SECONDS);
 
   it("rewrites the links of a block read as text when a note is renamed", () => {
-    const list = Array.from({ length: 20_000 }, (_, i) => `- item ${i} [[Old]] and \`[[Old]]\` in code`).join("\n");
+    const list = Array.from({ length: 10_000 }, (_, i) => `- item ${i} [[Old]] and \`[[Old]]\` in code`).join("\n");
     const text = `# T\n\n[[Old]] at the top\n\n${list}\n`;
     expect(overBudgetInlineRanges(text).some((range) => range.block)).toBe(true);
     const result = renameNoteLinks(text, new Map([["Old", "New"]]));
-    expect(result.renamed).toBe(20_001);
+    expect(readAsTextParts(text).unread).toEqual([]);
+    expect(result.renamed).toBe(10_001);
     // A link in a code span stays as it is written.
-    expect(result.content.split("`[[Old]]`").length - 1).toBe(20_000);
+    expect(result.content.split("`[[Old]]`").length - 1).toBe(10_000);
     expect(result.content).not.toMatch(/item \d+ \[\[Old\]\]/);
   });
 
   it("keeps the links, tags and tasks of a block read as text for the index, each once", () => {
-    // The index lists the links of a block read as text from the same tree as every other link (`textReadLinks.ts`):
+    // The index lists the links of a block read as text from its pieces, read by the parser itself (`forEachReadPiece`):
     // a backlink and the graph keep them, and a rename finds each one once.
-    const list = Array.from({ length: 20_000 }, (_, i) => `- [ ] task ${i} [[Note ${i % 7}]] [label](<Other ${i % 5}.md>) #tag${i % 3} \`[[Code]]\``).join("\n");
+    const list = Array.from({ length: 10_000 }, (_, i) => `- [ ] task ${i} [[Note ${i % 7}]] [label](<Other ${i % 5}.md>) #tag${i % 3} \`[[Code]]\``).join("\n");
     const text = `# T\n\n[[Top]] and [x](Top.md)\n\n${list}\n`;
     expect(overBudgetInlineRanges(text).some((range) => range.block)).toBe(true);
+    // Within the four budgets the index reads in pieces (`PIECES_READ_SHARE`): nothing of it is unread.
+    expect(readAsTextParts(text).unread).toEqual([]);
     const { links, tags } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
-    expect(links.filter((link) => link.type === "wikilink")).toHaveLength(20_001);
-    expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(20_001);
+    expect(links.filter((link) => link.type === "wikilink")).toHaveLength(10_001);
+    expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(10_001);
     expect(links.some((link) => link.target === "Code")).toBe(false);
     expect(new Set(links.filter((link) => link.type === "markdown-link").map((link) => link.target))).toEqual(new Set(["Top.md", "Other 0.md", "Other 1.md", "Other 2.md", "Other 3.md", "Other 4.md"]));
     // A link stands at its own line.
     expect(links.find((link) => link.target === "Note 3")?.line).toBe(8);
-    expect(tags.filter((tag) => tag.source === "inline")).toHaveLength(20_000);
-    expect(scanTasks(text)).toHaveLength(20_000);
+    expect(tags.filter((tag) => tag.source === "inline")).toHaveLength(10_000);
+    expect(scanTasks(text)).toHaveLength(10_000);
     // A rename counts each link of the block once.
-    expect(renameNoteLinks(text, new Map([["Note 3", "Renamed"]])).renamed).toBe(Math.ceil((20_000 - 3) / 7));
+    expect(renameNoteLinks(text, new Map([["Note 3", "Renamed"]])).renamed).toBe(Math.ceil((10_000 - 3) / 7));
   });
 
   /** A seeded generator (mulberry32). */
@@ -216,9 +219,10 @@ describe("the note's budget (L14)", () => {
 
   it("lists the links, tags and tasks of random notes over the budget as a parse without the budget does, each link once", () => {
     for (const seed of [11, 23, 37, 51]) {
-      const text = mixedNote(seed, 24_000);
+      const text = mixedNote(seed, 12_000);
       const ranges = overBudgetInlineRanges(text);
       expect(ranges.some((range) => range.block), `seed ${seed}`).toBe(true);
+      expect(readAsTextParts(text).unread, `seed ${seed}`).toEqual([]);
       const index = listed(extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text));
       const whole = listed(unboundedIndex(text));
       expect(index.links.length, `seed ${seed}: links`).toBe(whole.links.length);
@@ -250,11 +254,12 @@ describe("the note's budget (L14)", () => {
 
   it("does not let a backtick in a link's destination hide a wiki link behind it (F46)", () => {
     const row = (i: number) => `- item ${i} [a](x\`y.md) [[Note ${i}]] and [b](z.md)`;
-    const text = `# T\n\n${Array.from({ length: 20_000 }, (_, i) => row(i)).join("\n")}\n`;
+    const text = `# T\n\n${Array.from({ length: 10_000 }, (_, i) => row(i)).join("\n")}\n`;
     expect(overBudgetInlineRanges(text).some((range) => range.block)).toBe(true);
+    expect(readAsTextParts(text).unread).toEqual([]);
     const { links } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
-    expect(links.filter((link) => link.type === "wikilink")).toHaveLength(20_000);
-    expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(40_000);
+    expect(links.filter((link) => link.type === "wikilink")).toHaveLength(10_000);
+    expect(links.filter((link) => link.type === "markdown-link")).toHaveLength(20_000);
     expect(renameNoteLinks(text, new Map([["Note 5", "Five"]])).renamed).toBe(1);
   });
 
@@ -339,18 +344,20 @@ describe("the note's budget (L14)", () => {
     }
   }, 300 * SECONDS);
 
-  it("lists the links of 100 000 items of links and of embeds under 128 MB, read in pieces, and names a paragraph of them unread", () => {
-    // Twenty times the threshold of the forms of links: the blocks read as text are read in pieces by the parser
-    // itself (`forEachReadPiece`), each let go before the next, and every link is listed. A picture (`![alt](…)`) is
-    // no link to the index, as the parser reads it. One paragraph of such lines cannot be cut into pieces (only a
-    // list can, at its items): it is unread, and the index runs no more out of 128 MB than for the lists.
+  it("lists the links of the pieces of 100 000 items of links and of embeds under 128 MB, and names the rest and a paragraph of them unread", () => {
+    expect.hasAssertions();
+    // Twenty-five times the threshold of the forms of links: the blocks read as text are read in pieces by the parser
+    // itself (`forEachReadPiece`), each let go before the next, up to four budgets of them (`PIECES_READ_SHARE`) —
+    // every link there is listed, the rest is unread and named. A picture (`![alt](…)`) is no link to the index, as
+    // the parser reads it. One paragraph of such lines cannot be cut into pieces (only a list can, at its items): it is
+    // unread, and the index runs no more out of 128 MB than for the lists.
     const notes = [
-      [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`, 200_000],
-      [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- ![[image " + i + ".png]] ![alt](pic" + i + ".jpg)").join("\\n") + "\\n"`, 100_000],
+      [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`, 2],
+      [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- ![[image " + i + ".png]] ![alt](pic" + i + ".jpg)").join("\\n") + "\\n"`, 1],
       [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`, 0],
     ] as const;
-    for (const [text, count] of notes) {
-      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); console.log(links.length === ${count} ? "ok" : "links " + links.length);`;
+    for (const [text, perLine] of notes) {
+      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const B = await import(${JSON.stringify(new URL("../src/inlineParseBudget.ts", import.meta.url).pathname)}); const parts = B.readAsTextParts(text); let lines = 0; for (const p of parts.pieces) lines += text.slice(p.from, p.to).split("\\n").filter((l) => l.startsWith("- ")).length; const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); console.log(links.length === ${perLine} * lines && parts.unread.length > 0 && (${perLine} === 0 || lines > 10000) ? "ok" : "links " + links.length + " lines " + lines + " unread " + parts.unread.length);`;
       const run = underHeap(128, text, body);
       expect(run.stdout.trim(), `${text.slice(0, 60)}: ${run.stderr.slice(-200)}`).toBe("ok");
     }

@@ -2064,6 +2064,17 @@ let pieceShare = PIECE_SHARE;
  * fiftieth, with a third of the heap.
  */
 const PIECE_GATHER_SHARE = 0.02;
+/**
+ * How much of a note the readers of its facts read in pieces at most, in
+ * shares of the note's budget, in the order of the text; what lies behind is
+ * unread. Each piece is a parse of its own, and a parse costs time beyond its
+ * text (2 to 5 s a megabyte in pieces, 2026-11-25): mixed notes of 4 to 10 MB
+ * took the index 10 to 28 s and more. Four budgets — about 16 000 linked list
+ * items, 30 000 lines of prose on the phone — keep the time of the index's
+ * reading of one note to a few seconds and what it holds of their links in
+ * proportion.
+ */
+export const PIECES_READ_SHARE = 4;
 
 /**
  * The share of the note's budget a piece may weigh; only the tests and the
@@ -2071,11 +2082,13 @@ const PIECE_GATHER_SHARE = 0.02;
  * a piece of its own, whatever it weighs — the tests' way to read every cut
  * against the note read whole.
  */
-export function setPieceShare(share: number, apart = false): void {
+export function setPieceShare(share: number, apart = false, read = PIECES_READ_SHARE): void {
   pieceShare = share;
   piecesApart = apart;
+  readShare = read;
 }
 let piecesApart = false;
+let readShare = PIECES_READ_SHARE;
 
 /** A stretch of a block read as text that the parser reads on its own for the note's facts: whole lines, in the note's places. */
 export interface ReadPiece {
@@ -2230,7 +2243,7 @@ function lineAt(lines: ScanLine[], at: number): number {
 export function readAsTextParts(text: string, reading: MarkdownReading = NOTE_READING, previous?: readonly BoundedRange[]): ReadAsTextParts {
   if (previous) return scannedParts(text, reading, previous);
   // The index parses a note and then reads its facts: one scan for both.
-  const key = `${noteBudget} ${pieceShare} ${piecesApart} ${weightsVersion} ${reading.tables} ${reading.properties} ${reading.notes}`;
+  const key = `${noteBudget} ${pieceShare} ${piecesApart} ${readShare} ${weightsVersion} ${reading.tables} ${reading.properties} ${reading.notes}`;
   if (lastParts && lastParts.text === text && lastParts.key === key) return lastParts.parts;
   const parts = scannedParts(text, reading);
   lastParts = { text, key, parts };
@@ -2245,15 +2258,24 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
   const ranges = overBudgetInlineRanges(text, text.length > NOTE_SCAN_FROM && reading.notes !== false ? { blocks: (found) => (scan = found) } : undefined, reading, previous);
   const found = scan as NoteScan | null;
   if (!found || found.blocks.length === 0) return { ranges, pieces: [], unread: ranges.filter((range) => !range.table && !range.block) };
-  const unread: BoundedRange[] = found.inline.map((range) => ({ ...range }));
+  // What of the blocks read as text is unread, in text order (`leaveUnread` joins neighbours); the paragraphs over
+  // the inline budget are unread as well, and join it at the end.
+  const unread: BoundedRange[] = [];
   const pieces: ReadPiece[] = [];
   const { lines, kinds, weights } = found;
   const limit = pieceShare * noteBudget;
   const gather = Math.min(limit, PIECE_GATHER_SHARE * noteBudget);
+  // What the pieces may weigh together (`PIECES_READ_SHARE`); behind that, everything read as text is unread.
+  let readable = piecesApart ? Infinity : readShare * noteBudget;
+  const leaveUnread = (from: number, to: number) => {
+    const last = unread[unread.length - 1];
+    if (last && onlyBlanksBetween(text, last.to, from)) last.to = Math.max(last.to, to);
+    else unread.push({ from, to });
+  };
   for (const block of found.blocks) {
     // Behind an unclosed `---` the parser reads no blocks within blocks: no part of it reads alone as it does there.
     if (!found.containers) {
-      unread.push({ from: block.from, to: block.to });
+      leaveUnread(block.from, block.to);
       continue;
     }
     const first = lineAt(lines, block.from);
@@ -2282,6 +2304,13 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
       piece = null;
     };
     const take = (from: number, to: number, weight: number) => {
+      if (weight > readable) {
+        flush();
+        readable = 0;
+        leaveUnread(lines[from].from, lines[to].to);
+        return;
+      }
+      readable -= weight;
       const current = piece as { from: number; to: number; weight: number } | null;
       if (current && !piecesApart && current.weight + weight <= gather) {
         current.to = lines[to].to;
@@ -2299,7 +2328,7 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
       const cuts = listCuts(lines, from, to);
       if (!cuts) {
         flush();
-        unread.push({ from: lines[from].from, to: lines[to].to });
+        leaveUnread(lines[from].from, lines[to].to);
         continue;
       }
       const bounds = [from, ...cuts, to + 1];
@@ -2311,14 +2340,13 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
         if (part <= limit || piecesApart) take(bounds[k], end, part);
         else {
           flush();
-          unread.push({ from: lines[bounds[k]].from, to: lines[end].to });
+          leaveUnread(lines[bounds[k]].from, lines[end].to);
         }
       }
     }
     flush();
   }
-  unread.sort((x, y) => x.from - y.from);
-  return { ranges, pieces, unread };
+  return { ranges, pieces, unread: unitedRanges(unread, found.inline).map(({ from, to }) => ({ from, to })) };
 }
 
 /** Whether the place `at` lies in one of `ranges` (in text order, apart), found by halving. */

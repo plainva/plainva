@@ -17,7 +17,8 @@ import { remarkStripHtmlComments } from "../components/markdownReaderModel";
  * written twice; outside it the formula gives way as on main. The index finds
  * each link once, from the pieces of the stretch (`forEachReadPiece`).
  */
-const list = Array.from({ length: 20_000 }, (_, i) => (i === 500 ? "- item $x [[Inside]] y$ and $$[[Block]]$$" : `- item ${i} [[Note ${i}]]`)).join("\n");
+// Over the note's budget and within the four budgets the index reads in pieces (`PIECES_READ_SHARE`).
+const list = Array.from({ length: 10_000 }, (_, i) => (i === 500 ? "- item $x [[Inside]] y$ and $$[[Block]]$$" : `- item ${i} [[Note ${i}]]`)).join("\n");
 const NOTE = `# T\n\nOutside $z [[Freed]] w$ and $a+b$.\n\n${list}\n\n## End\n`;
 
 function render(content: string): HTMLElement {
@@ -43,13 +44,13 @@ describe("a block read as text beside a formula that gives way to a link (L14 an
     expect(targets.some((href) => href?.includes("Inside") || href?.includes("Block") || href?.includes("Note"))).toBe(false);
     const text = el.textContent ?? "";
     expect(text.split("$x [[Inside]] y$ and $$[[Block]]$$").length - 1).toBe(1);
-    expect(text.split("[[Note 19999]]").length - 1).toBe(1);
+    expect(text.split("[[Note 9999]]").length - 1).toBe(1);
   }, 120_000);
 
   it("the index lists each link once, the ones in the block's formulas too", () => {
     const { links } = extractLinksAndTags(parseMarkdownAst(NOTE, { preserveObsidianSyntax: true }), NOTE);
     const count = (target: string) => links.filter((link) => link.target === target).length;
     expect([count("Freed"), count("Inside"), count("Block"), count("Note 7")]).toEqual([1, 1, 1, 1]);
-    expect(links.filter((link) => link.type === "wikilink")).toHaveLength(1 + 2 + 19_999);
+    expect(links.filter((link) => link.type === "wikilink")).toHaveLength(1 + 2 + 9_999);
   }, 120_000);
 });
