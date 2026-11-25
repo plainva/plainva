@@ -12,208 +12,208 @@
       "forms": {
         "prose": {
           "main": 19774,
-          "branch": 8710,
-          "ratio": 2.27
+          "branch": 7625,
+          "ratio": 2.59
         },
         "paras": {
           "main": 13240,
-          "branch": 5936,
-          "ratio": 2.23
+          "branch": 5433,
+          "ratio": 2.44
         },
         "emails": {
           "main": 23633,
-          "branch": 10411,
-          "ratio": 2.27
+          "branch": 10361,
+          "ratio": 2.28
         },
         "urls": {
           "main": 9181,
-          "branch": 7914,
-          "ratio": 1.16
+          "branch": 8051,
+          "ratio": 1.14
         },
         "items": {
           "main": 8876,
-          "branch": 6871,
-          "ratio": 1.29
+          "branch": 4734,
+          "ratio": 1.87
         },
         "linked": {
           "main": 8253,
-          "branch": 5717,
-          "ratio": 1.44
+          "branch": 4192,
+          "ratio": 1.97
         },
         "tasks": {
           "main": 7784,
-          "branch": 5786,
-          "ratio": 1.35
+          "branch": 4223,
+          "ratio": 1.84
         },
         "taskem": {
           "main": 6287,
-          "branch": 4144,
-          "ratio": 1.52
+          "branch": 3139,
+          "ratio": 2
         },
         "done": {
           "main": 7194,
-          "branch": 4739,
-          "ratio": 1.52
+          "branch": 3477,
+          "ratio": 2.07
         },
         "journal": {
           "main": 6554,
-          "branch": 4185,
-          "ratio": 1.57
+          "branch": 3165,
+          "ratio": 2.07
         },
         "quotes": {
           "main": 26507,
-          "branch": 15243,
-          "ratio": 1.74
+          "branch": 9875,
+          "ratio": 2.68
         },
         "callouts": {
           "main": 5143,
-          "branch": 4437,
-          "ratio": 1.16
+          "branch": 3205,
+          "ratio": 1.6
         },
         "xwords": {
           "main": 161408,
-          "branch": 124174,
-          "ratio": 1.3
+          "branch": 135286,
+          "ratio": 1.19
         },
         "nested": {
           "main": 7939,
-          "branch": 6004,
-          "ratio": 1.32
+          "branch": 3717,
+          "ratio": 2.14
         },
         "ordered": {
           "main": 8431,
-          "branch": 7271,
-          "ratio": 1.16
+          "branch": 4904,
+          "ratio": 1.72
         },
         "loose": {
           "main": 8758,
-          "branch": 5020,
-          "ratio": 1.74
+          "branch": 3786,
+          "ratio": 2.31
         },
         "quote3": {
           "main": 20336,
-          "branch": 17224,
-          "ratio": 1.18
+          "branch": 7993,
+          "ratio": 2.54
         },
         "headings": {
           "main": 19398,
-          "branch": 8551,
-          "ratio": 2.27
+          "branch": 13506,
+          "ratio": 1.44
         },
         "code": {
           "main": 78694,
-          "branch": 67849,
-          "ratio": 1.16
+          "branch": 65103,
+          "ratio": 1.21
         },
         "links": {
           "main": 69787,
-          "branch": 60109,
-          "ratio": 1.16
+          "branch": 58472,
+          "ratio": 1.19
         },
         "tagsl": {
           "main": 50538,
-          "branch": 30390,
-          "ratio": 1.66
+          "branch": 17903,
+          "ratio": 2.82
         },
         "sentences": {
           "main": 10000,
-          "branch": 5091,
-          "ratio": 1.96
+          "branch": 4228,
+          "ratio": 2.37
         },
         "footnotes": {
           "main": 3653,
-          "branch": 3150,
-          "ratio": 1.16
+          "branch": 2893,
+          "ratio": 1.26
         },
         "embeds": {
           "main": 68916,
-          "branch": 58602,
-          "ratio": 1.18
+          "branch": 57046,
+          "ratio": 1.21
         },
         "html": {
           "main": 16705,
-          "branch": 14422,
-          "ratio": 1.16
+          "branch": 11075,
+          "ratio": 1.51
         },
         "maths": {
           "main": 18879,
-          "branch": 9409,
-          "ratio": 2.01
+          "branch": 8063,
+          "ratio": 2.34
         },
         "emphasis": {
           "main": 6991,
-          "branch": 4203,
-          "ratio": 1.66
+          "branch": 3079,
+          "ratio": 2.27
         },
         "opens": {
           "main": 2638,
-          "branch": 1162,
-          "ratio": 2.27
+          "branch": 1239,
+          "ratio": 2.13
         },
         "starred": {
           "main": 1652,
-          "branch": 1427,
-          "ratio": 1.16
+          "branch": 957,
+          "ratio": 1.73
         },
         "tables2": {
           "main": 3216,
-          "branch": 2773,
-          "ratio": 1.16
+          "branch": 2450,
+          "ratio": 1.31
         },
         "tables50": {
           "main": 110,
-          "branch": 76,
-          "ratio": 1.45
+          "branch": 69,
+          "ratio": 1.59
         },
         "bigtables": {
           "main": 4,
-          "branch": 3,
-          "ratio": 1.33
+          "branch": 2,
+          "ratio": 2
         },
         "manytables": {
           "main": 74,
-          "branch": 45,
-          "ratio": 1.64
+          "branch": 41,
+          "ratio": 1.8
         },
         "rules": {
           "main": 39466,
-          "branch": 18600,
-          "ratio": 2.12
+          "branch": 18860,
+          "ratio": 2.09
         },
         "brackets": {
           "main": 14000,
-          "branch": 12079,
-          "ratio": 1.16
+          "branch": 9478,
+          "ratio": 1.48
         },
         "stars": {
           "main": 39423,
-          "branch": 17618,
-          "ratio": 2.24
+          "branch": 17852,
+          "ratio": 2.21
         },
         "images": {
           "main": 4406,
-          "branch": 1946,
-          "ratio": 2.26
+          "branch": 1922,
+          "ratio": 2.29
         },
         "ticks": {
           "main": 2115,
-          "branch": 1824,
-          "ratio": 1.16
+          "branch": 1516,
+          "ratio": 1.4
         },
         "entities": {
           "main": 3596,
-          "branch": 3104,
-          "ratio": 1.16
+          "branch": 2893,
+          "ratio": 1.24
         },
         "escapes": {
           "main": 2009,
-          "branch": 887,
-          "ratio": 2.26
+          "branch": 910,
+          "ratio": 2.21
         },
         "angles": {
           "main": 11767,
-          "branch": 5215,
-          "ratio": 2.26
+          "branch": 4659,
+          "ratio": 2.53
         },
         "densetables": {
           "main": 26,
@@ -233,247 +233,247 @@
       "measured": "2026-11-25: the index, the note source and the reading view under 512 MB, the budget four times NOTE_BUDGET. The seven forms that may bind the factor measured exactly (main = the most units main's readers read under the heap); every other form on its safe side alone (lowerBound: main's readers read 1.13 times its threshold under the heap, which perf:notes -- --check measures on every run)",
       "forms": {
         "prose": {
-          "main": 39378,
-          "branch": 34847,
+          "main": 34471,
+          "branch": 30505,
           "ratio": 1.13,
           "lowerBound": true
         },
         "paras": {
-          "main": 26837,
-          "branch": 23749,
+          "main": 24562,
+          "branch": 21736,
           "ratio": 1.13,
           "lowerBound": true
         },
         "emails": {
-          "main": 47037,
-          "branch": 41625,
+          "main": 46810,
+          "branch": 41424,
           "ratio": 1.13,
           "lowerBound": true
         },
         "urls": {
-          "main": 246725,
-          "branch": 218340,
+          "main": 240610,
+          "branch": 212929,
           "ratio": 1.13,
           "lowerBound": true
         },
         "items": {
-          "main": 31057,
-          "branch": 27484,
+          "main": 21398,
+          "branch": 18936,
           "ratio": 1.13,
           "lowerBound": true
         },
         "linked": {
           "main": 39552,
-          "branch": 22867,
-          "ratio": 1.73
+          "branch": 16768,
+          "ratio": 2.36
         },
         "tasks": {
-          "main": 26157,
-          "branch": 23147,
+          "main": 19093,
+          "branch": 16896,
           "ratio": 1.13,
           "lowerBound": true
         },
         "taskem": {
-          "main": 18733,
-          "branch": 16577,
+          "main": 14190,
+          "branch": 12557,
           "ratio": 1.13,
           "lowerBound": true
         },
         "done": {
-          "main": 21423,
-          "branch": 18958,
+          "main": 15718,
+          "branch": 13909,
           "ratio": 1.13,
           "lowerBound": true
         },
         "journal": {
           "main": 30972,
-          "branch": 16746,
-          "ratio": 1.85
+          "branch": 12663,
+          "ratio": 2.45
         },
         "quotes": {
-          "main": 68889,
-          "branch": 60963,
+          "main": 44630,
+          "branch": 39495,
           "ratio": 1.13,
           "lowerBound": true
         },
         "callouts": {
           "main": 23953,
-          "branch": 17750,
-          "ratio": 1.35
+          "branch": 12822,
+          "ratio": 1.87
         },
         "xwords": {
-          "main": 561364,
-          "branch": 496782,
+          "main": 611595,
+          "branch": 541234,
           "ratio": 1.13,
           "lowerBound": true
         },
         "nested": {
-          "main": 27141,
-          "branch": 24018,
+          "main": 16805,
+          "branch": 14871,
           "ratio": 1.13,
           "lowerBound": true
         },
         "ordered": {
-          "main": 32867,
-          "branch": 29085,
+          "main": 22170,
+          "branch": 19619,
           "ratio": 1.13,
           "lowerBound": true
         },
         "loose": {
-          "main": 22694,
-          "branch": 20083,
+          "main": 17113,
+          "branch": 15144,
           "ratio": 1.13,
           "lowerBound": true
         },
         "quote3": {
-          "main": 77841,
-          "branch": 68885,
+          "main": 36125,
+          "branch": 31969,
           "ratio": 1.13,
           "lowerBound": true
         },
         "headings": {
-          "main": 38649,
-          "branch": 34202,
+          "main": 61039,
+          "branch": 54016,
           "ratio": 1.13,
           "lowerBound": true
         },
         "code": {
-          "main": 306125,
-          "branch": 270907,
+          "main": 293760,
+          "branch": 259964,
           "ratio": 1.13,
           "lowerBound": true
         },
         "links": {
-          "main": 270823,
-          "branch": 239666,
+          "main": 263474,
+          "branch": 233162,
           "ratio": 1.13,
           "lowerBound": true
         },
         "tagsl": {
-          "main": 137388,
-          "branch": 121582,
+          "main": 80933,
+          "branch": 71622,
           "ratio": 1.13,
           "lowerBound": true
         },
         "sentences": {
-          "main": 1465600,
-          "branch": 1296991,
+          "main": 1465615,
+          "branch": 1297004,
           "ratio": 1.13,
           "lowerBound": true
         },
         "footnotes": {
-          "main": 14238,
-          "branch": 12600,
+          "main": 13077,
+          "branch": 11572,
           "ratio": 1.13,
           "lowerBound": true
         },
         "embeds": {
-          "main": 264068,
-          "branch": 233688,
+          "main": 257075,
+          "branch": 227500,
           "ratio": 1.13,
           "lowerBound": true
         },
         "html": {
           "main": 70751,
-          "branch": 57681,
-          "ratio": 1.23
+          "branch": 44292,
+          "ratio": 1.6
         },
         "maths": {
-          "main": 42524,
-          "branch": 37631,
+          "main": 36443,
+          "branch": 32250,
           "ratio": 1.13,
           "lowerBound": true
         },
         "emphasis": {
-          "main": 19001,
-          "branch": 16815,
+          "main": 13920,
+          "branch": 12318,
           "ratio": 1.13,
           "lowerBound": true
         },
         "opens": {
-          "main": 5255,
-          "branch": 4650,
+          "main": 5603,
+          "branch": 4958,
           "ratio": 1.13,
           "lowerBound": true
         },
         "starred": {
           "main": 7431,
-          "branch": 5710,
-          "ratio": 1.3
+          "branch": 3831,
+          "ratio": 1.94
         },
         "tables2": {
-          "main": 12536,
-          "branch": 11093,
+          "main": 11077,
+          "branch": 9802,
           "ratio": 1.13,
           "lowerBound": true
         },
         "tables50": {
-          "main": 347,
-          "branch": 307,
+          "main": 314,
+          "branch": 277,
           "ratio": 1.13,
           "lowerBound": true
         },
         "bigtables": {
           "main": 19,
-          "branch": 13,
-          "ratio": 1.46
+          "branch": 11,
+          "ratio": 1.73
         },
         "manytables": {
-          "main": 206,
-          "branch": 182,
+          "main": 187,
+          "branch": 165,
           "ratio": 1.13,
           "lowerBound": true
         },
         "rules": {
-          "main": 84084,
-          "branch": 74410,
+          "main": 85257,
+          "branch": 75448,
           "ratio": 1.13,
           "lowerBound": true
         },
         "brackets": {
-          "main": 54608,
-          "branch": 48325,
+          "main": 42849,
+          "branch": 37919,
           "ratio": 1.13,
           "lowerBound": true
         },
         "stars": {
-          "main": 79646,
-          "branch": 70483,
+          "main": 80698,
+          "branch": 71414,
           "ratio": 1.13,
           "lowerBound": true
         },
         "images": {
-          "main": 8801,
-          "branch": 7788,
+          "main": 8692,
+          "branch": 7692,
           "ratio": 1.13,
           "lowerBound": true
         },
         "ticks": {
           "main": 9461,
-          "branch": 7299,
-          "ratio": 1.3
+          "branch": 6064,
+          "ratio": 1.56
         },
         "entities": {
-          "main": 14033,
-          "branch": 12418,
+          "main": 13079,
+          "branch": 11574,
           "ratio": 1.13,
           "lowerBound": true
         },
         "escapes": {
-          "main": 4011,
-          "branch": 3549,
+          "main": 4115,
+          "branch": 3641,
           "ratio": 1.13,
           "lowerBound": true
         },
         "angles": {
-          "main": 23576,
-          "branch": 20863,
+          "main": 21064,
+          "branch": 18640,
           "ratio": 1.13,
           "lowerBound": true
         },
         "densetables": {
-          "main": 101,
-          "branch": 89,
+          "main": 100,
+          "branch": 88,
           "ratio": 1.13,
           "lowerBound": true
         }
@@ -489,43 +489,43 @@
       "forms": {
         "prose": {
           "main": 181942,
-          "branch": 8710,
-          "ratio": 20.89
+          "branch": 7625,
+          "ratio": 23.86
         },
         "paras": {
           "main": 82149,
-          "branch": 5936,
-          "ratio": 13.84
+          "branch": 5433,
+          "ratio": 15.12
         },
         "items": {
           "main": 37926,
-          "branch": 6871,
-          "ratio": 5.52
+          "branch": 4734,
+          "ratio": 8.01
         },
         "linked": {
           "main": 31086,
-          "branch": 5717,
-          "ratio": 5.44
+          "branch": 4192,
+          "ratio": 7.42
         },
         "tasks": {
           "main": 30752,
-          "branch": 5786,
-          "ratio": 5.31
+          "branch": 4223,
+          "ratio": 7.28
         },
         "quotes": {
           "main": 269674,
-          "branch": 15243,
-          "ratio": 17.69
+          "branch": 9875,
+          "ratio": 27.31
         },
         "tables50": {
           "main": 7265,
-          "branch": 76,
-          "ratio": 95.59
+          "branch": 69,
+          "ratio": 105.29
         },
         "bigtables": {
           "main": 290,
-          "branch": 3,
-          "ratio": 96.67
+          "branch": 2,
+          "ratio": 145.0
         }
       }
     }

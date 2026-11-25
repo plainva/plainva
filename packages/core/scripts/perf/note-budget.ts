@@ -27,10 +27,10 @@
  * whether the readers read x times the threshold, for a form whose exact limit
  * does not bind the shell's budget. A reader slower than `--child-ms` counts
  * as one that does not read the note, apart from one that runs out of memory.
- * The weights are fitted with `--features` and a linear program to bring every
- * form to 1.13 or a little more (`main`'s limit is measured to some 5 to 8 %)
- * and the early side as low as weights of countable parts allow (2026-11-25:
- * 1.16 to 2.27 over 42 forms on the phone).
+ * The weights are fitted with `--features` to bring every form to 1.13 or a
+ * little more (`main`'s limit is measured to some 5 to 8 %) and the early side
+ * as low as weights of countable parts allow, and held at three and ten times
+ * over every form by `--check` (2026-11-25 on the phone: 1.14 to 2.82).
  *
  * `--check`: for each form of the shell, the note at its threshold times 1.05
  * — times its ratio for a form measured on its safe side alone — is read
@@ -50,7 +50,7 @@
  * of tasks, quotes, headings, fenced code, small tables, blank lines or none
  * between them — from a tenth to five times the shell's budget, each read as
  * the app reads it under the shell's heap — the reading view up to 5 MB of note
- * a 128 MB, the index and the note parse up to 10 MB —, in time
+ * at 128 MB, the index and the note parse up to 10 MB —, in time
  * (`HUNT_PARSE_MS`), and with a scan whose time grows with the note (eight
  * times the note, at most sixteen times the time). A note that does not pass
  * prints its seed and number.
@@ -601,7 +601,9 @@ function hunt(args: string[]): boolean {
     const parses = noteOf(name, 0).length > (READER_HELD_CHARS * heapMb) / HEAP_MB ? shellParses.filter((parse) => parse !== "reader") : shellParses;
     const run = passes(name, 0, true, 1, parses);
     tried++;
-    const why = !run.ok ? run.why : run.slowest > HUNT_PARSE_MS ? `a parse took ${run.slowest} ms` : scanIsLinear(name);
+    // The time of a parse grows with what a shell's budget reads formatted: at four times the phone's, the desktop reads
+    // notes of 10 MB formatted that took the phone's readers no more than the phone's budget — on main as long.
+    const why = !run.ok ? run.why : run.slowest > HUNT_PARSE_MS * budgetFactor ? `a parse took ${run.slowest} ms` : scanIsLinear(name);
     if (why) {
       failed.push(name);
       console.log(`FAIL     ${name} (${noteOf(name, 0).length} chars): ${why}`);

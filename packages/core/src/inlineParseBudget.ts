@@ -1587,11 +1587,11 @@ export const NOTE_BUDGET = 25_710_000;
 /**
  * The desktop's note budget: four times `NOTE_BUDGET`, calibrated on a heap of
  * 512 MB with its reading view among its readers (2026-11-25,
- * `noteBudgetShells.json`): of seven forms measured exactly, lines of inline
- * HTML bind it (`main` reads 4.91 times the phone's threshold there; at four
- * times the budget 1.23), and every other form keeps 1.13 or more. 512 MB is
- * a named assumption for a computer of 8 GB with several windows, no limit of
- * the platform.
+ * `noteBudgetShells.json`): of seven forms measured exactly, code spans and
+ * lines of inline HTML bind it (at four times the budget `main` reads 1.56 and
+ * 1.60 times their threshold under 512 MB), and every other form keeps 1.13
+ * or more. 512 MB is a named assumption for a computer of 8 GB with several
+ * windows, no limit of the platform.
  */
 export const DESKTOP_NOTE_BUDGET = 4 * NOTE_BUDGET;
 
@@ -1629,42 +1629,45 @@ const NOTE_SCAN_FROM = 5_000;
  * The weights of a line of text to the note's budget (`noteLineCost`): a
  * line on its own, a list item it opens, a block (the lines between two blank
  * lines), a heading, a start of a word, a character of inline syntax, a link
- * or wiki link. Calibrated 2026-11-25 against `main` under the phone's 128 MB
- * (`scripts/perf/note-budget.ts`, `noteBudgetShells.json`, Performance_Notes.md):
- * the weights that bring the latest of 42 forms as early as weights of
- * countable parts allow (a linear program, lp_solve), every form keeping
- * `main`'s limit at 1.16 times its threshold or more — 1.16 to 2.27.
+ * or wiki link. Calibrated 2026-11-19 against `main` under 128 MB, held per
+ * shell on 2026-11-25 (`scripts/perf/note-budget.ts`, `noteBudgetShells.json`,
+ * Performance_Notes.md): on the phone every one of 42 forms keeps `main`'s
+ * limit at 1.14 times its threshold or more, the latest at 2.82. Weights a
+ * linear program fits to the forms alone bring the latest to 2.27, but read
+ * what stays formatted of a mixed note over its budget too light: footnote
+ * definitions beside the paragraphs that refer to them ran the parse out of
+ * 128 MB at 1.4 times the threshold. Those weights wait for forms of each part.
  */
-export const NOTE_LINE_WEIGHT = 425;
-export const NOTE_ITEM_WEIGHT = 2681;
+export const NOTE_LINE_WEIGHT = 1049;
+export const NOTE_ITEM_WEIGHT = 3402;
 /** What each level of quote or list a line stands in weighs (`tableMarkerCount`): three quotes deep, 21 000 lines filled 128 MB. */
-export const NOTE_MARKER_WEIGHT = 214;
-export const NOTE_BLOCK_WEIGHT = 1379;
-export const NOTE_HEADING_WEIGHT = 1951;
-export const NOTE_WORD_WEIGHT = 205;
+export const NOTE_MARKER_WEIGHT = 592;
+export const NOTE_BLOCK_WEIGHT = 1360;
+export const NOTE_HEADING_WEIGHT = 275;
+export const NOTE_WORD_WEIGHT = 188;
 /**
  * What a run of one character of inline syntax weighs (`**`, `]]`, a single `*`): micromark reads a run of
  * `*`, `_` or `~` as one sequence, and a closing `]` with nothing open is text; 14 500 paragraphs of eighty `]` passed.
  */
-export const NOTE_SYNTAX_WEIGHT = 39;
+export const NOTE_SYNTAX_WEIGHT = 35;
 /** What each `[` weighs beyond its run: every one opens a label the parser keeps until it closes or the paragraph ends. */
-export const NOTE_OPEN_WEIGHT = 0;
+export const NOTE_OPEN_WEIGHT = 14;
 /**
  * What a run of `*`, `_` or `~` weighs beyond `NOTE_SYNTAX_WEIGHT`: an attention sequence the parser matches
  * against every other one of the paragraph (1 687 paragraphs of `*a*a…` filled 128 MB, 14 500 of `]]]…` did not).
  */
-export const NOTE_EMPHASIS_WEIGHT = 359;
+export const NOTE_EMPHASIS_WEIGHT = 569;
 /** What a run of backticks weighs beyond `NOTE_SYNTAX_WEIGHT`: a code span the parser looks for a closing run to. */
-export const NOTE_CODE_SPAN_WEIGHT = 261;
+export const NOTE_CODE_SPAN_WEIGHT = 322;
 /** What a `<` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of inline HTML or an autolink. */
-export const NOTE_ANGLE_WEIGHT = 32;
+export const NOTE_ANGLE_WEIGHT = 36;
 /** What a `&` weighs beyond `NOTE_SYNTAX_WEIGHT`: the start of a character reference. */
-export const NOTE_ENTITY_WEIGHT = 348;
+export const NOTE_ENTITY_WEIGHT = 353;
 /** What a `\` weighs beyond `NOTE_SYNTAX_WEIGHT`: an escape is a construct of its own. */
-export const NOTE_ESCAPE_WEIGHT = 235;
-export const NOTE_LINK_WEIGHT = 253;
+export const NOTE_ESCAPE_WEIGHT = 0;
+export const NOTE_LINK_WEIGHT = 214;
 /** What each line of fenced code weighs beyond its characters (80 000 short lines of code fill 128 MB). */
-export const NOTE_CODE_LINE_WEIGHT = 361;
+export const NOTE_CODE_LINE_WEIGHT = 377;
 /** What a thematic break weighs beyond its line and its characters (`isThematicBreak`). */
 export const NOTE_RULE_WEIGHT = 0;
 /**
@@ -1673,7 +1676,7 @@ export const NOTE_RULE_WEIGHT = 0;
  * stand-ins is events of its own. A block read as text for the note's budget
  * becomes one line and weighs its characters.
  */
-export const NOTE_TEXT_LINE_WEIGHT = 398;
+export const NOTE_TEXT_LINE_WEIGHT = 410;
 /**
  * What a table weighs to the note's budget. The table weight is what reading one table holds at its peak; most of
  * that is let go once the table is resolved — two tables at the table budget run 128 MB out, 101 tables of 50 rows
@@ -1681,9 +1684,9 @@ export const NOTE_TEXT_LINE_WEIGHT = 398;
  * each cell of it (filled up to the header's columns) and its content as a line of text weighs; and the heaviest
  * table's peak, in percent of its table weight, comes on top once.
  */
-export const NOTE_TABLE_ROW_WEIGHT = 1301;
-export const NOTE_TABLE_CELL_WEIGHT = 1112;
-export const NOTE_TABLE_PEAK_WEIGHT = 0;
+export const NOTE_TABLE_ROW_WEIGHT = 1085;
+export const NOTE_TABLE_CELL_WEIGHT = 1547;
+export const NOTE_TABLE_PEAK_WEIGHT = 6;
 /**
  * The most a table read as a table weighs to the note's budget, per unit of
  * its own weight: nine tenths of the note's budget at the table budget. The
@@ -1694,8 +1697,8 @@ export const NOTE_TABLE_PEAK_WEIGHT = 0;
  */
 export const NOTE_TABLE_SHARE = (0.9 * NOTE_BUDGET) / TABLE_READ_BUDGET;
 /** What each autolink literal and each footnote reference weighs to the note's budget. */
-export const NOTE_LITERAL_WEIGHT = 596;
-export const NOTE_REFERENCE_WEIGHT = 1043;
+export const NOTE_LITERAL_WEIGHT = 324;
+export const NOTE_REFERENCE_WEIGHT = 888;
 
 /**
  * The weights the note's budget weighs by, as one object: the constants
