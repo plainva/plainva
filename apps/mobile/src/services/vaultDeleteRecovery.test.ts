@@ -8,6 +8,7 @@ import { closeWaitNoteName, parkClosingSyncPlace, waitForClosingVault, toast, to
 import { armedLeaveGuards, foreignInputArmed, resetLeaveGuard } from "./leaveGuard";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
 import type { MobileVault } from "./vaultService";
+import { vaultEntryName } from "./vaultEntryName";
 import { retiredBoot } from "./bootRetirement";
 
 /**
@@ -50,7 +51,7 @@ function harness(active: string) {
   const deps = {
     retiredBoot,
     noteSaver: { flushAll: vi.fn(async () => {}), pendingPaths: () => [] as string[] },
-    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {},
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, vaultEntryName, closeWaitNoteName, flushDraftsBeforeClosing: async () => {},
     getVaultEntry: async (id: string) => ({ id, name: "Work" }),
     reportingTo: () => () => {},
     stopSyncAndDrain,

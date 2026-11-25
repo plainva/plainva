@@ -27,7 +27,7 @@ vi.mock("./services/syncService", () => ({
   findMobileWorkspaceObjectStore: vi.fn(async () => null),
   getMobileRemoteWorkspaceInfo: vi.fn(async () => ({ workspaceId: "ws-1", fingerprint: "fp-1" })),
   quarantineSync: vi.fn(),
-  stopSyncAndDrain: vi.fn(async () => undefined),
+  stopSyncForStep: vi.fn(async () => null),
   restartSyncIfActive: vi.fn(async () => undefined),
   mobileEncryptedRemotePorts: vi.fn(async () => ({ load: async () => null, save: async () => undefined, clear: async () => undefined })),
 }));

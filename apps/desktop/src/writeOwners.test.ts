@@ -66,6 +66,8 @@ const HANDOFFS: Record<string, Owner> = {
   "vaultAdapter: personVaultAdapter,": "person",
   "backupAdapter: personBelowChain,": "person",
   "belowChainAdapter: personBelowChain,": "person",
+  // The same link, kept for a step that left the vault and goes on with its new runtime (`stopSyncForStep`).
+  "belowChain: personBelowChain,": "person",
   "buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null, allows: callOffRef.current?.allows })": "background",
   // Clearing out old snapshots (`backupScheduler.ts`).
   "const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: uncounted(state.vaultAdapter) });": "background",

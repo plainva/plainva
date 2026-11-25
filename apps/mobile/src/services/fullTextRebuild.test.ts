@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { vaultEntryName } from "./vaultEntryName";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -56,7 +57,7 @@ async function harness(opts: { workspace?: boolean; failed?: boolean } = {}) {
     initial: vault,
     noteSaver: { flushAll: vi.fn(async () => { order.push("save"); }), pendingPaths: () => [] },
     // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
-    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, vaultEntryName, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     reportingTo: () => () => {},
     stopSyncAndDrain,
     // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.

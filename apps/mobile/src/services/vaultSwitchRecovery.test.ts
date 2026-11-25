@@ -8,6 +8,8 @@ import { armLeaveGuard, armedLeaveGuards, disarmLeaveGuard, foreignInputArmed, r
 import { currentMobileDialog, dismissMobileDialog } from "./mobileDialogs";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
 import type { MobileVault } from "./vaultService";
+import { vaultEntryName } from "./vaultEntryName";
+import i18n from "@plainva/ui/i18n";
 import { retiredBoot } from "./bootRetirement";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -24,7 +26,7 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
+const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "renewAfterSyncGaveUp", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -36,7 +38,7 @@ const compiled = ts.transpileModule(
   "let bootPromise = Promise.resolve(initial); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null;\n" +
     "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\";\n" +
     parts.join("\n") +
-    "\nreturn { switchVault, reloadActiveMobileVault, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; } };",
+    "\nreturn { switchVault, reloadActiveMobileVault, renewAfterSyncGaveUp, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; } };",
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
 ).outputText;
 
@@ -54,13 +56,15 @@ function harness(start: string, initial: MobileVault = vault(start)) {
     initial,
     noteSaver: { flushAll: vi.fn(async () => {}), pendingPaths: () => [] },
     // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
-    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, vaultEntryName, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     reportingTo: () => () => {},
     stopSyncAndDrain,
     // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
     detachSync: vi.fn(() => { order.push("detach"); return { drain: () => stopSyncAndDrain(), place: null as SyncStateBinding | null, running: true }; }),
     setActiveVault: vi.fn(async (id: string) => { order.push(`active:${id}`); active = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),
+    // The vault opened anew after a step left it (`renewAfterSyncGaveUp`).
+    getMobileVault: vi.fn(async () => vault(`${start} anew`)),
     getActiveVaultEntry: async () => ({ id: active, name: "" }),
     startSyncIfConfigured: vi.fn(async (v: MobileVault) => { syncStarted.push(v.vaultId); }),
     foreignInputArmed,
@@ -74,6 +78,7 @@ function harness(start: string, initial: MobileVault = vault(start)) {
   const api = new Function(...Object.keys(deps), compiled)(...Object.values(deps)) as {
     switchVault(id: string): Promise<void>;
     reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean>;
+    renewAfterSyncGaveUp(left: { drain: Promise<void>; place: null }): Promise<MobileVault>;
     boot(): Promise<MobileVault> | null;
     setBoot(p: Promise<MobileVault>): void;
   };
@@ -202,6 +207,20 @@ describe("the sync of the vault a switch leaves", () => {
 describe("what a switch says while it waits", () => {
   afterEach(() => { vi.useRealTimers(); });
 
+  it("names the vault as the list does — the vault on this device has no name of its own", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    const h = harness("local");
+    let done!: () => void;
+    h.deps.detachSync.mockImplementationOnce(() => ({ drain: () => new Promise<void>((r) => (done = r)), place: null, running: true }));
+    const switching = h.switchVault("work");
+    await vi.advanceTimersByTimeAsync(5_000);
+    // THE DEFECT: the notice said “A sync step of “” is still running”.
+    expect(toastStore.get().map((t) => t.message)).toContain(i18n.t("closing.syncWait", { vault: vaultEntryName("") }));
+    done();
+    await switching;
+  });
+
   it("names a sync step only where a sync runs", async () => {
     expect.hasAssertions();
     vi.useFakeTimers();
@@ -214,6 +233,34 @@ describe("what a switch says while it waits", () => {
     expect(toastStore.get().map((t) => t.message).filter((m) => /sync/i.test(m)), "no sync step is named").toEqual([]);
     done();
     await switching;
+  });
+});
+
+describe("a step that gave up waiting for the sync", () => {
+  it("leaves the vault as a close does — saves first, owed entries, then the call-off — and goes on with it opened anew", async () => {
+    expect.hasAssertions();
+    const order: string[] = [];
+    let saved!: () => void;
+    const initial = {
+      ...vault("notes"),
+      flushOwed: vi.fn(async () => { order.push("owed"); }),
+      callOff: vi.fn(() => { order.push("call-off"); }),
+      dispose: vi.fn(async () => { order.push("dispose"); }),
+    } as unknown as MobileVault & { dispose: ReturnType<typeof vi.fn> };
+    const h = harness("notes", initial);
+    h.deps.noteSaver.flushAll.mockImplementationOnce(() => new Promise<void>((r) => (saved = () => { order.push("saved"); r(); })));
+    let cycleEnded!: () => void;
+    const drain = new Promise<void>((r) => (cycleEnded = r));
+    const fresh = await h.renewAfterSyncGaveUp({ drain, place: null });
+    expect((fresh as MobileVault).vaultId, "the step goes on with the vault opened anew").toBe("notes anew");
+    expect(h.events, "the screens follow as on a reload").toEqual(["notes"]);
+    expect(order, "never over a save still running").toEqual([]);
+    saved();
+    await vi.waitFor(() => expect(order).toEqual(["saved", "owed", "call-off"]));
+    // Its database closes once the cycle it left has ended.
+    expect(initial.dispose).not.toHaveBeenCalled();
+    cycleEnded();
+    await vi.waitFor(() => expect(order).toContain("dispose"));
   });
 });
 

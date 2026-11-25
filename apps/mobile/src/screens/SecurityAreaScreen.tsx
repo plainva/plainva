@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
-import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, mobileEncryptedRemotePorts, quarantineSync, restartSyncIfActive, stopSyncAndDrain } from "../services/syncService";
+import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, mobileEncryptedRemotePorts, quarantineSync, restartSyncIfActive, stopSyncForStep } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core";
@@ -67,6 +67,19 @@ type ConnectionState =
  * request and the invitation (R8) draw the same square.
  */
 const QR_EDGE = 232;
+
+
+/**
+ * The sync stopped for a step on the workspace, within the deadline
+ * (`stopSyncForStep`): where the vault had to be left, the step goes on with
+ * the new runtime's workspace state.
+ */
+async function stopSyncLeaving(renewedTo?: (fresh: MobileVault) => void): Promise<{ state: SqlWorkspaceStateStore | null } | null> {
+  const fresh = await stopSyncForStep();
+  if (!fresh) return null;
+  renewedTo?.(fresh);
+  return { state: fresh.workspaceState };
+}
 
 export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorkspace, initialArea }: {
   vault: MobileVault;
@@ -711,12 +724,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     if (!vault.db) { toast.error(t("workspaceSecurity.setupFailed")); return; }
     setBusyAction("resume");
     try {
-      await stopSyncAndDrain();
+      // Within the deadline: a cycle that does not end in time is left, and the step goes on with the vault's new runtime.
+      const on = (await stopSyncForStep()) ?? vault;
+      if (!on.db) throw new Error("the vault's index database is not open");
       const result = await resumeMobileWorkspaceSetup({
-        vaultId: vault.vaultId,
-        store: await getMobileWorkspaceObjectStore(vault.vaultId),
-        vault: vault.belowChain,
-        state: vault.workspaceState ?? new SqlWorkspaceStateStore(vault.db),
+        vaultId: on.vaultId,
+        store: await getMobileWorkspaceObjectStore(on.vaultId),
+        vault: on.belowChain,
+        state: on.workspaceState ?? new SqlWorkspaceStateStore(on.db),
         onProgress: (done, total) => setResumeProgress({ done, total }),
       });
       toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
@@ -752,10 +767,11 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     if (!ok) return;
     setBusyAction("lift");
     try {
-      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain, runtime: vault.workspaceRuntime });
+      let on = vault;
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving((fresh) => { on = fresh; }), runtime: vault.workspaceRuntime });
       // The queue table lives in the vault's own database, which is still open
       // here — the reload below boots a plain vault whose worker drains it.
-      await vault.syncQueue?.enqueueAllLocalFiles();
+      await on.syncQueue?.enqueueAllLocalFiles();
       await markMobileEncryptionLift(vault.vaultId);
       toast.info(t("workspaceSecurity.liftEncryptionDone"));
       await reloadActiveMobileVault("security-area");
@@ -782,7 +798,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     }
     setBusyAction("decommission");
     try {
-      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain, runtime: vault.workspaceRuntime });
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(), runtime: vault.workspaceRuntime });
       toast.info(t("workspaceSecurity.decommissionDone"));
       await reloadActiveMobileVault("security-area");
     } catch (error) {

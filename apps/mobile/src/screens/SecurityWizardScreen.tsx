@@ -6,7 +6,7 @@ import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { saveRecoveryFile } from "../services/recoveryFile";
-import { getMobileWorkspaceObjectStore, remoteSidebandFileExists, stopSyncAndDrain } from "../services/syncService";
+import { getMobileWorkspaceObjectStore, remoteSidebandFileExists, stopSyncForStep } from "../services/syncService";
 import {
   activatePreparedMobileWorkspace,
   discardPreparedMobileWorkspace,
@@ -177,15 +177,17 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
         // Park the plaintext worker first: from the moment genesis is
         // published its own fail-closed guard would refuse the next cycle
         // anyway, and a half-finished plaintext push only adds noise.
-        await stopSyncAndDrain();
+        // Within the deadline: a cycle that does not end in time is left, and the step goes on with the vault's new runtime.
+        const on = (await stopSyncForStep()) ?? vault;
+        if (!on.db) { toast.error(t("workspaceSecurity.setupFailed")); setStep(2); return; }
         const result = await activatePreparedMobileWorkspace({
-          vaultId: vault.vaultId,
+          vaultId: on.vaultId,
           draftId: workspaceDraft.draftId,
-          store: await getMobileWorkspaceObjectStore(vault.vaultId),
+          store: await getMobileWorkspaceObjectStore(on.vaultId),
           // The RAW/backup adapter: the sweep reads local files as they are —
           // the permissioned + workspace-queueing chain exists after reload.
-          vault: vault.belowChain,
-          state: new SqlWorkspaceStateStore(vault.db),
+          vault: on.belowChain,
+          state: new SqlWorkspaceStateStore(on.db),
           onProgress: (done, total) => setMigration({ done, total }),
         });
         toast.success(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));

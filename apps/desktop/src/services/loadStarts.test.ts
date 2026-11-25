@@ -81,8 +81,9 @@ describe("the vault load hands what it started to LoadStarts (wiring, read from 
 
   it("starts every worker through it", () => {
     expect(load).toContain("loadStarts.start(pimRuntime, () => pimRuntime.worker.start())");
-    expect(load).toContain("loadStarts.start(fileWorker, () => fileWorker.start())");
-    expect(load).toContain("loadStarts.start(worker, () => worker.start())");
+    // The sync workers ask first whether a step holds the vault's sync (`stopSyncForStep`).
+    expect(load).toContain("loadStarts.start(fileWorker, () => { if (syncHeldRef.current !== path) fileWorker.start(); })");
+    expect(load).toContain("loadStarts.start(worker, () => { if (syncHeldRef.current !== path) worker.start(); })");
     // No worker of the load is started past it.
     expect(load).not.toMatch(/^\s*(pimRuntime\.worker|syncWorker|worker|settingsOnlyRef\.current)\.start\(\);/m);
   });

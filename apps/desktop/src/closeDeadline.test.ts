@@ -83,11 +83,22 @@ describe("the deadline of a close", () => {
     // The close and a reload of the same vault go that one way; the open waits for the end (text 7).
     const teardown = desktop.slice(desktop.indexOf("const teardownVault = async"), desktop.indexOf("const teardownVaultRef"));
     expect(teardown).toContain("closeVaultRuntime({ path, worker, settingsOnly,");
-    expect(desktop).toMatch(/state\.vaultPath === path && \(state\.syncWorker \|\| callOffRef\.current\)[\s\S]*closeVaultRuntime\([\s\S]*waitForClosingVault\(awaitVaultTeardown\(path\)/);
+    expect(desktop).toMatch(/live && \(live\.worker \|\| callOffRef\.current\)[\s\S]*closeVaultRuntime\([\s\S]*waitForClosingVault\(awaitVaultTeardown\(path\)/);
     // A reload calls the previous load off first, as a close does: its index stops scanning, and the close does not wait it out.
-    expect(desktop).toMatch(/const previousLoad = loadAbortRef\.current;[\s\S]*state\.vaultPath === path && \(state\.syncWorker \|\| callOffRef\.current\)[\s\S]*previousLoad\?\.abort\(\);\s*await closeVaultRuntime\(/);
+    expect(desktop).toMatch(/const previousLoad = loadAbortRef\.current;[\s\S]*live && \(live\.worker \|\| callOffRef\.current\)[\s\S]*previousLoad\?\.abort\(\);\s*await closeVaultRuntime\(/);
     // Every runtime is fenced from its start, and a called-off load calls its runtime off.
     expect(desktop).toMatch(/const callOff = createVaultCallOff\(\);[\s\S]*loadStarts\.fence\(callOff\);[\s\S]*callOff\.storage\(new TauriVaultAdapter\(path\)\)[\s\S]*callOff\.database\(openedDatabase\)/);
+
+    // A step that stops the sync to work on the vault does so within the deadline (`stopSyncForStep`), and never by
+    // waiting for the worker without end; the vault it leaves opens anew with its sync held until the step reloads it.
+    expect(desktop, "no step waits for the worker without end").not.toMatch(/state\.syncWorker\?\.stopAndDrain\(\)/);
+    for (const flow of ["const activateWorkspace", "const lockWorkspace", "const resumeWorkspaceSetup", "const restoreWorkspaceRecovery", "const tearDownWorkspace"]) {
+      const at = desktop.indexOf(flow);
+      expect(at, flow).toBeGreaterThan(-1);
+      expect(desktop.slice(at, desktop.indexOf("\n  };\n", at)), flow).toContain("stopSyncForStep()");
+    }
+    expect(desktop.match(/if \(syncHeldRef\.current !== path\)/g), "every sync start of a load asks the hold").toHaveLength(3);
+    expect(desktop).toMatch(/const reloadVault = async[\s\S]*syncHeldRef\.current = null;[\s\S]*await loadVault\(state\.vaultPath\)/);
 
     const phone = readFileSync(join(ROOT, "apps/mobile/src/services/vaultService.ts"), "utf8");
     const settle = phone.slice(phone.indexOf("async function settleBeforeClosing"), phone.indexOf("function leaveVault"));

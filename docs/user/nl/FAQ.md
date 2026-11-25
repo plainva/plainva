@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-11-19
+Laatst bijgewerkt: 2026-11-25
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -152,7 +152,7 @@ Een gedeelte kon niet worden getekend: een tabblad, een sectie van de zijbalk, e
 
 ### Waarom duurt het sluiten van een vault soms even?
 
-Als je een vault sluit, wisselt, opnieuw laadt of verwijdert, wacht Plainva tot notities zijn opgeslagen en een lopende synchronisatiestap klaar is – met één termijn voor het hele sluiten. Duurt het langer dan 5 seconden, dan zegt een melding waarop Plainva wacht. Na 30 seconden gaat Plainva verder, en er gaat niets verloren: een opslag die nog niet klaar is, loopt op de achtergrond af, en de tekst staat ook in het concept; een synchronisatiestap die niet klaar werd, wordt gestopt, en de volgende synchronisatie haalt in wat ontbreekt. Een vault die nog wordt geopend wanneer je hem verwijdert, wordt gesloten en verwijderd zodra hij antwoordt. Open je dezelfde vault opnieuw terwijl hij nog wordt gesloten, dan zegt Plainva dat en opent hem zodra hij gesloten is – nooit twee keer tegelijk. Hangt een synchronisatie al 15 minuten, dan toont de statusregel dat; Plainva start hem opnieuw zodra de lopende stap klaar is, en de app opnieuw starten beëindigt hem meteen.
+Als je een vault sluit, wisselt, opnieuw laadt of verwijdert, wacht Plainva tot notities zijn opgeslagen en een lopende synchronisatiestap klaar is – met één termijn voor het hele sluiten. Duurt het langer dan 5 seconden, dan zegt een melding waarop Plainva wacht. Na 30 seconden gaat Plainva verder, en er gaat niets verloren: een opslag die nog niet klaar is, loopt op de achtergrond af, en de tekst staat ook in het concept; een synchronisatiestap die niet klaar werd, wordt gestopt, en de volgende synchronisatie haalt in wat ontbreekt. Een vault die nog wordt geopend wanneer je hem verwijdert, wordt gesloten en verwijderd zodra hij antwoordt. Open je dezelfde vault opnieuw terwijl hij nog wordt gesloten, dan zegt Plainva dat en opent hem zodra hij gesloten is en geen van zijn verzoeken nog bij de provider loopt – nooit twee keer tegelijk. Gebruikt een andere vault dezelfde synchronisatiemap, dan start de synchronisatie daarvan pas als deze vault gesloten is. Stappen die de synchronisatie stilzetten – bijvoorbeeld bij het instellen van een versleutelde workspace of het wijzigen van een wachtwoord – wachten ook hoogstens 30 seconden; daarna opent Plainva de vault opnieuw en maakt de stap daar af. Hangt een synchronisatie al 15 minuten, dan toont de statusregel dat; Plainva start hem opnieuw zodra de lopende stap klaar is, en de app opnieuw starten beëindigt hem meteen.
 
 ## Zie ook
 

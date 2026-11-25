@@ -3,7 +3,7 @@ import { setNoteLinksVaultLoading } from "@plainva/ui";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
-import { startSyncIfConfigured } from "../services/syncService";
+import { startSyncAfterBoot } from "../services/syncService";
 import { isPimRuntimeReady, restartPimAfterImport, startPim, stopPim } from "../services/pim/pimService";
 import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
 import { resumePimOAuthResult } from "../services/pim/pimOAuth";
@@ -82,7 +82,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         // touch (bootStagger.ts, performance plan L4).
         stagger?.cancel();
         stagger = staggerAfterFirstPaint([
-          () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
+          () => { if (current()) void startSyncAfterBoot(v).catch((e) => console.error("[boot] sync start failed", e)); },
           () => {
             if (!current()) return;
             const pim = startPim(v);

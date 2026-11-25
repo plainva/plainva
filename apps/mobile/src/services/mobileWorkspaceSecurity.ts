@@ -1147,19 +1147,23 @@ export async function decommissionMobileWorkspace(input: {
   state: WorkspaceStateStore | null;
   /** Stops and drains the sync worker. Injected so this module stays free of
    *  the vault/sync services (they import this one), and so the test can prove
-   *  no cycle is still running when the state goes. */
-  stopSync: () => Promise<void>;
+   *  no cycle is still running when the state goes. Within the deadline: where
+   *  the vault had to be left for a new runtime, it answers that runtime's
+   *  workspace state, and the step goes on with it. */
+  stopSync: () => Promise<{ state: WorkspaceStateStore | null } | null | void>;
   /** The runtime this device holds, where unlocked: whether it is the workspace's only device and member decides what the folder is afterwards (R8). */
   runtime?: PersonalWorkspaceRuntime | null;
 }): Promise<void> {
-  const { vaultId, state, stopSync } = input;
+  const { vaultId, stopSync } = input;
+  let state = input.state;
   const departure = workspaceDeparture(input.runtime ?? null);
   // (1) Refusal path: a locked keystore throws here, before any change.
   const runtime = await secureCredentialStore.readSecret<ReturnType<typeof serializePersonalWorkspaceRuntime>>(runtimeKey(vaultId));
   if (!runtime && !(await getMobileWorkspaceStatus(vaultId))) throw new Error("this vault is not an encrypted workspace on this device");
   // A cycle mid-flight would write workspace objects into a state we are about
   // to clear.
-  await stopSync();
+  const renewed = await stopSync();
+  if (renewed) state = renewed.state;
   // (2) The gate.
   await Preferences.remove({ key: statusKey(vaultId) });
   cache.delete(vaultId); locked.delete(vaultId);

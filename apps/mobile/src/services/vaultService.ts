@@ -32,6 +32,7 @@ import { adoptOwnRemovals, createVaultCallOff, sweepPlainOwed, sweepWorkspaceOwe
 import { mActions } from "./mobileDialogs";
 import { ensureVaultsFolder, sandboxNewVaultPorts, writeWithRetry } from "./newVaultWrite";
 import { countOrphanedRequestsIn } from "../adapters/webdavHttp";
+import { vaultEntryName } from "./vaultEntryName";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, pickVaultFolder, type VaultFolderAccess } from "../platform/vaultFolder";
@@ -452,7 +453,7 @@ async function settleBeforeClosing(current: MobileVault | null): Promise<Settled
   // the deadline keeps nothing behind that would hold the next vault's sync, and the drain below reaches only this
   // vault's workers.
   const detached = detachSync();
-  const vault = current ? ((await getVaultEntry(current.vaultId).catch(() => null))?.name ?? "") : "";
+  const vault = current ? vaultEntryName((await getVaultEntry(current.vaultId).catch(() => null))?.name) : "";
   let step = { kind: "saving", names: [] } as CloseWaitStep;
   const drain = (async () => {
     if (current) await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
@@ -518,6 +519,33 @@ async function leaveVault(current: MobileVault, settled: Pick<SettledClose, "dra
   if (!settled.gaveUp) await disposed;
 }
 
+/**
+ * A step that stopped the sync to work on the vault gave up waiting for it
+ * (`stopSyncForStep`): the vault is left as a close that gave up in the sync
+ * step leaves it — what the editors still save lands first, never
+ * overtaken, what is owed to the sync queue gets its last attempt, then
+ * nothing of the runtime writes any more — and opens anew. The screens follow
+ * as on a reload; the step goes on with the new runtime, which opens once the
+ * old one has ended (text 7).
+ */
+export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: SyncStateBinding | null }): Promise<MobileVault> {
+  const current = await retireBoot();
+  if (!current) return getMobileVault();
+  const vault = vaultEntryName((await getVaultEntry(current.vaultId).catch(() => null))?.name);
+  const saved = (async () => {
+    await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
+    await noteSaver.flushAll();
+  })();
+  void saved
+    .catch(() => undefined)
+    .then(() => current.flushOwed())
+    .catch(reportingTo("sync:owed-before-call-off"))
+    .finally(() => current.callOff());
+  await leaveVault(current, { drain: Promise.all([left.drain, saved.catch(() => undefined)]).then(() => undefined), gaveUp: true, place: left.place, vault });
+  bootPromise = null;
+  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current.vaultId } }));
+  return getMobileVault();
+}
 async function switchTo(id: string): Promise<void> {
   // Already opening this very vault: stopping its boot to start it again would only lose the scan so far.
   if (bootPromise && !bootSettled && (await getActiveVaultEntry()).id === id) return;
@@ -666,7 +694,7 @@ export async function reloadActiveMobileVault(own?: string | readonly string[], 
     // or its database now — also after a close that gave up and left them to finish in the background (text 7).
     if (opts.beforeReopen) {
       const entry = current ? await getVaultEntry(current.vaultId).catch(() => null) : null;
-      await waitForClosingVault(closingAt(vaultId, current?.external), entry?.name ?? "");
+      await waitForClosingVault(closingAt(vaultId, current?.external), vaultEntryName(entry?.name));
       await opts.beforeReopen();
     }
   } finally {
@@ -792,7 +820,7 @@ export async function deleteVault(id: string): Promise<string[]> {
   // the vault's runtime ends only after its saves (`leaveVault`). A vault still opening is left to the switch below,
   // which closes it once it answers (`retireBoot`).
   const booting = bootPromise;
-  const name = booting ? ((await getVaultEntry(id).catch(() => null))?.name ?? "") : "";
+  const name = booting ? vaultEntryName((await getVaultEntry(id).catch(() => null))?.name) : "";
   const got: { vault: MobileVault | null } = { vault: null };
   const waiting: { on: "saving" | "opening" } = { on: "saving" };
   const waited = (async () => {
@@ -1009,7 +1037,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   signal?.addEventListener("abort", () => indexAbort.abort(), { once: true });
   const containerRoot = isExternalVault(entry) ? null : isDefaultLocal ? "vault" : `vaults/${entry.id}`;
   // Never two runtimes at one vault: a previous one of this vault ends first (text 7).
-  await waitForClosingVault(closingAt(entry.id, entry.external), entry.name ?? "");
+  await waitForClosingVault(closingAt(entry.id, entry.external), vaultEntryName(entry.name));
   // Fenced: a close that gives up waiting calls this runtime off, and then
   // nothing of it writes the vault or its index database any more (`createVaultCallOff`).
   const callOff = createVaultCallOff();

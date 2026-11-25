@@ -4,7 +4,7 @@ import { getMailPassword, listMailAccounts, mailAccountKind, mailSecretKey, chec
 import { protectedSecrets } from "../platform/protectedSecrets";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { loadCloudAccounts } from "./cloudAccountsStore";
-import { getStoredProvider, restartSyncIfActive, stopSyncAndDrain } from "./syncService";
+import { getStoredProvider, restartSyncIfActive, stopSyncForStep } from "./syncService";
 import { storedProviderEndpoint } from "./fileSyncAccess";
 import { syncProviderSlot } from "./syncSlot";
 import { getActiveVaultEntry } from "./vaultRegistry";
@@ -63,7 +63,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             await new S3SyncTarget({ ...value.creds, secretAccessKey }, webdavFetch).listFolders("");
           },
           beforeWrite: async () => {
-            if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
+            if ((await getActiveVaultEntry()).id === vaultId) await stopSyncForStep();
           },
         }));
         else if (service === "files") targets.push(createPasswordCredentialTarget({
@@ -81,7 +81,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             await new WebDavSyncTarget({ ...value.creds, pass }, webdavFetch).listFolders("");
           },
           beforeWrite: async () => {
-            if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
+            if ((await getActiveVaultEntry()).id === vaultId) await stopSyncForStep();
           },
         }));
         else if (service === "calendar") {

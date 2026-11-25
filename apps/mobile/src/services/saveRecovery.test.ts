@@ -16,6 +16,7 @@ import { createSaveCoordinator, type SaveCoordinator } from "../../../../package
 import { createSaveFailureTeller, saveFailureReason } from "../../../../packages/ui/src/lib/saveRetry";
 import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
+import { vaultEntryName } from "./vaultEntryName";
 import { retiredBoot } from "./bootRetirement";
 
 // CodeMirror belongs to the shared UI package; load that exact installed copy.
@@ -88,7 +89,7 @@ function harness(vault: MobileVault) {
     // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
     retiredBoot,
     // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
-    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, vaultEntryName, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     vault, createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>

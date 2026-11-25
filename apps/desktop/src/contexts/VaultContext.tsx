@@ -28,6 +28,7 @@ import { syncStatusStore } from "../services/syncStatusStore";
 import { closeVaultRuntime } from "../services/closeRuntime";
 import { vaultLabel } from "../services/vaultNames";
 import { awaitVaultTeardown } from "../services/vaultTeardown";
+import { stopSyncForStep as stopSyncForStepIn } from "../services/stepSyncStop";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
@@ -700,6 +701,11 @@ export const VaultProvider: React.FC<{
   const owedRef = useRef<{ flush(): Promise<void> } | null>(null);
   // The folder the running vault's sync uses: a close parks the runtime's end under it too (`parkClosingSyncPlace`).
   const syncPlaceRef = useRef<SyncStateBinding | null>(null);
+  // The runtime of the vault on screen as the last load left it — read by a reload and by a step that left the
+  // vault (`stopSyncForStep`): React's state of the render that began them may be older than the runtime.
+  const runtimeRef = useRef<{ path: string; worker: VaultState["syncWorker"]; indexer: VaultState["indexer"]; indexQueue: VaultState["indexQueue"]; db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"] } | null>(null);
+  // The vault whose sync a step holds (`stopSyncForStep`): its load starts no sync until the step reloads it.
+  const syncHeldRef = useRef<string | null>(null);
   // Recents, the last-vault memory, auto-open and the three lifecycle entry
   // points live one level up (contexts/AppContext.tsx) — they outlive any
   // single vault. They are re-exported through this context so the sixty-one
@@ -815,7 +821,8 @@ export const VaultProvider: React.FC<{
       // A runtime of this very vault still running (a reload): it closes the way
       // a close does — drafts, saves, then the sync step — never called off
       // before its saves had their chance.
-      if (state.vaultPath === path && (state.syncWorker || callOffRef.current)) {
+      const live = runtimeRef.current?.path === path ? runtimeRef.current : state.vaultPath === path ? { worker: state.syncWorker, indexer: state.indexer, indexQueue: state.indexQueue } : null;
+      if (live && (live.worker || callOffRef.current)) {
         const fence = callOffRef.current;
         callOffRef.current = null;
         const owed = owedRef.current;
@@ -825,11 +832,12 @@ export const VaultProvider: React.FC<{
         const settingsOnly = settingsOnlyRef.current;
         settingsOnlyRef.current = null;
         settingsOnly?.stop();
-        state.syncWorker?.stop();
+        live.worker?.stop();
+        runtimeRef.current = null;
         // As `teardownVault`: the previous load's signal goes, so its index stops scanning and the close does not
         // wait out a full scan (nor name it as a sync step).
         previousLoad?.abort();
-        await closeVaultRuntime({ path, worker: state.syncWorker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence, owed, syncPlace }).closed;
+        await closeVaultRuntime({ path, worker: live.worker, settingsOnly, indexer: live.indexer, indexQueue: live.indexQueue, fence, owed, syncPlace }).closed;
       }
       // Never two runtimes at one vault: a previous one opens the way only once
       // it has ended — its close through and none of its calls open (text 7).
@@ -1582,7 +1590,8 @@ export const VaultProvider: React.FC<{
                 },
                 () => {
                   settingsOnlyRef.current = settingsOnly;
-                  settingsOnly.start();
+                  // Held for a step (`stopSyncForStep`): the step's reload starts it.
+                  if (syncHeldRef.current !== path) settingsOnly.start();
                 },
               );
             }
@@ -1697,13 +1706,15 @@ export const VaultProvider: React.FC<{
                     }
                   }
                 };
-                if (!loadStarts.start(worker, () => worker.start())) return null;
+                // Held for a step (`stopSyncForStep`): the step's reload starts it.
+                if (!loadStarts.start(worker, () => { if (syncHeldRef.current !== path) worker.start(); })) return null;
                 return worker;
               };
               if (deferWorkspaceReconcile) {
                 void startEncryptedWorkspace()
                   .then((worker) => {
                     if (!worker || currentAbortSignal.aborted) { if (worker) loadStarts.late(worker); return; }
+                    if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker };
                     setState((s) => (s.vaultPath === path ? { ...s, syncWorker: worker } : s));
                   })
                   .catch(async (e) => {
@@ -1863,7 +1874,8 @@ export const VaultProvider: React.FC<{
                 toast.info(kept);
               }
             };
-            if (!loadStarts.start(fileWorker, () => fileWorker.start())) return null;
+            // Held for a step (`stopSyncForStep`): the step's reload starts it.
+            if (!loadStarts.start(fileWorker, () => { if (syncHeldRef.current !== path) fileWorker.start(); })) return null;
             return fileWorker;
             };
             if (branch === "plain") {
@@ -1887,6 +1899,7 @@ export const VaultProvider: React.FC<{
                     void startPlainWorker().then((worker) => {
                       if (!worker || currentAbortSignal.aborted) { if (worker) loadStarts.late(worker); return; }
                       syncStatusStore.set(path, { status: "idle", message: null, provider: syncProvider, reason: undefined });
+                      if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker };
                       setState((st) => (st.vaultPath === path ? { ...st, syncWorker: worker } : st));
                     }).catch((error) => console.error("[VaultContext] starting the sync of a held folder failed", error));
                   },
@@ -1941,6 +1954,10 @@ export const VaultProvider: React.FC<{
       // A held folder is asked only now, in the background: opening the vault
       // never waits for the network (R8, review point B).
       if (!currentAbortSignal.aborted) heldStart?.();
+      runtimeRef.current = {
+        path, worker: syncWorker, indexer, indexQueue, db: dbAdapter,
+        belowChain: personBelowChain,
+      };
       setState(s => ({
         ...s,
         vaultPath: path,
@@ -2565,6 +2582,8 @@ export const VaultProvider: React.FC<{
     workspaceStateRef.current = null;
     loadAbortRef.current?.abort();
     activeLoadPathRef.current = null;
+    runtimeRef.current = null;
+    syncHeldRef.current = null;
 
     if (state.vaultPath) syncStatusStore.reset(state.vaultPath);
     setState(s => ({
@@ -2821,7 +2840,47 @@ export const VaultProvider: React.FC<{
    */
   const reloadVault = async (): Promise<void> => {
     if (!state.vaultPath) return;
+    // A step that held the sync is through: the reloaded vault syncs again.
+    syncHeldRef.current = null;
     await loadVault(state.vaultPath);
+  };
+
+  /**
+   * Stops the vault's sync for a step that then works on the vault — the
+   * security wizard, locking, restoring or lifting a workspace — within the
+   * close's deadline (texts 2 and 5), never without end. A cycle that does
+   * not end in time is left: what is owed to the sync queue gets its last
+   * attempt, the runtime is called off, and the vault opens anew with its sync
+   * held; the step goes on with the new runtime and starts the sync with its
+   * own reload. Never two runtimes at one vault: the new one opens once the
+   * old one and the cycle it left have ended (text 7).
+   *
+   * Answers what the step works on — the runtime on screen, or the new one.
+   */
+  const stopSyncForStep = async (): Promise<{ db: VaultState["dbAdapter"]; belowChain: VaultState["belowChainAdapter"]; target: ISyncTarget | null; provider: SyncProviderId | null }> => {
+    const path = state.vaultPath;
+    const now = () => ({
+      db: runtimeRef.current?.db ?? state.dbAdapter,
+      belowChain: runtimeRef.current?.belowChain ?? state.belowChainAdapter,
+      target: syncTargetRef.current,
+      provider: syncProviderRef.current,
+    });
+    if (!path) return now();
+    await stopSyncForStepIn({
+      path,
+      vault: vaultLabel(path),
+      worker: runtimeRef.current?.path === path ? runtimeRef.current.worker : state.syncWorker,
+      owed: owedRef.current,
+      fence: callOffRef.current,
+      forgetWorker: () => {
+        if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker: null };
+      },
+      holdSync: () => {
+        syncHeldRef.current = path;
+      },
+      reopen: () => loadVault(path),
+    });
+    return now();
   };
 
   /** The start's rebuild: set the damaged file aside and open the vault again (its accounts come back in `loadVault`). */
@@ -2903,12 +2962,16 @@ export const VaultProvider: React.FC<{
       throw new Error("workspace-no-connection");
     }
     const vaultPath = state.vaultPath;
-    const dbAdapter = state.dbAdapter;
-    const backupAdapter = state.belowChainAdapter;
-    const rawTarget = syncTargetRef.current;
+    let dbAdapter = state.dbAdapter;
+    let backupAdapter = state.belowChainAdapter;
+    let rawTarget = syncTargetRef.current;
     const provider = workspaceProviderName(syncProviderRef.current);
     return underActivationOverlay(vaultPath, "activate", onProgress, async (report) => {
-      await state.syncWorker?.stopAndDrain();
+      // Within the deadline; where the vault had to be left, the step goes on with its new runtime.
+      const on = await stopSyncForStep();
+      dbAdapter = on.db ?? dbAdapter;
+      backupAdapter = on.belowChain ?? backupAdapter;
+      rawTarget = on.target ?? rawTarget;
       const workspaceState = new SqlWorkspaceStateStore(dbAdapter);
       workspaceStateRef.current = workspaceState;
       const result = await activatePreparedPersonalWorkspace({
@@ -2947,7 +3010,7 @@ export const VaultProvider: React.FC<{
     // review of wave 2, § 3.2); undone only where the lock does not go through.
     const lock = beginWorkspaceLock(state.vaultPath);
     try {
-      await state.syncWorker?.stopAndDrain();
+      await stopSyncForStep();
     } catch (error) {
       lock.undo();
       throw error;
@@ -2968,12 +3031,16 @@ export const VaultProvider: React.FC<{
       throw new Error("workspace-no-connection");
     }
     const vaultPath = state.vaultPath;
-    const dbAdapter = state.dbAdapter;
-    const backupAdapter = state.belowChainAdapter;
-    const rawTarget = syncTargetRef.current;
+    let dbAdapter = state.dbAdapter;
+    let backupAdapter = state.belowChainAdapter;
+    let rawTarget = syncTargetRef.current;
     const provider = workspaceProviderName(syncProviderRef.current);
     return underActivationOverlay(vaultPath, "resume", onProgress, async (report) => {
-      await state.syncWorker?.stopAndDrain();
+      // Within the deadline; where the vault had to be left, the step goes on with its new runtime.
+      const on = await stopSyncForStep();
+      dbAdapter = on.db ?? dbAdapter;
+      backupAdapter = on.belowChain ?? backupAdapter;
+      rawTarget = on.target ?? rawTarget;
       const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(dbAdapter);
       workspaceStateRef.current = workspaceState;
       const result = await resumePersonalWorkspaceSetup({
@@ -3403,13 +3470,15 @@ export const VaultProvider: React.FC<{
 
   const restoreWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }): Promise<void> => {
     if (!state.vaultPath || !state.dbAdapter || !state.belowChainAdapter || !syncTargetRef.current || !syncProviderRef.current) throw new Error("workspace-no-connection");
-    await state.syncWorker?.stopAndDrain();
-    const store = createProviderWorkspaceObjectStore(workspaceProviderName(syncProviderRef.current), syncTargetRef.current);
+    // Within the deadline; where the vault had to be left, the step goes on with its new runtime.
+    const on = await stopSyncForStep();
+    if (!on.db || !on.belowChain || !on.target || !on.provider) throw new Error("workspace-no-connection");
+    const store = createProviderWorkspaceObjectStore(workspaceProviderName(on.provider), on.target);
     const restored = await restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
     await publishWorkspaceGovernanceUpdate(store, restored);
     await persistWorkspaceRuntime({ vaultPath: state.vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
-    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
-    await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: state.belowChainAdapter, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
+    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(on.db);
+    await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: on.belowChain, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
     await reloadVault();
   };
 
@@ -3828,8 +3897,8 @@ export const VaultProvider: React.FC<{
    * a keychain cannot be enumerated to find a slot whose id is gone.
    */
   const tearDownWorkspace = async (path: string): Promise<void> => {
-    // Stop the worker first so no cycle races the teardown.
-    await state.syncWorker?.stopAndDrain().catch(() => undefined);
+    // Stop the worker first so no cycle races the teardown — within the deadline (`stopSyncForStep`).
+    await stopSyncForStep().catch(reportingTo("workspace:teardown"));
     const publicationIds = await workspaceStateRef.current
       ?.listPublications()
       .then((records) => records.map((record) => record.publicationId))
