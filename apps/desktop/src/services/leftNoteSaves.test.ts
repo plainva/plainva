@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SAVE_RETRY_LIMIT } from "@plainva/ui";
 import { EditorSaveLifetime } from "./editorSaveLifetime";
-import { settlePendingWrites } from "./pendingWrites";
-import { adoptLeftNoteSave, endLeftNoteSaves, hasLeftNoteSave, releaseLeftNoteSave, resetLeftNoteSavesForTests, wakeLeftNoteSaves } from "./leftNoteSaves";
+import { settlePendingWrites, withPendingWrite } from "./pendingWrites";
+import { adoptLeftNoteSave, endLeftNoteSaves, hasLeftNoteSave, leftNoteSaveEpoch, releaseLeftNoteSave, resetLeftNoteSavesForTests, wakeLeftNoteSaves, type LeftNoteSave } from "./leftNoteSaves";
 
 /**
  * A failed save of a note the editor left is tried again by itself, as the
@@ -27,7 +27,7 @@ function left(over: { fails?: number; due?: () => boolean; vaultPath?: string; p
       throw held;
     }
   });
-  return { vaultPath: over.vaultPath ?? "/v", path: over.path ?? "a.md", retry, stillDue: over.due ?? (() => true) };
+  return { vaultPath: over.vaultPath ?? "/v", path: over.path ?? "a.md", epoch: 0, retry, stillDue: over.due ?? (() => true) };
 }
 
 describe("saves of notes the editor left", () => {
@@ -145,5 +145,80 @@ describe("saves of notes the editor left", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(a.retry).not.toHaveBeenCalled();
     expect(b.retry).not.toHaveBeenCalled();
+  });
+
+});
+
+/**
+ * The editor's own save, as `Editor.tsx` wires it: it runs inside
+ * `withPendingWrite`, and its `catch` hands itself over again whenever the
+ * pane no longer holds the note — also when the try was the saver's own.
+ */
+function editorLike(vaultPath: string, path: string, write: () => Promise<void>, epoch = leftNoteSaveEpoch(vaultPath)) {
+  let tries = 0;
+  const persistText = (): Promise<void> => withPendingWrite(vaultPath, path, async () => {
+    tries += 1;
+    try {
+      await write();
+    } catch (error) {
+      const save: LeftNoteSave = { vaultPath, path, epoch, retry: () => persistText(), stillDue: () => true };
+      adoptLeftNoteSave(save, error);
+      throw error;
+    }
+  });
+  return { persistText, tries: () => tries };
+}
+
+describe("a left save handed over again from its own failure", () => {
+  it("keeps its count and its interval, and rests after about five minutes", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    const e = editorLike("/v", "a.md", async () => { throw held; });
+    await e.persistText().catch(() => {});
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    // The pane's last try, then the rule's tries again: 1, 2, 4, 8, 16 s, then every 30 s.
+    expect(e.tries()).toBe(1 + SAVE_RETRY_LIMIT);
+    expect(hasLeftNoteSave("/v", "a.md")).toBe(true);
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+    expect(e.tries()).toBe(1 + SAVE_RETRY_LIMIT);
+  });
+
+  it("is refused when its vault closed while its last try was still under way, and nothing is tried through that runtime", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    let fail!: () => void;
+    const e = editorLike("/w", "b.md", () => new Promise<void>((_, reject) => { fail = () => reject(held); }));
+    const lastTry = e.persistText().catch(() => {});
+    // The vault closes while the editor's last try is under way: closing waits for it.
+    const settling = settlePendingWrites("/w");
+    await vi.advanceTimersByTimeAsync(0);
+    fail();
+    await lastTry;
+    await settling;
+    expect(hasLeftNoteSave("/w", "b.md")).toBe(false);
+    // The vault is open again, with a new runtime: the old editor's save stays refused.
+    const reopened = editorLike("/w", "b.md", async () => { throw held; });
+    adoptLeftNoteSave({ vaultPath: "/w", path: "b.md", epoch: 0, retry: () => e.persistText(), stillDue: () => true }, held);
+    expect(hasLeftNoteSave("/w", "b.md")).toBe(false);
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(e.tries()).toBe(1);
+    // An editor of the new runtime is tried again as ever.
+    await reopened.persistText().catch(() => {});
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(reopened.tries()).toBe(2);
+  });
+
+  it("ends when it is not due any more, asked before the try — also when the answer takes a while", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    let due = true;
+    const save = { ...left({ fails: 99 }), stillDue: async () => { await new Promise((r) => setTimeout(r, 10)); return due; } };
+    adoptLeftNoteSave(save, held);
+    await vi.advanceTimersByTimeAsync(1_010);
+    expect(save.retry).toHaveBeenCalledTimes(1);
+    due = false;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(save.retry).toHaveBeenCalledTimes(1);
+    expect(hasLeftNoteSave("/v", "a.md")).toBe(false);
   });
 });

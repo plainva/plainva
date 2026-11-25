@@ -92,6 +92,7 @@ import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 import { createSaveRetryTimer, type SaveRetryState } from "../services/saveRetryTimer";
 import { adoptLeftNoteSave } from "../services/leftNoteSaves";
+import { leftNoteSaveDue } from "../services/leftNoteSaveDue";
 import { vaultAppName, vaultLabel } from "../services/vaultNames";
 
 /**
@@ -1033,12 +1034,24 @@ export const Editor: React.FC<{
           // itself beside the pane (`leftNoteSaves.ts`), as the phone's saver
           // does, until it goes through, the note is open again or the vault
           // closes. The text stays in the draft journal all along.
+          // Before each try it asks whether the text is still owed: no
+          // editor holds the note again — in this window, or in another one
+          // (`leftNoteSaveDue`: the journal's newest entry is still this
+          // text, the file still what this editor last knew).
           adoptLeftNoteSave({
             vaultPath: draftVault,
             path,
+            epoch: saveState.epoch,
             retry: () => persistText(val),
-            stillDue: () => !saveState.isActive() && !EditorSaveLifetime.holds(draftVault, path) && !saveState.transferFrozen
-              && saveState.revision === revAtSave && revAtSave > saveState.savedRevision && revAtSave > saveState.discardedRevision,
+            stillDue: async () => !saveState.isActive() && !EditorSaveLifetime.holds(draftVault, path) && !saveState.transferFrozen
+              && saveState.revision === revAtSave && revAtSave > saveState.savedRevision && revAtSave > saveState.discardedRevision
+              && await leftNoteSaveDue(
+                { path, sessionId: saveState.id, revision: revAtSave, persisted: saveState.persisted },
+                {
+                  newestDraft: () => import("../services/draftJournal").then(({ readDraft }) => readDraft(draftVault, path)),
+                  readTextFile: (p) => vaultAdapter.readTextFile(p),
+                },
+              ),
           }, error);
         }
         throw error;

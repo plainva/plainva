@@ -58,6 +58,11 @@ describe("the desktop editor tries a failed save again", () => {
     // Not due once an editor holds the note again, its save went through or was given up.
     expect(left).toMatch(/!saveState\.isActive\(\) && !EditorSaveLifetime\.holds\(draftVault, path\)/);
     expect(left).toMatch(/revAtSave > saveState\.savedRevision && revAtSave > saveState\.discardedRevision/);
+    // Owned elsewhere, written elsewhere, moved or deleted: asked of the journal and the file before each try.
+    expect(left).toMatch(/&& await leftNoteSaveDue\(\s*\{ path, sessionId: saveState\.id, revision: revAtSave, persisted: saveState\.persisted \}/);
+    expect(left).toMatch(/newestDraft: \(\) => import\("\.\.\/services\/draftJournal"\)\.then\(\(\{ readDraft \}\) => readDraft\(draftVault, path\)\)/);
+    // A save of a runtime that closed is refused (`leftNoteSaves.ts`).
+    expect(left).toMatch(/epoch: saveState\.epoch,/);
     // The pane's last try is the save that is handed over when it fails.
     expect(between("// The pane shows another note, or goes", "session.view.scrollDOM.removeEventListener")).toMatch(/void persistText\(text\)\.catch/);
     const lifetime = readFileSync(fileURLToPath(new URL("./services/editorSaveLifetime.ts", import.meta.url)), "utf8");

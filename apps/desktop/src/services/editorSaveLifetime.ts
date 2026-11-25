@@ -1,6 +1,6 @@
 import type { IVaultAdapter } from "@plainva/core";
 import type { KeptText, TextFileShape } from "@plainva/ui";
-import { releaseLeftNoteSave } from "./leftNoteSaves";
+import { leftNoteSaveEpoch, releaseLeftNoteSave } from "./leftNoteSaves";
 
 /** The editor lifetimes that are active now, by vault and note: who holds a note's text. */
 const active = new Set<EditorSaveLifetime>();
@@ -34,8 +34,15 @@ export class EditorSaveLifetime {
   activeWrites = 0;
   transferFrozen = false;
   private active = false;
+  /**
+   * The vault's epoch when this editor began (`leftNoteSaves.ts`): a save it
+   * hands over after its vault closed belongs to a runtime that is gone.
+   */
+  readonly epoch: number;
 
-  constructor(readonly vaultPath: string | null, readonly path: string | null, readonly adapter: IVaultAdapter | null) {}
+  constructor(readonly vaultPath: string | null, readonly path: string | null, readonly adapter: IVaultAdapter | null) {
+    this.epoch = vaultPath ? leftNoteSaveEpoch(vaultPath) : 0;
+  }
   /**
    * The pane holds this note now. A save of it that an editor left and that
    * is still tried again (`leftNoteSaves.ts`) stops: this editor owns the
