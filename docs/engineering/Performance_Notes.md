@@ -431,7 +431,22 @@ notes), the same run before and after: cold index 26.1 s -> 25.1 s (the ratio to
 Node from a fast local disk, where a read costs little; what L2 removes is the waiting per file
 over a bridge — three calls per note into Rust on the desktop, one through the plugin on the phone
 — and a slow medium, which the core does not see. On Windows the first version of this change
-measured 71.3 -> 43.4 s at the core (`feature/w2-open`, 2026-11-11). Nothing native was measured.
+measured 71.3 -> 43.4 s at the core (`feature/w2-open`, 2026-11-11).
+
+**In the built app** (native smoke, `apps/desktop/wdio/indexRead.e2e.ts`, GitHub runners,
+2026-11-25, run 45678975296): the page reads the same 3 003 generated notes the three ways, in one
+run, and every way hands back each file's hash. One by one in turn as the adapter read them (two
+path calls, the read, the hash in JavaScript) / one by one, eight at a time / in groups of eight
+through `read_files_for_index`, two calls at a time:
+
+| | one by one | eight at a time | in groups |
+|---|---|---|---|
+| Linux (WebKitGTK) | 11.52 s | 2.45 s | 0.57 s |
+| Windows (WebView2) | 4.60 s | 3.10 s | 1.24 s |
+| macOS (WKWebView) | 4.54 s | 1.80 s | 0.32 s |
+
+Hashing 75 attachments in Rust took 14–33 ms. That is the reading of a first index of 3 003 notes,
+the part L2 changes; parsing and writing the index are not in it.
 
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
