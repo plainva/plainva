@@ -1000,6 +1000,11 @@ readers; the weights are the same. The asymmetry is a decision of the parity cat
   suffixes, not this merge. The note's budget bounds the memory, not the time: up to the threshold of
   prose (7 625 lines) a parse takes about 2.5 s. A block read as text is one line of stand-ins and
   linear; so is an unclosed `---` at a note's start, past which the parser reads one paragraph.
+- *The desktop's reading view of many footnotes is slow, as on `main`:* at the desktop's threshold of
+  the footnote form (11 572 references and definitions) the reading view takes 97 s, at 17 000 175 s,
+  most of it in micromark's edit map; three and ten times over the threshold take it more than five
+  minutes. `perf:notes -- --check` holds the memory there and names such a read (`TIME`) without
+  failing it: the budget bounds memory, not this time.
 - *Indented and tabbed lists* are measured by the paragraph budget's own reading of lines, which
   differs from the parser's where tabs indent (time, no memory), and a table read generously (in a
   list item, a footnote, behind a lazy line) is measured as paragraph text as well: either reads a
