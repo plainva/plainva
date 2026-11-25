@@ -566,4 +566,44 @@ describe("the hosts' queueing answers what happened, and only a queued or refuse
     expect((await state.listQueue()).filter((e) => e.operation === "delete").map((e) => e.path)).toEqual(["A.md", "B.md"]);
     for (const p of names) expect(await markOf(p)).toBe(0);
   });
+
+  it("F4 in the encrypted workspace: a file that comes back while the permission checks run is not queued for deletion", async () => {
+    expect.hasAssertions();
+    const state = new SqlWorkspaceStateStore(db);
+    const names = ["A.md", "B.md", "C.md"];
+    await owedWorkspaceDeletions(state, names);
+    let restored = false;
+    const { h } = workspaceShaped(state, (p) => {
+      // While A is asked, another program puts B back.
+      if (p === "A.md" && !restored) {
+        restored = true;
+        void fs.writeFile(onDisk("B.md"), "# B is back\n", "utf8");
+      }
+      return true;
+    });
+    // The write above lands before the entry: the checks of B and C come after it.
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 3, writes: 0, failed: 0 });
+    expect((await state.listQueue()).filter((e) => e.operation === "delete").map((e) => e.path)).toEqual(["A.md", "C.md"]);
+    // B's mark goes as every mark of a file that is back: the next pass judges it.
+    for (const p of names) expect(await markOf(p)).toBe(0);
+  });
+
+  it("F4 in the plain sync: a file that comes back after the sweep looked is not queued for deletion", async () => {
+    expect.hasAssertions();
+    const names = ["Bulk/a.md", "Bulk/b.md", "Bulk/c.md"];
+    await owedDeletion(...names);
+    const { plain, failing } = failingQueue();
+    failing.on = false;
+    const { h } = desktopShaped(plain);
+    let asked = 0;
+    const { vaultIsThere } = h;
+    // The sweep asks for the vault before and after its looks; b comes back right after them.
+    h.vaultIsThere = async () => {
+      asked += 1;
+      if (asked === 2) await fs.writeFile(onDisk("Bulk/b.md"), "# back\n", "utf8");
+      return vaultIsThere();
+    };
+    await sweepPlainOwed(db, h);
+    expect(await queued()).toEqual(["delete Bulk/a.md", "delete Bulk/c.md"]);
+  });
 });

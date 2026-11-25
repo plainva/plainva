@@ -1242,7 +1242,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         vaultIsThere: () => vaultFolderIsThere(files).then((there) => there === true),
         stillGone: async (p: string) => !(await adapter.exists(p)),
         remove: queueLocalDeletion,
-        removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
+        removeAll: (paths: readonly string[], stillGone: (path: string) => Promise<boolean>) => localQueueing.deletions(paths, stillGone),
         write: enqueueLocal,
       };
       (kind === "plain" ? sweepPlainOwed(db, handlers) : sweepWorkspaceOwed(db, handlers))

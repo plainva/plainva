@@ -158,7 +158,7 @@ export interface OwedSweepHandlers {
    * them or none, so the mass-deletion question is never asked of a slice
    * (review F4).
    */
-  removeAll?: (paths: readonly string[]) => Promise<OwedOutcome>;
+  removeAll?: (paths: readonly string[], stillGone: (path: string) => Promise<boolean>) => Promise<OwedOutcome>;
   /** Queues the change the way the index's `onExternalModification` does (workspace only). */
   write?: (path: string) => Promise<OwedOutcome>;
 }
@@ -199,7 +199,7 @@ async function sweepRemovals(db: SqlStatements, workspace: boolean, h: OwedSweep
   await clearMarks(db, back);
   if (gone.length === 0) return none;
   if (h.removeAll) {
-    const outcome = await h.removeAll(gone).catch((): OwedOutcome => /* silent: counted as failed, the sweep's report names the count and the mark stays for the next start */ "failed");
+    const outcome = await h.removeAll(gone, h.stillGone).catch((): OwedOutcome => /* silent: counted as failed, the sweep's report names the count and the mark stays for the next start */ "failed");
     if (outcome === "failed") return { queued: 0, failed: gone.length };
     await clearMarks(db, gone);
     return { queued: outcome === "queued" ? gone.length : 0, failed: 0 };
@@ -280,7 +280,8 @@ export interface LocalQueueingTargets {
 
 export interface LocalQueueing {
   deletion(path: string): Promise<OwedOutcome>;
-  deletions(paths: readonly string[]): Promise<OwedOutcome>;
+  /** `stillGone` is asked for each path right before the one entry is made (default: the targets' own). */
+  deletions(paths: readonly string[], stillGone?: (path: string) => Promise<boolean>): Promise<OwedOutcome>;
   change(path: string): Promise<OwedOutcome>;
 }
 
@@ -340,9 +341,11 @@ export function createLocalQueueing(t: LocalQueueingTargets): LocalQueueing {
      * in the encrypted workspace's, and where a permission check comes first.
      * Every path is asked before anything is queued; a check that fails
      * queues nothing (the marks wait for the next start), a refusal leaves
-     * that path out. Answers `queued` when anything was queued.
+     * that path out. Right before the entry, each path is looked at once
+     * more: a file that came back while the checks ran is left out — the next
+     * pass judges it. Answers `queued` when anything was queued.
      */
-    async deletions(paths) {
+    async deletions(paths, stillGone = t.stillGone) {
       if (!t.queuesChanges()) {
         let worst: OwedOutcome = "refused";
         for (const path of paths) if ((await deletion(path)) === "failed") worst = "failed";
@@ -355,13 +358,27 @@ export function createLocalQueueing(t: LocalQueueingTargets): LocalQueueing {
         if (verdict === "failed") return "failed";
         if (verdict) allowed.push(path);
       }
-      if (allowed.length === 0) return "refused";
       const workspace = t.workspace?.() ?? null;
-      if (workspace) return answer(await run(() => workspace.enqueueDeletions(allowed)));
       const plain = t.plain?.() ?? null;
-      if (!plain) return "failed";
-      // The queue skips a path asked again.
-      return answer(await run(() => plain.queueDeletePaths(allowed)));
+      if (!workspace && !plain) return allowed.length === 0 ? "refused" : "failed";
+      // Looked at right before the entry, once all checks are through.
+      const goneNow = async () => {
+        if (!stillGone) return allowed;
+        const still: string[] = [];
+        for (const path of allowed) if (await stillGone(path).catch(() => false)) still.push(path);
+        return still;
+      };
+      let queued = 0;
+      const made = await run(async () => {
+        const due = await goneNow();
+        queued = due.length;
+        if (due.length === 0) return;
+        if (workspace) await workspace.enqueueDeletions(due);
+        // The queue skips a path asked again.
+        else await plain!.queueDeletePaths(due);
+      });
+      if (made === "queued" && queued === 0) return "refused";
+      return answer(made);
     },
     async change(path) {
       if (!queuesForTheRemote(path) || !t.queuesChanges()) return "refused";
