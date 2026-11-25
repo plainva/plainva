@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified, type Processor } from "unified";
-import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type BoundedRange, type MarkdownReading } from "./inlineParseBudget.ts";
+import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type BoundedRange, type MarkdownReading, type ReadAsTextParts, type ReadPiece } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
@@ -154,10 +154,9 @@ interface LinkNode {
  * under the table's own header and delimiter row — the reader of every other
  * table, one row at a time — and of each row only its links are kept. They
  * join the node the table stands in as text, at their places in `text`.
- * Every other stretch read as text — a paragraph over the inline budget, a
- * block over the note's (L14) — gives its links by their characters, beside
- * the tree (`forEachTextReadLink` in `textReadLinks.ts`): the index, a
- * backlink and a rename read each link of the note once.
+ * A block over the note's budget is read in pieces by the readers of its
+ * facts (`forEachReadPiece`), its tables with it; a paragraph over the inline
+ * budget is not read for its links, as before, and the note's notice says so.
  */
 function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly BoundedRange[], parse: (text: string) => Tree, reading: MarkdownReading): void {
   let counted = 0;
@@ -173,10 +172,8 @@ function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly Bound
     return end < 0 ? text.length : end;
   };
   for (const range of tablesWhole(text, ranges)) {
-    // A paragraph or a block read as text gives its links to the index and a rename by their characters
-    // (`forEachTextReadLink` in `textReadLinks.ts`), beside this tree: as nodes, 400 000 of them ran the index out
-    // of 128 MB (L14).
-    if (!range.table) continue;
+    // A block read as text is read in pieces by the readers of its facts (`forEachReadPiece`), its tables with it.
+    if (!range.table || range.block) continue;
     const headStart = text.lastIndexOf("\n", range.from - 1) + 1;
     const headEnd = endOf(headStart);
     if (headEnd + 1 >= range.to) continue;
@@ -344,4 +341,100 @@ export function parseCommonMarkTree(text: string): MarkdownTreeNode {
 export function parseReaderTextTree(text: string, options: { codeSpans?: boolean } = {}): MarkdownTreeNode {
   const parser = options.codeSpans === false ? readerTextParserWithoutCodeSpans : readerTextParser;
   return parsedInText((source) => parser.parse(source), text) as unknown as MarkdownTreeNode;
+}
+
+/** How a piece of a block read as text is read (`forEachReadPiece`): no properties block (it is not the note's start), no note's budget (it is within a piece's share). */
+const PIECE_READING: MarkdownReading = { tables: true, properties: false, notes: false };
+
+interface PieceNode {
+  type: string;
+  label?: string;
+  identifier?: string;
+  children?: PieceNode[];
+  position?: { start?: Partial<MarkdownTreePoint>; end?: Partial<MarkdownTreePoint> };
+}
+
+/**
+ * The definitions a piece read alone must know to read its references as the
+ * note does — link reference definitions and footnote definitions are the
+ * note's, wherever they stand —, as lines to append behind it: each reads as
+ * a definition and names nothing (`#`, `.`).
+ */
+function definitionsOf(tree: PieceNode, labels: Set<string>, within?: { from: number; to: number }): boolean {
+  let found = false;
+  const visit = (node: PieceNode): void => {
+    if ((node.type === "definition" || node.type === "footnoteDefinition") && (node.label ?? node.identifier)) {
+      const at = node.position?.start?.offset ?? -1;
+      if (!within || (at >= within.from && at < within.to)) {
+        const line = node.type === "definition" ? `[${(node.label ?? node.identifier)!.replace(/\s+/g, " ")}]: #` : `[^${(node.label ?? node.identifier)!.replace(/\s+/g, " ")}]: .`;
+        if (!labels.has(line)) {
+          labels.add(line);
+          found = true;
+        }
+      }
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(tree);
+  return found;
+}
+
+/**
+ * Each piece of the blocks `parts` reads as text (`readAsTextParts`), parsed
+ * alone by the note's own parser and handed to `visit` with every position a
+ * place in `text` — L14, Weg A: the note's tree holds a block read as text
+ * as one paragraph of its characters, and the readers of its facts (the
+ * index, a rename, its block ids) read them from the pieces instead, one at a
+ * time, and let each go. A piece begins where the note does
+ * (`readAsTextParts`); it is read behind a blank line, so that no properties
+ * block opens there, with the definitions of the note behind it, so that its
+ * references read as in the note. `tree` is the note's tree, for the
+ * definitions outside the pieces; a piece that holds definitions of its own
+ * is read for them first.
+ */
+export function forEachReadPiece(text: string, parts: ReadAsTextParts, tree: unknown, options: { preserveObsidianSyntax?: boolean; places?: boolean }, visit: (tree: MarkdownTreeNode, piece: ReadPiece) => void): void {
+  if (parts.pieces.length === 0) return;
+  const read = (piece: string): MarkdownTreeNode =>
+    (options.places ? parseMarkdownTree(piece, PIECE_READING) : parseMarkdownAst(piece, { preserveObsidianSyntax: options.preserveObsidianSyntax, reading: PIECE_READING })) as unknown as MarkdownTreeNode;
+  const labels = new Set<string>();
+  definitionsOf(tree as PieceNode, labels);
+  // A blank line between them: behind a footnote's definition the next line would be its text.
+  const appendix = () => (labels.size > 0 ? `\n\n${[...labels].join("\n\n")}\n` : "");
+  // Definitions inside the pieces: read first, so that every piece knows them. A piece without `]:` holds none.
+  let marker = -1;
+  for (const piece of parts.pieces) {
+    if (marker < piece.from) marker = text.indexOf("]:", piece.from);
+    if (marker < 0) break;
+    if (marker >= piece.to) continue;
+    const own = read(`\n${text.slice(piece.from, piece.to)}`);
+    definitionsOf(own as unknown as PieceNode, labels, { from: 1, to: 1 + piece.to - piece.from });
+  }
+  const tail = appendix();
+  // The places of the note's lines, counted as the parser counts them, from piece to piece.
+  let line = 1;
+  let counted = 0;
+  for (const piece of parts.pieces) {
+    for (; counted < piece.from; counted++) {
+      const code = text.charCodeAt(counted);
+      if (code === 0x0a || (code === 0x0d && text.charCodeAt(counted + 1) !== 0x0a)) line++;
+    }
+    const length = piece.to - piece.from;
+    const own = read(`\n${text.slice(piece.from, piece.to)}${tail}`) as unknown as PieceNode;
+    // What stands behind the piece is the appendix: none of it is the note's.
+    own.children = (own.children ?? []).filter((child) => (child.position?.start?.offset ?? 0) < 1 + length);
+    const moved = new WeakSet<object>();
+    const move = (point: Partial<MarkdownTreePoint> | undefined): void => {
+      if (!point || moved.has(point)) return;
+      moved.add(point);
+      if (typeof point.offset === "number") point.offset += piece.from - 1;
+      if (typeof point.line === "number") point.line += line - 2;
+    };
+    const walk = (node: PieceNode): void => {
+      move(node.position?.start);
+      move(node.position?.end);
+      for (const child of node.children ?? []) walk(child);
+    };
+    walk(own);
+    visit(own as unknown as MarkdownTreeNode, piece);
+  }
 }

@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-19
+Last updated: 2026-11-25
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -261,3 +261,7 @@ When adding a property, known names show their type and usage count. Existing an
 A note can grow so large that a device can no longer read it formatted: a table of thousands of rows, a list of tens of thousands of items, megabytes of text in one paragraph. So that it still opens on every device, Plainva then reads its heaviest parts as plain text. Above the note it says **This note is very large. Part of it is shown as text.**; the ⓘ next to it explains what that means, and **Go to it** takes you to the first such place in the editor.
 
 All that is missing in these parts is the formatting: tables, lists, links and emphasis appear as their source. Otherwise the text counts like any other: search finds it, its links appear in backlinks and the graph, its tags and tasks are found, and when you rename a note, Plainva rewrites its links too. Headings and properties are kept for as long as possible. Split the note into several and everything is formatted again.
+
+If a part is too large even for that — a single paragraph of megabytes without a blank line, say —, it says **Part of this note is shown as text, and its links are not read.** above the note. Its links are then missing from backlinks and the graph, and renaming a note leaves them as they are; search still finds it, and its tags and tasks are found. **Go to it** takes you to that part. Split it with blank lines or write it as a list, and it is read again.
+
+While you write in such a note, a part shown as text stays text until the note has become clearly smaller: a single character does not make it jump back and forth between text and formatting.

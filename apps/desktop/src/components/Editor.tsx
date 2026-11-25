@@ -19,7 +19,7 @@ import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
 import { parkEditorSuggestion, clearEditorSuggestion } from "../services/editorSuggestionPark";
-import { AreaBoundary, askDiscard, ReadAsTextNotice, readSourceSelection } from "@plainva/ui";
+import { AreaBoundary, askDiscard, ReadAsTextNotice, readSourceSelection, type ReadAsTextState } from "@plainva/ui";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
@@ -743,6 +743,8 @@ export const Editor: React.FC<{
   }, [vaultPath]);
   // Floating formatting toolbar over a non-empty selection (#5).
   const [selToolbar, setSelToolbar] = useState<SelectionToolbarPosition | null>(null);
+  // What the editor reads as text (L14, `ReadAsTextNotice`): its own decision, heard at every scan of the note.
+  const [readAsTextState, setReadAsTextState] = useState<ReadAsTextState | null>(null);
   // Block handle menu (#7): opened from a block's drag grip.
   const [blockMenu, setBlockMenu] = useState<{ x: number; y: number; from: number } | null>(null);
   // Document icon / header-color pickers (W3), anchored where the user clicked.
@@ -2720,6 +2722,7 @@ export const Editor: React.FC<{
       handlePaste,
       handleDrop,
       onDocChanged,
+      onReadAsText: setReadAsTextState,
       onSelectionToolbar: setSelToolbar,
       // Selection counts for the status bar (P3.9): only the focused pane that
       // owns the global channel publishes, so split panes (and floating peeks)
@@ -3723,7 +3726,7 @@ export const Editor: React.FC<{
 
       {/* Part of the note is read as text (L14): said over the note in both modes; the button goes to its first place in the editor. */}
       {!notText && (
-        <ReadAsTextNotice content={content} onJump={isReadMode ? undefined : (offset) => {
+        <ReadAsTextNotice state={isReadMode ? undefined : readAsTextState} content={isReadMode ? content : undefined} onJump={isReadMode ? undefined : (offset) => {
           const view = sessionRef.current?.view;
           if (!view) return;
           jumpToLineTop(view, view.state.doc.lineAt(Math.min(offset, view.state.doc.length)).number, { focus: true });

@@ -1,4 +1,4 @@
-import { parseMarkdownAst, parseMarkdownTree } from "@plainva/core";
+import { extractLinksAndTags, parseMarkdownAst, parseMarkdownTree } from "@plainva/core";
 
 /**
  * „Speicher messen“ (L14, Gesamtplan Leistung § 3a.4, decision 5): the note
@@ -31,8 +31,8 @@ export interface MemoryProbeResult {
   largest: number;
   /** The note a previous run attempted and never finished: the app was ended while it read it. */
   endedAt?: { form: string; chars: number };
-  /** Where the probe stopped on its own: every size read, or the time it was given ran out. */
-  stopped: "all" | "time";
+  /** Where the probe stopped on its own: every size read, the time it was given ran out, or the engine's heap filled. */
+  stopped: "all" | "time" | "heap";
 }
 
 const FORMS: Record<string, (n: number) => string> = {
@@ -41,10 +41,24 @@ const FORMS: Record<string, (n: number) => string> = {
   table: (n) => `| a | b | c |\n|---|---|---|\n${Array.from({ length: n }, (_, i) => `| ${i} | [[Note ${i}]] | some words |`).join("\n")}`,
 };
 
+const memory = (): { usedJSHeapSize: number; jsHeapSizeLimit?: number } | undefined => (performance as unknown as { memory?: { usedJSHeapSize: number; jsHeapSizeLimit?: number } }).memory;
 const heapMb = (): number | undefined => {
-  const memory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
-  return memory ? Math.round(memory.usedJSHeapSize / 1e6) : undefined;
+  const known = memory();
+  return known ? Math.round(known.usedJSHeapSize / 1e6) : undefined;
 };
+
+/**
+ * The largest note the probe reads: the note's budget is measured for notes
+ * up to 10 MB (`perf:notes`, Performance_Notes.md); beyond, a note's text
+ * alone, read as one line of stand-ins, outgrows a small heap. Until
+ * 2026-11 the probe read up to 16 MB and could end the app itself, under
+ * 128 MB on the first form.
+ */
+export const PROBE_MOST_CHARS = 8_000_000;
+/** A step slower than this ends its form: the page is held while a note is read, and the next would take twice as long. */
+export const PROBE_STEP_MS = 5_000;
+/** Where the engine says how full its heap is: a step that leaves it fuller than this share ends the probe. */
+export const PROBE_HEAP_SHARE = 0.6;
 
 function storage(): Storage | null {
   try {
@@ -77,9 +91,14 @@ export function memoryProbeResult(): MemoryProbeResult | null {
 }
 
 /**
- * Reads notes of each form at doubling sizes, from about 50 KB up to 16 MB or
- * until `seconds` have passed, each through the index parse and the
- * note-source parse. Yields to the page between notes, so that it stays usable.
+ * Reads notes of each form at doubling sizes, from about 50 KB up to
+ * `PROBE_MOST_CHARS` or until `seconds` have passed, each as the index reads
+ * it — the parse and the reading of its links and tags, a block read as text
+ * in pieces — and through the note-source parse. Yields to the page between
+ * notes, so that it stays usable. A form ends at a step slower than
+ * `PROBE_STEP_MS`; the probe ends where the engine says its heap is fuller
+ * than `PROBE_HEAP_SHARE` (Chromium; WKWebView says nothing, and there the
+ * size limit alone holds it).
  */
 export async function runMemoryProbe(onStep?: (step: MemoryProbeStep) => void, seconds = 60): Promise<MemoryProbeResult> {
   const store = storage();
@@ -87,26 +106,37 @@ export async function runMemoryProbe(onStep?: (step: MemoryProbeStep) => void, s
   const steps: MemoryProbeStep[] = [];
   let largest = 0;
   let stopped: MemoryProbeResult["stopped"] = "all";
-  for (const [form, make] of Object.entries(FORMS)) {
+  forms: for (const [form, make] of Object.entries(FORMS)) {
+    let last = 0;
     for (let n = 1_000; ; n *= 2) {
       if (performance.now() - started > seconds * 1000) {
         stopped = "time";
-        break;
+        break forms;
       }
+      // Twice the last size, at least: a note that would be too large is not made.
+      if (last * 2 > PROBE_MOST_CHARS) break;
       const text = `# Probe\n\n${make(n)}\n`;
-      if (text.length > 16_000_000) break;
-      store?.setItem(ATTEMPT_KEY, JSON.stringify({ form, chars: text.length }));
+      const chars = text.length;
+      last = chars;
+      if (chars > PROBE_MOST_CHARS) break;
+      store?.setItem(ATTEMPT_KEY, JSON.stringify({ form, chars }));
       const begun = performance.now();
-      parseMarkdownAst(text, { preserveObsidianSyntax: true });
+      const ast = parseMarkdownAst(text, { preserveObsidianSyntax: true });
+      extractLinksAndTags(ast, text);
       parseMarkdownTree(text);
-      const step = { form, chars: text.length, ms: Math.round(performance.now() - begun), heapMb: heapMb() };
+      const step = { form, chars, ms: Math.round(performance.now() - begun), heapMb: heapMb() };
       store?.removeItem(ATTEMPT_KEY);
       steps.push(step);
-      largest = Math.max(largest, text.length);
+      largest = Math.max(largest, chars);
       onStep?.(step);
       await new Promise((resolve) => setTimeout(resolve, 0));
+      const known = memory();
+      if (known?.jsHeapSizeLimit && known.usedJSHeapSize > PROBE_HEAP_SHARE * known.jsHeapSizeLimit) {
+        stopped = "heap";
+        break forms;
+      }
+      if (step.ms > PROBE_STEP_MS) break;
     }
-    if (stopped === "time") break;
   }
   const result: MemoryProbeResult = { at: new Date().toISOString(), steps, largest, stopped };
   try {

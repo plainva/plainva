@@ -3866,6 +3866,8 @@
     "readAsText": "Esta nota es muy grande. Una parte se muestra como texto.",
     "readAsTextInfo": "Para que la nota se abra en cualquier dispositivo, Plainva lee sus partes más pesadas como texto sin formato. Allí solo falta el formato: las tablas, las listas y los enlaces aparecen como texto fuente.\n\nPor lo demás, ese texto cuenta como cualquier otro: la búsqueda lo encuentra, sus enlaces aparecen en los vínculos entrantes y en el grafo, sus etiquetas y tareas se encuentran y, al renombrar una nota, se reescriben sus enlaces. Si divides la nota, todo vuelve a tener formato.",
     "readAsTextJump": "Ir allí",
+    "readAsTextUnread": "Una parte de esta nota se muestra como texto y sus enlaces no se leen.",
+    "readAsTextUnreadInfo": "Para que la nota se abra en cualquier dispositivo, Plainva muestra las partes muy grandes o escritas de forma inusual como texto sin formato. Una de ellas es demasiado grande para leerla ni siquiera por fragmentos: sus enlaces no aparecen en los vínculos entrantes ni en el grafo, y al renombrar una nota se quedan como están. La búsqueda la encuentra igualmente, y sus etiquetas y tareas se encuentran.\n\nSi divides esa parte con líneas en blanco o la escribes como lista, vuelve a leerse.",
     "fmtHeading": "Encabezado"
   },
   "tabMenu": {

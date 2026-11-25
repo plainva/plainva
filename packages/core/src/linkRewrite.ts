@@ -1,6 +1,6 @@
 import { decodeMarkdownLinkTarget, encodeMarkdownLinkPath, markdownLinkTarget } from "./linkEncoding.js";
-import { parseMarkdownAst } from "./markdown-parser.js";
-import { destinationAt, forEachTextReadLink, textReadRanges, unescaped, type Unescaped } from "./textReadLinks.js";
+import { inBoundedRanges, readAsTextParts, type BoundedRange } from "./inlineParseBudget.js";
+import { forEachReadPiece, parseMarkdownAst } from "./markdown-parser.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 
 /**
@@ -81,6 +81,12 @@ export interface NoteLinks {
   /** In the order they stand in the note. */
   links: NoteLink[];
   unplaced: UnplacedNoteLink[];
+  /**
+   * What the parse budget reads as text and leaves unread (`readAsTextParts`,
+   * L14): a link that stands there is none of `links` — a rename cannot
+   * rewrite it, and says so.
+   */
+  unread: BoundedRange[];
 }
 
 /** What becomes of one link: a new file to name, or other text in the link's place. */
@@ -98,6 +104,33 @@ interface TreeNode {
   position?: { start?: TreePoint; end?: TreePoint };
 }
 
+/** What a backslash escapes in Markdown: ASCII punctuation, nothing else. */
+const ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+const escapes = (text: string, at: number): boolean => text[at] === "\\" && at + 1 < text.length && ESCAPABLE.includes(text[at + 1]);
+
+/** A stretch of the source with its backslash escapes taken out, and where each character stands. */
+interface Unescaped {
+  text: string;
+  /** Per character: where it begins in the source — at its backslash, if it has one. */
+  starts: number[];
+  /** Per character: the offset behind it. */
+  ends: number[];
+}
+
+function unescaped(text: string, from: number, to: number): Unescaped {
+  const chars: string[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
+  for (let at = from; at < to; ) {
+    const char = escapes(text, at) && at + 1 < to ? at + 1 : at;
+    chars.push(text[char]);
+    starts.push(at);
+    ends.push(char + 1);
+    at = char + 1;
+  }
+  return { text: chars.join(""), starts, ends };
+}
+
 /**
  * The file a Markdown link's destination names: what stands in front of the
  * first `#` — the anchor marker of a destination —, decoded and trimmed. A
@@ -110,6 +143,38 @@ function markdownTarget(url: string): { target: string; from: number; to: number
   const hash = url.indexOf("#");
   const path = hash < 0 ? url : url.slice(0, hash);
   return { target: markdownLinkTarget(url).target, from: path.length - path.trimStart().length, to: path.trimEnd().length };
+}
+
+/**
+ * The destination of an inline link whose label ends in front of `from - 2`:
+ * behind `](`, in angle brackets or bare. The parser has accepted the link, so
+ * this only has to find where the destination ends.
+ */
+function destinationAt(text: string, from: number, limit: number): { start: number; end: number; angle: boolean } | null {
+  let at = from;
+  while (at < limit && (text[at] === " " || text[at] === "\t" || text[at] === "\n" || text[at] === "\r")) at++;
+  if (text[at] === "<") {
+    for (let end = at + 1; end < limit; end++) {
+      if (escapes(text, end)) end++;
+      else if (text[end] === ">") return { start: at + 1, end, angle: true };
+      else if (text[end] === "<" || text[end] === "\n" || text[end] === "\r") return null;
+    }
+    return null;
+  }
+  let depth = 0;
+  let end = at;
+  for (; end < limit; end++) {
+    const char = text[end];
+    if (escapes(text, end)) end++;
+    // A blank or a control character ends a bare destination.
+    else if (char <= " " || char === "\x7f") break;
+    else if (char === "(") depth++;
+    else if (char === ")") {
+      if (depth === 0) break;
+      depth--;
+    }
+  }
+  return { start: at, end: Math.min(end, limit), angle: false };
 }
 
 /**
@@ -204,14 +269,14 @@ function collect(text: string, node: TreeNode, inTable: boolean, inLabel: boolea
  * lists the same ones from the same tree.
  */
 export function readNoteLinks(content: string): NoteLinks {
-  const out: NoteLinks = { links: [], unplaced: [] };
-  collect(content, parseMarkdownAst(content) as unknown as TreeNode, false, false, out);
-  // The links of the stretches the parse budget reads as text, as the index reads them (`forEachTextReadLink`, L14).
-  forEachTextReadLink(content, textReadRanges(content), (link) => {
-    const position = { start: { offset: link.start }, end: { offset: link.end } };
-    if (link.type === "wikiLink") wikiLinkOf({ type: "wikiLink", value: link.value, embed: link.embed, position }, false, false, out);
-    else markdownLinkOf(content, { type: "link", url: link.url, position, children: link.labelEnd! > link.labelStart! ? [{ type: "text", position: { start: { offset: link.labelStart }, end: { offset: link.labelEnd } } }] : [] }, false, false, out);
-  });
+  const out: NoteLinks = { links: [], unplaced: [], unread: [] };
+  const tree = parseMarkdownAst(content);
+  collect(content, tree as unknown as TreeNode, false, false, out);
+  // A block the note's budget reads as text is one paragraph of its characters in the tree: its links are read from
+  // its pieces, by the parser itself (`forEachReadPiece`, L14), as the index reads them.
+  const parts = readAsTextParts(content);
+  out.unread = parts.unread;
+  forEachReadPiece(content, parts, tree, {}, (piece) => collect(content, piece as unknown as TreeNode, false, false, out));
   out.links.sort((a, b) => a.start - b.start);
   return out;
 }
@@ -471,6 +536,7 @@ export function rewriteNoteLinks(
   // the links behind an open backtick read back depends on every one left
   // out before it, and no link is left out that this order keeps.
   let containers: InlineContainers | null = null;
+  const rounds = new Map<number, number>();
   for (;;) {
     const { text, made } = withEdits(content, edits);
     if (retargeted.size === 0) return { content: text, rewritten: made, unplaced: left };
@@ -484,15 +550,29 @@ export function rewriteNoteLinks(
       edits.splice(edits.indexOf(edit), 1);
     };
     const lastLost = new Map<number, Edit>();
+    const together: Edit[] = [];
     for (const edit of lost) {
       const key = containers.of(retargeted.get(edit)!.link.start);
+      // A paragraph read this often leaves out all its lost links at once: they still name the file they named,
+      // counted as such, and a paragraph of thousands of them is not read once per link: 2 000 links to one note in one paragraph took 51 s.
+      if ((rounds.get(key) ?? 0) >= ROUNDS_PER_CONTAINER) {
+        together.push(edit);
+        continue;
+      }
       const last = lastLost.get(key);
       if (!last || edit.from > last.from) lastLost.set(key, edit);
     }
-    for (const edit of lastLost.values()) leaveOut(edit);
+    for (const [key, edit] of lastLost) {
+      rounds.set(key, (rounds.get(key) ?? 0) + 1);
+      leaveOut(edit);
+    }
+    for (const edit of together) leaveOut(edit);
   }
 }
 
+
+/** How many rounds a paragraph leaves out one link each before it leaves out all its lost ones (`rewriteNoteLinks`). */
+const ROUNDS_PER_CONTAINER = 16;
 
 interface InlineContainers {
   /** The paragraph, heading or table cell a place of the note stands in, by number; a place in none is a container of its own. */
@@ -513,7 +593,25 @@ function inlineContainers(content: string): InlineContainers {
     }
     for (const child of node.children ?? []) walk(child);
   };
-  walk(parseMarkdownAst(content) as unknown as TreeNode);
+  const tree = parseMarkdownAst(content);
+  // A block the note's budget reads as text is one paragraph in the tree: its own paragraphs come from its pieces (L14).
+  const parts = readAsTextParts(content);
+  const blocks = parts.ranges.filter((range) => range.block);
+  for (const node of (tree as unknown as TreeNode).children ?? []) {
+    const at = node.position?.start?.offset;
+    if (inBoundedRanges(blocks, at)) continue;
+    walk(node);
+  }
+  forEachReadPiece(content, parts, tree, {}, (piece) => walk(piece as unknown as TreeNode));
+  if (parts.pieces.length > 0) {
+    const order = starts.map((_, i) => i).sort((a, b) => starts[a] - starts[b]);
+    const sortedStarts = order.map((i) => starts[i]);
+    const sortedEnds = order.map((i) => ends[i]);
+    for (let i = 0; i < order.length; i++) {
+      starts[i] = sortedStarts[i];
+      ends[i] = sortedEnds[i];
+    }
+  }
   return {
     of(at) {
       // In document order and never nested: the last one that starts at or before `at`.
@@ -540,14 +638,19 @@ const CONTEXT_SENSITIVE = /[`<>]/;
  */
 function editsNotReadBack(text: string, edits: readonly Edit[], retargeted: ReadonlyMap<Edit, { link: NoteLink; target: string }>): Edit[] {
   const sorted = [...edits].sort((a, b) => a.from - b.from);
-  /** Where a place of the old note lies in the new one: shifted by every edit in front of it. */
+  // What the edits in front of each one shift a place by, summed: an edit ends before the next one begins.
+  const shifts = new Float64Array(sorted.length + 1);
+  for (let i = 0; i < sorted.length; i++) shifts[i + 1] = shifts[i] + sorted[i].text.length - (sorted[i].to - sorted[i].from);
+  /** Where a place of the old note lies in the new one: shifted by every edit in front of it (found by halving, not by a walk over all of them). */
   const moved = (at: number): number => {
-    let shift = 0;
-    for (const edit of sorted) {
-      if (edit.to > at) break;
-      shift += edit.text.length - (edit.to - edit.from);
+    let lo = 0;
+    let hi = sorted.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sorted[mid].to <= at) lo = mid + 1;
+      else hi = mid;
     }
-    return at + shift;
+    return at + shifts[lo];
   };
   const read = new Map<number, NoteLink>();
   for (const link of readNoteLinks(text).links) read.set(link.start, link);

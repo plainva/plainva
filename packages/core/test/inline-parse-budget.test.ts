@@ -27,6 +27,7 @@ import {
   COMMONMARK_READING,
   interruptsParagraph,
   READER_READING,
+  readAsTextParts,
   type MarkdownReading,
 } from "../src/inlineParseBudget.ts";
 import { toHast } from "mdast-util-to-hast";
@@ -282,13 +283,15 @@ describe("the inline parse budget", () => {
     expect(tree.children![1].type).toBe("table");
   }, 240 * SECONDS);
 
-  it("keeps the links of a stretch read as written in the index's reading, found by their characters (L14)", () => {
-    // Until L14 the index lost them: a backlink and the graph did not see them, and a rename left them behind.
+  it("leaves the links of a paragraph over the inline budget unread, as before, and names it as unread", () => {
+    // No second reader judges links where the parser cannot read: such a paragraph gives the index no link, as before
+    // the note's budget, and `readAsTextParts` names it, so that the note's notice can say so.
     const stretch = `[[Inside]] ${"x]".repeat(20_000)} \`[[InCode]]\``;
     const note = `[[Before]]\n\n${stretch}\n\n[[After]]\n`;
     const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });
-    // The index hands the note along: the links of the stretch come from it (`forEachTextReadLink`).
-    expect(extractLinksAndTags(ast, note).links.map((link) => link.target)).toEqual(["Before", "Inside", "After"]);
+    expect(extractLinksAndTags(ast, note).links.map((link) => link.target)).toEqual(["Before", "After"]);
+    const at = note.indexOf(stretch);
+    expect(readAsTextParts(note).unread).toEqual([{ from: at, to: at + stretch.length }]);
   });
 
   it("keeps every place of a text that starts with a byte order mark", () => {

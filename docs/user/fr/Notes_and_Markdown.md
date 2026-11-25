@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-11-19
+Dernière mise à jour : 2026-11-25
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -261,3 +261,7 @@ La barre de mise en forme suit la sélection pendant le défilement et garde une
 Une note peut devenir si volumineuse qu'un appareil ne peut plus la lire mise en forme : un tableau de milliers de lignes, une liste de dizaines de milliers d'éléments, des mégaoctets de texte dans un paragraphe. Pour qu'elle s'ouvre malgré tout sur tous les appareils, Plainva lit alors ses parties les plus lourdes comme du texte brut. Au-dessus de la note s'affiche **Cette note est très volumineuse. Une partie est affichée en texte.** ; le ⓘ à côté explique ce que cela signifie, et **Y aller** vous amène dans l'éditeur au premier endroit concerné.
 
 Dans ces parties, seule la mise en forme manque : les tableaux, les listes, les liens et les mises en valeur apparaissent sous forme de source. Pour le reste, le texte compte comme n'importe quel autre : la recherche le trouve, ses liens apparaissent dans les rétroliens et le graphe, ses étiquettes et ses tâches sont trouvées, et quand vous renommez une note, Plainva réécrit aussi ses liens. Les titres et les propriétés sont conservés aussi longtemps que possible. Divisez la note en plusieurs et tout est à nouveau mis en forme.
+
+Si une partie est trop volumineuse même pour cela — un seul paragraphe de plusieurs mégaoctets sans ligne vide, par exemple —, la note affiche **Une partie de cette note est affichée en texte, et ses liens ne sont pas lus.** Ses liens manquent alors dans les rétroliens et le graphe, et renommer une note les laisse tels quels ; la recherche la trouve quand même, et ses étiquettes et ses tâches sont trouvées. **Y aller** vous mène à cette partie. Divisez-la par des lignes vides ou écrivez-la sous forme de liste, et elle est de nouveau lue.
+
+Pendant que vous écrivez dans une telle note, une partie affichée en texte reste du texte jusqu'à ce que la note soit nettement plus petite : un seul caractère ne la fait pas basculer entre texte et mise en forme.

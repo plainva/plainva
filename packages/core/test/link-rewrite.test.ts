@@ -205,7 +205,7 @@ describe("what is a link, and what only looks like one", () => {
     // spelled as a character reference.
     const none = "\\[[Old]] and [\\[Old]] and &#91;[Old]] and &#91;&#91;Old]]\n";
     expect(rename(none, { Old: "New" })).toEqual({ content: none, renamed: 0, unplaced: 0 });
-    expect(readNoteLinks(none)).toEqual({ links: [], unplaced: [] });
+    expect(readNoteLinks(none)).toEqual({ links: [], unplaced: [], unread: [] });
     // The brackets that are written open one, whatever stands in front of
     // them: a `[` or a `!` by reference is text, a backslash behind a
     // backslash is one.

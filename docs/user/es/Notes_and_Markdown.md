@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-19
+Última actualización: 2026-11-25
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -261,3 +261,7 @@ Al añadir una propiedad aparecen nombres conocidos con su tipo y frecuencia. Se
 Una nota puede crecer tanto que un dispositivo ya no pueda leerla con formato: una tabla de miles de filas, una lista de decenas de miles de elementos, megabytes de texto en un párrafo. Para que aun así se abra en cualquier dispositivo, Plainva lee sus partes más pesadas como texto sin formato. Sobre la nota aparece **Esta nota es muy grande. Una parte se muestra como texto.**; la ⓘ de al lado explica qué significa, y **Ir allí** te lleva en el editor al primer lugar así.
 
 En esas partes solo falta el formato: las tablas, las listas, los enlaces y los énfasis aparecen como texto fuente. Por lo demás, el texto cuenta como cualquier otro: la búsqueda lo encuentra, sus enlaces aparecen en los vínculos entrantes y en el grafo, sus etiquetas y tareas se encuentran y, al renombrar una nota, Plainva también reescribe sus enlaces. Los encabezados y las propiedades se conservan todo lo posible. Divide la nota en varias y todo vuelve a tener formato.
+
+Si una parte es demasiado grande incluso para eso —por ejemplo, un único párrafo de megabytes sin línea en blanco—, sobre la nota aparece **Una parte de esta nota se muestra como texto y sus enlaces no se leen.** Sus enlaces faltan entonces en los vínculos entrantes y en el grafo, y al renombrar una nota se quedan como están; la búsqueda la encuentra igualmente, y sus etiquetas y tareas se encuentran. **Ir allí** te lleva a esa parte. Si la divides con líneas en blanco o la escribes como lista, vuelve a leerse.
+
+Mientras escribes en una nota así, una parte que se muestra como texto sigue siendo texto hasta que la nota se ha vuelto claramente más pequeña: un solo carácter no la hace saltar entre texto y formato.

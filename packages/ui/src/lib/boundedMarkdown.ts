@@ -25,7 +25,9 @@ export function boundReaderMarkdown(text: string, from?: { original: string; sou
   // unclosed `---`. And what the note's parsers read as written in the
   // original (the index, the outline) is read as written here as well, at its
   // place in the shown text: one decision for every reader, the heavier one.
-  const own = overBudgetInlineRanges(text, undefined, READER_READING);
+  // The note's budget decides on the original alone (`theirs`): weighed again on the shown text, whose wiki links
+  // are Markdown links, it chose other blocks than the editor and the notice did.
+  const own = overBudgetInlineRanges(text, undefined, from ? { ...READER_READING, notes: false } : READER_READING);
   const theirs = from
     ? overBudgetInlineRanges(from.original).map((range) => ({ ...range, from: from.source.toRendered(range.from), to: from.source.toRendered(range.to, "end") }))
     : [];

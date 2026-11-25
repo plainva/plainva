@@ -15,7 +15,7 @@ import { remarkStripHtmlComments } from "../components/markdownReaderModel";
  * formulas giving way, then the parse's own. Inside the stretch remark-math
  * sees stand-ins: no formula is made there and none is freed, so nothing is
  * written twice; outside it the formula gives way as on main. The index finds
- * each link once, in the stretch by its characters (`textReadLinks.ts`).
+ * each link once, from the pieces of the stretch (`forEachReadPiece`).
  */
 const list = Array.from({ length: 20_000 }, (_, i) => (i === 500 ? "- item $x [[Inside]] y$ and $$[[Block]]$$" : `- item ${i} [[Note ${i}]]`)).join("\n");
 const NOTE = `# T\n\nOutside $z [[Freed]] w$ and $a+b$.\n\n${list}\n\n## End\n`;

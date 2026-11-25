@@ -1341,7 +1341,7 @@ export class VaultIndexer {
       // text (`inlineParseBudget.ts`, L14). Until L14 a note with one line over 10 000 characters lost its links, its
       // tags and its properties here altogether.
       const ast = parseMarkdownAst(content, { preserveObsidianSyntax: true });
-      // With the note: the links of what the parse budget reads as text, as a rename reads them (`forEachTextReadLink`).
+      // With the note: the links and tags of the blocks the parse budget reads as text, read in pieces as a rename reads them (`forEachReadPiece`).
       const extracted = extractLinksAndTags(ast, content);
       const links: any[] = extracted.links;
       const tags: any[] = extracted.tags;

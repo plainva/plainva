@@ -13,9 +13,12 @@ import { overBudgetInlineRanges } from "@plainva/core";
 describe("a note read partly as text, on the phone (L14)", () => {
   const host = readFileSync(new URL("./EditorHost.tsx", import.meta.url), "utf8");
 
-  it("shows the notice over the note, from the shared building block, with a way to its first place", () => {
+  it("shows the notice over the note, from the shared building block, with the editor's own decision and a way to its place", () => {
+    expect.hasAssertions();
     expect(host).toMatch(/import \{[^}]*\bReadAsTextNotice\b[^}]*\} from "@plainva\/ui"/);
-    expect(host).toMatch(/<ReadAsTextNotice content=\{noticeText\} onShownChange=\{onReadAsTextChange\} onJump=/);
+    // The notice reads what the editor decided (`onReadAsText`), which holds its blocks while it is typed in.
+    expect(host).toMatch(/onReadAsText: \(found\) => setReadAsTextState\(found\),/);
+    expect(host).toMatch(/<ReadAsTextNotice state=\{readAsTextState\} onShownChange=\{onReadAsTextChange\} onJump=/);
     expect(host).toMatch(/createEditorSession\(/);
   });
 

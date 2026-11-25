@@ -4,7 +4,8 @@ import { extractFrontmatter } from "./metadata-extractor.js";
 import { PLAINVA_NAMESPACE_KEY } from "./metadata.js";
 import { findInlineTags } from "./tagRule.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
-import { forEachTextReadLink, textReadRanges } from "./textReadLinks.js";
+import { inBoundedRanges as inRanges, readAsTextParts, type BoundedRange } from "./inlineParseBudget.js";
+import { forEachReadPiece } from "./markdown-parser.js";
 
 export type TagOccurrence = {
   name: string;
@@ -27,10 +28,12 @@ export type ExtractedData = {
 };
 
 /**
- * The tags and links of a note's tree. With the note's `text`, also the links
- * of the stretches the parse budget reads as text, which the tree holds as
- * text (`forEachTextReadLink`, L14): the one reading of them a rename shares
- * (`readNoteLinks`), so that the index lists what a rename rewrites.
+ * The tags and links of a note's tree. With the note's `text`, also those of
+ * the blocks the note's budget reads as text, which the tree holds as one
+ * paragraph of their characters (L14): read from their pieces by the parser
+ * itself (`forEachReadPiece`), as a rename reads them (`readNoteLinks`), so
+ * that the index lists what a rename rewrites. What the budget leaves unread
+ * (`readAsTextParts`) gives nothing; the note's notice says so.
  */
 export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedData {
   const result: ExtractedData = {
@@ -50,7 +53,11 @@ export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedD
   // wiki link is a node of its own (`wikiLinkSyntax.ts`): what stands between
   // its brackets is read as it is written, whatever Markdown would read into
   // it — `[[_private_]]` names the file "_private_" (finding 2026-10-11).
-  const walk = (node: any): void => {
+  // With the note: the blocks read as text, whose characters the tree holds as text — their facts come from their pieces.
+  const parts = text !== undefined ? readAsTextParts(text) : null;
+  const blocks = parts ? parts.ranges.filter((range) => range.block) : [];
+  const walk = (node: any, inPiece = false): void => {
+    if (!inPiece && blocks.length > 0 && node.type !== "root" && inRanges(blocks, node.position?.start?.offset)) return;
     if (node.type === "text") {
       // Inline tags: the one rule in tagRule.ts (the task scan, the rename and
       // the editor's pill read the same one).
@@ -88,19 +95,28 @@ export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedD
         line: node.position?.start?.line,
       });
     }
-    for (const child of node.children ?? []) walk(child);
+    for (const child of node.children ?? []) walk(child, inPiece);
   };
   walk(ast);
-  // The links of the stretches read as text, as the nodes the parser makes of a link would give them, each at its
-  // place in the order of the text.
-  if (text !== undefined) {
+  if (parts && text !== undefined) {
+    // What of a block read as text is unread gives no link, but its tags are found by the one tag rule over its
+    // characters, as in a paragraph over the inline budget, whose text the tree holds (and the walk reads).
+    for (const range of parts.unread) {
+      if (inRanges(blocks, range.from)) for (const tag of findInlineTags(text.slice(range.from, range.to))) result.tags.push({ name: tag.name, source: "inline" });
+    }
+  }
+  if (parts && text !== undefined && parts.pieces.length > 0) {
+    // Each piece's links and tags, at its place in the order of the text: the walk lists the tree's in that order.
     const fromTree = result.links.length;
-    const places = placesOf(ast, fromTree);
-    forEachTextReadLink(text, textReadRanges(text), (link) => {
-      places.push(link.start);
-      const position = { start: { line: link.line, offset: link.start } };
-      if (link.type === "wikiLink") walk({ type: "wikiLink", value: link.value, embed: link.embed, position });
-      else walk({ type: "link", url: link.url, position, children: link.labelEnd! > link.labelStart! ? [{ type: "linkLabel", value: text.slice(link.labelStart, link.labelEnd) }] : [] });
+    const places = placesOf(ast, fromTree, blocks);
+    forEachReadPiece(text, parts, ast, { preserveObsidianSyntax: true }, (tree) => {
+      // The walk and this visit meet the same links in the same order.
+      const visit = (node: any): void => {
+        if (node.type === "wikiLink" || node.type === "link") places.push(node.position?.start?.offset ?? 0);
+        for (const child of node.children ?? []) visit(child);
+      };
+      visit(tree);
+      walk(tree, true);
     });
     if (result.links.length > fromTree) {
       const order = result.links.map((_, i) => i).sort((a, b) => places[a] - places[b] || a - b);
@@ -187,14 +203,14 @@ function getChildrenText(node: any): string {
   return node.children.map((c: any) => c.value || "").join("");
 }
 
-/** Where each of the first `count` links of the tree starts, in the order the walk above lists them. */
-function placesOf(ast: MarkdownAst, count: number): number[] {
+/** Where each of the first `count` links of the tree starts, in the order the walk above lists them, outside `blocks`. */
+function placesOf(ast: MarkdownAst, count: number, blocks: BoundedRange[]): number[] {
   const places: number[] = [];
   const visit = (node: any): void => {
+    if (blocks.length > 0 && node.type !== "root" && inRanges(blocks, node.position?.start?.offset)) return;
     if (node.type === "wikiLink" || node.type === "link") places.push(node.position?.start?.offset ?? 0);
     for (const child of node.children ?? []) visit(child);
   };
   visit(ast);
   return places.slice(0, count);
 }
-

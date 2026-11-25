@@ -3866,6 +3866,8 @@
     "readAsText": "Esta nota é muito grande. Uma parte é exibida como texto.",
     "readAsTextInfo": "Para que a nota abra em qualquer dispositivo, o Plainva lê as partes mais pesadas como texto simples. Ali falta apenas a formatação: tabelas, listas e links aparecem como texto-fonte.\n\nNo mais, esse texto conta como qualquer outro: a busca o encontra, seus links aparecem nos backlinks e no grafo, suas tags e tarefas são encontradas, e renomear uma nota reescreve seus links. Divida a nota e tudo volta a ser formatado.",
     "readAsTextJump": "Ir até lá",
+    "readAsTextUnread": "Uma parte desta nota é exibida como texto, e os links dela não são lidos.",
+    "readAsTextUnreadInfo": "Para que a nota abra em qualquer dispositivo, o Plainva exibe partes muito grandes ou escritas de forma incomum como texto simples. Uma delas é grande demais para ser lida, nem mesmo em pedaços: seus links não aparecem nos backlinks nem no grafo, e renomear uma nota os deixa como estão. A busca a encontra mesmo assim, e suas tags e tarefas são encontradas.\n\nDivida essa parte com linhas em branco ou escreva-a como lista, e ela volta a ser lida.",
     "fmtHeading": "Título"
   },
   "tabMenu": {

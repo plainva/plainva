@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-19
+Stan na: 2026-11-25
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -261,3 +261,7 @@ Przy dodawaniu właściwości pojawiają się znane nazwy z typem i liczbą uży
 Notatka może urosnąć tak bardzo, że urządzenie nie zdoła jej już odczytać ze sformatowaniem: tabela z tysiącami wierszy, lista z dziesiątkami tysięcy elementów, megabajty tekstu w jednym akapicie. Aby mimo to otwierała się na każdym urządzeniu, Plainva czyta wtedy jej najcięższe części jako zwykły tekst. Nad notatką widać **Ta notatka jest bardzo duża. Część jest pokazywana jako tekst.**; ⓘ obok wyjaśnia, co to znaczy, a **Przejdź tam** przenosi w edytorze do pierwszego takiego miejsca.
 
 W tych częściach brakuje tylko formatowania: tabele, listy, linki i wyróżnienia pojawiają się jako tekst źródłowy. Poza tym tekst liczy się jak każdy inny: wyszukiwanie go znajduje, jego linki pojawiają się w linkach zwrotnych i w grafie, jego tagi i zadania są odnajdywane, a przy zmianie nazwy notatki Plainva przepisuje także jego linki. Nagłówki i właściwości są zachowywane tak długo, jak to możliwe. Podziel notatkę na kilka, a wszystko znów będzie sformatowane.
+
+Jeśli jakaś część jest zbyt duża nawet na to — na przykład pojedynczy akapit o rozmiarze megabajtów bez pustego wiersza — nad notatką pojawia się **Część tej notatki jest pokazywana jako tekst, a jej linki nie są odczytywane.** Jej linków brakuje wtedy w linkach zwrotnych i w grafie, a zmiana nazwy notatki pozostawia je bez zmian; wyszukiwanie i tak ją znajduje, a jej tagi i zadania są odnajdywane. **Przejdź tam** przenosi do tej części. Podziel ją pustymi wierszami albo zapisz jako listę, a znów zostanie odczytana.
+
+Gdy piszesz w takiej notatce, część pokazywana jako tekst pozostaje tekstem, dopóki notatka nie stanie się wyraźnie mniejsza: pojedynczy znak nie przełącza jej tam i z powrotem między tekstem a formatowaniem.

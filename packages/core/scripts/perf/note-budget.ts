@@ -56,8 +56,9 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { boundMarkdownInRanges, NOTE_BUDGET, NOTE_READING, overBudgetInlineRanges, READER_READING, noteWeights, restoreBoundedTree, setNoteBudget, unitedRanges, withNoteWeights, type MarkdownReading, type NoteWeights } from "../../src/inlineParseBudget.js";
-import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
-import { prepareReaderSource } from "../../src/noteSource.js";
+import { parseMarkdownAst } from "../../src/markdown-parser.js";
+import { extractLinksAndTags } from "../../src/ast-scanner.js";
+import { analyzeNoteSource, prepareReaderSource } from "../../src/noteSource.js";
 import { tablesNote } from "./many-tables.js";
 
 export const HEAP_MB = 128;
@@ -206,10 +207,31 @@ function boundedReader(text: string, notes = true): unknown {
   return tree;
 }
 
-/** The three parses with the note's budget off (`--calibrate`, the margin of `--check`). */
+/**
+ * The readers as the app runs them: the index parses the note and reads its
+ * links and tags, a block read as text in pieces (`extractLinksAndTags` with
+ * the note); the note source parses it and reads its headings and block ids,
+ * the same way (`analyzeNoteSource`); the reading view (`boundedReader`).
+ */
+const asTheAppReads = {
+  index: (text: string) => {
+    const ast = parseMarkdownAst(text, { preserveObsidianSyntax: true });
+    extractLinksAndTags(ast, text);
+  },
+  tree: (text: string) => analyzeNoteSource(text),
+  reader: (text: string) => boundedReader(text),
+};
+
+/** The same readers with the note's budget off (`--calibrate`, the margin of `--check`): as `main` reads before L14. */
 const withoutNoteBudget = {
-  index: (text: string) => parseMarkdownAst(text, { preserveObsidianSyntax: true, reading: WITHOUT_NOTES }),
-  tree: (text: string) => parseMarkdownTree(text, WITHOUT_NOTES),
+  index: (text: string) => {
+    const ast = parseMarkdownAst(text, { preserveObsidianSyntax: true, reading: WITHOUT_NOTES });
+    extractLinksAndTags(ast);
+  },
+  tree: (text: string) => {
+    setNoteBudget(Number.MAX_SAFE_INTEGER);
+    analyzeNoteSource(text);
+  },
   reader: (text: string) => boundedReader(text, false),
 };
 
@@ -240,13 +262,8 @@ async function child(name: string, n: number, scale: number, parse: string, boun
   const text = noteOf(name, n, scale);
   const started = performance.now();
   if (parse === "editor") await editorParse(text);
-  else if (bounded) {
-    if (parse === "index") parseMarkdownAst(text, { preserveObsidianSyntax: true });
-    else if (parse === "tree") parseMarkdownTree(text);
-    else boundedReader(text);
-  } else {
-    withoutNoteBudget[parse as keyof typeof withoutNoteBudget](text);
-  }
+  else if (bounded) asTheAppReads[parse as keyof typeof asTheAppReads](text);
+  else withoutNoteBudget[parse as keyof typeof withoutNoteBudget](text);
   console.log(`ok ${Math.round(performance.now() - started)}`);
 }
 

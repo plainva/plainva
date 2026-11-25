@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-11-19
+Última revisão: 2026-11-25
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -261,3 +261,7 @@ Ao adicionar uma propriedade, nomes conhecidos aparecem com tipo e frequência. 
 Uma nota pode crescer tanto que um dispositivo não consegue mais lê-la formatada: uma tabela com milhares de linhas, uma lista com dezenas de milhares de itens, megabytes de texto em um parágrafo. Para que ela ainda assim abra em qualquer dispositivo, o Plainva lê as partes mais pesadas como texto simples. Acima da nota aparece **Esta nota é muito grande. Uma parte é exibida como texto.**; o ⓘ ao lado explica o que isso significa, e **Ir até lá** leva você no editor ao primeiro lugar assim.
 
 Nessas partes falta apenas a formatação: tabelas, listas, links e ênfases aparecem como texto-fonte. No mais, o texto conta como qualquer outro: a busca o encontra, seus links aparecem nos backlinks e no grafo, suas tags e tarefas são encontradas, e ao renomear uma nota o Plainva também reescreve seus links. Títulos e propriedades são mantidos pelo maior tempo possível. Divida a nota em várias e tudo volta a ser formatado.
+
+Se uma parte for grande demais até para isso — por exemplo, um único parágrafo de megabytes sem linha em branco —, aparece **Uma parte desta nota é exibida como texto, e os links dela não são lidos.** acima da nota. Os links dela ficam então de fora dos backlinks e do grafo, e renomear uma nota os deixa como estão; a busca a encontra mesmo assim, e suas tags e tarefas são encontradas. **Ir até lá** leva você até essa parte. Divida-a com linhas em branco ou escreva-a como lista, e ela volta a ser lida.
+
+Enquanto você escreve numa nota assim, uma parte exibida como texto continua sendo texto até que a nota fique claramente menor: um único caractere não a faz alternar entre texto e formatação.

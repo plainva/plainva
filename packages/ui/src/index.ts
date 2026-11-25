@@ -410,6 +410,7 @@ export * from "./components/audioPlayer";
 export * from "./components/fileEmbedMount";
 export { isEditorInteractive } from "./components/editorInteractive";
 export { ReadAsTextNotice } from "./components/ReadAsTextNotice";
+export type { ReadAsTextState } from "./components/readAsText";
 export { memoryProbeResult, runMemoryProbe, type MemoryProbeResult, type MemoryProbeStep } from "./lib/memoryProbe";
 export { useMemoryProbe } from "./hooks/useMemoryProbe";
 export * from "./components/FileEmbedCard";

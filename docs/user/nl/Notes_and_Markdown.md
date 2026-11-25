@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-19
+Laatst bijgewerkt: 2026-11-25
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -261,3 +261,7 @@ Bij het toevoegen verschijnen bekende namen met type en gebruiksaantal. Bestaand
 Een notitie kan zo groot worden dat een apparaat haar niet meer opgemaakt kan lezen: een tabel met duizenden rijen, een lijst met tienduizenden items, megabytes tekst in één alinea. Zodat ze toch op elk apparaat opent, leest Plainva dan de zwaarste delen als platte tekst. Boven de notitie staat **Deze notitie is erg groot. Een deel ervan wordt als tekst getoond.**; de ⓘ ernaast legt uit wat dat betekent, en **Ga erheen** brengt je in de editor naar de eerste zulke plek.
 
 In deze delen ontbreekt alleen de opmaak: tabellen, lijsten, links en nadruk verschijnen als brontekst. Verder telt de tekst als elke andere: zoeken vindt hem, zijn links verschijnen in backlinks en de graaf, zijn tags en taken worden gevonden, en als je een notitie hernoemt, herschrijft Plainva ook zijn links. Koppen en eigenschappen blijven zo lang mogelijk behouden. Splits de notitie in meerdere en alles is weer opgemaakt.
+
+Is een deel daarvoor zelfs te groot – bijvoorbeeld één alinea van megabytes zonder lege regel –, dan staat boven de notitie **Een deel van deze notitie wordt als tekst getoond, en de links daarin worden niet gelezen.** De links daarin ontbreken dan in backlinks en de graaf, en bij het hernoemen van een notitie blijven ze zoals ze zijn; zoeken vindt het deel toch, en de tags en taken erin worden gevonden. **Ga erheen** brengt je naar dat deel. Splits je het met lege regels of schrijf je het als lijst, dan wordt het weer gelezen.
+
+Terwijl je in zo'n notitie schrijft, blijft een deel dat als tekst wordt getoond tekst, totdat de notitie duidelijk kleiner is geworden: één teken laat het niet heen en weer springen tussen tekst en opmaak.

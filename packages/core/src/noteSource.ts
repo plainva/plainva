@@ -1,4 +1,5 @@
-import { parseMarkdownTree } from "./markdown-parser.js";
+import { forEachReadPiece, parseMarkdownTree } from "./markdown-parser.js";
+import { inBoundedRanges, readAsTextParts } from "./inlineParseBudget.js";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
 import { readerWikiLink, readerWikiLinkLead, type ReaderEmbedKind } from "./readerWikiLink.js";
 import { SOURCE_LINE_END } from "./sourceLines.js";
@@ -102,16 +103,20 @@ export const BLOCK_ID_MARKER = /(?:^|\s)\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/;
 export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; blocks: NoteBlock[] } {
   const clean = stripAnchorMarkers(raw);
   const root = treeFor(clean.text);
-  const headings: NoteHeading[] = [];
+  const headings: Array<Omit<NoteHeading, "slug">> = [];
   const blocks: NoteBlock[] = [];
-  const slug = noteSlugger();
   const range = sourceRanger(raw, clean);
+  // A block the note's budget reads as text is one paragraph of its characters in the tree: its headings and block
+  // ids come from its pieces, read by the parser alone (`forEachReadPiece`).
+  const parts = readAsTextParts(clean.text);
+  const asText = parts.ranges.filter((part) => part.block);
   const walk = (parent: SourceNode, ancestors: SourceNode[]) => {
     for (const [index, node] of (parent.children ?? []).entries()) {
       if (!node.position || node.type === "code" || node.type === "yaml" || node.type === "html") continue;
+      if (parent === root && inBoundedRanges(asText, node.position.start.offset)) continue;
       if (node.type === "heading") {
         const text = textOf(node);
-        headings.push({ ...range(node), level: node.depth!, text, slug: slug(text) });
+        headings.push({ ...range(node), level: node.depth!, text });
       }
       if (node.type === "paragraph" && node.children?.[node.children.length - 1]?.type === "text") {
         const source = clean.text.slice(node.position.start.offset, node.position.end.offset);
@@ -130,7 +135,14 @@ export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; block
     }
   };
   walk(root, []);
-  return { headings, blocks };
+  forEachReadPiece(clean.text, parts, root, { places: true }, (piece) => walk(piece as unknown as SourceNode, []));
+  if (parts.pieces.length > 0) {
+    headings.sort((a, b) => a.from - b.from);
+    blocks.sort((a, b) => a.from - b.from);
+  }
+  // Slugs in the order of the text: a repeated heading's slug counts the ones before it.
+  const slug = noteSlugger();
+  return { headings: headings.map((heading) => ({ ...heading, slug: slug(heading.text) })), blocks };
 }
 
 export type NoteFragment =
@@ -485,7 +497,16 @@ export function planBlockLink(raw: string, offset: number, random: () => number 
   if (raw.slice(lineFrom, lineTo).trim() === "") return { kind: "refused", reason: "empty" };
   const clean = stripAnchorMarkers(raw);
   const range = sourceRanger(raw, clean);
-  const root = treeFor(clean.text);
+  let root = treeFor(clean.text);
+  // On a line of a block the note's budget reads as text, the block's own nodes are those of its piece, read alone
+  // (`forEachReadPiece`); a part not read at all cannot be linked to.
+  const parts = readAsTextParts(clean.text);
+  const cleanAt = clean.toClean(lineFrom);
+  if (inBoundedRanges(parts.ranges.filter((part) => part.block), cleanAt)) {
+    const piece = parts.pieces.find((candidate) => candidate.from <= cleanAt && cleanAt <= candidate.to);
+    if (!piece) return { kind: "refused", reason: "unsupported" };
+    forEachReadPiece(clean.text, { ...parts, pieces: [piece] }, root, { places: true }, (tree) => (root = tree as unknown as SourceNode));
+  }
   // The chain of nodes from the top down to the block-level node on this line.
   const chain: SourceNode[] = [];
   let parent: SourceNode = root;

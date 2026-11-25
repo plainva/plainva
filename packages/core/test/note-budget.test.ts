@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { NOTE_BUDGET, overBudgetInlineRanges, boundMarkdownForParse, restoreBoundedTree } from "../src/inlineParseBudget.ts";
+import { NOTE_BUDGET, overBudgetInlineRanges, boundMarkdownForParse, readAsTextParts, restoreBoundedTree } from "../src/inlineParseBudget.ts";
 import { parseMarkdownAst, parseMarkdownTree, type MarkdownTreeNode } from "../src/markdown-parser.ts";
 import { analyzeNoteSource } from "../src/noteSource.ts";
 import { renameNoteLinks } from "../src/linkRewrite.ts";
@@ -288,7 +288,9 @@ describe("the note's budget (L14)", () => {
     const text = `# T\n\ntext\n- 2. > [[Kept]] ${"]".repeat(120_000)} [[Inside]]\n\nafter [[End]]\n`;
     expect(overBudgetInlineRanges(text).length).toBeGreaterThan(0);
     const { links } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
-    expect(links.map((link) => link.target)).toEqual(["Kept", "Inside", "End"]);
+    // A paragraph over the inline budget is not read for links, as before the note's budget; it is named as unread.
+    expect(links.map((link) => link.target)).toEqual(["End"]);
+    expect(readAsTextParts(text).unread).toHaveLength(1);
   });
 
   it("never reads a note of one table the table budget reads as a table as text (the hunt of seed 956860)", () => {
@@ -316,16 +318,18 @@ describe("the note's budget (L14)", () => {
     }
   }, 300 * SECONDS);
 
-  it("lists the links of 200 000 lines of links and of embeds under 128 MB, as the index reads them", () => {
-    // Three times the threshold of the forms of links (L14): as nodes in the tree, their 400 000 links ran the index
-    // out of 128 MB; beside the tree (`forEachTextReadLink`) they pass. main runs out from about 70 000 such lines.
-    // A picture (`![alt](…)`) is no link to the index, as the parser reads it: 200 000 embeds in the second note.
+  it("lists the links of 100 000 items of links and of embeds under 128 MB, read in pieces, and names a paragraph of them unread", () => {
+    // Twenty times the threshold of the forms of links: the blocks read as text are read in pieces by the parser
+    // itself (`forEachReadPiece`), each let go before the next, and every link is listed. A picture (`![alt](…)`) is
+    // no link to the index, as the parser reads it. One paragraph of such lines cannot be cut into pieces (only a
+    // list can, at its items): it is unread, and the index runs no more out of 128 MB than for the lists.
     const notes = [
-      `"# N\\n\\n" + Array.from({ length: 200000 }, (_, i) => "see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`,
-      `"# N\\n\\n" + Array.from({ length: 200000 }, (_, i) => "![[image " + i + ".png]] ![alt](pic" + i + ".jpg)").join("\\n") + "\\n"`,
-    ];
-    for (const text of notes) {
-      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); console.log(links.length === (text.includes("![alt]") ? 200000 : 400000) ? "ok" : "links " + links.length);`;
+      [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`, 200_000],
+      [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- ![[image " + i + ".png]] ![alt](pic" + i + ".jpg)").join("\\n") + "\\n"`, 100_000],
+      [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`, 0],
+    ] as const;
+    for (const [text, count] of notes) {
+      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); console.log(links.length === ${count} ? "ok" : "links " + links.length);`;
       const run = underHeap(128, text, body);
       expect(run.stdout.trim(), `${text.slice(0, 60)}: ${run.stderr.slice(-200)}`).toBe("ok");
     }
