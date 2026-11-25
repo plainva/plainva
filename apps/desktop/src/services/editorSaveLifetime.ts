@@ -1,5 +1,9 @@
 import type { IVaultAdapter } from "@plainva/core";
 import type { KeptText, TextFileShape } from "@plainva/ui";
+import { releaseLeftNoteSave } from "./leftNoteSaves";
+
+/** The editor lifetimes that are active now, by vault and note: who holds a note's text. */
+const active = new Set<EditorSaveLifetime>();
 
 /** Mutable persistence state belongs to one editor lifetime, outside React. */
 export class EditorSaveLifetime {
@@ -32,8 +36,25 @@ export class EditorSaveLifetime {
   private active = false;
 
   constructor(readonly vaultPath: string | null, readonly path: string | null, readonly adapter: IVaultAdapter | null) {}
-  activate(): void { this.active = true; }
-  deactivate(): void { this.active = false; }
+  /**
+   * The pane holds this note now. A save of it that an editor left and that
+   * is still tried again (`leftNoteSaves.ts`) stops: this editor owns the
+   * note's text, and offers what the draft journal kept of the other one.
+   */
+  activate(): void {
+    this.active = true;
+    active.add(this);
+    if (this.vaultPath && this.path) releaseLeftNoteSave(this.vaultPath, this.path);
+  }
+  deactivate(): void {
+    this.active = false;
+    active.delete(this);
+  }
+  /** Whether an editor holds this note now. */
+  static holds(vaultPath: string, path: string): boolean {
+    for (const lifetime of active) if (lifetime.vaultPath === vaultPath && lifetime.path === path) return true;
+    return false;
+  }
   isActive(): boolean { return this.active; }
   setTransferFrozen(frozen: boolean): void { this.transferFrozen = frozen; }
   recover(draft: { revision: number; sessionId?: string }): void { this.recoveredDraft = draft; }

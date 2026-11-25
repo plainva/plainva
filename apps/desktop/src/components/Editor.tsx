@@ -91,6 +91,7 @@ import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 import { createSaveRetryTimer, type SaveRetryState } from "../services/saveRetryTimer";
+import { adoptLeftNoteSave } from "../services/leftNoteSaves";
 import { vaultAppName, vaultLabel } from "../services/vaultNames";
 
 /**
@@ -1026,6 +1027,19 @@ export const Editor: React.FC<{
             setConflictInfo({ conflictPath: e.conflictPath ?? "" });
             toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ? conflictCopyLabel(e.conflictPath, i18n.language) : ".CONFLICT" }));
           }
+        } else if (draftVault && !saveState.transferFrozen && saveState.revision === revAtSave) {
+          // The pane left this note — another note, the tab or the pane
+          // closed — and its last try failed: the save is tried again by
+          // itself beside the pane (`leftNoteSaves.ts`), as the phone's saver
+          // does, until it goes through, the note is open again or the vault
+          // closes. The text stays in the draft journal all along.
+          adoptLeftNoteSave({
+            vaultPath: draftVault,
+            path,
+            retry: () => persistText(val),
+            stillDue: () => !saveState.isActive() && !EditorSaveLifetime.holds(draftVault, path) && !saveState.transferFrozen
+              && saveState.revision === revAtSave && revAtSave > saveState.savedRevision && revAtSave > saveState.discardedRevision,
+          }, error);
         }
         throw error;
       } finally {
@@ -2891,7 +2905,8 @@ export const Editor: React.FC<{
       if (saveState.dirty && !saveState.transferFrozen) {
         if (saveTimeoutRef.current !== null) window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
-        // One last try with the final text; if it fails, the text stays in the journal.
+        // One last try with the final text; if it fails, it is tried again
+        // beside the pane (`leftNoteSaves.ts`), and the text stays in the journal.
         void persistText(text).catch(() => {});
       }
       // The journal's buffer for this note ends with the pane's hold on it: the

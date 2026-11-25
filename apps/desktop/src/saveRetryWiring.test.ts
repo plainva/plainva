@@ -48,6 +48,25 @@ describe("the desktop editor tries a failed save again", () => {
     expect(between("const captureTabDocument", "for (const timer of [saveTimeoutRef")).toMatch(/saveRetry\.cancel\(\);/);
   });
 
+  it("hands a failed save of a note the pane has left to the saver beside it, which outlives the pane", () => {
+    expect.hasAssertions();
+    // The branch of a failed save once the pane no longer holds the note.
+    const left = between("} else if (draftVault && !saveState.transferFrozen && saveState.revision === revAtSave) {", "throw error;");
+    expect(left).toMatch(/adoptLeftNoteSave\(\{/);
+    // The same text, of the same note, in the same vault: the closure of the lifetime that wrote it.
+    expect(left).toMatch(/retry: \(\) => persistText\(val\),/);
+    // Not due once an editor holds the note again, its save went through or was given up.
+    expect(left).toMatch(/!saveState\.isActive\(\) && !EditorSaveLifetime\.holds\(draftVault, path\)/);
+    expect(left).toMatch(/revAtSave > saveState\.savedRevision && revAtSave > saveState\.discardedRevision/);
+    // The pane's last try is the save that is handed over when it fails.
+    expect(between("// The pane shows another note, or goes", "session.view.scrollDOM.removeEventListener")).toMatch(/void persistText\(text\)\.catch/);
+    const lifetime = readFileSync(fileURLToPath(new URL("./services/editorSaveLifetime.ts", import.meta.url)), "utf8");
+    expect(lifetime).toMatch(/activate\(\): void \{\s*this\.active = true;\s*active\.add\(this\);\s*if \(this\.vaultPath && this\.path\) releaseLeftNoteSave\(this\.vaultPath, this\.path\);/);
+    // Closing a vault waits for its writes; from then on none of its left saves is tried again.
+    const pendingWrites = readFileSync(fileURLToPath(new URL("./services/pendingWrites.ts", import.meta.url)), "utf8");
+    expect(pendingWrites).toMatch(/export async function settlePendingWrites\(vaultPath: string\): Promise<void> \{\s*\/\/[^\n]*\n\s*endLeftNoteSaves\(vaultPath\);/);
+  });
+
   it("tries a save that rested after its last retry when the person comes back to the window", () => {
     expect(editor).toMatch(/window\.addEventListener\("focus", wakeRestingSave\)/);
     const wake = between("const wakeRestingSave = useStableHandler(", "});");
