@@ -539,7 +539,7 @@ pub fn ai_local_only_set(window: tauri::Window, on: bool) -> Result<(), String> 
 
 /// Stores a provider key. Write-only: there is no command that reads it back.
 #[tauri::command]
-pub fn ai_key_set(window: tauri::Window, app: AppHandle, endpoint_id: String, value: String) -> Result<(), String> {
+pub async fn ai_key_set(window: tauri::Window, app: AppHandle, endpoint_id: String, value: String) -> Result<(), String> {
     only_main(&window)?;
     let value = value.trim();
     if value.is_empty() || value.len() > 4096 {
@@ -549,12 +549,12 @@ pub fn ai_key_set(window: tauri::Window, app: AppHandle, endpoint_id: String, va
 }
 
 #[tauri::command]
-pub fn ai_key_present(app: AppHandle, endpoint_id: String) -> Result<bool, String> {
+pub async fn ai_key_present(app: AppHandle, endpoint_id: String) -> Result<bool, String> {
     Ok(read_key(&app, &endpoint_id)?.is_some())
 }
 
 #[tauri::command]
-pub fn ai_key_delete(window: tauri::Window, app: AppHandle, endpoint_id: String) -> Result<(), String> {
+pub async fn ai_key_delete(window: tauri::Window, app: AppHandle, endpoint_id: String) -> Result<(), String> {
     only_main(&window)?;
     crate::secure_store::write_slot(&app, &key_entry_name(&endpoint_id), None)
 }
@@ -619,7 +619,7 @@ pub async fn ai_endpoint_add(
 }
 
 #[tauri::command]
-pub fn ai_endpoint_remove(window: tauri::Window, app: AppHandle, state: State<'_, AiEgress>, endpoint_id: String) -> Result<(), String> {
+pub async fn ai_endpoint_remove(window: tauri::Window, app: AppHandle, state: State<'_, AiEgress>, endpoint_id: String) -> Result<(), String> {
     only_main(&window)?;
     let snapshot = with_user_endpoints(&app, &state, |u| {
         u.endpoints.remove(&endpoint_id);

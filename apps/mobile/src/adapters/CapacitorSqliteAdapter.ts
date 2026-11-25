@@ -1,7 +1,7 @@
 import type { SQLiteDBConnection } from "@capacitor-community/sqlite";
 import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "@plainva/core";
 import { acquireDatabase, deleteDatabaseFile, releaseDatabase } from "./sqliteConnections";
-import { TransactionTurns, takeStatement, transactionLabel } from "@plainva/ui";
+import { TransactionTurns, takeRead, takeStatement, transactionLabel } from "@plainva/ui";
 
 /** How long `close()` waits for the transactions already asked for before it closes all the same. */
 const CLOSE_WAITS_MS = 10_000;
@@ -84,10 +84,19 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
     });
   }
 
-  /** A read takes no turn: nothing of it can be rolled back, and a search must not wait for a full scan. */
+  /**
+   * A read, in its turn: after the transaction that is open, never inside it.
+   * On this one connection a read sent while an index pass had its
+   * transaction open ran in it and saw a note's row without its properties.
+   * Reads asked for together share one turn (`TransactionTurns.read`); a full
+   * scan gives the connection back between its transactions, so a search
+   * waits for one of them, not for the scan.
+   */
   async query<T = any>(query: string, params?: any[] | Record<string, any>): Promise<T[]> {
-    const res = await this.conn().query(query, toPositional(params));
-    return (res.values ?? []) as T[];
+    return takeRead(this.turns, async () => {
+      const res = await this.conn().query(query, toPositional(params));
+      return (res.values ?? []) as T[];
+    });
   }
 
   async queryOne<T = any>(query: string, params?: any[] | Record<string, any>): Promise<T | null> {
