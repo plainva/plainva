@@ -1,5 +1,5 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { LocalModelBridge } from "@plainva/ui";
+import type { LocalModelBridge } from "@plainva/ui/ai";
 
 /**
  * The desktop's model packages and ONNX Runtime (plan KI-Harness P2a-3): the

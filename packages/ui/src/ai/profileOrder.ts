@@ -1,4 +1,4 @@
-import { AI_PROFILE_IDS, type AiProfileId } from "@plainva/core";
+import { AI_PROFILE_IDS, type AiProfileId } from "@plainva/core/ai";
 
 /**
  * The order the settings list the chat profiles in (mockup KI-Oberflächen M2, F71 of release 0.9.0): the profile new

@@ -2,14 +2,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, MoreHorizontal, SquarePen } from "lucide-react";
 import {
-  AiAgentView,
-  AiConversation,
-  AiOpenPanel,
   Button,
-  openLearnSurface,
-  openWritesCount,
-  startAiConversation,
-  useOpenProposals,
   conversationRowActions,
   EmptyState,
   ICON,
@@ -21,11 +14,20 @@ import {
   RowList,
   SearchField,
   Segmented,
+  type ConversationRowCaps,
+} from "@plainva/ui";
+import {
+  AiAgentView,
+  AiConversation,
+  AiOpenPanel,
+  openLearnSurface,
+  openWritesCount,
+  startAiConversation,
+  useOpenProposals,
   waitingCount,
   useAiSession,
   useAiState,
-  type ConversationRowCaps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
 import { AI_MEMORY_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, takeMemoryRequest, takeSkillsRequest, takeWaitingRequest } from "../../services/ai/desktopAi";
 import { MemoryView } from "./MemoryView";

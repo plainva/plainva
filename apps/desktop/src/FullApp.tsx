@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, EmptyState, ICON, parkTreeReveal, takeAiSettingsIntent, type AiSettingsIntent } from "@plainva/ui";
+import { Button, EmptyState, ICON, parkTreeReveal } from "@plainva/ui";
+import { takeAiSettingsIntent, type AiSettingsIntent } from "@plainva/ui/ai";
 import { FolderOpen } from "lucide-react";
 import { AppShell } from "./AppShell";
 import { MailComposeHost } from "./components/mail/MailComposeHost";

@@ -28,7 +28,7 @@ import { trimEndChars } from "@plainva/core";
  * their own module fall back to English.
  */
 
-export { templatePreviewFolders, templatePreviewBases, getVaultTemplates, scaffoldVaultTemplate } from "@plainva/ui";
+export { templatePreviewFolders, templatePreviewBases, getVaultTemplates, getTourTemplate, scaffoldVaultTemplate } from "@plainva/ui";
 export type { ScaffoldAdapter } from "@plainva/ui";
 export type { VaultTemplateBase, VaultTemplateDefinition, VaultTemplateId, VaultTemplateNote } from "@plainva/ui";
 

@@ -1,7 +1,7 @@
 import { useId, useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Plug, ShieldOff, TriangleAlert } from "lucide-react";
-import { checkMcpElicitAnswer, mcpElicitDefaults, type McpElicitation, type McpElicitField, type McpElicitProblem, type McpElicitResult } from "@plainva/core";
+import { checkMcpElicitAnswer, mcpElicitDefaults, type McpElicitation, type McpElicitField, type McpElicitProblem, type McpElicitResult } from "@plainva/core/ai";
 import { Button } from "../components/ui/Button";
 import { Checkbox } from "../components/ui/Checkbox";
 import { TextInput } from "../components/ui/Field";

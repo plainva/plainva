@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Share2 } from "lucide-react";
-import { commentAuthorKey, commentCreatedAt, isLegacyTableQuote, type PublicationComment, type WorkspaceCommentRecord } from "@plainva/core";
+import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
+import { isLegacyTableQuote, type PublicationComment, type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { buildCommentThreads } from "../lib/commentThreads";
 import { authorInitials } from "../lib/commentAuthor";
 import { ICON } from "../lib/iconSizes";

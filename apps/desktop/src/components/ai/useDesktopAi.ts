@@ -1,39 +1,40 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { reportingTo } from "@plainva/ui";
-import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
+import type { LocalEmbeddings, LocalGists } from "@plainva/ui/ai";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import { openLink } from "../../services/openLink";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import {
-  aiNavigationCommands,
   appendPlannedJournalEntry,
   captureVocabularyOf,
-  createAudioTranscriber,
-  createImageExplainer,
   createTaskInDatabase,
   deleteWithNet,
   parseTaskCapture,
   getPlatformServices,
   noteDisplayName,
   requestEventSeed,
+  toast,
+  useStableHandler,
+} from "@plainva/ui";
+import {
+  aiNavigationCommands,
+  createAudioTranscriber,
+  createImageExplainer,
   resolveAudioPath,
   setAudioTranscriber,
   setImageExplainer,
   situationEvents,
   startableSkills,
   startRoutineScheduler,
-  toast,
-  useStableHandler,
   type AiNavigationCommand,
   type AiSession,
   type AiState,
   type AiVaultHost,
-  type AppCommand,
   watchLearnSurfaces,
   watchRoutineReady,
   startAiSkill,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { templateVaultOf } from "../../services/dailyNotes";
@@ -105,23 +106,8 @@ const clockNow = (): string => {
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 };
 
-/** Where the shell leaves its palette's commands for the assistant: built late in a render, asked for when a command runs. */
-export type AiCommandSource = { current: (() => readonly AppCommand[]) | null };
-
-/**
- * Hands the palette's commands to the assistant (plan KI-Harness P4-4): what
- * `run_command` can do is what the command registry holds, never a list of
- * its own. Rendered where the shell has built them.
- */
-export function AiCommandSourceLink({ sourceRef, build }: { sourceRef: AiCommandSource; build: () => readonly AppCommand[] }) {
-  useEffect(() => {
-    sourceRef.current = build;
-    return () => {
-      sourceRef.current = null;
-    };
-  }, [sourceRef, build]);
-  return null;
-}
+export { AiCommandSourceLink, type AiCommandSource } from "./aiCommandSource";
+import type { AiCommandSource } from "./aiCommandSource";
 
 const NOOP_SUBSCRIBE = () => () => {};
 const NULL_STATE = (): AiState | null => null;

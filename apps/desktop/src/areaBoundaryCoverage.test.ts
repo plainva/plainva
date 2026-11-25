@@ -180,6 +180,7 @@ describe("every surface of the desktop shell is an area of its own", () => {
     const QUIET: Record<string, string> = {
       "editor:selectionToolbar": "appears with every text selection",
       "menu:aiSelection": "the AI menu of that toolbar, mounted whenever the assistant is on",
+      "host:ai": "the AI's host, mounted on its own once the AI was asked for; it draws nothing",
       "menu:recentSearches": "opens by itself when the empty search field takes the focus",
     };
     const found = new Set<string>();

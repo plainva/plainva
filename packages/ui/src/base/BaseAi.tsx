@@ -2,7 +2,7 @@ import { Sparkles } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { providerById } from "@plainva/core";
+import { providerById } from "@plainva/core/ai";
 import type { AiSession, AiState, FillOutcome, FillProgress, FilterWordsOutcome } from "../ai/aiSession";
 import type { FillColumn } from "../ai/aiFill";
 import { countFilterMatches, FILTER_WORDS_LIMITS, type FilterSchemaColumn } from "../ai/aiBaseFilter";

@@ -1,4 +1,4 @@
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { useTranslation } from "react-i18next";
 
 /** The import signature certifies receipt, not the old author's identity. */

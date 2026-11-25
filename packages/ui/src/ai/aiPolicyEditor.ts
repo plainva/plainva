@@ -1,16 +1,18 @@
 import {
+  updateVaultText,
+  type IVaultAdapter,
+  type TextUpdateFiles,
+} from "@plainva/core";
+import {
   normalizeFolder,
   parsePolicyFile,
   serializePolicyFile,
   updatePolicyFile,
-  updateVaultText,
   type AiPermission,
   type AiPolicyDimension,
   type AiWriteRule,
   type FolderPolicyRule,
-  type IVaultAdapter,
-  type TextUpdateFiles,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { AI_POLICY_FILE } from "./aiVaultHost";
 
 /**

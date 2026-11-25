@@ -10,7 +10,8 @@ import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import { AreaBoundary, ColumnSummarySelect, useFilterRuleDraft, type ViewsChange } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
-import { addFilterRules, FilterInWords, filterSchemaOf, inferColumnType, type BaseAi } from "@plainva/ui";
+import { addFilterRules, FilterInWords, inferColumnType, type BaseAi } from "@plainva/ui";
+import { filterSchemaOf } from "@plainva/ui/ai";
 import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, offeredViewTypes, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, groupTemplatesForBase, ICON, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 import { loadScopedTemplates } from "../../services/templateAssignment";
 

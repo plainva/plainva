@@ -1,4 +1,5 @@
-import { isSimpleEmail, propertyTarget, type PropertyValue } from "@plainva/core";
+import { isSimpleEmail } from "@plainva/core";
+import { propertyTarget, type PropertyValue } from "@plainva/core/ai";
 import { isEmptyPropertyValue } from "../base/writeProperty";
 import { defuseNewAddresses } from "./aiWriteLint";
 

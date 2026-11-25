@@ -4,8 +4,9 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtractSkipReason, QuarantineReasonFamily, WorkspaceQuarantineRecord } from "@plainva/core";
-import { QUARANTINE_HINTED_FAMILIES, QUARANTINE_REASON_FAMILIES } from "@plainva/core";
+import type { ExtractSkipReason } from "@plainva/core/import";
+import type { QuarantineReasonFamily, WorkspaceQuarantineRecord } from "@plainva/core/workspace";
+import { QUARANTINE_HINTED_FAMILIES, QUARANTINE_REASON_FAMILIES } from "@plainva/core/workspace";
 import {
   APP_LANGUAGES,
   deviceStateKey,
@@ -136,7 +137,7 @@ function composedSites(probe?: string): Site[] {
     noEmit: true, skipLibCheck: true, strict: true, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022,
     module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, allowImportingTsExtensions: true,
     resolveJsonModule: true, types: [], baseUrl: ROOT,
-    paths: { "@plainva/core": ["packages/core/src/index.ts"], "@plainva/ui": ["packages/ui/src/index.ts"], "@plainva/ui/*": ["packages/ui/src/*"] },
+    paths: { "@plainva/core": ["packages/core/src/index.ts"], "@plainva/core/*": ["packages/core/src/*/index.ts"], "@plainva/ui": ["packages/ui/src/index.ts"], "@plainva/ui/*": ["packages/ui/src/*"] },
   });
   const checker = program.getTypeChecker();
   /** The values a part of a key can be: its string, number or boolean literals, or null where the type is open. */

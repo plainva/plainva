@@ -38,7 +38,8 @@ import { sourceFile, sourceTexts } from "./test-sourceTree";
  */
 
 /** The constructors and calls that send a password to a server. */
-const SEND = /new (?:CalDavPimTarget|WebDavSyncTarget|S3SyncTarget)\(|\b(?:buildWebDavTarget|buildS3Target|checkMailLogin|checkCalDavLogin|probeCalDav)\(/g;
+// A target from its own module, loaded on demand (performance plan L5), is the same call.
+const SEND = /new (?:\(await \w+\(\)\)\.)?(?:CalDavPimTarget|WebDavSyncTarget|S3SyncTarget)\(|\b(?:buildWebDavTarget|buildS3Target|checkMailLogin|checkCalDavLogin|probeCalDav)\(/g;
 
 /**
  * How the synced account document names an address: a row's `config.url`,

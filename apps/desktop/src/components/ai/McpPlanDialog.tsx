@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { PlugZap } from "lucide-react";
-import { AiPlanDetails, Button, ICON, Modal, toast } from "@plainva/ui";
+import { Button, ICON, Modal, toast } from "@plainva/ui";
+import { AiPlanDetails } from "@plainva/ui/ai";
 import { mcpPlans } from "../../services/ai/mcpPlans";
 
 /**

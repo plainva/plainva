@@ -1,4 +1,9 @@
 import {
+  contentPathRefusal,
+  readFrontmatterPath,
+  type VaultQueryService,
+} from "@plainva/core";
+import {
   rawChangeOf,
   type ReaderView,
   carriesViewPlaceholder,
@@ -22,8 +27,6 @@ import {
   keepBeforeMaking,
   madeDirectly,
   recordApplied,
-  contentPathRefusal,
-  createWorkspaceObjectId,
   editProblemSentence,
   isCivilDay,
   isClockTime,
@@ -33,7 +36,6 @@ import {
   noteBodyStart,
   planPropertyChange,
   propertyTarget,
-  readFrontmatterPath,
   type AiPolicyDimension,
   type AppliedWrite,
   type DirectFallback,
@@ -46,10 +48,10 @@ import {
   type RunWrites,
   type ToolManifest,
   type ToolOutcome,
-  type VaultQueryService,
   type WriteDraftBody,
   type WriteRefusal,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { createWorkspaceObjectId } from "@plainva/core/workspace";
 import type { SuggestionChunk } from "../components/suggestMode";
 import { parseTaskCapture, type CaptureVocabulary } from "../lib/taskCapture";
 import { readTextShape } from "../lib/textFileShape";

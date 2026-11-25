@@ -22,7 +22,8 @@ vi.mock("@capacitor-community/sqlite", async () => (await import("../../../packa
 
 const { CapacitorSqliteAdapter } = await import("./adapters/CapacitorSqliteAdapter");
 const { resetDatabasesForTests } = await import("./adapters/sqliteConnections");
-const { initializeSchema, SqlWorkspaceStateStore, SyncStateRepository } = await import("@plainva/core");
+    const { initializeSchema, SyncStateRepository } = await import("@plainva/core");
+    const { SqlWorkspaceStateStore } = await import("@plainva/core/workspace");
 type SqlStatements = import("@plainva/core").SqlStatements;
 
 const DATABASE = "plainva-index";

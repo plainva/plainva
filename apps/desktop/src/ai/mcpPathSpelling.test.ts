@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { safeRelPath } from "@plainva/ui";
+import { safeRelPath } from "@plainva/ui/ai";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const { mcpNameAccepted } = await import("../services/ai/mcpBridge");

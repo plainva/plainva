@@ -2,18 +2,34 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaultText, VersionHistoryService, withTodoAsTask } from "@plainva/core";
-import type { DirectWriteFiles } from "@plainva/core";
+import { AI_SETTINGS_KEY } from "@plainva/ui";
+import { updateVaultText, VersionHistoryService } from "@plainva/core";
+import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, withTodoAsTask } from "@plainva/core/ai";
+import type { DirectWriteFiles } from "@plainva/core/ai";
 import { dirtyStore } from "../dirtyStore";
-import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, PimEventRow, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
-import type { DatabaseReach, EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
+import type { CommentOperationService, IDatabaseAdapter, IVaultAdapter, PimEventRow, VaultQueryService } from "@plainva/core";
+import type { AiAppSettings } from "@plainva/core/ai";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
+import type { EventSeed } from "@plainva/ui";
+import type { DatabaseReach, LocalEmbeddings, LocalGists } from "@plainva/ui/ai";
+import {
+  calendarDay,
+  captureVocabularyOf,
+  createBrokenLinkTarget,
+  flushPendingSave,
+  getPlatformServices,
+  journalToday,
+  noteDisplayName,
+  parseRecentsFile,
+  plannerRowsFromTasks,
+  prepareTaskNote,
+  profileDefault,
+} from "@plainva/ui";
 import {
   aiDefaultSettings,
   AiSession,
   aiVaultKey,
-  calendarDay,
   capturedNotePath,
-  captureVocabularyOf,
   machineProposals,
   noteMovePlan,
   noteRenamePlan,
@@ -21,7 +37,6 @@ import {
   adapterInstructionVersions,
   adapterInstructionWriter,
   brokenLinksIn,
-  createBrokenLinkTarget,
   meetingsWithoutNote,
   createAcpDeviceStore,
   createAiVaultHost,
@@ -30,17 +45,9 @@ import {
   createWorkerSandbox,
   databaseTaskRows,
   entryPlaceOf,
-  flushPendingSave,
   folderLogHost,
   noteHistorySource,
-  getPlatformServices,
-  journalToday,
-  noteDisplayName,
-  parseRecentsFile,
-  plannerRowsFromTasks,
   postThreadReply,
-  prepareTaskNote,
-  profileDefault,
   proposeSuggestionRound,
   protectedScriptKeys,
   situationFrom,
@@ -56,7 +63,7 @@ import {
   type SituationEventInput,
   type VaultPolicyHost,
   type VaultWriteDeps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { checkedReadTextFile } from "../../adapters/checkedFilesystem";
 import { requestCascadeDelete } from "../cascadeDelete";
 import { inboxFolderKey, journalMoodPropertyKey } from "../../contexts/VaultContext";
@@ -67,6 +74,7 @@ import { protectedSecrets } from "../protectedSecrets";
 import { getSettingsStore } from "../settingsStore";
 import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
+import { desktopAiLoader } from "./desktopAiLoader";
 import { createDesktopAcpHost } from "./desktopAcp";
 import { createDesktopAiEgress, setDesktopLocalOnly } from "./desktopAiEgress";
 import { createDesktopWebFetcher } from "./desktopAiWeb";
@@ -80,7 +88,7 @@ import { mcpStatus } from "./mcpBridge";
  * render nothing.
  */
 
-const SETTINGS_KEY = "ai";
+const SETTINGS_KEY = AI_SETTINGS_KEY;
 
 /** Opens the companion from anywhere in the main window (the selection door, plan P1.5). */
 export const AI_OPEN_EVENT = "plainva-ai-open";
@@ -252,6 +260,8 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
       scripts: { sandbox: createWorkerSandbox(spawnScriptWorker), keys: protectedScriptKeys(protectedSecrets) },
     });
     void session.load();
+    // The start bundle's readers (the loader) learn of it, however it was made: from the loader, or by a surface of the AI.
+    desktopAiLoader.adopt(session);
   }
   return session;
 }

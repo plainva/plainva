@@ -1,25 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
+  addFilterRules,
+  buildUIFilterModel,
+  inferColumnType,
+} from "@plainva/ui";
+import {
   FILL_INSTRUCTION,
   FILL_LIMITS,
   FILTER_INSTRUCTION,
   FILTER_WORDS_LIMITS,
-  addFilterRules,
   bringsAddress,
-  buildUIFilterModel,
   countFilterMatches,
   fillColumnLine,
   fillColumnOf,
   fillRows,
   filterSchemaLines,
   filterSchemaOf,
-  inferColumnType,
   isFillColumn,
   parseFillAnswer,
   parseFilterAnswer,
   type FillColumn,
   type FilterSchemaColumn,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * A column filled with proposed values and a filter from a sentence (plan

@@ -17,7 +17,6 @@ import i18n from "@plainva/ui/i18n";
 import { clearWidgetActions, clearWidgetSnapshot, readWidgetActions, readWidgetSnapshot, widgetsAvailable, writeWidgetSnapshot } from "../platform/widgetBridge";
 import { getMobileSettings } from "./mobileSettings";
 import { isMobileWorkspaceLocked } from "./mobileWorkspaceLock";
-import { listPimEvents } from "./pim/pimService";
 import { getActiveVaultEntry } from "./vaultRegistry";
 import { vaultEntryName } from "./vaultEntryName";
 
@@ -100,6 +99,8 @@ async function eventRows(now: Date): Promise<WidgetEventInput[]> {
   try {
     const from = now.getTime();
     const to = from + (WIDGET_SNAPSHOT_DAYS + 1) * 86_400_000;
+    // The calendar's service loads with the first widget that asks for appointments (performance plan L5).
+    const { listPimEvents } = await import("./pim/pimService");
     return (await listPimEvents(from, to)).map((event) => {
       // An all-day appointment carries its civil date and must never be
       // shifted through a timezone; a timed one is read on the local clock.

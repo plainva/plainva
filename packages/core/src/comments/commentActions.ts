@@ -1,4 +1,4 @@
-import { addProposedProperty, placeProposedProperty, type ProposedProperty } from "../ai/writes/properties.js";
+import { addProposedProperty, placeProposedProperty, type ProposedProperty } from "../proposals/properties.js";
 import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import { buildCommentAnchor, mintAnchorMarkerId, resolveCommentAnchor } from "../workspace/commentAnchor.js";
 import { createWorkspaceObjectId } from "../workspace/identity.js";

@@ -1,5 +1,5 @@
 import { presentableDiff } from "@codemirror/merge";
-import { addressesIn, lintReach, preWriteLint, sureFencedCode, type TextRange } from "@plainva/core";
+import { addressesIn, lintReach, preWriteLint, sureFencedCode, type TextRange } from "@plainva/core/ai";
 
 /**
  * Network addresses in text the AI wrote, before it is stored (ADR 0019 §6,

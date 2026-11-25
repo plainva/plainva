@@ -95,5 +95,8 @@
     "sqlite3": {
       "optional": true
     }
-  }
+  },
+  "sideEffects": [
+    "*.css"
+  ]
 }

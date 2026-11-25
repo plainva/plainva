@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, problemText, TextArea, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, TextArea, TextInput, toast } from "@plainva/ui";
+import { problemText } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

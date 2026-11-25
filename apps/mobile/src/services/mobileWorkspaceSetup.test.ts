@@ -34,6 +34,7 @@ vi.mock("../platform/secureStore", () => ({
   },
 }));
 
+import { type IVaultAdapter } from "@plainva/core";
 import {
   FakeWorkspaceObjectStore,
   MemoryWorkspaceStateStore,
@@ -42,11 +43,10 @@ import {
   personalWorkspaceRuntime,
   serializePersonalWorkspaceRuntime,
   workspaceDocumentHash,
-  type IVaultAdapter,
   type PersonalWorkspaceRuntime,
   type PublishedSliceConfig,
   type WorkspacePublicationRecord,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import {
   activateMobileWorkspaceOwnerTransfer,
   activatePreparedMobileWorkspace,

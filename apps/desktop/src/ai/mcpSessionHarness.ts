@@ -22,8 +22,8 @@ import {
   type ScriptedMcpServer,
   type ScriptedOAuth,
   type ToolResultPart,
-} from "@plainva/core";
-import { AiSession, CHAT_TOOL_NAMES, createMcpDeviceStore, createMcpVaultStore, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type EffectRequest, type McpQuestionRequest, type VaultToolDeps } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { AiSession, CHAT_TOOL_NAMES, createMcpDeviceStore, createMcpVaultStore, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type EffectRequest, type McpQuestionRequest, type VaultToolDeps } from "@plainva/ui/ai";
 import { CONFIRM, memoryFiles, scriptedNative } from "./mcpTestHost";
 
 /**

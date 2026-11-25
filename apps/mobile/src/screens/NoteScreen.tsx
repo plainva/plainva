@@ -37,13 +37,15 @@ import { copyPhoneNoteLink } from "../services/noteLinkRoute";
 import { Share } from "@capacitor/share";
 import { buildMailtoUrl, noteMailPrefill, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { addressesAi, suggestedProperties, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch, reportBackground, reportingTo } from "@plainva/ui";
+import { suggestedProperties, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch, reportBackground, reportingTo } from "@plainva/ui";
+import { addressesAi, useCommentThreadAi } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity, editorTextOf, vaultFolderIsThere } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, frontmatterKeys, isPlainvaManagedIndex, noteBodyOf, readFrontmatterPath, stripPlainvaIndexMarker, wikiTargetForPath, readIndexedIdentity, editorTextOf, vaultFolderIsThere } from "@plainva/core";
+import { buildCommentAnchor, buildPropertyCommentAnchor, insertAnchorMarkers, mintAnchorMarkerId, propertyAnchorKey, resolveCommentAnchor, resolvePropertyAnchor, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core/workspace";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { forgetKeptText, getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
@@ -69,7 +71,8 @@ import { mobileCommentOperations } from "../services/commentOperations";
 import { consumeNoteCommands, type NoteCommand } from "../services/noteCommands";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
-import { aiEnabled, focusAiNote, getMobileAiSession, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
+import { aiEnabled, focusAiNote, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAiPorts";
+import { useMobileAiSession } from "../services/ai/mobileAiLoader";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { NOTE_HISTORY_EVENT, takeNoteHistoryRequest } from "../services/noteHistoryRequest";
 
@@ -1156,7 +1159,8 @@ export function NoteScreen({
 
   const commentOperations = useMemo(() => mobileCommentOperations(vault), [vault]);
   // The assistant in this note's comment threads (plan KI-Harness P3-6); not where the remarks are sealed.
-  const threadAi = useCommentThreadAi(getMobileAiSession(), path, { sealed: vault.workspaceRuntime !== null });
+  const aiSession = useMobileAiSession();
+  const threadAi = useCommentThreadAi(aiSession, path, { sealed: vault.workspaceRuntime !== null });
   const pendingCommentOperations = usePendingCommentOperations(commentOperations, vault.vaultId, path);
   const [decisionReview, setDecisionReview] = useState<{ path: string; vaultId: string; comment: WorkspaceCommentRecord; snapshot: CommentEditorSnapshot } | null>(null);
   const reportCommentFailure = useStableHandler((error: unknown) => {

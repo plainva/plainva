@@ -15,8 +15,8 @@ import {
   type InstructionIO,
   type LedgerEntry,
   type ModelChoice,
-} from "@plainva/core";
-import { AiSession, CHAT_TOOL_NAMES, createMcpVaultStore, createVaultToolExecutor, furtherToolNames, replayRequest, type AiVaultHost, type VaultToolDeps } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { AiSession, CHAT_TOOL_NAMES, createMcpVaultStore, createVaultToolExecutor, furtherToolNames, replayRequest, type AiVaultHost, type VaultToolDeps } from "@plainva/ui/ai";
 import { fakeEgress, turn } from "./mcpSessionHarness";
 import { memoryFiles } from "./mcpTestHost";
 

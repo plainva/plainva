@@ -45,7 +45,7 @@ import {
   type McpSignInPlan,
   type McpSignInProblem,
   type McpSkillEntry,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { fitMcpSkillsRecord, mcpSkillAddress, mcpSnapshotFits, type McpDeviceStore, type McpServerRecord, type McpSkillsRecord } from "./mcpStores";
 
 /**

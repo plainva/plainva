@@ -11,7 +11,7 @@ import {
   personalWorkspaceRuntime,
   restoreWorkspaceFromRecoveryPackage,
   workspaceDocumentHash,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 /**
  * Two devices of one person and one workspace (R8, TestFlight 2026-11-08: an

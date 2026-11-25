@@ -2,9 +2,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { AI_AUDIO_PROFILE, type AiProfileSlot } from "@plainva/core";
+import { AI_AUDIO_PROFILE, type AiProfileSlot } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiConversation, AiSessionContext, useAiState, type AiSession } from "@plainva/ui";
+import { AiConversation, AiSessionContext, useAiState, type AiSession } from "@plainva/ui/ai";
 import { AiModelDialog } from "../components/settings/AiDialogs";
 import { AiModeRow, AiPrivacyCard } from "../components/settings/AiModeParts";
 import { CLOUD, LOCAL, chat, mcpSession, turn } from "./mcpSessionHarness";

@@ -1,6 +1,6 @@
 import { registerPlugin } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
-import type { LocalModelBridge } from "@plainva/ui";
+import type { LocalModelBridge } from "@plainva/ui/ai";
 
 /**
  * The phone's model packages and ONNX Runtime (plan KI-Harness P2a-3): the

@@ -8,7 +8,7 @@ import {
   type EmbeddingProgress,
   type ModelFailure,
   type SemanticSource,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { aiFailureText } from "./aiSettingsModel";
 import type { EngineState, MeasurementReport, UnusedEmbeddings } from "./localEmbeddings";
 

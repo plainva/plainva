@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
-import { protectedScriptKeys, type ScriptKeyStore } from "@plainva/ui";
+import { protectedScriptKeys, type ScriptKeyStore } from "@plainva/ui/ai";
 import { protectedSecrets } from "../../platform/protectedSecrets";
 
 /**

@@ -17,7 +17,7 @@ import {
   type ModelChoice,
   type OperatingMode,
   type ProviderInfo,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { AiState } from "./aiSession";
 import { configuredProviders } from "./aiSettingsModel";
 

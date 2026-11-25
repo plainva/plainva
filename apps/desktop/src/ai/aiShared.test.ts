@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendTurn, DEFAULT_AI_APP_SETTINGS, EMPTY_USAGE, parsePolicyFile, readAiAppSettings, startConversation, type ConversationRecord } from "@plainva/core";
+import { appendTurn, DEFAULT_AI_APP_SETTINGS, EMPTY_USAGE, parsePolicyFile, readAiAppSettings, startConversation, type ConversationRecord } from "@plainva/core/ai";
 import {
   addableProviders,
   aiDefaultSettings,
@@ -21,7 +21,7 @@ import {
   withWriteRule,
   type AiFileStore,
   type AiState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 const at = "2026-09-24T10:00:00Z";
 

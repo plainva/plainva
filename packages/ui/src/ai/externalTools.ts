@@ -19,7 +19,7 @@ import {
   type McpServerReview,
   type McpToolEffect,
   type McpToolStanding,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { McpAddProblem } from "./mcpRuntime";
 import type { AiMcpServer } from "./mcpSession";
 import type { McpAuditEntry } from "./mcpStores";

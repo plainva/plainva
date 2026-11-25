@@ -3,8 +3,11 @@ import { setNoteLinksVaultLoading } from "@plainva/ui";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
-import { startSyncIfConfigured } from "../services/syncService";
-import { isPimRuntimeReady, restartPimAfterImport, startPim, stopPim } from "../services/pim/pimService";
+// The sync and the calendars start after the first picture and load then (performance plan L5); what the boot asks
+// of a running calendar is the runtime's, which stays light.
+import { isPimRuntimeReady, stopPim } from "../services/pim/pimRuntime";
+import { prefetchDeferredParts } from "../lib/deferredParts";
+const pimServiceModule = () => import("../services/pim/pimService");
 import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
 import { resumePimOAuthResult } from "../services/pim/pimOAuth";
 import { startMobileMail, stopMobileMail } from "../services/mail/mailRuntime";
@@ -82,10 +85,10 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         // touch (bootStagger.ts, performance plan L4).
         stagger?.cancel();
         stagger = staggerAfterFirstPaint([
-          () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
+          () => { if (current()) void import("../services/syncService").then(({ startSyncIfConfigured }) => startSyncIfConfigured(v)).catch((e) => console.error("[boot] sync start failed", e)); },
           () => {
             if (!current()) return;
-            const pim = startPim(v);
+            const pim = pimServiceModule().then(({ startPim }) => startPim(v));
             void (first ? pim.then(resumePimOAuthResult) : pim).catch((e) => console.error("[boot] pim start failed", e));
           },
           () => {
@@ -96,6 +99,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
           // One mailbox stored several times under one id folds back into one
           // row (finding 2026-11-06, M2; the desktop does the same on vault open).
           () => { if (current()) void healMailAccounts(v.vaultId).catch(() => undefined); },
+          // The screens likely to open soon load while the app idles, so their first use does not wait (performance plan L5).
+          () => { if (current()) prefetchDeferredParts(); },
         ]);
       }, (error: unknown) => {
         if (!current()) return;
@@ -128,7 +133,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
       stagger?.now();
       void getMobileVault().then((v) => {
         // Queued behind a sign-in that is being stored (pimService).
-        void restartPimAfterImport(v).catch((e) => console.error("[import] pim restart failed", e));
+        void pimServiceModule().then(({ restartPimAfterImport }) => restartPimAfterImport(v)).catch((e) => console.error("[import] pim restart failed", e));
         stopMobileMail();
         startMobileMail(v);
         handlersRef.current.onAccountsImported();

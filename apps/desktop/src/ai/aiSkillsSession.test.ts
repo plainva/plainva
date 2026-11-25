@@ -22,9 +22,9 @@ import {
   type LedgerEntry,
   type SkillTestRecords,
   type ToolExecutor,
-  utf8Encode,
-} from "@plainva/core";
-import { AiSession, type AiVaultHost } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { utf8Encode } from "@plainva/core/workspace";
+import { AiSession, type AiVaultHost } from "@plainva/ui/ai";
 
 /**
  * Skills in the session (plan KI-Harness P3-2): bound by hand from the first

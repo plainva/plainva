@@ -1,5 +1,6 @@
-import { DEFAULT_AI_APP_SETTINGS, MCP_OAUTH_CLIENT_DOCUMENT, type EgressChunk, type InstructionIO, type ScriptedMcpServer } from "@plainva/core";
-import { AI_POLICY_FILE, AiSession, captureVocabularyOf, createAiVaultHost, createMcpDeviceStore, createVaultPolicy, type VaultWriteDeps } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, MCP_OAUTH_CLIENT_DOCUMENT, type EgressChunk, type InstructionIO, type ScriptedMcpServer } from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
+import { AI_POLICY_FILE, AiSession, createAiVaultHost, createMcpDeviceStore, createVaultPolicy, type VaultWriteDeps } from "@plainva/ui/ai";
 import { CLOUD, LOCAL, TRACKER_URL, fakeEgress } from "./mcpSessionHarness";
 import { memoryFiles, scriptedNative } from "./mcpTestHost";
 

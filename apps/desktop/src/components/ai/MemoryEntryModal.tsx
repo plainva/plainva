@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookMarked } from "lucide-react";
-import type { MemoryPlace } from "@plainva/core";
-import { Banner, Button, Checkbox, ICON, Modal, Segmented, TextArea, useAiSession, useAiState, useDiscardGuard, useMemoryEntryForm } from "@plainva/ui";
+import type { MemoryPlace } from "@plainva/core/ai";
+import { Banner, Button, Checkbox, ICON, Modal, Segmented, TextArea, useDiscardGuard } from "@plainva/ui";
+import { useAiSession, useAiState, useMemoryEntryForm } from "@plainva/ui/ai";
 
 /**
  * One entry of the memory, new or reworded (plan KI-Harness P6, mockup

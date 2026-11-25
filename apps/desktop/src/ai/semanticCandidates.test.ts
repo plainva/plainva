@@ -7,8 +7,8 @@ import {
   type AiEgress,
   type EgressRecipient,
   type HttpRequestSpec,
-} from "@plainva/core";
-import { createAiVaultStores, createVaultPolicy, gatherCandidates, LocalEmbeddings, type AiFileStore, type LocalModelBridge } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { createAiVaultStores, createVaultPolicy, gatherCandidates, LocalEmbeddings, type AiFileStore, type LocalModelBridge } from "@plainva/ui/ai";
 import { until, vaultWith } from "./embeddingTestVault";
 
 /** A question sharing words with the kick-off's section (the stand-in model only knows words). */

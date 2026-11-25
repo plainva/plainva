@@ -1,4 +1,4 @@
-import { STYLE_ADDRESS_WORDS, STYLE_EXAMPLES_MAX, STYLE_FEATURE_KEYS, type AiPolicyDimension, type StyleFeature, type StyleFeatureKey } from "@plainva/core";
+import { STYLE_ADDRESS_WORDS, STYLE_EXAMPLES_MAX, STYLE_FEATURE_KEYS, type AiPolicyDimension, type StyleFeature, type StyleFeatureKey } from "@plainva/core/ai";
 import type { AiFileStore } from "./aiStores";
 
 /**

@@ -3,7 +3,9 @@ import { CommentOperationError, noteFullTextDamageFound, PimConflictError, type 
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus, OWNER_LABEL, type BroadcastMap, type RpcMap, type WindowBus } from "./windowBus";
-import { enqueueSend, appendDraftFor, releaseRefusedSend } from "./mail/sendQueue";
+// The send queue loads with the first message handed over (performance plan L5); until then nothing waits in it.
+let sendQueue: typeof import("./mail/sendQueue") | null = null;
+const loadSendQueue = async () => (sendQueue ??= await import("./mail/sendQueue"));
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
 import { parkTreeReveal, toggleBookmarkOnDisk, setBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk } from "@plainva/ui";
@@ -672,13 +674,13 @@ export async function installOwnerAppBus(): Promise<() => void> {
     await bus.handle("mail-send", async (req) => {
       // The queue, the toast and the beforeunload flush all live here — see
       // sendQueue.ts. A compose window hands the message over and closes.
-      await enqueueSend(req);
+      await (await loadSendQueue()).enqueueSend(req);
     }),
   );
 
   offs.push(
     await bus.handle("mail-draft", async (req) => {
-      await appendDraftFor(req);
+      await (await loadSendQueue()).appendDraftFor(req);
     }),
   );
 
@@ -690,7 +692,7 @@ export async function installOwnerAppBus(): Promise<() => void> {
       const snapshot = readComposeDraft(label);
       // A message the mail server refused is open again from this moment: its
       // window has it, so the send queue lets go and takes its notice down.
-      releaseRefusedSend(snapshot?.refused);
+      sendQueue?.releaseRefusedSend(snapshot?.refused);
       return snapshot;
     }),
   );

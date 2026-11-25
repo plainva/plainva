@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollText } from "lucide-react";
-import { Banner, Button, ICON, Modal, TextArea, useAiSession, useDiscardGuard, useMemoryRuleForm } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, TextArea, useDiscardGuard } from "@plainva/ui";
+import { useAiSession, useMemoryRuleForm } from "@plainva/ui/ai";
 
 /**
  * A rule for assistants (plan KI-Harness P6): one line for the vault's

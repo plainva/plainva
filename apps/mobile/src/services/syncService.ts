@@ -1,21 +1,15 @@
-import { sameStoredValue, SettingsOnlySync } from "@plainva/core";
+import { sameStoredValue } from "@plainva/core";
 import { clearMobileCommentWorker, setMobileCommentWorker } from "./commentWorker";
+import type { DeletionJournal, DriveSyncTarget, SettingsOnlySync, SyncWorker } from "./syncModules";
+// The sync's engine, the providers' targets and the encrypted workspace load with the first vault that syncs, not
+// with the start: this module's functions are asked of every screen, its engine only of a vault that syncs
+// (performance plan L5).
+let syncModulesLoaded: typeof import("./syncModules") | null = null;
+const syncModules = async () => (syncModulesLoaded ??= await import("./syncModules"));
+let workspaceModuleLoaded: typeof import("@plainva/core/workspace") | null = null;
+const workspaceModule = async () => (workspaceModuleLoaded ??= await import("@plainva/core/workspace"));
 import {
-  DriveSyncTarget,
-  DropboxSyncTarget,
-  OneDriveSyncTarget,
-  S3SyncTarget,
-  SyncEngine,
-  SyncWorker,
-  DeletionJournal,
-  EncryptedWorkspaceWorker,
-  createProviderWorkspaceObjectStore,
-  initializePersonalWorkspaceMigration,
-  parseWorkspaceDocument,
-  workspaceDocumentHash,
-  WebDavSyncTarget,
   type ISyncTarget,
-  type WorkspaceObjectStore,
   type NameCollision,
   type NameCollisionAction,
   type NameCollisionCase,
@@ -24,6 +18,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
+import type { WorkspaceObjectStore } from "@plainva/core/workspace";
 import { assertEndpointConfirmedIn, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
 import { assertEmptyRemoteVault, firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
@@ -512,7 +507,7 @@ async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generati
   if (worker || settingsOnlySync || generation !== startGeneration) return;
   // No listing shows a genesis here: one look per session, never one per run.
   const sessionCheck = v.workspaceRuntime ? undefined : await mobileSettingsOnlyCheck(v, p, rawTarget).catch(() => undefined);
-  settingsOnlySync = new SettingsOnlySync(runner, target, v.belowChain, syncIntervalMs(), undefined, sessionCheck, () => {
+  settingsOnlySync = new (await syncModules()).SettingsOnlySync(runner, target, v.belowChain, syncIntervalMs(), undefined, sessionCheck, () => {
     setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
   });
   settingsOnlySync.start();
@@ -1113,10 +1108,10 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
   };
   switch (p.provider) {
     case "s3":
-      return new S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
+      return new (await syncModules()).S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
     case "drive": {
       const destination = credKey === null ? { path: p.creds.rootFolderName, id: undefined } : await readDriveDestination(vaultId ?? "", p);
-      const target = new DriveSyncTarget(
+      const target = new (await syncModules()).DriveSyncTarget(
         {
           clientId: p.creds.clientId,
           clientSecret: p.creds.clientSecret ?? "",
@@ -1153,7 +1148,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       return target;
     }
     case "onedrive": {
-      const target = new OneDriveSyncTarget(
+      const target = new (await syncModules()).OneDriveSyncTarget(
         {
           clientId: p.creds.clientId,
           refreshToken: p.creds.refreshToken,
@@ -1184,7 +1179,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       return target;
     }
     case "dropbox": {
-      const target = new DropboxSyncTarget(
+      const target = new (await syncModules()).DropboxSyncTarget(
         {
           appKey: p.creds.appKey,
           refreshToken: p.creds.refreshToken,
@@ -1204,7 +1199,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       return target;
     }
     default:
-      return new WebDavSyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, mobileSyncUploader);
+      return new (await syncModules()).WebDavSyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, mobileSyncUploader);
   }
 }
 
@@ -1224,7 +1219,7 @@ function workspaceProvider(provider: MobileSyncProvider["provider"]) {
 export async function findMobileWorkspaceObjectStore(vaultId: string): Promise<WorkspaceObjectStore | null> {
   const provider = await getStoredProvider(vaultId);
   if (!provider) return null;
-  return createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), await buildTarget(provider, credKeyFor(vaultId), vaultId));
+  return (await workspaceModule()).createProviderWorkspaceObjectStore(workspaceProvider(provider.provider), await buildTarget(provider, credKeyFor(vaultId), vaultId));
 }
 
 /** The same store for what has to WRITE there — pairing, publishing, revoking: without a provider that is a failure with a reason. */
@@ -1238,9 +1233,9 @@ export async function getMobileRemoteWorkspaceInfo(vaultId: string): Promise<{ w
   const store = await getMobileWorkspaceObjectStore(vaultId);
   const bytes = await store.get(".pvws/genesis.pvgen");
   if (!bytes) return null;
-  const genesis = parseWorkspaceDocument(bytes);
+  const genesis = (await workspaceModule()).parseWorkspaceDocument(bytes);
   if (genesis.kind !== "genesis") throw new Error("remote workspace genesis is invalid");
-  return { workspaceId: genesis.workspaceId, fingerprint: workspaceDocumentHash(genesis) };
+  return { workspaceId: genesis.workspaceId, fingerprint: (await workspaceModule()).workspaceDocumentHash(genesis) };
 }
 
 /**
@@ -1395,26 +1390,26 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // Drive only: the folder id learned by NAME, kept until a full listing of it
   // has held — then stored, so the id addresses the folder from now on (A4).
   let resolvedDriveRoot: { id: string; path: string } | null = null;
-  if (rawTarget instanceof DriveSyncTarget && !(await readDriveDestination(v.vaultId, p)).id) {
+  if (rawTarget instanceof (await syncModules()).DriveSyncTarget && !(await readDriveDestination(v.vaultId, p)).id) {
     rawTarget.onRootFolderResolved = (info) => { resolvedDriveRoot = { id: info.id, path: info.path }; };
   }
   if (await holdForEncryptedRemote(v, p, rawTarget, generation)) return;
   const { target, runner: settingsSync } = await prepareMobileSettingsSync(v, p, rawTarget);
   if (v.workspaceRuntime && v.workspaceState) {
-    const objectStore = createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
+    const objectStore = (await workspaceModule()).createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
     // Encrypting/indexing the local vault at join time can take minutes on a
     // large vault; surface it as determinate sync progress instead of a silent
     // freeze (package F1, Punkt 14).
     setState({ status: "syncing", message: null });
     // What changed while Plainva was closed is asked like a change from
     // outside while it runs (release 0.9.0 A3).
-    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }), permissions: v.workspacePermissions });
+    await (await workspaceModule()).initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }), permissions: v.workspacePermissions });
     if (generation !== startGeneration) {
       // Stopped meanwhile (finding 4): no worker, and no "syncing" left standing.
       await settleCancelledStart(v);
       return;
     }
-    const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.belowChain, v.workspaceRuntime, {
+    const encrypted = new (await workspaceModule()).EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.belowChain, v.workspaceRuntime, {
       intervalMs: syncIntervalMs(),
       ownDeletions: v.ownDeletions,
       // The workspace worker runs its sideband AFTER pull and push, so the
@@ -1464,7 +1459,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   }
   // Large writes stream from disk instead of crossing the bridge as base64
   // (issue #48); below the threshold nothing changes.
-  const engine = new SyncEngine(
+  const engine = new (await syncModules()).SyncEngine(
     v.syncQueue!,
     target,
     v.files,
@@ -1493,10 +1488,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // Deletion journal (feedback round 2026-09-01, P1): the deletions a person
   // confirmed here reach the other devices as an intent, and theirs reach us.
   // Raw adapter — it is a sideband file, not a note.
-  const journal = new DeletionJournal(v.belowChain, await mobileSyncDeviceId());
+  const journal = new (await syncModules()).DeletionJournal(v.belowChain, await mobileSyncDeviceId());
   if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   deletionJournal = journal;
-  const w = new SyncWorker(engine, target, v.syncRepo!, v.belowChain, v.syncQueue!, syncIntervalMs(), {
+  const w = new (await syncModules()).SyncWorker(engine, target, v.syncRepo!, v.belowChain, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,

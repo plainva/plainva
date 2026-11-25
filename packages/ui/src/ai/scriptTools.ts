@@ -1,4 +1,4 @@
-import { runScript, scriptFailureText, type RunScripts, type ScriptCallRecord, type ScriptDefinition, type ScriptOutcome, type ScriptSandbox, type ToolCallPart, type ToolExecutor, type ToolManifest, type ToolOutcome } from "@plainva/core";
+import { runScript, scriptFailureText, type RunScripts, type ScriptCallRecord, type ScriptDefinition, type ScriptOutcome, type ScriptSandbox, type ToolCallPart, type ToolExecutor, type ToolManifest, type ToolOutcome } from "@plainva/core/ai";
 
 /**
  * A script as a tool of a conversation (ADR 0020 decision 6, plan KI-Harness

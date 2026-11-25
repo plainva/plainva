@@ -17,15 +17,17 @@ import {
   MigratingWorkspaceCommentStore,
   CommentStoreLockedError,
   commentSignedByPerson,
-  createWorkspaceObjectId,
-  effectiveWorkspaceCapabilities,
-  workspaceSliceIdsForObject,
   type CommentPostInput,
   type CommentStore,
   type CommentStoreState,
+} from "@plainva/core";
+import {
+  createWorkspaceObjectId,
+  effectiveWorkspaceCapabilities,
+  workspaceSliceIdsForObject,
   type WorkspaceCapability,
   type WorkspaceCommentRecord,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
 import { reportVisible } from "@plainva/ui";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { capMcpText } from "@plainva/core";
+import { capMcpText } from "@plainva/core/ai";
 import { LineCompare } from "../components/LineCompare";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";

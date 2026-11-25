@@ -37,15 +37,9 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
  * folder asks (`directFolderOf`).
  */
 
-export type AiPermission = "allow" | "deny";
-
-export interface AiPolicy {
-  cloud: AiPermission;
-  web: AiPermission;
-}
-
-export type AiPolicyDimension = keyof AiPolicy;
-export const AI_POLICY_DIMENSIONS: readonly AiPolicyDimension[] = ["cloud", "web"];
+// The dimensions are part of the note format, which the vault reads without the AI (performance plan L5).
+export { AI_POLICY_DIMENSIONS, type AiPermission, type AiPolicy, type AiPolicyDimension } from "../noteAiRules.js";
+import { AI_POLICY_DIMENSIONS, type AiPermission, type AiPolicy, type AiPolicyDimension } from "../noteAiRules.js";
 
 /** Whether an assistant's change in a folder waits for the user (`ask`, the default) or is written at once (`direct`). */
 export type AiWriteRule = "direct" | "ask";

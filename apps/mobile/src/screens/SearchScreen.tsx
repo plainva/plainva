@@ -2,12 +2,43 @@ import { isHiddenPath, trimChars } from "@plainva/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Clock, FilePlus, Search } from "lucide-react";
-import { AreaBoundary,
-  useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, commandTitle, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
-  rememberSearch, SearchField,
-  setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge,
-  IconButton, SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey,
-  ActiveSearchModeSwitch, ActiveSemanticCoverage, FoundChip, meaningActive, useLocalEmbeddings } from "@plainva/ui";
+import {
+  AreaBoundary,
+  useSearchPages,
+  recallSearchSession,
+  rememberSearchSession,
+  Button,
+  Chip,
+  commandTitle,
+  DocIcon,
+  EmptyState,
+  filterCommands,
+  fuzzyFilter,
+  ICON,
+  loadRecentSearches,
+  renderSnippetNodes,
+  rememberSearch,
+  SearchField,
+  setPendingSearchJump,
+  useDebouncedValue,
+  type AppCommand,
+  ScrollEdge,
+  IconButton,
+  SEARCH_SORT_KEYS,
+  listSortLabelKey,
+  nextSearchSort,
+  readStoredSearchSort,
+  writeStoredSearchSort,
+  type SearchSort,
+  type SearchSortKey,
+} from "@plainva/ui";
+import {
+  ActiveSearchModeSwitch,
+  ActiveSemanticCoverage,
+  FoundChip,
+  meaningActive,
+  useLocalEmbeddings,
+} from "@plainva/ui/ai";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";

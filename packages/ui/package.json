@@ -13,6 +13,7 @@
     "./themes/index.css": "./src/themes/index.css",
     "./styles/base-colors.css": "./src/styles/base-colors.css",
     "./mail": "./src/mail/index.ts",
+    "./ai": "./src/ai/index.ts",
     "./testing": "./src/testing/index.ts"
   },
   "description": "Shell-independent UI layer shared by the Plainva app shells: pure helpers, view-models and React primitives.",
@@ -63,5 +64,8 @@
     "@types/react-dom": "^19.3.0",
     "typescript": "~6.0.3",
     "vite": "^8.3.8"
-  }
+  },
+  "sideEffects": [
+    "*.css"
+  ]
 }

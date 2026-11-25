@@ -14,7 +14,7 @@ import {
   utf8Encode,
   verifyWorkspaceDocumentSignatures,
   workspaceDocumentHash,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 const workspaceId = "01".repeat(16);
 const ownerId = "10".repeat(16);

@@ -1,7 +1,8 @@
 import { useEffect, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare } from "lucide-react";
-import { AreaBoundary, AiOpenPanel, conversationRowActions, EmptyState, GroupCard, ICON, openLearnSurface, openWritesCount, Row, RowList, SearchField, Segmented, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
+import { AreaBoundary, conversationRowActions, EmptyState, GroupCard, ICON, Row, RowList, SearchField, Segmented, type ConversationRowCaps } from "@plainva/ui";
+import { AiOpenPanel, openLearnSurface, openWritesCount, useOpenProposals, waitingCount } from "@plainva/ui/ai";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";

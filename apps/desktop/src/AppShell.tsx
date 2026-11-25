@@ -21,7 +21,8 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, FirstNotePrompt, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiAttention, useAiWaitingCount, useStableHandler, useVaultEmptiness } from "@plainva/ui";
+import { AreaBoundary, EmptyState, FirstNotePrompt, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler, useVaultEmptiness } from "@plainva/ui";
+import { aiModule, AiSessionContext, LocalModelsProvider, reportingTo } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -43,12 +44,17 @@ const LearnDialogs = lazy(() => import('./components/ai/LearnDialogs').then(m =>
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath, tabAreaName } from "./components/graph/virtualPaths";
-import { AiSelectionMenu } from "./components/ai/AiSelectionButton";
-import { AiCommandSourceLink, useDesktopAi } from "./components/ai/useDesktopAi";
-import { useDesktopEmbeddings } from "./components/ai/useDesktopEmbeddings";
-import { useDesktopGists } from "./components/ai/useDesktopGists";
+// The AI (performance plan L5): its host and its surfaces load once the AI was asked for, never with the start.
+const AiSelectionMenu = deferredPart(() => import("./components/ai/AiSelectionButton").then((m) => m.AiSelectionMenu));
+const DesktopAiHost = deferredPart(() => import("./components/ai/DesktopAiHost").then((m) => m.DesktopAiHost));
+const ActiveSearchModeSwitch = deferredAiPart("ActiveSearchModeSwitch");
+import { AiCommandSourceLink } from "./components/ai/aiCommandSource";
+import { DESKTOP_AI_ABSENT, sameAiReport } from "./components/ai/aiAbsent";
+import type { DesktopAiReport } from "./components/ai/DesktopAiHost";
+import { startDesktopAiIfOn, useDesktopAiRequested } from "./services/ai/desktopAiLoader";
 import { commentLockState, requestCalendarDay, requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
-import { BaseViewer } from "./components/BaseViewer";
+// A database opens in a tab of its own: its viewer loads with the first one (performance plan L5).
+const BaseViewer = deferredPart(() => import("./components/BaseViewer").then((m) => m.BaseViewer), { prefetch: true });
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
 import { requestCascadeDelete } from "./services/cascadeDelete";
 import { QuickSwitcher } from "./components/QuickSwitcher";
@@ -71,7 +77,7 @@ import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
-import { errorText, styleOutcomeText, toast } from "@plainva/ui";
+import { errorText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
@@ -95,6 +101,7 @@ import { useDayBoundary } from "./hooks/useDayBoundary";
 import "./App.css";
 import { newNoteOpensInNewTab } from "./services/newNoteTab";
 import { useVaultLabels, vaultLabel } from "./services/vaultNames";
+import { deferredAiPart, deferredPart, prefetchDeferredParts } from "./lib/deferredParts";
 
 /**
  * The recents service is loaded on demand, never at App's module init.
@@ -600,15 +607,20 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     return () => window.removeEventListener(GRAPH_TRAIL_EVENT, onTrail);
   }, [focusOrOpenVirtual]);
 
-  // Search by meaning (plan KI-Harness P2a-4/5, P2b): the vault's controller for the search, the settings and the context package.
-  const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
-  // Gists (plan KI-Harness P2b-3): written by the model of the profile "Local" on this computer, read by the context package.
-  const gists = useDesktopGists({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
-  // The AI harness (plan KI-Harness P1a): one session of the central window;
-  // the companion, the AI tab and the palette all show and drive it.
   // Whether the encrypted workspace is open on this device, told by its keys and followed as they change (round 11).
   const workspaceClosed = useSyncExternalStore(onWorkspaceClosedChange, () => workspaceClosedHere(vaultPath, workspaceSecurityStatus));
-  const ai = useDesktopAi({
+  // The AI harness (plan KI-Harness P1a): one session of the central window; the companion, the AI tab and the
+  // palette all show and drive it. Its host loads when the switch is on, or when a surface of the AI asks for it
+  // (performance plan L5); until then the shell reads an AI that is off.
+  const aiRequested = useDesktopAiRequested();
+  useEffect(() => {
+    void startDesktopAiIfOn().catch(reportingTo("ai:start"));
+    // What is likely to open soon loads while the window idles, so its first use does not wait (performance plan L5).
+    return prefetchDeferredParts();
+  }, []);
+  const [aiReport, setAiReport] = useState<DesktopAiReport>(DESKTOP_AI_ABSENT);
+  const takeAiReport = useCallback((next: DesktopAiReport) => setAiReport((current) => (sameAiReport(current, next) ? current : next)), []);
+  const aiInput = {
     vaultPath,
     vaultAdapter,
     queryService,
@@ -618,11 +630,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     activePath,
     layout,
     openView,
-    openNote: (path) => openInFocusedPane(path),
-    embeddings,
-    gists,
+    openNote: (path: string) => openInFocusedPane(path),
     renameTabPrefix,
-  });
+  };
+  const { ai, embeddings, gists } = aiReport;
   useLayoutEffect(() => {
     aiDockRef.current = { open: ai.dockOpen, close: ai.stowDock };
   });
@@ -630,8 +641,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
   // What waits for a decision in the AI (plan KI-Oberflächen K11): the ribbon's AI button carries it.
-  const aiWaiting = useAiWaitingCount(ai.session ?? null);
-  const aiAttention = useAiAttention(ai.session ?? null);
+  const aiWaiting = aiReport.waiting;
+  const aiAttention = aiReport.attention;
 
   /**
    * The communications window: mail beside the calendar (multi-window P4, E4).
@@ -722,7 +733,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // A note picked as an example of the writing style (plan KI-Harness P9-3): why one was not taken is said; a taken one stands in the memory view.
   const pickStyleExample = useStableHandler((path: string) => {
     void ai.session?.addStyleExample(path).then((outcome) => {
-      const refused = styleOutcomeText(t, outcome);
+      // A session exists, so the harness is loaded.
+      const refused = aiModule()?.styleOutcomeText(t, outcome);
       if (refused) toast.error(refused);
     });
   });
@@ -1935,6 +1947,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                         />
                       </Suspense>
                     ) : path.endsWith('.base') ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                       <BaseViewer
                         key={path}
                         activePath={path}
@@ -1953,6 +1966,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                         activeSplitDirection={activeSplitDirection}
                         isActivePane={isActivePane}
                       />
+                      </Suspense>
                     ) : (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <Editor
@@ -2056,7 +2070,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             ai.enabled
               ? {
                   activeNote: ai.activeNote,
-                  onNewConversation: () => void (ai.session && startAiConversation(ai.session, t)),
+                  onNewConversation: () => void (ai.session && aiModule()?.startAiConversation(ai.session, t)),
                   onOpenNote: ai.openNoteTarget,
                   onOpenCreated: (path) => openInFocusedPane(path, true),
                   onOpenUrl: ai.openUrl,
@@ -2120,6 +2134,11 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         {showDeletedFiles && <AreaBoundary area="dialog:deletedFiles" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowDeletedFiles(false) }}><DeletedFilesModal onClose={() => setShowDeletedFiles(false)} /></AreaBoundary>}
       </Suspense>
       <AiCommandSourceLink sourceRef={ai.commandSourceRef} build={paletteCommands} />
+      {aiRequested && (
+        <Suspense fallback={null}>
+          <AreaBoundary area="host:ai" size="quiet"><DesktopAiHost input={aiInput} onReport={takeAiReport} /></AreaBoundary>
+        </Suspense>
+      )}
       {showCommandPalette && (
         <AreaBoundary area="dialog:commandPalette" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowCommandPalette(false) }}>{() => (
         <CommandPalette

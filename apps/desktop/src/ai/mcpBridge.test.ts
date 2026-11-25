@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolsFor, type EgressRecipient } from "@plainva/core";
-import { createVaultToolExecutor, type AiVaultHost, type ToolScope, type VaultToolDeps } from "@plainva/ui";
+import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolsFor, type EgressRecipient } from "@plainva/core/ai";
+import { createVaultToolExecutor, type AiVaultHost, type ToolScope, type VaultToolDeps } from "@plainva/ui/ai";
 import { invoke } from "@tauri-apps/api/core";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));

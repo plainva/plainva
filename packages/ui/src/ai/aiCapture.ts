@@ -1,4 +1,5 @@
-import { conversationTitleFrom, setFrontmatterPath, trimChars, upsertFrontmatterKeys, type AiPolicyDimension, type OkfSource } from "@plainva/core";
+import { setFrontmatterPath, trimChars, upsertFrontmatterKeys, type OkfSource } from "@plainva/core";
+import { conversationTitleFrom, type AiPolicyDimension } from "@plainva/core/ai";
 import { safeFileStem } from "../lib/fileStem";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { profileDefault } from "../lib/profileFields";

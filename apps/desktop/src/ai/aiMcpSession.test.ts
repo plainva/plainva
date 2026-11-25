@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { EFFECT_DECLINED, EMPTY_MCP_GRANT } from "@plainva/core";
-import { CHAT_TOOL_NAMES, createMcpVaultStore, FOREIGN_TOOLS_HEAD, MCP_BLOCKED, transcriptOf } from "@plainva/ui";
+import { EFFECT_DECLINED, EMPTY_MCP_GRANT } from "@plainva/core/ai";
+import { CHAT_TOOL_NAMES, createMcpVaultStore, FOREIGN_TOOLS_HEAD, MCP_BLOCKED, transcriptOf } from "@plainva/ui/ai";
 import { CONFIRM } from "./mcpTestHost";
 import { LOCAL, SEARCH, TRACKER_URL, answering, audit, body, chat, close, connect, mcpSession, results, search, toolNames, turn, vaultHost, viaDispatch } from "./mcpSessionHarness";
 

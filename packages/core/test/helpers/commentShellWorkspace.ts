@@ -1,8 +1,14 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createPersonalWorkspaceBootstrap, personalWorkspaceRuntime, initializePersonalWorkspaceMigration,
-  EncryptedWorkspaceWorker, FakeWorkspaceObjectStore, SqlWorkspaceStateStore } from "../../src/index.js";
+import {
+  createPersonalWorkspaceBootstrap,
+  personalWorkspaceRuntime,
+  initializePersonalWorkspaceMigration,
+  EncryptedWorkspaceWorker,
+  FakeWorkspaceObjectStore,
+  SqlWorkspaceStateStore,
+} from "../../src/workspace/index.js";
 import { LocalVaultAdapter } from "../../src/vault/LocalVaultAdapter.js";
 import { realSqlite } from "./realSqlite.js";
 

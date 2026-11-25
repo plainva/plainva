@@ -1,4 +1,4 @@
-import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type CSSProperties } from "react";
+import { Suspense, useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type CSSProperties } from "react";
 import { settingNotSaved } from "../services/settingNotSaved";
 import { ChevronDown, Database, CalendarDays, Lightbulb, Link as LinkIcon, NotebookPen, Pen, Search, SlidersHorizontal, List, Sparkles, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -8,13 +8,12 @@ import { JournalSidebarSection } from "./journal/JournalSidebarSection";
 import { BacklinksPanel } from "./BacklinksPanel";
 import { PropertiesSection } from "./PropertiesSection";
 import { OutlineSection } from "./OutlineSection";
-import { GraphContextSection } from "./graph/GraphContextSection";
-import { AiDockSection, type AiDockProps } from "./ai/AiDockSection";
+import type { AiDockProps } from "./ai/AiDockSection";
 import { activeDocument, type ActiveDoc } from "../services/activeDocument";
 import { parseHeadings } from "../services/outline";
 import { useVault } from "../contexts/VaultContext";
 import { windowStateKey } from "../services/windowContext";
-import { getDesktopAiSession } from "../services/ai/desktopAi";
+import { useDesktopAiSession } from "../services/ai/desktopAiLoader";
 import {
   ICON,
   IconButton,
@@ -24,16 +23,7 @@ import {
   MenuItem,
   MenuSeparator,
   MenuLabel,
-  NoteHintsList,
-  NoteHintsMenu,
-  noteHintsCount,
-  RelatedNotesList,
-  RelatedNotesMenu,
-  relatedCount,
   setPendingSearchJump,
-  useNoteHints,
-  useRelatedNotes,
-  type RelatedJump,
   useHoldDrag,
   visibleAreas,
   moveArea,
@@ -44,8 +34,9 @@ import {
   type AreaOrder,
   type NoteDatabaseContext,
   AreaBoundary,
-  useAiOn,
 } from "@plainva/ui";
+import { noteHintsCount, relatedCount, useAiOn, useNoteHints, useRelatedNotes } from "@plainva/ui";
+import type { RelatedJump } from "@plainva/ui/ai";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
 import { useSidebarStep } from "../lib/sidebarStep";
@@ -56,6 +47,16 @@ import {
   loadBarLayout,
   saveBarLayout,
 } from "@plainva/ui";
+import { deferredAiPart, deferredPart } from "../lib/deferredParts";
+
+// The AI's parts of the column load with the harness (performance plan L5); none of them draws anything while the AI is off.
+// The local graph of the open note loads with its section (performance plan L5).
+const GraphContextSection = deferredPart(() => import("./graph/GraphContextSection").then((m) => m.GraphContextSection), { prefetch: true });
+const AiDockSection = deferredPart(() => import("./ai/AiDockSection").then((m) => m.AiDockSection));
+const NoteHintsList = deferredAiPart("NoteHintsList");
+const NoteHintsMenu = deferredAiPart("NoteHintsMenu");
+const RelatedNotesList = deferredAiPart("RelatedNotesList");
+const RelatedNotesMenu = deferredAiPart("RelatedNotesMenu");
 
 /**
  * What the properties section would show for this text, without mounting it
@@ -307,7 +308,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
       if (timer) clearTimeout(timer);
     };
   }, []);
-  const hintSession = getDesktopAiSession();
+  const hintSession = useDesktopAiSession();
   const hints = useNoteHints(hintSession, hintDoc?.path ?? null, hintDoc?.content ?? null);
   const jumpTo = (jump: RelatedJump) => {
     setPendingSearchJump(jump);
@@ -400,7 +401,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
       return onOpenJournal ? <JournalSidebarSection activeDate={activeDailyDate ?? null} onOpenPath={onOpenPath} onOpenJournal={onOpenJournal} onCount={setJournalCount} /> : null;
     }
     if (id === "outline") return <OutlineSection />;
-    if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
+    if (id === "graph") return <Suspense fallback={null}><GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} /></Suspense>;
     if (id === "databases") return <NoteDatabasesSection context={dbContext} activePath={activePath} onOpenPath={onOpenPath} />;
     if (id === "backlinks") return <BacklinksPanel activePath={activePath} onOpenPath={onOpenPath} embedded />;
     if (id === "related") return activePath ? <RelatedNotesList path={activePath} answer={related} onOpenNote={(path) => onOpenPath(path)} onJump={jumpTo} /> : null;
@@ -453,7 +454,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
           </section>
         )}
         <AreaBoundary area="section:ai" resetKey="" size="section">
-          {() => <AiDockSection {...ai} />}
+          {() => <Suspense fallback={null}><AiDockSection {...ai} /></Suspense>}
         </AreaBoundary>
       </div>
     );

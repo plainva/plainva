@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { AreaBoundary, GroupCard, ICON, Row, RowList, SectionLabel, upkeepRowActions, upkeepTitle, type UpkeepRow } from "@plainva/ui";
+import { AreaBoundary, GroupCard, ICON, Row, RowList, SectionLabel, upkeepRowActions } from "@plainva/ui";
+import { upkeepTitle, type UpkeepRow } from "@plainva/ui/ai";
 import { RowActionSheet } from "./RowActionSheet";
 
 /**

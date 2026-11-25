@@ -1,4 +1,5 @@
-import { gateDecision, isAiHiddenPath, isCloudRecipient, notePropertiesAsWritten, type EffectivePolicy, type GateRun, type LinkRule, type SituationInput } from "@plainva/core";
+import { notePropertiesAsWritten } from "@plainva/core";
+import { gateDecision, isAiHiddenPath, isCloudRecipient, type EffectivePolicy, type GateRun, type LinkRule, type SituationInput } from "@plainva/core/ai";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveTaskCompletionModel, taskDbRows } from "../lib/taskDatabase";
 import { addDaysToKey, type PlannerRow } from "../lib/taskPlanner";

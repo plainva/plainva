@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFrontmatterPath } from "@plainva/core";
 import {
   DEFAULT_AI_APP_SETTINGS,
   DEFAULT_WEB_SETTINGS,
@@ -6,7 +7,6 @@ import {
   effectivePolicy,
   notePolicyFrom,
   readConversationRecord,
-  readFrontmatterPath,
   type AiEgress,
   type Candidate,
   type ConversationRecord,
@@ -16,8 +16,8 @@ import {
   type WebFetcher,
   type WebFetchResult,
   type WebSettings,
-} from "@plainva/core";
-import { AiSession, transcriptOf, WEB_OFF, type AiVaultHost, type EffectRequest } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { AiSession, transcriptOf, WEB_OFF, type AiVaultHost, type EffectRequest } from "@plainva/ui/ai";
 import { chat } from "./mcpSessionHarness";
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyWorkspaceGovernanceUpdate, createPersonalWorkspaceBootstrap, encodeWorkspaceDocument, FatalSyncProtocolError, inviteWorkspaceMember, personalWorkspaceRuntime, SyncRootMissingError, type ISyncTarget } from "@plainva/core";
+import { FatalSyncProtocolError, SyncRootMissingError, type ISyncTarget } from "@plainva/core";
+import { applyWorkspaceGovernanceUpdate, createPersonalWorkspaceBootstrap, encodeWorkspaceDocument, inviteWorkspaceMember, personalWorkspaceRuntime } from "@plainva/core/workspace";
 import {
   classifyGenesisReadError,
   decideHeldFolder,

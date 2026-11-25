@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { readMcpElicitation, type McpElicitResult } from "@plainva/core";
+import { readMcpElicitation, type McpElicitResult } from "@plainva/core/ai";
 import "@plainva/ui/i18n";
-import { AiMcpQuestion, type McpQuestionRequest } from "@plainva/ui";
+import { AiMcpQuestion, type McpQuestionRequest } from "@plainva/ui/ai";
 
 /**
  * The question of a foreign server as both shells show it (plan KI-Harness

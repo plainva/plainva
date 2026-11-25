@@ -9,7 +9,7 @@ import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMark
 import { addDaysToKey } from "../lib/taskPlanner";
 import { formatJournalTime, newestFirst, type JournalDay } from "../lib/journalFeed";
 import { AudioEmbed } from "./AudioEmbed";
-import { isEscapedAt } from "./literalSyntax";
+import { isEscapedAt } from "./literalEscape";
 import { boundaryLabel } from "../lib/today";
 import { Rating } from "./ui/Rating";
 import { useDayBoundaryMinutes } from "../hooks/useTodayKey";

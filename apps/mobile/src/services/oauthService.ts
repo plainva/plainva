@@ -12,7 +12,7 @@ import {
   generatePkcePair,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { getPlatformServices, getVaultTemplates, logDiagnostic, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
+import { getPlatformServices, logDiagnostic, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError, serviceConnectionMessage, toast, withAccountCredentialLock } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../adapters/webdavHttp";
 import { connectProvider, createProviderVault, createProviderFolder, listProviderFolders, getStoredProvider, reauthorizeVault, type MobileSyncProvider, type VaultSignInAdopter } from "./syncService";
@@ -311,6 +311,8 @@ async function finishConnectSteps(rootFolder: string): Promise<void> {
   }
   // Create mode: scaffold the pre-picked template into the fresh container
   // before the vault activates; the first sync uploads it.
+  // The template catalogue loads when a vault is made from one (performance plan L5).
+  const { getVaultTemplates } = await import("@plainva/ui");
   const template = getVaultTemplates(i18n.language).find((d) => d.id === createTemplateId) ?? null;
   await createProviderVault(await getMobileVault(), withFolder, {
     template,

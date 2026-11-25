@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, Eye, MoreHorizontal, Pencil, Play, Plus, Trash2 } from "lucide-react";
-import { ROUTINE_NAME_MAX, ROUTINES_MAX, routineDraftOf, sameStoredValue, type Routine, type RoutineDraft } from "@plainva/core";
+import { sameStoredValue } from "@plainva/core";
+import { ROUTINE_NAME_MAX, ROUTINES_MAX, routineDraftOf, type Routine, type RoutineDraft } from "@plainva/core/ai";
 import {
-  AiAppliedList,
-  AiRoutineConfirm,
   Banner,
   Button,
   Checkbox,
@@ -14,17 +13,6 @@ import {
   MenuItem,
   MenuSurface,
   Modal,
-  newLogDraft,
-  newRoutineDraft,
-  routineChoiceKey,
-  routineDayName,
-  routineKindPatch,
-  routineLogFolders,
-  routineModelOptions,
-  routineNow,
-  routineRows,
-  routineSkillOptions,
-  routineWeek,
   Segmented,
   Select,
   SettingCard,
@@ -36,14 +24,29 @@ import {
   useDiscardGuard,
   useMinuteClock,
   useTodayKey,
-  useRoutineForm,
   useWeekStartDay,
+} from "@plainva/ui";
+import {
+  AiAppliedList,
+  AiRoutineConfirm,
+  newLogDraft,
+  newRoutineDraft,
+  routineChoiceKey,
+  routineDayName,
+  routineKindPatch,
+  routineLogFolders,
+  routineModelOptions,
+  routineNow,
+  routineRows,
+  routineSkillOptions,
+  routineWeek,
+  useRoutineForm,
   useDirectFolders,
   type AiSession,
   type RoutineKind,
   type RoutineModelOption,
   type RoutineSkillOption,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { appConfirm } from "../../services/appDialogs";
 

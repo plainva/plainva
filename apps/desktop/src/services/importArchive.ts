@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { isTextPath, readTarEntries, JEX_LIMITS, checkArchiveAbort, type ArchiveReadControl, type UnpackedFile, trimEndChars } from '@plainva/core';
+import { trimEndChars } from '@plainva/core';
+import { isTextPath, readTarEntries, JEX_LIMITS, checkArchiveAbort, type ArchiveReadControl, type UnpackedFile } from '@plainva/core/import';
 
 // The text-extension list moved to @plainva/core in S40 so the phone decodes
 // the same entries as text; re-exported because callers here import it.

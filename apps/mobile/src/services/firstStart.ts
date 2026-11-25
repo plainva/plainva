@@ -1,4 +1,4 @@
-import { getVaultTemplates, TOUR_TEMPLATE_ID, type VaultTemplateDefinition } from "@plainva/ui";
+import { TOUR_TEMPLATE_ID, type VaultTemplateDefinition } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { currentVaultFolderPlatform, isVaultFolderSupported } from "../platform/vaultFolder";
 import { mActions, type MobileSelectOption } from "./mobileDialogs";
@@ -25,6 +25,8 @@ export interface TemplatePick {
  */
 export async function pickVaultTemplate(): Promise<TemplatePick | null> {
   const t = i18n.t.bind(i18n);
+  // The templates of every language load when one is to be picked, not with the start (performance plan L5).
+  const { getVaultTemplates } = await import("@plainva/ui");
   const defs = getVaultTemplates(i18n.language);
   const tour = defs.filter((d) => d.id === TOUR_TEMPLATE_ID);
   const rest = defs.filter((d) => d.id !== TOUR_TEMPLATE_ID);

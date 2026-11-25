@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, HardDrive, LoaderCircle, Minus, Pin, ShieldAlert, Waypoints, X } from "lucide-react";
-import { estimateTokensOfChars, naiveComparison, REDACTABLE, SITUATION_SOURCE, type GateExclusion, type PackageRef, type SensitiveKind } from "@plainva/core";
+import { estimateTokensOfChars, naiveComparison, REDACTABLE, SITUATION_SOURCE, type GateExclusion, type PackageRef, type SensitiveKind } from "@plainva/core/ai";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { cx } from "../components/ui/cx";

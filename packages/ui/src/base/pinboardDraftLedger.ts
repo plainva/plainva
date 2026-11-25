@@ -1,4 +1,4 @@
-import { sha256Bytes, toHex, utf8Encode } from "@plainva/core";
+import { sha256Bytes, toHex, utf8Encode } from "@plainva/core/workspace";
 
 /**
  * The drafts this device created for a pinboard's "New entry" and has not

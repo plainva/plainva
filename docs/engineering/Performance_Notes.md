@@ -132,10 +132,10 @@ patch release; a smaller build passes and asks for `--update`, so the next growt
 from there), prints the plan's budgets (3.5 MB start, 400 KB phone entry) as notes, and checks
 the `mustNotStart` rules: module families that must not be in the start files, read from the
 source maps (`packages/core/src/ai/`, `packages/ui/src/ai/`, `packages/core/src/import/adapters/`).
-Today all three are in the start files of both shells, so each rule carries `"expected": "fail"`
-per shell — reported as a known failure until package L5. The day a family leaves the start
-files, the rule fails the gate until its `expected` is flipped to `"pass"`, so a fixed rule is
-armed, never silently left loose. The locale file the start waits for is loaded dynamically and
+Since package L5 (2026-11-25) none of the three is in the start files of either shell, and each
+rule carries `"expected": "pass"` per shell: the gate fails the day one of them is back. A rule
+still to be met would say `"fail"` and be reported as a known failure until it is flipped, so a
+fixed rule is armed, never silently left loose (see "Start bundle (L5)" below). The locale file the start waits for is loaded dynamically and
 not counted (B2 of the plan names it; L5 splits it). Recorded 2026-11-10: desktop 7.37 MB in 98
 start files (entry 88 KB), phone 8.40 MB in 60 (entry 1 079 KB) — more than the review's 7.3 MB,
 because this count takes every `modulepreload` and style sheet. Source characters of the
@@ -329,8 +329,8 @@ Tauri stand-in — a lower bound).
 | Re-reading after a save, p95 | ≤ 15 ms | 7.7–18.2 ms, median 5.5–7.0 ms (48.7 / 42.2 ms before L1) | core gate |
 | Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 64–77 ms | core gate |
 | List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks) | core gate |
-| Start bytes per shell | ≤ 3.5 MB | desktop 7.49 MB (2.33 MB gzip, 98 files), phone 7.56 MB (2.30 MB gzip, 60 files) — on main of 2026-11-11 | bundle gate |
-| Phone entry file | ≤ 400 KB | 1 096 KB (desktop entry 93 KB) | bundle gate |
+| Start bytes per shell | ≤ 3.5 MB | desktop 7.49 MB (2.33 MB gzip, 98 files), phone 7.56 MB (2.30 MB gzip, 60 files) — on main of 2026-11-11; after L5 (2026-11-25): desktop 4.17 MB (1.36 MB gzip), phone 4.91 MB (1.59 MB gzip) | bundle gate |
+| Phone entry file | ≤ 400 KB | 1 096 KB (desktop entry 93 KB); after L5: 288 KB (desktop 304 KB) | bundle gate |
 | Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 966.2 ms, p50 57.3 ms, max 1275.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
 | Search in the sidebar, typing to first hit (browser) | — | `project` 479 ms, `review meeting` 88 ms, `Müller` 102 ms, `garden` 38 ms | browser report |
 | Navigation to an editable note, warm index | ≤ 1.5 s | 2.35 s (tree 1.52 s); first start 6.87 s | browser report |
@@ -1139,3 +1139,107 @@ intraword `*_…_*` combinations, which notes hardly contain. (Maintainer decisi
 
 **Not part of the digest: the long-table note.** With `gfm-table` 2.1.1 the 20,000-row note takes minutes;
 `packages/core/test/gfm-table-parse.test.ts` already proves 2.1.1 and 2.1.2 produce the same tree on it.
+
+## Start bundle (L5), 2026-11-25
+
+What each shell loads before its first picture, from the bundle gate (`pnpm perf:bundle`, both
+shells built with source maps; the baseline before is the release commit of 0.9.0):
+
+| Shell | | Start | gzip | Entry file |
+|---|---|---|---|---|
+| Desktop | before (0.9.0) | 7 804 033 | 2 427 962 | 95 942 |
+| Desktop | after | 4 168 872 | 1 356 479 | 304 442 |
+| Phone | before (0.9.0) | 7 892 524 | 2 412 166 | 1 132 589 |
+| Phone | after | 4 906 643 | 1 594 525 | 288 222 |
+
+Desktop −47 %, phone −38 %; the phone's entry file is under its budget of 400 KB. The desktop's
+entry file grew because the start chunk that holds `main.tsx` now carries what the old shared
+chunks carried; the start bytes are what counts. The three `mustNotStart` rules hold for both
+shells. Both shells are still over the plan's 3.5 MB: what is left is listed at the end.
+
+**The cause that weighed most: barrels under `strictExecutionOrder`.** The production bundles run
+every module in the order its imports say (stability plan R10). Under that option the
+initialisation of a barrel — `packages/ui/src/index.ts`, `packages/core/src/index.ts`, each one
+`export * from` hundreds of modules — runs every module it re-exports. One
+`import { toast } from "@plainva/ui"` in the start therefore carried the whole package: the AI
+harness, the database views, the template catalogue, even the parity catalogue that no runtime
+code reads. `"sideEffects": false` and `treeshake.moduleSideEffects` change nothing here.
+`scripts/vite/barrelImports.mjs` (wired by `scripts/vite/packageBarrels.mjs` in both
+`vite.config.ts`) rewrites, in a build only, every named import, named re-export and
+`const { … } = await import(…)` of a package entry to the module that defines each name; it
+follows `export *`, `export { a as b } from` and a module's own re-export of a name it imported.
+Tests and the dev server keep the barrels, so `vi.mock("@plainva/core")` still mocks what a test
+means. The map is held by `startBundle.test.ts`. This alone took the desktop from 6.11 to 5.13 MB
+of script.
+
+**Entries of their own.** `@plainva/core/ai`, `/import` and `/workspace` and `@plainva/ui/ai` are
+no longer part of the main entries (aliases in both `vite.config.ts`, `paths` in the
+`tsconfig.json`s). What the vault needs without the AI moved out of `core/src/ai/`:
+`withholding/` (the reader's view and the withholding of links the index uses),
+`proposals/properties.ts` and `proposals/authors.ts` (suggested properties and machine authors —
+note format), `noteAiRules.ts` (the two dimensions of a note's AI rule).
+
+**The AI loads when its switch is on.** `packages/ui/src/aiPorts/` holds what a surface of the
+start needs to know of the AI without the harness: its switch (`aiSwitchOf`, the harness's own rule,
+held by a test), the session loader (`createAiSessionLoader`, `ensureAiIfOn`), the session and
+model contexts, the doors at a picture and a voice note, the counts of related notes and hints, the
+comment thread's door, and `aiComponent(name)`, which draws a component of the harness once it is
+loaded and nothing before. Nothing in `aiPorts/` imports a value from `ai/` (`startBundle.test.ts`).
+Each shell has a loader (`desktopAiLoader.ts`, `mobileAiLoader.ts`) and a host that runs the AI's
+hooks as before and reports them up (`DesktopAiHost`, `MobileAiHost`): mounted at the start when the
+switch is on, or when a surface of the AI opens (its settings, its tab), and until then the shell
+reads an AI that is off. The phone's directory for the system assistant follows the switch through
+the loader instead of loading the AI.
+
+**What loads on demand.** Desktop: the AI's host and its surfaces, the database viewer (also
+embedded), the import wizard, the local graph of the right column, the cloud setup and the template
+catalogue of the start screen, the PIM runtime, the providers' sync targets and engine, the
+encrypted workspace, the send queue, the accounts' actions, the document icon set, CodeMirror's
+"Select all" for the context menu. Phone: every screen but the navigator, a note and a folder's
+list, the AI and its sheets, the sync service's engine and targets, the calendar targets, the
+encrypted workspace's runtime, the IMAP/SMTP transport (`createLazySocketMailTransport`, whose
+methods a test holds against the socket transport's), the template catalogue, the emoji picker and
+the note's local graph.
+
+**One KaTeX.** mermaid, rehype-katex and micromark-extension-math asked for KaTeX 0.16 beside the
+app's 0.19, and both copies (about 500 KB each) were built. `pnpm.overrides` in the root
+`package.json` keeps one (0.19.1); their use is `renderToString`, which 0.19 keeps.
+
+**Locale files by area.** The source stays one file per language. `scripts/vite/localeAreas.mjs`
+cuts `<lang>.json?area=<name>` at build time: `ai`, `settings` (with `settingsSync`) and `mail`
+(`packages/ui/src/localeAreas.json`), `core` is everything else. The start waits for the core of
+the language and of the English fallback; the other areas are asked for at the same moment and land
+a moment later. A key of an area still on its way reads as an empty string for that moment, never
+as the raw key, and `bindI18nStore: "added"` re-renders what asked. A language switched to waits
+for all of its areas. Not counted by the gate (the files load dynamically).
+
+**Ways to keep it.** A part loads through `lazyPart` (`packages/ui/src/lib/lazyPart.ts`): one
+component per loader, drawn at once once it was loaded ahead, and a failed load is shown by the
+part's `AreaBoundary` and loaded again on the next mount, never in a loop. Each shell declares its
+parts with `deferredPart` (`apps/<shell>/src/lib/deferredParts.ts`), which asks `lazyPart` where the
+part renders, so no shared function runs at module load (moduleInitBoundary.test.ts). A part marked
+`prefetch` (the phone's frequent screens, the desktop's database viewer and local graph — never a
+part of the AI) is loaded while the app idles after the start.
+
+**First use of a part loaded on demand** (this machine, headless Chromium, the chunk and the imports
+it adds, over a local server; median of 5): desktop AI host 110 ms, database viewer 110 ms, local
+graph 70 ms, import wizard 69 ms, cloud setup 90 ms; phone AI host 113 ms, tasks 65 ms, today 71 ms,
+calendar 58 ms, settings 108 ms, database 52 ms, search 106 ms. A part marked `prefetch` and loaded
+in the idle time draws without that wait (`lazyPart.test.tsx`).
+
+**Offline.** Every lazily loaded part is a chunk of the app's own bundle. `e2e-prod/chunk-load.spec.ts`
+loads each chunk of either shell on its own; `apps/mobile/e2e-prod/offline-screens.spec.ts` opens
+every screen the phone's navigation restores with every other origin refused and asserts no failed
+area, no failed bundle file and no script or style sheet from another host.
+
+**What is left over the budget.** Measured from the source maps of the start files (source
+characters, not bytes): on both shells React (~560 KB), the core's vault, index and query service,
+YAML and zod (frontmatter), the encrypted workspace (~420–660 KB, still reached through
+`encryptedRemoteGate.ts` at the vault's open on the desktop and through the workspace lock of the
+phone's widgets), the sync's folder identities (`syncStateBinding.ts` reads them from the target
+modules), the mail module's text and sanitising (parse5) and the PIM cache. On the phone the note
+editor is part of the start by design (a note is one of the three screens that stay), with CodeMirror,
+its Markdown and the embedded HTML/CSS/JavaScript grammars and `@codemirror/merge` (parked
+suggestions). The next steps: the workspace's document hashing apart from its signing, the folder
+identities apart from the targets, the workspace lock and status apart from the workspace's
+runtime on the phone, and the start's many small chunks (257 and 350 files) merged.

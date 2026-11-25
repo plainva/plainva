@@ -28,7 +28,8 @@ import { inlineOptionsFrom, parseWikiLinkValue, columnValuesAreWikiLinks, type C
 import type { BaseCells } from "./useBaseCells";
 import { useRowDrag } from "./useRowDrag";
 import { addContextFilter, getContextFilters, removeContextFilter, SELF_MARKER } from "@plainva/ui";
-import { addFilterRules, FilterInWords, filterSchemaOf, IconButton, inferColumnType, type BaseAi } from "@plainva/ui";
+import { addFilterRules, FilterInWords, IconButton, inferColumnType, type BaseAi } from "@plainva/ui";
+import { filterSchemaOf } from "@plainva/ui/ai";
 
 export interface SortRuleUI {
   property: string;

@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import type { WorkspaceDynamicSliceDefinition } from "@plainva/core";
+import type { WorkspaceDynamicSliceDefinition } from "@plainva/core/workspace";
 import type { SelectOption } from "@plainva/ui";
 import type { useVault } from "../../contexts/VaultContext";
 

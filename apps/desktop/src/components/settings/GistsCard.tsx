@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Button, gistsStatusLine, SettingCardNote, SettingRow, Switch, useAiState, useLocalGists, type AiSession } from "@plainva/ui";
+import { Button, SettingCardNote, SettingRow, Switch } from "@plainva/ui";
+import { gistsStatusLine, useAiState, useLocalGists, type AiSession } from "@plainva/ui/ai";
 import { appConfirm } from "../../services/appDialogs";
 
 /**

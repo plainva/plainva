@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { isPlainvaManagedIndex, isUntouchedStarter, readStarterManifest, starterHash, type VaultFileInfo } from "@plainva/core";
 import { serializeBaseConfig } from "../base/baseFormat";
 import { APP_LANGUAGES } from "../services/languages";
-import { getVaultTemplates } from "./registry";
+import type { VaultTemplateDefinition } from "./types";
 import { buildTemplateNoteContent, interpolateNote, interpolateScaffoldDates } from "./scaffold";
 
 /**
@@ -22,7 +22,7 @@ export interface StarterRecognitionAdapter {
 const isPrivate = (path: string) => [".plainva", ".pvws"].some((root) => path === root || path.startsWith(root + "/"));
 
 /** What a template writes at each path, for the days a file of the vault carries. */
-function expectedStarterFiles(days: Date[], present: ReadonlySet<string>): { files: Map<string, Set<string>>; folders: Set<string> } {
+function expectedStarterFiles(days: Date[], present: ReadonlySet<string>, getVaultTemplates: (code: string) => readonly VaultTemplateDefinition[]): { files: Map<string, Set<string>>; folders: Set<string> } {
   const files = new Map<string, Set<string>>();
   const folders = new Set<string>([""]);
   const expect = (path: string, content: () => string) => {
@@ -67,7 +67,9 @@ export async function recognizeStarterFiles(adapter: StarterRecognitionAdapter):
       days.push(date);
     }
   }
-  const { files: expected, folders } = expectedStarterFiles(days, present);
+  // The templates of every language load here, not with the start (performance plan L5).
+  const { getVaultTemplates } = await import("./registry");
+  const { files: expected, folders } = expectedStarterFiles(days, present, getVaultTemplates);
   const recognized: Record<string, string> = {};
   for (const entry of entries) {
     const index = /(^|\/)index\.md$/.test(entry.path) ? entry.path.slice(0, Math.max(0, entry.path.lastIndexOf("/"))) : null;

@@ -1,4 +1,4 @@
-import type { PlanQuestion } from "@plainva/ui";
+import type { PlanQuestion } from "@plainva/ui/ai";
 
 /**
  * The plans of outside programs that wait for the user (plan KI-Harness

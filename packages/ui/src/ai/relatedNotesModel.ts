@@ -1,4 +1,4 @@
-import { chunkNote } from "@plainva/core";
+import { chunkNote } from "@plainva/core/ai";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
 
 /**

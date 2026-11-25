@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MemoryWorkspaceStateStore, PLAIN_VAULT_CHAIN, StructureNeedsIndexError, SyncQueue, UNINDEXED_LOCAL_VAULT_CHAIN, UNINDEXED_VAULT_CHAIN, VaultPermissionDeniedError, WORKSPACE_VAULT_CHAIN, buildVaultChain } from "@plainva/core";
+import { PLAIN_VAULT_CHAIN, StructureNeedsIndexError, SyncQueue, UNINDEXED_LOCAL_VAULT_CHAIN, UNINDEXED_VAULT_CHAIN, VaultPermissionDeniedError, WORKSPACE_VAULT_CHAIN, buildVaultChain } from "@plainva/core";
+import { MemoryWorkspaceStateStore } from "@plainva/core/workspace";
 import { MemoryVaultAdapter } from "../../../../packages/core/test/helpers/memoryVault";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { mobileChainPorts } from "./mobileChainPorts";

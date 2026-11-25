@@ -4,6 +4,10 @@ import { SyncStateRepository } from "../src/vault/SyncStateRepository.js";
 import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.js";
 import { sha256Hex } from "../src/workspace/encoding.js";
 import {
+  type IVaultAdapter,
+  type VaultFileInfo,
+} from "../src/index.js";
+import {
   createPersonalWorkspaceBootstrap,
   createWorkspaceDeviceIdentity,
   createWorkspaceRecoveryPackage,
@@ -14,15 +18,13 @@ import {
   openWorkspaceRecoveryPackage,
   personalWorkspaceRuntime,
   WorkspaceQueueingVaultAdapter,
-  type IVaultAdapter,
   type PersonalWorkspaceRuntime,
   type PutImmutableResult,
-  type VaultFileInfo,
   type WorkspaceListPage,
   type WorkspaceObjectInfo,
   type WorkspaceObjectStore,
   type WorkspaceRequestOptions,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 class MemoryVault implements IVaultAdapter {
   private readonly files = new Map<string, Uint8Array>();

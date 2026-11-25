@@ -21,11 +21,12 @@
  *   baseline (a build is deterministic, so the slack only absorbs what a
  *   dependency's patch release adds). A smaller build passes and says so: lower
  *   the baseline with `--update`, so the next growth is measured from there.
- * - `mustNotStart`: module families that must not be in the start files. Today
- *   they are (package L5 takes them out), so each rule carries
- *   `"expected": "fail"` — the gate reports it as a known failure and passes.
- *   The day the family is out of the start files, the rule fails the gate until
- *   its `expected` is flipped to `"pass"`: a fixed rule is armed, never left
+ * - `mustNotStart`: module families that must not be in the start files (the AI
+ *   harness of both packages, the import adapters). Armed since package L5:
+ *   each rule carries `"expected": "pass"` per shell and fails the gate the day
+ *   the family is back in the start files. A rule that is still to be met says
+ *   `"fail"` (reported as a known failure); once its family is out, the gate
+ *   fails until it is flipped to `"pass"` — a fixed rule is armed, never left
  *   silently loose.
  *
  * The builds go to a temp folder with source maps (`vite build --sourcemap`),
@@ -151,7 +152,7 @@ for (const shell of Object.keys(SHELLS)) {
     const fails = found.length > 0;
     const expected = typeof rule.expected === "string" ? rule.expected : rule.expected[shell];
     const detail = found.map(([family, chars]) => `${family} ${kb(chars)}`).join(", ");
-    if (fails && expected === "fail") console.log(`    KNOWN FAILURE (${rule.until}): ${rule.family} is in the start files — ${detail}`);
+    if (fails && expected === "fail") console.log(`    KNOWN FAILURE (${rule.until ?? "still to be met"}): ${rule.family} is in the start files — ${detail}`);
     else if (fails) failures.push(`${shell}: ${rule.family} must not be in the start files, found ${detail}`);
     else if (expected === "fail") failures.push(`${shell}: ${rule.family} is no longer in the start files — set its "expected" for ${shell} to "pass" in bundle-baseline.json, so the rule holds from now on`);
     else console.log(`    ok: ${rule.family} is not in the start files`);

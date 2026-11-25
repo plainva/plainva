@@ -1,0 +1,5 @@
+{
+  "ai": ["ai"],
+  "settings": ["settings", "settingsSync"],
+  "mail": ["mail"]
+}

@@ -3,7 +3,7 @@ import { CommentLegacyLock, CommentProvenance } from "@plainva/ui";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, Lock, MessageSquare, Replace } from "lucide-react";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import {
   buildCommentOverview,
   Button,

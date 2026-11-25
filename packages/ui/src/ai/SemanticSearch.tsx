@@ -1,11 +1,11 @@
-import { createContext, useContext, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import type { EmbeddingProgress, SearchMode, SearchResult } from "@plainva/core";
+import type { SearchResult } from "@plainva/core";
+import type { EmbeddingProgress, SearchMode } from "@plainva/core/ai";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
 import { Segmented } from "../components/ui/Segmented";
 import { aiFailureText } from "./aiSettingsModel";
-import type { LocalEmbeddings, LocalEmbeddingsState } from "./localEmbeddings";
+import { useLocalEmbeddings, meaningActive } from "../aiPorts/localModels";
 
 /**
  * The three pieces search by meaning adds to the ONE search both shells
@@ -15,22 +15,7 @@ import type { LocalEmbeddings, LocalEmbeddingsState } from "./localEmbeddings";
  * package or an own provider's — is active on this device.
  */
 
-/** The vault's search by meaning, for every surface of the window. */
-export const LocalEmbeddingsContext = createContext<LocalEmbeddings | null>(null);
-
-const NOOP_SUBSCRIBE = () => () => undefined;
-const NO_STATE = (): LocalEmbeddingsState | null => null;
-
-export function useLocalEmbeddings(): { controller: LocalEmbeddings | null; state: LocalEmbeddingsState | null } {
-  const controller = useContext(LocalEmbeddingsContext);
-  const state = useSyncExternalStore(controller ? controller.subscribe : NOOP_SUBSCRIBE, controller ? controller.snapshot : NO_STATE, controller ? controller.snapshot : NO_STATE);
-  return { controller, state };
-}
-
-/** Whether search by meaning takes part right now: a model is open and passed the device check. */
-export function meaningActive(state: LocalEmbeddingsState | null): boolean {
-  return state?.engine.kind === "ready";
-}
+export { LocalEmbeddingsContext, useLocalEmbeddings, meaningActive } from "../aiPorts/localModels";
 
 export function SearchModeSwitch({ mode, onChange }: { mode: SearchMode; onChange: (mode: SearchMode) => void }) {
   const { t } = useTranslation();

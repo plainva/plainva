@@ -1,5 +1,6 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-import { toast, type RoutineReady } from "@plainva/ui";
+import { toast } from "@plainva/ui";
+import { type RoutineReady } from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 
 /**

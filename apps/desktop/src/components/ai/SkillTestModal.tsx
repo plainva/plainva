@@ -1,8 +1,9 @@
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlaskConical } from "lucide-react";
-import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core";
-import { Banner, Button, ICON, Modal, useDiscardGuard, skillTestFacts, skillTestGroups, SkillTestLines, skillTestOutcomeText, TextInput, useAiSession, useAiState, useSkillTestRun, type SkillTestPlan } from "@plainva/ui";
+import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core/ai";
+import { Banner, Button, ICON, Modal, useDiscardGuard, TextInput } from "@plainva/ui";
+import { skillTestFacts, skillTestGroups, SkillTestLines, skillTestOutcomeText, useAiSession, useAiState, useSkillTestRun, type SkillTestPlan } from "@plainva/ui/ai";
 
 /**
  * The regression run of the skills (plan KI-Harness P3-8, mockup chapter 12):

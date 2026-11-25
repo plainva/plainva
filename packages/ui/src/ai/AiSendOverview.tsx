@@ -18,7 +18,7 @@ import {
   type ScopeGrowth,
   type SensitiveKind,
   type SnapshotState,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
 import { MenuItem, MenuSurface } from "../components/ui/Menu";

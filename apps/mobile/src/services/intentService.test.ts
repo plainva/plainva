@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parsePolicyFile } from "@plainva/core";
+import { parsePolicyFile } from "@plainva/core/ai";
 import { intentNoteKey, parseIntentDirectory, type IntentDirectory, type IntentNavigation, type IntentOrder, type IntentRefTable } from "@plainva/ui";
 import type { IntentDirectorySources, IntentRedeemDeps } from "./intentService";
 
@@ -73,15 +73,20 @@ vi.mock("@plainva/ui/i18n", async () => {
 
 let ai: { enabled: boolean; systemFind: boolean; localOnly?: boolean } = { enabled: true, systemFind: true };
 const aiListeners = new Set<() => void>();
-vi.mock("./ai/mobileAi", () => ({
-  getMobileAiSession: () => ({
+// The AI's session as the start bundle reaches it: through its loader (performance plan L5). The AI is loaded here.
+vi.mock("./ai/mobileAiLoader", () => {
+  const session = {
     getState: () => ({ loaded: true, settings: ai }),
     subscribe: (listener: () => void) => {
       aiListeners.add(listener);
       return () => void aiListeners.delete(listener);
     },
-  }),
-}));
+  };
+  return {
+    mobileAiLoader: { session: () => session, ensure: async () => session, subscribe: () => () => undefined, requested: () => true, adopt: () => undefined },
+    mobileAiSwitch: async () => Boolean(ai.enabled),
+  };
+});
 
 const NOTES = [
   { path: "Projects/Plan.md", title: "Plan" },

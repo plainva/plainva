@@ -2,10 +2,9 @@ import React, { Suspense, lazy, useEffect, useState } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { FolderOpen, Cloud, Folder, Laptop, Plus, X, FilePlus2, Database, Download, SquareArrowOutUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { OnlineVaultSetup } from "./OnlineVaultSetup";
 import { open } from "@tauri-apps/plugin-dialog";
 import { exists } from "@tauri-apps/plugin-fs";
-import { Checkbox, getTourTemplate, ICON, Switch } from "@plainva/ui";
+import { AreaBoundary, Checkbox, ICON, Switch } from "@plainva/ui";
 import { ScrollEdge } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
@@ -13,22 +12,32 @@ import { forgetVaultEverywhere } from "../services/vaultForget";
 import { planVaultScaffold, writeNewVault } from "@plainva/ui";
 import { newVaultFolderPorts } from "../services/newVaultFolderDisk";
 import { useVaultLabels } from "../services/vaultNames";
-import { ImportWizardModal } from "./import/ImportWizardModal";
+// The welcome stays in the start: it is the first picture of a first start.
 import { FirstRunModal, type TourProgress } from "./onboarding/FirstRunModal";
 import { toast } from "@plainva/ui";
 import { PlainvaLogo } from "@plainva/ui";
 import { WindowChromeStrip } from "./WindowControls";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { findTourFolder, plannedTourFolder, tauriTourFolderProbe, tourParentFolder } from "../services/tourVault";
-import {
-  getVaultTemplates,
-  templatePreviewFolders,
-  templatePreviewBases,
-  scaffoldVaultTemplate,
-  applyVaultTemplateSettings,
-  isVaultFolderFreeFor,
-  type VaultTemplateDefinition,
-} from "../services/vaultTemplates";
+import type { VaultTemplateDefinition } from "../services/vaultTemplates";
+import { deferredPart } from "../lib/deferredParts";
+
+// What the start screen opens on demand loads then (performance plan L5): the cloud's connect assistant, the import
+// wizard, and the catalogue of vault templates in every language — the catalogue right after the first
+// picture, so the list is there when "Create" is pressed.
+const OnlineVaultSetup = deferredPart(() => import("./OnlineVaultSetup").then((m) => m.OnlineVaultSetup));
+const ImportWizardModal = deferredPart(() => import("./import/ImportWizardModal").then((m) => m.ImportWizardModal));
+type VaultTemplates = typeof import("../services/vaultTemplates");
+const loadVaultTemplates = (): Promise<VaultTemplates> => import("../services/vaultTemplates");
+function useVaultTemplates(): VaultTemplates | null {
+  const [templates, setTemplates] = useState<VaultTemplates | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadVaultTemplates().then((module) => live && setTemplates(module), () => undefined);
+    return () => { live = false; };
+  }, []);
+  return templates;
+}
 
 // Loaded only when a vault's index database failed: the start's entry file carries none of it.
 const SplashRebuildIndex = lazy(() => import("./SplashRebuildIndex").then((m) => ({ default: m.SplashRebuildIndex })));
@@ -53,6 +62,8 @@ interface SplashScreenProps {
 export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirstRunDismiss }) => {
   const { selectVault, openVault, recentVaults, error, removeRecentVault, autoOpenLastVault, setAutoOpenLastVault, indexDatabaseFailure } = useVault();
   const { t, i18n } = useTranslation();
+  // The catalogue of vault templates, loaded right after the first picture (performance plan L5).
+  const vaultTemplates = useVaultTemplates();
   // Two-button model (2026-07-13): the ACTION (new/open) comes first, the
   // PLACE (local/online) is the second step — order: place -> template ->
   // connection. The chooser flags below form a tiny wizard, exactly one is on.
@@ -162,6 +173,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
     // exists must be unknown and hold nothing but what a failed attempt of
     // this very structure left — the scaffolder never writes into anybody's
     // notes (fourth review of O8).
+    const { applyVaultTemplateSettings, isVaultFolderFreeFor, scaffoldVaultTemplate } = await loadVaultTemplates();
     if ((await exists(selected)) && !(await isVaultFolderFreeFor(selected, planFor(selected, template)))) throw new Error(t("splash.folderNotEmptyConfirm", { name: getBasename(selected) }));
     await writeNewVault(
       selected,
@@ -210,7 +222,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
   useEffect(() => {
     if (!showFirstRun) return;
     let live = true;
-    void plannedTourFolder(getTourTemplate(i18n.language).name)
+    void loadVaultTemplates().then(({ getTourTemplate }) => plannedTourFolder(getTourTemplate(i18n.language).name))
       .then((path) => { if (live) setTourFolder(path); })
       .catch(() => { if (live) setTourFolder(null); });
     return () => { live = false; };
@@ -218,8 +230,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
 
   const makeTour = async (parent?: string) => {
     if (tourProgress.kind === "busy") return;
-    const tour = getTourTemplate(i18n.language);
     setTourProgress({ kind: "busy" });
+    const tour = (await loadVaultTemplates()).getTourTemplate(i18n.language);
     let place = parent ?? tourFolder ?? "";
     try {
       place = parent ?? (await tourParentFolder());
@@ -294,15 +306,19 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
           // "Vault in the cloud" is the connect assistant (settings plan
           // 2026-10-29, E7): its provider tiles, its sign-in step, then the
           // cloud folder and the local one.
-          <OnlineVaultSetup
-            mode={onlineMode}
-            template={pendingTemplate}
-            onBack={() => {
-              setShowOnlineChooser(false);
-              if (onlineMode === "create") setShowCreateChooser(true);
-              else setShowOpenWhere(true);
-            }}
-          />
+          <AreaBoundary area="splash:onlineSetup" size="section">
+            <Suspense fallback={null}>
+              <OnlineVaultSetup
+                mode={onlineMode}
+                template={pendingTemplate}
+                onBack={() => {
+                  setShowOnlineChooser(false);
+                  if (onlineMode === "create") setShowCreateChooser(true);
+                  else setShowOpenWhere(true);
+                }}
+              />
+            </Suspense>
+          </AreaBoundary>
         ) : showCreateWhere ? (
           <>
             {/* Step 1 of "new vault": WHERE should it live? (place -> template -> destination) */}
@@ -393,7 +409,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
                 </div>
               </button>
 
-              {getVaultTemplates(i18n.language).map((def) => (
+              {(vaultTemplates?.getVaultTemplates(i18n.language) ?? []).map((def) => (
                 <button
                   key={def.id}
                   onClick={() => handlePickTemplate(def)}
@@ -414,8 +430,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
                   </div>
                   <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{def.description}</div>
                   {(() => {
-                    const folders = capChips(templatePreviewFolders(def), CHIP_CAP.folders);
-                    const bases = capChips(templatePreviewBases(def), CHIP_CAP.bases);
+                    const folders = capChips(vaultTemplates!.templatePreviewFolders(def), CHIP_CAP.folders);
+                    const bases = capChips(vaultTemplates!.templatePreviewBases(def), CHIP_CAP.bases);
                     return (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px" }}>
                         {folders.shown.map((folder) => (
@@ -549,7 +565,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ showFirstRun, onFirs
       </div>
 
       {/* No vault is open here, so the wizard starts on its "new vault" target. */}
-      {showImport && <ImportWizardModal targetVaultPath="" onClose={() => setShowImport(false)} />}
+      {showImport && <AreaBoundary area="dialog:import" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowImport(false) }}><Suspense fallback={null}><ImportWizardModal targetVaultPath="" onClose={() => setShowImport(false)} /></Suspense></AreaBoundary>}
 
       {/* Each action dismisses the welcome first, so the chosen flow is the
           only thing on screen afterwards. "Open a folder" and "new empty

@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createRoot } from "react-dom/client";
 import { act, type ReactElement } from "react";
 import { CommentsSheet } from "./CommentsSheet";
-import { buildCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { buildCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { suggestedProperties } from "@plainva/ui";
 import en from "../../../../packages/ui/src/locales/en.json";
 

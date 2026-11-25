@@ -1,5 +1,6 @@
 import { sameStoredValue } from "@plainva/core";
-import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath, workspaceSha256Hex, utf8Encode, tasksDayNumber, updateVaultText, type TextUpdateFiles } from "@plainva/core";
+import { readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath, tasksDayNumber, updateVaultText, type TextUpdateFiles } from "@plainva/core";
+import { workspaceSha256Hex, utf8Encode } from "@plainva/core/workspace";
 
 /**
  * Recurring tasks (issue #34, wave 3; shared by both shells since S24).

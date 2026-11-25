@@ -36,12 +36,14 @@ import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from 
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, frontmatterKeys, readFrontmatterPath, type VaultFileInfo, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
+import { insertAnchorMarkers, removeAnchorMarkers, buildCommentAnchor, buildPropertyCommentAnchor, mintAnchorMarkerId, propertyAnchorKey, resolveCommentAnchor, resolvePropertyAnchor, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core/workspace";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
 import { Button as UiButton, TextInput } from "@plainva/ui";
-import { IconButton, isCommentThreadOpen, suggestedProperties, useAiSession, useCommentThreadAi } from "@plainva/ui";
+import { IconButton, isCommentThreadOpen, suggestedProperties } from "@plainva/ui";
+import { useAiSession, useCommentThreadAi } from "@plainva/ui/ai";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
