@@ -447,16 +447,23 @@ ways and every way hands back each file's hash. One by one in turn as the adapte
 path calls, the read, the hash in JavaScript) / one by one, eight at a time / in groups of eight
 through `read_files_for_index`, two calls at a time. This is the reading pattern at the bridge,
 not a run of the indexer: what the index's own first run in the app gains is not measured. The
-numbers below are one run per platform in a fixed order, so the first way also paid for the cold
-start; the spec now runs each way twice in turns (A B C C B A) and logs both:
+numbers are one run per platform. The first run below took the ways once each in a fixed order, so
+the first way also paid for the cold start; the second (run 45704713980, at `e209a141a`) took
+each way twice in turns, A B C C B A, both times given:
 
 | | one by one | eight at a time | in groups |
 |---|---|---|---|
-| Linux (WebKitGTK) | 11.52 s | 2.45 s | 0.57 s |
-| Windows (WebView2) | 4.60 s | 3.10 s | 1.24 s |
-| macOS (WKWebView) | 4.54 s | 1.80 s | 0.32 s |
+| Linux (WebKitGTK), first run | 11.52 s | 2.45 s | 0.57 s |
+| Linux, second run (A … A) | 11.72 / 4.55 s | 2.48 / 2.44 s | 0.56 / 0.54 s |
+| Windows (WebView2), first run | 4.60 s | 3.10 s | 1.24 s |
+| Windows, second run | 4.79 / 4.77 s | 3.22 / 3.30 s | 1.26 / 1.28 s |
+| macOS (WKWebView), first run | 4.54 s | 1.80 s | 0.32 s |
+| macOS, second run | 16.39 / 15.35 s | 6.01 / 5.93 s | 0.88 / 1.27 s |
 
-Hashing 75 attachments in Rust took 14–33 ms. That is the reading of a first index of 3 003 notes,
+The macOS runner of the second run was about three times slower throughout; the ratios held. On
+Linux the first pass one by one paid for the cold start (11.7 s, 4.6 s the second time).
+
+Hashing 75 attachments in Rust took 14–77 ms. That is the reading of a first index of 3 003 notes,
 the part L2 changes; parsing and writing the index are not in it.
 
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
