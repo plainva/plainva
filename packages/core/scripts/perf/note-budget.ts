@@ -406,9 +406,10 @@ function check(args: string[]): boolean {
       const kept = heapMb;
       heapMb = least;
       // Close to its heap's end V8 varies, and at the threshold the app's reader runs main's way (nothing is read as
-      // text): both are read three times under main's least heap, and the app's may pass once less than main's.
-      const count = (bounded: boolean) => [0, 1, 2].filter(() => passes(form, n, bounded, 1, [parse]).ok).length;
-      const own = least > 0 && count(true) >= count(false) - 1;
+      // text): both are read five times under main's least heap, and the app's may pass twice less than main's (with
+      // three runs each, one form in a run of the workflow failed where the run before passed it).
+      const count = (bounded: boolean) => [0, 1, 2, 3, 4].filter(() => passes(form, n, bounded, 1, [parse]).ok).length;
+      const own = least > 0 && count(true) >= count(false) - 2;
       heapMb = kept;
       if (!own) more.push(`${parse} needs more than ${least} MB`);
     }
