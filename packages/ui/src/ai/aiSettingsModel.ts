@@ -91,6 +91,10 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
       return t("ai.error.localOnly", { provider });
     case "window_too_small":
       return t("ai.error.windowTooSmall", { needed: failure.needed, window: failure.window, model });
+    case "too_large":
+      return t("ai.error.tooLarge");
+    case "invalid_request":
+      return t("ai.error.invalidRequest");
   }
 }
 
@@ -107,6 +111,7 @@ export function failureSender(failure: ModelFailure, recipient: FailureRecipient
     case "no_key":
     case "unknown_endpoint":
     case "platform_unavailable":
+    case "too_large":
       return "device";
     case "offline":
       if (recipient.here) return "device";

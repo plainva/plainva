@@ -154,3 +154,37 @@ describe("password repair through actual account and protected credential slots"
     expect(filePassword()).toBe("old-files");
   });
 });
+
+describe("a new password goes only to addresses this phone confirmed (review of F57, O3)", () => {
+  it("files, calendar and mailbox in the local network: nothing is sent and nothing confirmed until each is confirmed", async () => {
+    write(filesKey, { provider: "webdav", creds: { url: "http://192.168.1.5/dav", user: "user", pass: "old-files" } });
+    write(calendarKey, { kind: "caldav", url: "http://192.168.1.6/caldav", user: "user", pass: "old-calendar" });
+    await saveMailAccount(vault, { id: "mail", label: "Before", host: "192.168.1.20", port: 993, user: "user", signature: "Before" }, "old-mail", "edit");
+    expect((await ports().addresses!()).map((a) => a.endpoint)).toEqual(expect.arrayContaining(["http://192.168.1.5:80", "http://192.168.1.6:80", "imap://192.168.1.20:993"]));
+    await expect(beginPasswordChange(ports(), "new-password")).rejects.toMatchObject({ phase: "verification" });
+    expect(state.probes).toEqual([]);
+    expect(filePassword()).toBe("old-files");
+    const { confirmEndpointsIn, isEndpointConfirmedIn } = await import("@plainva/ui");
+    expect(await isEndpointConfirmedIn(vault, "http://192.168.1.5:80")).toBe(false);
+    await confirmEndpointsIn(vault, (await ports().addresses!()).map((a) => a.endpoint));
+    await beginPasswordChange(ports(), "new-password");
+    expect(state.probes).toEqual(["files", "calendar", "mail"]);
+    expect(filePassword()).toBe("new-password");
+  });
+});
+
+describe("each address of a password change is asked on its own (review of F57, O-3)", () => {
+  it("a calendar in the local network alone stops the change before anything is sent", async () => {
+    write(calendarKey, { kind: "caldav", url: "http://192.168.1.6/caldav", user: "user", pass: "old-calendar" });
+    await expect(beginPasswordChange(ports(), "new-password")).rejects.toMatchObject({ phase: "verification", service: "calendar" });
+    expect(state.probes).not.toContain("calendar");
+    expect(read(calendarKey).pass).toBe("old-calendar");
+  });
+
+  it("a mailbox in the local network alone stops the change before anything is sent", async () => {
+    await saveMailAccount(vault, { id: "mail", label: "Before", host: "192.168.1.20", port: 993, user: "user", signature: "Before" }, "old-mail", "edit");
+    await expect(beginPasswordChange(ports(), "new-password")).rejects.toMatchObject({ phase: "verification", service: "mail" });
+    expect(state.probes).not.toContain("mail");
+    expect(read(mailKey)).toEqual({ pass: "old-mail" });
+  });
+});

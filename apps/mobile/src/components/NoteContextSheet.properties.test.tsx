@@ -29,7 +29,10 @@ vi.mock("react-i18next", async () => {
   };
   return {
     initReactI18next: { type: "3rdParty", init: () => {} },
-    useTranslation: () => ({ i18n: { language: "en" }, t: (key: string) => lookup(key) }),
+    useTranslation: () => ({
+      i18n: { language: "en" },
+      t: (key: string, opts?: { count?: number }) => (opts?.count !== undefined ? `${key}:${opts.count}` : lookup(key)),
+    }),
   };
 });
 vi.mock("../services/vaultService", () => ({ vaultOps: { read: async (_vault: unknown, path: string) => notes.get(path) ?? "" } }));
@@ -49,24 +52,38 @@ const { NoteContextSheet } = await import("./NoteContextSheet");
 const vault = { vaultId: "v", queryService: null } as unknown as MobileVault;
 const UNREADABLE_SENTENCE = (en as { properties: { unreadableBlock: string } }).properties.unreadableBlock;
 
-async function open(text: string) {
+async function open(text: string, noteText?: string) {
   notes.set("Note.md", text);
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
   await act(async () => {
     root.render(
-      <NoteContextSheet vault={vault} path="Note.md" onClose={() => {}} onOpenNote={() => {}} onJumpToLine={() => {}} onRestored={() => {}} onMutated={() => {}} />,
+      <NoteContextSheet vault={vault} path="Note.md" noteText={noteText} onClose={() => {}} onOpenNote={() => {}} onJumpToLine={() => {}} onRestored={() => {}} onMutated={() => {}} />,
     );
   });
   for (let i = 0; i < 8; i++) await act(async () => { await Promise.resolve(); });
   const keys = [...host.querySelectorAll(".m-prop-key")].map((el) => el.textContent ?? "");
   const hint = host.querySelector('[data-testid="props-unreadable"]')?.textContent ?? null;
   const none = host.querySelector('[data-testid="props-none"]')?.textContent ?? null;
+  const words = host.querySelector('[data-testid="note-word-count"]')?.textContent ?? null;
   await act(async () => { root.unmount(); });
   host.remove();
-  return { keys, hint, none };
+  return { keys, hint, none, words };
 }
+
+describe("the phone's sheet shows the note's word count beside its title", () => {
+  it("counts the body of the file, not the properties block", async () => {
+    expect.hasAssertions();
+    expect((await open("---\nowner: Anna Maria Schmidt\n---\none two three\n")).words).toBe("mobile.noteWords:3");
+    expect((await open("")).words).toBe("mobile.noteWords:0");
+  });
+
+  it("follows the text the editor holds when the panel is docked beside the note", async () => {
+    expect.hasAssertions();
+    expect((await open("one two", "one two three four five\n")).words).toBe("mobile.noteWords:5");
+  });
+});
 
 describe("the phone's sheet shows a note's properties as the reader reads them", () => {
   it("shows the properties of a note whose block the reader used to refuse over one value", async () => {

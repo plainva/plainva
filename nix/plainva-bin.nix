@@ -12,6 +12,14 @@
 # not in DT_NEEDED — libappindicator-sys loads it with dlopen — so it goes into
 # runtimeDependencies: autoPatchelfHook puts it on the RUNPATH too, which is
 # where the dynamic linker looks when the tray icon is created.
+#
+# From 0.9.0 on the deb carries two more ELF files: bin/plainva-mcp, the helper
+# an AI app on the same computer starts, and Microsoft's ONNX Runtime for
+# search by meaning (lib/Plainva/onnxruntime/libonnxruntime.so). The runtime is
+# C++ and needs libstdc++.so.6; autoPatchelfHook finds it among the libraries
+# the inputs below already bring along (built and read on 2026-11-21: the
+# RUNPATH of libonnxruntime.so names the compiler's library folder), so it is
+# no input of its own.
 {
   lib,
   stdenvNoCC,
@@ -30,8 +38,8 @@
   libayatana-appindicator,
   # Bump both together when a desktop release is published; nix/README.md shows
   # how to compute the hash, with Nix or from the digest on the release page.
-  version ? "0.8.7",
-  hash ? "sha256-67/BzEED4eGUQ7Rn93MyrDlxQj3492MM4r3QQfrFIFo=",
+  version ? "0.9.0",
+  hash ? "sha256-wYLa9/M9xK+/f1kmEzV/YiT0UmuS7jRGoipSdKVTPFY=",
 }:
 
 stdenvNoCC.mkDerivation (finalAttrs: {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from "react";
+import { announceCredentials } from "./services/credentialsAnnouncement";
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { useApp } from "./contexts/AppContext";
@@ -9,7 +10,7 @@ import { useVault, okfPromptDismissedKey, type SyncProviderId } from "./contexts
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 import { AlertTriangle } from "lucide-react";
-import { AreaBoundary, Button, ICON, migrateLegacyBarLayouts, Modal, toast, useStableHandler } from "@plainva/ui";
+import { AreaBoundary, Button, EndpointConfirmBlock, ICON, migrateLegacyBarLayouts, Modal, toast, useEndpointConfirmation, useStableHandler } from "@plainva/ui";
 import { requestAiSettingsIntent, setNoteLinksVaultLoading, type AiSettingsIntent } from "@plainva/ui";
 import { WorkspaceActivationOverlay } from "./components/security/WorkspaceActivationOverlay";
 import { appConfirm } from "./services/appDialogs";
@@ -425,6 +426,19 @@ function App() {
 }
 
 /**
+ * The vault's file address waits for this device's confirmation (F57): the
+ * dialog asks it instead of "Sign in", and the sync starts again on
+ * **Confirm** (review of F57, O3).
+ */
+function SyncConfirmAddress({ vaultPath, endpoint, onConfirmed }: { vaultPath: string | null; endpoint: string; onConfirmed: () => void }) {
+  const confirmation = useEndpointConfirmation(vaultPath ? [{ vaultKey: vaultPath, endpoint }] : [], useCallback(() => {
+    announceCredentials(false);
+    onConfirmed();
+  }, [onConfirmed]));
+  return <EndpointConfirmBlock confirmation={confirmation} testId="sync-error-confirm-address" />;
+}
+
+/**
  * Sync-error dialog, extracted as a leaf (2026-07-06 fix) so it can read the
  * error message/provider from the store WITHOUT App subscribing at the top
  * level. Mounted only while open, so its per-cycle re-render never reaches the
@@ -505,7 +519,9 @@ function SyncErrorDialog({
               <Button variant="primary" onClick={() => { window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "security" } })); onClose(); }} data-testid="sync-error-security">{t("workspaceSecurity.openSecurity")}</Button>
             </>
           )}
-          {!recovered && !encryptionBricked && !encryptedWorkspace && (error?.signInAccountId
+          {!recovered && !encryptionBricked && !encryptedWorkspace && (error?.confirmEndpoint
+            ? <SyncConfirmAddress vaultPath={vaultPath} endpoint={error.confirmEndpoint} onConfirmed={onClose} />
+            : error?.signInAccountId
             ? <Button variant="primary" onClick={() => onOpenSettings(error.provider ?? null, error.signInAccountId)} data-testid="sync-error-signin">{t("deviceSignIn.submit")}</Button>
             : authError || rootMissing
             ? <Button variant="primary" onClick={() => onOpenSettings(error?.provider ?? null)}>{t("sync.openSettings")}</Button>

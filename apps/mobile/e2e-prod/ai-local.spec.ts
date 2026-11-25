@@ -112,7 +112,7 @@ test("AI fully local: the phone's settings say what holds; switched on they list
     const settings = page.getByTestId("settings-ai");
     const now = settings.getByTestId("ai-mode-now");
     const fullyLocal = settings.getByRole("switch", { name: "Fully local" });
-    await expect(now).toContainText("Now: Cloud — a provider answers");
+    await expect(now).toContainText("Now: Cloud — Anthropic answers");
     await expect(now).toContainText("New conversations start with Anthropic · m-1.");
     // What the section means stands behind its info button (settings plan of 2026-10-29): a sheet, read and closed.
     await settings.getByRole("button", { name: "More about Privacy", exact: true }).click();
@@ -223,7 +223,7 @@ test("AI fully local: the phone's settings say what holds; switched on they list
     await toAppSettings();
     await fullyLocal.click();
     await expect(fullyLocal).toHaveAttribute("aria-checked", "false");
-    await expect(now).toContainText("Now: Hybrid — this device sorts, a provider answers");
+    await expect(now).toContainText("Now: Hybrid — this device sorts, Anthropic answers");
     await expect(settings.getByTestId("ai-mode-rest")).toHaveCount(0);
     await expect.poll(async () => (await seam()).localOnly.at(-1)).toBe(false);
     await expect.poll(async () => (await stored()).localOnly).toBe(false);

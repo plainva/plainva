@@ -3,7 +3,7 @@ import { createLegacyGrantSource, legacyOAuthToken, logDiagnostic, migrateAccoun
 import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey, type MailAccountConfig } from "@plainva/ui/mail";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "./authFetch";
-import { accountSecretKey, getAccountToken, saveAccountToken } from "./accountBroker";
+import { accountSecretKey, getAccountToken, isAccountSignInOwed, saveAccountToken } from "./accountBroker";
 import { accountCredentialStore } from "./accountCredentialStore";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { slot, legacySlot } from "./keychainSlots";
@@ -64,7 +64,14 @@ export async function migrateLegacyAccountGrant(vaultPath: string, record: Cloud
  */
 export async function migrateVaultGrants(vaultPath: string, timeoutMs = 8000): Promise<VaultGrantMigration[] | null> {
   const pass = migrateVaultAccountGrants({
-    cards: () => loadCloudAccounts(vaultPath),
+    // A card whose sign-in is owed a deletion hands nothing over and takes
+    // nothing in: its next sign-in is a new one (review 2026-11-18).
+    cards: async () => {
+      const cards = await loadCloudAccounts(vaultPath);
+      const owed = await Promise.all(cards.map((card) =>
+        Promise.resolve().then(() => isAccountSignInOwed(vaultPath, card.id)).catch(() => false)));
+      return cards.filter((_, index) => !owed[index]);
+    },
     migrate: (record, service) => migrateLegacyAccountGrant(vaultPath, record, service),
   }).then((results) => {
     const line = vaultGrantMigrationDiagnostic(results);

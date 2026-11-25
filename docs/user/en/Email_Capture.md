@@ -20,6 +20,8 @@ Connecting validates the login before anything is saved; the credentials go into
 
 **Email accounts without a password.** A setup that failed while saving could leave an entry without a password behind (Plainva 0.8.3 on the desktop). The **Email** area points out, once, the accounts that have no password on this device and have never fetched mail here. **View** shows the list. If you use such an account on another device, choose **Sign in** — that is the right way then. **Remove** deletes the entry after asking, on every device that syncs this vault's settings, never mail or files. **Later** hides the notice. Plainva never removes anything on its own.
 
+A mail server on a local network gets the password from a device only once its address is confirmed there: [Unencrypted and local addresses](Sync_Setup.md#unencrypted-and-local-addresses).
+
 ## Reading mail
 
 Open the mail tab from the left action rail (mail icon) or the command palette (**Open email**). The list shows your inbox newest-first (unread in bold, **Load more** pages further). Selecting a message opens it in a **sandboxed viewer**:

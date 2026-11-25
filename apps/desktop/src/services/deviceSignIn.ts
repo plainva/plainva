@@ -1,7 +1,7 @@
-import { cardSignInState, createDeviceSignIn, hasStoredAccountGrant, isSignedOutSlot, type CloudAccountRecord, type DeviceSignInState } from "@plainva/ui";
+import { cardSignInState, createDeviceSignIn, hasStoredAccountGrant, isSignInDeletionOwed, isSignedOutSlot, type CloudAccountRecord, type DeviceSignInState } from "@plainva/ui";
 import { mailSecretKey } from "@plainva/ui/mail";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { accountSecretKey, getAccountToken } from "./accountBroker";
+import { accountSecretKey, getAccountToken, owedSignInResources } from "./accountBroker";
 import { legacySlot, slot } from "./keychainSlots";
 import { readSlot } from "@plainva/ui";
 import { credentialManager } from "./CredentialManager";
@@ -82,7 +82,10 @@ export async function accountSignedInHere(
     }
   };
 
-  if (await read(accountSecretKey(vaultPath, record.id), legacySlot.account(vaultPath, record.id))) return true;
+  // A card whose removal still owes the deletion of its sign-in is not
+  // signed in here, whatever its slot holds (`owedSignInDeletions.ts`).
+  const owed = await Promise.resolve().then(() => isSignInDeletionOwed(owedSignInResources(vaultPath), record.id)).catch(() => false);
+  if (!owed && await read(accountSecretKey(vaultPath, record.id), legacySlot.account(vaultPath, record.id))) return true;
 
   const calendar = record.services.calendar?.pimAccountId;
   const mail = record.services.mail?.mailAccountId;

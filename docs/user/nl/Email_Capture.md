@@ -20,6 +20,8 @@ Bij het verbinden wordt de aanmelding gevalideerd voordat er iets wordt opgeslag
 
 **E-mailaccounts zonder wachtwoord.** Een instelling die bij het opslaan mislukte, kon een vermelding zonder wachtwoord achterlaten (Plainva 0.8.3 op de desktop). Het gedeelte **E-mail** wijst één keer op accounts die op dit apparaat geen wachtwoord hebben en hier nog nooit mail hebben opgehaald. **Bekijken** toont de lijst. Gebruik je zo’n account op een ander apparaat, kies dan **Aanmelden** — dat is dan de juiste weg. **Verwijderen** wist de vermelding na een vraag op alle apparaten die de instellingen van deze vault synchroniseren, nooit mail of bestanden. **Later** verbergt de melding. Plainva verwijdert nooit zelf iets.
 
+Een mailserver in een lokaal netwerk krijgt het wachtwoord van een apparaat pas als zijn adres daar is bevestigd: [Onversleutelde en lokale adressen](Sync_Setup.md#onversleutelde-en-lokale-adressen).
+
 ## E-mails lezen
 
 Open het e-mailtabblad via de actiebalk uiterst links (brief-icoon) of het opdrachtenpalet (**E-mail openen**). De lijst toont je inbox, nieuwste eerst (ongelezen vetgedrukt, met **Meer laden** blader je verder). Een geselecteerd bericht opent in een **sandbox-viewer**:

@@ -1,4 +1,4 @@
-import { sameStoredValue } from "@plainva/core";
+import { confirmedAccessOf, sameStoredValue, withOwnConfirmedAccess, CONFIRMED_ACCESS_KEY } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { TaskListRuntime } from "@plainva/ui";
 import {
@@ -20,15 +20,15 @@ import { phoneTemplateVault } from "../templateVault";
 import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
-import { pimTargetCredentials } from "./pimTargetCredentials";
+import { pimTargetCredentials, refusingUnconfirmed } from "./pimTargetCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, confirmationEndpoint, confirmEndpointsIn, confirmTypedEndpointsIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
-import { noteAccountRemovedLocally } from "../mobileSettingsSync";
+import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
   accountToAdoptInto,
   adoptAccountInto,
@@ -101,6 +101,9 @@ export {
  * the whole shared UI package (Befunde 2026-09-24, Z2).
  */
 
+/** `buildTargetFor` for the sync and "Check connection": an unconfirmed CalDAV address is refused with its name (review of F57, O-5). */
+const syncTargetFor = refusingUnconfirmed(buildTargetFor);
+
 async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
   // The device account has no credential — the permission is the sign-in
   // (EventKit plan E5/E6), so it is answered before the secret store is asked.
@@ -110,7 +113,8 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
   if (account.provider === "device") {
     return isDevicePimSupported() ? new DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
   }
-  // None for an account signed out on this phone (review finding 3).
+  // None for an account signed out on this phone (review finding 3), nor for
+  // a CalDAV address it has not confirmed (F57): `pimTargetCredentials`.
   const creds = await pimTargetCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
@@ -126,22 +130,73 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
  * DB (web dev server). */
 export async function startPim(vault: MobileVault): Promise<void> {
   wirePendingEventWrites();
+  // A sign-in "Remove account" could not delete is tried again first, as on
+  // the desktop: it must be gone before anything reads the vault's sign-ins.
+  const { settleOwedAccountSignIns } = await import("../accountBroker");
+  await settleOwedAccountSignIns(vault.vaultId).catch((e) => console.error("[pim] deleting owed sign-ins failed", e));
   // A calendar or mailbox that still signs in on its own hands that sign-in
   // to its card before the calendar starts (account sign-in plan K2).
   const { migrateVaultGrants } = await import("../accountGrantMigration");
   await migrateVaultGrants(vault.vaultId).catch((e) => console.error("[pim] moving sign-ins to their accounts failed", e));
   await startPimRuntime(vault, {
     buildTarget: buildTargetFor,
+    syncTarget: syncTargetFor,
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
     parkedMessage: i18n.t("pim.signInRequired"),
     onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
+    // Under it the worker records how this phone reached a password account (GitHub issue 174).
+    deviceId: () => mobileSyncDeviceId(),
     // The other half of "did a change made in Reminders arrive here" (T4).
     onDeviceChanged: () => logDiagnostic("device", "store changed, cycle requested"),
   });
   // A calendar switched off for the vault on another device stands still here too (E3).
   const { applyCalendarSwitches } = await import("../serviceSwitches");
   await applyCalendarSwitches(vault.vaultId).catch(() => undefined);
+  // Rows of older builds learn their address, then empty duplicates of one
+  // Nextcloud go (GitHub issue 174). Not in the connect lane: a restart after an import
+  // already runs in it, and no connect starts before the runtime it waits for.
+  await backfillCalDavAddresses(vault.vaultId).catch((e) => console.error("[pim] CalDAV addresses", e));
+  await foldEmptyCalendarDuplicates(vault.vaultId).catch((e) => console.error("[pim] empty duplicates", e));
+}
+
+/**
+ * CalDAV rows written by the phone before 0.9.0 carried no address and no
+ * user (`config: {}`): the settings of the desktop could never find them, so
+ * every device added a row of its own for the same Nextcloud (GitHub issue 174). The
+ * sign-in of the row knows both; they are copied into the row once. A row
+ * without a readable sign-in stays as it is.
+ */
+async function backfillCalDavAddresses(vaultId: string): Promise<void> {
+  const owner = runtime;
+  if (!owner) return;
+  for (const row of await owner.cache.listAccounts()) {
+    if (row.provider !== "caldav" || (typeof row.config?.url === "string" && typeof row.config?.user === "string")) continue;
+    const creds = await getPimCredentials(vaultId, row.id).catch(() => null);
+    if (creds?.kind !== "caldav" || !creds.url || !creds.user) continue;
+    if (runtime !== owner) return;
+    await owner.cache.upsertAccount({ ...row, config: { ...row.config, url: creds.url, user: creds.user } });
+  }
+}
+
+/**
+ * Removes calendar rows that only duplicate another of the same password
+ * access and carry nothing (GitHub issue 174, the shared `planEmptyPasswordDuplicates`):
+ * no sign-in here, nothing fetched, no card with another service. Local only,
+ * no deletion mark — the device that has its sign-in keeps its row.
+ */
+export async function foldEmptyCalendarDuplicates(vaultId: string): Promise<string[]> {
+  const owner = runtime;
+  if (!owner || owner.vaultId !== vaultId) return [];
+  const assertCurrent = () => { if (runtime !== owner) throw new Error("pim runtime changed"); };
+  return removeEmptyPasswordDuplicates({
+    listAccounts: () => { assertCurrent(); return owner.cache.listAccounts(); },
+    listCalendars: (id) => owner.cache.listCalendars(id),
+    listTaskLists: (id) => owner.cache.listTaskLists(id),
+    deleteAccount: (id) => { assertCurrent(); return owner.cache.deleteAccount(id); },
+    listCards: () => loadCloudAccounts(vaultId),
+    hasCredentials: async (id) => (await getPimCredentials(vaultId, id)) !== null,
+  });
 }
 
 /** True while this vault carries the device account (at most one, plan E7). */
@@ -185,7 +240,9 @@ export async function checkPimAccount(vaultId: string, accountId: string): Promi
   // as the provider's answer (plan "Verbinden", V0): no calendar account here
   // is "not connected yet", one without a sign-in here is "not signed in".
   if (!row) throw new ServiceCheckError("failed", "connection.notConnected");
-  const target = await buildTargetFor(vaultId, row);
+  // An address this phone has not confirmed is refused with its name, and
+  // the row says Confirm address (F57, O3; `syncTargetFor`).
+  const target = await syncTargetFor(vaultId, row);
   if (!target) throw new ServiceCheckError("signin");
   await target.listCalendars();
 }
@@ -415,19 +472,27 @@ async function addPimAccountInVault(
       config = { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity };
     }
   } else {
+    // Typed here (the CalDAV form): its address counts as confirmed (F57).
+    await confirmEndpointsIn(owner.vaultId, [confirmationEndpoint(creds.url)]);
     await allowHttpOrigin(creds.url);
     assertCurrent();
     const target = new CalDavPimTarget(creds, webdavFetch);
     validatedCalendars = await target.listCalendars();
     validatedLists = await target.listTaskLists();
     if (!validatedCalendars.length) throw new Error("No calendars found on this server.");
+    // The address and the user are the account of a CalDAV row, as on the
+    // desktop: without them in the row the settings of another device never
+    // found it, and a further connect never found it either (GitHub issue 174).
+    // How THIS device reached it, and the principal the server confirmed,
+    // under this device's id (see confirmedAccess.ts).
+    config = { url: creds.url, user: creds.user, ...ownConfirmedAccessConfig(await Promise.resolve().then(() => mobileSyncDeviceId()).catch(() => null), target.confirmedAccess?.()) };
   }
   assertCurrent();
   const known = await owner.cache.listAccounts();
   assertCurrent();
   let adoptInto = accountToAdoptInto(known, {
-    id, provider, identity: verifiedProviderIdentityOf({ config }),
-  });
+    id, provider, identity: verifiedProviderIdentityOf({ config }), config,
+  }, adoptPreferenceForCard(source ? [source] : [], source?.id));
   // The account's calendar row arrived with the settings of another device and
   // was never signed in here. "Add the calendar" for that account IS the
   // sign-in of that row: a second row beside it was refused below as "the
@@ -439,9 +504,17 @@ async function addPimAccountInVault(
   if (!adoptInto && source && boundId && boundId !== id) {
     const bound = known.find((a) => a.id === boundId && a.provider === provider);
     const verified = verifiedProviderIdentityOf({ config });
+    // A password account is the same by the one rule (`samePimPasswordAccount`):
+    // the card's label is whatever the card was called — for a share run it is
+    // the label that was just typed — so comparing it said yes to every row,
+    // and "Alice" got the sign-in, the settings and the calendars of "alice".
+    // A row that names no address yet (a device on 0.8.7 published it so) has
+    // nothing to contradict the card that binds it, and is taken over.
     const sameAccount = source.verifiedProviderIdentity
       ? !!verified && verifiedProviderIdentityKey(verified) === verifiedProviderIdentityKey(source.verifiedProviderIdentity)
-      : source.label.includes("@") && source.label.trim().toLowerCase() === resolvedLabel.trim().toLowerCase();
+      : provider === "caldav"
+        ? !!bound && (pimPasswordAccesses(bound).every((access) => passwordAccountIdentity(access.url, access.user) === null && !access.principal) || samePimPasswordAccount(bound, { provider, config }))
+        : source.label.includes("@") && source.label.trim().toLowerCase() === resolvedLabel.trim().toLowerCase();
     if (bound && sameAccount && !(await getPimCredentials(owner.vaultId, bound.id))) adoptInto = bound;
     assertCurrent();
   }
@@ -468,7 +541,7 @@ async function addPimAccountInVault(
       const persisted = (await loadCloudAccounts(owner.vaultId)).find(r => r.id === source.id);
       if (!sameStoredValue(persisted, nextRecord)) throw new ServiceConnectionError("storageFailed");
       assertCurrent();
-      await owner.cache.upsertAccount({ id: connectedId, provider, label: resolvedLabel, config: { ...adoptInto?.config, ...config }, enabled: true });
+      await owner.cache.upsertAccount({ id: connectedId, provider, label: resolvedLabel, config: adoptedPimConfig(adoptInto?.config, config), enabled: true });
     } catch (error) {
       // Roll back only our own credential revision. A later sign-in belongs
       // to its caller; neither failure nor a vault switch may erase it.
@@ -502,7 +575,7 @@ async function addPimAccountInVault(
       { vault: owner.vaultId, freshId: id, targetId: adoptInto.id, validatedCreds: creds },
     );
     assertCurrent();
-    await owner.cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config: { ...adoptInto.config, ...config }, enabled: true });
+    await owner.cache.upsertAccount({ ...adoptInto, label: resolvedLabel, config: adoptedPimConfig(adoptInto.config, config), enabled: true });
   } else {
     await savePimCredentials(owner.vaultId, id, creds);
     assertCurrent();
@@ -553,6 +626,7 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
   // nobody could act on.
   if (existing.provider !== creds.kind) throw new Error(`provider mismatch: ${existing.provider} account, ${creds.kind} credentials`);
   let profile: VerifiedProviderProfile | null = null;
+  let caldavAccess: Record<string, unknown> | null = null;
   if (creds.kind === "google" || creds.kind === "microsoft") {
     const auth = buildPimAuthProvider(target.vaultId, accountId, creds, { onRotation: async (_previous, next) => { assertCurrent(); creds = next; } });
     profile = await fetchVerifiedProfile(auth, creds.kind);
@@ -562,15 +636,57 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
     await providerTarget.listCalendars();
     await providerTarget.listTaskLists();
   } else {
+    // The repair form starts empty (`signInAgain` in PimAccountsScreen opens
+    // it without the address): what it sends was typed here, and sending
+    // confirms it (F57; review of F57, O3: typed means a form that started
+    // empty or an endpoint other than the one it came with).
+    await confirmTypedEndpointsIn(target.vaultId, [confirmationEndpoint(creds.url)], []);
     await allowHttpOrigin(creds.url);
-    if (!(await new CalDavPimTarget(creds, webdavFetch).listCalendars()).length) throw new Error("No calendars found on this server.");
+    const caldav = new CalDavPimTarget(creds, webdavFetch);
+    if (!(await caldav.listCalendars()).length) throw new Error("No calendars found on this server.");
+    // The repair form can change the server and the user: the row names what
+    // it now signs in to, or a later connect of the old access would adopt
+    // into it and overwrite this password (GitHub issue 174). Only THIS
+    // device's entry of the confirmed accesses is replaced; another device's
+    // stays as that device confirmed it. The desktop has no such form; a
+    // reconnect there is a fresh connect that writes the same fields.
+    const access = caldav.confirmedAccess?.();
+    const device = await Promise.resolve().then(() => mobileSyncDeviceId()).catch(() => null);
+    caldavAccess = {
+      url: creds.url,
+      user: creds.user,
+      ...(access && device ? { [CONFIRMED_ACCESS_KEY]: withOwnConfirmedAccess(confirmedAccessOf(existing.config), device, access) } : {}),
+    };
   }
   assertCurrent();
   await savePimCredentials(target.vaultId, accountId, creds);
   assertCurrent();
-  await target.cache.upsertAccount({ ...existing, label: profile?.label ?? existing.label, config: { ...existing.config, ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}) }, enabled: true });
+  const config: Record<string, unknown> = { ...existing.config, ...(profile ? { [VERIFIED_PROVIDER_IDENTITY_KEY]: profile.identity } : {}), ...(caldavAccess ?? {}) };
+  await target.cache.upsertAccount({ ...existing, label: profile?.label ?? existing.label, config, enabled: true });
   assertCurrent();
   await restartPimAccountAfterLogin(target.vaultId, accountId);
+}
+
+async function retireRemovedCalDavSecret(vaultId: string, accountId: string): Promise<void> {
+  const row = runtime ? (await runtime.cache.listAccounts()).find((account) => account.id === accountId) : undefined;
+  if (row?.provider !== "caldav") return;
+  const creds = await getPimCredentials(vaultId, accountId).catch(() => null);
+  const url = creds?.kind === "caldav" ? creds.url : typeof row.config.url === "string" ? row.config.url : "";
+  const user = creds?.kind === "caldav" ? creds.user : typeof row.config.user === "string" ? row.config.user : "";
+  if (!url || !user) return;
+  const { retireCalDavSecret } = await import("../mobileSecretsPort");
+  await retireCalDavSecret(vaultId, url, user);
+}
+
+/**
+ * "Sign out on this device": this phone no longer reaches the account, so its
+ * confirmed access leaves the row and, with the next settings round, every
+ * other device (review 2026-11-18), as on the desktop.
+ */
+export async function forgetOwnPimAccess(accountId: string): Promise<void> {
+  if (!runtime) return;
+  const device = await Promise.resolve().then(() => mobileSyncDeviceId()).catch(() => null);
+  await runtime.cache.updateAccountConfigValue(accountId, CONFIRMED_ACCESS_KEY, droppingOwnConfirmedAccess(device));
 }
 
 export async function removePimAccount(accountId: string): Promise<void> {
@@ -578,6 +694,8 @@ export async function removePimAccount(accountId: string): Promise<void> {
   // Before the account is gone: the tombstone is keyed on the shared id, and
   // the map that translates the local id lives beside the account (P2).
   await noteAccountRemovedLocally(runtime.vaultId, "pim", accountId).catch(() => {});
+  // Its password leaves the secrets sync by this act, as on the desktop (review 2026-11-18).
+  await retireRemovedCalDavSecret(runtime.vaultId, accountId).catch(reportingTo("pim:remove-secret"));
   await clearPimCredentials(runtime.vaultId, accountId);
   await runtime.cache.deleteAccount(accountId);
   if ((await runtime.cache.listAccounts()).length === 0) setPimState({ status: "off", message: null });
@@ -632,7 +750,7 @@ export function pimTaskListRuntime(): TaskListRuntime | null {
 export async function pimTargetForAccount(accountId: string): Promise<IPimTarget | null> {
   if (!runtime) return null;
   const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
-  return account ? runtime.buildTarget(account) : null;
+  return account ? runtime.syncTarget(account) : null;
 }
 
 /** The provider target behind a "<accountId> <calendarId>" picker key. */
@@ -651,10 +769,11 @@ export async function pimTargetForCalendarKey(calendarKey: string): Promise<IPim
  * producing duplicates or losing edits on the same calendar.
  */
 const eventTargets: EventTargets = {
+  // An unconfirmed address is refused with its name, so the write says Confirm address (F57; round four).
   async targetFor(accountId: string) {
     if (!runtime) return null;
     const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
-    return account ? runtime.buildTarget(account) : null;
+    return account ? runtime.syncTarget(account) : null;
   },
 };
 
@@ -868,7 +987,8 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   if (!runtime) throw new Error("pim runtime not started");
   const account = (await runtime.cache.listAccounts()).find((a) => a.id === event.accountId);
   if (!account) throw new Error("account not found");
-  const target = await runtime.buildTarget(account);
+  // An unconfirmed address is refused with its name, never "not supported" (F57; round four).
+  const target = await runtime.syncTarget(account);
   if (!target?.respondToEvent) throw new Error("responding is not supported for this account");
   const respond = target.respondToEvent.bind(target);
   const change = { kind: "update" as const, ref: event, patch: { selfResponse: response } };

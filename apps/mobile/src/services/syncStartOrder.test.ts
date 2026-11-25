@@ -43,6 +43,8 @@ const state = vi.hoisted(() => ({
   genesisReads: 0,
   /** The settings store fails for the encrypted-remote fact. */
   brokenStore: false,
+  /** The addresses this phone confirmed (F57). */
+  confirmedEndpoints: new Set<string>(),
 }));
 
 vi.mock("@plainva/core", async (original) => {
@@ -94,6 +96,13 @@ vi.mock("@plainva/core", async (original) => {
 });
 vi.mock("@plainva/ui", async (original) => ({
   ...await original<typeof import("@plainva/ui")>(),
+  // This phone's confirmed addresses (endpointConfirmation.ts), as the gates ask them.
+  isEndpointConfirmedIn: async (_vault: string, endpoint: string | null) => !endpoint || state.confirmedEndpoints.has(endpoint),
+  assertEndpointConfirmedIn: async (_vault: string, ...endpoints: Array<string | null>) => {
+    for (const endpoint of endpoints) {
+      if (endpoint && !state.confirmedEndpoints.has(endpoint)) throw Object.assign(new Error(`not confirmed on this device: ${endpoint}`), { name: "EndpointNotConfirmedError", endpoint });
+    }
+  },
   getPlatformServices: () => ({ credentials: {
     readSecret: async (key: string) => key === "sync_provider_mobile_v"
       ? { provider: "webdav", creds: { url: state.url, user: "u", pass: state.pass, ...(state.signedOutHere ? { signedOutHere: true } : {}) } }
@@ -160,7 +169,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, disconnectFiles, getSyncStatus, isFirstPullPending, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
+import { connectProvider, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -193,6 +202,7 @@ beforeEach(() => {
   state.wsStatus = null;
   state.genesisReads = 0;
   state.brokenStore = false;
+  state.confirmedEndpoints.clear();
 });
 
 afterEach(async () => {
@@ -273,6 +283,35 @@ describe("a vault signed out on this phone (third review, finding 3)", () => {
     const { join } = await import("node:path");
     const screen = readFileSync(join(__dirname, "..", "VaultDetailScreen.tsx"), "utf8");
     expect(screen).toMatch(/status\.errorKind === "signed-out" && \(\s*<Button[^>]*onClick=\{onOpenFilesAccount\}/);
+  });
+});
+
+describe("a file address in the local network this phone has not confirmed (F57; review of F57, O3/O4)", () => {
+  it("starts nothing and names the address to confirm, never a sign-in", async () => {
+    state.url = "http://192.168.1.5/dav";
+    await startSyncIfConfigured(vault);
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "unconfirmed", confirmEndpoint: "http://192.168.1.5:80" });
+  });
+
+  it("sends the stored password nowhere, not even to list the folders", async () => {
+    state.url = "http://192.168.1.5/dav";
+    await expect(listStoredProviderFolders("v", "")).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: "http://192.168.1.5:80" });
+    expect(state.genesisReads).toBe(0);
+  });
+
+  it("starts again once the address is confirmed", async () => {
+    state.url = "http://192.168.1.5/dav";
+    state.confirmedEndpoints.add("http://192.168.1.5:80");
+    await startSyncIfConfigured(vault);
+    expect(getSyncStatus().errorKind).toBeUndefined();
+  });
+
+  it("asks the confirmation on the vault screen", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const screen = readFileSync(join(__dirname, "..", "VaultDetailScreen.tsx"), "utf8");
+    expect(screen).toMatch(/status\.errorKind === "unconfirmed" && status\.confirmEndpoint && \(\s*<FilesConfirmAddress/);
   });
 });
 

@@ -221,6 +221,7 @@ export function routineFailureOf(stop: RunStop): RoutineFailure {
           return "unreachable";
         case "context_too_long":
         case "window_too_small":
+        case "too_large":
           return "length";
         default:
           return "other";

@@ -20,6 +20,8 @@ Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenzi
 
 **Account e-mail senza password.** Una configurazione fallita durante il salvataggio poteva lasciare una voce senza password (Plainva 0.8.3 su desktop). L’area **E-mail** segnala una volta gli account che su questo dispositivo non hanno password e qui non hanno mai scaricato e-mail. **Vedi** mostra l’elenco. Se usi un account del genere su un altro dispositivo, scegli **Accedi**: in quel caso è la strada giusta. **Rimuovi** elimina la voce dopo una conferma, su tutti i dispositivi che sincronizzano le impostazioni di questo vault, mai e-mail o file. **Più tardi** nasconde l’avviso. Plainva non rimuove mai nulla da solo.
 
+Un server di posta in una rete locale riceve la password da un dispositivo solo dopo che il suo indirizzo è stato confermato lì: [Indirizzi non cifrati e locali](Sync_Setup.md#indirizzi-non-cifrati-e-locali).
+
 ## Leggere le e-mail
 
 Apri la scheda e-mail dalla barra delle azioni all'estrema sinistra (icona e-mail) o dalla palette dei comandi (**Apri e-mail**). L'elenco mostra la tua posta in arrivo dalla più recente (non lette in grassetto, **Carica altro** procede oltre). Selezionare un messaggio lo apre in un **visualizzatore sandbox**:

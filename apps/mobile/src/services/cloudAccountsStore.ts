@@ -2,6 +2,8 @@ import { sameStoredValue } from "@plainva/core";
 import {
   accountRemovedHere,
   getPlatformServices,
+  passwordAccountIdentity,
+  pimPasswordIdentity,
   reconcileCloudAccounts,
   verifiedProviderIdentityOf,
   type CloudAccountRecord,
@@ -11,6 +13,7 @@ import {
 import { listMailAccounts, mailAccountKind } from "@plainva/ui/mail";
 import { listPimAccounts, pimAccountsHeldAfterRebuild } from "./pim/pimService";
 import { getActiveVaultEntry } from "./vaultRegistry";
+import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import { loadProfileAccountMap } from "./profileAccountMap";
 
 /**
@@ -68,6 +71,7 @@ async function observe(vaultId: string): Promise<ObservedCloudState> {
     label: a.label,
     verifiedProviderIdentity: verifiedProviderIdentityOf(a) ?? undefined,
     ...(typeof a.config.clientId === "string" ? { byoClientId: a.config.clientId } : {}),
+    ...(pimPasswordIdentity(a) ? { passwordIdentity: pimPasswordIdentity(a)! } : {}),
   }));
   const mail = (await listMailAccounts(vaultId)).map((a) => ({
     id: a.id,
@@ -89,6 +93,12 @@ async function observe(vaultId: string): Promise<ObservedCloudState> {
   const filesRecord = knownProvider
     ? (await loadCloudAccounts(vaultId)).find((r) => r.services.files?.provider === knownProvider)
     : undefined;
+  // Server and user of a WebDAV connection name its account as surely as a
+  // verified identity (GitHub issue 174): the calendar of the same Nextcloud joins its card.
+  const slot = knownProvider === "webdav"
+    ? await getPlatformServices().credentials.readSecret<MobileSyncProvider>(syncProviderSlot(vaultId)).catch(() => null)
+    : null;
+  const passwordIdentity = slot?.provider === "webdav" ? passwordAccountIdentity(slot.creds?.url, slot.creds?.user) : null;
   return {
     ...(knownProvider
       ? {
@@ -99,6 +109,7 @@ async function observe(vaultId: string): Promise<ObservedCloudState> {
               ? { verifiedProviderIdentity: filesRecord.verifiedProviderIdentity }
               : {}),
             ...(filesRecord?.family ? { family: filesRecord.family } : {}),
+            ...(passwordIdentity ? { passwordIdentity } : {}),
           },
         }
       : {}),

@@ -50,6 +50,8 @@ import {
   type DropboxAccessResolution,
   type StoredOAuthAccess,
   type WizardStepItem,
+  confirmationEndpoint,
+  confirmEndpointsIn,
 } from "@plainva/ui";
 import { adoptOnlineVaultSignIn, deviceAccess, readDeviceAccess, saveDeviceAccess } from "../services/accountSignIn";
 import type { ServiceRunStatus } from "../services/cloudAccountsActions";
@@ -263,6 +265,8 @@ export const OnlineVaultSetup: React.FC<Props> = ({ mode = "open", template = nu
         if (c.provider === "webdav") {
           const base = trimEndChars(c.url, "/");
           const url = folder ? `${base}/${folder.split("/").map(encodeURIComponent).join("/")}` : c.url;
+          // Typed here for this new vault: its address counts as confirmed (F57).
+          await confirmEndpointsIn(localDir, [confirmationEndpoint(url)]);
           await credentialManager.saveWebDavCredentials(localDir, { url, user: c.user, pass: c.pass });
         } else if (c.provider === "drive") {
           await credentialManager.saveDriveCredentials(localDir, { clientId: c.clientId, clientSecret: c.clientSecret, refreshToken: c.refreshToken, rootFolderName: folder });
@@ -271,6 +275,7 @@ export const OnlineVaultSetup: React.FC<Props> = ({ mode = "open", template = nu
         } else if (c.provider === "dropbox") {
           await credentialManager.saveDropboxCredentials(localDir, { appKey: c.appKey, refreshToken: c.refreshToken, rootPath: folder ? `/${folder.replace(/^\/+/, "")}` : undefined });
         } else {
+          await confirmEndpointsIn(localDir, [confirmationEndpoint(c.s3.endpoint)]);
           await credentialManager.saveS3Credentials(localDir, { ...c.s3, prefix: folder });
         }
         // Google and Microsoft: the sign-in becomes the card's, with its identity,

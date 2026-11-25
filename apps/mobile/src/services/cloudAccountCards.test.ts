@@ -29,7 +29,7 @@ vi.mock("./fileSyncAccess", () => ({
   resolveMobileFileAccess: () => ({ ready: filesReachable, blocked: !filesReachable }),
 }));
 
-import { loadAccountCards } from "./cloudAccountCards";
+import { findAccountCard, loadAccountCards } from "./cloudAccountCards";
 
 /**
  * Cards fold on the verified identity, and the files card names the ACCOUNT.
@@ -201,5 +201,78 @@ describe("loadAccountCards", () => {
     pimStates.set("pim-1", "active");
     const { cards } = await loadAccountCards();
     expect(cards[0].signIn).toBe("active");
+  });
+
+  it("keeps two password accounts whose addresses differ only in case on two cards, each with its own record (review 2026-11-18)", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    const url = "https://cloud.example.org/remote.php/dav";
+    pimRows.push({ id: "pim-upper", provider: "caldav", label: "Alice@example.org", config: { url, user: "Alice@example.org" } });
+    pimRows.push({ id: "pim-lower", provider: "caldav", label: "alice@example.org", config: { url, user: "alice@example.org" } });
+    records = [
+      { id: "acc-upper", family: "webdav", label: "Alice@example.org", services: { calendar: { pimAccountId: "pim-upper" } } } as unknown as CloudAccountRecord,
+      { id: "acc-lower", family: "webdav", label: "alice@example.org", services: { calendar: { pimAccountId: "pim-lower" } } } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => [card.record?.id, card.pimAccountId]).sort()).toEqual([["acc-lower", "pim-lower"], ["acc-upper", "pim-upper"]]);
+  });
+
+  it("keeps them apart without records too", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    const url = "https://cloud.example.org/remote.php/dav";
+    pimRows.push({ id: "pim-upper", provider: "caldav", label: "Alice@example.org", config: { url, user: "Alice@example.org" } });
+    pimRows.push({ id: "pim-lower", provider: "caldav", label: "alice@example.org", config: { url, user: "alice@example.org" } });
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => card.pimAccountId).sort()).toEqual(["pim-lower", "pim-upper"]);
+  });
+
+  it("makes one card of one record whose calendar and mailbox labels differ only in case (review 2026-11-18, R1)", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    pimRows.push({ id: "pim-1", provider: "caldav", label: "Alice@icloud.com", config: { url: "https://caldav.icloud.com", user: "Alice@icloud.com" } });
+    mailRows.push({ id: "mail-1", label: "alice@icloud.com", user: "alice@icloud.com", host: "imap.mail.me.com", port: 993, kind: "imap" });
+    records = [
+      { id: "acc", family: "apple", label: "Alice@icloud.com", services: { calendar: { pimAccountId: "pim-1" }, mail: { mailAccountId: "mail-1" } } } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => [card.record?.id, card.pimAccountId, card.mailAccountId])).toEqual([["acc", "pim-1", "mail-1"]]);
+  });
+
+  it("never lets two records share a card, also with the same label", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    records = [
+      { id: "acc-1", family: "apple", label: "alice@icloud.com", services: {} } as unknown as CloudAccountRecord,
+      { id: "acc-2", family: "apple", label: "alice@icloud.com", services: {} } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(cards.map((card) => card.record?.id).sort()).toEqual(["acc-1", "acc-2"]);
+  });
+
+  it("finds the card of a page saved before the update by the key it had then; never another (review 2026-11-18, R2)", async () => {
+    entry = { id: "v1", name: "wiki", provider: undefined as unknown as string };
+    pimRows.push({ id: "pim-1", provider: "caldav", label: "Alice@icloud.com", config: { url: "https://caldav.icloud.com", user: "Alice@icloud.com" } });
+    records = [
+      { id: "acc", family: "apple", label: "Alice@icloud.com", services: { calendar: { pimAccountId: "pim-1" } } } as unknown as CloudAccountRecord,
+      { id: "acc-2", family: "apple", label: "bob@icloud.com", services: {} } as unknown as CloudAccountRecord,
+      { id: "acc-3", family: "apple", label: "bob@icloud.com", services: {} } as unknown as CloudAccountRecord,
+    ];
+
+    const { cards } = await loadAccountCards();
+
+    expect(findAccountCard(cards, "record:acc")?.record?.id).toBe("acc");
+    // The key of the builds up to 0.8.7, and the one before the record became the key.
+    expect(findAccountCard(cards, "apple|alice@icloud.com")?.record?.id).toBe("acc");
+    expect(findAccountCard(cards, "apple|Alice@icloud.com")?.record?.id).toBe("acc");
+    expect(findAccountCard(cards, "pim-1")?.record?.id).toBe("acc");
+    // Two cards had that key: neither is guessed, the page goes back to the list.
+    expect(findAccountCard(cards, "apple|bob@icloud.com")).toBeNull();
+    expect(findAccountCard(cards, "apple|#acc-2")?.record?.id).toBe("acc-2");
+    expect(findAccountCard(cards, "nothing")).toBeNull();
   });
 });

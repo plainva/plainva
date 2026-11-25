@@ -11,7 +11,7 @@ import {
   type PimAccountRow,
   type PimStatus,
 } from "@plainva/core";
-import { formatPimCycle, isSignedOutSlot, logDiagnostic, markTaskSyncInputChanged } from "@plainva/ui";
+import { assertEndpointConfirmedIn, confirmationEndpoint, formatPimCycle, isEndpointConfirmedIn, isSignedOutSlot, logDiagnostic, markTaskSyncInputChanged } from "@plainva/ui";
 import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
 
@@ -46,6 +46,8 @@ export interface PimRuntime {
   cache: PimCacheRepository;
   worker: PimWorkerHandle;
   buildTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
+  /** `buildTarget` that refuses an unconfirmed CalDAV address with its name (F57): the sync and "Check connection". */
+  syncTarget: (account: PimAccountRow) => Promise<IPimTarget | null>;
   stop: () => void;
   isActive: () => boolean;
 }
@@ -92,16 +94,39 @@ export function createPimRuntime(opts: {
     const creds = stored ?? brokerBackedCredentials(account);
     if (!creds) return null;
     if (creds.kind === "caldav") {
+      // An address without TLS or in a private network that this device never
+      // confirmed gets no target, like a sign-out: the stored password stays
+      // here (F57). The sync and "Check connection" say why (`syncTarget`).
+      if (!(await isEndpointConfirmedIn(opts.vaultPath, confirmationEndpoint(creds.url)))) return null;
       return new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, httpFetch);
     }
     const auth = buildPimAuthProvider(opts.vaultPath, account.id, creds);
     return creds.kind === "google" ? new GooglePimTarget(auth, httpFetch) : new GraphPimTarget(auth, httpFetch);
   };
 
+  /**
+   * `buildTarget` for the sync and "Check connection": a CalDAV address this
+   * device has not confirmed is refused with its name instead of no target,
+   * so the account waits visibly — the calendar's notice, the account's row
+   * and the check say Confirm address (review of F57, O-5). Everyone else
+   * keeps "no target" and its own answer for it.
+   */
+  const syncTarget = async (account: PimAccountRow): Promise<IPimTarget | null> => {
+    if (account.provider === "caldav") {
+      const stored = await getPimCredentials(opts.vaultPath, account.id);
+      if (stored?.kind === "caldav" && !isSignedOutSlot(stored)) await assertEndpointConfirmedIn(opts.vaultPath, confirmationEndpoint(stored.url));
+    }
+    return buildTarget(account);
+  };
+
   const worker = new PimWorker({
     cache,
-    buildTarget,
+    buildTarget: syncTarget,
     accountAuthRevision: async (account) => (await getPimCredentials(opts.vaultPath, account.id))?.loginRevision,
+    // The settings sync's device id: under it the worker records how THIS
+    // device reached a password account (GitHub issue 174). Imported lazily,
+    // as main.tsx does, to keep the settings profile out of this module's graph.
+    deviceId: () => import("../settingsProfile").then((m) => m.getDeviceId()),
     // What the status says when every account sits on a dead sign-in (N1/S2):
     // asking again costs a network round and answers the same way every time.
     parkedMessage: i18n.t("pim.signInRequired"),
@@ -123,6 +148,7 @@ export function createPimRuntime(opts: {
     cache,
     worker,
     buildTarget,
+    syncTarget,
     stop: () => { active = false; worker.stop(); },
     isActive: () => active,
   };

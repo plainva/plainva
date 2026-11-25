@@ -78,6 +78,32 @@
       "dbBytes": 105488384,
       "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
       "commit": "7483afe3f1832ef93db0b6b02f1a316deccf8889"
+    },
+    "github-ubuntu-latest-intel-r-xeon-r-platinum-8573c": {
+      "recorded": "2026-11-21",
+      "node": "v22.23.5",
+      "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "calibrationMs": 918.71,
+      "fsWalkMs": 365.42,
+      "ratios": {
+        "coldIndexMs": 42.01785,
+        "warmIndexMs": 1.27467,
+        "saveP50Ms": 0.00504,
+        "saveP95Ms": 0.00768,
+        "searchMs": 0.0478,
+        "listTasksMs": 0.73513
+      },
+      "ms": {
+        "coldIndexMs": 38602.22,
+        "warmIndexMs": 465.79,
+        "saveP50Ms": 4.63,
+        "saveP95Ms": 7.06,
+        "searchMs": 43.91,
+        "listTasksMs": 675.37
+      },
+      "dbBytes": 105971712,
+      "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
+      "commit": "5481284dcba6251eb49256c5401ad2fba0f27d0c"
     }
   }
 }

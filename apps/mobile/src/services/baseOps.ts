@@ -500,6 +500,12 @@ export async function createBaseItem(
   viewIndex = 0,
   /** The folder just answered in the storage-folder question (P2), when the config has not caught up yet. */
   folderOverride?: string,
+  /**
+   * The template this one entry is made from (the \"Templates\" sheet's choice, as the
+   * desktop's \"Entry\" menu gives it): a path, or null for none of them — the folder
+   * and type rules then decide. Left out, the database's default template is it.
+   */
+  templateOverride?: string | null,
 ): Promise<BaseItemResult> {
   const target = resolveNewItemTarget(config);
   // Several folder sources are a QUESTION (plan Befunde 2026-09-24, E16): the
@@ -516,7 +522,7 @@ export async function createBaseItem(
   // otherwise the rules decide, and without either it is the skeleton.
   // Questions are asked in one sheet — cancelling creates nothing (P6).
   const type = configuredNoteType();
-  const tplPath = typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
+  const tplPath = templateOverride !== undefined ? (templateOverride ?? "") : typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
   const built = await buildNewNoteFromTemplate({
     read: (p) => vaultOps.read(v, p),
     exists: (p) => v.files.exists(p),
@@ -607,9 +613,9 @@ export async function sweepMobilePinboardDrafts(v: MobileVault): Promise<Pinboar
 export async function planMobilePinboardEntry(
   v: MobileVault,
   config: any,
-  opts: { viewIndex: number; activeLabels: readonly string[]; labelProperty: string | null; folder?: string },
+  opts: { viewIndex: number; activeLabels: readonly string[]; labelProperty: string | null; folder?: string; templateOverride?: string | null },
 ): Promise<PinboardEntryPlan> {
-  const template = typeof config?.newItemTemplate === "string" ? config.newItemTemplate.trim() : "";
+  const template = opts.templateOverride !== undefined ? (opts.templateOverride ?? "").trim() : typeof config?.newItemTemplate === "string" ? config.newItemTemplate.trim() : "";
   const plan = await planPinboardEntry(pinboardEntryFiles(v), {
     config,
     viewIndex: opts.viewIndex,

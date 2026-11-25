@@ -14,6 +14,7 @@ import { connectionFailureCode } from "@plainva/core";
 import { googleAuthorizationMarker, googleAuthorizationMessage } from "./googleAuthorization";
 import type { AccessPlatform } from "./oauthAccess";
 import { SignInNothingGrantedError, SignInWrongAccountError } from "./accountSignIn";
+import { unconfirmedEndpointOf } from "./endpointConfirmation";
 
 /** Non-secret destination carried across screens and native browser returns. */
 export interface ServiceConnectionContext {
@@ -127,6 +128,9 @@ function rawText(error: unknown): string {
  */
 export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate, context: ConnectionMessageContext = {}): string {
   if (error instanceof ServiceConnectionError) return t(REASON_KEYS[error.reason]);
+  // Refused before anything was sent: the address waits for this device's **Confirm** (F57).
+  const unconfirmed = unconfirmedEndpointOf(error);
+  if (unconfirmed) return t("cloudAccounts.confirmAddress", { address: unconfirmed });
   // Android: Play services said why (lib/googleAuthorization.ts). Asked before
   // anything else, so that a refused registration never reads as "cancelled".
   const google = googleAuthorizationMessage(error, t);

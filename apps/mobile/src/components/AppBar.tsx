@@ -2,7 +2,7 @@ import { useLongPress } from "../lib/useLongPress";
 import { BACK_HISTORY_EVENT } from "../services/backHistory";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Search, Settings } from "lucide-react";
+import { ChevronDown, ChevronLeft, Search, Settings } from "lucide-react";
 import { ICON, IconButton } from "@plainva/ui";
 import { chromeScrollPublisher, resetChromeScroll, scrolledToEnd, type ChromeScroll } from "../services/chromeScroll";
 
@@ -53,7 +53,15 @@ export function AppBar({
   className,
   testId,
   scrollState,
+  onTitleClick,
+  titleActionLabel,
+  titleTestId,
 }: {
+  /** The title opens something (the vault name opens vault switching): it becomes a button inside the heading. */
+  onTitleClick?: () => void;
+  /** The accessible name of that button. */
+  titleActionLabel?: string;
+  titleTestId?: string;
   /** Absent on a tab root — there is nothing to go back to. */
   onBack?: () => void;
   /**
@@ -162,7 +170,22 @@ export function AppBar({
         <div className="m-appbar-ttl">
           {titleAs ?? (
             <>
-              <h1>{title}</h1>
+              <h1>
+                {onTitleClick ? (
+                  <button
+                    aria-label={titleActionLabel}
+                    className="m-appbar-ttlbtn"
+                    data-testid={titleTestId}
+                    onClick={onTitleClick}
+                    type="button"
+                  >
+                    <span className="m-appbar-ttltext">{title}</span>
+                    <ChevronDown aria-hidden="true" className="m-chevron" size={ICON.meta} />
+                  </button>
+                ) : (
+                  title
+                )}
+              </h1>
               {hasSub && <p className="m-appbar-sub">{subtitle}</p>}
             </>
           )}

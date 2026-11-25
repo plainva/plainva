@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { reportingTo } from "@plainva/ui";
+import { refusalReason, reportingTo, unconfirmedEndpointOf } from "@plainva/ui";
 import { newWriteAction, withWriteAttempt } from "../../services/pim/remotePimTarget";
 import { useTranslation } from "react-i18next";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
@@ -822,8 +822,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const account = accounts.find((a) => a.id === accountId);
       if (!account || !pimRuntime) return null;
       try {
-        return await pimRuntime.buildTarget(account);
-      } catch {
+        return await pimRuntime.syncTarget(account);
+      } catch (error) {
+        // An unconfirmed address is refused with its name: the write says Confirm address (F57; round four).
+        if (unconfirmedEndpointOf(error)) throw error;
         return null;
       }
     },
@@ -1013,7 +1015,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   /** A refused write, said once, with the way to try it again. */
   const reportWriteFailure = useCallback(
     (error: unknown, retry: () => void, what: "save" | "delete" = "save") => {
-      const reason = error instanceof Error ? error.message : String(error);
+      const reason = refusalReason(error);
       logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
       // A refused deletion said "was not saved" (issue 119) - true of nothing
       // the person had done.
@@ -1593,9 +1595,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           const account = accounts.find((a) => a.id === accountId);
           if (!account || !pimRuntime) return { target: null, reason: t("pim.blockNoTarget", { defaultValue: "Konto nicht angemeldet" }) };
           try {
-            return { target: await pimRuntime.buildTarget(account) };
+            return { target: await pimRuntime.syncTarget(account) };
           } catch (error) {
-            return { target: null, reason: error instanceof Error ? error.message : String(error) };
+            return { target: null, reason: refusalReason(error) };
           }
         },
         draft: bd,

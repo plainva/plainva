@@ -1,6 +1,8 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
+import { settleBeforeTransfer } from "./endpointConfirmationSettle";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { assertConnectionIdentity, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, mailboxEndpoints, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { storedProviderEndpoint } from "./fileSyncAccess";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -229,6 +231,8 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     // Validate binding collisions before copying anything.
     for (const row of accounts) { const old = existingPim.find(a => a.id === row.id); if (old && !sameStoredValue(old, row)) throw new Error("transfer_binding_collision"); }
     for (const mail of mailAccounts) { const old = existingMail.find(a => a.id === mail.id); if (old && !sameStoredValue(old, mail)) throw new Error("transfer_binding_collision"); }
+    // Switched over before anything is put in (F57; review of F57, A-1).
+    await settleBeforeTransfer({ vaultId: id, db }, !!existing);
     await commitVaultTransfer(plan, v.adapter, target, null);
     for (const row of accounts) {
       const creds = await getPimCredentials(v.vaultId, row.id);
@@ -249,6 +253,19 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     // Known before the vault is bound: a kill between the two must not leave a
     // bound vault that does not know it sits on a workspace (R8).
     if (encrypted) await markEncryptedRemote(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), id));
+    // F57: the files address was typed here; a calendar or mailbox that moves
+    // along keeps what this phone had confirmed for it, and no more.
+    const carried: Array<string | null> = [];
+    for (const row of accounts) {
+      const creds = await getPimCredentials(v.vaultId, row.id);
+      if (creds?.kind === "caldav") carried.push(confirmationEndpoint(creds.url));
+    }
+    for (const mail of mailAccounts) carried.push(...mailboxEndpoints(mail));
+    const kept: Array<string | null> = [];
+    for (const endpoint of carried) if (endpoint && await isEndpointConfirmedIn(v.vaultId, endpoint)) kept.push(endpoint);
+    // The vault was switched over before the copy (`settleBeforeTransfer`):
+    // this adds exactly what the transfer carries (review of F57, O2, A-1).
+    await confirmEndpointsIn(id, [storedProviderEndpoint(p), ...kept]);
     await secrets.writeSecret(syncProviderSlot(id), p);
     if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
     await bindRunTokenToAccount(id, run.family, runServices(run));

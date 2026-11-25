@@ -540,6 +540,8 @@ function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): Ac
       await s.set(accountMapKey(vaultId), map);
       await s.save();
     },
+    // Keeps this device's own confirmed access of a password account (GitHub issue 174).
+    deviceId,
   };
 }
 

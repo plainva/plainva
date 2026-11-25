@@ -66,11 +66,11 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   // AI & automation, this device (plan KI-Harness §19.1): the page and the cards it draws.
   { file: `${D}/settings/AiSettingsPage.tsx`, shell: "desktop", area: "ai" },
   { file: `${D}/settings/AiModeParts.tsx`, shell: "desktop", area: "ai" },
-  { file: `${D}/settings/SemanticSearchCard.tsx`, shell: "desktop", area: "ai" },
-  { file: `${D}/settings/GistsCard.tsx`, shell: "desktop", area: "ai" },
-  { file: `${D}/settings/NoteHintsCard.tsx`, shell: "desktop", area: "ai" },
-  { file: `${D}/settings/McpSettingsCard.tsx`, shell: "desktop", area: "ai" },
-  { file: `${D}/settings/ExternalAgentsCard.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/SemanticSearchCard.tsx`, shell: "desktop", area: "ai", card: "ai.settings.groupNoModel" },
+  { file: `${D}/settings/GistsCard.tsx`, shell: "desktop", area: "ai", card: "ai.settings.groupNoModel" },
+  { file: `${D}/settings/NoteHintsCard.tsx`, shell: "desktop", area: "ai", card: "ai.settings.groupNoModel" },
+  { file: `${D}/settings/McpSettingsCard.tsx`, shell: "desktop", area: "ai", card: "ai.settings.groupOtherApps" },
+  { file: `${D}/settings/ExternalAgentsCard.tsx`, shell: "desktop", area: "ai", card: "ai.settings.groupOtherApps" },
   // ---------- desktop: VAULT ----------
   { file: `${D}/settings/CloudAccountsPage.tsx`, shell: "desktop", area: "cloudAccounts", subFrom: /^(detail)$/, skip: /mode\.kind === "wizard"/ },
   { file: `${D}/settings/AccountServicePage.tsx`, shell: "desktop", component: "FilesPart", area: "cloudAccounts", sub: "service:files" },
@@ -107,8 +107,8 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   { file: `${M}/screens/SettingsAreaScreens.tsx`, shell: "mobile", component: "AboutAreaScreen", area: "about" },
   { file: `${M}/screens/AiSettingsScreen.tsx`, shell: "mobile", area: "ai" },
   { file: `${M}/components/MobileSemanticSection.tsx`, shell: "mobile", area: "ai" },
-  { file: `${M}/components/MobileGistsSection.tsx`, shell: "mobile", area: "ai" },
-  { file: `${M}/components/MobileNoteHintsSection.tsx`, shell: "mobile", area: "ai" },
+  { file: `${M}/components/MobileGistsSection.tsx`, shell: "mobile", area: "ai", card: "ai.settings.groupNoModel" },
+  { file: `${M}/components/MobileNoteHintsSection.tsx`, shell: "mobile", area: "ai", card: "ai.settings.groupNoModel" },
   { file: `${M}/components/MobileSystemAssistantSection.tsx`, shell: "mobile", area: "ai" },
   // ---------- phone: VAULT ----------
   { file: `${M}/screens/CloudAccountsScreen.tsx`, shell: "mobile", area: "cloudAccounts" },
@@ -187,11 +187,14 @@ const ROW_TAGS: Record<SettingsShell, Record<string, { label: string; desc: stri
     SettingRow: { label: "label", desc: ["desc"] },
     FontSlotRow: { label: "label", desc: [] },
     DayTimeRow: { label: "label", desc: ["desc"] },
+    // A named column of a rule table (Design_Language "Rules as named columns"): its head is the question it asks.
+    RuleColumn: { label: "label", desc: [] },
   },
   mobile: {
     Row: { label: "title", desc: ["subtitle"] },
     SettingField: { label: "label", desc: ["hint"] },
     MobileSettingRow: { label: "label", desc: [] },
+    RuleColumn: { label: "label", desc: [] },
   },
 };
 const CARD_TAGS: Record<SettingsShell, string> = { desktop: "SettingCard", mobile: "SectionLabel" };

@@ -1520,8 +1520,10 @@ mod tests {
         let paths: Vec<String> = ["Projects/a.md", "Projects", "Private/b.md", "projects/a.md", "Projects/link/b.md", " Projects/a.md", "Projects/missing.md"].iter().map(|p| p.to_string()).collect();
         let verdicts = judge_paths(judging, paths).await;
         // Where no link could be made here (Windows without rights), the folder is merely missing: inside.
+        // Case-insensitive platforms (Windows, macOS) fold `projects` onto the granted `Projects` (paths.rs).
         let no_link = !cfg!(unix);
-        assert_eq!(verdicts, vec![true, true, false, false, no_link, false, true]);
+        let case_folds = !cfg!(target_os = "linux");
+        assert_eq!(verdicts, vec![true, true, false, case_folds, no_link, false, true]);
         // Once the call is answered, nothing of it can be asked any more.
         assert!(!app.state::<McpState>().lock().judging.contains_key(&id));
         assert!(app.state::<McpState>().lock().judging.is_empty());

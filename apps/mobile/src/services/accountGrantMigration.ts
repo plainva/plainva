@@ -2,7 +2,7 @@ import { refreshDriveAccessToken, refreshOneDriveAccessToken } from "@plainva/co
 import { createLegacyGrantSource, legacyOAuthToken, logDiagnostic, migrateAccountGrant, migrateVaultAccountGrants, rotateLegacyGrant, vaultGrantMigrationDiagnostic, PLAINVA_ONEDRIVE_CLIENT_ID, withAccountCredentialLock, type CloudAccountRecord, type CloudServiceId, type StoredAccountToken, type VaultGrantMigration } from "@plainva/ui";
 import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey, type MailAccountConfig } from "@plainva/ui/mail";
 import { webdavFetch } from "../adapters/webdavHttp";
-import { accountSecretKey, getAccountToken, saveAccountToken } from "./accountBroker";
+import { accountSecretKey, getAccountToken, isAccountSignInOwed, saveAccountToken } from "./accountBroker";
 import { accountCredentialStore } from "./accountCredentialStore";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { pimSecretKey } from "./pim/pimCredentials";
@@ -77,7 +77,14 @@ export async function migrateLegacyAccountGrant(vaultId: string, record: CloudAc
  */
 export async function migrateVaultGrants(vaultId: string, timeoutMs = 8000): Promise<VaultGrantMigration[] | null> {
   const pass = migrateVaultAccountGrants({
-    cards: () => loadCloudAccounts(vaultId),
+    // A card whose sign-in is owed a deletion hands nothing over and takes
+    // nothing in: its next sign-in is a new one (review 2026-11-18).
+    cards: async () => {
+      const cards = await loadCloudAccounts(vaultId);
+      const owed = await Promise.all(cards.map((card) =>
+        Promise.resolve().then(() => isAccountSignInOwed(vaultId, card.id)).catch(() => false)));
+      return cards.filter((_, index) => !owed[index]);
+    },
     migrate: (record, service) => migrateLegacyAccountGrant(vaultId, record, service),
   }).then((results) => {
     const line = vaultGrantMigrationDiagnostic(results);

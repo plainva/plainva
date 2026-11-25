@@ -3,8 +3,9 @@ import { SheetGrip } from "../../components/SheetGrip";
 import { useSheetGuard } from "../../hooks/useSheetGuard";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare, FileText, PenLine, Sparkles } from "lucide-react";
-import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput, PropertyDiffLine, type SuggestedProperty } from "@plainva/ui";
+import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, safeHref, SearchField, segmentInlineText, splitMultiValue, TextInput, PropertyDiffLine, type SuggestedProperty } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
+import { openLink } from "../../services/openLink";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
 import { buildWikiTargetSet, wikiLinkTextFor, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
@@ -64,6 +65,7 @@ export function CellEditSheet({
   onClose,
   onCommentProperty,
   onRename,
+  onOpenNote,
   proposal,
   fill,
 }: {
@@ -85,6 +87,8 @@ export function CellEditSheet({
   rows: any[];
   onCommit: (value: unknown) => void;
   onClose: () => void;
+  /** Opens a note linked inside a free-text value (`[[wiki]]` or `[label](note.md)`). */
+  onOpenNote?: (path: string) => void;
   /**
    * Remark on this property instead of changing it (finding 2026-09-04). The
    * phone has no right-click, and this sheet is where a cell already leads -
@@ -452,6 +456,54 @@ export function CellEditSheet({
                 <span>{t("properties.openLink")}</span>
               </button>
             )}
+            {/* Links inside free text (parity base-cell-text-links): followable from the edit sheet too. */}
+            {input === "text" && text.trim() !== "" && (() => {
+              const seen = new Set<string>();
+              const links = segmentInlineText(text).filter((seg) => {
+                if (seg.type === "text") return false;
+                const key = `${seg.type}:${seg.target}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+              return links.map((seg, i) => {
+                if (seg.type === "text") return null;
+                const isWeb = seg.type === "url" || (seg.type === "markdown" && /^https?:\/\//.test(seg.target));
+                if (isWeb) {
+                  const href = safeHref(seg.target);
+                  if (!href) return null;
+                  const label = seg.type === "markdown" ? seg.text || seg.target : seg.target;
+                  return (
+                    <button
+                      className="m-row"
+                      data-testid="cell-inline-link"
+                      key={`web-${i}`}
+                      onClick={() => void getPlatformServices().openExternal(href).catch(() => undefined)}
+                    >
+                      <ExternalLink size={ICON.head} />
+                      <span>{label}</span>
+                    </button>
+                  );
+                }
+                if (!onOpenNote) return null;
+                const label = seg.type === "wiki" ? seg.display : seg.text || seg.target;
+                const kind = seg.type === "wiki" ? "wiki" : "markdown";
+                return (
+                  <button
+                    className="m-row"
+                    data-testid="cell-inline-link"
+                    key={`note-${i}`}
+                    onClick={() => {
+                      onClose();
+                      void openLink({ text: seg.target, kind, sourcePath: target.notePath }, { vault, onOpenNote });
+                    }}
+                  >
+                    <FileText size={ICON.head} />
+                    <span>{label}</span>
+                  </button>
+                );
+              });
+            })()}
           </>
         )}
 

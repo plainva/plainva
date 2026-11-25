@@ -1,11 +1,11 @@
-import { removeAccountCard, signOutAccountHere, type CloudAccountRecord, type CloudServiceId, type ServiceSignInSlot } from "@plainva/ui";
+import { oweSignInDeletion, removeAccountCard, signOutAccountHere, type CloudAccountRecord, type CloudServiceId, type ServiceSignInSlot } from "@plainva/ui";
 import { legacyMailSecretKey, mailSecretKey } from "@plainva/ui/mail";
 import { accountCredentialStore } from "./accountCredentialStore";
-import { clearAccountToken } from "./accountBroker";
+import { clearAccountToken, owedSignInResources } from "./accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { clearNativeGoogleTokens } from "./googleNativeAuthorization";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { pimSyncNow, removePimAccount } from "./pim/pimService";
+import { forgetOwnPimAccess, pimSyncNow, removePimAccount } from "./pim/pimService";
 import { removeMobileMailAccount } from "./mail/mailRuntime";
 import { syncProviderSlot } from "./syncSlot";
 
@@ -52,6 +52,8 @@ export async function signOutMobileAccountHere(vaultId: string, recordId: string
     clearCardGrant: async () => { if (recordId) await clearAccountToken(vaultId, recordId); },
   });
   await clearNativeGoogleTokens();
+  const pimAccountId = card.pimAccountId;
+  if (pimAccountId) await Promise.resolve().then(() => forgetOwnPimAccess(pimAccountId)).catch(() => undefined);
   await restartServices(card);
 }
 
@@ -85,6 +87,10 @@ export async function removeMobileAccount(vaultId: string, record: CloudAccountR
     },
     clearCardGrant: async () => {
       if (record) await clearAccountToken(vaultId, record.id);
+    },
+    // A grant the keychain would not let go of is owed and made up for, as on the desktop.
+    oweCardGrant: async (error) => {
+      if (record) await oweSignInDeletion(owedSignInResources(vaultId), record.id, error);
     },
     dropRecord: async () => {
       if (!record) return;

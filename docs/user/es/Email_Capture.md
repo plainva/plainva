@@ -20,6 +20,8 @@ Al conectar se valida el inicio de sesión antes de guardar nada; las credencial
 
 **Cuentas de correo sin contraseña.** Una configuración que falló al guardar podía dejar una entrada sin contraseña (Plainva 0.8.3 en el escritorio). El área **Correo** señala una vez las cuentas que no tienen contraseña en este dispositivo y que aquí nunca han recibido correo. **Ver** muestra la lista. Si usas una de esas cuentas en otro dispositivo, elige **Iniciar sesión**: ese es entonces el camino correcto. **Quitar** elimina la entrada tras preguntar, en todos los dispositivos que sincronizan los ajustes de este vault, nunca correos ni archivos. **Más tarde** oculta el aviso. Plainva nunca quita nada por su cuenta.
 
+Un servidor de correo en una red local solo recibe la contraseña de un dispositivo una vez que su dirección se ha confirmado allí: [Direcciones sin cifrar y locales](Sync_Setup.md#direcciones-sin-cifrar-y-locales).
+
 ## Leer correo
 
 Abre la pestaña de correo desde la barra de acciones de la izquierda (icono de correo) o la paleta de comandos (**Abrir correo**). La lista muestra tu bandeja de entrada empezando por lo más reciente (los no leídos en negrita; **Cargar más** carga páginas adicionales). Seleccionar un mensaje lo abre en un **visor aislado**:

@@ -114,6 +114,84 @@ describe("PimWorker", () => {
     expect((await cache.listTaskLists("a1")).map((l) => l.selected)).toEqual([false]);
   });
 
+  // GitHub issue 174: the principal a server confirmed decides which rows are one
+  // account, so a row connected before it was recorded gets it on its fetch.
+  it("records this device's confirmed access under its id, keeps the other devices' entries, and writes nothing once it is there", async () => {
+    const other = { url: "http://192.168.1.5/remote.php/dav", user: "anna", principal: "http://192.168.1.5/remote.php/dav/principals/users/anna/" };
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "NC", config: { url: "https://cloud.example.com", user: "anna", confirmedAccess: { phone: other } }, enabled: true });
+    const mine = { url: "https://cloud.example.com", user: "anna", principal: "https://cloud.example.com/remote.php/dav/principals/users/anna/" };
+    const target = { ...fakeTarget([]), confirmedAccess: () => mine };
+    const update = vi.spyOn(cache, "updateAccountConfigValue");
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW, deviceId: async () => "laptop" });
+    await worker.triggerImmediate();
+    const [row] = await cache.listAccounts();
+    expect(row.config).toEqual({ url: "https://cloud.example.com", user: "anna", confirmedAccess: { laptop: { ...mine, seq: 1 }, phone: other } });
+    expect(row.label).toBe("NC");
+
+    // The next fetch finds its entry in place: no write, nothing that could
+    // travel to the other device again.
+    const before = JSON.stringify(row.config);
+    await worker.triggerImmediate();
+    expect(JSON.stringify((await cache.listAccounts())[0].config)).toBe(before);
+    expect(await update.mock.results.at(-1)?.value).toBe(false);
+  });
+
+  it("records no access without a device id", async () => {
+    await cache.upsertAccount({ id: "a1", provider: "caldav", label: "NC", config: { url: "https://cloud.example.com", user: "anna" }, enabled: true });
+    const target = { ...fakeTarget([]), confirmedAccess: () => ({ url: "https://cloud.example.com", user: "anna" }) };
+    const worker = new PimWorker({ cache, buildTarget: async () => target, now: () => NOW });
+    await worker.triggerImmediate();
+    expect((await cache.listAccounts())[0].config).toEqual({ url: "https://cloud.example.com", user: "anna" });
+  });
+
+  // Review 2026-11-18 (fourth round): a device sends its password only to the
+  // address connected or repaired on THIS device. Another device's entry in
+  // the shared row — a later one, a planted one, a LAN address — is never
+  // tried, whatever happens to the own address.
+  describe("an account whose own address fails", () => {
+    const PUB = "https://cloud.example.com/remote.php/dav";
+    const principalAt = (base: string) => new URL("/remote.php/dav/principals/users/anna/", base + "/").toString();
+    const entry = (url: string, seq: number) => ({ url, user: "anna", principal: principalAt(url), seq });
+
+    async function cycleWith(failure: Error, others: Record<string, ReturnType<typeof entry>>) {
+      await cache.upsertAccount({ id: "a1", provider: "caldav", label: "NC", config: { url: PUB, user: "anna", confirmedAccess: { laptop: entry(PUB, 1), ...others } }, enabled: true });
+      const asked: string[] = [];
+      const built: string[] = [];
+      const worker = new PimWorker({
+        cache,
+        // What the shells do: the target is built from THIS device's sign-in, whose address is PUB.
+        buildTarget: async () => {
+          built.push(PUB);
+          return { ...fakeTarget([]), listCalendars: async () => { asked.push(PUB); throw failure; } };
+        },
+        now: () => NOW,
+        deviceId: async () => "laptop",
+      });
+      await worker.triggerImmediate();
+      return { asked, built, row: (await cache.listAccounts())[0] };
+    }
+
+    it("a planted entry and a certificate failure at the own address: one request, to the own address (inject)", async () => {
+      const { asked, built, row } = await cycleWith(
+        new TypeError("fetch failed: unable to verify the first certificate"),
+        { attacker: entry("https://evil.example/remote.php/dav", 99) },
+      );
+      expect(built).toEqual([PUB]);
+      expect(asked).toEqual([PUB]);
+      expect(row.config.url).toBe(PUB);
+      expect((row.config.confirmedAccess as Record<string, { url: string }>).laptop.url).toBe(PUB);
+    });
+
+    it("the own address down while another device confirmed a LAN address later: one request, to the own address (outage)", async () => {
+      const { asked, row } = await cycleWith(
+        Object.assign(new Error("caldav propfind 503 Service Unavailable"), { status: 503 }),
+        { phone: entry("http://192.168.1.5/remote.php/dav", 2) },
+      );
+      expect(asked).toEqual([PUB]);
+      expect(row.config.url).toBe(PUB);
+    });
+  });
+
   // S8: the choke point every provider's rows pass through. A series occurrence
   // arrives without a title of its own — which means "same as the series", not
   // "an event with no name" — and must reach the cache carrying the series'.

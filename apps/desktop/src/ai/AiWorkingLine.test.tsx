@@ -75,6 +75,17 @@ describe("the waiting line", () => {
     expect(count?.getAttribute("aria-hidden")).toBe("true");
     expect(count?.textContent).toBe("· 0:13");
   });
+
+  it("counts the seconds that passed, also when the timer was paused meanwhile (a sleeping laptop, a throttled window)", () => {
+    expect.hasAssertions();
+    const line = show(true);
+    // One tick arrives after 90 s of wall clock: the line shows the 90 s, not the one tick.
+    act(() => {
+      vi.setSystemTime(Date.now() + 89_000);
+      vi.advanceTimersByTime(1000);
+    });
+    expect(line.textContent).toBe("Thinking on this device· 1:30");
+  });
 });
 
 describe("a failure of a model on this device", () => {

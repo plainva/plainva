@@ -887,7 +887,10 @@ export function BasePinboardView({
       )}
       <style>{`
         .pv-pinboard-pin { opacity: 0; transition: opacity var(--dur-1) var(--ease-1); }
-        .pv-pinboard-card:hover .pv-pinboard-pin, .pv-pinboard-pin:focus-visible { opacity: 1; }
+        .pv-pinboard-pin:focus-visible { opacity: 1; }
+        @media (hover: hover) {
+          .pv-pinboard-card:hover .pv-pinboard-pin { opacity: 1; }
+        }
       `}</style>
     </div>
   );

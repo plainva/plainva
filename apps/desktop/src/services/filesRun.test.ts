@@ -33,9 +33,18 @@ describe("a vault standing still says why, as on the phone (third review, findin
     expect(filesStoppedStatus({ pausedHere: false, signedOut: true })).toEqual({ status: "error", messageKey: "deviceSignIn.needed", signInNeeded: true });
   });
 
+  it("names an address this device has not confirmed and asks for Confirm, never for a sign-in (review of F57, O3)", () => {
+    expect(filesStoppedStatus({ pausedHere: false, signedOut: true, unconfirmed: "http://192.168.1.5:80" })).toEqual({
+      status: "error", messageKey: "cloudAccounts.confirmAddress", params: { address: "http://192.168.1.5:80" }, signInNeeded: false, confirmEndpoint: "http://192.168.1.5:80",
+    });
+    expect(filesStoppedStatus({ pausedHere: true, signedOut: true, unconfirmed: "http://192.168.1.5:80" })).toEqual({ status: "off", messageKey: null, signInNeeded: false });
+  });
+
   it("is what the desktop sets when a vault signed out here opens, with the account to sign in", () => {
     const vault = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
-    expect(vault).toMatch(/filesStoppedStatus\(\{ pausedHere, signedOut: !!fileAccess\.signedOut \}\)/);
-    expect(vault).toMatch(/if \(!syncWorker && stoppedStatus\?\.signInNeeded\) \{\s*syncStatusStore\.set\(path, \{\s*status: stoppedStatus\.status,\s*message: i18n\.t\(stoppedStatus\.messageKey\),[\s\S]{0,120}signInAccountId,/);
+    expect(vault).toMatch(/filesStoppedStatus\(\{ pausedHere, signedOut: !!fileAccess\.signedOut, unconfirmed \}\)/);
+    // The vault's file access hears which addresses this device has not confirmed (F57; review of F57, O4).
+    expect(vault).toMatch(/resolveFileSyncAccess\(\s*\{[^}]*\},\s*filesViaBroker,\s*await unconfirmedSyncSlots\(path, \{ s3: s3Creds, webdav: webdavCreds \}\),\s*\)/);
+    expect(vault).toMatch(/if \(!syncWorker && \(stoppedStatus\?\.signInNeeded \|\| stoppedStatus\?\.confirmEndpoint\)\) \{\s*syncStatusStore\.set\(path, \{\s*status: stoppedStatus\.status,\s*message: i18n\.t\(stoppedStatus\.messageKey,[\s\S]{0,200}signInAccountId,\s*confirmEndpoint: stoppedStatus\.confirmEndpoint,/);
   });
 });

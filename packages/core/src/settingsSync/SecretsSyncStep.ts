@@ -39,6 +39,9 @@ export type SecretImportReason =
   | "older-entry"
   | "slot-read-failed"
   | "slot-write-failed"
+  | "superseded-by-exact-entry"
+  | "superseded-by-later-entry"
+  | "old-name-not-taken"
   | "tombstone-no-local-secret"
   | "unknown-account"
   | "unsupported-secret-type"
@@ -66,6 +69,13 @@ export interface SecretsImportResult {
   unknownAccounts: string[];
   /** Known obsolete entries that were intentionally not applied locally. */
   legacyEntries: string[];
+  /**
+   * Nothing to do: the port already took this document, against these
+   * accounts and slots, in an earlier round that left nothing open. The step
+   * reports nothing for it, so a round without a change writes nothing
+   * (review 2026-11-18, round seven).
+   */
+  settled?: boolean;
 }
 
 /** Shell bridge between the OS keychain and the shareable secrets bundle. */
@@ -74,6 +84,12 @@ export interface SecretsPort {
   exportBundle(): Promise<SecretsBundle>;
   /** Apply isolated, snapshot-protected write groups (binding-checked). */
   importBundle(bundle: SecretsBundle): Promise<SecretsImportResult>;
+  /**
+   * Whether the last export left records waiting for the shared document
+   * (a lost mark key, round twelve): then the document is imported even when
+   * the merge changed nothing, since only an import that read it ends them.
+   */
+  awaitsDocument?(): boolean;
 }
 
 export interface SecretsSyncStepOptions {
@@ -143,12 +159,15 @@ export class SecretsSyncStep {
 
     const merged = mergeSecretsBundles(local, remote, now);
 
-    // Import into the keychain only when the merge changed the local view.
-    if (stableStringify(merged.entries) !== stableStringify(local.entries)) {
+    // Import into the keychain only when the merge changed the local view, or
+    // when the port waits for the document.
+    if (stableStringify(merged.entries) !== stableStringify(local.entries) || this.options.port.awaitsDocument?.()) {
       if (this.options.allows && !this.options.allows()) throw new CalledOffError("secrets sync");
       const result = await this.options.port.importBundle(merged);
-      if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);
-      await this.options.onImportResult?.(result);
+      if (!result.settled) {
+        if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);
+        await this.options.onImportResult?.(result);
+      }
     }
 
     // Upload only when the merge changed the remote view (read-compare-retry

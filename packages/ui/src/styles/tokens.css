@@ -116,6 +116,9 @@
      around it that does not grow the line (wish 2026-10-19). */
   --md-task-size: auto;
   --md-task-hit: 0px;
+  /* The copy button of a code block in the text: its box, and the hit area a finger gets around it. */
+  --md-copy-size: 22px;
+  --md-copy-hit: 0px;
   --journal-taskbox-size: 15px;
   --switch-w: 34px;
   --switch-h: 18px;
@@ -348,6 +351,7 @@
   --taskbox-size: 24px;
   --md-task-size: 22px;
   --md-task-hit: calc((var(--touch-sm) - var(--md-task-size)) / 2);
+  --md-copy-hit: calc((var(--touch-sm) - var(--md-copy-size)) / 2);
   --journal-taskbox-size: 22px;
   --switch-w: 52px;
   --switch-h: 32px;

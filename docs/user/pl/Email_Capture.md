@@ -20,6 +20,8 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 
 **Konta e-mail bez hasła.** Konfiguracja, która nie powiodła się przy zapisie, mogła pozostawić wpis bez hasła (Plainva 0.8.3 na komputerze). Obszar **E-mail** jeden raz wskazuje konta, które na tym urządzeniu nie mają hasła i nigdy nie pobrały tu wiadomości. **Pokaż** wyświetla listę. Jeśli takie konto działa na innym urządzeniu, należy wybrać **Zaloguj się** — to wtedy właściwa droga. **Usuń** po potwierdzeniu kasuje wpis na wszystkich urządzeniach synchronizujących ustawienia tego vaultu, nigdy wiadomości ani pliki. **Później** ukrywa komunikat. Plainva nigdy nie usuwa niczego samodzielnie.
 
+Serwer poczty w sieci lokalnej dostaje hasło z urządzenia dopiero wtedy, gdy jego adres zostanie tam potwierdzony: [Adresy bez szyfrowania i lokalne](Sync_Setup.md#adresy-bez-szyfrowania-i-lokalne).
+
 ## Czytanie poczty
 
 Otwórz kartę e-mail przez lewy pasek akcji (ikona koperty) lub paletę poleceń (**Otwórz e-mail**). Lista pokazuje Twoją skrzynkę odbiorczą od najnowszych (nieprzeczytane pogrubione, **Wczytaj więcej** doładowuje kolejne). Wybranie wiadomości otwiera ją w **przeglądarce w piaskownicy**:

@@ -34,7 +34,7 @@ Plainva还可以在应用内运行你自己编写的小脚本：它们在封闭�
 2. **原子写入。** 先把内容写入同一文件夹中的一个临时文件，再将其重命名覆盖目标文件。一篇写了一半的笔记（比如崩溃之后留下的）比完全不改还要糟糕。Plainva自身对每一篇笔记都是这样写入的。
 3. **保留OKF Frontmatter与未知的键。** 重写一篇笔记时保留`type`和`okf_version`，并且绝不要丢弃你不认识的Frontmatter键——让它们原样经受住一次往返读写。不要去"整理"你看不懂的键。
 4. **绝不要碰`.plainva/`。** 这个文件夹保存着Plainva的设备本地索引、备份、关系图固定信息和同步状态。它不属于你的内容，绝不能被你的脚本写入、同步或提交到Git。
-5. **遵守`.base`的规则。** 一个`.base`只使用Obsidian的四个顶层键（`filters`、`formulas`、`properties`、`views`）；每个视图都需要一个`name`；筛选条件是单根的。所有Plainva专有的数据都放在嵌套的`plainva:`子键之下。[文件格式参考](File_Format_Reference.md#databases-base)中有完整的契约，包括一个双向关联的示例。
+5. **遵守`.base`的规则。** 一个`.base`只使用Obsidian的四个顶层键（`filters`、`formulas`、`properties`、`views`）；每个视图都需要一个`name`；筛选条件是单根的。所有Plainva专有的数据都放在嵌套的`plainva:`子键之下。[文件格式参考](File_Format_Reference.md#数据库base)中有完整的契约，包括一个双向关联的示例。
 6. **不要与编辑器抢占文件。** 如果一篇笔记正在Plainva中打开*并且*有未保存的修改，最好不要在同一时刻用脚本重写它。Plainva有冲突解决机制作为安全网，但最干净的做法是先让应用完成保存（或者去编辑那些当前没有打开的笔记）。
 
 ## 模式

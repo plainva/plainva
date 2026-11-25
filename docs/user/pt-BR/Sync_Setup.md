@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-11-18
+Última revisão: 2026-11-20
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -227,6 +227,13 @@ Ao adicionar arquivos no celular, o Plainva mostra origem, destino e colisões a
 ## Certificados de servidores próprios
 
 O Android também confia nas autoridades certificadoras instaladas nas configurações do sistema. Isso vale para todas as conexões do Plainva que usam essa configuração, não apenas um servidor WebDAV. No desktop, HTTP usa as autoridades do sistema e as raízes públicas; o iOS usa suas configurações de confiança. A validade e o nome do servidor continuam sendo verificados. Corrija certificados expirados, ainda não válidos ou de outro servidor. O Plainva nunca permite aceitar todos os certificados. Se o sistema não informar a causa exata, o Plainva informa a falha de verificação sem adivinhar. O diagnóstico HTTP móvel inclui método e código de erro, sem credenciais, nomes de certificados ou caminhos privados.
+
+<!-- endpoint-confirmation-2026-11-18 -->
+## Endereços sem criptografia e locais
+
+Quando a senha de uma conta vai para um endereço com `http` ou em uma rede local (por exemplo `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` ou um nome sem ponto), o Plainva só a envia de um dispositivo depois que esse endereço for confirmado nele. Se você configurou a conta neste dispositivo, o endereço conta como confirmado; o mesmo vale se a senha dela já estava neste dispositivo na atualização e não veio pela sincronização. Se a conta chegou a um dispositivo só pela sincronização, o cartão dela em **Contas na nuvem** mostra a linha **Confirmar endereço** com o endereço; até você escolher **Confirmar**, nenhuma senha vai para lá a partir deste dispositivo — para agenda e tarefas, e-mail e arquivos. Uma senha que você digita ali, ao entrar ou ao alterar a senha, também não confirma o endereço: o Plainva pergunta primeiro por ele. A confirmação fica neste dispositivo e não é sincronizada.
+
+Limites: um nome público que aponta para um endereço local não é reconhecido. A confirmação vale para o endereço, não para a rede: com o mesmo dispositivo na rede de outra pessoa com a mesma faixa de endereços, ela não protege você.
 
 <!-- workspace-retry-2026-09-14 -->
 ## Novas tentativas automáticas e histórico de sincronização ausente

@@ -108,7 +108,16 @@ async function aVault(): Promise<void> {
   await vault.writeTextFile("Projects/Plan.md", "# Plan\n");
   await vault.writeTextFile("Projects/Zenn/draft.md", "# Draft\n");
   await vault.writeTextFile("Projects/Zenn/data.csv", "id;name\n");
+  // Fixed instants long in the past instead of "now" (and "now + 5 s" below): whether the index trusts a timestamp
+  // depends on how close it lies to the moment of the read (a file system's tick, the racy-timestamp rule), so a
+  // test that stamped files with the wall clock behaved differently on a slow or loaded machine.
+  for (const file of ["Inbox.md", "Projects/Plan.md", "Projects/Zenn/draft.md", "Projects/Zenn/data.csv"]) await stampedAt(file, FIRST_STAMP);
 }
+
+/** Two instants years apart and far from any clock reading of a test run. */
+const FIRST_STAMP = Date.UTC(2020, 0, 1, 12, 0, 0);
+const LATER_STAMP = Date.UTC(2021, 0, 1, 12, 0, 0);
+const stampedAt = (file: string, ms: number) => fs.utimes(path.join(root, file), new Date(ms), new Date(ms));
 
 describe("the full scan (issue #125)", () => {
   it("indexes the vault around a link whose target is not on this device, and names the link", async () => {
@@ -139,7 +148,7 @@ describe("the full scan (issue #125)", () => {
     await indexer.indexVaultFull("open, empty index");
     fresh.length = 0;
     await fs.writeFile(path.join(root, "Projects/Plan.md"), "# Plan\n\nchanged\n", "utf8");
-    await fs.utimes(path.join(root, "Projects/Plan.md"), new Date(), new Date(Date.now() + 5000));
+    await stampedAt("Projects/Plan.md", LATER_STAMP);
     cannotBeRead("Projects/Plan.md");
 
     const report = await indexer.indexVaultFull("return to the app");
@@ -153,7 +162,7 @@ describe("the full scan (issue #125)", () => {
     await aVault();
     await indexer.indexVaultFull("open, empty index");
     await fs.writeFile(path.join(root, "Projects/Plan.md"), "# Plan\n\nchanged\n", "utf8");
-    await fs.utimes(path.join(root, "Projects/Plan.md"), new Date(), new Date(Date.now() + 5000));
+    await stampedAt("Projects/Plan.md", LATER_STAMP);
     vanishesBeforeItsRead("Projects/Plan.md");
 
     const report = await indexer.indexVaultFull("return to the app");

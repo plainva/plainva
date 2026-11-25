@@ -13,7 +13,8 @@ nix build .#plainva-bin
 nix develop                                  # development shell
 ```
 
-The package installs `bin/plainva-desktop` and keeps the icons and the
+The package installs `bin/plainva-desktop`, from 0.9.0 on also `bin/plainva-mcp`
+and the ONNX Runtime under `lib/Plainva/onnxruntime/`, and keeps the icons and the
 `.desktop` file exactly as the release ships them. It covers x86_64 Linux only,
 the one platform with a `.deb` on the release page. It is maintained by the
 community, and the release checks do not build it.
@@ -42,17 +43,17 @@ environment of the app.
 
 ```bash
 nix store prefetch-file --json --hash-type sha256 \
-  https://github.com/plainva/plainva/releases/download/v0.8.7/Plainva_0.8.7_amd64.deb
+  https://github.com/plainva/plainva/releases/download/v0.9.0/Plainva_0.9.0_amd64.deb
 ```
 
 Without Nix, from the digest GitHub shows for the release asset (hex SHA-256 to
 the SRI form Nix expects):
 
 ```bash
-gh api repos/plainva/plainva/releases/tags/v0.8.7 \
+gh api repos/plainva/plainva/releases/tags/v0.9.0 \
   --jq '.assets[] | select(.name | endswith("_amd64.deb")) | .digest'
-# sha256:ebbfc1cc…  ->
-echo "sha256-$(echo ebbfc1cc… | xxd -r -p | base64)"
+# sha256:c182daf7…  ->
+echo "sha256-$(echo c182daf7… | xxd -r -p | base64)"
 ```
 
 ## Updating nixpkgs — `flake.lock`

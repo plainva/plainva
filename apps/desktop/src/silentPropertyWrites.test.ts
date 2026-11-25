@@ -685,6 +685,10 @@ const STRETCHES: Stretch[] = [
     how: "a message with the reason", says: [SAID],
   },
   {
+    file: "apps/mobile/src/screens/GraphScreen.tsx", at: "const removeEdgeRelation = async (", span: 1200, calls: { removeRelationLink: 1 },
+    how: "a message with the reason as errorText reads it", says: [SAID],
+  },
+  {
     file: "apps/mobile/src/screens/GraphScreen.tsx", at: "const runConnect = async (", span: 2200, calls: { writeRelationLink: 1 },
     how: "a message with the reason as errorText reads it, and no \"link created\" behind it",
     says: [/catch \(e\) \{\s*toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*return;/],
@@ -717,6 +721,19 @@ const STRETCHES: Stretch[] = [
   {
     file: "apps/desktop/src/components/TemplateTargetsModal.tsx", at: "const add = async (", span: 900, calls: { addTemplateForAssignment: 1 },
     how: "a message; the chips are drawn from the text that was written", says: [SAID],
+  },
+  {
+    file: "apps/mobile/src/services/templateAssignment.ts", at: "export async function setTemplateAssignment(", span: 700, calls: { addTemplateForAssignment: 1 },
+    how: "thrown on to the caller of setTemplateAssignment",
+    never: THROWN_ON, passesOn: ["setTemplateAssignment"],
+  },
+  {
+    file: "apps/mobile/src/screens/base/BaseTemplatesSheet.tsx", at: "const toggleAssign = async (", span: 600, calls: { setTemplateAssignment: 1 },
+    how: "a message; the sheet reads the templates again and shows what they hold", says: [SAID],
+  },
+  {
+    file: "apps/mobile/src/screens/base/TemplateTargetsSheet.tsx", at: "const change = async (", span: 600, calls: { setTemplateAssignment: 1 },
+    how: "a message; the chips are drawn from the template as it lies there", says: [SAID],
   },
   {
     file: "packages/ui/src/lib/templateActions.ts", at: "export async function createTemplateIn(", span: 900, calls: { [set]: 1, addTemplateForAssignment: 1 },

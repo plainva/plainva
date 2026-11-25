@@ -1,10 +1,17 @@
-import { canonicalSecretId, canonicalizeEndpoint, type SecretBinding, type SecretsPort } from "@plainva/core";
+import { canonicalSecretId, type SecretsPort } from "@plainva/core";
 import {
+  calDavSecretBinding,
   createSecretsPort,
+  imapSecretBinding,
   familyOfCalDavUrl,
   familyOfImapHost,
   getPlatformServices,
   migrateSecretsMetaToCanonicalIds,
+  retireSecret,
+  mergeLegacySecretsMeta,
+  sealSecretsMetaInStore,
+  secretImportedFor,
+  storeHoldsSecretsMarks,
   type LocalSecretCandidate,
   type SecretsPortMeta,
 } from "@plainva/ui";
@@ -35,7 +42,32 @@ import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pi
  * candidate leaves no trace. The name now comes from the credential itself.
  */
 
-const metaKey = (vaultId: string) => `settingsSyncSecretMetaMobile_${vaultId}`;
+/**
+ * The record of a vault's secrets sync, under this version's name. The name
+ * 0.8.7 reads (`LEGACY_META_PREFIX`) is left empty once sealed, so a phone
+ * that goes back to 0.8.7 starts like a new one (`secretsMark.ts`, F67).
+ */
+const META_PREFIX = "settingsSyncSecretMarksMobile_";
+const LEGACY_META_PREFIX = "settingsSyncSecretMetaMobile_";
+const metaKey = (vaultId: string) => `${META_PREFIX}${vaultId}`;
+const legacyMetaKey = (vaultId: string) => `${LEGACY_META_PREFIX}${vaultId}`;
+/**
+ * What "Remove account" asked to be tombstoned, under a name of its own: only
+ * bindings, never a mark, so a removal before the marks are sealed writes no
+ * password anywhere (round eleven).
+ */
+const retiredKey = (vaultId: string) => `settingsSyncSecretRetiredMobile_${vaultId}`;
+const META_STORAGE = {
+  current: (legacyKey: string) => META_PREFIX + legacyKey.slice(LEGACY_META_PREFIX.length),
+  isLegacy: (key: string) => key.startsWith(LEGACY_META_PREFIX),
+};
+/** The key of the marks, from the keychain, which throws when it does not answer. */
+const markKeySlots = {
+  readSlot: (slot: string) => getPlatformServices().credentials.readSecret(slot),
+  writeSlot: (slot: string, value: unknown) => getPlatformServices().credentials.writeSecret(slot, value),
+  // One key for the phone: the records of every vault count (round twelve).
+  marksOnDevice: async () => storeHoldsSecretsMarks(await settingsStore(), (key) => key.startsWith(META_PREFIX) || key.startsWith(LEGACY_META_PREFIX)),
+};
 const deviceKey = "settingsSyncDeviceIdMobile";
 
 async function settingsStore() {
@@ -65,15 +97,9 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
       if (!url || !user) continue;
-      const binding: SecretBinding = {
-        // Same fallback chain as the desktop, so the SAME account produces the
-        // same binding on both platforms — otherwise no entry would ever match.
-        family: familyOfCalDavUrl(url) ?? "webdav",
-        service: "calendar",
-        secretType: "caldav-password",
-        user: user.trim().toLowerCase(),
-        endpoint: canonicalizeEndpoint(url),
-      };
+      // Same fallback chain as the desktop, so the SAME account produces the
+      // same binding on both platforms — otherwise no entry would ever match.
+      const binding = calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user);
       out.push({
         logicalId: canonicalSecretId(binding),
         slot,
@@ -88,14 +114,7 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
     if (mailAccountKind(account) !== "imap") continue; // Microsoft = OAuth, never synced
     const slot = mailSecretKey(vaultId, account.id);
     const stored = await getPlatformServices().credentials.readSecret<{ pass?: string; refreshToken?: string }>(slot);
-    const scheme = account.port === 993 ? "imaps" : "imap+starttls";
-    const binding: SecretBinding = {
-      family: familyOfImapHost(account.host) ?? "imap",
-      service: "mail",
-      secretType: "imap-password",
-      user: account.user.trim().toLowerCase(),
-      endpoint: canonicalizeEndpoint(`${scheme}://${account.host}:${account.port}`),
-    };
+    const binding = imapSecretBinding(familyOfImapHost(account.host) ?? "imap", account.host, account.port, account.user);
     out.push({
       logicalId: canonicalSecretId(binding),
       slot,
@@ -106,6 +125,75 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
   }
 
   return out;
+}
+
+/**
+ * Whether a calendar's or a mailbox's password came through the settings sync
+ * from another device (`meta.imported`) — not typed here. The one-time
+ * switch-over of F57 (`endpointConfirmationSettle.ts`) takes every other one
+ * as this phone's own. Works without the calendar runtime, from what the
+ * caller read.
+ */
+export async function importedSecretOf(vaultId: string): Promise<{ caldav(url: string, user: string): boolean; imap(account: { host: string; port: number; user: string }): boolean }> {
+  // Unreadable is no "nothing imported": the caller proves nothing then (F57).
+  const meta = await metaStore(vaultId).readMeta();
+  // Under either name: 0.8.7 marked it under the old one (review of F57, O-1).
+  const imported = (binding: Parameters<typeof secretImportedFor>[1]) => secretImportedFor(meta, binding);
+  return {
+    caldav: (url, user) => imported(calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user)),
+    imap: (account) => imported(imapSecretBinding(familyOfImapHost(account.host) ?? "imap", account.host, account.port, account.user)),
+  };
+}
+
+function metaStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () => {
+      const store = await settingsStore();
+      const current = (await store.get<SecretsPortMeta>(metaKey(vaultId))) ?? null;
+      const legacy = (await store.get<SecretsPortMeta>(legacyMetaKey(vaultId))) ?? null;
+      const retired = (await store.get<SecretsPortMeta["retired"]>(retiredKey(vaultId))) ?? null;
+      const meta = mergeLegacySecretsMeta(current, legacy) ?? (retired ? { entries: {}, imported: {}, quarantine: {} } : null);
+      if (meta && retired) meta.retired = { ...(meta.retired ?? {}), ...retired };
+      return migrateSecretsMetaToCanonicalIds(meta);
+    },
+    writeMeta: async (meta) => {
+      const store = await settingsStore();
+      const { retired, ...marks } = meta;
+      await store.set(metaKey(vaultId), marks);
+      if (retired && Object.keys(retired).length > 0) await store.set(retiredKey(vaultId), retired);
+      else await store.delete(retiredKey(vaultId));
+      // Taken in by this write: under the old name, nothing stays.
+      await store.delete(legacyMetaKey(vaultId));
+      await store.save();
+    },
+  };
+}
+
+/** The pending removals alone, for `retireSecret`: it never reads or writes a mark. */
+function retiredStore(vaultId: string): { readMeta(): Promise<SecretsPortMeta | null>; writeMeta(meta: SecretsPortMeta): Promise<void> } {
+  return {
+    readMeta: async () => ({ entries: {}, imported: {}, quarantine: {}, retired: (await (await settingsStore()).get<SecretsPortMeta["retired"]>(retiredKey(vaultId))) ?? {} }),
+    writeMeta: async (meta) => {
+      const store = await settingsStore();
+      await store.set(retiredKey(vaultId), meta.retired ?? {});
+      await store.save();
+    },
+  };
+}
+
+/**
+ * At start, before any vault opens: the secrets metadata of every vault on
+ * this phone, open or not, loses the plain marks that up to now carried each
+ * password in the app's settings — which the system backup also copies (F67,
+ * `secretsMark.ts`). The key of the new marks lives in the keychain.
+ */
+export async function sealSecretsMetaAtStart(): Promise<number> {
+  return sealSecretsMetaInStore(await settingsStore(), META_STORAGE, markKeySlots);
+}
+
+/** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`), as on the desktop. */
+export async function retireCalDavSecret(vaultId: string, url: string, user: string): Promise<void> {
+  await retireSecret(retiredStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
 }
 
 /** Mobile keychain bridge for the secrets sideband. */
@@ -121,18 +209,11 @@ export function createMobileSecretsPort(vaultId: string): SecretsPort {
     accountsReady: async () => isPimRuntimeReady(),
     // See the desktop port: pre-P4c metadata is keyed by the old per-device
     // names, the candidates above by the canonical one.
-    readMeta: async () =>
-      migrateSecretsMetaToCanonicalIds(
-        (await (await settingsStore()).get<SecretsPortMeta>(metaKey(vaultId))) ?? null,
-      ),
-    writeMeta: async (meta) => {
-      const store = await settingsStore();
-      await store.set(metaKey(vaultId), meta);
-      await store.save();
-    },
+    ...metaStore(vaultId),
     candidates: () => mobileCandidates(vaultId),
     readSlot: (slot) => getPlatformServices().credentials.readSecret(slot),
     writeSlot: (slot, value) => getPlatformServices().credentials.writeSecret(slot, value),
     removeSlot: (slot) => getPlatformServices().credentials.removeSecret(slot),
+    marksOnDevice: markKeySlots.marksOnDevice,
   });
 }

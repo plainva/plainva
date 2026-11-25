@@ -221,13 +221,29 @@ export function identityKey(label: string | undefined): string | null {
   return isSimpleEmail(trimmed) ? trimmed : null;
 }
 
+/**
+ * The key two account cards of one family are joined by while neither has a
+ * verified identity (review 2026-11-18). Google and Microsoft vouch for an
+ * e-mail address, which is one account in any case of its letters; for every
+ * other family the label is a user the server decides on, so it is compared
+ * character for character — "Alice@x" and "alice@x" on a Nextcloud are two
+ * accounts, each with its own card.
+ */
+export function cardIdentityKey(family: CloudProviderFamily, label: string | undefined): string | null {
+  if (family === "google" || family === "microsoft") return identityKey(label);
+  const trimmed = (label ?? "").trim();
+  return identityKey(trimmed) ? trimmed : null;
+}
+
 /** What a shell observed in its subsystem stores (the runtime truth).
  * `family` overrides the coarse provider-derived family when the shell
  * recognized a catalog provider from the entry's URL/host (providerCatalog
  * helpers) — the observation stays the single place that knows URLs. */
 export interface ObservedCloudState {
-  sync?: { provider: SyncProviderId; identity?: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily };
-  pim: { id: string; provider: "caldav" | "google" | "microsoft" | "device"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
+  /** `passwordIdentity`: server and user of a password access (`passwordAccountIdentity`), for WebDAV files. */
+  sync?: { provider: SyncProviderId; identity?: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; flavor?: "nextcloud"; family?: CloudProviderFamily; passwordIdentity?: string };
+  /** `passwordIdentity`: the same for a CalDAV row. */
+  pim: { id: string; provider: "caldav" | "google" | "microsoft" | "device"; label: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily; passwordIdentity?: string }[];
   mail: { id: string; kind: "imap" | "microsoft" | "gmail"; label: string; user: string; host: string; verifiedProviderIdentity?: VerifiedProviderIdentity; byoClientId?: string; family?: CloudProviderFamily }[];
 }
 
@@ -309,11 +325,30 @@ export function reconcileCloudAccounts(
     });
   };
 
+  /**
+   * The card of the same password access (GitHub issue 174, decided 2026-11-16): an
+   * access with a password has no verified identity, but its server and user
+   * name it as surely. A calendar row of the Nextcloud whose files a card
+   * already carries joins that card instead of becoming a card of its own.
+   * Only for a service the card does not carry yet — a second row of one
+   * account stays a card of its own and goes through the guided repair.
+   */
+  const passwordTarget = (family: CloudProviderFamily, identity: string | undefined, lacking: "calendar" | "files"): CloudAccountRecord | undefined => {
+    if (!identity) return undefined;
+    return records.find((record) => {
+      if (record.family !== family || record.services[lacking]) return false;
+      const calendar = record.services.calendar ? pimById.get(record.services.calendar.pimAccountId) : undefined;
+      if (calendar?.passwordIdentity === identity) return true;
+      return !!record.services.files && observed.sync?.passwordIdentity === identity;
+    });
+  };
+
   // 2) Unbound calendar accounts.
   for (const pim of observed.pim) {
     if (boundPim.has(pim.id)) continue;
     const family = pim.family ?? familyOfPimProvider(pim.provider);
-    const target = attachTarget(family, pim.verifiedProviderIdentity);
+    const target = attachTarget(family, pim.verifiedProviderIdentity)
+      ?? (pim.verifiedProviderIdentity ? undefined : passwordTarget(family, pim.passwordIdentity, "calendar"));
     if (target && !target.services.calendar) {
       target.services.calendar = { pimAccountId: pim.id };
       target.label = betterLabel(target.label, pim.label);
@@ -361,7 +396,8 @@ export function reconcileCloudAccounts(
   // 4) Unbound file sync of this vault.
   if (observed.sync && !filesBound) {
     const family = observed.sync.family ?? familyOfSyncProvider(observed.sync.provider);
-    const target = attachTarget(family, observed.sync.verifiedProviderIdentity);
+    const target = attachTarget(family, observed.sync.verifiedProviderIdentity)
+      ?? (observed.sync.verifiedProviderIdentity ? undefined : passwordTarget(family, observed.sync.passwordIdentity, "files"));
     if (target && !target.services.files) {
       target.services.files = { provider: observed.sync.provider };
       target.label = betterLabel(target.label, observed.sync.identity);

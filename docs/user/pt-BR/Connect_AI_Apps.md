@@ -1,6 +1,6 @@
 # Conectar apps de IA (Beta)
 
-Última revisão: 2026-11-18
+Última revisão: 2026-11-20
 
 Apps de IA no seu computador — Claude Code, Claude Desktop, Cursor, VS Code e outros que falam o Model Context Protocol (MCP) — podem ler o seu vault pelo Plainva: pesquisar nele, ler notas e suas seções, estruturas, backlinks, bancos de dados, tarefas e notas recentes, e abrir uma nota no Plainva. Sozinhos eles não mudam nada: um app a que você permitir pode sugerir alterações, e elas esperam até você decidir (veja abaixo). Isso faz parte das funções experimentais de IA e funciona só no desktop.
 
@@ -14,7 +14,7 @@ O Plainva traz ao lado do app um pequeno programa auxiliar, `plainva-mcp`. Um ap
 
 ## Ativar
 
-1. Abra **Configurações → IA** e ative **Usar IA neste dispositivo**; o cartão **Apps de IA neste computador** fica mais abaixo na página.
+1. Abra **Configurações → IA** e ative **Usar IA neste dispositivo**; as linhas dos apps de IA neste computador ficam no cartão **Outros programas**, mais abaixo na página.
 2. Ative **Deixar apps de IA deste computador lerem este vault**.
 3. Configure o app (veja abaixo). Na primeira conexão, o Plainva pergunta qual app é, qual programa o iniciou e quais pastas ele pode ler. Nada vem marcado: escolha entre as pastas de nível superior do vault ou **O vault inteiro** e depois **Permitir**. **Recusar** afasta o app, e o Plainva não pergunta por ele de novo durante dez minutos. Abaixo das pastas fica **Pode sugerir alterações** — desativado enquanto você não marcar; o que isso permite está descrito mais abaixo.
 

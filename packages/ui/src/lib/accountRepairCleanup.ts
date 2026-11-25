@@ -40,6 +40,12 @@ export interface AccountRepairCleanupResources {
   listMailAccounts(): Promise<MailAccountConfig[]>;
   replaceMailAccounts(accounts: MailAccountConfig[]): Promise<void>;
   accountSecretSlot(accountId: string): string;
+  /**
+   * Whether the card's sign-in is owed a deletion (`isSignInDeletionOwed`):
+   * then it is never copied into the card that remains, and nothing is copied
+   * into a card that is owed one itself (review 2026-11-18).
+   */
+  owedSignIn?(accountId: string): Promise<boolean>;
   pimSecretSlot(accountId: string): string;
   mailSecretSlot(accountId: string): string;
 }
@@ -155,11 +161,16 @@ export async function cleanupRepairedAccount(
   try {
     const targetSlot = resources.accountSecretSlot(cleanup.targetAccountId);
     const target = entries.find((entry) => entry.slot === targetSlot)?.value ?? null;
-    if (target === null) {
-      const source = cleanup.accountIds
-        .map((id) => entries.find((entry) => entry.slot === resources.accountSecretSlot(id))?.value ?? null)
-        .find((value) => value !== null);
-      if (source !== undefined) await resources.credentials.writeSecret(targetSlot, source);
+    const owed = async (id: string) => (resources.owedSignIn ? resources.owedSignIn(id).catch(() => false) : false);
+    if (target === null && !(await owed(cleanup.targetAccountId))) {
+      let source: unknown = null;
+      for (const id of cleanup.accountIds) {
+        const value = entries.find((entry) => entry.slot === resources.accountSecretSlot(id))?.value ?? null;
+        if (value === null || (await owed(id))) continue;
+        source = value;
+        break;
+      }
+      if (source !== null) await resources.credentials.writeSecret(targetSlot, source);
     }
 
     if (resources.pimCache) {

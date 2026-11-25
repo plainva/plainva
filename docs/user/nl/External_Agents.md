@@ -1,6 +1,6 @@
 # Externe agents (Beta)
 
-Laatst bijgewerkt: 2026-11-18
+Laatst bijgewerkt: 2026-11-20
 
 Een externe agent is een AI-programma van een andere maker — een agent die je op je computer hebt geïnstalleerd en waarbij je je zelf hebt aangemeld, met je eigen abonnement of sleutel. Plainva kan zo'n agent in de map van een vault starten en zijn sessie in het AI-tabblad tonen. Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
@@ -25,7 +25,7 @@ Start een agent alleen in een vault waarvan de inhoud de dienst van de agent mag
 ## Een agent toevoegen
 
 1. Installeer de agent zelf, zoals zijn maker het beschrijft, en meld je in zijn eigen programma bij hem aan.
-2. Open **Instellingen → AI**. Op de kaart **Externe agents** markeert **Gevonden op deze computer** de agents die Plainva bij naam kent en geïnstalleerd vindt; **Toevoegen** voegt er een toe. Kies voor elk ander programma dat het Agent Client Protocol spreekt onder **Een andere agent** voor **Agent toevoegen…** en vul **Naam**, **Programma** en **Argumenten, één per regel** in.
+2. Open **Instellingen → AI**. Op de kaart **Andere programma's**, onder **Externe agents**, markeert **Gevonden op deze computer** de agents die Plainva bij naam kent en geïnstalleerd vindt; **Toevoegen** voegt er een toe. Kies voor elk ander programma dat het Agent Client Protocol spreekt onder **Een andere agent** voor **Agent toevoegen…** en vul **Naam**, **Programma** en **Argumenten, één per regel** in.
 3. Je systeem toont de hele opdracht nog een keer voordat ze wordt onthouden.
 
 Plainva installeert geen agent en downloadt er geen. Het start precies het programma dat je hebt bevestigd, rechtstreeks en zonder shell. De opdracht wordt op dit apparaat onthouden, nooit in de vault. **Verwijderen** laat Plainva vergeten hoe een agent wordt gestart; het programma zelf en zijn aanmelding blijven zoals ze zijn.

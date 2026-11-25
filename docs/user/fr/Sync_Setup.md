@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-11-18
+Dernière mise à jour : 2026-11-20
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -227,6 +227,13 @@ Lors de l’ajout de fichiers sur mobile, Plainva affiche la source, la destinat
 ## Certificats des serveurs auto-hébergés
 
 Android fait également confiance aux autorités de certification installées dans les paramètres système. Cela concerne toutes les connexions Plainva utilisant cette configuration, pas seulement un serveur WebDAV. Sur ordinateur, les connexions HTTP utilisent les autorités système et les racines publiques ; iOS utilise ses réglages de confiance système. La validité et le nom du serveur restent vérifiés. Corrigez un certificat expiré, pas encore valide ou destiné à un autre serveur. Plainva ne propose jamais d’accepter tous les certificats. Si le système ne précise pas la cause, Plainva indique simplement que la vérification a échoué. L’export de diagnostic des erreurs HTTP mobiles contient la méthode et le code d’erreur, sans identifiants, noms de certificats ni chemins privés.
+
+<!-- endpoint-confirmation-2026-11-18 -->
+## Adresses non chiffrées et locales
+
+Quand le mot de passe d’un compte va vers une adresse en `http` ou sur un réseau local (par exemple `192.168.…`, `10.…`, `.local`, `.lan`, `.home.arpa` ou un nom sans point), Plainva ne l’envoie depuis un appareil qu’une fois cette adresse confirmée sur celui-ci. Si tu as configuré le compte sur cet appareil, l’adresse compte comme confirmée ; de même si son mot de passe était déjà sur cet appareil lors de la mise à jour et n’est pas arrivé par la synchronisation. Si le compte n’est arrivé sur un appareil que par la synchronisation, sa carte dans **Comptes cloud** affiche la ligne **Confirmer l’adresse** avec l’adresse ; tant que tu ne choisis pas **Confirmer**, aucun mot de passe n’y part depuis cet appareil — pour l’agenda et les tâches, l’e-mail et les fichiers. Un mot de passe que tu y saisis, en te connectant ou en changeant le mot de passe, ne confirme pas non plus l’adresse : Plainva la demande d’abord. La confirmation reste sur cet appareil et ne voyage pas.
+
+Limites : un nom public qui pointe vers une adresse locale n’est pas reconnu. La confirmation vaut pour l’adresse, pas pour le réseau : avec le même appareil dans le réseau de quelqu’un d’autre ayant la même plage d’adresses, elle ne te protège pas.
 
 <!-- workspace-retry-2026-09-14 -->
 ## Nouvelles tentatives automatiques et historique manquant

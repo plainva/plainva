@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Button, gistsStatusLine, SettingCard, SettingCardNote, SettingRow, Switch, useAiState, useLocalGists, type AiSession } from "@plainva/ui";
+import { Button, gistsStatusLine, SettingCardNote, SettingRow, Switch, useAiState, useLocalGists, type AiSession } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 
 /**
@@ -9,7 +9,7 @@ import { appConfirm } from "../../services/appDialogs";
  * model — or why nothing is —, pause, and removing every gist of the vault.
  * The same choice as the phone's AI screen.
  */
-export function GistsCard({ session }: { session: AiSession }) {
+export function GistsRows({ session }: { session: AiSession }) {
   const { t, i18n } = useTranslation();
   const settings = useAiState()?.settings;
   const { controller, state } = useLocalGists();
@@ -20,7 +20,7 @@ export function GistsCard({ session }: { session: AiSession }) {
     if (ok) await controller?.clear();
   };
   return (
-    <SettingCard label={t("ai.gists.title")}>
+    <>
       <SettingRow label={t("ai.gists.show")} info={t("ai.gists.showDesc")}>
         <Switch checked={settings.gists} label={t("ai.gists.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, gists: on }))} testId="gists-show" />
       </SettingRow>
@@ -44,6 +44,6 @@ export function GistsCard({ session }: { session: AiSession }) {
           testId="transcript-summary"
         />
       </SettingRow>
-    </SettingCard>
+    </>
   );
 }

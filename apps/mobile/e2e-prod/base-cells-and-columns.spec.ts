@@ -101,8 +101,8 @@ test("a reverse relation's cell writes the link into the other note, and takes i
 
     // Written in Beta's owning property — not in Globex — and the rest of Beta stays.
     await expect.poll(() => read("vault/Projekte/Beta.md"), { timeout: 10000 }).toMatch(/kunde: "?\[\[Globex\]\]"?/);
-    expect(await read("vault/Projekte/Beta.md")).toMatch(/^---\nstatus: done\nkunde: .*\n---\n# Beta\n\nBody stays\.\n$/);
-    expect(await read("vault/Kunden/Globex.md")).toBe("---\nbranche: energie\n---\n# Globex\n");
+    await expect.poll(() => read("vault/Projekte/Beta.md"), { timeout: 10000 }).toMatch(/^---\nstatus: done\nkunde: .*\n---\n# Beta\n\nBody stays\.\n$/);
+    await expect.poll(() => read("vault/Kunden/Globex.md"), { timeout: 10000 }).toBe("---\nbranche: energie\n---\n# Globex\n");
     await expect(row("Globex")).toContainText("Beta", { timeout: 10000 });
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("phone-reverse-cell-written.png") });
 
@@ -168,8 +168,8 @@ test("a column's editor fills the property into the notes that lack it, and a da
     await expect(page.locator(".m-sheet").filter({ hasText: 'The property "Owner" will be added (empty) to 2 files.' })).toBeVisible();
     await page.getByTestId("confirm-act").click();
     await expect.poll(() => read("vault/Chores/Gamma.md"), { timeout: 10000 }).toMatch(/^---\nowner: ("")?\n---\n# Gamma\n$/);
-    expect(await read("vault/Chores/Beta.md")).toMatch(/^---\ndue: 2026-11-06T09:30\nowner: ("")?\n---\n# Beta\n$/);
-    expect(await read("vault/Chores/Alpha.md")).toBe("---\r\nowner: Ann # lead\r\ndue: 2026-11-05\r\n---\r\n# Alpha\r\n");
+    await expect.poll(() => read("vault/Chores/Beta.md"), { timeout: 10000 }).toMatch(/^---\ndue: 2026-11-06T09:30\nowner: ("")?\n---\n# Beta\n$/);
+    await expect.poll(() => read("vault/Chores/Alpha.md"), { timeout: 10000 }).toBe("---\r\nowner: Ann # lead\r\ndue: 2026-11-05\r\n---\r\n# Alpha\r\n");
     // Filled: the section is gone once the rows carry the property.
     await expect(page.getByTestId("base-property-fill-missing")).toHaveCount(0, { timeout: 10000 });
     await page.locator(".m-sheet-backdrop").last().click({ position: { x: 5, y: 5 } });
@@ -179,7 +179,7 @@ test("a column's editor fills the property into the notes that lack it, and a da
     const due = page.locator(".m-sheet").filter({ hasText: "Property: Due" });
     await due.getByRole("button", { name: "Date & time", exact: true }).click();
     await expect.poll(() => read("vault/Chores/Alpha.md"), { timeout: 10000 }).toBe("---\r\nowner: Ann # lead\r\ndue: 2026-11-05T12:00\r\n---\r\n# Alpha\r\n");
-    expect(await read("vault/Chores/Beta.md")).toContain("due: 2026-11-06T09:30\n");
+    await expect.poll(() => read("vault/Chores/Beta.md"), { timeout: 10000 }).toContain("due: 2026-11-06T09:30\n");
     await expect.poll(() => read("vault/Chore board.base"), { timeout: 10000 }).toMatch(/note\.due:[\s\S]*input: datetime/);
 
     // Date & time -> Date: asked first; a declined question changes nothing.
@@ -187,7 +187,7 @@ test("a column's editor fills the property into the notes that lack it, and a da
     await expect(page.locator(".m-sheet").filter({ hasText: 'Switching to "Date only" will discard' })).toBeVisible();
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("phone-date-switch-question.png") });
     await page.getByTestId("confirm-safe").click();
-    expect(await read("vault/Chores/Beta.md")).toContain("due: 2026-11-06T09:30\n");
+    await expect.poll(() => read("vault/Chores/Beta.md"), { timeout: 10000 }).toContain("due: 2026-11-06T09:30\n");
     await due.getByRole("button", { name: "Date", exact: true }).click();
     await page.getByTestId("confirm-act").click();
     await expect.poll(() => read("vault/Chores/Beta.md"), { timeout: 10000 }).toContain("due: 2026-11-06\n");
@@ -233,7 +233,7 @@ test("a calendar creates a date property and writes it into the shown notes", as
 
     await expect.poll(() => read("vault/Events/Launch.md"), { timeout: 10000 }).toMatch(/^---\nplace: Hall\nwhen: ("")?\n---\n# Launch\n$/);
     await expect.poll(() => read("vault/Gatherings.base"), { timeout: 10000 }).toMatch(/note\.when:[\s\S]*input: date/);
-    expect(await read("vault/Gatherings.base")).toMatch(/dateField: when/);
+    await expect.poll(() => read("vault/Gatherings.base"), { timeout: 10000 }).toMatch(/dateField: when/);
   } finally {
     sql.close();
   }
