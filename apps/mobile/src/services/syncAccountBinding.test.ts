@@ -18,7 +18,7 @@ vi.mock("../platform/secureStore", () => ({ secureCredentialStore: {
 } }));
 vi.mock("./cloudAccountsStore", () => ({ loadCloudAccounts: async () => state.records }));
 vi.mock("./vaultRegistry", async (original) => ({ ...await original<typeof import("./vaultRegistry")>(), getActiveVaultEntry: async () => ({ id: "other-vault" }), updateVault: state.resumed }));
-vi.mock("./vaultService", () => ({ getMobileVault: vi.fn(), switchVault: vi.fn() }));
+vi.mock("./vaultService", () => ({ getMobileVault: vi.fn(), switchVault: vi.fn(), runtimeOnScreen: () => null }));
 vi.mock("./syncRootFolder", () => ({ readSyncRootFolder: async () => "Vault", readDriveDestination: async () => ({ path: "Vault" }) }));
 vi.mock("@plainva/core", async (original) => ({
   ...await original<typeof import("@plainva/core")>(),

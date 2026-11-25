@@ -71,6 +71,56 @@ describe("the deadline of a close", () => {
     expect(messages()).toEqual([]);
   });
 
+  it("a step learns what it is for from its caller: nothing inside it reads the active vault or the current runtime without comparing", () => {
+    const sync = readFileSync(join(ROOT, "apps/mobile/src/services/syncService.ts"), "utf8");
+    const phone = readFileSync(join(ROOT, "apps/mobile/src/services/vaultService.ts"), "utf8");
+    const body = (source: string, head: string) => source.slice(source.indexOf(head), source.indexOf("\n}\n", source.indexOf(head)));
+    const stop = body(sync, "export async function stopSyncForStep(");
+    // THE DEFECT (probe m5): the step began with "the active vault", which a switch before its first wait had moved.
+    expect(stop, "stopSyncForStep").not.toMatch(/getActiveVaultEntry\(|getMobileVault\(/);
+    expect(stop).toMatch(/runtimeOnScreen\(\) === runtime/);
+    const renew = body(phone, "export async function renewAfterSyncGaveUp(");
+    expect(renew, "renewAfterSyncGaveUp").not.toMatch(/getActiveVaultEntry\(|retireBoot\(/);
+    expect(renew).toMatch(/^[^\n]*\n[\s\S]*?if \(runtimeOnScreen\(\) !== left\.runtime\) throw left\.notRun\(\);/);
+    // The one read of the runtime after its reopen is compared at once.
+    expect(renew).toMatch(/const fresh = await getMobileVault\(\);\s*\/\/[^\n]*\n\s*if \(fresh\.vaultId !== current\.vaultId\) throw left\.notRun\(\);/);
+    // Every step on the phone hands its vault in; none asks the registry what is active to decide what it is for.
+    for (const [file, head] of [
+      ["apps/mobile/src/services/syncService.ts", "export async function switchProviderToAccountBroker("],
+      ["apps/mobile/src/services/syncService.ts", "export async function disconnectFiles("],
+      ["apps/mobile/src/services/syncService.ts", "export async function changeRemoteFolder("],
+      ["apps/mobile/src/services/syncService.ts", "export function restartSyncIfActive("],
+    ] as const) {
+      const fn = body(readFileSync(join(ROOT, file), "utf8"), head);
+      expect(fn, head).not.toMatch(/getActiveVaultEntry\(/);
+      expect(fn, head).toMatch(/stopSyncForStep\(\{ vaultId|stopAndDrainNow\(v\)/);
+    }
+    const password = readFileSync(join(ROOT, "apps/mobile/src/services/accountPassword.ts"), "utf8");
+    expect(password.match(/await stopSyncForStep\(\{ vaultId \}\);/g), "the password's steps").toHaveLength(2);
+    expect(password).not.toMatch(/getActiveVaultEntry\(\)\)\.id === vaultId\) await stopSyncForStep/);
+  });
+
+  it("every caller of a step that can end with its own notice says no second one", () => {
+    // The callers of the steps that throw a `StepNoticeError` (the workspace's, the remote folder's), by file.
+    // [file, the calls of a step, how many, how many catches ask whether the step said it already]
+    const callers: Array<[string, RegExp, number, number]> = [
+      ["apps/desktop/src/components/security/SecuritySharingPage.tsx", /await (decommissionWorkspace|liftWorkspaceEncryption|resumePersonalWorkspaceSetup|restoreWorkspaceRecovery)\(/g, 4, 4],
+      // Resuming, lifting, decommissioning (the last two through `stopSyncLeaving`).
+      ["apps/mobile/src/screens/SecurityAreaScreen.tsx", /stopSyncForStep\(\{ vaultId: vault\.vaultId, runtime: vault \}\)|decommissionMobileWorkspace\(/g, 4, 3],
+      ["apps/mobile/src/screens/SecurityWizardScreen.tsx", /stopSyncForStep\(\{ vaultId: vault\.vaultId, runtime: vault \}\)/g, 1, 1],
+      ["apps/mobile/src/screens/AccountServiceScreen.tsx", /changeRemoteFolder\(/g, 2, 2],
+    ];
+    for (const [file, call, count, asked] of callers) {
+      const source = readFileSync(join(ROOT, file), "utf8");
+      expect(source.match(call)?.length, `${file}: the callers counted`).toBe(count);
+      const said = (source.match(/stepFailureSaid\(|isStepNoticeError\(/g) ?? []).length;
+      // THE DEFECT: "resume setup" on the desktop, the remote folder on the phone added a failure of their own.
+      expect(said, `${file}: each caller asks whether the step said it already`).toBe(asked);
+    }
+    const overlay = readFileSync(join(ROOT, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
+    expect(overlay).toMatch(/if \(isStepNoticeError\(error\)\) workspaceActivationStore\.finish\(\);/);
+  });
+
   it("marks the provider gone only when it is taken down, not on a teardown inside it (the index rebuilt, then the vault loaded again)", () => {
     const desktop = readFileSync(join(ROOT, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
     const teardown = desktop.slice(desktop.indexOf("const teardownVault = async"), desktop.indexOf("const teardownVaultRef"));

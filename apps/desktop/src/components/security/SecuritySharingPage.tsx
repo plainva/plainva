@@ -355,7 +355,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       await refreshDiagnostics();
     } catch (error) {
       console.error("[SecuritySharingPage] resuming setup failed", error);
-      toast.error(t("workspaceSecurity.setupFailed"));
+      // A step's own notice (not run, did not finish) is the one word: no second one.
+      if (!isStepNoticeError(error)) toast.error(t("workspaceSecurity.setupFailed"));
     } finally { setBusy(false); }
   };
 

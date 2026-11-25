@@ -180,7 +180,7 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
         // published its own fail-closed guard would refuse the next cycle
         // anyway, and a half-finished plaintext push only adds noise.
         // Within the deadline: a cycle that does not end in time is left, and the step goes on with the vault's new runtime.
-        const on = (await stopSyncForStep()) ?? vault;
+        const on = (await stopSyncForStep({ vaultId: vault.vaultId, runtime: vault })) ?? vault;
         if (!on.db) { toast.error(t("workspaceSecurity.setupFailed")); setStep(2); return; }
         const result = await activatePreparedMobileWorkspace({
           vaultId: on.vaultId,

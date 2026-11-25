@@ -29,7 +29,7 @@ import { closeVaultRuntime } from "../services/closeRuntime";
 import { vaultLabel } from "../services/vaultNames";
 import { awaitVaultTeardown } from "../services/vaultTeardown";
 import { stopSyncForStep as stopSyncForStepIn } from "../services/stepSyncStop";
-import { createStepPorts, leaveWorkspace, lockWorkspaceStep, withSyncStopped, type StepPorts } from "../services/workspaceSteps";
+import { createStepPorts, leaveWorkspace, lockWorkspaceStep, rethrowCalledOff, withSyncStopped, type StepPorts } from "../services/workspaceSteps";
 import { createSyncGate, runningVaultSyncStep, takeVaultSync, vaultSyncTaken } from "../services/syncGate";
 import { askHeldWork, holdsUnsavedWork } from "../services/windowCloseGuard";
 import { LoadStarts } from "../services/loadStarts";
@@ -56,7 +56,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspa
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId, restoreDesktopAccountsAfterRebuild } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { adoptOwnRemovals, createVaultCallOff, isCalledOffError, type VaultCallOff, CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
+import { adoptOwnRemovals, createVaultCallOff, type VaultCallOff, CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -3923,12 +3923,11 @@ export const VaultProvider: React.FC<{
     // The worker is stopped first, by the step (`leaveWorkspace`), so no cycle races the teardown. The state store is
     // the step's runtime's (`on`); one called off meanwhile — the vault was closed — ends the teardown here, said by
     // the step (`stepInterrupted`), before anything of the keychain goes.
-    const onlyCalledOff = (error: unknown) => { if (isCalledOffError(error)) throw error; };
     const publicationIds = await workspaceState
       ?.listPublications()
       .then((records) => records.map((record) => record.publicationId))
-      .catch((error: unknown) => { onlyCalledOff(error); return [] as string[]; });
-    await workspaceState?.clearWorkspaceState().catch((error: unknown) => { onlyCalledOff(error); reportBackground("workspace:teardown", error); });
+      .catch((error: unknown) => { rethrowCalledOff(error); return [] as string[]; });
+    await workspaceState?.clearWorkspaceState().catch((error: unknown) => { rethrowCalledOff(error); reportBackground("workspace:teardown", error); });
     lockWorkspaceRuntime(path);
     await clearPublicationRuntimes(path, publicationIds ?? []);
     await clearWorkspaceRuntime(path);

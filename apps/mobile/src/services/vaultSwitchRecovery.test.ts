@@ -26,7 +26,7 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "renewAfterSyncGaveUp", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "retiredStart", "reloadActiveMobileVault", "offerReload"];
+const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "renewAfterSyncGaveUp", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "retiredStart", "runtimeOnScreen", "reloadActiveMobileVault", "offerReload"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -35,10 +35,10 @@ ts.forEachChild(file, (node) => {
 const found = parts.map((part) => /function (\w+)/.exec(part)?.[1]);
 for (const name of ["switchVault", "retireBoot", "reloadActiveMobileVault"]) if (!found.includes(name)) throw new Error(`${name} missing`);
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(initial); let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null;\n" +
+  "let bootPromise = Promise.resolve(initial); let screenBoot = { of: bootPromise, vault: initial }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null;\n" +
     "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\";\n" +
     parts.join("\n") +
-    "\nreturn { switchVault, reloadActiveMobileVault, renewAfterSyncGaveUp, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; } };",
+    "\nreturn { switchVault, reloadActiveMobileVault, renewAfterSyncGaveUp, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; void p.then((v) => { if (bootPromise === p) screenBoot = { of: p, vault: v }; }); } };",
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
 ).outputText;
 
@@ -79,7 +79,7 @@ function harness(start: string, initial: MobileVault = vault(start)) {
   const api = new Function(...Object.keys(deps), compiled)(...Object.values(deps)) as {
     switchVault(id: string): Promise<void>;
     reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean>;
-    renewAfterSyncGaveUp(left: { drain: Promise<void>; place: null; vaultId: string; vault: string; notRun: () => Error }): Promise<MobileVault>;
+    renewAfterSyncGaveUp(left: { drain: Promise<void>; place: null; runtime: MobileVault; vault: string; notRun: () => Error }): Promise<MobileVault>;
     boot(): Promise<MobileVault> | null;
     setBoot(p: Promise<MobileVault>): void;
   };
@@ -252,7 +252,7 @@ describe("a step that gave up waiting for the sync", () => {
     h.deps.noteSaver.flushAll.mockImplementationOnce(() => new Promise<void>((r) => (saved = () => { order.push("saved"); r(); })));
     let cycleEnded!: () => void;
     const drain = new Promise<void>((r) => (cycleEnded = r));
-    const fresh = await h.renewAfterSyncGaveUp({ drain, place: null, vaultId: "notes", vault: "Notes", notRun: () => new Error("not run") });
+    const fresh = await h.renewAfterSyncGaveUp({ drain, place: null, runtime: initial, vault: "Notes", notRun: () => new Error("not run") });
     expect(fresh as unknown as { anew?: boolean }, "the step goes on with the vault opened anew").toMatchObject({ vaultId: "notes", anew: true });
     expect(h.events, "the screens follow as on a reload").toEqual(["notes"]);
     expect(order, "never over a save still running").toEqual([]);
@@ -271,26 +271,50 @@ describe("a step that gave up waiting for the sync, while another vault was open
     const h = harness("notes");
     // A switch during the step: the vault that opens now is another one.
     h.deps.getMobileVault.mockImplementationOnce(async () => ({ ...vault("work"), anew: true }));
-    const outcome = await h.renewAfterSyncGaveUp({ drain: Promise.resolve(), place: null, vaultId: "notes", vault: "Notes", notRun: () => stepNotRun("Notes") }).then((v) => (v as MobileVault).vaultId, (e: Error) => e.name);
+    const outcome = await h.renewAfterSyncGaveUp({ drain: Promise.resolve(), place: null, runtime: h.deps.initial, vault: "Notes", notRun: () => stepNotRun("Notes") }).then((v) => (v as MobileVault).vaultId, (e: Error) => e.name);
     // THE DEFECT: the step went on with whatever vault opened — the wizard on the wrong vault.
     expect(outcome).toBe("StepNotRunError");
     expect(toastStore.get().map((t) => t.message)).toContain(i18n.t("closing.stepNotRun", { vault: "Notes" }));
   });
 
-  it("switched to another vault while it waited: closes nothing of that vault, and never goes on with it", async () => {
+  it("switched to another vault while it waited: closes nothing — of that vault or of its own — and never goes on with it", async () => {
     expect.hasAssertions();
     const h = harness("notes");
+    const own = h.deps.initial;
     // The step on "notes" waits for its hanging cycle, and the person switches to "work" meanwhile.
     await h.switchVault("work");
     const work = vault("work");
     h.setBoot(Promise.resolve(work));
+    await new Promise((r) => setTimeout(r, 0));
     h.deps.getMobileVault.mockImplementation(async () => ({ ...vault("work"), anew: true }));
-    const outcome = await h.renewAfterSyncGaveUp({ drain: Promise.resolve(), place: null, vaultId: "notes", vault: "Notes", notRun: () => stepNotRun("Notes") }).then((v) => `returned ${(v as MobileVault).vaultId}`, (e: Error) => e.name);
+    const eventsBefore = [...h.events];
+    const outcome = await h.renewAfterSyncGaveUp({ drain: Promise.resolve(), place: null, runtime: own, vault: "Notes", notRun: () => stepNotRun("Notes") }).then((v) => `returned ${(v as MobileVault).vaultId}`, (e: Error) => e.name);
+    await new Promise((r) => setTimeout(r, 10));
     // THE DEFECT (probe m4): it left and reopened "work" — the vault on screen now — and handed it to the step.
     expect(outcome).toBe("StepNotRunError");
+    expect(h.events, "no vault is left and opened anew for the step").toEqual(eventsBefore);
     expect(work.callOff, "nothing of the other vault is called off").not.toHaveBeenCalled();
     expect(work.dispose).not.toHaveBeenCalled();
+    expect(h.deps.getMobileVault, "nothing opened anew").not.toHaveBeenCalled();
     expect(toastStore.get().map((t) => t.message)).toContain(i18n.t("closing.stepNotRun", { vault: "Notes" }));
+  });
+
+  it("away and back while it waited: the same vault, a new runtime of it — the step's own is not left again, the step does not go on", async () => {
+    expect.hasAssertions();
+    const h = harness("notes");
+    const own = h.deps.initial;
+    await h.switchVault("work");
+    await h.switchVault("notes");
+    const again = vault("notes");
+    h.setBoot(Promise.resolve(again));
+    await new Promise((r) => setTimeout(r, 0));
+    const eventsBefore = [...h.events];
+    const outcome = await h.renewAfterSyncGaveUp({ drain: Promise.resolve(), place: null, runtime: own, vault: "Notes", notRun: () => stepNotRun("Notes") }).then(() => "went on", (e: Error) => e.name);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(outcome).toBe("StepNotRunError");
+    expect(h.events).toEqual(eventsBefore);
+    expect(again.callOff).not.toHaveBeenCalled();
+    expect(again.dispose).not.toHaveBeenCalled();
   });
 });
 

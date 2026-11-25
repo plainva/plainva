@@ -80,8 +80,8 @@ async function stepVaultName(vaultId: string): Promise<string> {
  * (`stopSyncForStep`): where the vault had to be left, the step goes on with
  * the new runtime's workspace state.
  */
-async function stopSyncLeaving(renewedTo?: (fresh: MobileVault) => void): Promise<{ state: SqlWorkspaceStateStore | null } | null> {
-  const fresh = await stopSyncForStep();
+async function stopSyncLeaving(vault: MobileVault, renewedTo?: (fresh: MobileVault) => void): Promise<{ state: SqlWorkspaceStateStore | null } | null> {
+  const fresh = await stopSyncForStep({ vaultId: vault.vaultId, runtime: vault });
   if (!fresh) return null;
   renewedTo?.(fresh);
   return { state: fresh.workspaceState };
@@ -731,7 +731,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     setBusyAction("resume");
     try {
       // Within the deadline: a cycle that does not end in time is left, and the step goes on with the vault's new runtime.
-      const on = (await stopSyncForStep()) ?? vault;
+      const on = (await stopSyncForStep({ vaultId: vault.vaultId, runtime: vault })) ?? vault;
       if (!on.db) throw new Error("the vault's index database is not open");
       const result = await resumeMobileWorkspaceSetup({
         vaultId: on.vaultId,
@@ -775,7 +775,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     setBusyAction("lift");
     try {
       let on = vault;
-      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving((fresh) => { on = fresh; }), runtime: vault.workspaceRuntime });
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime });
       // The queue table lives in the vault's own database, which is still open
       // here — the reload below boots a plain vault whose worker drains it.
       await on.syncQueue?.enqueueAllLocalFiles();
@@ -805,7 +805,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     }
     setBusyAction("decommission");
     try {
-      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(), runtime: vault.workspaceRuntime });
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault), runtime: vault.workspaceRuntime });
       toast.info(t("workspaceSecurity.decommissionDone"));
       await reloadActiveMobileVault("security-area");
     } catch (error) {

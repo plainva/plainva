@@ -86,8 +86,16 @@ export async function leaveWorkspace<R extends { belowChain: unknown }>(
 ): Promise<void> {
   await withSyncStopped(ports, async (on) => {
     if (!on.belowChain) throw new Error("workspace-no-connection");
-    await steps.tearDown(on);
-    await steps.markDeparted(on.belowChain as NonNullable<R["belowChain"]>);
+    try {
+      await steps.tearDown(on);
+      await steps.markDeparted(on.belowChain as NonNullable<R["belowChain"]>);
+    } catch (error) {
+      // The teardown has begun: nothing of the workspace may start again on this runtime — a reconcile the step
+      // stopped would run anew once the sync is given back. The vault opens anew instead (its load sees the workspace
+      // as far as it is gone), and the failure is said by the caller.
+      await steps.reopen().catch(() => undefined);
+      throw error;
+    }
     await steps.reopen();
   });
 }
@@ -121,4 +129,14 @@ export async function lockWorkspaceStep<R>(
   } finally {
     giveBack();
   }
+}
+
+/**
+ * In a teardown that reads what it can and goes on: a call refused because
+ * the runtime was called off is not "nothing to read" — it ends the teardown
+ * there, before anything of the keychain goes, and the step says it did not
+ * finish (`failed`). Any other failure is passed by (the caller reports it).
+ */
+export function rethrowCalledOff(error: unknown): void {
+  if (isCalledOffError(error)) throw error;
 }

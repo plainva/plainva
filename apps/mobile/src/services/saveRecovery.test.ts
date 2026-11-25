@@ -35,7 +35,7 @@ const parts: string[] = [];
 let saveMethod = "", saverInit = "";
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name &&
-      ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "retiredStart", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
+      ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "retiredStart", "runtimeOnScreen", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
     parts.push(node.getText(file).replace(/^export /, ""));
   }
   if (ts.isMethodDeclaration(node) && node.name.getText(file) === "save") saveMethod = node.getText(file);
@@ -43,9 +43,9 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!saveMethod || !saverInit || parts.length !== 15) throw new Error("mobile save/lifecycle definitions missing");
+if (!saveMethod || !saverInit || parts.length !== 16) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
+  "let bootPromise = Promise.resolve(vault); let screenBoot = { of: bootPromise, vault }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   },

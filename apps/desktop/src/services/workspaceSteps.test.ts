@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
 import { encryptedRemoteFilePorts, markEncryptedRemoteDeparted, toast, toastStore } from "@plainva/ui";
 import { createVaultCallOff } from "@plainva/core";
-import { createSyncGate, resetVaultSyncTakenForTests, takeVaultSync } from "./syncGate";
-import { createStepPorts, leaveWorkspace, lockWorkspaceStep, withSyncStopped } from "./workspaceSteps";
+import { createSyncGate, resetVaultSyncTakenForTests, runningVaultSyncStep, takeVaultSync } from "./syncGate";
+import { createStepPorts, leaveWorkspace, lockWorkspaceStep, rethrowCalledOff, withSyncStopped } from "./workspaceSteps";
 
 /**
  * The steps on a workspace that stop the sync first. The ports are the
@@ -133,6 +133,44 @@ describe("leaving the workspace while its window leaves the vault", () => {
   });
 });
 
+describe("leaving the workspace where noting the departure fails after the teardown began", () => {
+  it("opens the vault anew instead of giving the sync back to the old runtime: the reconcile it stopped does not run again", async () => {
+    expect.hasAssertions();
+    // The load of the vault on screen, with the reconcile of its workspace running (a warm open).
+    const load = new AbortController();
+    const gate = createSyncGate({ path: VAULT, place: null, signal: load.signal });
+    const rows: string[] = [];
+    let runs = 0;
+    const reconcile = gate.stoppable(async (signal) => {
+      runs += 1;
+      rows.push(`row-a#${runs}`);
+      await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+      return null;
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    const ports = createStepPorts<{ belowChain: object; name: string }>({
+      vault: "Notes",
+      take: () => takeVaultSync(VAULT),
+      // The step's stop, as `stepPorts` has it: the reconcile is what runs.
+      stop: async () => { const running = runningVaultSyncStep(VAULT)!; running.stop(); await running.stopAndDrain(); return "same"; },
+      current: () => ({ belowChain: {}, name: "on screen" }),
+    });
+    let reopened = 0;
+    const outcome = await leaveWorkspace(ports, {
+      tearDown: async () => { rows.length = 0; },
+      markDeparted: async () => { throw new Error("disk full"); },
+      // A reload: the load of the old runtime is called off (its gate with it).
+      reopen: async () => { reopened += 1; load.abort(); },
+    }).then(() => "done", (e: Error) => e.message);
+    await reconcile;
+    // THE DEFECT (probe d9): the sync went back to the old runtime, the reconcile ran again and wrote rows anew.
+    expect(outcome).toBe("disk full");
+    expect(reopened, "the vault opens anew").toBe(1);
+    expect(runs, "the reconcile is not run again").toBe(1);
+    expect(rows).toEqual([]);
+  });
+});
+
 describe("locking the workspace", () => {
   it("locks on the new runtime after the step had to leave the vault, and the vault syncs again", async () => {
     expect.hasAssertions();
@@ -180,5 +218,18 @@ describe("activating, resuming or restoring a workspace", () => {
     await expect(withSyncStopped(ports, async () => { throw new Error("wrong recovery code"); })).rejects.toThrow("wrong recovery code");
     // THE DEFECT: the vault stayed without its sync (probe d3).
     expect(world.worker.running).toBe(true);
+  });
+});
+
+describe("a teardown that reads what it can", () => {
+  it("ends at a call refused because the runtime was called off, and passes any other failure by", async () => {
+    expect.hasAssertions();
+    const fence = createVaultCallOff();
+    const db = fence.database({ query: async () => [] } as never) as unknown as { query(sql: string): Promise<unknown[]> };
+    fence.callOff();
+    const refused = await db.query("SELECT publication_id FROM workspace_publication").catch((error: unknown) => error);
+    // THE DEFECT (MU12): the refusal read as "no publications", and the teardown went on to the keychain.
+    expect(() => rethrowCalledOff(refused)).toThrow(/called off/);
+    expect(() => rethrowCalledOff(new Error("no such table: workspace_publication"))).not.toThrow();
   });
 });

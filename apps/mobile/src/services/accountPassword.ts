@@ -7,7 +7,6 @@ import { loadCloudAccounts } from "./cloudAccountsStore";
 import { getStoredProvider, restartSyncIfActive, stopSyncForStep } from "./syncService";
 import { storedProviderEndpoint } from "./fileSyncAccess";
 import { syncProviderSlot } from "./syncSlot";
-import { getActiveVaultEntry } from "./vaultRegistry";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { restartPimAccountAfterLogin } from "./pim/pimService";
 import { notifyMailChanged } from "./mail/mailRuntime";
@@ -63,7 +62,8 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             await new S3SyncTarget({ ...value.creds, secretAccessKey }, webdavFetch).listFolders("");
           },
           beforeWrite: async () => {
-            if ((await getActiveVaultEntry()).id === vaultId) await stopSyncForStep();
+            // A step on the vault's sign-in: it stops that vault's sync where it is on screen, and nothing else.
+            await stopSyncForStep({ vaultId });
           },
         }));
         else if (service === "files") targets.push(createPasswordCredentialTarget({
@@ -81,7 +81,8 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             await new WebDavSyncTarget({ ...value.creds, pass }, webdavFetch).listFolders("");
           },
           beforeWrite: async () => {
-            if ((await getActiveVaultEntry()).id === vaultId) await stopSyncForStep();
+            // A step on the vault's sign-in: it stops that vault's sync where it is on screen, and nothing else.
+            await stopSyncForStep({ vaultId });
           },
         }));
         else if (service === "calendar") {
