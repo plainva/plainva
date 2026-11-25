@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent, type VaultWalkOptions } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent, type VaultWalkOptions, indexReadsOf } from "../vault/IVaultAdapter.js";
 import { OwedQueueEntries, type OwedQueueEntriesOptions, type OwedStructure, type QueueEntryKind } from "../vault/owedQueueEntries.js";
 import { normalizeVaultPath } from "./path.js";
 import { WorkspaceStateStore } from "./state.js";
@@ -32,6 +32,8 @@ function notifyQueued(): void {
  * a pull does not bring back a file whose deletion waits here.
  */
 export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
+  /** Handed on from the inner adapter where it has one (`indexReadsOf`). */
+  readonly readFilesForIndex?: IVaultAdapter["readFilesForIndex"];
   private readonly owed: OwedQueueEntries;
   private readonly detach: () => void;
 
@@ -40,6 +42,7 @@ export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
     private readonly state: WorkspaceStateStore,
     options: OwedQueueEntriesOptions = {}
   ) {
+    this.readFilesForIndex = indexReadsOf(raw);
     this.owed = new OwedQueueEntries(options);
     this.detach = state.consultOwedEntries?.(this.owed) ?? (() => {});
   }

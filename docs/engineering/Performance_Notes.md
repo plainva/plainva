@@ -374,6 +374,51 @@ before and 6.9 / 7.9 ms in the two runs after; the save now scans the note's tas
 writes one more row — a single run per state cannot tell that from the spread here, the gate's
 runs in CI decide. Of the 60 ms most is decoding the rows' JSON.
 
+## Reading ahead in the full scan (performance plan L2, 2026-11-25)
+
+The full scan read one file, indexed it, read the next; on the desktop each note was three calls
+over the bridge into Rust (two path calls and the read), each attachment its whole bytes only to be
+hashed in JavaScript, and on the phone one call through the plugin bridge per file. Since L2 the
+files a transaction of the scan writes are read ahead of the loop that indexes them
+(`packages/core/src/vault/readAhead.ts`, `VaultIndexer.readScanGroup`):
+
+- **Which files, when.** Up to eight reads at a time — single files, or where the adapter reads
+  many files in one call (`readFilesForIndex`, the desktop) two groups of eight — and never more
+  than 16 MB of what is read and not yet taken (weighed by the listing's size, then by what was
+  read; a file heavier than the bound is read on its own). Only within a transaction: every read
+  begins after the transaction's change mark, so a save or move that lands during a read is seen
+  by `changesSince` and the file is read once more, as before. Once the transaction's time or text
+  is reached nothing new is begun, and what was begun is written in it. `scanTransactionMs: 0` (a
+  file per transaction, tests) reads nothing ahead.
+- **The same index.** Readings are handed out in the order of the pass, so rows are written in the
+  order they always were; `vault-indexer-read-ahead.test.ts` compares every table, row for row and
+  by rowid, with a scan that reads one file at a time (`scanReadsAhead: 1`), with reads answering
+  out of order, for single reads and for groups, and where the group call fails or answers what it
+  cannot mean. `stamp_vouched` is the one value that depends on when a file was read (a reading
+  that begins within a timestamp's tick of the listing is confirmed later), so the comparison runs
+  on a steady test clock; a scan that reads sooner after its listing confirms more files once
+  more afterwards, never fewer.
+- **A file that cannot be read** leaves only itself out and is named, in the order of the pass; the
+  group call answers `fallback` for it and the ordinary read decides, as for a file that is gone, no
+  UTF-8 text, or under another stored spelling.
+- **Closing.** A waiting take ends as soon as the pass's signal is aborted, however long the read
+  it waits for still runs (a drive that hangs); nothing new is begun after it. On the desktop the
+  Rust side looks each path up in the registry of read roots as its read begins, so a group in
+  flight reads nothing more once the vault's root is gone.
+- **Desktop:** `read_files_for_index` (`apps/desktop/src-tauri/src/index_read.rs`) reads a group on
+  up to eight threads and hashes in Rust; a note comes back with its text and the hash of its
+  bytes, an attachment with its hash alone (streamed). Every adapter that wraps another hands the
+  call on only where the inner one has it; the conflict-aware adapter notes the texts it hands out
+  as `readTextFile` does. The phone reads ahead with its ordinary single reads.
+
+**Measured** with `pnpm perf:core` on one machine (Linux, i9-13905H, Node 24, an NVMe disk; 10 000
+notes), the same run before and after: cold index 26.1 s -> 25.1 s (the ratio to the calibration
+37.7 -> 32.6), every other number unchanged within its spread. The core measurement reads through
+Node from a fast local disk, where a read costs little; what L2 removes is the waiting per file
+over a bridge — three calls per note into Rust on the desktop, one through the plugin on the phone
+— and a slow medium, which the core does not see. On Windows the first version of this change
+measured 71.3 -> 43.4 s at the core (`feature/w2-open`, 2026-11-11). Nothing native was measured.
+
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
 Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers

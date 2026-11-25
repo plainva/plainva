@@ -1,5 +1,5 @@
 import type { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultWalkOptions, WatchEvent } from "../vault/IVaultAdapter.js";
-import { VaultPermissionDeniedError } from "../vault/IVaultAdapter.js";
+import { VaultPermissionDeniedError, indexReadsOf } from "../vault/IVaultAdapter.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import type {
   WorkspaceCapability,
@@ -235,6 +235,8 @@ async function heldWithoutObject(held: WorkspaceStateStore, vault: IVaultAdapter
  * check happens before disk mutation and the worker repeats it before signing.
  */
 export class PermissionedVaultAdapter implements IVaultAdapter {
+  /** Handed on from the inner adapter where it has one (`indexReadsOf`). */
+  readonly readFilesForIndex?: IVaultAdapter["readFilesForIndex"];
   constructor(
     private readonly inner: IVaultAdapter,
     /**
@@ -245,7 +247,9 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
     private readonly held: WorkspaceStateStore,
     private readonly authorize: WorkspaceMutationAuthorizer,
     private readonly onDeniedExternalFork?: (request: WorkspaceMutationAuthorizationRequest) => Promise<void> | void,
-  ) {}
+  ) {
+    this.readFilesForIndex = indexReadsOf(inner);
+  }
 
   initialize(): Promise<void> { return this.inner.initialize(); }
   dispose(): Promise<void> { return this.inner.dispose(); }
