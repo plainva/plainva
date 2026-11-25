@@ -1,4 +1,4 @@
-import { readContentBinary, reportingTo } from "@plainva/ui";
+import { readContentBinary, reportingTo, suggestionRoundEnds, suggestionToSend } from "@plainva/ui";
 import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll, scrolledToEnd } from "./services/chromeScroll";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
@@ -41,7 +41,7 @@ import {
 import { copyPhoneLineLink } from "./services/noteLinkRoute";
 import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
-import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
+import { selectNoteFragment, commentActionController, CommentActionNotStartedError, noteBodyOf, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
 import { buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core/workspace";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
@@ -801,9 +801,14 @@ export function EditorHost({
     };
     const stopObservingRounds = observeCompletedCommentRounds(mobileCommentOperations(vault), vault.vaultId, path, (operation) => {
       if (sessionRef.current !== session || !suggestingRef.current) return;
-      void session.suggestion().then(({ base, chunks }) => {
-        if (sessionRef.current !== session || !suggestingRef.current) return;
-        if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(path, base, chunks, suggestNoteRef.current))) return;
+      void suggestionRoundEnds({
+        session,
+        operation,
+        notePath: path,
+        note: () => suggestNoteRef.current,
+        current: () => sessionRef.current === session && suggestingRef.current,
+      }).then((ends) => {
+        if (!ends) return;
         suggestingRef.current = false;
         session.setSuggesting(false);
         forgetPark();
@@ -1100,17 +1105,17 @@ export function EditorHost({
       const session = sessionRef.current;
       if (!hit || !session) return;
       const note = typeof hit.detail.note === "string" ? hit.detail.note : "";
-      const copy = session.view.state.doc.toString();
-      const current = () => sessionRef.current === session && suggestingRef.current
-        && session.view.state.doc.toString() === copy && suggestNoteRef.current === note;
       // The proposal of this moment, from the word diff — waited for, never a coarser stand-in (review of L5).
-      const proposal = session.suggestion();
+      const proposal = suggestionToSend(session, MAX_ANCHOR_QUOTE_BYTES);
       void (async () => {
         try {
           await starting;
-          const { base, chunks } = await proposal;
-          if (base === null || !chunks.length) { toast.info(t("comments.suggestNothing")); return; }
-          if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
+          const planned = await proposal;
+          if (planned.kind === "nothing") { toast.info(t("comments.suggestNothing")); return; }
+          if (planned.kind === "tooLarge") { toast.warning(t("comments.suggestTooLarge")); return; }
+          const { copy, base, chunks } = planned;
+          const current = () => sessionRef.current === session && suggestingRef.current
+            && session.view.state.doc.toString() === copy && suggestNoteRef.current === note;
           const batchId = createWorkspaceObjectId();
           const markers = chunks.map((chunk, index) => ({ path, body: "", parentCommentId: null,
             anchor: buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base)),

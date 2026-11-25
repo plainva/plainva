@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
   // Unit tests run in one fixed zone, set before any worker starts (R9, scripts/test-clock.mjs).
   if (mode === "test") pinTestTimeZone();
   return {
-  // Named imports of the shared packages go to the defining module in a build; the locale files load by area (performance plan L5).
+  // Named imports of the shared packages go to the defining module in a build, and what the start loads statically
+  // forms one chunk (performance plan L5).
   plugins: [packageBarrels(), start.plugin, react()],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   // The e2e build (`--mode e2e`, the smoke:prod script) also ships the fake

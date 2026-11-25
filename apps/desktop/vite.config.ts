@@ -22,7 +22,8 @@ export default defineConfig(async ({ mode }) => {
   // The bundle the E2E suite runs against in CI (`--mode e2e`, R10); nothing for any other mode.
   const root = fileURLToPath(new URL(".", import.meta.url));
   return {
-  // Named imports of the shared packages go to the defining module in a build; the locale files load by area (performance plan L5).
+  // Named imports of the shared packages go to the defining module in a build, and what the start loads statically
+  // forms one chunk (performance plan L5).
   plugins: [packageBarrels(), start.plugin, react(), ...e2eBundlePlugins(mode, root)],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   define: buildInfoDefine(mode === "labs" ? labsEnv() : undefined),
