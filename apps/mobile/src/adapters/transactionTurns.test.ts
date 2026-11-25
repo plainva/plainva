@@ -120,4 +120,26 @@ describe("transaction turns on the phone's one connection", () => {
     expect(await failed).toBeInstanceOf(TransactionTurnTimeout);
     expect(ran).not.toHaveBeenCalled();
   });
+
+  it("let each read keep its own limit: one that joins a waiting shared turn late does not inherit the wait before it", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    const turns = new TransactionTurns();
+    let release!: () => void;
+    void turns.take(() => new Promise<void>((r) => { release = r; }), "transaction");
+    const early = turns.read(async () => "early").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(55_000);
+    const late = turns.read(async () => "late");
+    await vi.advanceTimersByTimeAsync(5_000);
+    // The early one waited its 60 s and gave up, with a read's message.
+    const error = await early;
+    expect(error).toBeInstanceOf(TransactionTurnTimeout);
+    expect(String((error as Error).message)).toMatch(/busy for 60 s .*this read was not answered/);
+    expect(diagnostics[0]).toMatch(/read waited, transaction held the connection for 60 s/);
+    // The late one waits on, within its own 60 s, and is answered once the transaction ends.
+    await vi.advanceTimersByTimeAsync(20_000);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(late).resolves.toBe("late");
+  });
 });

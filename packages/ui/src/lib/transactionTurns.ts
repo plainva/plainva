@@ -132,11 +132,14 @@ export function takeRead<T>(turns: TransactionTurns, work: () => Promise<T>): Pr
 
 /** A transaction that waited `TURN_WAIT_MS` for its turn and was not run. */
 export class TransactionTurnTimeout extends Error {
-  constructor(readonly holder: string, readonly heldMs: number) {
-    super(`The database was busy for ${Math.round(heldMs / 1000)} s (${holder}); this change was not made`);
+  constructor(readonly holder: string, readonly heldMs: number, readonly what: "change" | "read" = "change") {
+    super(`The database was busy for ${Math.round(heldMs / 1000)} s (${holder}); ${what === "read" ? "this read was not answered" : "this change was not made"}`);
     this.name = "TransactionTurnTimeout";
   }
 }
+
+/** The longest a timer waits (about 24 days): the shared turn of the reads, whose readers keep their own limits. */
+const NO_LIMIT_MS = 2_147_483_647;
 
 export class TransactionTurns {
   private last: Promise<unknown> = Promise.resolve();
@@ -194,8 +197,13 @@ export class TransactionTurns {
    * Runs the read `work` once every transaction, batch, statement or close
    * asked for before it is through — side by side with the reads asked for
    * right before or after it, which share its turn. What is asked for after
-   * the shared turn waits until the last of its reads has ended. Gives up
-   * like `take` (`TransactionTurnTimeout`, never run).
+   * the shared turn waits until the last of its reads has ended.
+   *
+   * Each read keeps its own limit, counted from when it was asked: one that
+   * joins a shared turn late does not inherit the wait of the ones before it.
+   * A read that waited `waitMs` gives up with `TransactionTurnTimeout` (a
+   * read's message), is never run and leaves the shared turn; the turn itself
+   * waits for as long as one of its reads still does.
    */
   read<T>(work: () => Promise<T>, waitMs = this.waitMs): Promise<T> {
     let group = this.reads;
@@ -204,20 +212,38 @@ export class TransactionTurns {
       let finish!: () => void;
       const finished = new Promise<void>((resolve) => { finish = resolve; });
       const started = new Promise<void>((resolve) => { open = resolve; });
-      const turn = this.take(() => { open(); return finished; }, "read", waitMs);
-      const fresh = { tail: this.last, active: 0, gate: Promise.race([started, turn.then(() => {})]), finish };
+      void this.take(() => { open(); return finished; }, "read", NO_LIMIT_MS).catch(() => {});
+      const fresh = { tail: this.last, active: 0, gate: started, finish };
       group = fresh;
       this.reads = fresh;
     }
     const mine = group;
     mine.active += 1;
-    const done = () => {
+    let left = false;
+    const leave = () => {
+      if (left) return;
+      left = true;
       mine.active -= 1;
       if (mine.active > 0) return;
       // The last of them: the turn ends, and nothing joins it any more.
       if (this.reads === mine) this.reads = null;
       mine.finish();
     };
-    return mine.gate.then(work).finally(done);
+    const asked = this.clock();
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const holder = this.running;
+        const holderName = holder?.label ?? "a turn in front";
+        const heldMs = holder ? this.clock() - holder.since : this.clock() - asked;
+        logDiagnostic("database", `turn gave up after ${Math.round((this.clock() - asked) / 1000)} s: read waited, ${holderName} held the connection for ${Math.round(heldMs / 1000)} s`);
+        leave();
+        reject(new TransactionTurnTimeout(holderName, heldMs, "read"));
+      }, waitMs);
+      void mine.gate.then(() => {
+        clearTimeout(timer);
+        if (left) return;
+        Promise.resolve().then(work).then(resolve, reject).finally(leave);
+      });
+    });
   }
 }

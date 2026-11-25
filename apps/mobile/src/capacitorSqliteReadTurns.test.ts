@@ -62,7 +62,7 @@ describe("reads on the phone's one connection", () => {
     await db.close();
   });
 
-  it.each(PLATFORMS)("run side by side with each other and wait only for the transaction in front of them (%s)", async (platform) => {
+  it.each(PLATFORMS)("wait for the transaction in front of them and see what it committed, never what it wrote so far (%s)", async (platform) => {
     expect.hasAssertions();
     phoneSqlite.reset(platform);
     const db = new CapacitorSqliteAdapter("plainva-reads-side");
@@ -80,7 +80,7 @@ describe("reads on the phone's one connection", () => {
     const read = () => db.queryOne<{ value: string }>(`SELECT value FROM meta WHERE key = 'probe'`).then((row) => { order.push(`read:${row?.value}`); });
     const reads = [read(), read(), read()];
     await new Promise((r) => setTimeout(r, 20));
-    // Nothing read the half-written value.
+    // Nothing read the half-written value. (That reads asked together run side by side is held in adapters/transactionTurns.test.ts.)
     expect(order).toEqual([]);
     release();
     await Promise.all([tx, ...reads]);
