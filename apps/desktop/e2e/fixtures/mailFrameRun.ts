@@ -7,8 +7,13 @@ export interface MailFrameApi {
   sanitizeEmailHtml: (html: string, options?: { allowRemoteImages?: boolean }) => { html: string };
   buildMailFrameDoc: (html: string, options?: object) => string;
   applyFrameFit: (frame: HTMLIFrameElement, options?: { growHeight?: boolean }) => unknown;
-  readableBody: (input: { html?: string | null; text?: string | null }, max: number) => { text: string; links: { url: string }[] };
+  /** What the assistant reads: this checkout's judges it in the engine too (B7, F23). */
+  readableBody: (input: { html?: string | null; text?: string | null }, max: number) => Readable | Promise<Readable>;
+  /** The walk's reading alone, without the engine: what ordinary mails must read alike. */
+  readableModel?: (input: { html?: string | null; text?: string | null }, max: number) => Readable;
 }
+
+type Readable = { text: string; links: { url: string }[] };
 
 export interface MailFrameCase {
   name: string;
@@ -28,7 +33,7 @@ export async function runMailFrames(api: MailFrameApi, cases: readonly MailFrame
   const results: MailFrameResult[] = [];
   for (const { name, html } of cases) {
     const shown = api.mailBodyView ? api.mailBodyView({ html, text: null })?.html ?? "" : api.sanitizeEmailHtml(html).html;
-    const read = api.readableBody({ html }, 100_000);
+    const read = await api.readableBody({ html }, 100_000);
     const frame = document.createElement("iframe");
     frame.setAttribute("sandbox", "allow-same-origin");
     frame.style.cssText = `width:${width}px;height:600px;border:0;display:block`;
@@ -67,7 +72,7 @@ export async function openMarked(api: MailFrameApi, html: string, width: number)
   document.getElementById(MARKED_FRAME)?.remove();
   window.scrollTo(0, 0);
   const shown = api.mailBodyView ? api.mailBodyView({ html, text: null })?.html ?? "" : api.sanitizeEmailHtml(html).html;
-  const read = api.readableBody({ html }, 100_000);
+  const read = await api.readableBody({ html }, 100_000);
   const frame = await openFrame(api, api.buildMailFrameDoc(shown, {}), width);
   frame.id = MARKED_FRAME;
   const seen = judgeFrame(frame);
@@ -99,6 +104,10 @@ export interface MailCorpusResult {
   mainMeasured: Measured[] | null;
   ai: string[];
   seen: string[];
+  /** The engine's reading is the walk's for this mail: nothing ordinary is taken away (B7). Null where the version has no walk apart. */
+  sameAsWalk: boolean | null;
+  /** The words the walk reads and the engine's reading does not, where they differ. */
+  dropped: string[];
 }
 
 /** A frame of `width` with `doc` in it, once every picture has loaded or failed, fitted as the shells fit it. */
@@ -141,8 +150,12 @@ export async function runMailCorpus(api: MailFrameApi, cases: readonly MailFrame
       mainMeasured = measureFrame(before);
       before.remove();
     }
-    const read = api.readableBody({ html }, 100_000);
-    results.push({ name, measured, mainMeasured, ai: [...new Set(Array.from(read.text.matchAll(MARKER), (m) => m[0]))].sort(), seen: seen.seen });
+    const read = await api.readableBody({ html }, 100_000);
+    const walk = api.readableModel?.({ html }, 100_000) ?? null;
+    const words = (text: string) => new Set(text.split(/\s+/).filter(Boolean));
+    const kept = words(read.text);
+    const dropped = walk ? [...words(walk.text)].filter((word) => !kept.has(word)) : [];
+    results.push({ name, measured, mainMeasured, ai: [...new Set(Array.from(read.text.matchAll(MARKER), (m) => m[0]))].sort(), seen: seen.seen, sameAsWalk: walk ? dropped.length === 0 : null, dropped });
   }
   return results;
 }

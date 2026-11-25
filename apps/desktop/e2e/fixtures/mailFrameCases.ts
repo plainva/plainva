@@ -1879,7 +1879,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a1 h0 text, wordless opacity cover",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa1</p><div style=\"height:0\">SECRETa1</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEa1b</p>",
   "mainSeen": {
    "343": [
@@ -1894,7 +1893,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a2 h0 text, wordless inline-block cover",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa2</p><div style=\"height:0\">SECRETa2</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div>",
   "mainSeen": {
    "343": [
@@ -1907,7 +1905,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a3 h0 text, wordless white img cover",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa3</p><div style=\"height:0\">SECRETa3</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\">",
   "mainSeen": {
    "343": [
@@ -1920,7 +1917,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a4 h0 text, wordless cell cover",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa4</p><div style=\"height:0\">SECRETa4</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#fff\"></td></tr></table>",
   "mainSeen": {
    "343": [
@@ -1933,7 +1929,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a5 h0 text, cover with a word and padding (opacity)",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa5</p><div style=\"height:0\">SECRETa5</div><div style=\"opacity:0.99;background-color:#ffffff;padding:20px 0\">x</div>",
   "mainSeen": {
    "343": [
@@ -1946,7 +1941,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a6 h0 text, inline-block cover with a word",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa6</p><div style=\"height:0\">SECRETa6</div><div><span style=\"display:inline-block;width:600px;padding:12px 0;background-color:#ffffff\">&#8203;x</span></div>",
   "mainSeen": {
    "343": [
@@ -1960,7 +1954,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  {
   "name": "review 5 · a7 line-height 4px text, wordless covers",
   "note": "the judge of 2026-11-17 counted the word as seen; at main only a third of its ink reaches the screen under the covers (pixel judge, review of 2026-11-18)",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<div style=\"opacity:0.99;background-color:#fff;height:30px\"></div><div style=\"line-height:4px;font-size:14px\">SECRETa7</div><div style=\"opacity:0.99;background-color:#fff;height:30px;margin-top:0\"></div><p>VISIBLEa7</p>",
   "mainSeen": {
    "343": [
@@ -1973,7 +1966,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a8 cover inline-block after text on same line",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEa8 <span style=\"display:inline-block;width:0;height:0\"></span></p><div style=\"height:0;white-space:nowrap\">SECRETa8 SECRETa8 SECRETa8</div><span style=\"display:inline-block;width:900px;height:30px;background-color:#fff\"></span>",
   "mainSeen": {
    "343": [
@@ -1986,7 +1978,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a9 cover with nbsp only",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<div style=\"height:0\">SECRETa9</div><div style=\"opacity:0.99;background-color:#fff;height:40px\">&nbsp;&nbsp;</div><p>VISIBLEa9</p>",
   "mainSeen": {
    "343": [
@@ -1999,7 +1990,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · a10 cover is a td of spacer table with height",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<div style=\"height:0\">SECRETa10</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEa10</p>",
   "mainSeen": {
    "343": [
@@ -2012,7 +2002,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under opacity",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf1</p><div style=\"font-size:14px;height:0\">SECRETf1</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf1b</p>",
   "mainSeen": {
    "343": [
@@ -2027,7 +2016,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under inlineblock",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf2</p><div style=\"font-size:14px;height:0\">SECRETf2</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf2b</p>",
   "mainSeen": {
    "343": [
@@ -2042,7 +2030,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under picture",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf3</p><div style=\"font-size:14px;height:0\">SECRETf3</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf3b</p>",
   "mainSeen": {
    "343": [
@@ -2057,7 +2044,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under cell",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf4</p><div style=\"font-size:14px;height:0\">SECRETf4</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf4b</p>",
   "mainSeen": {
    "343": [
@@ -2072,7 +2058,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h0 under table",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf5</p><div style=\"font-size:14px;height:0\">SECRETf5</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf5b</p>",
   "mainSeen": {
    "343": [
@@ -2087,7 +2072,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under opacity",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf6</p><div style=\"font-size:14px;height:4px\">SECRETf6</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf6b</p>",
   "mainSeen": {
    "343": [
@@ -2102,7 +2086,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under inlineblock",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf7</p><div style=\"font-size:14px;height:4px\">SECRETf7</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf7b</p>",
   "mainSeen": {
    "343": [
@@ -2117,7 +2100,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under picture",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf8</p><div style=\"font-size:14px;height:4px\">SECRETf8</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf8b</p>",
   "mainSeen": {
    "343": [
@@ -2132,7 +2114,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under cell",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf9</p><div style=\"font-size:14px;height:4px\">SECRETf9</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf9b</p>",
   "mainSeen": {
    "343": [
@@ -2147,7 +2128,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family h4 under table",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf10</p><div style=\"font-size:14px;height:4px\">SECRETf10</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf10b</p>",
   "mainSeen": {
    "343": [
@@ -2162,7 +2142,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under opacity",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf11</p><div style=\"font-size:14px;max-height:0\">SECRETf11</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf11b</p>",
   "mainSeen": {
    "343": [
@@ -2177,7 +2156,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under inlineblock",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf12</p><div style=\"font-size:14px;max-height:0\">SECRETf12</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf12b</p>",
   "mainSeen": {
    "343": [
@@ -2192,7 +2170,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under picture",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf13</p><div style=\"font-size:14px;max-height:0\">SECRETf13</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf13b</p>",
   "mainSeen": {
    "343": [
@@ -2207,7 +2184,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under cell",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf14</p><div style=\"font-size:14px;max-height:0\">SECRETf14</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf14b</p>",
   "mainSeen": {
    "343": [
@@ -2222,7 +2198,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh0 under table",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf15</p><div style=\"font-size:14px;max-height:0\">SECRETf15</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf15b</p>",
   "mainSeen": {
    "343": [
@@ -2237,7 +2212,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under opacity",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf16</p><div style=\"font-size:14px;max-height:4px\">SECRETf16</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div><p>VISIBLEf16b</p>",
   "mainSeen": {
    "343": [
@@ -2252,7 +2226,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under inlineblock",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf17</p><div style=\"font-size:14px;max-height:4px\">SECRETf17</div><div><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></span></div><p>VISIBLEf17b</p>",
   "mainSeen": {
    "343": [
@@ -2267,7 +2240,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under picture",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf18</p><div style=\"font-size:14px;max-height:4px\">SECRETf18</div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\"><p>VISIBLEf18b</p>",
   "mainSeen": {
    "343": [
@@ -2282,7 +2254,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under cell",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf19</p><div style=\"font-size:14px;max-height:4px\">SECRETf19</div><table><tr><td style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff\"></td></tr></table><p>VISIBLEf19b</p>",
   "mainSeen": {
    "343": [
@@ -2297,7 +2268,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mh4 under table",
-  "limit": "the words run out of a box of fixed or no height, or lie on lines of 4 px, and a later box paints over them; the reader of main does the same, and growing the box to its words changes ordinary cards, buttons and lists (review of 2026-11-18, round 7, rule 1)",
   "html": "<p>VISIBLEf20</p><div style=\"font-size:14px;max-height:4px\">SECRETf20</div><table cellpadding=\"0\" cellspacing=\"0\" style=\"opacity:0.99\"><tr><td bgcolor=\"#ffffff\" width=\"600\" height=\"40\">&nbsp;</td></tr></table><p>VISIBLEf20b</p>",
   "mainSeen": {
    "343": [
@@ -2464,7 +2434,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wnw beside opacity",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf31</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf31longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2477,7 +2446,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wnw beside inlineblock",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf32</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf32longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2490,7 +2458,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wnw beside picture",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf33</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;white-space:nowrap\">SECRETf33longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [
@@ -2503,7 +2470,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mwnw beside opacity",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf34</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf34longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2516,7 +2482,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mwnw beside inlineblock",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf35</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf35longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2529,7 +2494,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family mwnw beside picture",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf36</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;max-width:10px;white-space:nowrap\">SECRETf36longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [
@@ -2542,7 +2506,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wwb beside opacity",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf37</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf37longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2555,7 +2518,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wwb beside inlineblock",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf38</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf38longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2568,7 +2530,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wwb beside picture",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf39</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:normal\">SECRETf39longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [
@@ -2581,7 +2542,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wka beside opacity",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf40</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf40longerword</span><span style=\"display:inline-block;opacity:0.99;background-color:#ffffff;width:600px;height:40px;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2594,7 +2554,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wka beside inlineblock",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf41</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf41longerword</span><span style=\"display:inline-block;width:600px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
   "mainSeen": {
    "343": [
@@ -2607,7 +2566,6 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
  },
  {
   "name": "review 5 · family wka beside picture",
-  "limit": "a line that keeps itself whole runs out of its narrow box, and the box beside it paints over the words; the reader of main does the same, and giving the box its words' width moves ordinary navigation bars and footers (review of 2026-11-18, rule 3)",
   "html": "<p>VISIBLEf42</p><div style=\"white-space:nowrap\"><span style=\"display:inline-block;width:10px;word-break:keep-all\">SECRETf42longerword</span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"600\" height=\"40\" style=\"vertical-align:top\"></div>",
   "mainSeen": {
    "343": [
@@ -2617,5 +2575,752 @@ export const MAIL_FRAME_CASES: MailFrameCaseEntry[] = [
     "VISIBLEf42"
    ]
   }
+ },
+ {
+  "name": "review 6 · h1 nowrap on a child of a fixed-width inline-block",
+  "html": "<p>VISIBLEh1</p><div><span style=\"display:inline-block;width:20px;vertical-align:top\"><span style=\"white-space:nowrap\">SECRETh1 SECRETalpha SECRETbeta</span></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh1"
+   ],
+   "760": [
+    "VISIBLEh1"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h1b same, white picture as cover",
+  "html": "<p>VISIBLEh1b</p><div><span style=\"display:inline-block;width:20px;vertical-align:top\"><span style=\"white-space:nowrap\">SECRETh1b SECRETalpha SECRETbeta</span></span><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh1b"
+   ],
+   "760": [
+    "VISIBLEh1b"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h2 nobr in a fixed-width inline-block",
+  "html": "<p>VISIBLEh2</p><div><span style=\"display:inline-block;width:20px;vertical-align:top\"><nobr>SECRETh2 SECRETalpha SECRETbeta</nobr></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh2"
+   ],
+   "760": [
+    "VISIBLEh2"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h3 td nowrap attribute, fixed div inside",
+  "html": "<p>VISIBLEh3</p><table cellpadding=\"0\" cellspacing=\"0\"><tr><td nowrap valign=\"top\"><div style=\"width:20px\">SECRETh3 SECRETalpha SECRETbeta</div></td><td valign=\"top\"><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></td></tr></table>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh3"
+   ],
+   "760": [
+    "VISIBLEh3"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h4 pre in a fixed-width inline-block",
+  "html": "<p>VISIBLEh4</p><div><span style=\"display:inline-block;width:20px;vertical-align:top\"><pre style=\"margin:0;font-family:sans-serif\">SECRETh4 SECRETalpha SECRETbeta</pre></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh4"
+   ],
+   "760": [
+    "VISIBLEh4"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h5 width 1% and nowrap on the same box",
+  "html": "<p>VISIBLEh5</p><div><span style=\"display:inline-block;width:1%;white-space:nowrap;vertical-align:top\">SECRETh5 SECRETalpha SECRETbeta</span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh5"
+   ],
+   "760": [
+    "VISIBLEh5"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h6 max-width 1% and nowrap",
+  "html": "<p>VISIBLEh6</p><div><span style=\"display:inline-block;max-width:1%;white-space:nowrap;vertical-align:top\">SECRETh6 SECRETalpha SECRETbeta</span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh6"
+   ],
+   "760": [
+    "VISIBLEh6"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h7 keep-all on a child of a fixed-width inline-block",
+  "html": "<p>VISIBLEh7</p><div><span style=\"display:inline-block;width:20px;vertical-align:top\"><span style=\"word-break:keep-all\">SECRETh7xxxxxxxxxxxxxxxxxxxxxxxxxx</span></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh7"
+   ],
+   "760": [
+    "VISIBLEh7"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h8 fixed table, nowrap cell, picture in next cell",
+  "html": "<p>VISIBLEh8</p><table style=\"table-layout:fixed;width:300px\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"width:20px;white-space:nowrap\" valign=\"top\">SECRETh8 SECRETalpha SECRETbeta</td><td valign=\"top\"><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></td></tr></table>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh8"
+   ],
+   "760": [
+    "VISIBLEh8"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h9 fixed table, keep-all long word, picture in next cell",
+  "html": "<p>VISIBLEh9</p><table style=\"table-layout:fixed;width:300px\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"width:20px;word-break:keep-all\" valign=\"top\">SECRETh9xxxxxxxxxxxxxxxxxxxxxxxx</td><td valign=\"top\"><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></td></tr></table>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh9"
+   ],
+   "760": [
+    "VISIBLEh9"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h10 inline-flex width 20, nowrap child",
+  "html": "<p>VISIBLEh10</p><div><span style=\"display:inline-flex;width:20px;vertical-align:top\"><span style=\"white-space:nowrap\">SECRETh10 SECRETalpha SECRETbeta</span></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh10"
+   ],
+   "760": [
+    "VISIBLEh10"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h11 inline-grid width 20, nowrap child",
+  "html": "<p>VISIBLEh11</p><div><span style=\"display:inline-grid;width:20px;vertical-align:top\"><span style=\"white-space:nowrap\">SECRETh11 SECRETalpha SECRETbeta</span></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh11"
+   ],
+   "760": [
+    "VISIBLEh11"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h12 control: width 20 + nowrap on the same box",
+  "html": "<p>VISIBLEh12</p><div><span style=\"display:inline-block;width:20px;white-space:nowrap;vertical-align:top\">SECRETh12 SECRETalpha SECRETbeta</span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh12"
+   ],
+   "760": [
+    "VISIBLEh12"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h13 nested inline-block nowrap",
+  "html": "<p>VISIBLEh13</p><div><span style=\"display:inline-block;width:20px;vertical-align:top\"><span style=\"display:inline-block;white-space:nowrap\">SECRETh13 SECRETalpha SECRETbeta</span></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh13"
+   ],
+   "760": [
+    "VISIBLEh13"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h14 rtl, nowrap child: runs off the left edge",
+  "html": "<p>VISIBLEh14</p><div dir=\"rtl\" style=\"width:20px\"><span style=\"white-space:nowrap\">SECRETh14 SECRETalpha SECRETbeta SECRETgamma</span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh14"
+   ],
+   "760": [
+    "VISIBLEh14"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h15 rtl inline-block, keep-all child",
+  "html": "<p>VISIBLEh15</p><div><span dir=\"rtl\" style=\"display:inline-block;width:20px\"><span style=\"word-break:keep-all\">SECRETh15xxxxxxxxxxxxxxxxxxxxxxxxx</span></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh15"
+   ],
+   "760": [
+    "VISIBLEh15"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · h16 listing in fixed-width inline-block",
+  "html": "<p>VISIBLEh16</p><div><span style=\"display:inline-block;width:20px;vertical-align:top\"><listing style=\"margin:0\">SECRETh16 SECRETalpha SECRETbeta</listing></span><span style=\"display:inline-block;width:280px;height:40px;background-color:#ffffff;vertical-align:top\"></span></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEh16"
+   ],
+   "760": [
+    "VISIBLEh16"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v1 td as block with height 0",
+  "html": "<p>VISIBLEv1</p><table><tr><td style=\"display:block;height:0\">SECRETv1 SECRETalpha</td></tr></table><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv1"
+   ],
+   "760": [
+    "VISIBLEv1"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v2 td as inline-block with height 0",
+  "html": "<p>VISIBLEv2</p><table><tr><td style=\"display:inline-block;height:0\">SECRETv2 SECRETalpha</td></tr></table><div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv2"
+   ],
+   "760": [
+    "VISIBLEv2"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v3 table as block with height 0",
+  "html": "<p>VISIBLEv3</p><table style=\"display:block;height:0\"><tr><td>SECRETv3 SECRETalpha</td></tr></table><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv3"
+   ],
+   "760": [
+    "VISIBLEv3"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v4 tr as block with height 0",
+  "html": "<p>VISIBLEv4</p><table><tr style=\"display:block;height:0\"><td>SECRETv4 SECRETalpha</td></tr></table><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv4"
+   ],
+   "760": [
+    "VISIBLEv4"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v5 caption with height 0, picture in the first row",
+  "html": "<p>VISIBLEv5</p><table cellpadding=\"0\" cellspacing=\"0\"><caption style=\"height:0\">SECRETv5 SECRETalpha</caption><tr><td><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></td></tr></table>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv5"
+   ],
+   "760": [
+    "VISIBLEv5"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v6 td height attribute 0 shown as block",
+  "html": "<p>VISIBLEv6</p><table><tr><td height=\"0\" style=\"display:block\">SECRETv6 SECRETalpha</td></tr></table><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv6"
+   ],
+   "760": [
+    "VISIBLEv6"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v7 div as table-caption with height 0",
+  "html": "<p>VISIBLEv7</p><div style=\"display:table-caption;height:0\">SECRETv7 SECRETalpha</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv7"
+   ],
+   "760": [
+    "VISIBLEv7"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v8 inline span with tall padding paints over the line above",
+  "html": "<p>VISIBLEv8</p><p style=\"margin:0\">SECRETv8 SECRETalpha<br><span style=\"background-color:#ffffff;padding-top:40px;padding-right:280px\"></span></p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv8"
+   ],
+   "760": [
+    "VISIBLEv8"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v9 same, the span holds a word",
+  "html": "<p>VISIBLEv9</p><p style=\"margin:0\">SECRETv9 SECRETalpha<br><span style=\"background-color:#ffffff;padding:40px 280px 0 0\">x</span></p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv9"
+   ],
+   "760": [
+    "VISIBLEv9"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v10 inline span with a tall top border",
+  "html": "<p>VISIBLEv10</p><p style=\"margin:0\">SECRETv10 SECRETalpha<br><span style=\"border-top:40px solid #ffffff;padding-right:280px\"></span></p>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv10"
+   ],
+   "760": [
+    "VISIBLEv10"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v11 unstyled big headline in a tight line height",
+  "html": "<p>VISIBLEv11</p><div style=\"font-size:14px;line-height:12px\"><h1><big><big>SECRETv11</big></big><br><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></h1></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv11"
+   ],
+   "760": [
+    "VISIBLEv11"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v12 line height through var()",
+  "html": "<p>VISIBLEv12</p><div style=\"font-size:40px;line-height:var(--l,4px)\">SECRETv12a<br>SECRETv12b</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv12"
+   ],
+   "760": [
+    "VISIBLEv12"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v13 tiny line height reaching an unstyled child",
+  "html": "<p>VISIBLEv13</p><div style=\"font-size:5px;line-height:4px\"><h1 style=\"margin:0\"><big><big><big><big>SECRETv13</big></big></big></big></h1></div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv13"
+   ],
+   "760": [
+    "VISIBLEv13"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v13b same without style on h1",
+  "html": "<p>VISIBLEv13b</p><div style=\"font-size:5px;line-height:4px\"><h1><big><big><big><big>SECRETv13b</big></big></big></big></h1></div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv13b"
+   ],
+   "760": [
+    "VISIBLEv13b"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v14 font shorthand line height",
+  "html": "<p>VISIBLEv14</p><div style=\"font:40px/4px Arial\">SECRETv14a<br>SECRETv14b</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv14"
+   ],
+   "760": [
+    "VISIBLEv14"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v15 inline-block height 0 holding words",
+  "html": "<p>VISIBLEv15</p><div><span style=\"display:inline-block;height:0;vertical-align:top\">SECRETv15</span></div><div><img src=\"data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=\" width=\"280\" height=\"40\" style=\"vertical-align:top\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv15"
+   ],
+   "760": [
+    "VISIBLEv15"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v16 flex column fixed height",
+  "html": "<p>VISIBLEv16</p><div style=\"display:flex;height:0\"><div>SECRETv16</div></div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv16"
+   ],
+   "760": [
+    "VISIBLEv16"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v17 inline-table height 0",
+  "html": "<p>VISIBLEv17</p><div style=\"display:inline-table;height:0\">SECRETv17</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv17"
+   ],
+   "760": [
+    "VISIBLEv17"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · v18 sub deep",
+  "html": "<p>VISIBLEv18</p><div><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\"><sub style=\"font-size:14px\">SECRETv18</sub></sub></sub></sub></sub></sub></sub></sub></sub></sub></sub></sub></sub></sub></div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [
+    "VISIBLEv18"
+   ],
+   "760": [
+    "VISIBLEv18"
+   ]
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p1 transform scale 0",
+  "html": "<p>VISIBLEp1</p><div style=\"transform:scale(0)\">SECRETp1</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p2 clip-path",
+  "html": "<p>VISIBLEp2</p><div style=\"clip-path:inset(50%)\">SECRETp2</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p3 position absolute far",
+  "html": "<p>VISIBLEp3</p><div style=\"position:absolute;left:-9999px\">SECRETp3</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p4 negative margin cover",
+  "html": "<p>VISIBLEp4</p><p>SECRETp4</p><div style=\"margin-top:-40px;height:40px;background:#fff;opacity:.99\"></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p5 negative text-indent",
+  "html": "<p>VISIBLEp5</p><p style=\"text-indent:-9999px\">SECRETp5</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p6 filter opacity",
+  "html": "<p>VISIBLEp6</p><p style=\"filter:opacity(0)\">SECRETp6</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p7 mix-blend-mode",
+  "html": "<div style=\"background:#fff\"><p>VISIBLEp7</p><p style=\"mix-blend-mode:screen;color:#fff\">SECRETp7</p></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p8 z-index cover",
+  "html": "<p>VISIBLEp8</p><p>SECRETp8</p><div style=\"position:relative;z-index:9;top:-40px;height:40px;background:#fff\"></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p9 mask",
+  "html": "<p>VISIBLEp9</p><p style=\"mask:linear-gradient(transparent,transparent);-webkit-mask-image:linear-gradient(transparent,transparent)\">SECRETp9</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p10 clip rect",
+  "html": "<p>VISIBLEp10</p><p style=\"position:absolute;clip:rect(0,0,0,0)\">SECRETp10</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p11 overflow clip",
+  "html": "<p>VISIBLEp11</p><div style=\"height:0;overflow:clip\">SECRETp11</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p12 contain size",
+  "html": "<p>VISIBLEp12</p><div style=\"contain:size;height:0\">SECRETp12</div><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p13 aspect-ratio",
+  "html": "<p>VISIBLEp13</p><div style=\"aspect-ratio:100/1;width:20px;overflow:hidden\">SECRETp13</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p14 letter-spacing tight",
+  "html": "<p>VISIBLEp14</p><p style=\"font-size:4px;letter-spacing:-2px\">SECRETp14</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · p15 float wordless cover with opacity",
+  "html": "<p>VISIBLEp15</p><div style=\"float:left;width:600px;height:60px;background:#fff;opacity:.99\"></div><p>SECRETp15</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e1 details closed",
+  "html": "<details><summary>VISIBLEe1</summary>SECRETe1</details>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e2 hidden attribute",
+  "html": "<p>VISIBLEe2</p><p hidden>SECRETe2</p><p hidden=\"until-found\">SECRETe2b</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e3 dialog",
+  "html": "<p>VISIBLEe3</p><dialog>SECRETe3</dialog>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e4 video and audio fallback",
+  "html": "<p>VISIBLEe4</p><video>SECRETe4</video><audio>SECRETe4b</audio>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e5 progress meter datalist",
+  "html": "<p>VISIBLEe5</p><progress>SECRETe5</progress><meter>SECRETe5b</meter><datalist>SECRETe5c</datalist>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e6 ruby rp",
+  "html": "<p>VISIBLEe6</p><ruby>base<rp>SECRETe6</rp><rt>VISIBLEe6rt</rt></ruby>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e7 noscript",
+  "html": "<p>VISIBLEe7</p><noscript>SECRETe7</noscript>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e8 marquee",
+  "html": "<marquee>VISIBLEe8</marquee>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e9 aria-hidden (visible)",
+  "html": "<p aria-hidden=\"true\">VISIBLEe9</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e10 popover",
+  "html": "<p>VISIBLEe10</p><div popover>SECRETe10</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e11 font size 1 white",
+  "html": "<p>VISIBLEe11</p><font size=\"1\" color=\"#ffffff\">SECRETe11</font>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e12 td height 0 attribute",
+  "html": "<p>VISIBLEe12</p><table><tr><td height=\"0\">VISIBLEe12</td></tr></table><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e13 table height attribute",
+  "html": "<p>VISIBLEe13</p><table height=\"0\"><tr><td>VISIBLEe13</td></tr></table><div style=\"opacity:0.99;background-color:#ffffff;height:60px\"></div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e14 colour against a lost picture",
+  "html": "<div style=\"background-image:url(https://x.example.invalid/a.jpg);background-color:#ffffff\"><span style=\"color:#fefefe\">SECRETe14</span></div><p>VISIBLEe14</p>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e15 frameset first",
+  "html": "<frameset></frameset><p>VISIBLEe15</p><div style=\"color:#ffffff\">SECRETe15</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
+ },
+ {
+  "name": "review 6 · e16 escaped text and a comment before a large table",
+  "html": "Kurz &lt;3<!-- x --><table><tr><td>c0</td></tr><tr><td>c1</td></tr><tr><td>c2</td></tr><tr><td>c3</td></tr><tr><td>c4</td></tr><tr><td>c5</td></tr><tr><td>c6</td></tr><tr><td>c7</td></tr><tr><td>c8</td></tr><tr><td>c9</td></tr><tr><td>c10</td></tr><tr><td>c11</td></tr><tr><td>c12</td></tr><tr><td>c13</td></tr><tr><td>c14</td></tr><tr><td>c15</td></tr><tr><td>c16</td></tr><tr><td>c17</td></tr><tr><td>c18</td></tr><tr><td>c19</td></tr><tr><td>c20</td></tr><tr><td>c21</td></tr><tr><td>c22</td></tr><tr><td>c23</td></tr><tr><td>c24</td></tr><tr><td>c25</td></tr><tr><td>c26</td></tr><tr><td>c27</td></tr><tr><td>c28</td></tr><tr><td>c29</td></tr><tr><td>c30</td></tr><tr><td>c31</td></tr><tr><td>c32</td></tr><tr><td>c33</td></tr><tr><td>c34</td></tr><tr><td>c35</td></tr><tr><td>c36</td></tr><tr><td>c37</td></tr><tr><td>c38</td></tr><tr><td>c39</td></tr><tr><td>c40</td></tr><tr><td>c41</td></tr><tr><td>c42</td></tr><tr><td>c43</td></tr><tr><td>c44</td></tr><tr><td>c45</td></tr><tr><td>c46</td></tr><tr><td>c47</td></tr><tr><td>c48</td></tr><tr><td>c49</td></tr><tr><td>c50</td></tr><tr><td>c51</td></tr><tr><td>c52</td></tr><tr><td>c53</td></tr><tr><td>c54</td></tr><tr><td>c55</td></tr><tr><td>c56</td></tr><tr><td>c57</td></tr><tr><td>c58</td></tr><tr><td>c59</td></tr><tr><td>c60</td></tr><tr><td>c61</td></tr><tr><td>c62</td></tr><tr><td>c63</td></tr><tr><td>c64</td></tr><tr><td>c65</td></tr><tr><td>c66</td></tr><tr><td>c67</td></tr><tr><td>c68</td></tr><tr><td>c69</td></tr><tr><td>c70</td></tr><tr><td>c71</td></tr><tr><td>c72</td></tr><tr><td>c73</td></tr><tr><td>c74</td></tr><tr><td>c75</td></tr><tr><td>c76</td></tr><tr><td>c77</td></tr><tr><td>c78</td></tr><tr><td>c79</td></tr></table><p>VISIBLEe16</p><div style=\"color:#ffffff\">SECRETe16</div>",
+  "mainSeen": {
+   "343": [],
+   "760": []
+  },
+  "note": "Added with B7 (F23): the reader of main was not frozen for this form; the words listed are the paragraph every reader shows before it."
  }
 ];

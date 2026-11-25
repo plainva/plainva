@@ -1,4 +1,4 @@
-import { readableBody } from "../../../../packages/ui/src/ai/quarantineText";
+import { readableBody, readableBodyInEngine } from "../../../../packages/ui/src/ai/quarantineText";
 import { applyFrameFit } from "../../../../packages/ui/src/mail/frameFit";
 import { buildMailFrameDoc, sanitizeEmailHtml } from "../../../../packages/ui/src/mail/mailSanitize";
 import { mailBodyView } from "../../../../packages/ui/src/mail/messageText";
@@ -16,9 +16,9 @@ export interface MailFrameProbeWindow extends Window {
 }
 
 (window as unknown as MailFrameProbeWindow).mailFrameProbe = {
-  run: (cases, width) => runMailFrames({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, cases, width),
-  scroll: (html, width) => frameScroll({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, html, width),
-  open: (html, width) => openMarked({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, html, width),
+  run: (cases, width) => runMailFrames({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, cases, width),
+  scroll: (html, width) => frameScroll({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, html, width),
+  open: (html, width) => openMarked({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, html, width),
   marked: markedFrame,
-  corpus: (cases, width, pictures, mainDocs) => runMailCorpus({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody }, cases, width, pictures, mainDocs),
+  corpus: (cases, width, pictures, mainDocs) => runMailCorpus({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, cases, width, pictures, mainDocs),
 };

@@ -166,6 +166,10 @@ for (const width of [343, 760] as const) {
       const wrong: string[] = [];
       results.forEach((result, index) => {
         for (const word of result.ai) if (!result.seen.includes(word)) wrong.push(`${result.name}: the assistant reads ${word}, the reader does not show it`);
+        // An ordinary mail hides nothing by where its boxes lie: the engine takes no word of it away (B7, F23).
+        const hides = new Set(MAIL_CORPUS[index].layoutHides?.words ?? []);
+        const dropped = result.dropped.filter((word) => !hides.has(word));
+        if (dropped.length > 0) wrong.push(`${result.name}: the engine takes ${dropped.length} words the walk reads away (${dropped.slice(0, 8).join(", ")})`);
         const main = result.mainMeasured;
         if (!main) wrong.push(`${result.name}: no frame of main frozen`);
         else wrong.push(...corpusDeviations(result.name, main, result.measured, MAIL_CORPUS[index].differs ?? {}));

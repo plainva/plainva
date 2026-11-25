@@ -1,6 +1,7 @@
 import createDOMPurify from "dompurify";
-import { keptMailStyle, MailShaper, ownsLineHeight, visibleDocumentOf, WHITE_SHEET, type ShapeState, type VisibleDocument } from "@plainva/core";
-import { domReader, treeAccess } from "./mailTree";
+import { keptMailStyle, MailShaper, ownsLineHeight, visibleDocumentOf, WHITE_SHEET, type MarkupReader, type ShapeState, type VisibleDocument } from "@plainva/core";
+import { blanked, engineHiddenWords, type EngineHidden } from "./engineVisibility";
+import { domReader, treeAccess, type TreeAccess } from "./mailTree";
 
 // The package's default export is a FACTORY in module environments — bind it
 // lazily to the window (desktop + jsdom tests both have one at call time).
@@ -72,6 +73,13 @@ export interface MailHtmlView extends SanitizedEmail {
   document(): VisibleDocument;
   /** Whether the reader shows anything at all — a word or a picture. */
   shows(): boolean;
+  /**
+   * What the reader shows, judged by the engine of this device as well (plan Umsetzung 0.9.x, B7; F23): `document()`
+   * without the words that lie where no person sees them only because of where other boxes lie — run out of their box
+   * and painted over, or off the frame's edge (`engineVisibility.ts`). The assistant reads this. Where there is no
+   * engine to ask (a test runner's DOM), `document()`.
+   */
+  engineDocument(): Promise<VisibleDocument>;
   /**
    * Set where the pass could not make the HTML part safe — it threw, or the
    * parse left no body (a `<frameset>`): nothing of the part is given to
@@ -301,6 +309,7 @@ function makePass(raw: string): Pass {
   };
   let document: VisibleDocument | undefined;
   let shows: boolean | undefined;
+  let engine: Promise<VisibleDocument> | undefined;
   const view = (withPictures: boolean): MailHtmlView => {
     let html: string | undefined;
     const shown = () => (html ??= markup(withPictures));
@@ -316,10 +325,83 @@ function makePass(raw: string): Pass {
       // One reading for both views, the one without pictures: a picture that
       // may not show makes no link visible, so the assistant reads no more than either shows.
       document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false }),
+      // One reading for both views too: the one without pictures, laid out as its frame is (F23).
+      engineDocument: () =>
+        (engine ??= (async () => {
+          const walked = (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false });
+          if (!body || !walked.shows) return walked;
+          const hidden = await engineHiddenWords(buildMailFrameDoc(markup(false), { canvas: null })).catch(() => null);
+          if (!hidden || hidden.parents.size === 0) return walked;
+          return visibleDocumentOf(body, withoutHiddenWords(read, reader, body, hidden), { canvas: canvas() });
+        })()),
       shows: () => (shows ??= document ? document.shows : body ? visibleDocumentOf(body, reader, { canvas: canvas(), untilShown: true }).shows : false),
     };
   };
   return { withPictures: view(true), withoutPictures: view(false) };
+}
+
+/**
+ * The walk's reader of the sanitized tree, with the words the engine hides blanked (F23). A text is found in the
+ * engine's answer by its parent's path from the body and where it starts in that parent's own text — the frame was
+ * parsed from this tree's markup, so the paths are the same; two texts side by side here are one there, and their
+ * parent's own text is the same. Where it is not the same, all of that parent's own words count as hidden: in doubt,
+ * the assistant reads less, never what nobody saw.
+ */
+function withoutHiddenWords(read: TreeAccess, reader: MarkupReader<Node>, body: Node, hidden: EngineHidden): MarkupReader<Node> {
+  const paths = new Map<Node, string | null>();
+  const pathOf = (element: Node): string | null => {
+    if (element === body) return "";
+    const known = paths.get(element);
+    if (known !== undefined) return known;
+    const parent = read.parentNode(element);
+    let path: string | null = null;
+    if (parent) {
+      const above = pathOf(parent);
+      if (above !== null) {
+        let index = 0;
+        const siblings = read.childNodes(parent);
+        for (let i = 0; i < siblings.length && siblings[i] !== element; i++) if (read.nodeType(siblings[i]!) === 1) index++;
+        path = above === "" ? String(index) : `${above}/${index}`;
+      }
+    }
+    paths.set(element, path);
+    return path;
+  };
+  /** Per parent: its own text, and where each of its texts starts in it. */
+  const owns = new Map<Node, { text: string; starts: Map<Node, number> }>();
+  const ownOf = (parent: Node) => {
+    let own = owns.get(parent);
+    if (!own) {
+      let text = "";
+      const starts = new Map<Node, number>();
+      const children = read.childNodes(parent);
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i]!;
+        if (read.nodeType(child) !== 3) continue;
+        starts.set(child, text.length);
+        text += read.text(child);
+      }
+      owns.set(parent, (own = { text, starts }));
+    }
+    return own;
+  };
+  return {
+    kind: (node) => reader.kind(node),
+    children: (node) => reader.children(node),
+    attribute: (node, name) => reader.attribute(node, name),
+    ...(reader.heldBack ? { heldBack: (node: Node) => reader.heldBack!(node) } : {}),
+    text: (node) => {
+      const text = reader.text(node);
+      const parent = read.parentNode(node);
+      const path = parent ? pathOf(parent) : null;
+      const entry = path === null ? undefined : hidden.parents.get(path);
+      if (!entry || !parent) return text;
+      const own = ownOf(parent);
+      // Not the tree the frame laid out: every own word of this parent counts as hidden.
+      if (entry.text !== own.text) return " ".repeat(text.length);
+      return blanked(text, entry.hidden, own.starts.get(node) ?? 0);
+    },
+  };
 }
 
 /**

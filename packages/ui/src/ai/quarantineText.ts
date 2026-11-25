@@ -63,6 +63,19 @@ export function looksLikeHtml(text: string): boolean {
 /** What the assistant reads of a body the readers could not make safe and do not show (`mailBodyView`). */
 export const UNREADABLE_BODY = "[Plainva could not display this message safely and shows none of its content.]";
 
+/**
+ * `readableBody`, with what the reader shows judged by the engine of this device too (plan Umsetzung 0.9.x, B7;
+ * F23): words that only the place of other boxes hides — run out of their box and painted over, or off the frame's
+ * edge — are not read. What the assistant reads of a mail comes from here.
+ */
+export async function readableBodyInEngine(input: { html?: string | null; text?: string | null }, max: number): Promise<ReadableBody> {
+  const view = mailBodyView({ html: input.html ?? null, text: input.text ?? null });
+  if (!view || view.unreadable) return readableBody(input, max);
+  const shown = await view.engineDocument();
+  const body = cut(shown.text.trim(), max);
+  return { text: body.text, links: checkedLinks(shown.links), truncated: body.truncated };
+}
+
 export function readableBody(input: { html?: string | null; text?: string | null }, max: number): ReadableBody {
   // The part the reader shows: an HTML part that shows nothing leaves the text part (`mailBodyView`).
   const view = mailBodyView({ html: input.html ?? null, text: input.text ?? null });

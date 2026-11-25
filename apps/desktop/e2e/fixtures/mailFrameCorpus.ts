@@ -19,6 +19,11 @@ export interface MailCorpusCase {
   html: string;
   /** Elements the reader shows otherwise than `main`, with the reason. */
   differs?: Record<string, string>;
+  /**
+   * Words the reader shows nobody, only because of where its boxes lie, which the walk alone reads (B7, F23): the
+   * engine's reading leaves them out, as the assistant should. Each with the reason, seen in the frame.
+   */
+  layoutHides?: { words: string[]; why: string };
 }
 
 const GIF = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
@@ -107,11 +112,11 @@ const ORDINARY_6: MailCorpusCase[] = [
   { name: "ordinary 6 · b13 price bigger than the cell's px line height", html: `<table><tr><td style="font-size:14px;line-height:18px;background-color:#fff8e0;padding:4px">Nur <span style="font-size:32px;font-weight:bold">VISIBLEb13 49,99 €</span></td></tr></table>` },
   { name: "ordinary 6 · b14 bold word bigger in a paragraph", html: `<p style="font-size:12px;line-height:16px">VISIBLEb14 Text <strong style="font-size:24px">GROSS</strong> und weiter ${ORDINARY_TEXT}</p>` },
   { name: "ordinary 6 · b15 Korean keep-all in a 300 px box", html: `<div style="width:300px;word-break:keep-all;background-color:#f6f6f6">VISIBLEb15 한국어 문장은 단어 사이에서만 줄을 바꿉니다 그래서 이렇게 씁니다 한국어 문장은 단어 사이에서만</div>` },
-  { name: "ordinary 6 · b16 long address with word-break normal in 300 box", html: `<div style="width:300px;word-break:normal;background-color:#f6f6f6">VISIBLEb16 https://www.example.com/very/long/path/that/goes/on/and/on/without/any/break/at/all</div>` },
+  { name: "ordinary 6 · b16 long address with word-break normal in 300 box", html: `<div style="width:300px;word-break:normal;background-color:#f6f6f6">VISIBLEb16 https://www.example.com/very/long/path/that/goes/on/and/on/without/any/break/at/all</div>`, layoutHides: { words: ["https://www.example.com/very/long/path/that/goes/on/and/on/without/any/break/at/all"], why: "at 343 px the address runs past the frame's right edge, which the fitted frame cuts off (it shows \"…/break/at/a\")" } },
   { name: "ordinary 6 · b17 divider nbsp", html: `<p>VISIBLEb17</p><div style="height:1px;background-color:#dddddd;font-size:1px;line-height:1px">&nbsp;</div><p>after</p>` },
   { name: "ordinary 6 · b18 avatar circle", html: `<div style="width:40px;height:40px;line-height:40px;border-radius:20px;background-color:#0099ff;color:#ffffff;text-align:center;font-size:16px">MK</div><p>VISIBLEb18</p>` },
   { name: "ordinary 6 · b19 badge nowrap", html: `<p>VISIBLEb19 Nachrichten <span style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:12px;background-color:#e00;color:#fff;text-align:center;white-space:nowrap">12</span></p>` },
-  { name: "ordinary 6 · b20 nav items fixed width nowrap, one longer", html: `<div><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#eee">VISIBLEb20 Start</span><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#ddd">Sonderangebote der Woche</span><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#ccc">Kontakt</span></div>` },
+  { name: "ordinary 6 · b20 nav items fixed width nowrap, one longer", html: `<div><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#eee">VISIBLEb20 Start</span><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#ddd">Sonderangebote der Woche</span><span style="display:inline-block;width:120px;white-space:nowrap;background-color:#ccc">Kontakt</span></div>`, layoutHides: { words: ["der", "WocheKontakt"], why: "at 760 px the longer item's words run out of its 120 px box, and the next item's grey box paints over \"der Woche\" (the frame shows \"Sonderangebote d\")" } },
   { name: "ordinary 6 · b21 hybrid columns in font-size 0 / line-height 0 cell", html: `<table width="100%"><tr><td style="font-size:0;line-height:0" align="center"><div style="display:inline-block;max-width:300px;width:100%;vertical-align:top"><table width="100%"><tr><td style="font-size:14px;line-height:20px;padding:8px">VISIBLEb21a ${ORDINARY_TEXT}</td></tr></table></div><div style="display:inline-block;max-width:300px;width:100%;vertical-align:top"><table width="100%"><tr><td style="font-size:14px;line-height:20px;padding:8px">VISIBLEb21b ${ORDINARY_TEXT}</td></tr></table></div></td></tr></table>` },
   { name: "ordinary 6 · b22 hero stage with fixed height and gradient", html: `<div style="height:200px;background-image:linear-gradient(#1d3557,#457b9d);color:#ffffff;padding:20px;font-size:24px">VISIBLEb22 Sommer</div>` },
   { name: "ordinary 6 · b23 mobile-only block clipped to nothing", html: `<div style="display:none;max-height:0;overflow:hidden">Mobil-Text</div><p>VISIBLEb23</p>` },

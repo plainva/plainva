@@ -4,7 +4,7 @@ import { listMailAccounts, mailAccountKind } from "../mail/mailAccounts";
 import { cachedEnvelopes, cachedMessage } from "../mail/mailCache";
 import { fetchMessage, listEnvelopes, listMailboxesFor, searchEnvelopes } from "../mail/mailClient";
 import type { MailEnvelope, MailMessage } from "../mail/types";
-import { readableBody } from "./quarantineText";
+import { readableBody, readableBodyInEngine, type ReadableBody } from "./quarantineText";
 
 /**
  * The assistant's two mail tools (plan KI-Harness P4-4, ADR 0019), one
@@ -156,7 +156,18 @@ export function parseMailHandle(handle: string, accounts: readonly MailSourceAcc
  * place to put words only a model would find.
  */
 export function mailDocument(message: MailMessage): { title: string; text: string; links: { text: string; url: string }[]; truncated: boolean } {
-  const body = readableBody(message, MAIL_TEXT_MAX);
+  return documentOf(message, readableBody(message, MAIL_TEXT_MAX));
+}
+
+/**
+ * `mailDocument` as the assistant reads it (plan Umsetzung 0.9.x, B7; F23): what the reader shows judged by this
+ * device's engine too, so that no word is read that only the place of another box hides.
+ */
+export async function mailDocumentInEngine(message: MailMessage): Promise<ReturnType<typeof mailDocument>> {
+  return documentOf(message, await readableBodyInEngine(message, MAIL_TEXT_MAX));
+}
+
+function documentOf(message: MailMessage, body: ReadableBody): ReturnType<typeof mailDocument> {
   const head = [`From: ${message.from}`, message.to ? `To: ${message.to}` : "", `Date: ${stamp(message.dateTs)}`, `Subject: ${message.subject}`].filter(Boolean).join("\n");
   return { title: message.subject, text: `${head}\n\n${body.text || "(The message has no text.)"}`, links: body.links, truncated: body.truncated };
 }
@@ -256,7 +267,7 @@ async function readMail(source: MailSource, a: Record<string, unknown>): Promise
   // interface gets its turn first, so reading many mails one after another
   // never holds it for longer than one (review of 2026-11-17).
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
-  const document = mailDocument(message);
+  const document = await mailDocumentInEngine(message);
   const origin = { kind: "mail" as const, account: inertLine(at.account.label, 80) };
   const quarantine: QuarantinedText = {
     title: document.title,

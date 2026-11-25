@@ -11,6 +11,7 @@ const UNREADABLE: MailHtmlView = {
   blockedRemote: 0,
   unreadable: true,
   document: () => ({ text: "", links: [], shows: false }),
+  engineDocument: async () => ({ text: "", links: [], shows: false }),
   shows: () => false,
 };
 
