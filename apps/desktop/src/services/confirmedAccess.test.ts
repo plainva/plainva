@@ -57,6 +57,7 @@ function device(name: string, row: PimAccountRow | null, slotUrl: string | null)
     setTaskListSelected: async () => undefined,
     listMailAccounts: async () => [],
     replaceMailAccounts: async () => undefined,
+    removeMailSecret: async () => undefined,
     listCloudAccounts: async () => state.cards,
     replaceCloudAccounts: async (records) => {
       state.cards = [...records] as never[];

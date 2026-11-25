@@ -769,7 +769,15 @@ describe("\"Remove account\" right after the update (round twelve)", () => {
       if (!order.startsWith("before")) await remove();
       await rounds([l, o, n], 3);
       const current = Object.values(remote!.entries).find((e) => e.binding.secretType === "caldav-password-2" && e.binding.user === "bert");
-      expect([current?.tombstone, current?.deviceId, n.slots.get("b"), n.slots.get("r")]).toEqual([true, "L", undefined, "A1"]);
+      // The tombstone is written; the account leaves N with the settings
+      // profile, which takes its slot — a tombstone alone never empties the
+      // slot of an account still there (review 2026-11-25).
+      expect([current?.tombstone, current?.deviceId, n.slots.get("b"), n.slots.get("r")]).toEqual([true, "L", "B1", "A1"]);
+      n.rows = n.rows.filter((r) => r.id !== "b");
+      n.slots.delete("b");
+      await rounds([l, o, n], 3);
+      const after = Object.values(remote!.entries).find((e) => e.binding.secretType === "caldav-password-2" && e.binding.user === "bert");
+      expect([after?.tombstone, n.slots.get("r")]).toEqual([true, "A1"]);
     });
   }
 });

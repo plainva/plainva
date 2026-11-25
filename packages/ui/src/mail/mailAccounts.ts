@@ -467,6 +467,29 @@ export async function removeMailAccount(vaultPath: string, accountId: string): P
 }
 
 /**
+ * "Remove account" of a mailbox — on its own, with its account card, or as a
+ * mailbox a failed setup left behind: an act, so the password of an IMAP
+ * mailbox leaves the secrets sync with it (`retireSecret`, through the shell's
+ * `retireMailSecret`), in the same line as the secrets rounds. Every other way
+ * a mailbox goes — folded into a duplicate, replaced, taken away by the
+ * settings profile, an unfinished connect undone — is `removeMailAccount`
+ * alone and writes no tombstone (review 2026-11-25).
+ */
+export async function removeMailAccountOnPurpose(vaultPath: string, accountId: string): Promise<void> {
+  const account = (await listMailAccounts(vaultPath)).find((a) => a.id === accountId);
+  const retire = getPlatformServices().retireMailSecret;
+  let taken = false;
+  const take = async () => {
+    await removeMailAccount(vaultPath, accountId);
+    taken = true;
+  };
+  if (account && mailAccountKind(account) === "imap" && retire) {
+    await retire(vaultPath, { host: account.host, port: account.port, user: account.user }, take).catch(reportingTo("mail:remove-secret"));
+  }
+  if (!taken) await take();
+}
+
+/**
  * Stores ONLY the password of an account that already exists (device sign-in,
  * P2). Deliberately the mirror image of `updateMailAccount`: that one never
  * touches the credential, this one never touches the record.

@@ -1,4 +1,4 @@
-import { isVaultPathSetting, setForeignLegacyComments } from "@plainva/ui";
+import { isVaultPathSetting, removeSlot, setForeignLegacyComments } from "@plainva/ui";
 import { reportingTo } from "@plainva/ui";
 /**
  * Desktop profile-sync port (settings-sync plan P1). Bridges the vault's
@@ -121,7 +121,8 @@ import {
   backupZipKeepKey,
 } from "./backupPolicy";
 import type { PimRuntime } from "./pim/pimRuntime";
-import { mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { credentialManager } from "./CredentialManager";
+import { legacyMailSecretKey, mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { adoptNewBarAreas, BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
@@ -860,6 +861,7 @@ function desktopAccountPorts(store: ISettingsStore, vaultPath: string, cache: Pi
     },
     listMailAccounts: () => listMailAccounts(vaultPath),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultPath, accounts),
+    removeMailSecret: (accountId) => removeSlot(credentialManager, mailSecretKey(vaultPath, accountId), legacyMailSecretKey(vaultPath, accountId)),
     listCloudAccounts: () => loadCloudAccounts(vaultPath),
     replaceCloudAccounts: (accounts) => saveCloudAccounts(vaultPath, accounts),
     pimSecretSlot: (accountId) => pimSecretKey(vaultPath, accountId),

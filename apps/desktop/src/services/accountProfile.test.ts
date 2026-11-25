@@ -78,6 +78,7 @@ function ports(initial: {
     setTaskListSelected: async () => {},
     listMailAccounts: async () => state.mail,
     replaceMailAccounts: async (accounts) => void (state.mail = [...accounts]),
+    removeMailSecret: async () => undefined,
     listCloudAccounts: async () => state.cloud,
     replaceCloudAccounts: async (accounts) => void (state.cloud = [...accounts]),
     pimSecretSlot: (accountId) => `pim-slot:${accountId}`,
@@ -696,6 +697,23 @@ describe("account profile: deletions travel, identities survive", () => {
       api,
     );
     expect(state.pim).toHaveLength(0);
+  });
+
+  // Review 2026-11-25 (F64, M11): a calendar account the document removed
+  // takes its slot along (`deletePimAccount`); a mailbox left its password in
+  // the keychain, read by no account any more.
+  it("removes the stored sign-in of a mailbox the document says was deleted elsewhere, and of no other", async () => {
+    const { api, state } = ports({
+      mail: [mail({ id: "m-local", user: "gone@example.com" }), mail({ id: "m-kept", user: "kept@example.com" })],
+      map: { ...emptyAccountMap(), mailLocalToLogical: { "m-local": "logical-m", "m-kept": "logical-k" } },
+    });
+    const removedSecrets: string[] = [];
+    api.removeMailSecret = async (accountId) => void removedSecrets.push(accountId);
+
+    await importAccountMetadata({ mailAccounts: [mail({ id: "logical-k", user: "kept@example.com" })], removedAccounts: { "logical-m": "2026-08-19T10:00:00.000Z" } }, api);
+
+    expect(state.mail.map((a) => a.id)).toEqual(["m-kept"]);
+    expect(removedSecrets).toEqual(["m-local"]);
   });
 
   it("publishes its own tombstones together with the ones it received", () => {

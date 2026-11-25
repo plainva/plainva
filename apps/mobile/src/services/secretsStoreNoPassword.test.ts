@@ -216,9 +216,10 @@ async function fleet(seed: number): Promise<{ problems: string[]; paths: Set<str
       paths.add("signed out");
     } else if (k < 0.6 && !d.legacy && a.kind === "calendar" && d.accounts.includes(a)) {
       state.current = d;
-      await retireCalDavSecret(VAULT, CAL, a.user);
-      d.accounts = d.accounts.filter((x) => x !== a);
-      d.slots.delete(slotOf(a));
+      await retireCalDavSecret(VAULT, CAL, a.user, async () => {
+        d.accounts = d.accounts.filter((x) => x !== a);
+        d.slots.delete(slotOf(a));
+      });
       paths.add("removed");
     } else if (k < 0.7 && !d.legacy) {
       d.slots.delete(SECRETS_MARK_KEY_SLOT);
@@ -406,7 +407,7 @@ describe("the secrets sync keeps no password in the phone's settings store (F67)
       l.legacy = false;
       state.current = l;
       await expect(sealSecretsMetaAtStart()).rejects.toThrow();
-      await retireCalDavSecret(VAULT, CAL, POOL[1].user);
+      await retireCalDavSecret(VAULT, CAL, POOL[1].user, async () => undefined);
       await expect(round(l, remote)).rejects.toThrow();
       const others = JSON.stringify([...l.store].filter(([key]) => key !== LEGACY_KEY));
       expect(others).not.toContain("pw-first-1");

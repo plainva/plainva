@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SecretPolicyError, canonicalizeEndpoint, type SecretBinding, type SecretsBundle } from "@plainva/core";
-import { type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { SecretPolicyError, canonicalSecretId, canonicalizeEndpoint, type SecretBinding, type SecretsBundle } from "@plainva/core";
+import { retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
 import { createSecretsPort } from "./test-secretsPort";
 
 /**
@@ -233,29 +233,39 @@ describe("shared secrets port (H2c)", () => {
     expect(metaWrites).toBe(0);
   });
 
-  it("removes an imported secret on a tombstone, but never one of its own", async () => {
-    // Device A publishes, device B imports.
+  /**
+   * A tombstone never empties the slot of an account still on this device
+   * (review 2026-11-25): the account leaves a device with the settings
+   * profile, which takes its slot along, and a tombstone for an account still
+   * here is another device's view — a device on 0.9.0 writes one for an
+   * address it repaired. Kept as seen, it goes out again as it came, and the
+   * password is not published again; a password typed here later is.
+   */
+  it("keeps the slot of an account still here on a tombstone, and publishes the tombstone, not the password", async () => {
     const source = makeDevice("phone", () => [candidate()]);
-    let bundle = await source.port.exportBundle();
+    const bundle = await source.port.exportBundle();
     let targetSecret: Record<string, string> | null = null;
     const target = makeDevice("desktop", () => [candidate({ secret: targetSecret })]);
     await target.port.importBundle(bundle);
-    expect(target.keychain.has("pim_acc-1")).toBe(true);
+    expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
+    targetSecret = { pass: "hunter2" };
 
-    // The account disappears on A → tombstone.
-    const gone = makeDevice("phone", () => []);
-    // Reuse A's meta so the tombstone carries the previous revision.
-    const withMeta: SecretsBundle = { ...bundle, entries: { "acc-1": { ...bundle.entries["acc-1"], entryRev: 2, tombstone: true, secret: undefined } } };
-    await target.port.importBundle(withMeta);
-    expect(target.keychain.has("pim_acc-1")).toBe(false);
-    expect(gone).toBeTruthy();
+    const tombstoned: SecretsBundle = { ...bundle, entries: { "acc-1": { ...bundle.entries["acc-1"], entryRev: 2, tombstone: true, secret: undefined } } };
+    const result = await target.port.importBundle(tombstoned);
+    expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
+    expect(result.entries).toContainEqual({ logicalId: "acc-1", status: "unchanged", reason: "account-still-here" });
+    const next = await target.port.exportBundle();
+    expect(next.entries["acc-1"]).toEqual(tombstoned.entries["acc-1"]);
 
-    // A device's OWN, never-imported secret survives someone else's tombstone.
-    targetSecret = { pass: "mine" };
+    // Typed here later: a change, above the tombstone.
+    targetSecret = { pass: "typed-later" };
+    const typed = await target.port.exportBundle();
+    expect(typed.entries["acc-1"]).toMatchObject({ entryRev: 3, deviceId: "desktop", secret: { pass: "typed-later" } });
+
+    // A device's OWN, never-imported secret survives it as well.
     const owner = makeDevice("desktop-2", () => [candidate({ secret: { pass: "mine" } })]);
     owner.keychain.set("pim_acc-1", { kind: "caldav", pass: "mine" });
-    bundle = { ...withMeta };
-    await owner.port.importBundle(bundle);
+    await owner.port.importBundle(tombstoned);
     expect(owner.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "mine" });
   });
 
@@ -353,52 +363,58 @@ describe("shared secrets port (H2c)", () => {
 
   /**
    * A tombstone DELETES a credential on every other device, so it must never be
-   * guesswork. On mobile the account list comes from a runtime that boots in
-   * parallel with the sync worker: a cycle can catch it empty, which is
-   * indistinguishable from "the user removed every account". Without a guard,
-   * that one race published a tombstone per account — and the other device
-   * dutifully deleted working passwords.
+   * guesswork (review 2026-11-25): only "Remove account" writes one. An
+   * account that is merely missing from the list — a runtime still booting on
+   * the phone, an empty answer, a device without its slot, an address
+   * repaired — writes none. And the act itself waits while the account
+   * source is not ready: an account still listed then is no removal.
    */
-  it("does not tombstone while the account source reports it is not ready", async () => {
+  it("writes no tombstone for an account that is only missing, and a removal waits for a ready list", async () => {
     let ready = true;
-    let accounts = [candidate()];
+    // Named as both shells name it, by its binding (`retireSecret` addresses it so).
+    const id = canonicalSecretId(binding());
+    const own = () => candidate({ logicalId: id });
+    let accounts = [own()];
     const keychain = new Map<string, unknown>();
     let meta: SecretsPortMeta | null = null;
-    const port = createSecretsPort({
+    const host = {
       deviceId: async () => "phone",
       readMeta: async () => meta,
-      writeMeta: async (m) => void (meta = structuredClone(m)),
+      writeMeta: async (m: SecretsPortMeta) => void (meta = structuredClone(m)),
       candidates: async () => accounts,
-      readSlot: async (slot) => keychain.get(slot) ?? null,
-      writeSlot: async (slot, value) => void keychain.set(slot, value),
-      removeSlot: async (slot) => void keychain.delete(slot),
+      readSlot: async (slot: string) => keychain.get(slot) ?? null,
+      writeSlot: async (slot: string, value: unknown) => void keychain.set(slot, value),
+      removeSlot: async (slot: string) => void keychain.delete(slot),
       accountsReady: async () => ready,
       now: () => "2026-07-26T00:00:00.000Z",
-    });
-
+    };
+    const port = createSecretsPort(host);
     await port.exportBundle(); // account is known from here on
 
     // The runtime is not up yet: empty list, but nothing was deleted.
     ready = false;
     accounts = [];
-    const duringBoot = await port.exportBundle();
-    expect(duringBoot.entries["acc-1"]?.tombstone).toBeUndefined();
-
-    // Ready, but the list is STILL empty next to a known account — the shape of
-    // a source that has not answered properly. Also not a deletion.
+    expect((await port.exportBundle()).entries[id]?.tombstone).toBeUndefined();
+    // Ready, empty: nothing either.
     ready = true;
-    const stillEmpty = await port.exportBundle();
-    expect(stillEmpty.entries["acc-1"]?.tombstone).toBeUndefined();
-
-    // A real removal (the source is ready and reports other accounts) does
-    // produce the tombstone, so deleting an account still propagates.
-    // A genuinely DIFFERENT account: its own user, hence its own binding. The
-    // stand-in used to reuse the default binding, which denotes the very same
-    // credential — with the export now judging by binding, that would have read
-    // as "still here" rather than as a removal.
+    expect((await port.exportBundle()).entries[id]?.tombstone).toBeUndefined();
+    // Ready, other accounts listed, this one gone without "Remove account": still none.
     accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9", binding: binding({ user: "other@example.com" }) })];
-    const afterRealRemoval = await port.exportBundle();
-    expect(afterRealRemoval.entries["acc-1"]?.tombstone).toBe(true);
+    expect((await port.exportBundle()).entries[id]?.tombstone).toBeUndefined();
+
+    // "Remove account" while the list is not ready: the mark waits...
+    accounts = [own(), accounts[0]];
+    await port.exportBundle();
+    ready = false;
+    await retireSecret(host, binding(), async () => {
+      accounts = accounts.filter((item) => item.logicalId !== id);
+    });
+    expect((await port.exportBundle()).entries[id]?.tombstone).toBeUndefined();
+    expect(meta!.retired).toBeDefined();
+    // ...and the ready list writes the tombstone.
+    ready = true;
+    expect((await port.exportBundle()).entries[id]?.tombstone).toBe(true);
+    expect(meta!.retired).toBeUndefined();
   });
 
   /**
@@ -408,10 +424,6 @@ describe("shared secrets port (H2c)", () => {
    * published a tombstone that deleted a WORKING password everywhere else —
    * five of them for one Gmail app password across three devices, one entry at
    * revision 214 from the resulting ping-pong (maintainer report, 2026-08-10).
-   *
-   * The account list is NOT empty here, so neither existing guard applies: only
-   * "this account is known, its slot merely is not filled" tells the two cases
-   * apart.
    */
   it("does not tombstone an account that is present but has no local secret", async () => {
     let accounts = [candidate()];
@@ -435,15 +447,6 @@ describe("shared secrets port (H2c)", () => {
     accounts = [candidate({ secret: null })];
     const withoutSecret = await port.exportBundle();
     expect(withoutSecret.entries["acc-1"]?.tombstone).toBeUndefined();
-
-    // The account itself going away is still a real removal and still propagates.
-    // A genuinely DIFFERENT account: its own user, hence its own binding. The
-    // stand-in used to reuse the default binding, which denotes the very same
-    // credential — with the export now judging by binding, that would have read
-    // as "still here" rather than as a removal.
-    accounts = [candidate({ logicalId: "acc-9", slot: "pim_acc-9", binding: binding({ user: "other@example.com" }) })];
-    const afterRemoval = await port.exportBundle();
-    expect(afterRemoval.entries["acc-1"]?.tombstone).toBe(true);
   });
 
   /**

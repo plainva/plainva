@@ -58,6 +58,14 @@ export interface PlatformServices {
    */
   noteAccountRemoved?(vaultKey: string, kind: "pim" | "mail", localId: string): Promise<void>;
   /**
+   * "Remove account" takes this IMAP mailbox out: its password leaves the
+   * secrets sync by this act (`retireSecret`), and `remove` takes the mailbox
+   * out in the same line as the secrets rounds (the shells'
+   * `retireImapSecret`). Optional: a shell without a secrets sync has nothing
+   * to tombstone.
+   */
+  retireMailSecret?(vaultKey: string, mailbox: { host: string; port: number; user: string }, remove: () => Promise<void>): Promise<void>;
+  /**
    * Remembers that an account was added (again) on this device: a deletion the
    * profile still carries for its id is revived, here and on the other devices
    * (the shells' `noteAccountAddedLocally`).

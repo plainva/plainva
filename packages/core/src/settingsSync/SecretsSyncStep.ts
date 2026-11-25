@@ -30,12 +30,16 @@ import { stableStringify } from "./profileFile.js";
 export type SecretImportStatus = "imported" | "unchanged" | "rejected" | "stale" | "error";
 
 export type SecretImportReason =
+  | "account-still-here"
+  | "address-changed-here"
   | "already-current"
   | "binding-mismatch"
   | "legacy-secret-type"
   | "local-secret-conflict"
   | "local-secret-protected"
   | "older-entry"
+  | "removed-here"
+  | "signed-out-here"
   | "slot-read-failed"
   | "slot-write-failed"
   | "superseded-by-exact-entry"

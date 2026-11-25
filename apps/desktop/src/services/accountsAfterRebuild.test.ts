@@ -60,6 +60,7 @@ function scene(map: ProfileAccountMap = emptyAccountMap()) {
     setTaskListSelected: async () => {},
     listMailAccounts: async () => [],
     replaceMailAccounts: async () => {},
+    removeMailSecret: async () => undefined,
     listCloudAccounts: async () => [],
     replaceCloudAccounts: async () => {},
     pimSecretSlot: (id) => `pim-slot:${id}`,

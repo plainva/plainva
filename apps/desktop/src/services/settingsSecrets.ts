@@ -14,7 +14,7 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
-import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretImportedFor, secretsMarker, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, isSignedOutSlot, mergeLegacySecretsMeta, secretImportedFor, secretsMarker, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -88,6 +88,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
         slot,
         binding,
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
+        signedOutHere: isSignedOutSlot(creds),
         apply: (secret) => ({ kind: "caldav", url, user, pass: secret.pass ?? "" } satisfies PimStoredCredentials),
       });
     }
@@ -103,6 +104,7 @@ async function localCandidates(vaultPath: string, pimRuntime: PimRuntime | null)
       slot,
       binding,
       secret: stored?.pass ? { pass: stored.pass } : null,
+      signedOutHere: isSignedOutSlot(stored),
       apply: (secret) => ({ ...(stored ?? {}), pass: secret.pass ?? "" }),
     });
   }
@@ -196,9 +198,18 @@ export async function ensureMarkKeyHome(): Promise<void> {
   await secretsMarker(markKeySlots, false);
 }
 
-/** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`). */
-export async function retireCalDavSecret(vaultPath: string, url: string, user: string): Promise<void> {
-  await retireSecret(retiredStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+/**
+ * "Remove account" takes this calendar account out: its secrets entry is
+ * tombstoned from that act (`retireSecret`); `remove` takes the account out
+ * in the same line as the secrets rounds.
+ */
+export async function retireCalDavSecret(vaultPath: string, url: string, user: string, remove: () => Promise<void>): Promise<void> {
+  await retireSecret(retiredStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user), remove);
+}
+
+/** "Remove account" takes this IMAP mailbox out: the same act for its password (`retireSecret`), as for a calendar. */
+export async function retireImapSecret(vaultPath: string, mailbox: { host: string; port: number; user: string }, remove: () => Promise<void>): Promise<void> {
+  await retireSecret(retiredStore(vaultPath), imapSecretBinding(familyOfImapHost(mailbox.host) ?? "imap", mailbox.host, mailbox.port, mailbox.user), remove);
 }
 
 /**
@@ -217,14 +228,12 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     // two in step (the port persists the result on its next export).
     ...metaStore(vaultPath),
     candidates: () => localCandidates(vaultPath, pimRuntime),
-    // Without the PIM runtime this device does NOT know its full account
-    // picture: the mail candidates are complete, the calendar ones are missing.
-    // The candidate list is therefore not empty and `looksUnavailable` would not
-    // fire — a CalDAV credential would be declared deleted and removed on every
-    // other device. Saying so plainly suppresses tombstoning for those runs;
-    // everything else (publishing and receiving secrets) keeps working. This is
-    // the same answer the phone gives while its runtime boots.
-    accountsReady: async () => pimRuntime !== null,
+    // Without the PIM runtime this device does NOT know its calendar
+    // accounts; the mail candidates are always complete. A removal of a
+    // calendar account waits for the runtime (`retireSecret`); everything else
+    // (publishing and receiving secrets) keeps working. This is the same
+    // answer the phone gives while its runtime boots.
+    accountsReady: async (service) => service === "mail" || pimRuntime !== null,
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
     ownedKey: markKeySlots.ownedKey,

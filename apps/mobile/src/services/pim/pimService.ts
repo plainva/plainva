@@ -667,7 +667,7 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
   await restartPimAccountAfterLogin(target.vaultId, accountId);
 }
 
-async function retireRemovedCalDavSecret(vaultId: string, accountId: string): Promise<void> {
+async function retireRemovedCalDavSecret(vaultId: string, accountId: string, take: () => Promise<void>): Promise<void> {
   const row = runtime ? (await runtime.cache.listAccounts()).find((account) => account.id === accountId) : undefined;
   if (row?.provider !== "caldav") return;
   const creds = await getPimCredentials(vaultId, accountId).catch(() => null);
@@ -675,7 +675,7 @@ async function retireRemovedCalDavSecret(vaultId: string, accountId: string): Pr
   const user = creds?.kind === "caldav" ? creds.user : typeof row.config.user === "string" ? row.config.user : "";
   if (!url || !user) return;
   const { retireCalDavSecret } = await import("../mobileSecretsPort");
-  await retireCalDavSecret(vaultId, url, user);
+  await retireCalDavSecret(vaultId, url, user, take);
 }
 
 /**
@@ -694,10 +694,18 @@ export async function removePimAccount(accountId: string): Promise<void> {
   // Before the account is gone: the tombstone is keyed on the shared id, and
   // the map that translates the local id lives beside the account (P2).
   await noteAccountRemovedLocally(runtime.vaultId, "pim", accountId).catch(() => {});
-  // Its password leaves the secrets sync by this act, as on the desktop (review 2026-11-18).
-  await retireRemovedCalDavSecret(runtime.vaultId, accountId).catch(reportingTo("pim:remove-secret"));
-  await clearPimCredentials(runtime.vaultId, accountId);
-  await runtime.cache.deleteAccount(accountId);
+  // Its password leaves the secrets sync by this act, as on the desktop
+  // (review 2026-11-18), the only act that writes a tombstone (review
+  // 2026-11-25); the account goes in the same line as the secrets rounds.
+  const current = runtime;
+  let taken = false;
+  const take = async () => {
+    await clearPimCredentials(current.vaultId, accountId);
+    await current.cache.deleteAccount(accountId);
+    taken = true;
+  };
+  await retireRemovedCalDavSecret(current.vaultId, accountId, take).catch(reportingTo("pim:remove-secret"));
+  if (!taken) await take();
   if ((await runtime.cache.listAccounts()).length === 0) setPimState({ status: "off", message: null });
   pimSyncNow();
 }

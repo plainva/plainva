@@ -127,6 +127,7 @@ describe("a round trip through the settings profile", () => {
       setTaskListSelected: async () => undefined,
       listMailAccounts: () => listMailAccounts(B),
       replaceMailAccounts: (accounts) => replaceMailAccounts(B, accounts),
+      removeMailSecret: async () => undefined,
       listCloudAccounts: async () => [],
       replaceCloudAccounts: async () => undefined,
       pimSecretSlot: (id) => `pim:${id}`,

@@ -94,6 +94,7 @@ setPlatformServices({
   keychainSlotName,
   // A removed mailbox stays removed on the other devices too (review of plan "Verbinden", finding 1).
   noteAccountRemoved: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
+  retireMailSecret: (vaultKey, mailbox, remove) => import("./services/settingsSecrets").then((m) => m.retireImapSecret(vaultKey, mailbox, remove)),
   noteAccountAdded: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
 });
 // "Discard your input?" for every dialog that holds typed input (finding 2026-10-22).

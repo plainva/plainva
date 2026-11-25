@@ -6,6 +6,7 @@ import {
   getMailRefreshToken,
   listMailAccounts,
   removeMailAccount,
+  removeMailAccountOnPurpose,
   replaceMailbox,
   saveMicrosoftMailAccount,
 } from "@plainva/ui/mail";
@@ -64,7 +65,7 @@ export async function replaceMobileMailbox(replacedId: string, replacementId: st
 export async function removeMobileMailAccount(accountId: string): Promise<void> {
   if (!vaultId) return;
   forgetGraphMailRuntime(vaultId, accountId);
-  await removeMailAccount(vaultId, accountId);
+  await removeMailAccountOnPurpose(vaultId, accountId);
   notifyMailChanged();
 }
 

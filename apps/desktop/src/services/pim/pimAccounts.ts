@@ -298,15 +298,22 @@ export async function removePimAccount(runtime: PimRuntime, vaultPath: string, a
   // Before it is gone: the tombstone stops the next profile import putting it
   // back, which is what made deleted calendar accounts keep returning (P2).
   await noteAccountRemovedLocally(vaultPath, "pim", accountId).catch(reportingTo("pim:remove-tombstone"));
-  // Its password leaves the secrets sync by this act (review 2026-11-18): a
-  // comparison of lists cannot tell it from "alice" beside a removed "Alice".
-  await retireRemovedCalDavSecret(runtime, vaultPath, accountId).catch(reportingTo("pim:remove-secret"));
-  await runtime.cache.deleteAccount(accountId);
+  // Its password leaves the secrets sync by this act (review 2026-11-18), the
+  // only act that writes a tombstone (review 2026-11-25). The row goes in the
+  // same line as the secrets rounds, so no round finds the mark while the row
+  // is still there.
+  let taken = false;
+  const take = async () => {
+    await runtime.cache.deleteAccount(accountId);
+    taken = true;
+  };
+  await retireRemovedCalDavSecret(runtime, vaultPath, accountId, take).catch(reportingTo("pim:remove-secret"));
+  if (!taken) await take();
   // A sign-in left in the keychain of an account that is gone: for the diagnostics.
   await clearPimCredentials(vaultPath, accountId).catch(reportingTo("pim:remove-credentials"));
 }
 
-async function retireRemovedCalDavSecret(runtime: PimRuntime, vaultPath: string, accountId: string): Promise<void> {
+async function retireRemovedCalDavSecret(runtime: PimRuntime, vaultPath: string, accountId: string, take: () => Promise<void>): Promise<void> {
   const row = (await runtime.cache.listAccounts()).find((account) => account.id === accountId);
   if (row?.provider !== "caldav") return;
   const creds = await getPimCredentials(vaultPath, accountId).catch(() => null);
@@ -314,7 +321,7 @@ async function retireRemovedCalDavSecret(runtime: PimRuntime, vaultPath: string,
   const user = creds?.kind === "caldav" ? creds.user : typeof row.config.user === "string" ? row.config.user : "";
   if (!url || !user) return;
   const { retireCalDavSecret } = await import("../settingsSecrets");
-  await retireCalDavSecret(vaultPath, url, user);
+  await retireCalDavSecret(vaultPath, url, user, take);
 }
 
 export async function setPimAccountEnabled(runtime: PimRuntime, account: PimAccountRow, enabled: boolean): Promise<void> {

@@ -112,6 +112,7 @@ function importPorts(map: ProfileAccountMap = emptyAccountMap()) {
     setTaskListSelected: async () => undefined,
     listMailAccounts: () => listMailAccounts(VAULT),
     replaceMailAccounts: (accounts) => replaceMailAccounts(VAULT, accounts),
+    removeMailSecret: async () => undefined,
     listCloudAccounts: async () => state.cloud,
     replaceCloudAccounts: async (accounts) => void (state.cloud = [...accounts]),
     pimSecretSlot: (accountId) => `pim-slot:${accountId}`,

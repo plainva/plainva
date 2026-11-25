@@ -43,6 +43,7 @@ function device(mail: MailAccountConfig[], name = "device") {
     setTaskListSelected: async () => undefined,
     listMailAccounts: async () => state.mail,
     replaceMailAccounts: async (accounts) => { state.mail = [...accounts]; },
+    removeMailSecret: async () => undefined,
     listCloudAccounts: async () => [],
     replaceCloudAccounts: async () => undefined,
     pimSecretSlot: (id) => `pim:${id}`,

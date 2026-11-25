@@ -44,6 +44,7 @@ import {
   mailAccountsForProfile,
   normalizeAccountMap,
   getPlatformServices,
+  removeSlot,
   importAccountMetadata,
   emptyDiagnostics,
   normalizeSyncDiagnostics,
@@ -74,7 +75,7 @@ import {
   type ProfileAccountMap,
   type SyncDiagnostics,
 } from "@plainva/ui";
-import { listMailAccounts, mailSecretKey, replaceMailAccounts } from "@plainva/ui/mail";
+import { legacyMailSecretKey, listMailAccounts, mailSecretKey, replaceMailAccounts } from "@plainva/ui/mail";
 import {
   barDef,
   adoptNewBarAreas,
@@ -528,6 +529,7 @@ function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): Ac
     },
     listMailAccounts: () => listMailAccounts(vaultId),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultId, accounts),
+    removeMailSecret: (accountId) => removeSlot(getPlatformServices().credentials, mailSecretKey(vaultId, accountId), legacyMailSecretKey(vaultId, accountId)),
     listCloudAccounts: () => loadCloudAccounts(vaultId),
     replaceCloudAccounts: (accounts) => saveCloudAccounts(vaultId, accounts),
     pimSecretSlot: (accountId) => pimSecretKey(vaultId, accountId),

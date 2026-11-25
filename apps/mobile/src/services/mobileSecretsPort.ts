@@ -6,6 +6,7 @@ import {
   familyOfCalDavUrl,
   familyOfImapHost,
   getPlatformServices,
+  isSignedOutSlot,
   migrateSecretsMetaToCanonicalIds,
   retireSecret,
   mergeLegacySecretsMeta,
@@ -97,14 +98,18 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
       const url = creds?.kind === "caldav" ? creds.url : typeof account.config.url === "string" ? account.config.url : "";
       const user = creds?.kind === "caldav" ? creds.user : typeof account.config.user === "string" ? account.config.user : "";
       if (!url || !user) continue;
-      // Same fallback chain as the desktop, so the SAME account produces the
-      // same binding on both platforms — otherwise no entry would ever match.
+      // The family is guessed from the address here, where the desktop takes
+      // the card's: it is a catalog label only. The secret's name and the
+      // matching leave it out (`canonicalSecretId`, `bindingMatchesExceptFamily`),
+      // so the SAME account has the same name on both platforms; only the
+      // published `binding.family` may differ.
       const binding = calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user);
       out.push({
         logicalId: canonicalSecretId(binding),
         slot,
         binding,
         secret: creds?.kind === "caldav" && creds.pass ? { pass: creds.pass } : null,
+        signedOutHere: isSignedOutSlot(creds),
         apply: (secret) => ({ kind: "caldav", url, user, pass: secret.pass ?? "" } satisfies PimStoredCredentials),
       });
     }
@@ -120,6 +125,7 @@ export async function mobileCandidates(vaultId: string): Promise<LocalSecretCand
       slot,
       binding,
       secret: stored?.pass ? { pass: stored.pass } : null,
+      signedOutHere: isSignedOutSlot(stored),
       apply: (secret) => ({ ...(stored ?? {}), pass: secret.pass ?? "" }),
     });
   }
@@ -191,9 +197,18 @@ export async function sealSecretsMetaAtStart(): Promise<number> {
   return sealSecretsMetaInStore(await settingsStore(), META_STORAGE, markKeySlots);
 }
 
-/** "Remove account" took this calendar account out: its secrets entry is tombstoned from that act (`retireSecret`), as on the desktop. */
-export async function retireCalDavSecret(vaultId: string, url: string, user: string): Promise<void> {
-  await retireSecret(retiredStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+/**
+ * "Remove account" takes this calendar account out: its secrets entry is
+ * tombstoned from that act (`retireSecret`); `remove` takes the account out
+ * in the same line as the secrets rounds, as on the desktop.
+ */
+export async function retireCalDavSecret(vaultId: string, url: string, user: string, remove: () => Promise<void>): Promise<void> {
+  await retireSecret(retiredStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user), remove);
+}
+
+/** "Remove account" takes this IMAP mailbox out: the same act for its password (`retireSecret`), as on the desktop. */
+export async function retireImapSecret(vaultId: string, mailbox: { host: string; port: number; user: string }, remove: () => Promise<void>): Promise<void> {
+  await retireSecret(retiredStore(vaultId), imapSecretBinding(familyOfImapHost(mailbox.host) ?? "imap", mailbox.host, mailbox.port, mailbox.user), remove);
 }
 
 /** Mobile keychain bridge for the secrets sideband. */
@@ -202,11 +217,9 @@ export function createMobileSecretsPort(vaultId: string): SecretsPort {
     deviceId,
     // The PIM runtime boots in PARALLEL with the sync worker (App.tsx starts
     // both without ordering), so a cycle can catch `listPimAccounts()` empty.
-    // An empty list looks exactly like "the user deleted every account", and
-    // export would answer with a tombstone each — which the other device then
-    // applies by deleting a working password. Never tombstone until the runtime
-    // that owns those accounts is actually up.
-    accountsReady: async () => isPimRuntimeReady(),
+    // A removal of a calendar account waits until the runtime that owns those
+    // accounts is up (`retireSecret`); the mailboxes are always complete.
+    accountsReady: async (service) => service === "mail" || isPimRuntimeReady(),
     // See the desktop port: pre-P4c metadata is keyed by the old per-device
     // names, the candidates above by the canonical one.
     ...metaStore(vaultId),

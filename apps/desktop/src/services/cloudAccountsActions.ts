@@ -42,6 +42,7 @@ import {
   saveMailAccount,
   saveMicrosoftMailAccount,
   removeMailAccount,
+  removeMailAccountOnPurpose,
   type MailAccountConfig,
 } from "@plainva/ui/mail";
 import { restartPimAccountAfterLogin, type PimRuntime } from "./pim/pimRuntime";
@@ -595,7 +596,7 @@ export async function disableAccountService(
     await removePimAccount(runtime, vaultPath, record.services.calendar.pimAccountId);
   } else if (service === "mail" && record.services.mail) {
     forgetGraphMailRuntime(vaultPath, record.services.mail.mailAccountId);
-    await removeMailAccount(vaultPath, record.services.mail.mailAccountId);
+    await removeMailAccountOnPurpose(vaultPath, record.services.mail.mailAccountId);
   }
   return refreshCloudAccounts(vaultPath, runtime);
 }

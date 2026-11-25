@@ -150,7 +150,7 @@ function device(pim: PimAccountRow[], cards: CloudAccountRecord[]) {
     deletePimAccount: async (id) => { state.pim = state.pim.filter((p) => p.id !== id); },
     listCalendars: async () => [], setCalendarSelected: async () => undefined,
     listTaskLists: async () => [], setTaskListSelected: async () => undefined,
-    listMailAccounts: async () => [], replaceMailAccounts: async () => undefined,
+    listMailAccounts: async () => [], replaceMailAccounts: async () => undefined, removeMailSecret: async () => undefined,
     listCloudAccounts: async () => state.cards,
     replaceCloudAccounts: async (r) => { state.cards = [...r]; },
     pimSecretSlot: (id) => `pim:${id}`, mailSecretSlot: (id) => `mail:${id}`,

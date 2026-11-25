@@ -3,7 +3,7 @@ import { getPlatformServices } from "../platform/services";
 import { readSlot } from "../lib/keychainSlots";
 import { hasCachedMail } from "./mailCache";
 import { forgetGraphMailRuntime } from "./graphMail";
-import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey, removeMailAccount, type MailAccountConfig } from "./mailAccounts";
+import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey, removeMailAccountOnPurpose, type MailAccountConfig } from "./mailAccounts";
 
 /**
  * Mail accounts a failed setup left behind (finding 2026-09-24, E4).
@@ -95,7 +95,8 @@ export async function removeOrphanedMailAccount(
   if (!account) return "removed";
   if (!isOrphanedMailAccount(await mailAccountEvidence(vaultKey, account, db))) return "kept";
   forgetGraphMailRuntime(vaultKey, accountId);
-  await removeMailAccount(vaultKey, accountId);
+  // A removal (maintainer, 2026-11-18): a tombstone, where the password was ever shared.
+  await removeMailAccountOnPurpose(vaultKey, accountId);
   return "removed";
 }
 

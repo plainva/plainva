@@ -73,6 +73,12 @@ export interface LocalSecretCandidate {
   /** Builds the value to store from an incoming payload (keeps device-local
    *  fields such as OAuth refresh tokens intact). */
   apply(secret: Record<string, string>): unknown;
+  /**
+   * "Sign out on this device" took this slot's sign-in (`isSignedOutSlot`):
+   * no password from another device signs it in again; only a sign-in here
+   * does.
+   */
+  signedOutHere?: boolean;
 }
 
 export interface SecretsPortMeta {
@@ -117,6 +123,16 @@ export interface SecretsPortMeta {
        * version (restored, or held) or a password is typed here.
        */
       unconfirmed?: true;
+      /**
+       * A tombstone that reached an account still on this device: never
+       * applied to it (review 2026-11-25) — the account leaves a device with
+       * the settings profile, which takes its slot along. The mark of the
+       * slot as it was then: while the slot holds it, the tombstone goes out
+       * as it came; a password typed here later is a change.
+       */
+      kept?: string;
+      /** This tombstone was written by "Remove account" on this device (`retireSecret`). */
+      removal?: true;
     }
   >;
   /** Entries written BY an import — only these may be removed by a tombstone. */
@@ -157,6 +173,16 @@ export interface SecretsPortMeta {
    */
   closedOldNames?: Record<string, string>;
   /**
+   * The names — current and old — "Remove account" tombstoned on this
+   * device, with the time of the removal (review 2026-11-25). A value under
+   * one of them that is older than the removal and that this device had not
+   * seen yet is answered by the tombstone again, one revision above it, so
+   * the password leaves the shared document. A value written after the
+   * removal is another device's own act and stays. The name opens again when
+   * its account is on this device again.
+   */
+  removedIds?: Record<string, string>;
+  /**
    * The document, accounts and slots the last import took with nothing left
    * open, as a mark (`settledKey`). The same again is settled: nothing is
    * written and nothing reported (round seven).
@@ -172,16 +198,17 @@ export interface SecretsPortHost {
   /** The device's accounts, with the secret each currently holds. */
   candidates(): Promise<LocalSecretCandidate[]>;
   /**
-   * Whether `candidates()` currently reflects the FULL truth of this device.
+   * Whether `candidates()` currently lists EVERY account of this kind on
+   * this device.
    *
-   * A mobile account list is served by a runtime that boots in parallel with the
-   * sync worker, so a cycle can catch it empty. Without this, an empty list is
-   * indistinguishable from "the user deleted everything" and export would write
-   * a tombstone per account — which the other device then applies by DELETING a
-   * working password. Answering false suppresses tombstoning for that run;
-   * everything else still works.
+   * A calendar account list is served by a runtime that boots in parallel
+   * with the sync worker (the phone), or is missing without that runtime (the
+   * desktop), so a cycle can catch it empty. A removal that "Remove account"
+   * asked for (`retireSecret`) waits for a list that is whole: an account still
+   * listed is no removal. Mail accounts are read from the settings store and
+   * are always whole.
    */
-  accountsReady?(): Promise<boolean>;
+  accountsReady?(service: SecretBinding["service"]): Promise<boolean>;
   readSlot(slot: string): Promise<unknown>;
   /** The key of the marks from the app process, for every window at once (`secretsMark.ts`). */
   ownedKey?(fresh: string, marksOnDevice: boolean): Promise<string>;
@@ -239,20 +266,35 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   ...(source?.retired ? { retired: Object.fromEntries(Object.entries(source.retired).map(([id, binding]) => [id, { ...binding }])) } : {}),
   ...(source?.oldNameTombstones ? { oldNameTombstones: { ...source.oldNameTombstones } } : {}),
   ...(source?.closedOldNames ? { closedOldNames: { ...source.closedOldNames } } : {}),
+  ...(source?.removedIds ? { removedIds: { ...source.removedIds } } : {}),
   ...(source?.settled ? { settled: source.settled } : {}),
 });
 
 /**
- * "Remove account" took this account out (review 2026-11-18): its entry is
- * tombstoned by the next export, under its name in the current type. Its old
- * name, under which a device up to 0.8.7 may still hold it, is never written.
- * An account that comes back before then keeps its entry.
+ * "Remove account" takes this account out (review 2026-11-18): its entry is
+ * tombstoned by the next export, under its name in the current type and —
+ * when this device knows it and no other account here can mean it — under
+ * the old name a device up to 0.8.7 holds it by. This act is the only source
+ * of a tombstone (review 2026-11-25): an account that is merely gone from
+ * this device (repaired, folded, taken away by the profile) writes none. An
+ * account that comes back before the export keeps its entry.
+ *
+ * `remove` takes the account out of the device. It runs in the same line as
+ * every export and import, right after the mark is stored, so no export can
+ * find the mark while the account is still listed and drop it as "still
+ * here" (review 2026-11-18, finding 1). It must not run a secrets round
+ * itself.
  */
-export async function retireSecret(host: Pick<SecretsPortHost, "readMeta" | "writeMeta">, binding: SecretBinding): Promise<void> {
+export async function retireSecret(
+  host: Pick<SecretsPortHost, "readMeta" | "writeMeta">,
+  binding: SecretBinding,
+  remove?: () => Promise<void>,
+): Promise<void> {
   await serialized(async () => {
     const meta = cloneMeta(await host.readMeta());
     meta.retired = { ...(meta.retired ?? {}), [canonicalSecretId(binding)]: { ...binding } };
     await host.writeMeta(meta);
+    await remove?.();
   });
 }
 
@@ -545,6 +587,17 @@ function bridgeIdOf(binding: SecretBinding): string | null {
   return canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType), user: binding.user.toLowerCase() });
 }
 
+/** A name "Remove account" tombstoned here opens again when its account is here again (`removedIds`). */
+function openRemovedIds(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): void {
+  if (!meta.removedIds) return;
+  for (const candidate of candidates) {
+    delete meta.removedIds[candidate.logicalId];
+    const old = bridgeIdOf(candidate.binding);
+    if (old) delete meta.removedIds[old];
+  }
+  if (Object.keys(meta.removedIds).length === 0) delete meta.removedIds;
+}
+
 /** An old name closed by "Remove account" opens again when that same account is here again (`closedOldNames`). */
 function reopenOldNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): boolean {
   if (!meta.closedOldNames) return false;
@@ -622,16 +675,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       reopenOldNames(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       // Every account this device KNOWS, with or without a stored secret.
-      //
-      // "Account here, slot empty" is not a removal — it is the ordinary state of
-      // a device that has not signed in yet: the account arrives with the
-      // settings profile, the credential deliberately does not (see
-      // `replaceMailAccounts`). Publishing a tombstone for it deleted a WORKING
-      // password on every other device. Reported 2026-08-10: five tombstones for
-      // one Gmail app password across three devices, one at entryRev 214 from the
-      // resulting ping-pong. Only an account that is GONE may be tombstoned.
       const knownIds = new Set(candidates.map((c) => c.logicalId));
       const entries: Record<string, SecretEntry> = {};
+      openRemovedIds(meta, candidates);
+      /** A tombstone this device knows, as it knows it. */
+      const republish = (id: string, previous: SecretsPortMeta["entries"][string]) => {
+        entries[id] = { entryRev: previous.entryRev, updatedAt: previous.updatedAt, deviceId: previous.deviceId, binding: previous.binding, tombstone: true };
+      };
 
       for (const candidate of candidates) {
         if (!candidate.secret) continue;
@@ -646,6 +696,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // this device knew and saw.
         if (live && previous!.held === hash) continue;
         if (live && !previous!.held && previous!.sinceLoss && previous!.hash === hash) continue;
+        // A tombstone that reached this account while it is here: the slot
+        // still holds what it held then, so the tombstone goes out as it
+        // came, and the password does not (`kept`).
+        if (previous?.tombstone && previous.kept !== undefined && previous.kept === hash) {
+          republish(candidate.logicalId, previous);
+          continue;
+        }
         // The revision only moves when the secret actually changed — otherwise
         // two devices would ping-pong revisions on every cycle.
         const changed = !previous || previous.tombstone || !!previous.held || previous.hash !== hash;
@@ -671,103 +728,78 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         };
       }
 
-      // An account that vanished here becomes a tombstone, so the other device
-      // learns it was removed rather than resurrecting it on the next cycle.
+      // A tombstone deletes a credential on other devices, so only an act
+      // writes one: "Remove account" on this device (`retireSecret`). An
+      // account that is merely gone from this device — its address repaired,
+      // folded into another, taken away by the settings profile — is no
+      // removal: another device may still sign in with that very password
+      // (review 2026-11-25; the comparison of lists that inferred one took
+      // the password of every other device on a repaired address).
       //
-      // But a tombstone DELETES a credential on every other device, so it must
-      // never be guesswork. Two guards: the host says its account list is ready,
-      // and a list that came back completely empty while we know of accounts is
-      // treated as "not ready" regardless — that shape is a runtime that has not
-      // booted yet, and the cost of being wrong is a destroyed password.
-      // What "Remove account" took out here is tombstoned whatever the lists
-      // say — it is known, not inferred (`retireSecret`).
       // An account in lower case had ONE name until the current types (its
       // old name was its name): what removed it here also closes its old name
       // here, so a value a device on 0.8.7 writes under it later reaches no
       // other account ("Alice" beside a removed "alice"). Remembered on this
-      // device only (`closedOldNames`), never written, and only until the
-      // same account is here again (`reopenOldNames`).
+      // device only (`closedOldNames`), and only until the same account is
+      // here again (`reopenOldNames`).
       const closeOldName = (binding: SecretBinding) => {
         if (!isShareableSecretType(binding.secretType) || binding.user !== binding.user.toLowerCase()) return;
         const old = canonicalSecretId({ ...binding, secretType: bridgeSecretTypeOf(binding.secretType) });
         meta.closedOldNames = { ...(meta.closedOldNames ?? {}), [old]: stamp };
       };
-      const tombstone = (id: string, removed?: SecretBinding) => {
+      const noteRemoved = (id: string) => {
+        meta.removedIds = { ...(meta.removedIds ?? {}), [id]: stamp };
+      };
+      const tombstone = (id: string, removed: SecretBinding) => {
         let previous = meta.entries[id];
         // Removed before any export of this version moved the record to the
         // account's current name: what this device knew under its old name
         // is what it knew about this account (round twelve, as on main) —
         // unless another account here still goes by that old name.
-        const old = !previous && removed ? bridgeIdOf(removed) : null;
+        const old = bridgeIdOf(removed);
+        const oldFree = !!old && !candidates.some((candidate) => bridgeIdOf(candidate.binding) === old);
         const known = old ? meta.entries[old] : undefined;
-        if (known && !known.tombstone && !known.alias && isBridgeSecretType(known.binding.secretType) && !candidates.some((candidate) => bridgeIdOf(candidate.binding) === old)) {
-          previous = { ...known, binding: removed! };
+        const knownOld = !!known && !known.tombstone && isBridgeSecretType(known.binding.secretType) && oldFree;
+        if (!previous && knownOld && !known!.alias) previous = { ...known!, binding: removed };
+        if (previous && !previous.tombstone && !currentIds.has(id) && isShareableSecretType(previous.binding.secretType)) {
+          const entryRev = previous.entryRev + 1;
+          entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
+          const { kept: _kept, ...rest } = previous;
+          meta.entries[id] = { ...rest, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true, removal: true };
+          noteRemoved(id);
+          closeOldName(previous.binding);
         }
-        if (!previous || previous.tombstone || currentIds.has(id)) return;
-        if (!isShareableSecretType(previous.binding.secretType)) return;
-        const entryRev = previous.entryRev + 1;
-        entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
-        meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
-        closeOldName(previous.binding);
+        // The old place too (review 2026-11-18, X1): no updated device writes
+        // there any more, so the password of a removed account stayed in it
+        // for good. Only a name this device knows for this account — its own
+        // record from before the update, or one it read for it — and only
+        // while no other account here can mean that name (the twin rule of
+        // reading, `oldNameId`).
+        if (knownOld) {
+          const entryRev = known!.entryRev + 1;
+          entries[old!] = { entryRev, updatedAt: stamp, deviceId, binding: known!.binding, tombstone: true };
+          const { alias: _alias, kept: _kept, ...rest } = known!;
+          meta.entries[old!] = { ...rest, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true, removal: true };
+          noteRemoved(old!);
+        }
       };
       for (const [id, removed] of Object.entries(meta.retired ?? {})) {
+        // A list that may not be whole yet cannot say the account is gone.
+        if (host.accountsReady && !(await host.accountsReady(removed.service))) continue;
         delete meta.retired![id];
         if (knownIds.has(id)) continue;
         tombstone(id, removed);
       }
       if (meta.retired && Object.keys(meta.retired).length === 0) delete meta.retired;
 
-      const ready = host.accountsReady ? await host.accountsReady() : true;
-      const looksUnavailable = candidates.length === 0 && Object.keys(meta.entries).length > 0;
-      if (ready && !looksUnavailable) {
-        for (const [id, previous] of Object.entries(meta.entries)) {
-          // Never turn retired Google client metadata into a tombstone. An old
-          // client could interpret that tombstone by deleting its still-needed
-          // local registration. S9 handles explicit quarantine/migration.
-          if (!isShareableSecretType(previous.binding.secretType)) continue;
-          // An old name read for an account here (`oldNameId`) is never
-          // written back, not as a tombstone either.
-          if (previous.alias) continue;
-          if (currentIds.has(id)) continue;
-          // The account is still here, only its secret is missing on THIS device.
-          // Leave the remote entry untouched: the merge then carries the
-          // credential back to us instead of destroying it everywhere.
-          if (knownIds.has(id)) continue;
-          // The same credential under a DIFFERENT name. A logical id is derived
-          // from the local account id, so every device minted its own for one and
-          // the same password — six of them for a single Gmail app password in
-          // the maintainer's bundle (2026-08-10), five already tombstoned.
-          // Tombstoning a foreign id destroys precisely the credential this
-          // device still holds, merely under the other device's name for it. The
-          // import side has resolved entries by binding for a while; the export
-          // side has to apply the same yardstick.
-          //
-          // Users are compared without regard to case here, and only here: an
-          // entry a device up to 0.8.7 named for a user in capitals carries
-          // the user lower-cased, and the account is still on this device
-          // under its exact spelling. A tombstone in doubt is never written.
-          if (candidates.some((candidate) => bindingMatchesExceptFamily(previous.binding, candidate.binding, "fold"))) continue;
-          const entryRev = previous.tombstone ? previous.entryRev : previous.entryRev + 1;
-          const updatedAt = previous.tombstone ? previous.updatedAt : stamp;
-          // A tombstone known already goes out as it is, with the device that
-          // wrote it (round eleven): taking it as this device's flipped its
-          // device against the document every round, and wrote every round.
-          const by = previous.tombstone ? previous.deviceId : deviceId;
-          entries[id] = { entryRev, updatedAt, deviceId: by, binding: previous.binding, tombstone: true };
-          meta.entries[id] = { ...previous, hash: "", entryRev, updatedAt, deviceId: by, tombstone: true };
-          if (!previous.tombstone) closeOldName(previous.binding);
-        }
-      } else {
-        // Re-publish what we still know unchanged, so this cycle neither deletes
-        // nor resurrects anything while the device is still coming up.
-        for (const [id, previous] of Object.entries(meta.entries)) {
-          if (currentIds.has(id) || entries[id]) continue;
-          // An entry of an old type is never written, not as a tombstone either.
-          if (!isShareableSecretType(previous.binding.secretType)) continue;
-          if (previous.tombstone) {
-            entries[id] = { entryRev: previous.entryRev, updatedAt: previous.updatedAt, deviceId: previous.deviceId, binding: previous.binding, tombstone: true };
-          }
-        }
+      // Every tombstone this device knows goes out again as it is — the
+      // shared document has it, and a device that left it out would import
+      // every round. Of the old types only the ones "Remove account" wrote
+      // here (`removal`); an entry of an old type is otherwise never written.
+      for (const [id, previous] of Object.entries(meta.entries)) {
+        if (!previous.tombstone || entries[id] || currentIds.has(id) || previous.alias) continue;
+        if (!isShareableSecretType(previous.binding.secretType) && !(previous.removal && isBridgeSecretType(previous.binding.secretType))) continue;
+        republish(id, previous);
       }
 
       if (stableStringify(meta) !== asRead) await host.writeMeta(meta);
@@ -805,7 +837,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       const result = emptyImportResult();
       await carryOldKnowledge(meta, candidates, mark);
       reopenOldNames(meta, candidates);
+      openRemovedIds(meta, candidates);
       const closedOldName = (id: string) => !!meta.oldNameTombstones?.[id] || !!meta.closedOldNames?.[id];
+      // A tombstone this device knows under an old name stops values under
+      // it — except its own one from "Remove account" once that account is
+      // here again (`removedIds` opened): a value written there since is that
+      // account's.
+      const tombstonedName = (id: string) => meta.entries[id]?.tombstone === true && !(meta.entries[id].removal && !meta.removedIds?.[id]);
       // What this device knew under each old name when the round began. An
       // entry under an old name that carries the password the device already
       // knew there is no news (round nine): a device back on 0.8.7 publishes
@@ -925,6 +963,19 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           }
         }
 
+        // A value under a name "Remove account" tombstoned here, older than
+        // the removal and above the tombstone this device wrote: a password
+        // it had not seen yet when it removed the account. The tombstone goes
+        // out again one revision above it, so the password leaves the shared
+        // document (`removedIds`). A value written after the removal is
+        // another device's own act and is read as any other.
+        const removedAt = meta.removedIds?.[logicalId];
+        if (removedAt && previous?.tombstone && previous.removal && !entry.tombstone && entry.updatedAt <= removedAt) {
+          meta.entries[logicalId] = { ...previous, entryRev: entry.entryRev + 1 };
+          recordImportResult(result, logicalId, "unchanged", "removed-here");
+          continue;
+        }
+
         // The type of a local account this entry may speak for: its own, or —
         // for an entry of a client up to 0.8.7 — the current one of that kind.
         const localType = bridged ? currentSecretTypeOf(entry.binding.secretType as Parameters<typeof currentSecretTypeOf>[0]) : entry.binding.secretType;
@@ -963,7 +1014,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // tie the current entry stands.
         if (legacyCandidate) {
           const exact = bundle.entries[legacyCandidate.logicalId];
-          const retiredName = meta.entries[logicalId]?.tombstone === true || closedOldName(logicalId);
+          const retiredName = tombstonedName(logicalId) || closedOldName(logicalId);
           if (entry.tombstone) rememberOldNameTombstone(logicalId, entry);
           if (entry.tombstone || retiredName || (exact && !(entry.updatedAt > exact.updatedAt))) {
             recordImportResult(result, logicalId, "unchanged", exact ? "superseded-by-exact-entry" : "old-name-not-taken");
@@ -980,7 +1031,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         const oldEntry = oldName ? bundle.entries[oldName] : undefined;
         if (
           oldEntry && isBridgeSecretType(oldEntry.binding.secretType) && !oldEntry.tombstone &&
-          meta.entries[oldName!]?.tombstone !== true && !closedOldName(oldName!) &&
+          !tombstonedName(oldName!) && !closedOldName(oldName!) &&
           oldEntry.updatedAt > entry.updatedAt &&
           !(await knownUnderOldName(oldName!, oldEntry))
         ) {
@@ -1006,6 +1057,24 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             Object.values(bundle.entries).some(
               (other) => other.binding.secretType === localType && bindingMatchesExceptFamily(other.binding, entry.binding, "fold"),
             );
+          // Not waiting either: the password of an account that was on this
+          // device and is gone (its record is here), or of an address an
+          // account here no longer has — the same user, the same kind, on
+          // another server. Since nothing infers a removal any more (review
+          // 2026-11-25), a repaired address leaves its old entry in the
+          // document; it is no account this device still has to receive.
+          // It is read as soon as an account here has that address.
+          const elsewhereHere =
+            !!previous ||
+            candidates.some(
+              (item) =>
+                sameType(item) &&
+                bindingMatchesExceptFamily({ ...entry.binding, endpoint: item.binding.endpoint }, item.binding, bridged ? "fold" : "exact"),
+            );
+          if (elsewhereHere && !direct) {
+            recordImportResult(result, logicalId, "unchanged", "address-changed-here");
+            continue;
+          }
           if (!waitsWithCurrent) result.unknownAccounts.push(logicalId);
           recordImportResult(
             result,
@@ -1016,13 +1085,31 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           continue;
         }
 
-        if (entry.tombstone && !pairImported) {
+        // A tombstone never empties the slot of an account that is still on
+        // this device (review 2026-11-25). The account leaves a device with
+        // the settings profile, which takes its slot along; a tombstone for
+        // an account still here is another device's view — a device on 0.9.0
+        // or 0.8.7 still writes one for an address it repaired, and applied,
+        // it took a working password. It is kept as seen, with the mark of
+        // the slot as it is, and goes out again as it came.
+        if (entry.tombstone) {
           await rememberEntry(logicalId, entry);
-          if (candidate.secret) {
-            recordImportResult(result, logicalId, "rejected", "local-secret-protected");
-          } else {
-            recordImportResult(result, logicalId, "unchanged", "tombstone-no-local-secret");
+          meta.entries[logicalId] = { ...meta.entries[logicalId], kept: await pairMark(mark, candidate.binding, candidate.secret) };
+          recordImportResult(
+            result,
+            logicalId,
+            candidate.secret && !pairImported ? "rejected" : "unchanged",
+            candidate.secret ? (pairImported ? "account-still-here" : "local-secret-protected") : "tombstone-no-local-secret",
+          );
+          continue;
+        }
+        // Signed out on this device: a password from elsewhere does not sign
+        // it in again. Seen, not taken — a sign-in here goes out above it.
+        if (candidate.signedOutHere) {
+          if (previous && !previous.tombstone && entry.entryRev > (previous.heldRev ?? 0)) {
+            meta.entries[logicalId] = { ...previous, heldRev: entry.entryRev };
           }
+          recordImportResult(result, logicalId, "unchanged", "signed-out-here");
           continue;
         }
         if (!entry.tombstone && candidate.secret && !pairImported) {
@@ -1067,17 +1154,13 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
 
         try {
-          if (entry.tombstone) {
-            await host.removeSlot(candidate.slot);
-            delete meta.imported[logicalId];
-          } else {
-            await host.writeSlot(candidate.slot, candidate.apply(entry.secret!));
-            meta.imported[logicalId] = true;
-            // Read under its old name (`oldNameId`): the account's exact name was written with it.
-            if (viaOldName) meta.imported[candidate.logicalId] = true;
-          }
+          // Only values come here: a tombstone never empties a slot (above).
+          await host.writeSlot(candidate.slot, candidate.apply(entry.secret!));
+          meta.imported[logicalId] = true;
+          // Read under its old name (`oldNameId`): the account's exact name was written with it.
+          if (viaOldName) meta.imported[candidate.logicalId] = true;
           await rememberEntry(logicalId, entry, viaOldName);
-          if (viaOldName && !entry.tombstone) await recordCurrent(candidate, entry);
+          if (viaOldName) await recordCurrent(candidate, entry);
           successfulSlots.add(candidate.slot);
           recordImportResult(result, logicalId, "imported");
         } catch {

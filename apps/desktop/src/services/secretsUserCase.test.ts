@@ -237,7 +237,10 @@ describe("two password accounts that differ only in the case of the user", () =>
     expect(last.entries[alice]?.tombstone).toBe(true);
   });
 
-  it("the name a device on 0.8.7 knows a password by is never exported, not even as a tombstone of a removed account", async () => {
+  // Review 2026-11-25 (X1): "Remove account" also writes a tombstone under the
+  // old name this device read the password by, so it leaves the old place
+  // too. That name carries never a value, and a tombstone only from that act.
+  it("the name a device on 0.8.7 knows a password by is never exported as a value, and as a tombstone only from \"Remove account\"", async () => {
     let rows: Row[] = [{ id: "r-Alice", user: "Alice" }];
     const d = device("A", () => rows, new Map([["r-Alice", { kind: "caldav", url: URL_, user: "Alice", pass: "pw" }]]));
     // It was read once from a device on 0.8.7.
@@ -249,7 +252,8 @@ describe("two password accounts that differ only in the case of the user", () =>
     rows = [];
     d.slots.clear();
     const after = await d.port.exportBundle();
-    expect(after.entries).not.toHaveProperty(legacyId);
+    expect(after.entries[legacyId]).toMatchObject({ tombstone: true, deviceId: "A", binding: legacyBinding("Alice") });
+    expect(after.entries[legacyId]?.secret).toBeUndefined();
     expect(after.entries[canonicalSecretId(calDavSecretBinding("webdav", URL_, "Alice"))]?.tombstone).toBe(true);
   });
 
