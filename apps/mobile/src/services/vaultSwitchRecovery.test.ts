@@ -3,12 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
-import { closeWaitNoteName, toast, toastStore, waitWithDeadline } from "@plainva/ui";
+import { closeWaitNoteName, closingAtSyncPlace, parkClosingSyncPlace, resetClosingSyncPlacesForTests, syncStateBindingFor, type SyncStateBinding, waitForClosingVault, toast, toastStore, waitWithDeadline } from "@plainva/ui";
 import { armLeaveGuard, armedLeaveGuards, disarmLeaveGuard, foreignInputArmed, resetLeaveGuard } from "./leaveGuard";
 import { currentMobileDialog, dismissMobileDialog } from "./mobileDialogs";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
 import type { MobileVault } from "./vaultService";
 import { retiredBoot } from "./bootRetirement";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createVaultCallOff, QueueingVaultAdapter, SyncQueue, VaultIndexer } from "@plainva/core";
+import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
+import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 /**
  * The vault switch and the vault reload of the phone (finding 2026-10-22,
@@ -18,7 +24,7 @@ import { retiredBoot } from "./bootRetirement";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
+const NAMES = ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "reloadActiveMobileVault", "offerReload"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -34,22 +40,25 @@ const compiled = ts.transpileModule(
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
 ).outputText;
 
-const vault = (id: string) => ({ vaultId: id, callOff: vi.fn(), ended: vi.fn(async () => {}), dispose: vi.fn(async () => {}) }) as unknown as MobileVault & { dispose: ReturnType<typeof vi.fn>; callOff: ReturnType<typeof vi.fn> };
+const vault = (id: string) => ({ vaultId: id, callOff: vi.fn(), ended: vi.fn(async () => {}), flushOwed: vi.fn(async () => {}), dispose: vi.fn(async () => {}) }) as unknown as MobileVault & { dispose: ReturnType<typeof vi.fn>; callOff: ReturnType<typeof vi.fn> };
 
-function harness(start: string) {
+function harness(start: string, initial: MobileVault = vault(start)) {
   let active = start;
   const events: Array<string | undefined> = [];
   const syncStarted: string[] = [];
   const order: string[] = [];
+  const stopSyncAndDrain = vi.fn(async () => { order.push("stop"); });
   const deps = {
     // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
     retiredBoot,
-    initial: vault(start),
+    initial,
     noteSaver: { flushAll: vi.fn(async () => {}), pendingPaths: () => [] },
     // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
-    waitWithDeadline, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     reportingTo: () => () => {},
-    stopSyncAndDrain: vi.fn(async () => { order.push("stop"); }),
+    stopSyncAndDrain,
+    // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
+    detachSync: vi.fn(() => { order.push("detach"); return { drain: () => stopSyncAndDrain(), place: null as SyncStateBinding | null }; }),
     setActiveVault: vi.fn(async (id: string) => { order.push(`active:${id}`); active = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),
     getActiveVaultEntry: async () => ({ id: active, name: "" }),
@@ -143,10 +152,13 @@ describe("after the runtime was called off, only forwards", () => {
     expect(h.deps.initial.callOff, "given up in the sync step: called off at once").toHaveBeenCalled();
     // THE DEFECT: the called-off vault stayed on screen and its sync started again over a runtime that refuses every call.
     expect(h.syncStarted, "no sync starts on a called-off runtime").toEqual([]);
-    expect(h.deps.initial.dispose).toHaveBeenCalled();
     expect(h.events, "the vault on screen opens anew").toEqual(["notes"]);
     expect(h.active()).toBe("notes");
+    // Its database closes once the step it gave up on has ended — never under a call still running.
+    expect(h.deps.initial.dispose).not.toHaveBeenCalled();
     finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.deps.initial.dispose).toHaveBeenCalled();
   });
 
   it("a reload whose sync step was given up on goes on, though input was begun in the drain", async () => {
@@ -159,8 +171,49 @@ describe("after the runtime was called off, only forwards", () => {
     // Asked before anything calls off — after the call-off a vault that stays on screen would refuse every call.
     expect(await reloading).toBe(true);
     expect(h.deps.initial.callOff).toHaveBeenCalled();
-    expect(h.deps.initial.dispose).toHaveBeenCalled();
+    expect(h.deps.initial.dispose, "not under the step still running").not.toHaveBeenCalled();
     expect(h.events).toEqual(["notes"]);
+  });
+});
+
+describe("the sync of the vault a switch leaves", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("is taken off before the saves, so a save that hangs past the deadline holds no sync of the next vault", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    const h = harness("notes");
+    let saved!: () => void;
+    h.deps.noteSaver.flushAll.mockImplementationOnce(() => new Promise<void>((r) => (saved = r)));
+    const switching = h.switchVault("work");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await switching;
+    // THE DEFECT: the sync was stopped only after the saves; the hanging save kept the old worker the app's, so the
+    // next vault's start found it and started nothing — and the old vault's late stop then hit the next vault's.
+    expect(h.order.slice(0, 1), "taken off at once").toEqual(["detach"]);
+    expect(h.order, "drained only after the saves").not.toContain("stop");
+    expect(h.events).toEqual(["work"]);
+    saved();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.order).toContain("stop");
+  });
+});
+
+describe("the place of the runtime a switch leaves", () => {
+  afterEach(() => resetClosingSyncPlacesForTests());
+
+  it("is parked under the vault's sync folder too, until the runtime has ended", async () => {
+    expect.hasAssertions();
+    const folder = syncStateBindingFor({ provider: "webdav", webdav: { url: "https://dav.example.test/shared", user: "u" } });
+    let end!: () => void;
+    const initial = { ...vault("notes"), ended: vi.fn(() => new Promise<void>((r) => (end = r))) } as unknown as MobileVault;
+    const h = harness("notes", initial);
+    h.deps.detachSync.mockImplementationOnce(() => ({ drain: async () => {}, place: folder }));
+    await h.switchVault("work");
+    // Another entry on the same folder: its sync start waits for this runtime (`waitForClosingSyncPlace`).
+    expect(closingAtSyncPlace(folder).map((c) => c.vault)).toHaveLength(1);
+    end();
+    await vi.waitFor(() => expect(closingAtSyncPlace(folder)).toHaveLength(0));
   });
 });
 
@@ -233,4 +286,74 @@ describe("a vault reload", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(h.events).toEqual([]);
   });
+});
+
+/**
+ * A healthy switch or reload loses nothing that is owed to the sync queue
+ * (the phone's twin of the desktop's close). A write whose queue entry could
+ * not be made at once — the database busy with another transaction, which
+ * the phone's adapter refuses rather than queues — is owed, and its entry is
+ * tried again a moment later. Closing the vault gives it its last attempt
+ * (`dispose`: the owed entries are flushed, then the database closes), and
+ * only after that may the runtime be called off: called off first, the last
+ * attempt meets a fenced database and the entry is gone.
+ */
+describe("a healthy switch with an entry owed to the sync queue", () => {
+  async function owingVault(id: string) {
+    const root = await mkdtemp(join(tmpdir(), "pv-switch-owed-"));
+    const raw = await realSqlite();
+    const fence = createVaultCallOff();
+    let busy = 1;
+    const refusingOnce = new Proxy(raw, {
+      get(target, key, receiver) {
+        const value = Reflect.get(target, key, receiver) as unknown;
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          if (key === "transaction") if (key === "transaction" && busy > 0) { busy -= 1; return Promise.reject(new Error("database is busy")); }
+          return (value as (...a: unknown[]) => unknown).apply(target, args);
+        };
+      },
+    });
+    const db = fence.database(refusingOnce);
+    const storage = fence.storage(new LocalVaultAdapter(root));
+    await storage.initialize();
+    const owed = new QueueingVaultAdapter(storage, new SyncQueue(db));
+    // The index is under way, as so often on the phone (the warm pass after the first paint, a resume rescan):
+    // closing aborts it, and dispose waits for it to end first.
+    const indexAbort = new AbortController();
+    const indexer = new VaultIndexer(storage, db, { scanSignal: indexAbort.signal });
+    // As `MobileVault`: ended calls off and waits; dispose waits for the index, gives the owed entries their last attempt, then closes.
+    const v = {
+      vaultId: id,
+      callOff: () => fence.callOff(),
+      ended: () => { fence.callOff(); return fence.ended(); },
+      dispose: async () => { indexAbort.abort(); await indexer.whenIdle(); await owed.flush(); },
+    } as unknown as MobileVault;
+    const rows = () => raw.query<{ operation: string; file_path: string }>("SELECT operation, file_path FROM offline_queue");
+    const cleanup = async () => { await raw.close().catch(() => undefined); await rm(root, { recursive: true, force: true }); };
+    const scan = () => void indexer.indexVaultFull().catch(() => undefined);
+    return { v, owed, fence, rows, cleanup, scan };
+  }
+
+  for (const how of ["switch", "reload"] as const) {
+    it(`keeps it on a ${how}: the last attempt comes before the runtime is called off`, async () => {
+      expect.hasAssertions();
+      const o = await owingVault("notes");
+      try {
+        const h = harness("notes", o.v);
+        const write = o.owed.writeTextFile("Tasks.md", "- [x] ticked just before switching\n").then(() => "saved", (e: Error) => e.name);
+        // The entry is owed now; its next attempt is due a quarter second after the change.
+        await new Promise((r) => setTimeout(r, 30));
+        o.scan();
+        if (how === "switch") await h.switchVault("work");
+        else expect(await h.reloadActiveMobileVault()).toBe(true);
+        await new Promise((r) => setTimeout(r, 400));
+        expect(await o.rows(), "the entry is in the queue").toEqual([{ operation: "write", file_path: "Tasks.md" }]);
+        expect(await Promise.race([write, new Promise((r) => setTimeout(() => r("still owed"), 1_000))]), "the write stands").toBe("saved");
+        expect(o.fence.calledOff, "the runtime is called off after it").toBe(true);
+      } finally {
+        await o.cleanup();
+      }
+    });
+  }
 });

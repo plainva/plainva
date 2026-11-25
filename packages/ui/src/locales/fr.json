@@ -8581,6 +8581,7 @@
     "savingGaveUpMany_other": "{{count}} notes ne sont pas encore entièrement enregistrées. Plainva continue ; les enregistrements se terminent en arrière-plan, et les textes sont aussi gardés dans les brouillons.",
     "syncGaveUp": "L'étape de synchronisation de « {{vault}} » n'a pas abouti. Plainva l'arrête et continue ; rien n'est perdu – la prochaine synchronisation rattrape ce qui manque.",
     "openingGaveUp": "« {{vault}} » n'a pas fini de s'ouvrir. Plainva le ferme et le supprime dès qu'il répond.",
-    "stillClosing": "« {{vault}} » est encore en cours de fermeture – ensuite, Plainva le rouvre."
+    "stillClosing": "« {{vault}} » est encore en cours de fermeture – ensuite, Plainva le rouvre.",
+    "stillClosingSameFolder": "« {{vault}} » utilise le même dossier de synchronisation et est encore en cours de fermeture – ensuite, la synchronisation démarre."
   }
 }

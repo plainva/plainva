@@ -8237,6 +8237,7 @@
     "savingGaveUpMany_other": "{{count}} 条笔记尚未保存完成。Plainva 会继续；保存会在后台完成，文本也同时保存在草稿中。",
     "syncGaveUp": "“{{vault}}”的同步步骤未能完成。Plainva 会停止它并继续；不会丢失任何内容——下一次同步会补上缺少的部分。",
     "openingGaveUp": "“{{vault}}”未能打开完成。Plainva 会在它响应后将其关闭并删除。",
-    "stillClosing": "“{{vault}}”仍在关闭中，完成后 Plainva 会重新打开它。"
+    "stillClosing": "“{{vault}}”仍在关闭中，完成后 Plainva 会重新打开它。",
+    "stillClosingSameFolder": "“{{vault}}”使用同一个同步文件夹，仍在关闭中，完成后开始同步。"
   }
 }

@@ -8409,6 +8409,7 @@
     "savingGaveUpMany_other": "{{count}} notities zijn nog niet helemaal opgeslagen. Plainva gaat verder; het opslaan loopt op de achtergrond af, en de teksten staan ook in de concepten.",
     "syncGaveUp": "De synchronisatiestap van ‘{{vault}}’ is niet afgerond. Plainva stopt hem en gaat verder; er gaat niets verloren – de volgende synchronisatie haalt in wat ontbreekt.",
     "openingGaveUp": "‘{{vault}}’ is niet helemaal geopend. Plainva sluit hem en verwijdert hem zodra hij antwoordt.",
-    "stillClosing": "‘{{vault}}’ wordt nog gesloten – daarna opent Plainva hem weer."
+    "stillClosing": "‘{{vault}}’ wordt nog gesloten – daarna opent Plainva hem weer.",
+    "stillClosingSameFolder": "‘{{vault}}’ gebruikt dezelfde synchronisatiemap en wordt nog gesloten – daarna start de synchronisatie."
   }
 }

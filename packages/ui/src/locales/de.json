@@ -8409,6 +8409,7 @@
     "savingGaveUpMany_other": "{{count}} Notizen sind noch nicht fertig gespeichert. Plainva geht weiter; das Speichern läuft im Hintergrund zu Ende, und die Texte liegen zusätzlich im Entwurf.",
     "syncGaveUp": "Der Sync-Schritt von „{{vault}}“ ist nicht fertig geworden. Plainva hält ihn an und geht weiter; verloren geht nichts – der nächste Abgleich holt nach, was fehlt.",
     "openingGaveUp": "„{{vault}}“ ist nicht fertig geöffnet worden. Plainva schließt ihn und entfernt ihn, sobald er antwortet.",
-    "stillClosing": "„{{vault}}“ wird noch geschlossen – danach öffnet Plainva ihn wieder."
+    "stillClosing": "„{{vault}}“ wird noch geschlossen – danach öffnet Plainva ihn wieder.",
+    "stillClosingSameFolder": "„{{vault}}“ nutzt denselben Sync-Ordner und wird noch geschlossen – danach startet der Sync."
   }
 }

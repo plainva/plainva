@@ -1,6 +1,6 @@
 import { afterTaskSyncResume, clearPinboardCache, confirmationEndpoint, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { errorText, reportBackground, reportingTo, waitForClosingVault, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
+import { errorText, reportBackground, reportingTo, waitForClosingVault, waitForClosingSyncPlace, type SyncStateBinding, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
 import { FEATURES_SAVED_EVENT, featuresSavedFor } from "../services/vaultFeaturesRelay";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
@@ -696,6 +696,10 @@ export const VaultProvider: React.FC<{
   const loadAbortRef = useRef<AbortController | null>(null);
   // The fence of the running vault's runtime (`createVaultCallOff`): a close that gives up waiting calls it off.
   const callOffRef = useRef<VaultCallOff | null>(null);
+  // What the running vault owes its sync queue (`chain.queueing`): a close gives it its last attempt before the call-off.
+  const owedRef = useRef<{ flush(): Promise<void> } | null>(null);
+  // The folder the running vault's sync uses: a close parks the runtime's end under it too (`parkClosingSyncPlace`).
+  const syncPlaceRef = useRef<SyncStateBinding | null>(null);
   // Recents, the last-vault memory, auto-open and the three lifecycle entry
   // points live one level up (contexts/AppContext.tsx) — they outlive any
   // single vault. They are re-exported through this context so the sixty-one
@@ -812,11 +816,15 @@ export const VaultProvider: React.FC<{
       if (state.vaultPath === path && (state.syncWorker || callOffRef.current)) {
         const fence = callOffRef.current;
         callOffRef.current = null;
+        const owed = owedRef.current;
+        owedRef.current = null;
+        const syncPlace = syncPlaceRef.current;
+        syncPlaceRef.current = null;
         const settingsOnly = settingsOnlyRef.current;
         settingsOnlyRef.current = null;
         settingsOnly?.stop();
         state.syncWorker?.stop();
-        await closeVaultRuntime({ path, worker: state.syncWorker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence }).closed;
+        await closeVaultRuntime({ path, worker: state.syncWorker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence, owed, syncPlace }).closed;
       }
       // Never two runtimes at one vault: a previous one opens the way only once
       // it has ended — its close through and none of its calls open (text 7).
@@ -918,6 +926,8 @@ export const VaultProvider: React.FC<{
         workspace: workspaceStateStore ? { state: workspaceStateStore, runtime: workspaceRuntime } : null,
         confirm: (question) => appConfirm({ ...question, kind: "warning" }),
       }));
+      owedRef.current = chain.queueing;
+      loadStarts.owes(chain.queueing);
       const backupVaultAdapter = chain.belowChain;
       const permissionedWorkspaceAdapter = chain.permissions;
       const syncRepo = chain.syncRepo!;
@@ -1401,6 +1411,7 @@ export const VaultProvider: React.FC<{
         // worker's incremental cursor pull (getStartCursor + pull(cursor)); the others use
         // the full-listing model.
         syncTargetRef.current = null; // cleared each load; set to the raw target below
+        syncPlaceRef.current = null;
         syncProviderRef.current = null;
         let target: ISyncTarget | null = null;
         // A vault that has synced before never gets a freshly created remote
@@ -1527,6 +1538,10 @@ export const VaultProvider: React.FC<{
               : syncProvider === "onedrive" || syncProvider === "dropbox" ? { path: await readSyncRootFolder(path, syncProvider) } : undefined,
             identity: await filesIdentityForVault(path, syncProvider!),
           });
+          // Never two runtimes at one place, and the folder at the provider is one: another vault bound to the
+          // same folder that still closes is waited for before anything of this sync starts (text 8).
+          syncPlaceRef.current = binding;
+          await perfMeasure("vault open: same sync folder closing", () => waitForClosingSyncPlace(binding));
           // The plain sync and an encrypted workspace in its folder (R8). A
           // vault that knows nothing about its folder - nearly every vault -
           // costs one local read: its worker starts as before, and its first
@@ -2581,9 +2596,13 @@ export const VaultProvider: React.FC<{
     settingsOnly?.stop();
     const fence = callOffRef.current;
     callOffRef.current = null;
+    const owed = owedRef.current;
+    owedRef.current = null;
+    const syncPlace = syncPlaceRef.current;
+    syncPlaceRef.current = null;
     // In order, within one deadline for the whole close; the same vault opens
     // again only once this runtime has ended (`closeVaultRuntime`).
-    const { closed } = closeVaultRuntime({ path, worker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence });
+    const { closed } = closeVaultRuntime({ path, worker, settingsOnly, indexer: state.indexer, indexQueue: state.indexQueue, fence, owed, syncPlace });
     await closed;
   };
 

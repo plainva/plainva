@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import i18n from "@plainva/ui/i18n";
-import { closeWaitNoteName, toast, toastStore, waitWithDeadline } from "@plainva/ui";
+import { closeWaitNoteName, parkClosingSyncPlace, waitForClosingVault, toast, toastStore, waitWithDeadline } from "@plainva/ui";
 import { armedLeaveGuards, foreignInputArmed, resetLeaveGuard } from "./leaveGuard";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
 import type { MobileVault } from "./vaultService";
@@ -20,7 +20,7 @@ import { retiredBoot } from "./bootRetirement";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["deleteVault", "switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "resumeOnScreen", "retireBoot"];
+const NAMES = ["deleteVault", "switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -41,18 +41,21 @@ const hanging = <T = void>() => {
   return { promise, resolve };
 };
 const vault = (id: string, ended: () => Promise<void> = async () => {}) =>
-  ({ vaultId: id, db: null, callOff: vi.fn(), ended: vi.fn(ended), dispose: vi.fn(async () => {}) }) as unknown as MobileVault & { callOff: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> };
+  ({ vaultId: id, db: null, callOff: vi.fn(), ended: vi.fn(ended), flushOwed: vi.fn(async () => {}), dispose: vi.fn(async () => {}) }) as unknown as MobileVault & { callOff: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> };
 
 function harness(active: string) {
   let now = active;
   const removed: string[] = [];
+  const stopSyncAndDrain = vi.fn(async () => {});
   const deps = {
     retiredBoot,
     noteSaver: { flushAll: vi.fn(async () => {}), pendingPaths: () => [] as string[] },
-    waitWithDeadline, closeWaitNoteName, flushDraftsBeforeClosing: async () => {},
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {},
     getVaultEntry: async (id: string) => ({ id, name: "Work" }),
     reportingTo: () => () => {},
-    stopSyncAndDrain: vi.fn(async () => {}),
+    stopSyncAndDrain,
+    // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
+    detachSync: () => ({ drain: () => stopSyncAndDrain(), place: null }),
     setActiveVault: vi.fn(async (id: string) => { now = id; }),
     reloadMobileSettingsForActiveVault: vi.fn(async () => {}),
     getActiveVaultEntry: async () => ({ id: now, name: "" }),

@@ -145,6 +145,22 @@ describe("a called-off load and its runtime (never two runtimes at one vault)", 
     expect(fence.calledOff).toBe(true);
   });
 
+  it("gives what the runtime owes its sync queue its last attempt before it calls the runtime off", async () => {
+    expect.hasAssertions();
+    const abort = new AbortController();
+    const starts = new LoadStarts("/vaults/notes", abort.signal);
+    const fence = createVaultCallOff();
+    starts.fence(fence);
+    const order: string[] = [];
+    starts.owes({ flush: async () => { order.push(fence.calledOff ? "flush after the call-off" : "flush"); } });
+    const worker = { stop: vi.fn(), stopAndDrain: async () => { order.push("drain"); } };
+    starts.adopt(worker);
+    abort.abort();
+    await starts.abandon();
+    expect(order).toEqual(["drain", "flush"]);
+    expect(fence.calledOff).toBe(true);
+  });
+
   it("a fence that comes after the load was called off is called off at once", () => {
     const abort = new AbortController();
     abort.abort();

@@ -8753,6 +8753,7 @@
     "savingGaveUpMany_other": "{{count}} notatki nie są jeszcze w pełni zapisane. Plainva przechodzi dalej; zapisy kończą się w tle, a teksty są też w szkicach.",
     "syncGaveUp": "Krok synchronizacji „{{vault}}” się nie zakończył. Plainva go zatrzymuje i przechodzi dalej; nic nie przepada – następna synchronizacja nadrobi to, czego brakuje.",
     "openingGaveUp": "„{{vault}}” nie otworzył się do końca. Plainva zamknie go i usunie, gdy tylko odpowie.",
-    "stillClosing": "„{{vault}}” wciąż się zamyka – potem Plainva otworzy go ponownie."
+    "stillClosing": "„{{vault}}” wciąż się zamyka – potem Plainva otworzy go ponownie.",
+    "stillClosingSameFolder": "„{{vault}}” używa tego samego folderu synchronizacji i wciąż się zamyka – potem synchronizacja się rozpocznie."
   }
 }

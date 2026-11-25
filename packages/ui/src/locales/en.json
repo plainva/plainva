@@ -8409,6 +8409,7 @@
     "savingGaveUpMany_other": "{{count}} notes are not saved yet. Plainva goes on; the saves finish in the background, and the texts are also kept in the drafts.",
     "syncGaveUp": "The sync step of “{{vault}}” did not finish. Plainva stops it and goes on; nothing is lost – the next sync catches up on what is missing.",
     "openingGaveUp": "“{{vault}}” did not finish opening. Plainva closes it and removes it as soon as it answers.",
-    "stillClosing": "“{{vault}}” is still closing – then Plainva opens it again."
+    "stillClosing": "“{{vault}}” is still closing – then Plainva opens it again.",
+    "stillClosingSameFolder": "“{{vault}}” uses the same sync folder and is still closing – then the sync starts."
   }
 }

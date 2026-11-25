@@ -8237,6 +8237,7 @@
     "savingGaveUpMany_other": "{{count}} 件のノートはまだ保存が完了していません。Plainva は先に進みます。保存はバックグラウンドで最後まで続き、テキストは下書きにも残ります。",
     "syncGaveUp": "「{{vault}}」 の同期処理が完了しませんでした。Plainva はそれを止めて先に進みます。失われるものはありません。足りない分は次の同期で取り戻されます。",
     "openingGaveUp": "「{{vault}}」 を開き終えられませんでした。Plainva は応答があり次第、それを閉じて削除します。",
-    "stillClosing": "「{{vault}}」 はまだ閉じている途中です。終わると Plainva がもう一度開きます。"
+    "stillClosing": "「{{vault}}」 はまだ閉じている途中です。終わると Plainva がもう一度開きます。",
+    "stillClosingSameFolder": "「{{vault}}」 は同じ同期フォルダーを使っていて、まだ閉じている途中です。終わると同期が始まります。"
   }
 }

@@ -47,7 +47,12 @@ const anyFn = () => new Proxy({} as Record<string, unknown>, {
   get: (cache, key) => (typeof key !== "string" || key === "then" ? undefined : (cache[key] ??= vi.fn(async () => null))),
   has: () => true,
 });
-vi.mock("./syncService", () => anyFn());
+vi.mock("./syncService", () => {
+  const service = anyFn();
+  // What a close takes off the sync (`detachSync`): nothing runs here.
+  service.detachSync = () => ({ drain: async () => {}, place: null });
+  return service;
+});
 vi.mock("./mobileWorkspaceSecurity", () => anyFn());
 vi.mock("./profileImportJournal", () => anyFn());
 vi.mock("./mobileSettingsSync", () => ({ mobileSyncDeviceId: async () => "device-1", clearMobileSyncState: vi.fn() }));

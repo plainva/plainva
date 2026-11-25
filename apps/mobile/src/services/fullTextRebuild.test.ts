@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import { noteFullTextDamage, readFullTextDamage, type IDatabaseAdapter } from "@plainva/core";
-import { closeWaitNoteName, indexDatabaseRebuildOffered, waitWithDeadline } from "@plainva/ui";
+import { closeWaitNoteName, parkClosingSyncPlace, waitForClosingVault, indexDatabaseRebuildOffered, waitWithDeadline } from "@plainva/ui";
 import { armLeaveGuard, armedLeaveGuards, disarmLeaveGuard, foreignInputArmed, resetLeaveGuard } from "./leaveGuard";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
 import { retiredBoot } from "./bootRetirement";
@@ -22,7 +22,7 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["retireBoot", "settleBeforeClosing", "leaveVault", "reloadActiveMobileVault", "offerReload", "rebuildActiveIndexDatabase", "rebuildOpenMobileIndexDatabase"];
+const NAMES = ["retireBoot", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "reloadActiveMobileVault", "offerReload", "rebuildActiveIndexDatabase", "rebuildOpenMobileIndexDatabase"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -48,16 +48,19 @@ async function harness(opts: { workspace?: boolean; failed?: boolean } = {}) {
     db,
     indexDatabaseFailure: null,
     isEncryptedWorkspace: !!opts.workspace,
-    ended: vi.fn(async () => {}), dispose: vi.fn(async () => { order.push("dispose"); }),
+    ended: vi.fn(async () => {}), flushOwed: vi.fn(async () => {}), dispose: vi.fn(async () => { order.push("dispose"); }),
   };
+  const stopSyncAndDrain = vi.fn(async () => { order.push("drain"); });
   const deps = {
     retiredBoot,
     initial: vault,
     noteSaver: { flushAll: vi.fn(async () => { order.push("save"); }), pendingPaths: () => [] },
     // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
-    waitWithDeadline, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     reportingTo: () => () => {},
-    stopSyncAndDrain: vi.fn(async () => { order.push("drain"); }),
+    stopSyncAndDrain,
+    // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
+    detachSync: () => ({ drain: () => stopSyncAndDrain(), place: null }),
     getActiveVaultEntry: async () => ({ id: "v1", name: "" }),
     setAsideMobileIndexDatabase: vi.fn(async (name: string) => { order.push(`set aside ${name}`); return `${name}.broken-1`; }),
     indexDatabaseRebuildOffered,

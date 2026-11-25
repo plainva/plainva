@@ -1,5 +1,6 @@
 import i18n from "i18next";
 import { toast } from "../services/toastStore";
+import { sameSyncTarget, type SyncStateBinding } from "./syncStateBinding";
 
 /**
  * Closing, switching or removing a vault waits for what is still under way —
@@ -105,4 +106,74 @@ export async function waitForClosingVault(ended: Promise<unknown>, vault: string
     clearTimeout(timer);
     if (notice !== null) toast.dismiss(notice);
   }
+}
+
+/**
+ * Never two runtimes at one place — and a place is also the sync folder at
+ * the provider. Two vaults can sync with the same folder (two entries made
+ * for it, two local folders bound to it). While one of them closes, its
+ * runtime may still have a request open at the provider; the other one's
+ * sync must not start beside it: a late upload of the old runtime would land
+ * over what the new one just sent, and at a provider that does not check
+ * conditions (Google Drive) the newer text would be gone everywhere.
+ *
+ * A closing runtime parks its end under the folder its sync used
+ * (`parkClosingSyncPlace`); a sync start waits for every runtime parked at
+ * the same folder (`waitForClosingSyncPlace`), with the notice of text 8.
+ * "The same folder" is the rule the sync state is bound by
+ * (`sameSyncTarget`): where one side does not know enough to tell them
+ * apart, they are taken as one, and the start waits.
+ */
+interface ParkedSyncPlace {
+  place: SyncStateBinding;
+  vault: string;
+  ended: Promise<void>;
+}
+
+const parkedSyncPlaces = new Set<ParkedSyncPlace>();
+
+/** A closing runtime's end, under the folder its sync used (nothing without one). */
+export function parkClosingSyncPlace(place: SyncStateBinding | null | undefined, vault: string, ended: Promise<unknown>): void {
+  if (!place) return;
+  const entry: ParkedSyncPlace = { place, vault, ended: ended.then(() => undefined, () => undefined) };
+  parkedSyncPlaces.add(entry);
+  void entry.ended.then(() => {
+    parkedSyncPlaces.delete(entry);
+  });
+}
+
+/** The runtimes still closing at this folder. */
+export function closingAtSyncPlace(place: SyncStateBinding): ReadonlyArray<{ vault: string; ended: Promise<void> }> {
+  return [...parkedSyncPlaces].filter((parked) => sameSyncTarget(parked.place, place));
+}
+
+/**
+ * Before a sync starts at `place`: waits until no runtime that closes is
+ * parked at the same folder, and from `noticeAfterMs` on says which one it
+ * waits for (text 8). No deadline: the old runtime's requests end by their
+ * own time limits.
+ */
+export async function waitForClosingSyncPlace(place: SyncStateBinding, options: Pick<CloseDeadlineOptions, "noticeAfterMs"> = {}): Promise<void> {
+  let waiting = closingAtSyncPlace(place);
+  if (waiting.length === 0) return;
+  let notice: number | null = null;
+  const timer = setTimeout(() => {
+    const now = closingAtSyncPlace(place);
+    if (now.length > 0) notice = toast.progress(i18n.t("closing.stillClosingSameFolder", { vault: now[0].vault }));
+  }, options.noticeAfterMs ?? CLOSE_NOTICE_AFTER_MS);
+  try {
+    // One that parks here meanwhile is waited for too.
+    while (waiting.length > 0) {
+      await Promise.all(waiting.map((parked) => parked.ended));
+      waiting = closingAtSyncPlace(place);
+    }
+  } finally {
+    clearTimeout(timer);
+    if (notice !== null) toast.dismiss(notice);
+  }
+}
+
+/** Tests only. */
+export function resetClosingSyncPlacesForTests(): void {
+  parkedSyncPlaces.clear();
 }

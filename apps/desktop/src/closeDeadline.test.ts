@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import i18n from "@plainva/ui/i18n";
-import { toast, toastStore, waitWithDeadline } from "@plainva/ui";
+import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, syncStateBindingFor, toast, toastStore, waitForClosingSyncPlace, waitWithDeadline } from "@plainva/ui";
 
 /**
  * Closing, switching or reloading a vault waits within a deadline, in both
@@ -55,13 +55,31 @@ describe("the deadline of a close", () => {
     expect(messages()).toEqual([i18n.t("closing.savingGaveUpMany", { count: 3 })]);
   });
 
+  it("holds a sync start at a folder where another vault still closes, says so after 5 s (text 8), and takes the notice down once it has ended", async () => {
+    expect.hasAssertions();
+    const folder = syncStateBindingFor({ provider: "s3", s3: { endpoint: "https://s3.example.test", bucket: "notes" } });
+    let end!: () => void;
+    parkClosingSyncPlace(folder, "Work", new Promise<void>((r) => (end = r)));
+    let started = false;
+    const starting = waitForClosingSyncPlace(folder).then(() => { started = true; });
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(messages()).toEqual([i18n.t("closing.stillClosingSameFolder", { vault: "Work" })]);
+    expect(started).toBe(false);
+    end();
+    await starting;
+    expect(messages()).toEqual([]);
+    resetClosingSyncPlacesForTests();
+  });
+
   it("is how both shells close: one deadline for the whole close, and the same vault opens again only once its runtime has ended", () => {
     const desktop = readFileSync(join(ROOT, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
     const close = readFileSync(join(ROOT, "apps/desktop/src/services/closeRuntime.ts"), "utf8");
     // In order: drafts, saves, then the sync step, the settings-only sync and the index — one deadline over all of it.
     expect(close).toMatch(/deps\.flushDrafts\(path\)[\s\S]*deps\.settlePendingWrites\(path\)[\s\S]*worker\?\.stopAndDrain\(\)[\s\S]*settingsOnly\?\.stopAndDrain\(\)[\s\S]*indexer\?\.whenIdle[\s\S]*indexQueue\?\.whenIdle\(\)/);
-    expect(close).toMatch(/waitWithDeadline\(drain, saving\)\) === "gave-up" && step\.kind === "sync"\) fence\?\.callOff\(\)/);
-    expect(close).toMatch(/fence\?\.callOff\(\);\s*await fence\?\.ended\(\);[\s\S]*noteVaultTeardown\(path, ended\)/);
+    // Called off only after what is owed to the sync queue has had its last attempt — in a healthy close as after a give-up.
+    expect(close).toMatch(/const callOffAfterOwed = \(\) => flushOwed\(\)\.then\(\(\) => fence\?\.callOff\(\)\)/);
+    expect(close).toMatch(/waitWithDeadline\(drain, saving\)\) === "gave-up" && step\.kind === "sync"\) void callOffAfterOwed\(\)/);
+    expect(close).toMatch(/await callOffAfterOwed\(\);\s*await fence\?\.ended\(\);[\s\S]*noteVaultTeardown\(path, ended\)/);
     // The close and a reload of the same vault go that one way; the open waits for the end (text 7).
     const teardown = desktop.slice(desktop.indexOf("const teardownVault = async"), desktop.indexOf("const teardownVaultRef"));
     expect(teardown).toContain("closeVaultRuntime({ path, worker, settingsOnly,");
@@ -71,14 +89,19 @@ describe("the deadline of a close", () => {
 
     const phone = readFileSync(join(ROOT, "apps/mobile/src/services/vaultService.ts"), "utf8");
     const settle = phone.slice(phone.indexOf("async function settleBeforeClosing"), phone.indexOf("function leaveVault"));
-    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*noteSaver\.flushAll\(\)[\s\S]*stopSyncAndDrain\(\)[\s\S]*waitWithDeadline\(drain, now\)[\s\S]*step\.kind === "sync"[\s\S]*current!\.callOff\(\)/);
+    // The sync is taken off the vault first, before anything awaits, and drained after the saves.
+    expect(settle).toMatch(/^async function settleBeforeClosing[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*const detached = detachSync\(\);/);
+    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*noteSaver\.flushAll\(\)[\s\S]*detached\.drain\(\)[\s\S]*waitWithDeadline\(drain, now\)[\s\S]*step\.kind === "sync"[\s\S]*left\.flushOwed\(\)[\s\S]*left\.callOff\(\)/);
+    // The vault closes after the drain (never under a save still running), and is called off only after it closed.
+    const leave = phone.slice(phone.indexOf("async function leaveVault"), phone.indexOf("\n}\n", phone.indexOf("async function leaveVault")));
+    expect(leave).toMatch(/settled\.drain[\s\S]*\.then\(\(\) => current\.dispose\(\)\)[\s\S]*await disposed;\s*await current\.ended\(\);/);
     for (const name of ["async function switchTo", "export async function reloadActiveMobileVault"]) {
       const body = phone.slice(phone.indexOf(name), phone.indexOf("\n}\n", phone.indexOf(name)));
       expect(body, name).toContain("await settleBeforeClosing(current)");
-      expect(body, name).toContain("leaveVault(current, ");
+      expect(body, name).toContain("await leaveVault(current, settled");
     }
     // The boot of a vault waits for the end of its previous runtime (text 7), before its own fence.
-    expect(phone).toMatch(/waitForClosingVault\(closingVaults\.get\(entry\.id\)[\s\S]*const callOff = createVaultCallOff\(\);[\s\S]*callOff\.storage\(opened\)[\s\S]*callOff\.database\(/);
+    expect(phone).toMatch(/waitForClosingVault\(closingAt\(entry\.id, entry\.external\)[\s\S]*const callOff = createVaultCallOff\(\);[\s\S]*callOff\.storage\(opened\)[\s\S]*callOff\.database\(/);
     expect(phone).toMatch(/waitWithDeadline\(opened, \(\) => \(\{ kind: "opening"/);
   });
 });

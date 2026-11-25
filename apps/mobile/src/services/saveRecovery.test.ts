@@ -1,4 +1,4 @@
-import { closeWaitNoteName, waitWithDeadline } from "@plainva/ui";
+import { closeWaitNoteName, parkClosingSyncPlace, waitForClosingVault, waitWithDeadline } from "@plainva/ui";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -34,7 +34,7 @@ const parts: string[] = [];
 let saveMethod = "", saverInit = "";
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name &&
-      ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
+      ["switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
     parts.push(node.getText(file).replace(/^export /, ""));
   }
   if (ts.isMethodDeclaration(node) && node.name.getText(file) === "save") saveMethod = node.getText(file);
@@ -42,7 +42,7 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!saveMethod || !saverInit || parts.length !== 12) throw new Error("mobile save/lifecycle definitions missing");
+if (!saveMethod || !saverInit || parts.length !== 14) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
   "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
@@ -75,7 +75,7 @@ async function makeVault() {
   const queue = new SyncQueue(db);
   const repo = new SyncStateRepository(db);
   const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), queue), repo);
-  const vault = { vaultId: root, adapter: raw, files, db, indexer: null, ended: vi.fn(async () => {}), dispose: vi.fn(async () => {}) } as unknown as MobileVault;
+  const vault = { vaultId: root, adapter: raw, files, db, indexer: null, ended: vi.fn(async () => {}), flushOwed: vi.fn(async () => {}), dispose: vi.fn(async () => {}) } as unknown as MobileVault;
   return { vault, raw, db, repo };
 }
 function harness(vault: MobileVault) {
@@ -88,7 +88,7 @@ function harness(vault: MobileVault) {
     // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
     retiredBoot,
     // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
-    waitWithDeadline, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     vault, createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>
@@ -101,6 +101,8 @@ function harness(vault: MobileVault) {
     conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon: () => {}, toast: { warning: () => {}, error: () => {} }, i18n: { t: (s: string) => s },
     stopSyncAndDrain: stopped, setActiveVault: activated, reloadMobileSettingsForActiveVault: async () => {},
+    // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
+    detachSync: () => ({ drain: () => stopped(), place: null }),
     startSyncIfConfigured: async () => {}, foreignInputArmed: () => false, takeScreen: () => true,
     window: events, CustomEvent,
     LOCAL_VAULT_ID: "local",

@@ -24,7 +24,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { assertEndpointConfirmedIn, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
+import { assertEndpointConfirmedIn, waitForClosingSyncPlace, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
 import { assertEmptyRemoteVault, firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -499,7 +499,23 @@ let settingsOnlySync: SettingsOnlySync | null = null;
  * the calendar and mail switches made meanwhile, reach every device. Local
  * changes queue meanwhile (finding 4) and the first-sync deferral holds.
  */
+/** The sync folder of what runs now (`detachSync` parks a closing runtime's end under it). */
+let syncPlace: SyncStateBinding | null = null;
+
+/**
+ * Before a sync starts at its folder: never beside a runtime that closes at the same folder — another vault entry
+ * on it, still draining (`waitForClosingSyncPlace`, text 8). Answers the folder, or null where it cannot be told;
+ * false when a stop came meanwhile.
+ */
+async function waitForSyncPlace(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<SyncStateBinding | null | false> {
+  const place = await mobileSyncBinding(v, p).catch(() => null);
+  if (place) await waitForClosingSyncPlace(place);
+  return generation === startGeneration ? place : false;
+}
+
 async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
+  const place = await waitForSyncPlace(v, p, generation);
+  if (place === false) return;
   v.enableSyncEnqueue();
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
@@ -512,6 +528,7 @@ async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generati
   if (worker || settingsOnlySync || generation !== startGeneration) return;
   // No listing shows a genesis here: one look per session, never one per run.
   const sessionCheck = v.workspaceRuntime ? undefined : await mobileSettingsOnlyCheck(v, p, rawTarget).catch(() => undefined);
+  syncPlace = place;
   settingsOnlySync = new SettingsOnlySync(runner, target, v.belowChain, syncIntervalMs(), undefined, sessionCheck, () => {
     setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
   });
@@ -1028,6 +1045,7 @@ export function syncSoon(): void {
 
 export function stopSync(): void {
   startGeneration += 1;
+  syncPlace = null;
   if (encryptedRemoteRetry) { clearTimeout(encryptedRemoteRetry); encryptedRemoteRetry = null; }
   held = null;
   clearMobileCommentWorker();
@@ -1051,9 +1069,39 @@ export function stopSyncAndDrain(): Promise<void> {
   return stopAndDrainNow();
 }
 
-/** The stop itself; inside the chain a restart calls it directly, and waiting on the chain there would wait on itself. */
-async function stopAndDrainNow(): Promise<void> {
+/** The workers a close detached (`detachSync`): what they report while they drain is no longer the sync on screen. */
+const detachedWorkers = new WeakSet<object>();
+
+/**
+ * The sync of the vault that closes, taken off at once — synchronously, as
+ * the close begins: its worker, its settings-only sync and its comment
+ * worker are no longer the app's, a start begun before puts nothing in
+ * place, and their clocks are stopped. Answers the drain, which the close
+ * runs once its saves have landed (`settleBeforeClosing`).
+ *
+ * So the sync belongs to the runtime it started for. A close that goes on
+ * while a save still hangs leaves nothing behind that would keep the next
+ * vault's sync from starting (`startSyncDecided` sees no worker), and the
+ * drain, however late it comes, reaches only the workers it took — never the
+ * next vault's.
+ */
+export function detachSync(): DetachedSync {
+  return takeSync(true);
+}
+
+/** What a close took off (`detachSync`). */
+export interface DetachedSync {
+  /** Stops and waits for the workers it took — only those. */
+  drain: () => Promise<void>;
+  /** The folder they synced with: the close parks its runtime's end under it (`parkClosingSyncPlace`). */
+  place: SyncStateBinding | null;
+}
+
+/** Takes the running sync off the app's state; `quiet`: what it reports while it drains is not said any more. */
+function takeSync(quiet: boolean): DetachedSync {
   startGeneration += 1;
+  const place = syncPlace;
+  syncPlace = null;
   if (encryptedRemoteRetry) { clearTimeout(encryptedRemoteRetry); encryptedRemoteRetry = null; }
   held = null;
   clearMobileCommentWorker();
@@ -1062,12 +1110,25 @@ async function stopAndDrainNow(): Promise<void> {
   setFirstPullDone(null);
   const settingsOnly = settingsOnlySync;
   settingsOnlySync = null;
-  await settingsOnly?.stopAndDrain();
   deletionJournal = null;
   journalChecker = null;
   nameTwinResolver = null;
   unverifiedUploader = null;
-  if (w) await w.stopAndDrain();
+  if (w && quiet) detachedWorkers.add(w);
+  w?.stop();
+  settingsOnly?.stop();
+  return {
+    drain: async () => {
+      await settingsOnly?.stopAndDrain();
+      if (w) await w.stopAndDrain();
+    },
+    place: w || settingsOnly ? place : null,
+  };
+}
+
+/** The stop itself; inside the chain a restart calls it directly, and waiting on the chain there would wait on itself. */
+async function stopAndDrainNow(): Promise<void> {
+  await takeSync(false).drain();
 }
 
 /**
@@ -1377,6 +1438,8 @@ export async function openDriveDestination(vaultId: string) {
 }
 
 async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
+  const place = await waitForSyncPlace(v, p, generation);
+  if (place === false) return;
   v.enableSyncEnqueue();
   // Origin policy (P4.3): user-configured servers must be allowed on the
   // native bridge before requests fly. Fire-and-forget is safe — a request
@@ -1433,10 +1496,14 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // No name-collision channel here on purpose: an encrypted workspace stores
     // sealed objects under content hashes, so the remote never carries a human
     // file name and two Unicode forms of one cannot exist (finding 2026-08-21).
-    encrypted.onStatusChange = (status, errorMsg, _reason, retryAt, failureKind) => setState({
-      status, message: workspaceSyncFailureText(errorMsg, failureKind), retryAt,
-      errorKind: failureKind === "integrity" ? "workspace-integrity" : failureKind === "authentication" ? "authentication" : undefined,
-    });
+    encrypted.onStatusChange = (status, errorMsg, _reason, retryAt, failureKind) => {
+      // A worker a close detached reports nothing over the next vault's sync.
+      if (detachedWorkers.has(encrypted)) return;
+      setState({
+        status, message: workspaceSyncFailureText(errorMsg, failureKind), retryAt,
+        errorKind: failureKind === "integrity" ? "workspace-integrity" : failureKind === "authentication" ? "authentication" : undefined,
+      });
+    };
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
     // The plain sync's question, word for word (release 0.9.0 A4).
     encrypted.onMassDeletionPending = (info) => askMassDeletion(encrypted, info);
@@ -1454,6 +1521,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       v.sweepOwedToRemote("workspace");
     };
     worker = encrypted;
+    syncPlace = place;
     beginFirstPull(v);
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
@@ -1505,6 +1573,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     workspaceListed: await mobileWorkspaceListed(v, p),
   });
   w.onStatusChange = (status, errorMsg, reason, retryAt) => {
+    // A worker a close detached reports nothing over the next vault's sync.
+    if (detachedWorkers.has(w)) return;
     // The folder became (or was) a workspace this phone has not joined: the
     // worker stops, and the start's gate says what to do (R8).
     if (reason === "encrypted-workspace") {
@@ -1584,6 +1654,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     }
   };
   worker = w;
+  syncPlace = place;
   beginFirstPull(v);
   setState({ status: "idle", message: null });
   w.start();

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CloudAccountRecord } from "@plainva/ui";
+import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, sameSyncTarget, syncStateBindingFor, type CloudAccountRecord } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -45,6 +45,8 @@ const state = vi.hoisted(() => ({
   brokenStore: false,
   /** The addresses this phone confirmed (F57). */
   confirmedEndpoints: new Set<string>(),
+  /** Holds every worker's drain (a cycle that waits for a provider). */
+  drainGate: null as null | Promise<void>,
 }));
 
 vi.mock("@plainva/core", async (original) => {
@@ -52,7 +54,7 @@ vi.mock("@plainva/core", async (original) => {
     running = false;
     start() { this.running = true; }
     stop() { this.running = false; }
-    async stopAndDrain() { this.running = false; }
+    async stopAndDrain() { this.running = false; if (state.drainGate) await state.drainGate; }
     triggerImmediate() {}
     async pushSettingsNow() {}
   }
@@ -169,7 +171,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
+import { connectProvider, detachSync, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -203,9 +205,11 @@ beforeEach(() => {
   state.genesisReads = 0;
   state.brokenStore = false;
   state.confirmedEndpoints.clear();
+  state.drainGate = null;
 });
 
 afterEach(async () => {
+  state.drainGate = null;
   state.gate?.release();
   state.joinGate?.release();
   await stopSyncAndDrain();
@@ -528,5 +532,78 @@ describe("the first pull of a vault (O8: a cloud vault arriving is not an empty 
     await stopSyncAndDrain();
     await startSyncIfConfigured({ ...vault } as MobileVault);
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
+  });
+});
+
+/**
+ * A sync belongs to the runtime it started for. A close takes it off at once
+ * (`detachSync`) and drains it only after its saves; a save that hangs past
+ * the close's deadline used to leave the old worker in place — the next
+ * vault's start found it and started nothing, and the old vault's late drain
+ * then stopped whatever ran by then.
+ */
+describe("the sync of a vault that closes", () => {
+  it("is taken off at once: the next vault's sync starts while the old one still drains, and the late drain stops only its own", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+    const old = state.workers[0];
+
+    // The close begins: the sync is taken off, its drain comes after the saves — which hang.
+    let answer!: () => void;
+    state.drainGate = new Promise<void>((r) => (answer = r));
+    const { drain } = detachSync();
+    expect(old.running, "its clock stopped at once").toBe(false);
+
+    // The next runtime opens meanwhile and starts its sync (another runtime object; the fakes here know one registry entry).
+    const next = { ...vault } as MobileVault;
+    await startSyncIfConfigured(next);
+    expect(state.workers, "a worker for the next vault").toHaveLength(2);
+    const mine = state.workers[1];
+    expect(mine.running).toBe(true);
+
+    // The old vault's drain, late: it reaches its own worker only.
+    const drained = drain();
+    answer();
+    await drained;
+    expect(mine.running, "the next vault's sync runs on").toBe(true);
+  });
+});
+
+/**
+ * Never two runtimes at one place, and the sync folder at the provider is a
+ * place: two vault entries can be bound to the same folder. While one of them
+ * closes with a request still open there, the other's sync waits for it — a
+ * late upload of the old runtime would land over what the new one sent.
+ */
+describe("a sync start at a folder where another vault's runtime still closes", () => {
+  afterEach(() => resetClosingSyncPlacesForTests());
+
+  const folder = (url: string) => syncStateBindingFor({ provider: "webdav", webdav: { url, user: "u" } });
+
+  it("waits until that runtime has ended, and starts then", async () => {
+    expect.hasAssertions();
+    let end!: () => void;
+    parkClosingSyncPlace(folder(state.url), "Other entry", new Promise<void>((r) => (end = r)));
+    const starting = startSyncIfConfigured(vault);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(state.workers, "nothing at the folder beside the closing runtime").toHaveLength(0);
+    end();
+    await starting;
+    expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+  });
+
+  it("does not wait for a runtime closing at another folder", async () => {
+    expect.hasAssertions();
+    parkClosingSyncPlace(folder("https://dav.example.test/elsewhere"), "Other entry", new Promise<void>(() => undefined));
+    await startSyncIfConfigured(vault);
+    expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+  });
+
+  it("the close names the folder its sync used, so the next start there waits for this runtime", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    const { place } = detachSync();
+    expect(place && sameSyncTarget(place, folder(state.url))).toBe(true);
   });
 });

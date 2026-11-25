@@ -19,6 +19,20 @@ function deferred() {
 describe("opening a vault waits for its own teardown", () => {
   beforeEach(() => resetVaultTeardownsForTests());
 
+  it("is one folder however its path is written: the open waits for a teardown parked under another spelling", async () => {
+    expect.hasAssertions();
+    const drain = deferred();
+    noteVaultTeardown("C:\\Users\\Ana\\Notes\\", drain.promise);
+    let opened = false;
+    const open = awaitVaultTeardown("c:/users/ana/notes").then(() => { opened = true; });
+    await new Promise((r) => setTimeout(r, 5));
+    // THE DEFECT: keyed by the string as written, the second spelling found nothing to wait for — two runtimes at one folder.
+    expect(opened).toBe(false);
+    drain.resolve();
+    await open;
+    expect(opened).toBe(true);
+  });
+
   it("holds the next open until the drain finishes", async () => {
     const drain = deferred();
     noteVaultTeardown("/vault/a", drain.promise);

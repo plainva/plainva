@@ -1,4 +1,4 @@
-import { closeWaitNoteName, waitWithDeadline, type CloseWaitStep } from "@plainva/ui";
+import { closeWaitNoteName, parkClosingSyncPlace, reportingTo, waitWithDeadline, type CloseWaitStep, type SyncStateBinding } from "@plainva/ui";
 import type { VaultCallOff } from "@plainva/core";
 import { flushDrafts, forgetDraftMemory } from "./draftJournal";
 import { pendingWritePaths, settlePendingWrites } from "./pendingWrites";
@@ -13,6 +13,15 @@ export interface ClosingRuntime {
   indexer: { whenIdle?(): Promise<void> } | null;
   indexQueue: { whenIdle(): Promise<void> } | null;
   fence: VaultCallOff | null;
+  /**
+   * What is owed to the sync queue (`chain.queueing`): an entry that could not
+   * be made at once is tried again a moment later. It gets its last attempt
+   * while the runtime may still write — before the call-off, or it would meet
+   * a fenced database and be gone.
+   */
+  owed?: { flush(): Promise<void> } | null;
+  /** The folder its sync used: the end is parked under it too, so another vault's sync there waits (text 8). */
+  syncPlace?: SyncStateBinding | null;
 }
 
 /** Stand-ins for the tests; the defaults are the shell's own. */
@@ -39,7 +48,11 @@ const DEFAULTS: CloseRuntimeDeps = { flushDrafts, forgetDraftMemory, settlePendi
  * (`loadVault`) go this way.
  */
 export function closeVaultRuntime(runtime: ClosingRuntime, deps: CloseRuntimeDeps = DEFAULTS): { closed: Promise<void>; ended: Promise<void> } {
-  const { path, worker, settingsOnly, indexer, indexQueue, fence } = runtime;
+  const { path, worker, settingsOnly, indexer, indexQueue, fence, owed, syncPlace } = runtime;
+  // The owed entries' last attempt, once (bounded by the queue itself), and the call-off only after it.
+  let owedFlushed: Promise<void> | null = null;
+  const flushOwed = () => (owedFlushed ??= (owed?.flush() ?? Promise.resolve()).catch(reportingTo("sync:owed-before-call-off")));
+  const callOffAfterOwed = () => flushOwed().then(() => fence?.callOff());
   let step = { kind: "saving", names: [] } as CloseWaitStep;
   const drain = (async () => {
     if (path) await deps.flushDrafts(path).catch(() => {});
@@ -56,16 +69,19 @@ export function closeVaultRuntime(runtime: ClosingRuntime, deps: CloseRuntimeDep
   })();
   const saving = (): CloseWaitStep => (step.kind === "saving" && path ? { kind: "saving", names: deps.pendingWritePaths(path).map(closeWaitNoteName) } : step);
   const closed = (async () => {
-    // Given up in the sync step: the runtime is called off at once, so the step stops at its next call. Given up on a
-    // save: it finishes in the background (text 4) — a local write is never overtaken — and the runtime goes after it.
-    if ((await waitWithDeadline(drain, saving)) === "gave-up" && step.kind === "sync") fence?.callOff();
+    // Given up in the sync step: the runtime is called off right after the owed entries' last attempt, so the step
+    // stops at its next call; the person does not wait for it. Given up on a save: it finishes in the background
+    // (text 4) — a local write is never overtaken — and the runtime goes after it.
+    if ((await waitWithDeadline(drain, saving)) === "gave-up" && step.kind === "sync") void callOffAfterOwed();
   })();
   const ended = (async () => {
     await drain.catch(() => undefined);
-    // Through: nothing of this runtime may write any more, and the next open waits until none of its calls is open.
-    fence?.callOff();
+    // Through: what is owed to the sync queue has had its last attempt, then nothing of this runtime may write any
+    // more, and the next open waits until none of its calls is open.
+    await callOffAfterOwed();
     await fence?.ended();
   })();
   if (path) noteVaultTeardown(path, ended);
+  parkClosingSyncPlace(syncPlace, path ? deps.vaultLabel(path) : "", ended);
   return { closed, ended };
 }
