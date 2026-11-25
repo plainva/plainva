@@ -173,14 +173,24 @@ jobs:
         run: pnpm --filter @plainva/core perf:notes -- --hunt 40 --minutes 20 --shell ${{ matrix.shell }}
 
   notes-check:
-    name: Note budget check (${{ matrix.shell }}, ${{ matrix.group }}/4)
+    name: Note budget check (${{ matrix.shell }}, ${{ matrix.group }}/${{ matrix.groups }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The desktop reads notes four times the phone's under 512 MB: one form there can take half an hour.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        shell: [phone, desktop]
-        group: [1, 2, 3, 4]
+        include:
+          - { shell: phone, groups: 4, group: 1 }
+          - { shell: phone, groups: 4, group: 2 }
+          - { shell: phone, groups: 4, group: 3 }
+          - { shell: phone, groups: 4, group: 4 }
+          - { shell: desktop, groups: 6, group: 1 }
+          - { shell: desktop, groups: 6, group: 2 }
+          - { shell: desktop, groups: 6, group: 3 }
+          - { shell: desktop, groups: 6, group: 4 }
+          - { shell: desktop, groups: 6, group: 5 }
+          - { shell: desktop, groups: 6, group: 6 }
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -204,4 +214,4 @@ jobs:
       # the least heap `main` needs there, at three and ten times over it, its ratio to `main`'s limit as calibrated,
       # and the scan's time with the note's budget against without it (scripts/perf/note-budget.ts, `--check`).
       - name: The shell's forms at and over the note's budget
-        run: pnpm --filter @plainva/core perf:notes -- --check --shell ${{ matrix.shell }} --group ${{ matrix.group }}/4
+        run: pnpm --filter @plainva/core perf:notes -- --check --shell ${{ matrix.shell }} --group ${{ matrix.group }}/${{ matrix.groups }}
