@@ -318,6 +318,27 @@ describe("the note's budget (L14)", () => {
     }
   }, 300 * SECONDS);
 
+  it("reads a table twelve and twenty-four quotes deep at its threshold under 128 MB, and one row more as text", () => {
+    expect.hasAssertions();
+    // A table deep in quotes once ran the parse out of memory (each level of every row is a marker of its own).
+    for (const depth of [12, 24]) {
+      const q = "> ".repeat(depth);
+      const make = (n: number) => `# T\n\n${q}| a | b |\n${q}|---|---|\n` + Array.from({ length: n }, (_, i) => `${q}| ${i} | [[n${i}]] |`).join("\n") + "\n";
+      let lo = 1;
+      let hi = 20_000;
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (overBudgetInlineRanges(make(mid)).length > 0) hi = mid;
+        else lo = mid;
+      }
+      expect(overBudgetInlineRanges(make(hi)).some((range) => range.table), `depth ${depth}`).toBe(true);
+      const text = `"# T\\n\\n" + Array.from({ length: ${lo} }, (_, i) => "${q}| " + i + " | [[n" + i + "]] |").join("\\n").replace(/^/, "${q}| a | b |\\n${q}|---|---|\\n") + "\\n"`;
+      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const N = await import(${JSON.stringify(new URL("../src/noteSource.ts", import.meta.url).pathname)}); const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); N.analyzeNoteSource(text); console.log(links.length === ${lo} ? "ok" : "links " + links.length);`;
+      const run = underHeap(128, text, body);
+      expect(run.stdout.trim(), `depth ${depth}: ${run.stderr.slice(-200)}`).toBe("ok");
+    }
+  }, 300 * SECONDS);
+
   it("lists the links of 100 000 items of links and of embeds under 128 MB, read in pieces, and names a paragraph of them unread", () => {
     // Twenty times the threshold of the forms of links: the blocks read as text are read in pieces by the parser
     // itself (`forEachReadPiece`), each let go before the next, and every link is listed. A picture (`![alt](…)`) is

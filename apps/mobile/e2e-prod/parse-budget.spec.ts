@@ -128,12 +128,33 @@ test("a note over its budget: the notice over the note, its heaviest block as so
     const editor = page.locator(".cm-content").first();
     await expect(editor.getByText("Title").first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("read-as-text-notice")).toBeVisible({ timeout: 15_000 });
+    // Read in pieces for its links: the notice says it is shown as text, not that it is unread.
+    await expect(page.getByTestId("read-as-text-notice")).not.toHaveAttribute("data-unread", "true");
     // Outside the list the live preview draws the link (its brackets hidden); the list is its source.
     await expect(editor.getByText("[[Kept]]")).toHaveCount(0);
     await page.getByTestId("read-as-text-jump").click();
     await expect(editor.getByText("[[Note 0]]").first()).toBeVisible({ timeout: 15_000 });
     expect(await answers(page)).toBeLessThan(5_000);
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("read-as-text-phone.png") });
+  } finally {
+    await sql.close();
+  }
+});
+
+test("a paragraph too dense to read: the notice says its links are not read, and goes there (L14)", async ({ page, context }, testInfo) => {
+  test.setTimeout(150_000);
+  const sql = await installSqlBridge(context);
+  try {
+    await openVaultWith(page, { "LongLine.md": NOTES["LongLine.md"], "Remote.md": NOTES["Remote.md"] });
+    await openNote(page, "LongLine");
+    const editor = page.locator(".cm-content").first();
+    await expect(editor.getByText("Title").first()).toBeVisible({ timeout: 30_000 });
+    const notice = page.getByTestId("read-as-text-notice");
+    await expect(notice).toBeVisible({ timeout: 15_000 });
+    await expect(notice).toHaveAttribute("data-unread", "true");
+    await expect(notice).toContainText(/its links are not read|seine Links werden nicht gelesen/);
+    await page.getByTestId("read-as-text-jump").click();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("read-as-text-unread-phone.png") });
   } finally {
     await sql.close();
   }

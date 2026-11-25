@@ -3,6 +3,7 @@ import {
   explicitLinkPath,
   resolveLinkRow,
   rewriteNoteLinks,
+  unreadNaming,
   renameFrontmatterWikiLinks,
   updateVaultText,
   type FrontmatterLinkRename,
@@ -287,7 +288,9 @@ function renamePlannedLinks(text: string, body: LinkUpdatePlan["sources"][number
     const target = newTarget(link);
     return target === undefined ? null : { target };
   });
-  return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => newTarget(link) !== undefined).length };
+  // A stretch the parse budget leaves unread may hold a link to the renamed note: counted, so that the rename says so.
+  const names = body.map(({ raw }) => raw);
+  return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => newTarget(link) !== undefined).length + unreadNaming(text, result.unread, names) };
 }
 
 /**

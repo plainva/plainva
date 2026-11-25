@@ -1,0 +1,8 @@
+{
+  "measured": "to be filled by perf:notes -- --calibrate --shell <name>",
+  "shells": {
+    "phone": { "heap": 128, "parses": ["index", "tree"], "factor": 1, "measured": "", "forms": {} },
+    "desktop": { "heap": 512, "parses": ["index", "tree", "reader"], "factor": 1, "measured": "", "forms": {} },
+    "editor": { "heap": 128, "parses": ["editor"], "factor": 1, "measured": "", "forms": {} }
+  }
+}

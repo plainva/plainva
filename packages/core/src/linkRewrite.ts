@@ -479,8 +479,8 @@ function withEdits(content: string, edits: readonly Edit[]): { text: string; mad
 export function rewriteNoteLinks(
   content: string,
   decide: (link: NoteLink) => NoteLinkChange | null | undefined
-): { content: string; rewritten: number; unplaced: UnplacedNoteLink[] } {
-  const { links, unplaced } = readNoteLinks(content);
+): { content: string; rewritten: number; unplaced: UnplacedNoteLink[]; unread: BoundedRange[] } {
+  const { links, unplaced, unread } = readNoteLinks(content);
   const left = [...unplaced];
   const edits: Edit[] = [];
   /** The links whose target is rewritten, by their edit — read back in the note below. */
@@ -539,9 +539,9 @@ export function rewriteNoteLinks(
   const rounds = new Map<number, number>();
   for (;;) {
     const { text, made } = withEdits(content, edits);
-    if (retargeted.size === 0) return { content: text, rewritten: made, unplaced: left };
+    if (retargeted.size === 0) return { content: text, rewritten: made, unplaced: left, unread };
     const lost = editsNotReadBack(text, edits, retargeted);
-    if (lost.length === 0) return { content: text, rewritten: made, unplaced: left };
+    if (lost.length === 0) return { content: text, rewritten: made, unplaced: left, unread };
     containers ??= inlineContainers(content);
     const leaveOut = (edit: Edit) => {
       const { link } = retargeted.get(edit)!;
@@ -674,5 +674,24 @@ function editsNotReadBack(text: string, edits: readonly Edit[], retargeted: Read
 export function renameNoteLinks(content: string, renames: ReadonlyMap<string, string>): { content: string; renamed: number; unplaced: number } {
   const wanted = (target: string) => target !== "" && renames.has(target);
   const result = rewriteNoteLinks(content, (link) => (wanted(link.target) ? { target: renames.get(link.target)! } : null));
-  return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => wanted(link.target)).length };
+  return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => wanted(link.target)).length + unreadNaming(content, result.unread, renames.keys()) };
+}
+
+/**
+ * How many of the stretches `unread` the parse budget leaves unread
+ * (`readAsTextParts`) hold one of `names` among their characters: a link to
+ * it may stand there, which no reading of the note's links reaches — a
+ * rename counts it with the links it could not rewrite, so that it says
+ * some still name the old file. A count, never a rewrite: nothing in such a
+ * stretch is taken for a link.
+ */
+export function unreadNaming(content: string, unread: readonly BoundedRange[], names: Iterable<string>): number {
+  if (unread.length === 0) return 0;
+  const wanted = [...names].filter((name) => name !== "").map((name) => name.toLowerCase());
+  let count = 0;
+  for (const range of unread) {
+    const stretch = content.slice(range.from, range.to).toLowerCase();
+    if (wanted.some((name) => stretch.includes(name))) count++;
+  }
+  return count;
 }

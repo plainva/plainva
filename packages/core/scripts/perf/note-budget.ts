@@ -3,7 +3,7 @@
  * L14; `NOTE_BUDGET` and `noteLineCost` in `src/inlineParseBudget.ts`).
  *
  *   pnpm --filter @plainva/core perf:notes -- --calibrate [forms] [--heap <mb>] [--parses index,tree]   # per form: where main runs out, where the budget begins (long)
- *   pnpm --filter @plainva/core perf:notes -- --check [--heap <mb> --factor <k>]   # every form at its threshold and far over it (minutes)
+ *   pnpm --filter @plainva/core perf:notes -- --check [--shell phone|desktop] [--group k/n] [--forms a,b]   # every form at its threshold and far over it (minutes)
  *   pnpm --filter @plainva/core perf:notes -- --hunt <n> [--seed <s>] [--minutes <m>]
  *
  * The criterion, the table budget's one for a whole note: the index parse
@@ -46,9 +46,9 @@
  * whose time grows with the note (eight times the note, at most sixteen times
  * the time). A note that does not pass prints its seed and number.
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
 import { toHast } from "mdast-util-to-hast";
@@ -300,51 +300,183 @@ function readAsItIs(form: string): number {
   return lo;
 }
 
-function check(args: string[]): boolean {
-  const at = (flag: string, fallback: number) => (args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : fallback);
-  heapMb = at("--heap", HEAP_MB);
-  budgetFactor = at("--factor", 1);
+/** The shells the note's budget is calibrated for, and what was measured for each (`noteBudgetShells.json`). */
+interface ShellCalibration {
+  /** The heap the shell's readers are held to, in MB. */
+  heap: number;
+  /** The readers the shell reads a note with (`asTheAppReads`). */
+  parses: string[];
+  /** The shell's note budget, a multiple of `NOTE_BUDGET` (`setNoteBudget` at its start). */
+  factor: number;
+  measured: string;
+  /** Per form: `main`'s limit under the heap (the readers with the note's budget off), the threshold at the calibration, their ratio. */
+  forms: Record<string, { main: number; branch: number; ratio: number }>;
+}
+const SHELLS_FILE = path.join(path.dirname(HERE), "noteBudgetShells.json");
+const shellsCalibrated = (): Record<string, ShellCalibration> => JSON.parse(readFileSync(SHELLS_FILE, "utf8")).shells as Record<string, ShellCalibration>;
+
+/** The heaps the least heap of a reader is searched among (`leastHeap`). */
+const HEAPS = [32, 48, 64, 96, 128, 192, 256, 384, 512];
+
+/** The least heap of `HEAPS` up to the shell's that `parse` reads the note under, the note's budget on or off; 0 where none. */
+function leastHeap(name: string, n: number, parse: string, bounded: boolean): number {
+  const kept = heapMb;
+  try {
+    for (const heap of HEAPS.filter((mb) => mb <= kept)) {
+      heapMb = heap;
+      if (passes(name, n, bounded, 1, [parse]).ok) return heap;
+    }
+    return 0;
+  } finally {
+    heapMb = kept;
+  }
+}
+
+/**
+ * Whether the scan of the note's budget costs its note no more than the scan
+ * without it, in time: the note far over its budget scanned with and without
+ * the note's budget, the faster of three runs each.
+ */
+function scanTime(text: string): { with: number; without: number } {
+  const best = (run: () => void) => {
+    let fastest = Infinity;
+    for (let k = 0; k < 3; k++) {
+      const started = performance.now();
+      run();
+      fastest = Math.min(fastest, performance.now() - started);
+    }
+    return fastest;
+  };
+  return { with: best(() => overBudgetInlineRanges(text)), without: best(() => overBudgetInlineRanges(text, undefined, WITHOUT_NOTES)) };
+}
+/** How much longer the scan with the note's budget may take than without it: the weighing reads every character once more. */
+const SCAN_FACTOR = 3;
+const SCAN_SLACK_MS = 30;
+
+/** The shell named by `--shell` (the phone unless named): its heap, its readers and its note budget, for this run. */
+function useShell(args: string[]): { name: string; calibration: ShellCalibration } {
+  const name = args.includes("--shell") ? args[args.indexOf("--shell") + 1] : "phone";
+  const calibration = shellsCalibrated()[name];
+  if (!calibration) throw new Error(`no shell ${name} in noteBudgetShells.json`);
+  heapMb = calibration.heap;
+  shellParses = calibration.parses;
+  budgetFactor = calibration.factor;
   setNoteBudget(NOTE_BUDGET * budgetFactor);
-  const measured = heapMb === HEAP_MB && budgetFactor === 1;
-  // The forms with main's limit and the ratio of the last calibration (`--calibrate`, 2026-11-19).
-  const forms = (JSON.parse(readFileSync(path.join(path.dirname(HERE), "noteBudgetForms.json"), "utf8")) as { forms: Record<string, { main: number; branch: number; ratio: number }> }).forms;
+  return { name, calibration };
+}
+
+function check(args: string[]): boolean {
+  const { name, calibration } = useShell(args);
+  const only = args.includes("--forms") ? args[args.indexOf("--forms") + 1].split(",") : null;
+  // `--group k/n`: the k-th of n parts of the forms, every n-th from the k-th (the performance workflow runs them side by side).
+  const [part, parts] = args.includes("--group") ? args[args.indexOf("--group") + 1].split("/").map(Number) : [1, 1];
+  const forms = Object.entries(calibration.forms).filter(([form], i) => (!only || only.includes(form)) && i % parts === part - 1);
   let all = true;
-  console.log(`check    note budget ${NOTE_BUDGET * budgetFactor}, ${heapMb} MB; ${Object.keys(forms).length} forms${measured ? "" : " (the safe side only)"}`);
-  for (const [form, { main, ratio }] of Object.entries(forms)) {
+  console.log(`check    ${name}: note budget ${NOTE_BUDGET * budgetFactor}, ${heapMb} MB, ${shellParses.join(" ")}; ${forms.length} forms`);
+  for (const [form, { main, ratio }] of forms) {
     const n = readAsItIs(form);
     // The safe side, stable rather than close: the note at its threshold times 1.05, read formatted (the note's
     // budget off, as `main` reads it), passes in three runs of three, each a process of its own.
     const runs = [0, 1, 2].map(() => passes(form, Math.ceil(n * 1.05), false));
     const passed = runs.filter((run) => run.ok).length;
     const at1 = { ok: passed === 3, why: passed === 0 ? runs[0].why : `${3 - passed} of 3 runs ${runs.find((run) => !run.ok)?.why}, the form varies` };
+    // No more need than main: each reader of the app reads the note at its threshold, nothing of it read as text,
+    // under the least heap main's reader reads it under.
+    const more: string[] = [];
+    for (const parse of shellParses) {
+      const least = leastHeap(form, n, parse, false);
+      const kept = heapMb;
+      heapMb = least;
+      const own = least > 0 && passes(form, n, true, 1, [parse]).ok;
+      heapMb = kept;
+      if (!own) more.push(`${parse} needs more than ${least} MB`);
+    }
     // Three and ten times as large, at most the 10 MB the note's budget is measured for.
     const within = (factor: number) => Math.max(n, Math.min(n * factor, Math.floor((n * FAR_CHARS) / Math.max(1, noteOf(form, n).length))));
     const over = passes(form, within(3), true);
     const far = passes(form, within(10), true);
     const now = main / Math.max(1, n);
-    const inRatio = !measured || (now >= 1 && now <= ratio * 1.05);
-    const ok = at1.ok && over.ok && far.ok && inRatio;
+    const inRatio = now >= 1 && now <= ratio * 1.05;
+    // The scan's time far over the budget, with the note's budget against without it.
+    const scan = scanTime(noteOf(form, within(10)));
+    const scanOk = scan.with <= SCAN_FACTOR * scan.without + SCAN_SLACK_MS;
+    const ok = at1.ok && more.length === 0 && over.ok && far.ok && inRatio && scanOk;
     all &&= ok;
-    console.log(`         ${form.padEnd(10)} formatted up to ${String(n).padStart(7)}${measured ? `   main ${String(main).padStart(7)}   ratio ${now.toFixed(2)} (calibrated ${ratio.toFixed(2)})${inRatio ? "" : " FAIL"}` : ""}   at it x 1.05 ${at1.ok ? "pass 3/3" : `FAIL (${at1.why})`}   at 3 x ${over.ok ? "pass" : `FAIL (${over.why})`}   at 10 x ${far.ok ? "pass" : `FAIL (${far.why})`}`);
+    console.log(
+      `         ${form.padEnd(11)} formatted up to ${String(n).padStart(7)}   main ${String(main).padStart(7)}   ratio ${now.toFixed(2)} (calibrated ${ratio.toFixed(2)})${inRatio ? "" : " FAIL"}` +
+        `   at it x 1.05 ${at1.ok ? "pass 3/3" : `FAIL (${at1.why})`}   at it ${more.length ? `FAIL (${more.join(", ")})` : "no more than main"}` +
+        `   at 3 x ${over.ok ? "pass" : `FAIL (${over.why})`}   at 10 x ${far.ok ? "pass" : `FAIL (${far.why})`}` +
+        `   scan ${Math.round(scan.with)} / ${Math.round(scan.without)} ms${scanOk ? "" : " FAIL"}`,
+    );
   }
   console.log(`check    ${all ? "every form passes" : "FAILED"}`);
   return all;
 }
 
 /** The most units of a form the three parses read without the budget under the capped heap, searched from `from` up. */
-function readUnbounded(form: string, from: number): number {
-  let lo = Math.max(1, Math.floor(from / 2));
-  if (!passes(form, lo, false).ok) return 0;
-  let hi = lo * 2;
-  while (passes(form, hi, false).ok) {
-    lo = hi;
-    hi *= 2;
-    if (noteOf(form, hi).length > FAR_CHARS) return hi;
+/** One reader on one note in a process of its own under the capped heap, the others beside it (`passesTogether`). */
+function readerRun(name: string, n: number, parse: string, bounded: boolean): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [`--max-old-space-size=${heapMb}`, "--import", "tsx", HERE, "--child", name, String(n), "1", parse, bounded ? "bounded" : "unbounded"], { cwd: CORE, env: { ...process.env, PLAINVA_NOTE_BUDGET_FACTOR: String(budgetFactor) } });
+    let out = "";
+    child.stdout.on("data", (chunk) => (out += chunk));
+    child.stderr.resume();
+    const timer = setTimeout(() => child.kill("SIGKILL"), 300_000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve(code === 0 && /^ok \d+/m.test(out));
+    });
+  });
+}
+
+/** Whether every reader of the shell reads the note under the heap: the readers side by side, each its own process. */
+async function passesTogether(name: string, n: number, bounded: boolean): Promise<boolean> {
+  return (await Promise.all(shellParses.map((parse) => readerRun(name, n, parse, bounded)))).every(Boolean);
+}
+
+/**
+ * The most units of a form the shell's readers read without the note's budget
+ * under the capped heap: from `hint` (the limit of an earlier calibration,
+ * scaled to this heap) a bracket of a quarter at a time up or down, then
+ * halved to within 2 %; without a hint from `from` up, doubling.
+ */
+async function readUnbounded(form: string, from: number, hint?: number): Promise<number> {
+  const far = (n: number) => noteOf(form, n).length > FAR_CHARS;
+  let lo: number;
+  let hi: number;
+  if (hint) {
+    const start = Math.max(1, Math.round(hint));
+    if (await passesTogether(form, start, false)) {
+      lo = start;
+      hi = Math.ceil(start * 1.25);
+      while (await passesTogether(form, hi, false)) {
+        lo = hi;
+        if (far(hi)) return hi;
+        hi = Math.ceil(hi * 1.25);
+      }
+    } else {
+      hi = start;
+      lo = Math.max(1, Math.floor(start / 1.25));
+      while (!(await passesTogether(form, lo, false))) {
+        hi = lo;
+        if (lo === 1) return 0;
+        lo = Math.max(1, Math.floor(lo / 1.25));
+      }
+    }
+  } else {
+    lo = Math.max(1, Math.floor(from / 2));
+    if (!(await passesTogether(form, lo, false))) return 0;
+    hi = lo * 2;
+    while (await passesTogether(form, hi, false)) {
+      lo = hi;
+      hi *= 2;
+      if (far(hi)) return hi;
+    }
   }
-  // To within 2 %: each step reads the note three times, each in a process of its own.
+  // To within 2 %.
   while (hi - lo > Math.max(1, Math.floor(lo / 50))) {
     const mid = (lo + hi) >> 1;
-    if (passes(form, mid, false).ok) lo = mid;
+    if (await passesTogether(form, mid, false)) lo = mid;
     else hi = mid;
   }
   return lo;
@@ -376,15 +508,21 @@ function features(args: string[]): void {
   });
 }
 
-function calibrate(args: string[]): void {
+async function calibrate(args: string[]): Promise<void> {
+  const { name } = useShell(args);
+  // Where to begin each form's search: the limits of the calibration of 2026-11-19 (128 MB, three readers), times `--hint-factor`.
+  const hints = (JSON.parse(readFileSync(path.join(path.dirname(HERE), "noteBudgetForms.json"), "utf8")) as { forms: Record<string, { main: number }> }).forms;
+  const hintFactor = args.includes("--hint-factor") ? Number(args[args.indexOf("--hint-factor") + 1]) : 1;
   const named = args[args.indexOf("--calibrate") + 1];
   const forms = named && !named.startsWith("--") ? named.split(",") : Object.keys(NOTE_FORMS);
-  console.log(`calibrate note budget ${NOTE_BUDGET}, ${heapMb} MB, ${shellParses.join(" ")}; ${forms.length} forms (units: lines, items, blocks or tables of the form)`);
+  const out = args.includes("--out") ? args[args.indexOf("--out") + 1] : null;
+  console.log(`calibrate ${name}: note budget ${NOTE_BUDGET * budgetFactor}, ${heapMb} MB, ${shellParses.join(" ")}; ${forms.length} forms (units: lines, items, blocks or tables of the form)`);
   for (const form of forms) {
     const budget = readAsItIs(form);
-    const main = readUnbounded(form, budget);
+    const main = await readUnbounded(form, budget, hints[form] ? hints[form].main * hintFactor : undefined);
     const ratio = budget > 0 ? main / budget : Infinity;
     console.log(`         ${form.padEnd(10)} read as it is up to ${String(budget).padStart(7)}   without the note budget up to ${String(main).padStart(7)}   ratio ${ratio.toFixed(2)}`);
+    if (out) appendFileSync(out, `${JSON.stringify({ shell: name, form, main, branch: budget, ratio: Math.round(ratio * 100) / 100 })}\n`);
   }
 }
 
@@ -432,9 +570,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const args = process.argv.slice(2);
   const flag = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
   if (flag("--parses")) shellParses = flag("--parses")!.split(",");
-  if (flag("--heap") && !args.includes("--check")) heapMb = Number(flag("--heap"));
+  if (flag("--heap") && !args.includes("--check") && !args.includes("--calibrate")) heapMb = Number(flag("--heap"));
   if (args[0] === "--child") await child(args[1], Number(args[2]), Number(args[3]), args[4], args[5] === "bounded");
-  else if (args.includes("--calibrate")) calibrate(args);
+  else if (args.includes("--calibrate")) await calibrate(args);
   else if (args.includes("--features")) features(args);
   else if (args.includes("--hunt")) {
     if (!hunt(args)) process.exitCode = 1;

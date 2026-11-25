@@ -239,6 +239,8 @@ test('a note over its budget: the notice over the note, its heaviest block as so
   await expect(editor.getByText('Title').first()).toBeVisible({ timeout: 30_000 });
   const notice = page.getByTestId('read-as-text-notice');
   await expect(notice).toBeVisible({ timeout: 15_000 });
+  // Read in pieces for its links: the notice says it is shown as text, not that it is unread.
+  await expect(notice).not.toHaveAttribute('data-unread', 'true');
   // Outside the list the live preview draws the link (its brackets hidden); the list is its source.
   await expect(editor.getByText('[[Kept]]')).toHaveCount(0);
   await page.getByTestId('read-as-text-jump').click();
@@ -260,4 +262,20 @@ test('a note over its budget: the notice over the note, its heaviest block as so
   await page.getByText('Remote', { exact: true }).first().click();
   await expect(page.locator('.markdown-reader, .cm-content').first().getByText('The end.')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('read-as-text-notice')).toHaveCount(0);
+});
+
+test('a paragraph too dense to read: the notice says its links are not read, in the editor and the reading view (L14)', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await openNote(page, 'LongLine');
+  const editor = page.locator('.cm-content');
+  await expect(editor.getByText('Title').first()).toBeVisible({ timeout: 30_000 });
+  const notice = page.getByTestId('read-as-text-notice');
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  await expect(notice).toHaveAttribute('data-unread', 'true');
+  await expect(notice).toContainText(/its links are not read|seine Links werden nicht gelesen/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('read-as-text-unread-editor.png') });
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+  await expect(page.locator('.markdown-reader').first().locator('h2', { hasText: 'After' })).toHaveCount(1, { timeout: 30_000 });
+  await expect(notice).toHaveAttribute('data-unread', 'true');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('read-as-text-unread-reader.png') });
 });

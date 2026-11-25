@@ -274,3 +274,18 @@ describe("the cases of the review of the link search (2026-11-19), at the real b
     }
   });
 });
+
+describe("what the note's budget leaves unread", () => {
+  it("is counted by a rename where it names the renamed note, and rewritten nowhere", () => {
+    expect.hasAssertions();
+    // A paragraph over the inline budget: no reading of links reaches it, so a link to `Old` there stays as it is —
+    // and the rename says that one may still name the old file.
+    const stretch = `[[Old]] ${"x]".repeat(20_000)}`;
+    const note = `[[Old]]\n\n${stretch}\n\n[[Other]]\n`;
+    const result = renameNoteLinks(note, new Map([["Old", "New"]]));
+    expect(result.content).toBe(`[[New]]\n\n${stretch}\n\n[[Other]]\n`);
+    expect(result.renamed).toBe(1);
+    expect(result.unplaced).toBe(1);
+    expect(renameNoteLinks(note, new Map([["Gone", "New"]])).unplaced).toBe(0);
+  });
+});
