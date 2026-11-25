@@ -244,6 +244,7 @@ describe("the settings model", () => {
     draftRedact: [],
     live: null,
     notice: null,
+    returned: null,
     dress: null,
     hasVault: true,
     vaultEpoch: 1,

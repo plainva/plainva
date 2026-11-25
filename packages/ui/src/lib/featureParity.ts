@@ -401,23 +401,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-24",
   },
   {
-    id: "ai-setup-guided",
-    title: "Setting up the AI in three steps from \"Set up\" to the first answer (plan Oberfläche O7, T9)",
-    area: "ai",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "T9 was found on the phone, where \"Set up\" led to a long page; the " +
-      "three-step sheet is built there. On the desktop \"Set up\" opens " +
-      "Settings > AI, which since O7 also lists the profiles only once a " +
-      "provider exists, and the conversation is begun by hand afterwards. " +
-      "The steps' logic is shared (aiSetupOffer, aiSetupStart, sendGreeting); " +
-      "a desktop dialog over it is still to build - deferred on 2026-11-16 " +
-      "to wave 4 of plan Oberfläche, in the maintainer's open-items plan.",
-    mobile: "yes",
-    verified: "2026-11-16",
-  },
-  {
     id: "ai-system-intents",
     title: "The system's assistant finds notes and takes down entries (Siri and Shortcuts; plan KI-Harness P4.7)",
     area: "ai",

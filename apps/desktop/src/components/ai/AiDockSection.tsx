@@ -4,7 +4,8 @@ import { ExternalLink, PanelTop, Sparkles, SquarePen, X } from "lucide-react";
 import { editorSelectionReader } from "../../services/editorSelection";
 import { requestSkillsView } from "../../services/ai/desktopAi";
 import { ICON, IconButton } from "@plainva/ui";
-import { AiConversation } from "@plainva/ui/ai";
+import { AiConversation, useAiSession } from "@plainva/ui/ai";
+import { useAiSetupDoor } from "./useAiSetupDoor";
 
 export interface AiDockProps {
   activeNote: { path: string; title: string } | null;
@@ -38,6 +39,8 @@ export interface AiDockProps {
  */
 export function AiDockSection({ activeNote, onNewConversation, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, onClose, onPopOut, onOpenAsTab }: AiDockProps) {
   const { t } = useTranslation();
+  // "Set up" leads through the three steps while one is missing (plan Oberfläche O7, T9; B7).
+  const setup = useAiSetupDoor(useAiSession() ?? null, onOpenSettings);
   const root = useRef<HTMLElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   // Focus follows the conversation (review O7, R4): into its field when it takes the column, back to where it came from
@@ -79,7 +82,8 @@ export function AiDockSection({ activeNote, onNewConversation, onOpenNote, onOpe
           <X size={ICON.ui} />
         </IconButton>
       </div>
-      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} onOpenSkills={() => requestSkillsView()} />
+      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={setup.open} onPickNote={onPickNote} onOpenSkills={() => requestSkillsView()} />
+      {setup.dialog}
     </section>
   );
 }

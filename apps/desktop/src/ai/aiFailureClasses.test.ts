@@ -116,7 +116,7 @@ describe("a request that may have arrived", () => {
     await s.send("What is in it?");
     // A turn with a picture in it, as "Explain image" leaves one (the composer itself takes none).
     const stored = vault.saved.get("id1")!;
-    const picture = { type: "image" as const, mime: "image/png", data: "iVBORw0KGgo=", name: "chart.png", width: 4, height: 4, path: "chart.png" };
+    const picture = { type: "image" as const, mime: "image/png" as const, data: "iVBORw0KGgo=", name: "chart.png", width: 4, height: 4, path: "chart.png" };
     stored.conversation = { ...stored.conversation, turns: stored.conversation.turns.map((turn, i) => (i === 0 ? { ...turn, parts: [...turn.parts, picture] } : turn)) };
     vault.saved.set("id1", stored);
     await s.open("id1");

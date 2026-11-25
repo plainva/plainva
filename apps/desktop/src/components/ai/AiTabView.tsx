@@ -34,6 +34,7 @@ import { AI_MEMORY_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, getDesktopAiSession
 import { MemoryView } from "./MemoryView";
 import { SkillsWorkshop } from "./SkillsWorkshop";
 import { editorSelectionReader } from "../../services/editorSelection";
+import { useAiSetupDoor } from "./useAiSetupDoor";
 
 /**
  * The AI tab `plainva://ai` (plan KI-Harness §19.1, dress C): the same
@@ -92,6 +93,8 @@ function AiTabBody({
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
+  // "Set up" leads through the three steps while one is missing (plan Oberfläche O7, T9; B7).
+  const setup = useAiSetupDoor(session ?? null, onOpenSettings);
   const [query, setQuery] = useState("");
   const [shown, setShown] = useState<string[] | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: ConversationRowCaps } | null>(null);
@@ -249,10 +252,11 @@ function AiTabBody({
           ) : view === "open" ? (
             <AiOpenPanel session={session} state={state.drafts} proposals={proposals} onOpenNote={onOpenPath} onOpenCreated={onOpenPath} />
           ) : (
-            <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} onOpenSkills={() => setView("skills")} />
+            <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={setup.open} onPickNote={onPickNote} onOpenSkills={() => setView("skills")} />
           )}
         </section>
       </div>
+      {setup.dialog}
       {menu && (
         <MenuSurface open onClose={() => setMenu(null)} at={menu.at} ariaLabel={t("common.moreActions")}>
           <RowActionList build={(tt) => conversationRowActions(tt, menu.caps)}>

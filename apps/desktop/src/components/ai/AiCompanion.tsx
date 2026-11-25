@@ -4,6 +4,7 @@ import { editorSelectionReader } from "../../services/editorSelection";
 import { requestSkillsView } from "../../services/ai/desktopAi";
 import { FloatingWindow, ICON, IconButton } from "@plainva/ui";
 import { AiConversation, startAiConversation, useAiSession } from "@plainva/ui/ai";
+import { useAiSetupDoor } from "./useAiSetupDoor";
 
 /**
  * The companion (plan KI-Harness §19.1, dress A): the conversation in the
@@ -39,7 +40,10 @@ export function AiCompanion({
 }) {
   const { t } = useTranslation();
   const session = useAiSession();
+  // "Set up" leads through the three steps while one is missing (plan Oberfläche O7, T9; B7).
+  const setup = useAiSetupDoor(session ?? null, onOpenSettings);
   return (
+    <>
     <FloatingWindow
       persistKey="ai-companion"
       defaultWidth={440}
@@ -67,7 +71,9 @@ export function AiCompanion({
         </>
       }
     >
-      <AiConversation selection={editorSelectionReader} dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} onOpenSkills={() => requestSkillsView()} />
+      <AiConversation selection={editorSelectionReader} dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={setup.open} onPickNote={onPickNote} onOpenSkills={() => requestSkillsView()} />
     </FloatingWindow>
+    {setup.dialog}
+    </>
   );
 }

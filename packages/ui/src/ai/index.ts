@@ -16,6 +16,7 @@ export * from "./baseAiParts";
 export * from "./aiSettingsModel";
 export * from "./localMode";
 export * from "./aiSetup";
+export * from "./useAiSetupFlow";
 export * from "./answerGrounds";
 export * from "./answerLinks";
 export * from "./aiStart";
