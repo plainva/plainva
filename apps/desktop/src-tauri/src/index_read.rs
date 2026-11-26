@@ -123,6 +123,19 @@ fn resolve_request(roots: &WriteRoots, root_id: &str, request: &IndexReadRequest
     registered_path(roots, root_id, &request.rel_path).ok()
 }
 
+/// Reads a group of files below one registered root, looking the root up
+/// anew for each file. `begin` hears of each file as its read begins, before
+/// the lookup (the command passes nothing; the tests close the vault there).
+fn read_group<B>(roots: &WriteRoots, root_id: &str, files: Vec<IndexReadRequest>, begin: B) -> Vec<IndexReadResult>
+where
+    B: Fn(&IndexReadRequest) + Sync,
+{
+    read_all(files, |request| {
+        begin(request);
+        resolve_request(roots, root_id, request)
+    })
+}
+
 #[tauri::command]
 pub async fn read_files_for_index(
     root_id: String,
@@ -135,7 +148,7 @@ pub async fn read_files_for_index(
     }
     tauri::async_runtime::spawn_blocking(move || {
         let roots = app.state::<WriteRoots>();
-        read_all(files, |request| resolve_request(&roots, &root_id, request))
+        read_group(&roots, &root_id, files, |_| {})
     })
         .await
         .map_err(|error| format!("index read failed: {error}"))
@@ -243,16 +256,21 @@ mod tests {
             write(&dir, &format!("{i}.md"), format!("note {i}").as_bytes());
         }
         let roots = roots_at(&dir);
-        let asked = std::sync::atomic::AtomicUsize::new(0);
-        let results = read_all((0..64).map(|i| ask(&format!("{i}.md"), true)).collect(), |request| {
-            // The vault closes after the first file a reader begins.
-            if asked.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 1 {
+        // The vault closes as the second file begins, and every later beginning
+        // waits on the same lock until the close is done: no reader takes another
+        // file before it, however the threads are scheduled. Only the first file
+        // may have found the root.
+        let begun = std::sync::Mutex::new(0usize);
+        let results = read_group(&roots, "root", (0..64).map(|i| ask(&format!("{i}.md"), true)).collect(), |_| {
+            let mut begun = begun.lock().unwrap();
+            *begun += 1;
+            if *begun == 2 {
                 roots.0.lock().unwrap().remove("root");
             }
-            resolve_request(&roots, "root", request)
         });
         let read = results.iter().filter(|result| matches!(result, IndexReadResult::Text { .. })).count();
-        assert!(read <= READERS, "{read} files were read after the vault closed");
+        assert!(read <= 1, "{read} files were read after the vault closed");
+        assert_eq!(*begun.lock().unwrap(), 64);
         assert_eq!(results.len(), 64);
     }
 
